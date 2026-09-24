@@ -60,7 +60,7 @@ export function fail(): void {
         /// @resolution.pattern source=y kind=binding target=fail.y
         /// @resolution.name source=x target=fail.x
         /// @resolution.operator source="x + 1" type=int32 operator="+" kind=builtin operands=[x as int32 families=(integer), 1 as int32 families=(integer)]
-        /// @resolution.place source=x placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=x root=fail.x
 
     }
@@ -157,7 +157,7 @@ export function uninit(): void {
     /// @resolution.name source=foo target=foo
     /// @resolution.call source=foo(x) parameters=(int32) arguments=(provided(x) as int32) return=void kind=symbol target=foo
     /// @resolution.name source=x target=uninit.x
-    /// @resolution.place source=x placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=x root=uninit.x
 
 }
@@ -172,12 +172,13 @@ export function ifNoElse(flag: boolean): void {
 
     if (flag) {
     /// @resolution.name source=flag target=ifNoElse.flag
-    /// @resolution.place source=flag placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=flag placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=flag root=ifNoElse.flag
 
         x = 10;
         /// @resolution.name source=x target=ifNoElse.x
         /// @resolution.pattern.assign source=x kind=place
+        /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=x root=ifNoElse.x
         /// @resolution.assignment source=x write=binding(ifNoElse.x) type=int32
 
@@ -186,7 +187,7 @@ export function ifNoElse(flag: boolean): void {
     /// @resolution.name source=foo target=foo
     /// @resolution.call source=foo(x) parameters=(int32) arguments=(provided(x) as int32) return=void kind=symbol target=foo
     /// @resolution.name source=x target=ifNoElse.x
-    /// @resolution.place source=x placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=x root=ifNoElse.x
 
 }
@@ -201,12 +202,13 @@ export function ifWithElse(flag: boolean): void {
 
     if (flag) {
     /// @resolution.name source=flag target=ifWithElse.flag
-    /// @resolution.place source=flag placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=flag placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=flag root=ifWithElse.flag
 
         x = 10;
         /// @resolution.name source=x target=ifWithElse.x
         /// @resolution.pattern.assign source=x kind=place
+        /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=x root=ifWithElse.x
         /// @resolution.assignment source=x write=binding(ifWithElse.x) type=int32
 
@@ -214,6 +216,7 @@ export function ifWithElse(flag: boolean): void {
         x = 20;
         /// @resolution.name source=x target=ifWithElse.x
         /// @resolution.pattern.assign source=x kind=place
+        /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=x root=ifWithElse.x
         /// @resolution.assignment source=x write=binding(ifWithElse.x) type=int32
 
@@ -222,7 +225,7 @@ export function ifWithElse(flag: boolean): void {
     /// @resolution.name source=foo target=foo
     /// @resolution.call source=foo(x) parameters=(int32) arguments=(provided(x) as int32) return=void kind=symbol target=foo
     /// @resolution.name source=x target=ifWithElse.x
-    /// @resolution.place source=x placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=x root=ifWithElse.x
 
 }
@@ -236,7 +239,7 @@ export function whileCond(): void {
 
     while (x) {}
     /// @resolution.name source=x target=whileCond.x
-    /// @resolution.place source=x placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=x root=whileCond.x
 
 }
@@ -310,6 +313,7 @@ value = 2;
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=2 type=2
@@ -345,6 +349,7 @@ value = "text";
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source="\"text\"" type="text"
@@ -386,7 +391,7 @@ value += 2;
 /// @resolution.name source=value target=value
 /// @resolution.operator source="value += 2" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 2 as int32 families=(integer)]
 /// @resolution.pattern.assign source=value kind=place
-/// @resolution.place source=value placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.assignment source=value read=binding(value) write=binding(value) type=int32
 /// @resolution.access source=value root=value
 /// @type.node source=2 type=2
@@ -422,6 +427,7 @@ value = 2;
 /// @type.node source=value type=int64
 /// @resolution.name source=value target=value
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=int64
 /// @type.node source=2 type=2
@@ -457,6 +463,7 @@ value = "text";
 /// @type.node source=value type=int64
 /// @resolution.name source=value target=value
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=int64
 /// @type.node source="\"text\"" type="text"
@@ -496,6 +503,7 @@ value = 1;
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=1 type=1
@@ -524,39 +532,22 @@ values = [1, 2];
 let values: int32[];
 /// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
-/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
-/// @generic.instance id=clear<int32> template=clear arguments=(int32)
-/// @generic.instance id=drop<int32> template=drop arguments=(int32)
-/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 
 values = [1, 2];
 /// @type.node source="values = [1, 2]" type=int32[]
 /// @type.node source=values type=int32[]
 /// @resolution.name source=values target=values
 /// @resolution.pattern.assign source=values kind=place
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @resolution.assignment source=values write=binding(values) type=int32[]
 /// @type.node source=[1, 2] type=int32[]
 /// @resolution.call source=[1, 2] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32, provided(2) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id=fromOwnedSlice<int32> template=fromOwnedSlice arguments=(int32)
-/// @generic.instance id=intoUninit<int32> template=intoUninit arguments=(int32)
-/// @generic.instance id=size<int32> template=size arguments=(int32)
-/// @generic.instance id=sliceIntoUninit<int32> template=sliceIntoUninit arguments=(int32)
-/// @generic.instance id=sliceLength<int32> template=sliceLength arguments=(int32)
 /// @type.node source=1 type=1
 /// @type.node source=2 type=2
 "#,
@@ -584,39 +575,22 @@ values = [];
 let values: int32[];
 /// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
-/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
-/// @generic.instance id=clear<int32> template=clear arguments=(int32)
-/// @generic.instance id=drop<int32> template=drop arguments=(int32)
-/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 
 values = [];
 /// @type.node source="values = []" type=int32[]
 /// @type.node source=values type=int32[]
 /// @resolution.name source=values target=values
 /// @resolution.pattern.assign source=values kind=place
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @resolution.assignment source=values write=binding(values) type=int32[]
 /// @type.node source=[] type=int32[]
 /// @resolution.call source=[] parameters=(^Slice<int32>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id=fromOwnedSlice<int32> template=fromOwnedSlice arguments=(int32)
-/// @generic.instance id=intoUninit<int32> template=intoUninit arguments=(int32)
-/// @generic.instance id=size<int32> template=size arguments=(int32)
-/// @generic.instance id=sliceIntoUninit<int32> template=sliceIntoUninit arguments=(int32)
-/// @generic.instance id=sliceLength<int32> template=sliceLength arguments=(int32)
 "#,
     );
 }
@@ -648,6 +622,7 @@ values = [1, 2];
 /// @type.node source=values type=FixedArray<int32, 2>
 /// @resolution.name source=values target=values
 /// @resolution.pattern.assign source=values kind=place
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @resolution.assignment source=values write=binding(values) type=FixedArray<int32, 2>
 /// @type.node source=[1, 2] type=FixedArray<int32, 2>
@@ -684,6 +659,7 @@ values = [1, 2, 3];
 /// @type.node source=values type=FixedArray<int32, 2>
 /// @resolution.name source=values target=values
 /// @resolution.pattern.assign source=values kind=place
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 /// @resolution.assignment source=values write=binding(values) type=FixedArray<int32, 2>
 /// @type.node source=[1, 2, 3] type=FixedArray<int32, 3>
@@ -729,6 +705,7 @@ value = "ready";
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=string
 /// @type.node source="\"ready\"" type="ready"
@@ -819,7 +796,7 @@ let value: string;
 if (condition) {
 /// @type.node source=condition type=boolean
 /// @resolution.name source=condition target=condition
-/// @resolution.place source=condition placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=condition placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=condition root=condition
 
     value = "ready";
@@ -827,6 +804,7 @@ if (condition) {
     /// @type.node source=value type=string
     /// @resolution.name source=value target=value
     /// @resolution.pattern.assign source=value kind=place
+    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=value root=value
     /// @resolution.assignment source=value write=binding(value) type=string
     /// @type.node source="\"ready\"" type="ready"
@@ -887,7 +865,7 @@ let value: string | undefined = undefined;
 if (condition) {
 /// @type.node source=condition type=boolean
 /// @resolution.name source=condition target=condition
-/// @resolution.place source=condition placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=condition placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=condition root=condition
 
     value = "ready";
@@ -895,6 +873,7 @@ if (condition) {
     /// @type.node source=value type=string | undefined
     /// @resolution.name source=value target=value
     /// @resolution.pattern.assign source=value kind=place
+    /// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=value root=value
     /// @resolution.assignment source=value write=binding(value) type=string | undefined
     /// @type.node source="\"ready\"" type="ready"

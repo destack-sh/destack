@@ -42,8 +42,8 @@ handlers["on-message"] satisfies (value: string) => void;
 === dir ===
 type Handlers<T> = {
 /// @generic.template symbol=Handlers parameters=(T)
-/// @type.symbol symbol=Handlers type={ [K in keyof T as `on-${K}`]: Function<(T[K],), void> }
-/// @definition.type symbol=Handlers template=(T) value={ [K in keyof T as `on-${K}`]: Function<(T[K],), void> }
+/// @type.symbol symbol=Handlers type={ [K in keyof T as `on-${K}`]: (T[K]) => void }
+/// @definition.type symbol=Handlers template=(T) value={ [K in keyof T as `on-${K}`]: (T[K]) => void }
 /// @type.symbol symbol=Handlers.T source=T type=T
 /// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T)
 
@@ -79,8 +79,8 @@ handlers["on-ready"] satisfies (value: boolean) => void;
 /// @resolution.name source=handlers target=handlers
 /// @resolution.place source="handlers[\"on-ready\"]" placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source="handlers[\"on-ready\"]" root=handlers keys=[on-ready]
-/// @resolution.subscript source="handlers[\"on-ready\"]" type=Function<(Events["ready"],), void> kind=member target="receiver=Handlers<Events>, target=field(receiver=Handlers<Events>, target=on-ready, type=Function<(Events[\"ready\"],), void>), type=Function<(Events[\"ready\"],), void>"
-/// @resolution.place source=handlers placement="local" lifetime="managed" access="mutable"
+/// @resolution.subscript source="handlers[\"on-ready\"]" type=(Events["ready"]) => void kind=member target="receiver=Handlers<Events>, target=field(receiver=Handlers<Events>, target=on-ready, type=(Events[\"ready\"]) => void), type=(Events[\"ready\"]) => void"
+/// @resolution.place source=handlers placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=handlers root=handlers
 /// @type.symbol symbol=value#1 source="value: boolean" type=boolean
 
@@ -88,8 +88,8 @@ handlers["on-message"] satisfies (value: string) => void;
 /// @resolution.name source=handlers target=handlers
 /// @resolution.place source="handlers[\"on-message\"]" placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source="handlers[\"on-message\"]" root=handlers keys=[on-message]
-/// @resolution.subscript source="handlers[\"on-message\"]" type=Function<(Events["message"],), void> kind=member target="receiver=Handlers<Events>, target=field(receiver=Handlers<Events>, target=on-message, type=Function<(Events[\"message\"],), void>), type=Function<(Events[\"message\"],), void>"
-/// @resolution.place source=handlers placement="local" lifetime="managed" access="mutable"
+/// @resolution.subscript source="handlers[\"on-message\"]" type=(Events["message"]) => void kind=member target="receiver=Handlers<Events>, target=field(receiver=Handlers<Events>, target=on-message, type=(Events[\"message\"]) => void), type=(Events[\"message\"]) => void"
+/// @resolution.place source=handlers placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=handlers root=handlers
 /// @type.symbol symbol=value#2 source="value: string" type=string
 "#,
@@ -138,8 +138,8 @@ getters.getAge satisfies () => int32;
 === dir ===
 type Getters<T> = {
 /// @generic.template symbol=Getters parameters=(T)
-/// @type.symbol symbol=Getters type={ [K in keyof T as `get${Capitalize<string & K>}`]: Function<(), T[K]> }
-/// @definition.type symbol=Getters template=(T) value={ [K in keyof T as `get${Capitalize<string & K>}`]: Function<(), T[K]> }
+/// @type.symbol symbol=Getters type={ [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K] }
+/// @definition.type symbol=Getters template=(T) value={ [K in keyof T as `get${Capitalize<string & K>}`]: () => T[K] }
 /// @type.symbol symbol=Getters.T source=T type=T
 /// @generic.template source=type_expression parent=template#0 parameters=(K: keyof T)
 
@@ -173,16 +173,16 @@ declare const getters: Getters<Person>;
 
 getters.getName satisfies () => string;
 /// @resolution.name source=getters target=getters
-/// @resolution.member source=getters.getName receiver=Getters<Person> type=Function<(), Person["name"]> kind=field target_receiver=Getters<Person> key=getName target_type=Function<(), Person["name"]>
-/// @resolution.place source=getters placement="local" lifetime="managed" access="mutable"
+/// @resolution.member source=getters.getName receiver=Getters<Person> type=() => Person["name"] kind=field target_receiver=Getters<Person> key=getName target_type=() => Person["name"]
+/// @resolution.place source=getters placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=getters root=getters
 /// @resolution.place source=getters.getName placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=getters.getName root=getters keys=[getName]
 
 getters.getAge satisfies () => int32;
 /// @resolution.name source=getters target=getters
-/// @resolution.member source=getters.getAge receiver=Getters<Person> type=Function<(), Person["age"]> kind=field target_receiver=Getters<Person> key=getAge target_type=Function<(), Person["age"]>
-/// @resolution.place source=getters placement="local" lifetime="managed" access="mutable"
+/// @resolution.member source=getters.getAge receiver=Getters<Person> type=() => Person["age"] kind=field target_receiver=Getters<Person> key=getAge target_type=() => Person["age"]
+/// @resolution.place source=getters placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=getters root=getters
 /// @resolution.place source=getters.getAge placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=getters.getAge root=getters keys=[getAge]
@@ -249,7 +249,7 @@ declare const value: Value;
 
 value satisfies string;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -331,7 +331,7 @@ declare const names: Names<Events>;
 names.user satisfies string;
 /// @resolution.name source=names target=names
 /// @resolution.member source=names.user receiver=Names<Events> type=string kind=field target_receiver=Names<Events> key=user target_type=string
-/// @resolution.place source=names placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=names placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=names root=names
 /// @resolution.place source=names.user placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=names.user root=names keys=[user]
@@ -414,7 +414,7 @@ const missing = names.orderPaid;
 /// @type.symbol symbol=missing source=missing type=<error>
 /// @resolution.pattern source=missing kind=binding target=missing
 /// @resolution.name source=names target=names
-/// @resolution.place source=names placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=names placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=names root=names
 /// @resolution.rejected source=names.orderPaid
 "#,
@@ -491,7 +491,7 @@ handlers["on-open"] satisfies boolean;
 /// @resolution.place source="handlers[\"on-open\"]" placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source="handlers[\"on-open\"]" root=handlers keys=[on-open]
 /// @resolution.subscript source="handlers[\"on-open\"]" type=boolean kind=member target="receiver={ on-open: boolean; on-close: boolean }, target=field(receiver={ on-open: boolean; on-close: boolean }, target=on-open, type=boolean), type=boolean"
-/// @resolution.place source=handlers placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=handlers placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=handlers root=handlers
 "#,
     );

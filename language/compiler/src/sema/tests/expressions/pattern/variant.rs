@@ -59,7 +59,7 @@ function describe(mode: Mode): int32 {
     match (mode) {
     /// @resolution.coverage exhaustive=true disjoint=true
     /// @resolution.name source=mode target=describe.mode
-    /// @resolution.place source=mode placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=mode placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=mode root=describe.mode
 
         Mode.Read => 10
@@ -135,7 +135,7 @@ function describe(mode: Mode): int32 {
     match (mode) {
     /// @resolution.coverage exhaustive=false disjoint=true
     /// @resolution.name source=mode target=describe.mode
-    /// @resolution.place source=mode placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=mode placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=mode root=describe.mode
 
         Mode.Read => 10
@@ -224,7 +224,7 @@ declare const status: Status;
 
 match (status) {
 /// @resolution.name source=status target=status
-/// @resolution.place source=status placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=status placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=status root=status
 
     Other.Ready => 0
@@ -295,7 +295,7 @@ declare const status: Status;
 match (status) {
 /// @resolution.coverage exhaustive=true disjoint=true
 /// @resolution.name source=status target=status
-/// @resolution.place source=status placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=status placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=status root=status
 
     Status.Done => 0
@@ -364,7 +364,7 @@ enum Mode {
 }
 
 declare const mode: &readonly Mode;
-/// @type.symbol symbol=mode source=mode type=&'static readonly constant Mode
+/// @type.symbol symbol=mode source=mode type=&'static readonly Mode
 /// @resolution.pattern source=mode kind=binding target=mode
 /// @resolution.name source=Mode target=Mode
 
@@ -373,7 +373,7 @@ const value = match (mode) {
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.coverage exhaustive=true disjoint=true
 /// @resolution.name source=mode target=mode
-/// @resolution.place source=mode placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=mode placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=mode root=mode
 
     Mode.Read => 10

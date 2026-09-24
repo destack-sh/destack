@@ -111,7 +111,7 @@ const copy = value;
 /// @resolution.pattern source=copy kind=binding target=copy
 /// @type.node source=value type=1
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -213,7 +213,7 @@ const same = value as int32;
 /// @type.symbol symbol=same source=same type=int32
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 "#,
         r#"
@@ -269,7 +269,7 @@ const size = point.lenght;
 /// @type.symbol symbol=size source=size type=<error>
 /// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 /// @resolution.rejected source=point.lenght
 "#,

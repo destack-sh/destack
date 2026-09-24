@@ -38,20 +38,20 @@ function label({ name, age }: { name: string; age: int32 }): string {
     /// @type.node source="name satisfies string" type=string
     /// @type.node source=name type=string
     /// @resolution.name source=name target=label.name#2
-    /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=name root=label.name#2
 
     age satisfies int32;
     /// @type.node source="age satisfies int32" type=int32
     /// @type.node source=age type=int32
     /// @resolution.name source=age target=label.age#2
-    /// @resolution.place source=age placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=age placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=age root=label.age#2
 
     name
     /// @type.node source=name type=string
     /// @resolution.name source=name target=label.name#2
-    /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=name root=label.name#2
 
 }
@@ -81,34 +81,19 @@ function first([head]: int32[]): int32 {
 === dir ===
 function first([head]: int32[]): int32 {
 /// @type.symbol symbol=first type=(int32[]) => int32
-/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
-/// @generic.instance id=clear<int32> template=clear arguments=(int32)
-/// @generic.instance id=drop<int32> template=drop arguments=(int32)
-/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 /// @resolution.pattern source=[head] kind=sequence element=int32 arity=1 fields=(first.head)
-/// @generic.instantiation id="index#1<int32, \"mutable\">" template=index#1 arguments=(int32, "mutable")
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="WithAccess<&'bound0 int32, \"mutable\">" template=WithAccess arguments=(&'bound0 int32, "mutable")
-/// @generic.instance id="WithAccess<&'bound0 int32[], \"mutable\">" template=WithAccess arguments=(&'bound0 int32[], "mutable")
-/// @generic.instance id="assumeInitReference<int32, \"mutable\">" template=assumeInitReference arguments=(int32, "mutable")
-/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
-/// @generic.instance id="index#1<int32, \"mutable\">" template=index#1 arguments=(int32, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id=elementPosition<int32> template=elementPosition arguments=(int32)
+/// @generic.instantiation id="index#2<int32, \"managed\" & \"local\">" template=index#2 arguments=(int32, "managed" & "local")
+/// @generic.instance id="index#2<int32, \"bound0\" & \"local\">" template=index#2 arguments=(int32, "bound0" & "local")
 /// @type.symbol symbol=first.head source=head type=int32
 /// @resolution.pattern source=head kind=binding target=first.head
 
     head
     /// @type.node source=head type=int32
     /// @resolution.name source=head target=first.head
-    /// @resolution.place source=head placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=head placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=head root=first.head
 
 }

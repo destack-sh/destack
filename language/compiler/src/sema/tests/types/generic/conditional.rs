@@ -1,9 +1,8 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A deferred conditional member rejects in the body and reduces at every call site.
 #[test]
 fn test_conditional_parameter_reduces_at_call_sites() {
-    // deferred conditional members reject in the body: no induced generics,
-    //  and the body needs narrowing; call sites reduce at instantiation
     let session = TestSession::single(
         r#"
 interface TextSink {
@@ -59,10 +58,10 @@ interface TextSink {
 /// @type.symbol symbol=TextSink type=TextSink
 /// @definition.interface symbol=TextSink template=(this: TextSink)
 /// @definition.where symbol=TextSink relation=satisfies left=this right=TextSink
-/// @definition.method symbol=TextSink.write source="write(value: string): void" slot=write type=(this: this, string) => void
+/// @definition.method symbol=TextSink.write source="write(value: string): void" slot=write type=(string) => void
 
     write(value: string): void;
-    /// @type.symbol symbol=TextSink.write source="write(value: string): void" type=(this: this, string) => void
+    /// @type.symbol symbol=TextSink.write source="write(value: string): void" type=(string) => void
     /// @type.symbol symbol=TextSink.write.value source="value: string" type=string
 
 }
@@ -72,10 +71,10 @@ interface NumberSink {
 /// @type.symbol symbol=NumberSink type=NumberSink
 /// @definition.interface symbol=NumberSink template=(this: NumberSink)
 /// @definition.where symbol=NumberSink relation=satisfies left=this right=NumberSink
-/// @definition.method symbol=NumberSink.write source="write(value: int32): void" slot=write type=(this: this, int32) => void
+/// @definition.method symbol=NumberSink.write source="write(value: int32): void" slot=write type=(int32) => void
 
     write(value: int32): void;
-    /// @type.symbol symbol=NumberSink.write source="write(value: int32): void" type=(this: this, int32) => void
+    /// @type.symbol symbol=NumberSink.write source="write(value: int32): void" type=(int32) => void
     /// @type.symbol symbol=NumberSink.write.value source="value: int32" type=int32
 
 }
@@ -101,12 +100,12 @@ function write<T>(value: T, sink: SinkFor<T>): void {
 
     sink.write(value);
     /// @resolution.name source=sink target=write.sink
-    /// @resolution.place source=sink placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=sink placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=sink root=write.sink
     /// @resolution.rejected source=sink.write
     /// @resolution.rejected source=sink.write(value)
     /// @resolution.name source=value target=write.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=write.value
 
 }
@@ -126,7 +125,7 @@ write("message", text);
 /// @resolution.call source="write(\"message\", text)" parameters=(string, SinkFor<string>) arguments=(provided("message") as string, provided(text) as SinkFor<string>) return=void kind=symbol target=write instance=write<string>
 /// @generic.instantiation id=write<string> template=write arguments=(string)
 /// @resolution.name source=text target=text
-/// @resolution.place source=text placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=text placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=text root=text
 
 write(1, number);
@@ -134,7 +133,7 @@ write(1, number);
 /// @resolution.call source="write(1, number)" parameters=(int64, SinkFor<int64>) arguments=(provided(1) as int64, provided(number) as SinkFor<int64>) return=void kind=symbol target=write instance=write<int64>
 /// @generic.instantiation id=write<int64> template=write arguments=(int64)
 /// @resolution.name source=number target=number
-/// @resolution.place source=number placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=number placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=number root=number
 "#,
         r#"
@@ -195,10 +194,10 @@ interface TextSink {
 /// @type.symbol symbol=TextSink type=TextSink
 /// @definition.interface symbol=TextSink template=(this: TextSink)
 /// @definition.where symbol=TextSink relation=satisfies left=this right=TextSink
-/// @definition.method symbol=TextSink.write source="write(value: string): void" slot=write type=(this: this, string) => void
+/// @definition.method symbol=TextSink.write source="write(value: string): void" slot=write type=(string) => void
 
     write(value: string): void;
-    /// @type.symbol symbol=TextSink.write source="write(value: string): void" type=(this: this, string) => void
+    /// @type.symbol symbol=TextSink.write source="write(value: string): void" type=(string) => void
     /// @type.symbol symbol=TextSink.write.value source="value: string" type=string
 
 }
@@ -208,10 +207,10 @@ interface NumberSink {
 /// @type.symbol symbol=NumberSink type=NumberSink
 /// @definition.interface symbol=NumberSink template=(this: NumberSink)
 /// @definition.where symbol=NumberSink relation=satisfies left=this right=NumberSink
-/// @definition.method symbol=NumberSink.write source="write(value: int32): void" slot=write type=(this: this, int32) => void
+/// @definition.method symbol=NumberSink.write source="write(value: int32): void" slot=write type=(int32) => void
 
     write(value: int32): void;
-    /// @type.symbol symbol=NumberSink.write source="write(value: int32): void" type=(this: this, int32) => void
+    /// @type.symbol symbol=NumberSink.write source="write(value: int32): void" type=(int32) => void
     /// @type.symbol symbol=NumberSink.write.value source="value: int32" type=int32
 
 }
@@ -240,13 +239,13 @@ function write<T>(value: T, sink: SinkFor<T>): void {
     /// @type.node source=sink.write type=<error>
     /// @type.node source=sink.write(value) type=<error>
     /// @resolution.name source=sink target=write.sink
-    /// @resolution.place source=sink placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=sink placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=sink root=write.sink
     /// @resolution.rejected source=sink.write
     /// @resolution.rejected source=sink.write(value)
     /// @type.node source=value type=T#2
     /// @resolution.name source=value target=write.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=write.value
 
 }
@@ -265,7 +264,7 @@ write("message", number);
 /// @type.node source="\"message\"" type="message"
 /// @type.node source=number type=NumberSink
 /// @resolution.name source=number target=number
-/// @resolution.place source=number placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=number placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=number root=number
 "#,
         r#"

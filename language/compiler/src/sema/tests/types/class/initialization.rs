@@ -330,30 +330,30 @@ class User {
 /// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
-/// @definition.method symbol=User.constructor slot=constructor role=constructor type=<User.constructor.P0: Place>(string) => Managed<User, User.constructor.P0>
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(this: &'managed User, string) => User
 
     name: string;
     /// @type.symbol symbol=User.name source="name: string" type=string
 
     constructor(name: string) {
-    /// @generic.template symbol=User.constructor parameters=(P0: Place)
-    /// @type.symbol symbol=User.constructor type=<User.constructor.P0: Place>(string) => Managed<User, User.constructor.P0>
-    /// @type.symbol symbol=User.constructor.this type=User
+    /// @type.symbol symbol=User.constructor type=(this: &'managed User, string) => User
+    /// @type.symbol symbol=User.constructor.this type=&'managed User
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
 
         this.name = name;
         /// @type.node source="this.name = name" type=string
-        /// @type.node source=this type=User
+        /// @type.node source=this type=&'managed User
         /// @type.node source=this.name type=string
-        /// @resolution.receiver source=this kind=this declaration=User type=User
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.receiver source=this kind=this declaration=User type=&'managed User
+        /// @resolution.place source=this placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.name kind=place
+        /// @resolution.place source=this.name placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this.name root=this keys=[name]
-        /// @resolution.assignment source=this.name write="receiver=User, target=field(receiver=User, target=User.name, type=string), type=string" type=string
+        /// @resolution.assignment source=this.name write="receiver=&'managed User, target=field(receiver=&'managed User, target=User.name, type=string), type=string" type=string
         /// @type.node source=name type=string
         /// @resolution.name source=name target=User.constructor.name
-        /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
+        /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=name root=User.constructor.name
 
     }
@@ -361,6 +361,7 @@ class User {
 "#,
     );
 }
+
 #[test]
 fn test_missing_constructor_path_reports_uninitialized_field() {
     let session = TestSession::single(
@@ -397,37 +398,37 @@ class User {
 /// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
-/// @definition.method symbol=User.constructor slot=constructor role=constructor type=<User.constructor.P0: Place>(boolean, string) => Managed<this, User.constructor.P0>
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(this: &'managed User, boolean, string) => User
 
     name: string;
     /// @type.symbol symbol=User.name source="name: string" type=string
 
     constructor(enabled: boolean, name: string) {
-    /// @generic.template symbol=User.constructor parameters=(P0: Place)
-    /// @type.symbol symbol=User.constructor type=<User.constructor.P0: Place>(boolean, string) => Managed<this, User.constructor.P0>
-    /// @type.symbol symbol=User.constructor.this type=User
+    /// @type.symbol symbol=User.constructor type=(this: &'managed User, boolean, string) => User
+    /// @type.symbol symbol=User.constructor.this type=&'managed User
     /// @type.symbol symbol=User.constructor.enabled source="enabled: boolean" type=boolean
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
 
         if (enabled) {
         /// @type.node source=enabled type=boolean
         /// @resolution.name source=enabled target=User.constructor.enabled
-        /// @resolution.place source=enabled placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=enabled placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=enabled root=User.constructor.enabled
 
             this.name = name;
             /// @type.node source="this.name = name" type=string
-            /// @type.node source=this type=User
+            /// @type.node source=this type=&'managed User
             /// @type.node source=this.name type=string
-            /// @resolution.receiver source=this kind=this declaration=User type=User
-            /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+            /// @resolution.receiver source=this kind=this declaration=User type=&'managed User
+            /// @resolution.place source=this placement="local" lifetime="managed" access="mutable"
             /// @resolution.access source=this root=this
             /// @resolution.pattern.assign source=this.name kind=place
+            /// @resolution.place source=this.name placement="local" lifetime="managed" access="mutable"
             /// @resolution.access source=this.name root=this keys=[name]
-            /// @resolution.assignment source=this.name write="receiver=User, target=field(receiver=User, target=User.name, type=string), type=string" type=string
+            /// @resolution.assignment source=this.name write="receiver=&'managed User, target=field(receiver=&'managed User, target=User.name, type=string), type=string" type=string
             /// @type.node source=name type=string
             /// @resolution.name source=name target=User.constructor.name
-            /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
+            /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
             /// @resolution.access source=name root=User.constructor.name
 
         }

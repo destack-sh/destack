@@ -46,7 +46,7 @@ function storageSize<T: Concrete>(): usize {
 
     return size;
     /// @resolution.name source=size target=storageSize.size
-    /// @resolution.place source=size placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=size placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=size root=storageSize.size
 
 }
@@ -62,7 +62,7 @@ const size = storageSize<int32>();
 
 size satisfies usize;
 /// @resolution.name source=size target=size
-/// @resolution.place source=size placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=size placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=size root=size
 "#,
     );
@@ -150,7 +150,7 @@ const size = const sizeOf<Shape>();
 
 size satisfies usize;
 /// @resolution.name source=size target=size
-/// @resolution.place source=size placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=size placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=size root=size
 "#,
     );
@@ -188,24 +188,13 @@ interface Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.interface symbol=Writer template=(this: Writer)
 /// @definition.where symbol=Writer relation=satisfies left=this right=Writer
-/// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): uint" slot=write type=(this: this, readonly uint8[]) => uint64
+/// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): uint" slot=write type=(readonly uint8[]) => uint64
 
     write(bytes: readonly uint8[]): uint;
-    /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): uint" type=(this: this, readonly uint8[]) => uint64
-    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-    /// @generic.instance id="elementSlot<uint8, \"mutable\">" template=elementSlot arguments=(uint8, "mutable")
-    /// @generic.instance id="initAsPointer<uint8, \"mutable\">" template=initAsPointer arguments=(uint8, "mutable")
-    /// @generic.instance id="sliceIndex<MaybeUninit<uint8>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<uint8>, "mutable")
-    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
+    /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): uint" type=(readonly uint8[]) => uint64
     /// @generic.instance id=Array<uint8> template=Array arguments=(uint8)
-    /// @generic.instance id=assumeInitDrop#1<uint8> template=assumeInitDrop#1 arguments=(uint8)
-    /// @generic.instance id=assumeInitDrop<uint8> template=assumeInitDrop arguments=(uint8)
-    /// @generic.instance id=clear<uint8> template=clear arguments=(uint8)
-    /// @generic.instance id=drop<uint8> template=drop arguments=(uint8)
-    /// @generic.instance id=dropInPlace<uint8> template=dropInPlace arguments=(uint8)
     /// @generic.instance id=sliceAssumeInit<MaybeUninit<uint8>> template=sliceAssumeInit arguments=(MaybeUninit<uint8>)
     /// @generic.instance id=sliceUninit<MaybeUninit<uint8>> template=sliceUninit arguments=(MaybeUninit<uint8>)
-    /// @generic.instance id=truncate<uint8> template=truncate arguments=(uint8)
     /// @type.symbol symbol=Writer.write.bytes source="bytes: readonly uint8[]" type=readonly uint8[]
 
 }
@@ -218,12 +207,11 @@ const size = const sizeOf<Dynamic<Writer>>();
 /// @generic.instantiation id=sizeOf<Dynamic<Writer>> template=sizeOf arguments=(Dynamic<Writer>)
 /// @generic.instance id=sizeOf<Dynamic<Writer>> template=sizeOf arguments=(Dynamic<Writer>)
 /// @resolution.name source=Dynamic target=Dynamic
-/// @generic.instance id=Dynamic<Writer> template=Dynamic arguments=(Writer)
 /// @resolution.name source=Writer target=Writer
 
 size satisfies usize;
 /// @resolution.name source=size target=size
-/// @resolution.place source=size placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=size placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=size root=size
 "#,
     );
@@ -258,25 +246,12 @@ size satisfies usize;
 === dir ===
 type Writer = {
 /// @type.symbol symbol=Writer type={ write(readonly uint8[]): uint64 }
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="elementSlot<uint8, \"mutable\">" template=elementSlot arguments=(uint8, "mutable")
-/// @generic.instance id="initAsPointer<uint8, \"mutable\">" template=initAsPointer arguments=(uint8, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<uint8>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<uint8>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=Array<uint8> template=Array arguments=(uint8)
-/// @generic.instance id=assumeInitDrop#1<uint8> template=assumeInitDrop#1 arguments=(uint8)
-/// @generic.instance id=assumeInitDrop<uint8> template=assumeInitDrop arguments=(uint8)
-/// @generic.instance id=clear<uint8> template=clear arguments=(uint8)
-/// @generic.instance id=drop<uint8> template=drop arguments=(uint8)
-/// @generic.instance id=dropInPlace<uint8> template=dropInPlace arguments=(uint8)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<uint8>> template=sliceAssumeInit arguments=(MaybeUninit<uint8>)
 /// @generic.instance id=sliceUninit<MaybeUninit<uint8>> template=sliceUninit arguments=(MaybeUninit<uint8>)
-/// @generic.instance id=truncate<uint8> template=truncate arguments=(uint8)
 /// @definition.type symbol=Writer value={ write(readonly uint8[]): uint64 }
 
     write(bytes: readonly uint8[]): uint;
-    /// @type.symbol symbol=Writer.write.bytes source="bytes: readonly uint8[]" type=readonly uint8[]
-
 };
 
 const size = const sizeOf<Dynamic<Writer>>();
@@ -287,12 +262,11 @@ const size = const sizeOf<Dynamic<Writer>>();
 /// @generic.instantiation id=sizeOf<Dynamic<Writer>> template=sizeOf arguments=(Dynamic<Writer>)
 /// @generic.instance id=sizeOf<Dynamic<Writer>> template=sizeOf arguments=(Dynamic<Writer>)
 /// @resolution.name source=Dynamic target=Dynamic
-/// @generic.instance id=Dynamic<Writer> template=Dynamic arguments=(Writer)
 /// @resolution.name source=Writer target=Writer
 
 size satisfies usize;
 /// @resolution.name source=size target=size
-/// @resolution.place source=size placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=size placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=size root=size
 "#,
     );
@@ -316,7 +290,7 @@ declare const value: Dynamic<<T>(input: T) => T>;
 
 === dir ===
 declare const value: Dynamic<<T>(input: T) => T>;
-/// @type.symbol symbol=value source=value type=Dynamic<Function<(T,), T>>
+/// @type.symbol symbol=value source=value type=Dynamic<<T>(T) => T>
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Dynamic target=Dynamic
 /// @generic.template source=type_expression parameters=(T)
@@ -526,7 +500,7 @@ function makeShape(flag: boolean): Shape {
     if (flag) {
     /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=makeShape.flag
-    /// @resolution.place source=flag placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=flag placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=flag root=makeShape.flag
 
         return Shape(Circle { radius: 1.0 } as Circle | Rectangle);
@@ -663,7 +637,7 @@ function makeShape(flag: boolean): Shape {
     if (flag) {
     /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=makeShape.flag
-    /// @resolution.place source=flag placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=flag placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=flag root=makeShape.flag
 
         return Circle { radius: 1.0 };

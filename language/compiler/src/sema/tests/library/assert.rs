@@ -39,22 +39,25 @@ declare const left: Point;
 declare const right: Point;
 
 assert(true);
-assert(true, ((): string => "lazy assertion failure") as AssertionMessage | undefined);
-assertEqual<Point, Point>(left as &'static readonly Point, right as &'static readonly Point);
-assertEqual<Point, Point>(
-    left as &'static readonly Point,
-    right as &'static readonly Point,
-    ((): string => "lazy equality failure") as AssertionMessage | undefined,
+assert(
+    true,
+    ((): string => "lazy assertion failure") as string | ^Function<(), string, "once"> | undefined,
 );
-assertNotEqual<Point, Point>(
-    left as &'static readonly Point,
-    right as &'static readonly Point,
-    "points must differ" as AssertionMessage | undefined,
+assertEqual<Point, Point, "static", "static">(left as &'static immutable Point, right);
+assertEqual<Point, Point, "static", "static">(
+    left as &'static immutable Point,
+    right,
+    ((): string => "lazy equality failure") as string | ^Function<(), string, "once"> | undefined,
 );
-assertNotEqual<Point, Point>(
-    left as &'static readonly Point,
-    right as &'static readonly Point,
-    ((): string => "lazy inequality failure") as AssertionMessage | undefined,
+assertNotEqual<Point, Point, "static", "static">(
+    left as &'static immutable Point,
+    right,
+    "points must differ" as string | ^Function<(), string, "once"> | undefined,
+);
+assertNotEqual<Point, Point, "static", "static">(
+    left as &'static immutable Point,
+    right,
+    ((): string => "lazy inequality failure") as string | ^Function<(), string, "once"> | undefined,
 );
 const x: int32 = left.x;
 
@@ -76,6 +79,7 @@ assertNotEqual(left, right, "points must differ");
 assertNotEqual(left, right, () => "lazy inequality failure");
 const x = left.x;
 "#,
-        "",
+        r#"
+"#,
     );
 }

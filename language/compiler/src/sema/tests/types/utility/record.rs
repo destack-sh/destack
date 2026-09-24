@@ -28,7 +28,7 @@ flags.b satisfies boolean;
 
 === dir ===
 type Flags = Record<"a" | "b", boolean>;
-/// @type.symbol symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" type=Record<"a" | "b", boolean>
+/// @type.symbol symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" type={ a: boolean; b: boolean }
 /// @definition.type symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" value=Record<"a" | "b", boolean>
 /// @resolution.name source=Record target=Record
 
@@ -40,7 +40,7 @@ const flags: Flags = { a: true, b: false };
 flags.a satisfies boolean;
 /// @resolution.name source=flags target=flags
 /// @resolution.member source=flags.a receiver=Flags type=boolean kind=field target_receiver=Flags key=a target_type=boolean
-/// @resolution.place source=flags placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=flags placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=flags root=flags
 /// @resolution.place source=flags.a placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=flags.a root=flags keys=[a]
@@ -48,7 +48,7 @@ flags.a satisfies boolean;
 flags.b satisfies boolean;
 /// @resolution.name source=flags target=flags
 /// @resolution.member source=flags.b receiver=Flags type=boolean kind=field target_receiver=Flags key=b target_type=boolean
-/// @resolution.place source=flags placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=flags placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=flags root=flags
 /// @resolution.place source=flags.b placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=flags.b root=flags keys=[b]
@@ -84,7 +84,7 @@ flags[2] satisfies string;
 
 === dir ===
 type Flags = Record<1 | 2, string>;
-/// @type.symbol symbol=Flags source="type Flags = Record<1 | 2, string>" type=Record<1 | 2, string>
+/// @type.symbol symbol=Flags source="type Flags = Record<1 | 2, string>" type={ 1: string; 2: string }
 /// @definition.type symbol=Flags source="type Flags = Record<1 | 2, string>" value=Record<1 | 2, string>
 /// @resolution.name source=Record target=Record
 
@@ -95,7 +95,7 @@ const flags: Flags = { 1: "one", 2: "two" };
 
 flags[1] satisfies string;
 /// @resolution.name source=flags target=flags
-/// @resolution.place source=flags placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=flags placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=flags root=flags
 /// @resolution.place source=flags[1] placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=flags[1] root=flags keys=[1]
@@ -103,7 +103,7 @@ flags[1] satisfies string;
 
 flags[2] satisfies string;
 /// @resolution.name source=flags target=flags
-/// @resolution.place source=flags placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=flags placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=flags root=flags
 /// @resolution.place source=flags[2] placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=flags[2] root=flags keys=[2]
@@ -134,7 +134,7 @@ const flags: Flags = { a: true };
 
 === dir ===
 type Flags = Record<"a" | "b", boolean>;
-/// @type.symbol symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" type=Record<"a" | "b", boolean>
+/// @type.symbol symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" type={ a: boolean; b: boolean }
 /// @definition.type symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" value=Record<"a" | "b", boolean>
 /// @resolution.name source=Record target=Record
 
@@ -173,7 +173,7 @@ const flags: Flags = { 1: "one" };
 
 === dir ===
 type Flags = Record<1 | 2, string>;
-/// @type.symbol symbol=Flags source="type Flags = Record<1 | 2, string>" type=Record<1 | 2, string>
+/// @type.symbol symbol=Flags source="type Flags = Record<1 | 2, string>" type={ 1: string; 2: string }
 /// @definition.type symbol=Flags source="type Flags = Record<1 | 2, string>" value=Record<1 | 2, string>
 /// @resolution.name source=Record target=Record
 
@@ -212,7 +212,7 @@ const flags: Flags = { a: true, b: false, c: true };
 
 === dir ===
 type Flags = Record<"a" | "b", boolean>;
-/// @type.symbol symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" type=Record<"a" | "b", boolean>
+/// @type.symbol symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" type={ a: boolean; b: boolean }
 /// @definition.type symbol=Flags source="type Flags = Record<\"a\" | \"b\", boolean>" value=Record<"a" | "b", boolean>
 /// @resolution.name source=Record target=Record
 
@@ -248,7 +248,7 @@ type Bad = Record<{ name: string }, boolean>;
 
 === dir ===
 type Bad = Record<{ name: string }, boolean>;
-/// @type.symbol symbol=Bad source="type Bad = Record<{ name: string }, boolean>" type=Record<{ name: string }, boolean>
+/// @type.symbol symbol=Bad source="type Bad = Record<{ name: string }, boolean>" type={ [P in { name: string }]: boolean }
 /// @definition.type symbol=Bad source="type Bad = Record<{ name: string }, boolean>" value=Record<{ name: string }, boolean>
 /// @resolution.name source=Record target=Record
 /// @type.symbol symbol=Bad.name source="name: string" type=string
@@ -290,13 +290,12 @@ const value: int32 | undefined = read(point as Bag);
 
 === dir ===
 type Bag = Record<string, int32>;
-/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type=Record<string, int32>
+/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value=Record<string, int32>
 /// @resolution.name source=Record target=Record
 
 declare function read(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
-/// @type.symbol symbol=read.bag source="bag: Bag" type=Bag
 /// @resolution.name source=Bag target=Bag
 
 const point: { x: int32 } = { x: 1 };
@@ -310,7 +309,7 @@ const value = read(point);
 /// @resolution.name source=read target=read
 /// @resolution.call source=read(point) parameters=(Bag) arguments=(provided(point) as Bag) return=int32 | undefined kind=symbol target=read
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 "#,
         r#"
@@ -345,13 +344,12 @@ const value: int32 | undefined = read({ x: 1, y: 2 } as Bag);
 
 === dir ===
 type Bag = Record<string, int32>;
-/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type=Record<string, int32>
+/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value=Record<string, int32>
 /// @resolution.name source=Record target=Record
 
 declare function read(bag: Bag): int32 | undefined;
 /// @type.symbol symbol=read source="declare function read(bag: Bag): int32 | undefined" type=(Bag) => int32 | undefined
-/// @type.symbol symbol=read.bag source="bag: Bag" type=Bag
 /// @resolution.name source=Bag target=Bag
 
 const value = read({ x: 1, y: 2 });
@@ -389,7 +387,7 @@ bag["missing"] satisfies int32 | undefined;
 
 === dir ===
 type Bag = Record<string, int32>;
-/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type=Record<string, int32>
+/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value=Record<string, int32>
 /// @resolution.name source=Record target=Record
 
@@ -403,7 +401,7 @@ bag["missing"] satisfies int32 | undefined;
 /// @resolution.place source="bag[\"missing\"]" placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source="bag[\"missing\"]" root=bag keys=[missing]
 /// @resolution.subscript source="bag[\"missing\"]" type=int32 | undefined kind=member target="receiver=Bag, target=index(string), type=int32 | undefined"
-/// @resolution.place source=bag placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=bag placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=bag root=bag
 "#,
     );
@@ -431,7 +429,7 @@ value satisfies int32 | undefined;
 === annotated ===
 type Bag = Record<string, int32>;
 
-declare const map: Map<string, int32>;
+declare const map: Map<string, int32, Equality<string>>;
 const bag: Bag = map as Bag;
 const value: int32 | undefined = bag["missing"];
 
@@ -439,16 +437,18 @@ value satisfies int32 | undefined;
 
 === dir ===
 type Bag = Record<string, int32>;
-/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type=Record<string, int32>
+/// @type.symbol symbol=Bag source="type Bag = Record<string, int32>" type={ [P: string]: int32 }
 /// @definition.type symbol=Bag source="type Bag = Record<string, int32>" value=Record<string, int32>
 /// @resolution.name source=Record target=Record
 
 declare const map: Map<string, int32>;
-/// @type.symbol symbol=map source=map type=Map<string, int32>
+/// @type.symbol symbol=map source=map type=Map<string, int32, Equality<string>>
 /// @resolution.pattern source=map kind=binding target=map
-/// @generic.instance id="Map<string, int32>" template=Map arguments=(string, int32)
+/// @generic.instance id="Map<string, int32, Equality<string>>" template=Map arguments=(string, int32, Equality<string>)
 /// @generic.instance id="sliceAssumeInit<MaybeUninit<MapSlot<string, int32>>>" template=sliceAssumeInit arguments=(MaybeUninit<MapSlot<string, int32>>)
 /// @generic.instance id="sliceUninit<MaybeUninit<MapSlot<string, int32>>>" template=sliceUninit arguments=(MaybeUninit<MapSlot<string, int32>>)
+/// @generic.instance id=Equality<string> template=Equality arguments=(string)
+/// @generic.instance id=newPhantom<string> template=newPhantom arguments=(string)
 /// @generic.instance id=sliceAssumeInit<uint32> template=sliceAssumeInit arguments=(uint32)
 /// @generic.instance id=sliceUninit<uint32> template=sliceUninit arguments=(uint32)
 /// @resolution.name source=Map target=Map
@@ -458,7 +458,7 @@ const bag: Bag = map;
 /// @resolution.pattern source=bag kind=binding target=bag
 /// @resolution.name source=Bag target=Bag
 /// @resolution.name source=map target=map
-/// @resolution.place source=map placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=map placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=map root=map
 
 const value = bag["missing"];
@@ -467,12 +467,12 @@ const value = bag["missing"];
 /// @resolution.name source=bag target=bag
 /// @resolution.access source="bag[\"missing\"]" root=bag keys=[missing]
 /// @resolution.subscript source="bag[\"missing\"]" type=int32 | undefined kind=member target="receiver=Bag, target=index(string), type=int32 | undefined"
-/// @resolution.place source=bag placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=bag placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=bag root=bag
 
 value satisfies int32 | undefined;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -502,7 +502,7 @@ empty satisfies Empty;
 
 === dir ===
 type Empty = Record<never, boolean>;
-/// @type.symbol symbol=Empty source="type Empty = Record<never, boolean>" type=Record<never, boolean>
+/// @type.symbol symbol=Empty source="type Empty = Record<never, boolean>" type={}
 /// @definition.type symbol=Empty source="type Empty = Record<never, boolean>" value=Record<never, boolean>
 /// @resolution.name source=Record target=Record
 
@@ -513,7 +513,7 @@ const empty: Empty = {};
 
 empty satisfies Empty;
 /// @resolution.name source=empty target=empty
-/// @resolution.place source=empty placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=empty placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=empty root=empty
 /// @resolution.name source=Empty target=Empty
 "#,
@@ -542,7 +542,7 @@ const empty: Empty = { value: true };
 
 === dir ===
 type Empty = Record<never, boolean>;
-/// @type.symbol symbol=Empty source="type Empty = Record<never, boolean>" type=Record<never, boolean>
+/// @type.symbol symbol=Empty source="type Empty = Record<never, boolean>" type={}
 /// @definition.type symbol=Empty source="type Empty = Record<never, boolean>" value=Record<never, boolean>
 /// @resolution.name source=Record target=Record
 

@@ -33,10 +33,10 @@ interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named template=(this: Named)
 /// @definition.where symbol=Named relation=satisfies left=this right=Named
-/// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: this) => string
+/// @definition.method symbol=Named.name source="name(): string" slot=name type=() => string
 
     name(): string;
-    /// @type.symbol symbol=Named.name source="name(): string" type=(this: this) => string
+    /// @type.symbol symbol=Named.name source="name(): string" type=() => string
 
 }
 
@@ -46,11 +46,11 @@ interface Drawable extends Named {
 /// @definition.interface symbol=Drawable template=(this: Drawable)
 /// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
 /// @definition.extends symbol=Drawable source=Named target=Named
-/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=() => void
 /// @resolution.name source=Named target=Named
 
     draw(): void;
-    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: this) => void
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=() => void
 
 }
 "#,
@@ -90,11 +90,11 @@ interface Drawable extends Shape {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable template=(this: Drawable)
 /// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
-/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=() => void
 /// @resolution.name source=Shape target=Shape
 
     draw(): void;
-    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: this) => void
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=() => void
 
 }
 "#,
@@ -236,11 +236,11 @@ interface Base<T> {
 /// @type.symbol symbol=Base type=Base
 /// @definition.interface symbol=Base template=(out T, this: Base<T>)
 /// @definition.where symbol=Base relation=satisfies left=this right=Base<T>
-/// @definition.method symbol=Base.value source="value(): T" slot=value type=(this: this) => T
+/// @definition.method symbol=Base.value source="value(): T" slot=value type=() => T
 /// @type.symbol symbol=Base.T source=T type=T
 
     value(): T;
-    /// @type.symbol symbol=Base.value source="value(): T" type=(this: this) => T
+    /// @type.symbol symbol=Base.value source="value(): T" type=() => T
     /// @resolution.name source=T target=Base.T
 
 }

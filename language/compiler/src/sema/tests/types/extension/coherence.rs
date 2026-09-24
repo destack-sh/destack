@@ -40,12 +40,12 @@ extension of int32 implements Show {
 }
 
 function describe<T: Show, 'a>(value: &'a readonly T): string {
-    return value.show();
+    return value.show<'a>();
 }
 
 declare const one: int32;
 
-const label: string = describe<int32>(&readonly one);
+const label: string = describe<int32, "static">(&readonly one);
 
 === dir ===
 newtype interface Show {
@@ -65,14 +65,14 @@ newtype interface Show {
 extension of int32 implements Show {
 /// @definition.extension symbol=<module>#2 form=local target=int32
 /// @definition.implements symbol=<module>#2 source=Show target=Show
-/// @definition.method symbol=show slot=show type=<show.'a>(this: &show.'a readonly this) => string
+/// @definition.method symbol=show slot=show type=<show.'a>(this: &show.'a readonly int32) => string
 /// @definition.conformance symbol=<module>#2 member=show requirement=Show.show
 /// @resolution.name source=Show target=Show
 
     show(&readonly this): string {
     /// @generic.template symbol=show parent=template#1 parameters=('a)
-    /// @type.symbol symbol=show type=<show.'a>(this: &show.'a readonly this) => string
-    /// @type.symbol symbol=show.this source="&readonly this" type=&show.'a readonly this
+    /// @type.symbol symbol=show type=<show.'a>(this: &show.'a readonly int32) => string
+    /// @type.symbol symbol=show.this source="&readonly this" type=&show.'a readonly int32
 
         return "int32";
     }
@@ -89,10 +89,10 @@ function describe<T: Show>(value: &readonly T): string {
     return value.show();
     /// @resolution.name source=value target=describe.value
     /// @resolution.member source=value.show receiver=&describe.'a readonly T type=<Show.show.'a>(this: &Show.show.'a readonly T) => string kind=symbol target_receiver=&describe.'a readonly T target=Show.show
-    /// @resolution.call source=value.show() parameters=() return=string regions=(describe.'a) kind=symbol target=Show.show receiver=&describe.'a readonly T
+    /// @resolution.call source=value.show() parameters=() return=string regions=(describe.'a) kind=symbol target=Show.show receiver=&describe.'a readonly T instance=Show.show<describe.'a>
     /// @resolution.place source=value placement=describe.'a lifetime=describe.'a access="readonly"
     /// @resolution.access source=value root=describe.value
-    /// @generic.instantiation id=Show.show<T> template=Show.show arguments=() owner=describe
+    /// @generic.instantiation id="Show.show<T, describe.'a>" template=Show.show arguments=(describe.'a) owner=describe
 
 }
 
@@ -104,19 +104,21 @@ const label = describe(&readonly one);
 /// @type.symbol symbol=label source=label type=string
 /// @resolution.pattern source=label kind=binding target=label
 /// @resolution.name source=describe target=describe
-/// @resolution.call source="describe(&readonly one)" parameters=(&'static readonly constant int32) arguments=(provided(&readonly one) as &'static readonly constant int32) return=string regions=("static" & "constant") kind=symbol target=describe instance=describe<int32>
-/// @generic.instantiation id=describe<int32> template=describe arguments=(int32)
+/// @resolution.call source="describe(&readonly one)" parameters=(&'static readonly int32) arguments=(provided(&readonly one) as &'static readonly int32) return=string regions=("static" & "local") kind=symbol target=describe instance="describe<int32, \"static\" & \"local\">"
+/// @generic.instantiation id="describe<int32, \"static\" & \"local\">" template=describe arguments=(int32, "static" & "local")
 /// @resolution.name source=one target=one
-/// @resolution.place source=one placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=one placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=one root=one
 "#,
         r#"
+
 "#,
     );
 }
 
+/// Two blanket implementations with disjoint bounds conflict, overlap read from the type alone.
 #[test]
-fn test_accept_two_blankets_with_disjoint_bounds() {
+fn test_reject_two_blankets_with_disjoint_bounds() {
     let session = TestSession::single(
         r#"
 newtype interface Loud {
@@ -248,6 +250,9 @@ extension of Lamp implements Bright {
 }
 "#,
         r#"
+/// @diagnostic.error id=conflicting-implementation message="conflicting implementations of interface 'Quiet' for type 'T'"
+/// @diagnostic.label line=20 column=25 span="T" line_source="extension<T: Bright> of T implements Quiet {"
+/// @diagnostic.related line=14 column=23 span="T" line_source="extension<T: Loud> of T implements Quiet {" message="conflicting implementation"
 "#,
     );
 }
@@ -385,15 +390,16 @@ extension of Bell implements Loud, Bright {
 }
 "#,
         r#"
-/// @diagnostic.error id=conflicting-implementation message="conflicting implementations of interface 'Quiet' for type 'Box<Bell>'"
+/// @diagnostic.error id=conflicting-implementation message="conflicting implementations of interface 'Quiet' for type 'Box<_>'"
 /// @diagnostic.label line=24 column=17 span="Box" line_source="extension<T> of Box<T> implements Quiet where T: Bright {"
 /// @diagnostic.related line=18 column=17 span="Box" line_source="extension<T> of Box<T> implements Quiet where T: Loud {" message="conflicting implementation"
 "#,
     );
 }
 
+/// Two where-clause blanket implementations with disjoint bounds conflict by type alone.
 #[test]
-fn test_accept_where_clause_blankets_with_disjoint_bounds() {
+fn test_reject_where_clause_blankets_with_disjoint_bounds() {
     let session = TestSession::single(
         r#"
 newtype interface Loud {
@@ -513,7 +519,9 @@ extension of Bell implements Loud {
 }
 "#,
         r#"
-
+/// @diagnostic.error id=conflicting-implementation message="conflicting implementations of interface 'Quiet' for type 'Box<_>'"
+/// @diagnostic.label line=24 column=17 span="Box" line_source="extension<T> of Box<T> implements Quiet where T: Bright {"
+/// @diagnostic.related line=18 column=17 span="Box" line_source="extension<T> of Box<T> implements Quiet where T: Loud {" message="conflicting implementation"
 "#,
     );
 }
@@ -742,14 +750,14 @@ struct Bell {}
 extension of Bell implements Loud {
 /// @definition.extension symbol=<module>#2 form=local target=Bell
 /// @definition.implements symbol=<module>#2 source=Loud target=Loud
-/// @definition.method symbol=sound#1 slot=sound type=(this: this) => string
+/// @definition.method symbol=sound#1 slot=sound type=(this: Bell) => string
 /// @definition.conformance symbol=<module>#2 member=sound#1 requirement=Loud.sound
 /// @resolution.name source=Bell target=Bell
 /// @resolution.name source=Loud target=Loud
 
     sound(this): string {
-    /// @type.symbol symbol=sound#1 type=(this: this) => string
-    /// @type.symbol symbol=sound.this#1 source=this type=this
+    /// @type.symbol symbol=sound#1 type=(this: Bell) => string
+    /// @type.symbol symbol=sound.this#1 source=this type=Bell
 
         return "RING";
     }
@@ -758,14 +766,14 @@ extension of Bell implements Loud {
 extension of Bell implements Quiet {
 /// @definition.extension symbol=<module>#3 form=local target=Bell
 /// @definition.implements symbol=<module>#3 source=Quiet target=Quiet
-/// @definition.method symbol=sound#2 slot=sound type=(this: this) => string
+/// @definition.method symbol=sound#2 slot=sound type=(this: Bell) => string
 /// @definition.conformance symbol=<module>#3 member=sound#2 requirement=Quiet.sound
 /// @resolution.name source=Bell target=Bell
 /// @resolution.name source=Quiet target=Quiet
 
     sound(this): string {
-    /// @type.symbol symbol=sound#2 type=(this: this) => string
-    /// @type.symbol symbol=sound.this#2 source=this type=this
+    /// @type.symbol symbol=sound#2 type=(this: Bell) => string
+    /// @type.symbol symbol=sound.this#2 source=this type=Bell
 
         return "ring";
     }
@@ -782,7 +790,7 @@ const heard = bell.sound();
 /// @resolution.name source=bell target=bell
 /// @resolution.member source=bell.sound receiver=Bell type=(this: Bell) => string kind=symbol target_receiver=Bell target=sound#1
 /// @resolution.call source=bell.sound() parameters=() return=string kind=symbol target=sound#1 receiver=Bell
-/// @resolution.place source=bell placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=bell placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=bell root=bell
 "#,
         r#"
@@ -846,7 +854,7 @@ const sound = bell.ring();
 /// @type.symbol symbol=sound source=sound type=<error>
 /// @resolution.pattern source=sound kind=binding target=sound
 /// @resolution.name source=bell target=bell
-/// @resolution.place source=bell placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=bell placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=bell root=bell
 /// @resolution.rejected source=bell.ring
 /// @resolution.rejected source=bell.ring()
@@ -900,7 +908,7 @@ import { Bell } from "./bell.ds";
 import { Ringing } from "./ring.ds";
 
 const bell: Bell = Bell {};
-const sound: string = bell.ring();
+const sound: string = bell.ring<"static">();
 
 === dir ===
 import { Bell } from "./bell.ds";
@@ -915,10 +923,11 @@ const sound = bell.ring();
 /// @type.symbol symbol=sound source=sound type=string
 /// @resolution.pattern source=sound kind=binding target=sound
 /// @resolution.name source=bell target=bell
-/// @resolution.member source=bell.ring receiver=bell.Bell type=(this: bell.Bell) => string kind=symbol target_receiver=bell.Bell target=ring.Ringing.ring
-/// @resolution.call source=bell.ring() parameters=() return=string kind=symbol target=ring.Ringing.ring receiver=bell.Bell
-/// @resolution.place source=bell placement="constant" lifetime="static" access="readonly"
+/// @resolution.member source=bell.ring receiver=bell.Bell type=<ring.Ringing.ring.'a>(this: &ring.Ringing.ring.'a readonly bell.Bell) => string kind=symbol target_receiver=bell.Bell target=ring.Ringing.ring
+/// @resolution.call source=bell.ring() parameters=() return=string regions=("static" & "local") kind=symbol target=ring.Ringing.ring receiver=bell.Bell adjustments=(borrow(&'static readonly bell.Bell)) instance="ring.Ringing.ring<\"static\" & \"local\">"
+/// @resolution.place source=bell placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=bell root=bell
+/// @generic.instantiation id="ring.Ringing.ring<\"static\" & \"local\">" template=ring.Ringing.ring arguments=("static" & "local")
 "#,
         r#"
 "#,

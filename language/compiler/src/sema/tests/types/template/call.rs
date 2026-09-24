@@ -29,7 +29,6 @@ declare function parse<T: string>(value: `id:${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${T}`): T" type=<T: string>(`id:${T}`) => T
 /// @type.symbol symbol=parse.T source="T: string" type=T
-/// @type.symbol symbol=parse.value source="value: `id:${T}`" type=`id:${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 
@@ -43,7 +42,7 @@ const segment = parse("id:users");
 
 segment satisfies "users";
 /// @resolution.name source=segment target=segment
-/// @resolution.place source=segment placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=segment placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=segment root=segment
 "#,
     );
@@ -78,7 +77,6 @@ declare function build<T: string>(value: T): `id:${T}`;
 /// @generic.template symbol=build parameters=(T: string)
 /// @type.symbol symbol=build source="declare function build<T: string>(value: T): `id:${T}`" type=<T: string>(T) => `id:${T}`
 /// @type.symbol symbol=build.T source="T: string" type=T
-/// @type.symbol symbol=build.value source="value: T" type=T
 /// @resolution.name source=T target=build.T
 /// @resolution.name source=T target=build.T
 
@@ -92,7 +90,7 @@ const key = build("users");
 
 key satisfies "id:users";
 /// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=key placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=key root=key
 "#,
     );
@@ -131,7 +129,6 @@ declare function identity<T: string>(value: `${T}`): T;
 /// @generic.template symbol=identity parameters=(T: string)
 /// @type.symbol symbol=identity source="declare function identity<T: string>(value: `${T}`): T" type=<T: string>(`${T}`) => T
 /// @type.symbol symbol=identity.T source="T: string" type=T
-/// @type.symbol symbol=identity.value source="value: `${T}`" type=`${T}`
 /// @resolution.name source=T target=identity.T
 /// @resolution.name source=T target=identity.T
 
@@ -147,12 +144,12 @@ const text = identity(value);
 /// @generic.instantiation id=identity<string> template=identity arguments=(string)
 /// @generic.instance id=identity<string> template=identity arguments=(string) dependents=(`${string}`)
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 
 text satisfies string;
 /// @resolution.name source=text target=text
-/// @resolution.place source=text placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=text placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=text root=text
 "#,
     );
@@ -187,7 +184,6 @@ declare function parse<T: string>(value: `id:${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${T}`): T" type=<T: string>(`id:${T}`) => T
 /// @type.symbol symbol=parse.T source="T: string" type=T
-/// @type.symbol symbol=parse.value source="value: `id:${T}`" type=`id:${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 
@@ -200,7 +196,7 @@ parse(key);
 /// @resolution.call source=parse(key) parameters=(`id:${string}`) arguments=(provided(key) as `id:${string}`) return=string kind=symbol target=parse instance=parse<string>
 /// @generic.instantiation id=parse<string> template=parse arguments=(string)
 /// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=key placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=key root=key
 "#,
         r#"
@@ -240,7 +236,6 @@ declare function parse<T: string>(value: `id:${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${T}`): T" type=<T: string>(`id:${T}`) => T
 /// @type.symbol symbol=parse.T source="T: string" type=T
-/// @type.symbol symbol=parse.value source="value: `id:${T}`" type=`id:${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 
@@ -254,7 +249,7 @@ const segment = parse("id:");
 
 segment satisfies "";
 /// @resolution.name source=segment target=segment
-/// @resolution.place source=segment placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=segment placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=segment root=segment
 "#,
     );
@@ -289,7 +284,6 @@ declare function parse<T: number>(value: `${T}`): T;
 /// @generic.template symbol=parse parameters=(T: float64)
 /// @type.symbol symbol=parse source="declare function parse<T: number>(value: `${T}`): T" type=<T: float64>(`${T}`) => T
 /// @type.symbol symbol=parse.T source="T: number" type=T
-/// @type.symbol symbol=parse.value source="value: `${T}`" type=`${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 
@@ -303,7 +297,7 @@ const value = parse("42");
 
 value satisfies 42;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -334,7 +328,6 @@ declare function parse<T: number>(value: `${T}`): T;
 /// @generic.template symbol=parse parameters=(T: float64)
 /// @type.symbol symbol=parse source="declare function parse<T: number>(value: `${T}`): T" type=<T: float64>(`${T}`) => T
 /// @type.symbol symbol=parse.T source="T: number" type=T
-/// @type.symbol symbol=parse.value source="value: `${T}`" type=`${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 
@@ -376,10 +369,8 @@ declare function parse<T: string>(value: `id:${NoInfer<T>}`, fallback: T): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${NoInfer<T>}`, fallback: T): T" type=<T: string>(`id:${NoInfer<T>}`, T) => T
 /// @type.symbol symbol=parse.T source="T: string" type=T
-/// @type.symbol symbol=parse.value source="value: `id:${NoInfer<T>}`" type=`id:${NoInfer<T>}`
 /// @resolution.name source=NoInfer target=NoInfer
 /// @resolution.name source=T target=parse.T
-/// @type.symbol symbol=parse.fallback source="fallback: T" type=T
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 

@@ -49,7 +49,7 @@ struct Cell {
 }
 
 type ReadonlyOwned = WithAccess<^Cell, "readonly">;
-/// @type.symbol symbol=ReadonlyOwned source="type ReadonlyOwned = WithAccess<^Cell, \"readonly\">" type=Readonly<Cell>
+/// @type.symbol symbol=ReadonlyOwned source="type ReadonlyOwned = WithAccess<^Cell, \"readonly\">" type=readonly Cell
 /// @generic.instance id="WithAccess<Cell, \"readonly\">" template=WithAccess arguments=(Cell, "readonly")
 /// @definition.type symbol=ReadonlyOwned source="type ReadonlyOwned = WithAccess<^Cell, \"readonly\">" value=WithAccess<Cell, "readonly">
 /// @resolution.name source=WithAccess target=WithAccess
@@ -75,13 +75,13 @@ declare const exclusiveBorrow: ExclusiveBorrow;
 
 readonlyOwned satisfies ^readonly Cell;
 /// @resolution.name source=readonlyOwned target=readonlyOwned
-/// @resolution.place source=readonlyOwned placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=readonlyOwned placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=readonlyOwned root=readonlyOwned
 /// @resolution.name source=Cell target=Cell
 
 exclusiveBorrow satisfies Borrowed<Cell, "static", "mutable">;
 /// @resolution.name source=exclusiveBorrow target=exclusiveBorrow
-/// @resolution.place source=exclusiveBorrow placement="static" lifetime="static" access="mutable"
+/// @resolution.place source=exclusiveBorrow placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=exclusiveBorrow root=exclusiveBorrow
 /// @resolution.name source=Borrowed target=Borrowed
 /// @resolution.name source=Cell target=Cell
@@ -133,7 +133,7 @@ struct Cell {
 
 type ReadonlyBorrow = Borrowed<Readonly<Cell>, "static">;
 /// @type.symbol symbol=ReadonlyBorrow source="type ReadonlyBorrow = Borrowed<Readonly<Cell>, \"static\">" type=&'static readonly Cell
-/// @definition.type symbol=ReadonlyBorrow source="type ReadonlyBorrow = Borrowed<Readonly<Cell>, \"static\">" value=&'static Readonly<Cell>
+/// @definition.type symbol=ReadonlyBorrow source="type ReadonlyBorrow = Borrowed<Readonly<Cell>, \"static\">" value=&'static readonly Cell
 /// @resolution.name source=Borrowed target=Borrowed
 /// @resolution.name source=Readonly target=Readonly
 /// @resolution.name source=Cell target=Cell
@@ -145,7 +145,7 @@ declare const borrow: ReadonlyBorrow;
 
 borrow satisfies Borrowed<Cell, "static", "readonly">;
 /// @resolution.name source=borrow target=borrow
-/// @resolution.place source=borrow placement="static" lifetime="static" access="readonly"
+/// @resolution.place source=borrow placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=borrow root=borrow
 /// @resolution.name source=Borrowed target=Borrowed
 /// @resolution.name source=Cell target=Cell

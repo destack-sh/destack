@@ -26,7 +26,7 @@ letter satisfies "a" | "c";
 
 === dir ===
 type Letter = Exclude<"a" | "b" | "c", "b">;
-/// @type.symbol symbol=Letter source="type Letter = Exclude<\"a\" | \"b\" | \"c\", \"b\">" type=Exclude<"a" | "b" | "c", "b">
+/// @type.symbol symbol=Letter source="type Letter = Exclude<\"a\" | \"b\" | \"c\", \"b\">" type="a" | "c"
 /// @definition.type symbol=Letter source="type Letter = Exclude<\"a\" | \"b\" | \"c\", \"b\">" value=Exclude<"a" | "b" | "c", "b">
 /// @resolution.name source=Exclude target=Exclude
 
@@ -37,7 +37,7 @@ declare const letter: Letter;
 
 letter satisfies "a" | "c";
 /// @resolution.name source=letter target=letter
-/// @resolution.place source=letter placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=letter placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=letter root=letter
 "#,
     );
@@ -65,7 +65,7 @@ const bad: Letter = "b";
 
 === dir ===
 type Letter = Exclude<"a" | "b" | "c", "b">;
-/// @type.symbol symbol=Letter source="type Letter = Exclude<\"a\" | \"b\" | \"c\", \"b\">" type=Exclude<"a" | "b" | "c", "b">
+/// @type.symbol symbol=Letter source="type Letter = Exclude<\"a\" | \"b\" | \"c\", \"b\">" type="a" | "c"
 /// @definition.type symbol=Letter source="type Letter = Exclude<\"a\" | \"b\" | \"c\", \"b\">" value=Exclude<"a" | "b" | "c", "b">
 /// @resolution.name source=Exclude target=Exclude
 
@@ -105,7 +105,7 @@ let bad: Letter = "b";
 
 === dir ===
 type Letter = Exclude<never, "b">;
-/// @type.symbol symbol=Letter source="type Letter = Exclude<never, \"b\">" type=Exclude<never, "b">
+/// @type.symbol symbol=Letter source="type Letter = Exclude<never, \"b\">" type=never
 /// @definition.type symbol=Letter source="type Letter = Exclude<never, \"b\">" value=Exclude<never, "b">
 /// @resolution.name source=Exclude target=Exclude
 

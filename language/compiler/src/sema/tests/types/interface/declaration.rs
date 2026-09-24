@@ -71,10 +71,10 @@ declare interface ForeignProtocol {
 /// @type.symbol symbol=ForeignProtocol type=ForeignProtocol
 /// @definition.interface symbol=ForeignProtocol template=(this: ForeignProtocol)
 /// @definition.where symbol=ForeignProtocol relation=satisfies left=this right=ForeignProtocol
-/// @definition.method symbol=ForeignProtocol.snake_name source="snake_name(): void" slot=snake_name type=(this: this) => void
+/// @definition.method symbol=ForeignProtocol.snake_name source="snake_name(): void" slot=snake_name type=() => void
 
     snake_name(): void;
-    /// @type.symbol symbol=ForeignProtocol.snake_name source="snake_name(): void" type=(this: this) => void
+    /// @type.symbol symbol=ForeignProtocol.snake_name source="snake_name(): void" type=() => void
 
 }
 struct Value {}
@@ -132,7 +132,7 @@ interface Person {
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
 /// @definition.field symbol=Person.id source="readonly id: string" key=id type=string
 /// @definition.field symbol=Person.name source="name?: string" key=name type=string
-/// @definition.method symbol=Person.rename source="rename(value: string): void" slot=rename type=(this: this, string) => void
+/// @definition.method symbol=Person.rename source="rename(value: string): void" slot=rename type=(string) => void
 
     readonly id: string;
     /// @type.symbol symbol=Person.id source="readonly id: string" type=string
@@ -141,7 +141,7 @@ interface Person {
     /// @type.symbol symbol=Person.name source="name?: string" type=string
 
     rename(value: string): void;
-    /// @type.symbol symbol=Person.rename source="rename(value: string): void" type=(this: this, string) => void
+    /// @type.symbol symbol=Person.rename source="rename(value: string): void" type=(string) => void
     /// @type.symbol symbol=Person.rename.value source="value: string" type=string
 
 }
@@ -183,11 +183,11 @@ interface Serializer {
 /// @type.symbol symbol=Serializer type=Serializer
 /// @definition.interface symbol=Serializer template=(this: Serializer)
 /// @definition.where symbol=Serializer relation=satisfies left=this right=Serializer
-/// @definition.method symbol=Serializer.serializeValue source="serializeValue<T: Serialize<this>>(value: T): void" slot=serializeValue type=<T: Serialize<this>>(this: this, T) => void
+/// @definition.method symbol=Serializer.serializeValue source="serializeValue<T: Serialize<this>>(value: T): void" slot=serializeValue type=<T: Serialize<this>>(T) => void
 
     serializeValue<T: Serialize<this>>(value: T): void;
     /// @generic.template symbol=Serializer.serializeValue parent=template#0 parameters=(T: Serialize<this>)
-    /// @type.symbol symbol=Serializer.serializeValue source="serializeValue<T: Serialize<this>>(value: T): void" type=<T: Serialize<this>>(this: this, T) => void
+    /// @type.symbol symbol=Serializer.serializeValue source="serializeValue<T: Serialize<this>>(value: T): void" type=<T: Serialize<this>>(T) => void
     /// @type.symbol symbol=Serializer.serializeValue.T source="T: Serialize<this>" type=T
     /// @resolution.name source=Serialize target=Serialize
     /// @generic.instance id=Serialize<this> template=Serialize arguments=(this)
@@ -201,12 +201,12 @@ interface Serialize<S: Serializer> {
 /// @type.symbol symbol=Serialize type=Serialize
 /// @definition.interface symbol=Serialize template=(in S: Serializer, this: Serialize<S>)
 /// @definition.where symbol=Serialize relation=satisfies left=this right=Serialize<S>
-/// @definition.method symbol=Serialize.serialize source="serialize(target: S): void" slot=serialize type=(this: this, S) => void
+/// @definition.method symbol=Serialize.serialize source="serialize(target: S): void" slot=serialize type=(S) => void
 /// @type.symbol symbol=Serialize.S source="S: Serializer" type=S
 /// @resolution.name source=Serializer target=Serializer
 
     serialize(target: S): void;
-    /// @type.symbol symbol=Serialize.serialize source="serialize(target: S): void" type=(this: this, S) => void
+    /// @type.symbol symbol=Serialize.serialize source="serialize(target: S): void" type=(S) => void
     /// @type.symbol symbol=Serialize.serialize.target source="target: S" type=S
     /// @resolution.name source=S target=Serialize.S
 
@@ -231,12 +231,8 @@ export newtype interface Table<T, Context> {
     session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
 export newtype interface Table<out T, in out Context> {
-    (name: string, body?: (value: &'a readonly T, context: &'b Context) => void): void;
-    (
-        name: string,
-        options: int32,
-        body?: (value: &'a readonly T, context: &'b Context) => void,
-    ): void;
+    (name: string, body?: (value: &readonly T, context: &Context) => void): void;
+    (name: string, options: int32, body?: (value: &readonly T, context: &Context) => void): void;
     readonly skip: Table<T, Context>;
 }
 
@@ -247,14 +243,14 @@ export newtype interface Table<T, Context> {
 /// @definition.interface symbol=Table template=(out T, in out Context, this: Table<T, Context>) nominal=true
 /// @definition.where symbol=Table relation=satisfies left=this right=Table<T, Context>
 /// @definition.field symbol=Table.skip source="readonly skip: Table<T, Context>" key=skip type=Table<T, Context>
-/// @definition.signature kind=call source="(name: string, body?: (value: &readonly T, context: &Context) => void): void" type=Function<(string, Function<(&type_expression.'a readonly T, &type_expression.'b Context), void> | undefined?), void>
-/// @definition.signature kind=call type=Function<(string, int32, Function<(&type_expression.'a readonly T, &type_expression.'b Context), void> | undefined?), void>
+/// @definition.signature kind=call source="(name: string, body?: (value: &readonly T, context: &Context) => void): void" type=(string, <type_expression.'a, type_expression.'b>(&type_expression.'a readonly T, &type_expression.'b Context) => void | undefined?) => void
+/// @definition.signature kind=call type=(string, int32, <type_expression.'a, type_expression.'b>(&type_expression.'a readonly T, &type_expression.'b Context) => void | undefined?) => void
 /// @type.symbol symbol=Table.T source=T type=T
 /// @type.symbol symbol=Table.Context source=Context type=Context
 
     (name: string, body?: (value: &readonly T, context: &Context) => void): void;
     /// @type.symbol symbol=Table.name#1 source="name: string" type=string
-    /// @type.symbol symbol=Table.body#1 source="body?: (value: &readonly T, context: &Context) => void" type=Function<(&type_expression.'a readonly T, &type_expression.'b Context), void> | undefined
+    /// @type.symbol symbol=Table.body#1 source="body?: (value: &readonly T, context: &Context) => void" type=<type_expression.'a, type_expression.'b>(&type_expression.'a readonly T, &type_expression.'b Context) => void | undefined
     /// @generic.template source=type_expression parent=template#0 parameters=('a, 'b)
     /// @type.symbol symbol=Table.value#1 source="value: &readonly T" type=&type_expression.'a readonly T
     /// @resolution.name source=T target=Table.T
@@ -264,7 +260,7 @@ export newtype interface Table<T, Context> {
     (name: string, options: int32, body?: (value: &readonly T, context: &Context) => void): void;
     /// @type.symbol symbol=Table.name#2 source="name: string" type=string
     /// @type.symbol symbol=Table.options source="options: int32" type=int32
-    /// @type.symbol symbol=Table.body#2 source="body?: (value: &readonly T, context: &Context) => void" type=Function<(&type_expression.'a readonly T, &type_expression.'b Context), void> | undefined
+    /// @type.symbol symbol=Table.body#2 source="body?: (value: &readonly T, context: &Context) => void" type=<type_expression.'a, type_expression.'b>(&type_expression.'a readonly T, &type_expression.'b Context) => void | undefined
     /// @generic.template source=type_expression parent=template#0 parameters=('a, 'b)
     /// @type.symbol symbol=Table.value#2 source="value: &readonly T" type=&type_expression.'a readonly T
     /// @resolution.name source=T target=Table.T
@@ -278,7 +274,8 @@ export newtype interface Table<T, Context> {
     /// @resolution.name source=Context target=Table.Context
 
 }
-"#, r#""#);
+"#, r#"
+"#);
 }
 
 #[test]
@@ -301,7 +298,7 @@ newtype interface Duplicate {
     clone(&readonly this): ^this;
 
     cloneFrom(&this, source: &'b readonly this): void {
-        *this = source.clone() as this;
+        *this = source.clone<'b>();
     }
 }
 
@@ -327,16 +324,17 @@ newtype interface Duplicate {
 
         *this = source.clone();
         /// @resolution.pattern.assign source=*this kind=place
-        /// @resolution.assignment source=*this write="&Duplicate.cloneFrom.'a this => direct -> this" type=this
+        /// @resolution.place source=*this placement=Duplicate.cloneFrom.'a lifetime=Duplicate.cloneFrom.'a access="mutable"
+        /// @resolution.assignment source=*this write="&Duplicate.cloneFrom.'a this => builtin -> ^this" type=^this
         /// @resolution.name source=this target=Duplicate.cloneFrom.this
         /// @resolution.place source=this placement=Duplicate.cloneFrom.'a lifetime=Duplicate.cloneFrom.'a access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.name source=source target=Duplicate.cloneFrom.source
         /// @resolution.member source=source.clone receiver=&Duplicate.cloneFrom.'b readonly this type=<Duplicate.clone.'a>(this: &Duplicate.clone.'a readonly this) => ^this kind=symbol target_receiver=&Duplicate.cloneFrom.'b readonly this target=Duplicate.clone
-        /// @resolution.call source=source.clone() parameters=() return=^this regions=(Duplicate.cloneFrom.'b) kind=symbol target=Duplicate.clone receiver=&Duplicate.cloneFrom.'b readonly this
+        /// @resolution.call source=source.clone() parameters=() return=^this regions=(Duplicate.cloneFrom.'b) kind=symbol target=Duplicate.clone receiver=&Duplicate.cloneFrom.'b readonly this instance=Duplicate.clone<Duplicate.cloneFrom.'b>
         /// @resolution.place source=source placement=Duplicate.cloneFrom.'b lifetime=Duplicate.cloneFrom.'b access="readonly"
         /// @resolution.access source=source root=Duplicate.cloneFrom.source
-        /// @generic.instantiation id=Duplicate.clone<this> template=Duplicate.clone arguments=() owner=Duplicate
+        /// @generic.instantiation id="Duplicate.clone<this, Duplicate.cloneFrom.'b>" template=Duplicate.clone arguments=(Duplicate.cloneFrom.'b) owner=Duplicate
 
     }
 }
@@ -387,7 +385,7 @@ newtype interface Values<T> {
         /// @resolution.name source=this target=Values.first.this
         /// @resolution.member source=this.pick receiver=this type=<C>(this: this) => C kind=symbol target_receiver=this target=Values.pick
         /// @resolution.call source=this.pick<T>() parameters=() return=T kind=symbol target=Values.pick receiver=this instance=Values<T>.pick<T>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @generic.instantiation id="Values.pick<this, T, T>" template=Values.pick arguments=(T, T) owner=Values
         /// @generic.instantiation id=Values.pick<T> template=Values.pick arguments=(T) owner=Values

@@ -158,7 +158,7 @@ class Handle {
 
 class Handle {
 /// @definition.class symbol=Handle
-/// @definition.method symbol=Handle.read source="virtual read(): uint8 { return 0; }" slot=read abstraction=virtual type=<Handle.read.P0: Place>(this: Managed<this, Handle.read.P0>) => uint8
+/// @definition.method symbol=Handle.read source="virtual read(): uint8 { return 0; }" slot=read abstraction=virtual type=(this: Handle) => uint8
 
     virtual read(): uint8 { return 0; }
 }
@@ -199,7 +199,7 @@ abstract class Handle extends Base {}
 === dir ===
 abstract class Base {
 /// @definition.class symbol=Base abstract=true
-/// @definition.method symbol=Base.read source="abstract read(): uint8" slot=read abstraction=abstract type=<Base.read.P0: Place>(this: Managed<this, Base.read.P0>) => uint8
+/// @definition.method symbol=Base.read source="abstract read(): uint8" slot=read abstraction=abstract type=(this: Base) => uint8
 
     abstract read(): uint8;
 }
@@ -322,7 +322,8 @@ enum Mode {
 }
 "#,
         r#"
-
+/// @diagnostic.error id=unsupported-representation message="representation 'C' is not supported by this declaration"
+/// @diagnostic.label line=2 column=2 span="repr(\"C\")" line_source="@repr(\"C\")"
 "#,
     );
 }

@@ -28,6 +28,7 @@ value = 2;
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=2 type=2
@@ -70,7 +71,7 @@ value += 2;
 /// @resolution.name source=value target=value
 /// @resolution.operator source="value += 2" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 2 as int32 families=(integer)]
 /// @resolution.pattern.assign source=value kind=place
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.assignment source=value read=binding(value) write=binding(value) type=int32
 /// @resolution.access source=value root=value
 /// @type.node source=2 type=2
@@ -114,9 +115,10 @@ state.count = 1;
 /// @type.node source=state type={ count: int32 }
 /// @type.node source=state.count type=int32
 /// @resolution.name source=state target=state
-/// @resolution.place source=state placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=state placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=state root=state
 /// @resolution.pattern.assign source=state.count kind=place
+/// @resolution.place source=state.count placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=state.count root=state keys=[count]
 /// @resolution.assignment source=state.count write="receiver={ count: int32 }, target=field(receiver={ count: int32 }, target=count, type=int32), type=int32" type=int32
 /// @type.node source=1 type=1

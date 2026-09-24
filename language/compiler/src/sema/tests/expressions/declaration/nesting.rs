@@ -182,7 +182,7 @@ function measure(): float64 {
         /// @resolution.name source=Meters target=measure.Meters
         /// @resolution.construct source=Meters(value) parameters=(float64) arguments=(provided(value) as float64) return=measure.Meters kind=newtype target=measure.Meters backing=float64
         /// @resolution.name source=value target=measure.convert.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=measure.convert.value
 
     }
@@ -195,6 +195,7 @@ function measure(): float64 {
     1.0
 }
 "#,
-        r#""#,
+        r#"
+"#,
     );
 }

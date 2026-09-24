@@ -29,7 +29,7 @@ const shifted = flags << 5;
 /// @resolution.pattern source=shifted kind=binding target=shifted
 /// @resolution.name source=flags target=flags
 /// @resolution.operator source="flags << 5" type=int32 operator="<<" kind=builtin operands=[flags as int32 families=(integer), 5 as int32 families=(integer)]
-/// @resolution.place source=flags placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=flags placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=flags root=flags
 
 const literal = 1 << 5;
@@ -73,10 +73,10 @@ const masked = mask & bits;
 /// @resolution.pattern source=masked kind=binding target=masked
 /// @resolution.name source=mask target=mask
 /// @resolution.operator source="mask & bits" type=int32 operator="&" kind=builtin operands=[mask as int32 families=(integer), bits as int32 families=(integer)]
-/// @resolution.place source=mask placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=mask placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=mask root=mask
 /// @resolution.name source=bits target=bits
-/// @resolution.place source=bits placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=bits placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=bits root=bits
 "#,
     );
@@ -109,7 +109,7 @@ const bad = scale & 2;
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=scale target=scale
 /// @resolution.rejected source="scale & 2"
-/// @resolution.place source=scale placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=scale placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=scale root=scale
 "#,
         r#"
@@ -198,7 +198,7 @@ extension of Flags implements And<Flags> {
     and(&readonly this, other: Flags): Flags {
     /// @generic.template symbol=and parent=template#0 parameters=('a)
     /// @type.symbol symbol=and type=<and.'a>(this: &and.'a readonly Flags, Flags) => Flags
-    /// @type.symbol symbol=and.this source="&readonly this" type=&and.'a readonly this
+    /// @type.symbol symbol=and.this source="&readonly this" type=&and.'a readonly Flags
     /// @type.symbol symbol=and.other source="other: Flags" type=Flags
     /// @resolution.name source=Flags target=Flags
     /// @resolution.name source=Flags target=Flags
@@ -214,9 +214,9 @@ extension of Flags implements And<Flags> {
         /// @resolution.access source=this.bits root=this keys=[bits]
         /// @resolution.name source=other target=and.other
         /// @resolution.member source=other.bits receiver=Flags type=int32 kind=field target_receiver=Flags key=bits target=Flags.bits target_type=int32
-        /// @resolution.place source=other placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=other root=and.other
-        /// @resolution.place source=other.bits placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=other.bits placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=other.bits root=and.other keys=[bits]
 
     }
@@ -236,11 +236,13 @@ const both = left & right;
 /// @type.symbol symbol=both source=both type=Flags
 /// @resolution.pattern source=both kind=binding target=both
 /// @resolution.name source=left target=left
-/// @resolution.operator source="left & right" type=Flags operator="&" kind=call parameters=(Flags) arguments=(provided(right) as Flags) return=Flags regions=("static" & "constant") kind=symbol target=and receiver=Flags adjustments=(borrow(&'static readonly constant Flags))
-/// @resolution.place source=left placement="constant" lifetime="static" access="readonly"
+/// @resolution.operator source="left & right" type=Flags operator="&" kind=call parameters=(Flags) arguments=(provided(right) as Flags) return=Flags regions=("static" & "local") kind=symbol target=and receiver=Flags adjustments=(borrow(&'static readonly Flags)) instance="Flags.<extension#1>.and<\"static\" & \"local\">"
+/// @resolution.place source=left placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=left root=left
+/// @generic.instantiation id="and<\"static\" & \"local\">" template=and arguments=("static" & "local")
+/// @generic.instance id="and<\"bound0\" & \"local\">" template=and arguments=("bound0" & "local")
 /// @resolution.name source=right target=right
-/// @resolution.place source=right placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=right placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=right root=right
 "#,
     );
@@ -270,7 +272,7 @@ function retain(value: bigint): bigint {
     return value & -1n;
     /// @resolution.name source=value target=retain.value
     /// @resolution.operator source="value & -1n" type=bigint operator="&" kind=builtin operands=[value as bigint families=(bigint), -1n as bigint families=(bigint)]
-    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=retain.value
     /// @resolution.operator source=-1n type=-1n operator="-" kind=builtin operands=[1n as 1n families=(bigint)]
 
@@ -293,7 +295,7 @@ function retain(value: bigint): bigint {
     session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
 function retain(value: bigint): bigint {
-    return value.and(-1n);
+    return value.and<"managed">(-1n);
 }
 
 === dir ===
@@ -303,10 +305,11 @@ function retain(value: bigint): bigint {
 
     return value.and(-1n);
     /// @resolution.name source=value target=retain.value
-    /// @resolution.member source=value.and receiver=bigint type=<and.'a>(this: &and.'a readonly bigint, bigint) => bigint.Output kind=symbol target_receiver=bigint target=and
-    /// @resolution.call source=value.and(-1n) parameters=(bigint) arguments=(provided(-1n) as bigint) return=bigint.Output regions=("managed" & "local") kind=symbol target=and receiver=bigint adjustments=(borrow(Borrowed<bigint, "managed" & "local", "readonly">))
-    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+    /// @resolution.member source=value.and receiver=bigint type=<and.'a>(this: &and.'a readonly bigint, bigint) => bigint kind=symbol target_receiver=bigint target=and
+    /// @resolution.call source=value.and(-1n) parameters=(bigint) arguments=(provided(-1n) as bigint) return=bigint regions=("managed" & "local") kind=symbol target=and receiver=bigint adjustments=(borrow(&'managed readonly bigint)) instance="bigint.<extension#2>.and<\"managed\" & \"local\">"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=retain.value
+    /// @generic.instantiation id="and<\"managed\" & \"local\">" template=and arguments=("managed" & "local")
     /// @resolution.operator source=-1n type=-1n operator="-" kind=builtin operands=[1n as 1n families=(bigint)]
 
 }
@@ -340,13 +343,14 @@ function retain(value: bigint, other: bigint): bigint {
     return value & other;
     /// @resolution.name source=value target=retain.value
     /// @resolution.operator source="value & other" type=bigint operator="&" kind=builtin operands=[value as bigint families=(bigint), other as bigint families=(bigint)]
-    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=retain.value
     /// @resolution.name source=other target=retain.other
-    /// @resolution.place source=other placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=other root=retain.other
 
 }
 "#, r#"
+
 "#);
 }

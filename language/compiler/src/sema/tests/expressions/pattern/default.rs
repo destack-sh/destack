@@ -32,7 +32,7 @@ name satisfies string;
 /// @type.node source="name satisfies string" type=string
 /// @type.node source=name type=string
 /// @resolution.name source=name target=name
-/// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=name placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=name root=name
 "#,
     );
@@ -79,23 +79,23 @@ declare const values: [int32; 1];
 /// @type.node source="[value = fallback] = values" type=FixedArray<int32, 1>
 /// @resolution.pattern.assign source=[value = fallback] kind=sequence element=int32 arity=1 fields=(value)
 /// @resolution.access source=[value = fallback] root=values
-/// @generic.instantiation id="index#1<int32, 1, \"mutable\">" template=index#1 arguments=(int32, 1, "mutable")
-/// @generic.instance id="WithAccess<&'bound0 FixedArray<int32, 1>, \"mutable\">" template=WithAccess arguments=(&'bound0 FixedArray<int32, 1>, "mutable")
-/// @generic.instance id="WithAccess<&'bound0 int32, \"mutable\">" template=WithAccess arguments=(&'bound0 int32, "mutable")
-/// @generic.instance id="index#1<int32, 1, \"mutable\">" template=index#1 arguments=(int32, 1, "mutable")
+/// @generic.instantiation id="index#2<int32, 1, \"frame\" & \"local\">" template=index#2 arguments=(int32, 1, "frame" & "local")
+/// @generic.instance id="FixedArray<int32, 1>" template=FixedArray arguments=(int32, 1)
+/// @generic.instance id="index#2<int32, 1, \"bound0\" & \"local\">" template=index#2 arguments=(int32, 1, "bound0" & "local")
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
 /// @resolution.pattern.assign source="value = fallback" kind=default pattern=value value=expression
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=fallback type=int32
 /// @resolution.name source=fallback target=fallback
-/// @resolution.place source=fallback placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=fallback placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=fallback root=fallback
 /// @type.node source=values type=FixedArray<int32, 1>
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=values placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
 "#,
     );

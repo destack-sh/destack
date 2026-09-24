@@ -199,7 +199,6 @@ declare function parse<T: number>(value: `${T}`): T;
 /// @generic.template symbol=parse parameters=(T: float64)
 /// @type.symbol symbol=parse source="declare function parse<T: number>(value: `${T}`): T" type=<T: float64>(`${T}`) => T
 /// @type.symbol symbol=parse.T source="T: number" type=T
-/// @type.symbol symbol=parse.value source="value: `${T}`" type=`${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 
@@ -213,7 +212,7 @@ const value = parse("1e3");
 
 value satisfies number;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -244,7 +243,6 @@ declare function parse<T: int8>(value: `${T}`): T;
 /// @generic.template symbol=parse parameters=(T: int8)
 /// @type.symbol symbol=parse source="declare function parse<T: int8>(value: `${T}`): T" type=<T: int8>(`${T}`) => T
 /// @type.symbol symbol=parse.T source="T: int8" type=T
-/// @type.symbol symbol=parse.value source="value: `${T}`" type=`${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 
@@ -288,7 +286,6 @@ declare function parse<T: bigint>(value: `${T}`): T;
 /// @generic.template symbol=parse parameters=(T: bigint)
 /// @type.symbol symbol=parse source="declare function parse<T: bigint>(value: `${T}`): T" type=<T: bigint>(`${T}`) => T
 /// @type.symbol symbol=parse.T source="T: bigint" type=T
-/// @type.symbol symbol=parse.value source="value: `${T}`" type=`${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 
@@ -302,7 +299,7 @@ const value = parse("-1");
 
 value satisfies -1n;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -474,5 +471,7 @@ declare const wide: Wide;
 /// @diagnostic.label line=4 column=15 span="wide" line_source="declare const wide: Wide;"
 /// @diagnostic.error id=template-literal-too-complex message="template literal type expands to a union that is too complex to represent"
 /// @diagnostic.label line=2 column=6 span="Wide" line_source="type Wide = `${0..=1000000}`;"
+/// @diagnostic.error id=template-literal-too-complex message="template literal type expands to a union that is too complex to represent"
+/// @diagnostic.label line=4 column=15 span="wide" line_source="declare const wide: Wide;"
 "#);
 }

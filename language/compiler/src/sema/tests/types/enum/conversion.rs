@@ -183,7 +183,7 @@ const backing = mode as uint8;
 /// @type.symbol symbol=backing source=backing type=uint8
 /// @resolution.pattern source=backing kind=binding target=backing
 /// @resolution.name source=mode target=mode
-/// @resolution.place source=mode placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=mode placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=mode root=mode
 "#, r#"
 /// @diagnostic.error id=invalid-cast message="type 'Mode' cannot be cast to 'uint8'"
@@ -290,14 +290,14 @@ const guessed = direction as "UP";
 /// @type.symbol symbol=guessed source=guessed type="UP"
 /// @resolution.pattern source=guessed kind=binding target=guessed
 /// @resolution.name source=direction target=direction
-/// @resolution.place source=direction placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=direction placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=direction root=direction
 
 const undecided = mode as 1;
 /// @type.symbol symbol=undecided source=undecided type=1
 /// @resolution.pattern source=undecided kind=binding target=undecided
 /// @resolution.name source=mode target=mode
-/// @resolution.place source=mode placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=mode placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=mode root=mode
 "#, r#"
 /// @diagnostic.error id=invalid-cast message="type 'Mode.Read' cannot be cast to '2'"
@@ -365,7 +365,7 @@ function pick(kind?: Kind): Kind {
     return kind ?? Kind.Internal;
     /// @resolution.name source=kind target=pick.kind
     /// @resolution.operator source="kind ?? Kind.Internal" type=Kind operator="??" kind=builtin operands=[kind as Kind | undefined families=(Kind | undefined), Kind.Internal as Kind.Internal families=(Kind)]
-    /// @resolution.place source=kind placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=kind placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=kind root=pick.kind
     /// @resolution.name source=Kind target=Kind
     /// @resolution.member source=Kind.Internal receiver=Kind type=Kind.Internal kind=symbol target_receiver=Kind target=Kind.Internal

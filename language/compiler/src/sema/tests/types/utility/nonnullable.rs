@@ -25,7 +25,7 @@ present satisfies string;
 
 === dir ===
 type Present = NonNullable<string | null | undefined>;
-/// @type.symbol symbol=Present source="type Present = NonNullable<string | null | undefined>" type=NonNullable<string | null | undefined>
+/// @type.symbol symbol=Present source="type Present = NonNullable<string | null | undefined>" type=string
 /// @definition.type symbol=Present source="type Present = NonNullable<string | null | undefined>" value=NonNullable<string | null | undefined>
 /// @resolution.name source=NonNullable target=NonNullable
 
@@ -36,7 +36,7 @@ declare const present: Present;
 
 present satisfies string;
 /// @resolution.name source=present target=present
-/// @resolution.place source=present placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=present placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=present root=present
 "#,
     );
@@ -63,7 +63,7 @@ const bad: Present = null;
 
 === dir ===
 type Present = NonNullable<string | null | undefined>;
-/// @type.symbol symbol=Present source="type Present = NonNullable<string | null | undefined>" type=NonNullable<string | null | undefined>
+/// @type.symbol symbol=Present source="type Present = NonNullable<string | null | undefined>" type=string
 /// @definition.type symbol=Present source="type Present = NonNullable<string | null | undefined>" value=NonNullable<string | null | undefined>
 /// @resolution.name source=NonNullable target=NonNullable
 
@@ -102,7 +102,7 @@ let bad: Present = "no";
 
 === dir ===
 type Present = NonNullable<never>;
-/// @type.symbol symbol=Present source="type Present = NonNullable<never>" type=NonNullable<never>
+/// @type.symbol symbol=Present source="type Present = NonNullable<never>" type=never
 /// @definition.type symbol=Present source="type Present = NonNullable<never>" value=NonNullable<never>
 /// @resolution.name source=NonNullable target=NonNullable
 
@@ -156,7 +156,7 @@ function keep<T: {}>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=keep.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=keep.value
 
 }

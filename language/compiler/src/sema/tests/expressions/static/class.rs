@@ -87,7 +87,7 @@ const narrowMeta = segment.narrow;
 /// @type.node source=segment.narrow type=NarrowMeta
 /// @resolution.name source=segment target=segment
 /// @resolution.member source=segment.narrow receiver=Segment type=NarrowMeta kind=field target_receiver=Segment key=narrow target=Segment.narrow target_type=NarrowMeta
-/// @resolution.place source=segment placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=segment placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=segment root=segment
 /// @resolution.access source=segment.narrow root=segment keys=[narrow]
 "#,
@@ -178,7 +178,7 @@ segment.wide;
 /// @type.node source=segment type=Segment
 /// @type.node source=segment.wide type=<error>
 /// @resolution.name source=segment target=segment
-/// @resolution.place source=segment placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=segment placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=segment root=segment
 /// @resolution.rejected source=segment.wide
 "#,
@@ -237,7 +237,7 @@ class Packet<T> {
 /// @type.symbol symbol=Packet type=typeof Packet
 /// @definition.class symbol=Packet template=(in out T)
 /// @definition.field symbol=Packet.value source="value: T" key=value type=T
-/// @definition.method symbol=Packet.constructor slot=constructor role=constructor type=<Packet.constructor.P0: Place>(T) => Managed<this, Packet.constructor.P0>
+/// @definition.method symbol=Packet.constructor slot=constructor role=constructor type=(this: &'managed Packet<T>, T) => Packet<T>
 /// @type.symbol symbol=Packet.T source=T type=T
 
     @if(T extends string)
@@ -248,25 +248,25 @@ class Packet<T> {
     /// @resolution.name source=T target=Packet.T
 
     constructor(value: T) {
-    /// @generic.template symbol=Packet.constructor parent=template#0 parameters=(P0: Place)
-    /// @type.symbol symbol=Packet.constructor type=<Packet.constructor.P0: Place>(T) => Managed<this, Packet.constructor.P0>
-    /// @type.symbol symbol=Packet.constructor.this type=Packet<T>
+    /// @type.symbol symbol=Packet.constructor type=(this: &'managed Packet<T>, T) => Packet<T>
+    /// @type.symbol symbol=Packet.constructor.this type=&'managed Packet<T>
     /// @type.symbol symbol=Packet.constructor.value source="value: T" type=T
     /// @resolution.name source=T target=Packet.T
 
         this.value = value;
         /// @type.node source="this.value = value" type=T
-        /// @type.node source=this type=Packet<T>
+        /// @type.node source=this type=&'managed Packet<T>
         /// @type.node source=this.value type=T
-        /// @resolution.receiver source=this kind=this declaration=Packet type=Packet<T>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.receiver source=this kind=this declaration=Packet type=&'managed Packet<T>
+        /// @resolution.place source=this placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.place source=this.value placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this.value root=this keys=[value]
-        /// @resolution.assignment source=this.value write="receiver=Packet<T>, target=field(receiver=Packet<T>, target=Packet.value, type=T), type=T" type=T
+        /// @resolution.assignment source=this.value write="receiver=&'managed Packet<T>, target=field(receiver=&'managed Packet<T>, target=Packet.value, type=T), type=T" type=T
         /// @type.node source=value type=T
         /// @resolution.name source=value target=Packet.constructor.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=Packet.constructor.value
 
     }

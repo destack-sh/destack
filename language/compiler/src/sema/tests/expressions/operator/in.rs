@@ -37,14 +37,14 @@ const hasX = "x" in point;
 /// @resolution.guard source="\"x\" in point" kind=in key_type="x" receiver={ x: int64; y: int64 } predicate="membership({ x: int64; y: int64 }, x)" narrowed={ x: int64; y: int64 }
 /// @type.node source=point type={ x: int64; y: int64 }
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 
 hasX satisfies boolean;
 /// @type.node source="hasX satisfies boolean" type=boolean
 /// @type.node source=hasX type=boolean
 /// @resolution.name source=hasX target=hasX
-/// @resolution.place source=hasX placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=hasX placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=hasX root=hasX
 "#,
     );
@@ -87,14 +87,14 @@ const hasName = "name" in point;
 /// @resolution.guard source="\"name\" in point" kind=in key_type="name" receiver={ x: int64; y: int64 } predicate="membership({ x: int64; y: int64 }, name)" narrowed=never
 /// @type.node source=point type={ x: int64; y: int64 }
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 
 hasName satisfies boolean;
 /// @type.node source="hasName satisfies boolean" type=boolean
 /// @type.node source=hasName type=boolean
 /// @resolution.name source=hasName target=hasName
-/// @resolution.place source=hasName placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=hasName placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=hasName root=hasName
 "#,
     );
@@ -137,12 +137,12 @@ found satisfies boolean;
 class Bag {
 /// @type.symbol symbol=Bag type=typeof Bag
 /// @definition.class symbol=Bag
-/// @definition.method symbol=Bag.has slot=has type=<Bag.has.'a, Bag.has.P1: Place>(this: Managed<Bag, Bag.has.P1>, &Bag.has.'a readonly string) => boolean
+/// @definition.method symbol=Bag.has slot=has type=<Bag.has.'a>(this: Bag, &Bag.has.'a readonly string) => boolean
 
     has(key: &readonly string): boolean {
-    /// @generic.template symbol=Bag.has parameters=('a, P1: Place)
-    /// @type.symbol symbol=Bag.has type=<Bag.has.'a, Bag.has.P1: Place>(this: Managed<Bag, Bag.has.P1>, &Bag.has.'a readonly string) => boolean
-    /// @type.symbol symbol=Bag.has.this type=Managed<Bag, Bag.has.P1>
+    /// @generic.template symbol=Bag.has parameters=('a)
+    /// @type.symbol symbol=Bag.has type=<Bag.has.'a>(this: Bag, &Bag.has.'a readonly string) => boolean
+    /// @type.symbol symbol=Bag.has.this type=Bag
     /// @type.symbol symbol=Bag.has.key source="key: &readonly string" type=&Bag.has.'a readonly string
 
         return true;
@@ -164,14 +164,14 @@ const found = "name" in bag;
 /// @resolution.guard source="\"name\" in bag" kind=in key_type="name" receiver=Bag predicate="membership(Bag, name)" narrowed=Bag & { readonly name: unknown }
 /// @type.node source=bag type=Bag
 /// @resolution.name source=bag target=bag
-/// @resolution.place source=bag placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=bag placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=bag root=bag
 
 found satisfies boolean;
 /// @type.node source="found satisfies boolean" type=boolean
 /// @type.node source=found type=boolean
 /// @resolution.name source=found target=found
-/// @resolution.place source=found placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=found placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=found root=found
 "#,
     );
@@ -226,7 +226,7 @@ declare const user: User;
 /// @resolution.guard source="\"name\" in user" kind=in key_type="name" receiver=User predicate="membership(User, name)" narrowed=User
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=user placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
 "#,
     );
@@ -255,7 +255,7 @@ if ("name" in value) {
 type Named = { name: string };
 type Numbered = { id: int32 };
 
-declare const value: Named | Numbered;
+declare const value: { name: string } | { id: int32 };
 
 if ("name" in value) {
     value.name satisfies string;
@@ -273,7 +273,7 @@ type Numbered = { id: int32 };
 /// @type.symbol symbol=Numbered.id source="id: int32" type=int32
 
 declare const value: Named | Numbered;
-/// @type.symbol symbol=value source=value type=Named | Numbered
+/// @type.symbol symbol=value source=value type={ name: string } | { id: int32 }
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Named target=Named
 /// @resolution.name source=Numbered target=Numbered
@@ -281,10 +281,10 @@ declare const value: Named | Numbered;
 if ("name" in value) {
 /// @type.node source="\"name\" in value" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=Named | Numbered predicate="membership(Named | Numbered, name)" narrowed={ name: string }
-/// @type.node source=value type=Named | Numbered
+/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver={ name: string } | { id: int32 } predicate="membership({ name: string } | { id: int32 }, name)" narrowed={ name: string }
+/// @type.node source=value type={ name: string } | { id: int32 }
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 
     value.name satisfies string;
@@ -293,8 +293,9 @@ if ("name" in value) {
     /// @type.node source=value.name type=string
     /// @resolution.name source=value target=value
     /// @resolution.member source=value.name receiver={ name: string } type=string kind=field target_receiver={ name: string } key=name target_type=string
-    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=value root=value
+    /// @resolution.narrowing source=value union={ name: string } | { id: int32 } arms={ name: string }
     /// @resolution.place source=value.name placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=value.name root=value keys=[name]
 
@@ -327,7 +328,7 @@ if ("name" in value) {
 type Named = { name: string };
 type Numbered = { id: int32 };
 
-declare const value: Named | Numbered;
+declare const value: { name: string } | { id: int32 };
 
 if ("name" in value) {
 } else {
@@ -346,7 +347,7 @@ type Numbered = { id: int32 };
 /// @type.symbol symbol=Numbered.id source="id: int32" type=int32
 
 declare const value: Named | Numbered;
-/// @type.symbol symbol=value source=value type=Named | Numbered
+/// @type.symbol symbol=value source=value type={ name: string } | { id: int32 }
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Named target=Named
 /// @resolution.name source=Numbered target=Numbered
@@ -354,10 +355,10 @@ declare const value: Named | Numbered;
 if ("name" in value) {
 /// @type.node source="\"name\" in value" type=boolean
 /// @type.node source="\"name\"" type="name"
-/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=Named | Numbered predicate="membership(Named | Numbered, name)" narrowed={ name: string }
-/// @type.node source=value type=Named | Numbered
+/// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver={ name: string } | { id: int32 } predicate="membership({ name: string } | { id: int32 }, name)" narrowed={ name: string }
+/// @type.node source=value type={ name: string } | { id: int32 }
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 
 } else {
@@ -367,8 +368,9 @@ if ("name" in value) {
     /// @type.node source=value.id type=int32
     /// @resolution.name source=value target=value
     /// @resolution.member source=value.id receiver={ id: int32 } type=int32 kind=field target_receiver={ id: int32 } key=id target_type=int32
-    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=value root=value
+    /// @resolution.narrowing source=value union={ name: string } | { id: int32 } arms={ id: int32 }
     /// @resolution.place source=value.id placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=value.id root=value keys=[id]
 
@@ -438,7 +440,7 @@ true in point;
 /// @resolution.guard source="true in point" kind=in key_type=true receiver={ x: int64 } predicate="membership({ x: int64 }, true)"
 /// @type.node source=point type={ x: int64 }
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 "#,
         r#"
@@ -478,7 +480,7 @@ declare const value: unknown;
 /// @resolution.guard source="\"name\" in value" kind=in key_type="name" receiver=unknown predicate="membership(unknown, name)" narrowed={ readonly name: unknown }
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 "#,
         r#"

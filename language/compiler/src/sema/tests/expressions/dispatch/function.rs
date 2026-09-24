@@ -19,64 +19,52 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     values.iterator<int32 | undefined>().map<int32 | undefined, int32 | undefined>(
         (value: int32 | undefined): int32 | undefined => value,
     ).find<int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>>(
-        (value: &'a readonly (int32 | undefined)): boolean =>
-            value !== (undefined as int32 | undefined) && (value as int32) > 0,
-    ) as int32 | undefined
+        (value: int32 | undefined): boolean =>
+            value !== (undefined as int32 | undefined) && value > 0,
+    )
 }
 
 === dir ===
 function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
 /// @type.symbol symbol=firstPositive type=(int32 | undefined[]) => int32 | undefined
 /// @generic.instance id="Array<int32 | undefined>" template=Array arguments=(int32 | undefined)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="assumeInitDrop#1<int32 | undefined>" template=assumeInitDrop#1 arguments=(int32 | undefined)
-/// @generic.instance id="assumeInitDrop<int32 | undefined>" template=assumeInitDrop arguments=(int32 | undefined)
-/// @generic.instance id="clear<int32 | undefined>" template=clear arguments=(int32 | undefined)
-/// @generic.instance id="drop<int32 | undefined>" template=drop arguments=(int32 | undefined)
-/// @generic.instance id="dropInPlace<int32 | undefined>" template=dropInPlace arguments=(int32 | undefined)
-/// @generic.instance id="elementSlot<int32 | undefined, \"mutable\">" template=elementSlot arguments=(int32 | undefined, "mutable")
-/// @generic.instance id="initAsPointer<int32 | undefined, \"mutable\">" template=initAsPointer arguments=(int32 | undefined, "mutable")
 /// @generic.instance id="sliceAssumeInit<MaybeUninit<int32 | undefined>>" template=sliceAssumeInit arguments=(MaybeUninit<int32 | undefined>)
-/// @generic.instance id="sliceIndex<MaybeUninit<int32 | undefined>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32 | undefined>, "mutable")
 /// @generic.instance id="sliceUninit<MaybeUninit<int32 | undefined>>" template=sliceUninit arguments=(MaybeUninit<int32 | undefined>)
-/// @generic.instance id="truncate<int32 | undefined>" template=truncate arguments=(int32 | undefined)
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @type.symbol symbol=firstPositive.values source="values: (int32 | undefined)[]" type=int32 | undefined[]
 
     values.iterator().map((value) => value).find((value) => value !== undefined && value > 0)
     /// @resolution.name source=values target=firstPositive.values
-    /// @resolution.member source="values.iterator().map((value) => value).find" receiver=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> type=(this: MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>, Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) => int32 | undefined kind=symbol target_receiver=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> target=Iterator.find
-    /// @resolution.member source=values.iterator receiver=int32 | undefined[] type=<iterator#2.P0: Place>(this: Managed<int32 | undefined[], iterator#2.P0>) => Iterator<int32 | undefined> kind=symbol target_receiver=int32 | undefined[] target=iterator#2
-    /// @resolution.member source=values.iterator().map receiver=Iterator<int32 | undefined> type=<Iterator.map.U>(this: Iterator<int32 | undefined>, Function<(int32 | undefined, isize), Iterator.map.U>) => MapIterator<Iterator<int32 | undefined>, int32 | undefined, Iterator.map.U> kind=symbol target_receiver=Iterator<int32 | undefined> dispatch=dynamic constraint=Iterator<int32 | undefined> target=Iterator.map
-    /// @resolution.call parameters=(Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) arguments=(provided((value) => value !== undefined && value > 0) as Function<(&type_expression.'a readonly int32 | undefined, isize), boolean>) return=int32 | undefined kind=symbol target=Iterator.find receiver=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> instance="MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>.<extension#3>.find"
-    /// @resolution.call source="values.iterator().map((value) => value)" parameters=(Function<(int32 | undefined, isize), int32 | undefined>) arguments=(provided((value) => value) as Function<(int32 | undefined, isize), int32 | undefined>) return=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> kind=dynamic target=Iterator.map receiver=Iterator<int32 | undefined> constraint=Iterator<int32 | undefined> generic_arguments=(int32 | undefined, int32 | undefined)
-    /// @resolution.call source=values.iterator() parameters=() return=Iterator<int32 | undefined> kind=symbol target=iterator#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#4>.iterator#2<\"local\">"
-    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+    /// @resolution.member source="values.iterator().map((value) => value).find" receiver=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> type=(this: MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>, (int32 | undefined, isize) => boolean) => int32 | undefined kind=symbol target_receiver=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> target=Iterator.find#1
+    /// @resolution.member source=values.iterator receiver=int32 | undefined[] type=(this: int32 | undefined[]) => Iterator<int32 | undefined> kind=symbol target_receiver=int32 | undefined[] target=iterator#2
+    /// @resolution.member source=values.iterator().map receiver=Iterator<int32 | undefined> type=<Iterator.map.U>(this: Iterator<int32 | undefined>, (int32 | undefined, isize) => Iterator.map.U) => MapIterator<Iterator<int32 | undefined>, int32 | undefined, Iterator.map.U> kind=symbol target_receiver=Iterator<int32 | undefined> dispatch=dynamic constraint=Iterator<int32 | undefined> target=Iterator.map
+    /// @resolution.call parameters=((int32 | undefined, isize) => boolean) arguments=(provided((value) => value !== undefined && value > 0) as (int32 | undefined, isize) => boolean) return=int32 | undefined kind=symbol target=Iterator.find#1 receiver=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> instance="MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>.<extension#3>.find#1"
+    /// @resolution.call source="values.iterator().map((value) => value)" parameters=((int32 | undefined, isize) => int32 | undefined) arguments=(provided((value) => value) as (int32 | undefined, isize) => int32 | undefined) return=MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined> kind=dynamic target=Iterator.map receiver=Iterator<int32 | undefined> constraint=Iterator<int32 | undefined> generic_arguments=(int32 | undefined, int32 | undefined)
+    /// @resolution.call source=values.iterator() parameters=() return=Iterator<int32 | undefined> kind=symbol target=iterator#2 receiver=int32 | undefined[] instance="Array<int32 | undefined>.<extension#4>.iterator#2"
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=firstPositive.values
-    /// @generic.instantiation id="Iterator.find<int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>>" template=Iterator.find arguments=(int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>)
+    /// @generic.instantiation id="Iterator.find#1<int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>>" template=Iterator.find#1 arguments=(int32 | undefined, int32 | undefined, int32 | undefined, Iterator<int32 | undefined>)
     /// @generic.instantiation id="Iterator.map<int32 | undefined>" template=Iterator.map arguments=(int32 | undefined)
-    /// @generic.instantiation id="iterator#2<int32 | undefined, \"local\">" template=iterator#2 arguments=(int32 | undefined, "local")
     /// @generic.instantiation id="iterator#2<int32 | undefined>" template=iterator#2 arguments=(int32 | undefined)
     /// @generic.instance id="Iterator<int32 | undefined>" template=Iterator arguments=(int32 | undefined)
     /// @generic.instance id="MapIterator<Iterator<int32 | undefined>, int32 | undefined, int32 | undefined>" template=MapIterator arguments=(Iterator<int32 | undefined>, int32 | undefined, int32 | undefined)
-    /// @generic.instance id="iterator#2<int32 | undefined, \"local\">" template=iterator#2 arguments=(int32 | undefined, "local")
+    /// @generic.instance id="iterator#2<int32 | undefined>" template=iterator#2 arguments=(int32 | undefined)
     /// @type.symbol symbol=firstPositive.symbol3 source="(value) => value" type=Function<(int32 | undefined,), int32 | undefined, "readonly">
     /// @type.symbol symbol=firstPositive.symbol3.value source=value type=int32 | undefined
     /// @resolution.name source=value target=firstPositive.symbol3.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=firstPositive.symbol3.value
-    /// @type.symbol symbol=firstPositive.symbol5 source="(value) => value !== undefined && value > 0" type=Function<(&type_expression.'a readonly int32 | undefined,), boolean, "readonly">
-    /// @type.symbol symbol=firstPositive.symbol5.value source=value type=&type_expression.'a readonly int32 | undefined
+    /// @type.symbol symbol=firstPositive.symbol5 source="(value) => value !== undefined && value > 0" type=Function<(int32 | undefined,), boolean, "readonly">
+    /// @type.symbol symbol=firstPositive.symbol5.value source=value type=int32 | undefined
     /// @resolution.name source=value target=firstPositive.symbol5.value
     /// @resolution.operator source="value !== undefined && value > 0" type=boolean operator="&&" kind=builtin operands=[value !== undefined as boolean families=(boolean), value > 0 as boolean families=(boolean)]
     /// @resolution.operator source="value !== undefined" type=boolean operator="!==" kind=builtin operands=[value as int32 | undefined families=(integer | undefined), undefined as int32 | undefined families=(integer | undefined)]
-    /// @resolution.place source=value placement=type_expression.'a lifetime=type_expression.'a access="readonly"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=firstPositive.symbol5.value
     /// @resolution.name source=value target=firstPositive.symbol5.value
     /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
-    /// @resolution.place source=value placement=type_expression.'a lifetime=type_expression.'a access="readonly"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=firstPositive.symbol5.value
-    /// @resolution.narrowing source=value union=&type_expression.'a readonly int32 | undefined arms=&type_expression.'a readonly int32
+    /// @resolution.narrowing source=value union=int32 | undefined arms=int32
 
 }
 "#,
@@ -97,8 +85,8 @@ function schedule(callback: (ready: boolean) => void): void {}
 
 === dir ===
 function schedule(callback: (ready: boolean) => void): void {}
-/// @type.symbol symbol=schedule source="function schedule(callback: (ready: boolean) => void): void {}" type=(Function<(boolean,), void>) => void
-/// @type.symbol symbol=schedule.callback source="callback: (ready: boolean) => void" type=Function<(boolean,), void>
+/// @type.symbol symbol=schedule source="function schedule(callback: (ready: boolean) => void): void {}" type=((boolean) => void) => void
+/// @type.symbol symbol=schedule.callback source="callback: (ready: boolean) => void" type=(boolean) => void
 /// @type.symbol symbol=schedule.ready source="ready: boolean" type=boolean
 "#);
 }
@@ -119,8 +107,7 @@ const value = add(1, 2);
         "main.ds",
         DirRows::checked()
             .with_node_types()
-            .without_reference_types()
-            ,
+            .without_reference_types(),
         r#"
 === annotated ===
 function add(left: int32, right: int32): int32 {
@@ -139,10 +126,10 @@ function add(left: int32, right: int32): int32 {
     /// @type.node source="left + right" type=int32
     /// @resolution.name source=left target=add.left
     /// @resolution.operator source="left + right" type=int32 operator="+" kind=builtin operands=[left as int32 families=(integer), right as int32 families=(integer)]
-    /// @resolution.place source=left placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=left placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=left root=add.left
     /// @resolution.name source=right target=add.right
-    /// @resolution.place source=right placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=right placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=right root=add.right
 
 }
@@ -237,15 +224,14 @@ function source(value?: unknown): void {}
 /// @type.symbol symbol=source.value source="value?: unknown" type=unknown | undefined
 
 declare function use(callback: (value: unknown) => void): void;
-/// @type.symbol symbol=use source="declare function use(callback: (value: unknown) => void): void" type=(Function<(unknown,), void>) => void
-/// @type.symbol symbol=use.callback source="callback: (value: unknown) => void" type=Function<(unknown,), void>
+/// @type.symbol symbol=use source="declare function use(callback: (value: unknown) => void): void" type=((unknown) => void) => void
 /// @type.symbol symbol=use.value source="value: unknown" type=unknown
 
 use(source);
-/// @type.node source=use type=(Function<(unknown,), void>) => void
+/// @type.node source=use type=((unknown) => void) => void
 /// @type.node source=use(source) type=void
 /// @resolution.name source=use target=use
-/// @resolution.call source=use(source) parameters=(Function<(unknown,), void>) arguments=(provided(source) as Function<(unknown,), void>) return=void kind=symbol target=use
+/// @resolution.call source=use(source) parameters=((unknown) => void) arguments=(provided(source) as (unknown) => void) return=void kind=symbol target=use
 /// @type.node source=source type=Function<(unknown | undefined?,), void, "readonly">
 /// @resolution.name source=source target=source
 /// @resolution.function source=source type=Function<(unknown | undefined?,), void, "readonly"> target=source
@@ -280,9 +266,8 @@ const value: int64 = map<int64>((): int64 => 1);
 === dir ===
 declare function map<T>(callback: (value: unknown) => T): T;
 /// @generic.template symbol=map parameters=(T)
-/// @type.symbol symbol=map source="declare function map<T>(callback: (value: unknown) => T): T" type=<T>(Function<(unknown,), T>) => T
+/// @type.symbol symbol=map source="declare function map<T>(callback: (value: unknown) => T): T" type=<T>((unknown) => T) => T
 /// @type.symbol symbol=map.T source=T type=T
-/// @type.symbol symbol=map.callback source="callback: (value: unknown) => T" type=Function<(unknown,), T>
 /// @type.symbol symbol=map.value source="value: unknown" type=unknown
 /// @resolution.name source=T target=map.T
 /// @resolution.name source=T target=map.T
@@ -291,9 +276,9 @@ const value = map(() => 1);
 /// @type.symbol symbol=value source=value type=int64
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source="map(() => 1)" type=int64
-/// @type.node source=map type=(Function<(unknown,), int64>) => int64
+/// @type.node source=map type=((unknown) => int64) => int64
 /// @resolution.name source=map target=map
-/// @resolution.call source="map(() => 1)" parameters=(Function<(unknown,), int64>) arguments=(provided(() => 1) as Function<(unknown,), int64>) return=int64 kind=symbol target=map instance=map<int64>
+/// @resolution.call source="map(() => 1)" parameters=((unknown) => int64) arguments=(provided(() => 1) as (unknown) => int64) return=int64 kind=symbol target=map instance=map<int64>
 /// @generic.instantiation id=map<int64> template=map arguments=(int64)
 /// @generic.instance id=map<int64> template=map arguments=(int64)
 /// @type.symbol symbol=symbol5 source="() => 1" type=Function<(), int64, "readonly">
@@ -338,7 +323,7 @@ function greet(name: string = "world"): string {
     name
     /// @type.node source=name type=string
     /// @resolution.name source=name target=greet.name
-    /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=name root=greet.name
 
 }

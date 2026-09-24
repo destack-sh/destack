@@ -57,7 +57,7 @@ declare const person: Required<Person>;
 person.name satisfies string;
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.name receiver=Required<Person> type=string kind=field target_receiver=Required<Person> key=name target_type=string
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.name root=person keys=[name]
@@ -65,7 +65,7 @@ person.name satisfies string;
 person.age satisfies int32;
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.age receiver=Required<Person> type=int32 kind=field target_receiver=Required<Person> key=age target_type=int32
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.age placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.age root=person keys=[age]
@@ -176,7 +176,7 @@ const person: Required<Person> = { name: undefined };
 person.name satisfies string | undefined;
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.name receiver=Required<Person> type=string | undefined kind=field target_receiver=Required<Person> key=name target_type=string | undefined
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.name root=person keys=[name]
@@ -230,7 +230,7 @@ const person: Required<Person> = { name: "Ada" };
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.rejected source=person.name
 "#,

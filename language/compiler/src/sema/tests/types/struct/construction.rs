@@ -50,7 +50,7 @@ const point = Point { x: 1, y: 2 };
 
 point satisfies Point;
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 /// @resolution.name source=Point target=Point
 "#,
@@ -92,14 +92,14 @@ const store: Store = Store {
 struct Store {
 /// @type.symbol symbol=Store type=Store
 /// @definition.struct symbol=Store
-/// @definition.field symbol=Store.read source="read: () => string" key=read type=Function<(), string>
-/// @definition.field symbol=Store.write source="write: (value: string) => void" key=write type=Function<(string,), void>
+/// @definition.field symbol=Store.read source="read: () => string" key=read type=() => string
+/// @definition.field symbol=Store.write source="write: (value: string) => void" key=write type=(string) => void
 
     read: () => string;
-    /// @type.symbol symbol=Store.read source="read: () => string" type=Function<(), string>
+    /// @type.symbol symbol=Store.read source="read: () => string" type=() => string
 
     write: (value: string) => void;
-    /// @type.symbol symbol=Store.write source="write: (value: string) => void" type=Function<(string,), void>
+    /// @type.symbol symbol=Store.write source="write: (value: string) => void" type=(string) => void
     /// @type.symbol symbol=Store.value source="value: string" type=string
 
 }
@@ -114,7 +114,6 @@ const store = Store {
 
     set write(value: string): void {},
     /// @type.symbol symbol=symbol8 source="set write(value: string): void {}" type=(string) => void
-    /// @type.symbol symbol=symbol8.value source="value: string" type=string
 
 };
 "#,
@@ -184,7 +183,7 @@ function wrap<T>(value: T): Box<T> {
     /// @resolution.name source=Box target=Box
     /// @type.node source=value type=T#2
     /// @resolution.name source=value target=wrap.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=wrap.value
 
 }
@@ -340,15 +339,16 @@ function doubled<T: Float>(value: T): Box<T> {
     /// @resolution.name source=Box target=Box
     /// @resolution.name source=value target=doubled.value
     /// @resolution.operator source="value + value" type=T#2 operator="+" kind=builtin operands=[value as T#2 families=(float), value as T#2 families=(float)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=doubled.value
     /// @resolution.name source=value target=doubled.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=doubled.value
 
 }
 "#,
-        r#""#,
+        r#"
+"#,
     );
 }
 
@@ -383,7 +383,7 @@ struct Counter {
     }
 }
 
-const next: Counter = Counter { value: 1 }.increment();
+const next: Counter = Counter { value: 1 }.increment<"frame">();
 next satisfies Counter;
 
 === dir ===
@@ -420,11 +420,13 @@ const next = Counter { value: 1 }.increment();
 /// @resolution.pattern source=next kind=binding target=next
 /// @resolution.name source=Counter target=Counter
 /// @resolution.member source="Counter { value: 1 }.increment" receiver=Counter type=<Counter.increment.'a>(this: &Counter.increment.'a readonly Counter) => Counter kind=symbol target_receiver=Counter target=Counter.increment
-/// @resolution.call source="Counter { value: 1 }.increment()" parameters=() return=Counter regions=("frame" & "local") kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow(&'frame readonly Counter))
+/// @resolution.call source="Counter { value: 1 }.increment()" parameters=() return=Counter regions=("frame" & "local") kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow(&'frame readonly Counter)) instance="Counter.increment<\"frame\" & \"local\">"
+/// @generic.instantiation id="Counter.increment<\"frame\" & \"local\">" template=Counter.increment arguments=("frame" & "local")
+/// @generic.instance id="Counter.increment<\"bound0\" & \"local\">" template=Counter.increment arguments=("bound0" & "local")
 
 next satisfies Counter;
 /// @resolution.name source=next target=next
-/// @resolution.place source=next placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=next placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=next root=next
 /// @resolution.name source=Counter target=Counter
 "#,
@@ -628,7 +630,7 @@ struct Counter {
 }
 
 let counter: Counter = Counter { value: 1 };
-const next: int32 = counter.increment();
+const next: int32 = counter.increment<"static">();
 next satisfies int32;
 
 === dir ===
@@ -644,13 +646,14 @@ struct Counter {
     increment(&this): int32 {
     /// @generic.template symbol=Counter.increment parameters=('a)
     /// @type.symbol symbol=Counter.increment type=<Counter.increment.'a>(this: &Counter.increment.'a Counter) => int32
-    /// @type.symbol symbol=Counter.increment.this source=&this type=&Counter.increment.'a this
+    /// @type.symbol symbol=Counter.increment.this source=&this type=&Counter.increment.'a Counter
 
         this.value = this.value + 1;
         /// @resolution.receiver source=this kind=this declaration=Counter type=&Counter.increment.'a Counter
         /// @resolution.place source=this placement=Counter.increment.'a lifetime=Counter.increment.'a access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.place source=this.value placement=Counter.increment.'a lifetime=Counter.increment.'a access="mutable"
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.assignment source=this.value write="receiver=&Counter.increment.'a Counter, target=field(receiver=&Counter.increment.'a Counter, target=Counter.value, type=int32), type=int32" type=int32
         /// @resolution.member source=this.value receiver=&Counter.increment.'a Counter type=int32 kind=field target_receiver=&Counter.increment.'a Counter key=value target=Counter.value target_type=int32
@@ -682,13 +685,15 @@ const next = counter.increment();
 /// @resolution.pattern source=next kind=binding target=next
 /// @resolution.name source=counter target=counter
 /// @resolution.member source=counter.increment receiver=Counter type=<Counter.increment.'a>(this: &Counter.increment.'a Counter) => int32 kind=symbol target_receiver=Counter target=Counter.increment
-/// @resolution.call source=counter.increment() parameters=() return=int32 regions=("static" & "local") kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow(&'static Counter))
-/// @resolution.place source=counter placement="local" lifetime="static" access="mutable"
+/// @resolution.call source=counter.increment() parameters=() return=int32 regions=("static" & "local") kind=symbol target=Counter.increment receiver=Counter adjustments=(borrow(&'static Counter)) instance="Counter.increment<\"static\" & \"local\">"
+/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=counter root=counter
+/// @generic.instantiation id="Counter.increment<\"static\" & \"local\">" template=Counter.increment arguments=("static" & "local")
+/// @generic.instance id="Counter.increment<\"bound0\" & \"local\">" template=Counter.increment arguments=("bound0" & "local")
 
 next satisfies int32;
 /// @resolution.name source=next target=next
-/// @resolution.place source=next placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=next placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=next root=next
 "#,
     );
@@ -778,10 +783,8 @@ struct Entry<'a> {
     message?: string | undefined;
 }
 
-function make(options?: Options): Entry<"managed" & "local"> {
-    const entry: Entry<"managed" & "local"> = Entry<"managed" & "local"> {
-        message: options?.message,
-    };
+function make(options?: { message?: string }): Entry<"managed"> {
+    const entry: Entry<"managed"> = Entry<"managed"> { message: options?.message };
 
     return entry;
 }
@@ -814,25 +817,27 @@ struct Entry<'a> {
 }
 
 function make(options?: Options): Entry {
-/// @type.symbol symbol=make type=(Options | undefined?) => Entry<"managed" & "local">
-/// @type.symbol symbol=make.options source="options?: Options" type=Options | undefined
+/// @type.symbol symbol=make type=({ message?: string } | undefined?) => Entry<"managed" & "local">
+/// @generic.instance id="Entry<\"bound0\" & \"local\">" template=Entry arguments=("bound0" & "local")
+/// @type.symbol symbol=make.options source="options?: Options" type={ message?: string } | undefined
 /// @resolution.name source=Options target=Options
 /// @resolution.name source=Entry target=Entry
+/// @generic.instance id="Entry<\"frame\">" template=Entry arguments=("frame")
 
     const entry = Entry { message: options?.message };
     /// @type.symbol symbol=make.entry source=entry type=Entry<"managed" & "local">
     /// @resolution.pattern source=entry kind=binding target=make.entry
     /// @resolution.name source=Entry target=Entry
     /// @resolution.name source=options target=make.options
-    /// @resolution.member source=options?.message receiver=Options | undefined type=string | undefined kind=field target_receiver=Options | undefined adjustments=(union.payload(Options | undefined, Options, Options)) key=message target_type=string | undefined
-    /// @resolution.place source=options placement="local" lifetime="frame" access="mutable"
+    /// @resolution.member source=options?.message receiver={ message?: string } | undefined type=string | undefined kind=field target_receiver={ message?: string } | undefined adjustments=(union.payload({ message?: string } | undefined, { message?: string }, { message?: string })) key=message target_type=string | undefined
+    /// @resolution.place source=options placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=options root=make.options
-    /// @resolution.place source=options?.message placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=options?.message placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=options?.message root=make.options keys=[message]
 
     return entry;
     /// @resolution.name source=entry target=make.entry
-    /// @resolution.place source=entry placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=entry placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=entry root=make.entry
 
 }
@@ -870,23 +875,23 @@ struct Expectation {
 /// @type.symbol symbol=Expectation type=Expectation
 /// @definition.struct symbol=Expectation
 /// @definition.field symbol=Expectation.message source="message?: ^string" key=message type=^string
-/// @definition.method symbol=Expectation.not slot=not role=getter type=(this: this) => Expectation
+/// @definition.method symbol=Expectation.not slot=not role=getter type=(this: Expectation) => Expectation
 
     message?: ^string;
     /// @type.symbol symbol=Expectation.message source="message?: ^string" type=^string
 
     get not(this): Expectation {
-    /// @type.symbol symbol=Expectation.not type=(this: this) => Expectation
-    /// @type.symbol symbol=Expectation.not.this source=this type=this
+    /// @type.symbol symbol=Expectation.not type=(this: Expectation) => Expectation
+    /// @type.symbol symbol=Expectation.not.this source=this type=Expectation
     /// @resolution.name source=Expectation target=Expectation
 
         Expectation { message: this.message }
         /// @resolution.name source=Expectation target=Expectation
         /// @resolution.member source=this.message receiver=Expectation type=^string | undefined kind=field target_receiver=Expectation key=message target=Expectation.message target_type=^string | undefined
         /// @resolution.receiver source=this kind=this declaration=Expectation type=Expectation
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.message placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this.message placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this.message root=this keys=[message]
 
     }

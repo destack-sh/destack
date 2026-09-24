@@ -137,12 +137,13 @@ interface Iterator {
 /// @definition.interface symbol=Iterator template=(this: Iterator)
 /// @definition.where symbol=Iterator relation=satisfies left=this right=Iterator
 /// @definition.associated.type symbol=Iterator.Item source="type Item" key=Item
-/// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=(this: this) => this.Item
+/// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=() => this.Item
 
     type Item;
 
     next(): this.Item;
-    /// @type.symbol symbol=Iterator.next source="next(): this.Item" type=(this: this) => this.Item
+    /// @type.symbol symbol=Iterator.next source="next(): this.Item" type=() => this.Item
+    /// @resolution.name source=this.Item target=Iterator.Item
 
 }
 
@@ -157,12 +158,10 @@ function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8 {
 
     return iter.next();
     /// @resolution.name source=iter target=nextByte.iter
-    /// @resolution.member source=iter.next receiver=I type=(this: I) => I.Item kind=symbol target_receiver=I target=Iterator.next
-    /// @resolution.call source=iter.next() parameters=() return=I.Item kind=symbol target=Iterator.next receiver=I
-    /// @resolution.place source=iter placement="local" lifetime="frame" access="mutable"
+    /// @resolution.member source=iter.next receiver=I type=() => uint8 kind=symbol target_receiver=I target=Iterator.next
+    /// @resolution.call source=iter.next() parameters=() return=uint8 kind=symbol target=Iterator.next receiver=I
+    /// @resolution.place source=iter placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=iter root=nextByte.iter
-    /// @generic.instantiation id=Iterator.next<I> template=Iterator.next arguments=() owner=nextByte
-    /// @generic.instance id=Iterator.next<I> template=Iterator.next arguments=()
 
 }
 "#,
@@ -207,7 +206,7 @@ interface Producing {
 class Factory implements Producing {
     type Output = int32;
 
-    produce(): this.Output {
+    produce(): int32 {
         return 7;
     }
 }
@@ -223,12 +222,13 @@ interface Producing {
 /// @definition.interface symbol=Producing template=(this: Producing)
 /// @definition.where symbol=Producing relation=satisfies left=this right=Producing
 /// @definition.associated.type symbol=Producing.Output source="type Output" key=Output
-/// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=(this: this) => this.Output
+/// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=() => this.Output
 
     type Output;
 
     produce(): this.Output;
-    /// @type.symbol symbol=Producing.produce source="produce(): this.Output" type=(this: this) => this.Output
+    /// @type.symbol symbol=Producing.produce source="produce(): this.Output" type=() => this.Output
+    /// @resolution.name source=this.Output target=Producing.Output
 
 }
 
@@ -238,7 +238,7 @@ class Factory implements Producing {
 /// @definition.where symbol=Factory source=Producing relation=satisfies left=this right=Producing
 /// @definition.implements symbol=Factory source=Producing target=Producing
 /// @definition.associated.type symbol=Factory.Output source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=Factory.produce slot=produce type=<Factory.produce.P0: Place>(this: Managed<Factory, Factory.produce.P0>) => int32
+/// @definition.method symbol=Factory.produce slot=produce type=(this: Factory) => int32
 /// @definition.conformance symbol=Factory member=Factory.Output requirement=Producing.Output
 /// @definition.conformance symbol=Factory member=Factory.produce requirement=Producing.produce
 /// @resolution.name source=Producing target=Producing
@@ -247,9 +247,9 @@ class Factory implements Producing {
     /// @type.symbol symbol=Factory.Output source="type Output = int32" type=int32
 
     produce(): this.Output {
-    /// @generic.template symbol=Factory.produce parent=template#1 parameters=(P0: Place)
-    /// @type.symbol symbol=Factory.produce type=<Factory.produce.P0: Place>(this: Managed<Factory, Factory.produce.P0>) => int32
-    /// @type.symbol symbol=Factory.produce.this type=Managed<Factory, Factory.produce.P0>
+    /// @type.symbol symbol=Factory.produce type=(this: Factory) => int32
+    /// @type.symbol symbol=Factory.produce.this type=Factory
+    /// @resolution.name source=this.Output target=Producing.Output
 
         return 7;
     }
@@ -313,13 +313,14 @@ interface Iterator {
 /// @definition.interface symbol=Iterator template=(this: Iterator)
 /// @definition.where symbol=Iterator relation=satisfies left=this right=Iterator
 /// @definition.associated.type symbol=Iterator.Item source="type Item = uint8" key=Item value=uint8
-/// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=(this: this) => this.Item
+/// @definition.method symbol=Iterator.next source="next(): this.Item" slot=next type=() => this.Item
 
     type Item = uint8;
     /// @type.symbol symbol=Iterator.Item source="type Item = uint8" type=uint8
 
     next(): this.Item;
-    /// @type.symbol symbol=Iterator.next source="next(): this.Item" type=(this: this) => this.Item
+    /// @type.symbol symbol=Iterator.next source="next(): this.Item" type=() => this.Item
+    /// @resolution.name source=this.Item target=Iterator.Item
 
 }
 
@@ -333,11 +334,10 @@ function nextDefault<I: Iterator>(iter: I): uint8 {
 
     return iter.next();
     /// @resolution.name source=iter target=nextDefault.iter
-    /// @resolution.member source=iter.next receiver=I type=(this: I) => I.Item kind=symbol target_receiver=I target=Iterator.next
+    /// @resolution.member source=iter.next receiver=I type=() => I.Item kind=symbol target_receiver=I target=Iterator.next
     /// @resolution.call source=iter.next() parameters=() return=I.Item kind=symbol target=Iterator.next receiver=I
-    /// @resolution.place source=iter placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=iter placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=iter root=nextDefault.iter
-    /// @generic.instantiation id=Iterator.next<I> template=Iterator.next arguments=() owner=nextDefault
 
 }
 "#,
@@ -562,7 +562,7 @@ interface Producing {
 class Factory implements Producing {
     type Output = int32;
 
-    produce(): this.Output {
+    produce(): int32 {
         return 7;
     }
 }
@@ -580,12 +580,13 @@ interface Producing {
 /// @definition.interface symbol=Producing template=(this: Producing)
 /// @definition.where symbol=Producing relation=satisfies left=this right=Producing
 /// @definition.associated.type symbol=Producing.Output source="type Output" key=Output
-/// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=(this: this) => this.Output
+/// @definition.method symbol=Producing.produce source="produce(): this.Output" slot=produce type=() => this.Output
 
     type Output;
 
     produce(): this.Output;
-    /// @type.symbol symbol=Producing.produce source="produce(): this.Output" type=(this: this) => this.Output
+    /// @type.symbol symbol=Producing.produce source="produce(): this.Output" type=() => this.Output
+    /// @resolution.name source=this.Output target=Producing.Output
 
 }
 
@@ -595,7 +596,7 @@ class Factory implements Producing {
 /// @definition.where symbol=Factory source=Producing relation=satisfies left=this right=Producing
 /// @definition.implements symbol=Factory source=Producing target=Producing
 /// @definition.associated.type symbol=Factory.Output source="type Output = int32" key=Output value=int32
-/// @definition.method symbol=Factory.produce slot=produce type=<Factory.produce.P0: Place>(this: Managed<Factory, Factory.produce.P0>) => int32
+/// @definition.method symbol=Factory.produce slot=produce type=(this: Factory) => int32
 /// @definition.conformance symbol=Factory member=Factory.Output requirement=Producing.Output
 /// @definition.conformance symbol=Factory member=Factory.produce requirement=Producing.produce
 /// @resolution.name source=Producing target=Producing
@@ -604,9 +605,9 @@ class Factory implements Producing {
     /// @type.symbol symbol=Factory.Output source="type Output = int32" type=int32
 
     produce(): this.Output {
-    /// @generic.template symbol=Factory.produce parent=template#1 parameters=(P0: Place)
-    /// @type.symbol symbol=Factory.produce type=<Factory.produce.P0: Place>(this: Managed<Factory, Factory.produce.P0>) => int32
-    /// @type.symbol symbol=Factory.produce.this type=Managed<Factory, Factory.produce.P0>
+    /// @type.symbol symbol=Factory.produce type=(this: Factory) => int32
+    /// @type.symbol symbol=Factory.produce.this type=Factory
+    /// @resolution.name source=this.Output target=Producing.Output
 
         return 7;
     }
@@ -627,7 +628,7 @@ function take<F: Producing>(initial: F.Output, factory: F): F.Output {
 
     return initial;
     /// @resolution.name source=initial target=take.initial
-    /// @resolution.place source=initial placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=initial placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=initial root=take.initial
 
 }

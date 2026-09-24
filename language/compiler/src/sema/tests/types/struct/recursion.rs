@@ -26,17 +26,17 @@ const tree: TreeB = source;
 
 === dir ===
 type TreeA = { value: float64; child: TreeA | null };
-/// @type.symbol symbol=TreeA source="type TreeA = { value: float64; child: TreeA | null }" type={ value: float64; child: TreeA | null }
+/// @type.symbol symbol=TreeA source="type TreeA = { value: float64; child: TreeA | null }" type={ value: float64; child: { value: float64; child: TreeA | null } | null }
 /// @definition.type symbol=TreeA source="type TreeA = { value: float64; child: TreeA | null }" value={ value: float64; child: TreeA | null }
 /// @type.symbol symbol=TreeA.value source="value: float64" type=float64
-/// @type.symbol symbol=TreeA.child source="child: TreeA | null" type=TreeA | null
+/// @type.symbol symbol=TreeA.child source="child: TreeA | null" type={ value: float64; child: TreeA | null } | null
 /// @resolution.name source=TreeA target=TreeA
 
 type TreeB = { value: float64; child: TreeB | null };
-/// @type.symbol symbol=TreeB source="type TreeB = { value: float64; child: TreeB | null }" type={ value: float64; child: TreeB | null }
+/// @type.symbol symbol=TreeB source="type TreeB = { value: float64; child: TreeB | null }" type={ value: float64; child: { value: float64; child: TreeB | null } | null }
 /// @definition.type symbol=TreeB source="type TreeB = { value: float64; child: TreeB | null }" value={ value: float64; child: TreeB | null }
 /// @type.symbol symbol=TreeB.value source="value: float64" type=float64
-/// @type.symbol symbol=TreeB.child source="child: TreeB | null" type=TreeB | null
+/// @type.symbol symbol=TreeB.child source="child: TreeB | null" type={ value: float64; child: TreeB | null } | null
 /// @resolution.name source=TreeB target=TreeB
 
 declare const source: TreeA;
@@ -50,7 +50,7 @@ const tree: TreeB = source;
 /// @resolution.name source=TreeB target=TreeB
 /// @type.node source=source type=TreeA
 /// @resolution.name source=source target=source
-/// @resolution.place source=source placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=source placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=source root=source
 "#,
     );
@@ -174,28 +174,28 @@ export class Player {
 /// @type.symbol symbol=Player type=typeof Player
 /// @definition.class symbol=Player
 /// @definition.field symbol=Player.world source="world: World" key=world type=world.World
-/// @definition.method symbol=Player.constructor slot=constructor role=constructor type=<Player.constructor.P0: Place>(world.World) => Managed<Player, Player.constructor.P0>
+/// @definition.method symbol=Player.constructor slot=constructor role=constructor type=(this: &'managed Player, world.World) => Player
 
     world: World;
     /// @type.symbol symbol=Player.world source="world: World" type=world.World
     /// @resolution.name source=World target=world.World
 
     constructor(world: World) {
-    /// @generic.template symbol=Player.constructor parameters=(P0: Place)
-    /// @type.symbol symbol=Player.constructor type=<Player.constructor.P0: Place>(world.World) => Managed<Player, Player.constructor.P0>
-    /// @type.symbol symbol=Player.constructor.this type=Player
+    /// @type.symbol symbol=Player.constructor type=(this: &'managed Player, world.World) => Player
+    /// @type.symbol symbol=Player.constructor.this type=&'managed Player
     /// @type.symbol symbol=Player.constructor.world source="world: World" type=world.World
     /// @resolution.name source=World target=world.World
 
         this.world = world;
-        /// @resolution.receiver source=this kind=this declaration=Player type=Player
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.receiver source=this kind=this declaration=Player type=&'managed Player
+        /// @resolution.place source=this placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.world kind=place
+        /// @resolution.place source=this.world placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this.world root=this keys=[world]
-        /// @resolution.assignment source=this.world write="receiver=Player, target=field(receiver=Player, target=Player.world, type=world.World), type=world.World" type=world.World
+        /// @resolution.assignment source=this.world write="receiver=&'managed Player, target=field(receiver=&'managed Player, target=Player.world, type=world.World), type=world.World" type=world.World
         /// @resolution.name source=world target=Player.constructor.world
-        /// @resolution.place source=world placement="local" lifetime="managed" access="mutable"
+        /// @resolution.place source=world placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=world root=Player.constructor.world
 
     }
@@ -221,28 +221,28 @@ export class World {
 /// @type.symbol symbol=World type=typeof World
 /// @definition.class symbol=World
 /// @definition.field symbol=World.player source="player: Player" key=player type=player.Player
-/// @definition.method symbol=World.constructor slot=constructor role=constructor type=<World.constructor.P0: Place>(player.Player) => Managed<World, World.constructor.P0>
+/// @definition.method symbol=World.constructor slot=constructor role=constructor type=(this: &'managed World, player.Player) => World
 
     player: Player;
     /// @type.symbol symbol=World.player source="player: Player" type=player.Player
     /// @resolution.name source=Player target=player.Player
 
     constructor(player: Player) {
-    /// @generic.template symbol=World.constructor parameters=(P0: Place)
-    /// @type.symbol symbol=World.constructor type=<World.constructor.P0: Place>(player.Player) => Managed<World, World.constructor.P0>
-    /// @type.symbol symbol=World.constructor.this type=World
+    /// @type.symbol symbol=World.constructor type=(this: &'managed World, player.Player) => World
+    /// @type.symbol symbol=World.constructor.this type=&'managed World
     /// @type.symbol symbol=World.constructor.player source="player: Player" type=player.Player
     /// @resolution.name source=Player target=player.Player
 
         this.player = player;
-        /// @resolution.receiver source=this kind=this declaration=World type=World
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.receiver source=this kind=this declaration=World type=&'managed World
+        /// @resolution.place source=this placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.player kind=place
+        /// @resolution.place source=this.player placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this.player root=this keys=[player]
-        /// @resolution.assignment source=this.player write="receiver=World, target=field(receiver=World, target=World.player, type=player.Player), type=player.Player" type=player.Player
+        /// @resolution.assignment source=this.player write="receiver=&'managed World, target=field(receiver=&'managed World, target=World.player, type=player.Player), type=player.Player" type=player.Player
         /// @resolution.name source=player target=World.constructor.player
-        /// @resolution.place source=player placement="local" lifetime="managed" access="mutable"
+        /// @resolution.place source=player placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=player root=World.constructor.player
 
     }

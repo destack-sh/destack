@@ -157,11 +157,9 @@ parse(true);
 === dir ===
 declare function parse(value: string): int32;
 /// @type.symbol symbol=parse#1 source="declare function parse(value: string): int32" type=(string) => int32
-/// @type.symbol symbol=parse.value#1 source="value: string" type=string
 
 declare function parse(value: int32): int32;
 /// @type.symbol symbol=parse#2 source="declare function parse(value: int32): int32" type=(int32) => int32
-/// @type.symbol symbol=parse.value#2 source="value: int32" type=int32
 
 parse(true);
 /// @type.node source=parse(true) type=<error>
@@ -196,7 +194,6 @@ function parse(value: string): int32;
 === dir ===
 function parse(value: string): int32;
 /// @type.symbol symbol=parse source="function parse(value: string): int32" type=(string) => int32
-/// @type.symbol symbol=parse.value source="value: string" type=string
 "#,
         r#"
 /// @diagnostic.error id=missing-declaration-body message="declaration 'parse' requires a body"
@@ -251,8 +248,8 @@ struct Buffer {
 
 extension of Buffer {
 /// @definition.extension symbol=<module>#2 form=local target=Buffer
-/// @definition.method symbol=capacity source="get capacity(): usize" slot=capacity role=getter type=<capacity.'a>(this: &capacity.'a readonly this) => usize
-/// @definition.method symbol=trailing source="trailing(): usize" slot=trailing type=<trailing.'a>(this: &trailing.'a readonly this) => usize
+/// @definition.method symbol=capacity source="get capacity(): usize" slot=capacity role=getter type=<capacity.'a>(this: &capacity.'a readonly Buffer) => usize
+/// @definition.method symbol=trailing source="trailing(): usize" slot=trailing type=<trailing.'a>(this: &trailing.'a readonly Buffer) => usize
 /// @resolution.name source=Buffer target=Buffer
 
     @intrinsic("buffer.capacity")
@@ -260,11 +257,11 @@ extension of Buffer {
 
     get capacity(): usize;
     /// @generic.template symbol=capacity parameters=('a)
-    /// @type.symbol symbol=capacity source="get capacity(): usize" type=<capacity.'a>(this: &capacity.'a readonly this) => usize
+    /// @type.symbol symbol=capacity source="get capacity(): usize" type=<capacity.'a>(this: &capacity.'a readonly Buffer) => usize
 
     trailing(): usize;
     /// @generic.template symbol=trailing parameters=('a)
-    /// @type.symbol symbol=trailing source="trailing(): usize" type=<trailing.'a>(this: &trailing.'a readonly this) => usize
+    /// @type.symbol symbol=trailing source="trailing(): usize" type=<trailing.'a>(this: &trailing.'a readonly Buffer) => usize
 
 }
 "#,
@@ -308,7 +305,7 @@ function greet(name: string, count: int32): string {
 
     return name;
     /// @resolution.name source=name target=greet.name
-    /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=name root=greet.name
 
 }
@@ -365,7 +362,7 @@ function parse(value: int32): int32 {
 
     value
     /// @resolution.name source=value target=parse.value#1
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=parse.value#1
 
 }
@@ -376,7 +373,7 @@ function parse(value: string): string {
 
     value
     /// @resolution.name source=value target=parse.value#2
-    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=parse.value#2
 
 }
@@ -433,7 +430,7 @@ function render(value: int32): int32 {
 
     return value;
     /// @resolution.name source=value target=render.value#1
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=render.value#1
 
 }
@@ -444,13 +441,13 @@ function render(value: string): string {
 
     return value;
     /// @resolution.name source=value target=render.value#2
-    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=render.value#2
 
 }
 
 const text: (value: string) => string = render;
-/// @type.symbol symbol=text source=text type=Function<(string,), string>
+/// @type.symbol symbol=text source=text type=(string) => string
 /// @resolution.pattern source=text kind=binding target=text
 /// @type.symbol symbol=value source="value: string" type=string
 /// @resolution.name source=render target=[render#1, render#2]
@@ -497,7 +494,7 @@ function render(value: int32): int32 {
 
     return value;
     /// @resolution.name source=value target=render.value#1
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=render.value#1
 
 }
@@ -508,13 +505,13 @@ function render(value: string): string {
 
     return value;
     /// @resolution.name source=value target=render.value#2
-    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=render.value#2
 
 }
 
 const chosen: (value: boolean) => boolean = render;
-/// @type.symbol symbol=chosen source=chosen type=Function<(boolean,), boolean>
+/// @type.symbol symbol=chosen source=chosen type=(boolean) => boolean
 /// @resolution.pattern source=chosen kind=binding target=chosen
 /// @type.symbol symbol=value source="value: boolean" type=boolean
 /// @resolution.name source=render target=[render#1, render#2]
@@ -576,12 +573,12 @@ function sum(values: Iterator<int32>): Result<int32, string> {
 /// @resolution.name source=Result target=Result
 
     return values.reduce((result, value, index) => {
-    /// @type.node source=values.reduce type=(this: Iterator<int32>, Function<(int32, int32, isize), int32>) => int32 & <Iterator.reduce.U>(this: Iterator<int32>, Function<(Iterator.reduce.U, int32, isize), Iterator.reduce.U>, Iterator.reduce.U) => Iterator.reduce.U
+    /// @type.node source=values.reduce type=(this: Iterator<int32>, (int32, int32, isize) => int32) => int32 & <Iterator.reduce.U>(this: Iterator<int32>, (Iterator.reduce.U, int32, isize) => Iterator.reduce.U, Iterator.reduce.U) => Iterator.reduce.U
     /// @type.node type=Result<int32, string>
     /// @resolution.name source=values target=sum.values
-    /// @resolution.member source=values.reduce receiver=Iterator<int32> type=(this: Iterator<int32>, Function<(int32, int32, isize), int32>) => int32 & <Iterator.reduce.U>(this: Iterator<int32>, Function<(Iterator.reduce.U, int32, isize), Iterator.reduce.U>, Iterator.reduce.U) => Iterator.reduce.U kind=overload-set targets=[Iterator.reduce#1, Iterator.reduce#2]
-    /// @resolution.call parameters=(Function<(Result<int32, string>, int32, isize), Result<int32, string>>, Result<int32, string>) arguments=(provided(argument) as Function<(Result<int32, string>, int32, isize), Result<int32, string>>, provided(Result.ok(0)) as Result<int32, string>) return=Result<int32, string> kind=dynamic target=Iterator.reduce#2 receiver=Iterator<int32> constraint=Iterator<int32> generic_arguments=(int32, Result<int32, string>)
-    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+    /// @resolution.member source=values.reduce receiver=Iterator<int32> type=(this: Iterator<int32>, (int32, int32, isize) => int32) => int32 & <Iterator.reduce.U>(this: Iterator<int32>, (Iterator.reduce.U, int32, isize) => Iterator.reduce.U, Iterator.reduce.U) => Iterator.reduce.U kind=overload-set targets=[Iterator.reduce#1, Iterator.reduce#2]
+    /// @resolution.call parameters=((Result<int32, string>, int32, isize) => Result<int32, string>, Result<int32, string>) arguments=(provided(argument) as (Result<int32, string>, int32, isize) => Result<int32, string>, provided(Result.ok(0)) as Result<int32, string>) return=Result<int32, string> kind=dynamic target=Iterator.reduce#2 receiver=Iterator<int32> constraint=Iterator<int32> generic_arguments=(int32, Result<int32, string>)
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=sum.values
     /// @generic.instantiation id=Iterator.reduce#1<int32> template=Iterator.reduce#1 arguments=(int32)
     /// @generic.instantiation id=Iterator.reduce#2<int32> template=Iterator.reduce#2 arguments=(int32)
@@ -596,19 +593,22 @@ function sum(values: Iterator<int32>): Result<int32, string> {
         /// @resolution.pattern source=total kind=binding target=sum.symbol5.total
         /// @type.node source=result? type=int32
         /// @resolution.name source=result target=sum.symbol5.result
-        /// @resolution.place source=result placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=result root=sum.symbol5.result
-        /// @resolution.residual source=result? target=callable residual=TryResidual<Result<int32, string>> branch="branch(parameters=(), arguments=(), return=ControlFlow<string, int32>)" from_residual="fromResidual(parameters=(TryResidual<Result<int32, string>>), arguments=(supplied(0) as TryResidual<Result<int32, string>>), return=Result<int32, string>)"
+        /// @resolution.residual source=result? target=callable residual=TryResidual<Result<int32, string>> branch="branch(parameters=(), arguments=(), return=ControlFlow<Result<never, string>, int32>)" from_residual="fromResidual(parameters=(Result<never, string>), arguments=(supplied(0) as Result<never, string>), return=Result<int32, string>)"
         /// @generic.instantiation id="branch<int32, string>" template=branch arguments=(int32, string)
-        /// @generic.instantiation id="fromResidual<int32, string, TryResidual<Result<int32, string>>>" template=fromResidual arguments=(int32, string, TryResidual<Result<int32, string>>)
-        /// @generic.instance id="ControlFlow<string, int32>" template=ControlFlow arguments=(string, int32)
+        /// @generic.instantiation id="fromResidual<int32, string, string>" template=fromResidual arguments=(int32, string, string)
+        /// @generic.instance id="Break<Result<never, string>>" template=Break arguments=(Result<never, string>)
+        /// @generic.instance id="ControlFlow<Result<never, string>, int32>" template=ControlFlow arguments=(Result<never, string>, int32)
+        /// @generic.instance id="Result<never, string>" template=Result arguments=(never, string)
         /// @generic.instance id="branch<int32, string>" template=branch arguments=(int32, string)
-        /// @generic.instance id="break<string, int32>" template=break arguments=(string, int32)
-        /// @generic.instance id="continue<string, int32>" template=continue arguments=(string, int32)
+        /// @generic.instance id="break<Result<never, string>, int32>" template=break arguments=(Result<never, string>, int32)
+        /// @generic.instance id="continue<Result<never, string>, int32>" template=continue arguments=(Result<never, string>, int32)
         /// @generic.instance id="err#1<int32, string>" template=err#1 arguments=(int32, string)
+        /// @generic.instance id="err#1<never, string>" template=err#1 arguments=(never, string)
         /// @generic.instance id="fromResidual<int32, string, string>" template=fromResidual arguments=(int32, string, string)
-        /// @generic.instance id=Break<string> template=Break arguments=(string)
         /// @generic.instance id=Continue<int32> template=Continue arguments=(int32)
+        /// @generic.instance id=Ok<never> template=Ok arguments=(never)
         /// @generic.instance id=from<string> template=from arguments=(string)
 
         Result.ok(total + value + index.truncate<int32>())
@@ -622,17 +622,17 @@ function sum(values: Iterator<int32>): Result<int32, string> {
         /// @resolution.name source=total target=sum.symbol5.total
         /// @resolution.operator source="total + value + index.truncate<int32>()" type=int32 operator="+" kind=builtin operands=[total + value as int32 families=(integer), index.truncate<int32>() as int32 families=(integer)]
         /// @resolution.operator source="total + value" type=int32 operator="+" kind=builtin operands=[total as int32 families=(integer), value as int32 families=(integer)]
-        /// @resolution.place source=total placement="local" lifetime="frame" access="readonly"
+        /// @resolution.place source=total placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=total root=sum.symbol5.total
         /// @resolution.name source=value target=sum.symbol5.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=sum.symbol5.value
         /// @type.node source=index.truncate type=<Cast.truncate.U: Integer>(this: isize) => Cast.truncate.U
         /// @type.node source=index.truncate<int32>() type=int32
         /// @resolution.name source=index target=sum.symbol5.index
         /// @resolution.member source=index.truncate receiver=isize type=<Cast.truncate.U: Integer>(this: isize) => Cast.truncate.U kind=symbol target_receiver=isize target=Cast.truncate
         /// @resolution.call source=index.truncate<int32>() parameters=() return=int32 kind=symbol target=Cast.truncate receiver=isize instance=Cast<isize>.truncate<int32>
-        /// @resolution.place source=index placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=index placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=index root=sum.symbol5.index
         /// @generic.instantiation id="Cast.truncate<isize, int32>" template=Cast.truncate arguments=(isize, int32)
         /// @generic.instantiation id=Cast.truncate<isize> template=Cast.truncate arguments=(isize)
@@ -711,7 +711,7 @@ function wrap<T>(value: T): Wrap<T> {
     Wrap<T> { value }
 }
 
-function sum(values: It<int32, void>): Wrap<int32> {
+function sum(values: It<int32>): Wrap<int32> {
     return values.reduce<int32, void, Wrap<int32>>(
         (result: Wrap<int32>, value: int32): Wrap<int32> => {
             wrap<int32>(value)
@@ -727,8 +727,8 @@ newtype interface It<T, R = void> {
 /// @definition.interface symbol=It template=(in out T#1, out R = void, this: It<T#1, R>) nominal=true
 /// @definition.where symbol=It relation=satisfies left=this right=It<T#1, R>
 /// @definition.method symbol=It.next slot=next type=(this: this) => R
-/// @definition.method symbol=It.reduce#1 slot=reduce type=(this: this, Function<(T#1, T#1), T#1>) => T#1
-/// @definition.method symbol=It.reduce#2 slot=reduce type=<U>(this: this, Function<(U, T#1), U>, U) => U
+/// @definition.method symbol=It.reduce#1 slot=reduce type=(this: this, (T#1, T#1) => T#1) => T#1
+/// @definition.method symbol=It.reduce#2 slot=reduce type=<U>(this: this, (U, T#1) => U, U) => U
 /// @type.symbol symbol=It.T source=T type=T#1
 /// @type.symbol symbol=It.R source="R = void" type=R
 
@@ -746,9 +746,9 @@ newtype interface It<T, R = void> {
     }
 
     reduce(this, reduce: (accumulator: T, value: T) => T): T {
-    /// @type.symbol symbol=It.reduce#1 type=(this: this, Function<(T#1, T#1), T#1>) => T#1
+    /// @type.symbol symbol=It.reduce#1 type=(this: this, (T#1, T#1) => T#1) => T#1
     /// @type.symbol symbol=It.reduce.this#1 source=this type=this
-    /// @type.symbol symbol=It.reduce.reduce#1 source="reduce: (accumulator: T, value: T) => T" type=Function<(T#1, T#1), T#1>
+    /// @type.symbol symbol=It.reduce.reduce#1 source="reduce: (accumulator: T, value: T) => T" type=(T#1, T#1) => T#1
     /// @type.symbol symbol=It.reduce.accumulator#1 source="accumulator: T" type=T#1
     /// @resolution.name source=T target=It.T
     /// @type.symbol symbol=It.reduce.value#1 source="value: T" type=T#1
@@ -766,10 +766,10 @@ newtype interface It<T, R = void> {
 
     reduce<U>(this, reduce: (accumulator: U, value: T) => U, initial: U): U {
     /// @generic.template symbol=It.reduce#2 parent=template#0 parameters=(U)
-    /// @type.symbol symbol=It.reduce#2 type=<U>(this: this, Function<(U, T#1), U>, U) => U
+    /// @type.symbol symbol=It.reduce#2 type=<U>(this: this, (U, T#1) => U, U) => U
     /// @type.symbol symbol=It.reduce.U source=U type=U
     /// @type.symbol symbol=It.reduce.this#2 source=this type=this
-    /// @type.symbol symbol=It.reduce.reduce#2 source="reduce: (accumulator: U, value: T) => U" type=Function<(U, T#1), U>
+    /// @type.symbol symbol=It.reduce.reduce#2 source="reduce: (accumulator: U, value: T) => U" type=(U, T#1) => U
     /// @type.symbol symbol=It.reduce.accumulator#2 source="accumulator: U" type=U
     /// @resolution.name source=U target=It.reduce.U
     /// @type.symbol symbol=It.reduce.value#2 source="value: T" type=T#1
@@ -815,7 +815,7 @@ function wrap<T>(value: T): Wrap<T> {
     /// @type.node source="Wrap { value }" type=Wrap<T#3>
     /// @resolution.name source=Wrap target=Wrap
     /// @resolution.name source=value target=wrap.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=wrap.value
 
 }
@@ -829,12 +829,12 @@ function sum(values: It<int32>): Wrap<int32> {
 /// @resolution.name source=Wrap target=Wrap
 
     return values.reduce((result, value) => {
-    /// @type.node source=values.reduce type=(this: It<int32, void>, Function<(int32, int32), int32>) => int32 & <U>(this: It<int32, void>, Function<(U, int32), U>, U) => U
+    /// @type.node source=values.reduce type=(this: It<int32, void>, (int32, int32) => int32) => int32 & <U>(this: It<int32, void>, (U, int32) => U, U) => U
     /// @type.node type=Wrap<int32>
     /// @resolution.name source=values target=sum.values
-    /// @resolution.member source=values.reduce receiver=It<int32, void> type=(this: It<int32, void>, Function<(int32, int32), int32>) => int32 & <U>(this: It<int32, void>, Function<(U, int32), U>, U) => U kind=overload-set targets=[It.reduce#1, It.reduce#2]
-    /// @resolution.call parameters=(Function<(Wrap<int32>, int32), Wrap<int32>>, Wrap<int32>) arguments=(provided(argument) as Function<(Wrap<int32>, int32), Wrap<int32>>, provided(wrap(0)) as Wrap<int32>) return=Wrap<int32> kind=dynamic target=It.reduce#2 receiver=It<int32, void> constraint=It<int32, void> generic_arguments=(int32, void, Wrap<int32>)
-    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+    /// @resolution.member source=values.reduce receiver=It<int32, void> type=(this: It<int32, void>, (int32, int32) => int32) => int32 & <U>(this: It<int32, void>, (U, int32) => U, U) => U kind=overload-set targets=[It.reduce#1, It.reduce#2]
+    /// @resolution.call parameters=((Wrap<int32>, int32) => Wrap<int32>, Wrap<int32>) arguments=(provided(argument) as (Wrap<int32>, int32) => Wrap<int32>, provided(wrap(0)) as Wrap<int32>) return=Wrap<int32> kind=dynamic target=It.reduce#2 receiver=It<int32, void> constraint=It<int32, void> generic_arguments=(int32, void, Wrap<int32>)
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=sum.values
     /// @generic.instantiation id="It.reduce#1<int32, void>" template=It.reduce#1 arguments=(int32, void)
     /// @generic.instantiation id="It.reduce#2<int32, void>" template=It.reduce#2 arguments=(int32, void)
@@ -848,7 +848,7 @@ function sum(values: It<int32>): Wrap<int32> {
         /// @resolution.name source=wrap target=wrap
         /// @resolution.call source=wrap(value) parameters=(int32) arguments=(provided(value) as int32) return=Wrap<int32> kind=symbol target=wrap instance=wrap<int32>
         /// @resolution.name source=value target=sum.symbol30.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=sum.symbol30.value
 
     }, wrap(0));
@@ -888,9 +888,9 @@ function total(...values: int32[]): int32 {
 }
 
 function append(values: int32[], more: ^int32[]): int32 {
-    values.push<int32>(1, 2);
-    values.push<int32>(...more);
-    values.push<int32>(1, ...more, 3);
+    values.push<int32, "managed">(1, 2);
+    values.push<int32, "managed">(...more);
+    values.push<int32, "managed">(1, ...more, 3);
 
     return total(1, ...more, 3);
 }
@@ -898,16 +898,9 @@ function append(values: int32[], more: ^int32[]): int32 {
 === dir ===
 function total(...values: int32[]): int32 {
 /// @type.symbol symbol=total type=(...int32[]) => int32
-/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
-/// @generic.instance id=clear<int32> template=clear arguments=(int32)
-/// @generic.instance id=drop<int32> template=drop arguments=(int32)
-/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 /// @type.symbol symbol=total.values source="...values: int32[]" type=int32[]
 
     return 0;
@@ -925,32 +918,14 @@ function append(values: int32[], more: ^int32[]): int32 {
     /// @type.node source=values.push type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize
     /// @resolution.name source=values target=append.values
     /// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-    /// @resolution.call source="values.push(1, 2)" parameters=(int32[]) arguments=(rest(provided(1) as int32, provided(2) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
-    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+    /// @resolution.call source="values.push(1, 2)" parameters=(int32[]) arguments=(rest(provided(1) as int32, provided(2) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(&'managed int32[])) instance="Array<int32>.<extension#6>.push<\"managed\" & \"local\">"
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=append.values
+    /// @generic.instantiation id="push<int32, \"managed\" & \"local\">" template=push arguments=(int32, "managed" & "local")
     /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
     /// @generic.instantiation id=push<int32> template=push arguments=(int32)
-    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-    /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-    /// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
-    /// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
-    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-    /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
-    /// @generic.instance id=append<int32> template=append arguments=(int32)
+    /// @generic.instance id="push<int32, \"bound0\" & \"local\">" template=push arguments=(int32, "bound0" & "local")
     /// @generic.instance id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-    /// @generic.instance id=assumeInitRead#1<int32> template=assumeInitRead#1 arguments=(int32)
-    /// @generic.instance id=assumeInitRead<int32> template=assumeInitRead arguments=(int32)
-    /// @generic.instance id=fromOwnedSlice<int32> template=fromOwnedSlice arguments=(int32)
-    /// @generic.instance id=initWrite<int32> template=initWrite arguments=(int32)
-    /// @generic.instance id=intoUninit<int32> template=intoUninit arguments=(int32)
-    /// @generic.instance id=push<int32> template=push arguments=(int32)
-    /// @generic.instance id=reserve<int32> template=reserve arguments=(int32)
-    /// @generic.instance id=size<int32> template=size arguments=(int32)
-    /// @generic.instance id=sliceIntoUninit<int32> template=sliceIntoUninit arguments=(int32)
-    /// @generic.instance id=sliceLength<int32> template=sliceLength arguments=(int32)
-    /// @generic.instance id=sliceUninit<int32> template=sliceUninit arguments=(int32)
-    /// @generic.instance id=uninit<int32> template=uninit arguments=(int32)
-    /// @generic.instance id=write<int32> template=write arguments=(int32)
     /// @type.node source=1 type=1
     /// @type.node source=2 type=2
 
@@ -959,8 +934,8 @@ function append(values: int32[], more: ^int32[]): int32 {
     /// @type.node source=values.push(...more) type=isize
     /// @resolution.name source=values target=append.values
     /// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-    /// @resolution.call source=values.push(...more) parameters=(int32[]) arguments=(rest(spread(provided(...more) as ^int32[], iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
-    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+    /// @resolution.call source=values.push(...more) parameters=(int32[]) arguments=(rest(spread(provided(...more) as ^int32[], iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>, regions=("managed" & "local"))) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(&'managed int32[])) instance="Array<int32>.<extension#6>.push<\"managed\" & \"local\">"
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=append.values
     /// @generic.instantiation id=iterator#1<int32> template=iterator#1 arguments=(int32)
     /// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
@@ -969,7 +944,7 @@ function append(values: int32[], more: ^int32[]): int32 {
     /// @generic.instance id=IteratorYield<int32> template=IteratorYield arguments=(int32)
     /// @generic.instance id=iterator#1<int32> template=iterator#1 arguments=(int32)
     /// @resolution.name source=more target=append.more
-    /// @resolution.place source=more placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=more placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=more root=append.more
 
     values.push(1, ...more, 3);
@@ -977,22 +952,22 @@ function append(values: int32[], more: ^int32[]): int32 {
     /// @type.node source=values.push type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize
     /// @resolution.name source=values target=append.values
     /// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-    /// @resolution.call source="values.push(1, ...more, 3)" parameters=(int32[]) arguments=(rest(provided(1) as int32, spread(provided(...more) as ^int32[], iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32, provided(3) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
-    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+    /// @resolution.call source="values.push(1, ...more, 3)" parameters=(int32[]) arguments=(rest(provided(1) as int32, spread(provided(...more) as ^int32[], iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>, regions=("managed" & "local"))) as int32, provided(3) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(&'managed int32[])) instance="Array<int32>.<extension#6>.push<\"managed\" & \"local\">"
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=append.values
     /// @type.node source=1 type=1
     /// @resolution.name source=more target=append.more
-    /// @resolution.place source=more placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=more placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=more root=append.more
     /// @type.node source=3 type=3
 
     return total(1, ...more, 3);
     /// @type.node source="total(1, ...more, 3)" type=int32
     /// @resolution.name source=total target=total
-    /// @resolution.call source="total(1, ...more, 3)" parameters=(int32[]) arguments=(rest(provided(1) as int32, spread(provided(...more) as ^int32[], iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32, provided(3) as int32) pack=arrayFromOwnedSlice as int32) return=int32 kind=symbol target=total
+    /// @resolution.call source="total(1, ...more, 3)" parameters=(int32[]) arguments=(rest(provided(1) as int32, spread(provided(...more) as ^int32[], iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>, regions=("managed" & "local"))) as int32, provided(3) as int32) pack=arrayFromOwnedSlice as int32) return=int32 kind=symbol target=total
     /// @type.node source=1 type=1
     /// @resolution.name source=more target=append.more
-    /// @resolution.place source=more placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=more placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=more root=append.more
     /// @type.node source=3 type=3
 
@@ -1034,7 +1009,7 @@ function pick(first: int32): int32 {
 
     return first;
     /// @resolution.name source=first target=pick.first
-    /// @resolution.place source=first placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=first placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=first root=pick.first
 
 }
@@ -1046,10 +1021,10 @@ function fails(more: ^int32[]): int32 {
     return pick(...more);
     /// @type.node source=pick(...more) type=<error>
     /// @resolution.name source=pick target=pick
-    /// @resolution.call source=pick(...more) parameters=(int32) arguments=(spread(provided(...more) as ^int32[], iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32) return=int32 kind=symbol target=pick
+    /// @resolution.call source=pick(...more) parameters=(int32) arguments=(spread(provided(...more) as ^int32[], iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>, regions=("managed" & "local"))) as int32) return=int32 kind=symbol target=pick
     /// @generic.instantiation id=iterator#1<int32> template=iterator#1 arguments=(int32)
     /// @resolution.name source=more target=fails.more
-    /// @resolution.place source=more placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=more placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=more root=fails.more
 
 }
@@ -1139,7 +1114,7 @@ extension of Counter implements It<int32> {
 }
 
 function finish(wrapped: Wrap<Counter>): boolean {
-    return wrapped.next<int32, Counter>();
+    return wrapped.next<int32, Counter, "frame">();
 }
 
 === dir ===
@@ -1158,6 +1133,7 @@ newtype interface It<T> {
     next(this): this.Return {
     /// @type.symbol symbol=It.next type=(this: this) => this.Return
     /// @type.symbol symbol=It.next.this source=this type=this
+    /// @resolution.name source=this.Return target=It.Return
 
         todo("next")
         /// @type.node source="todo(\"next\")" type=never
@@ -1271,11 +1247,12 @@ function finish(wrapped: Wrap<Counter>): boolean {
     /// @type.node source=wrapped.next() type=boolean
     /// @resolution.name source=wrapped target=finish.wrapped
     /// @resolution.member source=wrapped.next receiver=Wrap<Counter> type=<next#1.'a>(this: &next#1.'a readonly Wrap<Counter>) => boolean kind=symbol target_receiver=Wrap<Counter> target=next#1
-    /// @resolution.call source=wrapped.next() parameters=() return=boolean regions=("frame" & "local") kind=symbol target=next#1 receiver=Wrap<Counter> adjustments=(borrow(&'frame readonly Wrap<Counter>)) instance=Wrap<Counter>.<extension#1>.next#1
-    /// @resolution.place source=wrapped placement="local" lifetime="frame" access="mutable"
+    /// @resolution.call source=wrapped.next() parameters=() return=boolean regions=("frame" & "local") kind=symbol target=next#1 receiver=Wrap<Counter> adjustments=(borrow(&'frame readonly Wrap<Counter>)) instance="Wrap<Counter>.<extension#1>.next#1<\"frame\" & \"local\">"
+    /// @resolution.place source=wrapped placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=wrapped root=finish.wrapped
+    /// @generic.instantiation id="next#1<int32, Counter, \"frame\" & \"local\">" template=next#1 arguments=(int32, Counter, "frame" & "local")
     /// @generic.instantiation id="next#1<int32, Counter>" template=next#1 arguments=(int32, Counter)
-    /// @generic.instance id="next#1<int32, Counter>" template=next#1 arguments=(int32, Counter)
+    /// @generic.instance id="next#1<int32, Counter, \"bound0\" & \"local\">" template=next#1 arguments=(int32, Counter, "bound0" & "local")
 
 }
 "#);
@@ -1308,7 +1285,6 @@ function forward(values: int32[][]): void {
 === dir ===
 declare function take(...items: (int32 | readonly int32[])[]): void;
 /// @type.symbol symbol=take source="declare function take(...items: (int32 | readonly int32[])[]): void" type=(...int32 | readonly int32[][]) => void
-/// @type.symbol symbol=take.items source="...items: (int32 | readonly int32[])[]" type=int32 | readonly int32[][]
 
 function forward(values: int32[][]): void {
 /// @type.symbol symbol=forward type=(int32[][]) => void
@@ -1316,11 +1292,11 @@ function forward(values: int32[][]): void {
 
     take(...values);
     /// @resolution.name source=take target=take
-    /// @resolution.call source=take(...values) parameters=(int32 | readonly int32[][]) arguments=(rest(spread(provided(...values) as int32[][], iterator=iterator#2(parameters=(), arguments=(), return=Iterator<int32[]>), next=dynamic(Iterator<int32[]> as Iterator<int32[]>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32[], void>)) as int32 | readonly int32[]) pack=arrayFromOwnedSlice as int32 | readonly int32[]) return=void kind=symbol target=take
+    /// @resolution.call source=take(...values) parameters=(int32 | readonly int32[][]) arguments=(rest(spread(provided(...values) as int32[][], iterator=iterator#2(parameters=(), arguments=(), return=Iterator<int32[]>), next=dynamic(Iterator<int32[]> as Iterator<int32[]>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32[], void>, regions=("managed" & "local"))) as int32 | readonly int32[]) pack=arrayFromOwnedSlice as int32 | readonly int32[]) return=void kind=symbol target=take
     /// @generic.instantiation id="arrayFromOwnedSlice<int32 | readonly int32[]>" template=arrayFromOwnedSlice arguments=(int32 | readonly int32[])
-    /// @generic.instantiation id="iterator#2<int32[], \"local\">" template=iterator#2 arguments=(int32[], "local")
+    /// @generic.instantiation id=iterator#2<int32[]> template=iterator#2 arguments=(int32[])
     /// @resolution.name source=values target=forward.values
-    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=forward.values
 
 }

@@ -35,7 +35,7 @@ function take<const N: uint>(value: [uint8; N]): [uint8; N] {
     return value;
     /// @type.node source=value type=FixedArray<uint8, N>
     /// @resolution.name source=value target=take.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=take.value
 
 }
@@ -91,7 +91,7 @@ function choose<const Flag: boolean = true>(value: int32): int32 {
     return value;
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=choose.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=choose.value
 
 }
@@ -131,8 +131,8 @@ declare const read: Read;
 
 === dir ===
 type Read = <const N: uint>() => [uint8; N];
-/// @type.symbol symbol=Read source="type Read = <const N: uint>() => [uint8; N]" type=Function<(), FixedArray<uint8, N>>
-/// @definition.type symbol=Read source="type Read = <const N: uint>() => [uint8; N]" value=Function<(), FixedArray<uint8, N>>
+/// @type.symbol symbol=Read source="type Read = <const N: uint>() => [uint8; N]" type=<const N: uint64>() => FixedArray<uint8, N>
+/// @definition.type symbol=Read source="type Read = <const N: uint>() => [uint8; N]" value=<const N: uint64>() => FixedArray<uint8, N>
 /// @generic.template source=type_expression parameters=(const N: uint64)
 /// @type.symbol symbol=Read.N source="const N: uint" type=N
 /// @resolution.name source=N target=Read.N
@@ -230,10 +230,10 @@ function f(a: usize, b: int64): boolean {
     a < b
     /// @resolution.name source=a target=f.a
     /// @resolution.rejected source="a < b"
-    /// @resolution.place source=a placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=a placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=a root=f.a
     /// @resolution.name source=b target=f.b
-    /// @resolution.place source=b placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=b placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=b root=f.b
 
 }
@@ -288,26 +288,21 @@ function put<T>(destination: &[T], value: T): void {
     /// @resolution.access source=destination root=put.destination
     /// @resolution.pattern.assign source=destination[lane] kind=place
     /// @resolution.assignment source=destination[lane] write="indexSet#1(parameters=(isize, T), arguments=(provided(lane) as isize, supplied(0) as T), return=void, regions=(put.'a))" type=T
-    /// @generic.instantiation id=indexSet#1<T> template=indexSet#1 arguments=(T) owner=put
+    /// @generic.instantiation id="indexSet#1<T, put.'a>" template=indexSet#1 arguments=(T, put.'a) owner=put
     /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
     /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-    /// @generic.instance id="index#1<T, \"mutable\">" template=index#1 arguments=(T, "mutable")
-    /// @generic.instance id="index#2<T, RangeBounds<isize>, \"mutable\" | \"readonly\">" template=index#2 arguments=(T, RangeBounds<isize>, "mutable" | "readonly")
-    /// @generic.instance id="rangeSpan<T, RangeBounds<isize>, \"mutable\" | \"readonly\">" template=rangeSpan arguments=(T, RangeBounds<isize>, "mutable" | "readonly")
-    /// @generic.instance id="sliceIndex<T, \"mutable\">" template=sliceIndex arguments=(T, "mutable")
-    /// @generic.instance id="sliceView<T, \"mutable\" | \"readonly\">" template=sliceView arguments=(T, "mutable" | "readonly")
-    /// @generic.instance id="subslice<T, \"mutable\" | \"readonly\">" template=subslice arguments=(T, "mutable" | "readonly")
+    /// @generic.instance id="indexSet#1<T, put.'a>" template=indexSet#1 arguments=(T, put.'a)
+    /// @generic.instance id="panic<\"bound0\" & \"local\">" template=panic arguments=("bound0" & "local")
+    /// @generic.instance id="size<T, put.'a>" template=size arguments=(T, put.'a)
+    /// @generic.instance id="sliceLength<T, put.'a>" template=sliceLength arguments=(T, put.'a)
     /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
     /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
-    /// @generic.instance id=indexSet#1<T> template=indexSet#1 arguments=(T)
-    /// @generic.instance id=size<T> template=size arguments=(T)
-    /// @generic.instance id=sliceLength<T> template=sliceLength arguments=(T)
-    /// @generic.instance id=symbol2<T> template=symbol2 arguments=(T)
+    /// @generic.instance id="unsafeSet<T, put.'a>" template=unsafeSet arguments=(T, put.'a)
     /// @resolution.name source=lane target=put.lane
-    /// @resolution.place source=lane placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=lane placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=lane root=put.lane
     /// @resolution.name source=value target=put.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=put.value
 
 }
@@ -355,27 +350,22 @@ function put(destination: &[int32], value: int32): void {
     /// @resolution.access source=destination root=put.destination
     /// @resolution.pattern.assign source=destination[lane] kind=place
     /// @resolution.assignment source=destination[lane] write="indexSet#1(parameters=(isize, int32), arguments=(provided(lane) as isize, supplied(0) as int32), return=void, regions=(put.'a))" type=int32
-    /// @generic.instantiation id=indexSet#1<int32> template=indexSet#1 arguments=(int32)
+    /// @generic.instantiation id="indexSet#1<int32, put.'a>" template=indexSet#1 arguments=(int32, put.'a)
     /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
     /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-    /// @generic.instance id="index#1<int32, \"mutable\">" template=index#1 arguments=(int32, "mutable")
-    /// @generic.instance id="index#2<int32, RangeBounds<isize>, \"mutable\" | \"readonly\">" template=index#2 arguments=(int32, RangeBounds<isize>, "mutable" | "readonly")
-    /// @generic.instance id="rangeSpan<int32, RangeBounds<isize>, \"mutable\" | \"readonly\">" template=rangeSpan arguments=(int32, RangeBounds<isize>, "mutable" | "readonly")
-    /// @generic.instance id="sliceIndex<int32, \"mutable\">" template=sliceIndex arguments=(int32, "mutable")
-    /// @generic.instance id="sliceView<int32, \"mutable\" | \"readonly\">" template=sliceView arguments=(int32, "mutable" | "readonly")
-    /// @generic.instance id="subslice<int32, \"mutable\" | \"readonly\">" template=subslice arguments=(int32, "mutable" | "readonly")
+    /// @generic.instance id="indexSet#1<int32, put.'a>" template=indexSet#1 arguments=(int32, put.'a)
+    /// @generic.instance id="panic<\"bound0\" & \"local\">" template=panic arguments=("bound0" & "local")
+    /// @generic.instance id="size<int32, put.'a>" template=size arguments=(int32, put.'a)
+    /// @generic.instance id="sliceLength<int32, put.'a>" template=sliceLength arguments=(int32, put.'a)
     /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
     /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
+    /// @generic.instance id="unsafeSet<int32, put.'a>" template=unsafeSet arguments=(int32, put.'a)
     /// @generic.instance id=Slice<int32> template=Slice arguments=(int32)
-    /// @generic.instance id=indexSet#1<int32> template=indexSet#1 arguments=(int32)
-    /// @generic.instance id=size<int32> template=size arguments=(int32)
-    /// @generic.instance id=sliceLength<int32> template=sliceLength arguments=(int32)
-    /// @generic.instance id=symbol2<int32> template=symbol2 arguments=(int32)
     /// @resolution.name source=lane target=put.lane
-    /// @resolution.place source=lane placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=lane placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=lane root=put.lane
     /// @resolution.name source=value target=put.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=put.value
 
 }
@@ -422,6 +412,7 @@ const function double(value: usize): usize {
     return value * 2;
 }
 "#,
-        "",
+        r#"
+"#,
     );
 }

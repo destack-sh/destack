@@ -243,10 +243,10 @@ interface Drawable {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable template=(this: Drawable)
 /// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
-/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=() => void
 
     draw(): void;
-    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: this) => void
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=() => void
 
 }
 

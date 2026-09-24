@@ -16,7 +16,6 @@ declare function collect(...values: [int32; 2]): void;
 === dir ===
 declare function collect(...values: [int32; 2]): void;
 /// @type.symbol symbol=collect source="declare function collect(...values: [int32; 2]): void" type=(...FixedArray<int32, 2>) => void
-/// @type.symbol symbol=collect.values source="...values: [int32; 2]" type=FixedArray<int32, 2>
 "#, r#"
 /// @diagnostic.error id=invalid-rest-parameter message="rest parameter type FixedArray<int32, 2> must be a dynamic array, slice, or tuple"
 /// @diagnostic.label line=2 column=29 span="values" line_source="declare function collect(...values: [int32; 2]): void;"
@@ -43,7 +42,7 @@ collect(1, 2);
 === annotated ===
 type Pair = [int32; 2];
 
-declare function collect<'a>(...values: &'a readonly Pair): void;
+declare function collect<'a>(...values: &readonly Pair): void;
 
 collect(1, 2);
 
@@ -55,7 +54,6 @@ type Pair = [int32; 2];
 declare function collect(...values: &readonly Pair): void;
 /// @generic.template symbol=collect parameters=('a)
 /// @type.symbol symbol=collect source="declare function collect(...values: &readonly Pair): void" type=<collect.'a>(...&collect.'a readonly Pair) => void
-/// @type.symbol symbol=collect.values source="...values: &readonly Pair" type=&collect.'a readonly Pair
 /// @resolution.name source=Pair target=Pair
 
 collect(1, 2);
@@ -91,7 +89,6 @@ declare function collect(...values: (string, ...[int32; 2])): void;
 === dir ===
 declare function collect(...values: (string, ...[int32; 2])): void;
 /// @type.symbol symbol=collect source="declare function collect(...values: (string, ...[int32; 2])): void" type=(string, ...FixedArray<int32, 2>) => void
-/// @type.symbol symbol=collect.values source="...values: (string, ...[int32; 2])" type=(string, ...FixedArray<int32, 2>)
 "#,
         r#"
 /// @diagnostic.error id=invalid-rest-parameter message="rest parameter type (string, ...FixedArray<int32, 2>) must be a dynamic array, slice, or tuple"
@@ -123,34 +120,15 @@ collect("Ada", 1, 2);
 === dir ===
 declare function collect(...values: (string, ...int32[])): void;
 /// @type.symbol symbol=collect source="declare function collect(...values: (string, ...int32[])): void" type=(string, ...int32[]) => void
-/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
-/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
-/// @generic.instance id=clear<int32> template=clear arguments=(int32)
-/// @generic.instance id=drop<int32> template=drop arguments=(int32)
-/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
-/// @type.symbol symbol=collect.values source="...values: (string, ...int32[])" type=(string, ...int32[])
 
 collect("Ada", 1, 2);
 /// @resolution.name source=collect target=collect
 /// @resolution.call source="collect(\"Ada\", 1, 2)" parameters=(string, int32[]) arguments=(provided("Ada") as string, rest(provided(1) as int32, provided(2) as int32) pack=arrayFromOwnedSlice as int32) return=void kind=symbol target=collect
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id=fromOwnedSlice<int32> template=fromOwnedSlice arguments=(int32)
-/// @generic.instance id=intoUninit<int32> template=intoUninit arguments=(int32)
-/// @generic.instance id=size<int32> template=size arguments=(int32)
-/// @generic.instance id=sliceIntoUninit<int32> template=sliceIntoUninit arguments=(int32)
-/// @generic.instance id=sliceLength<int32> template=sliceLength arguments=(int32)
 "#,
     );
 }
@@ -183,8 +161,8 @@ const result: boolean = callback("Ada", 2 as int32 | undefined);
 === dir ===
 type Rebuild<T> = T extends (...values: infer P) => infer R ? (...values: P) => R : never;
 /// @generic.template symbol=Rebuild parameters=(T)
-/// @type.symbol symbol=Rebuild type=T extends Function<(...infer P extends (readonly ...ReadonlyArray<unknown>,),), infer R> ? Function<(...Rebuild.P,), Rebuild.R> : never
-/// @definition.type symbol=Rebuild template=(T) value=T extends Function<(...infer P extends (readonly ...ReadonlyArray<unknown>,),), infer R> ? Function<(...Rebuild.P,), Rebuild.R> : never
+/// @type.symbol symbol=Rebuild type=T extends (...infer P extends (readonly ...ReadonlyArray<unknown>,)) => infer R ? (...Rebuild.P) => Rebuild.R : never
+/// @definition.type symbol=Rebuild template=(T) value=T extends (...infer P extends (readonly ...ReadonlyArray<unknown>,)) => infer R ? (...Rebuild.P) => Rebuild.R : never
 /// @type.symbol symbol=Rebuild.T source=T type=T
 /// @resolution.name source=T target=Rebuild.T
 /// @type.symbol symbol=Rebuild.values#1 source="...values: infer P" type=infer P extends (readonly ...ReadonlyArray<unknown>,)
@@ -193,8 +171,8 @@ type Rebuild<T> = T extends (...values: infer P) => infer R ? (...values: P) => 
 /// @resolution.name source=R target=Rebuild.R
 
 type Callback = Rebuild<(name: string, count?: int32) => boolean>;
-/// @type.symbol symbol=Callback source="type Callback = Rebuild<(name: string, count?: int32) => boolean>" type=Rebuild<Function<(string, int32 | undefined?), boolean>>
-/// @definition.type symbol=Callback source="type Callback = Rebuild<(name: string, count?: int32) => boolean>" value=Rebuild<Function<(string, int32 | undefined?), boolean>>
+/// @type.symbol symbol=Callback source="type Callback = Rebuild<(name: string, count?: int32) => boolean>" type=(string, int32 | undefined?) => boolean
+/// @definition.type symbol=Callback source="type Callback = Rebuild<(name: string, count?: int32) => boolean>" value=Rebuild<(string, int32 | undefined?) => boolean>
 /// @resolution.name source=Rebuild target=Rebuild
 /// @type.symbol symbol=Callback.name source="name: string" type=string
 /// @type.symbol symbol=Callback.count source="count?: int32" type=int32 | undefined
@@ -209,7 +187,7 @@ const result = callback("Ada", 2);
 /// @resolution.pattern source=result kind=binding target=result
 /// @resolution.name source=callback target=callback
 /// @resolution.call source="callback(\"Ada\", 2)" parameters=(string, int32 | undefined) arguments=(provided("Ada") as string, provided(2) as int32 | undefined) return=boolean kind=expression target=expression
-/// @resolution.place source=callback placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=callback placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=callback root=callback
 "#);
 }
@@ -245,18 +223,17 @@ type Constructor = Construct<typeof User>;
 
 declare const constructor: Constructor;
 
-const instance: local User = new constructor("Ada");
+const instance: User = new constructor("Ada");
 
 === dir ===
 class User {
 /// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
-/// @definition.method symbol=User.constructor source="constructor(name: string) {}" slot=constructor role=constructor type=<User.constructor.P0: Place>(string) => Managed<User, User.constructor.P0>
+/// @definition.method symbol=User.constructor source="constructor(name: string) {}" slot=constructor role=constructor type=(this: &'managed User, string) => User
 
     constructor(name: string) {}
-    /// @generic.template symbol=User.constructor parameters=(P0: Place)
-    /// @type.symbol symbol=User.constructor source="constructor(name: string) {}" type=<User.constructor.P0: Place>(string) => Managed<User, User.constructor.P0>
-    /// @type.symbol symbol=User.constructor.this type=User
+    /// @type.symbol symbol=User.constructor source="constructor(name: string) {}" type=(this: &'managed User, string) => User
+    /// @type.symbol symbol=User.constructor.this type=&'managed User
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
 
 }
@@ -273,7 +250,7 @@ type Construct<T> = T extends new (...values: infer P) => infer R ? new (...valu
 /// @resolution.name source=R target=Construct.R
 
 type Constructor = Construct<typeof User>;
-/// @type.symbol symbol=Constructor source="type Constructor = Construct<typeof User>" type=Construct<Function<(string,), local User, "readonly">>
+/// @type.symbol symbol=Constructor source="type Constructor = Construct<typeof User>" type=new (string) => User
 /// @definition.type symbol=Constructor source="type Constructor = Construct<typeof User>" value=Construct<typeof User>
 /// @resolution.name source=Construct target=Construct
 /// @resolution.name source=User target=User
@@ -284,11 +261,11 @@ declare const constructor: Constructor;
 /// @resolution.name source=Constructor target=Constructor
 
 const instance = new constructor("Ada");
-/// @type.symbol symbol=instance source=instance type=local User
+/// @type.symbol symbol=instance source=instance type=User
 /// @resolution.pattern source=instance kind=binding target=instance
-/// @resolution.call source="new constructor(\"Ada\")" parameters=(string) arguments=(provided("Ada") as string) return=local User kind=expression target=expression
+/// @resolution.call source="new constructor(\"Ada\")" parameters=(string) arguments=(provided("Ada") as string) return=User kind=expression target=expression
 /// @resolution.name source=constructor target=constructor
-/// @resolution.place source=constructor placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=constructor placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=constructor root=constructor
 "#);
 }
@@ -321,15 +298,15 @@ remaining("Ada", 2);
 === dir ===
 type Tail<T> = T extends (unknown, ...infer P) ? (...values: P) => void : never;
 /// @generic.template symbol=Tail parameters=(T)
-/// @type.symbol symbol=Tail source="type Tail<T> = T extends (unknown, ...infer P) ? (...values: P) => void : never" type=T extends (unknown, ...infer P extends (readonly ...ReadonlyArray<unknown>,)) ? Function<(...Tail.P,), void> : never
-/// @definition.type symbol=Tail source="type Tail<T> = T extends (unknown, ...infer P) ? (...values: P) => void : never" template=(T) value=T extends (unknown, ...infer P extends (readonly ...ReadonlyArray<unknown>,)) ? Function<(...Tail.P,), void> : never
+/// @type.symbol symbol=Tail source="type Tail<T> = T extends (unknown, ...infer P) ? (...values: P) => void : never" type=T extends (unknown, ...infer P extends (readonly ...ReadonlyArray<unknown>,)) ? (...Tail.P) => void : never
+/// @definition.type symbol=Tail source="type Tail<T> = T extends (unknown, ...infer P) ? (...values: P) => void : never" template=(T) value=T extends (unknown, ...infer P extends (readonly ...ReadonlyArray<unknown>,)) ? (...Tail.P) => void : never
 /// @type.symbol symbol=Tail.T source=T type=T
 /// @resolution.name source=T target=Tail.T
 /// @type.symbol symbol=Tail.values source="...values: P" type=Tail.P
 /// @resolution.name source=P target=Tail.P
 
 type Remaining = Tail<(boolean, string, int32)>;
-/// @type.symbol symbol=Remaining source="type Remaining = Tail<(boolean, string, int32)>" type=Tail<(boolean, string, int32)>
+/// @type.symbol symbol=Remaining source="type Remaining = Tail<(boolean, string, int32)>" type=(string, int32) => void
 /// @definition.type symbol=Remaining source="type Remaining = Tail<(boolean, string, int32)>" value=Tail<(boolean, string, int32)>
 /// @resolution.name source=Tail target=Tail
 
@@ -341,7 +318,7 @@ declare const remaining: Remaining;
 remaining("Ada", 2);
 /// @resolution.name source=remaining target=remaining
 /// @resolution.call source="remaining(\"Ada\", 2)" parameters=(string, int32) arguments=(provided("Ada") as string, provided(2) as int32) return=void kind=expression target=expression
-/// @resolution.place source=remaining placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=remaining placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=remaining root=remaining
 "#);
 }
@@ -373,26 +350,24 @@ class Logger {
 
 === dir ===
 type Callback = (...values: string) => void;
-/// @type.symbol symbol=Callback source="type Callback = (...values: string) => void" type=Function<(...string,), void>
-/// @definition.type symbol=Callback source="type Callback = (...values: string) => void" value=Function<(...string,), void>
+/// @type.symbol symbol=Callback source="type Callback = (...values: string) => void" type=(...string) => void
+/// @definition.type symbol=Callback source="type Callback = (...values: string) => void" value=(...string) => void
 /// @type.symbol symbol=Callback.values source="...values: string" type=string
 
 class Logger {
 /// @type.symbol symbol=Logger type=typeof Logger
 /// @definition.class symbol=Logger
-/// @definition.method symbol=Logger.constructor source="constructor(...values: int32) {}" slot=constructor role=constructor type=<Logger.constructor.P0: Place>(...int32) => Managed<this, Logger.constructor.P0>
-/// @definition.method symbol=Logger.write source="write(...values: boolean): void {}" slot=write type=<Logger.write.P0: Place>(this: Managed<this, Logger.write.P0>, ...boolean) => void
+/// @definition.method symbol=Logger.constructor source="constructor(...values: int32) {}" slot=constructor role=constructor type=(this: &'managed Logger, ...int32) => Logger
+/// @definition.method symbol=Logger.write source="write(...values: boolean): void {}" slot=write type=(this: Logger, ...boolean) => void
 
     constructor(...values: int32) {}
-    /// @generic.template symbol=Logger.constructor parameters=(P0: Place)
-    /// @type.symbol symbol=Logger.constructor source="constructor(...values: int32) {}" type=<Logger.constructor.P0: Place>(...int32) => Managed<this, Logger.constructor.P0>
-    /// @type.symbol symbol=Logger.constructor.this type=Logger
+    /// @type.symbol symbol=Logger.constructor source="constructor(...values: int32) {}" type=(this: &'managed Logger, ...int32) => Logger
+    /// @type.symbol symbol=Logger.constructor.this type=&'managed Logger
     /// @type.symbol symbol=Logger.constructor.values source="...values: int32" type=int32
 
     write(...values: boolean): void {}
-    /// @generic.template symbol=Logger.write parameters=(P0: Place)
-    /// @type.symbol symbol=Logger.write source="write(...values: boolean): void {}" type=<Logger.write.P0: Place>(this: Managed<this, Logger.write.P0>, ...boolean) => void
-    /// @type.symbol symbol=Logger.write.this type=Managed<Logger, Logger.write.P0>
+    /// @type.symbol symbol=Logger.write source="write(...values: boolean): void {}" type=(this: Logger, ...boolean) => void
+    /// @type.symbol symbol=Logger.write.this type=Logger
     /// @type.symbol symbol=Logger.write.values source="...values: boolean" type=boolean
 
 }
@@ -428,7 +403,6 @@ impossible(1);
 === dir ===
 declare function impossible(...values: never): void;
 /// @type.symbol symbol=impossible source="declare function impossible(...values: never): void" type=(...never) => void
-/// @type.symbol symbol=impossible.values source="...values: never" type=never
 
 impossible();
 /// @resolution.name source=impossible target=impossible
@@ -469,7 +443,6 @@ collect(1, 2);
 === dir ===
 declare function collect(...values: int32): void;
 /// @type.symbol symbol=collect source="declare function collect(...values: int32): void" type=(...int32) => void
-/// @type.symbol symbol=collect.values source="...values: int32" type=int32
 
 collect();
 /// @resolution.name source=collect target=collect
@@ -508,50 +481,32 @@ slice(1, 2);
 === annotated ===
 declare function array(...values: int32[]): void;
 
-declare function slice<'a>(...values: &'a readonly [int32]): void;
+declare function slice<'a>(...values: &readonly [int32]): void;
 
 array(1, 2);
-slice(1, 2);
+slice<"frame">(1, 2);
 
 === dir ===
 declare function array(...values: int32[]): void;
 /// @type.symbol symbol=array source="declare function array(...values: int32[]): void" type=(...int32[]) => void
-/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
-/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
-/// @generic.instance id=clear<int32> template=clear arguments=(int32)
-/// @generic.instance id=drop<int32> template=drop arguments=(int32)
-/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
-/// @type.symbol symbol=array.values source="...values: int32[]" type=int32[]
 
 declare function slice(...values: &readonly [int32]): void;
 /// @generic.template symbol=slice parameters=('a)
 /// @type.symbol symbol=slice source="declare function slice(...values: &readonly [int32]): void" type=<slice.'a>(...&slice.'a readonly Slice<int32>) => void
-/// @type.symbol symbol=slice.values source="...values: &readonly [int32]" type=&slice.'a readonly Slice<int32>
 
 array(1, 2);
 /// @resolution.name source=array target=array
 /// @resolution.call source="array(1, 2)" parameters=(int32[]) arguments=(rest(provided(1) as int32, provided(2) as int32) pack=arrayFromOwnedSlice as int32) return=void kind=symbol target=array
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id=fromOwnedSlice<int32> template=fromOwnedSlice arguments=(int32)
-/// @generic.instance id=intoUninit<int32> template=intoUninit arguments=(int32)
-/// @generic.instance id=size<int32> template=size arguments=(int32)
-/// @generic.instance id=sliceIntoUninit<int32> template=sliceIntoUninit arguments=(int32)
-/// @generic.instance id=sliceLength<int32> template=sliceLength arguments=(int32)
 
 slice(1, 2);
 /// @resolution.name source=slice target=slice
-/// @resolution.call source="slice(1, 2)" parameters=(&'frame readonly Slice<int32>) arguments=(rest(provided(1) as int32, provided(2) as int32) as int32) return=void regions=("frame") kind=symbol target=slice
+/// @resolution.call source="slice(1, 2)" parameters=(&'frame readonly Slice<int32>) arguments=(rest(provided(1) as int32, provided(2) as int32) as int32) return=void regions=("frame") kind=symbol target=slice instance="slice<\"frame\">"
+/// @generic.instantiation id="slice<\"frame\">" template=slice arguments=("frame")
+/// @generic.instance id="slice<\"frame\">" template=slice arguments=("frame")
 "#);
 }

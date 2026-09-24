@@ -49,9 +49,10 @@ for (const value of 0..10) {
 === dir ===
 for (const value of 0..10) {
 /// @resolution.iteration iterator="iterator#1(parameters=(), arguments=(), return=RangeIterator<int64>)" next="next(parameters=(), arguments=(), return=IteratorResult<int64, void>, regions=(\"frame\" & \"local\"))"
+/// @generic.instantiation id="next<int64, \"frame\" & \"local\">" template=next arguments=(int64, "frame" & "local")
 /// @generic.instantiation id=iterator#1<int64> template=iterator#1 arguments=(int64)
-/// @generic.instantiation id=next<int64> template=next arguments=(int64)
 /// @generic.instance id="IteratorResult<int64, void>" template=IteratorResult arguments=(int64, void)
+/// @generic.instance id="next<int64, \"bound0\" & \"local\">" template=next arguments=(int64, "bound0" & "local")
 /// @generic.instance id=Arithmetic.checkedAdd<int64> template=Arithmetic.checkedAdd arguments=(int64)
 /// @generic.instance id=Arithmetic.checkedSubtract<int64> template=Arithmetic.checkedSubtract arguments=(int64)
 /// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
@@ -73,7 +74,7 @@ for (const value of 0..10) {
     /// @type.node source="value satisfies int64" type=int64
     /// @type.node source=value type=int64
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=value root=value
 
 }
@@ -111,9 +112,10 @@ declare const limit: int32;
 
 for (const value of 0..limit) {
 /// @resolution.iteration iterator="iterator#1(parameters=(), arguments=(), return=RangeIterator<int32>)" next="next(parameters=(), arguments=(), return=IteratorResult<int32, void>, regions=(\"frame\" & \"local\"))"
+/// @generic.instantiation id="next<int32, \"frame\" & \"local\">" template=next arguments=(int32, "frame" & "local")
 /// @generic.instantiation id=iterator#1<int32> template=iterator#1 arguments=(int32)
-/// @generic.instantiation id=next<int32> template=next arguments=(int32)
 /// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
+/// @generic.instance id="next<int32, \"bound0\" & \"local\">" template=next arguments=(int32, "bound0" & "local")
 /// @generic.instance id=Arithmetic.checkedAdd<int32> template=Arithmetic.checkedAdd arguments=(int32)
 /// @generic.instance id=Arithmetic.checkedSubtract<int32> template=Arithmetic.checkedSubtract arguments=(int32)
 /// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
@@ -131,14 +133,14 @@ for (const value of 0..limit) {
 /// @generic.instance id=Range<int32> template=Range arguments=(int32)
 /// @type.node source=limit type=int32
 /// @resolution.name source=limit target=limit
-/// @resolution.place source=limit placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=limit placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=limit root=limit
 
     value satisfies int32;
     /// @type.node source="value satisfies int32" type=int32
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=value root=value
 
 }
@@ -178,7 +180,7 @@ const counted = 0..limit;
 /// @type.node source=0..limit type=Range<int32>
 /// @type.node source=limit type=int32
 /// @resolution.name source=limit target=limit
-/// @resolution.place source=limit placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=limit placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=limit root=limit
 "#,
     );
@@ -220,11 +222,11 @@ const counted = low..high;
 /// @type.node source=low type=float64
 /// @type.node source=low..high type=Range<float64 | int32>
 /// @resolution.name source=low target=low
-/// @resolution.place source=low placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=low placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=low root=low
 /// @type.node source=high type=int32
 /// @resolution.name source=high target=high
-/// @resolution.place source=high placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=high placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=high root=high
 "#,
         r#"

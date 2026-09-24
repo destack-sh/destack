@@ -34,19 +34,18 @@ ok satisfies (string, number);
 class User {
 /// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
-/// @definition.method symbol=User.constructor source="constructor(name: string, age: number) {}" slot=constructor role=constructor type=<User.constructor.P0: Place>(string, float64) => Managed<User, User.constructor.P0>
+/// @definition.method symbol=User.constructor source="constructor(name: string, age: number) {}" slot=constructor role=constructor type=(this: &'managed User, string, float64) => User
 
     constructor(name: string, age: number) {}
-    /// @generic.template symbol=User.constructor parameters=(P0: Place)
-    /// @type.symbol symbol=User.constructor source="constructor(name: string, age: number) {}" type=<User.constructor.P0: Place>(string, float64) => Managed<User, User.constructor.P0>
-    /// @type.symbol symbol=User.constructor.this type=User
+    /// @type.symbol symbol=User.constructor source="constructor(name: string, age: number) {}" type=(this: &'managed User, string, float64) => User
+    /// @type.symbol symbol=User.constructor.this type=&'managed User
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
     /// @type.symbol symbol=User.constructor.age source="age: number" type=float64
 
 }
 
 type Args = ConstructorParameters<typeof User>;
-/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<Function<(string, float64), local User, "readonly">>
+/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=(string, float64)
 /// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=ConstructorParameters<typeof User>
 /// @resolution.name source=ConstructorParameters target=ConstructorParameters
 /// @resolution.name source=User target=User
@@ -58,7 +57,7 @@ const ok: Args = ("Ada", 42);
 
 ok satisfies (string, number);
 /// @resolution.name source=ok target=ok
-/// @resolution.place source=ok placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=ok placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=ok root=ok
 "#,
     );
@@ -103,7 +102,7 @@ const value: Args = ("Ada", 42);
 import { User } from "./user.ds";
 
 type Args = ConstructorParameters<typeof User>;
-/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<Function<(string, float64), local user.User, "readonly">>
+/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=(string, float64)
 /// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=ConstructorParameters<typeof user.User>
 /// @resolution.name source=ConstructorParameters target=ConstructorParameters
 /// @resolution.name source=User target=user.User
@@ -158,7 +157,7 @@ class User {
 }
 
 type Value = InstanceType<typeof User>;
-/// @type.symbol symbol=Value source="type Value = InstanceType<typeof User>" type=InstanceType<Function<(), User, "readonly">>
+/// @type.symbol symbol=Value source="type Value = InstanceType<typeof User>" type=User
 /// @definition.type symbol=Value source="type Value = InstanceType<typeof User>" value=InstanceType<typeof User>
 /// @resolution.name source=InstanceType target=InstanceType
 /// @resolution.name source=User target=User
@@ -173,7 +172,7 @@ const ok: Value = new User();
 ok.name satisfies string;
 /// @resolution.name source=ok target=ok
 /// @resolution.member source=ok.name receiver=Value type=string kind=field target_receiver=Value key=name target=User.name target_type=string
-/// @resolution.place source=ok placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=ok placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=ok root=ok
 /// @resolution.place source=ok.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=ok.name root=ok keys=[name]
@@ -213,19 +212,18 @@ const bad: Args = ("Ada", "old");
 class User {
 /// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
-/// @definition.method symbol=User.constructor source="constructor(name: string, age: number) {}" slot=constructor role=constructor type=<User.constructor.P0: Place>(string, float64) => Managed<this, User.constructor.P0>
+/// @definition.method symbol=User.constructor source="constructor(name: string, age: number) {}" slot=constructor role=constructor type=(this: &'managed User, string, float64) => User
 
     constructor(name: string, age: number) {}
-    /// @generic.template symbol=User.constructor parameters=(P0: Place)
-    /// @type.symbol symbol=User.constructor source="constructor(name: string, age: number) {}" type=<User.constructor.P0: Place>(string, float64) => Managed<this, User.constructor.P0>
-    /// @type.symbol symbol=User.constructor.this type=User
+    /// @type.symbol symbol=User.constructor source="constructor(name: string, age: number) {}" type=(this: &'managed User, string, float64) => User
+    /// @type.symbol symbol=User.constructor.this type=&'managed User
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
     /// @type.symbol symbol=User.constructor.age source="age: number" type=float64
 
 }
 
 type Args = ConstructorParameters<typeof User>;
-/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=ConstructorParameters<Function<(string, float64), local User, "readonly">>
+/// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=(string, float64)
 /// @definition.type symbol=Args source="type Args = ConstructorParameters<typeof User>" value=ConstructorParameters<typeof User>
 /// @resolution.name source=ConstructorParameters target=ConstructorParameters
 /// @resolution.name source=User target=User

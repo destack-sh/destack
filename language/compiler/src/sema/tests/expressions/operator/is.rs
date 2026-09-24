@@ -28,11 +28,11 @@ function positive(value: unknown): boolean {
     /// @resolution.name source=value target=positive.value
     /// @resolution.operator source="value is int32 && value > 0" type=boolean operator="&&" kind=builtin operands=[value is int32 as boolean families=(boolean), value > 0 as boolean families=(boolean)]
     /// @resolution.guard source="value is int32" kind=is value=unknown target=int32 predicate="unknown is int32" narrowed=Narrow<unknown, int32> projection=dynamic.payload(int32)
-    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=positive.value
     /// @resolution.name source=value target=positive.value
     /// @resolution.operator source="value > 0" type=boolean operator=">" kind=builtin operands=[value as int32 families=(integer), 0 as int32 families=(integer)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=positive.value
 
 }
@@ -73,14 +73,14 @@ if (value is string) {
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
 /// @resolution.guard source="value is string" kind=is value=unknown target=string predicate="unknown is string" narrowed=Narrow<unknown, string> projection=dynamic.payload(string)
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 
     value satisfies string;
     /// @type.node source="value satisfies string" type=string
     /// @type.node source=value type=string
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=value root=value
 
 }
@@ -120,7 +120,7 @@ if (value is { name: string }) {
 /// @type.node source=value type=Dynamic<unknown>
 /// @resolution.name source=value target=value
 /// @resolution.guard source="value is { name: string }" kind=is value=Dynamic<unknown> target={ name: string } predicate="Dynamic<unknown> is never"
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 /// @type.symbol symbol=name source="name: string" type=string
 
@@ -170,14 +170,14 @@ if (value is string) {
 /// @type.node source=value type=string | int32
 /// @resolution.name source=value target=value
 /// @resolution.guard source="value is string" kind=is value=string | int32 target=string predicate="string | int32 is string" narrowed=Narrow<string | int32, string>
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 
     value satisfies string;
     /// @type.node source="value satisfies string" type=string
     /// @type.node source=value type=string
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=value root=value
     /// @resolution.narrowing source=value union=string | int32 arms=string
 
@@ -186,7 +186,7 @@ if (value is string) {
     /// @type.node source="value satisfies int32" type=int32
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+    /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=value root=value
     /// @resolution.narrowing source=value union=string | int32 arms=int32
 
@@ -226,7 +226,7 @@ if (value is int32) {
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
 /// @resolution.guard source="value is int32" kind=is value=string target=int32 predicate="string is int32" narrowed=Narrow<string, int32>
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 
 }
@@ -289,7 +289,7 @@ if (value is &readonly Node) {
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
 /// @resolution.guard source="value is &readonly Node" kind=is value=unknown target=&'frame readonly Node predicate="dynamic.type(Type<unknown>) is type(&'frame readonly Node)" narrowed=Narrow<unknown, &'frame readonly Node> projection="dynamic.payload(&'frame readonly Node)"
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 /// @generic.instance id=Type<unknown> template=Type arguments=(unknown)
 /// @resolution.name source=Node target=Node
@@ -300,9 +300,9 @@ if (value is &readonly Node) {
     /// @type.node source=value.id type=int32
     /// @resolution.name source=value target=value
     /// @resolution.member source=value.id receiver=Narrow<unknown, &'frame readonly Node> type=int32 kind=field target_receiver=Narrow<unknown, &'frame readonly Node> key=id target=Node.id target_type=int32
-    /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=value placement="frame" lifetime="frame" access="immutable"
     /// @resolution.access source=value root=value
-    /// @resolution.place source=value.id placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=value.id placement="frame" lifetime="frame" access="readonly"
     /// @resolution.access source=value.id root=value keys=[id]
 
 }
@@ -343,7 +343,7 @@ function check<T>(value: unknown): void {
     /// @type.node source=value type=unknown
     /// @resolution.name source=value target=check.value
     /// @resolution.guard source="value is T" kind=is value=unknown target=T predicate="unknown is never"
-    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=check.value
     /// @resolution.name source=T target=check.T
 

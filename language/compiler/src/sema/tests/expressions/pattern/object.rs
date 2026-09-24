@@ -45,14 +45,14 @@ x satisfies int32;
 /// @type.node source="x satisfies int32" type=int32
 /// @type.node source=x type=int32
 /// @resolution.name source=x target=x#2
-/// @resolution.place source=x placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=x placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=x root=x#2
 
 y satisfies string;
 /// @type.node source="y satisfies string" type=string
 /// @type.node source=y type=string
 /// @resolution.name source=y target=y#2
-/// @resolution.place source=y placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=y placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=y root=y#2
 "#,
     );
@@ -90,7 +90,7 @@ let { x }: { x: int32 } = source;
 /// @type.symbol symbol=x#2 source="x: int32" type=int32
 /// @type.node source=source type={ x: string }
 /// @resolution.name source=source target=source
-/// @resolution.place source=source placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=source placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=source root=source
 "#,
         r#"
@@ -187,22 +187,22 @@ declare const state: State;
 const result = match (state) {
 /// @type.symbol symbol=result source=result type=int32
 /// @resolution.pattern source=result kind=binding target=result
-/// @resolution.coverage exhaustive=true disjoint=false
+/// @resolution.coverage exhaustive=true disjoint=true
 /// @resolution.name source=state target=state
-/// @resolution.place source=state placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=state placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=state root=state
 
     { inner: { kind: "a", value } } => value
-    /// @resolution.pattern source={ inner: { kind: "a", value } } kind=object fields={ inner: pattern }
+    /// @resolution.pattern source={ inner: { kind: "a", value } } kind=object adjustments=(union.payload({ inner: { kind: "a"; value: int32 } } | { inner: { kind: "b"; flag: boolean } }, { inner: { kind: "a"; value: int32 } }, { inner: { kind: "a"; value: int32 } })) fields={ inner: pattern }
     /// @resolution.pattern source={ kind: "a", value } kind=object fields={ kind: "a", value }
     /// @resolution.pattern source="\"a\"" kind=literal value="a"
     /// @type.symbol symbol=value source=value type=int32
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=value root=value
 
     { inner: { kind: "b", flag } } => 0
-    /// @resolution.pattern source={ inner: { kind: "b", flag } } kind=object fields={ inner: pattern }
+    /// @resolution.pattern source={ inner: { kind: "b", flag } } kind=object adjustments=(union.payload({ inner: { kind: "a"; value: int32 } } | { inner: { kind: "b"; flag: boolean } }, { inner: { kind: "b"; flag: boolean } }, { inner: { kind: "b"; flag: boolean } })) fields={ inner: pattern }
     /// @resolution.pattern source={ kind: "b", flag } kind=object fields={ kind: "b", flag }
     /// @resolution.pattern source="\"b\"" kind=literal value="b"
     /// @type.symbol symbol=flag source=flag type=boolean
@@ -305,7 +305,7 @@ const result = match (state) {
 /// @resolution.coverage exhaustive=true disjoint=false
 /// @type.node source=state type=State
 /// @resolution.name source=state target=state
-/// @resolution.place source=state placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=state placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=state root=state
 
     { kind: "pending", waiting } => waiting
@@ -315,7 +315,7 @@ const result = match (state) {
     /// @type.symbol symbol=waiting source=waiting type=int32
     /// @type.node source=waiting type=int32
     /// @resolution.name source=waiting target=waiting
-    /// @resolution.place source=waiting placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=waiting placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=waiting root=waiting
 
     { kind: "ready", value } => value
@@ -325,7 +325,7 @@ const result = match (state) {
     /// @type.symbol symbol=value source=value type=int32
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=value root=value
 
 };
@@ -426,7 +426,7 @@ const result = match (frame) {
 /// @resolution.coverage exhaustive=true disjoint=false
 /// @type.node source=frame type=Frame
 /// @resolution.name source=frame target=frame
-/// @resolution.place source=frame placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=frame placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=frame root=frame
 
     { version: 1, length } => length
@@ -436,7 +436,7 @@ const result = match (frame) {
     /// @type.symbol symbol=length source=length type=int32
     /// @type.node source=length type=int32
     /// @resolution.name source=length target=length
-    /// @resolution.place source=length placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=length placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=length root=length
 
     { version: 2, checksum } => checksum
@@ -446,7 +446,7 @@ const result = match (frame) {
     /// @type.symbol symbol=checksum source=checksum type=int32
     /// @type.node source=checksum type=int32
     /// @resolution.name source=checksum target=checksum
-    /// @resolution.place source=checksum placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=checksum placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=checksum root=checksum
 
 };
@@ -588,25 +588,25 @@ const result = match (envelope) {
 /// @type.symbol symbol=result source=result type=int32
 /// @resolution.pattern source=result kind=binding target=result
 /// @type.node type=int32
-/// @resolution.coverage exhaustive=true disjoint=false
+/// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=envelope type=Envelope
 /// @resolution.name source=envelope target=envelope
-/// @resolution.place source=envelope placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=envelope placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=envelope root=envelope
 
     { inner: { kind: "a", value } } => value
-    /// @resolution.pattern source={ inner: { kind: "a", value } } kind=object fields={ Opened.inner: pattern }
+    /// @resolution.pattern source={ inner: { kind: "a", value } } kind=object adjustments=(newtype.payload(Envelope, Opened | Closed), union.payload(Opened | Closed, Opened, Opened)) fields={ Opened.inner: pattern }
     /// @resolution.pattern source={ kind: "a", value } kind=object fields={ Alpha.kind: "a", Alpha.value }
     /// @type.node source="\"a\"" type="a"
     /// @resolution.pattern source="\"a\"" kind=literal value="a"
     /// @type.symbol symbol=value source=value type=int32
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=value root=value
 
     { inner: { kind: "b", flag } } => 0
-    /// @resolution.pattern source={ inner: { kind: "b", flag } } kind=object fields={ Closed.inner: pattern }
+    /// @resolution.pattern source={ inner: { kind: "b", flag } } kind=object adjustments=(newtype.payload(Envelope, Opened | Closed), union.payload(Opened | Closed, Closed, Closed)) fields={ Closed.inner: pattern }
     /// @resolution.pattern source={ kind: "b", flag } kind=object fields={ Beta.kind: "b", Beta.flag }
     /// @type.node source="\"b\"" type="b"
     /// @resolution.pattern source="\"b\"" kind=literal value="b"
@@ -700,7 +700,7 @@ type State = Pending | Ready;
 /// @resolution.name source=Ready target=Ready
 
 declare const state: &readonly State;
-/// @type.symbol symbol=state source=state type=&'static readonly constant State
+/// @type.symbol symbol=state source=state type=&'static readonly State
 /// @resolution.pattern source=state kind=binding target=state
 /// @resolution.name source=State target=State
 
@@ -708,30 +708,30 @@ const result = match (state) {
 /// @type.symbol symbol=result source=result type=int32
 /// @resolution.pattern source=result kind=binding target=result
 /// @type.node type=int32
-/// @resolution.coverage exhaustive=true disjoint=false
-/// @type.node source=state type=&'static readonly constant State
+/// @resolution.coverage exhaustive=true disjoint=true
+/// @type.node source=state type=&'static readonly State
 /// @resolution.name source=state target=state
-/// @resolution.place source=state placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=state placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=state root=state
 
     { kind: "pending", waiting } => waiting
-    /// @resolution.pattern source={ kind: "pending", waiting } kind=object fields={ Pending.kind: "pending", Pending.waiting }
+    /// @resolution.pattern source={ kind: "pending", waiting } kind=object adjustments=(union.payload(Pending | Ready, Pending, &'static readonly Pending)) fields={ Pending.kind: "pending", Pending.waiting }
     /// @type.node source="\"pending\"" type="pending"
     /// @resolution.pattern source="\"pending\"" kind=literal value="pending"
     /// @type.symbol symbol=waiting source=waiting type=int32
     /// @type.node source=waiting type=int32
     /// @resolution.name source=waiting target=waiting
-    /// @resolution.place source=waiting placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=waiting placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=waiting root=waiting
 
     { kind: "ready", value } => value
-    /// @resolution.pattern source={ kind: "ready", value } kind=object fields={ Ready.kind: "ready", Ready.value }
+    /// @resolution.pattern source={ kind: "ready", value } kind=object adjustments=(union.payload(Pending | Ready, Ready, &'static readonly Ready)) fields={ Ready.kind: "ready", Ready.value }
     /// @type.node source="\"ready\"" type="ready"
     /// @resolution.pattern source="\"ready\"" kind=literal value="ready"
     /// @type.symbol symbol=value source=value type=int32
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=value root=value
 
 };

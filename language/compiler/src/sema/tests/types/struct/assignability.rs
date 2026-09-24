@@ -67,7 +67,7 @@ const value: HasX = Point { x: 1 };
 
 value satisfies HasX;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 /// @resolution.name source=HasX target=HasX
 "#,
@@ -166,7 +166,7 @@ declare const picture: Picture;
 
 picture satisfies Drawable;
 /// @resolution.name source=picture target=picture
-/// @resolution.place source=picture placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=picture placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=picture root=picture
 /// @resolution.name source=Drawable target=Drawable
 "#,
@@ -273,7 +273,7 @@ declare const picture: Picture;
 
 picture satisfies Drawable;
 /// @resolution.name source=picture target=picture
-/// @resolution.place source=picture placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=picture placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=picture root=picture
 /// @resolution.name source=Drawable target=Drawable
 "#,
@@ -330,12 +330,12 @@ const value: { readonly x: int32 } = point;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.symbol symbol=x#1 source="readonly x: int32" type=int32
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 
 value satisfies { readonly x: int32 };
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 /// @type.symbol symbol=x#2 source="readonly x: int32" type=int32
 "#,
@@ -413,7 +413,7 @@ const counter: HasCount = Counter { count: 1 };
 
 counter satisfies HasCount;
 /// @resolution.name source=counter target=counter
-/// @resolution.place source=counter placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=counter placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=counter root=counter
 /// @resolution.name source=HasCount target=HasCount
 "#,
@@ -454,10 +454,10 @@ interface Drawable {
 /// @type.symbol symbol=Drawable type=Drawable
 /// @definition.interface symbol=Drawable template=(this: Drawable)
 /// @definition.where symbol=Drawable relation=satisfies left=this right=Drawable
-/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=(this: this) => void
+/// @definition.method symbol=Drawable.draw source="draw(): void" slot=draw type=() => void
 
     draw(): void;
-    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=(this: this) => void
+    /// @type.symbol symbol=Drawable.draw source="draw(): void" type=() => void
 
 }
 
@@ -611,7 +611,7 @@ const value: PointClass = point;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=PointClass target=PointClass
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 "#,
         r#"
@@ -688,7 +688,7 @@ const value: Point = point;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 "#,
         r#"

@@ -173,6 +173,7 @@ function build(): void {
 
 }
 "#,
-        "",
+        r#"
+"#,
     );
 }

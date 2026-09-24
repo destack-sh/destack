@@ -156,8 +156,10 @@ const size = float.length;
 /// @resolution.pattern source=size kind=binding target=size
 /// @resolution.name source=float target=float
 /// @resolution.member source=float.length receiver="measure" type=isize kind=call target="length(parameters=(), arguments=(), return=isize, regions=(\"managed\" & \"local\"))"
-/// @resolution.place source=float placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=float placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=float root=float
+/// @generic.instantiation id="length<\"managed\" & \"local\">" template=length arguments=("managed" & "local")
+/// @generic.instance id="length<\"bound0\" & \"local\">" template=length arguments=("bound0" & "local")
 "#,
     );
 }
@@ -282,7 +284,7 @@ const greatest = meta.maximum();
 /// @type.symbol symbol=greatest source=greatest type=<error>
 /// @resolution.pattern source=greatest kind=binding target=greatest
 /// @resolution.name source=meta target=meta
-/// @resolution.place source=meta placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=meta placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=meta root=meta
 /// @resolution.poisoned source=meta.maximum
 /// @resolution.rejected source=meta.maximum()

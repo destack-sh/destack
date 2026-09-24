@@ -114,7 +114,7 @@ extension of Vector implements Add<Vector> {
     add(&readonly this, other: Vector): Vector {
     /// @generic.template symbol=add parent=template#0 parameters=('a)
     /// @type.symbol symbol=add type=<add.'a>(this: &add.'a readonly Vector, Vector) => Vector
-    /// @type.symbol symbol=add.this source="&readonly this" type=&add.'a readonly this
+    /// @type.symbol symbol=add.this source="&readonly this" type=&add.'a readonly Vector
     /// @type.symbol symbol=add.other source="other: Vector" type=Vector
     /// @resolution.name source=Vector target=Vector
     /// @resolution.name source=Vector target=Vector
@@ -138,9 +138,9 @@ extension of Vector implements Add<Vector> {
             /// @type.node source=other.x type=int32
             /// @resolution.name source=other target=add.other
             /// @resolution.member source=other.x receiver=Vector type=int32 kind=field target_receiver=Vector key=x target=Vector.x target_type=int32
-            /// @resolution.place source=other placement="local" lifetime="frame" access="mutable"
+            /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
             /// @resolution.access source=other root=add.other
-            /// @resolution.place source=other.x placement="local" lifetime="frame" access="mutable"
+            /// @resolution.place source=other.x placement="local" lifetime="frame" access="exclusive"
             /// @resolution.access source=other.x root=add.other keys=[x]
 
             y: this.y + other.y,
@@ -158,9 +158,9 @@ extension of Vector implements Add<Vector> {
             /// @type.node source=other.y type=int32
             /// @resolution.name source=other target=add.other
             /// @resolution.member source=other.y receiver=Vector type=int32 kind=field target_receiver=Vector key=y target=Vector.y target_type=int32
-            /// @resolution.place source=other placement="local" lifetime="frame" access="mutable"
+            /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
             /// @resolution.access source=other root=add.other
-            /// @resolution.place source=other.y placement="local" lifetime="frame" access="mutable"
+            /// @resolution.place source=other.y placement="local" lifetime="frame" access="exclusive"
             /// @resolution.access source=other.y root=add.other keys=[y]
 
         };
@@ -183,12 +183,14 @@ const sum = left + right;
 /// @type.node source="left + right" type=Vector
 /// @type.node source=left type=Vector
 /// @resolution.name source=left target=left
-/// @resolution.operator source="left + right" type=Vector operator="+" kind=call parameters=(Vector) arguments=(provided(right) as Vector) return=Vector regions=("static" & "constant") kind=symbol target=add receiver=Vector adjustments=(borrow(&'static readonly constant Vector))
-/// @resolution.place source=left placement="constant" lifetime="static" access="readonly"
+/// @resolution.operator source="left + right" type=Vector operator="+" kind=call parameters=(Vector) arguments=(provided(right) as Vector) return=Vector regions=("static" & "local") kind=symbol target=add receiver=Vector adjustments=(borrow(&'static readonly Vector)) instance="Vector.<extension#1>.add<\"static\" & \"local\">"
+/// @resolution.place source=left placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=left root=left
+/// @generic.instantiation id="add<\"static\" & \"local\">" template=add arguments=("static" & "local")
+/// @generic.instance id="add<\"bound0\" & \"local\">" template=add arguments=("bound0" & "local")
 /// @type.node source=right type=Vector
 /// @resolution.name source=right target=right
-/// @resolution.place source=right placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=right placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=right root=right
 "#,
     );
@@ -252,8 +254,8 @@ extension of Score implements Add<Score> {
 /// @definition.extension symbol=<module>#2 form=local target=Score
 /// @definition.implements symbol=<module>#2 source=Add<Score> target=Add<Score>
 /// @definition.associated.type symbol=Output source="type Output = Score" key=Output value=Score
-/// @definition.method symbol=add#1 slot=add type=<add#1.'a>(this: &add#1.'a readonly this, Score) => string
-/// @definition.method symbol=add#2 slot=add type=<add#2.'a>(this: &add#2.'a readonly this, Score) => Score
+/// @definition.method symbol=add#1 slot=add type=<add#1.'a>(this: &add#1.'a readonly Score, Score) => string
+/// @definition.method symbol=add#2 slot=add type=<add#2.'a>(this: &add#2.'a readonly Score, Score) => Score
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Add.Output
 /// @definition.conformance symbol=<module>#2 member=add#2 requirement=Add.add
 /// @resolution.name source=Score target=Score
@@ -266,8 +268,8 @@ extension of Score implements Add<Score> {
 
     add(&readonly this, other: Score): string {
     /// @generic.template symbol=add#1 parent=template#0 parameters=('a)
-    /// @type.symbol symbol=add#1 type=<add#1.'a>(this: &add#1.'a readonly this, Score) => string
-    /// @type.symbol symbol=add.this#1 source="&readonly this" type=&add#1.'a readonly this
+    /// @type.symbol symbol=add#1 type=<add#1.'a>(this: &add#1.'a readonly Score, Score) => string
+    /// @type.symbol symbol=add.this#1 source="&readonly this" type=&add#1.'a readonly Score
     /// @type.symbol symbol=add.other#1 source="other: Score" type=Score
     /// @resolution.name source=Score target=Score
 
@@ -278,8 +280,8 @@ extension of Score implements Add<Score> {
 
     add(&readonly this, other: Score): Score {
     /// @generic.template symbol=add#2 parent=template#0 parameters=('a)
-    /// @type.symbol symbol=add#2 type=<add#2.'a>(this: &add#2.'a readonly this, Score) => Score
-    /// @type.symbol symbol=add.this#2 source="&readonly this" type=&add#2.'a readonly this
+    /// @type.symbol symbol=add#2 type=<add#2.'a>(this: &add#2.'a readonly Score, Score) => Score
+    /// @type.symbol symbol=add.this#2 source="&readonly this" type=&add#2.'a readonly Score
     /// @type.symbol symbol=add.other#2 source="other: Score" type=Score
     /// @resolution.name source=Score target=Score
     /// @resolution.name source=Score target=Score
@@ -287,7 +289,7 @@ extension of Score implements Add<Score> {
         return other;
         /// @type.node source=other type=Score
         /// @resolution.name source=other target=add.other#2
-        /// @resolution.place source=other placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=other root=add.other#2
 
     }
@@ -309,12 +311,13 @@ const sum = left + right;
 /// @type.node source="left + right" type=Score
 /// @type.node source=left type=Score
 /// @resolution.name source=left target=left
-/// @resolution.operator source="left + right" type=Score operator="+" kind=call parameters=(Score) arguments=(provided(right) as Score) return=Score regions=("static" & "constant") kind=symbol target=add#2 receiver=Score adjustments=(borrow(&'static readonly constant Score))
-/// @resolution.place source=left placement="constant" lifetime="static" access="readonly"
+/// @resolution.operator source="left + right" type=Score operator="+" kind=call parameters=(Score) arguments=(provided(right) as Score) return=Score regions=("static" & "local") kind=symbol target=add#2 receiver=Score adjustments=(borrow(&'static readonly Score)) instance="Score.<extension#1>.add#2<\"static\" & \"local\">"
+/// @resolution.place source=left placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=left root=left
+/// @generic.instantiation id="add#2<\"static\" & \"local\">" template=add#2 arguments=("static" & "local")
 /// @type.node source=right type=Score
 /// @resolution.name source=right target=right
-/// @resolution.place source=right placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=right placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=right root=right
 "#,
         r#"
@@ -415,9 +418,9 @@ extension of Score implements Add<Score> {
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.name source=other target=add.other
         /// @resolution.member source=other.value receiver=Score type=float64 kind=field target_receiver=Score key=value target=Score.value target_type=float64
-        /// @resolution.place source=other placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=other root=add.other
-        /// @resolution.place source=other.value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=other.value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=other.value root=add.other keys=[value]
 
     }
@@ -435,13 +438,15 @@ declare const bonus: Score;
 
 total += bonus;
 /// @resolution.name source=total target=total
-/// @resolution.operator source="total += bonus" type=Score operator="+" kind=call parameters=(Score) arguments=(provided(bonus) as Score) return=Score regions=("static" & "local") kind=symbol target=add receiver=Score adjustments=(borrow(&'static readonly Score))
+/// @resolution.operator source="total += bonus" type=Score operator="+" kind=call parameters=(Score) arguments=(provided(bonus) as Score) return=Score regions=("static" & "local") kind=symbol target=add receiver=Score adjustments=(borrow(&'static readonly Score)) instance="Score.<extension#1>.add<\"static\" & \"local\">"
 /// @resolution.pattern.assign source=total kind=place
-/// @resolution.place source=total placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=total placement="local" lifetime="static" access="exclusive"
 /// @resolution.assignment source=total read=binding(total) write=binding(total) type=Score
 /// @resolution.access source=total root=total
+/// @generic.instantiation id="add<\"static\" & \"local\">" template=add arguments=("static" & "local")
+/// @generic.instance id="add<\"bound0\" & \"local\">" template=add arguments=("bound0" & "local")
 /// @resolution.name source=bonus target=bonus
-/// @resolution.place source=bonus placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=bonus placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=bonus root=bonus
 "#);
 }
@@ -536,9 +541,9 @@ extension of Score implements Add {
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.name source=other target=add.other
         /// @resolution.member source=other.value receiver=Score type=float64 kind=field target_receiver=Score key=value target=Score.value target_type=float64
-        /// @resolution.place source=other placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=other root=add.other
-        /// @resolution.place source=other.value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=other.value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=other.value root=add.other keys=[value]
 
     }
@@ -556,13 +561,15 @@ declare const bonus: Score;
 
 total += bonus;
 /// @resolution.name source=total target=total
-/// @resolution.operator source="total += bonus" type=Score operator="+" kind=call parameters=(Score) arguments=(provided(bonus) as Score) return=Score regions=("static" & "local") kind=symbol target=add receiver=Score adjustments=(borrow(&'static readonly Score))
+/// @resolution.operator source="total += bonus" type=Score operator="+" kind=call parameters=(Score) arguments=(provided(bonus) as Score) return=Score regions=("static" & "local") kind=symbol target=add receiver=Score adjustments=(borrow(&'static readonly Score)) instance="Score.<extension#1>.add<\"static\" & \"local\">"
 /// @resolution.pattern.assign source=total kind=place
-/// @resolution.place source=total placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=total placement="local" lifetime="static" access="exclusive"
 /// @resolution.assignment source=total read=binding(total) write=binding(total) type=Score
 /// @resolution.access source=total root=total
+/// @generic.instantiation id="add<\"static\" & \"local\">" template=add arguments=("static" & "local")
+/// @generic.instance id="add<\"bound0\" & \"local\">" template=add arguments=("bound0" & "local")
 /// @resolution.name source=bonus target=bonus
-/// @resolution.place source=bonus placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=bonus placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=bonus root=bonus
 "#);
 }
@@ -593,10 +600,12 @@ function wrap(text: string): string {
 /// @type.symbol symbol=wrap.text source="text: string" type=string
 
     return "[" + text + "]";
-    /// @resolution.operator source="\"[\" + text + \"]\"" type=^string operator="+" kind=call parameters=(string) arguments=(provided("]") as string) return=^string regions=("frame" & "local") kind=symbol target=add receiver=^string adjustments=(borrow(&'frame readonly ^string))
-    /// @resolution.operator source="\"[\" + text" type=^string operator="+" kind=call parameters=(string) arguments=(provided(text) as string) return=^string regions=("frame" & "local") kind=symbol target=add receiver="[" adjustments=(borrow(&'frame readonly "["))
+    /// @resolution.operator source="\"[\" + text + \"]\"" type=^string operator="+" kind=call parameters=(string) arguments=(provided("]") as string) return=^string regions=("frame" & "local") kind=symbol target=add receiver=^string adjustments=(borrow(&'frame readonly string)) instance="string.<extension#2>.add<\"frame\" & \"local\">"
+    /// @resolution.operator source="\"[\" + text" type=^string operator="+" kind=call parameters=(string) arguments=(provided(text) as string) return=^string regions=("managed" & "local") kind=symbol target=add receiver="[" adjustments=(borrow(&'managed readonly "[")) instance="string.<extension#2>.add<\"managed\" & \"local\">"
+    /// @generic.instantiation id="add<\"frame\" & \"local\">" template=add arguments=("frame" & "local")
+    /// @generic.instantiation id="add<\"managed\" & \"local\">" template=add arguments=("managed" & "local")
     /// @resolution.name source=text target=wrap.text
-    /// @resolution.place source=text placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=text placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=text root=wrap.text
 
 }

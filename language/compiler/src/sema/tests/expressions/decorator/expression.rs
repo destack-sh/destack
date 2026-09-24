@@ -35,7 +35,7 @@ interface Reader {
 /// @type.symbol symbol=Reader type=Reader
 /// @definition.interface symbol=Reader template=(this: Reader)
 /// @definition.where symbol=Reader relation=satisfies left=this right=Reader
-/// @definition.method symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" slot=read type=(this: this, string) => string
+/// @definition.method symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" slot=read type=(string) => string
 
     @mark("checked")
     /// @decorator.node source="@mark(\"checked\")" owner="read(@mark(\"parameter\") value: string): string" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("checked") as string) newtype=mark backing=(string,) value="mark(\"checked\")"
@@ -44,7 +44,7 @@ interface Reader {
     /// @type.node source="\"checked\"" type="checked"
 
     read(@mark("parameter") value: string): string;
-    /// @type.symbol symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" type=(this: this, string) => string
+    /// @type.symbol symbol=Reader.read source="read(@mark(\"parameter\") value: string): string" type=(string) => string
     /// @decorator.node source="@mark(\"parameter\")" owner="value: string" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("parameter") as string) newtype=mark backing=(string,) value="mark(\"parameter\")"
     /// @type.node source=mark type=mark
     /// @resolution.name source=mark target=mark
@@ -69,9 +69,7 @@ declare function read(mark: int32): void;
 
     session.assert_dir(
         "main.ds",
-        DirRows::checked()
-            .with_reference_types()
-            .with_decorators(),
+        DirRows::checked().with_reference_types().with_decorators(),
         r#"
 === annotated ===
 newtype mark = (string,);
@@ -92,7 +90,6 @@ newtype mark = (string,);
 
 declare function read(mark: int32): void;
 /// @type.symbol symbol=read source="declare function read(mark: int32): void" type=(int32) => void
-/// @type.symbol symbol=read.mark source="mark: int32" type=int32
 "#,
     );
 }
@@ -151,9 +148,7 @@ const value = 1;
 
     session.assert_dir(
         "main.ds",
-        DirRows::checked()
-            .with_reference_types()
-            .with_decorators(),
+        DirRows::checked().with_reference_types().with_decorators(),
         r#"
 === annotated ===
 newtype Payload = { reason: string };
@@ -272,7 +267,7 @@ declare function consume(value: int32): void;
 
 function run(): void {
     consume(@mark("call") 1);
-    const sink: local Sink = new Sink(@mark("construct") 2);
+    const sink: Sink = new Sink(@mark("construct") 2);
     const array: int64[] = [@mark("array") 3,];
 }
 
@@ -284,19 +279,17 @@ newtype mark = (string,);
 class Sink {
 /// @type.symbol symbol=Sink type=typeof Sink
 /// @definition.class symbol=Sink
-/// @definition.method symbol=Sink.constructor source="constructor(value: int32) {}" slot=constructor role=constructor type=<Sink.constructor.P0: Place>(int32) => Managed<Sink, Sink.constructor.P0>
+/// @definition.method symbol=Sink.constructor source="constructor(value: int32) {}" slot=constructor role=constructor type=(this: &'managed Sink, int32) => Sink
 
     constructor(value: int32) {}
-    /// @generic.template symbol=Sink.constructor parameters=(P0: Place)
-    /// @type.symbol symbol=Sink.constructor source="constructor(value: int32) {}" type=<Sink.constructor.P0: Place>(int32) => Managed<Sink, Sink.constructor.P0>
-    /// @type.symbol symbol=Sink.constructor.this type=Sink
+    /// @type.symbol symbol=Sink.constructor source="constructor(value: int32) {}" type=(this: &'managed Sink, int32) => Sink
+    /// @type.symbol symbol=Sink.constructor.this type=&'managed Sink
     /// @type.symbol symbol=Sink.constructor.value source="value: int32" type=int32
 
 }
 
 declare function consume(value: int32): void;
 /// @type.symbol symbol=consume source="declare function consume(value: int32): void" type=(int32) => void
-/// @type.symbol symbol=consume.value source="value: int32" type=int32
 
 function run(): void {
 /// @type.symbol symbol=run type=() => void
@@ -313,12 +306,10 @@ function run(): void {
     /// @type.node source=1 type=1
 
     const sink = new Sink(@mark("construct") 2);
-    /// @type.symbol symbol=run.sink source=sink type=local Sink
+    /// @type.symbol symbol=run.sink source=sink type=Sink
     /// @resolution.pattern source=sink kind=binding target=run.sink
-    /// @type.node source="new Sink(@mark(\"construct\") 2)" type=local Sink
-    /// @resolution.construct source="new Sink(@mark(\"construct\") 2)" parameters=(int32) arguments=(provided(@mark("construct") 2) as int32) return=local Sink kind=class target=Sink constructor=Sink.constructor
-    /// @generic.instantiation id="Sink.constructor<\"local\">" template=Sink.constructor arguments=("local")
-    /// @generic.instantiation id="Sink<\"local\">" template=Sink arguments=("local")
+    /// @type.node source="new Sink(@mark(\"construct\") 2)" type=Sink
+    /// @resolution.construct source="new Sink(@mark(\"construct\") 2)" parameters=(int32) arguments=(provided(@mark("construct") 2) as int32) return=Sink kind=class target=Sink constructor=Sink.constructor
     /// @type.node source=Sink type=typeof Sink
     /// @resolution.name source=Sink target=Sink
     /// @decorator.node source="@mark(\"construct\")" owner="@mark(\"construct\") 2" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("construct") as string) newtype=mark backing=(string,) value="mark(\"construct\")"
@@ -330,31 +321,13 @@ function run(): void {
     const array = [@mark("array") 3];
     /// @type.symbol symbol=run.array source=array type=int64[]
     /// @resolution.pattern source=array kind=binding target=run.array
-    /// @generic.instance id="elementSlot<int64, \"mutable\">" template=elementSlot arguments=(int64, "mutable")
-    /// @generic.instance id="initAsPointer<int64, \"mutable\">" template=initAsPointer arguments=(int64, "mutable")
-    /// @generic.instance id="sliceIndex<MaybeUninit<int64>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int64>, "mutable")
     /// @generic.instance id=Array<int64> template=Array arguments=(int64)
-    /// @generic.instance id=assumeInitDrop#1<int64> template=assumeInitDrop#1 arguments=(int64)
-    /// @generic.instance id=assumeInitDrop<int64> template=assumeInitDrop arguments=(int64)
-    /// @generic.instance id=clear<int64> template=clear arguments=(int64)
-    /// @generic.instance id=drop<int64> template=drop arguments=(int64)
-    /// @generic.instance id=dropInPlace<int64> template=dropInPlace arguments=(int64)
     /// @generic.instance id=sliceAssumeInit<MaybeUninit<int64>> template=sliceAssumeInit arguments=(MaybeUninit<int64>)
     /// @generic.instance id=sliceUninit<MaybeUninit<int64>> template=sliceUninit arguments=(MaybeUninit<int64>)
-    /// @generic.instance id=truncate<int64> template=truncate arguments=(int64)
     /// @type.node source=[@mark("array") 3] type=int64[]
     /// @resolution.call source=[@mark("array") 3] parameters=(^Slice<int64>) arguments=(rest(provided(@mark("array") 3) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
     /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
-    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-    /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-    /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
     /// @generic.instance id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
-    /// @generic.instance id=fromOwnedSlice<int64> template=fromOwnedSlice arguments=(int64)
-    /// @generic.instance id=intoUninit<int64> template=intoUninit arguments=(int64)
-    /// @generic.instance id=size<int64> template=size arguments=(int64)
-    /// @generic.instance id=sliceIntoUninit<int64> template=sliceIntoUninit arguments=(int64)
-    /// @generic.instance id=sliceLength<int64> template=sliceLength arguments=(int64)
     /// @decorator.node source="@mark(\"array\")" owner="@mark(\"array\") 3" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("array") as string) newtype=mark backing=(string,) value="mark(\"array\")"
     /// @type.node source=mark type=mark
     /// @resolution.name source=mark target=mark
@@ -417,11 +390,10 @@ function run(): void {
     /// @type.symbol symbol=run.text source=text type=string
     /// @resolution.pattern source=text kind=binding target=run.text
     /// @type.node source="`value ${@mark(\"interpolation\") 6}`" type=string
-    /// @resolution.template source="`value ${@mark(\"interpolation\") 6}`" spans=[Display.display(parameters=(), arguments=(), return=MaybeOwned<"frame" & "local", string>, regions=("frame" & "local"))] build="stringFromTemplate(parameters=(&stringFromTemplate.'a readonly Slice<string>, &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), arguments=(supplied(0) as &stringFromTemplate.'a readonly Slice<string>, supplied(1) as &stringFromTemplate.'c readonly Slice<MaybeOwned<stringFromTemplate.'b, string>>), return=string)"
-    /// @generic.instantiation id=Display.display<int64> template=Display.display arguments=()
-    /// @generic.instance id="CowBorrowed<&'bound0 readonly string>" template=CowBorrowed arguments=(&'bound0 readonly string)
-    /// @generic.instance id=Cow<string> template=Cow arguments=(string)
-    /// @generic.instance id=CowOwned<^string> template=CowOwned arguments=(^string)
+    /// @resolution.template source="`value ${@mark(\"interpolation\") 6}`" spans=[Display.display(parameters=(), arguments=(), return=^string, regions=("frame" & "local"))] build="stringFromTemplate(parameters=(&'frame readonly Slice<string>, &'frame readonly Slice<string>), arguments=(supplied(0) as &'frame readonly Slice<string>, supplied(1) as &'frame readonly Slice<string>), return=string, regions=(\"frame\", \"frame\"))"
+    /// @generic.instantiation id="Display.display<int64, \"frame\" & \"local\">" template=Display.display arguments=("frame" & "local")
+    /// @generic.instantiation id="stringFromTemplate<\"frame\", \"frame\">" template=stringFromTemplate arguments=("frame", "frame")
+    /// @generic.instance id="stringFromTemplate<\"frame\", \"frame\">" template=stringFromTemplate arguments=("frame", "frame")
     /// @decorator.node source="@mark(\"interpolation\")" owner="@mark(\"interpolation\") 6" expression=mark target=mark type=mark kind=newtype parameters=(string) arguments=(provided("interpolation") as string) newtype=mark backing=(string,) value="mark(\"interpolation\")"
     /// @type.node source=mark type=mark
     /// @resolution.name source=mark target=mark
@@ -467,7 +439,8 @@ function run(): void {
 
 }
 "#,
-        "",
+        r#"
+"#,
     );
 }
 
@@ -501,12 +474,9 @@ function run(): void {
 === dir ===
 declare function consume(first: int32, second?: int32): void;
 /// @type.symbol symbol=consume source="declare function consume(first: int32, second?: int32): void" type=(int32, int32 | undefined?) => void
-/// @type.symbol symbol=consume.first source="first: int32" type=int32
-/// @type.symbol symbol=consume.second source="second?: int32" type=int32 | undefined
 
 declare function require(first: int32): void;
 /// @type.symbol symbol=require source="declare function require(first: int32): void" type=(int32) => void
-/// @type.symbol symbol=require.first source="first: int32" type=int32
 
 function run(): void {
 /// @type.symbol symbol=run type=() => void

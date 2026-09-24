@@ -48,7 +48,7 @@ declare const channel: Topic<"orders">.Channel;
 
 channel satisfies `topic:${"orders"}`;
 /// @resolution.name source=channel target=channel
-/// @resolution.place source=channel placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=channel placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=channel root=channel
 "#,
     );
@@ -140,7 +140,7 @@ handlers["on-ready"] satisfies boolean;
 /// @resolution.place source="handlers[\"on-ready\"]" placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source="handlers[\"on-ready\"]" root=handlers keys=[on-ready]
 /// @resolution.subscript source="handlers[\"on-ready\"]" type=boolean kind=member target="receiver={ on-ready: boolean; on-message: string }, target=field(receiver={ on-ready: boolean; on-message: string }, target=on-ready, type=boolean), type=boolean"
-/// @resolution.place source=handlers placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=handlers placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=handlers root=handlers
 
 handlers["on-message"] satisfies string;
@@ -148,7 +148,7 @@ handlers["on-message"] satisfies string;
 /// @resolution.place source="handlers[\"on-message\"]" placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source="handlers[\"on-message\"]" root=handlers keys=[on-message]
 /// @resolution.subscript source="handlers[\"on-message\"]" type=string kind=member target="receiver={ on-ready: boolean; on-message: string }, target=field(receiver={ on-ready: boolean; on-message: string }, target=on-message, type=string), type=string"
-/// @resolution.place source=handlers placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=handlers placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=handlers root=handlers
 "#,
     );
@@ -203,7 +203,7 @@ declare const kind: EventName<"evt:login">.Kind;
 
 kind satisfies "login";
 /// @resolution.name source=kind target=kind
-/// @resolution.place source=kind placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=kind placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=kind root=kind
 "#,
     );

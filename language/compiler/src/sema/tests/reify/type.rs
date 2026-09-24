@@ -67,32 +67,12 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         &mut self,
         bindings: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<Option<Vec<dir::LocalNodeId<dir::GenericArgument>>>> {
-        // elide trailing place arguments solved to the local space
-        let mut kept = bindings.len();
-        while kept > 0 && self.is_local_place_binding(&bindings[kept - 1])? {
-            kept -= 1;
-        }
-        if kept == 0 {
+        if bindings.is_empty() {
             return Ok(None);
         }
-        let arguments = dir::GenericArgumentBinding::values(&bindings[..kept]).collect::<Vec<_>>();
+        let arguments = dir::GenericArgumentBinding::values(bindings).collect::<Vec<_>>();
 
         self.reify_arguments(&arguments, REIFY_DEPTH)
-    }
-
-    /// Return whether one binding fills a place parameter with the local space.
-    fn is_local_place_binding(
-        &self,
-        binding: &dir::GenericArgumentBinding,
-    ) -> CompilerResult<bool> {
-        let is_place = self
-            .check
-            .generic_parameter(binding.parameter)?
-            .is_some_and(|parameter| {
-                parameter.memory_parameter() == Some(dir::MemoryParameter::Place)
-            });
-
-        Ok(is_place && self.check.place_space(binding.argument)? == Some(dir::Space::Local))
     }
 
     /// Reify one generic parameter binding into a synthesized parameter node.
@@ -140,14 +120,17 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             return Ok(None);
         };
 
-        // read the borrow modifier off the access literal
-        let mutability = match access {
-            dir::Access::Mutable => dir::Mutability::Mutable,
-            dir::Access::Readonly => dir::Mutability::Immutable,
-        };
-
         // name the tick parameter or reserved lifetime literal
         let name = match self.check.resolved_ty(lifetime)? {
+            // keep a region elided inside a function type annotation elided
+            dir::Type::Parameter(parameter) if self.is_elided_in_annotation(parameter)? => {
+                return Ok(Some(dir::TypeExpression::BorrowedOf {
+                    lifetime: None,
+                    access: Some(access),
+                    variance: None,
+                    target_type,
+                }));
+            }
             // read a tick parameter back through its binding
             dir::Type::Parameter(parameter) => {
                 let Some(name) = self.generic_parameter_name(parameter)? else {
@@ -177,7 +160,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
 
         Ok(Some(dir::TypeExpression::BorrowedOf {
             lifetime: Some(lifetime),
-            mutability: Some(mutability),
+            access: Some(access),
             variance: None,
             target_type,
         }))
@@ -272,15 +255,8 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             // scalar domains and their exact values reify by value
             dir::Type::Primitive(primitive) => Self::literal(dir::TypeLiteral::from(primitive)),
             dir::Type::Literal(literal) => dir::TypeExpression::Literal { value: literal },
-            // regions read back as the extent and spaces intersection they parse from
-            dir::Type::Region(region) => {
-                let Some(elements) = self.reify_elements(&[region.extent, region.space], next)?
-                else {
-                    return Ok(None);
-                };
-
-                dir::TypeExpression::Intersection { elements }
-            }
+            // a region reads back as its extent, its space following the referent
+            dir::Type::Region(region) => return self.reify_depth(region.extent, next),
             // exact property keys reify as their scalar literal
             dir::Type::Key(key) => {
                 let Some(value) = Self::static_key_literal(&key) else {
@@ -370,6 +346,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                     .check
                     .type_ids(id.module_id, instance.arguments)?
                     .to_vec();
+                let arguments = self.trim_default_arguments(instance.symbol, arguments)?;
                 let Some(arguments) = self.reify_arguments(&arguments, next)? else {
                     return Ok(None);
                 };
@@ -564,51 +541,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                 };
 
                 match &form.form {
-                    // print managed layers through their referent place
-                    dir::Form::Managed { place } => {
-                        let place = self.check.shallow_resolve(*place)?;
-                        let space = self.check.place_space(place)?;
-
-                        // the local space has its own keyword
-                        if space == Some(dir::Space::Local) {
-                            dir::TypeExpression::Local { target_type }
-                        }
-                        // so does the shared space
-                        else if space == Some(dir::Space::Shared) {
-                            dir::TypeExpression::Shared { target_type }
-                        }
-                        // reify an open or constant place through `Managed` with its place
-                        else if space.is_none() || space == Some(dir::Space::Constant) {
-                            let Some(place) = self.reify_depth(place, next)? else {
-                                return Ok(None);
-                            };
-                            let target =
-                                self.insert(dir::GenericArgument::Type { value: target_type });
-                            let place = self.insert(dir::GenericArgument::Type { value: place });
-                            let name = self.language_item_name(dir::LanguageItem::Managed);
-
-                            dir::TypeExpression::Reference {
-                                path: dir::Path {
-                                    segments: [name].into_iter().collect(),
-                                },
-                                generic_arguments: vec![target, place],
-                            }
-                        }
-                        // every other place reifies through `Managed`
-                        else {
-                            let target_type =
-                                self.insert(dir::GenericArgument::Type { value: target_type });
-                            let name = self.language_item_name(dir::LanguageItem::Managed);
-
-                            dir::TypeExpression::Reference {
-                                path: dir::Path {
-                                    segments: [name].into_iter().collect(),
-                                },
-                                generic_arguments: vec![target_type],
-                            }
-                        }
-                    }
-                    // the remaining bare forms each have their own modifier
+                    // the bare forms each have their own modifier
                     dir::Form::Owned => dir::TypeExpression::OwnedOf {
                         mutability: None,
                         variance: None,
@@ -642,18 +575,14 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
                                     _ => false,
                                 };
 
-                                (self.check.place_space(place)?, is_induced)
+                                (self.check.literal_space(place)?, is_induced)
                             }
                             None => (None, false),
                         };
 
-                        // fold a known space back into the borrow target, induced spaces and
-                        //  bare regions eliding
+                        // elide a closed, induced, or absent space, the referent naming it
                         let sugared = match space {
-                            Some(dir::Space::Local | dir::Space::Constant) => Some(target_type),
-                            Some(dir::Space::Shared) => {
-                                Some(self.insert(dir::TypeExpression::Shared { target_type }))
-                            }
+                            Some(_) => Some(target_type),
                             None if is_induced_space || spaces.is_none() => Some(target_type),
                             None => None,
                         };
@@ -879,11 +808,13 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
             // skip the remaining operations, which have no faithful annotation form
             dir::TypeOperation::StringMapping { .. }
             | dir::TypeOperation::Narrow(_)
+            | dir::TypeOperation::SpaceOf(_)
             | dir::TypeOperation::TypeOf(_)
             | dir::TypeOperation::Instantiation(_)
             | dir::TypeOperation::Mapped(_)
             | dir::TypeOperation::TryOutput { .. }
             | dir::TypeOperation::TryResidual { .. }
+            | dir::TypeOperation::TryFailure { .. }
             | dir::TypeOperation::StaticBinary(_)
             | dir::TypeOperation::StaticUnary(_) => return Ok(None),
         };
@@ -1201,6 +1132,59 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         self.insert(Self::literal(keyword))
     }
 
+    /// Drop the trailing arguments of one application standing at their parameter's default.
+    fn trim_default_arguments(
+        &self,
+        symbol: dir::GlobalSymbolId,
+        mut arguments: Vec<dir::GlobalTypeId>,
+    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
+        // read the parameters of the symbol's own template
+        let Some(template) = self.check.symbol_template(symbol)? else {
+            return Ok(arguments);
+        };
+        let parameters = self.check.generic_template_parameters(template)?;
+
+        // drop each trailing argument that stands at its parameter's default
+        while let Some(argument) = arguments.last()
+            && let Some(parameter) = parameters.get(arguments.len() - 1)
+        {
+            let default = self
+                .check
+                .generic_parameter(*parameter)?
+                .and_then(|binding| binding.default);
+            if !default
+                .is_some_and(|default| self.check.is_same_type(*argument, default).unwrap_or(false))
+            {
+                break;
+            }
+            arguments.pop();
+        }
+
+        Ok(arguments)
+    }
+
+    /// Return whether one generic parameter is a region elided inside a function type annotation.
+    fn is_elided_in_annotation(
+        &self,
+        parameter: dir::GlobalGenericParameterId,
+    ) -> CompilerResult<bool> {
+        // require an anonymous binding, which elision mints
+        let Some(binding) = self.check.generic_parameter(parameter)? else {
+            return Ok(false);
+        };
+        if binding.key != dir::GenericParameterKey::Anonymous {
+            return Ok(false);
+        }
+
+        // read the template the binding belongs to
+        let template = binding.template.into_global(parameter.module_id);
+        let Some(template) = self.check.generic_template(template)? else {
+            return Ok(false);
+        };
+
+        Ok(template.source.local_id.ty == dir::NodeType::TypeExpression)
+    }
+
     /// Return the source name of one generic parameter, an anonymous one by its printed name.
     pub(super) fn generic_parameter_name(
         &self,
@@ -1274,9 +1258,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
         }
     }
 
-    /// Return whether one signature's return annotation may be filled.
-    ///
-    /// Constructors reject written result annotations, so they stay bare.
+    /// Return whether one signature's return annotation may be filled, a constructor's staying bare.
     pub(super) fn returns_fillable(signature: &dir::FunctionSignature) -> bool {
         signature.asynchrony == dir::Asynchrony::Sync
             && !signature.is_generator

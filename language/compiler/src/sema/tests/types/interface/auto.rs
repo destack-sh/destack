@@ -48,9 +48,9 @@ declare function requireHash<T: Hash>(value: T): T;
 declare function requireEqual<T: Equal<T>>(value: T): T;
 
 const point: Point = Point { x: 1, y: 2 };
-const cloned: Point = point.clone();
+const cloned: Point = point.clone<"static">();
 const defaulted: Point = Point.default();
-const same: boolean = point.equal<Point>(cloned as &'static readonly Point);
+const same: boolean = point.equal<Point, "static", "static">(cloned as &'static immutable Point);
 const viaClone: Point = requireClone<Point>(point);
 const viaDefault: Point = requireDefault<Point>();
 const viaHash: Point = requireHash<Point>(point);
@@ -79,7 +79,6 @@ declare function requireClone<T: Clone>(value: T): T;
 /// @type.symbol symbol=requireClone source="declare function requireClone<T: Clone>(value: T): T" type=<T#1: Clone>(T#1) => T#1
 /// @type.symbol symbol=requireClone.T source="T: Clone" type=T#1
 /// @resolution.name source=Clone target=Clone
-/// @type.symbol symbol=requireClone.value source="value: T" type=T#1
 /// @resolution.name source=T target=requireClone.T
 /// @resolution.name source=T target=requireClone.T
 
@@ -95,7 +94,6 @@ declare function requireHash<T: Hash>(value: T): T;
 /// @type.symbol symbol=requireHash source="declare function requireHash<T: Hash>(value: T): T" type=<T#3: Hash>(T#3) => T#3
 /// @type.symbol symbol=requireHash.T source="T: Hash" type=T#3
 /// @resolution.name source=Hash target=Hash
-/// @type.symbol symbol=requireHash.value source="value: T" type=T#3
 /// @resolution.name source=T target=requireHash.T
 /// @resolution.name source=T target=requireHash.T
 
@@ -105,7 +103,6 @@ declare function requireEqual<T: Equal<T>>(value: T): T;
 /// @type.symbol symbol=requireEqual.T source="T: Equal<T>" type=T#4
 /// @resolution.name source=Equal target=Equal
 /// @resolution.name source=T target=requireEqual.T
-/// @type.symbol symbol=requireEqual.value source="value: T" type=T#4
 /// @resolution.name source=T target=requireEqual.T
 /// @resolution.name source=T target=requireEqual.T
 
@@ -118,11 +115,11 @@ const cloned = point.clone();
 /// @type.symbol symbol=cloned source=cloned type=Point
 /// @resolution.pattern source=cloned kind=binding target=cloned
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.clone receiver=Point type=<Clone.clone.'a>(this: &Clone.clone.'a readonly Point) => ^Point kind=symbol target_receiver=Point target=Clone.clone
-/// @resolution.call source=point.clone() parameters=() return=^Point regions=("static" & "constant") kind=symbol target=Clone.clone receiver=Point adjustments=(borrow(&'static readonly constant Point))
-/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
+/// @resolution.member source=point.clone receiver=Point type=<Clone.clone.'a>(this: &Clone.clone.'a immutable Point) => ^Point kind=symbol target_receiver=Point target=Clone.clone
+/// @resolution.call source=point.clone() parameters=() return=^Point regions=("static" & "local") kind=symbol target=Clone.clone receiver=Point adjustments=(borrow(&'static immutable Point)) instance="Clone.clone<\"static\" & \"local\">"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
-/// @generic.instantiation id=Clone.clone<Point> template=Clone.clone arguments=()
+/// @generic.instantiation id="Clone.clone<Point, \"static\" & \"local\">" template=Clone.clone arguments=("static" & "local")
 
 const defaulted = Point.default();
 /// @type.symbol symbol=defaulted source=defaulted type=Point
@@ -136,14 +133,14 @@ const same = point.equal(cloned);
 /// @type.symbol symbol=same source=same type=boolean
 /// @resolution.pattern source=same kind=binding target=same
 /// @resolution.name source=point target=point
-/// @resolution.member source=point.equal receiver=Point type=<PartialEqual.equal.'a, PartialEqual.equal.'b>(this: &PartialEqual.equal.'a readonly Point, &PartialEqual.equal.'b readonly Point) => boolean kind=symbol target_receiver=Point target=PartialEqual.equal
-/// @resolution.call source=point.equal(cloned) parameters=(&'static readonly constant Point) arguments=(provided(cloned) as &'static readonly constant Point) return=boolean regions=("static" & "constant", "static" & "constant") kind=symbol target=PartialEqual.equal receiver=Point adjustments=(borrow(&'static readonly constant Point)) instance=PartialEqual<Point>.equal
-/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
+/// @resolution.member source=point.equal receiver=Point type=<PartialEqual.equal.'a, PartialEqual.equal.'b>(this: &PartialEqual.equal.'a immutable Point, &PartialEqual.equal.'b immutable Point) => boolean kind=symbol target_receiver=Point target=PartialEqual.equal
+/// @resolution.call source=point.equal(cloned) parameters=(&'static immutable Point) arguments=(provided(cloned) as &'static immutable Point) return=boolean regions=("static" & "local", "static" & "local") kind=symbol target=PartialEqual.equal receiver=Point adjustments=(borrow(&'static immutable Point)) instance="PartialEqual<Point>.equal<\"static\" & \"local\", \"static\" & \"local\">"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
-/// @generic.instantiation id="PartialEqual.equal<Point, Point>" template=PartialEqual.equal arguments=(Point)
+/// @generic.instantiation id="PartialEqual.equal<Point, Point, \"static\" & \"local\", \"static\" & \"local\">" template=PartialEqual.equal arguments=(Point, "static" & "local", "static" & "local")
 /// @generic.instantiation id=PartialEqual.equal<Point> template=PartialEqual.equal arguments=(Point)
 /// @resolution.name source=cloned target=cloned
-/// @resolution.place source=cloned placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=cloned placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=cloned root=cloned
 
 const viaClone = requireClone(point);
@@ -153,7 +150,7 @@ const viaClone = requireClone(point);
 /// @resolution.call source=requireClone(point) parameters=(Point) arguments=(provided(point) as Point) return=Point kind=symbol target=requireClone instance=requireClone<Point>
 /// @generic.instantiation id=requireClone<Point> template=requireClone arguments=(Point)
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 
 const viaDefault = requireDefault<Point>();
@@ -171,7 +168,7 @@ const viaHash = requireHash(point);
 /// @resolution.call source=requireHash(point) parameters=(Point) arguments=(provided(point) as Point) return=Point kind=symbol target=requireHash instance=requireHash<Point>
 /// @generic.instantiation id=requireHash<Point> template=requireHash arguments=(Point)
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 
 const viaEqual = requireEqual(point);
@@ -181,7 +178,7 @@ const viaEqual = requireEqual(point);
 /// @resolution.call source=requireEqual(point) parameters=(Point) arguments=(provided(point) as Point) return=Point kind=symbol target=requireEqual instance=requireEqual<Point>
 /// @generic.instantiation id=requireEqual<Point> template=requireEqual arguments=(Point)
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 "#,
         r#"
@@ -299,7 +296,6 @@ declare function requireUnpin<T: Unpin>(value: T): T;
 /// @type.symbol symbol=requireUnpin source="declare function requireUnpin<T: Unpin>(value: T): T" type=<T#2: Unpin>(T#2) => T#2
 /// @type.symbol symbol=requireUnpin.T source="T: Unpin" type=T#2
 /// @resolution.name source=Unpin target=Unpin
-/// @type.symbol symbol=requireUnpin.value source="value: T" type=T#2
 /// @resolution.name source=T target=requireUnpin.T
 /// @resolution.name source=T target=requireUnpin.T
 
@@ -370,10 +366,10 @@ import { Clone } from "destack:memory";
 declare function requireClone<T: Clone>(value: T): T;
 
 const number: 1 = 1;
-const clonedNumber: int64 = number.clone<int64>();
+const clonedNumber: int64 = number.clone<int64, "static">();
 const viaBound: int64 = requireClone<int64>(2);
 const text: string = "a";
-const clonedText: string = text.clone() as string;
+const clonedText: ^string = text.clone<"managed">();
 
 === dir ===
 import { Clone } from "destack:memory";
@@ -383,7 +379,6 @@ declare function requireClone<T: Clone>(value: T): T;
 /// @type.symbol symbol=requireClone source="declare function requireClone<T: Clone>(value: T): T" type=<T: Clone>(T) => T
 /// @type.symbol symbol=requireClone.T source="T: Clone" type=T
 /// @resolution.name source=Clone target=Clone
-/// @type.symbol symbol=requireClone.value source="value: T" type=T
 /// @resolution.name source=T target=requireClone.T
 /// @resolution.name source=T target=requireClone.T
 
@@ -395,10 +390,11 @@ const clonedNumber = number.clone();
 /// @type.symbol symbol=clonedNumber source=clonedNumber type=int64
 /// @resolution.pattern source=clonedNumber kind=binding target=clonedNumber
 /// @resolution.name source=number target=number
-/// @resolution.member source=number.clone receiver=1 type=<clone.'a>(this: &clone.'a readonly int64) => ^int64 kind=symbol target_receiver=1 target=clone
-/// @resolution.call source=number.clone() parameters=() return=^int64 regions=("static" & "constant") kind=symbol target=clone receiver=1 adjustments=(borrow(&'static readonly constant 1)) instance=int64.<extension#1>.clone
-/// @resolution.place source=number placement="constant" lifetime="static" access="readonly"
+/// @resolution.member source=number.clone receiver=1 type=<clone.'a>(this: &clone.'a immutable int64) => ^int64 kind=symbol target_receiver=1 target=clone
+/// @resolution.call source=number.clone() parameters=() return=^int64 regions=("static" & "local") kind=symbol target=clone receiver=1 adjustments=(borrow(&'static immutable 1)) instance="int64.<extension#1>.clone<\"static\" & \"local\">"
+/// @resolution.place source=number placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=number root=number
+/// @generic.instantiation id="clone<int64, \"static\" & \"local\">" template=clone arguments=(int64, "static" & "local")
 /// @generic.instantiation id=clone<int64> template=clone arguments=(int64)
 
 const viaBound = requireClone(2);
@@ -413,14 +409,14 @@ const text: string = "a";
 /// @resolution.pattern source=text kind=binding target=text
 
 const clonedText = text.clone();
-/// @type.symbol symbol=clonedText source=clonedText type=string
+/// @type.symbol symbol=clonedText source=clonedText type=^string
 /// @resolution.pattern source=clonedText kind=binding target=clonedText
 /// @resolution.name source=text target=text
-/// @resolution.member source=text.clone receiver=string type=<Clone.clone.'a>(this: &Clone.clone.'a readonly string) => ^string kind=symbol target_receiver=string target=Clone.clone
-/// @resolution.call source=text.clone() parameters=() return=^string regions=("managed" & "local") kind=symbol target=Clone.clone receiver=string adjustments=(borrow(Borrowed<string, "managed" & "local", "readonly">))
-/// @resolution.place source=text placement="local" lifetime="managed" access="mutable"
+/// @resolution.member source=text.clone receiver=string type=<clone.'a>(this: &clone.'a immutable string) => ^string kind=symbol target_receiver=string target=clone
+/// @resolution.call source=text.clone() parameters=() return=^string regions=("managed" & "local") kind=symbol target=clone receiver=string adjustments=(borrow(&'managed immutable string)) instance="string.<extension#2>.clone<\"managed\" & \"local\">"
+/// @resolution.place source=text placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=text root=text
-/// @generic.instantiation id=Clone.clone<string> template=Clone.clone arguments=()
+/// @generic.instantiation id="clone<\"managed\" & \"local\">" template=clone arguments=("managed" & "local")
 "#,
         r#"
 
@@ -616,13 +612,13 @@ function witness<T: Copy>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=witness.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=witness.value
 
 }
 
 declare const repeatable: () => void;
-/// @type.symbol symbol=repeatable source=repeatable type=Function<(), void>
+/// @type.symbol symbol=repeatable source=repeatable type=() => void
 /// @resolution.pattern source=repeatable kind=binding target=repeatable
 
 declare const once: ^Function<(), void, "once">;
@@ -632,10 +628,10 @@ declare const once: ^Function<(), void, "once">;
 
 witness(repeatable);
 /// @resolution.name source=witness target=witness
-/// @resolution.call source=witness(repeatable) parameters=(Function<(), void>) arguments=(provided(repeatable) as Function<(), void>) return=Function<(), void> kind=symbol target=witness instance="witness<Function<(), void>>"
-/// @generic.instantiation id="witness<Function<(), void>>" template=witness arguments=(Function<(), void>)
+/// @resolution.call source=witness(repeatable) parameters=(() => void) arguments=(provided(repeatable) as () => void) return=() => void kind=symbol target=witness instance="witness<() => void>"
+/// @generic.instantiation id="witness<() => void>" template=witness arguments=(() => void)
 /// @resolution.name source=repeatable target=repeatable
-/// @resolution.place source=repeatable placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=repeatable placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=repeatable root=repeatable
 
 witness(once);
@@ -643,7 +639,7 @@ witness(once);
 /// @resolution.call source=witness(once) parameters=(^Function<(), void, "once">) arguments=(provided(once) as ^Function<(), void, "once">) return=^Function<(), void, "once"> kind=symbol target=witness instance="witness<^Function<(), void, \"once\">>"
 /// @generic.instantiation id="witness<^Function<(), void, \"once\">>" template=witness arguments=(^Function<(), void, "once">)
 /// @resolution.name source=once target=once
-/// @resolution.place source=once placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=once placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=once root=once
 "#,
         r#"
@@ -653,6 +649,7 @@ witness(once);
 "#,
     );
 }
+
 /// Structs copy when every field copies, with their own parameters assumed to.
 #[test]
 fn test_copy_a_struct_whose_every_field_copies() {
@@ -751,7 +748,7 @@ function duplicate(value: int32): int32 {
         r#"
 === annotated ===
 function duplicate(value: int32): int32 {
-    return value.clone<int32>();
+    return value.clone<int32, "frame">();
 }
 
 === dir ===
@@ -761,14 +758,16 @@ function duplicate(value: int32): int32 {
 
     return value.clone();
     /// @resolution.name source=value target=duplicate.value
-    /// @resolution.member source=value.clone receiver=int32 type=<clone.'a>(this: &clone.'a readonly int32) => ^int32 kind=symbol target_receiver=int32 target=clone
-    /// @resolution.call source=value.clone() parameters=() return=^int32 regions=("frame" & "local") kind=symbol target=clone receiver=int32 adjustments=(borrow(&'frame readonly int32)) instance=int32.<extension#1>.clone
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.member source=value.clone receiver=int32 type=<clone.'a>(this: &clone.'a immutable int32) => ^int32 kind=symbol target_receiver=int32 target=clone
+    /// @resolution.call source=value.clone() parameters=() return=^int32 regions=("frame" & "local") kind=symbol target=clone receiver=int32 adjustments=(borrow(&'frame immutable int32)) instance="int32.<extension#1>.clone<\"frame\" & \"local\">"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=duplicate.value
+    /// @generic.instantiation id="clone<int32, \"frame\" & \"local\">" template=clone arguments=(int32, "frame" & "local")
     /// @generic.instantiation id=clone<int32> template=clone arguments=(int32)
 
 }
 "#,
-        r"",
+        r#"
+"#,
     );
 }

@@ -30,9 +30,9 @@ function name(user: { name: string } | null): string | undefined {
     /// @type.node source=user?.name type=string | undefined
     /// @resolution.name source=user target=name.user
     /// @resolution.member source=user?.name receiver={ name: string } | null type=string kind=field target_receiver={ name: string } | null adjustments=(union.payload({ name: string } | null, { name: string }, { name: string })) key=name target_type=string
-    /// @resolution.place source=user placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=user placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=user root=name.user
-    /// @resolution.place source=user?.name placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=user?.name placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=user?.name root=name.user keys=[name]
 
 }
@@ -69,9 +69,9 @@ function name(user: { name: string } | null): string {
     /// @type.node source=user.name type=string
     /// @resolution.name source=user target=name.user
     /// @resolution.member source=user.name receiver={ name: string } | null type=string kind=field target_receiver={ name: string } | null adjustments=(union.payload({ name: string } | null, { name: string }, { name: string })) key=name target_type=string
-    /// @resolution.place source=user placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=user placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=user root=name.user
-    /// @resolution.place source=user.name placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=user.name placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=user.name root=name.user keys=[name]
 
 }

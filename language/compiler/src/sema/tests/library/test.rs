@@ -34,9 +34,16 @@ describe("arithmetic", ((): void => {
     beforeEach((): BodyResult => {});
 
     test("adds values", ((): BodyResult => {
-        expect<2>((1 + 1) as &'frame readonly 2).toEqual<2, 2>(2 as &'frame readonly 2);
-        expect<int64>(2 as &'frame readonly int64).toBe<int64>(2 as &'frame readonly int64);
-        expect.soft<string>("pineapple" as &'frame readonly string).toContain<string>("apple");
+        expect<2, "frame">((1 + 1) as &'frame immutable 2).toEqual<"frame", 2, int64, "frame">(
+            2 as &'frame immutable int64,
+        );
+        expect<int64, "frame">(2 as &'frame immutable int64).toBe<"frame", int64, "frame">(
+            2 as &'frame immutable int64,
+        );
+        expect.soft<string, "managed">("pineapple" as &'managed immutable string).toContain<
+            "managed",
+            string
+        >("apple");
     }) as Body<TestContext<{}, {}, {}>> | undefined);
 
     test.only("focused", ((): BodyResult => {}) as Body<TestContext<{}, {}, {}>> | undefined);
@@ -61,6 +68,7 @@ describe("arithmetic", () => {
     test.todo("pending");
 });
 "#,
-        "",
+        r#"
+"#,
     );
 }

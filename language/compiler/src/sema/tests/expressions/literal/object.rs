@@ -62,11 +62,11 @@ const person = { name, age };
 /// @type.node source={ name, age } type={ name: string; age: int64 }
 /// @type.node source=name type="Ada"
 /// @resolution.name source=name target=name
-/// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=name placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=name root=name
 /// @type.node source=age type=42
 /// @resolution.name source=age target=age
-/// @resolution.place source=age placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=age placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=age root=age
 "#,
     );
@@ -176,33 +176,15 @@ const state: { reactions: int32[] } = { reactions: [] };
 const state: { reactions: int32[] } = { reactions: [] };
 /// @type.symbol symbol=state source=state type={ reactions: int32[] }
 /// @resolution.pattern source=state kind=binding target=state
-/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
-/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
-/// @generic.instance id=clear<int32> template=clear arguments=(int32)
-/// @generic.instance id=drop<int32> template=drop arguments=(int32)
-/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 /// @type.symbol symbol=reactions source="reactions: int32[]" type=int32[]
 /// @type.node source={ reactions: [] } type={ reactions: int32[] }
 /// @type.node source=[] type=int32[]
 /// @resolution.call source=[] parameters=(^Slice<int32>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id=fromOwnedSlice<int32> template=fromOwnedSlice arguments=(int32)
-/// @generic.instance id=intoUninit<int32> template=intoUninit arguments=(int32)
-/// @generic.instance id=size<int32> template=size arguments=(int32)
-/// @generic.instance id=sliceIntoUninit<int32> template=sliceIntoUninit arguments=(int32)
-/// @generic.instance id=sliceLength<int32> template=sliceLength arguments=(int32)
 "#,
     );
 }
@@ -219,10 +201,7 @@ const counts: Counts = { apples: 1, oranges: 2 };
 
     session.assert_dir(
         "main.ds",
-        DirRows::checked()
-            .with_reference_types()
-            .with_coercion()
-            ,
+        DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
 type Counts = { [key: string]: int32 };
@@ -297,7 +276,7 @@ const mode = config.mode;
 /// @type.node source=config.mode type="dev"
 /// @resolution.name source=config target=config
 /// @resolution.member source=config.mode receiver={ mode: "dev" } type="dev" kind=field target_receiver={ mode: "dev" } key=mode target_type="dev"
-/// @resolution.place source=config placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=config placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=config root=config
 /// @resolution.access source=config.mode root=config keys=[mode]
 "#,
@@ -435,7 +414,7 @@ const moved = Point { ...point, x: 3 };
 /// @resolution.name source=Point target=Point
 /// @type.node source=point type=Point
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 /// @type.node source=3 type=3
 "#,
@@ -562,7 +541,7 @@ const point: Point = _ { ...base };
 /// @type.node source="_ { ...base }" type=Point
 /// @type.node source=base type={ x: int32; y: int32 }
 /// @resolution.name source=base target=base
-/// @resolution.place source=base placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=base placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=base root=base
 "#,
     );
@@ -598,7 +577,7 @@ class User {
     }
 }
 
-const user: local User = new User("Ada");
+const user: User = new User("Ada");
 const object: { name: string } = { ...user };
 
 === dir ===
@@ -606,42 +585,40 @@ class User {
 /// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string" key=name type=string
-/// @definition.method symbol=User.constructor slot=constructor role=constructor type=<User.constructor.P0: Place>(string) => Managed<User, User.constructor.P0>
+/// @definition.method symbol=User.constructor slot=constructor role=constructor type=(this: &'managed User, string) => User
 
     name: string;
     /// @type.symbol symbol=User.name source="name: string" type=string
 
     constructor(name: string) {
-    /// @generic.template symbol=User.constructor parameters=(P0: Place)
-    /// @type.symbol symbol=User.constructor type=<User.constructor.P0: Place>(string) => Managed<User, User.constructor.P0>
-    /// @type.symbol symbol=User.constructor.this type=User
+    /// @type.symbol symbol=User.constructor type=(this: &'managed User, string) => User
+    /// @type.symbol symbol=User.constructor.this type=&'managed User
     /// @type.symbol symbol=User.constructor.name source="name: string" type=string
 
         this.name = name;
         /// @type.node source="this.name = name" type=string
-        /// @type.node source=this type=User
+        /// @type.node source=this type=&'managed User
         /// @type.node source=this.name type=string
-        /// @resolution.receiver source=this kind=this declaration=User type=User
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.receiver source=this kind=this declaration=User type=&'managed User
+        /// @resolution.place source=this placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.name kind=place
+        /// @resolution.place source=this.name placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this.name root=this keys=[name]
-        /// @resolution.assignment source=this.name write="receiver=User, target=field(receiver=User, target=User.name, type=string), type=string" type=string
+        /// @resolution.assignment source=this.name write="receiver=&'managed User, target=field(receiver=&'managed User, target=User.name, type=string), type=string" type=string
         /// @type.node source=name type=string
         /// @resolution.name source=name target=User.constructor.name
-        /// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
+        /// @resolution.place source=name placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=name root=User.constructor.name
 
     }
 }
 
 const user = new User("Ada");
-/// @type.symbol symbol=user source=user type=local User
+/// @type.symbol symbol=user source=user type=User
 /// @resolution.pattern source=user kind=binding target=user
-/// @type.node source="new User(\"Ada\")" type=local User
-/// @resolution.construct source="new User(\"Ada\")" parameters=(string) arguments=(provided("Ada") as string) return=local User kind=class target=User constructor=User.constructor
-/// @generic.instantiation id="User.constructor<\"local\">" template=User.constructor arguments=("local")
-/// @generic.instantiation id="User<\"local\">" template=User arguments=("local")
+/// @type.node source="new User(\"Ada\")" type=User
+/// @resolution.construct source="new User(\"Ada\")" parameters=(string) arguments=(provided("Ada") as string) return=User kind=class target=User constructor=User.constructor
 /// @type.node source=User type=typeof User
 /// @resolution.name source=User target=User
 /// @type.node source="\"Ada\"" type="Ada"
@@ -650,7 +627,7 @@ const object = { ...user };
 /// @type.symbol symbol=object source=object type={ name: string }
 /// @resolution.pattern source=object kind=binding target=object
 /// @type.node source={ ...user } type={ name: string }
-/// @type.node source=user type=local User
+/// @type.node source=user type=User
 /// @resolution.name source=user target=user
 /// @resolution.access source=user root=user
 "#,
@@ -718,7 +695,6 @@ const store = {
     /// @type.node source="\"ready\"" type="ready"
 
 };
-
 "#,
     );
 }
@@ -751,10 +727,8 @@ const store = {
 
     set value(next: string): void {},
     /// @type.symbol symbol=symbol1 source="set value(next: string): void {}" type=(string) => void
-    /// @type.symbol symbol=symbol1.next source="next: string" type=string
 
 };
-
 "#,
     );
 }
@@ -795,10 +769,8 @@ const store = {
 
     set value(next: string | int32): void {},
     /// @type.symbol symbol=symbol2 source="set value(next: string | int32): void {}" type=(string | int32) => void
-    /// @type.symbol symbol=symbol2.next source="next: string | int32" type=string | int32
 
 };
-
 "#,
     );
 }
@@ -841,14 +813,14 @@ interface Store {
 /// @type.symbol symbol=Store type=Store
 /// @definition.interface symbol=Store template=(this: Store)
 /// @definition.where symbol=Store relation=satisfies left=this right=Store
-/// @definition.method symbol=Store.value#1 source="get value(): string" slot=value role=getter type=(this: this) => string
-/// @definition.method symbol=Store.value#2 source="set value(next: string | int32)" slot=value role=setter type=(this: this, string | int32) => void
+/// @definition.method symbol=Store.value#1 source="get value(): string" slot=value role=getter type=() => string
+/// @definition.method symbol=Store.value#2 source="set value(next: string | int32)" slot=value role=setter type=(string | int32) => void
 
     get value(): string;
-    /// @type.symbol symbol=Store.value#1 source="get value(): string" type=(this: this) => string
+    /// @type.symbol symbol=Store.value#1 source="get value(): string" type=() => string
 
     set value(next: string | int32);
-    /// @type.symbol symbol=Store.value#2 source="set value(next: string | int32)" type=(this: this, string | int32) => void
+    /// @type.symbol symbol=Store.value#2 source="set value(next: string | int32)" type=(string | int32) => void
     /// @type.symbol symbol=Store.value.next source="next: string | int32" type=string | int32
 
 }
@@ -864,7 +836,6 @@ const store: Store = {
 
     set value(next: string | int32): void {},
     /// @type.symbol symbol=symbol8 source="set value(next: string | int32): void {}" type=(string | int32) => void
-    /// @type.symbol symbol=symbol8.next source="next: string | int32" type=string | int32
 
 };
 "#,
@@ -902,10 +873,10 @@ interface Store {
 /// @type.symbol symbol=Store type=Store
 /// @definition.interface symbol=Store template=(this: Store)
 /// @definition.where symbol=Store relation=satisfies left=this right=Store
-/// @definition.method symbol=Store.value source="get value(): string" slot=value role=getter type=(this: this) => string
+/// @definition.method symbol=Store.value source="get value(): string" slot=value role=getter type=() => string
 
     get value(): string;
-    /// @type.symbol symbol=Store.value source="get value(): string" type=(this: this) => string
+    /// @type.symbol symbol=Store.value source="get value(): string" type=() => string
 
 }
 const store: Store = {
@@ -956,10 +927,10 @@ interface Store {
 /// @type.symbol symbol=Store type=Store
 /// @definition.interface symbol=Store template=(this: Store)
 /// @definition.where symbol=Store relation=satisfies left=this right=Store
-/// @definition.method symbol=Store.value source="set value(next: string)" slot=value role=setter type=(this: this, string) => void
+/// @definition.method symbol=Store.value source="set value(next: string)" slot=value role=setter type=(string) => void
 
     set value(next: string);
-    /// @type.symbol symbol=Store.value source="set value(next: string)" type=(this: this, string) => void
+    /// @type.symbol symbol=Store.value source="set value(next: string)" type=(string) => void
     /// @type.symbol symbol=Store.value.next source="next: string" type=string
 
 }
@@ -970,7 +941,6 @@ const store: Store = {
 
     set value(next: int32): void {},
     /// @type.symbol symbol=symbol5 source="set value(next: int32): void {}" type=(int32) => void
-    /// @type.symbol symbol=symbol5.next source="next: int32" type=int32
 
 };
 "#,
@@ -1028,10 +998,10 @@ interface Readable {
 /// @type.symbol symbol=Readable type=Readable
 /// @definition.interface symbol=Readable template=(this: Readable)
 /// @definition.where symbol=Readable relation=satisfies left=this right=Readable
-/// @definition.method symbol=Readable.value source="get value(): string" slot=value role=getter type=(this: this) => string
+/// @definition.method symbol=Readable.value source="get value(): string" slot=value role=getter type=() => string
 
     get value(): string;
-    /// @type.symbol symbol=Readable.value source="get value(): string" type=(this: this) => string
+    /// @type.symbol symbol=Readable.value source="get value(): string" type=() => string
 
 }
 interface Writable {
@@ -1039,10 +1009,10 @@ interface Writable {
 /// @type.symbol symbol=Writable type=Writable
 /// @definition.interface symbol=Writable template=(this: Writable)
 /// @definition.where symbol=Writable relation=satisfies left=this right=Writable
-/// @definition.method symbol=Writable.value source="set value(next: string)" slot=value role=setter type=(this: this, string) => void
+/// @definition.method symbol=Writable.value source="set value(next: string)" slot=value role=setter type=(string) => void
 
     set value(next: string);
-    /// @type.symbol symbol=Writable.value source="set value(next: string)" type=(this: this, string) => void
+    /// @type.symbol symbol=Writable.value source="set value(next: string)" type=(string) => void
     /// @type.symbol symbol=Writable.value.next source="next: string" type=string
 
 }
@@ -1054,7 +1024,6 @@ const readable: Readable = {
 
     set value(next: string): void {},
     /// @type.symbol symbol=symbol8 source="set value(next: string): void {}" type=(string) => void
-    /// @type.symbol symbol=symbol8.next source="next: string" type=string
 
 };
 const writable: Writable = {
@@ -1153,11 +1122,9 @@ const store = {
 
     set value(next: string): void {},
     /// @type.symbol symbol=symbol1 source="set value(next: string): void {}" type=(string) => void
-    /// @type.symbol symbol=symbol1.next source="next: string" type=string
 
     set value(next: string): void {},
     /// @type.symbol symbol=symbol3 source="set value(next: string): void {}" type=(string) => void
-    /// @type.symbol symbol=symbol3.next source="next: string" type=string
 
 };
 "#,
@@ -1240,16 +1207,16 @@ const handlers: Handlers = {
 
 === dir ===
 type Handlers = { onCount: (value: int32) => void };
-/// @type.symbol symbol=Handlers source="type Handlers = { onCount: (value: int32) => void }" type={ onCount: Function<(int32,), void> }
-/// @definition.type symbol=Handlers source="type Handlers = { onCount: (value: int32) => void }" value={ onCount: Function<(int32,), void> }
-/// @type.symbol symbol=Handlers.onCount source="onCount: (value: int32) => void" type=Function<(int32,), void>
+/// @type.symbol symbol=Handlers source="type Handlers = { onCount: (value: int32) => void }" type={ onCount: (int32) => void }
+/// @definition.type symbol=Handlers source="type Handlers = { onCount: (value: int32) => void }" value={ onCount: (int32) => void }
+/// @type.symbol symbol=Handlers.onCount source="onCount: (value: int32) => void" type=(int32) => void
 /// @type.symbol symbol=Handlers.value source="value: int32" type=int32
 
 const handlers: Handlers = {
 /// @type.symbol symbol=handlers source=handlers type=Handlers
 /// @resolution.pattern source=handlers kind=binding target=handlers
 /// @resolution.name source=Handlers target=Handlers
-/// @type.node type=Handlers
+/// @type.node type={ onCount: (int32) => void }
 
     onCount: (value) => {
     /// @type.symbol symbol=symbol5 type=Function<(int32,), void, "readonly">
@@ -1259,7 +1226,7 @@ const handlers: Handlers = {
         value;
         /// @type.node source=value type=int32
         /// @resolution.name source=value target=symbol5.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=symbol5.value
 
     },
@@ -1308,11 +1275,11 @@ function retain(source: boolean[]): { active: boolean } {
 
     return source.reduce<{ active: boolean }>(
     /// @resolution.name source=source target=retain.source
-    /// @resolution.member source=source.reduce receiver=boolean[] type=<reduce.U#2, reduce#2.P1: Place>(this: Managed<boolean[], reduce#2.P1>, Function<(reduce.U#2, boolean, isize), reduce.U#2>, reduce.U#2) => reduce.U#2 kind=symbol target_receiver=boolean[] target=reduce#2
-    /// @resolution.call parameters=(Function<({ active: boolean }, boolean, isize), { active: boolean }>, { active: boolean }) arguments=(provided((output, value) => ({ ...output, active: value })) as Function<({ active: boolean }, boolean, isize), { active: boolean }>, provided({ active: false }) as { active: boolean }) return={ active: boolean } kind=symbol target=reduce#2 receiver=boolean[] instance="Array<boolean>.<extension#4>.reduce#2<{ active: boolean }, \"local\">"
-    /// @resolution.place source=source placement="local" lifetime="managed" access="mutable"
+    /// @resolution.member source=source.reduce receiver=boolean[] type=<reduce.U#2, reduce#2.'a>(this: &reduce#2.'a readonly boolean[], (reduce.U#2, boolean, isize) => reduce.U#2, reduce.U#2) => reduce.U#2 kind=symbol target_receiver=boolean[] target=reduce#2
+    /// @resolution.call parameters=(({ active: boolean }, boolean, isize) => { active: boolean }, { active: boolean }) arguments=(provided((output, value) => ({ ...output, active: value })) as ({ active: boolean }, boolean, isize) => { active: boolean }, provided({ active: false }) as { active: boolean }) return={ active: boolean } regions=("managed" & "local") kind=symbol target=reduce#2 receiver=boolean[] adjustments=(borrow(&'managed readonly boolean[])) instance="Array<boolean>.<extension#4>.reduce#2<{ active: boolean }, \"managed\" & \"local\">"
+    /// @resolution.place source=source placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=source root=retain.source
-    /// @generic.instantiation id="reduce#2<boolean, { active: boolean }, \"local\">" template=reduce#2 arguments=(boolean, { active: boolean }, "local")
+    /// @generic.instantiation id="reduce#2<boolean, { active: boolean }, \"managed\" & \"local\">" template=reduce#2 arguments=(boolean, { active: boolean }, "managed" & "local")
     /// @generic.instantiation id=reduce#2<boolean> template=reduce#2 arguments=(boolean)
     /// @type.symbol symbol=retain.active#2 source="active: boolean" type=boolean
 
@@ -1323,7 +1290,7 @@ function retain(source: boolean[]): { active: boolean } {
         /// @resolution.name source=output target=retain.symbol7.output
         /// @resolution.access source=output root=retain.symbol7.output
         /// @resolution.name source=value target=retain.symbol7.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=retain.symbol7.value
 
         { active: false },
@@ -1331,6 +1298,7 @@ function retain(source: boolean[]): { active: boolean } {
 }
 "#,
         r#"
+
 "#,
     );
 }

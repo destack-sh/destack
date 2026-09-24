@@ -47,6 +47,7 @@ declare const point: { x: int32; y: string };
 /// @type.node source=x type=int32
 /// @resolution.name source=x target=x#1
 /// @resolution.pattern.assign source=x kind=place
+/// @resolution.place source=x placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=x root=point keys=[x]
 /// @resolution.access source=x root=x#1
 /// @resolution.assignment source=x write=binding(x#1) type=int32
@@ -54,11 +55,12 @@ declare const point: { x: int32; y: string };
 /// @type.node source=label type=string
 /// @resolution.name source=label target=label
 /// @resolution.pattern.assign source=label kind=place
+/// @resolution.place source=label placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=label root=label
 /// @resolution.assignment source=label write=binding(label) type=string
 /// @type.node source=point type={ x: int32; y: string }
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 "#,
     );
@@ -106,23 +108,24 @@ declare const values: [int32; 3];
 /// @type.node source="[first, , last] = values" type=FixedArray<int32, 3>
 /// @resolution.pattern.assign source=[first, , last] kind=sequence element=int32 arity=3 fields=(first, last)
 /// @resolution.access source=[first, , last] root=values
-/// @generic.instantiation id="index#1<int32, 3, \"mutable\">" template=index#1 arguments=(int32, 3, "mutable")
-/// @generic.instance id="WithAccess<&'bound0 FixedArray<int32, 3>, \"mutable\">" template=WithAccess arguments=(&'bound0 FixedArray<int32, 3>, "mutable")
-/// @generic.instance id="WithAccess<&'bound0 int32, \"mutable\">" template=WithAccess arguments=(&'bound0 int32, "mutable")
-/// @generic.instance id="index#1<int32, 3, \"mutable\">" template=index#1 arguments=(int32, 3, "mutable")
+/// @generic.instantiation id="index#2<int32, 3, \"frame\" & \"local\">" template=index#2 arguments=(int32, 3, "frame" & "local")
+/// @generic.instance id="FixedArray<int32, 3>" template=FixedArray arguments=(int32, 3)
+/// @generic.instance id="index#2<int32, 3, \"bound0\" & \"local\">" template=index#2 arguments=(int32, 3, "bound0" & "local")
 /// @type.node source=first type=int32
 /// @resolution.name source=first target=first
 /// @resolution.pattern.assign source=first kind=place
+/// @resolution.place source=first placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=first root=first
 /// @resolution.assignment source=first write=binding(first) type=int32
 /// @type.node source=last type=int32
 /// @resolution.name source=last target=last
 /// @resolution.pattern.assign source=last kind=place
+/// @resolution.place source=last placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=last root=last
 /// @resolution.assignment source=last write=binding(last) type=int32
 /// @type.node source=values type=FixedArray<int32, 3>
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=values placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
 "#,
     );
@@ -180,17 +183,19 @@ declare const user: { name: string; age: int32; active: boolean };
 /// @type.node source=name type=string
 /// @resolution.name source=name target=name#1
 /// @resolution.pattern.assign source=name kind=place
+/// @resolution.place source=name placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=name root=name#1
 /// @resolution.access source=name root=user keys=[name]
 /// @resolution.assignment source=name write=binding(name#1) type=string
 /// @type.node source=rest type={ age: int32; active: boolean }
 /// @resolution.name source=rest target=rest
 /// @resolution.pattern.assign source=rest kind=place
+/// @resolution.place source=rest placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=rest root=rest
 /// @resolution.assignment source=rest write=binding(rest) type={ age: int32; active: boolean }
 /// @type.node source=user type={ name: string; age: int32; active: boolean }
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=user placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
 "#,
     );
@@ -228,29 +233,13 @@ let head: int32 = 0;
 let tail: int32[] = [];
 /// @type.symbol symbol=tail source=tail type=int32[]
 /// @resolution.pattern source=tail kind=binding target=tail
-/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
-/// @generic.instance id=clear<int32> template=clear arguments=(int32)
-/// @generic.instance id=drop<int32> template=drop arguments=(int32)
-/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 /// @type.node source=[] type=int32[]
 /// @resolution.call source=[] parameters=(^Slice<int32>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id=fromOwnedSlice<int32> template=fromOwnedSlice arguments=(int32)
-/// @generic.instance id=intoUninit<int32> template=intoUninit arguments=(int32)
-/// @generic.instance id=size<int32> template=size arguments=(int32)
-/// @generic.instance id=sliceIntoUninit<int32> template=sliceIntoUninit arguments=(int32)
-/// @generic.instance id=sliceLength<int32> template=sliceLength arguments=(int32)
 
 declare const values: int32[];
 /// @type.symbol symbol=values source=values type=int32[]
@@ -260,29 +249,25 @@ declare const values: int32[];
 /// @type.node source="[head, ...tail] = values" type=int32[]
 /// @resolution.pattern.assign source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
 /// @resolution.access source=[head, ...tail] root=values
-/// @generic.instantiation id="index#1<int32, \"mutable\">" template=index#1 arguments=(int32, "mutable")
-/// @generic.instantiation id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
-/// @generic.instance id="WithAccess<&'bound0 int32, \"mutable\">" template=WithAccess arguments=(&'bound0 int32, "mutable")
-/// @generic.instance id="WithAccess<&'bound0 int32[], \"mutable\">" template=WithAccess arguments=(&'bound0 int32[], "mutable")
-/// @generic.instance id="assumeInitReference<int32, \"mutable\">" template=assumeInitReference arguments=(int32, "mutable")
-/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
-/// @generic.instance id="index#1<int32, \"mutable\">" template=index#1 arguments=(int32, "mutable")
-/// @generic.instance id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
-/// @generic.instance id=elementPosition<int32> template=elementPosition arguments=(int32)
+/// @generic.instantiation id="index#2<int32, \"managed\" & \"local\">" template=index#2 arguments=(int32, "managed" & "local")
+/// @generic.instantiation id="rest#2<int32, \"managed\" & \"local\">" template=rest#2 arguments=(int32, "managed" & "local")
+/// @generic.instance id="index#2<int32, \"bound0\" & \"local\">" template=index#2 arguments=(int32, "bound0" & "local")
+/// @generic.instance id="rest#2<int32, \"bound0\" & \"local\">" template=rest#2 arguments=(int32, "bound0" & "local")
 /// @type.node source=head type=int32
 /// @resolution.name source=head target=head
 /// @resolution.pattern.assign source=head kind=place
+/// @resolution.place source=head placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=head root=head
 /// @resolution.assignment source=head write=binding(head) type=int32
 /// @type.node source=tail type=int32[]
 /// @resolution.name source=tail target=tail
 /// @resolution.pattern.assign source=tail kind=place
+/// @resolution.place source=tail placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=tail root=tail
 /// @resolution.assignment source=tail write=binding(tail) type=int32[]
 /// @type.node source=values type=int32[]
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=values placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
 "#,
     );
@@ -346,6 +331,7 @@ declare const packet: { point: { x: int32 }; meta: (string,) };
     /// @type.node source=x type=int32
     /// @resolution.name source=x target=x#1
     /// @resolution.pattern.assign source=x kind=place
+    /// @resolution.place source=x placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=x root=x#1
     /// @resolution.assignment source=x write=binding(x#1) type=int32
 
@@ -355,13 +341,14 @@ declare const packet: { point: { x: int32 }; meta: (string,) };
     /// @type.node source=label type=string
     /// @resolution.name source=label target=label
     /// @resolution.pattern.assign source=label kind=place
+    /// @resolution.place source=label placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=label root=label
     /// @resolution.assignment source=label write=binding(label) type=string
 
 } = packet);
 /// @type.node source=packet type={ point: { x: int32 }; meta: (string,) }
 /// @resolution.name source=packet target=packet
-/// @resolution.place source=packet placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=packet placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=packet root=packet
 "#,
     );
@@ -424,6 +411,7 @@ declare const packet: { count?: int32; labels: (string | undefined,) };
     /// @resolution.pattern.assign source="count = 1" kind=default pattern=count value=expression
     /// @resolution.access source="count = 1" root=packet keys=[count]
     /// @resolution.pattern.assign source=count kind=place
+    /// @resolution.place source=count placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=count root=count#1
     /// @resolution.assignment source=count write=binding(count#1) type=int32
     /// @type.node source=1 type=1
@@ -435,6 +423,7 @@ declare const packet: { count?: int32; labels: (string | undefined,) };
     /// @resolution.name source=label target=label
     /// @resolution.pattern.assign source="label = \"missing\"" kind=default pattern=label value=expression
     /// @resolution.pattern.assign source=label kind=place
+    /// @resolution.place source=label placement="local" lifetime="static" access="exclusive"
     /// @resolution.access source=label root=label
     /// @resolution.assignment source=label write=binding(label) type=string
     /// @type.node source="\"missing\"" type="missing"
@@ -442,7 +431,7 @@ declare const packet: { count?: int32; labels: (string | undefined,) };
 } = packet);
 /// @type.node source=packet type={ count?: int32; labels: (string | undefined,) }
 /// @resolution.name source=packet target=packet
-/// @resolution.place source=packet placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=packet placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=packet root=packet
 "#,
     );
@@ -489,11 +478,12 @@ declare const point: { x: int32 };
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=point type={ x: int32 }
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 "#,
     );
@@ -542,16 +532,17 @@ declare const bag: { [key: string]: int32 };
 /// @resolution.access source={ [key]: value } root=bag
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=key placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=key root=key
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=value
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=int32
 /// @type.node source=bag type={ [key: string]: int32 }
 /// @resolution.name source=bag target=bag
-/// @resolution.place source=bag placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=bag placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=bag root=bag
 "#,
         r#"
@@ -606,12 +597,12 @@ declare const point: { x: int32 };
 /// @resolution.access source={ [key]: value } root=point
 /// @type.node source=key type=string
 /// @resolution.name source=key target=key
-/// @resolution.place source=key placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=key placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=key root=key
 /// @resolution.name source=value target=value
 /// @type.node source=point type={ x: int32 }
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 "#,
         r#"

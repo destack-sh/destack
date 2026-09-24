@@ -36,7 +36,7 @@ const digit: Digit = value;
 /// @resolution.pattern source=digit kind=binding target=digit
 /// @resolution.name source=Digit target=Digit
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 "#,
         r#"
@@ -86,7 +86,7 @@ const next: Digit = digit + 1;
 /// @resolution.name source=Digit target=Digit
 /// @resolution.name source=digit target=digit
 /// @resolution.operator source="digit + 1" type=int64 operator="+" kind=builtin operands=[digit as int64 families=(integer), 1 as int64 families=(integer)]
-/// @resolution.place source=digit placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=digit placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=digit root=digit
 "#,
         r#"

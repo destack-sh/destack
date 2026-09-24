@@ -37,7 +37,7 @@ const ok = value instanceof User;
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
 /// @resolution.guard source="value instanceof User" kind=instanceof value=unknown target=User target_type=User predicate="dynamic.type(Type<unknown>) is subtype(User)" narrowed=Narrow<unknown, User> projection=dynamic.payload(User)
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 /// @generic.instance id=Type<unknown> template=Type arguments=(unknown)
 /// @type.node source=User type=typeof User
@@ -117,7 +117,7 @@ if (value instanceof User) {
 /// @type.node source=value type=User | Team
 /// @resolution.name source=value target=value
 /// @resolution.guard source="value instanceof User" kind=instanceof value=User | Team target=User target_type=User predicate="User | Team is subtype(User)" narrowed=Narrow<User | Team, User>
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 /// @type.node source=User type=typeof User
 /// @resolution.name source=User target=User
@@ -128,7 +128,7 @@ if (value instanceof User) {
     /// @type.node source=value.name type=string
     /// @resolution.name source=value target=value
     /// @resolution.member source=value.name receiver=Narrow<User | Team, User> type=string kind=field target_receiver=Narrow<User | Team, User> key=name target=User.name target_type=string
-    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=value root=value
     /// @resolution.narrowing source=value union=User | Team arms=User
     /// @resolution.place source=value.name placement="local" lifetime="managed" access="mutable"
@@ -212,7 +212,7 @@ if (value instanceof User) {
 /// @type.node source=value type=User | Team
 /// @resolution.name source=value target=value
 /// @resolution.guard source="value instanceof User" kind=instanceof value=User | Team target=User target_type=User predicate="User | Team is subtype(User)" narrowed=Narrow<User | Team, User>
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 /// @type.node source=User type=typeof User
 /// @resolution.name source=User target=User
@@ -224,7 +224,7 @@ if (value instanceof User) {
     /// @type.node source=value.title type=string
     /// @resolution.name source=value target=value
     /// @resolution.member source=value.title receiver=Team type=string kind=field target_receiver=Team key=title target=Team.title target_type=string
-    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=value root=value
     /// @resolution.narrowing source=value union=User | Team arms=Team
     /// @resolution.place source=value.title placement="local" lifetime="managed" access="mutable"
@@ -286,7 +286,7 @@ const ok = value instanceof Named;
 /// @type.node source=value type=unknown
 /// @resolution.name source=value target=value
 /// @resolution.rejected source="value instanceof Named"
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 /// @type.node source=Named type=Named
 /// @resolution.name source=Named target=Named
@@ -335,7 +335,7 @@ const ok = value instanceof User;
 /// @type.node source=value type=string
 /// @resolution.name source=value target=value
 /// @resolution.guard source="value instanceof User" kind=instanceof value=string target=User target_type=User predicate="string is subtype(User)" narrowed=Narrow<string, User>
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 /// @type.node source=User type=typeof User
 /// @resolution.name source=User target=User
@@ -383,14 +383,13 @@ class Deferred<T> {
 /// @generic.template symbol=Deferred parameters=(out T#1)
 /// @type.symbol symbol=Deferred type=typeof Deferred
 /// @definition.class symbol=Deferred template=(out T#1)
-/// @definition.method symbol=Deferred.then source="then(callback: (value: T) => void): void {}" slot=then type=<Deferred.then.P0: Place>(this: Managed<Deferred<T#1>, Deferred.then.P0>, Function<(T#1,), void>) => void
+/// @definition.method symbol=Deferred.then source="then(callback: (value: T) => void): void {}" slot=then type=(this: Deferred<T#1>, (T#1) => void) => void
 /// @type.symbol symbol=Deferred.T source=T type=T#1
 
     then(callback: (value: T) => void): void {}
-    /// @generic.template symbol=Deferred.then parent=template#0 parameters=(P0: Place)
-    /// @type.symbol symbol=Deferred.then source="then(callback: (value: T) => void): void {}" type=<Deferred.then.P0: Place>(this: Managed<Deferred<T#1>, Deferred.then.P0>, Function<(T#1,), void>) => void
-    /// @type.symbol symbol=Deferred.then.this type=Managed<Deferred<T#1>, Deferred.then.P0>
-    /// @type.symbol symbol=Deferred.then.callback source="callback: (value: T) => void" type=Function<(T#1,), void>
+    /// @type.symbol symbol=Deferred.then source="then(callback: (value: T) => void): void {}" type=(this: Deferred<T#1>, (T#1) => void) => void
+    /// @type.symbol symbol=Deferred.then.this type=Deferred<T#1>
+    /// @type.symbol symbol=Deferred.then.callback source="callback: (value: T) => void" type=(T#1) => void
     /// @type.symbol symbol=Deferred.then.value source="value: T" type=T#1
     /// @resolution.name source=T target=Deferred.T
 
@@ -408,7 +407,7 @@ function adopt<T>(value: T): void {
     /// @type.node source=value type=T#2
     /// @resolution.name source=value target=adopt.value
     /// @resolution.guard source="value instanceof Deferred" kind=instanceof value=T#2 target=Deferred target_type=Deferred<*> predicate="T#2 is subtype(Deferred<*>)" narrowed=Narrow<T#2, Deferred<*>>
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=adopt.value
     /// @type.node source=Deferred type=typeof Deferred
     /// @resolution.name source=Deferred target=Deferred
@@ -416,13 +415,12 @@ function adopt<T>(value: T): void {
         value.then((value) => {});
         /// @type.node source="value.then((value) => {})" type=void
         /// @type.node source=value type=T#2 & Deferred<*>
-        /// @type.node source=value.then type=<Deferred.then.P0: Place>(this: Managed<T#2 & Deferred<*>, Deferred.then.P0>, Function<(*,), void>) => void
+        /// @type.node source=value.then type=(this: Deferred<*>, (*) => void) => void
         /// @resolution.name source=value target=adopt.value
-        /// @resolution.member source=value.then receiver=Narrow<T#2, Deferred<*>> type=<Deferred.then.P0: Place>(this: Managed<T#2 & Deferred<*>, Deferred.then.P0>, Function<(*,), void>) => void kind=symbol target_receiver=Narrow<T#2, Deferred<*>> target=Deferred.then
-        /// @resolution.call source="value.then((value) => {})" parameters=(Function<(*,), void>) arguments=(provided((value) => {}) as Function<(*,), void>) return=void kind=symbol target=Deferred.then receiver=Narrow<T#2, Deferred<*>> instance="Deferred<*>.then<\"local\">"
-        /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+        /// @resolution.member source=value.then receiver=Narrow<T#2, Deferred<*>> type=(this: Deferred<*>, (*) => void) => void kind=symbol target_receiver=Narrow<T#2, Deferred<*>> target=Deferred.then
+        /// @resolution.call source="value.then((value) => {})" parameters=((*) => void) arguments=(provided((value) => {}) as (*) => void) return=void kind=symbol target=Deferred.then receiver=Narrow<T#2, Deferred<*>> instance=Deferred<*>.then
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=adopt.value
-        /// @generic.instantiation id="Deferred.then<*, \"local\">" template=Deferred.then arguments=(*, "local") owner=adopt
         /// @generic.instantiation id=Deferred.then<*> template=Deferred.then arguments=(*) owner=adopt
         /// @type.symbol symbol=adopt.symbol10 source="(value) => {}" type=Function<(*,), void, "readonly">
         /// @type.node source="(value) => {}" type=Function<(*,), void, "readonly">
@@ -461,7 +459,7 @@ class Deferred<out T> {
 
 function adopt<T>(value: T | Deferred<T>): void {
     if (value instanceof Deferred) {
-        value.then<T>((value: T): void => {});
+        value.then((value): void => {});
     }
 }
 
@@ -470,14 +468,13 @@ class Deferred<T> {
 /// @generic.template symbol=Deferred parameters=(out T#1)
 /// @type.symbol symbol=Deferred type=typeof Deferred
 /// @definition.class symbol=Deferred template=(out T#1)
-/// @definition.method symbol=Deferred.then source="then(callback: (value: T) => void): void {}" slot=then type=<Deferred.then.P0: Place>(this: Managed<this, Deferred.then.P0>, Function<(T#1,), void>) => void
+/// @definition.method symbol=Deferred.then source="then(callback: (value: T) => void): void {}" slot=then type=(this: Deferred<T#1>, (T#1) => void) => void
 /// @type.symbol symbol=Deferred.T source=T type=T#1
 
     then(callback: (value: T) => void): void {}
-    /// @generic.template symbol=Deferred.then parent=template#0 parameters=(P0: Place)
-    /// @type.symbol symbol=Deferred.then source="then(callback: (value: T) => void): void {}" type=<Deferred.then.P0: Place>(this: Managed<this, Deferred.then.P0>, Function<(T#1,), void>) => void
-    /// @type.symbol symbol=Deferred.then.this type=Managed<Deferred<T#1>, Deferred.then.P0>
-    /// @type.symbol symbol=Deferred.then.callback source="callback: (value: T) => void" type=Function<(T#1,), void>
+    /// @type.symbol symbol=Deferred.then source="then(callback: (value: T) => void): void {}" type=(this: Deferred<T#1>, (T#1) => void) => void
+    /// @type.symbol symbol=Deferred.then.this type=Deferred<T#1>
+    /// @type.symbol symbol=Deferred.then.callback source="callback: (value: T) => void" type=(T#1) => void
     /// @type.symbol symbol=Deferred.then.value source="value: T" type=T#1
     /// @resolution.name source=T target=Deferred.T
 
@@ -497,25 +494,24 @@ function adopt<T>(value: T | Deferred<T>): void {
     /// @type.node source=value type=T#2 | Deferred<T#2>
     /// @resolution.name source=value target=adopt.value
     /// @resolution.guard source="value instanceof Deferred" kind=instanceof value=T#2 | Deferred<T#2> target=Deferred target_type=Deferred<*> predicate="T#2 | Deferred<T#2> is subtype(Deferred<*>)" narrowed=Narrow<T#2 | Deferred<T#2>, Deferred<*>>
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=adopt.value
     /// @type.node source=Deferred type=typeof Deferred
     /// @resolution.name source=Deferred target=Deferred
 
         value.then((value) => {});
         /// @type.node source="value.then((value) => {})" type=void
-        /// @type.node source=value type=Deferred<T#2> | T#2 & Deferred<*>
-        /// @type.node source=value.then type=<Deferred.then.P0: Place>(this: Managed<Deferred<T#2>, Deferred.then.P0>, Function<(T#2,), void>) => void
+        /// @type.node source=value type=T#2 & Deferred<*> | Deferred<T#2>
+        /// @type.node source=value.then type=(this: Deferred<*>, (*) => void) => void
         /// @resolution.name source=value target=adopt.value
-        /// @resolution.member source=value.then type=<Deferred.then.P0: Place>(this: Managed<Deferred<T#2>, Deferred.then.P0>, Function<(T#2,), void>) => void kind=union arms=[receiver=Deferred<T#2>, target=Deferred.then, type=<Deferred.then.P0: Place>(this: Managed<Deferred<T#2>, Deferred.then.P0>, Function<(T#2,), void>) => void]
-        /// @resolution.call source="value.then((value) => {})" parameters=(Function<(T#2,), void>) arguments=(provided((value) => {}) as Function<(T#2,), void>) return=void kind=symbol target=Deferred.then receiver=Deferred<T#2> adjustments=(union.payload(Deferred<T#2> | T#2 & Deferred<*>, Deferred<T#2>, Deferred<T#2>)) instance="Deferred<T#2>.then<\"local\">"
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.member source=value.then type=(this: Deferred<*>, (*) => void) => void kind=union arms=[receiver=T#2 & Deferred<*>, target=Deferred.then, type=(this: Deferred<*>, (*) => void) => void]
+        /// @resolution.call source="value.then((value) => {})" parameters=((*) => void) arguments=(provided((value) => {}) as (*) => void) return=void kind=symbol target=Deferred.then receiver=T#2 & Deferred<*> adjustments=(union.payload(T#2 & Deferred<*> | Deferred<T#2>, T#2 & Deferred<*>, T#2 & Deferred<*>)) instance=Deferred<*>.then
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=adopt.value
-        /// @generic.instantiation id="Deferred.then<T#2, \"local\">" template=Deferred.then arguments=(T#2, "local") owner=adopt
-        /// @generic.instantiation id=Deferred.then<T#2> template=Deferred.then arguments=(T#2) owner=adopt
-        /// @type.symbol symbol=adopt.symbol10 source="(value) => {}" type=Function<(T#2,), void, "readonly">
-        /// @type.node source="(value) => {}" type=Function<(T#2,), void, "readonly">
-        /// @type.symbol symbol=adopt.symbol10.value source=value type=T#2
+        /// @generic.instantiation id=Deferred.then<*> template=Deferred.then arguments=(*) owner=adopt
+        /// @type.symbol symbol=adopt.symbol10 source="(value) => {}" type=Function<(*,), void, "readonly">
+        /// @type.node source="(value) => {}" type=Function<(*,), void, "readonly">
+        /// @type.symbol symbol=adopt.symbol10.value source=value type=*
 
     }
 }
@@ -553,7 +549,7 @@ class Deferred<out T> {
 
 function adopt<T>(value: T | Deferred<T>): void {
     if (value instanceof Deferred) {
-        value.then<T>((): void => {});
+        value.then((): void => {});
     }
 }
 
@@ -562,14 +558,13 @@ class Deferred<T> {
 /// @generic.template symbol=Deferred parameters=(out T#1)
 /// @type.symbol symbol=Deferred type=typeof Deferred
 /// @definition.class symbol=Deferred template=(out T#1)
-/// @definition.method symbol=Deferred.then source="then(callback: (value: T) => void): void {}" slot=then type=<Deferred.then.P0: Place>(this: Managed<Deferred<T#1>, Deferred.then.P0>, Function<(T#1,), void>) => void
+/// @definition.method symbol=Deferred.then source="then(callback: (value: T) => void): void {}" slot=then type=(this: Deferred<T#1>, (T#1) => void) => void
 /// @type.symbol symbol=Deferred.T source=T type=T#1
 
     then(callback: (value: T) => void): void {}
-    /// @generic.template symbol=Deferred.then parent=template#0 parameters=(P0: Place)
-    /// @type.symbol symbol=Deferred.then source="then(callback: (value: T) => void): void {}" type=<Deferred.then.P0: Place>(this: Managed<Deferred<T#1>, Deferred.then.P0>, Function<(T#1,), void>) => void
-    /// @type.symbol symbol=Deferred.then.this type=Managed<Deferred<T#1>, Deferred.then.P0>
-    /// @type.symbol symbol=Deferred.then.callback source="callback: (value: T) => void" type=Function<(T#1,), void>
+    /// @type.symbol symbol=Deferred.then source="then(callback: (value: T) => void): void {}" type=(this: Deferred<T#1>, (T#1) => void) => void
+    /// @type.symbol symbol=Deferred.then.this type=Deferred<T#1>
+    /// @type.symbol symbol=Deferred.then.callback source="callback: (value: T) => void" type=(T#1) => void
     /// @type.symbol symbol=Deferred.then.value source="value: T" type=T#1
     /// @resolution.name source=T target=Deferred.T
 
@@ -590,23 +585,21 @@ function adopt<T>(value: T | Deferred<T>): void {
     /// @type.node source=value type=T#2 | Deferred<T#2>
     /// @resolution.name source=value target=adopt.value
     /// @resolution.guard source="value instanceof Deferred" kind=instanceof value=T#2 | Deferred<T#2> target=Deferred target_type=Deferred<*> predicate="T#2 | Deferred<T#2> is subtype(Deferred<*>)" narrowed=Narrow<T#2 | Deferred<T#2>, Deferred<*>>
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=adopt.value
     /// @type.node source=Deferred type=typeof Deferred
     /// @resolution.name source=Deferred target=Deferred
 
         value.then(() => {});
         /// @type.node source="value.then(() => {})" type=void
-        /// @type.node source=value type=Deferred<T#2> | T#2 & Deferred<*>
-        /// @type.node source=value.then type=<Deferred.then.P0: Place>(this: Managed<Deferred<T#2>, Deferred.then.P0>, Function<(T#2,), void>) => void
+        /// @type.node source=value type=T#2 & Deferred<*> | Deferred<T#2>
+        /// @type.node source=value.then type=(this: Deferred<*>, (*) => void) => void
         /// @resolution.name source=value target=adopt.value
-        /// @resolution.member source=value.then type=<Deferred.then.P0: Place>(this: Managed<Deferred<T#2>, Deferred.then.P0>, Function<(T#2,), void>) => void kind=union arms=[receiver=Deferred<T#2>, target=Deferred.then, type=<Deferred.then.P0: Place>(this: Managed<Deferred<T#2>, Deferred.then.P0>, Function<(T#2,), void>) => void]
-        /// @resolution.call source="value.then(() => {})" parameters=(Function<(T#2,), void>) arguments=(provided(() => {}) as Function<(T#2,), void>) return=void kind=symbol target=Deferred.then receiver=Deferred<T#2> adjustments=(union.payload(Deferred<T#2> | T#2 & Deferred<*>, Deferred<T#2>, Deferred<T#2>)) instance="Deferred<T#2>.then<\"local\">"
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.member source=value.then type=(this: Deferred<*>, (*) => void) => void kind=union arms=[receiver=T#2 & Deferred<*>, target=Deferred.then, type=(this: Deferred<*>, (*) => void) => void]
+        /// @resolution.call source="value.then(() => {})" parameters=((*) => void) arguments=(provided(() => {}) as (*) => void) return=void kind=symbol target=Deferred.then receiver=T#2 & Deferred<*> adjustments=(union.payload(T#2 & Deferred<*> | Deferred<T#2>, T#2 & Deferred<*>, T#2 & Deferred<*>)) instance=Deferred<*>.then
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=adopt.value
-        /// @generic.instantiation id="Deferred.then<T#2, \"local\">" template=Deferred.then arguments=(T#2, "local") owner=adopt
-        /// @generic.instantiation id=Deferred.then<T#2> template=Deferred.then arguments=(T#2) owner=adopt
-        /// @generic.instance id="Deferred.then<T#2, \"local\">" template=Deferred.then arguments=(T#2, "local")
+        /// @generic.instantiation id=Deferred.then<*> template=Deferred.then arguments=(*) owner=adopt
         /// @type.symbol symbol=adopt.symbol10 source="() => {}" type=Function<(), void, "readonly">
         /// @type.node source="() => {}" type=Function<(), void, "readonly">
 

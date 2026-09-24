@@ -37,7 +37,7 @@ extension of Point {
 }
 
 declare const point: Point;
-const value: int32 = point.sum();
+const value: int32 = point.sum<"static">();
 
 === dir ===
 struct Point {
@@ -62,7 +62,7 @@ extension of Point {
     sum(&readonly this): int32 {
     /// @generic.template symbol=sum parameters=('a)
     /// @type.symbol symbol=sum type=<sum.'a>(this: &sum.'a readonly Point) => int32
-    /// @type.symbol symbol=sum.this source="&readonly this" type=&sum.'a readonly this
+    /// @type.symbol symbol=sum.this source="&readonly this" type=&sum.'a readonly Point
 
         return this.x + this.y;
         /// @type.node source="this.x + this.y" type=int32
@@ -100,9 +100,11 @@ const value = point.sum();
 /// @type.node source=point.sum() type=int32
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.sum receiver=Point type=<sum.'a>(this: &sum.'a readonly Point) => int32 kind=symbol target_receiver=Point target=sum
-/// @resolution.call source=point.sum() parameters=() return=int32 regions=("static" & "constant") kind=symbol target=sum receiver=Point adjustments=(borrow(&'static readonly constant Point))
-/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
+/// @resolution.call source=point.sum() parameters=() return=int32 regions=("static" & "local") kind=symbol target=sum receiver=Point adjustments=(borrow(&'static readonly Point)) instance="Point.<extension#1>.sum<\"static\" & \"local\">"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
+/// @generic.instantiation id="sum<\"static\" & \"local\">" template=sum arguments=("static" & "local")
+/// @generic.instance id="sum<\"bound0\" & \"local\">" template=sum arguments=("bound0" & "local")
 "#);
 }
 
@@ -162,12 +164,12 @@ struct Point {
 
 extension of Point {
 /// @definition.extension symbol=<module>#2 form=local target=Point
-/// @definition.method symbol=sum slot=sum type=<sum.'a>(this: &sum.'a readonly this) => int32
+/// @definition.method symbol=sum slot=sum type=<sum.'a>(this: &sum.'a readonly Point) => int32
 /// @resolution.name source=Point target=Point
 
     sum(): int32 {
     /// @generic.template symbol=sum parameters=('a)
-    /// @type.symbol symbol=sum type=<sum.'a>(this: &sum.'a readonly this) => int32
+    /// @type.symbol symbol=sum type=<sum.'a>(this: &sum.'a readonly Point) => int32
     /// @type.symbol symbol=sum.this type=&sum.'a readonly Point
 
         return this.x + this.y;
@@ -203,7 +205,7 @@ point.length();
 /// @type.node source=point.length type=<error>
 /// @type.node source=point.length() type=<error>
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 /// @resolution.rejected source=point.length
 /// @resolution.rejected source=point.length()
@@ -305,7 +307,7 @@ extension<T> of Slice<T> {
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&first.'a readonly Slice<T#2>
         /// @resolution.place source=this placement=first.'a lifetime=first.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @generic.instantiation id=size<T#2> template=size arguments=(T#2) owner=first
+        /// @generic.instantiation id="size<T#2, first.'a>" template=size arguments=(T#2, first.'a) owner=first
 
     }
 }
@@ -347,7 +349,7 @@ extension of Buffer {
     grow(this: &Buffer): void {}
 
     peek(this: &readonly Buffer): void {
-        this.grow();
+        this.grow<'a>();
     }
 }
 
@@ -382,10 +384,11 @@ extension of Buffer {
 
         this.grow()
         /// @resolution.member source=this.grow receiver=&peek.'a readonly Buffer type=<grow.'a>(this: &grow.'a Buffer) => void kind=symbol target_receiver=&peek.'a readonly Buffer target=grow
-        /// @resolution.call source=this.grow() parameters=() return=void regions=(peek.'a) kind=symbol target=grow receiver=&peek.'a readonly Buffer
+        /// @resolution.call source=this.grow() parameters=() return=void regions=(peek.'a) kind=symbol target=grow receiver=&peek.'a readonly Buffer instance=Buffer.<extension#1>.grow<peek.'a>
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&peek.'a readonly Buffer
         /// @resolution.place source=this placement=peek.'a lifetime=peek.'a access="readonly"
         /// @resolution.access source=this root=this
+        /// @generic.instantiation id=grow<peek.'a> template=grow arguments=(peek.'a)
 
     }
 }
@@ -438,20 +441,20 @@ interface Scalar {}
 extension Doubling<T: Scalar> of T {
 /// @generic.template symbol=Doubling parameters=(T: Scalar)
 /// @definition.extension symbol=Doubling form=local target=T
-/// @definition.method symbol=Doubling.double slot=double type=(this: this) => T
+/// @definition.method symbol=Doubling.double slot=double type=(this: T) => T
 /// @type.symbol symbol=Doubling.T source="T: Scalar" type=T
 /// @resolution.name source=Scalar target=Scalar
 /// @resolution.name source=T target=Doubling.T
 
     double(this): T {
-    /// @type.symbol symbol=Doubling.double type=(this: this) => T
-    /// @type.symbol symbol=Doubling.double.this source=this type=this
+    /// @type.symbol symbol=Doubling.double type=(this: T) => T
+    /// @type.symbol symbol=Doubling.double.this source=this type=T
     /// @resolution.name source=T target=Doubling.T
 
         this
         /// @type.node source=this type=T
         /// @resolution.receiver source=this kind=this declaration=Doubling type=T
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
 
     }
@@ -467,6 +470,7 @@ const value = 1.double();
 /// @resolution.call source=1.double() parameters=() return=1 kind=symbol target=Doubling.double receiver=1 instance=Doubling<1>.double
 /// @generic.instantiation id=Doubling.double<1> template=Doubling.double arguments=(1)
 "#,
-        "",
+        r#"
+"#,
     );
 }

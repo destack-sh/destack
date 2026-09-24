@@ -38,7 +38,7 @@ const value = if (enabled) {
 /// @type.node type=1 | 2
 /// @type.node source=enabled type=boolean
 /// @resolution.name source=enabled target=enabled
-/// @resolution.place source=enabled placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=enabled placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=enabled root=enabled
 
     1
@@ -89,7 +89,7 @@ function pick(count: isize): isize {
     /// @type.node source=count type=isize
     /// @resolution.name source=count target=pick.count
     /// @resolution.operator source="count < 0" type=boolean operator="<" kind=builtin operands=[count as isize families=(integer), 0 as isize families=(integer)]
-    /// @resolution.place source=count placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=count root=pick.count
     /// @type.node source=0 type=0
     /// @coercion.node source=0 from=0 adjustments=[{ kind: materialize, target: isize }] origin=implicit
@@ -97,13 +97,13 @@ function pick(count: isize): isize {
     /// @coercion.node source=0 from=0 adjustments=[{ kind: materialize, target: isize }] origin=implicit
     /// @type.node source=count type=isize
     /// @resolution.name source=count target=pick.count
-    /// @resolution.place source=count placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=count root=pick.count
 
     return kept;
     /// @type.node source=kept type=isize
     /// @resolution.name source=kept target=pick.kept
-    /// @resolution.place source=kept placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=kept placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=kept root=pick.kept
 
 }
@@ -141,11 +141,11 @@ function add(left: int32, right: int32): int32 {
     /// @type.node source=left type=int32
     /// @resolution.name source=left target=add.left
     /// @resolution.operator source="left + right" type=int32 operator="+" kind=builtin operands=[left as int32 families=(integer), right as int32 families=(integer)]
-    /// @resolution.place source=left placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=left placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=left root=add.left
     /// @type.node source=right type=int32
     /// @resolution.name source=right target=add.right
-    /// @resolution.place source=right placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=right placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=right root=add.right
 
 }

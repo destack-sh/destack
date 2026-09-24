@@ -109,16 +109,7 @@ function capture<T>(value: T): { reactions: T[] } {
     /// @type.node source=[] type=T[]
     /// @resolution.call source=[] parameters=(^Slice<T>) arguments=(rest() as T) return=T[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T>
     /// @generic.instantiation id=arrayFromOwnedSlice<T> template=arrayFromOwnedSlice arguments=(T) owner=capture
-    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-    /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-    /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
     /// @generic.instance id=arrayFromOwnedSlice<T> template=arrayFromOwnedSlice arguments=(T)
-    /// @generic.instance id=fromOwnedSlice<T> template=fromOwnedSlice arguments=(T)
-    /// @generic.instance id=intoUninit<T> template=intoUninit arguments=(T)
-    /// @generic.instance id=size<T> template=size arguments=(T)
-    /// @generic.instance id=sliceIntoUninit<T> template=sliceIntoUninit arguments=(T)
-    /// @generic.instance id=sliceLength<T> template=sliceLength arguments=(T)
 
 }
 "#,
@@ -236,18 +227,9 @@ function pending<T>(): State<T> {
     /// @type.node source=[] type=T#4[]
     /// @resolution.call source=[] parameters=(^Slice<T#4>) arguments=(rest() as T#4) return=T#4[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#4>
     /// @generic.instantiation id=arrayFromOwnedSlice<T#4> template=arrayFromOwnedSlice arguments=(T#4) owner=pending
-    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-    /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-    /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
     /// @generic.instance id=Array<T#4> template=Array arguments=(T#4)
     /// @generic.instance id=arrayFromOwnedSlice<T#4> template=arrayFromOwnedSlice arguments=(T#4)
-    /// @generic.instance id=fromOwnedSlice<T#4> template=fromOwnedSlice arguments=(T#4)
-    /// @generic.instance id=intoUninit<T#4> template=intoUninit arguments=(T#4)
-    /// @generic.instance id=size<T#4> template=size arguments=(T#4)
     /// @generic.instance id=sliceAssumeInit<MaybeUninit<T#4>> template=sliceAssumeInit arguments=(MaybeUninit<T#4>)
-    /// @generic.instance id=sliceIntoUninit<T#4> template=sliceIntoUninit arguments=(T#4)
-    /// @generic.instance id=sliceLength<T#4> template=sliceLength arguments=(T#4)
     /// @generic.instance id=sliceUninit<MaybeUninit<T#4>> template=sliceUninit arguments=(MaybeUninit<T#4>)
 
 }
@@ -283,16 +265,16 @@ function countdown(n: float64) {
     return n > 0 ? countdown(n - 1) : n;
     /// @resolution.name source=n target=countdown.n
     /// @resolution.operator source="n > 0" type=boolean operator=">" kind=builtin operands=[n as float64 families=(float), 0 as float64 families=(float)]
-    /// @resolution.place source=n placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=n root=countdown.n
     /// @resolution.name source=countdown target=countdown
     /// @resolution.call source="countdown(n - 1)" parameters=(float64) arguments=(provided(n - 1) as float64) return=<error> kind=symbol target=countdown
     /// @resolution.name source=n target=countdown.n
     /// @resolution.operator source="n - 1" type=float64 operator="-" kind=builtin operands=[n as float64 families=(float), 1 as float64 families=(float)]
-    /// @resolution.place source=n placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=n root=countdown.n
     /// @resolution.name source=n target=countdown.n
-    /// @resolution.place source=n placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=n root=countdown.n
 
 }
@@ -304,6 +286,7 @@ function countdown(n: float64) {
 "#,
     );
 }
+
 /// Inferring the return types of mutually recursive functions requires annotations.
 #[test]
 fn test_mutually_recursive_returns_require_annotations() {
@@ -340,16 +323,16 @@ function ping(n: float64) {
     return n > 0 ? pong(n - 1) : n;
     /// @resolution.name source=n target=ping.n
     /// @resolution.operator source="n > 0" type=boolean operator=">" kind=builtin operands=[n as float64 families=(float), 0 as float64 families=(float)]
-    /// @resolution.place source=n placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=n root=ping.n
     /// @resolution.name source=pong target=pong
     /// @resolution.call source="pong(n - 1)" parameters=(float64) arguments=(provided(n - 1) as float64) return=<error> kind=symbol target=pong
     /// @resolution.name source=n target=ping.n
     /// @resolution.operator source="n - 1" type=float64 operator="-" kind=builtin operands=[n as float64 families=(float), 1 as float64 families=(float)]
-    /// @resolution.place source=n placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=n root=ping.n
     /// @resolution.name source=n target=ping.n
-    /// @resolution.place source=n placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=n root=ping.n
 
 }
@@ -361,16 +344,16 @@ function pong(n: float64) {
     return n > 0 ? ping(n - 1) : n;
     /// @resolution.name source=n target=pong.n
     /// @resolution.operator source="n > 0" type=boolean operator=">" kind=builtin operands=[n as float64 families=(float), 0 as float64 families=(float)]
-    /// @resolution.place source=n placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=n root=pong.n
     /// @resolution.name source=ping target=ping
     /// @resolution.call source="ping(n - 1)" parameters=(float64) arguments=(provided(n - 1) as float64) return=<error> kind=symbol target=ping
     /// @resolution.name source=n target=pong.n
     /// @resolution.operator source="n - 1" type=float64 operator="-" kind=builtin operands=[n as float64 families=(float), 1 as float64 families=(float)]
-    /// @resolution.place source=n placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=n root=pong.n
     /// @resolution.name source=n target=pong.n
-    /// @resolution.place source=n placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=n placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=n root=pong.n
 
 }
@@ -534,7 +517,6 @@ declare function ok<T, E>(value: T): Result<T, E>;
 /// @generic.instance id=Ok<T#6> template=Ok arguments=(T#6)
 /// @type.symbol symbol=ok.T source=T type=T#6
 /// @type.symbol symbol=ok.E source=E type=E#3
-/// @type.symbol symbol=ok.value source="value: T" type=T#6
 /// @resolution.name source=T target=ok.T
 /// @resolution.name source=Result target=Result
 /// @resolution.name source=T target=ok.T
@@ -593,7 +575,7 @@ function make<T, E>(value: T): AsyncResult<T, E> {
     /// @generic.instance id=Ok<T#8> template=Ok arguments=(T#8)
     /// @type.node source=value type=T#8
     /// @resolution.name source=value target=make.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=make.value
 
 }
@@ -663,7 +645,7 @@ function identity<T>(value: T): T {
 
     return value;
     /// @resolution.name source=value target=identity.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=identity.value
 
 }
@@ -680,7 +662,7 @@ function copy(value: Point | int32): Point | int32 {
     /// @generic.instantiation id="identity<Point | int32>" template=identity arguments=(Point | int32)
     /// @generic.instance id="identity<Point | int32>" template=identity arguments=(Point | int32)
     /// @resolution.name source=value target=copy.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=copy.value
 
 }

@@ -26,14 +26,12 @@ const byte = bytes[1];
 /// @type.symbol symbol=byte source=byte type=uint8
 /// @resolution.pattern source=byte kind=binding target=byte
 /// @resolution.name source=bytes target=bytes
-/// @resolution.place source=bytes placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=bytes placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=bytes root=bytes
-/// @resolution.access source=bytes[1] root=bytes keys=[1]
-/// @resolution.subscript source=bytes[1] type=uint8 kind=call target="index#1(parameters=(isize), arguments=(provided(1) as isize), return=WithAccess<&'static constant uint8, \"readonly\">, regions=(\"static\" & \"constant\"))"
-/// @generic.instantiation id="index#1<uint8, 4, \"readonly\">" template=index#1 arguments=(uint8, 4, "readonly")
-/// @generic.instance id="WithAccess<&'bound0 FixedArray<uint8, 4>, \"readonly\">" template=WithAccess arguments=(&'bound0 FixedArray<uint8, 4>, "readonly")
-/// @generic.instance id="WithAccess<&'bound0 uint8, \"readonly\">" template=WithAccess arguments=(&'bound0 uint8, "readonly")
-/// @generic.instance id="index#1<uint8, 4, \"readonly\">" template=index#1 arguments=(uint8, 4, "readonly")
+/// @resolution.subscript source=bytes[1] type=uint8 kind=call target="index#2(parameters=(isize), arguments=(provided(1) as isize), return=uint8, regions=(\"static\" & \"local\"))"
+/// @generic.instantiation id="index#2<uint8, 4, \"static\" & \"local\">" template=index#2 arguments=(uint8, 4, "static" & "local")
+/// @generic.instance id="FixedArray<uint8, 4>" template=FixedArray arguments=(uint8, 4)
+/// @generic.instance id="index#2<uint8, 4, \"bound0\" & \"local\">" template=index#2 arguments=(uint8, 4, "bound0" & "local")
 "#,
     );
 }
@@ -66,17 +64,17 @@ const grown: int32[] = fixed;
 /// @type.symbol symbol=grown source=grown type=int32[]
 /// @resolution.pattern source=grown kind=binding target=grown
 /// @resolution.name source=fixed target=fixed
-/// @resolution.place source=fixed placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=fixed placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=fixed root=fixed
 
 const copied: int32[] = [...fixed];
 /// @type.symbol symbol=copied source=copied type=int32[]
 /// @resolution.pattern source=copied kind=binding target=copied
-/// @resolution.call source=[...fixed] parameters=(^Slice<int32>) arguments=(rest(spread(provided(...fixed) as FixedArray<int32, 3>, iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
+/// @resolution.call source=[...fixed] parameters=(^Slice<int32>) arguments=(rest(spread(provided(...fixed) as FixedArray<int32, 3>, iterator=iterator#1(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>, regions=("managed" & "local"))) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id="iterator#1<int32, 3>" template=iterator#1 arguments=(int32, 3)
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
 /// @resolution.name source=fixed target=fixed
-/// @resolution.place source=fixed placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=fixed placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=fixed root=fixed
 "#,
         r#"
@@ -115,13 +113,13 @@ const size = bytes.size;
 /// @type.node source=bytes type=FixedArray<uint8, 4>
 /// @type.node source=bytes.size type=isize
 /// @resolution.name source=bytes target=bytes
-/// @resolution.member source=bytes.size receiver=FixedArray<uint8, 4> type=isize kind=call target="size(parameters=(), arguments=(), return=isize, regions=(\"static\" & \"constant\"))"
-/// @resolution.place source=bytes placement="constant" lifetime="static" access="readonly"
+/// @resolution.member source=bytes.size receiver=FixedArray<uint8, 4> type=isize kind=call target="size(parameters=(), arguments=(), return=isize, regions=(\"static\" & \"local\"))"
+/// @resolution.place source=bytes placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=bytes root=bytes
-/// @generic.instantiation id="size<uint8, 4>" template=size arguments=(uint8, 4)
+/// @generic.instantiation id="size<uint8, 4, \"static\" & \"local\">" template=size arguments=(uint8, 4, "static" & "local")
 /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
 /// @generic.instance id="FixedArray<uint8, 4>" template=FixedArray arguments=(uint8, 4)
-/// @generic.instance id="size<uint8, 4>" template=size arguments=(uint8, 4)
+/// @generic.instance id="size<uint8, 4, \"bound0\" & \"local\">" template=size arguments=(uint8, 4, "bound0" & "local")
 /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 "#,
     );

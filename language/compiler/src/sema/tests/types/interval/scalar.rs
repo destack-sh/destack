@@ -66,7 +66,7 @@ declare const value: 0..=255;
 
 value satisfies IntegerDomain;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 /// @resolution.name source=IntegerDomain target=IntegerDomain
 "#,

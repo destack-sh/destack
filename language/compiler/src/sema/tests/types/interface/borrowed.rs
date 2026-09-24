@@ -101,8 +101,8 @@ extension of Foo implements Add<&readonly Foo>, Hash {
 /// @definition.implements symbol=<module>#2 source="Add<&readonly Foo>" target="Add<&<module>#2.'a readonly Foo>"
 /// @definition.implements symbol=<module>#2 source=Hash target=Hash
 /// @definition.associated.type symbol=Output#1 source="type Output = Foo" key=Output value=Foo
-/// @definition.method symbol=add#1 slot=add type=<add#1.'a, add#1.'b>(this: &add#1.'a readonly this, &add#1.'b readonly Foo) => Foo
-/// @definition.method symbol=hash#1 source="hash(state: &Hasher): void {}" slot=hash type=<hash#1.'a, hash#1.P1: Place>(this: Managed<this, hash#1.P1>, &hash#1.'a Hasher) => void
+/// @definition.method symbol=add#1 slot=add type=<add#1.'a, add#1.'b>(this: &add#1.'a readonly Foo, &add#1.'b readonly Foo) => Foo
+/// @definition.method symbol=hash#1 source="hash(state: &Hasher): void {}" slot=hash type=<hash#1.'a>(this: Foo, &hash#1.'a Hasher) => void
 /// @definition.conformance symbol=<module>#2 member=Output#1 requirement=Add.Output
 /// @definition.conformance symbol=<module>#2 member=add#1 requirement=Add.add
 /// @definition.conformance symbol=<module>#2 member=hash#1 requirement=Hash.hash
@@ -117,8 +117,8 @@ extension of Foo implements Add<&readonly Foo>, Hash {
 
     add(&readonly this, other: &readonly Foo): Foo {
     /// @generic.template symbol=add#1 parent=template#0 parameters=('a, 'b)
-    /// @type.symbol symbol=add#1 type=<add#1.'a, add#1.'b>(this: &add#1.'a readonly this, &add#1.'b readonly Foo) => Foo
-    /// @type.symbol symbol=add.this#1 source="&readonly this" type=&add#1.'a readonly this
+    /// @type.symbol symbol=add#1 type=<add#1.'a, add#1.'b>(this: &add#1.'a readonly Foo, &add#1.'b readonly Foo) => Foo
+    /// @type.symbol symbol=add.this#1 source="&readonly this" type=&add#1.'a readonly Foo
     /// @type.symbol symbol=add.other#1 source="other: &readonly Foo" type=&add#1.'b readonly Foo
     /// @resolution.name source=Foo target=Foo
     /// @resolution.name source=Foo target=Foo
@@ -130,9 +130,9 @@ extension of Foo implements Add<&readonly Foo>, Hash {
     }
 
     hash(state: &Hasher): void {}
-    /// @generic.template symbol=hash#1 parent=template#0 parameters=('a, P1: Place)
-    /// @type.symbol symbol=hash#1 source="hash(state: &Hasher): void {}" type=<hash#1.'a, hash#1.P1: Place>(this: Managed<this, hash#1.P1>, &hash#1.'a Hasher) => void
-    /// @type.symbol symbol=hash.this#1 type=Managed<Foo, hash#1.P1>
+    /// @generic.template symbol=hash#1 parent=template#0 parameters=('a)
+    /// @type.symbol symbol=hash#1 source="hash(state: &Hasher): void {}" type=<hash#1.'a>(this: Foo, &hash#1.'a Hasher) => void
+    /// @type.symbol symbol=hash.this#1 type=Foo
     /// @type.symbol symbol=hash.state#1 source="state: &Hasher" type=&hash#1.'a Hasher
     /// @resolution.name source=Hasher target=Hasher
 
@@ -148,8 +148,8 @@ extension of Name implements Add<&readonly Name>, Hash {
 /// @definition.implements symbol=<module>#3 source="Add<&readonly Name>" target="Add<&<module>#3.'a readonly Name>"
 /// @definition.implements symbol=<module>#3 source=Hash target=Hash
 /// @definition.associated.type symbol=Output#2 source="type Output = Name" key=Output value=Name
-/// @definition.method symbol=add#2 slot=add type=<add#2.'a, add#2.'b>(this: &add#2.'a readonly this, &add#2.'b readonly Name) => Name
-/// @definition.method symbol=hash#2 source="hash(state: &Hasher): void {}" slot=hash type=<hash#2.'a, hash#2.P1: Place>(this: Managed<this, hash#2.P1>, &hash#2.'a Hasher) => void
+/// @definition.method symbol=add#2 slot=add type=<add#2.'a, add#2.'b>(this: &add#2.'a readonly Name, &add#2.'b readonly Name) => Name
+/// @definition.method symbol=hash#2 source="hash(state: &Hasher): void {}" slot=hash type=<hash#2.'a>(this: Name, &hash#2.'a Hasher) => void
 /// @definition.conformance symbol=<module>#3 member=Output#2 requirement=Add.Output
 /// @definition.conformance symbol=<module>#3 member=add#2 requirement=Add.add
 /// @definition.conformance symbol=<module>#3 member=hash#2 requirement=Hash.hash
@@ -164,8 +164,8 @@ extension of Name implements Add<&readonly Name>, Hash {
 
     add(&readonly this, other: &readonly Name): Name {
     /// @generic.template symbol=add#2 parent=template#1 parameters=('a, 'b)
-    /// @type.symbol symbol=add#2 type=<add#2.'a, add#2.'b>(this: &add#2.'a readonly this, &add#2.'b readonly Name) => Name
-    /// @type.symbol symbol=add.this#2 source="&readonly this" type=&add#2.'a readonly this
+    /// @type.symbol symbol=add#2 type=<add#2.'a, add#2.'b>(this: &add#2.'a readonly Name, &add#2.'b readonly Name) => Name
+    /// @type.symbol symbol=add.this#2 source="&readonly this" type=&add#2.'a readonly Name
     /// @type.symbol symbol=add.other#2 source="other: &readonly Name" type=&add#2.'b readonly Name
     /// @resolution.name source=Name target=Name
     /// @resolution.name source=Name target=Name
@@ -178,9 +178,9 @@ extension of Name implements Add<&readonly Name>, Hash {
     }
 
     hash(state: &Hasher): void {}
-    /// @generic.template symbol=hash#2 parent=template#1 parameters=('a, P1: Place)
-    /// @type.symbol symbol=hash#2 source="hash(state: &Hasher): void {}" type=<hash#2.'a, hash#2.P1: Place>(this: Managed<this, hash#2.P1>, &hash#2.'a Hasher) => void
-    /// @type.symbol symbol=hash.this#2 type=Managed<Name, hash#2.P1>
+    /// @generic.template symbol=hash#2 parent=template#1 parameters=('a)
+    /// @type.symbol symbol=hash#2 source="hash(state: &Hasher): void {}" type=<hash#2.'a>(this: Name, &hash#2.'a Hasher) => void
+    /// @type.symbol symbol=hash.this#2 type=Name
     /// @type.symbol symbol=hash.state#2 source="state: &Hasher" type=&hash#2.'a Hasher
     /// @resolution.name source=Hasher target=Hasher
 
@@ -207,7 +207,6 @@ declare function requireHash<T: Hash>(value: T): T;
 /// @type.symbol symbol=requireHash source="declare function requireHash<T: Hash>(value: T): T" type=<T: Hash>(T) => T
 /// @type.symbol symbol=requireHash.T source="T: Hash" type=T
 /// @resolution.name source=Hash target=Hash
-/// @type.symbol symbol=requireHash.value source="value: T" type=T
 /// @resolution.name source=T target=requireHash.T
 /// @resolution.name source=T target=requireHash.T
 
@@ -232,7 +231,7 @@ const named = requireHash(name);
 /// @resolution.call source=requireHash(name) parameters=(Name) arguments=(provided(name) as Name) return=Name kind=symbol target=requireHash instance=requireHash<Name>
 /// @generic.instantiation id=requireHash<Name> template=requireHash arguments=(Name)
 /// @resolution.name source=name target=name
-/// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=name placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=name root=name
 
 const derived = requireHash(Key { foo: new Foo(), name });
@@ -245,7 +244,7 @@ const derived = requireHash(Key { foo: new Foo(), name });
 /// @resolution.construct source="new Foo()" parameters=() return=Foo kind=class target=Foo constructor=default
 /// @resolution.name source=Foo target=Foo
 /// @resolution.name source=name target=name
-/// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=name placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=name root=name
 "#,
         r#"

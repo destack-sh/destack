@@ -32,10 +32,9 @@ declare const values: [int32; 2];
 
 let [first, second] = values;
 /// @resolution.pattern source=[first, second] kind=sequence element=int32 arity=2 fields=(first, second)
-/// @generic.instantiation id="index#1<int32, 2, \"mutable\">" template=index#1 arguments=(int32, 2, "mutable")
-/// @generic.instance id="WithAccess<&'bound0 FixedArray<int32, 2>, \"mutable\">" template=WithAccess arguments=(&'bound0 FixedArray<int32, 2>, "mutable")
-/// @generic.instance id="WithAccess<&'bound0 int32, \"mutable\">" template=WithAccess arguments=(&'bound0 int32, "mutable")
-/// @generic.instance id="index#1<int32, 2, \"mutable\">" template=index#1 arguments=(int32, 2, "mutable")
+/// @generic.instantiation id="index#2<int32, 2, \"frame\" & \"local\">" template=index#2 arguments=(int32, 2, "frame" & "local")
+/// @generic.instance id="FixedArray<int32, 2>" template=FixedArray arguments=(int32, 2)
+/// @generic.instance id="index#2<int32, 2, \"bound0\" & \"local\">" template=index#2 arguments=(int32, 2, "bound0" & "local")
 /// @type.symbol symbol=first source=first type=int32
 /// @resolution.pattern source=first kind=binding target=first
 /// @type.symbol symbol=second source=second type=int32
@@ -48,14 +47,14 @@ first satisfies int32;
 /// @type.node source="first satisfies int32" type=int32
 /// @type.node source=first type=int32
 /// @resolution.name source=first target=first
-/// @resolution.place source=first placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=first placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=first root=first
 
 second satisfies int32;
 /// @type.node source="second satisfies int32" type=int32
 /// @type.node source=second type=int32
 /// @resolution.name source=second target=second
-/// @resolution.place source=second placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=second placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=second root=second
 "#,
     );

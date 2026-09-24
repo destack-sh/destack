@@ -47,15 +47,15 @@ interface Person {
 }
 
 declare const person: Readonly<Person>;
-/// @type.symbol symbol=person source=person type=Readonly<Person>
+/// @type.symbol symbol=person source=person type=readonly Person
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Readonly target=Readonly
 /// @resolution.name source=Person target=Person
 
 person.age satisfies int32;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.age receiver=Readonly<Person> type=int32 kind=field target_receiver=Readonly<Person> dispatch=dynamic constraint=Person key=age target=Person.age target_type=int32
-/// @resolution.place source=person placement="local" lifetime="managed" access="readonly"
+/// @resolution.member source=person.age receiver=readonly Person type=int32 kind=field target_receiver=readonly Person dispatch=dynamic constraint=Person key=age target=Person.age target_type=int32
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.age placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=person.age root=person keys=[age]
@@ -104,15 +104,15 @@ interface Person {
 }
 
 const person: Readonly<Person> = {};
-/// @type.symbol symbol=person source=person type=Readonly<Person>
+/// @type.symbol symbol=person source=person type=readonly Person
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Readonly target=Readonly
 /// @resolution.name source=Person target=Person
 
 person.name satisfies string | undefined;
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.name receiver=Readonly<Person> type=Readonly<string> | undefined kind=field target_receiver=Readonly<Person> dispatch=dynamic constraint=Person key=name target=Person.name target_type=Readonly<string> | undefined
-/// @resolution.place source=person placement="local" lifetime="managed" access="readonly"
+/// @resolution.member source=person.name receiver=readonly Person type=string | undefined kind=field target_receiver=readonly Person dispatch=dynamic constraint=Person key=name target=Person.name target_type=string | undefined
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.name placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=person.name root=person keys=[name]
@@ -167,18 +167,19 @@ interface Person {
 }
 
 declare const person: Readonly<Person>;
-/// @type.symbol symbol=person source=person type=Readonly<Person>
+/// @type.symbol symbol=person source=person type=readonly Person
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Readonly target=Readonly
 /// @resolution.name source=Person target=Person
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="managed" access="readonly"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.pattern.assign source=person.name kind=place
+/// @resolution.place source=person.name placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=person.name root=person keys=[name]
-/// @resolution.assignment source=person.name write="receiver=Readonly<Person>, target=field(receiver=dynamic(Readonly<Person>, constraint=Person), target=Person.name, type=Readonly<string>), type=Readonly<string>" type=Readonly<string>
+/// @resolution.assignment source=person.name write="receiver=readonly Person, target=field(receiver=dynamic(readonly Person, constraint=Person), target=Person.name, type=string), type=string" type=string
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"
@@ -236,21 +237,22 @@ interface Person {
 }
 
 const person: Readonly<Person> = { profile: { name: "Ada" } };
-/// @type.symbol symbol=person source=person type=Readonly<Person>
+/// @type.symbol symbol=person source=person type=readonly Person
 /// @resolution.pattern source=person kind=binding target=person
 /// @resolution.name source=Readonly target=Readonly
 /// @resolution.name source=Person target=Person
 
 person.profile.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.profile receiver=Readonly<Person> type=Readonly<{ name: string }> kind=field target_receiver=Readonly<Person> dispatch=dynamic constraint=Person key=profile target=Person.profile target_type=Readonly<{ name: string }>
-/// @resolution.place source=person placement="local" lifetime="managed" access="readonly"
+/// @resolution.member source=person.profile receiver=readonly Person type={ name: string } kind=field target_receiver=readonly Person dispatch=dynamic constraint=Person key=profile target=Person.profile target_type={ name: string }
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.profile placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=person.profile root=person keys=[profile]
 /// @resolution.pattern.assign source=person.profile.name kind=place
+/// @resolution.place source=person.profile.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.profile.name root=person keys=[profile, name]
-/// @resolution.assignment source=person.profile.name write="receiver=Readonly<{ name: string }>, target=field(receiver=Readonly<{ name: string }>, target=name, type=Readonly<string>), type=Readonly<string>" type=Readonly<string>
+/// @resolution.assignment source=person.profile.name write="receiver=readonly { name: string }, target=field(receiver=readonly { name: string }, target=name, type=string), type=string" type=string
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"

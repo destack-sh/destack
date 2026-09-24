@@ -89,45 +89,46 @@ const wide = small as int32;
 /// @type.symbol symbol=wide source=wide type=int32
 /// @resolution.pattern source=wide kind=binding target=wide
 /// @resolution.name source=small target=small
-/// @resolution.place source=small placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=small placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=small root=small
 
 const signed = byte as int16;
 /// @type.symbol symbol=signed source=signed type=int16
 /// @resolution.pattern source=signed kind=binding target=signed
 /// @resolution.name source=byte target=byte
-/// @resolution.place source=byte placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=byte placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=byte root=byte
 
 const real = count as float64;
 /// @type.symbol symbol=real source=real type=float64
 /// @resolution.pattern source=real kind=binding target=real
 /// @resolution.name source=count target=count
-/// @resolution.place source=count placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=count placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=count root=count
 
 const index = count as usize;
 /// @type.symbol symbol=index source=index type=usize
 /// @resolution.pattern source=index kind=binding target=index
 /// @resolution.name source=count target=count
-/// @resolution.place source=count placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=count placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=count root=count
 
 const large = offset as int64;
 /// @type.symbol symbol=large source=large type=int64
 /// @resolution.pattern source=large kind=binding target=large
 /// @resolution.name source=offset target=offset
-/// @resolution.place source=offset placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=offset placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=offset root=offset
 
 const code = letter as uint32;
 /// @type.symbol symbol=code source=code type=uint32
 /// @resolution.pattern source=code kind=binding target=code
 /// @resolution.name source=letter target=letter
-/// @resolution.place source=letter placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=letter placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=letter root=letter
 "#,
-        r#""#,
+        r#"
+"#,
     );
 }
 
@@ -188,42 +189,42 @@ const narrow = total as int8;
 /// @type.symbol symbol=narrow source=narrow type=int8
 /// @resolution.pattern source=narrow kind=binding target=narrow
 /// @resolution.name source=total target=total
-/// @resolution.place source=total placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=total placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=total root=total
 
 const flip = count as int32;
 /// @type.symbol symbol=flip source=flip type=int32
 /// @resolution.pattern source=flip kind=binding target=flip
 /// @resolution.name source=count target=count
-/// @resolution.place source=count placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=count placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=count root=count
 
 const inexact = total as float64;
 /// @type.symbol symbol=inexact source=inexact type=float64
 /// @resolution.pattern source=inexact kind=binding target=inexact
 /// @resolution.name source=total target=total
-/// @resolution.place source=total placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=total placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=total root=total
 
 const shrunk = ratio as float32;
 /// @type.symbol symbol=shrunk source=shrunk type=float32
 /// @resolution.pattern source=shrunk kind=binding target=shrunk
 /// @resolution.name source=ratio target=ratio
-/// @resolution.place source=ratio placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=ratio placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=ratio root=ratio
 
 const reindexed = index as isize;
 /// @type.symbol symbol=reindexed source=reindexed type=isize
 /// @resolution.pattern source=reindexed kind=binding target=reindexed
 /// @resolution.name source=index target=index
-/// @resolution.place source=index placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=index placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=index root=index
 
 const whole = ratio as int32;
 /// @type.symbol symbol=whole source=whole type=int32
 /// @resolution.pattern source=whole kind=binding target=whole
 /// @resolution.name source=ratio target=ratio
-/// @resolution.place source=ratio placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=ratio placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=ratio root=ratio
 "#,
         r#"
@@ -282,14 +283,14 @@ const exit = value as int32;
 /// @type.symbol symbol=exit source=exit type=int32
 /// @resolution.pattern source=exit kind=binding target=exit
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 
 const bit = flag as int32;
 /// @type.symbol symbol=bit source=bit type=int32
 /// @resolution.pattern source=bit kind=binding target=bit
 /// @resolution.name source=flag target=flag
-/// @resolution.place source=flag placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=flag placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=flag root=flag
 
 const parsed = "1" as int32;

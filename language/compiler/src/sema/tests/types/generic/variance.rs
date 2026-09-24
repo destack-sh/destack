@@ -45,7 +45,7 @@ const shapes: Shape[] = circles;
 /// @resolution.pattern source=shapes kind=binding target=shapes
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=circles placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -95,40 +95,20 @@ class Circle extends Shape {}
 declare const circles: Circle[];
 /// @type.symbol symbol=circles source=circles type=Circle[]
 /// @resolution.pattern source=circles kind=binding target=circles
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="elementSlot<Circle, \"mutable\">" template=elementSlot arguments=(Circle, "mutable")
-/// @generic.instance id="initAsPointer<Circle, \"mutable\">" template=initAsPointer arguments=(Circle, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<Circle>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<Circle>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=Array<Circle> template=Array arguments=(Circle)
-/// @generic.instance id=assumeInitDrop#1<Circle> template=assumeInitDrop#1 arguments=(Circle)
-/// @generic.instance id=assumeInitDrop<Circle> template=assumeInitDrop arguments=(Circle)
-/// @generic.instance id=clear<Circle> template=clear arguments=(Circle)
-/// @generic.instance id=drop<Circle> template=drop arguments=(Circle)
-/// @generic.instance id=dropInPlace<Circle> template=dropInPlace arguments=(Circle)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<Circle>> template=sliceAssumeInit arguments=(MaybeUninit<Circle>)
 /// @generic.instance id=sliceUninit<MaybeUninit<Circle>> template=sliceUninit arguments=(MaybeUninit<Circle>)
-/// @generic.instance id=truncate<Circle> template=truncate arguments=(Circle)
 /// @resolution.name source=Circle target=Circle
 
 const shapes: readonly Shape[] = circles;
 /// @type.symbol symbol=shapes source=shapes type=readonly Shape[]
 /// @resolution.pattern source=shapes kind=binding target=shapes
-/// @generic.instance id="elementSlot<Shape, \"mutable\">" template=elementSlot arguments=(Shape, "mutable")
-/// @generic.instance id="initAsPointer<Shape, \"mutable\">" template=initAsPointer arguments=(Shape, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<Shape>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<Shape>, "mutable")
 /// @generic.instance id=Array<Shape> template=Array arguments=(Shape)
-/// @generic.instance id=assumeInitDrop#1<Shape> template=assumeInitDrop#1 arguments=(Shape)
-/// @generic.instance id=assumeInitDrop<Shape> template=assumeInitDrop arguments=(Shape)
-/// @generic.instance id=clear<Shape> template=clear arguments=(Shape)
-/// @generic.instance id=drop<Shape> template=drop arguments=(Shape)
-/// @generic.instance id=dropInPlace<Shape> template=dropInPlace arguments=(Shape)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<Shape>> template=sliceAssumeInit arguments=(MaybeUninit<Shape>)
 /// @generic.instance id=sliceUninit<MaybeUninit<Shape>> template=sliceUninit arguments=(MaybeUninit<Shape>)
-/// @generic.instance id=truncate<Shape> template=truncate arguments=(Shape)
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=circles placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=circles root=circles
 "#,
     );
@@ -188,7 +168,7 @@ const widened: readonly (Circle | Square)[] = circles;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=circles placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -245,25 +225,25 @@ class Square extends Shape {}
 /// @resolution.name source=Shape target=Shape
 
 declare const make: () => Circle;
-/// @type.symbol symbol=make source=make type=Function<(), Circle>
+/// @type.symbol symbol=make source=make type=() => Circle
 /// @resolution.pattern source=make kind=binding target=make
 /// @resolution.name source=Circle target=Circle
 
 const widened: () => Shape = make;
-/// @type.symbol symbol=widened source=widened type=Function<(), Shape>
+/// @type.symbol symbol=widened source=widened type=() => Shape
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=make target=make
-/// @resolution.place source=make placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=make placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=make root=make
 
 const either: () => Circle | Square = make;
-/// @type.symbol symbol=either source=either type=Function<(), Circle | Square>
+/// @type.symbol symbol=either source=either type=() => Circle | Square
 /// @resolution.pattern source=either kind=binding target=either
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=make target=make
-/// @resolution.place source=make placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=make placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=make root=make
 "#,
         r#"
@@ -340,11 +320,11 @@ struct Sink<out T> {
 /// @generic.template symbol=Sink parameters=(out T)
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.struct symbol=Sink template=(out T)
-/// @definition.field symbol=Sink.accept source="readonly accept: (value: T) => void" key=accept type=Function<(T,), void>
+/// @definition.field symbol=Sink.accept source="readonly accept: (value: T) => void" key=accept type=(T) => void
 /// @type.symbol symbol=Sink.T source="out T" type=T
 
     readonly accept: (value: T) => void;
-    /// @type.symbol symbol=Sink.accept source="readonly accept: (value: T) => void" type=Function<(T,), void>
+    /// @type.symbol symbol=Sink.accept source="readonly accept: (value: T) => void" type=(T) => void
     /// @type.symbol symbol=Sink.value source="value: T" type=T
     /// @resolution.name source=T target=Sink.T
 
@@ -357,9 +337,9 @@ struct Sink<out T> {
     );
 }
 
-/// A struct with a covariant parameter widens both as a value and behind a handle.
+/// A struct with a covariant parameter widens as a value.
 #[test]
-fn test_widen_a_covariant_struct_as_a_value_and_as_a_handle() {
+fn test_widen_a_covariant_struct_as_a_value() {
     let session = TestSession::single(
         r#"
 class Shape {}
@@ -371,9 +351,6 @@ struct Box<out T> {
 
 declare const owned: Box<Circle>;
 const copy: Box<Shape> = owned;
-
-declare const aliased: Managed<Box<Circle>>;
-const widened: Managed<Box<Shape>> = aliased;
 "#,
     );
 
@@ -391,9 +368,6 @@ struct Box<out T> {
 
 declare const owned: Box<Circle>;
 const copy: Box<Shape> = owned;
-
-declare const aliased: local Box<Circle>;
-const widened: local Box<Shape> = aliased;
 
 === dir ===
 class Shape {}
@@ -431,30 +405,11 @@ const copy: Box<Shape> = owned;
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=owned target=owned
-/// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=owned placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=owned root=owned
-
-declare const aliased: Managed<Box<Circle>>;
-/// @type.symbol symbol=aliased source=aliased type=local Box<Circle>
-/// @resolution.pattern source=aliased kind=binding target=aliased
-/// @resolution.name source=Managed target=Managed
-/// @resolution.name source=Box target=Box
-/// @resolution.name source=Circle target=Circle
-
-const widened: Managed<Box<Shape>> = aliased;
-/// @type.symbol symbol=widened source=widened type=local Box<Shape>
-/// @resolution.pattern source=widened kind=binding target=widened
-/// @resolution.name source=Managed target=Managed
-/// @resolution.name source=Box target=Box
-/// @resolution.name source=Shape target=Shape
-/// @resolution.name source=aliased target=aliased
-/// @resolution.place source=aliased placement="local" lifetime="managed" access="mutable"
-/// @resolution.access source=aliased root=aliased
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type 'local Box<Circle>' is not assignable to type 'local Box<Shape>'"
-/// @diagnostic.label line=13 column=38 span="aliased" line_source="const widened: Managed<Box<Shape>> = aliased;"
-/// @diagnostic.related line=13 column=16 span="Managed" line_source="const widened: Managed<Box<Shape>> = aliased;" message="expected due to this annotation"
+
 "#,
     );
 }
@@ -525,7 +480,7 @@ const widened: { x: float64 } = point;
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @type.symbol symbol=x#2 source="x: float64" type=float64
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 "#,
         r#"
@@ -591,7 +546,7 @@ const widened: { readonly x: Shape } = point;
 /// @type.symbol symbol=x#2 source="readonly x: Shape" type=Shape
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=point target=point
-/// @resolution.place source=point placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 
 declare const scalar: { x: 1 };
@@ -604,7 +559,7 @@ const converted: { readonly x: float64 } = scalar;
 /// @resolution.pattern source=converted kind=binding target=converted
 /// @type.symbol symbol=x#4 source="readonly x: float64" type=float64
 /// @resolution.name source=scalar target=scalar
-/// @resolution.place source=scalar placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=scalar placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=scalar root=scalar
 "#,
         r#"
@@ -662,33 +617,33 @@ class Circle extends Shape {}
 /// @resolution.name source=Shape target=Shape
 
 declare const useShape: (shape: Shape) => void;
-/// @type.symbol symbol=useShape source=useShape type=Function<(Shape,), void>
+/// @type.symbol symbol=useShape source=useShape type=(Shape) => void
 /// @resolution.pattern source=useShape kind=binding target=useShape
 /// @type.symbol symbol=shape#1 source="shape: Shape" type=Shape
 /// @resolution.name source=Shape target=Shape
 
 const useCircle: (circle: Circle) => void = useShape;
-/// @type.symbol symbol=useCircle source=useCircle type=Function<(Circle,), void>
+/// @type.symbol symbol=useCircle source=useCircle type=(Circle) => void
 /// @resolution.pattern source=useCircle kind=binding target=useCircle
 /// @type.symbol symbol=circle#1 source="circle: Circle" type=Circle
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=useShape target=useShape
-/// @resolution.place source=useShape placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=useShape placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=useShape root=useShape
 
 declare const useCircle2: (circle: Circle) => void;
-/// @type.symbol symbol=useCircle2 source=useCircle2 type=Function<(Circle,), void>
+/// @type.symbol symbol=useCircle2 source=useCircle2 type=(Circle) => void
 /// @resolution.pattern source=useCircle2 kind=binding target=useCircle2
 /// @type.symbol symbol=circle#2 source="circle: Circle" type=Circle
 /// @resolution.name source=Circle target=Circle
 
 const useShape2: (shape: Shape) => void = useCircle2;
-/// @type.symbol symbol=useShape2 source=useShape2 type=Function<(Shape,), void>
+/// @type.symbol symbol=useShape2 source=useShape2 type=(Shape) => void
 /// @resolution.pattern source=useShape2 kind=binding target=useShape2
 /// @type.symbol symbol=shape#2 source="shape: Shape" type=Shape
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=useCircle2 target=useCircle2
-/// @resolution.place source=useCircle2 placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=useCircle2 placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=useCircle2 root=useCircle2
 "#,
         r#"
@@ -739,7 +694,7 @@ const target: Handle<string> = source;
 /// @resolution.name source=Handle target=Handle
 /// @type.node source=source type=Handle<int32>
 /// @resolution.name source=source target=source
-/// @resolution.place source=source placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=source placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=source root=source
 "#,
         r#"
@@ -889,8 +844,7 @@ take(increment);
 
 === dir ===
 declare function take(callback: (value: int32) => int32 | undefined): void;
-/// @type.symbol symbol=take source="declare function take(callback: (value: int32) => int32 | undefined): void" type=(Function<(int32,), int32 | undefined>) => void
-/// @type.symbol symbol=take.callback source="callback: (value: int32) => int32 | undefined" type=Function<(int32,), int32 | undefined>
+/// @type.symbol symbol=take source="declare function take(callback: (value: int32) => int32 | undefined): void" type=((int32) => int32 | undefined) => void
 /// @type.symbol symbol=take.value source="value: int32" type=int32
 
 function increment(value: int32): int32 {
@@ -900,14 +854,14 @@ function increment(value: int32): int32 {
     return value + 1;
     /// @resolution.name source=value target=increment.value
     /// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=increment.value
 
 }
 
 take(increment);
 /// @resolution.name source=take target=take
-/// @resolution.call source=take(increment) parameters=(Function<(int32,), int32 | undefined>) arguments=(provided(increment) as Function<(int32,), int32 | undefined>) return=void kind=symbol target=take
+/// @resolution.call source=take(increment) parameters=((int32) => int32 | undefined) arguments=(provided(increment) as (int32) => int32 | undefined) return=void kind=symbol target=take
 /// @resolution.name source=increment target=increment
 /// @resolution.function source=increment type=Function<(int32,), int32, "readonly"> target=increment
 "#,
@@ -941,19 +895,18 @@ forEach(async (value: int32) => value);
 
 === dir ===
 declare function forEach(visit: (value: int32) => void): void;
-/// @type.symbol symbol=forEach source="declare function forEach(visit: (value: int32) => void): void" type=(Function<(int32,), void>) => void
-/// @type.symbol symbol=forEach.visit source="visit: (value: int32) => void" type=Function<(int32,), void>
+/// @type.symbol symbol=forEach source="declare function forEach(visit: (value: int32) => void): void" type=((int32) => void) => void
 /// @type.symbol symbol=forEach.value source="value: int32" type=int32
 
 forEach(async (value) => value);
 /// @resolution.name source=forEach target=forEach
-/// @resolution.call source="forEach(async (value) => value)" parameters=(Function<(int32,), void>) arguments=(provided(async (value) => value) as Function<(int32,), void>) return=void kind=symbol target=forEach
+/// @resolution.call source="forEach(async (value) => value)" parameters=((int32) => void) arguments=(provided(async (value) => value) as (int32) => void) return=void kind=symbol target=forEach
 /// @type.symbol symbol=symbol4 source="async (value) => value" type=Function<(int32,), Promise<int32>, "readonly">
 /// @resolution.call source="async (value) => value" parameters=(^Function<(), int32, "once">) arguments=(supplied(0) as ^Function<(), int32, "once">) return=Promise<int32> kind=symbol target=Promise.create instance=Promise.create<int32>
 /// @generic.instantiation id=Promise.create<int32> template=Promise.create arguments=(int32)
 /// @type.symbol symbol=symbol4.value source=value type=int32
 /// @resolution.name source=value target=symbol4.value
-/// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=value root=symbol4.value
 "#,
         r#"
@@ -1034,7 +987,7 @@ const exact: Box<Circle> = Box { value: circle };
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=circle target=circle
-/// @resolution.place source=circle placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=circle placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=circle root=circle
 
 const widened: Box<Shape> = exact;
@@ -1044,7 +997,7 @@ const widened: Box<Shape> = exact;
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=exact target=exact
-/// @resolution.place source=exact placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=exact placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=exact root=exact
 "#,
     );
@@ -1123,17 +1076,17 @@ const exact: Box<Circle> = Box { value: circle };
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=circle target=circle
-/// @resolution.place source=circle placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=circle placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=circle root=circle
 
 const widened: &readonly Box<Shape> = &readonly exact;
-/// @type.symbol symbol=widened source=widened type=&'static readonly constant Box<Shape>
+/// @type.symbol symbol=widened source=widened type=&'static readonly Box<Shape>
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @generic.instance id=Box<Shape> template=Box arguments=(Shape)
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=exact target=exact
-/// @resolution.place source=exact placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=exact placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=exact root=exact
 "#,
     );
@@ -1211,105 +1164,43 @@ let exact: Box<Circle> = Box { value: circle };
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=circle target=circle
-/// @resolution.place source=circle placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=circle placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=circle root=circle
 
 const widened: &Box<Shape> = &exact;
-/// @type.symbol symbol=widened source=widened type=&'static constant Box<Shape>
+/// @type.symbol symbol=widened source=widened type=&'static Box<Shape>
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=exact target=exact
-/// @resolution.place source=exact placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=exact placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=exact root=exact
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '&'static local Box<Circle>' is not assignable to type '&'static constant Box<Shape>'"
+/// @diagnostic.error id=not-assignable message="type '&'static Box<Circle>' is not assignable to type '&'static Box<Shape>'"
 /// @diagnostic.label line=12 column=30 span="&exact" line_source="const widened: &Box<Shape> = &exact;"
 /// @diagnostic.related line=12 column=16 span="&" line_source="const widened: &Box<Shape> = &exact;" message="expected due to this annotation"
 "#,
     );
 }
 
-/// A managed handle rejects widening the type argument of the struct it holds.
+/// Reject returning a result at a widened error argument.
 #[test]
-fn test_managed_handle_rejects_struct_payload_widening() {
+fn test_reject_a_result_stored_across_a_widened_error_argument() {
     let session = TestSession::single(
         r#"
-class Shape {}
-class Circle extends Shape {}
-
-struct Box<Value> {
-    value: Value;
+function widen<U, E, F>(result: Result<U, F>): Result<U, E | F> {
+    return result;
 }
-
-declare const shared: Managed<Box<Circle>>;
-
-const widened: Managed<Box<Shape>> = shared;
 "#,
     );
 
-    session.assert_dir_and_diagnostics(
-        "main.ds",
-        DirRows::checked(),
+    session.assert_diagnostics(
+        session.dir_checked_key("main.ds"),
         r#"
-=== annotated ===
-class Shape {}
-class Circle extends Shape {}
-
-struct Box<out Value> {
-    value: Value;
-}
-
-declare const shared: local Box<Circle>;
-
-const widened: local Box<Shape> = shared;
-
-=== dir ===
-class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
-/// @definition.class symbol=Shape source="class Shape {}"
-
-class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
-/// @definition.class symbol=Circle source="class Circle extends Shape {}"
-/// @definition.extends symbol=Circle source=Shape target=Shape
-/// @resolution.name source=Shape target=Shape
-
-struct Box<Value> {
-/// @generic.template symbol=Box parameters=(out Value)
-/// @type.symbol symbol=Box type=Box
-/// @definition.struct symbol=Box template=(out Value)
-/// @definition.field symbol=Box.value source="value: Value" key=value type=Value
-/// @type.symbol symbol=Box.Value source=Value type=Value
-
-    value: Value;
-    /// @type.symbol symbol=Box.value source="value: Value" type=Value
-    /// @resolution.name source=Value target=Box.Value
-
-}
-
-declare const shared: Managed<Box<Circle>>;
-/// @type.symbol symbol=shared source=shared type=local Box<Circle>
-/// @resolution.pattern source=shared kind=binding target=shared
-/// @resolution.name source=Managed target=Managed
-/// @resolution.name source=Box target=Box
-/// @resolution.name source=Circle target=Circle
-
-const widened: Managed<Box<Shape>> = shared;
-/// @type.symbol symbol=widened source=widened type=local Box<Shape>
-/// @resolution.pattern source=widened kind=binding target=widened
-/// @resolution.name source=Managed target=Managed
-/// @resolution.name source=Box target=Box
-/// @resolution.name source=Shape target=Shape
-/// @resolution.name source=shared target=shared
-/// @resolution.place source=shared placement="local" lifetime="managed" access="mutable"
-/// @resolution.access source=shared root=shared
-"#,
-        r#"
-/// @diagnostic.error id=not-assignable message="type 'local Box<Circle>' is not assignable to type 'local Box<Shape>'"
-/// @diagnostic.label line=11 column=38 span="shared" line_source="const widened: Managed<Box<Shape>> = shared;"
-/// @diagnostic.related line=11 column=16 span="Managed" line_source="const widened: Managed<Box<Shape>> = shared;" message="expected due to this annotation"
+/// @diagnostic.error id=return-not-assignable message="type 'Result<U, F>' is not assignable to the declared result type 'Result<U, E | F>'"
+/// @diagnostic.label line=3 column=12 span="result" line_source="return result;"
+/// @diagnostic.note message="the mismatch is in type argument 1 of 'Result': expected 'E | F', found 'F'"
 "#,
     );
 }

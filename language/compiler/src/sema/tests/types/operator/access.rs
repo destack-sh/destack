@@ -332,7 +332,7 @@ type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 /// @type.symbol symbol=Input.value#2 source="value: string" type=string
 
 type Value = Input["value"];
-/// @type.symbol symbol=Value source="type Value = Input[\"value\"]" type=float64 | string | undefined
+/// @type.symbol symbol=Value source="type Value = Input[\"value\"]" type=float64 | undefined | string
 /// @definition.type symbol=Value source="type Value = Input[\"value\"]" value=Input["value"]
 /// @resolution.name source=Input target=Input
 
@@ -386,7 +386,7 @@ type Input = { kind: "a"; value?: number } | { kind: "b"; value: string };
 /// @type.symbol symbol=Input.value#2 source="value: string" type=string
 
 type Value = Input["value"];
-/// @type.symbol symbol=Value source="type Value = Input[\"value\"]" type=float64 | string | undefined
+/// @type.symbol symbol=Value source="type Value = Input[\"value\"]" type=float64 | undefined | string
 /// @definition.type symbol=Value source="type Value = Input[\"value\"]" value=Input["value"]
 /// @resolution.name source=Input target=Input
 
@@ -399,7 +399,7 @@ const bad: Value = true;
 /// @diagnostic.error id=not-assignable message="type 'true' is not assignable to type 'Value'"
 /// @diagnostic.label line=5 column=20 span="true" line_source="const bad: Value = true;"
 /// @diagnostic.related line=5 column=12 span="Value" line_source="const bad: Value = true;" message="expected due to this annotation"
-/// @diagnostic.note message="'Value' reduces to 'float64 | string | undefined'"
+/// @diagnostic.note message="'Value' reduces to 'float64 | undefined | string'"
 "#,
     );
 }
@@ -512,21 +512,10 @@ type Element<T: string[]> = T[usize];
 /// @resolution.name source=T target=Element.T
 
 type Value = Element<string[]>;
-/// @type.symbol symbol=Value source="type Value = Element<string[]>" type=Element<string[]>
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="elementSlot<string, \"mutable\">" template=elementSlot arguments=(string, "mutable")
-/// @generic.instance id="initAsPointer<string, \"mutable\">" template=initAsPointer arguments=(string, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<string>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<string>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
+/// @type.symbol symbol=Value source="type Value = Element<string[]>" type=string
 /// @generic.instance id=Array<string> template=Array arguments=(string)
-/// @generic.instance id=assumeInitDrop#1<string> template=assumeInitDrop#1 arguments=(string)
-/// @generic.instance id=assumeInitDrop<string> template=assumeInitDrop arguments=(string)
-/// @generic.instance id=clear<string> template=clear arguments=(string)
-/// @generic.instance id=drop<string> template=drop arguments=(string)
-/// @generic.instance id=dropInPlace<string> template=dropInPlace arguments=(string)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<string>> template=sliceAssumeInit arguments=(MaybeUninit<string>)
 /// @generic.instance id=sliceUninit<MaybeUninit<string>> template=sliceUninit arguments=(MaybeUninit<string>)
-/// @generic.instance id=truncate<string> template=truncate arguments=(string)
 /// @definition.type symbol=Value source="type Value = Element<string[]>" value=Element<string[]>
 /// @resolution.name source=Element target=Element
 
@@ -580,7 +569,7 @@ type User = { name: string; age: int32 };
 /// @type.symbol symbol=User.age source="age: int32" type=int32
 
 type Name = ValueAt<User, "name">;
-/// @type.symbol symbol=Name source="type Name = ValueAt<User, \"name\">" type=ValueAt<User, "name">
+/// @type.symbol symbol=Name source="type Name = ValueAt<User, \"name\">" type=string
 /// @definition.type symbol=Name source="type Name = ValueAt<User, \"name\">" value=ValueAt<User, "name">
 /// @resolution.name source=ValueAt target=ValueAt
 /// @resolution.name source=User target=User
@@ -699,13 +688,13 @@ function get<K: keyof User>(user: User, key: K): User[K] {
     /// @type.node source=user type=User
     /// @type.node source=user[key] type={ readonly name: string; readonly age: int32 }[K]
     /// @resolution.name source=user target=get.user
-    /// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=user placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=user root=get.user
     /// @resolution.place source=user[key] placement="local" lifetime="managed" access="mutable"
     /// @resolution.subscript source=user[key] type={ readonly name: string; readonly age: int32 }[K] kind=member target="receiver=User, target=index(keyof { readonly name: string; readonly age: int32 }), type={ readonly name: string; readonly age: int32 }[K]"
     /// @type.node source=key type=K
     /// @resolution.name source=key target=get.key
-    /// @resolution.place source=key placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=key placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=key root=get.key
 
 }
@@ -726,7 +715,7 @@ const name = get(user, "name");
 /// @generic.instance id="get<\"name\">" template=get arguments=("name") dependents=(string)
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=user placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
 /// @type.node source="\"name\"" type="name"
 
@@ -741,7 +730,7 @@ const age = get(user, "age");
 /// @generic.instance id="get<\"age\">" template=get arguments=("age") dependents=(int32)
 /// @type.node source=user type=User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=user placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
 /// @type.node source="\"age\"" type="age"
 
@@ -749,14 +738,14 @@ name satisfies string;
 /// @type.node source="name satisfies string" type=string
 /// @type.node source=name type=string
 /// @resolution.name source=name target=name
-/// @resolution.place source=name placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=name placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=name root=name
 
 age satisfies int32;
 /// @type.node source="age satisfies int32" type=int32
 /// @type.node source=age type=int32
 /// @resolution.name source=age target=age
-/// @resolution.place source=age placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=age placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=age root=age
 "#,
     );

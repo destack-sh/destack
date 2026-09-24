@@ -35,7 +35,7 @@ const ok: Value = "ready";
 
 ok satisfies string;
 /// @resolution.name source=ok target=ok
-/// @resolution.place source=ok placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=ok placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=ok root=ok
 "#,
     );
@@ -81,11 +81,14 @@ const ok: Value = "ready";
 
 ok satisfies string;
 /// @resolution.name source=ok target=ok
-/// @resolution.place source=ok placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=ok placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=ok root=ok
 
 /// @generic.template symbol=Clone.clone parameters=('a)
-/// @type.symbol symbol=Clone.clone type=<Clone.clone.'a>(this: &Clone.clone.'a readonly Promise<string>) => ^Promise<string>
+/// @type.symbol symbol=Clone.clone type=<Clone.clone.'a>(this: &Clone.clone.'a immutable Promise<string>) => ^Promise<string>
+/// @generic.instance id=PromiseForwarded<string> template=PromiseForwarded arguments=(string)
+/// @generic.instance id=PromiseFulfilled<string> template=PromiseFulfilled arguments=(string)
+/// @generic.instance id=PromisePending<string> template=PromisePending arguments=(string)
 "#,
     );
 }
@@ -169,7 +172,7 @@ const bad: Value = promise;
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=Value target=Value
 /// @resolution.name source=promise target=promise
-/// @resolution.place source=promise placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=promise placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=promise root=promise
 "#,
         r#"

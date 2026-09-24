@@ -33,9 +33,7 @@ declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<C>> template=sliceAssumeInit arguments=(MaybeUninit<C>)
 /// @generic.instance id=sliceUninit<MaybeUninit<C>> template=sliceUninit arguments=(MaybeUninit<C>)
 /// @type.symbol symbol=choose.C source="C: string" type=C
-/// @type.symbol symbol=choose.values source="values: C[]" type=C[]
 /// @resolution.name source=C target=choose.C
-/// @type.symbol symbol=choose.fallback source="fallback?: NoInfer<C>" type=NoInfer<C> | undefined
 /// @resolution.name source=NoInfer target=NoInfer
 /// @resolution.name source=C target=choose.C
 /// @resolution.name source=C target=choose.C
@@ -47,34 +45,16 @@ const ok = choose(["red", "blue"], "red");
 /// @resolution.call source="choose([\"red\", \"blue\"], \"red\")" parameters=("red" | "blue"[], "red" | "blue" | undefined) arguments=(provided(["red", "blue"]) as "red" | "blue"[], provided("red") as "red" | "blue" | undefined) return="red" | "blue" kind=symbol target=choose instance="choose<\"red\" | \"blue\">"
 /// @generic.instantiation id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue")
 /// @generic.instance id="Array<\"red\" | \"blue\">" template=Array arguments=("red" | "blue")
-/// @generic.instance id="assumeInitDrop#1<\"red\" | \"blue\">" template=assumeInitDrop#1 arguments=("red" | "blue")
-/// @generic.instance id="assumeInitDrop<\"red\" | \"blue\">" template=assumeInitDrop arguments=("red" | "blue")
 /// @generic.instance id="choose<\"red\" | \"blue\">" template=choose arguments=("red" | "blue") dependents=(NoInfer<"red" | "blue">)
-/// @generic.instance id="clear<\"red\" | \"blue\">" template=clear arguments=("red" | "blue")
-/// @generic.instance id="drop<\"red\" | \"blue\">" template=drop arguments=("red" | "blue")
-/// @generic.instance id="dropInPlace<\"red\" | \"blue\">" template=dropInPlace arguments=("red" | "blue")
-/// @generic.instance id="elementSlot<\"red\" | \"blue\", \"mutable\">" template=elementSlot arguments=("red" | "blue", "mutable")
-/// @generic.instance id="initAsPointer<\"red\" | \"blue\", \"mutable\">" template=initAsPointer arguments=("red" | "blue", "mutable")
 /// @generic.instance id="sliceAssumeInit<MaybeUninit<\"red\" | \"blue\">>" template=sliceAssumeInit arguments=(MaybeUninit<"red" | "blue">)
-/// @generic.instance id="sliceIndex<MaybeUninit<\"red\" | \"blue\">, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<"red" | "blue">, "mutable")
 /// @generic.instance id="sliceUninit<MaybeUninit<\"red\" | \"blue\">>" template=sliceUninit arguments=(MaybeUninit<"red" | "blue">)
-/// @generic.instance id="truncate<\"red\" | \"blue\">" template=truncate arguments=("red" | "blue")
 /// @resolution.call source=["red", "blue"] parameters=(^Slice<"red" | "blue">) arguments=(rest(provided("red") as "red" | "blue", provided("blue") as "red" | "blue") as "red" | "blue") return="red" | "blue"[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<\"red\" | \"blue\">"
 /// @generic.instantiation id="arrayFromOwnedSlice<\"red\" | \"blue\">" template=arrayFromOwnedSlice arguments=("red" | "blue")
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
 /// @generic.instance id="arrayFromOwnedSlice<\"red\" | \"blue\">" template=arrayFromOwnedSlice arguments=("red" | "blue")
-/// @generic.instance id="fromOwnedSlice<\"red\" | \"blue\">" template=fromOwnedSlice arguments=("red" | "blue")
-/// @generic.instance id="intoUninit<\"red\" | \"blue\">" template=intoUninit arguments=("red" | "blue")
-/// @generic.instance id="size<\"red\" | \"blue\">" template=size arguments=("red" | "blue")
-/// @generic.instance id="sliceIntoUninit<\"red\" | \"blue\">" template=sliceIntoUninit arguments=("red" | "blue")
-/// @generic.instance id="sliceLength<\"red\" | \"blue\">" template=sliceLength arguments=("red" | "blue")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 
 ok satisfies "red" | "blue";
 /// @resolution.name source=ok target=ok
-/// @resolution.place source=ok placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=ok placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=ok root=ok
 "#,
     );
@@ -111,9 +91,7 @@ declare function choose<C: string>(values: C[], fallback: NoInfer<C>): C;
 /// @generic.template symbol=choose parameters=(C: string)
 /// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback: NoInfer<C>): C" type=<C: string>(C[], NoInfer<C>) => C
 /// @type.symbol symbol=choose.C source="C: string" type=C
-/// @type.symbol symbol=choose.values source="values: C[]" type=C[]
 /// @resolution.name source=C target=choose.C
-/// @type.symbol symbol=choose.fallback source="fallback: NoInfer<C>" type=NoInfer<C>
 /// @resolution.name source=NoInfer target=NoInfer
 /// @resolution.name source=C target=choose.C
 /// @resolution.name source=C target=choose.C
@@ -138,14 +116,14 @@ const picked = choose(values, "green");
 /// @resolution.call source="choose(values, \"green\")" parameters=("red"[], "red") arguments=(provided(values) as "red"[], provided("green") as "red") return="red" kind=symbol target=choose instance="choose<\"red\">"
 /// @generic.instantiation id="choose<\"red\">" template=choose arguments=("red")
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=values placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
 
 const reds: "red"[] = values;
 /// @type.symbol symbol=reds source=reds type="red"[]
 /// @resolution.pattern source=reds kind=binding target=reds
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=values placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
 "#,
         r#"
@@ -187,9 +165,7 @@ declare function keep<C: string>(values: C[], extras: NoInfer<C[]>): C;
 /// @generic.template symbol=keep parameters=(C: string)
 /// @type.symbol symbol=keep source="declare function keep<C: string>(values: C[], extras: NoInfer<C[]>): C" type=<C: string>(C[], NoInfer<C[]>) => C
 /// @type.symbol symbol=keep.C source="C: string" type=C
-/// @type.symbol symbol=keep.values source="values: C[]" type=C[]
 /// @resolution.name source=C target=keep.C
-/// @type.symbol symbol=keep.extras source="extras: NoInfer<C[]>" type=NoInfer<C[]>
 /// @resolution.name source=NoInfer target=NoInfer
 /// @resolution.name source=C target=keep.C
 /// @resolution.name source=C target=keep.C
@@ -214,23 +190,23 @@ const kept = keep(values, ["green"]);
 /// @resolution.call source="keep(values, [\"green\"])" parameters=("red"[], "red"[]) arguments=(provided(values) as "red"[], provided(["green"]) as "red"[]) return="red" kind=symbol target=keep instance="keep<\"red\">"
 /// @generic.instantiation id="keep<\"red\">" template=keep arguments=("red")
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=values placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
-/// @resolution.call source=["green"] parameters=(^Slice<string>) arguments=(rest(provided("green") as string) as string) return=string[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<string>
-/// @generic.instantiation id=arrayFromOwnedSlice<string> template=arrayFromOwnedSlice arguments=(string)
+/// @resolution.call source=["green"] parameters=(^Slice<"red">) arguments=(rest(provided("green") as "red") as "red") return="red"[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<\"red\">"
+/// @generic.instantiation id="arrayFromOwnedSlice<\"red\">" template=arrayFromOwnedSlice arguments=("red")
 
 const reds: "red"[] = values;
 /// @type.symbol symbol=reds source=reds type="red"[]
 /// @resolution.pattern source=reds kind=binding target=reds
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=values placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'string[]' is not assignable to parameter of type '\"red\"[]'"
-/// @diagnostic.label line=6 column=27 span="[\"green\"]" line_source="const kept = keep(values, [\"green\"]);"
+/// @diagnostic.error id=not-assignable message="type '\"green\"' is not assignable to type '\"red\"'"
+/// @diagnostic.label line=6 column=28 span="\"green\"" line_source="const kept = keep(values, [\"green\"]);"
 /// @diagnostic.related line=6 column=14 span="keep(values, [\"green\"])" line_source="const kept = keep(values, [\"green\"]);" message="in this call"
-/// @diagnostic.note message="the mismatch is in type argument 0 of 'Array': expected '\"red\"', found 'string'"
+/// @diagnostic.note message="the mismatch is in element 0"
 "#,
     );
 }
@@ -261,7 +237,6 @@ declare function first<T, U = string>(value: (T, NoInfer<U>)): T;
 /// @type.symbol symbol=first source="declare function first<T, U = string>(value: (T, NoInfer<U>)): T" type=<T, U = string>((T, NoInfer<U>)) => T
 /// @type.symbol symbol=first.T source=T type=T
 /// @type.symbol symbol=first.U source="U = string" type=U
-/// @type.symbol symbol=first.value source="value: (T, NoInfer<U>)" type=(T, NoInfer<U>)
 /// @resolution.name source=T target=first.T
 /// @resolution.name source=NoInfer target=NoInfer
 /// @resolution.name source=U target=first.U
@@ -309,11 +284,9 @@ const reds: "red"[] = seeds;
 === dir ===
 declare function on<T>(seeds: T[], callback: NoInfer<(value: T) => void>): void;
 /// @generic.template symbol=on parameters=(T#1)
-/// @type.symbol symbol=on source="declare function on<T>(seeds: T[], callback: NoInfer<(value: T) => void>): void" type=<T#1>(T#1[], NoInfer<Function<(T#1,), void>>) => void
+/// @type.symbol symbol=on source="declare function on<T>(seeds: T[], callback: NoInfer<(value: T) => void>): void" type=<T#1>(T#1[], NoInfer<(T#1) => void>) => void
 /// @type.symbol symbol=on.T source=T type=T#1
-/// @type.symbol symbol=on.seeds source="seeds: T[]" type=T#1[]
 /// @resolution.name source=T target=on.T
-/// @type.symbol symbol=on.callback source="callback: NoInfer<(value: T) => void>" type=NoInfer<Function<(T#1,), void>>
 /// @resolution.name source=NoInfer target=NoInfer
 /// @type.symbol symbol=on.value source="value: T" type=T#1
 /// @resolution.name source=T target=on.T
@@ -333,10 +306,10 @@ const seeds = make();
 
 on(seeds, (value) => {});
 /// @resolution.name source=on target=on
-/// @resolution.call source="on(seeds, (value) => {})" parameters=("red"[], Function<("red",), void>) arguments=(provided(seeds) as "red"[], provided((value) => {}) as Function<("red",), void>) return=void kind=symbol target=on instance="on<\"red\">"
+/// @resolution.call source="on(seeds, (value) => {})" parameters=("red"[], ("red") => void) arguments=(provided(seeds) as "red"[], provided((value) => {}) as ("red") => void) return=void kind=symbol target=on instance="on<\"red\">"
 /// @generic.instantiation id="on<\"red\">" template=on arguments=("red")
 /// @resolution.name source=seeds target=seeds
-/// @resolution.place source=seeds placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=seeds placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=seeds root=seeds
 /// @type.symbol symbol=symbol9 source="(value) => {}" type=Function<("red",), void, "readonly">
 /// @type.symbol symbol=symbol9.value source=value type="red"
@@ -345,7 +318,7 @@ const reds: "red"[] = seeds;
 /// @type.symbol symbol=reds source=reds type="red"[]
 /// @resolution.pattern source=reds kind=binding target=reds
 /// @resolution.name source=seeds target=seeds
-/// @resolution.place source=seeds placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=seeds placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=seeds root=seeds
 "#,
         r#"
@@ -379,9 +352,7 @@ declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C;
 /// @generic.template symbol=choose parameters=(C: string)
 /// @type.symbol symbol=choose source="declare function choose<C: string>(values: C[], fallback?: NoInfer<C>): C" type=<C: string>(C[], NoInfer<C> | undefined?) => C
 /// @type.symbol symbol=choose.C source="C: string" type=C
-/// @type.symbol symbol=choose.values source="values: C[]" type=C[]
 /// @resolution.name source=C target=choose.C
-/// @type.symbol symbol=choose.fallback source="fallback?: NoInfer<C>" type=NoInfer<C> | undefined
 /// @resolution.name source=NoInfer target=NoInfer
 /// @resolution.name source=C target=choose.C
 /// @resolution.name source=C target=choose.C

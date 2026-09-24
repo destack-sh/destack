@@ -55,9 +55,7 @@ extension of Recursive implements Dereference {
 /// @definition.extension symbol=<module>#2 form=local target=Recursive
 /// @definition.implements symbol=<module>#2 source=Dereference target=Dereference
 /// @definition.associated.type symbol=Output source="type Output = Recursive" key=Output value=Recursive
-/// @definition.method symbol=dereference slot=dereference type=<dereference.'a>(this: &dereference.'a readonly this) => &dereference.'a readonly Recursive
-/// @definition.conformance symbol=<module>#2 member=Output requirement=Dereference.Output
-/// @definition.conformance symbol=<module>#2 member=dereference requirement=Dereference.dereference
+/// @definition.method symbol=dereference slot=dereference type=<dereference.'a>(this: &dereference.'a readonly Recursive) => &dereference.'a readonly Recursive
 /// @resolution.name source=Recursive target=Recursive
 /// @resolution.name source=Dereference target=Dereference
 
@@ -67,8 +65,8 @@ extension of Recursive implements Dereference {
 
     dereference(&readonly this): &readonly Recursive {
     /// @generic.template symbol=dereference parent=template#0 parameters=('a)
-    /// @type.symbol symbol=dereference type=<dereference.'a>(this: &dereference.'a readonly this) => &dereference.'a readonly Recursive
-    /// @type.symbol symbol=dereference.this source="&readonly this" type=&dereference.'a readonly this
+    /// @type.symbol symbol=dereference type=<dereference.'a>(this: &dereference.'a readonly Recursive) => &dereference.'a readonly Recursive
+    /// @type.symbol symbol=dereference.this source="&readonly this" type=&dereference.'a readonly Recursive
     /// @resolution.name source=Recursive target=Recursive
 
         this
@@ -88,15 +86,15 @@ const missing = value.missing;
 /// @type.symbol symbol=missing source=missing type=<error>
 /// @resolution.pattern source=missing kind=binding target=missing
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 /// @resolution.rejected source=value.missing
 "#,
         r#"
-/// @diagnostic.error id=dereference-depth-exceeded message="dereferencing 'Recursive' exceeds the depth limit of 8"
-/// @diagnostic.label line=16 column=23 span="missing" line_source="const missing = value.missing;"
 /// @diagnostic.error id=missing-member message="member 'missing' does not exist on type 'Recursive'"
 /// @diagnostic.label line=16 column=23 span="missing" line_source="const missing = value.missing;"
+/// @diagnostic.error id=interface-not-implemented message="type 'Recursive' does not implement interface 'Dereference'"
+/// @diagnostic.label line=6 column=35 span="Dereference" line_source="extension of Recursive implements Dereference {"
 "#,
     );
 }
@@ -151,7 +149,7 @@ const x = point.x;
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
-/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 /// @resolution.access source=point.x root=point keys=[x]
 "#,
@@ -189,7 +187,7 @@ struct Point {
 }
 
 const point: Point = Point { x: 1 };
-const length: int32 = point.length();
+const length: int32 = point.length<"static">();
 
 === dir ===
 struct Point {
@@ -204,7 +202,7 @@ struct Point {
     length(&readonly this): int32 {
     /// @generic.template symbol=Point.length parameters=('a)
     /// @type.symbol symbol=Point.length type=<Point.length.'a>(this: &Point.length.'a readonly Point) => int32
-    /// @type.symbol symbol=Point.length.this source="&readonly this" type=&Point.length.'a readonly this
+    /// @type.symbol symbol=Point.length.this source="&readonly this" type=&Point.length.'a readonly Point
 
         return this.x;
         /// @type.node source=this type=&Point.length.'a readonly Point
@@ -234,9 +232,11 @@ const length = point.length();
 /// @type.node source=point.length() type=int32
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.length receiver=Point type=<Point.length.'a>(this: &Point.length.'a readonly Point) => int32 kind=symbol target_receiver=Point target=Point.length
-/// @resolution.call source=point.length() parameters=() return=int32 regions=("static" & "constant") kind=symbol target=Point.length receiver=Point adjustments=(borrow(&'static readonly constant Point))
-/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
+/// @resolution.call source=point.length() parameters=() return=int32 regions=("static" & "local") kind=symbol target=Point.length receiver=Point adjustments=(borrow(&'static readonly Point)) instance="Point.length<\"static\" & \"local\">"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
+/// @generic.instantiation id="Point.length<\"static\" & \"local\">" template=Point.length arguments=("static" & "local")
+/// @generic.instance id="Point.length<\"bound0\" & \"local\">" template=Point.length arguments=("bound0" & "local")
 "#,
     );
 }
@@ -290,7 +290,7 @@ const x = point.x;
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.x receiver=geometry.Point type=int32 kind=field target_receiver=geometry.Point key=x target=geometry.Point.x target_type=int32
-/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=point placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=point root=point
 /// @resolution.access source=point.x root=point keys=[x]
 "#,
@@ -318,31 +318,13 @@ const length: isize = values.length;
 let values: int32[] = [];
 /// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
-/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
-/// @generic.instance id=clear<int32> template=clear arguments=(int32)
-/// @generic.instance id=drop<int32> template=drop arguments=(int32)
-/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 /// @type.node source=[] type=int32[]
 /// @resolution.call source=[] parameters=(^Slice<int32>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id=fromOwnedSlice<int32> template=fromOwnedSlice arguments=(int32)
-/// @generic.instance id=intoUninit<int32> template=intoUninit arguments=(int32)
-/// @generic.instance id=size<int32> template=size arguments=(int32)
-/// @generic.instance id=sliceIntoUninit<int32> template=sliceIntoUninit arguments=(int32)
-/// @generic.instance id=sliceLength<int32> template=sliceLength arguments=(int32)
 
 const length = values.length;
 /// @type.symbol symbol=length source=length type=isize
@@ -351,10 +333,10 @@ const length = values.length;
 /// @type.node source=values.length type=isize
 /// @resolution.name source=values target=values
 /// @resolution.member source=values.length receiver=int32[] type=isize kind=call target="length(parameters=(), arguments=(), return=isize, regions=(\"managed\" & \"local\"))"
-/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
-/// @generic.instantiation id=length<int32> template=length arguments=(int32)
-/// @generic.instance id=length<int32> template=length arguments=(int32)
+/// @generic.instantiation id="length<int32, \"managed\" & \"local\">" template=length arguments=(int32, "managed" & "local")
+/// @generic.instance id="length<int32, \"bound0\" & \"local\">" template=length arguments=(int32, "bound0" & "local")
 "#,
     );
 }
@@ -397,24 +379,13 @@ const length = values.length;
 /// @type.node source=values.length type=isize
 /// @resolution.name source=values target=values.values
 /// @resolution.member source=values.length receiver=int32[] type=isize kind=call target="length(parameters=(), arguments=(), return=isize, regions=(\"managed\" & \"local\"))"
-/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=values placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values.values
-/// @generic.instantiation id=length<int32> template=length arguments=(int32)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
-/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
+/// @generic.instantiation id="length<int32, \"managed\" & \"local\">" template=length arguments=(int32, "managed" & "local")
+/// @generic.instance id="length<int32, \"bound0\" & \"local\">" template=length arguments=(int32, "bound0" & "local")
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
-/// @generic.instance id=clear<int32> template=clear arguments=(int32)
-/// @generic.instance id=drop<int32> template=drop arguments=(int32)
-/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
-/// @generic.instance id=length<int32> template=length arguments=(int32)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 "#,
     );
 }
@@ -469,9 +440,9 @@ function read(): int32 {
     /// @type.node source=state.value type=int32
     /// @resolution.name source=state target=state
     /// @resolution.member source=state.value receiver=State type=int32 kind=field target_receiver=State key=value target=State.value target_type=int32
-    /// @resolution.place source=state placement="constant" lifetime="static" access="readonly"
+    /// @resolution.place source=state placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=state root=state
-    /// @resolution.place source=state.value placement="constant" lifetime="static" access="readonly"
+    /// @resolution.place source=state.value placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=state.value root=state keys=[value]
 
 }
@@ -501,35 +472,19 @@ values.push(1);
         r#"
 === annotated ===
 let values: int32[] = [];
-values.push<int32>(1);
+values.push<int32, "managed">(1);
 
 === dir ===
 let values: int32[] = [];
 /// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
-/// @generic.instance id=clear<int32> template=clear arguments=(int32)
-/// @generic.instance id=drop<int32> template=drop arguments=(int32)
-/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 /// @type.node source=[] type=int32[]
 /// @resolution.call source=[] parameters=(^Slice<int32>) arguments=(rest() as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id=fromOwnedSlice<int32> template=fromOwnedSlice arguments=(int32)
-/// @generic.instance id=intoUninit<int32> template=intoUninit arguments=(int32)
-/// @generic.instance id=size<int32> template=size arguments=(int32)
-/// @generic.instance id=sliceIntoUninit<int32> template=sliceIntoUninit arguments=(int32)
-/// @generic.instance id=sliceLength<int32> template=sliceLength arguments=(int32)
 
 values.push(1);
 /// @type.node source=values type=int32[]
@@ -537,21 +492,12 @@ values.push(1);
 /// @type.node source=values.push(1) type=isize
 /// @resolution.name source=values target=values
 /// @resolution.member source=values.push receiver=int32[] type=<push.'a>(this: &push.'a int32[], ...int32[]) => isize kind=symbol target_receiver=int32[] target=push
-/// @resolution.call source=values.push(1) parameters=(int32[]) arguments=(rest(provided(1) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(Borrowed<int32[], "managed" & "local", "mutable">)) instance=Array<int32>.<extension#6>.push
-/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+/// @resolution.call source=values.push(1) parameters=(int32[]) arguments=(rest(provided(1) as int32) pack=arrayFromOwnedSlice as int32) return=isize regions=("managed" & "local") kind=symbol target=push receiver=int32[] adjustments=(borrow(&'managed int32[])) instance="Array<int32>.<extension#6>.push<\"managed\" & \"local\">"
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
+/// @generic.instantiation id="push<int32, \"managed\" & \"local\">" template=push arguments=(int32, "managed" & "local")
 /// @generic.instantiation id=push<int32> template=push arguments=(int32)
-/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
-/// @generic.instance id=append<int32> template=append arguments=(int32)
-/// @generic.instance id=assumeInitRead#1<int32> template=assumeInitRead#1 arguments=(int32)
-/// @generic.instance id=assumeInitRead<int32> template=assumeInitRead arguments=(int32)
-/// @generic.instance id=initWrite<int32> template=initWrite arguments=(int32)
-/// @generic.instance id=push<int32> template=push arguments=(int32)
-/// @generic.instance id=reserve<int32> template=reserve arguments=(int32)
-/// @generic.instance id=sliceUninit<int32> template=sliceUninit arguments=(int32)
-/// @generic.instance id=uninit<int32> template=uninit arguments=(int32)
-/// @generic.instance id=write<int32> template=write arguments=(int32)
+/// @generic.instance id="push<int32, \"bound0\" & \"local\">" template=push arguments=(int32, "bound0" & "local")
 /// @type.node source=1 type=1
 "#,
     );
@@ -596,7 +542,7 @@ function pending(): int32 {
 
     return value.field;
     /// @resolution.name source=value target=pending.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=pending.value
     /// @resolution.rejected source=value.field
 
@@ -629,7 +575,7 @@ const second = handler.run(2);
         r#"
 === annotated ===
 struct Handler {
-    readonly run: Function<(int32,), int32, "readonly">;
+    readonly run: (arg0: int32) => int32;
 }
 
 const handler: Handler = Handler { run: (value: int32): int32 => value };
@@ -644,7 +590,6 @@ struct Handler {
 
     readonly run: Function<(int32,), int32, "readonly">;
     /// @type.symbol symbol=Handler.run source="readonly run: Function<(int32,), int32, \"readonly\">" type=Function<(int32,), int32, "readonly">
-    /// @generic.instance id="Function<(int32,), int32, \"readonly\">" template=Function arguments=((int32,), int32, "readonly")
     /// @resolution.name source=Function target=Function
 
 }
@@ -659,7 +604,7 @@ const handler = Handler { run: (value) => value };
 /// @type.symbol symbol=symbol4.value source=value type=int32
 /// @type.node source=value type=int32
 /// @resolution.name source=value target=symbol4.value
-/// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=value root=symbol4.value
 
 const first = handler.run(1);
@@ -671,9 +616,9 @@ const first = handler.run(1);
 /// @resolution.name source=handler target=handler
 /// @resolution.member source=handler.run receiver=Handler type=Function<(int32,), int32, "readonly"> kind=field target_receiver=Handler key=run target=Handler.run target_type=Function<(int32,), int32, "readonly">
 /// @resolution.call source=handler.run(1) parameters=(int32) arguments=(provided(1) as int32) return=int32 kind=expression target=expression
-/// @resolution.place source=handler placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=handler placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=handler root=handler
-/// @resolution.place source=handler.run placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=handler.run placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=handler.run root=handler keys=[run]
 /// @type.node source=1 type=1
 
@@ -686,68 +631,11 @@ const second = handler.run(2);
 /// @resolution.name source=handler target=handler
 /// @resolution.member source=handler.run receiver=Handler type=Function<(int32,), int32, "readonly"> kind=field target_receiver=Handler key=run target=Handler.run target_type=Function<(int32,), int32, "readonly">
 /// @resolution.call source=handler.run(2) parameters=(int32) arguments=(provided(2) as int32) return=int32 kind=expression target=expression
-/// @resolution.place source=handler placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=handler placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=handler root=handler
-/// @resolution.place source=handler.run placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=handler.run placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=handler.run root=handler keys=[run]
 /// @type.node source=2 type=2
-"#,
-    );
-}
-
-#[test]
-fn test_struct_member_access_selects_declared_field() {
-    let session = TestSession::single(
-        r#"
-struct Point {
-    x: int32;
-}
-
-const point = Point { x: 1 };
-const x = point.x;
-"#,
-    );
-
-    session.assert_dir(
-        "main.ds",
-        DirRows::checked().with_reference_types(),
-        r#"
-=== annotated ===
-struct Point {
-    x: int32;
-}
-
-const point: Point = Point { x: 1 };
-const x: int32 = point.x;
-
-=== dir ===
-struct Point {
-/// @type.symbol symbol=Point type=Point
-/// @definition.struct symbol=Point
-/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
-
-    x: int32;
-    /// @type.symbol symbol=Point.x source="x: int32" type=int32
-
-}
-
-const point = Point { x: 1 };
-/// @type.symbol symbol=point source=point type=Point
-/// @resolution.pattern source=point kind=binding target=point
-/// @type.node source="Point { x: 1 }" type=Point
-/// @resolution.name source=Point target=Point
-/// @type.node source=1 type=1
-
-const x = point.x;
-/// @type.symbol symbol=x source=x type=int32
-/// @resolution.pattern source=x kind=binding target=x
-/// @type.node source=point type=Point
-/// @type.node source=point.x type=int32
-/// @resolution.name source=point target=point
-/// @resolution.member source=point.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
-/// @resolution.place source=point placement="constant" lifetime="static" access="readonly"
-/// @resolution.access source=point root=point
-/// @resolution.access source=point.x root=point keys=[x]
 "#,
     );
 }
@@ -783,12 +671,11 @@ const log = logger.log;
 class Logger {
 /// @type.symbol symbol=Logger type=typeof Logger
 /// @definition.class symbol=Logger
-/// @definition.method symbol=Logger.log source="log(message: string): void {}" slot=log type=<Logger.log.P0: Place>(this: Managed<this, Logger.log.P0>, string) => void
+/// @definition.method symbol=Logger.log source="log(message: string): void {}" slot=log type=(this: Logger, string) => void
 
     log(message: string): void {}
-    /// @generic.template symbol=Logger.log parameters=(P0: Place)
-    /// @type.symbol symbol=Logger.log source="log(message: string): void {}" type=<Logger.log.P0: Place>(this: Managed<this, Logger.log.P0>, string) => void
-    /// @type.symbol symbol=Logger.log.this type=Managed<Logger, Logger.log.P0>
+    /// @type.symbol symbol=Logger.log source="log(message: string): void {}" type=(this: Logger, string) => void
+    /// @type.symbol symbol=Logger.log.this type=Logger
     /// @type.symbol symbol=Logger.log.message source="message: string" type=string
 
 }
@@ -802,7 +689,7 @@ const log = logger.log;
 /// @type.symbol symbol=log source=log type=<error>
 /// @resolution.pattern source=log kind=binding target=log
 /// @resolution.name source=logger target=logger
-/// @resolution.place source=logger placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=logger placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=logger root=logger
 /// @resolution.rejected source=logger.log
 "#,
@@ -849,12 +736,12 @@ const chosen: int32 = store.pick<int32>(3);
 class Store {
 /// @type.symbol symbol=Store type=typeof Store
 /// @definition.class symbol=Store
-/// @definition.method symbol=Store.pick slot=pick type=<T, Store.pick.P1: Place>(this: Managed<Store, Store.pick.P1>, T) => T
+/// @definition.method symbol=Store.pick slot=pick type=<T>(this: Store, T) => T
 
     pick<T>(value: T): T {
-    /// @generic.template symbol=Store.pick parameters=(T, P1: Place)
-    /// @type.symbol symbol=Store.pick type=<T, Store.pick.P1: Place>(this: Managed<Store, Store.pick.P1>, T) => T
-    /// @type.symbol symbol=Store.pick.this type=Managed<Store, Store.pick.P1>
+    /// @generic.template symbol=Store.pick parameters=(T)
+    /// @type.symbol symbol=Store.pick type=<T>(this: Store, T) => T
+    /// @type.symbol symbol=Store.pick.this type=Store
     /// @type.symbol symbol=Store.pick.T source=T type=T
     /// @type.symbol symbol=Store.pick.value source="value: T" type=T
     /// @resolution.name source=T target=Store.pick.T
@@ -862,7 +749,7 @@ class Store {
 
         return value;
         /// @resolution.name source=value target=Store.pick.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=Store.pick.value
 
     }
@@ -877,12 +764,12 @@ const chosen = store.pick<int32>(3);
 /// @type.symbol symbol=chosen source=chosen type=int32
 /// @resolution.pattern source=chosen kind=binding target=chosen
 /// @resolution.name source=store target=store
-/// @resolution.member source=store.pick receiver=Store type=<T, Store.pick.P1: Place>(this: Managed<Store, Store.pick.P1>, T) => T kind=symbol target_receiver=Store target=Store.pick
-/// @resolution.call source=store.pick<int32>(3) parameters=(int32) arguments=(provided(3) as int32) return=int32 kind=symbol target=Store.pick receiver=Store instance="Store.pick<int32, \"local\">"
-/// @resolution.place source=store placement="local" lifetime="managed" access="mutable"
+/// @resolution.member source=store.pick receiver=Store type=<T>(this: Store, T) => T kind=symbol target_receiver=Store target=Store.pick
+/// @resolution.call source=store.pick<int32>(3) parameters=(int32) arguments=(provided(3) as int32) return=int32 kind=symbol target=Store.pick receiver=Store instance=Store.pick<int32>
+/// @resolution.place source=store placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=store root=store
-/// @generic.instantiation id="Store.pick<int32, \"local\">" template=Store.pick arguments=(int32, "local")
-/// @generic.instance id="Store.pick<int32, \"local\">" template=Store.pick arguments=(int32, "local")
+/// @generic.instantiation id=Store.pick<int32> template=Store.pick arguments=(int32)
+/// @generic.instance id=Store.pick<int32> template=Store.pick arguments=(int32)
 "#,
     );
 }
@@ -906,7 +793,7 @@ function render(): void {
 === annotated ===
 function render(): void {
     let x: int64 = 5;
-    x.toFixed(1 as float64 | undefined);
+    x.toFixed<int64>(1 as float64 | undefined);
 }
 
 === dir ===
@@ -919,16 +806,15 @@ function render(): void {
     /// @type.node source=5 type=5
 
     x.toFixed(1);
-    /// @type.node source=x.toFixed type=<Number.toFixed.'a>(this: &Number.toFixed.'a readonly int64, float64 | undefined?) => Cow<Number.toFixed.'a, string>
-    /// @type.node source=x.toFixed(1) type=MaybeOwned<"frame" & "local", string>
+    /// @type.node source=x.toFixed type=(this: int64, float64 | undefined?) => ^string
+    /// @type.node source=x.toFixed(1) type=^string
     /// @resolution.name source=x target=render.x
-    /// @resolution.member source=x.toFixed receiver=int64 type=<Number.toFixed.'a>(this: &Number.toFixed.'a readonly int64, float64 | undefined?) => MaybeOwned<Number.toFixed.'a, string> kind=symbol target_receiver=int64 target=Number.toFixed
-    /// @resolution.call source=x.toFixed(1) parameters=(float64 | undefined) arguments=(provided(1) as float64 | undefined) return=MaybeOwned<"frame" & "local", string> regions=("frame" & "local") kind=symbol target=Number.toFixed receiver=int64 adjustments=(borrow(&'frame readonly int64))
-    /// @resolution.place source=x placement="local" lifetime="frame" access="mutable"
+    /// @resolution.member source=x.toFixed receiver=int64 type=(this: int64, float64 | undefined?) => ^string kind=symbol target_receiver=int64 target=toFixed
+    /// @resolution.call source=x.toFixed(1) parameters=(float64 | undefined) arguments=(provided(1) as float64 | undefined) return=^string kind=symbol target=toFixed receiver=int64 instance=int64.<extension#1>.toFixed
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=x root=render.x
-    /// @generic.instance id="CowBorrowed<&'bound0 readonly string>" template=CowBorrowed arguments=(&'bound0 readonly string)
-    /// @generic.instance id=Cow<string> template=Cow arguments=(string)
-    /// @generic.instance id=CowOwned<^string> template=CowOwned arguments=(^string)
+    /// @generic.instantiation id=toFixed<int64> template=toFixed arguments=(int64)
+    /// @generic.instance id=toFixed<int64> template=toFixed arguments=(int64)
     /// @type.node source=1 type=1
 
 }
@@ -955,7 +841,7 @@ function render(): void {
 === annotated ===
 function render(): void {
     let x: float64 = 1.5;
-    x.toFixed(1 as float64 | undefined);
+    x.toFixed<float64>(1 as float64 | undefined);
 }
 
 === dir ===
@@ -968,16 +854,15 @@ function render(): void {
     /// @type.node source=1.5 type=1.5
 
     x.toFixed(1);
-    /// @type.node source=x.toFixed type=<Number.toFixed.'a>(this: &Number.toFixed.'a readonly float64, float64 | undefined?) => Cow<Number.toFixed.'a, string>
-    /// @type.node source=x.toFixed(1) type=MaybeOwned<"frame" & "local", string>
+    /// @type.node source=x.toFixed type=(this: float64, float64 | undefined?) => ^string
+    /// @type.node source=x.toFixed(1) type=^string
     /// @resolution.name source=x target=render.x
-    /// @resolution.member source=x.toFixed receiver=float64 type=<Number.toFixed.'a>(this: &Number.toFixed.'a readonly float64, float64 | undefined?) => MaybeOwned<Number.toFixed.'a, string> kind=symbol target_receiver=float64 target=Number.toFixed
-    /// @resolution.call source=x.toFixed(1) parameters=(float64 | undefined) arguments=(provided(1) as float64 | undefined) return=MaybeOwned<"frame" & "local", string> regions=("frame" & "local") kind=symbol target=Number.toFixed receiver=float64 adjustments=(borrow(&'frame readonly float64))
-    /// @resolution.place source=x placement="local" lifetime="frame" access="mutable"
+    /// @resolution.member source=x.toFixed receiver=float64 type=(this: float64, float64 | undefined?) => ^string kind=symbol target_receiver=float64 target=toFixed
+    /// @resolution.call source=x.toFixed(1) parameters=(float64 | undefined) arguments=(provided(1) as float64 | undefined) return=^string kind=symbol target=toFixed receiver=float64 instance=float64.<extension#1>.toFixed
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=x root=render.x
-    /// @generic.instance id="CowBorrowed<&'bound0 readonly string>" template=CowBorrowed arguments=(&'bound0 readonly string)
-    /// @generic.instance id=Cow<string> template=Cow arguments=(string)
-    /// @generic.instance id=CowOwned<^string> template=CowOwned arguments=(^string)
+    /// @generic.instantiation id=toFixed<float64> template=toFixed arguments=(float64)
+    /// @generic.instance id=toFixed<float64> template=toFixed arguments=(float64)
     /// @type.node source=1 type=1
 
 }
@@ -1022,7 +907,7 @@ function wide(value: int64): int64 {
 
     return value;
     /// @resolution.name source=value target=wide.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=wide.value
 
 }
@@ -1040,7 +925,7 @@ function feed(): int64 {
     /// @resolution.name source=wide target=wide
     /// @resolution.call source=wide(x) parameters=(int64) arguments=(provided(x) as int64) return=int64 kind=symbol target=wide
     /// @resolution.name source=x target=feed.x
-    /// @resolution.place source=x placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=x root=feed.x
 
 }
@@ -1080,7 +965,7 @@ function render(): void {
 
     x.toFixd(1);
     /// @resolution.name source=x target=render.x
-    /// @resolution.place source=x placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=x placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=x root=render.x
     /// @resolution.rejected source=x.toFixd
     /// @resolution.rejected source=x.toFixd(1)

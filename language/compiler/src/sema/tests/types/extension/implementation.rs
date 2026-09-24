@@ -53,10 +53,10 @@ newtype interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show template=(this: Show) nominal=true
 /// @definition.where symbol=Show relation=satisfies left=this right=Show
-/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
+/// @definition.method symbol=Show.show source="show(): string" slot=show type=() => string
 
     show(): string;
-    /// @type.symbol symbol=Show.show source="show(): string" type=(this: this) => string
+    /// @type.symbol symbol=Show.show source="show(): string" type=() => string
 
 }
 
@@ -67,14 +67,14 @@ struct User {}
 extension of User implements Show {
 /// @definition.extension symbol=<module>#2 form=local target=User
 /// @definition.implements symbol=<module>#2 source=Show target=Show
-/// @definition.method symbol=show#1 slot=show type=<show#1.'a>(this: &show#1.'a readonly this) => string
+/// @definition.method symbol=show#1 slot=show type=<show#1.'a>(this: &show#1.'a readonly User) => string
 /// @definition.conformance symbol=<module>#2 member=show#1 requirement=Show.show
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
     show(): string {
     /// @generic.template symbol=show#1 parent=template#1 parameters=('a)
-    /// @type.symbol symbol=show#1 type=<show#1.'a>(this: &show#1.'a readonly this) => string
+    /// @type.symbol symbol=show#1 type=<show#1.'a>(this: &show#1.'a readonly User) => string
     /// @type.symbol symbol=show.this#1 type=&show#1.'a readonly User
 
         return "user";
@@ -84,14 +84,14 @@ extension of User implements Show {
 extension of User implements Show {
 /// @definition.extension symbol=<module>#3 form=local target=User
 /// @definition.implements symbol=<module>#3 source=Show target=Show
-/// @definition.method symbol=show#2 slot=show type=<show#2.'a>(this: &show#2.'a readonly this) => string
+/// @definition.method symbol=show#2 slot=show type=<show#2.'a>(this: &show#2.'a readonly User) => string
 /// @definition.conformance symbol=<module>#3 member=show#2 requirement=Show.show
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
     show(): string {
     /// @generic.template symbol=show#2 parent=template#2 parameters=('a)
-    /// @type.symbol symbol=show#2 type=<show#2.'a>(this: &show#2.'a readonly this) => string
+    /// @type.symbol symbol=show#2 type=<show#2.'a>(this: &show#2.'a readonly User) => string
     /// @type.symbol symbol=show.this#2 type=&show#2.'a readonly User
 
         return "debug";
@@ -139,10 +139,10 @@ newtype interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show template=(this: Show) nominal=true
 /// @definition.where symbol=Show relation=satisfies left=this right=Show
-/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
+/// @definition.method symbol=Show.show source="show(): string" slot=show type=() => string
 
     show(): string;
-    /// @type.symbol symbol=Show.show source="show(): string" type=(this: this) => string
+    /// @type.symbol symbol=Show.show source="show(): string" type=() => string
 
 }
 
@@ -212,10 +212,10 @@ newtype interface Named {
 /// @type.symbol symbol=Named type=Named
 /// @definition.interface symbol=Named template=(this: Named) nominal=true
 /// @definition.where symbol=Named relation=satisfies left=this right=Named
-/// @definition.method symbol=Named.name source="name(): string" slot=name type=(this: this) => string
+/// @definition.method symbol=Named.name source="name(): string" slot=name type=() => string
 
     name(): string;
-    /// @type.symbol symbol=Named.name source="name(): string" type=(this: this) => string
+    /// @type.symbol symbol=Named.name source="name(): string" type=() => string
 
 }
 
@@ -225,11 +225,11 @@ newtype interface Show extends Named {
 /// @definition.interface symbol=Show template=(this: Show) nominal=true
 /// @definition.where symbol=Show relation=satisfies left=this right=Show
 /// @definition.extends symbol=Show source=Named target=Named
-/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
+/// @definition.method symbol=Show.show source="show(): string" slot=show type=() => string
 /// @resolution.name source=Named target=Named
 
     show(): string;
-    /// @type.symbol symbol=Show.show source="show(): string" type=(this: this) => string
+    /// @type.symbol symbol=Show.show source="show(): string" type=() => string
 
 }
 
@@ -240,13 +240,13 @@ struct User {}
 extension of User implements Show {
 /// @definition.extension symbol=<module>#2 form=local target=User
 /// @definition.implements symbol=<module>#2 source=Show target=Show
-/// @definition.method symbol=show slot=show type=<show.'a>(this: &show.'a readonly this) => string
+/// @definition.method symbol=show slot=show type=<show.'a>(this: &show.'a readonly User) => string
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
     show(): string {
     /// @generic.template symbol=show parent=template#2 parameters=('a)
-    /// @type.symbol symbol=show type=<show.'a>(this: &show.'a readonly this) => string
+    /// @type.symbol symbol=show type=<show.'a>(this: &show.'a readonly User) => string
     /// @type.symbol symbol=show.this type=&show.'a readonly User
 
         return "user";
@@ -318,11 +318,11 @@ newtype interface PartialEqual<T = this> {
 /// @generic.instance id=PartialEqual<this> template=PartialEqual arguments=(this)
 /// @definition.interface symbol=PartialEqual template=(in T#1 = this, this: PartialEqual<T#1>) nominal=true
 /// @definition.where symbol=PartialEqual relation=satisfies left=this right=PartialEqual<T#1>
-/// @definition.method symbol=PartialEqual.equal source="equal(other: T): boolean" slot=equal type=(this: this, T#1) => boolean
+/// @definition.method symbol=PartialEqual.equal source="equal(other: T): boolean" slot=equal type=(T#1) => boolean
 /// @type.symbol symbol=PartialEqual.T source="T = this" type=T#1
 
     equal(other: T): boolean;
-    /// @type.symbol symbol=PartialEqual.equal source="equal(other: T): boolean" type=(this: this, T#1) => boolean
+    /// @type.symbol symbol=PartialEqual.equal source="equal(other: T): boolean" type=(T#1) => boolean
     /// @type.symbol symbol=PartialEqual.equal.other source="other: T" type=T#1
     /// @resolution.name source=T target=PartialEqual.T
 
@@ -383,15 +383,13 @@ function compare<T: PartialEqual<T>>(left: T, right: T): boolean {
 
     left.equal(right)
     /// @resolution.name source=left target=compare.left
-    /// @resolution.member source=left.equal receiver=T#3 type=(this: T#3, T#3) => boolean kind=symbol target_receiver=T#3 target=PartialEqual.equal
+    /// @resolution.member source=left.equal receiver=T#3 type=(T#3) => boolean kind=symbol target_receiver=T#3 target=PartialEqual.equal
     /// @resolution.call source=left.equal(right) parameters=(T#3) arguments=(provided(right) as T#3) return=boolean kind=symbol target=PartialEqual.equal receiver=T#3 instance=PartialEqual<T#3>.equal
-    /// @resolution.place source=left placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=left placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=left root=compare.left
-    /// @generic.instantiation id="PartialEqual.equal<T#3, T#3>" template=PartialEqual.equal arguments=(T#3) owner=compare
     /// @generic.instantiation id=PartialEqual.equal<T#3> template=PartialEqual.equal arguments=(T#3) owner=compare
-    /// @generic.instance id="PartialEqual.equal<T#3, T#3>" template=PartialEqual.equal arguments=(T#3)
     /// @resolution.name source=right target=compare.right
-    /// @resolution.place source=right placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=right placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=right root=compare.right
 
 }
@@ -496,10 +494,10 @@ interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show template=(this: Show)
 /// @definition.where symbol=Show relation=satisfies left=this right=Show
-/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
+/// @definition.method symbol=Show.show source="show(): string" slot=show type=() => string
 
     show(): string;
-    /// @type.symbol symbol=Show.show source="show(): string" type=(this: this) => string
+    /// @type.symbol symbol=Show.show source="show(): string" type=() => string
 
 }
 type Alias = Show;
@@ -509,13 +507,13 @@ type Alias = Show;
 
 extension of User implements Alias {
 /// @definition.extension symbol=<module>#2 form=local target=User
-/// @definition.method symbol=show slot=show type=<show.'a>(this: &show.'a readonly this) => string
+/// @definition.method symbol=show slot=show type=<show.'a>(this: &show.'a readonly User) => string
 /// @resolution.name source=User target=User
 /// @resolution.name source=Alias target=Alias
 
     show(): string {
     /// @generic.template symbol=show parent=template#1 parameters=('a)
-    /// @type.symbol symbol=show type=<show.'a>(this: &show.'a readonly this) => string
+    /// @type.symbol symbol=show type=<show.'a>(this: &show.'a readonly User) => string
     /// @type.symbol symbol=show.this type=&show.'a readonly User
 
         return "";
@@ -538,7 +536,7 @@ interface Show {
     show(): string;
 }
 interface Debug {
-    debug(): string;
+    debug(): ^string;
 }
 
 extension of User implements Show | Debug {
@@ -559,7 +557,7 @@ interface Show {
     show(): string;
 }
 interface Debug {
-    debug(): string;
+    debug(): ^string;
 }
 
 extension of User implements Show | Debug {
@@ -578,10 +576,10 @@ interface Show {
 /// @type.symbol symbol=Show type=Show
 /// @definition.interface symbol=Show template=(this: Show)
 /// @definition.where symbol=Show relation=satisfies left=this right=Show
-/// @definition.method symbol=Show.show source="show(): string" slot=show type=(this: this) => string
+/// @definition.method symbol=Show.show source="show(): string" slot=show type=() => string
 
     show(): string;
-    /// @type.symbol symbol=Show.show source="show(): string" type=(this: this) => string
+    /// @type.symbol symbol=Show.show source="show(): string" type=() => string
 
 }
 interface Debug {
@@ -589,23 +587,23 @@ interface Debug {
 /// @type.symbol symbol=Debug type=Debug
 /// @definition.interface symbol=Debug template=(this: Debug)
 /// @definition.where symbol=Debug relation=satisfies left=this right=Debug
-/// @definition.method symbol=Debug.debug source="debug(): string" slot=debug type=(this: this) => string
+/// @definition.method symbol=Debug.debug source="debug(): ^string" slot=debug type=() => ^string
 
-    debug(): string;
-    /// @type.symbol symbol=Debug.debug source="debug(): string" type=(this: this) => string
+    debug(): ^string;
+    /// @type.symbol symbol=Debug.debug source="debug(): ^string" type=() => ^string
 
 }
 
 extension of User implements Show | Debug {
 /// @definition.extension symbol=<module>#2 form=local target=User
-/// @definition.method symbol=show slot=show type=<show.'a>(this: &show.'a readonly this) => string
+/// @definition.method symbol=show slot=show type=<show.'a>(this: &show.'a readonly User) => string
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 /// @resolution.name source=Debug target=Debug
 
     show(): string {
     /// @generic.template symbol=show parent=template#2 parameters=('a)
-    /// @type.symbol symbol=show type=<show.'a>(this: &show.'a readonly this) => string
+    /// @type.symbol symbol=show type=<show.'a>(this: &show.'a readonly User) => string
     /// @type.symbol symbol=show.this type=&show.'a readonly User
 
         return "";
@@ -650,7 +648,7 @@ interface Doubling {
 extension of int32 implements Doubling {
     type Output = int32;
 
-    double(): this.Output {
+    double(): int32 {
         todo("double" as string | undefined)
     }
 }
@@ -662,12 +660,13 @@ interface Doubling {
 /// @definition.interface symbol=Doubling template=(this: Doubling)
 /// @definition.where symbol=Doubling relation=satisfies left=this right=Doubling
 /// @definition.associated.type symbol=Doubling.Output source="type Output" key=Output
-/// @definition.method symbol=Doubling.double source="double(): this.Output" slot=double type=(this: this) => this.Output
+/// @definition.method symbol=Doubling.double source="double(): this.Output" slot=double type=() => this.Output
 
     type Output;
 
     double(): this.Output;
-    /// @type.symbol symbol=Doubling.double source="double(): this.Output" type=(this: this) => this.Output
+    /// @type.symbol symbol=Doubling.double source="double(): this.Output" type=() => this.Output
+    /// @resolution.name source=this.Output target=Doubling.Output
 
 }
 
@@ -687,6 +686,7 @@ extension of int32 implements Doubling {
     /// @generic.template symbol=double parent=template#1 parameters=('a)
     /// @type.symbol symbol=double type=<double.'a>(this: &double.'a readonly int32) => int32
     /// @type.symbol symbol=double.this type=&double.'a readonly int32
+    /// @resolution.name source=this.Output target=Output
 
         todo("double")
         /// @resolution.name source=todo target=todo
@@ -751,12 +751,13 @@ interface Container {
 /// @definition.interface symbol=Container template=(this: Container)
 /// @definition.where symbol=Container relation=satisfies left=this right=Container
 /// @definition.associated.type symbol=Container.Item source="type Item" key=Item
-/// @definition.method symbol=Container.get source="get(): this.Item" slot=get type=(this: this) => this.Item
+/// @definition.method symbol=Container.get source="get(): this.Item" slot=get type=() => this.Item
 
     type Item;
 
     get(): this.Item;
-    /// @type.symbol symbol=Container.get source="get(): this.Item" type=(this: this) => this.Item
+    /// @type.symbol symbol=Container.get source="get(): this.Item" type=() => this.Item
+    /// @resolution.name source=this.Item target=Container.Item
 
 }
 
@@ -878,20 +879,25 @@ interface Container<S> {
 /// @definition.where symbol=Container relation=satisfies left=this right=Container<S>
 /// @definition.associated.type symbol=Container.Item source="type Item" key=Item
 /// @definition.associated.type symbol=Container.Output source="type Output = this.Item" key=Output value=this.Item
-/// @definition.method symbol=Container.get slot=get type=(this: this, S) => (this.Item, this.Output, Container<S>.Item, Container<string>.Item, string)
+/// @definition.method symbol=Container.get slot=get type=(S) => (this.Item, this.Output, Container<S>.Item, Container<string>.Item, string)
 /// @type.symbol symbol=Container.S source=S type=S
 
     type Item;
     type Output = this.Item;
     /// @type.symbol symbol=Container.Output source="type Output = this.Item" type=this.Item
+    /// @resolution.name source=this.Item target=Container.Item
 
     get(value: S): (
-    /// @type.symbol symbol=Container.get type=(this: this, S) => (this.Item, this.Output, Container<S>.Item, Container<string>.Item, string)
+    /// @type.symbol symbol=Container.get type=(S) => (this.Item, this.Output, Container<S>.Item, Container<string>.Item, string)
     /// @type.symbol symbol=Container.get.value source="value: S" type=S
     /// @resolution.name source=S target=Container.S
 
         this.Item,
+        /// @resolution.name source=this.Item target=Container.Item
+
         this.Output,
+        /// @resolution.name source=this.Output target=Container.Output
+
         Container<S>.Item,
         /// @resolution.name source=Container target=Container
         /// @resolution.name source=Container<S>.Item target=Container.Item
@@ -1034,6 +1040,7 @@ interface Representation extends Source<this.Error> {
 /// @definition.extends symbol=Representation source=Source<this.Error> target=Source<this.Error>
 /// @definition.associated.type symbol=Representation.Error source="type Error" key=Error
 /// @resolution.name source=Source target=Source
+/// @resolution.name source=this.Error target=Representation.Error
 
     type Error;
 }
@@ -1120,7 +1127,7 @@ interface Halving {
 extension of int32 implements Halving {
     type Output = int32;
 
-    halve(&readonly this): this.Output {
+    halve(&readonly this): int32 {
         todo("halve" as string | undefined)
     }
 }
@@ -1132,12 +1139,13 @@ interface Halving {
 /// @definition.interface symbol=Halving template=(this: Halving)
 /// @definition.where symbol=Halving relation=satisfies left=this right=Halving
 /// @definition.associated.type symbol=Halving.Output source="type Output" key=Output
-/// @definition.method symbol=Halving.halve source="halve(): this.Output" slot=halve type=(this: this) => this.Output
+/// @definition.method symbol=Halving.halve source="halve(): this.Output" slot=halve type=() => this.Output
 
     type Output;
 
     halve(): this.Output;
-    /// @type.symbol symbol=Halving.halve source="halve(): this.Output" type=(this: this) => this.Output
+    /// @type.symbol symbol=Halving.halve source="halve(): this.Output" type=() => this.Output
+    /// @resolution.name source=this.Output target=Halving.Output
 
 }
 
@@ -1156,7 +1164,8 @@ extension of int32 implements Halving {
     halve(&readonly this): this.Output {
     /// @generic.template symbol=halve parent=template#1 parameters=('a)
     /// @type.symbol symbol=halve type=<halve.'a>(this: &halve.'a readonly int32) => int32
-    /// @type.symbol symbol=halve.this source="&readonly this" type=&halve.'a readonly this
+    /// @type.symbol symbol=halve.this source="&readonly this" type=&halve.'a readonly int32
+    /// @resolution.name source=this.Output target=Output
 
         todo("halve")
         /// @resolution.name source=todo target=todo
@@ -1229,7 +1238,7 @@ struct Cell {
 extension of Cell implements Reading {
     type Output = int32;
 
-    read(): this.Output {
+    read(): int32 {
         todo("read" as string | undefined)
     }
 }
@@ -1237,7 +1246,7 @@ extension of Cell implements Reading {
 extension of Cell implements Writing {
     type Output = float64;
 
-    write(): this.Output {
+    write(): float64 {
         todo("write" as string | undefined)
     }
 }
@@ -1249,12 +1258,13 @@ interface Reading {
 /// @definition.interface symbol=Reading template=(this: Reading)
 /// @definition.where symbol=Reading relation=satisfies left=this right=Reading
 /// @definition.associated.type symbol=Reading.Output source="type Output" key=Output
-/// @definition.method symbol=Reading.read source="read(): this.Output" slot=read type=(this: this) => this.Output
+/// @definition.method symbol=Reading.read source="read(): this.Output" slot=read type=() => this.Output
 
     type Output;
 
     read(): this.Output;
-    /// @type.symbol symbol=Reading.read source="read(): this.Output" type=(this: this) => this.Output
+    /// @type.symbol symbol=Reading.read source="read(): this.Output" type=() => this.Output
+    /// @resolution.name source=this.Output target=Reading.Output
 
 }
 
@@ -1264,12 +1274,13 @@ interface Writing {
 /// @definition.interface symbol=Writing template=(this: Writing)
 /// @definition.where symbol=Writing relation=satisfies left=this right=Writing
 /// @definition.associated.type symbol=Writing.Output source="type Output" key=Output
-/// @definition.method symbol=Writing.write source="write(): this.Output" slot=write type=(this: this) => this.Output
+/// @definition.method symbol=Writing.write source="write(): this.Output" slot=write type=() => this.Output
 
     type Output;
 
     write(): this.Output;
-    /// @type.symbol symbol=Writing.write source="write(): this.Output" type=(this: this) => this.Output
+    /// @type.symbol symbol=Writing.write source="write(): this.Output" type=() => this.Output
+    /// @resolution.name source=this.Output target=Writing.Output
 
 }
 
@@ -1300,6 +1311,7 @@ extension of Cell implements Reading {
     /// @generic.template symbol=read parent=template#2 parameters=('a)
     /// @type.symbol symbol=read type=<read.'a>(this: &read.'a readonly Cell) => int32
     /// @type.symbol symbol=read.this type=&read.'a readonly Cell
+    /// @resolution.name source=this.Output target=[Output#1, Output#2]
 
         todo("read")
         /// @resolution.name source=todo target=todo
@@ -1325,6 +1337,7 @@ extension of Cell implements Writing {
     /// @generic.template symbol=write parent=template#3 parameters=('a)
     /// @type.symbol symbol=write type=<write.'a>(this: &write.'a readonly Cell) => float64
     /// @type.symbol symbol=write.this type=&write.'a readonly Cell
+    /// @resolution.name source=this.Output target=[Output#1, Output#2]
 
         todo("write")
         /// @resolution.name source=todo target=todo
@@ -1441,7 +1454,6 @@ declare function requireMine<T: Mine<T>>(value: T): void;
 /// @type.symbol symbol=requireMine.T source="T: Mine<T>" type=T#3
 /// @resolution.name source=Mine target=Mine
 /// @resolution.name source=T target=requireMine.T
-/// @type.symbol symbol=requireMine.value source="value: T" type=T#3
 /// @resolution.name source=T target=requireMine.T
 
 struct Badge {}
@@ -1458,9 +1470,10 @@ requireMine(badge);
 /// @resolution.call source=requireMine(badge) parameters=(Badge) arguments=(provided(badge) as Badge) return=void kind=symbol target=requireMine instance=requireMine<Badge>
 /// @generic.instantiation id=requireMine<Badge> template=requireMine arguments=(Badge)
 /// @resolution.name source=badge target=badge
-/// @resolution.place source=badge placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=badge placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=badge root=badge
-"#, "");
+"#, r#"
+"#);
 }
 
 #[test]
@@ -1505,7 +1518,7 @@ struct Pack<out T> {
 }
 
 export extension<T: Eq<T>> of Pack<T> implements Has<T> {
-    has<Q: Eq<Q>>(value: &'a readonly Q): boolean {
+    has<Q: Eq<Q>>(value: &'b readonly Q): boolean {
         false
     }
 }
@@ -1516,12 +1529,12 @@ interface Eq<T> {
 /// @type.symbol symbol=Eq type=Eq
 /// @definition.interface symbol=Eq template=(in T#1, this: Eq<T#1>)
 /// @definition.where symbol=Eq relation=satisfies left=this right=Eq<T#1>
-/// @definition.method symbol=Eq.equals source="equals(other: &readonly T): boolean" slot=equals type=<Eq.equals.'a>(this: this, &Eq.equals.'a readonly T#1) => boolean
+/// @definition.method symbol=Eq.equals source="equals(other: &readonly T): boolean" slot=equals type=<Eq.equals.'a>(&Eq.equals.'a readonly T#1) => boolean
 /// @type.symbol symbol=Eq.T source=T type=T#1
 
     equals(other: &readonly T): boolean;
     /// @generic.template symbol=Eq.equals parent=template#0 parameters=('a)
-    /// @type.symbol symbol=Eq.equals source="equals(other: &readonly T): boolean" type=<Eq.equals.'a>(this: this, &Eq.equals.'a readonly T#1) => boolean
+    /// @type.symbol symbol=Eq.equals source="equals(other: &readonly T): boolean" type=<Eq.equals.'a>(&Eq.equals.'a readonly T#1) => boolean
     /// @type.symbol symbol=Eq.equals.other source="other: &readonly T" type=&Eq.equals.'a readonly T#1
     /// @resolution.name source=T target=Eq.T
 
@@ -1532,12 +1545,12 @@ interface Has<T> {
 /// @type.symbol symbol=Has type=Has
 /// @definition.interface symbol=Has template=(in T#2, this: Has<T#2>)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#2>
-/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a>(this: this, &Has.has.'a readonly T#2) => boolean
+/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a>(&Has.has.'a readonly T#2) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#2
 
     has(value: &readonly T): boolean;
     /// @generic.template symbol=Has.has parent=template#1 parameters=('a)
-    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'a>(this: this, &Has.has.'a readonly T#2) => boolean
+    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'a>(&Has.has.'a readonly T#2) => boolean
     /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=&Has.has.'a readonly T#2
     /// @resolution.name source=T target=Has.T
 
@@ -1560,7 +1573,7 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#4: Eq<T#4>)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#4>
 /// @definition.implements symbol=<module>#2 source=Has<T> target=Has<T#4>
-/// @definition.method symbol=has slot=has type=<Q: Eq<Q>, has.'a, has.'b>(this: &has.'b readonly this, &has.'a readonly Q) => boolean
+/// @definition.method symbol=has slot=has type=<has.'a, Q: Eq<Q>, has.'b>(this: &has.'a readonly Pack<T#4>, &has.'b readonly Q) => boolean
 /// @definition.conformance symbol=<module>#2 member=has requirement=Has.has
 /// @type.symbol symbol=T source="T: Eq<T>" type=T#4
 /// @resolution.name source=Eq target=Eq
@@ -1571,13 +1584,13 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
 /// @resolution.name source=T target=T
 
     has<Q: Eq<Q>>(value: &readonly Q): boolean {
-    /// @generic.template symbol=has parent=template#3 parameters=(Q: Eq<Q>, 'a, 'b)
-    /// @type.symbol symbol=has type=<Q: Eq<Q>, has.'a, has.'b>(this: &has.'b readonly this, &has.'a readonly Q) => boolean
-    /// @type.symbol symbol=has.this type=&has.'b readonly Pack<T#4>
+    /// @generic.template symbol=has parent=template#3 parameters=('a, Q: Eq<Q>, 'b)
+    /// @type.symbol symbol=has type=<has.'a, Q: Eq<Q>, has.'b>(this: &has.'a readonly Pack<T#4>, &has.'b readonly Q) => boolean
+    /// @type.symbol symbol=has.this type=&has.'a readonly Pack<T#4>
     /// @type.symbol symbol=has.Q source="Q: Eq<Q>" type=Q
     /// @resolution.name source=Eq target=Eq
     /// @resolution.name source=Q target=has.Q
-    /// @type.symbol symbol=has.value source="value: &readonly Q" type=&has.'a readonly Q
+    /// @type.symbol symbol=has.value source="value: &readonly Q" type=&has.'b readonly Q
     /// @resolution.name source=Q target=has.Q
 
         false
@@ -1630,7 +1643,7 @@ struct Pack<out T> {
 }
 
 export extension<T> of Pack<T> implements Has<T> {
-    has<Q: Marker>(value: &'a readonly Q): boolean {
+    has<Q: Marker>(value: &'b readonly Q): boolean {
         false
     }
 }
@@ -1647,12 +1660,12 @@ interface Has<T> {
 /// @type.symbol symbol=Has type=Has
 /// @definition.interface symbol=Has template=(in T#1, this: Has<T#1>)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#1>
-/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a>(this: this, &Has.has.'a readonly T#1) => boolean
+/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a>(&Has.has.'a readonly T#1) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#1
 
     has(value: &readonly T): boolean;
     /// @generic.template symbol=Has.has parent=template#1 parameters=('a)
-    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'a>(this: this, &Has.has.'a readonly T#1) => boolean
+    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'a>(&Has.has.'a readonly T#1) => boolean
     /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=&Has.has.'a readonly T#1
     /// @resolution.name source=T target=Has.T
 
@@ -1675,7 +1688,7 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#3>
 /// @definition.implements symbol=<module>#2 source=Has<T> target=Has<T#3>
-/// @definition.method symbol=has slot=has type=<Q: Marker, has.'a, has.'b>(this: &has.'b readonly this, &has.'a readonly Q) => boolean
+/// @definition.method symbol=has slot=has type=<has.'a, Q: Marker, has.'b>(this: &has.'a readonly Pack<T#3>, &has.'b readonly Q) => boolean
 /// @definition.conformance symbol=<module>#2 member=has requirement=Has.has
 /// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Pack target=Pack
@@ -1684,12 +1697,12 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @resolution.name source=T target=T
 
     has<Q: Marker>(value: &readonly Q): boolean {
-    /// @generic.template symbol=has parent=template#3 parameters=(Q: Marker, 'a, 'b)
-    /// @type.symbol symbol=has type=<Q: Marker, has.'a, has.'b>(this: &has.'b readonly this, &has.'a readonly Q) => boolean
-    /// @type.symbol symbol=has.this type=&has.'b readonly Pack<T#3>
+    /// @generic.template symbol=has parent=template#3 parameters=('a, Q: Marker, 'b)
+    /// @type.symbol symbol=has type=<has.'a, Q: Marker, has.'b>(this: &has.'a readonly Pack<T#3>, &has.'b readonly Q) => boolean
+    /// @type.symbol symbol=has.this type=&has.'a readonly Pack<T#3>
     /// @type.symbol symbol=has.Q source="Q: Marker" type=Q
     /// @resolution.name source=Marker target=Marker
-    /// @type.symbol symbol=has.value source="value: &readonly Q" type=&has.'a readonly Q
+    /// @type.symbol symbol=has.value source="value: &readonly Q" type=&has.'b readonly Q
     /// @resolution.name source=Q target=has.Q
 
         false
@@ -1738,7 +1751,7 @@ struct Pack<out T> {
 }
 
 export extension<T> of Pack<T> implements Has<T> {
-    has<Q>(value: &'a Q): boolean {
+    has<Q>(value: &'b Q): boolean {
         false
     }
 }
@@ -1749,12 +1762,12 @@ interface Has<T> {
 /// @type.symbol symbol=Has type=Has
 /// @definition.interface symbol=Has template=(in T#1, this: Has<T#1>)
 /// @definition.where symbol=Has relation=satisfies left=this right=Has<T#1>
-/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a>(this: this, &Has.has.'a readonly T#1) => boolean
+/// @definition.method symbol=Has.has source="has(value: &readonly T): boolean" slot=has type=<Has.has.'a>(&Has.has.'a readonly T#1) => boolean
 /// @type.symbol symbol=Has.T source=T type=T#1
 
     has(value: &readonly T): boolean;
     /// @generic.template symbol=Has.has parent=template#0 parameters=('a)
-    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'a>(this: this, &Has.has.'a readonly T#1) => boolean
+    /// @type.symbol symbol=Has.has source="has(value: &readonly T): boolean" type=<Has.has.'a>(&Has.has.'a readonly T#1) => boolean
     /// @type.symbol symbol=Has.has.value source="value: &readonly T" type=&Has.has.'a readonly T#1
     /// @resolution.name source=T target=Has.T
 
@@ -1777,7 +1790,7 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#3)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#3>
 /// @definition.implements symbol=<module>#2 source=Has<T> target=Has<T#3>
-/// @definition.method symbol=has slot=has type=<Q, has.'a, has.'b>(this: &has.'b readonly this, &has.'a Q) => boolean
+/// @definition.method symbol=has slot=has type=<has.'a, Q, has.'b>(this: &has.'a readonly Pack<T#3>, &has.'b Q) => boolean
 /// @type.symbol symbol=T source=T type=T#3
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T
@@ -1785,11 +1798,11 @@ export extension<T> of Pack<T> implements Has<T> {
 /// @resolution.name source=T target=T
 
     has<Q>(value: &Q): boolean {
-    /// @generic.template symbol=has parent=template#2 parameters=(Q, 'a, 'b)
-    /// @type.symbol symbol=has type=<Q, has.'a, has.'b>(this: &has.'b readonly this, &has.'a Q) => boolean
-    /// @type.symbol symbol=has.this type=&has.'b readonly Pack<T#3>
+    /// @generic.template symbol=has parent=template#2 parameters=('a, Q, 'b)
+    /// @type.symbol symbol=has type=<has.'a, Q, has.'b>(this: &has.'a readonly Pack<T#3>, &has.'b Q) => boolean
+    /// @type.symbol symbol=has.this type=&has.'a readonly Pack<T#3>
     /// @type.symbol symbol=has.Q source=Q type=Q
-    /// @type.symbol symbol=has.value source="value: &Q" type=&has.'a Q
+    /// @type.symbol symbol=has.value source="value: &Q" type=&has.'b Q
     /// @resolution.name source=Q target=has.Q
 
         false
@@ -1804,8 +1817,9 @@ export extension<T> of Pack<T> implements Has<T> {
     );
 }
 
+/// Conform borrowed entry iterables through one shared lifetime.
 #[test]
-fn test_borrowed_entry_iterables_conform_through_elided_lifetimes() {
+fn test_conform_borrowed_entry_iterables_through_one_shared_lifetime() {
     let session = TestSession::single(
         r#"
 import { Iterable, Iterator } from "destack:iter";
@@ -1822,17 +1836,17 @@ export class Bag<K, V> {
     values: V[] = [];
 }
 
-export extension<K, V> of Bag<K, V>
+export extension<K, V, 'a> of Bag<K, V>
     implements
         Iterable<(K, V)>,
-        Iterable<Entry<&readonly K, &V>> {
+        Iterable<Entry<&'a readonly K, &'a V>> {
     iterator(): Iterator<(K, V)> {
         todo("Bag.iterator")
     }
 
     iterator<const A: Access = "readonly">(
         this: WithAccess<&Bag<K, V>, A>,
-    ): Iterator<Entry<&readonly K, WithAccess<&V, A>>> {
+    ): Iterator<Entry<&'a readonly K, WithAccess<&'a V, A>>> {
         todo("Bag.iterator")
     }
 }
@@ -1858,8 +1872,8 @@ export class Bag<in out K, in out V> {
     values: V[] = [];
 }
 
-export extension<K, V, 'a, 'b> of Bag<K, V>
-    implements Iterable<(K, V)>, Iterable<Entry<&readonly K, &V>>
+export extension<K, V, 'a> of Bag<K, V>
+    implements Iterable<(K, V)>, Iterable<Entry<&'a readonly K, &'a V>>
 {
     iterator(): Iterator<(K, V)> {
         todo("Bag.iterator" as string | undefined)
@@ -1867,7 +1881,7 @@ export extension<K, V, 'a, 'b> of Bag<K, V>
 
     iterator<const A: Access = "readonly">(
         this: WithAccess<&Bag<K, V>, A>,
-    ): Iterator<Entry<&'c readonly K, WithAccess<&'c V, A>>> {
+    ): Iterator<Entry<&'a readonly K, WithAccess<&'a V, A>>> {
         todo("Bag.iterator" as string | undefined)
     }
 }
@@ -1913,16 +1927,7 @@ export class Bag<K, V> {
     /// @resolution.name source=K target=Bag.K
     /// @resolution.call source=[] parameters=(^Slice<K#2>) arguments=(rest() as K#2) return=K#2[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<K#2>
     /// @generic.instantiation id=arrayFromOwnedSlice<K#2> template=arrayFromOwnedSlice arguments=(K#2) owner=Bag
-    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-    /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-    /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
     /// @generic.instance id=arrayFromOwnedSlice<K#2> template=arrayFromOwnedSlice arguments=(K#2)
-    /// @generic.instance id=fromOwnedSlice<K#2> template=fromOwnedSlice arguments=(K#2)
-    /// @generic.instance id=intoUninit<K#2> template=intoUninit arguments=(K#2)
-    /// @generic.instance id=size<K#2> template=size arguments=(K#2)
-    /// @generic.instance id=sliceIntoUninit<K#2> template=sliceIntoUninit arguments=(K#2)
-    /// @generic.instance id=sliceLength<K#2> template=sliceLength arguments=(K#2)
 
     values: V[] = [];
     /// @type.symbol symbol=Bag.values source="values: V[] = []" type=V#2[]
@@ -1933,46 +1938,26 @@ export class Bag<K, V> {
     /// @resolution.call source=[] parameters=(^Slice<V#2>) arguments=(rest() as V#2) return=V#2[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<V#2>
     /// @generic.instantiation id=arrayFromOwnedSlice<V#2> template=arrayFromOwnedSlice arguments=(V#2) owner=Bag
     /// @generic.instance id=arrayFromOwnedSlice<V#2> template=arrayFromOwnedSlice arguments=(V#2)
-    /// @generic.instance id=fromOwnedSlice<V#2> template=fromOwnedSlice arguments=(V#2)
-    /// @generic.instance id=intoUninit<V#2> template=intoUninit arguments=(V#2)
-    /// @generic.instance id=size<V#2> template=size arguments=(V#2)
-    /// @generic.instance id=sliceIntoUninit<V#2> template=sliceIntoUninit arguments=(V#2)
-    /// @generic.instance id=sliceLength<V#2> template=sliceLength arguments=(V#2)
 
 }
 
-export extension<K, V> of Bag<K, V>
-/// @generic.template symbol=<module>#2 parameters=(K#3, V#3, 'a, 'b)
+export extension<K, V, 'a> of Bag<K, V>
+/// @generic.template symbol=<module>#2 parameters=(K#3, V#3, 'a)
 /// @generic.instance id="Bag<K#3, V#3>" template=Bag arguments=(K#3, V#3)
-/// @generic.instance id="Entry<&'bound0 readonly K#3, &'bound1 V#3>" template=Entry arguments=(&'bound0 readonly K#3, &'bound1 V#3)
+/// @generic.instance id="Entry<&'a readonly K#3, &'a V#3>" template=Entry arguments=(&'a readonly K#3, &'a V#3)
 /// @generic.instance id="Iterable<(K#3, V#3)>" template=Iterable arguments=((K#3, V#3))
-/// @generic.instance id="Iterable<Entry<&'bound0 readonly K#3, &'bound1 V#3>>" template=Iterable arguments=(Entry<&'bound0 readonly K#3, &'bound1 V#3>)
-/// @generic.instance id=Array<K#3> template=Array arguments=(K#3)
-/// @generic.instance id=Array<V#3> template=Array arguments=(V#3)
-/// @generic.instance id=fromOwnedSlice<K#3> template=fromOwnedSlice arguments=(K#3)
-/// @generic.instance id=fromOwnedSlice<V#3> template=fromOwnedSlice arguments=(V#3)
-/// @generic.instance id=intoUninit<K#3> template=intoUninit arguments=(K#3)
-/// @generic.instance id=intoUninit<V#3> template=intoUninit arguments=(V#3)
-/// @generic.instance id=size<K#3> template=size arguments=(K#3)
-/// @generic.instance id=size<V#3> template=size arguments=(V#3)
-/// @generic.instance id=sliceAssumeInit<MaybeUninit<K#3>> template=sliceAssumeInit arguments=(MaybeUninit<K#3>)
-/// @generic.instance id=sliceAssumeInit<MaybeUninit<V#3>> template=sliceAssumeInit arguments=(MaybeUninit<V#3>)
-/// @generic.instance id=sliceIntoUninit<K#3> template=sliceIntoUninit arguments=(K#3)
-/// @generic.instance id=sliceIntoUninit<V#3> template=sliceIntoUninit arguments=(V#3)
-/// @generic.instance id=sliceLength<K#3> template=sliceLength arguments=(K#3)
-/// @generic.instance id=sliceLength<V#3> template=sliceLength arguments=(V#3)
-/// @generic.instance id=sliceUninit<MaybeUninit<K#3>> template=sliceUninit arguments=(MaybeUninit<K#3>)
-/// @generic.instance id=sliceUninit<MaybeUninit<V#3>> template=sliceUninit arguments=(MaybeUninit<V#3>)
+/// @generic.instance id="Iterable<Entry<&'a readonly K#3, &'a V#3>>" template=Iterable arguments=(Entry<&'a readonly K#3, &'a V#3>)
 /// @definition.extension symbol=<module>#2 form=exported target=Bag<K#3, V#3>
 /// @definition.implements symbol=<module>#2 source="Iterable<(K, V)>" target="Iterable<(K#3, V#3)>"
-/// @definition.implements symbol=<module>#2 source="Iterable<Entry<&readonly K, &V>>" target="Iterable<Entry<&<module>#2.'a readonly K#3, &<module>#2.'b V#3>>"
-/// @definition.method symbol=iterator#1 slot=iterator type=<iterator#1.P0: Place>(this: Managed<Bag<K#3, V#3>, iterator#1.P0>) => Iterator<(K#3, V#3)>
-/// @definition.method symbol=iterator#2 slot=iterator type=<const A: Access = "readonly", iterator#2.'a>(this: Borrowed<Bag<K#3, V#3>, iterator#2.'a, A>) => Iterator<Entry<&iterator#2.'a readonly K#3, Borrowed<V#3, iterator#2.'a, A>>>
+/// @definition.implements symbol=<module>#2 source="Iterable<Entry<&'a readonly K, &'a V>>" target="Iterable<Entry<&'a readonly K#3, &'a V#3>>"
+/// @definition.method symbol=iterator#1 slot=iterator type=(this: Bag<K#3, V#3>) => Iterator<(K#3, V#3)>
+/// @definition.method symbol=iterator#2 slot=iterator type=<const A: Access = "readonly", iterator#2.'a>(this: WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => Iterator<Entry<&'a readonly K#3, WithAccess<&'a V#3, A>>>
 /// @definition.conformance symbol=<module>#2 member=Iterable.Iterator requirement=Iterable.Iterator
 /// @definition.conformance symbol=<module>#2 member=iterator#1 requirement=Iterable.iterator
 /// @definition.conformance symbol=<module>#2 member=iterator#2 requirement=Iterable.iterator
 /// @type.symbol symbol=K source=K type=K#3
 /// @type.symbol symbol=V source=V type=V#3
+/// @type.symbol symbol='a source='a type='a
 /// @resolution.name source=Bag target=Bag
 /// @resolution.name source=K target=K
 /// @resolution.name source=V target=V
@@ -1983,16 +1968,17 @@ export extension<K, V> of Bag<K, V>
         /// @resolution.name source=K target=K
         /// @resolution.name source=V target=V
 
-        Iterable<Entry<&readonly K, &V>> {
+        Iterable<Entry<&'a readonly K, &'a V>> {
         /// @resolution.name source=Iterable target=Iterable
         /// @resolution.name source=Entry target=Entry
+        /// @resolution.name source='a target='a
         /// @resolution.name source=K target=K
+        /// @resolution.name source='a target='a
         /// @resolution.name source=V target=V
 
     iterator(): Iterator<(K, V)> {
-    /// @generic.template symbol=iterator#1 parent=template#2 parameters=(P0: Place)
-    /// @type.symbol symbol=iterator#1 type=<iterator#1.P0: Place>(this: Managed<Bag<K#3, V#3>, iterator#1.P0>) => Iterator<(K#3, V#3)>
-    /// @type.symbol symbol=iterator.this#1 type=Managed<Bag<K#3, V#3>, iterator#1.P0>
+    /// @type.symbol symbol=iterator#1 type=(this: Bag<K#3, V#3>) => Iterator<(K#3, V#3)>
+    /// @type.symbol symbol=iterator.this#1 type=Bag<K#3, V#3>
     /// @generic.instance id="Iterator<(K#3, V#3)>" template=Iterator arguments=((K#3, V#3))
     /// @resolution.name source=Iterator target=Iterator
     /// @resolution.name source=K target=K
@@ -2006,25 +1992,27 @@ export extension<K, V> of Bag<K, V>
 
     iterator<const A: Access = "readonly">(
     /// @generic.template symbol=iterator#2 parent=template#2 parameters=(const A: Access = "readonly", 'a)
-    /// @type.symbol symbol=iterator#2 type=<const A: Access = "readonly", iterator#2.'a>(this: Borrowed<Bag<K#3, V#3>, iterator#2.'a, A>) => Iterator<Entry<&iterator#2.'a readonly K#3, Borrowed<V#3, iterator#2.'a, A>>>
-    /// @generic.instance id="Entry<&'bound0 readonly K#3, Borrowed<V#3, \"bound1\", A>>" template=Entry arguments=(&'bound0 readonly K#3, Borrowed<V#3, "bound1", A>)
-    /// @generic.instance id="Iterator<Entry<&'bound0 readonly K#3, Borrowed<V#3, \"bound1\", A>>>" template=Iterator arguments=(Entry<&'bound0 readonly K#3, Borrowed<V#3, "bound1", A>>)
+    /// @type.symbol symbol=iterator#2 type=<const A: Access = "readonly", iterator#2.'a>(this: WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>) => Iterator<Entry<&'a readonly K#3, WithAccess<&'a V#3, A>>>
+    /// @generic.instance id="Entry<&'a readonly K#3, WithAccess<&'a V#3, A>>" template=Entry arguments=(&'a readonly K#3, WithAccess<&'a V#3, A>)
+    /// @generic.instance id="Iterator<Entry<&'a readonly K#3, WithAccess<&'a V#3, A>>>" template=Iterator arguments=(Entry<&'a readonly K#3, WithAccess<&'a V#3, A>>)
     /// @type.symbol symbol=iterator.A source="const A: Access = \"readonly\"" type=A
     /// @resolution.name source=Access target=Access
 
         this: WithAccess<&Bag<K, V>, A>,
-        /// @type.symbol symbol=iterator.this#2 source="this: WithAccess<&Bag<K, V>, A>" type=Borrowed<Bag<K#3, V#3>, iterator#2.'a, A>
+        /// @type.symbol symbol=iterator.this#2 source="this: WithAccess<&Bag<K, V>, A>" type=WithAccess<&iterator#2.'a Bag<K#3, V#3>, A>
         /// @resolution.name source=WithAccess target=WithAccess
         /// @resolution.name source=Bag target=Bag
         /// @resolution.name source=K target=K
         /// @resolution.name source=V target=V
         /// @resolution.name source=A target=iterator.A
 
-    ): Iterator<Entry<&readonly K, WithAccess<&V, A>>> {
+    ): Iterator<Entry<&'a readonly K, WithAccess<&'a V, A>>> {
     /// @resolution.name source=Iterator target=Iterator
     /// @resolution.name source=Entry target=Entry
+    /// @resolution.name source='a target='a
     /// @resolution.name source=K target=K
     /// @resolution.name source=WithAccess target=WithAccess
+    /// @resolution.name source='a target='a
     /// @resolution.name source=V target=V
     /// @resolution.name source=A target=iterator.A
 
@@ -2085,22 +2073,21 @@ interface Greeter {
 /// @type.symbol symbol=Greeter type=Greeter
 /// @definition.interface symbol=Greeter template=(this: Greeter)
 /// @definition.where symbol=Greeter relation=satisfies left=this right=Greeter
-/// @definition.method symbol=Greeter.greet source="greet(): string" slot=greet type=(this: this) => string
+/// @definition.method symbol=Greeter.greet source="greet(): string" slot=greet type=() => string
 
     greet(): string;
-    /// @type.symbol symbol=Greeter.greet source="greet(): string" type=(this: this) => string
+    /// @type.symbol symbol=Greeter.greet source="greet(): string" type=() => string
 
 }
 
 class Robot {
 /// @type.symbol symbol=Robot type=typeof Robot
 /// @definition.class symbol=Robot
-/// @definition.method symbol=Robot.greet slot=greet type=<Robot.greet.P0: Place>(this: Managed<Robot, Robot.greet.P0>) => string
+/// @definition.method symbol=Robot.greet slot=greet type=(this: Robot) => string
 
     greet(): string {
-    /// @generic.template symbol=Robot.greet parameters=(P0: Place)
-    /// @type.symbol symbol=Robot.greet type=<Robot.greet.P0: Place>(this: Managed<Robot, Robot.greet.P0>) => string
-    /// @type.symbol symbol=Robot.greet.this type=Managed<Robot, Robot.greet.P0>
+    /// @type.symbol symbol=Robot.greet type=(this: Robot) => string
+    /// @type.symbol symbol=Robot.greet.this type=Robot
 
         return "beep";
     }
@@ -2123,7 +2110,7 @@ const greeter: Greeter = robot;
 /// @resolution.pattern source=greeter kind=binding target=greeter
 /// @resolution.name source=Greeter target=Greeter
 /// @resolution.name source=robot target=robot
-/// @resolution.place source=robot placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=robot placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=robot root=robot
 "#,
     );
@@ -2331,7 +2318,7 @@ extension AnyShow<T: Integer> of T implements Show {
 /// @generic.template symbol=AnyShow parameters=(T: Integer)
 /// @definition.extension symbol=AnyShow form=local target=T
 /// @definition.implements symbol=AnyShow source=Show target=Show
-/// @definition.method symbol=AnyShow.show slot=show type=<AnyShow.show.'a>(this: &AnyShow.show.'a readonly this) => string
+/// @definition.method symbol=AnyShow.show slot=show type=<AnyShow.show.'a>(this: &AnyShow.show.'a readonly T) => string
 /// @definition.conformance symbol=AnyShow member=AnyShow.show requirement=Show.show
 /// @type.symbol symbol=AnyShow.T source="T: Integer" type=T
 /// @resolution.name source=Integer target=Integer
@@ -2340,8 +2327,8 @@ extension AnyShow<T: Integer> of T implements Show {
 
     show(&readonly this): string {
     /// @generic.template symbol=AnyShow.show parent=template#1 parameters=('a)
-    /// @type.symbol symbol=AnyShow.show type=<AnyShow.show.'a>(this: &AnyShow.show.'a readonly this) => string
-    /// @type.symbol symbol=AnyShow.show.this source="&readonly this" type=&AnyShow.show.'a readonly this
+    /// @type.symbol symbol=AnyShow.show type=<AnyShow.show.'a>(this: &AnyShow.show.'a readonly T) => string
+    /// @type.symbol symbol=AnyShow.show.this source="&readonly this" type=&AnyShow.show.'a readonly T
 
         return "any";
     }
@@ -2350,14 +2337,14 @@ extension AnyShow<T: Integer> of T implements Show {
 extension IntShow of int16 implements Show {
 /// @definition.extension symbol=IntShow form=local target=int16
 /// @definition.implements symbol=IntShow source=Show target=Show
-/// @definition.method symbol=IntShow.show slot=show type=<IntShow.show.'a>(this: &IntShow.show.'a readonly this) => string
+/// @definition.method symbol=IntShow.show slot=show type=<IntShow.show.'a>(this: &IntShow.show.'a readonly int16) => string
 /// @definition.conformance symbol=IntShow member=IntShow.show requirement=Show.show
 /// @resolution.name source=Show target=Show
 
     show(&readonly this): string {
     /// @generic.template symbol=IntShow.show parent=template#2 parameters=('a)
-    /// @type.symbol symbol=IntShow.show type=<IntShow.show.'a>(this: &IntShow.show.'a readonly this) => string
-    /// @type.symbol symbol=IntShow.show.this source="&readonly this" type=&IntShow.show.'a readonly this
+    /// @type.symbol symbol=IntShow.show type=<IntShow.show.'a>(this: &IntShow.show.'a readonly int16) => string
+    /// @type.symbol symbol=IntShow.show.this source="&readonly this" type=&IntShow.show.'a readonly int16
 
         return "int16";
     }
@@ -2532,7 +2519,7 @@ struct Chain<I, J, out T> {
 /// @type.symbol symbol=Chain type=Chain
 /// @definition.struct symbol=Chain template=(out I#1, out J#1, out T#2)
 /// @definition.field symbol=Chain.first source="private first: I" key=first visibility=private type=I#1
-/// @definition.field symbol=Chain.marker source="private marker: () => T" key=marker visibility=private type=Function<(), T#2>
+/// @definition.field symbol=Chain.marker source="private marker: () => T" key=marker visibility=private type=() => T#2
 /// @definition.field symbol=Chain.second source="private second: J" key=second visibility=private type=J#1
 /// @type.symbol symbol=Chain.I source=I type=I#1
 /// @type.symbol symbol=Chain.J source=J type=J#1
@@ -2547,7 +2534,7 @@ struct Chain<I, J, out T> {
     /// @resolution.name source=J target=Chain.J
 
     private marker: () => T;
-    /// @type.symbol symbol=Chain.marker source="private marker: () => T" type=Function<(), T#2>
+    /// @type.symbol symbol=Chain.marker source="private marker: () => T" type=() => T#2
     /// @resolution.name source=T target=Chain.T
 
 }
@@ -2659,15 +2646,15 @@ class Box {
 
     size(this): isize {
     /// @type.symbol symbol=Box.size type=(this: Box) => isize
-    /// @type.symbol symbol=Box.size.this source=this type=this
+    /// @type.symbol symbol=Box.size.this source=this type=Box
 
         this.width
         /// @type.node source=this.width type=isize
         /// @resolution.member source=this.width receiver=Box type=isize kind=field target_receiver=Box key=width target=Box.width target_type=isize
         /// @resolution.receiver source=this kind=this declaration=Box type=Box
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.width placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this.width placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this.width root=this keys=[width]
 
     }
@@ -2875,7 +2862,6 @@ declare function hush<T: Quiet>(value: T): string;
 /// @type.symbol symbol=hush source="declare function hush<T: Quiet>(value: T): string" type=<T: bell.Quiet>(T) => string
 /// @type.symbol symbol=hush.T source="T: Quiet" type=T
 /// @resolution.name source=Quiet target=bell.Quiet
-/// @type.symbol symbol=hush.value source="value: T" type=T
 /// @resolution.name source=T target=hush.T
 
 const sound = hush(Bell {});
@@ -2939,7 +2925,7 @@ function measure<T: Sized>(value: T): isize {
 
 declare const pair: (int32, boolean);
 
-const direct: isize = pair.size<int32, boolean>();
+const direct: isize = pair.size<int32, boolean, "static">();
 const bounded: isize = measure<(int32, boolean)>(pair);
 
 === dir ===
@@ -2948,10 +2934,10 @@ interface Sized {
 /// @type.symbol symbol=Sized type=Sized
 /// @definition.interface symbol=Sized template=(this: Sized)
 /// @definition.where symbol=Sized relation=satisfies left=this right=Sized
-/// @definition.method symbol=Sized.size source="size(): isize" slot=size type=(this: this) => isize
+/// @definition.method symbol=Sized.size source="size(): isize" slot=size type=() => isize
 
     size(): isize;
-    /// @type.symbol symbol=Sized.size source="size(): isize" type=(this: this) => isize
+    /// @type.symbol symbol=Sized.size source="size(): isize" type=() => isize
 
 }
 
@@ -2959,7 +2945,7 @@ extension<First: Copy, Second: Copy> of (First, Second) implements Sized {
 /// @generic.template symbol=<module>#2 parameters=(First: Copy, Second: Copy)
 /// @definition.extension symbol=<module>#2 form=local target=(First, Second)
 /// @definition.implements symbol=<module>#2 source=Sized target=Sized
-/// @definition.method symbol=size slot=size type=<size.'a>(this: &size.'a readonly this) => isize
+/// @definition.method symbol=size slot=size type=<size.'a>(this: &size.'a readonly (First, Second)) => isize
 /// @definition.conformance symbol=<module>#2 member=size requirement=Sized.size
 /// @type.symbol symbol=First source="First: Copy" type=First
 /// @resolution.name source=Copy target=Copy
@@ -2971,7 +2957,7 @@ extension<First: Copy, Second: Copy> of (First, Second) implements Sized {
 
     size(): isize {
     /// @generic.template symbol=size parent=template#1 parameters=('a)
-    /// @type.symbol symbol=size type=<size.'a>(this: &size.'a readonly this) => isize
+    /// @type.symbol symbol=size type=<size.'a>(this: &size.'a readonly (First, Second)) => isize
     /// @type.symbol symbol=size.this type=&size.'a readonly (First, Second)
 
         return 2;
@@ -2988,11 +2974,10 @@ function measure<T: Sized>(value: T): isize {
 
     return value.size();
     /// @resolution.name source=value target=measure.value
-    /// @resolution.member source=value.size receiver=T type=(this: T) => isize kind=symbol target_receiver=T target=Sized.size
+    /// @resolution.member source=value.size receiver=T type=() => isize kind=symbol target_receiver=T target=Sized.size
     /// @resolution.call source=value.size() parameters=() return=isize kind=symbol target=Sized.size receiver=T
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=measure.value
-    /// @generic.instantiation id=Sized.size<T> template=Sized.size arguments=() owner=measure
 
 }
 
@@ -3005,9 +2990,10 @@ const direct = pair.size();
 /// @resolution.pattern source=direct kind=binding target=direct
 /// @resolution.name source=pair target=pair
 /// @resolution.member source=pair.size receiver=(int32, boolean) type=<size.'a>(this: &size.'a readonly (int32, boolean)) => isize kind=symbol target_receiver=(int32, boolean) target=size
-/// @resolution.call source=pair.size() parameters=() return=isize regions=("static" & "constant") kind=symbol target=size receiver=(int32, boolean) adjustments=(borrow(&'static readonly constant (int32, boolean))) instance="(First, Second).<extension#1>.size"
-/// @resolution.place source=pair placement="constant" lifetime="static" access="readonly"
+/// @resolution.call source=pair.size() parameters=() return=isize regions=("static" & "local") kind=symbol target=size receiver=(int32, boolean) adjustments=(borrow(&'static readonly (int32, boolean))) instance="(First, Second).<extension#1>.size<\"static\" & \"local\">"
+/// @resolution.place source=pair placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=pair root=pair
+/// @generic.instantiation id="size<int32, boolean, \"static\" & \"local\">" template=size arguments=(int32, boolean, "static" & "local")
 /// @generic.instantiation id="size<int32, boolean>" template=size arguments=(int32, boolean)
 
 const bounded = measure(pair);
@@ -3017,7 +3003,7 @@ const bounded = measure(pair);
 /// @resolution.call source=measure(pair) parameters=((int32, boolean)) arguments=(provided(pair) as (int32, boolean)) return=isize kind=symbol target=measure instance="measure<(int32, boolean)>"
 /// @generic.instantiation id="measure<(int32, boolean)>" template=measure arguments=((int32, boolean))
 /// @resolution.name source=pair target=pair
-/// @resolution.place source=pair placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=pair placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=pair root=pair
 "#,
         r#"
@@ -3083,8 +3069,9 @@ extension of Duration implements Zero {
 "#);
 }
 
+/// Accept an implementation method at the receiver its requirement declares.
 #[test]
-fn test_reject_an_implementation_demanding_a_stricter_receiver() {
+fn test_accept_an_implementation_at_the_requirement_receiver() {
     let session = TestSession::single(
         r#"
 newtype interface Tally {
@@ -3150,15 +3137,15 @@ struct Counter {
 extension of Counter implements Tally {
 /// @definition.extension symbol=<module>#2 form=local target=Counter
 /// @definition.implements symbol=<module>#2 source=Tally target=Tally
-/// @definition.method symbol=bump slot=bump type=<bump.'a>(this: &bump.'a this) => void
+/// @definition.method symbol=bump slot=bump type=<bump.'a>(this: &bump.'a Counter) => void
 /// @definition.conformance symbol=<module>#2 member=bump requirement=Tally.bump
 /// @resolution.name source=Counter target=Counter
 /// @resolution.name source=Tally target=Tally
 
     bump(&this): void {
     /// @generic.template symbol=bump parent=template#1 parameters=('a)
-    /// @type.symbol symbol=bump type=<bump.'a>(this: &bump.'a this) => void
-    /// @type.symbol symbol=bump.this source=&this type=&bump.'a this
+    /// @type.symbol symbol=bump type=<bump.'a>(this: &bump.'a Counter) => void
+    /// @type.symbol symbol=bump.this source=&this type=&bump.'a Counter
 
         this.value += 1;
         /// @resolution.operator source="this.value += 1" type=int32 operator="+" kind=builtin operands=[this.value as int32 families=(integer), 1 as int32 families=(integer)]
@@ -3166,6 +3153,7 @@ extension of Counter implements Tally {
         /// @resolution.place source=this placement=bump.'a lifetime=bump.'a access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.place source=this.value placement=bump.'a lifetime=bump.'a access="mutable"
         /// @resolution.assignment source=this.value read="receiver=&bump.'a Counter, target=field(receiver=&bump.'a Counter, target=Counter.value, type=int32), type=int32" write="receiver=&bump.'a Counter, target=field(receiver=&bump.'a Counter, target=Counter.value, type=int32), type=int32" type=int32
         /// @resolution.access source=this.value root=this keys=[value]
 
@@ -3245,15 +3233,15 @@ struct Counter {
 extension of Counter implements Tally {
 /// @definition.extension symbol=<module>#2 form=local target=Counter
 /// @definition.implements symbol=<module>#2 source=Tally target=Tally
-/// @definition.method symbol=bump slot=bump type=<bump.'a>(this: &bump.'a this) => void
+/// @definition.method symbol=bump slot=bump type=<bump.'a>(this: &bump.'a Counter) => void
 /// @definition.conformance symbol=<module>#2 member=bump requirement=Tally.bump
 /// @resolution.name source=Counter target=Counter
 /// @resolution.name source=Tally target=Tally
 
     bump(&this): void {
     /// @generic.template symbol=bump parent=template#1 parameters=('a)
-    /// @type.symbol symbol=bump type=<bump.'a>(this: &bump.'a this) => void
-    /// @type.symbol symbol=bump.this source=&this type=&bump.'a this
+    /// @type.symbol symbol=bump type=<bump.'a>(this: &bump.'a Counter) => void
+    /// @type.symbol symbol=bump.this source=&this type=&bump.'a Counter
 
         this.value += 1;
         /// @resolution.operator source="this.value += 1" type=int32 operator="+" kind=builtin operands=[this.value as int32 families=(integer), 1 as int32 families=(integer)]
@@ -3261,6 +3249,7 @@ extension of Counter implements Tally {
         /// @resolution.place source=this placement=bump.'a lifetime=bump.'a access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.place source=this.value placement=bump.'a lifetime=bump.'a access="mutable"
         /// @resolution.assignment source=this.value read="receiver=&bump.'a Counter, target=field(receiver=&bump.'a Counter, target=Counter.value, type=int32), type=int32" write="receiver=&bump.'a Counter, target=field(receiver=&bump.'a Counter, target=Counter.value, type=int32), type=int32" type=int32
         /// @resolution.access source=this.value root=this keys=[value]
 
@@ -3350,14 +3339,14 @@ interface Viewable {
 extension of Buffer implements Viewable {
 /// @definition.extension symbol=<module>#2 form=local target=Buffer
 /// @definition.implements symbol=<module>#2 source=Viewable target=Viewable
-/// @definition.method symbol=view slot=view type=<view.'a>(this: &view.'a this) => int32
+/// @definition.method symbol=view slot=view type=<view.'a>(this: &view.'a Buffer) => int32
 /// @resolution.name source=Buffer target=Buffer
 /// @resolution.name source=Viewable target=Viewable
 
     view(&this): int32 {
     /// @generic.template symbol=view parent=template#1 parameters=('a)
-    /// @type.symbol symbol=view type=<view.'a>(this: &view.'a this) => int32
-    /// @type.symbol symbol=view.this source=&this type=&view.'a this
+    /// @type.symbol symbol=view type=<view.'a>(this: &view.'a Buffer) => int32
+    /// @type.symbol symbol=view.this source=&this type=&view.'a Buffer
 
         this.x
         /// @resolution.member source=this.x receiver=&view.'a Buffer type=int32 kind=field target_receiver=&view.'a Buffer key=x target=Buffer.x target_type=int32
@@ -3414,10 +3403,10 @@ newtype interface Speak {
 /// @type.symbol symbol=Speak type=Speak
 /// @definition.interface symbol=Speak template=(this: Speak) nominal=true
 /// @definition.where symbol=Speak relation=satisfies left=this right=Speak
-/// @definition.method symbol=Speak.say source="say(): void" slot=say type=(this: this) => void
+/// @definition.method symbol=Speak.say source="say(): void" slot=say type=() => void
 
     say(): void;
-    /// @type.symbol symbol=Speak.say source="say(): void" type=(this: this) => void
+    /// @type.symbol symbol=Speak.say source="say(): void" type=() => void
 
 }
 
@@ -3428,14 +3417,14 @@ struct Dog {}
 extension of Dog implements Speak {
 /// @definition.extension symbol=<module>#2 form=local target=Dog
 /// @definition.implements symbol=<module>#2 source=Speak target=Speak
-/// @definition.method symbol=say source="say(): void {}" slot=say type=<say.'a>(this: &say.'a readonly this) => void
+/// @definition.method symbol=say source="say(): void {}" slot=say type=<say.'a>(this: &say.'a readonly Dog) => void
 /// @definition.conformance symbol=<module>#2 member=say requirement=Speak.say
 /// @resolution.name source=Dog target=Dog
 /// @resolution.name source=Speak target=Speak
 
     say(): void {}
     /// @generic.template symbol=say parent=template#1 parameters=('a)
-    /// @type.symbol symbol=say source="say(): void {}" type=<say.'a>(this: &say.'a readonly this) => void
+    /// @type.symbol symbol=say source="say(): void {}" type=<say.'a>(this: &say.'a readonly Dog) => void
     /// @type.symbol symbol=say.this type=&say.'a readonly Dog
 
 }
@@ -3500,15 +3489,16 @@ newtype interface Adder<T = this> {
 /// @definition.interface symbol=Adder template=(in T = this, this: Adder<T>) nominal=true
 /// @definition.where symbol=Adder relation=satisfies left=this right=Adder<T>
 /// @definition.associated.type symbol=Adder.Output source="type Output" key=Output
-/// @definition.method symbol=Adder.add source="add(other: T): this.Output" slot=add type=(this: this, T) => this.Output
+/// @definition.method symbol=Adder.add source="add(other: T): this.Output" slot=add type=(T) => this.Output
 /// @type.symbol symbol=Adder.T source="T = this" type=T
 
     type Output;
 
     add(other: T): this.Output;
-    /// @type.symbol symbol=Adder.add source="add(other: T): this.Output" type=(this: this, T) => this.Output
+    /// @type.symbol symbol=Adder.add source="add(other: T): this.Output" type=(T) => this.Output
     /// @type.symbol symbol=Adder.add.other source="other: T" type=T
     /// @resolution.name source=T target=Adder.T
+    /// @resolution.name source=this.Output target=Adder.Output
 
 }
 
@@ -3526,7 +3516,7 @@ extension of Num implements Adder {
 /// @definition.extension symbol=<module>#2 form=local target=Num
 /// @definition.implements symbol=<module>#2 source=Adder target=Adder<this>
 /// @definition.associated.type symbol=Output source="type Output = ^Num" key=Output value=Num
-/// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a readonly this, Num) => Num
+/// @definition.method symbol=add slot=add type=<add.'a>(this: &add.'a readonly Num, Num) => Num
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Adder.Output
 /// @definition.conformance symbol=<module>#2 member=add requirement=Adder.add
 /// @resolution.name source=Num target=Num
@@ -3538,7 +3528,7 @@ extension of Num implements Adder {
 
     add(other: Num): ^Num {
     /// @generic.template symbol=add parent=template#1 parameters=('a)
-    /// @type.symbol symbol=add type=<add.'a>(this: &add.'a readonly this, Num) => Num
+    /// @type.symbol symbol=add type=<add.'a>(this: &add.'a readonly Num, Num) => Num
     /// @type.symbol symbol=add.this type=&add.'a readonly Num
     /// @type.symbol symbol=add.other source="other: Num" type=Num
     /// @resolution.name source=Num target=Num
@@ -3555,9 +3545,9 @@ extension of Num implements Adder {
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.name source=other target=add.other
         /// @resolution.member source=other.value receiver=Num type=int32 kind=field target_receiver=Num key=value target=Num.value target_type=int32
-        /// @resolution.place source=other placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=other root=add.other
-        /// @resolution.place source=other.value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=other.value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=other.value root=add.other keys=[value]
 
     }

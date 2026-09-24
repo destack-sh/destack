@@ -77,7 +77,7 @@ newtype interface Sized {
         /// @resolution.member source=this.length receiver=this type=(this: this) => int32 kind=symbol target_receiver=this target=Sized.length
         /// @resolution.call source=this.length() parameters=() return=int32 kind=symbol target=Sized.length receiver=this
         /// @resolution.operator source="this.length() == 0" type=boolean operator="==" kind=builtin operands=[this.length() as int32 families=(integer), 0 as int32 families=(integer)]
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @generic.instantiation id=Sized.length<this> template=Sized.length arguments=() owner=Sized
         /// @generic.instance id=Sized.length<this> template=Sized.length arguments=()
@@ -106,14 +106,14 @@ extension of Buffer implements Sized {
 
     length(this): int32 {
     /// @type.symbol symbol=length type=(this: Buffer) => int32
-    /// @type.symbol symbol=length.this source=this type=this
+    /// @type.symbol symbol=length.this source=this type=Buffer
 
         return this.length;
         /// @resolution.member source=this.length receiver=Buffer type=int32 kind=field target_receiver=Buffer key=length target=Buffer.length target_type=int32
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Buffer
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.length placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this.length placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this.length root=this keys=[length]
 
     }
@@ -130,12 +130,12 @@ const empty = buffer.isEmpty();
 /// @resolution.name source=buffer target=buffer
 /// @resolution.member source=buffer.isEmpty receiver=Buffer type=(this: Buffer) => boolean kind=symbol target_receiver=Buffer target=Sized.isEmpty
 /// @resolution.call source=buffer.isEmpty() parameters=() return=boolean kind=symbol target=Sized.isEmpty receiver=Buffer
-/// @resolution.place source=buffer placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=buffer placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=buffer root=buffer
 
 empty satisfies boolean;
 /// @resolution.name source=empty target=empty
-/// @resolution.place source=empty placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=empty placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=empty root=empty
 "#,
     );
@@ -226,7 +226,7 @@ newtype interface Sized {
         /// @resolution.member source=this.length receiver=this type=(this: this) => int32 kind=symbol target_receiver=this target=Sized.length
         /// @resolution.call source=this.length() parameters=() return=int32 kind=symbol target=Sized.length receiver=this
         /// @resolution.operator source="this.length() == 0" type=boolean operator="==" kind=builtin operands=[this.length() as int32 families=(integer), 0 as int32 families=(integer)]
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @generic.instantiation id=Sized.length<this> template=Sized.length arguments=() owner=Sized
         /// @generic.instance id=Sized.length<this> template=Sized.length arguments=()
@@ -256,21 +256,21 @@ extension of Buffer implements Sized {
 
     length(this): int32 {
     /// @type.symbol symbol=length type=(this: Buffer) => int32
-    /// @type.symbol symbol=length.this source=this type=this
+    /// @type.symbol symbol=length.this source=this type=Buffer
 
         return this.length;
         /// @resolution.member source=this.length receiver=Buffer type=int32 kind=field target_receiver=Buffer key=length target=Buffer.length target_type=int32
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Buffer
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.length placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this.length placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this.length root=this keys=[length]
 
     }
 
     isEmpty(this): boolean {
     /// @type.symbol symbol=isEmpty type=(this: Buffer) => boolean
-    /// @type.symbol symbol=isEmpty.this source=this type=this
+    /// @type.symbol symbol=isEmpty.this source=this type=Buffer
 
         return false;
     }
@@ -287,12 +287,12 @@ const empty = buffer.isEmpty();
 /// @resolution.name source=buffer target=buffer
 /// @resolution.member source=buffer.isEmpty receiver=Buffer type=(this: Buffer) => boolean kind=symbol target_receiver=Buffer target=isEmpty
 /// @resolution.call source=buffer.isEmpty() parameters=() return=boolean kind=symbol target=isEmpty receiver=Buffer
-/// @resolution.place source=buffer placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=buffer placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=buffer root=buffer
 
 empty satisfies boolean;
 /// @resolution.name source=empty target=empty
-/// @resolution.place source=empty placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=empty placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=empty root=empty
 "#,
     );

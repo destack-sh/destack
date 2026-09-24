@@ -56,16 +56,17 @@ let person: MutableFields<Person> = { name: "Ada", age: 42 };
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=person root=person
 /// @resolution.pattern.assign source=person.name kind=place
+/// @resolution.place source=person.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.name root=person keys=[name]
 /// @resolution.assignment source=person.name write="receiver=MutableFields<Person>, target=field(receiver=MutableFields<Person>, target=name, type=string), type=string" type=string
 
 person.name satisfies string;
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.name receiver=MutableFields<Person> type=string kind=field target_receiver=MutableFields<Person> key=name target_type=string
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.name root=person keys=[name]
@@ -99,7 +100,7 @@ interface Person {
 }
 
 const empty: MutableFields<Person> = {};
-const named: MutableFields<Person> = { name: "Ada" };
+const named: MutableFields<Person> = { name: "Ada" as string | undefined };
 
 empty satisfies MutableFields<Person>;
 named satisfies MutableFields<Person>;
@@ -131,14 +132,14 @@ const named: MutableFields<Person> = { name: "Ada" };
 
 empty satisfies MutableFields<Person>;
 /// @resolution.name source=empty target=empty
-/// @resolution.place source=empty placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=empty placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=empty root=empty
 /// @resolution.name source=MutableFields target=MutableFields
 /// @resolution.name source=Person target=Person
 
 named satisfies MutableFields<Person>;
 /// @resolution.name source=named target=named
-/// @resolution.place source=named placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=named placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=named root=named
 /// @resolution.name source=MutableFields target=MutableFields
 /// @resolution.name source=Person target=Person
@@ -183,10 +184,10 @@ interface Person {
 /// @type.symbol symbol=Person type=Person
 /// @definition.interface symbol=Person template=(this: Person)
 /// @definition.where symbol=Person relation=satisfies left=this right=Person
-/// @definition.field symbol=Person.profile key=profile type=Readonly<{ name: string }>
+/// @definition.field symbol=Person.profile key=profile type=readonly { name: string }
 
     readonly profile: readonly {
-    /// @type.symbol symbol=Person.profile type=Readonly<{ name: string }>
+    /// @type.symbol symbol=Person.profile type=readonly { name: string }
 
         name: string;
         /// @type.symbol symbol=Person.name source="name: string" type=string
@@ -202,14 +203,15 @@ let person: MutableFields<Person> = { profile: { name: "Ada" } };
 
 person.profile.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.member source=person.profile receiver=MutableFields<Person> type=Readonly<{ name: string }> kind=field target_receiver=MutableFields<Person> key=profile target_type=Readonly<{ name: string }>
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.member source=person.profile receiver=MutableFields<Person> type=readonly { name: string } kind=field target_receiver=MutableFields<Person> key=profile target_type=readonly { name: string }
+/// @resolution.place source=person placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.profile placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=person.profile root=person keys=[profile]
 /// @resolution.pattern.assign source=person.profile.name kind=place
+/// @resolution.place source=person.profile.name placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=person.profile.name root=person keys=[profile, name]
-/// @resolution.assignment source=person.profile.name write="receiver=Readonly<{ name: string }>, target=field(receiver=Readonly<{ name: string }>, target=name, type=Readonly<string>), type=Readonly<string>" type=Readonly<string>
+/// @resolution.assignment source=person.profile.name write="receiver=readonly { name: string }, target=field(receiver=readonly { name: string }, target=name, type=string), type=string" type=string
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"

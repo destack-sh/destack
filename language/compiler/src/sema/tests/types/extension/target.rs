@@ -29,16 +29,16 @@ extension of (int32, string) {
 
 declare const pair: (int32, string);
 
-const count: int32 = pair.count();
+const count: int32 = pair.count<"static">();
 
 === dir ===
 extension of (int32, string) {
 /// @definition.extension symbol=<module>#2 form=local target=(int32, string)
-/// @definition.method symbol=count#1 slot=count type=<count#1.'a>(this: &count#1.'a readonly this) => int32
+/// @definition.method symbol=count#1 slot=count type=<count#1.'a>(this: &count#1.'a readonly (int32, string)) => int32
 
     count(): int32 {
     /// @generic.template symbol=count#1 parameters=('a)
-    /// @type.symbol symbol=count#1 type=<count#1.'a>(this: &count#1.'a readonly this) => int32
+    /// @type.symbol symbol=count#1 type=<count#1.'a>(this: &count#1.'a readonly (int32, string)) => int32
     /// @type.symbol symbol=count.this type=&count#1.'a readonly (int32, string)
 
         return this[0];
@@ -61,9 +61,10 @@ const count = pair.count();
 /// @resolution.pattern source=count kind=binding target=count
 /// @resolution.name source=pair target=pair
 /// @resolution.member source=pair.count receiver=(int32, string) type=<count#1.'a>(this: &count#1.'a readonly (int32, string)) => int32 kind=symbol target_receiver=(int32, string) target=count#1
-/// @resolution.call source=pair.count() parameters=() return=int32 regions=("static" & "constant") kind=symbol target=count#1 receiver=(int32, string) adjustments=(borrow(&'static readonly constant (int32, string)))
-/// @resolution.place source=pair placement="constant" lifetime="static" access="readonly"
+/// @resolution.call source=pair.count() parameters=() return=int32 regions=("static" & "local") kind=symbol target=count#1 receiver=(int32, string) adjustments=(borrow(&'static readonly (int32, string))) instance="(int32, string).<extension#1>.count#1<\"static\" & \"local\">"
+/// @resolution.place source=pair placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=pair root=pair
+/// @generic.instantiation id="count#1<\"static\" & \"local\">" template=count#1 arguments=("static" & "local")
 "#,
         r#"
 
@@ -101,13 +102,13 @@ extension<First: Copy, Second: Copy> of (First, Second) {
 
 declare const pair: (int32, boolean);
 
-const swapped: (boolean, int32) = pair.swap<int32, boolean>();
+const swapped: (boolean, int32) = pair.swap<int32, boolean, "static">();
 
 === dir ===
 extension<First: Copy, Second: Copy> of (First, Second) {
 /// @generic.template symbol=<module>#2 parameters=(First: Copy, Second: Copy)
 /// @definition.extension symbol=<module>#2 form=local target=(First, Second)
-/// @definition.method symbol=swap slot=swap type=<swap.'a>(this: &swap.'a readonly this) => (Second, First)
+/// @definition.method symbol=swap slot=swap type=<swap.'a>(this: &swap.'a readonly (First, Second)) => (Second, First)
 /// @type.symbol symbol=First source="First: Copy" type=First
 /// @resolution.name source=Copy target=Copy
 /// @type.symbol symbol=Second source="Second: Copy" type=Second
@@ -117,7 +118,7 @@ extension<First: Copy, Second: Copy> of (First, Second) {
 
     swap(): (Second, First) {
     /// @generic.template symbol=swap parent=template#0 parameters=('a)
-    /// @type.symbol symbol=swap type=<swap.'a>(this: &swap.'a readonly this) => (Second, First)
+    /// @type.symbol symbol=swap type=<swap.'a>(this: &swap.'a readonly (First, Second)) => (Second, First)
     /// @type.symbol symbol=swap.this type=&swap.'a readonly (First, Second)
     /// @resolution.name source=Second target=Second
     /// @resolution.name source=First target=First
@@ -148,9 +149,10 @@ const swapped = pair.swap();
 /// @resolution.pattern source=swapped kind=binding target=swapped
 /// @resolution.name source=pair target=pair
 /// @resolution.member source=pair.swap receiver=(int32, boolean) type=<swap.'a>(this: &swap.'a readonly (int32, boolean)) => (boolean, int32) kind=symbol target_receiver=(int32, boolean) target=swap
-/// @resolution.call source=pair.swap() parameters=() return=(boolean, int32) regions=("static" & "constant") kind=symbol target=swap receiver=(int32, boolean) adjustments=(borrow(&'static readonly constant (int32, boolean))) instance="(First, Second).<extension#1>.swap"
-/// @resolution.place source=pair placement="constant" lifetime="static" access="readonly"
+/// @resolution.call source=pair.swap() parameters=() return=(boolean, int32) regions=("static" & "local") kind=symbol target=swap receiver=(int32, boolean) adjustments=(borrow(&'static readonly (int32, boolean))) instance="(First, Second).<extension#1>.swap<\"static\" & \"local\">"
+/// @resolution.place source=pair placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=pair root=pair
+/// @generic.instantiation id="swap<int32, boolean, \"static\" & \"local\">" template=swap arguments=(int32, boolean, "static" & "local")
 /// @generic.instantiation id="swap<int32, boolean>" template=swap arguments=(int32, boolean)
 "#,
         r#"
@@ -192,14 +194,14 @@ extension<T: Copy> of (T, T) {
 declare const same: (int32, int32);
 declare const mixed: (int32, string);
 
-const first: int32 = same.head<int32>();
+const first: int32 = same.head<int32, "static">();
 const missing = mixed.head();
 
 === dir ===
 extension<T: Copy> of (T, T) {
 /// @generic.template symbol=<module>#2 parameters=(T: Copy)
 /// @definition.extension symbol=<module>#2 form=local target=(T, T)
-/// @definition.method symbol=head slot=head type=<head.'a>(this: &head.'a readonly this) => T
+/// @definition.method symbol=head slot=head type=<head.'a>(this: &head.'a readonly (T, T)) => T
 /// @type.symbol symbol=T source="T: Copy" type=T
 /// @resolution.name source=Copy target=Copy
 /// @resolution.name source=T target=T
@@ -207,7 +209,7 @@ extension<T: Copy> of (T, T) {
 
     head(): T {
     /// @generic.template symbol=head parent=template#0 parameters=('a)
-    /// @type.symbol symbol=head type=<head.'a>(this: &head.'a readonly this) => T
+    /// @type.symbol symbol=head type=<head.'a>(this: &head.'a readonly (T, T)) => T
     /// @type.symbol symbol=head.this type=&head.'a readonly (T, T)
     /// @resolution.name source=T target=T
 
@@ -235,16 +237,17 @@ const first = same.head();
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=same target=same
 /// @resolution.member source=same.head receiver=(int32, int32) type=<head.'a>(this: &head.'a readonly (int32, int32)) => int32 kind=symbol target_receiver=(int32, int32) target=head
-/// @resolution.call source=same.head() parameters=() return=int32 regions=("static" & "constant") kind=symbol target=head receiver=(int32, int32) adjustments=(borrow(&'static readonly constant (int32, int32))) instance="(T, T).<extension#1>.head"
-/// @resolution.place source=same placement="constant" lifetime="static" access="readonly"
+/// @resolution.call source=same.head() parameters=() return=int32 regions=("static" & "local") kind=symbol target=head receiver=(int32, int32) adjustments=(borrow(&'static readonly (int32, int32))) instance="(T, T).<extension#1>.head<\"static\" & \"local\">"
+/// @resolution.place source=same placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=same root=same
+/// @generic.instantiation id="head<int32, \"static\" & \"local\">" template=head arguments=(int32, "static" & "local")
 /// @generic.instantiation id=head<int32> template=head arguments=(int32)
 
 const missing = mixed.head();
 /// @type.symbol symbol=missing source=missing type=<error>
 /// @resolution.pattern source=missing kind=binding target=missing
 /// @resolution.name source=mixed target=mixed
-/// @resolution.place source=mixed placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=mixed placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=mixed root=mixed
 /// @resolution.rejected source=mixed.head
 /// @resolution.rejected source=mixed.head()
@@ -285,26 +288,24 @@ extension of [int32; 3] {
 
 declare const triple: [int32; 3];
 
-const head: int32 = triple.head();
+const head: int32 = triple.head<"static">();
 
 === dir ===
 extension of [int32; 3] {
 /// @definition.extension symbol=<module>#2 form=local target=FixedArray<int32, 3>
-/// @definition.method symbol=head#1 slot=head type=<head#1.'a>(this: &head#1.'a readonly this) => int32
+/// @definition.method symbol=head#1 slot=head type=<head#1.'a>(this: &head#1.'a readonly FixedArray<int32, 3>) => int32
 
     head(): int32 {
     /// @generic.template symbol=head#1 parameters=('a)
-    /// @type.symbol symbol=head#1 type=<head#1.'a>(this: &head#1.'a readonly this) => int32
+    /// @type.symbol symbol=head#1 type=<head#1.'a>(this: &head#1.'a readonly FixedArray<int32, 3>) => int32
     /// @type.symbol symbol=head.this type=&head#1.'a readonly FixedArray<int32, 3>
 
         return this[0];
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&head#1.'a readonly FixedArray<int32, 3>
         /// @resolution.place source=this placement=head#1.'a lifetime=head#1.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this[0] placement=head#1.'a lifetime=head#1.'a access="readonly"
-        /// @resolution.access source=this[0] root=this keys=[0]
-        /// @resolution.subscript source=this[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&head#1.'a int32, \"readonly\">, regions=(head#1.'a))"
-        /// @generic.instantiation id="index#1<int32, 3, \"readonly\">" template=index#1 arguments=(int32, 3, "readonly")
+        /// @resolution.subscript source=this[0] type=int32 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=int32, regions=(head#1.'a))"
+        /// @generic.instantiation id="index#2<int32, 3, head#1.'a>" template=index#2 arguments=(int32, 3, head#1.'a)
 
     }
 }
@@ -318,9 +319,10 @@ const head = triple.head();
 /// @resolution.pattern source=head kind=binding target=head
 /// @resolution.name source=triple target=triple
 /// @resolution.member source=triple.head receiver=FixedArray<int32, 3> type=<head#1.'a>(this: &head#1.'a readonly FixedArray<int32, 3>) => int32 kind=symbol target_receiver=FixedArray<int32, 3> target=head#1
-/// @resolution.call source=triple.head() parameters=() return=int32 regions=("static" & "constant") kind=symbol target=head#1 receiver=FixedArray<int32, 3> adjustments=(borrow(&'static readonly constant FixedArray<int32, 3>))
-/// @resolution.place source=triple placement="constant" lifetime="static" access="readonly"
+/// @resolution.call source=triple.head() parameters=() return=int32 regions=("static" & "local") kind=symbol target=head#1 receiver=FixedArray<int32, 3> adjustments=(borrow(&'static readonly FixedArray<int32, 3>)) instance="FixedArray<int32, 3>.<extension#1>.head#1<\"static\" & \"local\">"
+/// @resolution.place source=triple placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=triple root=triple
+/// @generic.instantiation id="head#1<\"static\" & \"local\">" template=head#1 arguments=("static" & "local")
 "#,
         r#"
 "#,
@@ -332,7 +334,7 @@ fn test_extend_a_slice_at_its_language_item() {
     let session = TestSession::single(
         r#"
 extension of [int32] {
-    hasNone(): boolean {
+    hasNone(&readonly this): boolean {
         return this.length == 0;
     }
 }
@@ -349,49 +351,52 @@ const none = values.hasNone();
         r#"
 === annotated ===
 extension of [int32] {
-    hasNone(): boolean {
+    hasNone(&readonly this): boolean {
         return this.length == 0;
     }
 }
 
 declare const values: &'static readonly [int32];
 
-const none: boolean = values.hasNone();
+const none: boolean = values.hasNone<"static">();
 
 === dir ===
 extension of [int32] {
 /// @definition.extension symbol=<module>#2 form=local target=Slice<int32>
-/// @definition.method symbol=hasNone slot=hasNone type=(this: this) => boolean
+/// @definition.method symbol=hasNone slot=hasNone type=<hasNone.'a>(this: &hasNone.'a readonly Slice<int32>) => boolean
 
-    hasNone(): boolean {
-    /// @type.symbol symbol=hasNone type=(this: this) => boolean
-    /// @type.symbol symbol=hasNone.this type=Slice<int32>
+    hasNone(&readonly this): boolean {
+    /// @generic.template symbol=hasNone parameters=('a)
+    /// @type.symbol symbol=hasNone type=<hasNone.'a>(this: &hasNone.'a readonly Slice<int32>) => boolean
+    /// @type.symbol symbol=hasNone.this source="&readonly this" type=&hasNone.'a readonly Slice<int32>
 
         return this.length == 0;
-        /// @resolution.member source=this.length receiver=Slice<int32> type=isize kind=call target="length(parameters=(), arguments=(), return=isize, regions=(\"frame\" & \"local\"))"
+        /// @resolution.member source=this.length receiver=&hasNone.'a readonly Slice<int32> type=isize kind=call target="length(parameters=(), arguments=(), return=isize, regions=(hasNone.'a))"
         /// @resolution.operator source="this.length == 0" type=boolean operator="==" kind=builtin operands=[this.length as isize families=(integer), 0 as isize families=(integer)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Slice<int32>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&hasNone.'a readonly Slice<int32>
+        /// @resolution.place source=this placement=hasNone.'a lifetime=hasNone.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @generic.instantiation id=length<int32> template=length arguments=(int32)
+        /// @generic.instantiation id="length<int32, hasNone.'a>" template=length arguments=(int32, hasNone.'a)
 
     }
 }
 
 declare const values: &readonly [int32];
-/// @type.symbol symbol=values source=values type=&'static readonly constant Slice<int32>
+/// @type.symbol symbol=values source=values type=&'static readonly Slice<int32>
 /// @resolution.pattern source=values kind=binding target=values
 
 const none = values.hasNone();
 /// @type.symbol symbol=none source=none type=boolean
 /// @resolution.pattern source=none kind=binding target=none
 /// @resolution.name source=values target=values
-/// @resolution.member source=values.hasNone receiver=&'static readonly constant Slice<int32> type=(this: Slice<int32>) => boolean kind=symbol target_receiver=&'static readonly constant Slice<int32> target=hasNone
-/// @resolution.call source=values.hasNone() parameters=() return=boolean kind=symbol target=hasNone receiver=&'static readonly constant Slice<int32> adjustments=(&'static readonly constant Slice<int32> => direct -> Slice<int32>)
-/// @resolution.place source=values placement="constant" lifetime="static" access="readonly"
+/// @resolution.member source=values.hasNone receiver=&'static readonly Slice<int32> type=<hasNone.'a>(this: &hasNone.'a readonly Slice<int32>) => boolean kind=symbol target_receiver=&'static readonly Slice<int32> target=hasNone
+/// @resolution.call source=values.hasNone() parameters=() return=boolean regions=("static" & "local") kind=symbol target=hasNone receiver=&'static readonly Slice<int32> instance="Slice<int32>.<extension#1>.hasNone<\"static\" & \"local\">"
+/// @resolution.place source=values placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
+/// @generic.instantiation id="hasNone<\"static\" & \"local\">" template=hasNone arguments=("static" & "local")
 "#,
         r#"
+
 "#,
     );
 }
@@ -429,20 +434,20 @@ const arity: int32 = increment.arity();
 
 === dir ===
 extension of (value: int32) => int32 {
-/// @definition.extension symbol=<module>#2 form=local target=Function<(int32,), int32>
-/// @definition.method symbol=arity#1 slot=arity type=(this: this) => int32
+/// @definition.extension symbol=<module>#2 form=local target=(int32) => int32
+/// @definition.method symbol=arity#1 slot=arity type=(this: (int32) => int32) => int32
 /// @type.symbol symbol=value#1 source="value: int32" type=int32
 
     arity(): int32 {
-    /// @type.symbol symbol=arity#1 type=(this: this) => int32
-    /// @type.symbol symbol=arity.this type=Function<(int32,), int32>
+    /// @type.symbol symbol=arity#1 type=(this: (int32) => int32) => int32
+    /// @type.symbol symbol=arity.this type=(int32) => int32
 
         return 1;
     }
 }
 
 declare const increment: (value: int32) => int32;
-/// @type.symbol symbol=increment source=increment type=Function<(int32,), int32>
+/// @type.symbol symbol=increment source=increment type=(int32) => int32
 /// @resolution.pattern source=increment kind=binding target=increment
 /// @type.symbol symbol=value source="value: int32" type=int32
 
@@ -450,9 +455,9 @@ const arity = increment.arity();
 /// @type.symbol symbol=arity source=arity type=int32
 /// @resolution.pattern source=arity kind=binding target=arity
 /// @resolution.name source=increment target=increment
-/// @resolution.member source=increment.arity receiver=Function<(int32,), int32> type=(this: Function<(int32,), int32>) => int32 kind=symbol target_receiver=Function<(int32,), int32> target=arity#1
-/// @resolution.call source=increment.arity() parameters=() return=int32 kind=symbol target=arity#1 receiver=Function<(int32,), int32>
-/// @resolution.place source=increment placement="local" lifetime="managed" access="mutable"
+/// @resolution.member source=increment.arity receiver=(int32) => int32 type=(this: (int32) => int32) => int32 kind=symbol target_receiver=(int32) => int32 target=arity#1
+/// @resolution.call source=increment.arity() parameters=() return=int32 kind=symbol target=arity#1 receiver=(int32) => int32
+/// @resolution.place source=increment placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=increment root=increment
 "#,
         r#"
@@ -487,21 +492,20 @@ extension of { x: int32 } {
 === dir ===
 extension of { x: int32 } {
 /// @definition.extension symbol=<module>#2 form=local target={ x: int32 }
-/// @definition.method symbol=double slot=double type=<double.P0: Place>(this: Managed<this, double.P0>) => int32
+/// @definition.method symbol=double slot=double type=(this: { x: int32 }) => int32
 /// @type.symbol symbol=x source="x: int32" type=int32
 
     double(): int32 {
-    /// @generic.template symbol=double parameters=(P0: Place)
-    /// @type.symbol symbol=double type=<double.P0: Place>(this: Managed<this, double.P0>) => int32
-    /// @type.symbol symbol=double.this type=Managed<{ x: int32 }, double.P0>
+    /// @type.symbol symbol=double type=(this: { x: int32 }) => int32
+    /// @type.symbol symbol=double.this type={ x: int32 }
 
         return this.x * 2;
-        /// @resolution.member source=this.x receiver=Managed<{ x: int32 }, double.P0> type=int32 kind=field target_receiver=Managed<{ x: int32 }, double.P0> key=x target_type=int32
+        /// @resolution.member source=this.x receiver={ x: int32 } type=int32 kind=field target_receiver={ x: int32 } key=x target_type=int32
         /// @resolution.operator source="this.x * 2" type=int32 operator="*" kind=builtin operands=[this.x as int32 families=(integer), 2 as int32 families=(integer)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Managed<{ x: int32 }, double.P0>
-        /// @resolution.place source=this placement=double.P0 lifetime="managed" access="mutable"
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type={ x: int32 }
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.x placement=double.P0 lifetime="managed" access="mutable"
+        /// @resolution.place source=this.x placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this.x root=this keys=[x]
 
     }
@@ -578,21 +582,20 @@ interface Aged {
 
 extension of Named & Aged {
 /// @definition.extension symbol=<module>#2 form=local target=Named & Aged
-/// @definition.method symbol=describe slot=describe type=<describe.P0: Place>(this: Managed<this, describe.P0>) => string
+/// @definition.method symbol=describe slot=describe type=(this: Named & Aged) => string
 /// @resolution.name source=Named target=Named
 /// @resolution.name source=Aged target=Aged
 
     describe(): string {
-    /// @generic.template symbol=describe parameters=(P0: Place)
-    /// @type.symbol symbol=describe type=<describe.P0: Place>(this: Managed<this, describe.P0>) => string
-    /// @type.symbol symbol=describe.this type=Managed<Named & Aged, describe.P0>
+    /// @type.symbol symbol=describe type=(this: Named & Aged) => string
+    /// @type.symbol symbol=describe.this type=Named & Aged
 
         return this.name;
-        /// @resolution.member source=this.name receiver=Managed<Named & Aged, describe.P0> type=Managed<string, describe.P0> kind=field target_receiver=Managed<Named & Aged, describe.P0> key=name target=Named.name target_type=Managed<string, describe.P0>
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Managed<Named & Aged, describe.P0>
-        /// @resolution.place source=this placement=describe.P0 lifetime="managed" access="mutable"
+        /// @resolution.member source=this.name receiver=Named & Aged type=string kind=field target_receiver=Named & Aged key=name target=Named.name target_type=string
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Named & Aged
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.name placement=describe.P0 lifetime="managed" access="mutable"
+        /// @resolution.place source=this.name placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this.name root=this keys=[name]
 
     }
@@ -646,12 +649,12 @@ struct Square {}
 
 extension of Circle | Square {
 /// @definition.extension symbol=<module>#2 form=local target=Circle | Square
-/// @definition.method symbol=area slot=area type=(this: this) => int32
+/// @definition.method symbol=area slot=area type=(this: Circle | Square) => int32
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 
     area(): int32 {
-    /// @type.symbol symbol=area type=(this: this) => int32
+    /// @type.symbol symbol=area type=(this: Circle | Square) => int32
     /// @type.symbol symbol=area.this type=Circle | Square
 
         return 1;
@@ -709,12 +712,12 @@ type Account = User;
 
 extension of Account {
 /// @definition.extension symbol=<module>#2 form=local target=Account
-/// @definition.method symbol=label slot=label type=<label.'a>(this: &label.'a readonly this) => string
+/// @definition.method symbol=label slot=label type=<label.'a>(this: &label.'a readonly Account) => string
 /// @resolution.name source=Account target=Account
 
     label(): string {
     /// @generic.template symbol=label parameters=('a)
-    /// @type.symbol symbol=label type=<label.'a>(this: &label.'a readonly this) => string
+    /// @type.symbol symbol=label type=<label.'a>(this: &label.'a readonly Account) => string
     /// @type.symbol symbol=label.this type=&label.'a readonly Account
 
         return "account";
@@ -754,12 +757,12 @@ extension<T> of T {
 extension<T> of T {
 /// @generic.template symbol=<module>#2 parameters=(T)
 /// @definition.extension symbol=<module>#2 form=local target=T
-/// @definition.method symbol=describe slot=describe type=(this: this) => string
+/// @definition.method symbol=describe slot=describe type=(this: T) => string
 /// @type.symbol symbol=T source=T type=T
 /// @resolution.name source=T target=T
 
     describe(): string {
-    /// @type.symbol symbol=describe type=(this: this) => string
+    /// @type.symbol symbol=describe type=(this: T) => string
     /// @type.symbol symbol=describe.this type=T
 
         return "anything";
@@ -828,13 +831,13 @@ struct User {}
 
 extension of User where int32: Show {
 /// @definition.extension symbol=<module>#2 form=local target=User
-/// @definition.method symbol=label slot=label type=<label.'a>(this: &label.'a readonly this) => string
+/// @definition.method symbol=label slot=label type=<label.'a>(this: &label.'a readonly User) => string
 /// @resolution.name source=User target=User
 /// @resolution.name source=Show target=Show
 
     label(): string {
     /// @generic.template symbol=label parent=template#1 parameters=('a)
-    /// @type.symbol symbol=label type=<label.'a>(this: &label.'a readonly this) => string
+    /// @type.symbol symbol=label type=<label.'a>(this: &label.'a readonly User) => string
     /// @type.symbol symbol=label.this type=&label.'a readonly User
 
         return "user";

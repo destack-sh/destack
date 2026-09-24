@@ -24,14 +24,12 @@ async function fetchCount(): Promise<int32> {
 /// @type.symbol symbol=fetchCount type=async () => Promise<int32>
 /// @resolution.call parameters=(^Function<(), int32, "once">) arguments=(supplied(0) as ^Function<(), int32, "once">) return=Promise<int32> kind=symbol target=Promise.create instance=Promise.create<int32>
 /// @generic.instantiation id=Promise.create<int32> template=Promise.create arguments=(int32)
-/// @generic.instance id="Function<(), int32, \"once\">" template=Function arguments=((), int32, "once")
-/// @generic.instance id="Promise.symbol12<int32, \"local\">" template=Promise.symbol12 arguments=(int32, "local")
-/// @generic.instance id="Promise<int32, \"local\">" template=Promise arguments=(int32, "local")
 /// @generic.instance id=Promise.create<int32> template=Promise.create arguments=(int32)
 /// @generic.instance id=Promise.fulfill<int32> template=Promise.fulfill arguments=(int32)
 /// @generic.instance id=Promise.pending<int32> template=Promise.pending arguments=(int32)
 /// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
 /// @generic.instance id=Promise.queueWaiters<int32> template=Promise.queueWaiters arguments=(int32)
+/// @generic.instance id=Promise.symbol12<int32> template=Promise.symbol12 arguments=(int32)
 /// @generic.instance id=Promise<int32> template=Promise arguments=(int32)
 /// @resolution.name source=Promise target=Promise
 
@@ -74,13 +72,11 @@ async function fetchCount(): Promise<int32> {
 /// @type.symbol symbol=fetchCount type=async () => Promise<int32>
 /// @resolution.call parameters=(^Function<(), int32, "once">) arguments=(supplied(0) as ^Function<(), int32, "once">) return=Promise<int32> kind=symbol target=Promise.create instance=Promise.create<int32>
 /// @generic.instantiation id=Promise.create<int32> template=Promise.create arguments=(int32)
-/// @generic.instance id="Function<(), int32, \"once\">" template=Function arguments=((), int32, "once")
-/// @generic.instance id="Promise.symbol12<int32, \"local\">" template=Promise.symbol12 arguments=(int32, "local")
-/// @generic.instance id="Promise<int32, \"local\">" template=Promise arguments=(int32, "local")
 /// @generic.instance id=Promise.create<int32> template=Promise.create arguments=(int32)
 /// @generic.instance id=Promise.fulfill<int32> template=Promise.fulfill arguments=(int32)
 /// @generic.instance id=Promise.pending<int32> template=Promise.pending arguments=(int32)
 /// @generic.instance id=Promise.queueWaiters<int32> template=Promise.queueWaiters arguments=(int32)
+/// @generic.instance id=Promise.symbol12<int32> template=Promise.symbol12 arguments=(int32)
 /// @generic.instance id=Promise<int32> template=Promise arguments=(int32)
 /// @resolution.name source=Promise target=Promise
 
@@ -98,11 +94,11 @@ async function double(): Promise<int32> {
     /// @resolution.call source="await fetchCount()" parameters=(Promise<int32>) arguments=(provided(fetchCount()) as Promise<int32>) return=int32 kind=symbol target=Promise.park receiver=Promise<int32> instance=Promise<int32>.park<int32>
     /// @generic.instantiation id="Promise.park<int32, int32>" template=Promise.park arguments=(int32, int32)
     /// @generic.instance id="Promise.park<int32, int32>" template=Promise.park arguments=(int32, int32)
-    /// @generic.instance id="PromiseAwaiter.symbol161<int32, \"local\">" template=PromiseAwaiter.symbol161 arguments=(int32, "local")
-    /// @generic.instance id="PromiseAwaiter<int32, \"local\">" template=PromiseAwaiter arguments=(int32, "local")
     /// @generic.instance id=Promise.addWaiter<int32> template=Promise.addWaiter arguments=(int32)
     /// @generic.instance id=Promise.observe<int32> template=Promise.observe arguments=(int32)
     /// @generic.instance id=Promise.queueWaiter<int32> template=Promise.queueWaiter arguments=(int32)
+    /// @generic.instance id=PromiseAwaiter.symbol161<int32> template=PromiseAwaiter.symbol161 arguments=(int32)
+    /// @generic.instance id=PromiseAwaiter<int32> template=PromiseAwaiter arguments=(int32)
     /// @generic.instance id=PromiseForwarded<int32> template=PromiseForwarded arguments=(int32)
     /// @generic.instance id=PromiseFulfilled<int32> template=PromiseFulfilled arguments=(int32)
     /// @resolution.name source=fetchCount target=fetchCount
@@ -111,10 +107,10 @@ async function double(): Promise<int32> {
     return count + count;
     /// @resolution.name source=count target=double.count
     /// @resolution.operator source="count + count" type=int32 operator="+" kind=builtin operands=[count as int32 families=(integer), count as int32 families=(integer)]
-    /// @resolution.place source=count placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=count placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=count root=double.count
     /// @resolution.name source=count target=double.count
-    /// @resolution.place source=count placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=count placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=count root=double.count
 
 }
@@ -163,8 +159,8 @@ async function* stream(): AsyncGenerator<int32, void, void> {
 /// @resolution.name source=AsyncGenerator target=AsyncGenerator
 
     yield 1;
-    /// @resolution.call source="yield 1" parameters=(int32) arguments=(provided(1) as int32) return=GeneratorRequest<void, void> regions=("local") kind=symbol target=AsyncGeneratorProducer.yield instance="AsyncGeneratorProducer.yield<\"local\">"
-    /// @generic.instantiation id="AsyncGeneratorProducer.yield<\"local\", int32, void, void>" template=AsyncGeneratorProducer.yield arguments=("local", int32, void, void)
+    /// @resolution.call source="yield 1" parameters=(int32) arguments=(provided(1) as int32) return=GeneratorRequest<void, void> regions=("frame") kind=symbol target=AsyncGeneratorProducer.yield instance="AsyncGeneratorProducer.yield<\"frame\">"
+    /// @generic.instantiation id="AsyncGeneratorProducer.yield<\"frame\", int32, void, void>" template=AsyncGeneratorProducer.yield arguments=("frame", int32, void, void)
 
 }
 
@@ -179,10 +175,10 @@ async function sum(): Promise<int32> {
     /// @resolution.pattern source=total kind=binding target=sum.total
 
     for await (const value of stream()) {
-    /// @resolution.iteration iterator="asyncIterator(parameters=(), arguments=(), return=AsyncGenerator<int32, void, void>)" next="next#2(parameters=(), arguments=(), return=Promise<IteratorResult<int32, void>>)" await="Promise.park(parameters=(Promise<IteratorResult<int32, void>>), arguments=(supplied(0) as Promise<IteratorResult<int32, void>>), return=IteratorResult<int32, void>)" awaits=result
+    /// @resolution.iteration iterator="asyncIterator(parameters=(), arguments=(), return=AsyncGenerator<int32, void, void>)" next="next#2(parameters=(), arguments=(), return=Promise<IteratorResult<int32, void>>, regions=(\"managed\" & \"local\"))" await="Promise.park(parameters=(Promise<IteratorResult<int32, void>>), arguments=(supplied(0) as Promise<IteratorResult<int32, void>>), return=IteratorResult<int32, void>)" awaits=result
     /// @generic.instantiation id="Promise.park<IteratorResult<int32, void>, IteratorResult<int32, void>>" template=Promise.park arguments=(IteratorResult<int32, void>, IteratorResult<int32, void>)
     /// @generic.instantiation id="asyncIterator<int32, AsyncGenerator<int32, void, void>>" template=asyncIterator arguments=(int32, AsyncGenerator<int32, void, void>)
-    /// @generic.instantiation id="next#2<int32, void, void, \"local\">" template=next#2 arguments=(int32, void, void, "local")
+    /// @generic.instantiation id="next#2<int32, void, void, \"managed\" & \"local\">" template=next#2 arguments=(int32, void, void, "managed" & "local")
     /// @type.symbol symbol=sum.value source=value type=int32
     /// @resolution.pattern source=value kind=binding target=sum.value
     /// @resolution.name source=stream target=stream
@@ -192,18 +188,18 @@ async function sum(): Promise<int32> {
         /// @resolution.name source=total target=sum.total
         /// @resolution.operator source="total += value" type=int32 operator="+" kind=builtin operands=[total as int32 families=(integer), value as int32 families=(integer)]
         /// @resolution.pattern.assign source=total kind=place
-        /// @resolution.place source=total placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=total placement="local" lifetime="frame" access="exclusive"
         /// @resolution.assignment source=total read=binding(sum.total) write=binding(sum.total) type=int32
         /// @resolution.access source=total root=sum.total
         /// @resolution.name source=value target=sum.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=value root=sum.value
 
     }
 
     return total;
     /// @resolution.name source=total target=sum.total
-    /// @resolution.place source=total placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=total placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=total root=sum.total
 
 }

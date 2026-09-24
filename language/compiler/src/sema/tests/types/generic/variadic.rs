@@ -35,7 +35,7 @@ newtype Sharding<in out ...Axes: Axis[]> = intrinsic;
 
 newtype Grid<in out T, in out P> = intrinsic;
 
-declare function mesh<T, ...Axes: Axis[], 'a>(grid: &'a readonly Grid<T, Sharding<Axes>>): int32;
+declare function mesh<T, ...Axes: Axis[], 'a>(grid: &readonly Grid<T, Sharding<...Axes>>): int32;
 
 export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
     /// Return the mesh id.
@@ -55,20 +55,9 @@ newtype Sharding<...Axes: Axis[]> = intrinsic;
 /// @definition.newtype symbol=Sharding source="newtype Sharding<...Axes: Axis[]> = intrinsic" template=(in out ...Axes#1: Axis[]) backing=intrinsic constructors=[<...Axes#1: Axis[]>(intrinsic) => Sharding<Axes#1>]
 /// @type.symbol symbol=Sharding.Axes source="...Axes: Axis[]" type=Axes#1
 /// @resolution.name source=Axis target=Axis
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="elementSlot<Axis, \"mutable\">" template=elementSlot arguments=(Axis, "mutable")
-/// @generic.instance id="initAsPointer<Axis, \"mutable\">" template=initAsPointer arguments=(Axis, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<Axis>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<Axis>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=Array<Axis> template=Array arguments=(Axis)
-/// @generic.instance id=assumeInitDrop#1<Axis> template=assumeInitDrop#1 arguments=(Axis)
-/// @generic.instance id=assumeInitDrop<Axis> template=assumeInitDrop arguments=(Axis)
-/// @generic.instance id=clear<Axis> template=clear arguments=(Axis)
-/// @generic.instance id=drop<Axis> template=drop arguments=(Axis)
-/// @generic.instance id=dropInPlace<Axis> template=dropInPlace arguments=(Axis)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<Axis>> template=sliceAssumeInit arguments=(MaybeUninit<Axis>)
 /// @generic.instance id=sliceUninit<MaybeUninit<Axis>> template=sliceUninit arguments=(MaybeUninit<Axis>)
-/// @generic.instance id=truncate<Axis> template=truncate arguments=(Axis)
 
 newtype Grid<T, P> = intrinsic;
 /// @generic.template symbol=Grid parameters=(in out T#1, in out P)
@@ -87,7 +76,6 @@ declare function mesh<T, ...Axes: Axis[]>(
 /// @resolution.name source=Axis target=Axis
 
     grid: &readonly Grid<T, Sharding<...Axes>>,
-    /// @type.symbol symbol=mesh.grid source="grid: &readonly Grid<T, Sharding<...Axes>>" type=&mesh.'a readonly Grid<T#2, Sharding<Axes#2>>
     /// @resolution.name source=Grid target=Grid
     /// @resolution.name source=T target=mesh.T
     /// @resolution.name source=Sharding target=Sharding
@@ -117,9 +105,9 @@ export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
 
         return mesh<T, ...Axes>(this);
         /// @resolution.name source=mesh target=mesh
-        /// @resolution.call source="mesh<T, ...Axes>(this)" parameters=(&mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>) arguments=(provided(this) as &mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>) return=int32 regions=(mesh#1.'a) kind=symbol target=mesh instance="mesh<T#3, Axes#3>"
-        /// @generic.instantiation id="mesh<T#3, Axes#3>" template=mesh arguments=(T#3, Axes#3) owner=mesh#1
-        /// @generic.instance id="mesh<T#3, Axes#3>" template=mesh arguments=(T#3, Axes#3)
+        /// @resolution.call source="mesh<T, ...Axes>(this)" parameters=(&mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>) arguments=(provided(this) as &mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>) return=int32 regions=(mesh#1.'a) kind=symbol target=mesh instance="mesh<T#3, Axes#3, mesh#1.'a>"
+        /// @generic.instantiation id="mesh<T#3, Axes#3, mesh#1.'a>" template=mesh arguments=(T#3, Axes#3, mesh#1.'a) owner=mesh#1
+        /// @generic.instance id="mesh<T#3, Axes#3, mesh#1.'a>" template=mesh arguments=(T#3, Axes#3, mesh#1.'a)
         /// @resolution.name source=T target=T
         /// @resolution.name source=Axes target=Axes
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&mesh#1.'a readonly Grid<T#3, Sharding<Axes#3>>
@@ -178,7 +166,7 @@ extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
 === annotated ===
 import { Axis, Grid, Marker, Wrap } from "./sharding.ds";
 
-declare function mesh<T, ...Xs: Axis[], 'a>(grid: &'a readonly Grid<T, Wrap<Xs>>): int32;
+declare function mesh<T, ...Xs: Axis[], 'a>(grid: &readonly Grid<T, Wrap<...Xs>>): int32;
 
 extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
     /// Return the mesh id.
@@ -198,7 +186,6 @@ declare function mesh<T, ...Xs: Axis[]>(
 /// @resolution.name source=Axis target=sharding.Axis
 
     grid: &readonly Grid<T, Wrap<...Xs>>,
-    /// @type.symbol symbol=mesh.grid source="grid: &readonly Grid<T, Wrap<...Xs>>" type=&mesh.'a readonly sharding.Grid<T#1, sharding.Wrap<Xs#1>>
     /// @resolution.name source=Grid target=sharding.Grid
     /// @resolution.name source=T target=mesh.T
     /// @resolution.name source=Wrap target=sharding.Wrap
@@ -209,7 +196,7 @@ declare function mesh<T, ...Xs: Axis[]>(
 extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
 /// @generic.template symbol=<module>#2 parameters=(T#2, const ...Xs#2: sharding.Marker)
 /// @definition.extension symbol=<module>#2 form=local target=sharding.Grid<T#2, sharding.Wrap<Xs#2>>
-/// @definition.method symbol=mesh#1 slot=mesh role=getter type=<mesh#1.'a>(this: &mesh#1.'a readonly this) => int32
+/// @definition.method symbol=mesh#1 slot=mesh role=getter type=(this: sharding.Grid<T#2, sharding.Wrap<Xs#2>>) => int32
 /// @type.symbol symbol=T source=T type=T#2
 /// @type.symbol symbol=Xs source="const ...Xs: Marker" type=Xs#2
 /// @resolution.name source=Marker target=sharding.Marker
@@ -220,18 +207,17 @@ extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
 
     /// Return the mesh id.
     get mesh(): int32 {
-    /// @generic.template symbol=mesh#1 parent=template#1 parameters=('a)
-    /// @type.symbol symbol=mesh#1 type=<mesh#1.'a>(this: &mesh#1.'a readonly this) => int32
-    /// @type.symbol symbol=mesh.this type=&mesh#1.'a readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>
+    /// @type.symbol symbol=mesh#1 type=(this: sharding.Grid<T#2, sharding.Wrap<Xs#2>>) => int32
+    /// @type.symbol symbol=mesh.this type=sharding.Grid<T#2, sharding.Wrap<Xs#2>>
 
         return mesh<T, ...Xs>(this);
         /// @resolution.name source=mesh target=mesh
-        /// @resolution.call source="mesh<T, ...Xs>(this)" parameters=(&'frame readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>) arguments=(provided(this) as &'frame readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>) return=int32 regions=("frame") kind=symbol target=mesh instance="mesh<T#2, Xs#2>"
-        /// @generic.instantiation id="mesh<T#2, Xs#2>" template=mesh arguments=(T#2, Xs#2) owner=mesh#1
+        /// @resolution.call source="mesh<T, ...Xs>(this)" parameters=(&'frame readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>) arguments=(provided(this) as &'frame readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>) return=int32 regions=("frame") kind=symbol target=mesh instance="mesh<T#2, Xs#2, \"frame\">"
+        /// @generic.instantiation id="mesh<T#2, Xs#2, \"frame\">" template=mesh arguments=(T#2, Xs#2, "frame") owner=mesh#1
         /// @resolution.name source=T target=T
         /// @resolution.name source=Xs target=Xs
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&mesh#1.'a readonly sharding.Grid<T#2, sharding.Wrap<Xs#2>>
-        /// @resolution.place source=this placement=mesh#1.'a lifetime=mesh#1.'a access="readonly"
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=sharding.Grid<T#2, sharding.Wrap<Xs#2>>
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
 
     }
@@ -273,7 +259,6 @@ declare function mesh<...Axes: Missing[]>(value: int32): int32;
 /// @type.symbol symbol=mesh source="declare function mesh<...Axes: Missing[]>(value: int32): int32" type=<...Axes: <error>[]>(int32) => int32
 /// @type.symbol symbol=mesh.Axes source="...Axes: Missing[]" type=Axes
 /// @resolution.unresolved source=Missing path=Missing
-/// @type.symbol symbol=mesh.value source="value: int32" type=int32
 "#,
         r#"
 /// @diagnostic.error id=unresolved-reference message="cannot find 'Missing'"

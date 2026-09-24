@@ -26,6 +26,7 @@ let value: string | int32 = "hello";
 value = 42;
 /// @resolution.name source=value target=value
 /// @resolution.pattern.assign source=value kind=place
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
 /// @resolution.assignment source=value write=binding(value) type=string | int32
 "#,
@@ -59,7 +60,7 @@ const value: string | int32 = text;
 /// @type.symbol symbol=value source=value type=string | int32
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=text target=text
-/// @resolution.place source=text placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=text placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=text root=text
 "#,
     );
@@ -97,7 +98,7 @@ type A = { a: int32 } | { b: string };
 /// @type.symbol symbol=A.b source="b: string" type=string
 
 type B = A | { c: boolean };
-/// @type.symbol symbol=B source="type B = A | { c: boolean }" type=A | { c: boolean }
+/// @type.symbol symbol=B source="type B = A | { c: boolean }" type={ a: int32 } | { b: string } | { c: boolean }
 /// @definition.type symbol=B source="type B = A | { c: boolean }" value=A | { c: boolean }
 /// @resolution.name source=A target=A
 /// @type.symbol symbol=B.c source="c: boolean" type=boolean
@@ -109,7 +110,7 @@ const value: B = { c: true };
 
 value satisfies { a: int32 } | { b: string } | { c: boolean };
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 /// @type.symbol symbol=a source="a: int32" type=int32
 /// @type.symbol symbol=b source="b: string" type=string
@@ -152,7 +153,7 @@ const value: A = "hello";
 
 value satisfies string;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -192,7 +193,7 @@ const value: Value = ();
 
 value satisfies void;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -268,8 +269,12 @@ shape.draw();
 /// @resolution.name source=shape target=shape
 /// @resolution.member source=shape.draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void | <Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void kind=union arms=[receiver=Rectangle, target=Rectangle.draw, type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void, receiver=Circle, target=Circle.draw, type=<Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void]
 /// @resolution.call source=shape.draw() return=void kind=union arms=[Rectangle.draw(parameters=(), arguments=(), return=void, regions=("static" & "local")), Circle.draw(parameters=(), arguments=(), return=void, regions=("static" & "local"))]
-/// @resolution.place source=shape placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=shape placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=shape root=shape
+/// @generic.instantiation id="Circle.draw<\"static\" & \"local\">" template=Circle.draw arguments=("static" & "local")
+/// @generic.instantiation id="Rectangle.draw<\"static\" & \"local\">" template=Rectangle.draw arguments=("static" & "local")
+/// @generic.instance id="Circle.draw<\"bound0\" & \"local\">" template=Circle.draw arguments=("bound0" & "local")
+/// @generic.instance id="Rectangle.draw<\"bound0\" & \"local\">" template=Rectangle.draw arguments=("bound0" & "local")
 "#);
 }
 
@@ -353,8 +358,12 @@ function draw(shape: Shape): void {
     /// @resolution.name source=shape target=draw.shape
     /// @resolution.member source=shape.draw type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void | <Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void kind=union arms=[receiver=Rectangle, target=Rectangle.draw, type=<Rectangle.draw.'a>(this: &Rectangle.draw.'a readonly Rectangle) => void, receiver=Circle, target=Circle.draw, type=<Circle.draw.'a>(this: &Circle.draw.'a readonly Circle) => void]
     /// @resolution.call source=shape.draw() return=void kind=union arms=[Rectangle.draw(parameters=(), arguments=(), return=void, regions=("frame" & "local")), Circle.draw(parameters=(), arguments=(), return=void, regions=("frame" & "local"))]
-    /// @resolution.place source=shape placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=shape placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=shape root=draw.shape
+    /// @generic.instantiation id="Circle.draw<\"frame\" & \"local\">" template=Circle.draw arguments=("frame" & "local")
+    /// @generic.instantiation id="Rectangle.draw<\"frame\" & \"local\">" template=Rectangle.draw arguments=("frame" & "local")
+    /// @generic.instance id="Circle.draw<\"bound0\" & \"local\">" template=Circle.draw arguments=("bound0" & "local")
+    /// @generic.instance id="Rectangle.draw<\"bound0\" & \"local\">" template=Rectangle.draw arguments=("bound0" & "local")
 
 }
 "#);
@@ -480,9 +489,13 @@ const result = parser.parse(1);
 /// @resolution.pattern source=result kind=binding target=result
 /// @resolution.name source=parser target=parser
 /// @resolution.member source=parser.parse type=<Left.parse#1.'a>(this: &Left.parse#1.'a readonly Left, string) => "left-string" & <Left.parse#2.'a>(this: &Left.parse#2.'a readonly Left, int32) => "left-integer" | <Right.parse#1.'a>(this: &Right.parse#1.'a readonly Right, string) => "right-string" & <Right.parse#2.'a>(this: &Right.parse#2.'a readonly Right, int32) => "right-integer" kind=union arms=[receiver=Left, target=Left.parse#1 | Left.parse#2, type=<Left.parse#1.'a>(this: &Left.parse#1.'a readonly Left, string) => "left-string" & <Left.parse#2.'a>(this: &Left.parse#2.'a readonly Left, int32) => "left-integer", receiver=Right, target=Right.parse#1 | Right.parse#2, type=<Right.parse#1.'a>(this: &Right.parse#1.'a readonly Right, string) => "right-string" & <Right.parse#2.'a>(this: &Right.parse#2.'a readonly Right, int32) => "right-integer"]
-/// @resolution.call source=parser.parse(1) return="left-integer" | "right-integer" kind=union arms=[Left.parse#2(parameters=(int32), arguments=(provided(1) as int32), return="left-integer", regions=("static" & "constant")), Right.parse#2(parameters=(int32), arguments=(provided(1) as int32), return="right-integer", regions=("static" & "constant"))]
-/// @resolution.place source=parser placement="constant" lifetime="static" access="readonly"
+/// @resolution.call source=parser.parse(1) return="left-integer" | "right-integer" kind=union arms=[Left.parse#2(parameters=(int32), arguments=(provided(1) as int32), return="left-integer", regions=("static" & "local")), Right.parse#2(parameters=(int32), arguments=(provided(1) as int32), return="right-integer", regions=("static" & "local"))]
+/// @resolution.place source=parser placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=parser root=parser
+/// @generic.instantiation id="Left.parse#2<\"static\" & \"local\">" template=Left.parse#2 arguments=("static" & "local")
+/// @generic.instantiation id="Right.parse#2<\"static\" & \"local\">" template=Right.parse#2 arguments=("static" & "local")
+/// @generic.instance id="Left.parse#2<\"bound0\" & \"local\">" template=Left.parse#2 arguments=("bound0" & "local")
+/// @generic.instance id="Right.parse#2<\"bound0\" & \"local\">" template=Right.parse#2 arguments=("bound0" & "local")
 "#,
     );
 }
@@ -509,57 +522,24 @@ const first: int32 | string = values[0];
 declare const values: int32[] | string[];
 /// @type.symbol symbol=values source=values type=int32[] | string[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
-/// @generic.instance id="elementSlot<string, \"mutable\">" template=elementSlot arguments=(string, "mutable")
-/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
-/// @generic.instance id="initAsPointer<string, \"mutable\">" template=initAsPointer arguments=(string, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<string>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<string>, "mutable")
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
 /// @generic.instance id=Array<string> template=Array arguments=(string)
-/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop#1<string> template=assumeInitDrop#1 arguments=(string)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
-/// @generic.instance id=assumeInitDrop<string> template=assumeInitDrop arguments=(string)
-/// @generic.instance id=clear<int32> template=clear arguments=(int32)
-/// @generic.instance id=clear<string> template=clear arguments=(string)
-/// @generic.instance id=drop<int32> template=drop arguments=(int32)
-/// @generic.instance id=drop<string> template=drop arguments=(string)
-/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
-/// @generic.instance id=dropInPlace<string> template=dropInPlace arguments=(string)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<string>> template=sliceAssumeInit arguments=(MaybeUninit<string>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<string>> template=sliceUninit arguments=(MaybeUninit<string>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
-/// @generic.instance id=truncate<string> template=truncate arguments=(string)
 
 const first = values[0];
 /// @type.symbol symbol=first source=first type=int32 | string
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=values placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
-/// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=int32 | string kind=union arms=[index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static constant int32, "readonly">, regions=("static" & "constant")), index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static constant string, "readonly">, regions=("static" & "constant"))]
-/// @generic.instantiation id="index#1<int32, \"readonly\">" template=index#1 arguments=(int32, "readonly")
-/// @generic.instantiation id="index#1<string, \"readonly\">" template=index#1 arguments=(string, "readonly")
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="WithAccess<&'bound0 int32, \"readonly\">" template=WithAccess arguments=(&'bound0 int32, "readonly")
-/// @generic.instance id="WithAccess<&'bound0 int32[], \"readonly\">" template=WithAccess arguments=(&'bound0 int32[], "readonly")
-/// @generic.instance id="WithAccess<&'bound0 string, \"readonly\">" template=WithAccess arguments=(&'bound0 string, "readonly")
-/// @generic.instance id="WithAccess<&'bound0 string[], \"readonly\">" template=WithAccess arguments=(&'bound0 string[], "readonly")
-/// @generic.instance id="assumeInitReference<int32, \"readonly\">" template=assumeInitReference arguments=(int32, "readonly")
-/// @generic.instance id="assumeInitReference<string, \"readonly\">" template=assumeInitReference arguments=(string, "readonly")
-/// @generic.instance id="elementSlot<int32, \"readonly\">" template=elementSlot arguments=(int32, "readonly")
-/// @generic.instance id="elementSlot<string, \"readonly\">" template=elementSlot arguments=(string, "readonly")
-/// @generic.instance id="index#1<int32, \"readonly\">" template=index#1 arguments=(int32, "readonly")
-/// @generic.instance id="index#1<string, \"readonly\">" template=index#1 arguments=(string, "readonly")
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"readonly\">" template=sliceIndex arguments=(MaybeUninit<int32>, "readonly")
-/// @generic.instance id="sliceIndex<MaybeUninit<string>, \"readonly\">" template=sliceIndex arguments=(MaybeUninit<string>, "readonly")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id=elementPosition<int32> template=elementPosition arguments=(int32)
-/// @generic.instance id=elementPosition<string> template=elementPosition arguments=(string)
+/// @resolution.subscript source=values[0] type=int32 | string kind=union arms=[index#2(parameters=(isize), arguments=(provided(0) as isize), return=int32, regions=("managed" & "local")), index#2(parameters=(isize), arguments=(provided(0) as isize), return=string, regions=("managed" & "local"))]
+/// @generic.instantiation id="index#2<int32, \"managed\" & \"local\">" template=index#2 arguments=(int32, "managed" & "local")
+/// @generic.instantiation id="index#2<string, \"managed\" & \"local\">" template=index#2 arguments=(string, "managed" & "local")
+/// @generic.instance id="index#2<int32, \"bound0\" & \"local\">" template=index#2 arguments=(int32, "bound0" & "local")
+/// @generic.instance id="index#2<string, \"bound0\" & \"local\">" template=index#2 arguments=(string, "bound0" & "local")
 "#,
     );
 }

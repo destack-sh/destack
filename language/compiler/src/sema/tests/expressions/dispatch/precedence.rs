@@ -94,12 +94,13 @@ export extension<T> of ^Pack<T> implements From<Iterable<T>> {
         /// @resolution.call source=Pack.from(values) parameters=(Iterable<T#3>) arguments=(provided(values) as Iterable<T#3>) return=^Pack<T#3> kind=symbol target=from#1 instance=Pack<T#3>.<extension#1>.from#1
         /// @generic.instantiation id=from#1<T#3> template=from#1 arguments=(T#3) owner=from#2
         /// @resolution.name source=values target=from.values#2
-        /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+        /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=values root=from.values#2
 
     }
 }
-"#, "");
+"#, r#"
+"#);
 }
 
 /// Place a static `this` result according to its shared declaration.
@@ -124,7 +125,7 @@ const channel: Channel = Channel.new();
 shared class Channel {}
 
 export extension of Channel {
-    static new(): this {
+    static new(): Channel {
         todo("Channel.new" as string | undefined)
     }
 }
@@ -138,11 +139,11 @@ shared class Channel {}
 
 export extension of Channel {
 /// @definition.extension symbol=<module>#2 form=exported target=Channel
-/// @definition.method symbol=new slot=new static=true type=() => this
+/// @definition.method symbol=new slot=new static=true type=() => Channel
 /// @resolution.name source=Channel target=Channel
 
     static new(): this {
-    /// @type.symbol symbol=new type=() => this
+    /// @type.symbol symbol=new type=() => Channel
 
         todo("Channel.new")
         /// @resolution.name source=todo target=todo
@@ -156,9 +157,10 @@ const channel: Channel = Channel.new();
 /// @resolution.pattern source=channel kind=binding target=channel
 /// @resolution.name source=Channel target=Channel
 /// @resolution.name source=Channel target=Channel
-/// @resolution.member source=Channel.new receiver=typeof Channel type=() => this kind=symbol target_receiver=typeof Channel target=new
+/// @resolution.member source=Channel.new receiver=typeof Channel type=() => Channel kind=symbol target_receiver=typeof Channel target=new
 /// @resolution.call source=Channel.new() parameters=() return=Channel kind=symbol target=new
-"#, "");
+"#, r#"
+"#);
 }
 
 /// Apply inferred extension arguments to a static `this` result.
@@ -184,7 +186,7 @@ const pack: Pack<int32> = Pack.from(value);
 shared class Pack<out T> {}
 
 export extension<T> of Pack<T> {
-    static from(value: T): this {
+    static from(value: T): Pack<T> {
         todo("Pack.from" as string | undefined)
     }
 }
@@ -202,13 +204,13 @@ shared class Pack<out T> {}
 export extension<T> of Pack<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#2>
-/// @definition.method symbol=from slot=from static=true type=(T#2) => this
+/// @definition.method symbol=from slot=from static=true type=(T#2) => Pack<T#2>
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T
 
     static from(value: T): this {
-    /// @type.symbol symbol=from type=(T#2) => this
+    /// @type.symbol symbol=from type=(T#2) => Pack<T#2>
     /// @type.symbol symbol=from.value source="value: T" type=T#2
     /// @resolution.name source=T target=T
 
@@ -228,13 +230,14 @@ const pack: Pack<int32> = Pack.from(value);
 /// @resolution.pattern source=pack kind=binding target=pack
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=Pack target=Pack
-/// @resolution.member source=Pack.from receiver=typeof Pack type=(T#2) => this kind=symbol target_receiver=typeof Pack target=from
+/// @resolution.member source=Pack.from receiver=typeof Pack type=(T#2) => Pack<T#2> kind=symbol target_receiver=typeof Pack target=from
 /// @resolution.call source=Pack.from(value) parameters=(int32) arguments=(provided(value) as int32) return=Pack<int32> kind=symbol target=from instance=Pack<int32>.<extension#1>.from
 /// @generic.instantiation id=from<int32> template=from arguments=(int32)
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
-"#, "");
+"#, r#"
+"#);
 }
 
 /// Preserve explicitly shared static parameters.
@@ -246,11 +249,13 @@ struct Message {}
 shared class Channel {}
 
 export extension of Channel {
-    static send(message: shared &readonly Message): void { /* intentionally empty */ }
+    static send(message: &readonly Message): void { /* intentionally empty */ }
 }
 
-declare const message: local Message;
-Channel.send(message);
+function relay(): void {
+    const message: Message = Message {};
+    Channel.send(message);
+}
 "#,
     );
 
@@ -260,11 +265,13 @@ struct Message {}
 shared class Channel {}
 
 export extension of Channel {
-    static send(message: &'a readonly shared Message): void {}
+    static send(message: &'a readonly Message): void {}
 }
 
-declare const message: Message;
-Channel.send(message);
+function relay(): void {
+    const message: Message = Message {};
+    Channel.send<"frame">(message as &'frame readonly Message);
+}
 
 === dir ===
 struct Message {}
@@ -277,34 +284,39 @@ shared class Channel {}
 
 export extension of Channel {
 /// @definition.extension symbol=<module>#2 form=exported target=Channel
-/// @definition.method symbol=send slot=send static=true type=<send.'a>(&send.'a readonly shared Message) => void
+/// @definition.method symbol=send source="static send(message: &readonly Message): void { /* intentionally empty */ }" slot=send static=true type=<send.'a>(&send.'a readonly Message) => void
 /// @resolution.name source=Channel target=Channel
 
-    static send(message: shared &readonly Message): void { /* intentionally empty */ }
+    static send(message: &readonly Message): void { /* intentionally empty */ }
     /// @generic.template symbol=send parameters=('a)
-    /// @type.symbol symbol=send type=<send.'a>(&send.'a readonly shared Message) => void
-    /// @type.symbol symbol=send.message source="message: shared &readonly Message" type=&send.'a readonly shared Message
+    /// @type.symbol symbol=send source="static send(message: &readonly Message): void { /* intentionally empty */ }" type=<send.'a>(&send.'a readonly Message) => void
+    /// @type.symbol symbol=send.message source="message: &readonly Message" type=&send.'a readonly Message
     /// @resolution.name source=Message target=Message
 
 }
 
-declare const message: local Message;
-/// @type.symbol symbol=message source=message type=Message
-/// @resolution.pattern source=message kind=binding target=message
-/// @resolution.name source=Message target=Message
+function relay(): void {
+/// @type.symbol symbol=relay type=() => void
 
-Channel.send(message);
-/// @resolution.name source=Channel target=Channel
-/// @resolution.member source=Channel.send receiver=typeof Channel type=<send.'a>(&send.'a readonly shared Message) => void kind=symbol target_receiver=typeof Channel target=send
-/// @resolution.call source=Channel.send(message) parameters=(&'frame readonly shared Message) arguments=(provided(message) as &'frame readonly shared Message) return=void regions=("frame") kind=symbol target=send
-/// @resolution.name source=message target=message
-/// @resolution.place source=message placement="constant" lifetime="static" access="readonly"
-/// @resolution.access source=message root=message
+    const message: Message = Message {};
+    /// @type.symbol symbol=relay.message source=message type=Message
+    /// @resolution.pattern source=message kind=binding target=relay.message
+    /// @resolution.name source=Message target=Message
+    /// @resolution.name source=Message target=Message
+
+    Channel.send(message);
+    /// @resolution.name source=Channel target=Channel
+    /// @resolution.member source=Channel.send receiver=typeof Channel type=<send.'a>(&send.'a readonly Message) => void kind=symbol target_receiver=typeof Channel target=send
+    /// @resolution.call source=Channel.send(message) parameters=(&'frame readonly Message) arguments=(provided(message) as &'frame readonly Message) return=void regions=("frame" & "local") kind=symbol target=send instance="Channel.<extension#1>.send<\"frame\" & \"local\">"
+    /// @generic.instantiation id="send<\"frame\" & \"local\">" template=send arguments=("frame" & "local")
+    /// @resolution.name source=message target=relay.message
+    /// @resolution.place source=message placement="local" lifetime="frame" access="immutable"
+    /// @resolution.access source=message root=relay.message
+
+}
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'Message' is not assignable to parameter of type '&readonly shared Message'"
-/// @diagnostic.label line=10 column=14 span="message" line_source="Channel.send(message);"
-/// @diagnostic.related line=10 column=1 span="Channel.send(message)" line_source="Channel.send(message);" message="in this call"
+
 "#,
     );
 }
@@ -322,8 +334,10 @@ export extension of Channel {
 }
 
 declare const channel: Channel;
-declare const message: local Message;
-channel.send(message);
+function relay(): void {
+    const message: Message = Message {};
+    channel.send(message);
+}
 "#,
     );
 
@@ -340,8 +354,10 @@ export extension of Channel {
 }
 
 declare const channel: Channel;
-declare const message: Message;
-channel.send(message as &'static readonly Message);
+function relay(): void {
+    const message: Message = Message {};
+    channel.send<"managed", "frame">(message as &'frame readonly Message);
+}
 
 === dir ===
 struct Message {}
@@ -354,13 +370,13 @@ shared class Channel {}
 
 export extension of Channel {
 /// @definition.extension symbol=<module>#2 form=exported target=Channel
-/// @definition.method symbol=send source="send(&this, message: &readonly Message): void { /* intentionally empty */ }" slot=send type=<send.'a, send.'b>(this: &send.'a this, &send.'b readonly Message) => void
+/// @definition.method symbol=send source="send(&this, message: &readonly Message): void { /* intentionally empty */ }" slot=send type=<send.'a, send.'b>(this: &send.'a Channel, &send.'b readonly Message) => void
 /// @resolution.name source=Channel target=Channel
 
     send(&this, message: &readonly Message): void { /* intentionally empty */ }
     /// @generic.template symbol=send parameters=('a, 'b)
-    /// @type.symbol symbol=send source="send(&this, message: &readonly Message): void { /* intentionally empty */ }" type=<send.'a, send.'b>(this: &send.'a this, &send.'b readonly Message) => void
-    /// @type.symbol symbol=send.this source=&this type=&send.'a this
+    /// @type.symbol symbol=send source="send(&this, message: &readonly Message): void { /* intentionally empty */ }" type=<send.'a, send.'b>(this: &send.'a Channel, &send.'b readonly Message) => void
+    /// @type.symbol symbol=send.this source=&this type=&send.'a Channel
     /// @type.symbol symbol=send.message source="message: &readonly Message" type=&send.'b readonly Message
     /// @resolution.name source=Message target=Message
 
@@ -371,20 +387,27 @@ declare const channel: Channel;
 /// @resolution.pattern source=channel kind=binding target=channel
 /// @resolution.name source=Channel target=Channel
 
-declare const message: local Message;
-/// @type.symbol symbol=message source=message type=Message
-/// @resolution.pattern source=message kind=binding target=message
-/// @resolution.name source=Message target=Message
+function relay(): void {
+/// @type.symbol symbol=relay type=() => void
 
-channel.send(message);
-/// @resolution.name source=channel target=channel
-/// @resolution.member source=channel.send receiver=Channel type=<send.'a, send.'b>(this: &send.'a Channel, &send.'b readonly Message) => void kind=symbol target_receiver=Channel target=send
-/// @resolution.call source=channel.send(message) parameters=(&'static readonly constant Message) arguments=(provided(message) as &'static readonly constant Message) return=void regions=("managed" & "shared", "static" & "constant") kind=symbol target=send receiver=Channel adjustments=(borrow(Borrowed<Channel, "managed" & "shared", "mutable">))
-/// @resolution.place source=channel placement="shared" lifetime="managed" access="mutable"
-/// @resolution.access source=channel root=channel
-/// @resolution.name source=message target=message
-/// @resolution.place source=message placement="constant" lifetime="static" access="readonly"
-/// @resolution.access source=message root=message
+    const message: Message = Message {};
+    /// @type.symbol symbol=relay.message source=message type=Message
+    /// @resolution.pattern source=message kind=binding target=relay.message
+    /// @resolution.name source=Message target=Message
+    /// @resolution.name source=Message target=Message
+
+    channel.send(message);
+    /// @resolution.name source=channel target=channel
+    /// @resolution.member source=channel.send receiver=Channel type=<send.'a, send.'b>(this: &send.'a Channel, &send.'b readonly Message) => void kind=symbol target_receiver=Channel target=send
+    /// @resolution.call source=channel.send(message) parameters=(&'frame readonly Message) arguments=(provided(message) as &'frame readonly Message) return=void regions=("managed" & "shared", "frame" & "local") kind=symbol target=send receiver=Channel adjustments=(borrow(&'managed Channel)) instance="Channel.<extension#1>.send<\"managed\" & \"shared\", \"frame\" & \"local\">"
+    /// @resolution.place source=channel placement="shared" lifetime="static" access="immutable"
+    /// @resolution.access source=channel root=channel
+    /// @generic.instantiation id="send<\"managed\" & \"shared\", \"frame\" & \"local\">" template=send arguments=("managed" & "shared", "frame" & "local")
+    /// @resolution.name source=message target=relay.message
+    /// @resolution.place source=message placement="local" lifetime="frame" access="immutable"
+    /// @resolution.access source=message root=relay.message
+
+}
 "#,
         r#"
 
@@ -505,7 +528,7 @@ export extension<T: Compare<T>> of ^Pack<T> {
         /// @generic.instantiation id=from#1<T#3> template=from#1 arguments=(T#3) owner=from#2
         /// @type.node source=values type=Iterable<T#3>
         /// @resolution.name source=values target=from.values#2
-        /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+        /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=values root=from.values#2
 
     }
@@ -692,7 +715,7 @@ export extension<T, E> of Outcome<T, E> {
 /// @generic.template symbol=<module>#2 parameters=(T#3, E#3)
 /// @definition.extension symbol=<module>#2 form=exported target=Outcome<T#3, E#3>
 /// @definition.method symbol=err slot=err static=true type=(E#3) => Outcome<T#3, E#3>
-/// @definition.method symbol=map slot=map type=<U>(this: this, Function<(T#3,), U>) => Outcome<U, E#3>
+/// @definition.method symbol=map slot=map type=<U>(this: Outcome<T#3, E#3>, (T#3) => U) => Outcome<U, E#3>
 /// @definition.method symbol=ok slot=ok static=true type=(T#3) => Outcome<T#3, E#3>
 /// @type.symbol symbol=T source=T type=T#3
 /// @type.symbol symbol=E source=E type=E#3
@@ -718,7 +741,7 @@ export extension<T, E> of Outcome<T, E> {
         /// @resolution.name source=Ok target=Ok
         /// @type.node source=value type=T#3
         /// @resolution.name source=value target=ok.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=ok.value
 
     }
@@ -741,17 +764,17 @@ export extension<T, E> of Outcome<T, E> {
         /// @resolution.name source=Err target=Err
         /// @type.node source=error type=E#3
         /// @resolution.name source=error target=err.error
-        /// @resolution.place source=error placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=error placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=error root=err.error
 
     }
 
     map<U>(f: (value: T) => U): Outcome<U, E> {
     /// @generic.template symbol=map parent=template#3 parameters=(U)
-    /// @type.symbol symbol=map type=<U>(this: this, Function<(T#3,), U>) => Outcome<U, E#3>
+    /// @type.symbol symbol=map type=<U>(this: Outcome<T#3, E#3>, (T#3) => U) => Outcome<U, E#3>
     /// @type.symbol symbol=map.this type=Outcome<T#3, E#3>
     /// @type.symbol symbol=map.U source=U type=U
-    /// @type.symbol symbol=map.f source="f: (value: T) => U" type=Function<(T#3,), U>
+    /// @type.symbol symbol=map.f source="f: (value: T) => U" type=(T#3) => U
     /// @type.symbol symbol=map.value#1 source="value: T" type=T#3
     /// @resolution.name source=T target=T
     /// @resolution.name source=U target=map.U
@@ -764,12 +787,13 @@ export extension<T, E> of Outcome<T, E> {
         /// @resolution.coverage exhaustive=true disjoint=true
         /// @type.node source=this type=Outcome<T#3, E#3>
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Outcome<T#3, E#3>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
 
             Ok { value } => Outcome.ok(f(value))
             /// @resolution.name source=Ok target=Ok
-            /// @resolution.pattern source="Ok { value }" kind=nominal_object target=Ok instance=Ok<T#3> fields={ Ok.value }
+            /// @resolution.pattern source="Ok { value }" kind=nominal_object adjustments=(newtype.payload(Outcome, Ok<T#3> | Err<E#3>), union.payload(Ok<T#3> | Err<E#3>, Ok<T#3>, Ok<T#3>)) target=Ok instance=Ok<T#3> fields={ Ok.value }
+            /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=map
             /// @generic.instantiation id=Ok<T#3> template=Ok arguments=(T#3) owner=map
             /// @type.symbol symbol=map.value#2 source=value type=T#3
             /// @type.node source=Outcome type=Outcome
@@ -779,20 +803,20 @@ export extension<T, E> of Outcome<T, E> {
             /// @resolution.member source=Outcome.ok receiver=Outcome type=(T#3) => Outcome<T#3, E#3> kind=symbol target_receiver=Outcome target=ok
             /// @resolution.call source=Outcome.ok(f(value)) parameters=(U) arguments=(provided(f(value)) as U) return=Outcome<U, E#3> kind=symbol target=ok instance="Outcome<U, E#3>.<extension#1>.ok"
             /// @generic.instantiation id="ok<U, E#3>" template=ok arguments=(U, E#3) owner=map
-            /// @type.node source=f type=Function<(T#3,), U>
+            /// @type.node source=f type=(T#3) => U
             /// @type.node source=f(value) type=U
             /// @resolution.name source=f target=map.f
             /// @resolution.call source=f(value) parameters=(T#3) arguments=(provided(value) as T#3) return=U kind=expression target=expression
-            /// @resolution.place source=f placement="local" lifetime="managed" access="mutable"
+            /// @resolution.place source=f placement="local" lifetime="frame" access="exclusive"
             /// @resolution.access source=f root=map.f
             /// @type.node source=value type=T#3
             /// @resolution.name source=value target=map.value#2
-            /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
+            /// @resolution.place source=value placement="local" lifetime="frame" access="immutable"
             /// @resolution.access source=value root=map.value#2
 
             Err { error } => Outcome.err(error)
             /// @resolution.name source=Err target=Err
-            /// @resolution.pattern source="Err { error }" kind=nominal_object target=Err instance=Err<E#3> fields={ Err.error }
+            /// @resolution.pattern source="Err { error }" kind=nominal_object adjustments=(newtype.payload(Outcome, Ok<T#3> | Err<E#3>), union.payload(Ok<T#3> | Err<E#3>, Err<E#3>, Err<E#3>)) target=Err instance=Err<E#3> fields={ Err.error }
             /// @generic.instantiation id=Err<E#3> template=Err arguments=(E#3) owner=map
             /// @type.symbol symbol=map.error source=error type=E#3
             /// @type.node source=Outcome type=Outcome
@@ -804,7 +828,7 @@ export extension<T, E> of Outcome<T, E> {
             /// @generic.instantiation id="err<U, E#3>" template=err arguments=(U, E#3) owner=map
             /// @type.node source=error type=E#3
             /// @resolution.name source=error target=map.error
-            /// @resolution.place source=error placement="local" lifetime="frame" access="readonly"
+            /// @resolution.place source=error placement="local" lifetime="frame" access="immutable"
             /// @resolution.access source=error root=map.error
 
         }
@@ -894,7 +918,7 @@ export extension<T> of Pack<T> {
         /// @resolution.name source=Pack target=Pack
         /// @type.node source=value type=T#2
         /// @resolution.name source=value target=of.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=of.value
 
     }
@@ -972,7 +996,7 @@ struct Pack<T> {
 
 function read<T>(pack: &readonly Pack<T>): readonly T {
 /// @generic.template symbol=read parameters=(T#2, 'a)
-/// @type.symbol symbol=read type=<T#2, read.'a>(&read.'a readonly Pack<T#2>) => Readonly<T#2>
+/// @type.symbol symbol=read type=<T#2, read.'a>(&read.'a readonly Pack<T#2>) => readonly T#2
 /// @type.symbol symbol=read.T source=T type=T#2
 /// @type.symbol symbol=read.pack source="pack: &readonly Pack<T>" type=&read.'a readonly Pack<T#2>
 /// @resolution.name source=Pack target=Pack
@@ -981,9 +1005,9 @@ function read<T>(pack: &readonly Pack<T>): readonly T {
 
     pack.value
     /// @type.node source=pack type=&read.'a readonly Pack<T#2>
-    /// @type.node source=pack.value type=Readonly<T#2>
+    /// @type.node source=pack.value type=readonly T#2
     /// @resolution.name source=pack target=read.pack
-    /// @resolution.member source=pack.value receiver=&read.'a readonly Pack<T#2> type=Readonly<T#2> kind=field target_receiver=&read.'a readonly Pack<T#2> key=value target=Pack.value target_type=Readonly<T#2>
+    /// @resolution.member source=pack.value receiver=&read.'a readonly Pack<T#2> type=readonly T#2 kind=field target_receiver=&read.'a readonly Pack<T#2> key=value target=Pack.value target_type=readonly T#2
     /// @resolution.place source=pack placement=read.'a lifetime=read.'a access="readonly"
     /// @resolution.access source=pack root=read.pack
     /// @resolution.place source=pack.value placement=read.'a lifetime=read.'a access="readonly"
@@ -1023,12 +1047,12 @@ struct Pack<out T> {
     value: T;
 }
 
-function same<T>(actual: T | readonly T, expected: T): void {
+function same<T>(actual: readonly T | T, expected: T): void {
     todo("same" as string | undefined);
 }
 
 function check<T, 'a>(pack: &'a readonly Pack<T>, expected: T): void {
-    same<T>(pack.value as T | readonly T, expected);
+    same<T>(pack.value as readonly T | T, expected);
 }
 
 === dir ===
@@ -1047,9 +1071,9 @@ struct Pack<T> {
 
 function same<T>(actual: readonly T | T, expected: T): void {
 /// @generic.template symbol=same parameters=(T#2)
-/// @type.symbol symbol=same type=<T#2>(T#2 | Readonly<T#2>, T#2) => void
+/// @type.symbol symbol=same type=<T#2>(readonly T#2 | T#2, T#2) => void
 /// @type.symbol symbol=same.T source=T type=T#2
-/// @type.symbol symbol=same.actual source="actual: readonly T | T" type=T#2 | Readonly<T#2>
+/// @type.symbol symbol=same.actual source="actual: readonly T | T" type=readonly T#2 | T#2
 /// @resolution.name source=T target=same.T
 /// @resolution.name source=T target=same.T
 /// @type.symbol symbol=same.expected source="expected: T" type=T#2
@@ -1076,26 +1100,27 @@ function check<T>(pack: &readonly Pack<T>, expected: T): void {
 
     same(pack.value, expected)
     /// @type.node source="same(pack.value, expected)" type=void
-    /// @type.node source=same type=(T#3 | Readonly<T#3>, T#3) => void
+    /// @type.node source=same type=(readonly T#3 | T#3, T#3) => void
     /// @resolution.name source=same target=same
-    /// @resolution.call source="same(pack.value, expected)" parameters=(T#3 | Readonly<T#3>, T#3) arguments=(provided(pack.value) as T#3 | Readonly<T#3>, provided(expected) as T#3) return=void kind=symbol target=same instance=same<T#3>
+    /// @resolution.call source="same(pack.value, expected)" parameters=(readonly T#3 | T#3, T#3) arguments=(provided(pack.value) as readonly T#3 | T#3, provided(expected) as T#3) return=void kind=symbol target=same instance=same<T#3>
     /// @generic.instantiation id=same<T#3> template=same arguments=(T#3) owner=check
     /// @type.node source=pack type=&check.'a readonly Pack<T#3>
-    /// @type.node source=pack.value type=Readonly<T#3>
+    /// @type.node source=pack.value type=readonly T#3
     /// @resolution.name source=pack target=check.pack
-    /// @resolution.member source=pack.value receiver=&check.'a readonly Pack<T#3> type=Readonly<T#3> kind=field target_receiver=&check.'a readonly Pack<T#3> key=value target=Pack.value target_type=Readonly<T#3>
+    /// @resolution.member source=pack.value receiver=&check.'a readonly Pack<T#3> type=readonly T#3 kind=field target_receiver=&check.'a readonly Pack<T#3> key=value target=Pack.value target_type=readonly T#3
     /// @resolution.place source=pack placement=check.'a lifetime=check.'a access="readonly"
     /// @resolution.access source=pack root=check.pack
     /// @resolution.place source=pack.value placement=check.'a lifetime=check.'a access="readonly"
     /// @resolution.access source=pack.value root=check.pack keys=[value]
     /// @type.node source=expected type=T#3
     /// @resolution.name source=expected target=check.expected
-    /// @resolution.place source=expected placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=expected placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=expected root=check.expected
 
 }
 "#,
         r#"
+
 "#,
     );
 }

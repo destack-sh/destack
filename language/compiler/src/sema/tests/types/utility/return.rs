@@ -23,8 +23,8 @@ ok satisfies string;
 
 === dir ===
 type Value = ReturnType<() => string>;
-/// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=ReturnType<Function<(), string>>
-/// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=ReturnType<Function<(), string>>
+/// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=string
+/// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=ReturnType<() => string>
 /// @resolution.name source=ReturnType target=ReturnType
 
 const ok: Value = "ready";
@@ -34,7 +34,7 @@ const ok: Value = "ready";
 
 ok satisfies string;
 /// @resolution.name source=ok target=ok
-/// @resolution.place source=ok placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=ok placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=ok root=ok
 "#,
     );
@@ -63,8 +63,8 @@ const second: Value = "b";
 
 === dir ===
 type Value = ReturnType<() => "a" | "b">;
-/// @type.symbol symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" type=ReturnType<Function<(), "a" | "b">>
-/// @definition.type symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" value=ReturnType<Function<(), "a" | "b">>
+/// @type.symbol symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" type="a" | "b"
+/// @definition.type symbol=Value source="type Value = ReturnType<() => \"a\" | \"b\">" value=ReturnType<() => "a" | "b">
 /// @resolution.name source=ReturnType target=ReturnType
 
 const first: Value = "a";
@@ -101,8 +101,8 @@ const bad: Value = 1;
 
 === dir ===
 type Value = ReturnType<() => string>;
-/// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=ReturnType<Function<(), string>>
-/// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=ReturnType<Function<(), string>>
+/// @type.symbol symbol=Value source="type Value = ReturnType<() => string>" type=string
+/// @definition.type symbol=Value source="type Value = ReturnType<() => string>" value=ReturnType<() => string>
 /// @resolution.name source=ReturnType target=ReturnType
 
 const bad: Value = 1;

@@ -1,8 +1,8 @@
 use crate::tests::{DirRows, TestSession};
 
+/// A default narrows the body binding below its declared union.
 #[test]
 fn test_bind_defaulted_parameters_without_undefined() {
-    // a default narrows the body binding below its declared union
     let session = TestSession::single(
         r#"
 function greet(count: int32 | undefined = 3): int32 {
@@ -27,7 +27,7 @@ function greet(count: int32 | undefined = 3): int32 {
 
     return count;
     /// @resolution.name source=count target=greet.count
-    /// @resolution.place source=count placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=count root=greet.count
 
 }
@@ -79,7 +79,7 @@ function greet(count: int32 | undefined = maybe()): int32 {
     return count ?? 0;
     /// @resolution.name source=count target=greet.count
     /// @resolution.operator source="count ?? 0" type=int32 operator="??" kind=builtin operands=[count as int32 families=(integer), 0 as 0 families=(integer)]
-    /// @resolution.place source=count placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=count root=greet.count
 
 }

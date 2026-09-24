@@ -92,10 +92,10 @@ const selected = token ?? fallback;
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=token target=token
 /// @resolution.operator source="token ?? fallback" type=Token operator="??" kind=builtin operands=[token as Token | undefined, fallback as Token]
-/// @resolution.place source=token placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=token placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=token root=token
 /// @resolution.name source=fallback target=fallback
-/// @resolution.place source=fallback placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=fallback placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=fallback root=fallback
 "#,
     );
@@ -188,6 +188,7 @@ extension of Attempt implements Try {
 /// @definition.method symbol=fromResidual slot=fromResidual static=true type=(string) => Attempt
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Try.Output
 /// @definition.conformance symbol=<module>#2 member=Residual requirement=Try.Residual
+/// @definition.conformance symbol=<module>#2 member=Try.Failure requirement=Try.Failure
 /// @definition.conformance symbol=<module>#2 member=branch requirement=Try.branch
 /// @definition.conformance symbol=<module>#2 member=fromOutput requirement=Try.fromOutput
 /// @definition.conformance symbol=<module>#2 member=fromResidual requirement=FromResidual.fromResidual
@@ -208,7 +209,7 @@ extension of Attempt implements Try {
         return Attempt { value: output };
         /// @resolution.name source=Attempt target=Attempt
         /// @resolution.name source=output target=fromOutput.output
-        /// @resolution.place source=output placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=output root=fromOutput.output
 
     }
@@ -258,7 +259,7 @@ const selected = attempt ?? 0;
 /// @resolution.pattern source=selected kind=binding target=selected
 /// @resolution.name source=attempt target=attempt
 /// @resolution.operator source="attempt ?? 0" type=int32 operator="??" kind=builtin operands=[attempt as Attempt, 0 as 0 families=(integer)]
-/// @resolution.place source=attempt placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=attempt placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=attempt root=attempt
 "#,
     );
@@ -306,19 +307,22 @@ function passthrough(value: Result<int32, string>): Result<int32, string> {
     /// @resolution.pattern source=total kind=binding target=passthrough.total
     /// @type.node source=value? type=int32
     /// @resolution.name source=value target=passthrough.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=passthrough.value
-    /// @resolution.residual source=value? target=callable residual=TryResidual<Result<int32, string>> branch="branch(parameters=(), arguments=(), return=ControlFlow<string, int32>)" from_residual="fromResidual(parameters=(TryResidual<Result<int32, string>>), arguments=(supplied(0) as TryResidual<Result<int32, string>>), return=Result<int32, string>)"
+    /// @resolution.residual source=value? target=callable residual=TryResidual<Result<int32, string>> branch="branch(parameters=(), arguments=(), return=ControlFlow<Result<never, string>, int32>)" from_residual="fromResidual(parameters=(Result<never, string>), arguments=(supplied(0) as Result<never, string>), return=Result<int32, string>)"
     /// @generic.instantiation id="branch<int32, string>" template=branch arguments=(int32, string)
-    /// @generic.instantiation id="fromResidual<int32, string, TryResidual<Result<int32, string>>>" template=fromResidual arguments=(int32, string, TryResidual<Result<int32, string>>)
-    /// @generic.instance id="ControlFlow<string, int32>" template=ControlFlow arguments=(string, int32)
+    /// @generic.instantiation id="fromResidual<int32, string, string>" template=fromResidual arguments=(int32, string, string)
+    /// @generic.instance id="Break<Result<never, string>>" template=Break arguments=(Result<never, string>)
+    /// @generic.instance id="ControlFlow<Result<never, string>, int32>" template=ControlFlow arguments=(Result<never, string>, int32)
+    /// @generic.instance id="Result<never, string>" template=Result arguments=(never, string)
     /// @generic.instance id="branch<int32, string>" template=branch arguments=(int32, string)
-    /// @generic.instance id="break<string, int32>" template=break arguments=(string, int32)
-    /// @generic.instance id="continue<string, int32>" template=continue arguments=(string, int32)
+    /// @generic.instance id="break<Result<never, string>, int32>" template=break arguments=(Result<never, string>, int32)
+    /// @generic.instance id="continue<Result<never, string>, int32>" template=continue arguments=(Result<never, string>, int32)
     /// @generic.instance id="err#1<int32, string>" template=err#1 arguments=(int32, string)
+    /// @generic.instance id="err#1<never, string>" template=err#1 arguments=(never, string)
     /// @generic.instance id="fromResidual<int32, string, string>" template=fromResidual arguments=(int32, string, string)
-    /// @generic.instance id=Break<string> template=Break arguments=(string)
     /// @generic.instance id=Continue<int32> template=Continue arguments=(int32)
+    /// @generic.instance id=Ok<never> template=Ok arguments=(never)
     /// @generic.instance id=from<string> template=from arguments=(string)
 
     return Result.ok(total);
@@ -330,7 +334,7 @@ function passthrough(value: Result<int32, string>): Result<int32, string> {
     /// @generic.instantiation id="ok#1<int32, string>" template=ok#1 arguments=(int32, string)
     /// @generic.instance id="ok#1<int32, string>" template=ok#1 arguments=(int32, string)
     /// @resolution.name source=total target=passthrough.total
-    /// @resolution.place source=total placement="local" lifetime="frame" access="readonly"
+    /// @resolution.place source=total placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=total root=passthrough.total
 
 }
@@ -368,7 +372,7 @@ function value(maybe: int32 | undefined): int32 | undefined {
 
     maybe?;
     /// @resolution.name source=maybe target=value.maybe
-    /// @resolution.place source=maybe placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=maybe placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=maybe root=value.maybe
     /// @resolution.residual source=maybe? target=callable residual=TryResidual<int32 | undefined>
 

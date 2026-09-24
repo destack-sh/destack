@@ -27,22 +27,23 @@ function extend(values: int32[]): void {
     const mixed = [true, ...values];
     /// @type.symbol symbol=extend.mixed source=mixed type=int32 | boolean[]
     /// @resolution.pattern source=mixed kind=binding target=extend.mixed
-    /// @resolution.call source=[true, ...values] parameters=(^Slice<int32 | boolean>) arguments=(rest(provided(true) as int32 | boolean, spread(provided(...values) as int32[], iterator=iterator#2(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32 | boolean) as int32 | boolean) return=int32 | boolean[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<int32 | boolean>"
+    /// @resolution.call source=[true, ...values] parameters=(^Slice<int32 | boolean>) arguments=(rest(provided(true) as int32 | boolean, spread(provided(...values) as int32[], iterator=iterator#2(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>, regions=("managed" & "local"))) as int32 | boolean) as int32 | boolean) return=int32 | boolean[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<int32 | boolean>"
     /// @generic.instantiation id="arrayFromOwnedSlice<int32 | boolean>" template=arrayFromOwnedSlice arguments=(int32 | boolean)
-    /// @generic.instantiation id="iterator#2<int32, \"local\">" template=iterator#2 arguments=(int32, "local")
+    /// @generic.instantiation id=iterator#2<int32> template=iterator#2 arguments=(int32)
     /// @coercion.node source=true from=true adjustments=[{ kind: union, target: int32 | boolean, cases: ({ source: true, target: boolean, adjustments: [{ kind: materialize, target: boolean }] }) }] origin=implicit
     /// @coercion.node source=...values from=int32 adjustments=[{ kind: union, target: int32 | boolean, cases: ({ source: int32, target: int32 }) }] origin=implicit
     /// @resolution.name source=values target=extend.values
-    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=extend.values
 
     mixed satisfies (int32 | boolean)[];
     /// @resolution.name source=mixed target=extend.mixed
-    /// @resolution.place source=mixed placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=mixed placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=mixed root=extend.mixed
 
 }
-"#, r#""#);
+"#, r#"
+"#);
 }
 
 #[test]
@@ -64,30 +65,12 @@ let values: int64[] = [1, 2];
 let values = [1, 2];
 /// @type.symbol symbol=values source=values type=int64[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id="elementSlot<int64, \"mutable\">" template=elementSlot arguments=(int64, "mutable")
-/// @generic.instance id="initAsPointer<int64, \"mutable\">" template=initAsPointer arguments=(int64, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<int64>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int64>, "mutable")
 /// @generic.instance id=Array<int64> template=Array arguments=(int64)
-/// @generic.instance id=assumeInitDrop#1<int64> template=assumeInitDrop#1 arguments=(int64)
-/// @generic.instance id=assumeInitDrop<int64> template=assumeInitDrop arguments=(int64)
-/// @generic.instance id=clear<int64> template=clear arguments=(int64)
-/// @generic.instance id=drop<int64> template=drop arguments=(int64)
-/// @generic.instance id=dropInPlace<int64> template=dropInPlace arguments=(int64)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int64>> template=sliceAssumeInit arguments=(MaybeUninit<int64>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int64>> template=sliceUninit arguments=(MaybeUninit<int64>)
-/// @generic.instance id=truncate<int64> template=truncate arguments=(int64)
 /// @resolution.call source=[1, 2] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64, provided(2) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
-/// @generic.instance id=fromOwnedSlice<int64> template=fromOwnedSlice arguments=(int64)
-/// @generic.instance id=intoUninit<int64> template=intoUninit arguments=(int64)
-/// @generic.instance id=size<int64> template=size arguments=(int64)
-/// @generic.instance id=sliceIntoUninit<int64> template=sliceIntoUninit arguments=(int64)
-/// @generic.instance id=sliceLength<int64> template=sliceLength arguments=(int64)
 "#,
     );
 }
@@ -111,30 +94,12 @@ const values: int32[] = [1, 2];
 const values: int32[] = [1, 2];
 /// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
-/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
-/// @generic.instance id=clear<int32> template=clear arguments=(int32)
-/// @generic.instance id=drop<int32> template=drop arguments=(int32)
-/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 /// @resolution.call source=[1, 2] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32, provided(2) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id=fromOwnedSlice<int32> template=fromOwnedSlice arguments=(int32)
-/// @generic.instance id=intoUninit<int32> template=intoUninit arguments=(int32)
-/// @generic.instance id=size<int32> template=size arguments=(int32)
-/// @generic.instance id=sliceIntoUninit<int32> template=sliceIntoUninit arguments=(int32)
-/// @generic.instance id=sliceLength<int32> template=sliceLength arguments=(int32)
 "#,
     );
 }
@@ -152,7 +117,7 @@ const first = [1].iterator().next();
         DirRows::checked(),
         r#"
 === annotated ===
-const first: IteratorResult<int64, void> = [1].iterator<int64>().next<int64>();
+const first: IteratorResult<int64> = [1].iterator<int64>().next<int64, "managed">();
 
 === dir ===
 const first = [1].iterator().next();
@@ -161,39 +126,20 @@ const first = [1].iterator().next();
 /// @generic.instance id="IteratorResult<int64, void>" template=IteratorResult arguments=(int64, void)
 /// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
 /// @generic.instance id=IteratorYield<int64> template=IteratorYield arguments=(int64)
-/// @resolution.member source=[1].iterator receiver=int64[] type=<iterator#2.P0: Place>(this: Managed<int64[], iterator#2.P0>) => Iterator<int64> kind=symbol target_receiver=int64[] target=iterator#2
-/// @resolution.member source=[1].iterator().next receiver=Iterator<int64> type=(this: Iterator<int64>) => IteratorResult<int64, void> kind=symbol target_receiver=Iterator<int64> dispatch=dynamic constraint=Iterator<int64> target=Iterator.next
+/// @resolution.member source=[1].iterator receiver=int64[] type=(this: int64[]) => Iterator<int64> kind=symbol target_receiver=int64[] target=iterator#2
+/// @resolution.member source=[1].iterator().next receiver=Iterator<int64> type=<Iterator.next.'a>(this: &Iterator.next.'a Iterator<int64>) => IteratorResult<int64, void> kind=symbol target_receiver=Iterator<int64> dispatch=dynamic constraint=Iterator<int64> target=Iterator.next
 /// @resolution.call source=[1] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
-/// @resolution.call source=[1].iterator() parameters=() return=Iterator<int64> kind=symbol target=iterator#2 receiver=int64[] instance="Array<int64>.<extension#4>.iterator#2<\"local\">"
-/// @resolution.call source=[1].iterator().next() parameters=() return=IteratorResult<int64, void> kind=dynamic target=Iterator.next receiver=Iterator<int64> constraint=Iterator<int64> generic_arguments=(int64)
-/// @generic.instantiation id="iterator#2<int64, \"local\">" template=iterator#2 arguments=(int64, "local")
+/// @resolution.call source=[1].iterator() parameters=() return=Iterator<int64> kind=symbol target=iterator#2 receiver=int64[] instance=Array<int64>.<extension#4>.iterator#2
+/// @resolution.call source=[1].iterator().next() parameters=() return=IteratorResult<int64, void> regions=("managed" & "local") kind=dynamic target=Iterator.next receiver=Iterator<int64> constraint=Iterator<int64> adjustments=(borrow(&'managed Iterator<int64>)) generic_arguments=(int64, "managed" & "local")
 /// @generic.instantiation id=Iterator.next<int64> template=Iterator.next arguments=(int64)
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
 /// @generic.instantiation id=iterator#2<int64> template=iterator#2 arguments=(int64)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="elementSlot<int64, \"mutable\">" template=elementSlot arguments=(int64, "mutable")
-/// @generic.instance id="initAsPointer<int64, \"mutable\">" template=initAsPointer arguments=(int64, "mutable")
-/// @generic.instance id="iterator#2<int64, \"local\">" template=iterator#2 arguments=(int64, "local")
-/// @generic.instance id="sliceIndex<MaybeUninit<int64>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int64>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=Array<int64> template=Array arguments=(int64)
 /// @generic.instance id=Iterator<int64> template=Iterator arguments=(int64)
 /// @generic.instance id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
-/// @generic.instance id=assumeInitDrop#1<int64> template=assumeInitDrop#1 arguments=(int64)
-/// @generic.instance id=assumeInitDrop<int64> template=assumeInitDrop arguments=(int64)
-/// @generic.instance id=clear<int64> template=clear arguments=(int64)
-/// @generic.instance id=drop<int64> template=drop arguments=(int64)
-/// @generic.instance id=dropInPlace<int64> template=dropInPlace arguments=(int64)
-/// @generic.instance id=fromOwnedSlice<int64> template=fromOwnedSlice arguments=(int64)
-/// @generic.instance id=intoUninit<int64> template=intoUninit arguments=(int64)
-/// @generic.instance id=size<int64> template=size arguments=(int64)
+/// @generic.instance id=iterator#2<int64> template=iterator#2 arguments=(int64)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int64>> template=sliceAssumeInit arguments=(MaybeUninit<int64>)
-/// @generic.instance id=sliceIntoUninit<int64> template=sliceIntoUninit arguments=(int64)
-/// @generic.instance id=sliceLength<int64> template=sliceLength arguments=(int64)
 /// @generic.instance id=sliceUninit<MaybeUninit<int64>> template=sliceUninit arguments=(MaybeUninit<int64>)
-/// @generic.instance id=truncate<int64> template=truncate arguments=(int64)
 "#,
     );
 }
@@ -220,41 +166,23 @@ function extend(values: int32[]): int32[] {
 === dir ===
 function extend(values: int32[]): int32[] {
 /// @type.symbol symbol=extend type=(int32[]) => int32[]
-/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
-/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
-/// @generic.instance id=clear<int32> template=clear arguments=(int32)
-/// @generic.instance id=drop<int32> template=drop arguments=(int32)
-/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 /// @type.symbol symbol=extend.values source="values: int32[]" type=int32[]
 
     [...values, 1]
-    /// @resolution.call source=[...values, 1] parameters=(^Slice<int32>) arguments=(rest(spread(provided(...values) as int32[], iterator=iterator#2(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>)) as int32, provided(1) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
-    /// @generic.instantiation id="iterator#2<int32, \"local\">" template=iterator#2 arguments=(int32, "local")
+    /// @resolution.call source=[...values, 1] parameters=(^Slice<int32>) arguments=(rest(spread(provided(...values) as int32[], iterator=iterator#2(parameters=(), arguments=(), return=Iterator<int32>), next=dynamic(Iterator<int32> as Iterator<int32>, Iterator.next)(parameters=(), arguments=(), return=IteratorResult<int32, void>, regions=("managed" & "local"))) as int32, provided(1) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
     /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-    /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
+    /// @generic.instantiation id=iterator#2<int32> template=iterator#2 arguments=(int32)
     /// @generic.instance id="IteratorResult<int32, void>" template=IteratorResult arguments=(int32, void)
-    /// @generic.instance id="iterator#2<int32, \"local\">" template=iterator#2 arguments=(int32, "local")
-    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-    /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
     /// @generic.instance id=Iterator<int32> template=Iterator arguments=(int32)
     /// @generic.instance id=IteratorReturn<void> template=IteratorReturn arguments=(void)
     /// @generic.instance id=IteratorYield<int32> template=IteratorYield arguments=(int32)
     /// @generic.instance id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-    /// @generic.instance id=fromOwnedSlice<int32> template=fromOwnedSlice arguments=(int32)
-    /// @generic.instance id=intoUninit<int32> template=intoUninit arguments=(int32)
-    /// @generic.instance id=size<int32> template=size arguments=(int32)
-    /// @generic.instance id=sliceIntoUninit<int32> template=sliceIntoUninit arguments=(int32)
-    /// @generic.instance id=sliceLength<int32> template=sliceLength arguments=(int32)
+    /// @generic.instance id=iterator#2<int32> template=iterator#2 arguments=(int32)
     /// @resolution.name source=values target=extend.values
-    /// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=extend.values
 
 }
@@ -275,36 +203,18 @@ let values = [1, , 3];
         DirRows::checked(),
         r#"
 === annotated ===
-let values: (int64 | undefined)[] = [1 as int64 | undefined, , 3 as int64 | undefined];
+let values: (undefined | int64)[] = [1 as undefined | int64, , 3 as undefined | int64];
 
 === dir ===
 let values = [1, , 3];
-/// @type.symbol symbol=values source=values type=int64 | undefined[]
+/// @type.symbol symbol=values source=values type=undefined | int64[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id="Array<int64 | undefined>" template=Array arguments=(int64 | undefined)
-/// @generic.instance id="assumeInitDrop#1<int64 | undefined>" template=assumeInitDrop#1 arguments=(int64 | undefined)
-/// @generic.instance id="assumeInitDrop<int64 | undefined>" template=assumeInitDrop arguments=(int64 | undefined)
-/// @generic.instance id="clear<int64 | undefined>" template=clear arguments=(int64 | undefined)
-/// @generic.instance id="drop<int64 | undefined>" template=drop arguments=(int64 | undefined)
-/// @generic.instance id="dropInPlace<int64 | undefined>" template=dropInPlace arguments=(int64 | undefined)
-/// @generic.instance id="elementSlot<int64 | undefined, \"mutable\">" template=elementSlot arguments=(int64 | undefined, "mutable")
-/// @generic.instance id="initAsPointer<int64 | undefined, \"mutable\">" template=initAsPointer arguments=(int64 | undefined, "mutable")
-/// @generic.instance id="sliceAssumeInit<MaybeUninit<int64 | undefined>>" template=sliceAssumeInit arguments=(MaybeUninit<int64 | undefined>)
-/// @generic.instance id="sliceIndex<MaybeUninit<int64 | undefined>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int64 | undefined>, "mutable")
-/// @generic.instance id="sliceUninit<MaybeUninit<int64 | undefined>>" template=sliceUninit arguments=(MaybeUninit<int64 | undefined>)
-/// @generic.instance id="truncate<int64 | undefined>" template=truncate arguments=(int64 | undefined)
-/// @resolution.call source=[1, , 3] parameters=(^Slice<int64 | undefined>) arguments=(rest(provided(1) as int64 | undefined, omitted as int64 | undefined, provided(3) as int64 | undefined) as int64 | undefined) return=int64 | undefined[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<int64 | undefined>"
-/// @generic.instantiation id="arrayFromOwnedSlice<int64 | undefined>" template=arrayFromOwnedSlice arguments=(int64 | undefined)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="arrayFromOwnedSlice<int64 | undefined>" template=arrayFromOwnedSlice arguments=(int64 | undefined)
-/// @generic.instance id="fromOwnedSlice<int64 | undefined>" template=fromOwnedSlice arguments=(int64 | undefined)
-/// @generic.instance id="intoUninit<int64 | undefined>" template=intoUninit arguments=(int64 | undefined)
-/// @generic.instance id="size<int64 | undefined>" template=size arguments=(int64 | undefined)
-/// @generic.instance id="sliceIntoUninit<int64 | undefined>" template=sliceIntoUninit arguments=(int64 | undefined)
-/// @generic.instance id="sliceLength<int64 | undefined>" template=sliceLength arguments=(int64 | undefined)
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
+/// @generic.instance id="Array<undefined | int64>" template=Array arguments=(undefined | int64)
+/// @generic.instance id="sliceAssumeInit<MaybeUninit<undefined | int64>>" template=sliceAssumeInit arguments=(MaybeUninit<undefined | int64>)
+/// @generic.instance id="sliceUninit<MaybeUninit<undefined | int64>>" template=sliceUninit arguments=(MaybeUninit<undefined | int64>)
+/// @resolution.call source=[1, , 3] parameters=(^Slice<undefined | int64>) arguments=(rest(provided(1) as undefined | int64, omitted as undefined | int64, provided(3) as undefined | int64) as undefined | int64) return=undefined | int64[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<undefined | int64>"
+/// @generic.instantiation id="arrayFromOwnedSlice<undefined | int64>" template=arrayFromOwnedSlice arguments=(undefined | int64)
+/// @generic.instance id="arrayFromOwnedSlice<undefined | int64>" template=arrayFromOwnedSlice arguments=(undefined | int64)
 "#,
     );
 }
@@ -560,28 +470,10 @@ const values = [1, 2, 3] as Slice<_>;
 /// @type.node source=[1, 2, 3] type=int64[]
 /// @resolution.call source=[1, 2, 3] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64, provided(2) as int64, provided(3) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="elementSlot<int64, \"mutable\">" template=elementSlot arguments=(int64, "mutable")
-/// @generic.instance id="initAsPointer<int64, \"mutable\">" template=initAsPointer arguments=(int64, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<int64>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int64>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=Array<int64> template=Array arguments=(int64)
 /// @generic.instance id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
-/// @generic.instance id=assumeInitDrop#1<int64> template=assumeInitDrop#1 arguments=(int64)
-/// @generic.instance id=assumeInitDrop<int64> template=assumeInitDrop arguments=(int64)
-/// @generic.instance id=clear<int64> template=clear arguments=(int64)
-/// @generic.instance id=drop<int64> template=drop arguments=(int64)
-/// @generic.instance id=dropInPlace<int64> template=dropInPlace arguments=(int64)
-/// @generic.instance id=fromOwnedSlice<int64> template=fromOwnedSlice arguments=(int64)
-/// @generic.instance id=intoUninit<int64> template=intoUninit arguments=(int64)
-/// @generic.instance id=size<int64> template=size arguments=(int64)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int64>> template=sliceAssumeInit arguments=(MaybeUninit<int64>)
-/// @generic.instance id=sliceIntoUninit<int64> template=sliceIntoUninit arguments=(int64)
-/// @generic.instance id=sliceLength<int64> template=sliceLength arguments=(int64)
 /// @generic.instance id=sliceUninit<MaybeUninit<int64>> template=sliceUninit arguments=(MaybeUninit<int64>)
-/// @generic.instance id=truncate<int64> template=truncate arguments=(int64)
 /// @type.node source=1 type=1
 /// @coercion.node source=1 from=1 adjustments=[{ kind: materialize, target: int64 }] origin=implicit
 /// @type.node source=2 type=2
@@ -616,28 +508,10 @@ const values = [1, 2, 3] as [_];
 /// @type.node source=[1, 2, 3] type=int64[]
 /// @resolution.call source=[1, 2, 3] parameters=(^Slice<int64>) arguments=(rest(provided(1) as int64, provided(2) as int64, provided(3) as int64) as int64) return=int64[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int64>
 /// @generic.instantiation id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="elementSlot<int64, \"mutable\">" template=elementSlot arguments=(int64, "mutable")
-/// @generic.instance id="initAsPointer<int64, \"mutable\">" template=initAsPointer arguments=(int64, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<int64>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int64>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=Array<int64> template=Array arguments=(int64)
 /// @generic.instance id=arrayFromOwnedSlice<int64> template=arrayFromOwnedSlice arguments=(int64)
-/// @generic.instance id=assumeInitDrop#1<int64> template=assumeInitDrop#1 arguments=(int64)
-/// @generic.instance id=assumeInitDrop<int64> template=assumeInitDrop arguments=(int64)
-/// @generic.instance id=clear<int64> template=clear arguments=(int64)
-/// @generic.instance id=drop<int64> template=drop arguments=(int64)
-/// @generic.instance id=dropInPlace<int64> template=dropInPlace arguments=(int64)
-/// @generic.instance id=fromOwnedSlice<int64> template=fromOwnedSlice arguments=(int64)
-/// @generic.instance id=intoUninit<int64> template=intoUninit arguments=(int64)
-/// @generic.instance id=size<int64> template=size arguments=(int64)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int64>> template=sliceAssumeInit arguments=(MaybeUninit<int64>)
-/// @generic.instance id=sliceIntoUninit<int64> template=sliceIntoUninit arguments=(int64)
-/// @generic.instance id=sliceLength<int64> template=sliceLength arguments=(int64)
 /// @generic.instance id=sliceUninit<MaybeUninit<int64>> template=sliceUninit arguments=(MaybeUninit<int64>)
-/// @generic.instance id=truncate<int64> template=truncate arguments=(int64)
 /// @type.node source=1 type=1
 /// @coercion.node source=1 from=1 adjustments=[{ kind: materialize, target: int64 }] origin=implicit
 /// @type.node source=2 type=2
@@ -695,7 +569,7 @@ matrix satisfies [[int32; 2]; 2];
 /// @type.node source="matrix satisfies [[int32; 2]; 2]" type=FixedArray<FixedArray<int32, 2>, 2>
 /// @type.node source=matrix type=FixedArray<FixedArray<int32, 2>, 2>
 /// @resolution.name source=matrix target=matrix
-/// @resolution.place source=matrix placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=matrix placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=matrix root=matrix
 "#,
     );
@@ -794,28 +668,10 @@ const items: Iterable<int32> = [1, 2];
 /// @resolution.name source=Iterable target=Iterable
 /// @resolution.call source=[1, 2] parameters=(^Slice<int32>) arguments=(rest(provided(1) as int32, provided(2) as int32) as int32) return=int32[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<int32>
 /// @generic.instantiation id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
-/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
 /// @generic.instance id=arrayFromOwnedSlice<int32> template=arrayFromOwnedSlice arguments=(int32)
-/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
-/// @generic.instance id=clear<int32> template=clear arguments=(int32)
-/// @generic.instance id=drop<int32> template=drop arguments=(int32)
-/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
-/// @generic.instance id=fromOwnedSlice<int32> template=fromOwnedSlice arguments=(int32)
-/// @generic.instance id=intoUninit<int32> template=intoUninit arguments=(int32)
-/// @generic.instance id=size<int32> template=size arguments=(int32)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=sliceIntoUninit<int32> template=sliceIntoUninit arguments=(int32)
-/// @generic.instance id=sliceLength<int32> template=sliceLength arguments=(int32)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 "#,
     );
 }

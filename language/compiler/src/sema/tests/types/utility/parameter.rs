@@ -24,8 +24,8 @@ ok satisfies (string, number);
 
 === dir ===
 type Args = Parameters<(name: string, count: number) => boolean>;
-/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=Parameters<Function<(string, float64), boolean>>
-/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=Parameters<Function<(string, float64), boolean>>
+/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=(string, float64)
+/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=Parameters<(string, float64) => boolean>
 /// @resolution.name source=Parameters target=Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
 /// @type.symbol symbol=Args.count source="count: number" type=float64
@@ -37,7 +37,7 @@ const ok: Args = ("Ada", 1);
 
 ok satisfies (string, number);
 /// @resolution.name source=ok target=ok
-/// @resolution.place source=ok placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=ok placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=ok root=ok
 "#,
     );
@@ -67,8 +67,8 @@ const full: Args = ("Ada", 1 as float64 | undefined) as Args;
 
 === dir ===
 type Args = Parameters<(name: string, count?: number) => boolean>;
-/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" type=Parameters<Function<(string, float64 | undefined?), boolean>>
-/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" value=Parameters<Function<(string, float64 | undefined?), boolean>>
+/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" type=(string, float64 | undefined?)
+/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count?: number) => boolean>" value=Parameters<(string, float64 | undefined?) => boolean>
 /// @resolution.name source=Parameters target=Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
 /// @type.symbol symbol=Args.count source="count?: number" type=float64 | undefined
@@ -108,22 +108,11 @@ const ok: Args = ("Ada", true, false) as Args;
 
 === dir ===
 type Args = Parameters<(name: string, ...flags: boolean[]) => void>;
-/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" type=Parameters<Function<(string, ...boolean[]), void>>
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="elementSlot<boolean, \"mutable\">" template=elementSlot arguments=(boolean, "mutable")
-/// @generic.instance id="initAsPointer<boolean, \"mutable\">" template=initAsPointer arguments=(boolean, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<boolean>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<boolean>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
+/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" type=(string, ...boolean[])
 /// @generic.instance id=Array<boolean> template=Array arguments=(boolean)
-/// @generic.instance id=assumeInitDrop#1<boolean> template=assumeInitDrop#1 arguments=(boolean)
-/// @generic.instance id=assumeInitDrop<boolean> template=assumeInitDrop arguments=(boolean)
-/// @generic.instance id=clear<boolean> template=clear arguments=(boolean)
-/// @generic.instance id=drop<boolean> template=drop arguments=(boolean)
-/// @generic.instance id=dropInPlace<boolean> template=dropInPlace arguments=(boolean)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<boolean>> template=sliceAssumeInit arguments=(MaybeUninit<boolean>)
 /// @generic.instance id=sliceUninit<MaybeUninit<boolean>> template=sliceUninit arguments=(MaybeUninit<boolean>)
-/// @generic.instance id=truncate<boolean> template=truncate arguments=(boolean)
-/// @definition.type symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" value=Parameters<Function<(string, ...boolean[]), void>>
+/// @definition.type symbol=Args source="type Args = Parameters<(name: string, ...flags: boolean[]) => void>" value=Parameters<(string, ...boolean[]) => void>
 /// @resolution.name source=Parameters target=Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
 /// @type.symbol symbol=Args.flags source="...flags: boolean[]" type=boolean[]
@@ -158,8 +147,8 @@ const bad: Args = ("Ada", "one");
 
 === dir ===
 type Args = Parameters<(name: string, count: number) => boolean>;
-/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=Parameters<Function<(string, float64), boolean>>
-/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=Parameters<Function<(string, float64), boolean>>
+/// @type.symbol symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" type=(string, float64)
+/// @definition.type symbol=Args source="type Args = Parameters<(name: string, count: number) => boolean>" value=Parameters<(string, float64) => boolean>
 /// @resolution.name source=Parameters target=Parameters
 /// @type.symbol symbol=Args.name source="name: string" type=string
 /// @type.symbol symbol=Args.count source="count: number" type=float64
@@ -225,7 +214,7 @@ function parse(value: int32): int32 {
 
     value
     /// @resolution.name source=value target=parse.value#1
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=parse.value#1
 
 }
@@ -236,7 +225,7 @@ function parse(value: string): string {
 
     value
     /// @resolution.name source=value target=parse.value#2
-    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=parse.value#2
 
 }
@@ -253,7 +242,7 @@ declare const parser: Parser;
 
 parser satisfies ((value: int32) => int32) & ((value: string) => string);
 /// @resolution.name source=parser target=parser
-/// @resolution.place source=parser placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=parser placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=parser root=parser
 /// @type.symbol symbol=value#1 source="value: int32" type=int32
 /// @type.symbol symbol=value#2 source="value: string" type=string

@@ -22,7 +22,7 @@ if (route != undefined) {
 === annotated ===
 type Route = `api:${string}`;
 
-declare const route: Route | undefined;
+declare const route: `api:${string}` | undefined;
 
 if (route != undefined) {
     route satisfies Route;
@@ -34,20 +34,21 @@ type Route = `api:${string}`;
 /// @definition.type symbol=Route source="type Route = `api:${string}`" value=`api:${string}`
 
 declare const route: Route | undefined;
-/// @type.symbol symbol=route source=route type=Route | undefined
+/// @type.symbol symbol=route source=route type=`api:${string}` | undefined
 /// @resolution.pattern source=route kind=binding target=route
 /// @resolution.name source=Route target=Route
 
 if (route != undefined) {
 /// @resolution.name source=route target=route
-/// @resolution.operator source="route != undefined" type=boolean operator="!=" kind=builtin operands=[route as Route | undefined families=(string | undefined), undefined as undefined families=(undefined)]
-/// @resolution.place source=route placement="constant" lifetime="static" access="readonly"
+/// @resolution.operator source="route != undefined" type=boolean operator="!=" kind=builtin operands=[route as `api:${string}` | undefined families=(string | undefined), undefined as undefined families=(undefined)]
+/// @resolution.place source=route placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=route root=route
 
     route satisfies Route;
     /// @resolution.name source=route target=route
-    /// @resolution.place source=route placement="constant" lifetime="static" access="readonly"
+    /// @resolution.place source=route placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=route root=route
+    /// @resolution.narrowing source=route union=`api:${string}` | undefined arms=`api:${string}`
     /// @resolution.name source=Route target=Route
 
 }
@@ -100,19 +101,19 @@ declare const route: Route;
 if (route == "api:users") {
 /// @resolution.name source=route target=route
 /// @resolution.operator source="route == \"api:users\"" type=boolean operator="==" kind=builtin operands=[route as `api:${string}` families=(string), "api:users" as "api:users" families=(string)]
-/// @resolution.place source=route placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=route placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=route root=route
 
     route satisfies Route;
     /// @resolution.name source=route target=route
-    /// @resolution.place source=route placement="constant" lifetime="static" access="readonly"
+    /// @resolution.place source=route placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=route root=route
     /// @resolution.name source=Route target=Route
 
 } else {
     route satisfies Route;
     /// @resolution.name source=route target=route
-    /// @resolution.place source=route placement="constant" lifetime="static" access="readonly"
+    /// @resolution.place source=route placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=route root=route
     /// @resolution.name source=Route target=Route
 
@@ -170,7 +171,7 @@ const section = match (route) {
 /// @resolution.pattern source=section kind=binding target=section
 /// @resolution.coverage exhaustive=true disjoint=true
 /// @resolution.name source=route target=route
-/// @resolution.place source=route placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=route placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=route root=route
 
     "api:users" => "users"
@@ -183,7 +184,7 @@ const section = match (route) {
 
 section satisfies "users" | "posts";
 /// @resolution.name source=section target=section
-/// @resolution.place source=section placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=section placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=section root=section
 "#,
     );

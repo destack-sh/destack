@@ -204,22 +204,22 @@ class Service {
     }
 }
 
-declare function modify<'a>(value: &'a int32): void;
+declare function modify<'a>(value: &int32): void;
 
 let borrowed: int32 = 0;
 &borrowed;
 
 let passed: int32 = 0;
-modify(passed as &'static int32);
+modify<"static">(passed as &'static int32);
 
 let field: Counter = Counter { value: 0 };
 field.value = 1;
 
 let called: Counter = Counter { value: 0 };
-called.increment();
+called.increment<"static">();
 
 let referenced: Service = new Service();
-referenced.increment();
+referenced.increment<"managed">();
 
 === dir ===
 struct Counter {

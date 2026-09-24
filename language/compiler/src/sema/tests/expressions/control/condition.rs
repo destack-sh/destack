@@ -97,7 +97,7 @@ const always = true;
 
 while (always) {
 /// @resolution.name source=always target=always
-/// @resolution.place source=always placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=always placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=always root=always
 
     break;

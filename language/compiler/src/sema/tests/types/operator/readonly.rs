@@ -45,20 +45,21 @@ type User = {
 };
 
 declare const user: readonly User;
-/// @type.symbol symbol=user source=user type=Readonly<User>
+/// @type.symbol symbol=user source=user type=readonly User
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 user.profile.name = "Grace";
 /// @resolution.name source=user target=user
-/// @resolution.member source=user.profile receiver=Readonly<User> type=Readonly<{ name: string }> kind=field target_receiver=Readonly<User> key=profile target_type=Readonly<{ name: string }>
-/// @resolution.place source=user placement="local" lifetime="managed" access="readonly"
+/// @resolution.member source=user.profile receiver=readonly User type={ name: string } kind=field target_receiver=readonly User key=profile target_type={ name: string }
+/// @resolution.place source=user placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
 /// @resolution.place source=user.profile placement="local" lifetime="managed" access="readonly"
 /// @resolution.access source=user.profile root=user keys=[profile]
 /// @resolution.pattern.assign source=user.profile.name kind=place
+/// @resolution.place source=user.profile.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=user.profile.name root=user keys=[profile, name]
-/// @resolution.assignment source=user.profile.name write="receiver=Readonly<{ name: string }>, target=field(receiver=Readonly<{ name: string }>, target=name, type=Readonly<string>), type=Readonly<string>" type=Readonly<string>
+/// @resolution.assignment source=user.profile.name write="receiver=readonly { name: string }, target=field(receiver=readonly { name: string }, target=name, type=string), type=string" type=string
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"
@@ -93,31 +94,20 @@ frozen satisfies readonly number[];
 declare let values: number[];
 /// @type.symbol symbol=values source=values type=float64[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="elementSlot<float64, \"mutable\">" template=elementSlot arguments=(float64, "mutable")
-/// @generic.instance id="initAsPointer<float64, \"mutable\">" template=initAsPointer arguments=(float64, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<float64>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<float64>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
 /// @generic.instance id=Array<float64> template=Array arguments=(float64)
-/// @generic.instance id=assumeInitDrop#1<float64> template=assumeInitDrop#1 arguments=(float64)
-/// @generic.instance id=assumeInitDrop<float64> template=assumeInitDrop arguments=(float64)
-/// @generic.instance id=clear<float64> template=clear arguments=(float64)
-/// @generic.instance id=drop<float64> template=drop arguments=(float64)
-/// @generic.instance id=dropInPlace<float64> template=dropInPlace arguments=(float64)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<float64>> template=sliceAssumeInit arguments=(MaybeUninit<float64>)
 /// @generic.instance id=sliceUninit<MaybeUninit<float64>> template=sliceUninit arguments=(MaybeUninit<float64>)
-/// @generic.instance id=truncate<float64> template=truncate arguments=(float64)
 
 let frozen: readonly number[] = values;
 /// @type.symbol symbol=frozen source=frozen type=readonly float64[]
 /// @resolution.pattern source=frozen kind=binding target=frozen
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=values placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=values root=values
 
 frozen satisfies readonly number[];
 /// @resolution.name source=frozen target=frozen
-/// @resolution.place source=frozen placement="local" lifetime="managed" access="readonly"
+/// @resolution.place source=frozen placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=frozen root=frozen
 "#,
     );
@@ -150,7 +140,7 @@ let bad: number[] = frozen;
 /// @type.symbol symbol=bad source=bad type=float64[]
 /// @resolution.pattern source=bad kind=binding target=bad
 /// @resolution.name source=frozen target=frozen
-/// @resolution.place source=frozen placement="local" lifetime="managed" access="readonly"
+/// @resolution.place source=frozen placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=frozen root=frozen
 "#,
         r#"
@@ -218,20 +208,21 @@ struct User {
 }
 
 declare const user: readonly User;
-/// @type.symbol symbol=user source=user type=Readonly<User>
+/// @type.symbol symbol=user source=user type=readonly User
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 user.profile.name = "Grace";
 /// @resolution.name source=user target=user
-/// @resolution.member source=user.profile receiver=Readonly<User> type=Profile kind=field target_receiver=Readonly<User> key=profile target=User.profile target_type=Profile
-/// @resolution.place source=user placement="constant" lifetime="static" access="readonly"
+/// @resolution.member source=user.profile receiver=readonly User type=Profile kind=field target_receiver=readonly User key=profile target=User.profile target_type=Profile
+/// @resolution.place source=user placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
-/// @resolution.place source=user.profile placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=user.profile placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=user.profile root=user keys=[profile]
 /// @resolution.pattern.assign source=user.profile.name kind=place
+/// @resolution.place source=user.profile.name placement="local" lifetime="static" access="readonly"
 /// @resolution.access source=user.profile.name root=user keys=[profile, name]
-/// @resolution.assignment source=user.profile.name write="receiver=Readonly<Profile>, target=field(receiver=Readonly<Profile>, target=Profile.name, type=Readonly<string>), type=Readonly<string>" type=Readonly<string>
+/// @resolution.assignment source=user.profile.name write="receiver=readonly Profile, target=field(receiver=readonly Profile, target=Profile.name, type=string), type=string" type=string
 "#,
         r#"
 /// @diagnostic.error id=cannot-assign-readonly-member message="cannot assign to readonly member 'name'"

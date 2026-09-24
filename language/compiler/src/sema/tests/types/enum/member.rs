@@ -166,7 +166,7 @@ declare const mode: Mode;
 switch (mode) {
 /// @type.node source=mode type=Mode
 /// @resolution.name source=mode target=mode
-/// @resolution.place source=mode placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=mode placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=mode root=mode
 
     case Mode.Read:
@@ -256,7 +256,7 @@ const value: Status = Status.Default;
 /// @resolution.name source=Status target=Status
 /// @resolution.name source=Status target=Status
 /// @resolution.member source=Status.Default receiver=Status type=Status kind=field target_receiver=Status key=Default target=Status.Default target_type=Status
-/// @resolution.place source=Status.Default placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=Status.Default placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=Status.Default root=Status keys=[Default]
 "#,
     );
@@ -293,7 +293,7 @@ enum Status {
     }
 }
 
-const value: boolean = Status.Active.isActive();
+const value: boolean = Status.Active.isActive<"frame">();
 
 === dir ===
 enum Status {
@@ -336,12 +336,14 @@ const value = Status.Active.isActive();
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=Status type=Status
 /// @type.node source=Status.Active type=Status.Active
-/// @type.node source=Status.Active.isActive type=<Status.isActive.'a>(this: &Status.isActive.'a readonly Status.Active) => boolean
+/// @type.node source=Status.Active.isActive type=<Status.isActive.'a>(this: &Status.isActive.'a readonly Status) => boolean
 /// @type.node source=Status.Active.isActive() type=boolean
 /// @resolution.name source=Status target=Status
 /// @resolution.member source=Status.Active receiver=Status type=Status.Active kind=symbol target_receiver=Status target=Status.Active
-/// @resolution.member source=Status.Active.isActive receiver=Status.Active type=<Status.isActive.'a>(this: &Status.isActive.'a readonly Status.Active) => boolean kind=symbol target_receiver=Status.Active target=Status.isActive
-/// @resolution.call source=Status.Active.isActive() parameters=() return=boolean regions=("frame" & "local") kind=symbol target=Status.isActive receiver=Status.Active adjustments=(borrow(&'frame readonly Status.Active))
+/// @resolution.member source=Status.Active.isActive receiver=Status.Active type=<Status.isActive.'a>(this: &Status.isActive.'a readonly Status) => boolean kind=symbol target_receiver=Status.Active target=Status.isActive
+/// @resolution.call source=Status.Active.isActive() parameters=() return=boolean regions=("frame" & "local") kind=symbol target=Status.isActive receiver=Status.Active adjustments=(borrow(&'frame readonly Status.Active)) instance="Status.isActive<\"frame\" & \"local\">"
+/// @generic.instantiation id="Status.isActive<\"frame\" & \"local\">" template=Status.isActive arguments=("frame" & "local")
+/// @generic.instance id="Status.isActive<\"bound0\" & \"local\">" template=Status.isActive arguments=("bound0" & "local")
 "#,
     );
 }
@@ -385,68 +387,6 @@ enum Status {
         r#"
 /// @diagnostic.error id=duplicate-member message="member 'Ready' is already declared"
 /// @diagnostic.label line=4 column=5 span="Ready" line_source="Ready,"
-"#,
-    );
-}
-
-#[test]
-fn test_enum_static_member_access_selects_declared_field() {
-    let session = TestSession::single(
-        r#"
-enum Status {
-    Active = 1,
-    Inactive = 2,
-
-    static Default = Status.Active;
-}
-
-const value: Status = Status.Default;
-"#,
-    );
-
-    session.assert_dir(
-        "main.ds",
-        DirRows::checked(),
-        r#"
-=== annotated ===
-enum Status {
-    Active = 1,
-    Inactive = 2,
-
-    static Default: Status = Status.Active;
-}
-
-const value: Status = Status.Default;
-
-=== dir ===
-enum Status {
-/// @type.symbol symbol=Status type=Status
-/// @definition.enum symbol=Status
-/// @definition.variant symbol=Status.Active source="Active = 1" key=Active value=1
-/// @definition.field symbol=Status.Default source="static Default = Status.Active" key=Default static=true type=Status
-/// @definition.variant symbol=Status.Inactive source="Inactive = 2" key=Inactive value=2
-
-    Active = 1,
-    /// @type.symbol symbol=Status.Active source="Active = 1" type=Status.Active
-
-    Inactive = 2,
-    /// @type.symbol symbol=Status.Inactive source="Inactive = 2" type=Status.Inactive
-
-    static Default = Status.Active;
-    /// @type.symbol symbol=Status.Default source="static Default = Status.Active" type=Status
-    /// @resolution.name source=Status target=Status
-    /// @resolution.member source=Status.Active receiver=Status type=Status.Active kind=symbol target_receiver=Status target=Status.Active
-
-}
-
-const value: Status = Status.Default;
-/// @type.symbol symbol=value source=value type=Status
-/// @resolution.pattern source=value kind=binding target=value
-/// @resolution.name source=Status target=Status
-/// @resolution.name source=Status target=Status
-/// @resolution.member source=Status.Default receiver=Status type=Status kind=field target_receiver=Status key=Default target=Status.Default target_type=Status
-/// @resolution.place source=Status.Default placement="local" lifetime="static" access="mutable"
-/// @resolution.access source=Status.Default root=Status keys=[Default]
 "#,
     );
 }

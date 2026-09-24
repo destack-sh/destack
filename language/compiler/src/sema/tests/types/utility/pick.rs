@@ -63,7 +63,7 @@ declare const person: Pick<Person, "name" | "active">;
 person.name satisfies string;
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.name receiver=Pick<Person, "name" | "active"> type=string kind=field target_receiver=Pick<Person, "name" | "active"> key=name target_type=string
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.name root=person keys=[name]
@@ -71,7 +71,7 @@ person.name satisfies string;
 person.active satisfies boolean;
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.active receiver=Pick<Person, "name" | "active"> type=boolean kind=field target_receiver=Pick<Person, "name" | "active"> key=active target_type=boolean
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.active placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.active root=person keys=[active]
@@ -139,7 +139,7 @@ const age = person.age;
 /// @type.symbol symbol=age source=age type=<error>
 /// @resolution.pattern source=age kind=binding target=age
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.rejected source=person.age
 "#,
@@ -182,7 +182,7 @@ interface Person {
 type AgeOnly = Pick<Person, "age">;
 
 const empty: AgeOnly = {};
-const aged: AgeOnly = { age: 42 };
+const aged: AgeOnly = { age: 42 as int32 | undefined };
 
 empty satisfies AgeOnly;
 aged satisfies AgeOnly;
@@ -205,7 +205,7 @@ interface Person {
 }
 
 type AgeOnly = Pick<Person, "age">;
-/// @type.symbol symbol=AgeOnly source="type AgeOnly = Pick<Person, \"age\">" type=Pick<Person, "age">
+/// @type.symbol symbol=AgeOnly source="type AgeOnly = Pick<Person, \"age\">" type={ age?: int32 }
 /// @definition.type symbol=AgeOnly source="type AgeOnly = Pick<Person, \"age\">" value=Pick<Person, "age">
 /// @resolution.name source=Pick target=Pick
 /// @resolution.name source=Person target=Person
@@ -222,13 +222,13 @@ const aged: AgeOnly = { age: 42 };
 
 empty satisfies AgeOnly;
 /// @resolution.name source=empty target=empty
-/// @resolution.place source=empty placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=empty placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=empty root=empty
 /// @resolution.name source=AgeOnly target=AgeOnly
 
 aged satisfies AgeOnly;
 /// @resolution.name source=aged target=aged
-/// @resolution.place source=aged placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=aged placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=aged root=aged
 /// @resolution.name source=AgeOnly target=AgeOnly
 "#,
@@ -282,7 +282,7 @@ interface Person {
 }
 
 type AgeOnly = Pick<Person, "age">;
-/// @type.symbol symbol=AgeOnly source="type AgeOnly = Pick<Person, \"age\">" type=Pick<Person, "age">
+/// @type.symbol symbol=AgeOnly source="type AgeOnly = Pick<Person, \"age\">" type={ age?: int32 }
 /// @definition.type symbol=AgeOnly source="type AgeOnly = Pick<Person, \"age\">" value=Pick<Person, "age">
 /// @resolution.name source=Pick target=Pick
 /// @resolution.name source=Person target=Person
@@ -350,7 +350,7 @@ interface Person {
 }
 
 type NameOnly = Pick<Person, "name">;
-/// @type.symbol symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" type=Pick<Person, "name">
+/// @type.symbol symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" type={ name: string }
 /// @definition.type symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" value=Pick<Person, "name">
 /// @resolution.name source=Pick target=Pick
 /// @resolution.name source=Person target=Person
@@ -362,7 +362,7 @@ const person: NameOnly = { name: "Ada" };
 
 person satisfies NameOnly;
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.name source=NameOnly target=NameOnly
 "#,
@@ -416,7 +416,7 @@ interface Person {
 }
 
 type NameOnly = Pick<Person, "name">;
-/// @type.symbol symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" type=Pick<Person, "name">
+/// @type.symbol symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" type={ name: string }
 /// @definition.type symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" value=Pick<Person, "name">
 /// @resolution.name source=Pick target=Pick
 /// @resolution.name source=Person target=Person
@@ -481,7 +481,7 @@ interface Person {
 }
 
 type NameOnly = Pick<Person, "name">;
-/// @type.symbol symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" type=Pick<Person, "name">
+/// @type.symbol symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" type={ name: string }
 /// @definition.type symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" value=Pick<Person, "name">
 /// @resolution.name source=Pick target=Pick
 /// @resolution.name source=Person target=Person
@@ -549,7 +549,7 @@ interface Person {
 }
 
 type NameOnly = Pick<Person, "name">;
-/// @type.symbol symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" type=Pick<Person, "name">
+/// @type.symbol symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" type={ readonly name: string }
 /// @definition.type symbol=NameOnly source="type NameOnly = Pick<Person, \"name\">" value=Pick<Person, "name">
 /// @resolution.name source=Pick target=Pick
 /// @resolution.name source=Person target=Person
@@ -561,7 +561,7 @@ const person: NameOnly = { name: "Ada" };
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.rejected source=person.name
 "#,

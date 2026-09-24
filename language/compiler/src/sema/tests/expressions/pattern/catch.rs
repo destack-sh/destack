@@ -61,9 +61,9 @@ function read(value: Result<int32, Cancelled>): int32 {
     try {
         value?
         /// @resolution.name source=value target=read.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=read.value
-        /// @resolution.residual source=value? target=try residual=TryResidual<Result<int32, Cancelled>> branch="branch(parameters=(), arguments=(), return=ControlFlow<Cancelled, int32>)"
+        /// @resolution.residual source=value? target=try residual=TryResidual<Result<int32, Cancelled>> branch="branch(parameters=(), arguments=(), return=ControlFlow<Result<never, Cancelled>, int32>)"
         /// @generic.instantiation id="branch<int32, Cancelled>" template=branch arguments=(int32, Cancelled)
 
     } catch (Cancelled) {
@@ -122,7 +122,7 @@ declare function read(): Result<string, { code: int32; message: string }>;
 /// @type.symbol symbol=read.message source="message: string" type=string
 
 try {
-/// @type.node type=void | string
+/// @type.node type=string | void
 
     read()?
     /// @type.node source=read type=() => Result<string, { code: int32; message: string }>
@@ -130,14 +130,17 @@ try {
     /// @type.node source=read()? type=string
     /// @resolution.name source=read target=read
     /// @resolution.call source=read() parameters=() return=Result<string, { code: int32; message: string }> kind=symbol target=read
-    /// @resolution.residual source=read()? target=try residual=TryResidual<Result<string, { code: int32; message: string }>> branch="branch(parameters=(), arguments=(), return=ControlFlow<{ code: int32; message: string }, string>)"
+    /// @resolution.residual source=read()? target=try residual=TryResidual<Result<string, { code: int32; message: string }>> branch="branch(parameters=(), arguments=(), return=ControlFlow<Result<never, { code: int32; message: string }>, string>)"
     /// @generic.instantiation id="branch<string, { code: int32; message: string }>" template=branch arguments=(string, { code: int32; message: string })
-    /// @generic.instance id="Break<{ code: int32; message: string }>" template=Break arguments=({ code: int32; message: string })
-    /// @generic.instance id="ControlFlow<{ code: int32; message: string }, string>" template=ControlFlow arguments=({ code: int32; message: string }, string)
+    /// @generic.instance id="Break<Result<never, { code: int32; message: string }>>" template=Break arguments=(Result<never, { code: int32; message: string }>)
+    /// @generic.instance id="ControlFlow<Result<never, { code: int32; message: string }>, string>" template=ControlFlow arguments=(Result<never, { code: int32; message: string }>, string)
+    /// @generic.instance id="Result<never, { code: int32; message: string }>" template=Result arguments=(never, { code: int32; message: string })
     /// @generic.instance id="branch<string, { code: int32; message: string }>" template=branch arguments=(string, { code: int32; message: string })
-    /// @generic.instance id="break<{ code: int32; message: string }, string>" template=break arguments=({ code: int32; message: string }, string)
-    /// @generic.instance id="continue<{ code: int32; message: string }, string>" template=continue arguments=({ code: int32; message: string }, string)
+    /// @generic.instance id="break<Result<never, { code: int32; message: string }>, string>" template=break arguments=(Result<never, { code: int32; message: string }>, string)
+    /// @generic.instance id="continue<Result<never, { code: int32; message: string }>, string>" template=continue arguments=(Result<never, { code: int32; message: string }>, string)
+    /// @generic.instance id="err#1<never, { code: int32; message: string }>" template=err#1 arguments=(never, { code: int32; message: string })
     /// @generic.instance id=Continue<string> template=Continue arguments=(string)
+    /// @generic.instance id=Ok<never> template=Ok arguments=(never)
 
 } catch ({ code, message }) {
 /// @resolution.pattern source={ code, message } kind=object fields={ code, message }
@@ -148,14 +151,14 @@ try {
     /// @type.node source="code satisfies int32" type=int32
     /// @type.node source=code type=int32
     /// @resolution.name source=code target=code
-    /// @resolution.place source=code placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=code placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=code root=code
 
     message satisfies string;
     /// @type.node source="message satisfies string" type=string
     /// @type.node source=message type=string
     /// @resolution.name source=message target=message
-    /// @resolution.place source=message placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=message placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=message root=message
 
 }
@@ -199,7 +202,7 @@ declare function read(): Result<string, string>;
 /// @resolution.name source=Result target=Result
 
 try {
-/// @type.node type=void | string
+/// @type.node type=string | void
 
     read()?
     /// @type.node source=read type=() => Result<string, string>
@@ -207,14 +210,17 @@ try {
     /// @type.node source=read()? type=string
     /// @resolution.name source=read target=read
     /// @resolution.call source=read() parameters=() return=Result<string, string> kind=symbol target=read
-    /// @resolution.residual source=read()? target=try residual=TryResidual<Result<string, string>> branch="branch(parameters=(), arguments=(), return=ControlFlow<string, string>)"
+    /// @resolution.residual source=read()? target=try residual=TryResidual<Result<string, string>> branch="branch(parameters=(), arguments=(), return=ControlFlow<Result<never, string>, string>)"
     /// @generic.instantiation id="branch<string, string>" template=branch arguments=(string, string)
-    /// @generic.instance id="ControlFlow<string, string>" template=ControlFlow arguments=(string, string)
+    /// @generic.instance id="Break<Result<never, string>>" template=Break arguments=(Result<never, string>)
+    /// @generic.instance id="ControlFlow<Result<never, string>, string>" template=ControlFlow arguments=(Result<never, string>, string)
+    /// @generic.instance id="Result<never, string>" template=Result arguments=(never, string)
     /// @generic.instance id="branch<string, string>" template=branch arguments=(string, string)
-    /// @generic.instance id="break<string, string>" template=break arguments=(string, string)
-    /// @generic.instance id="continue<string, string>" template=continue arguments=(string, string)
-    /// @generic.instance id=Break<string> template=Break arguments=(string)
+    /// @generic.instance id="break<Result<never, string>, string>" template=break arguments=(Result<never, string>, string)
+    /// @generic.instance id="continue<Result<never, string>, string>" template=continue arguments=(Result<never, string>, string)
+    /// @generic.instance id="err#1<never, string>" template=err#1 arguments=(never, string)
     /// @generic.instance id=Continue<string> template=Continue arguments=(string)
+    /// @generic.instance id=Ok<never> template=Ok arguments=(never)
 
 } catch {
     const handled = true;
@@ -264,7 +270,7 @@ declare function read(): Result<string, { message: string }>;
 /// @type.symbol symbol=read.message source="message: string" type=string
 
 try {
-/// @type.node type=void | string
+/// @type.node type=string | void
 
     read()?
     /// @type.node source=read type=() => Result<string, { message: string }>
@@ -272,14 +278,17 @@ try {
     /// @type.node source=read()? type=string
     /// @resolution.name source=read target=read
     /// @resolution.call source=read() parameters=() return=Result<string, { message: string }> kind=symbol target=read
-    /// @resolution.residual source=read()? target=try residual=TryResidual<Result<string, { message: string }>> branch="branch(parameters=(), arguments=(), return=ControlFlow<{ message: string }, string>)"
+    /// @resolution.residual source=read()? target=try residual=TryResidual<Result<string, { message: string }>> branch="branch(parameters=(), arguments=(), return=ControlFlow<Result<never, { message: string }>, string>)"
     /// @generic.instantiation id="branch<string, { message: string }>" template=branch arguments=(string, { message: string })
-    /// @generic.instance id="Break<{ message: string }>" template=Break arguments=({ message: string })
-    /// @generic.instance id="ControlFlow<{ message: string }, string>" template=ControlFlow arguments=({ message: string }, string)
+    /// @generic.instance id="Break<Result<never, { message: string }>>" template=Break arguments=(Result<never, { message: string }>)
+    /// @generic.instance id="ControlFlow<Result<never, { message: string }>, string>" template=ControlFlow arguments=(Result<never, { message: string }>, string)
+    /// @generic.instance id="Result<never, { message: string }>" template=Result arguments=(never, { message: string })
     /// @generic.instance id="branch<string, { message: string }>" template=branch arguments=(string, { message: string })
-    /// @generic.instance id="break<{ message: string }, string>" template=break arguments=({ message: string }, string)
-    /// @generic.instance id="continue<{ message: string }, string>" template=continue arguments=({ message: string }, string)
+    /// @generic.instance id="break<Result<never, { message: string }>, string>" template=break arguments=(Result<never, { message: string }>, string)
+    /// @generic.instance id="continue<Result<never, { message: string }>, string>" template=continue arguments=(Result<never, { message: string }>, string)
+    /// @generic.instance id="err#1<never, { message: string }>" template=err#1 arguments=(never, { message: string })
     /// @generic.instance id=Continue<string> template=Continue arguments=(string)
+    /// @generic.instance id=Ok<never> template=Ok arguments=(never)
 
 } catch (error) {
 /// @type.symbol symbol=error source=error type={ message: string }
@@ -290,8 +299,8 @@ try {
     /// @type.node source=error type={ message: string }
     /// @type.node source=error.message type=string
     /// @resolution.name source=error target=error
-    /// @resolution.member source=error.message receiver=TryResidual<Result<string, { message: string }>> type=string kind=field target_receiver=TryResidual<Result<string, { message: string }>> key=message target_type=string
-    /// @resolution.place source=error placement="local" lifetime="managed" access="mutable"
+    /// @resolution.member source=error.message receiver=TryFailure<Result<string, { message: string }>> type=string kind=field target_receiver=TryFailure<Result<string, { message: string }>> key=message target_type=string
+    /// @resolution.place source=error placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=error root=error
     /// @resolution.place source=error.message placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=error.message root=error keys=[message]
@@ -332,7 +341,7 @@ declare function read(): Result<string, "missing" | "denied">;
 /// @resolution.name source=Result target=Result
 
 try {
-/// @type.node type=void | string
+/// @type.node type=string | void
 
     read()?
     /// @type.node source=read type=() => Result<string, "missing" | "denied">
@@ -340,7 +349,7 @@ try {
     /// @type.node source=read()? type=string
     /// @resolution.name source=read target=read
     /// @resolution.call source=read() parameters=() return=Result<string, "missing" | "denied"> kind=symbol target=read
-    /// @resolution.residual source=read()? target=try residual=TryResidual<Result<string, "missing" | "denied">> branch="branch(parameters=(), arguments=(), return=ControlFlow<\"missing\" | \"denied\", string>)"
+    /// @resolution.residual source=read()? target=try residual=TryResidual<Result<string, "missing" | "denied">> branch="branch(parameters=(), arguments=(), return=ControlFlow<Result<never, \"missing\" | \"denied\">, string>)"
     /// @generic.instantiation id="branch<string, \"missing\" | \"denied\">" template=branch arguments=(string, "missing" | "denied")
 
 } catch ("missing") {

@@ -55,7 +55,7 @@ const name = person.name;
 /// @resolution.pattern source=name kind=binding target=name
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.name receiver=Person type=string kind=field target_receiver=Person key=name target_type=string
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.access source=person.name root=person keys=[name]
 
@@ -64,7 +64,7 @@ const age = person.age;
 /// @resolution.pattern source=age kind=binding target=age
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.age receiver=Person type=int32 kind=field target_receiver=Person key=age target_type=int32
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.access source=person.age root=person keys=[age]
 "#,
@@ -141,7 +141,7 @@ const value = both.value;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=both target=both
 /// @resolution.member source=both.value receiver=Left & Right type=string kind=field target_receiver=Left & Right key=value target=Left.value target_type=string
-/// @resolution.place source=both placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=both placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=both root=both
 /// @resolution.access source=both.value root=both keys=[value]
 "#,
@@ -311,7 +311,7 @@ const value: Value = { value: "ok", extra: "yes" };
 value.value satisfies string;
 /// @resolution.name source=value target=value
 /// @resolution.member source=value.value receiver=Value type=string kind=field target_receiver=Value key=value target_type=string
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 /// @resolution.place source=value.value placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=value.value root=value keys=[value]
@@ -319,7 +319,7 @@ value.value satisfies string;
 value.extra satisfies string;
 /// @resolution.name source=value target=value
 /// @resolution.member source=value.extra receiver=Value type=string kind=field target_receiver=Value key=extra target_type=string
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 /// @resolution.place source=value.extra placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=value.extra root=value keys=[extra]

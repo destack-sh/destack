@@ -23,7 +23,7 @@ const text: string = transform(1);
 
 === dir ===
 declare const transform: Function<(int32,), string>;
-/// @type.symbol symbol=transform source=transform type=Function<(int32,), string>
+/// @type.symbol symbol=transform source=transform type=(int32) => string
 /// @resolution.pattern source=transform kind=binding target=transform
 /// @resolution.name source=Function target=Function
 
@@ -33,16 +33,16 @@ const text = transform(1);
 /// @type.node source=transform(1) type=string
 /// @resolution.name source=transform target=transform
 /// @resolution.call source=transform(1) parameters=(int32) arguments=(provided(1) as int32) return=string kind=expression target=expression
-/// @resolution.place source=transform placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=transform placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=transform root=transform
 /// @type.node source=1 type=1
 "#,
     );
 }
 
-/// Reject calling a repeatable function through readonly access.
+/// Call a repeatable function through a readonly borrow of its handle, managed granting mutable.
 #[test]
-fn test_reject_calling_repeatable_function_through_readonly_borrow() {
+fn test_call_a_repeatable_function_through_a_readonly_borrow() {
     let session = TestSession::single(
         r#"
 function invokeReadonly(run: &readonly Function<(), void>): void {
@@ -65,8 +65,8 @@ function invokeReadonly<'a>(run: &'a readonly (() => void)): void {
 === dir ===
 function invokeReadonly(run: &readonly Function<(), void>): void {
 /// @generic.template symbol=invokeReadonly parameters=('a)
-/// @type.symbol symbol=invokeReadonly type=<invokeReadonly.'a>(&invokeReadonly.'a readonly Function<(), void>) => void
-/// @type.symbol symbol=invokeReadonly.run source="run: &readonly Function<(), void>" type=&invokeReadonly.'a readonly Function<(), void>
+/// @type.symbol symbol=invokeReadonly type=<invokeReadonly.'a>(&invokeReadonly.'a readonly (() => void)) => void
+/// @type.symbol symbol=invokeReadonly.run source="run: &readonly Function<(), void>" type=&invokeReadonly.'a readonly (() => void)
 /// @resolution.name source=Function target=Function
 
     run();
@@ -79,7 +79,7 @@ function invokeReadonly(run: &readonly Function<(), void>): void {
 }
 "#,
         r#"
-/// @diagnostic.error id=receiver-not-assignable message="receiver type '&'a readonly () => void' is not assignable to the method's 'this' type '&local () => void'"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type '&'a readonly (() => void)' is not assignable to the method's 'this' type '&(() => void)'"
 /// @diagnostic.label line=3 column=5 span="run()" line_source="run();"
 "#,
     );
@@ -122,31 +122,31 @@ declare const handle: Function<(), void, "once">;
 /// @resolution.name source=Function target=Function
 
 declare const borrowed: &readonly Function<(), void, "once">;
-/// @type.symbol symbol=borrowed source=borrowed type=&'static readonly constant Function<(), void, "once">
+/// @type.symbol symbol=borrowed source=borrowed type=&'static readonly Function<(), void, "once">
 /// @resolution.pattern source=borrowed kind=binding target=borrowed
 /// @resolution.name source=Function target=Function
 
 owned();
 /// @resolution.name source=owned target=owned
 /// @resolution.call source=owned() parameters=() return=void kind=expression target=expression
-/// @resolution.place source=owned placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=owned placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=owned root=owned
 
 handle();
 /// @resolution.name source=handle target=handle
 /// @resolution.call source=handle() parameters=() return=void kind=expression target=expression
-/// @resolution.place source=handle placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=handle placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=handle root=handle
 
 borrowed();
 /// @resolution.name source=borrowed target=borrowed
 /// @resolution.call source=borrowed() parameters=() return=void kind=expression target=expression
-/// @resolution.place source=borrowed placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=borrowed placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=borrowed root=borrowed
 "#, r#"
 /// @diagnostic.error id=receiver-not-assignable message="receiver type 'Function<(), void, \"once\">' is not assignable to the method's 'this' type '^Function<(), void, \"once\">'"
 /// @diagnostic.label line=7 column=1 span="handle()" line_source="handle();"
-/// @diagnostic.error id=receiver-not-assignable message="receiver type '&'static readonly constant Function<(), void, \"once\">' is not assignable to the method's 'this' type '^Function<(), void, \"once\">'"
+/// @diagnostic.error id=receiver-not-assignable message="receiver type '&'static readonly Function<(), void, \"once\">' is not assignable to the method's 'this' type '^Function<(), void, \"once\">'"
 /// @diagnostic.label line=8 column=1 span="borrowed()" line_source="borrowed();"
 "#);
 }
@@ -193,8 +193,8 @@ interface InvocationKind<in out T> {
 /// @type.symbol symbol=InvocationKind type=InvocationKind
 /// @definition.interface symbol=InvocationKind template=(in out T, this: InvocationKind<T>)
 /// @definition.where symbol=InvocationKind relation=satisfies left=this right=InvocationKind<T>
-/// @definition.signature kind=call source="(): \"affine\"" type=Function<(), "affine">
-/// @definition.signature kind=call source="(): \"copy\" where T: Copy" type=Function<(), "copy">
+/// @definition.signature kind=call source="(): \"affine\"" type=() => "affine"
+/// @definition.signature kind=call source="(): \"copy\" where T: Copy" type=() => "copy"
 /// @type.symbol symbol=InvocationKind.T source="in out T" type=T
 
     (): "copy" where T: Copy;
@@ -221,7 +221,7 @@ const copy = copyKind();
 /// @type.node source=copyKind() type="copy"
 /// @resolution.name source=copyKind target=copyKind
 /// @resolution.call source=copyKind() parameters=() return="copy" kind=dynamic target="call((): \"copy\" where T: Copy)" receiver=InvocationKind<int32> constraint=InvocationKind<int32>
-/// @resolution.place source=copyKind placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=copyKind placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=copyKind root=copyKind
 
 const affine = affineKind();
@@ -230,7 +230,7 @@ const affine = affineKind();
 /// @type.node source=affineKind() type="affine"
 /// @resolution.name source=affineKind target=affineKind
 /// @resolution.call source=affineKind() parameters=() return="affine" kind=dynamic target="call((): \"affine\")" receiver=InvocationKind<^Function<(), void, "once">> constraint=InvocationKind<^Function<(), void, "once">>
-/// @resolution.place source=affineKind placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=affineKind placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=affineKind root=affineKind
 "#,
         r#"
@@ -278,7 +278,7 @@ const result = transform("value");
 /// @type.node source="transform(\"value\")" type="left" | "right"
 /// @resolution.name source=transform target=transform
 /// @resolution.call source="transform(\"value\")" return="left" | "right" kind=union arms=[expression(parameters=(string), arguments=(provided("value") as string), return="left"), expression(parameters=(string), arguments=(provided("value") as string), return="right")]
-/// @resolution.place source=transform placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=transform placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=transform root=transform
 /// @type.node source="\"value\"" type="value"
 "#,
@@ -329,7 +329,7 @@ const result: "left" | "right" = transform(1);
 /// @type.node source=transform(1) type="common"
 /// @resolution.name source=transform target=transform
 /// @resolution.call source=transform(1) parameters=(int32) arguments=(provided(1) as int32) return="common" kind=expression target=expression
-/// @resolution.place source=transform placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=transform placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=transform root=transform
 /// @type.node source=1 type=1
 "#,
@@ -369,7 +369,7 @@ const value = 1;
 value();
 /// @type.node source=value() type=<error>
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 /// @resolution.rejected source=value()
 "#,
@@ -411,7 +411,7 @@ interface Adder {
 /// @type.symbol symbol=Adder type=Adder
 /// @definition.interface symbol=Adder template=(this: Adder)
 /// @definition.where symbol=Adder relation=satisfies left=this right=Adder
-/// @definition.signature kind=call source="(left: int32, right: int32): int32" type=Function<(int32, int32), int32>
+/// @definition.signature kind=call source="(left: int32, right: int32): int32" type=(int32, int32) => int32
 
     (left: int32, right: int32): int32;
     /// @type.symbol symbol=Adder.left source="left: int32" type=int32
@@ -429,7 +429,7 @@ const sum = add(1, 2);
 /// @resolution.pattern source=sum kind=binding target=sum
 /// @resolution.name source=add target=add
 /// @resolution.call source="add(1, 2)" parameters=(int32, int32) arguments=(provided(1) as int32, provided(2) as int32) return=int32 kind=dynamic target="call((left: int32, right: int32): int32)" receiver=Adder constraint=Adder
-/// @resolution.place source=add placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=add placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=add root=add
 "#,
     );
@@ -502,7 +502,7 @@ const counter = new factory(1);
 /// @resolution.pattern source=counter kind=binding target=counter
 /// @resolution.call source="new factory(1)" parameters=(int32) arguments=(provided(1) as int32) return=Counter kind=dynamic target="construct(new (value: int32): Counter)" receiver=Factory constraint=Factory
 /// @resolution.name source=factory target=factory
-/// @resolution.place source=factory placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=factory placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=factory root=factory
 "#,
     );
@@ -537,7 +537,7 @@ interface Adder {
 /// @type.symbol symbol=Adder type=Adder
 /// @definition.interface symbol=Adder template=(this: Adder)
 /// @definition.where symbol=Adder relation=satisfies left=this right=Adder
-/// @definition.signature kind=call source="(left: int32, right: int32): int32" type=Function<(int32, int32), int32>
+/// @definition.signature kind=call source="(left: int32, right: int32): int32" type=(int32, int32) => int32
 
     (left: int32, right: int32): int32;
     /// @type.symbol symbol=Adder.left source="left: int32" type=int32
@@ -554,10 +554,10 @@ const add: Adder = (left: int32, right: int32): int32 => left + right;
 /// @type.symbol symbol=symbol5.right source="right: int32" type=int32
 /// @resolution.name source=left target=symbol5.left
 /// @resolution.operator source="left + right" type=int32 operator="+" kind=builtin operands=[left as int32 families=(integer), right as int32 families=(integer)]
-/// @resolution.place source=left placement="local" lifetime="frame" access="mutable"
+/// @resolution.place source=left placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=left root=symbol5.left
 /// @resolution.name source=right target=symbol5.right
-/// @resolution.place source=right placement="local" lifetime="frame" access="mutable"
+/// @resolution.place source=right placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=right root=symbol5.right
 "#,
     );
@@ -582,7 +582,7 @@ function total(values: int32[]): int32 {
 
     session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
 === annotated ===
-declare function visit(callback: (arg0: int32) => void): void;
+declare function visit(callback: Function<(int32,), void, "readonly">): void;
 
 function total(values: int32[]): int32 {
     let sum: int32 = 0;
@@ -595,7 +595,6 @@ function total(values: int32[]): int32 {
 === dir ===
 declare function visit(callback: Function<(int32,), void, "readonly">): void;
 /// @type.symbol symbol=visit source="declare function visit(callback: Function<(int32,), void, \"readonly\">): void" type=(Function<(int32,), void, "readonly">) => void
-/// @type.symbol symbol=visit.callback source="callback: Function<(int32,), void, \"readonly\">" type=Function<(int32,), void, "readonly">
 /// @resolution.name source=Function target=Function
 
 function total(values: int32[]): int32 {
@@ -609,24 +608,24 @@ function total(values: int32[]): int32 {
     visit((value) => {
     /// @resolution.name source=visit target=visit
     /// @resolution.call parameters=(Function<(int32,), void, "readonly">) arguments=(provided(argument) as Function<(int32,), void, "readonly">) return=void kind=symbol target=visit
-    /// @type.symbol symbol=total.symbol6 type=Function<(int32,), void>
+    /// @type.symbol symbol=total.symbol6 type=(int32) => void
     /// @type.symbol symbol=total.symbol6.value source=value type=int32
 
         sum += value;
         /// @resolution.name source=sum target=total.sum
         /// @resolution.operator source="sum += value" type=int32 operator="+" kind=builtin operands=[sum as int32 families=(integer), value as int32 families=(integer)]
         /// @resolution.pattern.assign source=sum kind=place
-        /// @resolution.place source=sum placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=sum placement="local" lifetime="frame" access="exclusive"
         /// @resolution.assignment source=sum read=binding(total.sum) write=binding(total.sum) type=int32
         /// @resolution.access source=sum root=total.sum
         /// @resolution.name source=value target=total.symbol6.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=total.symbol6.value
 
     });
     return sum;
     /// @resolution.name source=sum target=total.sum
-    /// @resolution.place source=sum placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=sum placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=sum root=total.sum
 
 }
@@ -667,8 +666,7 @@ function total(values: int32[]): int32 {
 
 === dir ===
 declare function visit(callback: (value: int32) => void): void;
-/// @type.symbol symbol=visit source="declare function visit(callback: (value: int32) => void): void" type=(Function<(int32,), void>) => void
-/// @type.symbol symbol=visit.callback source="callback: (value: int32) => void" type=Function<(int32,), void>
+/// @type.symbol symbol=visit source="declare function visit(callback: (value: int32) => void): void" type=((int32) => void) => void
 /// @type.symbol symbol=visit.value source="value: int32" type=int32
 
 function total(values: int32[]): int32 {
@@ -681,29 +679,30 @@ function total(values: int32[]): int32 {
 
     visit((value) => {
     /// @resolution.name source=visit target=visit
-    /// @resolution.call parameters=(Function<(int32,), void>) arguments=(provided(argument) as Function<(int32,), void>) return=void kind=symbol target=visit
-    /// @type.symbol symbol=total.symbol7 type=Function<(int32,), void>
+    /// @resolution.call parameters=((int32) => void) arguments=(provided(argument) as (int32) => void) return=void kind=symbol target=visit
+    /// @type.symbol symbol=total.symbol7 type=(int32) => void
     /// @type.symbol symbol=total.symbol7.value source=value type=int32
 
         sum += value;
         /// @resolution.name source=sum target=total.sum
         /// @resolution.operator source="sum += value" type=int32 operator="+" kind=builtin operands=[sum as int32 families=(integer), value as int32 families=(integer)]
         /// @resolution.pattern.assign source=sum kind=place
-        /// @resolution.place source=sum placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=sum placement="local" lifetime="frame" access="exclusive"
         /// @resolution.assignment source=sum read=binding(total.sum) write=binding(total.sum) type=int32
         /// @resolution.access source=sum root=total.sum
         /// @resolution.name source=value target=total.symbol7.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=total.symbol7.value
 
     });
     return sum;
     /// @resolution.name source=sum target=total.sum
-    /// @resolution.place source=sum placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=sum placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=sum root=total.sum
 
 }
-"#, r#""#);
+"#, r#"
+"#);
 }
 
 /// Reject a function reference stored where its return must widen into a union.
@@ -738,13 +737,13 @@ function increment(value: int32): int32 {
     return value + 1;
     /// @resolution.name source=value target=increment.value
     /// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=increment.value
 
 }
 
 const widened: (value: int32) => int32 | undefined = increment;
-/// @type.symbol symbol=widened source=widened type=Function<(int32,), int32 | undefined>
+/// @type.symbol symbol=widened source=widened type=(int32) => int32 | undefined
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @type.symbol symbol=value source="value: int32" type=int32
 /// @resolution.name source=increment target=increment
@@ -794,16 +793,15 @@ function increment(value: int32): int32 {
     return value + 1;
     /// @resolution.name source=value target=increment.value
     /// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=increment.value
 
 }
 
 declare function applyOpen<U>(map: (value: int32) => U | undefined): U | undefined;
 /// @generic.template symbol=applyOpen parameters=(U)
-/// @type.symbol symbol=applyOpen type=<U>(Function<(int32,), U | undefined>) => U | undefined
+/// @type.symbol symbol=applyOpen type=<U>((int32) => U | undefined) => U | undefined
 /// @type.symbol symbol=applyOpen.U source=U type=U
-/// @type.symbol symbol=applyOpen.map source="map: (value: int32) => U | undefined" type=Function<(int32,), U | undefined>
 /// @type.symbol symbol=applyOpen.value source="value: int32" type=int32
 /// @resolution.name source=U target=applyOpen.U
 /// @resolution.name source=U target=applyOpen.U
@@ -812,7 +810,7 @@ const out = applyOpen(increment);
 /// @type.symbol symbol=out source=out type=int32 | undefined
 /// @resolution.pattern source=out kind=binding target=out
 /// @resolution.name source=applyOpen target=applyOpen
-/// @resolution.call source=applyOpen(increment) parameters=(Function<(int32,), int32 | undefined>) arguments=(provided(increment) as Function<(int32,), int32 | undefined>) return=int32 | undefined kind=symbol target=applyOpen instance=applyOpen<int32>
+/// @resolution.call source=applyOpen(increment) parameters=((int32) => int32 | undefined) arguments=(provided(increment) as (int32) => int32 | undefined) return=int32 | undefined kind=symbol target=applyOpen instance=applyOpen<int32>
 /// @generic.instantiation id=applyOpen<int32> template=applyOpen arguments=(int32)
 /// @resolution.name source=increment target=increment
 /// @resolution.function source=increment type=Function<(int32,), int32, "readonly"> target=increment
@@ -850,9 +848,8 @@ const out: int32 | undefined = applyOpen<int32>(
 === dir ===
 declare function applyOpen<U>(map: (value: int32) => U | undefined): U | undefined;
 /// @generic.template symbol=applyOpen parameters=(U)
-/// @type.symbol symbol=applyOpen type=<U>(Function<(int32,), U | undefined>) => U | undefined
+/// @type.symbol symbol=applyOpen type=<U>((int32) => U | undefined) => U | undefined
 /// @type.symbol symbol=applyOpen.U source=U type=U
-/// @type.symbol symbol=applyOpen.map source="map: (value: int32) => U | undefined" type=Function<(int32,), U | undefined>
 /// @type.symbol symbol=applyOpen.value source="value: int32" type=int32
 /// @resolution.name source=U target=applyOpen.U
 /// @resolution.name source=U target=applyOpen.U
@@ -861,13 +858,13 @@ const out: int32 | undefined = applyOpen((value: int32) => value + 1);
 /// @type.symbol symbol=out source=out type=int32 | undefined
 /// @resolution.pattern source=out kind=binding target=out
 /// @resolution.name source=applyOpen target=applyOpen
-/// @resolution.call source="applyOpen((value: int32) => value + 1)" parameters=(Function<(int32,), int32 | undefined>) arguments=(provided((value: int32) => value + 1) as Function<(int32,), int32 | undefined>) return=int32 | undefined kind=symbol target=applyOpen instance=applyOpen<int32>
+/// @resolution.call source="applyOpen((value: int32) => value + 1)" parameters=((int32) => int32 | undefined) arguments=(provided((value: int32) => value + 1) as (int32) => int32 | undefined) return=int32 | undefined kind=symbol target=applyOpen instance=applyOpen<int32>
 /// @generic.instantiation id=applyOpen<int32> template=applyOpen arguments=(int32)
 /// @type.symbol symbol=symbol5 source="(value: int32) => value + 1" type=Function<(int32,), int32 | undefined, "readonly">
 /// @type.symbol symbol=symbol5.value source="value: int32" type=int32
 /// @resolution.name source=value target=symbol5.value
 /// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
-/// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=value root=symbol5.value
 "#,
         r#"
@@ -917,7 +914,7 @@ declare function makeDog(): Dog;
 /// @resolution.name source=Dog target=Dog
 
 const covariant: () => Animal = makeDog;
-/// @type.symbol symbol=covariant source=covariant type=Function<(), Animal>
+/// @type.symbol symbol=covariant source=covariant type=() => Animal
 /// @resolution.pattern source=covariant kind=binding target=covariant
 /// @resolution.name source=Animal target=Animal
 /// @resolution.name source=makeDog target=makeDog
@@ -967,11 +964,10 @@ class Dog extends Animal {}
 
 declare function eatAnimal(animal: Animal): void;
 /// @type.symbol symbol=eatAnimal source="declare function eatAnimal(animal: Animal): void" type=(Animal) => void
-/// @type.symbol symbol=eatAnimal.animal source="animal: Animal" type=Animal
 /// @resolution.name source=Animal target=Animal
 
 const contravariant: (dog: Dog) => void = eatAnimal;
-/// @type.symbol symbol=contravariant source=contravariant type=Function<(Dog,), void>
+/// @type.symbol symbol=contravariant source=contravariant type=(Dog) => void
 /// @resolution.pattern source=contravariant kind=binding target=contravariant
 /// @type.symbol symbol=dog source="dog: Dog" type=Dog
 /// @resolution.name source=Dog target=Dog
@@ -1025,14 +1021,15 @@ declare function isDog(animal: Animal): animal is Dog;
 /// @resolution.name source=Dog target=Dog
 
 const predicate: (animal: Animal) => boolean = isDog;
-/// @type.symbol symbol=predicate source=predicate type=Function<(Animal,), boolean>
+/// @type.symbol symbol=predicate source=predicate type=(Animal) => boolean
 /// @resolution.pattern source=predicate kind=binding target=predicate
 /// @type.symbol symbol=animal source="animal: Animal" type=Animal
 /// @resolution.name source=Animal target=Animal
 /// @resolution.name source=isDog target=isDog
-/// @resolution.function source=isDog type=Function<(Animal,), boolean> target=isDog
+/// @resolution.function source=isDog type=(Animal) => boolean target=isDog
 "#,
         r#"
+
 "#,
     );
 }
@@ -1071,7 +1068,7 @@ class Dog {}
 /// @definition.class symbol=Dog source="class Dog {}"
 
 declare const makeInt: () => int32;
-/// @type.symbol symbol=makeInt source=makeInt type=Function<(), int32>
+/// @type.symbol symbol=makeInt source=makeInt type=() => int32
 /// @resolution.pattern source=makeInt kind=binding target=makeInt
 
 declare function makeDog(): Dog;
@@ -1079,14 +1076,14 @@ declare function makeDog(): Dog;
 /// @resolution.name source=Dog target=Dog
 
 const widened: () => int64 = makeInt;
-/// @type.symbol symbol=widened source=widened type=Function<(), int64>
+/// @type.symbol symbol=widened source=widened type=() => int64
 /// @resolution.pattern source=widened kind=binding target=widened
 /// @resolution.name source=makeInt target=makeInt
-/// @resolution.place source=makeInt placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=makeInt placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=makeInt root=makeInt
 
 const erased: () => unknown = makeDog;
-/// @type.symbol symbol=erased source=erased type=Function<(), unknown>
+/// @type.symbol symbol=erased source=erased type=() => unknown
 /// @resolution.pattern source=erased kind=binding target=erased
 /// @resolution.name source=makeDog target=makeDog
 /// @resolution.function source=makeDog type=Function<(), Dog, "readonly"> target=makeDog

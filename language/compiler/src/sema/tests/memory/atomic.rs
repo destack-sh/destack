@@ -30,7 +30,7 @@ declare const index: Atomic<usize>;
 declare const ratio: Atomic<float64>;
 
 function read<T: AtomicSafe, 'a>(value: &'a readonly Atomic<T>): T {
-    return value.load<T>(MemoryOrdering.SequentiallyConsistent as MemoryOrdering | undefined);
+    return value.load(MemoryOrdering.SequentiallyConsistent);
 }
 
 === dir ===
@@ -73,12 +73,15 @@ function read<T: AtomicSafe>(value: &readonly Atomic<T>): T {
 
     return value.load(MemoryOrdering.SequentiallyConsistent);
     /// @resolution.name source=value target=read.value
-    /// @resolution.member source=value.load receiver=&read.'a readonly Atomic<T> type=<load.'a>(this: &load.'a readonly Atomic<T>, MemoryOrdering | undefined?) => T kind=symbol target_receiver=&read.'a readonly Atomic<T> target=load
-    /// @resolution.call source=value.load(MemoryOrdering.SequentiallyConsistent) parameters=(MemoryOrdering | undefined) arguments=(provided(MemoryOrdering.SequentiallyConsistent) as MemoryOrdering | undefined) return=T regions=(read.'a) kind=symbol target=load receiver=&read.'a readonly Atomic<T> instance=Atomic<T>.<extension#1>.load
+    /// @resolution.member source=value.load receiver=&read.'a readonly Atomic<T> type=<const load.Order: MemoryOrdering.Relaxed | MemoryOrdering.Acquire | MemoryOrdering.SequentiallyConsistent = MemoryOrdering.SequentiallyConsistent, load.'a>(this: &load.'a readonly Atomic<T>, load.Order | undefined?) => T kind=symbol target_receiver=&read.'a readonly Atomic<T> target=load
+    /// @resolution.call source=value.load(MemoryOrdering.SequentiallyConsistent) parameters=(MemoryOrdering.SequentiallyConsistent | undefined) arguments=(provided(MemoryOrdering.SequentiallyConsistent) as MemoryOrdering.SequentiallyConsistent | undefined) return=T regions=(read.'a) kind=symbol target=load receiver=&read.'a readonly Atomic<T> instance="Atomic<T>.<extension#2>.load<MemoryOrdering.SequentiallyConsistent, read.'a>"
     /// @resolution.place source=value placement=read.'a lifetime=read.'a access="readonly"
     /// @resolution.access source=value root=read.value
+    /// @generic.instantiation id="load<T, MemoryOrdering.SequentiallyConsistent, read.'a>" template=load arguments=(T, MemoryOrdering.SequentiallyConsistent, read.'a) owner=read
     /// @generic.instantiation id=load<T> template=load arguments=(T) owner=read
-    /// @generic.instance id=load<T> template=load arguments=(T)
+    /// @generic.instance id="get#1<T, read.'a>" template=get#1 arguments=(T, read.'a)
+    /// @generic.instance id="load<T, MemoryOrdering.SequentiallyConsistent, read.'a>" template=load arguments=(T, MemoryOrdering.SequentiallyConsistent, read.'a)
+    /// @generic.instance id=atomicLoad<T> template=atomicLoad arguments=(T)
     /// @resolution.name source=MemoryOrdering target=MemoryOrdering
     /// @resolution.member source=MemoryOrdering.SequentiallyConsistent receiver=MemoryOrdering type=MemoryOrdering.SequentiallyConsistent kind=symbol target_receiver=MemoryOrdering target=MemoryOrdering.SequentiallyConsistent
 
@@ -117,7 +120,7 @@ declare const wide: Atomic<uint128>;
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'uint128' does not satisfy 'AtomicSafe'"
 /// @diagnostic.label line=4 column=28 span="uint128" line_source="declare const wide: Atomic<uint128>;"
-/// @diagnostic.related file="atomic.ds" line=99 column=23 span="T" line_source="export newtype Atomic<T: AtomicSafe> = intrinsic;" message="required by this bound on 'T'"
+/// @diagnostic.related file="atomic.ds" line=98 column=22 span="T" line_source="export struct Atomic<T: AtomicSafe> {" message="required by this bound on 'T'"
 "#,
     );
 }

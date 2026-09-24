@@ -23,10 +23,10 @@ interface Reader {
 /// @type.symbol symbol=Reader type=Reader
 /// @definition.interface symbol=Reader template=(this: Reader)
 /// @definition.where symbol=Reader relation=satisfies left=this right=Reader
-/// @definition.method symbol=Reader.read source="private read(): string" slot=read type=(this: this) => string
+/// @definition.method symbol=Reader.read source="private read(): string" slot=read type=() => string
 
     private read(): string;
-    /// @type.symbol symbol=Reader.read source="private read(): string" type=(this: this) => string
+    /// @type.symbol symbol=Reader.read source="private read(): string" type=() => string
 
 }
 "#, r#"

@@ -67,9 +67,9 @@ struct Circle {
 
 function read<'a>(shape: Borrowed<Rectangle | Circle, 'a>): int32 {
 /// @generic.template symbol=read parameters=('a)
-/// @type.symbol symbol=read type=<'a>(&'a Rectangle | Circle) => int32
+/// @type.symbol symbol=read type=<'a>(&'a (Rectangle | Circle)) => int32
 /// @type.symbol symbol=read.'a source='a type='a
-/// @type.symbol symbol=read.shape source="shape: Borrowed<Rectangle | Circle, 'a>" type=&'a Rectangle | Circle
+/// @type.symbol symbol=read.shape source="shape: Borrowed<Rectangle | Circle, 'a>" type=&'a (Rectangle | Circle)
 /// @resolution.name source=Borrowed target=Borrowed
 /// @resolution.name source=Rectangle target=Rectangle
 /// @resolution.name source=Circle target=Circle
@@ -77,9 +77,9 @@ function read<'a>(shape: Borrowed<Rectangle | Circle, 'a>): int32 {
 
     if (shape is Borrowed<Rectangle, 'a>) {
     /// @type.node source="shape is Borrowed<Rectangle, 'a>" type=boolean
-    /// @type.node source=shape type=&'a Rectangle | Circle
+    /// @type.node source=shape type=&'a (Rectangle | Circle)
     /// @resolution.name source=shape target=read.shape
-    /// @resolution.guard source="shape is Borrowed<Rectangle, 'a>" kind=is value=&'a Rectangle | Circle target=&'a Rectangle predicate="&'a Rectangle | Circle is type(&'a Rectangle)" narrowed=Narrow<&'a Rectangle | Circle, &'a Rectangle>
+    /// @resolution.guard source="shape is Borrowed<Rectangle, 'a>" kind=is value=&'a (Rectangle | Circle) target=&'a Rectangle predicate="&'a (Rectangle | Circle) is type(&'a Rectangle)" narrowed=Narrow<&'a (Rectangle | Circle), &'a Rectangle>
     /// @resolution.place source=shape placement='a lifetime='a access="mutable"
     /// @resolution.access source=shape root=read.shape
     /// @resolution.name source=Borrowed target=Borrowed
@@ -90,10 +90,10 @@ function read<'a>(shape: Borrowed<Rectangle | Circle, 'a>): int32 {
         /// @type.node source=shape type=&'a Rectangle
         /// @type.node source=shape.width type=int32
         /// @resolution.name source=shape target=read.shape
-        /// @resolution.member source=shape.width receiver=Narrow<&'a Rectangle | Circle, &'a Rectangle> type=int32 kind=field target_receiver=Narrow<&'a Rectangle | Circle, &'a Rectangle> key=width target=Rectangle.width target_type=int32
+        /// @resolution.member source=shape.width receiver=Narrow<&'a (Rectangle | Circle), &'a Rectangle> type=int32 kind=field target_receiver=Narrow<&'a (Rectangle | Circle), &'a Rectangle> key=width target=Rectangle.width target_type=int32
         /// @resolution.place source=shape placement='a lifetime='a access="mutable"
         /// @resolution.access source=shape root=read.shape
-        /// @resolution.narrowing source=shape union=&'a Rectangle | Circle arms=&'a Rectangle
+        /// @resolution.narrowing source=shape union=&'a (Rectangle | Circle) arms=&'a Rectangle
         /// @resolution.place source=shape.width placement='a lifetime='a access="mutable"
         /// @resolution.access source=shape.width root=read.shape keys=[width]
 
@@ -106,7 +106,7 @@ function read<'a>(shape: Borrowed<Rectangle | Circle, 'a>): int32 {
     /// @resolution.member source=shape.radius receiver=&'a Circle type=int32 kind=field target_receiver=&'a Circle key=radius target=Circle.radius target_type=int32
     /// @resolution.place source=shape placement='a lifetime='a access="mutable"
     /// @resolution.access source=shape root=read.shape
-    /// @resolution.narrowing source=shape union=&'a Rectangle | Circle arms=&'a Circle
+    /// @resolution.narrowing source=shape union=&'a (Rectangle | Circle) arms=&'a Circle
     /// @resolution.place source=shape.radius placement='a lifetime='a access="mutable"
     /// @resolution.access source=shape.radius root=read.shape keys=[radius]
 
@@ -183,13 +183,13 @@ struct Circle {
 
 function read<'a, const A: Access>(
 /// @generic.template symbol=read parameters=('a, const A: Access)
-/// @type.symbol symbol=read type=<'a, const A: Access>(Borrowed<Rectangle | Circle, 'a, A>) => int32
+/// @type.symbol symbol=read type=<'a, const A: Access>(WithAccess<&'a (Rectangle | Circle), A>) => int32
 /// @type.symbol symbol=read.'a source='a type='a
 /// @type.symbol symbol=read.A source="const A: Access" type=A
 /// @resolution.name source=Access target=Access
 
     shape: Borrowed<Rectangle | Circle, 'a, A>,
-    /// @type.symbol symbol=read.shape source="shape: Borrowed<Rectangle | Circle, 'a, A>" type=Borrowed<Rectangle | Circle, 'a, A>
+    /// @type.symbol symbol=read.shape source="shape: Borrowed<Rectangle | Circle, 'a, A>" type=WithAccess<&'a (Rectangle | Circle), A>
     /// @resolution.name source=Borrowed target=Borrowed
     /// @resolution.name source=Rectangle target=Rectangle
     /// @resolution.name source=Circle target=Circle
@@ -199,9 +199,9 @@ function read<'a, const A: Access>(
 ): int32 {
     if (shape is Borrowed<Rectangle, 'a, A>) {
     /// @type.node source="shape is Borrowed<Rectangle, 'a, A>" type=boolean
-    /// @type.node source=shape type=Borrowed<Rectangle | Circle, 'a, A>
+    /// @type.node source=shape type=WithAccess<&'a (Rectangle | Circle), A>
     /// @resolution.name source=shape target=read.shape
-    /// @resolution.guard source="shape is Borrowed<Rectangle, 'a, A>" kind=is value=Borrowed<Rectangle | Circle, 'a, A> target=Borrowed<Rectangle, 'a, A> predicate="Borrowed<Rectangle | Circle, 'a, A> is type(Borrowed<Rectangle, 'a, A>)" narrowed=Narrow<Borrowed<Rectangle | Circle, 'a, A>, Borrowed<Rectangle, 'a, A>>
+    /// @resolution.guard source="shape is Borrowed<Rectangle, 'a, A>" kind=is value=WithAccess<&'a (Rectangle | Circle), A> target=WithAccess<&'a Rectangle, A> predicate="WithAccess<&'a (Rectangle | Circle), A> is type(WithAccess<&'a Rectangle, A>)" narrowed=Narrow<WithAccess<&'a (Rectangle | Circle), A>, WithAccess<&'a Rectangle, A>>
     /// @resolution.place source=shape placement='a lifetime='a access=A
     /// @resolution.access source=shape root=read.shape
     /// @resolution.name source=Borrowed target=Borrowed
@@ -210,10 +210,10 @@ function read<'a, const A: Access>(
     /// @resolution.name source=A target=read.A
 
         return shape.width;
-        /// @type.node source=shape type=Borrowed<Rectangle, 'a, A>
+        /// @type.node source=shape type=WithAccess<&'a Rectangle, A>
         /// @type.node source=shape.width type=int32
         /// @resolution.name source=shape target=read.shape
-        /// @resolution.member source=shape.width receiver=Narrow<Borrowed<Rectangle | Circle, 'a, A>, Borrowed<Rectangle, 'a, A>> type=int32 kind=field target_receiver=Narrow<Borrowed<Rectangle | Circle, 'a, A>, Borrowed<Rectangle, 'a, A>> key=width target=Rectangle.width target_type=int32
+        /// @resolution.member source=shape.width receiver=Narrow<WithAccess<&'a (Rectangle | Circle), A>, WithAccess<&'a Rectangle, A>> type=int32 kind=field target_receiver=Narrow<WithAccess<&'a (Rectangle | Circle), A>, WithAccess<&'a Rectangle, A>> key=width target=Rectangle.width target_type=int32
         /// @resolution.place source=shape placement='a lifetime='a access=A
         /// @resolution.access source=shape root=read.shape
         /// @resolution.place source=shape.width placement='a lifetime='a access=A
@@ -222,13 +222,13 @@ function read<'a, const A: Access>(
     }
 
     return shape.radius;
-    /// @type.node source=shape type=Borrowed<Circle, 'a, A>
+    /// @type.node source=shape type=WithAccess<&'a Circle, A>
     /// @type.node source=shape.radius type=int32
     /// @resolution.name source=shape target=read.shape
-    /// @resolution.member source=shape.radius receiver=Borrowed<Circle, 'a, A> type=int32 kind=field target_receiver=Borrowed<Circle, 'a, A> key=radius target=Circle.radius target_type=int32
+    /// @resolution.member source=shape.radius receiver=WithAccess<&'a Circle, A> type=int32 kind=field target_receiver=WithAccess<&'a Circle, A> key=radius target=Circle.radius target_type=int32
     /// @resolution.place source=shape placement='a lifetime='a access=A
     /// @resolution.access source=shape root=read.shape
-    /// @resolution.narrowing source=shape union=Borrowed<Rectangle | Circle, 'a, A> arms=Borrowed<Circle, 'a, A>
+    /// @resolution.narrowing source=shape union=WithAccess<&'a (Rectangle | Circle), A> arms=WithAccess<&'a Circle, A>
     /// @resolution.place source=shape.radius placement='a lifetime='a access=A
     /// @resolution.access source=shape.radius root=read.shape keys=[radius]
 
@@ -285,7 +285,7 @@ struct Text {
 
 function value<'a, 'b>(
 /// @generic.template symbol=value parameters=('a, 'b)
-/// @type.symbol symbol=value type=<'a, 'b>(&'a Text, &'b Text, boolean) => &'a | 'b string
+/// @type.symbol symbol=value type=<'a, 'b>(&'a Text, &'b Text, boolean) => &string
 /// @type.symbol symbol=value.'a source='a type='a
 /// @type.symbol symbol=value.'b source='b type='b
 
@@ -310,28 +310,28 @@ function value<'a, 'b>(
 /// @resolution.name source='b target=value.'b
 
     return flag ? (&left.value) : (&right.value);
-    /// @type.node source="flag ? (&left.value) : (&right.value)" type=&'a | 'b string
+    /// @type.node source="flag ? (&left.value) : (&right.value)" type=&string
     /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=value.flag
-    /// @resolution.place source=flag placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=flag placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=flag root=value.flag
     /// @type.node source=&left.value type=&'a string
     /// @type.node source=left type=&'a Text
-    /// @type.node source=left.value type=Managed<string, 'a>
+    /// @type.node source=left.value type=string
     /// @resolution.name source=left target=value.left
     /// @resolution.member source=left.value receiver=&'a Text type=string kind=field target_receiver=&'a Text key=value target=Text.value target_type=string
     /// @resolution.place source=left placement='a lifetime='a access="mutable"
     /// @resolution.access source=left root=value.left
-    /// @resolution.place source=left.value placement='a lifetime="managed" access="mutable"
+    /// @resolution.place source=left.value placement='a lifetime='a access="mutable"
     /// @resolution.access source=left.value root=value.left keys=[value]
     /// @type.node source=&right.value type=&'b string
     /// @type.node source=right type=&'b Text
-    /// @type.node source=right.value type=Managed<string, 'b>
+    /// @type.node source=right.value type=string
     /// @resolution.name source=right target=value.right
     /// @resolution.member source=right.value receiver=&'b Text type=string kind=field target_receiver=&'b Text key=value target=Text.value target_type=string
     /// @resolution.place source=right placement='b lifetime='b access="mutable"
     /// @resolution.access source=right root=value.right
-    /// @resolution.place source=right.value placement='b lifetime="managed" access="mutable"
+    /// @resolution.place source=right.value placement='b lifetime='b access="mutable"
     /// @resolution.access source=right.value root=value.right keys=[value]
 
 }

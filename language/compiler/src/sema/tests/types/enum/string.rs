@@ -110,7 +110,7 @@ const matches = direction === "UP";
 /// @resolution.pattern source=matches kind=binding target=matches
 /// @resolution.name source=direction target=direction
 /// @resolution.operator source="direction === \"UP\"" type=boolean operator="===" kind=builtin operands=[direction as Direction families=(Direction), "UP" as "UP" families=(string)]
-/// @resolution.place source=direction placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=direction placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=direction root=direction
 "#, r#"
 /// @diagnostic.error id=invalid-strict-equality message="this comparison is unintentional: types 'Direction' and '\"UP\"' have no overlap"

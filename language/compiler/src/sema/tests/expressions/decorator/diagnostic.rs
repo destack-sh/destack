@@ -164,7 +164,10 @@ if (true) {}
             .with_decorators(),
         r#"
 === annotated ===
-@deny("constant-condition", { if: false, otherwise: "allow" } as DiagnosticControlOptions)
+@deny("constant-condition", {
+    if: false,
+    otherwise: "allow" as "allow" | "warn" | "deny" | "forbid" | undefined,
+} as DiagnosticControlOptions)
 if (true) {
 }
 

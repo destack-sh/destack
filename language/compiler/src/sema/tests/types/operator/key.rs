@@ -233,7 +233,7 @@ type Keys<T: { a: int32 }> = keyof T;
 /// @resolution.name source=T target=Keys.T
 
 type Actual = Keys<{ a: int32; b: string }>;
-/// @type.symbol symbol=Actual source="type Actual = Keys<{ a: int32; b: string }>" type=Keys<{ a: int32; b: string }>
+/// @type.symbol symbol=Actual source="type Actual = Keys<{ a: int32; b: string }>" type="a" | "b"
 /// @definition.type symbol=Actual source="type Actual = Keys<{ a: int32; b: string }>" value=Keys<{ a: int32; b: string }>
 /// @resolution.name source=Keys target=Keys
 /// @type.symbol symbol=Actual.a source="a: int32" type=int32
@@ -375,25 +375,24 @@ class User {
 /// @type.symbol symbol=User type=typeof User
 /// @definition.class symbol=User
 /// @definition.field symbol=User.name source="name: string = \"\"" key=name type=string
-/// @definition.method symbol=User.print slot=print type=<User.print.P0: Place>(this: Managed<User, User.print.P0>) => string
+/// @definition.method symbol=User.print slot=print type=(this: User) => string
 
     name: string = "";
     /// @type.symbol symbol=User.name source="name: string = \"\"" type=string
     /// @type.node source="\"\"" type=""
 
     print(): string {
-    /// @generic.template symbol=User.print parameters=(P0: Place)
-    /// @type.symbol symbol=User.print type=<User.print.P0: Place>(this: Managed<User, User.print.P0>) => string
-    /// @type.symbol symbol=User.print.this type=Managed<User, User.print.P0>
+    /// @type.symbol symbol=User.print type=(this: User) => string
+    /// @type.symbol symbol=User.print.this type=User
 
         return this.name;
-        /// @type.node source=this type=Managed<User, User.print.P0>
-        /// @type.node source=this.name type=Managed<string, User.print.P0>
-        /// @resolution.member source=this.name receiver=Managed<User, User.print.P0> type=Managed<string, User.print.P0> kind=field target_receiver=Managed<User, User.print.P0> key=name target=User.name target_type=Managed<string, User.print.P0>
-        /// @resolution.receiver source=this kind=this declaration=User type=Managed<User, User.print.P0>
-        /// @resolution.place source=this placement=User.print.P0 lifetime="managed" access="mutable"
+        /// @type.node source=this type=User
+        /// @type.node source=this.name type=string
+        /// @resolution.member source=this.name receiver=User type=string kind=field target_receiver=User key=name target=User.name target_type=string
+        /// @resolution.receiver source=this kind=this declaration=User type=User
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.name placement=User.print.P0 lifetime="managed" access="mutable"
+        /// @resolution.place source=this.name placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this.name root=this keys=[name]
 
     }

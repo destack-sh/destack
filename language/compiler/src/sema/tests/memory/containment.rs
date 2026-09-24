@@ -6,15 +6,17 @@ fn test_store_local_and_shared_references_in_local_aggregate() {
         r#"
 class User {}
 
+shared class SharedUser {}
+
 struct Cache {
-    localUser: local User;
-    sharedUser: shared User;
+    localUser: User;
+    sharedUser: SharedUser;
 }
 
-declare const localUser: local User;
-declare const sharedUser: shared User;
+declare const localUser: User;
+declare const sharedUser: SharedUser;
 
-const cache: local Cache = Cache { localUser, sharedUser };
+const cache: Cache = Cache { localUser, sharedUser };
 "#,
     );
 
@@ -25,13 +27,15 @@ const cache: local Cache = Cache { localUser, sharedUser };
 === annotated ===
 class User {}
 
+shared class SharedUser {}
+
 struct Cache {
-    localUser: local User;
-    sharedUser: shared User;
+    localUser: User;
+    sharedUser: SharedUser;
 }
 
-declare const localUser: local User;
-declare const sharedUser: shared User;
+declare const localUser: User;
+declare const sharedUser: SharedUser;
 
 const cache: Cache = Cache { localUser, sharedUser };
 
@@ -40,42 +44,46 @@ class User {}
 /// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
+shared class SharedUser {}
+/// @type.symbol symbol=SharedUser source="shared class SharedUser {}" type=typeof SharedUser
+/// @definition.class symbol=SharedUser source="shared class SharedUser {}"
+
 struct Cache {
 /// @type.symbol symbol=Cache type=Cache
 /// @definition.struct symbol=Cache
-/// @definition.field symbol=Cache.localUser source="localUser: local User" key=localUser type=local User
-/// @definition.field symbol=Cache.sharedUser source="sharedUser: shared User" key=sharedUser type=shared User
+/// @definition.field symbol=Cache.localUser source="localUser: User" key=localUser type=User
+/// @definition.field symbol=Cache.sharedUser source="sharedUser: SharedUser" key=sharedUser type=SharedUser
 
-    localUser: local User;
-    /// @type.symbol symbol=Cache.localUser source="localUser: local User" type=local User
+    localUser: User;
+    /// @type.symbol symbol=Cache.localUser source="localUser: User" type=User
     /// @resolution.name source=User target=User
 
-    sharedUser: shared User;
-    /// @type.symbol symbol=Cache.sharedUser source="sharedUser: shared User" type=shared User
-    /// @resolution.name source=User target=User
+    sharedUser: SharedUser;
+    /// @type.symbol symbol=Cache.sharedUser source="sharedUser: SharedUser" type=SharedUser
+    /// @resolution.name source=SharedUser target=SharedUser
 
 }
 
-declare const localUser: local User;
-/// @type.symbol symbol=localUser source=localUser type=local User
+declare const localUser: User;
+/// @type.symbol symbol=localUser source=localUser type=User
 /// @resolution.pattern source=localUser kind=binding target=localUser
 /// @resolution.name source=User target=User
 
-declare const sharedUser: shared User;
-/// @type.symbol symbol=sharedUser source=sharedUser type=shared User
+declare const sharedUser: SharedUser;
+/// @type.symbol symbol=sharedUser source=sharedUser type=SharedUser
 /// @resolution.pattern source=sharedUser kind=binding target=sharedUser
-/// @resolution.name source=User target=User
+/// @resolution.name source=SharedUser target=SharedUser
 
-const cache: local Cache = Cache { localUser, sharedUser };
+const cache: Cache = Cache { localUser, sharedUser };
 /// @type.symbol symbol=cache source=cache type=Cache
 /// @resolution.pattern source=cache kind=binding target=cache
 /// @resolution.name source=Cache target=Cache
 /// @resolution.name source=Cache target=Cache
 /// @resolution.name source=localUser target=localUser
-/// @resolution.place source=localUser placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=localUser placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=localUser root=localUser
 /// @resolution.name source=sharedUser target=sharedUser
-/// @resolution.place source=sharedUser placement="shared" lifetime="managed" access="mutable"
+/// @resolution.place source=sharedUser placement="shared" lifetime="static" access="immutable"
 /// @resolution.access source=sharedUser root=sharedUser
 "#,
         r#"
@@ -87,15 +95,15 @@ const cache: local Cache = Cache { localUser, sharedUser };
 fn test_store_shared_references_and_values_in_shared_aggregate() {
     let session = TestSession::single(
         r#"
-class User {}
+shared class User {}
 
-shared struct Cache {
-    user: shared User;
+struct Cache {
+    user: User;
     count: int32;
 }
 
-declare const user: shared User;
-const cache: shared Cache = Cache { user, count: 1 };
+declare const user: User;
+shared const cache: Cache = Cache { user, count: 1 };
 "#,
     );
 
@@ -104,29 +112,29 @@ const cache: shared Cache = Cache { user, count: 1 };
         DirRows::checked(),
         r#"
 === annotated ===
-class User {}
+shared class User {}
 
-shared struct Cache {
-    user: shared User;
+struct Cache {
+    user: User;
     count: int32;
 }
 
-declare const user: shared User;
-const cache: Cache = Cache { user, count: 1 };
+declare const user: User;
+shared const cache: Cache = Cache { user, count: 1 };
 
 === dir ===
-class User {}
-/// @type.symbol symbol=User source="class User {}" type=typeof User
-/// @definition.class symbol=User source="class User {}"
+shared class User {}
+/// @type.symbol symbol=User source="shared class User {}" type=typeof User
+/// @definition.class symbol=User source="shared class User {}"
 
-shared struct Cache {
+struct Cache {
 /// @type.symbol symbol=Cache type=Cache
 /// @definition.struct symbol=Cache
 /// @definition.field symbol=Cache.count source="count: int32" key=count type=int32
-/// @definition.field symbol=Cache.user source="user: shared User" key=user type=shared User
+/// @definition.field symbol=Cache.user source="user: User" key=user type=User
 
-    user: shared User;
-    /// @type.symbol symbol=Cache.user source="user: shared User" type=shared User
+    user: User;
+    /// @type.symbol symbol=Cache.user source="user: User" type=User
     /// @resolution.name source=User target=User
 
     count: int32;
@@ -134,18 +142,18 @@ shared struct Cache {
 
 }
 
-declare const user: shared User;
-/// @type.symbol symbol=user source=user type=shared User
+declare const user: User;
+/// @type.symbol symbol=user source=user type=User
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
-const cache: shared Cache = Cache { user, count: 1 };
+shared const cache: Cache = Cache { user, count: 1 };
 /// @type.symbol symbol=cache source=cache type=Cache
 /// @resolution.pattern source=cache kind=binding target=cache
 /// @resolution.name source=Cache target=Cache
 /// @resolution.name source=Cache target=Cache
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="shared" lifetime="managed" access="mutable"
+/// @resolution.place source=user placement="shared" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
 "#,
         r#"
@@ -160,14 +168,14 @@ fn test_reject_local_reference_nested_in_shared_storage() {
 class User {}
 
 struct BoxedUser {
-    user: local User;
+    user: User;
 }
 
-declare const user: local User;
+declare const user: User;
 
-const field: shared BoxedUser = BoxedUser { user };
-const tuple: shared (local User, int32) = (user, 1);
-const union: shared (local User | undefined) = user;
+shared const field: BoxedUser = BoxedUser { user };
+shared const tuple: (User, int32) = (user, 1);
+shared const union: User | undefined = user;
 "#,
     );
 
@@ -179,14 +187,14 @@ const union: shared (local User | undefined) = user;
 class User {}
 
 struct BoxedUser {
-    user: local User;
+    user: User;
 }
 
-declare const user: local User;
+declare const user: User;
 
-const field: BoxedUser = BoxedUser { user };
-const tuple: (local User, int32) = (user, 1);
-const union: local User | undefined = user as local User | undefined;
+shared const field: BoxedUser = BoxedUser { user };
+shared const tuple: (User, int32) = (user, 1);
+shared const union: User | undefined = user as User | undefined;
 
 === dir ===
 class User {}
@@ -196,46 +204,57 @@ class User {}
 struct BoxedUser {
 /// @type.symbol symbol=BoxedUser type=BoxedUser
 /// @definition.struct symbol=BoxedUser
-/// @definition.field symbol=BoxedUser.user source="user: local User" key=user type=local User
+/// @definition.field symbol=BoxedUser.user source="user: User" key=user type=User
 
-    user: local User;
-    /// @type.symbol symbol=BoxedUser.user source="user: local User" type=local User
+    user: User;
+    /// @type.symbol symbol=BoxedUser.user source="user: User" type=User
     /// @resolution.name source=User target=User
 
 }
 
-declare const user: local User;
-/// @type.symbol symbol=user source=user type=local User
+declare const user: User;
+/// @type.symbol symbol=user source=user type=User
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
-const field: shared BoxedUser = BoxedUser { user };
+shared const field: BoxedUser = BoxedUser { user };
 /// @type.symbol symbol=field source=field type=BoxedUser
 /// @resolution.pattern source=field kind=binding target=field
 /// @resolution.name source=BoxedUser target=BoxedUser
 /// @resolution.name source=BoxedUser target=BoxedUser
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=user placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
 
-const tuple: shared (local User, int32) = (user, 1);
-/// @type.symbol symbol=tuple source=tuple type=(local User, int32)
+shared const tuple: (User, int32) = (user, 1);
+/// @type.symbol symbol=tuple source=tuple type=(User, int32)
 /// @resolution.pattern source=tuple kind=binding target=tuple
 /// @resolution.name source=User target=User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=user placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
 
-const union: shared (local User | undefined) = user;
-/// @type.symbol symbol=union source=union type=local User | undefined
+shared const union: User | undefined = user;
+/// @type.symbol symbol=union source=union type=User | undefined
 /// @resolution.pattern source=union kind=binding target=union
 /// @resolution.name source=User target=User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=user placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
 "#,
         r#"
-
+/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
+/// @diagnostic.label line=10 column=14 span="field" line_source="shared const field: BoxedUser = BoxedUser { user };"
+/// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
+/// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
+/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
+/// @diagnostic.label line=11 column=14 span="tuple" line_source="shared const tuple: (User, int32) = (user, 1);"
+/// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
+/// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
+/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
+/// @diagnostic.label line=12 column=14 span="union" line_source="shared const union: User | undefined = user;"
+/// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
+/// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
 "#,
     );
 }
@@ -247,7 +266,7 @@ fn test_reject_explicit_local_field_in_shared_declaration() {
 class User {}
 
 shared struct State {
-    user: local User;
+    user: User;
 }
 "#,
     );
@@ -260,7 +279,7 @@ shared struct State {
 class User {}
 
 shared struct State {
-    user: local User;
+    user: User;
 }
 
 === dir ===
@@ -271,17 +290,17 @@ class User {}
 shared struct State {
 /// @type.symbol symbol=State type=State
 /// @definition.struct symbol=State
-/// @definition.field symbol=State.user source="user: local User" key=user type=local User
+/// @definition.field symbol=State.user source="user: User" key=user type=User
 
-    user: local User;
-    /// @type.symbol symbol=State.user source="user: local User" type=local User
+    user: User;
+    /// @type.symbol symbol=State.user source="user: User" type=User
     /// @resolution.name source=User target=User
 
 }
 "#,
         r#"
 /// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
-/// @diagnostic.label line=5 column=5 span="user" line_source="user: local User;"
+/// @diagnostic.label line=5 column=5 span="user" line_source="user: User;"
 /// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
 /// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
 "#,
@@ -292,16 +311,16 @@ shared struct State {
 fn test_resolve_relative_fields_in_shared_declarations() {
     let session = TestSession::single(
         r#"
-class User {}
+shared class User {}
 
 shared class Service {
     user: User = new User();
 
-    accept(user: local User): void {}
+    accept(user: User): void {}
 }
 
 declare const service: Service;
-service.user satisfies shared User;
+service.user satisfies User;
 "#,
     );
 
@@ -310,27 +329,27 @@ service.user satisfies shared User;
         DirRows::checked(),
         r#"
 === annotated ===
-class User {}
+shared class User {}
 
 shared class Service {
     user: User = new User();
 
-    accept(user: local User): void {}
+    accept(user: User): void {}
 }
 
 declare const service: Service;
-service.user satisfies shared User;
+service.user satisfies User;
 
 === dir ===
-class User {}
-/// @type.symbol symbol=User source="class User {}" type=typeof User
-/// @definition.class symbol=User source="class User {}"
+shared class User {}
+/// @type.symbol symbol=User source="shared class User {}" type=typeof User
+/// @definition.class symbol=User source="shared class User {}"
 
 shared class Service {
 /// @type.symbol symbol=Service type=typeof Service
 /// @definition.class symbol=Service
 /// @definition.field symbol=Service.user source="user: User = new User()" key=user type=User
-/// @definition.method symbol=Service.accept source="accept(user: local User): void {}" slot=accept type=(this: Service, local User) => void
+/// @definition.method symbol=Service.accept source="accept(user: User): void {}" slot=accept type=(this: Service, User) => void
 
     user: User = new User();
     /// @type.symbol symbol=Service.user source="user: User = new User()" type=User
@@ -338,10 +357,10 @@ shared class Service {
     /// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=default
     /// @resolution.name source=User target=User
 
-    accept(user: local User): void {}
-    /// @type.symbol symbol=Service.accept source="accept(user: local User): void {}" type=(this: Service, local User) => void
+    accept(user: User): void {}
+    /// @type.symbol symbol=Service.accept source="accept(user: User): void {}" type=(this: Service, User) => void
     /// @type.symbol symbol=Service.accept.this type=Service
-    /// @type.symbol symbol=Service.accept.user source="user: local User" type=local User
+    /// @type.symbol symbol=Service.accept.user source="user: User" type=User
     /// @resolution.name source=User target=User
 
 }
@@ -351,103 +370,14 @@ declare const service: Service;
 /// @resolution.pattern source=service kind=binding target=service
 /// @resolution.name source=Service target=Service
 
-service.user satisfies shared User;
+service.user satisfies User;
 /// @resolution.name source=service target=service
-/// @resolution.member source=service.user receiver=Service type=shared User kind=field target_receiver=Service key=user target=Service.user target_type=shared User
-/// @resolution.place source=service placement="shared" lifetime="managed" access="mutable"
+/// @resolution.member source=service.user receiver=Service type=User kind=field target_receiver=Service key=user target=Service.user target_type=User
+/// @resolution.place source=service placement="shared" lifetime="static" access="immutable"
 /// @resolution.access source=service root=service
-/// @resolution.place source=service.user placement="shared" lifetime="managed" access="mutable"
+/// @resolution.place source=service.user placement="shared" lifetime="managed" access="readonly"
 /// @resolution.access source=service.user root=service keys=[user]
 /// @resolution.name source=User target=User
-"#,
-    );
-}
-
-#[test]
-fn test_reject_local_reference_containment_after_generic_substitution() {
-    let session = TestSession::single(
-        r#"
-class User {}
-
-struct Box<T> {
-    value: T;
-}
-
-declare const localUser: local User;
-declare const sharedUser: shared User;
-
-const rejected: shared Box<local User> = Box { value: localUser };
-const accepted: shared Box<shared User> = Box { value: sharedUser };
-"#,
-    );
-
-    session.assert_dir_and_diagnostics(
-        "main.ds",
-        DirRows::checked(),
-        r#"
-=== annotated ===
-class User {}
-
-struct Box<out T> {
-    value: T;
-}
-
-declare const localUser: local User;
-declare const sharedUser: shared User;
-
-const rejected: Box<local User> = Box<local User> { value: localUser };
-const accepted: Box<shared User> = Box<shared User> { value: sharedUser };
-
-=== dir ===
-class User {}
-/// @type.symbol symbol=User source="class User {}" type=typeof User
-/// @definition.class symbol=User source="class User {}"
-
-struct Box<T> {
-/// @generic.template symbol=Box parameters=(out T)
-/// @type.symbol symbol=Box type=Box
-/// @definition.struct symbol=Box template=(out T)
-/// @definition.field symbol=Box.value source="value: T" key=value type=T
-/// @type.symbol symbol=Box.T source=T type=T
-
-    value: T;
-    /// @type.symbol symbol=Box.value source="value: T" type=T
-    /// @resolution.name source=T target=Box.T
-
-}
-
-declare const localUser: local User;
-/// @type.symbol symbol=localUser source=localUser type=local User
-/// @resolution.pattern source=localUser kind=binding target=localUser
-/// @resolution.name source=User target=User
-
-declare const sharedUser: shared User;
-/// @type.symbol symbol=sharedUser source=sharedUser type=shared User
-/// @resolution.pattern source=sharedUser kind=binding target=sharedUser
-/// @resolution.name source=User target=User
-
-const rejected: shared Box<local User> = Box { value: localUser };
-/// @type.symbol symbol=rejected source=rejected type=Box<local User>
-/// @resolution.pattern source=rejected kind=binding target=rejected
-/// @resolution.name source=Box target=Box
-/// @resolution.name source=User target=User
-/// @resolution.name source=Box target=Box
-/// @resolution.name source=localUser target=localUser
-/// @resolution.place source=localUser placement="local" lifetime="managed" access="mutable"
-/// @resolution.access source=localUser root=localUser
-
-const accepted: shared Box<shared User> = Box { value: sharedUser };
-/// @type.symbol symbol=accepted source=accepted type=Box<shared User>
-/// @resolution.pattern source=accepted kind=binding target=accepted
-/// @resolution.name source=Box target=Box
-/// @resolution.name source=User target=User
-/// @resolution.name source=Box target=Box
-/// @resolution.name source=sharedUser target=sharedUser
-/// @resolution.place source=sharedUser placement="shared" lifetime="managed" access="mutable"
-/// @resolution.access source=sharedUser root=sharedUser
-"#,
-        r#"
-
 "#,
     );
 }
@@ -459,7 +389,7 @@ fn test_allow_raw_local_pointer_in_shared_declaration() {
 class User {}
 
 shared struct EscapeHatch {
-    pointer: local *User;
+    pointer: *User;
 }
 "#,
     );
@@ -483,32 +413,31 @@ class User {}
 shared struct EscapeHatch {
 /// @type.symbol symbol=EscapeHatch type=EscapeHatch
 /// @definition.struct symbol=EscapeHatch
-/// @definition.field symbol=EscapeHatch.pointer source="pointer: local *User" key=pointer type=Raw<User>
+/// @definition.field symbol=EscapeHatch.pointer source="pointer: *User" key=pointer type=*User
 
-    pointer: local *User;
-    /// @type.symbol symbol=EscapeHatch.pointer source="pointer: local *User" type=Raw<User>
+    pointer: *User;
+    /// @type.symbol symbol=EscapeHatch.pointer source="pointer: *User" type=*User
     /// @resolution.name source=User target=User
 
 }
 "#,
-        r#""#,
+        r#"
+"#,
     );
 }
 
+/// Reject local borrowed references stored in shared space.
 #[test]
-fn test_reject_local_owned_and_borrowed_references_in_shared_space() {
+fn test_reject_local_borrowed_references_in_shared_space() {
     let session = TestSession::single(
         r#"
 class User {}
 
-struct OwnedBox { value: local ^User; }
-struct BorrowedBox { value: local Borrowed<User, "static">; }
+struct BorrowedBox<'a> { value: &'a readonly User; }
 
-declare const owned: local ^User;
-declare const borrowed: local Borrowed<User, "static">;
+declare const borrowed: &'static readonly User;
 
-const ownedBox: shared OwnedBox = OwnedBox { value: owned };
-const borrowedBox: shared BorrowedBox = BorrowedBox { value: borrowed };
+shared const borrowedBox: BorrowedBox<'static> = BorrowedBox { value: borrowed };
 "#,
     );
 
@@ -519,166 +448,48 @@ const borrowedBox: shared BorrowedBox = BorrowedBox { value: borrowed };
 === annotated ===
 class User {}
 
-struct OwnedBox {
-    value: ^User;
-}
-struct BorrowedBox {
-    value: &'static User;
+struct BorrowedBox<'a> {
+    value: &'a readonly User;
 }
 
-declare const owned: ^User;
-declare const borrowed: &'static User;
+declare const borrowed: &'static readonly User;
 
-const ownedBox: OwnedBox = OwnedBox { value: owned };
-const borrowedBox: BorrowedBox = BorrowedBox { value: borrowed };
+shared const borrowedBox: BorrowedBox<"static"> = BorrowedBox<"static"> { value: borrowed };
 
 === dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
-struct OwnedBox { value: local ^User; }
-/// @type.symbol symbol=OwnedBox source="struct OwnedBox { value: local ^User; }" type=OwnedBox
-/// @definition.struct symbol=OwnedBox source="struct OwnedBox { value: local ^User; }"
-/// @definition.field symbol=OwnedBox.value source="value: local ^User" key=value type=^User
-/// @type.symbol symbol=OwnedBox.value source="value: local ^User" type=^User
+struct BorrowedBox<'a> { value: &'a readonly User; }
+/// @generic.template symbol=BorrowedBox parameters=('a)
+/// @type.symbol symbol=BorrowedBox source="struct BorrowedBox<'a> { value: &'a readonly User; }" type=BorrowedBox
+/// @definition.struct symbol=BorrowedBox source="struct BorrowedBox<'a> { value: &'a readonly User; }" template=('a)
+/// @definition.field symbol=BorrowedBox.value source="value: &'a readonly User" key=value type=&'a readonly User
+/// @type.symbol symbol=BorrowedBox.'a source='a type='a
+/// @type.symbol symbol=BorrowedBox.value source="value: &'a readonly User" type=&'a readonly User
+/// @resolution.name source='a target=BorrowedBox.'a
 /// @resolution.name source=User target=User
 
-struct BorrowedBox { value: local Borrowed<User, "static">; }
-/// @type.symbol symbol=BorrowedBox source="struct BorrowedBox { value: local Borrowed<User, \"static\">; }" type=BorrowedBox
-/// @definition.struct symbol=BorrowedBox source="struct BorrowedBox { value: local Borrowed<User, \"static\">; }"
-/// @definition.field symbol=BorrowedBox.value source="value: local Borrowed<User, \"static\">" key=value type=&'static User
-/// @type.symbol symbol=BorrowedBox.value source="value: local Borrowed<User, \"static\">" type=&'static User
-/// @resolution.name source=Borrowed target=Borrowed
-/// @resolution.name source=User target=User
-
-declare const owned: local ^User;
-/// @type.symbol symbol=owned source=owned type=^User
-/// @resolution.pattern source=owned kind=binding target=owned
-/// @resolution.name source=User target=User
-
-declare const borrowed: local Borrowed<User, "static">;
-/// @type.symbol symbol=borrowed source=borrowed type=&'static User
+declare const borrowed: &'static readonly User;
+/// @type.symbol symbol=borrowed source=borrowed type=&'static readonly User
 /// @resolution.pattern source=borrowed kind=binding target=borrowed
-/// @resolution.name source=Borrowed target=Borrowed
 /// @resolution.name source=User target=User
 
-const ownedBox: shared OwnedBox = OwnedBox { value: owned };
-/// @type.symbol symbol=ownedBox source=ownedBox type=OwnedBox
-/// @resolution.pattern source=ownedBox kind=binding target=ownedBox
-/// @resolution.name source=OwnedBox target=OwnedBox
-/// @resolution.name source=OwnedBox target=OwnedBox
-/// @resolution.name source=owned target=owned
-/// @resolution.place source=owned placement="constant" lifetime="static" access="readonly"
-/// @resolution.access source=owned root=owned
-
-const borrowedBox: shared BorrowedBox = BorrowedBox { value: borrowed };
-/// @type.symbol symbol=borrowedBox source=borrowedBox type=BorrowedBox
+shared const borrowedBox: BorrowedBox<'static> = BorrowedBox { value: borrowed };
+/// @type.symbol symbol=borrowedBox source=borrowedBox type=BorrowedBox<"static">
 /// @resolution.pattern source=borrowedBox kind=binding target=borrowedBox
 /// @resolution.name source=BorrowedBox target=BorrowedBox
 /// @resolution.name source=BorrowedBox target=BorrowedBox
 /// @resolution.name source=borrowed target=borrowed
-/// @resolution.place source=borrowed placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=borrowed placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=borrowed root=borrowed
 "#,
         r#"
-/// @diagnostic.error id=placement-on-owned message="an owned value lives in its container's space and takes no placement"
-/// @diagnostic.label line=4 column=26 span="local" line_source="struct OwnedBox { value: local ^User; }"
-/// @diagnostic.error id=placement-on-owned message="an owned value lives in its container's space and takes no placement"
-/// @diagnostic.label line=7 column=22 span="local" line_source="declare const owned: local ^User;"
-"#,
-    );
-}
-
-#[test]
-fn test_reject_local_constructor_argument_for_shared_relative_field() {
-    let session = TestSession::single(
-        r#"
-class User {}
-
-class Box {
-    user: User;
-    constructor(user: User) { this.user = user; }
-}
-
-declare const user: local User;
-const box: shared Box = new Box(user);
-"#,
-    );
-
-    session.assert_dir_and_diagnostics(
-        "main.ds",
-        DirRows::checked(),
-        r#"
-=== annotated ===
-class User {}
-
-class Box {
-    user: User;
-    constructor(user: User) {
-        this.user = user;
-    }
-}
-
-declare const user: local User;
-const box: shared Box = new Box<"shared">(user);
-
-=== dir ===
-class User {}
-/// @type.symbol symbol=User source="class User {}" type=typeof User
-/// @definition.class symbol=User source="class User {}"
-
-class Box {
-/// @type.symbol symbol=Box type=typeof Box
-/// @definition.class symbol=Box
-/// @definition.field symbol=Box.user source="user: User" key=user type=User
-/// @definition.method symbol=Box.constructor source="constructor(user: User) { this.user = user; }" slot=constructor role=constructor type=<Box.constructor.P0: Place>(User) => Managed<this, Box.constructor.P0>
-
-    user: User;
-    /// @type.symbol symbol=Box.user source="user: User" type=User
-    /// @resolution.name source=User target=User
-
-    constructor(user: User) { this.user = user; }
-    /// @generic.template symbol=Box.constructor parameters=(P0: Place)
-    /// @type.symbol symbol=Box.constructor source="constructor(user: User) { this.user = user; }" type=<Box.constructor.P0: Place>(User) => Managed<this, Box.constructor.P0>
-    /// @type.symbol symbol=Box.constructor.this type=Box
-    /// @type.symbol symbol=Box.constructor.user source="user: User" type=User
-    /// @resolution.name source=User target=User
-    /// @resolution.receiver source=this kind=this declaration=Box type=Box
-    /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
-    /// @resolution.access source=this root=this
-    /// @resolution.pattern.assign source=this.user kind=place
-    /// @resolution.access source=this.user root=this keys=[user]
-    /// @resolution.assignment source=this.user write="receiver=Box, target=field(receiver=Box, target=Box.user, type=User), type=User" type=User
-    /// @resolution.name source=user target=Box.constructor.user
-    /// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
-    /// @resolution.access source=user root=Box.constructor.user
-
-}
-
-declare const user: local User;
-/// @type.symbol symbol=user source=user type=local User
-/// @resolution.pattern source=user kind=binding target=user
-/// @resolution.name source=User target=User
-
-const box: shared Box = new Box(user);
-/// @type.symbol symbol=box source=box type=shared Box
-/// @resolution.pattern source=box kind=binding target=box
-/// @resolution.name source=Box target=Box
-/// @resolution.construct source="new Box(user)" parameters=(shared User) arguments=(provided(user) as shared User) return=shared Box kind=class target=Box constructor=Box.constructor
-/// @generic.instantiation id="Box.constructor<\"shared\">" template=Box.constructor arguments=("shared")
-/// @generic.instantiation id="Box<\"shared\">" template=Box arguments=("shared")
-/// @resolution.name source=Box target=Box
-/// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
-/// @resolution.access source=user root=user
-"#,
-        r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type 'local User' is not assignable to parameter of type 'shared User'"
-/// @diagnostic.label line=10 column=33 span="user" line_source="const box: shared Box = new Box(user);"
-/// @diagnostic.related line=10 column=25 span="new Box(user)" line_source="const box: shared Box = new Box(user);" message="in this call"
-/// @diagnostic.note message="a value never changes its space"
-/// @diagnostic.help message="use a value in the destination placement or create a new value there"
+/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
+/// @diagnostic.label line=8 column=14 span="borrowedBox" line_source="shared const borrowedBox: BorrowedBox<'static> = BorrowedBox { value: borrowed };"
+/// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
+/// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
 "#,
     );
 }
@@ -690,10 +501,12 @@ fn test_satisfy_shared_safe_bound_by_containment() {
 import { SharedSafe } from "destack:memory";
 
 class Message {}
-local class Handle {}
+
+shared class SharedMessage {}
+class Handle {}
 
 struct CleanEnvelope {
-    message: shared Message;
+    message: SharedMessage;
     count: int32;
 }
 
@@ -723,10 +536,12 @@ cleanEnvelope satisfies SharedSafe;
 import { SharedSafe } from "destack:memory";
 
 class Message {}
-local class Handle {}
+
+shared class SharedMessage {}
+class Handle {}
 
 struct CleanEnvelope {
-    message: shared Message;
+    message: SharedMessage;
     count: int32;
 }
 
@@ -753,19 +568,23 @@ class Message {}
 /// @type.symbol symbol=Message source="class Message {}" type=typeof Message
 /// @definition.class symbol=Message source="class Message {}"
 
-local class Handle {}
-/// @type.symbol symbol=Handle source="local class Handle {}" type=typeof Handle
-/// @definition.class symbol=Handle source="local class Handle {}"
+shared class SharedMessage {}
+/// @type.symbol symbol=SharedMessage source="shared class SharedMessage {}" type=typeof SharedMessage
+/// @definition.class symbol=SharedMessage source="shared class SharedMessage {}"
+
+class Handle {}
+/// @type.symbol symbol=Handle source="class Handle {}" type=typeof Handle
+/// @definition.class symbol=Handle source="class Handle {}"
 
 struct CleanEnvelope {
 /// @type.symbol symbol=CleanEnvelope type=CleanEnvelope
 /// @definition.struct symbol=CleanEnvelope
 /// @definition.field symbol=CleanEnvelope.count source="count: int32" key=count type=int32
-/// @definition.field symbol=CleanEnvelope.message source="message: shared Message" key=message type=shared Message
+/// @definition.field symbol=CleanEnvelope.message source="message: SharedMessage" key=message type=SharedMessage
 
-    message: shared Message;
-    /// @type.symbol symbol=CleanEnvelope.message source="message: shared Message" type=shared Message
-    /// @resolution.name source=Message target=Message
+    message: SharedMessage;
+    /// @type.symbol symbol=CleanEnvelope.message source="message: SharedMessage" type=SharedMessage
+    /// @resolution.name source=SharedMessage target=SharedMessage
 
     count: int32;
     /// @type.symbol symbol=CleanEnvelope.count source="count: int32" type=int32
@@ -788,7 +607,6 @@ declare function publish<T: SharedSafe>(value: T): void;
 /// @type.symbol symbol=publish source="declare function publish<T: SharedSafe>(value: T): void" type=<T: SharedSafe>(T) => void
 /// @type.symbol symbol=publish.T source="T: SharedSafe" type=T
 /// @resolution.name source=SharedSafe target=SharedSafe
-/// @type.symbol symbol=publish.value source="value: T" type=T
 /// @resolution.name source=T target=publish.T
 
 declare const cleanEnvelope: CleanEnvelope;
@@ -812,7 +630,7 @@ publish<CleanEnvelope>(cleanEnvelope);
 /// @generic.instantiation id=publish<CleanEnvelope> template=publish arguments=(CleanEnvelope)
 /// @resolution.name source=CleanEnvelope target=CleanEnvelope
 /// @resolution.name source=cleanEnvelope target=cleanEnvelope
-/// @resolution.place source=cleanEnvelope placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=cleanEnvelope root=cleanEnvelope
 
 publish<LocalEnvelope>(localEnvelope);
@@ -821,14 +639,14 @@ publish<LocalEnvelope>(localEnvelope);
 /// @generic.instantiation id=publish<LocalEnvelope> template=publish arguments=(LocalEnvelope)
 /// @resolution.name source=LocalEnvelope target=LocalEnvelope
 /// @resolution.name source=localEnvelope target=localEnvelope
-/// @resolution.place source=localEnvelope placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=localEnvelope placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=localEnvelope root=localEnvelope
 
 publish(cleanEnvelope);
 /// @resolution.name source=publish target=publish
 /// @resolution.call source=publish(cleanEnvelope) parameters=(CleanEnvelope) arguments=(provided(cleanEnvelope) as CleanEnvelope) return=void kind=symbol target=publish instance=publish<CleanEnvelope>
 /// @resolution.name source=cleanEnvelope target=cleanEnvelope
-/// @resolution.place source=cleanEnvelope placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=cleanEnvelope root=cleanEnvelope
 
 publish(handle);
@@ -836,22 +654,22 @@ publish(handle);
 /// @resolution.call source=publish(handle) parameters=(Handle) arguments=(provided(handle) as Handle) return=void kind=symbol target=publish instance=publish<Handle>
 /// @generic.instantiation id=publish<Handle> template=publish arguments=(Handle)
 /// @resolution.name source=handle target=handle
-/// @resolution.place source=handle placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=handle placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=handle root=handle
 
 cleanEnvelope satisfies SharedSafe;
 /// @resolution.name source=cleanEnvelope target=cleanEnvelope
-/// @resolution.place source=cleanEnvelope placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=cleanEnvelope placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=cleanEnvelope root=cleanEnvelope
 /// @resolution.name source=SharedSafe target=SharedSafe
 "#,
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'LocalEnvelope' does not satisfy 'SharedSafe'"
-/// @diagnostic.label line=23 column=1 span="publish<LocalEnvelope>(localEnvelope)" line_source="publish<LocalEnvelope>(localEnvelope);"
-/// @diagnostic.related line=16 column=26 span="T" line_source="declare function publish<T: SharedSafe>(value: T): void;" message="required by this bound on 'T'"
+/// @diagnostic.label line=25 column=1 span="publish<LocalEnvelope>(localEnvelope)" line_source="publish<LocalEnvelope>(localEnvelope);"
+/// @diagnostic.related line=18 column=26 span="T" line_source="declare function publish<T: SharedSafe>(value: T): void;" message="required by this bound on 'T'"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Handle' does not satisfy 'SharedSafe'"
-/// @diagnostic.label line=25 column=1 span="publish(handle)" line_source="publish(handle);"
-/// @diagnostic.related line=16 column=26 span="T" line_source="declare function publish<T: SharedSafe>(value: T): void;" message="required by this bound on 'T'"
+/// @diagnostic.label line=27 column=1 span="publish(handle)" line_source="publish(handle);"
+/// @diagnostic.related line=18 column=26 span="T" line_source="declare function publish<T: SharedSafe>(value: T): void;" message="required by this bound on 'T'"
 "#,
     );
 }
@@ -862,7 +680,7 @@ fn test_accept_unsafe_shared_safe_implementation() {
         r#"
 import { SharedSafe } from "destack:memory";
 
-local class Handle {}
+class Handle {}
 
 @unsafe
 extension of Handle implements SharedSafe {}
@@ -879,7 +697,7 @@ handle satisfies SharedSafe;
 === annotated ===
 import { SharedSafe } from "destack:memory";
 
-local class Handle {}
+class Handle {}
 
 @unsafe
 extension of Handle implements SharedSafe {}
@@ -890,9 +708,9 @@ handle satisfies SharedSafe;
 === dir ===
 import { SharedSafe } from "destack:memory";
 
-local class Handle {}
-/// @type.symbol symbol=Handle source="local class Handle {}" type=typeof Handle
-/// @definition.class symbol=Handle source="local class Handle {}"
+class Handle {}
+/// @type.symbol symbol=Handle source="class Handle {}" type=typeof Handle
+/// @definition.class symbol=Handle source="class Handle {}"
 
 @unsafe
 /// @decorator.node source=@unsafe owner="extension of Handle implements SharedSafe {}" expression=unsafe target=decorator.unsafe type=unsafe kind=newtype parameters=() newtype=unsafe backing=() value=unsafe()
@@ -911,9 +729,402 @@ declare const handle: Handle;
 
 handle satisfies SharedSafe;
 /// @resolution.name source=handle target=handle
-/// @resolution.place source=handle placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=handle placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=handle root=handle
 /// @resolution.name source=SharedSafe target=SharedSafe
 "#,
     );
+}
+
+/// Fields read through a frame value, an owned value, a borrow, and a handle each name their place.
+#[test]
+fn test_read_fields_through_frame_owned_borrowed_and_handle_receivers() {
+    let session = TestSession::single(
+        r#"
+struct Point { x: int32 }
+class User { age: int32 = 0 }
+
+function probe(borrowed: &Point, handle: User, exclusive: &exclusive int32[]): int32 {
+    let local = Point { x: 1 };
+    let owned: ^Point = Point { x: 2 };
+    const fresh = new User();
+    return local.x + owned.x + borrowed.x + handle.age + fresh.age + exclusive[0];
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked(),
+        r#"
+=== annotated ===
+struct Point {
+    x: int32;
+}
+class User {
+    age: int32 = 0;
+}
+
+function probe<'a, 'b>(borrowed: &'a Point, handle: User, exclusive: &'b exclusive int32[]): int32 {
+    let local: Point = Point { x: 1 };
+    let owned: Point = Point { x: 2 };
+    const fresh: User = new User();
+    return local.x + owned.x + borrowed.x + handle.age + fresh.age + exclusive[0];
+}
+
+=== dir ===
+struct Point { x: int32 }
+/// @type.symbol symbol=Point source="struct Point { x: int32 }" type=Point
+/// @definition.struct symbol=Point source="struct Point { x: int32 }"
+/// @definition.field symbol=Point.x source="x: int32" key=x type=int32
+/// @type.symbol symbol=Point.x source="x: int32" type=int32
+
+class User { age: int32 = 0 }
+/// @type.symbol symbol=User source="class User { age: int32 = 0 }" type=typeof User
+/// @definition.class symbol=User source="class User { age: int32 = 0 }"
+/// @definition.field symbol=User.age source="age: int32 = 0" key=age type=int32
+/// @type.symbol symbol=User.age source="age: int32 = 0" type=int32
+
+function probe(borrowed: &Point, handle: User, exclusive: &exclusive int32[]): int32 {
+/// @generic.template symbol=probe parameters=('a, 'b)
+/// @type.symbol symbol=probe type=<probe.'a, probe.'b>(&probe.'a Point, User, &probe.'b exclusive int32[]) => int32
+/// @generic.instance id=Array<int32> template=Array arguments=(int32)
+/// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
+/// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
+/// @type.symbol symbol=probe.borrowed source="borrowed: &Point" type=&probe.'a Point
+/// @resolution.name source=Point target=Point
+/// @type.symbol symbol=probe.handle source="handle: User" type=User
+/// @resolution.name source=User target=User
+/// @type.symbol symbol=probe.exclusive source="exclusive: &exclusive int32[]" type=&probe.'b exclusive int32[]
+
+    let local = Point { x: 1 };
+    /// @type.symbol symbol=probe.local source=local type=Point
+    /// @resolution.pattern source=local kind=binding target=probe.local
+    /// @resolution.name source=Point target=Point
+
+    let owned: ^Point = Point { x: 2 };
+    /// @type.symbol symbol=probe.owned source=owned type=Point
+    /// @resolution.pattern source=owned kind=binding target=probe.owned
+    /// @resolution.name source=Point target=Point
+    /// @resolution.name source=Point target=Point
+
+    const fresh = new User();
+    /// @type.symbol symbol=probe.fresh source=fresh type=User
+    /// @resolution.pattern source=fresh kind=binding target=probe.fresh
+    /// @resolution.construct source="new User()" parameters=() return=User kind=class target=User constructor=default
+    /// @resolution.name source=User target=User
+
+    return local.x + owned.x + borrowed.x + handle.age + fresh.age + exclusive[0];
+    /// @resolution.name source=local target=probe.local
+    /// @resolution.member source=local.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
+    /// @resolution.operator source="local.x + owned.x + borrowed.x + handle.age + fresh.age + exclusive[0]" type=int32 operator="+" kind=builtin operands=[local.x + owned.x + borrowed.x + handle.age + fresh.age as int32 families=(integer), exclusive[0] as int32 families=(integer)]
+    /// @resolution.operator source="local.x + owned.x + borrowed.x + handle.age + fresh.age" type=int32 operator="+" kind=builtin operands=[local.x + owned.x + borrowed.x + handle.age as int32 families=(integer), fresh.age as int32 families=(integer)]
+    /// @resolution.operator source="local.x + owned.x + borrowed.x + handle.age" type=int32 operator="+" kind=builtin operands=[local.x + owned.x + borrowed.x as int32 families=(integer), handle.age as int32 families=(integer)]
+    /// @resolution.operator source="local.x + owned.x + borrowed.x" type=int32 operator="+" kind=builtin operands=[local.x + owned.x as int32 families=(integer), borrowed.x as int32 families=(integer)]
+    /// @resolution.operator source="local.x + owned.x" type=int32 operator="+" kind=builtin operands=[local.x as int32 families=(integer), owned.x as int32 families=(integer)]
+    /// @resolution.place source=local placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=local root=probe.local
+    /// @resolution.place source=local.x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=local.x root=probe.local keys=[x]
+    /// @resolution.name source=owned target=probe.owned
+    /// @resolution.member source=owned.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
+    /// @resolution.place source=owned placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=owned root=probe.owned
+    /// @resolution.place source=owned.x placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=owned.x root=probe.owned keys=[x]
+    /// @resolution.name source=borrowed target=probe.borrowed
+    /// @resolution.member source=borrowed.x receiver=&probe.'a Point type=int32 kind=field target_receiver=&probe.'a Point key=x target=Point.x target_type=int32
+    /// @resolution.place source=borrowed placement=probe.'a lifetime=probe.'a access="mutable"
+    /// @resolution.access source=borrowed root=probe.borrowed
+    /// @resolution.place source=borrowed.x placement=probe.'a lifetime=probe.'a access="mutable"
+    /// @resolution.access source=borrowed.x root=probe.borrowed keys=[x]
+    /// @resolution.name source=handle target=probe.handle
+    /// @resolution.member source=handle.age receiver=User type=int32 kind=field target_receiver=User key=age target=User.age target_type=int32
+    /// @resolution.place source=handle placement="local" lifetime="frame" access="exclusive"
+    /// @resolution.access source=handle root=probe.handle
+    /// @resolution.place source=handle.age placement="local" lifetime="managed" access="mutable"
+    /// @resolution.access source=handle.age root=probe.handle keys=[age]
+    /// @resolution.name source=fresh target=probe.fresh
+    /// @resolution.member source=fresh.age receiver=User type=int32 kind=field target_receiver=User key=age target=User.age target_type=int32
+    /// @resolution.place source=fresh placement="local" lifetime="frame" access="immutable"
+    /// @resolution.access source=fresh root=probe.fresh
+    /// @resolution.place source=fresh.age placement="local" lifetime="managed" access="mutable"
+    /// @resolution.access source=fresh.age root=probe.fresh keys=[age]
+    /// @resolution.name source=exclusive target=probe.exclusive
+    /// @resolution.place source=exclusive placement=probe.'b lifetime=probe.'b access="exclusive"
+    /// @resolution.access source=exclusive root=probe.exclusive
+    /// @resolution.subscript source=exclusive[0] type=int32 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=int32, regions=(probe.'b))"
+    /// @generic.instantiation id="index#2<int32, probe.'b>" template=index#2 arguments=(int32, probe.'b)
+    /// @generic.instance id="index#2<int32, probe.'b>" template=index#2 arguments=(int32, probe.'b)
+
+}
+"#,
+    );
+}
+
+/// Store a readonly handle from the instance place into a local record.
+#[test]
+fn test_store_a_readonly_handle_from_the_instance_place_into_a_local_record() {
+    let session = TestSession::single(
+        r#"
+type Fields = { readonly [key: string]: int32 };
+type Options = { fields?: Fields | undefined };
+
+class Logger {
+    write(&readonly this, options?: Options): void {}
+
+    info(&readonly this, fields?: Fields): void {
+        this.write({ fields });
+    }
+}
+"#,
+    );
+
+    session.assert_dir("main.ds", DirRows::checked(), r#"
+=== annotated ===
+type Fields = { readonly [key: string]: int32 };
+type Options = { fields?: Fields | undefined };
+
+class Logger {
+    write(&readonly this, options?: { fields?: Fields | undefined }): void {}
+
+    info(&readonly this, fields?: Fields): void {
+        this.write<'a>({ fields } as { fields?: Fields | undefined } | undefined);
+    }
+}
+
+=== dir ===
+type Fields = { readonly [key: string]: int32 };
+/// @type.symbol symbol=Fields source="type Fields = { readonly [key: string]: int32 }" type={ readonly [key: string]: int32 }
+/// @definition.type symbol=Fields source="type Fields = { readonly [key: string]: int32 }" value={ readonly [key: string]: int32 }
+
+type Options = { fields?: Fields | undefined };
+/// @type.symbol symbol=Options source="type Options = { fields?: Fields | undefined }" type={ fields?: { readonly [key: string]: int32 } | undefined }
+/// @definition.type symbol=Options source="type Options = { fields?: Fields | undefined }" value={ fields?: Fields | undefined }
+/// @type.symbol symbol=Options.fields source="fields?: Fields | undefined" type={ readonly [key: string]: int32 } | undefined
+/// @resolution.name source=Fields target=Fields
+
+class Logger {
+/// @type.symbol symbol=Logger type=typeof Logger
+/// @definition.class symbol=Logger
+/// @definition.method symbol=Logger.info slot=info type=<Logger.info.'a>(this: &Logger.info.'a readonly Logger, { readonly [key: string]: int32 } | undefined?) => void
+/// @definition.method symbol=Logger.write source="write(&readonly this, options?: Options): void {}" slot=write type=<Logger.write.'a>(this: &Logger.write.'a readonly Logger, { fields?: Fields | undefined } | undefined?) => void
+
+    write(&readonly this, options?: Options): void {}
+    /// @generic.template symbol=Logger.write parameters=('a)
+    /// @type.symbol symbol=Logger.write source="write(&readonly this, options?: Options): void {}" type=<Logger.write.'a>(this: &Logger.write.'a readonly Logger, { fields?: Fields | undefined } | undefined?) => void
+    /// @type.symbol symbol=Logger.write.this source="&readonly this" type=&Logger.write.'a readonly Logger
+    /// @type.symbol symbol=Logger.write.options source="options?: Options" type={ fields?: Fields | undefined } | undefined
+    /// @resolution.name source=Options target=Options
+
+    info(&readonly this, fields?: Fields): void {
+    /// @generic.template symbol=Logger.info parameters=('a)
+    /// @type.symbol symbol=Logger.info type=<Logger.info.'a>(this: &Logger.info.'a readonly Logger, { readonly [key: string]: int32 } | undefined?) => void
+    /// @type.symbol symbol=Logger.info.this source="&readonly this" type=&Logger.info.'a readonly Logger
+    /// @type.symbol symbol=Logger.info.fields source="fields?: Fields" type={ readonly [key: string]: int32 } | undefined
+    /// @resolution.name source=Fields target=Fields
+
+        this.write({ fields });
+        /// @resolution.member source=this.write receiver=&Logger.info.'a readonly Logger type=<Logger.write.'a>(this: &Logger.write.'a readonly Logger, { fields?: Fields | undefined } | undefined?) => void kind=symbol target_receiver=&Logger.info.'a readonly Logger target=Logger.write
+        /// @resolution.call source="this.write({ fields })" parameters=({ fields?: Fields | undefined } | undefined) arguments=(provided({ fields }) as { fields?: Fields | undefined } | undefined) return=void regions=(Logger.info.'a) kind=symbol target=Logger.write receiver=&Logger.info.'a readonly Logger instance=Logger.write<Logger.info.'a>
+        /// @resolution.receiver source=this kind=this declaration=Logger type=&Logger.info.'a readonly Logger
+        /// @resolution.place source=this placement=Logger.info.'a lifetime=Logger.info.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @generic.instantiation id=Logger.write<Logger.info.'a> template=Logger.write arguments=(Logger.info.'a)
+        /// @generic.instance id=Logger.write<Logger.info.'a> template=Logger.write arguments=(Logger.info.'a)
+        /// @resolution.name source=fields target=Logger.info.fields
+        /// @resolution.place source=fields placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=fields root=Logger.info.fields
+
+    }
+}
+"#);
+}
+
+/// Store a readonly handle from the instance place into a structural record.
+#[test]
+fn test_store_a_readonly_handle_from_the_instance_place_into_a_structural_record() {
+    let session = TestSession::single(
+        r#"
+class Logger {
+    write(&readonly this, options?: { fields?: { readonly [key: string]: int32 } | undefined }): void {}
+
+    info(&readonly this, fields?: { readonly [key: string]: int32 }): void {
+        this.write({ fields });
+    }
+}
+"#,
+    );
+
+    session.assert_dir("main.ds", DirRows::checked(), r#"
+=== annotated ===
+class Logger {
+    write(
+        &readonly this,
+        options?: { fields?: { readonly [key: string]: int32 } | undefined },
+    ): void {}
+
+    info(&readonly this, fields?: { readonly [key: string]: int32 }): void {
+        this.write<'a>({ fields });
+    }
+}
+
+=== dir ===
+class Logger {
+/// @type.symbol symbol=Logger type=typeof Logger
+/// @definition.class symbol=Logger
+/// @definition.method symbol=Logger.info slot=info type=<Logger.info.'a>(this: &Logger.info.'a readonly Logger, { readonly [key: string]: int32 } | undefined?) => void
+/// @definition.method symbol=Logger.write slot=write type=<Logger.write.'a>(this: &Logger.write.'a readonly Logger, { fields?: { readonly [key: string]: int32 } | undefined } | undefined?) => void
+
+    write(&readonly this, options?: { fields?: { readonly [key: string]: int32 } | undefined }): void {}
+    /// @generic.template symbol=Logger.write parameters=('a)
+    /// @type.symbol symbol=Logger.write type=<Logger.write.'a>(this: &Logger.write.'a readonly Logger, { fields?: { readonly [key: string]: int32 } | undefined } | undefined?) => void
+    /// @type.symbol symbol=Logger.write.this source="&readonly this" type=&Logger.write.'a readonly Logger
+    /// @type.symbol symbol=Logger.write.options source="options?: { fields?: { readonly [key: string]: int32 } | undefined }" type={ fields?: { readonly [key: string]: int32 } | undefined } | undefined
+    /// @type.symbol symbol=Logger.write.fields source="fields?: { readonly [key: string]: int32 } | undefined" type={ readonly [key: string]: int32 } | undefined
+
+    info(&readonly this, fields?: { readonly [key: string]: int32 }): void {
+    /// @generic.template symbol=Logger.info parameters=('a)
+    /// @type.symbol symbol=Logger.info type=<Logger.info.'a>(this: &Logger.info.'a readonly Logger, { readonly [key: string]: int32 } | undefined?) => void
+    /// @type.symbol symbol=Logger.info.this source="&readonly this" type=&Logger.info.'a readonly Logger
+    /// @type.symbol symbol=Logger.info.fields source="fields?: { readonly [key: string]: int32 }" type={ readonly [key: string]: int32 } | undefined
+
+        this.write({ fields });
+        /// @resolution.member source=this.write receiver=&Logger.info.'a readonly Logger type=<Logger.write.'a>(this: &Logger.write.'a readonly Logger, { fields?: { readonly [key: string]: int32 } | undefined } | undefined?) => void kind=symbol target_receiver=&Logger.info.'a readonly Logger target=Logger.write
+        /// @resolution.call source="this.write({ fields })" parameters=({ fields?: { readonly [key: string]: int32 } | undefined } | undefined) arguments=(provided({ fields }) as { fields?: { readonly [key: string]: int32 } | undefined } | undefined) return=void regions=(Logger.info.'a) kind=symbol target=Logger.write receiver=&Logger.info.'a readonly Logger instance=Logger.write<Logger.info.'a>
+        /// @resolution.receiver source=this kind=this declaration=Logger type=&Logger.info.'a readonly Logger
+        /// @resolution.place source=this placement=Logger.info.'a lifetime=Logger.info.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @generic.instantiation id=Logger.write<Logger.info.'a> template=Logger.write arguments=(Logger.info.'a)
+        /// @generic.instance id=Logger.write<Logger.info.'a> template=Logger.write arguments=(Logger.info.'a)
+        /// @resolution.name source=fields target=Logger.info.fields
+        /// @resolution.place source=fields placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=fields root=Logger.info.fields
+
+    }
+}
+"#);
+}
+
+/// Pass a readonly handle to a bare class parameter.
+#[test]
+fn test_pass_a_readonly_handle_to_a_bare_parameter() {
+    let session = TestSession::single(
+        r#"
+class Logger {
+    write(&readonly this, fields: { readonly [key: string]: int32 }): void {}
+
+    info(&readonly this, fields: { readonly [key: string]: int32 }): void {
+        this.write(fields);
+    }
+}
+"#,
+    );
+
+    session.assert_dir("main.ds", DirRows::checked(), r#"
+=== annotated ===
+class Logger {
+    write(&readonly this, fields: { readonly [key: string]: int32 }): void {}
+
+    info(&readonly this, fields: { readonly [key: string]: int32 }): void {
+        this.write<'a>(fields);
+    }
+}
+
+=== dir ===
+class Logger {
+/// @type.symbol symbol=Logger type=typeof Logger
+/// @definition.class symbol=Logger
+/// @definition.method symbol=Logger.info slot=info type=<Logger.info.'a>(this: &Logger.info.'a readonly Logger, { readonly [key: string]: int32 }) => void
+/// @definition.method symbol=Logger.write source="write(&readonly this, fields: { readonly [key: string]: int32 }): void {}" slot=write type=<Logger.write.'a>(this: &Logger.write.'a readonly Logger, { readonly [key: string]: int32 }) => void
+
+    write(&readonly this, fields: { readonly [key: string]: int32 }): void {}
+    /// @generic.template symbol=Logger.write parameters=('a)
+    /// @type.symbol symbol=Logger.write source="write(&readonly this, fields: { readonly [key: string]: int32 }): void {}" type=<Logger.write.'a>(this: &Logger.write.'a readonly Logger, { readonly [key: string]: int32 }) => void
+    /// @type.symbol symbol=Logger.write.this source="&readonly this" type=&Logger.write.'a readonly Logger
+    /// @type.symbol symbol=Logger.write.fields source="fields: { readonly [key: string]: int32 }" type={ readonly [key: string]: int32 }
+
+    info(&readonly this, fields: { readonly [key: string]: int32 }): void {
+    /// @generic.template symbol=Logger.info parameters=('a)
+    /// @type.symbol symbol=Logger.info type=<Logger.info.'a>(this: &Logger.info.'a readonly Logger, { readonly [key: string]: int32 }) => void
+    /// @type.symbol symbol=Logger.info.this source="&readonly this" type=&Logger.info.'a readonly Logger
+    /// @type.symbol symbol=Logger.info.fields source="fields: { readonly [key: string]: int32 }" type={ readonly [key: string]: int32 }
+
+        this.write(fields);
+        /// @resolution.member source=this.write receiver=&Logger.info.'a readonly Logger type=<Logger.write.'a>(this: &Logger.write.'a readonly Logger, { readonly [key: string]: int32 }) => void kind=symbol target_receiver=&Logger.info.'a readonly Logger target=Logger.write
+        /// @resolution.call source=this.write(fields) parameters=({ readonly [key: string]: int32 }) arguments=(provided(fields) as { readonly [key: string]: int32 }) return=void regions=(Logger.info.'a) kind=symbol target=Logger.write receiver=&Logger.info.'a readonly Logger instance=Logger.write<Logger.info.'a>
+        /// @resolution.receiver source=this kind=this declaration=Logger type=&Logger.info.'a readonly Logger
+        /// @resolution.place source=this placement=Logger.info.'a lifetime=Logger.info.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @generic.instantiation id=Logger.write<Logger.info.'a> template=Logger.write arguments=(Logger.info.'a)
+        /// @generic.instance id=Logger.write<Logger.info.'a> template=Logger.write arguments=(Logger.info.'a)
+        /// @resolution.name source=fields target=Logger.info.fields
+        /// @resolution.place source=fields placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=fields root=Logger.info.fields
+
+    }
+}
+"#);
+}
+
+/// Store a readonly handle in a record field.
+#[test]
+fn test_store_a_readonly_handle_in_a_record_field() {
+    let session = TestSession::single(
+        r#"
+class Logger {
+    write(&readonly this, options: { fields: { readonly [key: string]: int32 } }): void {}
+
+    info(&readonly this, fields: { readonly [key: string]: int32 }): void {
+        this.write({ fields });
+    }
+}
+"#,
+    );
+
+    session.assert_dir("main.ds", DirRows::checked(), r#"
+=== annotated ===
+class Logger {
+    write(&readonly this, options: { fields: { readonly [key: string]: int32 } }): void {}
+
+    info(&readonly this, fields: { readonly [key: string]: int32 }): void {
+        this.write<'a>({ fields });
+    }
+}
+
+=== dir ===
+class Logger {
+/// @type.symbol symbol=Logger type=typeof Logger
+/// @definition.class symbol=Logger
+/// @definition.method symbol=Logger.info slot=info type=<Logger.info.'a>(this: &Logger.info.'a readonly Logger, { readonly [key: string]: int32 }) => void
+/// @definition.method symbol=Logger.write slot=write type=<Logger.write.'a>(this: &Logger.write.'a readonly Logger, { fields: { readonly [key: string]: int32 } }) => void
+
+    write(&readonly this, options: { fields: { readonly [key: string]: int32 } }): void {}
+    /// @generic.template symbol=Logger.write parameters=('a)
+    /// @type.symbol symbol=Logger.write type=<Logger.write.'a>(this: &Logger.write.'a readonly Logger, { fields: { readonly [key: string]: int32 } }) => void
+    /// @type.symbol symbol=Logger.write.this source="&readonly this" type=&Logger.write.'a readonly Logger
+    /// @type.symbol symbol=Logger.write.options source="options: { fields: { readonly [key: string]: int32 } }" type={ fields: { readonly [key: string]: int32 } }
+    /// @type.symbol symbol=Logger.write.fields source="fields: { readonly [key: string]: int32 }" type={ readonly [key: string]: int32 }
+
+    info(&readonly this, fields: { readonly [key: string]: int32 }): void {
+    /// @generic.template symbol=Logger.info parameters=('a)
+    /// @type.symbol symbol=Logger.info type=<Logger.info.'a>(this: &Logger.info.'a readonly Logger, { readonly [key: string]: int32 }) => void
+    /// @type.symbol symbol=Logger.info.this source="&readonly this" type=&Logger.info.'a readonly Logger
+    /// @type.symbol symbol=Logger.info.fields source="fields: { readonly [key: string]: int32 }" type={ readonly [key: string]: int32 }
+
+        this.write({ fields });
+        /// @resolution.member source=this.write receiver=&Logger.info.'a readonly Logger type=<Logger.write.'a>(this: &Logger.write.'a readonly Logger, { fields: { readonly [key: string]: int32 } }) => void kind=symbol target_receiver=&Logger.info.'a readonly Logger target=Logger.write
+        /// @resolution.call source="this.write({ fields })" parameters=({ fields: { readonly [key: string]: int32 } }) arguments=(provided({ fields }) as { fields: { readonly [key: string]: int32 } }) return=void regions=(Logger.info.'a) kind=symbol target=Logger.write receiver=&Logger.info.'a readonly Logger instance=Logger.write<Logger.info.'a>
+        /// @resolution.receiver source=this kind=this declaration=Logger type=&Logger.info.'a readonly Logger
+        /// @resolution.place source=this placement=Logger.info.'a lifetime=Logger.info.'a access="readonly"
+        /// @resolution.access source=this root=this
+        /// @generic.instantiation id=Logger.write<Logger.info.'a> template=Logger.write arguments=(Logger.info.'a)
+        /// @generic.instance id=Logger.write<Logger.info.'a> template=Logger.write arguments=(Logger.info.'a)
+        /// @resolution.name source=fields target=Logger.info.fields
+        /// @resolution.place source=fields placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=fields root=Logger.info.fields
+
+    }
+}
+"#);
 }

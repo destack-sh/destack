@@ -29,31 +29,16 @@ tail satisfies ^int32[];
 declare const values: int32[];
 /// @type.symbol symbol=values source=values type=int32[]
 /// @resolution.pattern source=values kind=binding target=values
-/// @generic.instance id="initAsPointer<int32, \"mutable\">" template=initAsPointer arguments=(int32, "mutable")
 /// @generic.instance id=Array<int32> template=Array arguments=(int32)
-/// @generic.instance id=assumeInitDrop#1<int32> template=assumeInitDrop#1 arguments=(int32)
-/// @generic.instance id=assumeInitDrop<int32> template=assumeInitDrop arguments=(int32)
-/// @generic.instance id=clear<int32> template=clear arguments=(int32)
-/// @generic.instance id=drop<int32> template=drop arguments=(int32)
-/// @generic.instance id=dropInPlace<int32> template=dropInPlace arguments=(int32)
 /// @generic.instance id=sliceAssumeInit<MaybeUninit<int32>> template=sliceAssumeInit arguments=(MaybeUninit<int32>)
 /// @generic.instance id=sliceUninit<MaybeUninit<int32>> template=sliceUninit arguments=(MaybeUninit<int32>)
-/// @generic.instance id=truncate<int32> template=truncate arguments=(int32)
 
 let [head, ...tail] = values;
 /// @resolution.pattern source=[head, ...tail] kind=sequence element=int32 arity=1.. fields=(head) rest=...tail
-/// @generic.instantiation id="index#1<int32, \"mutable\">" template=index#1 arguments=(int32, "mutable")
-/// @generic.instantiation id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
-/// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-/// @generic.instance id="WithAccess<&'bound0 int32, \"mutable\">" template=WithAccess arguments=(&'bound0 int32, "mutable")
-/// @generic.instance id="WithAccess<&'bound0 int32[], \"mutable\">" template=WithAccess arguments=(&'bound0 int32[], "mutable")
-/// @generic.instance id="assumeInitReference<int32, \"mutable\">" template=assumeInitReference arguments=(int32, "mutable")
-/// @generic.instance id="elementSlot<int32, \"mutable\">" template=elementSlot arguments=(int32, "mutable")
-/// @generic.instance id="index#1<int32, \"mutable\">" template=index#1 arguments=(int32, "mutable")
-/// @generic.instance id="rest#2<int32, \"local\">" template=rest#2 arguments=(int32, "local")
-/// @generic.instance id="sliceIndex<MaybeUninit<int32>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<int32>, "mutable")
-/// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-/// @generic.instance id=elementPosition<int32> template=elementPosition arguments=(int32)
+/// @generic.instantiation id="index#2<int32, \"managed\" & \"local\">" template=index#2 arguments=(int32, "managed" & "local")
+/// @generic.instantiation id="rest#2<int32, \"managed\" & \"local\">" template=rest#2 arguments=(int32, "managed" & "local")
+/// @generic.instance id="index#2<int32, \"bound0\" & \"local\">" template=index#2 arguments=(int32, "bound0" & "local")
+/// @generic.instance id="rest#2<int32, \"bound0\" & \"local\">" template=rest#2 arguments=(int32, "bound0" & "local")
 /// @type.symbol symbol=head source=head type=int32
 /// @resolution.pattern source=head kind=binding target=head
 /// @type.symbol symbol=tail source=tail type=^int32[]
@@ -66,14 +51,14 @@ head satisfies int32;
 /// @type.node source="head satisfies int32" type=int32
 /// @type.node source=head type=int32
 /// @resolution.name source=head target=head
-/// @resolution.place source=head placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=head placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=head root=head
 
 tail satisfies ^int32[];
 /// @type.node source="tail satisfies ^int32[]" type=^int32[]
 /// @type.node source=tail type=^int32[]
 /// @resolution.name source=tail target=tail
-/// @resolution.place source=tail placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=tail placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=tail root=tail
 "#,
     );

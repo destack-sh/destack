@@ -29,7 +29,7 @@ state.count = 1;
 /// @type.node source="state.count = 1" type=<error>
 /// @type.node source=state type={ readonly count: int32 }
 /// @resolution.name source=state target=state
-/// @resolution.place source=state placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=state placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=state root=state
 /// @resolution.rejected source=state.count
 "#,
@@ -75,14 +75,14 @@ interface Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.interface symbol=Counter template=(this: Counter)
 /// @definition.where symbol=Counter relation=satisfies left=this right=Counter
-/// @definition.method symbol=Counter.current#1 source="get current(): int32" slot=current role=getter type=(this: this) => int32
-/// @definition.method symbol=Counter.current#2 source="set current(next: int32)" slot=current role=setter type=(this: this, int32) => void
+/// @definition.method symbol=Counter.current#1 source="get current(): int32" slot=current role=getter type=() => int32
+/// @definition.method symbol=Counter.current#2 source="set current(next: int32)" slot=current role=setter type=(int32) => void
 
     get current(): int32;
-    /// @type.symbol symbol=Counter.current#1 source="get current(): int32" type=(this: this) => int32
+    /// @type.symbol symbol=Counter.current#1 source="get current(): int32" type=() => int32
 
     set current(next: int32);
-    /// @type.symbol symbol=Counter.current#2 source="set current(next: int32)" type=(this: this, int32) => void
+    /// @type.symbol symbol=Counter.current#2 source="set current(next: int32)" type=(int32) => void
     /// @type.symbol symbol=Counter.current.next source="next: int32" type=int32
 
 }
@@ -94,14 +94,14 @@ declare let counter: Counter;
 
 counter.current = 2;
 /// @resolution.name source=counter target=counter
-/// @resolution.place source=counter placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=counter root=counter
 /// @resolution.pattern.assign source=counter.current kind=place
 /// @resolution.assignment source=counter.current write="receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(supplied(0) as int32), return=void), type=int32" type=int32
 
 counter.current++;
 /// @resolution.name source=counter target=counter
-/// @resolution.place source=counter placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=counter root=counter
 /// @resolution.assignment source=counter.current read="receiver=Counter, target=dynamic(Counter as Counter, Counter.current#1)(parameters=(), arguments=(), return=int32), type=int32" write="receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(supplied(0) as int32), return=void), type=int32" type=int32
 /// @resolution.operator source=counter.current++ type=int32 operator="++" kind=builtin operands=[counter.current as int32 families=(integer)]
@@ -144,14 +144,14 @@ interface Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.interface symbol=Counter template=(this: Counter)
 /// @definition.where symbol=Counter relation=satisfies left=this right=Counter
-/// @definition.method symbol=Counter.current#1 source="get current(): int32" slot=current role=getter type=(this: this) => int32
-/// @definition.method symbol=Counter.current#2 source="set current(next: int32)" slot=current role=setter type=(this: this, int32) => void
+/// @definition.method symbol=Counter.current#1 source="get current(): int32" slot=current role=getter type=() => int32
+/// @definition.method symbol=Counter.current#2 source="set current(next: int32)" slot=current role=setter type=(int32) => void
 
     get current(): int32;
-    /// @type.symbol symbol=Counter.current#1 source="get current(): int32" type=(this: this) => int32
+    /// @type.symbol symbol=Counter.current#1 source="get current(): int32" type=() => int32
 
     set current(next: int32);
-    /// @type.symbol symbol=Counter.current#2 source="set current(next: int32)" type=(this: this, int32) => void
+    /// @type.symbol symbol=Counter.current#2 source="set current(next: int32)" type=(int32) => void
     /// @type.symbol symbol=Counter.current.next source="next: int32" type=int32
 
 }
@@ -165,14 +165,14 @@ counter["current"] = 2;
 /// @resolution.name source=counter target=counter
 /// @resolution.pattern.assign source="counter[\"current\"]" kind=place
 /// @resolution.assignment source="counter[\"current\"]" write="member(receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(supplied(0) as int32), return=void), type=int32)" type=int32
-/// @resolution.place source=counter placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=counter root=counter
 
 counter["current"]++;
 /// @resolution.name source=counter target=counter
 /// @resolution.assignment source="counter[\"current\"]" read="member(receiver=Counter, target=dynamic(Counter as Counter, Counter.current#1)(parameters=(), arguments=(), return=int32), type=int32)" write="member(receiver=Counter, target=dynamic(Counter as Counter, Counter.current#2)(parameters=(int32), arguments=(supplied(0) as int32), return=void), type=int32)" type=int32
 /// @resolution.operator source="counter[\"current\"]++" type=int32 operator="++" kind=builtin operands=[counter["current"] as int32 families=(integer)]
-/// @resolution.place source=counter placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=counter root=counter
 "#,
     );
@@ -209,10 +209,10 @@ interface Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.interface symbol=Counter template=(this: Counter)
 /// @definition.where symbol=Counter relation=satisfies left=this right=Counter
-/// @definition.method symbol=Counter.current source="get current(): int32" slot=current role=getter type=(this: this) => int32
+/// @definition.method symbol=Counter.current source="get current(): int32" slot=current role=getter type=() => int32
 
     get current(): int32;
-    /// @type.symbol symbol=Counter.current source="get current(): int32" type=(this: this) => int32
+    /// @type.symbol symbol=Counter.current source="get current(): int32" type=() => int32
 
 }
 
@@ -226,7 +226,7 @@ const current = counter.current;
 /// @resolution.pattern source=current kind=binding target=current
 /// @resolution.name source=counter target=counter
 /// @resolution.member source=counter.current receiver=Counter type=int32 kind=call target="dynamic(Counter as Counter, Counter.current)(parameters=(), arguments=(), return=int32)"
-/// @resolution.place source=counter placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=counter placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=counter root=counter
 "#,
     );
@@ -263,10 +263,10 @@ interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink template=(this: Sink)
 /// @definition.where symbol=Sink relation=satisfies left=this right=Sink
-/// @definition.method symbol=Sink.value source="set value(next: int32)" slot=value role=setter type=(this: this, int32) => void
+/// @definition.method symbol=Sink.value source="set value(next: int32)" slot=value role=setter type=(int32) => void
 
     set value(next: int32);
-    /// @type.symbol symbol=Sink.value source="set value(next: int32)" type=(this: this, int32) => void
+    /// @type.symbol symbol=Sink.value source="set value(next: int32)" type=(int32) => void
     /// @type.symbol symbol=Sink.value.next source="next: int32" type=int32
 
 }
@@ -278,7 +278,7 @@ declare let sink: Sink;
 
 sink.value = 1;
 /// @resolution.name source=sink target=sink
-/// @resolution.place source=sink placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=sink placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=sink root=sink
 /// @resolution.pattern.assign source=sink.value kind=place
 /// @resolution.assignment source=sink.value write="receiver=Sink, target=dynamic(Sink as Sink, Sink.value)(parameters=(int32), arguments=(supplied(0) as int32), return=void), type=int32" type=int32
@@ -317,10 +317,10 @@ interface Counter {
 /// @type.symbol symbol=Counter type=Counter
 /// @definition.interface symbol=Counter template=(this: Counter)
 /// @definition.where symbol=Counter relation=satisfies left=this right=Counter
-/// @definition.method symbol=Counter.current source="get current(): int32" slot=current role=getter type=(this: this) => int32
+/// @definition.method symbol=Counter.current source="get current(): int32" slot=current role=getter type=() => int32
 
     get current(): int32;
-    /// @type.symbol symbol=Counter.current source="get current(): int32" type=(this: this) => int32
+    /// @type.symbol symbol=Counter.current source="get current(): int32" type=() => int32
 
 }
 
@@ -331,7 +331,7 @@ declare let counter: Counter;
 
 counter.current = 1;
 /// @resolution.name source=counter target=counter
-/// @resolution.place source=counter placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=counter placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=counter root=counter
 /// @resolution.rejected source=counter.current
 "#,
@@ -373,10 +373,10 @@ interface Sink {
 /// @type.symbol symbol=Sink type=Sink
 /// @definition.interface symbol=Sink template=(this: Sink)
 /// @definition.where symbol=Sink relation=satisfies left=this right=Sink
-/// @definition.method symbol=Sink.value source="set value(next: int32)" slot=value role=setter type=(this: this, int32) => void
+/// @definition.method symbol=Sink.value source="set value(next: int32)" slot=value role=setter type=(int32) => void
 
     set value(next: int32);
-    /// @type.symbol symbol=Sink.value source="set value(next: int32)" type=(this: this, int32) => void
+    /// @type.symbol symbol=Sink.value source="set value(next: int32)" type=(int32) => void
     /// @type.symbol symbol=Sink.value.next source="next: int32" type=int32
 
 }
@@ -390,7 +390,7 @@ const value = sink.value;
 /// @type.symbol symbol=value source=value type=<error>
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=sink target=sink
-/// @resolution.place source=sink placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=sink placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=sink root=sink
 /// @resolution.rejected source=sink.value
 "#,
@@ -450,13 +450,14 @@ function retain(point: Point): void {
     /// @resolution.access source={ x: point.x } root=retain.point
     /// @resolution.access source="x: point.x" root=retain.point keys=[x]
     /// @resolution.name source=point target=retain.point
-    /// @resolution.place source=point placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=point placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=point root=retain.point
     /// @resolution.pattern.assign source=point.x kind=place
+    /// @resolution.place source=point.x placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=point.x root=retain.point keys=[x]
     /// @resolution.assignment source=point.x write="receiver=Point, target=field(receiver=Point, target=Point.x, type=int32), type=int32" type=int32
     /// @resolution.name source=point target=retain.point
-    /// @resolution.place source=point placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=point placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=point root=retain.point
 
 }
@@ -507,29 +508,30 @@ function double(depth: isize): string {
 
     for (const _ of 0..depth) {
     /// @resolution.iteration iterator="iterator#1(parameters=(), arguments=(), return=RangeIterator<isize>)" next="next(parameters=(), arguments=(), return=IteratorResult<isize, void>, regions=(\"frame\" & \"local\"))"
+    /// @generic.instantiation id="next<isize, \"frame\" & \"local\">" template=next arguments=(isize, "frame" & "local")
     /// @generic.instantiation id=iterator#1<isize> template=iterator#1 arguments=(isize)
-    /// @generic.instantiation id=next<isize> template=next arguments=(isize)
     /// @resolution.pattern source=_ kind=wildcard
     /// @resolution.name source=depth target=double.depth
-    /// @resolution.place source=depth placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=depth placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=depth root=double.depth
 
         output += output;
         /// @resolution.name source=output target=double.output
-        /// @resolution.operator source="output += output" type=^string operator="+" kind=call parameters=(string) arguments=(provided(output) as string) return=^string regions=("managed" & "local") kind=symbol target=add receiver=string adjustments=(borrow(Borrowed<string, "managed" & "local", "readonly">))
+        /// @resolution.operator source="output += output" type=^string operator="+" kind=call parameters=(string) arguments=(provided(output) as string) return=^string regions=("managed" & "local") kind=symbol target=add receiver=string adjustments=(borrow(&'managed readonly string)) instance="string.<extension#2>.add<\"managed\" & \"local\">"
         /// @resolution.pattern.assign source=output kind=place
-        /// @resolution.place source=output placement="local" lifetime="managed" access="mutable"
+        /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
         /// @resolution.assignment source=output read=binding(double.output) write=binding(double.output) type=string
         /// @resolution.access source=output root=double.output
+        /// @generic.instantiation id="add<\"managed\" & \"local\">" template=add arguments=("managed" & "local")
         /// @resolution.name source=output target=double.output
-        /// @resolution.place source=output placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=output root=double.output
 
     }
 
     return output;
     /// @resolution.name source=output target=double.output
-    /// @resolution.place source=output placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=output placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=output root=double.output
 
 }

@@ -44,14 +44,14 @@ count satisfies int32;
 /// @type.node source="count satisfies int32" type=int32
 /// @type.node source=count type=int32
 /// @resolution.name source=count target=count
-/// @resolution.place source=count placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=count placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=count root=count
 
 label satisfies string;
 /// @type.node source="label satisfies string" type=string
 /// @type.node source=label type=string
 /// @resolution.name source=label target=label
-/// @resolution.place source=label placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=label placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=label root=label
 "#,
     );

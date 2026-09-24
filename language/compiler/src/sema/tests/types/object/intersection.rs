@@ -36,7 +36,7 @@ type Unit = "year" | "month";
 /// @definition.type symbol=Unit source="type Unit = \"year\" | \"month\"" value="year" | "month"
 
 type Round =
-/// @type.symbol symbol=Round type=Unit | { smallest: Unit; mode?: int32 } | { largest: Unit; mode?: int32 }
+/// @type.symbol symbol=Round type="year" | "month" | { smallest: Unit; mode?: int32 } | { largest: Unit; mode?: int32 }
 /// @definition.type symbol=Round value=Unit | { smallest: Unit; mode?: int32 } | { largest: Unit; mode?: int32 }
 
     | Unit
@@ -274,7 +274,6 @@ type Narrowed = (Zoned | Plain) & Plain;
 
 export declare function pick(value: Narrowed): int32;
 /// @type.symbol symbol=pick source="export declare function pick(value: Narrowed): int32" type=(Narrowed) => int32
-/// @type.symbol symbol=pick.value source="value: Narrowed" type=Narrowed
 /// @resolution.name source=Narrowed target=Narrowed
 "#,
     );
@@ -308,33 +307,36 @@ type SignalOptions = { equals?: false | Equality };
 
 type MemoOptions = { equals?: false | Equality; name?: string };
 
-export function configure(options: { equals?: false | Equality; name?: string }): int32 {
+export function configure(options: {
+    equals?: false | ((left: int32, right: int32) => boolean);
+    name?: string;
+}): int32 {
     return 1;
 }
 
 === dir ===
 type Equality = (left: int32, right: int32) => boolean;
-/// @type.symbol symbol=Equality source="type Equality = (left: int32, right: int32) => boolean" type=Function<(int32, int32), boolean>
-/// @definition.type symbol=Equality source="type Equality = (left: int32, right: int32) => boolean" value=Function<(int32, int32), boolean>
+/// @type.symbol symbol=Equality source="type Equality = (left: int32, right: int32) => boolean" type=(int32, int32) => boolean
+/// @definition.type symbol=Equality source="type Equality = (left: int32, right: int32) => boolean" value=(int32, int32) => boolean
 /// @type.symbol symbol=Equality.left source="left: int32" type=int32
 /// @type.symbol symbol=Equality.right source="right: int32" type=int32
 
 type SignalOptions = { equals?: false | Equality };
-/// @type.symbol symbol=SignalOptions source="type SignalOptions = { equals?: false | Equality }" type={ equals?: false | Equality }
+/// @type.symbol symbol=SignalOptions source="type SignalOptions = { equals?: false | Equality }" type={ equals?: false | (int32, int32) => boolean }
 /// @definition.type symbol=SignalOptions source="type SignalOptions = { equals?: false | Equality }" value={ equals?: false | Equality }
-/// @type.symbol symbol=SignalOptions.equals source="equals?: false | Equality" type=false | Equality
+/// @type.symbol symbol=SignalOptions.equals source="equals?: false | Equality" type=false | (int32, int32) => boolean
 /// @resolution.name source=Equality target=Equality
 
 type MemoOptions = { equals?: false | Equality; name?: string };
-/// @type.symbol symbol=MemoOptions source="type MemoOptions = { equals?: false | Equality; name?: string }" type={ equals?: false | Equality; name?: string }
+/// @type.symbol symbol=MemoOptions source="type MemoOptions = { equals?: false | Equality; name?: string }" type={ equals?: false | (int32, int32) => boolean; name?: string }
 /// @definition.type symbol=MemoOptions source="type MemoOptions = { equals?: false | Equality; name?: string }" value={ equals?: false | Equality; name?: string }
-/// @type.symbol symbol=MemoOptions.equals source="equals?: false | Equality" type=false | Equality
+/// @type.symbol symbol=MemoOptions.equals source="equals?: false | Equality" type=false | (int32, int32) => boolean
 /// @resolution.name source=Equality target=Equality
 /// @type.symbol symbol=MemoOptions.name source="name?: string" type=string
 
 export function configure(options: SignalOptions & MemoOptions): int32 {
-/// @type.symbol symbol=configure type=({ equals?: false | Equality; name?: string }) => int32
-/// @type.symbol symbol=configure.options source="options: SignalOptions & MemoOptions" type={ equals?: false | Equality; name?: string }
+/// @type.symbol symbol=configure type=({ equals?: false | (int32, int32) => boolean; name?: string }) => int32
+/// @type.symbol symbol=configure.options source="options: SignalOptions & MemoOptions" type={ equals?: false | (int32, int32) => boolean; name?: string }
 /// @resolution.name source=SignalOptions target=SignalOptions
 /// @resolution.name source=MemoOptions target=MemoOptions
 

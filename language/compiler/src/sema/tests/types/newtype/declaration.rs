@@ -46,10 +46,10 @@ interface Writer {
 /// @type.symbol symbol=Writer type=Writer
 /// @definition.interface symbol=Writer template=(this: Writer)
 /// @definition.where symbol=Writer relation=satisfies left=this right=Writer
-/// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): usize" slot=write type=(this: this, readonly uint8[]) => usize
+/// @definition.method symbol=Writer.write source="write(bytes: readonly uint8[]): usize" slot=write type=(readonly uint8[]) => usize
 
     write(bytes: readonly uint8[]): usize;
-    /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): usize" type=(this: this, readonly uint8[]) => usize
+    /// @type.symbol symbol=Writer.write source="write(bytes: readonly uint8[]): usize" type=(readonly uint8[]) => usize
     /// @type.symbol symbol=Writer.write.bytes source="bytes: readonly uint8[]" type=readonly uint8[]
 
 }
@@ -62,20 +62,20 @@ newtype NamedWriter = Writer;
 struct Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
 /// @definition.struct symbol=Buffer
-/// @definition.method symbol=Buffer.write slot=write type=<Buffer.write.'a>(this: &Buffer.write.'a readonly this, readonly uint8[]) => usize
+/// @definition.method symbol=Buffer.write slot=write type=<Buffer.write.'a>(this: &Buffer.write.'a readonly Buffer, readonly uint8[]) => usize
 
     write(bytes: readonly uint8[]): usize {
     /// @generic.template symbol=Buffer.write parameters=('a)
-    /// @type.symbol symbol=Buffer.write type=<Buffer.write.'a>(this: &Buffer.write.'a readonly this, readonly uint8[]) => usize
+    /// @type.symbol symbol=Buffer.write type=<Buffer.write.'a>(this: &Buffer.write.'a readonly Buffer, readonly uint8[]) => usize
     /// @type.symbol symbol=Buffer.write.this type=&Buffer.write.'a readonly Buffer
     /// @type.symbol symbol=Buffer.write.bytes source="bytes: readonly uint8[]" type=readonly uint8[]
 
         bytes.length
         /// @resolution.name source=bytes target=Buffer.write.bytes
         /// @resolution.member source=bytes.length receiver=readonly uint8[] type=isize kind=call target="length(parameters=(), arguments=(), return=isize, regions=(\"managed\" & \"local\"))"
-        /// @resolution.place source=bytes placement="local" lifetime="managed" access="readonly"
+        /// @resolution.place source=bytes placement="local" lifetime="frame" access="readonly"
         /// @resolution.access source=bytes root=Buffer.write.bytes
-        /// @generic.instantiation id=length<uint8> template=length arguments=(uint8)
+        /// @generic.instantiation id="length<uint8, \"managed\" & \"local\">" template=length arguments=(uint8, "managed" & "local")
 
     }
 }

@@ -31,7 +31,7 @@ type Segment<T> = T extends `/${infer Name}` ? Name : never;
 /// @resolution.name source=Name target=Segment.Name
 
 type Name = Segment<"/api">;
-/// @type.symbol symbol=Name source="type Name = Segment<\"/api\">" type=Segment<"/api">
+/// @type.symbol symbol=Name source="type Name = Segment<\"/api\">" type="api"
 /// @definition.type symbol=Name source="type Name = Segment<\"/api\">" value=Segment<"/api">
 /// @resolution.name source=Segment target=Segment
 
@@ -77,12 +77,12 @@ type HasId<T> = T extends `id:${infer _}` ? true : false;
 /// @resolution.name source=T target=HasId.T
 
 type Yes = HasId<"id:users">;
-/// @type.symbol symbol=Yes source="type Yes = HasId<\"id:users\">" type=HasId<"id:users">
+/// @type.symbol symbol=Yes source="type Yes = HasId<\"id:users\">" type=true
 /// @definition.type symbol=Yes source="type Yes = HasId<\"id:users\">" value=HasId<"id:users">
 /// @resolution.name source=HasId target=HasId
 
 type No = HasId<"users">;
-/// @type.symbol symbol=No source="type No = HasId<\"users\">" type=HasId<"users">
+/// @type.symbol symbol=No source="type No = HasId<\"users\">" type=false
 /// @definition.type symbol=No source="type No = HasId<\"users\">" value=HasId<"users">
 /// @resolution.name source=HasId target=HasId
 
@@ -132,7 +132,7 @@ type Extract<T> = T extends `foo-${infer A}` ? A : never;
 /// @resolution.name source=A target=Extract.A
 
 type Result = Extract<`foo-a` | `foo-b`>;
-/// @type.symbol symbol=Result source="type Result = Extract<`foo-a` | `foo-b`>" type=Extract<"foo-a" | "foo-b">
+/// @type.symbol symbol=Result source="type Result = Extract<`foo-a` | `foo-b`>" type="a" | "b"
 /// @definition.type symbol=Result source="type Result = Extract<`foo-a` | `foo-b`>" value=Extract<`foo-a` | `foo-b`>
 /// @resolution.name source=Extract target=Extract
 
@@ -180,7 +180,7 @@ type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
 /// @resolution.name source=A target=Repeat.A
 
 type Match = Repeat<"foo-foo">;
-/// @type.symbol symbol=Match source="type Match = Repeat<\"foo-foo\">" type=Repeat<"foo-foo">
+/// @type.symbol symbol=Match source="type Match = Repeat<\"foo-foo\">" type="foo"
 /// @definition.type symbol=Match source="type Match = Repeat<\"foo-foo\">" value=Repeat<"foo-foo">
 /// @resolution.name source=Repeat target=Repeat
 
@@ -223,7 +223,7 @@ type Repeat<T> = T extends `${infer A}-${infer A}` ? A : "no";
 /// @resolution.name source=A target=Repeat.A
 
 type Match = Repeat<"foo-bar">;
-/// @type.symbol symbol=Match source="type Match = Repeat<\"foo-bar\">" type=Repeat<"foo-bar">
+/// @type.symbol symbol=Match source="type Match = Repeat<\"foo-bar\">" type="no"
 /// @definition.type symbol=Match source="type Match = Repeat<\"foo-bar\">" value=Repeat<"foo-bar">
 /// @resolution.name source=Repeat target=Repeat
 
@@ -267,7 +267,7 @@ type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
 /// @resolution.name source=B target=Pair.B
 
 type Result = Pair<"foo-bar-baz">;
-/// @type.symbol symbol=Result source="type Result = Pair<\"foo-bar-baz\">" type=Pair<"foo-bar-baz">
+/// @type.symbol symbol=Result source="type Result = Pair<\"foo-bar-baz\">" type=("foo", "bar-baz")
 /// @definition.type symbol=Result source="type Result = Pair<\"foo-bar-baz\">" value=Pair<"foo-bar-baz">
 /// @resolution.name source=Pair target=Pair
 
@@ -311,7 +311,7 @@ type Pair<T> = T extends `${infer A}-${infer B}` ? (A, B) : never;
 /// @resolution.name source=B target=Pair.B
 
 type Result = Pair<"foo-bar-baz">;
-/// @type.symbol symbol=Result source="type Result = Pair<\"foo-bar-baz\">" type=Pair<"foo-bar-baz">
+/// @type.symbol symbol=Result source="type Result = Pair<\"foo-bar-baz\">" type=("foo", "bar-baz")
 /// @definition.type symbol=Result source="type Result = Pair<\"foo-bar-baz\">" value=Pair<"foo-bar-baz">
 /// @resolution.name source=Pair target=Pair
 
@@ -367,7 +367,7 @@ type Split<T> = T extends `${infer A}${infer B}` ? (A, B) : never;
 /// @resolution.name source=B target=Split.B
 
 type Result = Split<"a">;
-/// @type.symbol symbol=Result source="type Result = Split<\"a\">" type=Split<"a">
+/// @type.symbol symbol=Result source="type Result = Split<\"a\">" type=("a", "")
 /// @definition.type symbol=Result source="type Result = Split<\"a\">" value=Split<"a">
 /// @resolution.name source=Split target=Split
 
@@ -426,7 +426,7 @@ type Split<T> = T extends `a${infer A}${infer B}` ? (A, B) : never;
 /// @resolution.name source=B target=Split.B
 
 type Result = Split<"a">;
-/// @type.symbol symbol=Result source="type Result = Split<\"a\">" type=Split<"a">
+/// @type.symbol symbol=Result source="type Result = Split<\"a\">" type=("", "")
 /// @definition.type symbol=Result source="type Result = Split<\"a\">" value=Split<"a">
 /// @resolution.name source=Split target=Split
 

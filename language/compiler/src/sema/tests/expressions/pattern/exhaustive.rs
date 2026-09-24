@@ -106,27 +106,28 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
     /// @resolution.coverage exhaustive=true disjoint=true
     /// @type.node source=outcome type=Outcome<T#3, E#3>
     /// @resolution.name source=outcome target=unwrapOr.outcome
-    /// @resolution.place source=outcome placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=outcome placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=outcome root=unwrapOr.outcome
 
         Ok { value } => value
         /// @resolution.name source=Ok target=Ok
-        /// @resolution.pattern source="Ok { value }" kind=nominal_object target=Ok instance=Ok<T#3> fields={ Ok.value }
+        /// @resolution.pattern source="Ok { value }" kind=nominal_object adjustments=(newtype.payload(Outcome, Ok<T#3> | Err<E#3>), union.payload(Ok<T#3> | Err<E#3>, Ok<T#3>, Ok<T#3>)) target=Ok instance=Ok<T#3> fields={ Ok.value }
+        /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=unwrapOr
         /// @generic.instantiation id=Ok<T#3> template=Ok arguments=(T#3) owner=unwrapOr
         /// @type.symbol symbol=unwrapOr.value source=value type=T#3
         /// @type.node source=value type=T#3
         /// @resolution.name source=value target=unwrapOr.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=value root=unwrapOr.value
 
         Err { error } => fallback
         /// @resolution.name source=Err target=Err
-        /// @resolution.pattern source="Err { error }" kind=nominal_object target=Err instance=Err<E#3> fields={ Err.error }
+        /// @resolution.pattern source="Err { error }" kind=nominal_object adjustments=(newtype.payload(Outcome, Ok<T#3> | Err<E#3>), union.payload(Ok<T#3> | Err<E#3>, Err<E#3>, Err<E#3>)) target=Err instance=Err<E#3> fields={ Err.error }
         /// @generic.instantiation id=Err<E#3> template=Err arguments=(E#3) owner=unwrapOr
         /// @type.symbol symbol=unwrapOr.error source=error type=E#3
         /// @type.node source=fallback type=T#3
         /// @resolution.name source=fallback target=unwrapOr.fallback
-        /// @resolution.place source=fallback placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=fallback placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=fallback root=unwrapOr.fallback
 
     }
@@ -232,17 +233,18 @@ function unwrap<T, E>(outcome: Outcome<T, E>): T {
     /// @resolution.coverage exhaustive=false disjoint=true
     /// @type.node source=outcome type=Outcome<T#3, E#3>
     /// @resolution.name source=outcome target=unwrap.outcome
-    /// @resolution.place source=outcome placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=outcome placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=outcome root=unwrap.outcome
 
         Ok { value } => value
         /// @resolution.name source=Ok target=Ok
-        /// @resolution.pattern source="Ok { value }" kind=nominal_object target=Ok instance=Ok<T#3> fields={ Ok.value }
+        /// @resolution.pattern source="Ok { value }" kind=nominal_object adjustments=(newtype.payload(Outcome, Ok<T#3> | Err<E#3>), union.payload(Ok<T#3> | Err<E#3>, Ok<T#3>, Ok<T#3>)) target=Ok instance=Ok<T#3> fields={ Ok.value }
+        /// @generic.instantiation id="Outcome<T#3, E#3>" template=Outcome arguments=(T#3, E#3) owner=unwrap
         /// @generic.instantiation id=Ok<T#3> template=Ok arguments=(T#3) owner=unwrap
         /// @type.symbol symbol=unwrap.value source=value type=T#3
         /// @type.node source=value type=T#3
         /// @resolution.name source=value target=unwrap.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=value root=unwrap.value
 
     }
@@ -290,7 +292,7 @@ function finish(value: (int32, boolean)): int32 {
     return match (value) {
     /// @resolution.coverage exhaustive=true disjoint=true
     /// @resolution.name source=value target=finish.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=finish.value
 
         (left, true) => left
@@ -299,7 +301,7 @@ function finish(value: (int32, boolean)): int32 {
         /// @resolution.pattern source=left kind=binding target=finish.left
         /// @resolution.pattern source=true kind=literal value=true
         /// @resolution.name source=left target=finish.left
-        /// @resolution.place source=left placement="local" lifetime="frame" access="readonly"
+        /// @resolution.place source=left placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=left root=finish.left
 
         (right, false) => right
@@ -308,7 +310,7 @@ function finish(value: (int32, boolean)): int32 {
         /// @resolution.pattern source=right kind=binding target=finish.right
         /// @resolution.pattern source=false kind=literal value=false
         /// @resolution.name source=right target=finish.right
-        /// @resolution.place source=right placement="local" lifetime="frame" access="readonly"
+        /// @resolution.place source=right placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=right root=finish.right
 
     };
@@ -354,7 +356,7 @@ function finish(value: (int32, boolean)): int32 {
     return match (value) {
     /// @resolution.coverage exhaustive=false disjoint=false
     /// @resolution.name source=value target=finish.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=finish.value
 
         (left, true) => left
@@ -363,7 +365,7 @@ function finish(value: (int32, boolean)): int32 {
         /// @resolution.pattern source=left kind=binding target=finish.left
         /// @resolution.pattern source=true kind=literal value=true
         /// @resolution.name source=left target=finish.left
-        /// @resolution.place source=left placement="local" lifetime="frame" access="readonly"
+        /// @resolution.place source=left placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=left root=finish.left
 
         (right, true) => right
@@ -372,7 +374,7 @@ function finish(value: (int32, boolean)): int32 {
         /// @resolution.pattern source=right kind=binding target=finish.right
         /// @resolution.pattern source=true kind=literal value=true
         /// @resolution.name source=right target=finish.right
-        /// @resolution.place source=right placement="local" lifetime="frame" access="readonly"
+        /// @resolution.place source=right placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=right root=finish.right
 
     };
@@ -420,7 +422,7 @@ function pick(value: ((int32, boolean), string)): int32 {
     return match (value) {
     /// @resolution.coverage exhaustive=true disjoint=true
     /// @resolution.name source=value target=pick.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=pick.value
 
         ((left, true), first) => left
@@ -432,7 +434,7 @@ function pick(value: ((int32, boolean), string)): int32 {
         /// @type.symbol symbol=pick.first source=first type=string
         /// @resolution.pattern source=first kind=binding target=pick.first
         /// @resolution.name source=left target=pick.left
-        /// @resolution.place source=left placement="local" lifetime="frame" access="readonly"
+        /// @resolution.place source=left placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=left root=pick.left
 
         ((right, false), second) => right
@@ -444,7 +446,7 @@ function pick(value: ((int32, boolean), string)): int32 {
         /// @type.symbol symbol=pick.second source=second type=string
         /// @resolution.pattern source=second kind=binding target=pick.second
         /// @resolution.name source=right target=pick.right
-        /// @resolution.place source=right placement="local" lifetime="frame" access="readonly"
+        /// @resolution.place source=right placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=right root=pick.right
 
     };
@@ -490,7 +492,7 @@ function label(value: (int32, "on" | "off")): int32 {
     return match (value) {
     /// @resolution.coverage exhaustive=true disjoint=true
     /// @resolution.name source=value target=label.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=label.value
 
         (first, "on") => first
@@ -499,7 +501,7 @@ function label(value: (int32, "on" | "off")): int32 {
         /// @resolution.pattern source=first kind=binding target=label.first
         /// @resolution.pattern source="\"on\"" kind=literal value="on"
         /// @resolution.name source=first target=label.first
-        /// @resolution.place source=first placement="local" lifetime="frame" access="readonly"
+        /// @resolution.place source=first placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=first root=label.first
 
         (second, "off") => second
@@ -508,7 +510,7 @@ function label(value: (int32, "on" | "off")): int32 {
         /// @resolution.pattern source=second kind=binding target=label.second
         /// @resolution.pattern source="\"off\"" kind=literal value="off"
         /// @resolution.name source=second target=label.second
-        /// @resolution.place source=second placement="local" lifetime="frame" access="readonly"
+        /// @resolution.place source=second placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=second root=label.second
 
     };
@@ -552,7 +554,7 @@ function pick(value: ((int32, boolean), string)): int32 {
     return match (value) {
     /// @resolution.coverage exhaustive=false disjoint=true
     /// @resolution.name source=value target=pick.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=pick.value
 
         ((left, true), first) => left
@@ -564,7 +566,7 @@ function pick(value: ((int32, boolean), string)): int32 {
         /// @type.symbol symbol=pick.first source=first type=string
         /// @resolution.pattern source=first kind=binding target=pick.first
         /// @resolution.name source=left target=pick.left
-        /// @resolution.place source=left placement="local" lifetime="frame" access="readonly"
+        /// @resolution.place source=left placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=left root=pick.left
 
     };

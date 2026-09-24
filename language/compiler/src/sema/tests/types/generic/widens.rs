@@ -70,7 +70,7 @@ const shapes: Holder<Shape> = circles;
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=circles placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=circles root=circles
 "#,
     );
@@ -153,7 +153,7 @@ const either: Holder<Circle | Square> = circles;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=circles placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -215,7 +215,7 @@ const wide: Holder<int32> = one;
 /// @resolution.pattern source=wide kind=binding target=wide
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=one target=one
-/// @resolution.place source=one placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=one placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=one root=one
 "#,
         r#"
@@ -286,7 +286,7 @@ const opaque: Holder<unknown> = circles;
 /// @resolution.pattern source=opaque kind=binding target=opaque
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=circles placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -345,7 +345,7 @@ class Holder<T> {
 /// @type.symbol symbol=Holder type=typeof Holder
 /// @definition.class symbol=Holder template=(in out T)
 /// @definition.field symbol=Holder.value source="value: T" key=value type=T
-/// @definition.method symbol=Holder.constructor slot=constructor role=constructor type=<Holder.constructor.P0: Place>(T) => Managed<this, Holder.constructor.P0>
+/// @definition.method symbol=Holder.constructor slot=constructor role=constructor type=(this: &'managed Holder<T>, T) => Holder<T>
 /// @type.symbol symbol=Holder.T source=T type=T
 
     value: T;
@@ -353,21 +353,21 @@ class Holder<T> {
     /// @resolution.name source=T target=Holder.T
 
     constructor(value: T) {
-    /// @generic.template symbol=Holder.constructor parent=template#0 parameters=(P0: Place)
-    /// @type.symbol symbol=Holder.constructor type=<Holder.constructor.P0: Place>(T) => Managed<this, Holder.constructor.P0>
-    /// @type.symbol symbol=Holder.constructor.this type=Holder<T>
+    /// @type.symbol symbol=Holder.constructor type=(this: &'managed Holder<T>, T) => Holder<T>
+    /// @type.symbol symbol=Holder.constructor.this type=&'managed Holder<T>
     /// @type.symbol symbol=Holder.constructor.value source="value: T" type=T
     /// @resolution.name source=T target=Holder.T
 
         this.value = value;
-        /// @resolution.receiver source=this kind=this declaration=Holder type=Holder<T>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.receiver source=this kind=this declaration=Holder type=&'managed Holder<T>
+        /// @resolution.place source=this placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.place source=this.value placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this.value root=this keys=[value]
-        /// @resolution.assignment source=this.value write="receiver=Holder<T>, target=field(receiver=Holder<T>, target=Holder.value, type=T), type=T" type=T
+        /// @resolution.assignment source=this.value write="receiver=&'managed Holder<T>, target=field(receiver=&'managed Holder<T>, target=Holder.value, type=T), type=T" type=T
         /// @resolution.name source=value target=Holder.constructor.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=Holder.constructor.value
 
     }
@@ -384,7 +384,7 @@ const opaque: Holder<unknown> = circles;
 /// @resolution.pattern source=opaque kind=binding target=opaque
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=circles placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -468,7 +468,7 @@ const dynamic: Holder<Dynamic<Draw>> = circles;
 /// @resolution.name source=Dynamic target=Dynamic
 /// @resolution.name source=Draw target=Draw
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=circles placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -537,20 +537,20 @@ struct Holder<T> {
 }
 
 declare const makers: Holder<() => Circle>;
-/// @type.symbol symbol=makers source=makers type=Holder<Function<(), Circle>>
+/// @type.symbol symbol=makers source=makers type=Holder<() => Circle>
 /// @resolution.pattern source=makers kind=binding target=makers
-/// @generic.instance id="Holder<Function<(), Circle>>" template=Holder arguments=(Function<(), Circle>)
+/// @generic.instance id="Holder<() => Circle>" template=Holder arguments=(() => Circle)
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Circle target=Circle
 
 const widened: Holder<() => Shape> = makers;
-/// @type.symbol symbol=widened source=widened type=Holder<Function<(), Shape>>
+/// @type.symbol symbol=widened source=widened type=Holder<() => Shape>
 /// @resolution.pattern source=widened kind=binding target=widened
-/// @generic.instance id="Holder<Function<(), Shape>>" template=Holder arguments=(Function<(), Shape>)
+/// @generic.instance id="Holder<() => Shape>" template=Holder arguments=(() => Shape)
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=makers target=makers
-/// @resolution.place source=makers placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=makers placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=makers root=makers
 "#,
     );
@@ -621,19 +621,19 @@ struct Holder<T> {
 }
 
 declare const makers: Holder<() => Circle>;
-/// @type.symbol symbol=makers source=makers type=Holder<Function<(), Circle>>
+/// @type.symbol symbol=makers source=makers type=Holder<() => Circle>
 /// @resolution.pattern source=makers kind=binding target=makers
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Circle target=Circle
 
 const either: Holder<() => Circle | Square> = makers;
-/// @type.symbol symbol=either source=either type=Holder<Function<(), Circle | Square>>
+/// @type.symbol symbol=either source=either type=Holder<() => Circle | Square>
 /// @resolution.pattern source=either kind=binding target=either
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=makers target=makers
-/// @resolution.place source=makers placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=makers placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=makers root=makers
 "#,
         r#"
@@ -713,7 +713,7 @@ const widened: Box<Shape> = boxed;
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=boxed target=boxed
-/// @resolution.place source=boxed placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=boxed placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=boxed root=boxed
 "#,
         r#"
@@ -795,7 +795,7 @@ const widened: Label<Shape> = labeled;
 /// @resolution.name source=Label target=Label
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=labeled target=labeled
-/// @resolution.place source=labeled placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=labeled placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=labeled root=labeled
 "#,
     );
@@ -871,7 +871,7 @@ const widened: ^Box<Shape> = boxed;
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=boxed target=boxed
-/// @resolution.place source=boxed placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=boxed placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=boxed root=boxed
 "#,
     );
@@ -929,7 +929,7 @@ declare class Pipe<T> {
 /// @type.symbol symbol=Pipe type=typeof Pipe
 /// @definition.class symbol=Pipe template=(in out T)
 /// @definition.field symbol=Pipe.store source="store: T" key=store type=T
-/// @definition.method symbol=Pipe.put source="put(this, value: T): void" slot=put type=(this: this, T) => void
+/// @definition.method symbol=Pipe.put source="put(this, value: T): void" slot=put type=(this: Pipe<T>, T) => void
 /// @type.symbol symbol=Pipe.T source=T type=T
 
     store: T;
@@ -937,8 +937,8 @@ declare class Pipe<T> {
     /// @resolution.name source=T target=Pipe.T
 
     put(this, value: T): void;
-    /// @type.symbol symbol=Pipe.put source="put(this, value: T): void" type=(this: this, T) => void
-    /// @type.symbol symbol=Pipe.put.this source=this type=this
+    /// @type.symbol symbol=Pipe.put source="put(this, value: T): void" type=(this: Pipe<T>, T) => void
+    /// @type.symbol symbol=Pipe.put.this source=this type=Pipe<T>
     /// @type.symbol symbol=Pipe.put.value source="value: T" type=T
     /// @resolution.name source=T target=Pipe.T
 
@@ -956,7 +956,7 @@ const widened: ^Pipe<Shape> = pipe;
 /// @resolution.name source=Pipe target=Pipe
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=pipe target=pipe
-/// @resolution.place source=pipe placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=pipe placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=pipe root=pipe
 "#,
         r#"
@@ -1041,28 +1041,29 @@ class Stack<T> {
 extension<T> of Stack<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=local target=Stack<T#2>
-/// @definition.method symbol=refill slot=refill type=(this: this, T#2) => void
+/// @definition.method symbol=refill slot=refill type=(this: Stack<T#2>, T#2) => void
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=T target=T
 
     refill(this, value: T): void {
-    /// @type.symbol symbol=refill type=(this: this, T#2) => void
-    /// @type.symbol symbol=refill.this source=this type=this
+    /// @type.symbol symbol=refill type=(this: Stack<T#2>, T#2) => void
+    /// @type.symbol symbol=refill.this source=this type=Stack<T#2>
     /// @type.symbol symbol=refill.value source="value: T" type=T#2
     /// @resolution.name source=T target=T
 
         this.items = [value];
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Stack<T#2>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.items kind=place
+        /// @resolution.place source=this.items placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Stack<T#2>, target=field(receiver=Stack<T#2>, target=Stack.items, type=T#2[]), type=T#2[]" type=T#2[]
         /// @resolution.call source=[value] parameters=(^Slice<T#2>) arguments=(rest(provided(value) as T#2) as T#2) return=T#2[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#2>
         /// @generic.instantiation id=arrayFromOwnedSlice<T#2> template=arrayFromOwnedSlice arguments=(T#2) owner=refill
         /// @resolution.name source=value target=refill.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=refill.value
 
     }
@@ -1080,7 +1081,7 @@ const widened: Stack<Shape> = circles;
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=circles placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -1162,16 +1163,7 @@ class Stack<T> {
     /// @resolution.name source=T target=Stack.T
     /// @resolution.call source=[] parameters=(^Slice<T#1>) arguments=(rest() as T#1) return=T#1[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#1>
     /// @generic.instantiation id=arrayFromOwnedSlice<T#1> template=arrayFromOwnedSlice arguments=(T#1) owner=Stack
-    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-    /// @generic.instance id="Cast.truncate<usize, isize>" template=Cast.truncate arguments=(usize, isize)
-    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
-    /// @generic.instance id="truncateInt<usize, isize>" template=truncateInt arguments=(usize, isize)
     /// @generic.instance id=arrayFromOwnedSlice<T#1> template=arrayFromOwnedSlice arguments=(T#1)
-    /// @generic.instance id=fromOwnedSlice<T#1> template=fromOwnedSlice arguments=(T#1)
-    /// @generic.instance id=intoUninit<T#1> template=intoUninit arguments=(T#1)
-    /// @generic.instance id=size<T#1> template=size arguments=(T#1)
-    /// @generic.instance id=sliceIntoUninit<T#1> template=sliceIntoUninit arguments=(T#1)
-    /// @generic.instance id=sliceLength<T#1> template=sliceLength arguments=(T#1)
 
 }
 
@@ -1186,15 +1178,16 @@ extension<T> of Stack<T> {
 
     refill(this, value: T): void {
     /// @type.symbol symbol=refill type=(this: Stack<T#2>, T#2) => void
-    /// @type.symbol symbol=refill.this source=this type=this
+    /// @type.symbol symbol=refill.this source=this type=Stack<T#2>
     /// @type.symbol symbol=refill.value source="value: T" type=T#2
     /// @resolution.name source=T target=T
 
         this.items = [value];
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Stack<T#2>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.items kind=place
+        /// @resolution.place source=this.items placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Stack<T#2>, target=field(receiver=Stack<T#2>, target=Stack.items, type=T#2[]), type=T#2[]" type=T#2[]
         /// @generic.instance id=Array<T#2> template=Array arguments=(T#2)
@@ -1203,13 +1196,8 @@ extension<T> of Stack<T> {
         /// @resolution.call source=[value] parameters=(^Slice<T#2>) arguments=(rest(provided(value) as T#2) as T#2) return=T#2[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T#2>
         /// @generic.instantiation id=arrayFromOwnedSlice<T#2> template=arrayFromOwnedSlice arguments=(T#2) owner=refill
         /// @generic.instance id=arrayFromOwnedSlice<T#2> template=arrayFromOwnedSlice arguments=(T#2)
-        /// @generic.instance id=fromOwnedSlice<T#2> template=fromOwnedSlice arguments=(T#2)
-        /// @generic.instance id=intoUninit<T#2> template=intoUninit arguments=(T#2)
-        /// @generic.instance id=size<T#2> template=size arguments=(T#2)
-        /// @generic.instance id=sliceIntoUninit<T#2> template=sliceIntoUninit arguments=(T#2)
-        /// @generic.instance id=sliceLength<T#2> template=sliceLength arguments=(T#2)
         /// @resolution.name source=value target=refill.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=refill.value
 
     }
@@ -1218,50 +1206,18 @@ extension<T> of Stack<T> {
 declare const circles: Stack<Circle>;
 /// @type.symbol symbol=circles source=circles type=Stack<Circle>
 /// @resolution.pattern source=circles kind=binding target=circles
-/// @generic.instance id="elementSlot<Circle, \"mutable\">" template=elementSlot arguments=(Circle, "mutable")
-/// @generic.instance id="initAsPointer<Circle, \"mutable\">" template=initAsPointer arguments=(Circle, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<Circle>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<Circle>, "mutable")
-/// @generic.instance id=Array<Circle> template=Array arguments=(Circle)
 /// @generic.instance id=Stack<Circle> template=Stack arguments=(Circle)
-/// @generic.instance id=assumeInitDrop#1<Circle> template=assumeInitDrop#1 arguments=(Circle)
-/// @generic.instance id=assumeInitDrop<Circle> template=assumeInitDrop arguments=(Circle)
-/// @generic.instance id=clear<Circle> template=clear arguments=(Circle)
-/// @generic.instance id=dropInPlace<Circle> template=dropInPlace arguments=(Circle)
-/// @generic.instance id=fromOwnedSlice<Circle> template=fromOwnedSlice arguments=(Circle)
-/// @generic.instance id=intoUninit<Circle> template=intoUninit arguments=(Circle)
-/// @generic.instance id=size<Circle> template=size arguments=(Circle)
-/// @generic.instance id=sliceAssumeInit<MaybeUninit<Circle>> template=sliceAssumeInit arguments=(MaybeUninit<Circle>)
-/// @generic.instance id=sliceIntoUninit<Circle> template=sliceIntoUninit arguments=(Circle)
-/// @generic.instance id=sliceLength<Circle> template=sliceLength arguments=(Circle)
-/// @generic.instance id=sliceUninit<MaybeUninit<Circle>> template=sliceUninit arguments=(MaybeUninit<Circle>)
-/// @generic.instance id=truncate<Circle> template=truncate arguments=(Circle)
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Circle target=Circle
 
 const view: readonly Stack<Shape> = circles;
-/// @type.symbol symbol=view source=view type=Readonly<Stack<Shape>>
+/// @type.symbol symbol=view source=view type=readonly Stack<Shape>
 /// @resolution.pattern source=view kind=binding target=view
-/// @generic.instance id="elementSlot<Shape, \"mutable\">" template=elementSlot arguments=(Shape, "mutable")
-/// @generic.instance id="initAsPointer<Shape, \"mutable\">" template=initAsPointer arguments=(Shape, "mutable")
-/// @generic.instance id="sliceIndex<MaybeUninit<Shape>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<Shape>, "mutable")
-/// @generic.instance id=Array<Shape> template=Array arguments=(Shape)
 /// @generic.instance id=Stack<Shape> template=Stack arguments=(Shape)
-/// @generic.instance id=assumeInitDrop#1<Shape> template=assumeInitDrop#1 arguments=(Shape)
-/// @generic.instance id=assumeInitDrop<Shape> template=assumeInitDrop arguments=(Shape)
-/// @generic.instance id=clear<Shape> template=clear arguments=(Shape)
-/// @generic.instance id=dropInPlace<Shape> template=dropInPlace arguments=(Shape)
-/// @generic.instance id=fromOwnedSlice<Shape> template=fromOwnedSlice arguments=(Shape)
-/// @generic.instance id=intoUninit<Shape> template=intoUninit arguments=(Shape)
-/// @generic.instance id=size<Shape> template=size arguments=(Shape)
-/// @generic.instance id=sliceAssumeInit<MaybeUninit<Shape>> template=sliceAssumeInit arguments=(MaybeUninit<Shape>)
-/// @generic.instance id=sliceIntoUninit<Shape> template=sliceIntoUninit arguments=(Shape)
-/// @generic.instance id=sliceLength<Shape> template=sliceLength arguments=(Shape)
-/// @generic.instance id=sliceUninit<MaybeUninit<Shape>> template=sliceUninit arguments=(MaybeUninit<Shape>)
-/// @generic.instance id=truncate<Shape> template=truncate arguments=(Shape)
 /// @resolution.name source=Stack target=Stack
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=circles placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=circles root=circles
 "#,
     );
@@ -1323,7 +1279,7 @@ class Bag<T> {
 /// @type.symbol symbol=Bag type=typeof Bag
 /// @definition.class symbol=Bag template=(in out T)
 /// @definition.field symbol=Bag.items source="items: T[] = []" key=items type=T[]
-/// @definition.method symbol=Bag.refill slot=refill type=(this: this, T) => void
+/// @definition.method symbol=Bag.refill slot=refill type=(this: Bag<T>, T) => void
 /// @type.symbol symbol=Bag.T source=T type=T
 
     items: T[] = [];
@@ -1333,22 +1289,23 @@ class Bag<T> {
     /// @generic.instantiation id=arrayFromOwnedSlice<T> template=arrayFromOwnedSlice arguments=(T) owner=Bag
 
     refill(this, value: T): void {
-    /// @type.symbol symbol=Bag.refill type=(this: this, T) => void
-    /// @type.symbol symbol=Bag.refill.this source=this type=this
+    /// @type.symbol symbol=Bag.refill type=(this: Bag<T>, T) => void
+    /// @type.symbol symbol=Bag.refill.this source=this type=Bag<T>
     /// @type.symbol symbol=Bag.refill.value source="value: T" type=T
     /// @resolution.name source=T target=Bag.T
 
         this.items = [value];
         /// @resolution.receiver source=this kind=this declaration=Bag type=Bag<T>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.items kind=place
+        /// @resolution.place source=this.items placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this.items root=this keys=[items]
         /// @resolution.assignment source=this.items write="receiver=Bag<T>, target=field(receiver=Bag<T>, target=Bag.items, type=T[]), type=T[]" type=T[]
         /// @resolution.call source=[value] parameters=(^Slice<T>) arguments=(rest(provided(value) as T) as T) return=T[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<T>
         /// @generic.instantiation id=arrayFromOwnedSlice<T> template=arrayFromOwnedSlice arguments=(T) owner=Bag.refill
         /// @resolution.name source=value target=Bag.refill.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=Bag.refill.value
 
     }
@@ -1361,12 +1318,12 @@ declare const circles: Bag<Circle>;
 /// @resolution.name source=Circle target=Circle
 
 const view: readonly Bag<Shape> = circles;
-/// @type.symbol symbol=view source=view type=Readonly<Bag<Shape>>
+/// @type.symbol symbol=view source=view type=readonly Bag<Shape>
 /// @resolution.pattern source=view kind=binding target=view
 /// @resolution.name source=Bag target=Bag
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=circles target=circles
-/// @resolution.place source=circles placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=circles placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=circles root=circles
 "#,
         r#"
@@ -1436,7 +1393,7 @@ const widened: Handle<Shape> = handle;
 /// @resolution.name source=Handle target=Handle
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=handle target=handle
-/// @resolution.place source=handle placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=handle placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=handle root=handle
 "#,
     );
@@ -1508,7 +1465,7 @@ const either: Handle<Circle | Square> = handle;
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=handle target=handle
-/// @resolution.place source=handle placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=handle placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=handle root=handle
 "#,
         r#"
@@ -1516,76 +1473,6 @@ const either: Handle<Circle | Square> = handle;
 /// @diagnostic.label line=9 column=41 span="handle" line_source="const either: Handle<Circle | Square> = handle;"
 /// @diagnostic.related line=9 column=15 span="Handle" line_source="const either: Handle<Circle | Square> = handle;" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Handle': expected 'Circle | Square', found 'Circle'"
-"#,
-    );
-}
-
-/// Widening a covariant newtype argument behind a managed handle reports a diagnostic.
-#[test]
-fn test_reject_widening_an_intrinsic_newtype_behind_a_handle() {
-    let session = TestSession::single(
-        r#"
-class Shape {}
-class Circle extends Shape {}
-
-newtype Handle<out T> = intrinsic;
-
-declare const handle: Managed<Handle<Circle>>;
-const widened: Managed<Handle<Shape>> = handle;
-"#,
-    );
-
-    session.assert_dir_and_diagnostics(
-        "main.ds",
-        DirRows::checked(),
-        r#"
-=== annotated ===
-class Shape {}
-class Circle extends Shape {}
-
-newtype Handle<out T> = intrinsic;
-
-declare const handle: local Handle<Circle>;
-const widened: local Handle<Shape> = handle;
-
-=== dir ===
-class Shape {}
-/// @type.symbol symbol=Shape source="class Shape {}" type=typeof Shape
-/// @definition.class symbol=Shape source="class Shape {}"
-
-class Circle extends Shape {}
-/// @type.symbol symbol=Circle source="class Circle extends Shape {}" type=typeof Circle
-/// @definition.class symbol=Circle source="class Circle extends Shape {}"
-/// @definition.extends symbol=Circle source=Shape target=Shape
-/// @resolution.name source=Shape target=Shape
-
-newtype Handle<out T> = intrinsic;
-/// @generic.template symbol=Handle parameters=(out T)
-/// @type.symbol symbol=Handle source="newtype Handle<out T> = intrinsic" type=Handle
-/// @definition.newtype symbol=Handle source="newtype Handle<out T> = intrinsic" template=(out T) backing=intrinsic constructors=[<out T>(intrinsic) => Handle<T>]
-/// @type.symbol symbol=Handle.T source="out T" type=T
-
-declare const handle: Managed<Handle<Circle>>;
-/// @type.symbol symbol=handle source=handle type=local Handle<Circle>
-/// @resolution.pattern source=handle kind=binding target=handle
-/// @resolution.name source=Managed target=Managed
-/// @resolution.name source=Handle target=Handle
-/// @resolution.name source=Circle target=Circle
-
-const widened: Managed<Handle<Shape>> = handle;
-/// @type.symbol symbol=widened source=widened type=local Handle<Shape>
-/// @resolution.pattern source=widened kind=binding target=widened
-/// @resolution.name source=Managed target=Managed
-/// @resolution.name source=Handle target=Handle
-/// @resolution.name source=Shape target=Shape
-/// @resolution.name source=handle target=handle
-/// @resolution.place source=handle placement="local" lifetime="managed" access="mutable"
-/// @resolution.access source=handle root=handle
-"#,
-        r#"
-/// @diagnostic.error id=not-assignable message="type 'local Handle<Circle>' is not assignable to type 'local Handle<Shape>'"
-/// @diagnostic.label line=8 column=41 span="handle" line_source="const widened: Managed<Handle<Shape>> = handle;"
-/// @diagnostic.related line=8 column=16 span="Managed" line_source="const widened: Managed<Handle<Shape>> = handle;" message="expected due to this annotation"
 "#,
     );
 }
@@ -1663,26 +1550,26 @@ declare const holder: Holder<Circle>;
 /// @resolution.name source=Circle target=Circle
 
 const view: &readonly Holder<Shape> = &readonly holder;
-/// @type.symbol symbol=view source=view type=&'static readonly constant Holder<Shape>
+/// @type.symbol symbol=view source=view type=&'static readonly Holder<Shape>
 /// @resolution.pattern source=view kind=binding target=view
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Shape target=Shape
 /// @resolution.name source=holder target=holder
-/// @resolution.place source=holder placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=holder placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=holder root=holder
 
 const either: &readonly Holder<Circle | Square> = &readonly holder;
-/// @type.symbol symbol=either source=either type=&'static readonly constant Holder<Circle | Square>
+/// @type.symbol symbol=either source=either type=&'static readonly Holder<Circle | Square>
 /// @resolution.pattern source=either kind=binding target=either
 /// @resolution.name source=Holder target=Holder
 /// @resolution.name source=Circle target=Circle
 /// @resolution.name source=Square target=Square
 /// @resolution.name source=holder target=holder
-/// @resolution.place source=holder placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=holder placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=holder root=holder
 "#,
         r#"
-/// @diagnostic.error id=not-assignable message="type '&'static readonly constant Holder<Circle>' is not assignable to type '&'static readonly constant Holder<Circle | Square>'"
+/// @diagnostic.error id=not-assignable message="type '&'static readonly Holder<Circle>' is not assignable to type '&'static readonly Holder<Circle | Square>'"
 /// @diagnostic.label line=12 column=51 span="&readonly holder" line_source="const either: &readonly Holder<Circle | Square> = &readonly holder;"
 /// @diagnostic.related line=12 column=15 span="&" line_source="const either: &readonly Holder<Circle | Square> = &readonly holder;" message="expected due to this annotation"
 /// @diagnostic.note message="the mismatch is in type argument 0 of 'Holder': expected 'Circle | Square', found 'Circle'"

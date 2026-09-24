@@ -17,28 +17,28 @@ const marker: Phantom<int32> = Phantom<int32>.default();
 === annotated ===
 import { Phantom } from "destack:memory";
 
-const marker: local Phantom<int32> = Phantom<int32>.default<int32>();
+const marker: Phantom<int32> = Phantom<int32>.default<int32>();
 
-=== checked ===
+=== dir ===
 import { Phantom } from "destack:memory";
 
 const marker: Phantom<int32> = Phantom<int32>.default();
-/// @type.symbol symbol=marker source=marker type=Managed<memory.phantom.Phantom<int32>, "local">
-/// @resolution.name source=Phantom target=memory.phantom.Phantom
-/// @type.node source=Phantom<int32> type=memory.phantom.Phantom<int32>
-/// @type.node source=Phantom<int32>.default type=() => Managed<memory.phantom.Phantom<int32>, "local">
-/// @type.node source=Phantom<int32>.default() type=Managed<memory.phantom.Phantom<int32>, "local">
-/// @resolution.name source=Phantom target=memory.phantom.Phantom
-/// @resolution.member source=Phantom<int32>.default receiver=memory.phantom.Phantom<int32> kind=symbol target=memory.phantom.default
-/// @resolution.call source=Phantom<int32>.default() parameters=() return=Managed<memory.phantom.Phantom<int32>, "local"> kind=symbol target=memory.phantom.default receiver=memory.phantom.Phantom<int32> instance=memory.phantom.Phantom<int32>.<extension#1>.default
-/// @resolution.instantiation source=Phantom<int32> target=memory.phantom.Phantom instance=memory.phantom.Phantom<int32>
-/// @generic.instance source=Phantom<int32> id=memory.phantom.Phantom<int32>
-/// @generic.instance source=Phantom<int32>.default id=memory.phantom.Phantom<int32>
-/// @generic.instance source=Phantom<int32>.default() id=memory.phantom.Phantom<int32>
-/// @generic.instance source=Phantom<int32>.default() id=memory.phantom.Phantom<int32>.<extension#1>.default
-
-/// @generic.instance id=memory.phantom.Phantom<int32> template=memory.phantom.Phantom arguments=(int32)
-/// @generic.instance id=memory.phantom.Phantom<int32>.<extension#1>.default template=memory.phantom.default arguments=(int32)
+/// @type.symbol symbol=marker source=marker type=Phantom<int32>
+/// @resolution.pattern source=marker kind=binding target=marker
+/// @generic.instance id=Phantom<int32> template=Phantom arguments=(int32)
+/// @resolution.name source=Phantom target=Phantom
+/// @type.node source=Phantom type=Phantom
+/// @type.node source=Phantom<int32> type=Phantom<int32>
+/// @type.node source=Phantom<int32>.default type=() => Phantom<int32>
+/// @type.node source=Phantom<int32>.default() type=Phantom<int32>
+/// @resolution.name source=Phantom target=Phantom
+/// @resolution.name source=Phantom<int32> target=Phantom
+/// @resolution.member source=Phantom<int32>.default receiver=Phantom<int32> type=() => Phantom<int32> kind=symbol target_receiver=Phantom<int32> target=default
+/// @resolution.call source=Phantom<int32>.default() parameters=() return=Phantom<int32> kind=symbol target=default instance=Phantom<int32>.<extension#1>.default
+/// @generic.instantiation id=default<int32> template=default arguments=(int32)
+/// @generic.instance id=default<int32> template=default arguments=(int32)
+/// @generic.instance id=new<int32> template=new arguments=(int32)
+/// @generic.instance id=newPhantom<int32> template=newPhantom arguments=(int32)
 "#,
     );
 }

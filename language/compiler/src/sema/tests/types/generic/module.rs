@@ -42,6 +42,7 @@ interface Holder<'a, T: View<'a>> {
 /// @type.symbol symbol=Holder.'a source='a type='a#1
 /// @type.symbol symbol=Holder.T source="T: View<'a>" type=T
 /// @resolution.name source=View target=View
+/// @generic.instance id=View<'a#1> template=View arguments=('a#1)
 /// @resolution.name source='a target=Holder.'a
 
     value: T;
@@ -128,6 +129,7 @@ export struct Foo<'a> {
 
     baz: Baz<'a>;
     /// @type.symbol symbol=Foo.baz source="baz: Baz<'a>" type=b.Baz<'a>
+    /// @generic.instance id=b.Baz<'a> template=b.Baz arguments=('a)
     /// @resolution.name source=Baz target=b.Baz
     /// @resolution.name source='a target=Foo.'a
 
@@ -160,6 +162,7 @@ export struct Bar<'a> {
 
     foo: Foo<'a>;
     /// @type.symbol symbol=Bar.foo source="foo: Foo<'a>" type=a.Foo<'a#1>
+    /// @generic.instance id=a.Foo<'a#1> template=a.Foo arguments=('a#1)
     /// @resolution.name source=Foo target=a.Foo
     /// @resolution.name source='a target=Bar.'a
 
@@ -300,11 +303,11 @@ export newtype interface PartialEqual<T = this> {
 /// @generic.instance id=PartialEqual<this> template=PartialEqual arguments=(this)
 /// @definition.interface symbol=PartialEqual template=(in T#1 = this, this: PartialEqual<T#1>) nominal=true
 /// @definition.where symbol=PartialEqual relation=satisfies left=this right=PartialEqual<T#1>
-/// @definition.method symbol=PartialEqual.equal source="equal(other: T): boolean" slot=equal type=(this: this, T#1) => boolean
+/// @definition.method symbol=PartialEqual.equal source="equal(other: T): boolean" slot=equal type=(T#1) => boolean
 /// @type.symbol symbol=PartialEqual.T source="T = this" type=T#1
 
     equal(other: T): boolean;
-    /// @type.symbol symbol=PartialEqual.equal source="equal(other: T): boolean" type=(this: this, T#1) => boolean
+    /// @type.symbol symbol=PartialEqual.equal source="equal(other: T): boolean" type=(T#1) => boolean
     /// @type.symbol symbol=PartialEqual.equal.other source="other: T" type=T#1
     /// @resolution.name source=T target=PartialEqual.T
 
@@ -387,7 +390,7 @@ export function identity<T>(value: T): T {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=identity.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=identity.value
 
 }
@@ -466,7 +469,7 @@ export function identity<T>(value: T) {
 
     return value;
     /// @resolution.name source=value target=identity.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=identity.value
 
 }
@@ -531,7 +534,7 @@ interface Iter<out T, in out R = unknown> {
     next(): T;
 }
 
-declare function probe(values: Iter<int32, unknown>): boolean;
+declare function probe(values: Iter<int32>): boolean;
 const value: boolean = probe(todo("iter" as string | undefined));
 
 === dir ===
@@ -540,19 +543,18 @@ interface Iter<T, in out R = unknown> {
 /// @type.symbol symbol=Iter type=Iter
 /// @definition.interface symbol=Iter template=(out T, in out R = unknown, this: Iter<T, R>)
 /// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
-/// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: this) => T
+/// @definition.method symbol=Iter.next source="next(): T" slot=next type=() => T
 /// @type.symbol symbol=Iter.T source=T type=T
 /// @type.symbol symbol=Iter.R source="in out R = unknown" type=R
 
     next(): T;
-    /// @type.symbol symbol=Iter.next source="next(): T" type=(this: this) => T
+    /// @type.symbol symbol=Iter.next source="next(): T" type=() => T
     /// @resolution.name source=T target=Iter.T
 
 }
 
 declare function probe(values: Iter<int32>): boolean;
 /// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(Iter<int32, unknown>) => boolean
-/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=Iter<int32, unknown>
 /// @resolution.name source=Iter target=Iter
 
 const value = probe(todo("iter"));
@@ -563,7 +565,8 @@ const value = probe(todo("iter"));
 /// @resolution.name source=todo target=todo
 /// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=todo
 "#,
-        "",
+        r#"
+"#,
     );
 }
 
@@ -613,12 +616,12 @@ export newtype interface Iter<T, in out R = unknown> {
 /// @type.symbol symbol=Iter type=Iter
 /// @definition.interface symbol=Iter template=(out T, in out R = unknown, this: Iter<T, R>) nominal=true
 /// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
-/// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: this) => T
+/// @definition.method symbol=Iter.next source="next(): T" slot=next type=() => T
 /// @type.symbol symbol=Iter.T source=T type=T
 /// @type.symbol symbol=Iter.R source="in out R = unknown" type=R
 
     next(): T;
-    /// @type.symbol symbol=Iter.next source="next(): T" type=(this: this) => T
+    /// @type.symbol symbol=Iter.next source="next(): T" type=() => T
     /// @resolution.name source=T target=Iter.T
 
 }
@@ -636,7 +639,7 @@ export { Iter } from "./inner.ds";
 === annotated ===
 import { Iter } from "./lib.ds";
 
-declare function probe(values: Iter<int32, unknown>): boolean;
+declare function probe(values: Iter<int32>): boolean;
 const value: boolean = probe(todo("iter" as string | undefined));
 
 === dir ===
@@ -645,7 +648,6 @@ import { Iter } from "./lib.ds";
 declare function probe(values: Iter<int32>): boolean;
 /// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(inner.Iter<int32, unknown>) => boolean
 /// @generic.instance id="inner.Iter<int32, unknown>" template=inner.Iter arguments=(int32, unknown)
-/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=inner.Iter<int32, unknown>
 /// @resolution.name source=Iter target=inner.Iter
 
 const value = probe(todo("iter"));
@@ -702,7 +704,7 @@ export interface Marker {
     marked: boolean;
 }
 
-declare function probe(values: Iter<int32, unknown>): boolean;
+declare function probe(values: Iter<int32>): boolean;
 const value: boolean = probe(todo("iter" as string | undefined));
 
 === dir ===
@@ -723,7 +725,6 @@ export interface Marker {
 declare function probe(values: Iter<int32>): boolean;
 /// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(b.Iter<int32, unknown>) => boolean
 /// @generic.instance id="b.Iter<int32, unknown>" template=b.Iter arguments=(int32, unknown)
-/// @type.symbol symbol=probe.values source="values: Iter<int32>" type=b.Iter<int32, unknown>
 /// @resolution.name source=Iter target=b.Iter
 
 const value = probe(todo("iter"));
@@ -752,17 +753,17 @@ export interface Iter<T, in out R = unknown> {
 /// @type.symbol symbol=Iter type=Iter
 /// @definition.interface symbol=Iter template=(out T, in out R = unknown, this: Iter<T, R>)
 /// @definition.where symbol=Iter relation=satisfies left=this right=Iter<T, R>
-/// @definition.method symbol=Iter.mark source="mark(): Marker" slot=mark type=(this: this) => a.Marker
-/// @definition.method symbol=Iter.next source="next(): T" slot=next type=(this: this) => T
+/// @definition.method symbol=Iter.mark source="mark(): Marker" slot=mark type=() => a.Marker
+/// @definition.method symbol=Iter.next source="next(): T" slot=next type=() => T
 /// @type.symbol symbol=Iter.T source=T type=T
 /// @type.symbol symbol=Iter.R source="in out R = unknown" type=R
 
     next(): T;
-    /// @type.symbol symbol=Iter.next source="next(): T" type=(this: this) => T
+    /// @type.symbol symbol=Iter.next source="next(): T" type=() => T
     /// @resolution.name source=T target=Iter.T
 
     mark(): Marker;
-    /// @type.symbol symbol=Iter.mark source="mark(): Marker" type=(this: this) => a.Marker
+    /// @type.symbol symbol=Iter.mark source="mark(): Marker" type=() => a.Marker
     /// @resolution.name source=Marker target=a.Marker
 
 }
@@ -830,7 +831,7 @@ function unwrap(wrapped: Wrap<int64>): int64 {
     match (wrapped) {
     /// @resolution.coverage exhaustive=true disjoint=true
     /// @resolution.name source=wrapped target=unwrap.wrapped
-    /// @resolution.place source=wrapped placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=wrapped placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=wrapped root=unwrap.wrapped
 
         Wrap { value } => value
@@ -839,7 +840,7 @@ function unwrap(wrapped: Wrap<int64>): int64 {
         /// @generic.instantiation id=Wrap<int64> template=Wrap arguments=(int64)
         /// @type.symbol symbol=unwrap.value source=value type=int64
         /// @resolution.name source=value target=unwrap.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="readonly"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="immutable"
         /// @resolution.access source=value root=unwrap.value
 
     }
@@ -856,10 +857,11 @@ const out = unwrap(built);
 /// @resolution.name source=unwrap target=unwrap
 /// @resolution.call source=unwrap(built) parameters=(Wrap<int64>) arguments=(provided(built) as Wrap<int64>) return=int64 kind=symbol target=unwrap
 /// @resolution.name source=built target=built
-/// @resolution.place source=built placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=built placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=built root=built
 "#,
-        "",
+        r#"
+"#,
     );
 }
 
@@ -908,7 +910,7 @@ export struct Attempt {
     module: string;
 }
 
-export type Predicate = (attempt: &'a readonly Attempt) => boolean;
+export type Predicate = (attempt: &readonly Attempt) => boolean;
 
 export struct Trigger {
     predicate?: Predicate;
@@ -926,8 +928,8 @@ export struct Attempt {
 }
 
 export type Predicate = (attempt: &readonly Attempt) => boolean;
-/// @type.symbol symbol=Predicate source="export type Predicate = (attempt: &readonly Attempt) => boolean" type=Function<(&type_expression.'a readonly Attempt,), boolean>
-/// @definition.type symbol=Predicate source="export type Predicate = (attempt: &readonly Attempt) => boolean" value=Function<(&type_expression.'a readonly Attempt,), boolean>
+/// @type.symbol symbol=Predicate source="export type Predicate = (attempt: &readonly Attempt) => boolean" type=<type_expression.'a>(&type_expression.'a readonly Attempt) => boolean
+/// @definition.type symbol=Predicate source="export type Predicate = (attempt: &readonly Attempt) => boolean" value=<type_expression.'a>(&type_expression.'a readonly Attempt) => boolean
 /// @generic.template source=type_expression parameters=('a)
 /// @type.symbol symbol=Predicate.attempt source="attempt: &readonly Attempt" type=&type_expression.'a readonly Attempt
 /// @resolution.name source=Attempt target=Attempt
@@ -978,9 +980,9 @@ declare let scenario: Scenario;
 scenario.trigger satisfies Trigger;
 /// @resolution.name source=scenario target=scenario
 /// @resolution.member source=scenario.trigger receiver=Scenario type=trigger.Trigger kind=field target_receiver=Scenario key=trigger target=Scenario.trigger target_type=trigger.Trigger
-/// @resolution.place source=scenario placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=scenario placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=scenario root=scenario
-/// @resolution.place source=scenario.trigger placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=scenario.trigger placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=scenario.trigger root=scenario keys=[trigger]
 /// @resolution.name source=Trigger target=trigger.Trigger
 "#,
@@ -1064,7 +1066,7 @@ export { Box } from "./a.ds";
 === annotated ===
 import { Box } from "./b.ds";
 
-declare const boxed: Box<Marker>;
+declare const boxed: Box;
 const value: Marker = boxed.value;
 
 === dir ===
@@ -1081,7 +1083,7 @@ const value = boxed.value;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=boxed target=boxed
 /// @resolution.member source=boxed.value receiver=a.Box<a.Marker> type=a.Marker kind=field target_receiver=a.Box<a.Marker> key=value target_type=a.Marker
-/// @resolution.place source=boxed placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=boxed placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=boxed root=boxed
 /// @resolution.access source=boxed.value root=boxed keys=[value]
 "#,

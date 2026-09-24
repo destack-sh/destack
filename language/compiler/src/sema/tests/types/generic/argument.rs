@@ -30,7 +30,7 @@ type Slots<const N: usize> = [uint8; N];
 /// @resolution.name source=N target=Slots.N
 
 type Bytes = Slots<16>;
-/// @type.symbol symbol=Bytes source="type Bytes = Slots<16>" type=Slots<16>
+/// @type.symbol symbol=Bytes source="type Bytes = Slots<16>" type=FixedArray<uint8, 16>
 /// @generic.instance id=Slots<16> template=Slots arguments=(16)
 /// @definition.type symbol=Bytes source="type Bytes = Slots<16>" value=Slots<16>
 /// @resolution.name source=Slots target=Slots
@@ -108,7 +108,7 @@ extension<T, E> of Result<T, E> {
         /// @resolution.construct source=Result(value) parameters=(T#2) arguments=(provided(value) as T#2) return=Result<T#2, E#2> kind=newtype target=Result backing=T#2 instance="Result<T#2, E#2>"
         /// @generic.instantiation id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2) owner=ok
         /// @resolution.name source=value target=ok.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=ok.value
 
     }
@@ -168,7 +168,7 @@ function print(value: Printable): string {
     /// @resolution.name source=value target=print.value
     /// @resolution.member source=value.print receiver=Printable type=() => string kind=field target_receiver=Printable key=print target_type=() => string
     /// @resolution.call source=value.print() parameters=() return=string kind=expression target=expression
-    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=print.value
     /// @resolution.place source=value.print placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=value.print root=print.value keys=[print]
@@ -294,7 +294,6 @@ declare function first<T: readonly unknown[]>(items: T[]): T;
 /// @generic.template symbol=first parameters=(T#1: readonly unknown[])
 /// @type.symbol symbol=first source="declare function first<T: readonly unknown[]>(items: T[]): T" type=<T#1: readonly unknown[]>(T#1[]) => T#1
 /// @type.symbol symbol=first.T source="T: readonly unknown[]" type=T#1
-/// @type.symbol symbol=first.items source="items: T[]" type=T#1[]
 /// @resolution.name source=T target=first.T
 /// @resolution.name source=T target=first.T
 
@@ -302,7 +301,6 @@ declare function box<T: unknown>(value: T): T;
 /// @generic.template symbol=box parameters=(T#2: unknown)
 /// @type.symbol symbol=box source="declare function box<T: unknown>(value: T): T" type=<T#2: unknown>(T#2) => T#2
 /// @type.symbol symbol=box.T source="T: unknown" type=T#2
-/// @type.symbol symbol=box.value source="value: T" type=T#2
 /// @resolution.name source=T target=box.T
 /// @resolution.name source=T target=box.T
 
@@ -336,6 +334,7 @@ const mixed = first([["a", 1]]);
 /// @generic.instantiation id="arrayFromOwnedSlice<string | int64>" template=arrayFromOwnedSlice arguments=(string | int64)
 "#,
         r#"
+
 "#,
     );
 }
@@ -374,7 +373,6 @@ declare function id<T>(value: T): T;
 /// @generic.template symbol=id parameters=(T#1)
 /// @type.symbol symbol=id source="declare function id<T>(value: T): T" type=<T#1>(T#1) => T#1
 /// @type.symbol symbol=id.T source=T type=T#1
-/// @type.symbol symbol=id.value source="value: T" type=T#1
 /// @resolution.name source=T target=id.T
 /// @resolution.name source=T target=id.T
 
@@ -382,7 +380,6 @@ declare function first<T>(values?: T[]): T;
 /// @generic.template symbol=first parameters=(T#2)
 /// @type.symbol symbol=first source="declare function first<T>(values?: T[]): T" type=<T#2>(T#2[] | undefined?) => T#2
 /// @type.symbol symbol=first.T source=T type=T#2
-/// @type.symbol symbol=first.values source="values?: T[]" type=T#2[] | undefined
 /// @resolution.name source=T target=first.T
 /// @resolution.name source=T target=first.T
 

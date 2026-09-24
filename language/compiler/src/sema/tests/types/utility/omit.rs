@@ -63,7 +63,7 @@ declare const person: Omit<Person, "age">;
 person.name satisfies string;
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.name receiver=Omit<Person, "age"> type=string kind=field target_receiver=Omit<Person, "age"> key=name target_type=string
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.name root=person keys=[name]
@@ -71,7 +71,7 @@ person.name satisfies string;
 person.active satisfies boolean;
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.active receiver=Omit<Person, "age"> type=boolean kind=field target_receiver=Omit<Person, "age"> key=active target_type=boolean
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.active placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.active root=person keys=[active]
@@ -139,7 +139,7 @@ const age = person.age;
 /// @type.symbol symbol=age source=age type=<error>
 /// @resolution.pattern source=age kind=binding target=age
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.rejected source=person.age
 "#,
@@ -199,7 +199,7 @@ interface Person {
 }
 
 type WithoutAge = Omit<Person, "age">;
-/// @type.symbol symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" type=Omit<Person, "age">
+/// @type.symbol symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" type={ name: string }
 /// @definition.type symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" value=Omit<Person, "age">
 /// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
@@ -211,7 +211,7 @@ const person: WithoutAge = { name: "Ada" };
 
 person satisfies WithoutAge;
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.name source=WithoutAge target=WithoutAge
 "#,
@@ -265,7 +265,7 @@ interface Person {
 }
 
 type WithoutAge = Omit<Person, "age">;
-/// @type.symbol symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" type=Omit<Person, "age">
+/// @type.symbol symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" type={ name: string }
 /// @definition.type symbol=WithoutAge source="type WithoutAge = Omit<Person, \"age\">" value=Omit<Person, "age">
 /// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
@@ -331,7 +331,7 @@ interface Person {
 }
 
 type WithoutAll = Omit<Person, "name" | "age">;
-/// @type.symbol symbol=WithoutAll source="type WithoutAll = Omit<Person, \"name\" | \"age\">" type=Omit<Person, "name" | "age">
+/// @type.symbol symbol=WithoutAll source="type WithoutAll = Omit<Person, \"name\" | \"age\">" type={}
 /// @definition.type symbol=WithoutAll source="type WithoutAll = Omit<Person, \"name\" | \"age\">" value=Omit<Person, "name" | "age">
 /// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
@@ -393,7 +393,7 @@ interface Person {
 }
 
 type Same = Omit<Person, "missing">;
-/// @type.symbol symbol=Same source="type Same = Omit<Person, \"missing\">" type=Omit<Person, "missing">
+/// @type.symbol symbol=Same source="type Same = Omit<Person, \"missing\">" type={ name: string; age: int32 }
 /// @definition.type symbol=Same source="type Same = Omit<Person, \"missing\">" value=Omit<Person, "missing">
 /// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
@@ -405,7 +405,7 @@ const person: Same = { name: "Ada", age: 42 };
 
 person satisfies Person;
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.name source=Person target=Person
 "#,
@@ -461,7 +461,7 @@ interface Person {
 }
 
 type NameOnly = Omit<Person, "age">;
-/// @type.symbol symbol=NameOnly source="type NameOnly = Omit<Person, \"age\">" type=Omit<Person, "age">
+/// @type.symbol symbol=NameOnly source="type NameOnly = Omit<Person, \"age\">" type={ readonly name: string }
 /// @definition.type symbol=NameOnly source="type NameOnly = Omit<Person, \"age\">" value=Omit<Person, "age">
 /// @resolution.name source=Omit target=Omit
 /// @resolution.name source=Person target=Person
@@ -473,7 +473,7 @@ const person: NameOnly = { name: "Ada" };
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.rejected source=person.name
 "#,

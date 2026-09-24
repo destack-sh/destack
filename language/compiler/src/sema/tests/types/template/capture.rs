@@ -27,7 +27,6 @@ declare function parse<T: string>(value: `${T}-${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `${T}-${T}`): T" type=<T: string>(`${T}-${T}`) => T
 /// @type.symbol symbol=parse.T source="T: string" type=T
-/// @type.symbol symbol=parse.value source="value: `${T}-${T}`" type=`${T}-${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
@@ -42,7 +41,7 @@ const segment = parse("row-row");
 
 segment satisfies "row";
 /// @resolution.name source=segment target=segment
-/// @resolution.place source=segment placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=segment placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=segment root=segment
 "#,
     );
@@ -73,7 +72,6 @@ declare function parse<T: string>(value: `${T}-${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `${T}-${T}`): T" type=<T: string>(`${T}-${T}`) => T
 /// @type.symbol symbol=parse.T source="T: string" type=T
-/// @type.symbol symbol=parse.value source="value: `${T}-${T}`" type=`${T}-${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
@@ -119,12 +117,10 @@ segment satisfies "users";
 === dir ===
 declare function withParsed<T: string, U>(value: `id:${T}`, callback: (segment: T) => U): U;
 /// @generic.template symbol=withParsed parameters=(T: string, U)
-/// @type.symbol symbol=withParsed type=<T: string, U>(`id:${T}`, Function<(T,), U>) => U
+/// @type.symbol symbol=withParsed type=<T: string, U>(`id:${T}`, (T) => U) => U
 /// @type.symbol symbol=withParsed.T source="T: string" type=T
 /// @type.symbol symbol=withParsed.U source=U type=U
-/// @type.symbol symbol=withParsed.value source="value: `id:${T}`" type=`id:${T}`
 /// @resolution.name source=T target=withParsed.T
-/// @type.symbol symbol=withParsed.callback source="callback: (segment: T) => U" type=Function<(T,), U>
 /// @type.symbol symbol=withParsed.segment source="segment: T" type=T
 /// @resolution.name source=T target=withParsed.T
 /// @resolution.name source=U target=withParsed.U
@@ -134,18 +130,18 @@ const segment = withParsed("id:users", (segment) => segment);
 /// @type.symbol symbol=segment source=segment type="users"
 /// @resolution.pattern source=segment kind=binding target=segment
 /// @resolution.name source=withParsed target=withParsed
-/// @resolution.call source="withParsed(\"id:users\", (segment) => segment)" parameters=(`id:${"users"}`, Function<("users",), "users">) arguments=(provided("id:users") as `id:${"users"}`, provided((segment) => segment) as Function<("users",), "users">) return="users" kind=symbol target=withParsed instance="withParsed<\"users\", \"users\">"
+/// @resolution.call source="withParsed(\"id:users\", (segment) => segment)" parameters=(`id:${"users"}`, ("users") => "users") arguments=(provided("id:users") as `id:${"users"}`, provided((segment) => segment) as ("users") => "users") return="users" kind=symbol target=withParsed instance="withParsed<\"users\", \"users\">"
 /// @generic.instantiation id="withParsed<\"users\", \"users\">" template=withParsed arguments=("users", "users")
 /// @generic.instance id="withParsed<\"users\", \"users\">" template=withParsed arguments=("users", "users") dependents=("id:users")
 /// @type.symbol symbol=symbol7 source="(segment) => segment" type=Function<("users",), "users", "readonly">
 /// @type.symbol symbol=symbol7.segment source=segment type="users"
 /// @resolution.name source=segment target=symbol7.segment
-/// @resolution.place source=segment placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=segment placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=segment root=symbol7.segment
 
 segment satisfies "users";
 /// @resolution.name source=segment target=segment
-/// @resolution.place source=segment placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=segment placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=segment root=segment
 "#,
     );
@@ -182,7 +178,6 @@ declare function parse<T: string>(value: `id:${T}`): T;
 /// @generic.template symbol=parse parameters=(T: string)
 /// @type.symbol symbol=parse source="declare function parse<T: string>(value: `id:${T}`): T" type=<T: string>(`id:${T}`) => T
 /// @type.symbol symbol=parse.T source="T: string" type=T
-/// @type.symbol symbol=parse.value source="value: `id:${T}`" type=`id:${T}`
 /// @resolution.name source=T target=parse.T
 /// @resolution.name source=T target=parse.T
 
@@ -197,12 +192,12 @@ const segment = parse(input);
 /// @resolution.call source=parse(input) parameters=(`id:${"users" | "posts"}`) arguments=(provided(input) as `id:${"users" | "posts"}`) return="users" | "posts" kind=symbol target=parse instance="parse<\"users\" | \"posts\">"
 /// @generic.instantiation id="parse<\"users\" | \"posts\">" template=parse arguments=("users" | "posts")
 /// @resolution.name source=input target=input
-/// @resolution.place source=input placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=input placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=input root=input
 
 segment satisfies "users" | "posts";
 /// @resolution.name source=segment target=segment
-/// @resolution.place source=segment placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=segment placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=segment root=segment
 "#,
         r#"

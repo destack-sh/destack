@@ -1,6 +1,6 @@
 use crate::tests::{DirRows, TestSession};
 
-/// Infer associated constant types from transcribable literal values.
+/// Infer associated constant types from literal initializers.
 #[test]
 fn test_infer_literal_associated_constants() {
     let session = TestSession::single(
@@ -56,9 +56,9 @@ interface Interface {
     );
 }
 
-/// Report associated constant types that cannot be transcribed.
+/// Report associated constant types that need inference.
 #[test]
-fn test_report_untranscribable_associated_constants() {
+fn test_report_associated_constants_needing_inference() {
     let session = TestSession::single(
         r#"
 class Class {
@@ -215,13 +215,13 @@ interface RegisterBlock {
 /// @definition.interface symbol=RegisterBlock template=(this: RegisterBlock)
 /// @definition.where symbol=RegisterBlock relation=satisfies left=this right=RegisterBlock
 /// @definition.associated.const symbol=RegisterBlock.Width source="const Width: usize" key=Width type=usize
-/// @definition.method symbol=RegisterBlock.read source="read(): [uint8; this.Width]" slot=read type=(this: this) => FixedArray<uint8, this.Width>
+/// @definition.method symbol=RegisterBlock.read source="read(): [uint8; this.Width]" slot=read type=() => FixedArray<uint8, this.Width>
 
     const Width: usize;
     /// @type.symbol symbol=RegisterBlock.Width source="const Width: usize" type=usize
 
     read(): [uint8; this.Width];
-    /// @type.symbol symbol=RegisterBlock.read source="read(): [uint8; this.Width]" type=(this: this) => FixedArray<uint8, this.Width>
+    /// @type.symbol symbol=RegisterBlock.read source="read(): [uint8; this.Width]" type=() => FixedArray<uint8, this.Width>
 
 }
 
@@ -236,12 +236,10 @@ function readHeader<T: RegisterBlock<const Width = 16>>(block: T): [uint8; 16] {
 
     return block.read();
     /// @resolution.name source=block target=readHeader.block
-    /// @resolution.member source=block.read receiver=T type=(this: T) => FixedArray<uint8, T.Width> kind=symbol target_receiver=T target=RegisterBlock.read
-    /// @resolution.call source=block.read() parameters=() return=FixedArray<uint8, T.Width> kind=symbol target=RegisterBlock.read receiver=T
-    /// @resolution.place source=block placement="local" lifetime="frame" access="mutable"
+    /// @resolution.member source=block.read receiver=T type=() => FixedArray<uint8, 16> kind=symbol target_receiver=T target=RegisterBlock.read
+    /// @resolution.call source=block.read() parameters=() return=FixedArray<uint8, 16> kind=symbol target=RegisterBlock.read receiver=T
+    /// @resolution.place source=block placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=block root=readHeader.block
-    /// @generic.instantiation id=RegisterBlock.read<T> template=RegisterBlock.read arguments=() owner=readHeader
-    /// @generic.instance id=RegisterBlock.read<T> template=RegisterBlock.read arguments=() dependents=(16)
 
 }
 "#,

@@ -226,6 +226,7 @@ newtype interface Rowed {
     /// @generic.template symbol=Rowed.row parent=template#0 parameters=(const Key#1: keyof this.Rows)
     /// @type.symbol symbol=Rowed.row source="static row<const Key: keyof this.Rows>(key: Key): this" type=<const Key#1: keyof this.Rows>(Key#1) => this
     /// @type.symbol symbol=Rowed.row.Key source="const Key: keyof this.Rows" type=Key#1
+    /// @resolution.name source=this.Rows target=Rowed.Rows
     /// @type.symbol symbol=Rowed.row.key source="key: Key" type=Key#1
     /// @resolution.name source=Key target=Rowed.row.Key
 
@@ -239,7 +240,7 @@ extension of Panel implements Rowed {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=Rowed target=Rowed
 /// @definition.associated.type symbol=Rows source="type Rows = { header: string }" key=Rows value={ header: string }
-/// @definition.method symbol=row slot=row static=true type=<const Key#2: keyof this.Rows>(Key#2) => Panel
+/// @definition.method symbol=row slot=row static=true type=<const Key#2: keyof Panel.Rows>(Key#2) => Panel
 /// @definition.conformance symbol=<module>#2 member=Rows requirement=Rowed.Rows
 /// @definition.conformance symbol=<module>#2 member=row requirement=Rowed.row
 /// @resolution.name source=Panel target=Panel
@@ -250,9 +251,10 @@ extension of Panel implements Rowed {
     /// @type.symbol symbol=Rows.header source="header: string" type=string
 
     static row<const Key: keyof this.Rows>(key: Key): Panel {
-    /// @generic.template symbol=row parent=template#1 parameters=(const Key#2: keyof this.Rows)
-    /// @type.symbol symbol=row type=<const Key#2: keyof this.Rows>(Key#2) => Panel
+    /// @generic.template symbol=row parent=template#1 parameters=(const Key#2: keyof Panel.Rows)
+    /// @type.symbol symbol=row type=<const Key#2: keyof Panel.Rows>(Key#2) => Panel
     /// @type.symbol symbol=row.Key source="const Key: keyof this.Rows" type=Key#2
+    /// @resolution.name source=this.Rows target=Rows
     /// @type.symbol symbol=row.key source="key: Key" type=Key#2
     /// @resolution.name source=Key target=row.Key
     /// @resolution.name source=Panel target=Panel
@@ -306,7 +308,7 @@ class Panel {}
 extension of Panel implements Rowed {
     type Rows = { header: string };
 
-    static row<const Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): Panel {
+    static row<const Key: keyof this.Rows>(key: Key, value: { header: string }[Key]): Panel {
         return new Panel();
     }
 }
@@ -327,9 +329,11 @@ newtype interface Rowed {
     /// @generic.template symbol=Rowed.row parent=template#0 parameters=(const Key#1: keyof this.Rows)
     /// @type.symbol symbol=Rowed.row source="static row<const Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): this" type=<const Key#1: keyof this.Rows>(Key#1, this.Rows[Key#1]) => this
     /// @type.symbol symbol=Rowed.row.Key source="const Key: keyof this.Rows" type=Key#1
+    /// @resolution.name source=this.Rows target=Rowed.Rows
     /// @type.symbol symbol=Rowed.row.key source="key: Key" type=Key#1
     /// @resolution.name source=Key target=Rowed.row.Key
     /// @type.symbol symbol=Rowed.row.value source="value: this.Rows[Key]" type=this.Rows[Key#1]
+    /// @resolution.name source=this.Rows target=Rowed.Rows
     /// @resolution.name source=Key target=Rowed.row.Key
 
 }
@@ -342,7 +346,7 @@ extension of Panel implements Rowed {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=Rowed target=Rowed
 /// @definition.associated.type symbol=Rows source="type Rows = { header: string }" key=Rows value={ header: string }
-/// @definition.method symbol=row slot=row static=true type=<const Key#2: keyof this.Rows>(Key#2, { header: string }[Key#2]) => Panel
+/// @definition.method symbol=row slot=row static=true type=<const Key#2: keyof Panel.Rows>(Key#2, { header: string }[Key#2]) => Panel
 /// @definition.conformance symbol=<module>#2 member=Rows requirement=Rowed.Rows
 /// @definition.conformance symbol=<module>#2 member=row requirement=Rowed.row
 /// @resolution.name source=Panel target=Panel
@@ -353,12 +357,14 @@ extension of Panel implements Rowed {
     /// @type.symbol symbol=Rows.header source="header: string" type=string
 
     static row<const Key: keyof this.Rows>(key: Key, value: this.Rows[Key]): Panel {
-    /// @generic.template symbol=row parent=template#1 parameters=(const Key#2: keyof this.Rows)
-    /// @type.symbol symbol=row type=<const Key#2: keyof this.Rows>(Key#2, { header: string }[Key#2]) => Panel
+    /// @generic.template symbol=row parent=template#1 parameters=(const Key#2: keyof Panel.Rows)
+    /// @type.symbol symbol=row type=<const Key#2: keyof Panel.Rows>(Key#2, { header: string }[Key#2]) => Panel
     /// @type.symbol symbol=row.Key source="const Key: keyof this.Rows" type=Key#2
+    /// @resolution.name source=this.Rows target=Rows
     /// @type.symbol symbol=row.key source="key: Key" type=Key#2
     /// @resolution.name source=Key target=row.Key
-    /// @type.symbol symbol=row.value source="value: this.Rows[Key]" type=this.Rows[Key#2]
+    /// @type.symbol symbol=row.value source="value: this.Rows[Key]" type={ header: string }[Key#2]
+    /// @resolution.name source=this.Rows target=Rows
     /// @resolution.name source=Key target=row.Key
     /// @resolution.name source=Panel target=Panel
 
@@ -420,20 +426,9 @@ newtype interface Grouper {
     /// @generic.template symbol=Grouper.group parent=template#0 parameters=(Children#1: (...unknown[],))
     /// @type.symbol symbol=Grouper.group source="static group<Children: (...unknown[],)>(children: Children): this" type=<Children#1: (...unknown[],)>(Children#1) => this
     /// @type.symbol symbol=Grouper.group.Children source="Children: (...unknown[],)" type=Children#1
-    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-    /// @generic.instance id="elementSlot<unknown, \"mutable\">" template=elementSlot arguments=(unknown, "mutable")
-    /// @generic.instance id="initAsPointer<unknown, \"mutable\">" template=initAsPointer arguments=(unknown, "mutable")
-    /// @generic.instance id="sliceIndex<MaybeUninit<unknown>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<unknown>, "mutable")
-    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
     /// @generic.instance id=Array<unknown> template=Array arguments=(unknown)
-    /// @generic.instance id=assumeInitDrop#1<unknown> template=assumeInitDrop#1 arguments=(unknown)
-    /// @generic.instance id=assumeInitDrop<unknown> template=assumeInitDrop arguments=(unknown)
-    /// @generic.instance id=clear<unknown> template=clear arguments=(unknown)
-    /// @generic.instance id=drop<unknown> template=drop arguments=(unknown)
-    /// @generic.instance id=dropInPlace<unknown> template=dropInPlace arguments=(unknown)
     /// @generic.instance id=sliceAssumeInit<MaybeUninit<unknown>> template=sliceAssumeInit arguments=(MaybeUninit<unknown>)
     /// @generic.instance id=sliceUninit<MaybeUninit<unknown>> template=sliceUninit arguments=(MaybeUninit<unknown>)
-    /// @generic.instance id=truncate<unknown> template=truncate arguments=(unknown)
     /// @type.symbol symbol=Grouper.group.children source="children: Children" type=Children#1
     /// @resolution.name source=Children target=Grouper.group.Children
 
@@ -520,7 +515,7 @@ extension of Panel implements TreeBuilder {
 
     static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
-        attributes: this.Tags[Tag],
+        attributes: { div: { class?: string }; span: {} }[Tag],
         children: Children,
     ): Panel {
         return new Panel();
@@ -548,7 +543,7 @@ extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; span: {} }
-/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, { div: { class?: string }; span: {} }[Tag], Children#1) => Panel
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof Panel.Tags, Children#1: (...unknown[],)>(Tag, { div: { class?: string }; span: {} }[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
 /// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
 /// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
@@ -569,31 +564,22 @@ extension of Panel implements TreeBuilder {
     };
 
     static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
-    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
-    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, { div: { class?: string }; span: {} }[Tag], Children#1) => Panel
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof Panel.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof Panel.Tags, Children#1: (...unknown[],)>(Tag, { div: { class?: string }; span: {} }[Tag], Children#1) => Panel
     /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
+    /// @resolution.name source=this.Tags target=Tags
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
-    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-    /// @generic.instance id="elementSlot<unknown, \"mutable\">" template=elementSlot arguments=(unknown, "mutable")
-    /// @generic.instance id="initAsPointer<unknown, \"mutable\">" template=initAsPointer arguments=(unknown, "mutable")
-    /// @generic.instance id="sliceIndex<MaybeUninit<unknown>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<unknown>, "mutable")
-    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
     /// @generic.instance id=Array<unknown> template=Array arguments=(unknown)
-    /// @generic.instance id=assumeInitDrop#1<unknown> template=assumeInitDrop#1 arguments=(unknown)
-    /// @generic.instance id=assumeInitDrop<unknown> template=assumeInitDrop arguments=(unknown)
-    /// @generic.instance id=clear<unknown> template=clear arguments=(unknown)
-    /// @generic.instance id=drop<unknown> template=drop arguments=(unknown)
-    /// @generic.instance id=dropInPlace<unknown> template=dropInPlace arguments=(unknown)
     /// @generic.instance id=sliceAssumeInit<MaybeUninit<unknown>> template=sliceAssumeInit arguments=(MaybeUninit<unknown>)
     /// @generic.instance id=sliceUninit<MaybeUninit<unknown>> template=sliceUninit arguments=(MaybeUninit<unknown>)
-    /// @generic.instance id=truncate<unknown> template=truncate arguments=(unknown)
 
         tag: Tag,
         /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
         /// @resolution.name source=Tag target=element.Tag
 
         attributes: this.Tags[Tag],
-        /// @type.symbol symbol=element.attributes source="attributes: this.Tags[Tag]" type=this.Tags[Tag]
+        /// @type.symbol symbol=element.attributes source="attributes: this.Tags[Tag]" type={ div: { class?: string }; span: {} }[Tag]
+        /// @resolution.name source=this.Tags target=Tags
         /// @resolution.name source=Tag target=element.Tag
 
         children: Children,
@@ -683,7 +669,7 @@ extension of Panel implements TreeBuilder {
 
     static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
-        attributes: this.Tags[Tag],
+        attributes: { div: { class?: string }; span: {} }[Tag],
         children: Children,
     ): Panel {
         return new Panel();
@@ -720,7 +706,7 @@ extension of Panel implements TreeBuilder {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.implements symbol=<module>#2 source=TreeBuilder target=TreeBuilder
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; span: {} }
-/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, { div: { class?: string }; span: {} }[Tag], Children#1) => Panel
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof Panel.Tags, Children#1: (...unknown[],)>(Tag, { div: { class?: string }; span: {} }[Tag], Children#1) => Panel
 /// @definition.method symbol=fragment slot=fragment static=true type=<Children#2: (...unknown[],)>(Children#2) => Panel
 /// @definition.conformance symbol=<module>#2 member=Tags requirement=TreeBuilder.Tags
 /// @definition.conformance symbol=<module>#2 member=element requirement=TreeBuilder.element
@@ -741,31 +727,22 @@ extension of Panel implements TreeBuilder {
     };
 
     static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
-    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof this.Tags, Children#1: (...unknown[],))
-    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children#1: (...unknown[],)>(Tag, { div: { class?: string }; span: {} }[Tag], Children#1) => Panel
+    /// @generic.template symbol=element parent=template#0 parameters=(const Tag: keyof Panel.Tags, Children#1: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof Panel.Tags, Children#1: (...unknown[],)>(Tag, { div: { class?: string }; span: {} }[Tag], Children#1) => Panel
     /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
+    /// @resolution.name source=this.Tags target=Tags
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children#1
-    /// @generic.instance id="Cast.truncate<isize, usize>" template=Cast.truncate arguments=(isize, usize)
-    /// @generic.instance id="elementSlot<unknown, \"mutable\">" template=elementSlot arguments=(unknown, "mutable")
-    /// @generic.instance id="initAsPointer<unknown, \"mutable\">" template=initAsPointer arguments=(unknown, "mutable")
-    /// @generic.instance id="sliceIndex<MaybeUninit<unknown>, \"mutable\">" template=sliceIndex arguments=(MaybeUninit<unknown>, "mutable")
-    /// @generic.instance id="truncateInt<isize, usize>" template=truncateInt arguments=(isize, usize)
     /// @generic.instance id=Array<unknown> template=Array arguments=(unknown)
-    /// @generic.instance id=assumeInitDrop#1<unknown> template=assumeInitDrop#1 arguments=(unknown)
-    /// @generic.instance id=assumeInitDrop<unknown> template=assumeInitDrop arguments=(unknown)
-    /// @generic.instance id=clear<unknown> template=clear arguments=(unknown)
-    /// @generic.instance id=drop<unknown> template=drop arguments=(unknown)
-    /// @generic.instance id=dropInPlace<unknown> template=dropInPlace arguments=(unknown)
     /// @generic.instance id=sliceAssumeInit<MaybeUninit<unknown>> template=sliceAssumeInit arguments=(MaybeUninit<unknown>)
     /// @generic.instance id=sliceUninit<MaybeUninit<unknown>> template=sliceUninit arguments=(MaybeUninit<unknown>)
-    /// @generic.instance id=truncate<unknown> template=truncate arguments=(unknown)
 
         tag: Tag,
         /// @type.symbol symbol=element.tag source="tag: Tag" type=Tag
         /// @resolution.name source=Tag target=element.Tag
 
         attributes: this.Tags[Tag],
-        /// @type.symbol symbol=element.attributes source="attributes: this.Tags[Tag]" type=this.Tags[Tag]
+        /// @type.symbol symbol=element.attributes source="attributes: this.Tags[Tag]" type={ div: { class?: string }; span: {} }[Tag]
+        /// @resolution.name source=this.Tags target=Tags
         /// @resolution.name source=Tag target=element.Tag
 
         children: Children,
@@ -806,14 +783,14 @@ function render(): Panel {
     /// @resolution.name source=Panel target=Panel
     /// @resolution.tree source="<div class=\"intro\"><span/></div>" builder=Panel form=element tag=div call=element attributes=(class: "intro") children=(Panel) type=Panel
     /// @generic.instantiation id="element<\"div\", (Panel,)>" template=element arguments=("div", (Panel,))
-    /// @generic.instance id="element<\"div\", (Panel,)>" template=element arguments=("div", (Panel,)) dependents=(this.Tags["div"])
+    /// @generic.instance id="element<\"div\", (Panel,)>" template=element arguments=("div", (Panel,)) dependents=({ class?: string })
     /// @resolution.tree source=<span/> builder=Panel form=element tag=span call=element children=() type=Panel
     /// @generic.instantiation id="element<\"span\", ()>" template=element arguments=("span", ())
-    /// @generic.instance id="element<\"span\", ()>" template=element arguments=("span", ()) dependents=(this.Tags["span"])
+    /// @generic.instance id="element<\"span\", ()>" template=element arguments=("span", ()) dependents=({})
 
     return page;
     /// @resolution.name source=page target=render.page
-    /// @resolution.place source=page placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=page placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=page root=render.page
 
 }
@@ -866,7 +843,7 @@ extension of Panel {
 
     static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
         tag: Tag,
-        attributes: this.Tags[Tag],
+        attributes: { div: { class?: string }; span: {} }[Tag],
         children: Children,
     ): Panel {
         return new Panel();
@@ -874,7 +851,11 @@ extension of Panel {
 }
 
 function render(): Panel {
-    const page: Panel = Panel.element<"div", (Panel,)>("div", { class: "intro" }, (new Panel(),));
+    const page: Panel = Panel.element<"div", (Panel,)>(
+        "div",
+        { class: "intro" as string | undefined },
+        (new Panel(),),
+    );
     return page;
 }
 
@@ -892,7 +873,7 @@ class Panel {
 extension of Panel {
 /// @definition.extension symbol=<module>#2 form=local target=Panel
 /// @definition.associated.type symbol=Tags key=Tags value={ div: { class?: string }; span: {} }
-/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof this.Tags, Children: (...unknown[],)>(Tag, this.Tags[Tag], Children) => Panel
+/// @definition.method symbol=element slot=element static=true type=<const Tag: keyof Panel.Tags, Children: (...unknown[],)>(Tag, { div: { class?: string }; span: {} }[Tag], Children) => Panel
 /// @resolution.name source=Panel target=Panel
 
     type Tags = {
@@ -908,9 +889,10 @@ extension of Panel {
     };
 
     static element<const Tag: keyof this.Tags, Children: (...unknown[],)>(
-    /// @generic.template symbol=element parameters=(const Tag: keyof this.Tags, Children: (...unknown[],))
-    /// @type.symbol symbol=element type=<const Tag: keyof this.Tags, Children: (...unknown[],)>(Tag, this.Tags[Tag], Children) => Panel
+    /// @generic.template symbol=element parameters=(const Tag: keyof Panel.Tags, Children: (...unknown[],))
+    /// @type.symbol symbol=element type=<const Tag: keyof Panel.Tags, Children: (...unknown[],)>(Tag, { div: { class?: string }; span: {} }[Tag], Children) => Panel
     /// @type.symbol symbol=element.Tag source="const Tag: keyof this.Tags" type=Tag
+    /// @resolution.name source=this.Tags target=Tags
     /// @type.symbol symbol=element.Children source="Children: (...unknown[],)" type=Children
 
         tag: Tag,
@@ -918,7 +900,8 @@ extension of Panel {
         /// @resolution.name source=Tag target=element.Tag
 
         attributes: this.Tags[Tag],
-        /// @type.symbol symbol=element.attributes source="attributes: this.Tags[Tag]" type=this.Tags[Tag]
+        /// @type.symbol symbol=element.attributes source="attributes: this.Tags[Tag]" type={ div: { class?: string }; span: {} }[Tag]
+        /// @resolution.name source=this.Tags target=Tags
         /// @resolution.name source=Tag target=element.Tag
 
         children: Children,
@@ -944,7 +927,7 @@ function render(): Panel {
     /// @resolution.pattern source=page kind=binding target=render.page
     /// @resolution.name source=Panel target=Panel
     /// @resolution.name source=Panel target=Panel
-    /// @resolution.member source=Panel.element receiver=typeof Panel type=<const Tag: keyof this.Tags, Children: (...unknown[],)>(Tag, this.Tags[Tag], Children) => Panel kind=symbol target_receiver=typeof Panel target=element
+    /// @resolution.member source=Panel.element receiver=typeof Panel type=<const Tag: keyof Panel.Tags, Children: (...unknown[],)>(Tag, { div: { class?: string }; span: {} }[Tag], Children) => Panel kind=symbol target_receiver=typeof Panel target=element
     /// @resolution.call source="Panel.element(\"div\", { class: \"intro\" }, (new Panel(),))" parameters=("div", { div: { class?: string }; span: {} }["div"], (Panel,)) arguments=(provided("div") as "div", provided({ class: "intro" }) as { div: { class?: string }; span: {} }["div"], provided((new Panel(),)) as (Panel,)) return=Panel kind=symbol target=element instance="Panel.<extension#1>.element<\"div\", (Panel,)>"
     /// @generic.instantiation id="element<\"div\", (Panel,)>" template=element arguments=("div", (Panel,))
     /// @resolution.construct source="new Panel()" parameters=() return=Panel kind=class target=Panel constructor=default
@@ -952,9 +935,10 @@ function render(): Panel {
 
     return page;
     /// @resolution.name source=page target=render.page
-    /// @resolution.place source=page placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=page placement="local" lifetime="frame" access="immutable"
     /// @resolution.access source=page root=render.page
 
 }
-"#, "");
+"#, r#"
+"#);
 }

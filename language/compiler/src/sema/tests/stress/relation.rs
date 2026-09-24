@@ -27,7 +27,7 @@ check.members.derived=0
 check.members.refused=0
 check.instantiations=0
 check.interns=12017
-check.reduces=25031
+check.reduces=25051
 "#,
     );
 }

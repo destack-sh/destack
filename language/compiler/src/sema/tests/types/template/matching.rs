@@ -45,12 +45,12 @@ const posts: Route = "api:posts";
 
 users satisfies "api:users" | "api:posts";
 /// @resolution.name source=users target=users
-/// @resolution.place source=users placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=users placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=users root=users
 
 posts satisfies Route;
 /// @resolution.name source=posts target=posts
-/// @resolution.place source=posts placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=posts placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=posts root=posts
 /// @resolution.name source=Route target=Route
 "#,
@@ -270,7 +270,7 @@ const ok: AnyString = value;
 /// @resolution.pattern source=ok kind=binding target=ok
 /// @resolution.name source=AnyString target=AnyString
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -312,7 +312,7 @@ const item: NumericRoute = "item:42";
 
 item satisfies `item:${number}`;
 /// @resolution.name source=item target=item
-/// @resolution.place source=item placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=item placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=item root=item
 "#,
     );

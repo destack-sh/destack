@@ -50,12 +50,12 @@ struct Document {
 
 extension<T> of Box<T> where T: Readable {
     read(&readonly this): string {
-        return this.value.read();
+        return this.value.read<'a>();
     }
 }
 
 declare const boxed: Box<Document>;
-const text: string = boxed.read<Document>();
+const text: string = boxed.read<Document, "static">();
 
 === dir ===
 interface Readable {
@@ -93,7 +93,7 @@ struct Document {
     read(&readonly this): string {
     /// @generic.template symbol=Document.read parameters=('a)
     /// @type.symbol symbol=Document.read type=<Document.read.'a>(this: &Document.read.'a readonly Document) => string
-    /// @type.symbol symbol=Document.read.this source="&readonly this" type=&Document.read.'a readonly this
+    /// @type.symbol symbol=Document.read.this source="&readonly this" type=&Document.read.'a readonly Document
 
         return "ok";
     }
@@ -114,19 +114,19 @@ extension<T> of Box<T> where T: Readable {
     read(&readonly this): string {
     /// @generic.template symbol=read parent=template#2 parameters=('a)
     /// @type.symbol symbol=read type=<read.'a>(this: &read.'a readonly Box<T#2>) => string
-    /// @type.symbol symbol=read.this source="&readonly this" type=&read.'a readonly this
+    /// @type.symbol symbol=read.this source="&readonly this" type=&read.'a readonly Box<T#2>
 
         return this.value.read();
         /// @resolution.member source=this.value receiver=&read.'a readonly Box<T#2> type=T#2 kind=field target_receiver=&read.'a readonly Box<T#2> key=value target=Box.value target_type=T#2
         /// @resolution.member source=this.value.read receiver=T#2 type=<Readable.read.'a>(this: &Readable.read.'a readonly T#2) => string kind=symbol target_receiver=T#2 target=Readable.read
-        /// @resolution.call source=this.value.read() parameters=() return=string regions=(read.'a) kind=symbol target=Readable.read receiver=T#2 adjustments=(borrow(&read.'a readonly T#2))
+        /// @resolution.call source=this.value.read() parameters=() return=string regions=(read.'a) kind=symbol target=Readable.read receiver=T#2 adjustments=(borrow(&read.'a readonly T#2)) instance=Readable.read<read.'a>
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&read.'a readonly Box<T#2>
         /// @resolution.place source=this placement=read.'a lifetime=read.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=read.'a lifetime=read.'a access="readonly"
         /// @resolution.access source=this.value root=this keys=[value]
-        /// @generic.instantiation id=Readable.read<T#2> template=Readable.read arguments=() owner=read
-        /// @generic.instance id=Readable.read<T#2> template=Readable.read arguments=()
+        /// @generic.instantiation id="Readable.read<T#2, read.'a>" template=Readable.read arguments=(read.'a) owner=read
+        /// @generic.instance id="Readable.read<T#2, read.'a>" template=Readable.read arguments=(read.'a)
 
     }
 }
@@ -143,11 +143,12 @@ const text = boxed.read();
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=boxed target=boxed
 /// @resolution.member source=boxed.read receiver=Box<Document> type=<read.'a>(this: &read.'a readonly Box<Document>) => string kind=symbol target_receiver=Box<Document> target=read
-/// @resolution.call source=boxed.read() parameters=() return=string regions=("static" & "constant") kind=symbol target=read receiver=Box<Document> adjustments=(borrow(&'static readonly constant Box<Document>)) instance=Box<Document>.<extension#1>.read
-/// @resolution.place source=boxed placement="constant" lifetime="static" access="readonly"
+/// @resolution.call source=boxed.read() parameters=() return=string regions=("static" & "local") kind=symbol target=read receiver=Box<Document> adjustments=(borrow(&'static readonly Box<Document>)) instance="Box<Document>.<extension#1>.read<\"static\" & \"local\">"
+/// @resolution.place source=boxed placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=boxed root=boxed
+/// @generic.instantiation id="read<Document, \"static\" & \"local\">" template=read arguments=(Document, "static" & "local")
 /// @generic.instantiation id=read<Document> template=read arguments=(Document)
-/// @generic.instance id=read<Document> template=read arguments=(Document)
+/// @generic.instance id="read<Document, \"bound0\" & \"local\">" template=read arguments=(Document, "bound0" & "local")
 "#,
     );
 }
@@ -207,10 +208,10 @@ interface Readable {
 /// @type.symbol symbol=Readable type=Readable
 /// @definition.interface symbol=Readable template=(this: Readable)
 /// @definition.where symbol=Readable relation=satisfies left=this right=Readable
-/// @definition.method symbol=Readable.read source="read(): string" slot=read type=(this: this) => string
+/// @definition.method symbol=Readable.read source="read(): string" slot=read type=() => string
 
     read(): string;
-    /// @type.symbol symbol=Readable.read source="read(): string" type=(this: this) => string
+    /// @type.symbol symbol=Readable.read source="read(): string" type=() => string
 
 }
 
@@ -235,7 +236,7 @@ extension<T> of Box<T> where T: Readable {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=local target=Box<T#2>
 /// @definition.where symbol=<module>#2 source="T: Readable" relation=satisfies left=T#2 right=Readable
-/// @definition.method symbol=read slot=read type=<read.'a>(this: &read.'a readonly this) => string
+/// @definition.method symbol=read slot=read type=<read.'a>(this: &read.'a readonly Box<T#2>) => string
 /// @type.symbol symbol=T source=T type=T#2
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=T target=T
@@ -244,23 +245,22 @@ extension<T> of Box<T> where T: Readable {
 
     read(): string {
     /// @generic.template symbol=read parent=template#2 parameters=('a)
-    /// @type.symbol symbol=read type=<read.'a>(this: &read.'a readonly this) => string
+    /// @type.symbol symbol=read type=<read.'a>(this: &read.'a readonly Box<T#2>) => string
     /// @type.symbol symbol=read.this type=&read.'a readonly Box<T#2>
 
         return this.value.read();
         /// @type.node source=this type=&read.'a readonly Box<T#2>
         /// @type.node source=this.value type=T#2
-        /// @type.node source=this.value.read type=(this: T#2) => string
+        /// @type.node source=this.value.read type=() => string
         /// @type.node source=this.value.read() type=string
         /// @resolution.member source=this.value receiver=&read.'a readonly Box<T#2> type=T#2 kind=field target_receiver=&read.'a readonly Box<T#2> key=value target=Box.value target_type=T#2
-        /// @resolution.member source=this.value.read receiver=T#2 type=(this: T#2) => string kind=symbol target_receiver=T#2 target=Readable.read
+        /// @resolution.member source=this.value.read receiver=T#2 type=() => string kind=symbol target_receiver=T#2 target=Readable.read
         /// @resolution.call source=this.value.read() parameters=() return=string kind=symbol target=Readable.read receiver=T#2
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&read.'a readonly Box<T#2>
         /// @resolution.place source=this placement=read.'a lifetime=read.'a access="readonly"
         /// @resolution.access source=this root=this
         /// @resolution.place source=this.value placement=read.'a lifetime=read.'a access="readonly"
         /// @resolution.access source=this.value root=this keys=[value]
-        /// @generic.instantiation id=Readable.read<T#2> template=Readable.read arguments=() owner=read
 
     }
 }
@@ -276,7 +276,7 @@ boxed.read();
 /// @type.node source=boxed.read type=<error>
 /// @type.node source=boxed.read() type=<error>
 /// @resolution.name source=boxed target=boxed
-/// @resolution.place source=boxed placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=boxed placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=boxed root=boxed
 /// @resolution.rejected source=boxed.read
 /// @resolution.rejected source=boxed.read()
@@ -351,15 +351,16 @@ interface Keyed<I> {
 /// @definition.interface symbol=Keyed template=(in I, this: Keyed<I>)
 /// @definition.where symbol=Keyed relation=satisfies left=this right=Keyed<I>
 /// @definition.associated.type symbol=Keyed.Output source="type Output" key=Output
-/// @definition.method symbol=Keyed.index source="index(key: I): this.Output" slot=index type=(this: this, I) => this.Output
+/// @definition.method symbol=Keyed.index source="index(key: I): this.Output" slot=index type=(I) => this.Output
 /// @type.symbol symbol=Keyed.I source=I type=I
 
     type Output;
 
     index(key: I): this.Output;
-    /// @type.symbol symbol=Keyed.index source="index(key: I): this.Output" type=(this: this, I) => this.Output
+    /// @type.symbol symbol=Keyed.index source="index(key: I): this.Output" type=(I) => this.Output
     /// @type.symbol symbol=Keyed.index.key source="key: I" type=I
     /// @resolution.name source=I target=Keyed.I
+    /// @resolution.name source=this.Output target=Keyed.Output
 
 }
 
@@ -465,7 +466,7 @@ export extension<T> of Pack<T> where T: Copy {
 
 export extension<T> of Pack<T> where T: Copy {
     twice(&readonly this): T {
-        this.duplicate<T>()
+        this.duplicate<T, 'a>()
     }
 }
 
@@ -489,7 +490,7 @@ export extension<T> of Pack<T> where T: Copy {
 /// @generic.template symbol=<module>#2 parameters=(T#2)
 /// @definition.extension symbol=<module>#2 form=exported target=Pack<T#2>
 /// @definition.where symbol=<module>#2 source="T: Copy" relation=satisfies left=T#2 right=Copy
-/// @definition.method symbol=duplicate slot=duplicate type=<duplicate.'a>(this: &duplicate.'a readonly this) => T#2
+/// @definition.method symbol=duplicate slot=duplicate type=<duplicate.'a>(this: &duplicate.'a readonly Pack<T#2>) => T#2
 /// @type.symbol symbol=T#1 source=T type=T#2
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T#1
@@ -498,8 +499,8 @@ export extension<T> of Pack<T> where T: Copy {
 
     duplicate(&readonly this): T {
     /// @generic.template symbol=duplicate parent=template#1 parameters=('a)
-    /// @type.symbol symbol=duplicate type=<duplicate.'a>(this: &duplicate.'a readonly this) => T#2
-    /// @type.symbol symbol=duplicate.this source="&readonly this" type=&duplicate.'a readonly this
+    /// @type.symbol symbol=duplicate type=<duplicate.'a>(this: &duplicate.'a readonly Pack<T#2>) => T#2
+    /// @type.symbol symbol=duplicate.this source="&readonly this" type=&duplicate.'a readonly Pack<T#2>
     /// @resolution.name source=T target=T#1
 
         todo("Pack.duplicate")
@@ -516,7 +517,7 @@ export extension<T> of Pack<T> where T: Copy {
 /// @generic.template symbol=<module>#3 parameters=(T#3)
 /// @definition.extension symbol=<module>#3 form=exported target=Pack<T#3>
 /// @definition.where symbol=<module>#3 source="T: Copy" relation=satisfies left=T#3 right=Copy
-/// @definition.method symbol=twice slot=twice type=<twice.'a>(this: &twice.'a readonly this) => T#3
+/// @definition.method symbol=twice slot=twice type=<twice.'a>(this: &twice.'a readonly Pack<T#3>) => T#3
 /// @type.symbol symbol=T#2 source=T type=T#3
 /// @resolution.name source=Pack target=Pack
 /// @resolution.name source=T target=T#2
@@ -525,8 +526,8 @@ export extension<T> of Pack<T> where T: Copy {
 
     twice(&readonly this): T {
     /// @generic.template symbol=twice parent=template#2 parameters=('a)
-    /// @type.symbol symbol=twice type=<twice.'a>(this: &twice.'a readonly this) => T#3
-    /// @type.symbol symbol=twice.this source="&readonly this" type=&twice.'a readonly this
+    /// @type.symbol symbol=twice type=<twice.'a>(this: &twice.'a readonly Pack<T#3>) => T#3
+    /// @type.symbol symbol=twice.this source="&readonly this" type=&twice.'a readonly Pack<T#3>
     /// @resolution.name source=T target=T#2
 
         this.duplicate()
@@ -534,10 +535,11 @@ export extension<T> of Pack<T> where T: Copy {
         /// @type.node source=this.duplicate type=<duplicate.'a>(this: &duplicate.'a readonly Pack<T#3>) => T#3
         /// @type.node source=this.duplicate() type=T#3
         /// @resolution.member source=this.duplicate receiver=&twice.'a readonly Pack<T#3> type=<duplicate.'a>(this: &duplicate.'a readonly Pack<T#3>) => T#3 kind=symbol target_receiver=&twice.'a readonly Pack<T#3> target=duplicate
-        /// @resolution.call source=this.duplicate() parameters=() return=T#3 regions=(twice.'a) kind=symbol target=duplicate receiver=&twice.'a readonly Pack<T#3> instance=Pack<T#3>.<extension#1>.duplicate
+        /// @resolution.call source=this.duplicate() parameters=() return=T#3 regions=(twice.'a) kind=symbol target=duplicate receiver=&twice.'a readonly Pack<T#3> instance=Pack<T#3>.<extension#1>.duplicate<twice.'a>
         /// @resolution.receiver source=this kind=this declaration=<module>#3 type=&twice.'a readonly Pack<T#3>
         /// @resolution.place source=this placement=twice.'a lifetime=twice.'a access="readonly"
         /// @resolution.access source=this root=this
+        /// @generic.instantiation id="duplicate<T#3, twice.'a>" template=duplicate arguments=(T#3, twice.'a) owner=twice
         /// @generic.instantiation id=duplicate<T#3> template=duplicate arguments=(T#3) owner=twice
 
     }
@@ -597,23 +599,23 @@ struct Box<T> {
 extension<T, U> of Box<T> {
 /// @generic.template symbol=<module>#2 parameters=(T#2, U)
 /// @definition.extension symbol=<module>#2 form=local target=Box<T#2>
-/// @definition.method symbol=first slot=first type=(this: this) => T#2
+/// @definition.method symbol=first slot=first type=(this: Box<T#2>) => T#2
 /// @type.symbol symbol=T source=T type=T#2
 /// @type.symbol symbol=U source=U type=U
 /// @resolution.name source=Box target=Box
 /// @resolution.name source=T target=T
 
     first(this): T {
-    /// @type.symbol symbol=first type=(this: this) => T#2
-    /// @type.symbol symbol=first.this source=this type=this
+    /// @type.symbol symbol=first type=(this: Box<T#2>) => T#2
+    /// @type.symbol symbol=first.this source=this type=Box<T#2>
     /// @resolution.name source=T target=T
 
         return this.value;
         /// @resolution.member source=this.value receiver=Box<T#2> type=T#2 kind=field target_receiver=Box<T#2> key=value target=Box.value target_type=T#2
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=Box<T#2>
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this.value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this.value root=this keys=[value]
 
     }
@@ -730,7 +732,7 @@ extension<T, I: Give<Box<T>>> of I {
 
     unwrap(this): T {
     /// @type.symbol symbol=unwrap type=(this: I) => T#3
-    /// @type.symbol symbol=unwrap.this source=this type=this
+    /// @type.symbol symbol=unwrap.this source=this type=I
     /// @resolution.name source=T target=T
 
         return this.give().value;
@@ -738,9 +740,9 @@ extension<T, I: Give<Box<T>>> of I {
         /// @resolution.member source=this.give().value receiver=Box<T#3> type=T#3 kind=field target_receiver=Box<T#3> key=value target=Box.value target_type=T#3
         /// @resolution.call source=this.give() parameters=() return=Box<T#3> kind=symbol target=Give.give receiver=I instance=Give<Box<T#3>>.give
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=I
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.give().value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this.give().value placement="local" lifetime="frame" access="exclusive"
         /// @generic.instantiation id="Give.give<I, Box<T#3>>" template=Give.give arguments=(Box<T#3>) owner=unwrap
         /// @generic.instantiation id=Give.give<Box<T#3>> template=Give.give arguments=(Box<T#3>) owner=unwrap
         /// @generic.instance id="Give.give<I, Box<T#3>>" template=Give.give arguments=(Box<T#3>)
@@ -765,7 +767,7 @@ extension of Token implements Give<Box<boolean>> {
 
     give(this): Box<boolean> {
     /// @type.symbol symbol=give type=(this: Token) => Box<boolean>
-    /// @type.symbol symbol=give.this source=this type=this
+    /// @type.symbol symbol=give.this source=this type=Token
     /// @resolution.name source=Box target=Box
 
         return Box<boolean> { value: true };
@@ -783,7 +785,7 @@ function open(value: Token): boolean {
     /// @resolution.name source=value target=open.value
     /// @resolution.member source=value.unwrap receiver=Token type=(this: Token) => boolean kind=symbol target_receiver=Token target=unwrap
     /// @resolution.call source=value.unwrap() parameters=() return=boolean kind=symbol target=unwrap receiver=Token instance=Token.<extension#1>.unwrap
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=open.value
     /// @generic.instantiation id="unwrap<boolean, Token>" template=unwrap arguments=(boolean, Token)
     /// @generic.instance id="unwrap<boolean, Token>" template=unwrap arguments=(boolean, Token)

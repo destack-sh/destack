@@ -34,9 +34,11 @@ const text = token as string;
 /// @type.symbol symbol=text source=text type=string
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=token target=token
-/// @resolution.place source=token placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=token placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=token root=token
-"#, r#""#);
+"#, r#"
+
+"#);
 }
 
 /// A private backing rejects constructions from another module.
@@ -122,7 +124,7 @@ const text = token as string;
 /// @type.symbol symbol=text source=text type=string
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=token target=token
-/// @resolution.place source=token placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=token placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=token root=token
 "#,
         r#"
@@ -173,7 +175,9 @@ const text = token as string;
 /// @type.symbol symbol=text source=text type=string
 /// @resolution.pattern source=text kind=binding target=text
 /// @resolution.name source=token target=token
-/// @resolution.place source=token placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=token placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=token root=token
-"#, r#""#);
+"#, r#"
+
+"#);
 }

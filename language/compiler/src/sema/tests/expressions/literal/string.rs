@@ -153,13 +153,15 @@ const isEmpty = "".isEmpty;
 /// @resolution.pattern source=isEmpty kind=binding target=isEmpty
 /// @type.node source="\"\"" type=""
 /// @type.node source="\"\".isEmpty" type=boolean
-/// @resolution.member source="\"\".isEmpty" receiver="" type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean, regions=(\"frame\" & \"local\"))"
+/// @resolution.member source="\"\".isEmpty" receiver="" type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean, regions=(\"managed\" & \"local\"))"
+/// @generic.instantiation id="isEmpty<\"managed\" & \"local\">" template=isEmpty arguments=("managed" & "local")
+/// @generic.instance id="isEmpty<\"bound0\" & \"local\">" template=isEmpty arguments=("bound0" & "local")
 
 isEmpty satisfies boolean;
 /// @type.node source="isEmpty satisfies boolean" type=boolean
 /// @type.node source=isEmpty type=boolean
 /// @resolution.name source=isEmpty target=isEmpty
-/// @resolution.place source=isEmpty placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=isEmpty placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=isEmpty root=isEmpty
 "#,
     );
@@ -202,14 +204,16 @@ const isEmpty = value.isEmpty;
 /// @type.node source=value.isEmpty type=boolean
 /// @resolution.name source=value target=value
 /// @resolution.member source=value.isEmpty receiver=string type=boolean kind=call target="isEmpty(parameters=(), arguments=(), return=boolean, regions=(\"managed\" & \"local\"))"
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=value root=value
+/// @generic.instantiation id="isEmpty<\"managed\" & \"local\">" template=isEmpty arguments=("managed" & "local")
+/// @generic.instance id="isEmpty<\"bound0\" & \"local\">" template=isEmpty arguments=("bound0" & "local")
 
 isEmpty satisfies boolean;
 /// @type.node source="isEmpty satisfies boolean" type=boolean
 /// @type.node source=isEmpty type=boolean
 /// @resolution.name source=isEmpty target=isEmpty
-/// @resolution.place source=isEmpty placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=isEmpty placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=isEmpty root=isEmpty
 "#,
     );

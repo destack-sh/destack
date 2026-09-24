@@ -57,10 +57,12 @@ fn test_preserve_explicit_shared_placement_in_local_binding() {
         r#"
 class User {}
 
-declare function load(): shared User;
+shared class SharedUser {}
+
+declare function load(): SharedUser;
 
 const user = load();
-user satisfies shared User;
+user satisfies SharedUser;
 "#,
     );
 
@@ -71,31 +73,37 @@ user satisfies shared User;
 === annotated ===
 class User {}
 
-declare function load(): shared User;
+shared class SharedUser {}
 
-const user: shared User = load();
-user satisfies shared User;
+declare function load(): SharedUser;
+
+const user: SharedUser = load();
+user satisfies SharedUser;
 
 === dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
-declare function load(): shared User;
-/// @type.symbol symbol=load source="declare function load(): shared User" type=() => shared User
-/// @resolution.name source=User target=User
+shared class SharedUser {}
+/// @type.symbol symbol=SharedUser source="shared class SharedUser {}" type=typeof SharedUser
+/// @definition.class symbol=SharedUser source="shared class SharedUser {}"
+
+declare function load(): SharedUser;
+/// @type.symbol symbol=load source="declare function load(): SharedUser" type=() => SharedUser
+/// @resolution.name source=SharedUser target=SharedUser
 
 const user = load();
-/// @type.symbol symbol=user source=user type=shared User
+/// @type.symbol symbol=user source=user type=SharedUser
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=load target=load
-/// @resolution.call source=load() parameters=() return=shared User kind=symbol target=load
+/// @resolution.call source=load() parameters=() return=SharedUser kind=symbol target=load
 
-user satisfies shared User;
+user satisfies SharedUser;
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="shared" lifetime="managed" access="mutable"
+/// @resolution.place source=user placement="shared" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
-/// @resolution.name source=User target=User
+/// @resolution.name source=SharedUser target=SharedUser
 "#,
         r#"
 
@@ -103,16 +111,19 @@ user satisfies shared User;
     );
 }
 
+/// Reject a local class handle in a shared binding.
 #[test]
-fn test_infer_shared_binding_placement() {
+fn test_reject_a_local_class_handle_in_a_shared_binding() {
     let session = TestSession::single(
         r#"
 class User {}
 
+shared class SharedUser {}
+
 declare function load(): User;
 
 shared const user = load();
-user satisfies shared User;
+user satisfies SharedUser;
 "#,
     );
 
@@ -123,34 +134,45 @@ user satisfies shared User;
 === annotated ===
 class User {}
 
+shared class SharedUser {}
+
 declare function load(): User;
 
-shared const user: shared User = load();
-user satisfies shared User;
+shared const user: User = load();
+user satisfies SharedUser;
 
 === dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
+shared class SharedUser {}
+/// @type.symbol symbol=SharedUser source="shared class SharedUser {}" type=typeof SharedUser
+/// @definition.class symbol=SharedUser source="shared class SharedUser {}"
+
 declare function load(): User;
 /// @type.symbol symbol=load source="declare function load(): User" type=() => User
 /// @resolution.name source=User target=User
 
 shared const user = load();
-/// @type.symbol symbol=user source=user type=shared User
+/// @type.symbol symbol=user source=user type=User
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=load target=load
 /// @resolution.call source=load() parameters=() return=User kind=symbol target=load
 
-user satisfies shared User;
+user satisfies SharedUser;
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="shared" lifetime="managed" access="mutable"
+/// @resolution.place source=user placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
-/// @resolution.name source=User target=User
+/// @resolution.name source=SharedUser target=SharedUser
 "#,
         r#"
-
+/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
+/// @diagnostic.label line=8 column=14 span="user" line_source="shared const user = load();"
+/// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
+/// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
+/// @diagnostic.error id=constraint-not-satisfied message="type 'User' does not satisfy 'SharedUser'"
+/// @diagnostic.label line=9 column=1 span="user" line_source="user satisfies SharedUser;"
 "#,
     );
 }
@@ -161,8 +183,8 @@ fn test_place_aggregate_materialization_from_destination() {
         r#"
 struct Point { x: int32; }
 
-const localPoint: local Point = Point { x: 1 };
-const sharedPoint: shared Point = Point { x: 2 };
+const localPoint: Point = Point { x: 1 };
+shared const sharedPoint: Point = Point { x: 2 };
 "#,
     );
 
@@ -176,7 +198,7 @@ struct Point {
 }
 
 const localPoint: Point = Point { x: 1 };
-const sharedPoint: Point = Point { x: 2 };
+shared const sharedPoint: Point = Point { x: 2 };
 
 === dir ===
 struct Point { x: int32; }
@@ -185,13 +207,13 @@ struct Point { x: int32; }
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
-const localPoint: local Point = Point { x: 1 };
+const localPoint: Point = Point { x: 1 };
 /// @type.symbol symbol=localPoint source=localPoint type=Point
 /// @resolution.pattern source=localPoint kind=binding target=localPoint
 /// @resolution.name source=Point target=Point
 /// @resolution.name source=Point target=Point
 
-const sharedPoint: shared Point = Point { x: 2 };
+shared const sharedPoint: Point = Point { x: 2 };
 /// @type.symbol symbol=sharedPoint source=sharedPoint type=Point
 /// @resolution.pattern source=sharedPoint kind=binding target=sharedPoint
 /// @resolution.name source=Point target=Point
@@ -228,7 +250,7 @@ type Argument = Options | (() => void);
 
 declare function register(argument?: Argument): void;
 
-register({ skip: true } as Argument | undefined);
+register({ skip: true as boolean | undefined } as { skip?: boolean } | (() => void) | undefined);
 
 === dir ===
 type Options = { skip?: boolean };
@@ -237,18 +259,17 @@ type Options = { skip?: boolean };
 /// @type.symbol symbol=Options.skip source="skip?: boolean" type=boolean
 
 type Argument = Options | (() => void);
-/// @type.symbol symbol=Argument source="type Argument = Options | (() => void)" type=Options | Function<(), void>
-/// @definition.type symbol=Argument source="type Argument = Options | (() => void)" value=Options | Function<(), void>
+/// @type.symbol symbol=Argument source="type Argument = Options | (() => void)" type={ skip?: boolean } | () => void
+/// @definition.type symbol=Argument source="type Argument = Options | (() => void)" value=Options | () => void
 /// @resolution.name source=Options target=Options
 
 declare function register(argument?: Argument): void;
-/// @type.symbol symbol=register source="declare function register(argument?: Argument): void" type=(Argument | undefined?) => void
-/// @type.symbol symbol=register.argument source="argument?: Argument" type=Argument | undefined
+/// @type.symbol symbol=register source="declare function register(argument?: Argument): void" type=({ skip?: boolean } | () => void | undefined?) => void
 /// @resolution.name source=Argument target=Argument
 
 register({ skip: true });
 /// @resolution.name source=register target=register
-/// @resolution.call source="register({ skip: true })" parameters=(Argument | undefined) arguments=(provided({ skip: true }) as Argument | undefined) return=void kind=symbol target=register
+/// @resolution.call source="register({ skip: true })" parameters=({ skip?: boolean } | () => void | undefined) arguments=(provided({ skip: true }) as { skip?: boolean } | () => void | undefined) return=void kind=symbol target=register
 "#,
     );
 }
@@ -259,11 +280,11 @@ fn test_project_field_in_receiver_space() {
         r#"
 struct Point { x: int32; }
 
-declare const localPoint: local Point;
-declare const sharedPoint: shared Point;
+declare const localPoint: Point;
+declare shared const sharedPoint: Point;
 
-localPoint.x satisfies local int32;
-sharedPoint.x satisfies shared int32;
+localPoint.x;
+sharedPoint.x;
 "#,
     );
 
@@ -277,10 +298,10 @@ struct Point {
 }
 
 declare const localPoint: Point;
-declare const sharedPoint: Point;
+declare shared const sharedPoint: Point;
 
-localPoint.x satisfies local int32;
-sharedPoint.x satisfies shared int32;
+localPoint.x;
+sharedPoint.x;
 
 === dir ===
 struct Point { x: int32; }
@@ -289,30 +310,30 @@ struct Point { x: int32; }
 /// @definition.field symbol=Point.x source="x: int32" key=x type=int32
 /// @type.symbol symbol=Point.x source="x: int32" type=int32
 
-declare const localPoint: local Point;
+declare const localPoint: Point;
 /// @type.symbol symbol=localPoint source=localPoint type=Point
 /// @resolution.pattern source=localPoint kind=binding target=localPoint
 /// @resolution.name source=Point target=Point
 
-declare const sharedPoint: shared Point;
+declare shared const sharedPoint: Point;
 /// @type.symbol symbol=sharedPoint source=sharedPoint type=Point
 /// @resolution.pattern source=sharedPoint kind=binding target=sharedPoint
 /// @resolution.name source=Point target=Point
 
-localPoint.x satisfies local int32;
+localPoint.x;
 /// @resolution.name source=localPoint target=localPoint
 /// @resolution.member source=localPoint.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
-/// @resolution.place source=localPoint placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=localPoint placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=localPoint root=localPoint
-/// @resolution.place source=localPoint.x placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=localPoint.x placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=localPoint.x root=localPoint keys=[x]
 
-sharedPoint.x satisfies shared int32;
+sharedPoint.x;
 /// @resolution.name source=sharedPoint target=sharedPoint
 /// @resolution.member source=sharedPoint.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
-/// @resolution.place source=sharedPoint placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=sharedPoint placement="shared" lifetime="static" access="immutable"
 /// @resolution.access source=sharedPoint root=sharedPoint
-/// @resolution.place source=sharedPoint.x placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=sharedPoint.x placement="shared" lifetime="static" access="immutable"
 /// @resolution.access source=sharedPoint.x root=sharedPoint keys=[x]
 "#,
         r#"
@@ -326,10 +347,12 @@ fn test_preserve_explicit_shared_field_in_local_aggregate() {
         r#"
 class User {}
 
-struct State { user: shared User; }
+shared class SharedUser {}
 
-declare const state: local State;
-state.user satisfies shared User;
+struct State { user: SharedUser; }
+
+declare const state: State;
+state.user satisfies SharedUser;
 "#,
     );
 
@@ -340,38 +363,44 @@ state.user satisfies shared User;
 === annotated ===
 class User {}
 
+shared class SharedUser {}
+
 struct State {
-    user: shared User;
+    user: SharedUser;
 }
 
 declare const state: State;
-state.user satisfies shared User;
+state.user satisfies SharedUser;
 
 === dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
-struct State { user: shared User; }
-/// @type.symbol symbol=State source="struct State { user: shared User; }" type=State
-/// @definition.struct symbol=State source="struct State { user: shared User; }"
-/// @definition.field symbol=State.user source="user: shared User" key=user type=shared User
-/// @type.symbol symbol=State.user source="user: shared User" type=shared User
-/// @resolution.name source=User target=User
+shared class SharedUser {}
+/// @type.symbol symbol=SharedUser source="shared class SharedUser {}" type=typeof SharedUser
+/// @definition.class symbol=SharedUser source="shared class SharedUser {}"
 
-declare const state: local State;
+struct State { user: SharedUser; }
+/// @type.symbol symbol=State source="struct State { user: SharedUser; }" type=State
+/// @definition.struct symbol=State source="struct State { user: SharedUser; }"
+/// @definition.field symbol=State.user source="user: SharedUser" key=user type=SharedUser
+/// @type.symbol symbol=State.user source="user: SharedUser" type=SharedUser
+/// @resolution.name source=SharedUser target=SharedUser
+
+declare const state: State;
 /// @type.symbol symbol=state source=state type=State
 /// @resolution.pattern source=state kind=binding target=state
 /// @resolution.name source=State target=State
 
-state.user satisfies shared User;
+state.user satisfies SharedUser;
 /// @resolution.name source=state target=state
-/// @resolution.member source=state.user receiver=State type=shared User kind=field target_receiver=State key=user target=State.user target_type=shared User
-/// @resolution.place source=state placement="constant" lifetime="static" access="readonly"
+/// @resolution.member source=state.user receiver=State type=SharedUser kind=field target_receiver=State key=user target=State.user target_type=SharedUser
+/// @resolution.place source=state placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=state root=state
-/// @resolution.place source=state.user placement="shared" lifetime="managed" access="mutable"
+/// @resolution.place source=state.user placement="shared" lifetime="static" access="readonly"
 /// @resolution.access source=state.user root=state keys=[user]
-/// @resolution.name source=User target=User
+/// @resolution.name source=SharedUser target=SharedUser
 "#,
         r#"
 "#,
@@ -382,8 +411,8 @@ state.user satisfies shared User;
 fn test_project_index_in_receiver_space() {
     let session = TestSession::single(
         r#"
-declare const values: shared [int32; 2];
-values[0] satisfies shared int32;
+declare shared const values: [int32; 2];
+values[0];
 "#,
     );
 
@@ -392,22 +421,20 @@ values[0] satisfies shared int32;
         DirRows::checked(),
         r#"
 === annotated ===
-declare const values: [int32; 2];
-values[0] satisfies shared int32;
+declare shared const values: [int32; 2];
+values[0];
 
 === dir ===
-declare const values: shared [int32; 2];
+declare shared const values: [int32; 2];
 /// @type.symbol symbol=values source=values type=FixedArray<int32, 2>
 /// @resolution.pattern source=values kind=binding target=values
 
-values[0] satisfies shared int32;
+values[0];
 /// @resolution.name source=values target=values
-/// @resolution.place source=values placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=values placement="shared" lifetime="static" access="immutable"
 /// @resolution.access source=values root=values
-/// @resolution.place source=values[0] placement="constant" lifetime="static" access="readonly"
-/// @resolution.access source=values[0] root=values keys=[0]
-/// @resolution.subscript source=values[0] type=int32 kind=call target="index#1(parameters=(isize), arguments=(provided(0) as isize), return=WithAccess<&'static constant int32, \"readonly\">, regions=(\"static\" & \"constant\"))"
-/// @generic.instantiation id="index#1<int32, 2, \"readonly\">" template=index#1 arguments=(int32, 2, "readonly")
+/// @resolution.subscript source=values[0] type=int32 kind=call target="index#2(parameters=(isize), arguments=(provided(0) as isize), return=int32, regions=(\"static\" & \"shared\"))"
+/// @generic.instantiation id="index#2<int32, 2, \"static\" & \"shared\">" template=index#2 arguments=(int32, 2, "static" & "shared")
 "#,
         r#"
 
@@ -419,9 +446,9 @@ values[0] satisfies shared int32;
 fn test_copy_shared_scalar_into_local_binding() {
     let session = TestSession::single(
         r#"
-declare const source: shared int32;
+declare shared const source: int32;
 const value = source;
-value satisfies local int32;
+value satisfies int32;
 "#,
     );
 
@@ -430,12 +457,12 @@ value satisfies local int32;
         DirRows::checked(),
         r#"
 === annotated ===
-declare const source: int32;
+declare shared const source: int32;
 const value: int32 = source;
-value satisfies local int32;
+value satisfies int32;
 
 === dir ===
-declare const source: shared int32;
+declare shared const source: int32;
 /// @type.symbol symbol=source source=source type=int32
 /// @resolution.pattern source=source kind=binding target=source
 
@@ -445,9 +472,9 @@ const value = source;
 /// @resolution.name source=source target=source
 /// @resolution.access source=source root=source
 
-value satisfies local int32;
+value satisfies int32;
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 "#,
         r#"
@@ -491,11 +518,14 @@ shared const sharedWorld: ^World = world;
 /// @resolution.pattern source=sharedWorld kind=binding target=sharedWorld
 /// @resolution.name source=World target=World
 /// @resolution.name source=world target=world
-/// @resolution.place source=world placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=world placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=world root=world
 "#,
         r#"
-
+/// @diagnostic.error id=local-reference-in-shared-storage message="shared space cannot hold references into local space"
+/// @diagnostic.label line=5 column=14 span="sharedWorld" line_source="shared const sharedWorld: ^World = world;"
+/// @diagnostic.note message="managed, owned, and borrowed references retain their referent"
+/// @diagnostic.help message="place the referenced value in shared space or keep the destination local"
 "#,
     );
 }
@@ -529,8 +559,8 @@ class User {}
 /// @definition.class symbol=User source="class User {}"
 
 type Transform = (value: User) => User;
-/// @type.symbol symbol=Transform source="type Transform = (value: User) => User" type=Function<(User,), User>
-/// @definition.type symbol=Transform source="type Transform = (value: User) => User" value=Function<(User,), User>
+/// @type.symbol symbol=Transform source="type Transform = (value: User) => User" type=(User) => User
+/// @definition.type symbol=Transform source="type Transform = (value: User) => User" value=(User) => User
 /// @type.symbol symbol=Transform.value source="value: User" type=User
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
@@ -543,7 +573,7 @@ const transform = (value: User): User => value;
 /// @resolution.name source=User target=User
 /// @resolution.name source=User target=User
 /// @resolution.name source=value target=symbol4.value
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=value root=symbol4.value
 "#,
     );
@@ -559,7 +589,7 @@ class Registry {
     static current: User = new User();
 }
 
-Registry.current satisfies local User;
+Registry.current satisfies User;
 "#,
     );
 
@@ -574,7 +604,7 @@ class Registry {
     static current: User = new User();
 }
 
-Registry.current satisfies local User;
+Registry.current satisfies User;
 
 === dir ===
 class User {}
@@ -594,10 +624,10 @@ class Registry {
 
 }
 
-Registry.current satisfies local User;
+Registry.current satisfies User;
 /// @resolution.name source=Registry target=Registry
 /// @resolution.member source=Registry.current receiver=typeof Registry type=User kind=field target_receiver=typeof Registry key=current target=Registry.current target_type=User
-/// @resolution.place source=Registry.current placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=Registry.current placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=Registry.current root=Registry keys=[current]
 /// @resolution.name source=User target=User
 "#,

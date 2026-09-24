@@ -28,9 +28,9 @@ function append(target: string): string {
 declare function fresh(): ^string;
 declare const text: string;
 
-const managedLeft: string = (text + fresh()) as string;
-const ownedLeft: string = (fresh() + text) as string;
-const bothOwned: string = (fresh() + fresh()) as string;
+const managedLeft: ^string = text + fresh();
+const ownedLeft: ^string = fresh() + text;
+const bothOwned: ^string = fresh() + fresh();
 const same: boolean = (fresh() as string) == text;
 
 function append(target: string): string {
@@ -48,34 +48,33 @@ declare const text: string;
 /// @resolution.pattern source=text kind=binding target=text
 
 const managedLeft = text + fresh();
-/// @type.symbol symbol=managedLeft source=managedLeft type=string
+/// @type.symbol symbol=managedLeft source=managedLeft type=^string
 /// @resolution.pattern source=managedLeft kind=binding target=managedLeft
 /// @resolution.name source=text target=text
-/// @resolution.operator source="text + fresh()" type=^string operator="+" kind=call parameters=(string) arguments=(provided(fresh()) as string) return=^string regions=("managed" & "local") kind=symbol target=add receiver=string adjustments=(borrow(Borrowed<string, "managed" & "local", "readonly">))
-/// @resolution.place source=text placement="local" lifetime="managed" access="mutable"
+/// @resolution.operator source="text + fresh()" type=^string operator="+" kind=call parameters=(string) arguments=(provided(fresh()) as string) return=^string regions=("managed" & "local") kind=symbol target=add receiver=string adjustments=(borrow(&'managed readonly string)) instance="string.<extension#2>.add<\"managed\" & \"local\">"
+/// @resolution.place source=text placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=text root=text
-/// @coercion.node source="text + fresh()" from=^string adjustments=[{ kind: manage, target: string }] origin=implicit
+/// @generic.instantiation id="add<\"managed\" & \"local\">" template=add arguments=("managed" & "local")
 /// @resolution.name source=fresh target=fresh
 /// @resolution.call source=fresh() parameters=() return=^string kind=symbol target=fresh
 
 const ownedLeft = fresh() + text;
-/// @type.symbol symbol=ownedLeft source=ownedLeft type=string
+/// @type.symbol symbol=ownedLeft source=ownedLeft type=^string
 /// @resolution.pattern source=ownedLeft kind=binding target=ownedLeft
 /// @resolution.name source=fresh target=fresh
 /// @resolution.call source=fresh() parameters=() return=^string kind=symbol target=fresh
-/// @resolution.operator source="fresh() + text" type=^string operator="+" kind=call parameters=(string) arguments=(provided(text) as string) return=^string regions=("frame" & "local") kind=symbol target=add receiver=^string adjustments=(borrow(&'frame readonly ^string))
-/// @coercion.node source="fresh() + text" from=^string adjustments=[{ kind: manage, target: string }] origin=implicit
+/// @resolution.operator source="fresh() + text" type=^string operator="+" kind=call parameters=(string) arguments=(provided(text) as string) return=^string regions=("frame" & "local") kind=symbol target=add receiver=^string adjustments=(borrow(&'frame readonly string)) instance="string.<extension#2>.add<\"frame\" & \"local\">"
+/// @generic.instantiation id="add<\"frame\" & \"local\">" template=add arguments=("frame" & "local")
 /// @resolution.name source=text target=text
-/// @resolution.place source=text placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=text placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=text root=text
 
 const bothOwned = fresh() + fresh();
-/// @type.symbol symbol=bothOwned source=bothOwned type=string
+/// @type.symbol symbol=bothOwned source=bothOwned type=^string
 /// @resolution.pattern source=bothOwned kind=binding target=bothOwned
 /// @resolution.name source=fresh target=fresh
 /// @resolution.call source=fresh() parameters=() return=^string kind=symbol target=fresh
-/// @resolution.operator source="fresh() + fresh()" type=^string operator="+" kind=call parameters=(string) arguments=(provided(fresh()) as string) return=^string regions=("frame" & "local") kind=symbol target=add receiver=^string adjustments=(borrow(&'frame readonly ^string))
-/// @coercion.node source="fresh() + fresh()" from=^string adjustments=[{ kind: manage, target: string }] origin=implicit
+/// @resolution.operator source="fresh() + fresh()" type=^string operator="+" kind=call parameters=(string) arguments=(provided(fresh()) as string) return=^string regions=("frame" & "local") kind=symbol target=add receiver=^string adjustments=(borrow(&'frame readonly string)) instance="string.<extension#2>.add<\"frame\" & \"local\">"
 /// @resolution.name source=fresh target=fresh
 /// @resolution.call source=fresh() parameters=() return=^string kind=symbol target=fresh
 
@@ -87,7 +86,7 @@ const same = fresh() == text;
 /// @resolution.operator source="fresh() == text" type=boolean operator="==" kind=builtin operands=[fresh() as string families=(string), text as string families=(string)]
 /// @coercion.node source=fresh() from=^string adjustments=[{ kind: manage, target: string }] origin=implicit
 /// @resolution.name source=text target=text
-/// @resolution.place source=text placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=text placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=text root=text
 
 function append(target: string): string {
@@ -102,9 +101,9 @@ function append(target: string): string {
 
     result += fresh();
     /// @resolution.name source=result target=append.result
-    /// @resolution.operator source="result += fresh()" type=^string operator="+" kind=call parameters=(string) arguments=(provided(fresh()) as string) return=^string regions=("managed" & "local") kind=symbol target=add receiver=string adjustments=(borrow(Borrowed<string, "managed" & "local", "readonly">))
+    /// @resolution.operator source="result += fresh()" type=^string operator="+" kind=call parameters=(string) arguments=(provided(fresh()) as string) return=^string regions=("managed" & "local") kind=symbol target=add receiver=string adjustments=(borrow(&'managed readonly string)) instance="string.<extension#2>.add<\"managed\" & \"local\">"
     /// @resolution.pattern.assign source=result kind=place
-    /// @resolution.place source=result placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
     /// @resolution.assignment source=result read=binding(append.result) write=binding(append.result) type=string
     /// @resolution.access source=result root=append.result
     /// @coercion.node source="result += fresh()" from=^string adjustments=[{ kind: manage, target: string }] origin=implicit
@@ -113,12 +112,13 @@ function append(target: string): string {
 
     return result;
     /// @resolution.name source=result target=append.result
-    /// @resolution.place source=result placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=result placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=result root=append.result
 
 }
 "#,
         r#"
+
 "#,
     );
 }

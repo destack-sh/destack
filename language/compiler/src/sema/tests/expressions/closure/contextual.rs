@@ -38,7 +38,7 @@ class Cell<T> {
 
 function capture<T>(): void {
     let seen: Consume<T> | undefined = undefined as Consume<T> | undefined;
-    let cell: local Cell<T> = new Cell<T>((inner: Consume<T>): void => {
+    let cell: Cell<T> = new Cell<T>((inner: Consume<T>): void => {
         seen = inner as Consume<T> | undefined;
     });
     cell;
@@ -48,8 +48,8 @@ function capture<T>(): void {
 === dir ===
 type Consume<T> = (value: T) => void;
 /// @generic.template symbol=Consume parameters=(T#1)
-/// @type.symbol symbol=Consume source="type Consume<T> = (value: T) => void" type=Function<(T#1,), void>
-/// @definition.type symbol=Consume source="type Consume<T> = (value: T) => void" template=(T#1) value=Function<(T#1,), void>
+/// @type.symbol symbol=Consume source="type Consume<T> = (value: T) => void" type=(T#1) => void
+/// @definition.type symbol=Consume source="type Consume<T> = (value: T) => void" template=(T#1) value=(T#1) => void
 /// @type.symbol symbol=Consume.T source=T type=T#1
 /// @type.symbol symbol=Consume.value source="value: T" type=T#1
 /// @resolution.name source=T target=Consume.T
@@ -57,24 +57,22 @@ type Consume<T> = (value: T) => void;
 class Cell<T> {
 /// @generic.template symbol=Cell parameters=(T#2)
 /// @type.symbol symbol=Cell type=typeof Cell
-/// @generic.instance id=Consume<T#2> template=Consume arguments=(T#2)
 /// @definition.class symbol=Cell template=(T#2)
-/// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=<Cell.constructor.P0: Place>(Function<(Function<(T#2,), void>,), void>) => Managed<Cell<T#2>, Cell.constructor.P0>
+/// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=(this: &'managed Cell<T#2>, ((T#2) => void) => void) => Cell<T#2>
 /// @type.symbol symbol=Cell.T source=T type=T#2
 
     constructor(executor: (consume: Consume<T>) => void) {
-    /// @generic.template symbol=Cell.constructor parent=template#1 parameters=(P0: Place)
-    /// @type.symbol symbol=Cell.constructor type=<Cell.constructor.P0: Place>(Function<(Function<(T#2,), void>,), void>) => Managed<Cell<T#2>, Cell.constructor.P0>
-    /// @type.symbol symbol=Cell.constructor.this type=Cell<T#2>
-    /// @type.symbol symbol=Cell.constructor.executor source="executor: (consume: Consume<T>) => void" type=Function<(Function<(T#2,), void>,), void>
-    /// @type.symbol symbol=Cell.constructor.consume source="consume: Consume<T>" type=Function<(T#2,), void>
+    /// @type.symbol symbol=Cell.constructor type=(this: &'managed Cell<T#2>, ((T#2) => void) => void) => Cell<T#2>
+    /// @type.symbol symbol=Cell.constructor.this type=&'managed Cell<T#2>
+    /// @type.symbol symbol=Cell.constructor.executor source="executor: (consume: Consume<T>) => void" type=((T#2) => void) => void
+    /// @type.symbol symbol=Cell.constructor.consume source="consume: Consume<T>" type=(T#2) => void
     /// @resolution.name source=Consume target=Consume
     /// @resolution.name source=T target=Cell.T
 
         executor;
-        /// @type.node source=executor type=Function<(Function<(T#2,), void>,), void>
+        /// @type.node source=executor type=((T#2) => void) => void
         /// @resolution.name source=executor target=Cell.constructor.executor
-        /// @resolution.place source=executor placement="local" lifetime="managed" access="mutable"
+        /// @resolution.place source=executor placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=executor root=Cell.constructor.executor
 
     }
@@ -86,52 +84,52 @@ function capture<T>(): void {
 /// @type.symbol symbol=capture.T source=T type=T#3
 
     let seen: Consume<T> | undefined = undefined;
-    /// @type.symbol symbol=capture.seen source=seen type=Function<(T#3,), void> | undefined
+    /// @type.symbol symbol=capture.seen source=seen type=(T#3) => void | undefined
     /// @resolution.pattern source=seen kind=binding target=capture.seen
     /// @resolution.name source=Consume target=Consume
     /// @resolution.name source=T target=capture.T
     /// @type.node source=undefined type=undefined
 
     let cell = new Cell<T>((inner) => {
-    /// @type.symbol symbol=capture.cell source=cell type=local Cell<T#3>
+    /// @type.symbol symbol=capture.cell source=cell type=Cell<T#3>
     /// @resolution.pattern source=cell kind=binding target=capture.cell
     /// @generic.instance id=Cell<T#3> template=Cell arguments=(T#3)
-    /// @type.node type=local Cell<T#3>
-    /// @resolution.construct parameters=(Function<(Consume<T#3>,), void>) arguments=(provided(argument) as Function<(Consume<T#3>,), void>) return=local Cell<T#3> kind=class target=Cell constructor=Cell.constructor instance=Cell<T#3>
-    /// @generic.instantiation id="Cell.constructor<T#3, \"local\">" template=Cell.constructor arguments=(T#3, "local") owner=capture
-    /// @generic.instantiation id="Cell<T#3, \"local\">" template=Cell arguments=(T#3, "local") owner=capture
-    /// @generic.instance id="Cell.constructor<T#3, \"local\">" template=Cell.constructor arguments=(T#3, "local")
-    /// @generic.instance id="Cell<T#3, \"local\">" template=Cell arguments=(T#3, "local")
+    /// @type.node type=Cell<T#3>
+    /// @resolution.construct parameters=((Consume<T#3>) => void) arguments=(provided(argument) as (Consume<T#3>) => void) return=Cell<T#3> kind=class target=Cell constructor=Cell.constructor instance=Cell<T#3>
+    /// @generic.instantiation id=Cell.constructor<T#3> template=Cell.constructor arguments=(T#3) owner=capture
+    /// @generic.instantiation id=Cell<T#3> template=Cell arguments=(T#3) owner=capture
+    /// @generic.instance id=Cell.constructor<T#3> template=Cell.constructor arguments=(T#3)
     /// @type.node source=Cell type=typeof Cell
     /// @resolution.name source=Cell target=Cell
     /// @resolution.name source=T target=capture.T
-    /// @type.symbol symbol=capture.symbol13 type=Function<(Function<(T#3,), void>,), void>
-    /// @type.node type=Function<(Function<(T#3,), void>,), void>
-    /// @type.symbol symbol=capture.symbol13.inner source=inner type=Function<(T#3,), void>
+    /// @type.symbol symbol=capture.symbol13 type=((T#3) => void) => void
+    /// @type.node type=((T#3) => void) => void
+    /// @type.symbol symbol=capture.symbol13.inner source=inner type=(T#3) => void
 
         seen = inner;
-        /// @type.node source="seen = inner" type=Function<(T#3,), void>
-        /// @type.node source=seen type=Function<(T#3,), void> | undefined
+        /// @type.node source="seen = inner" type=(T#3) => void
+        /// @type.node source=seen type=(T#3) => void | undefined
         /// @resolution.name source=seen target=capture.seen
         /// @resolution.pattern.assign source=seen kind=place
+        /// @resolution.place source=seen placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=seen root=capture.seen
         /// @resolution.assignment source=seen write=binding(capture.seen) type=Consume<T#3> | undefined
-        /// @type.node source=inner type=Function<(T#3,), void>
+        /// @type.node source=inner type=(T#3) => void
         /// @resolution.name source=inner target=capture.symbol13.inner
-        /// @resolution.place source=inner placement="local" lifetime="managed" access="mutable"
+        /// @resolution.place source=inner placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=inner root=capture.symbol13.inner
 
     });
     cell;
-    /// @type.node source=cell type=local Cell<T#3>
+    /// @type.node source=cell type=Cell<T#3>
     /// @resolution.name source=cell target=capture.cell
-    /// @resolution.place source=cell placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=cell placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=cell root=capture.cell
 
     seen;
-    /// @type.node source=seen type=Function<(T#3,), void> | undefined
+    /// @type.node source=seen type=(T#3) => void | undefined
     /// @resolution.name source=seen target=capture.seen
-    /// @resolution.place source=seen placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=seen placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=seen root=capture.seen
 
 }
@@ -173,7 +171,7 @@ class Cell<T> {
 
 function capture(): void {
     let seen: int32 | undefined = undefined as int32 | undefined;
-    let cell: local Cell<int32> = new Cell<int32>((inner: int32): void => {
+    let cell: Cell<int32> = new Cell<int32>((inner: int32): void => {
         seen = inner as int32 | undefined;
     });
     cell;
@@ -185,21 +183,20 @@ class Cell<T> {
 /// @generic.template symbol=Cell parameters=(T)
 /// @type.symbol symbol=Cell type=typeof Cell
 /// @definition.class symbol=Cell template=(T)
-/// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=<Cell.constructor.P0: Place>(Function<(T,), void>) => Managed<Cell<T>, Cell.constructor.P0>
+/// @definition.method symbol=Cell.constructor slot=constructor role=constructor type=(this: &'managed Cell<T>, (T) => void) => Cell<T>
 /// @type.symbol symbol=Cell.T source=T type=T
 
     constructor(executor: (value: T) => void) {
-    /// @generic.template symbol=Cell.constructor parent=template#0 parameters=(P0: Place)
-    /// @type.symbol symbol=Cell.constructor type=<Cell.constructor.P0: Place>(Function<(T,), void>) => Managed<Cell<T>, Cell.constructor.P0>
-    /// @type.symbol symbol=Cell.constructor.this type=Cell<T>
-    /// @type.symbol symbol=Cell.constructor.executor source="executor: (value: T) => void" type=Function<(T,), void>
+    /// @type.symbol symbol=Cell.constructor type=(this: &'managed Cell<T>, (T) => void) => Cell<T>
+    /// @type.symbol symbol=Cell.constructor.this type=&'managed Cell<T>
+    /// @type.symbol symbol=Cell.constructor.executor source="executor: (value: T) => void" type=(T) => void
     /// @type.symbol symbol=Cell.constructor.value source="value: T" type=T
     /// @resolution.name source=T target=Cell.T
 
         executor;
-        /// @type.node source=executor type=Function<(T,), void>
+        /// @type.node source=executor type=(T) => void
         /// @resolution.name source=executor target=Cell.constructor.executor
-        /// @resolution.place source=executor placement="local" lifetime="managed" access="mutable"
+        /// @resolution.place source=executor placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=executor root=Cell.constructor.executor
 
     }
@@ -214,19 +211,18 @@ function capture(): void {
     /// @type.node source=undefined type=undefined
 
     let cell = new Cell<int32>((inner) => {
-    /// @type.symbol symbol=capture.cell source=cell type=local Cell<int32>
+    /// @type.symbol symbol=capture.cell source=cell type=Cell<int32>
     /// @resolution.pattern source=cell kind=binding target=capture.cell
     /// @generic.instance id=Cell<int32> template=Cell arguments=(int32)
-    /// @type.node type=local Cell<int32>
-    /// @resolution.construct parameters=(Function<(int32,), void>) arguments=(provided(argument) as Function<(int32,), void>) return=local Cell<int32> kind=class target=Cell constructor=Cell.constructor instance=Cell<int32>
-    /// @generic.instantiation id="Cell.constructor<int32, \"local\">" template=Cell.constructor arguments=(int32, "local")
-    /// @generic.instantiation id="Cell<int32, \"local\">" template=Cell arguments=(int32, "local")
-    /// @generic.instance id="Cell.constructor<int32, \"local\">" template=Cell.constructor arguments=(int32, "local")
-    /// @generic.instance id="Cell<int32, \"local\">" template=Cell arguments=(int32, "local")
+    /// @type.node type=Cell<int32>
+    /// @resolution.construct parameters=((int32) => void) arguments=(provided(argument) as (int32) => void) return=Cell<int32> kind=class target=Cell constructor=Cell.constructor instance=Cell<int32>
+    /// @generic.instantiation id=Cell.constructor<int32> template=Cell.constructor arguments=(int32)
+    /// @generic.instantiation id=Cell<int32> template=Cell arguments=(int32)
+    /// @generic.instance id=Cell.constructor<int32> template=Cell.constructor arguments=(int32)
     /// @type.node source=Cell type=typeof Cell
     /// @resolution.name source=Cell target=Cell
-    /// @type.symbol symbol=capture.symbol9 type=Function<(int32,), void>
-    /// @type.node type=Function<(int32,), void>
+    /// @type.symbol symbol=capture.symbol9 type=(int32) => void
+    /// @type.node type=(int32) => void
     /// @type.symbol symbol=capture.symbol9.inner source=inner type=int32
 
         seen = inner;
@@ -234,24 +230,25 @@ function capture(): void {
         /// @type.node source=seen type=int32 | undefined
         /// @resolution.name source=seen target=capture.seen
         /// @resolution.pattern.assign source=seen kind=place
+        /// @resolution.place source=seen placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=seen root=capture.seen
         /// @resolution.assignment source=seen write=binding(capture.seen) type=int32 | undefined
         /// @type.node source=inner type=int32
         /// @resolution.name source=inner target=capture.symbol9.inner
-        /// @resolution.place source=inner placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=inner placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=inner root=capture.symbol9.inner
 
     });
     cell;
-    /// @type.node source=cell type=local Cell<int32>
+    /// @type.node source=cell type=Cell<int32>
     /// @resolution.name source=cell target=capture.cell
-    /// @resolution.place source=cell placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=cell placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=cell root=capture.cell
 
     seen;
     /// @type.node source=seen type=int32 | undefined
     /// @resolution.name source=seen target=capture.seen
-    /// @resolution.place source=seen placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=seen placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=seen root=capture.seen
 
 }
@@ -277,14 +274,14 @@ const callback: (value: int32) => int32 | undefined = (value: int32): int32 | un
 
 === dir ===
 const callback: (value: int32) => int32 | undefined = (value) => value + 1;
-/// @type.symbol symbol=callback source=callback type=Function<(int32,), int32 | undefined>
+/// @type.symbol symbol=callback source=callback type=(int32) => int32 | undefined
 /// @resolution.pattern source=callback kind=binding target=callback
 /// @type.symbol symbol=value source="value: int32" type=int32
 /// @type.symbol symbol=symbol1 source="(value) => value + 1" type=Function<(int32,), int32 | undefined, "readonly">
 /// @type.symbol symbol=symbol1.value source=value type=int32
 /// @resolution.name source=value target=symbol1.value
 /// @resolution.operator source="value + 1" type=int32 operator="+" kind=builtin operands=[value as int32 families=(integer), 1 as int32 families=(integer)]
-/// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=value root=symbol1.value
 "#,
         r#"
@@ -319,12 +316,10 @@ const labels: boolean[] = map<int32, boolean>(counts, (count: int32): boolean =>
 === dir ===
 declare function map<T, U>(values: T[], callback: (value: T) => U): U[];
 /// @generic.template symbol=map parameters=(T, U)
-/// @type.symbol symbol=map source="declare function map<T, U>(values: T[], callback: (value: T) => U): U[]" type=<T, U>(T[], Function<(T,), U>) => U[]
+/// @type.symbol symbol=map source="declare function map<T, U>(values: T[], callback: (value: T) => U): U[]" type=<T, U>(T[], (T) => U) => U[]
 /// @type.symbol symbol=map.T source=T type=T
 /// @type.symbol symbol=map.U source=U type=U
-/// @type.symbol symbol=map.values source="values: T[]" type=T[]
 /// @resolution.name source=T target=map.T
-/// @type.symbol symbol=map.callback source="callback: (value: T) => U" type=Function<(T,), U>
 /// @type.symbol symbol=map.value source="value: T" type=T
 /// @resolution.name source=T target=map.T
 /// @resolution.name source=U target=map.U
@@ -338,13 +333,13 @@ const labels = map(counts, (count) => count > 0);
 /// @type.symbol symbol=labels source=labels type=boolean[]
 /// @resolution.pattern source=labels kind=binding target=labels
 /// @type.node source="map(counts, (count) => count > 0)" type=boolean[]
-/// @type.node source=map type=(int32[], Function<(int32,), boolean>) => boolean[]
+/// @type.node source=map type=(int32[], (int32) => boolean) => boolean[]
 /// @resolution.name source=map target=map
-/// @resolution.call source="map(counts, (count) => count > 0)" parameters=(int32[], Function<(int32,), boolean>) arguments=(provided(counts) as int32[], provided((count) => count > 0) as Function<(int32,), boolean>) return=boolean[] kind=symbol target=map instance="map<int32, boolean>"
+/// @resolution.call source="map(counts, (count) => count > 0)" parameters=(int32[], (int32) => boolean) arguments=(provided(counts) as int32[], provided((count) => count > 0) as (int32) => boolean) return=boolean[] kind=symbol target=map instance="map<int32, boolean>"
 /// @generic.instantiation id="map<int32, boolean>" template=map arguments=(int32, boolean)
 /// @type.node source=counts type=int32[]
 /// @resolution.name source=counts target=counts
-/// @resolution.place source=counts placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=counts placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=counts root=counts
 /// @type.symbol symbol=symbol8 source="(count) => count > 0" type=Function<(int32,), boolean, "readonly">
 /// @type.node source="(count) => count > 0" type=Function<(int32,), boolean, "readonly">
@@ -353,7 +348,7 @@ const labels = map(counts, (count) => count > 0);
 /// @type.node source=count type=int32
 /// @resolution.name source=count target=symbol8.count
 /// @resolution.operator source="count > 0" type=boolean operator=">" kind=builtin operands=[count as int32 families=(integer), 0 as int32 families=(integer)]
-/// @resolution.place source=count placement="local" lifetime="frame" access="mutable"
+/// @resolution.place source=count placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=count root=symbol8.count
 /// @type.node source=0 type=0
 "#,
@@ -391,15 +386,14 @@ run((value, extra): void => {
 
 === dir ===
 declare function run(callback: (value: int32) => void): void;
-/// @type.symbol symbol=run source="declare function run(callback: (value: int32) => void): void" type=(Function<(int32,), void>) => void
-/// @type.symbol symbol=run.callback source="callback: (value: int32) => void" type=Function<(int32,), void>
+/// @type.symbol symbol=run source="declare function run(callback: (value: int32) => void): void" type=((int32) => void) => void
 /// @type.symbol symbol=run.value source="value: int32" type=int32
 
 run((value, extra) => {
-/// @type.node source=run type=(Function<(int32,), void>) => void
+/// @type.node source=run type=((int32) => void) => void
 /// @type.node type=void
 /// @resolution.name source=run target=run
-/// @resolution.call parameters=(Function<(int32,), void>) arguments=(provided(argument) as Function<(int32,), void>) return=void kind=symbol target=run
+/// @resolution.call parameters=((int32) => void) arguments=(provided(argument) as (int32) => void) return=void kind=symbol target=run
 /// @type.symbol symbol=symbol4 type=Function<(<error>, <error>), void, "readonly">
 /// @type.node type=Function<(<error>, <error>), void, "readonly">
 /// @type.symbol symbol=symbol4.value source=value type=<error>
@@ -408,13 +402,13 @@ run((value, extra) => {
     value;
     /// @type.node source=value type=<error>
     /// @resolution.name source=value target=symbol4.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=symbol4.value
 
     extra;
     /// @type.node source=extra type=<error>
     /// @resolution.name source=extra target=symbol4.extra
-    /// @resolution.place source=extra placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=extra placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=extra root=symbol4.extra
 
 });
@@ -459,15 +453,14 @@ run((value: boolean): void => {
 
 === dir ===
 declare function run(callback: (value: int32 | string) => void): void;
-/// @type.symbol symbol=run source="declare function run(callback: (value: int32 | string) => void): void" type=(Function<(int32 | string,), void>) => void
-/// @type.symbol symbol=run.callback source="callback: (value: int32 | string) => void" type=Function<(int32 | string,), void>
+/// @type.symbol symbol=run source="declare function run(callback: (value: int32 | string) => void): void" type=((int32 | string) => void) => void
 /// @type.symbol symbol=run.value source="value: int32 | string" type=int32 | string
 
 run((value: int32 | string) => {
-/// @type.node source=run type=(Function<(int32 | string,), void>) => void
+/// @type.node source=run type=((int32 | string) => void) => void
 /// @type.node type=void
 /// @resolution.name source=run target=run
-/// @resolution.call parameters=(Function<(int32 | string,), void>) arguments=(provided(argument) as Function<(int32 | string,), void>) return=void kind=symbol target=run
+/// @resolution.call parameters=((int32 | string) => void) arguments=(provided(argument) as (int32 | string) => void) return=void kind=symbol target=run
 /// @type.symbol symbol=symbol4 type=Function<(int32 | string,), void, "readonly">
 /// @type.node type=Function<(int32 | string,), void, "readonly">
 /// @type.symbol symbol=symbol4.value source="value: int32 | string" type=int32 | string
@@ -475,15 +468,15 @@ run((value: int32 | string) => {
     value;
     /// @type.node source=value type=int32 | string
     /// @resolution.name source=value target=symbol4.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=symbol4.value
 
 });
 run((value: boolean) => {
-/// @type.node source=run type=(Function<(int32 | string,), void>) => void
+/// @type.node source=run type=((int32 | string) => void) => void
 /// @type.node type=void
 /// @resolution.name source=run target=run
-/// @resolution.call parameters=(Function<(int32 | string,), void>) arguments=(provided(argument) as Function<(int32 | string,), void>) return=void kind=symbol target=run
+/// @resolution.call parameters=((int32 | string) => void) arguments=(provided(argument) as (int32 | string) => void) return=void kind=symbol target=run
 /// @type.symbol symbol=symbol6 type=Function<(boolean,), void, "readonly">
 /// @type.node type=Function<(boolean,), void, "readonly">
 /// @type.symbol symbol=symbol6.value source="value: boolean" type=boolean
@@ -491,7 +484,7 @@ run((value: boolean) => {
     value;
     /// @type.node source=value type=boolean
     /// @resolution.name source=value target=symbol6.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=symbol6.value
 
 });
@@ -550,7 +543,7 @@ const choose = () => {
     if (flag) {
     /// @type.node source=flag type=boolean
     /// @resolution.name source=flag target=flag
-    /// @resolution.place source=flag placement="constant" lifetime="static" access="readonly"
+    /// @resolution.place source=flag placement="local" lifetime="static" access="immutable"
     /// @resolution.access source=flag root=flag
 
         return "text";
@@ -595,8 +588,8 @@ const handler: Handler = ((value: int32): void => {
 
 === dir ===
 type Handler = ((value: int32) => void) | undefined;
-/// @type.symbol symbol=Handler source="type Handler = ((value: int32) => void) | undefined" type=Function<(int32,), void> | undefined
-/// @definition.type symbol=Handler source="type Handler = ((value: int32) => void) | undefined" value=Function<(int32,), void> | undefined
+/// @type.symbol symbol=Handler source="type Handler = ((value: int32) => void) | undefined" type=(int32) => void | undefined
+/// @definition.type symbol=Handler source="type Handler = ((value: int32) => void) | undefined" value=(int32) => void | undefined
 /// @type.symbol symbol=Handler.value source="value: int32" type=int32
 
 const handler: Handler = (value) => {
@@ -610,7 +603,7 @@ const handler: Handler = (value) => {
     value;
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=symbol3.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=symbol3.value
 
 };
@@ -648,19 +641,17 @@ withValue<string>("ready", (value: string): void => {
 === dir ===
 declare function withValue<T>(value: T, callback: (value: T) => void): void;
 /// @generic.template symbol=withValue parameters=(T)
-/// @type.symbol symbol=withValue source="declare function withValue<T>(value: T, callback: (value: T) => void): void" type=<T>(T, Function<(T,), void>) => void
+/// @type.symbol symbol=withValue source="declare function withValue<T>(value: T, callback: (value: T) => void): void" type=<T>(T, (T) => void) => void
 /// @type.symbol symbol=withValue.T source=T type=T
-/// @type.symbol symbol=withValue.value#1 source="value: T" type=T
 /// @resolution.name source=T target=withValue.T
-/// @type.symbol symbol=withValue.callback source="callback: (value: T) => void" type=Function<(T,), void>
 /// @type.symbol symbol=withValue.value#2 source="value: T" type=T
 /// @resolution.name source=T target=withValue.T
 
 withValue("ready", (value) => {
-/// @type.node source=withValue type=(string, Function<(string,), void>) => void
+/// @type.node source=withValue type=(string, (string) => void) => void
 /// @type.node type=void
 /// @resolution.name source=withValue target=withValue
-/// @resolution.call parameters=(string, Function<(string,), void>) arguments=(provided("ready") as string, provided(argument) as Function<(string,), void>) return=void kind=symbol target=withValue instance=withValue<string>
+/// @resolution.call parameters=(string, (string) => void) arguments=(provided("ready") as string, provided(argument) as (string) => void) return=void kind=symbol target=withValue instance=withValue<string>
 /// @generic.instantiation id=withValue<string> template=withValue arguments=(string)
 /// @type.node source="\"ready\"" type="ready"
 /// @type.symbol symbol=symbol6 type=Function<(string,), void, "readonly">
@@ -670,7 +661,7 @@ withValue("ready", (value) => {
     value;
     /// @type.node source=value type=string
     /// @resolution.name source=value target=symbol6.value
-    /// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=symbol6.value
 
 });

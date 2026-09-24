@@ -42,14 +42,14 @@ struct Guard implements Drop {
 /// @definition.struct symbol=Guard
 /// @definition.where symbol=Guard source=Drop relation=satisfies left=this right=Drop
 /// @definition.implements symbol=Guard source=Drop target=Drop
-/// @definition.method symbol=Guard.drop source="drop(&this): void {}" slot=drop type=<Guard.drop.'a>(this: &Guard.drop.'a this) => void
+/// @definition.method symbol=Guard.drop source="drop(&this): void {}" slot=drop type=<Guard.drop.'a>(this: &Guard.drop.'a Guard) => void
 /// @definition.conformance symbol=Guard member=Guard.drop requirement=Drop.drop
 /// @resolution.name source=Drop target=Drop
 
     drop(&this): void {}
     /// @generic.template symbol=Guard.drop parent=template#0 parameters=('a)
-    /// @type.symbol symbol=Guard.drop source="drop(&this): void {}" type=<Guard.drop.'a>(this: &Guard.drop.'a this) => void
-    /// @type.symbol symbol=Guard.drop.this source=&this type=&Guard.drop.'a this
+    /// @type.symbol symbol=Guard.drop source="drop(&this): void {}" type=<Guard.drop.'a>(this: &Guard.drop.'a Guard) => void
+    /// @type.symbol symbol=Guard.drop.this source=&this type=&Guard.drop.'a Guard
 
 }
 
@@ -58,7 +58,6 @@ declare function duplicate<T: Copy>(value: T): void;
 /// @type.symbol symbol=duplicate source="declare function duplicate<T: Copy>(value: T): void" type=<T: Copy>(T) => void
 /// @type.symbol symbol=duplicate.T source="T: Copy" type=T
 /// @resolution.name source=Copy target=Copy
-/// @type.symbol symbol=duplicate.value source="value: T" type=T
 /// @resolution.name source=T target=duplicate.T
 
 declare const guard: Guard;
@@ -71,7 +70,7 @@ duplicate(guard);
 /// @resolution.call source=duplicate(guard) parameters=(Guard) arguments=(provided(guard) as Guard) return=void kind=symbol target=duplicate instance=duplicate<Guard>
 /// @generic.instantiation id=duplicate<Guard> template=duplicate arguments=(Guard)
 /// @resolution.name source=guard target=guard
-/// @resolution.place source=guard placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=guard placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=guard root=guard
 "#,
         r#"
@@ -140,15 +139,15 @@ struct Guard {
 extension of Guard implements Drop {
 /// @definition.extension symbol=<module>#2 form=local target=Guard
 /// @definition.implements symbol=<module>#2 source=Drop target=Drop
-/// @definition.method symbol=drop source="drop(&this): void {}" slot=drop type=<drop.'a>(this: &drop.'a this) => void
+/// @definition.method symbol=drop source="drop(&this): void {}" slot=drop type=<drop.'a>(this: &drop.'a Guard) => void
 /// @definition.conformance symbol=<module>#2 member=drop requirement=Drop.drop
 /// @resolution.name source=Guard target=Guard
 /// @resolution.name source=Drop target=Drop
 
     drop(&this): void {}
     /// @generic.template symbol=drop parent=template#0 parameters=('a)
-    /// @type.symbol symbol=drop source="drop(&this): void {}" type=<drop.'a>(this: &drop.'a this) => void
-    /// @type.symbol symbol=drop.this source=&this type=&drop.'a this
+    /// @type.symbol symbol=drop source="drop(&this): void {}" type=<drop.'a>(this: &drop.'a Guard) => void
+    /// @type.symbol symbol=drop.this source=&this type=&drop.'a Guard
 
 }
 
@@ -157,7 +156,6 @@ declare function duplicate<T: Copy>(value: T): void;
 /// @type.symbol symbol=duplicate source="declare function duplicate<T: Copy>(value: T): void" type=<T: Copy>(T) => void
 /// @type.symbol symbol=duplicate.T source="T: Copy" type=T
 /// @resolution.name source=Copy target=Copy
-/// @type.symbol symbol=duplicate.value source="value: T" type=T
 /// @resolution.name source=T target=duplicate.T
 
 declare const guard: Guard;
@@ -170,7 +168,7 @@ duplicate(guard);
 /// @resolution.call source=duplicate(guard) parameters=(Guard) arguments=(provided(guard) as Guard) return=void kind=symbol target=duplicate instance=duplicate<Guard>
 /// @generic.instantiation id=duplicate<Guard> template=duplicate arguments=(Guard)
 /// @resolution.name source=guard target=guard
-/// @resolution.place source=guard placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=guard placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=guard root=guard
 "#,
         r#"
@@ -231,14 +229,14 @@ struct Guard implements Drop {
 /// @definition.struct symbol=Guard
 /// @definition.where symbol=Guard source=Drop relation=satisfies left=this right=Drop
 /// @definition.implements symbol=Guard source=Drop target=Drop
-/// @definition.method symbol=Guard.drop source="drop(&this): void {}" slot=drop type=<Guard.drop.'a>(this: &Guard.drop.'a this) => void
+/// @definition.method symbol=Guard.drop source="drop(&this): void {}" slot=drop type=<Guard.drop.'a>(this: &Guard.drop.'a Guard) => void
 /// @definition.conformance symbol=Guard member=Guard.drop requirement=Drop.drop
 /// @resolution.name source=Drop target=Drop
 
     drop(&this): void {}
     /// @generic.template symbol=Guard.drop parent=template#0 parameters=('a)
-    /// @type.symbol symbol=Guard.drop source="drop(&this): void {}" type=<Guard.drop.'a>(this: &Guard.drop.'a this) => void
-    /// @type.symbol symbol=Guard.drop.this source=&this type=&Guard.drop.'a this
+    /// @type.symbol symbol=Guard.drop source="drop(&this): void {}" type=<Guard.drop.'a>(this: &Guard.drop.'a Guard) => void
+    /// @type.symbol symbol=Guard.drop.this source=&this type=&Guard.drop.'a Guard
 
 }
 
@@ -257,7 +255,6 @@ declare function duplicate<T: Copy>(value: T): void;
 /// @type.symbol symbol=duplicate source="declare function duplicate<T: Copy>(value: T): void" type=<T: Copy>(T) => void
 /// @type.symbol symbol=duplicate.T source="T: Copy" type=T
 /// @resolution.name source=Copy target=Copy
-/// @type.symbol symbol=duplicate.value source="value: T" type=T
 /// @resolution.name source=T target=duplicate.T
 
 declare const plain: Plain;
@@ -270,7 +267,7 @@ duplicate(plain);
 /// @resolution.call source=duplicate(plain) parameters=(Plain) arguments=(provided(plain) as Plain) return=void kind=symbol target=duplicate instance=duplicate<Plain>
 /// @generic.instantiation id=duplicate<Plain> template=duplicate arguments=(Plain)
 /// @resolution.name source=plain target=plain
-/// @resolution.place source=plain placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=plain placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=plain root=plain
 "#,
         r#"

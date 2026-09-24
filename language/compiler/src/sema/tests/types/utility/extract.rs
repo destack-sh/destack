@@ -26,7 +26,7 @@ matched satisfies "a" | "c";
 
 === dir ===
 type Match = Extract<"a" | "b" | "c", "a" | "c">;
-/// @type.symbol symbol=Match source="type Match = Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" type=Extract<"a" | "b" | "c", "a" | "c">
+/// @type.symbol symbol=Match source="type Match = Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" type="a" | "c"
 /// @definition.type symbol=Match source="type Match = Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" value=Extract<"a" | "b" | "c", "a" | "c">
 /// @resolution.name source=Extract target=Extract
 
@@ -37,7 +37,7 @@ declare const matched: Match;
 
 matched satisfies "a" | "c";
 /// @resolution.name source=matched target=matched
-/// @resolution.place source=matched placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=matched placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=matched root=matched
 "#,
     );
@@ -65,7 +65,7 @@ const bad: Match = "b";
 
 === dir ===
 type Match = Extract<"a" | "b" | "c", "a" | "c">;
-/// @type.symbol symbol=Match source="type Match = Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" type=Extract<"a" | "b" | "c", "a" | "c">
+/// @type.symbol symbol=Match source="type Match = Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" type="a" | "c"
 /// @definition.type symbol=Match source="type Match = Extract<\"a\" | \"b\" | \"c\", \"a\" | \"c\">" value=Extract<"a" | "b" | "c", "a" | "c">
 /// @resolution.name source=Extract target=Extract
 
@@ -105,7 +105,7 @@ let bad: Match = "a";
 
 === dir ===
 type Match = Extract<never, "a">;
-/// @type.symbol symbol=Match source="type Match = Extract<never, \"a\">" type=Extract<never, "a">
+/// @type.symbol symbol=Match source="type Match = Extract<never, \"a\">" type=never
 /// @definition.type symbol=Match source="type Match = Extract<never, \"a\">" value=Extract<never, "a">
 /// @resolution.name source=Extract target=Extract
 

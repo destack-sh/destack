@@ -29,10 +29,10 @@ function name(user: { name: string } | null): string | undefined {
     /// @type.node source="user?.[\"name\"]" type=string
     /// @type.node source="user?.[\"name\"]" type=string | undefined
     /// @resolution.name source=user target=name.user
-    /// @resolution.place source="user?.[\"name\"]" placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source="user?.[\"name\"]" placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source="user?.[\"name\"]" root=name.user keys=[name]
     /// @resolution.subscript source="user?.[\"name\"]" type=string kind=member target="receiver={ name: string } | null, target=field(receiver={ name: string } | null adjustments=(union.payload({ name: string } | null, { name: string }, { name: string })), target=name, type=string), type=string"
-    /// @resolution.place source=user placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=user placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=user root=name.user
     /// @type.node source="\"name\"" type="name"
 
@@ -69,10 +69,10 @@ function name(user: { name: string } | null): string {
     return user["name"];
     /// @type.node source="user[\"name\"]" type=string
     /// @resolution.name source=user target=name.user
-    /// @resolution.place source="user[\"name\"]" placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source="user[\"name\"]" placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source="user[\"name\"]" root=name.user keys=[name]
     /// @resolution.subscript source="user[\"name\"]" type=string kind=member target="receiver={ name: string } | null, target=field(receiver={ name: string } | null adjustments=(union.payload({ name: string } | null, { name: string }, { name: string })), target=name, type=string), type=string"
-    /// @resolution.place source=user placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=user placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=user root=name.user
     /// @type.node source="\"name\"" type="name"
 

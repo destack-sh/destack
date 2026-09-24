@@ -57,7 +57,7 @@ declare const person: Partial<Person>;
 person.name satisfies string | undefined;
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.name receiver=Partial<Person> type=string | undefined kind=field target_receiver=Partial<Person> key=name target_type=string | undefined
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.name root=person keys=[name]
@@ -65,7 +65,7 @@ person.name satisfies string | undefined;
 person.age satisfies int32 | undefined;
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.age receiver=Partial<Person> type=int32 | undefined kind=field target_receiver=Partial<Person> key=age target_type=int32 | undefined
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.age placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.age root=person keys=[age]
@@ -128,7 +128,7 @@ const person: Partial<Person> = {};
 person.name satisfies string | undefined;
 /// @resolution.name source=person target=person
 /// @resolution.member source=person.name receiver=Partial<Person> type=string | undefined kind=field target_receiver=Partial<Person> key=name target_type=string | undefined
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.place source=person.name placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=person.name root=person keys=[name]
@@ -159,7 +159,7 @@ interface Person {
     age: int32;
 }
 
-const bad: Partial<Person> = { name: "Ada", extra: true };
+const bad: Partial<Person> = { name: "Ada" as string | undefined, extra: true };
 
 === dir ===
 interface Person {
@@ -216,7 +216,7 @@ interface Person {
     age: int32;
 }
 
-const bad: Partial<Person> = { name: "Ada", age: "no" };
+const bad: Partial<Person> = { name: "Ada" as string | undefined, age: "no" };
 
 === dir ===
 interface Person {
@@ -274,7 +274,7 @@ interface Person {
     age: int32;
 }
 
-const person: Partial<Person> = { name: "Ada" };
+const person: Partial<Person> = { name: "Ada" as string | undefined };
 person.name = "Grace";
 
 === dir ===
@@ -302,7 +302,7 @@ const person: Partial<Person> = { name: "Ada" };
 
 person.name = "Grace";
 /// @resolution.name source=person target=person
-/// @resolution.place source=person placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=person placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=person root=person
 /// @resolution.rejected source=person.name
 "#,

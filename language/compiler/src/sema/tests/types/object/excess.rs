@@ -83,7 +83,7 @@ const value: Person = source;
 /// @resolution.name source=Person target=Person
 /// @type.node source=source type={ name: string; extra: boolean }
 /// @resolution.name source=source target=source
-/// @resolution.place source=source placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=source placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=source root=source
 "#,
         r#"
@@ -137,7 +137,7 @@ function keep<T: { name: string }>(value: T): T {
     return value;
     /// @type.node source=value type=T
     /// @resolution.name source=value target=keep.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=keep.value
 
 }
@@ -162,7 +162,7 @@ const extra = value.extra;
 /// @type.node source=value.extra type=boolean
 /// @resolution.name source=value target=value
 /// @resolution.member source=value.extra receiver={ name: string; extra: boolean } type=boolean kind=field target_receiver={ name: string; extra: boolean } key=extra target_type=boolean
-/// @resolution.place source=value placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 /// @resolution.access source=value.extra root=value keys=[extra]
 "#,

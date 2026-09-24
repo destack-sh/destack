@@ -75,7 +75,7 @@ extension of Charge implements Negate {
     negate(&readonly this): Charge {
     /// @generic.template symbol=negate parent=template#0 parameters=('a)
     /// @type.symbol symbol=negate type=<negate.'a>(this: &negate.'a readonly Charge) => Charge
-    /// @type.symbol symbol=negate.this source="&readonly this" type=&negate.'a readonly this
+    /// @type.symbol symbol=negate.this source="&readonly this" type=&negate.'a readonly Charge
     /// @resolution.name source=Charge target=Charge
 
         Charge { value: -this.value }
@@ -99,9 +99,11 @@ declare const charge: Charge;
 const flipped = -charge;
 /// @type.symbol symbol=flipped source=flipped type=Charge
 /// @resolution.pattern source=flipped kind=binding target=flipped
-/// @resolution.operator source=-charge type=Charge operator="-" kind=call parameters=() return=Charge regions=("static" & "constant") kind=symbol target=negate receiver=Charge adjustments=(borrow(&'static readonly constant Charge))
+/// @resolution.operator source=-charge type=Charge operator="-" kind=call parameters=() return=Charge regions=("static" & "local") kind=symbol target=negate receiver=Charge adjustments=(borrow(&'static readonly Charge)) instance="Charge.<extension#1>.negate<\"static\" & \"local\">"
+/// @generic.instantiation id="negate<\"static\" & \"local\">" template=negate arguments=("static" & "local")
+/// @generic.instance id="negate<\"bound0\" & \"local\">" template=negate arguments=("bound0" & "local")
 /// @resolution.name source=charge target=charge
-/// @resolution.place source=charge placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=charge placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=charge root=charge
 "#,
     );

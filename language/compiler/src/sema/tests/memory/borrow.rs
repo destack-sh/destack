@@ -6,14 +6,16 @@ fn test_preserve_source_place_in_explicit_borrow() {
         r#"
 class User {}
 
-declare const localUser: local User;
-declare const sharedUser: shared User;
+shared class SharedUser {}
+
+declare const localUser: User;
+declare const sharedUser: SharedUser;
 
 const localView = &readonly localUser;
 const sharedView = &readonly sharedUser;
 
-localView satisfies local &readonly User;
-sharedView satisfies shared &readonly User;
+localView satisfies &readonly User;
+sharedView satisfies &readonly SharedUser;
 "#,
     );
 
@@ -24,59 +26,65 @@ sharedView satisfies shared &readonly User;
 === annotated ===
 class User {}
 
-declare const localUser: local User;
-declare const sharedUser: shared User;
+shared class SharedUser {}
+
+declare const localUser: User;
+declare const sharedUser: SharedUser;
 
 const localView: &'managed readonly User = &readonly localUser;
-const sharedView: &'managed readonly shared User = &readonly sharedUser;
+const sharedView: &'managed readonly SharedUser = &readonly sharedUser;
 
-localView satisfies local &readonly User;
-sharedView satisfies shared &readonly User;
+localView satisfies &readonly User;
+sharedView satisfies &readonly SharedUser;
 
 === dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
-declare const localUser: local User;
-/// @type.symbol symbol=localUser source=localUser type=local User
+shared class SharedUser {}
+/// @type.symbol symbol=SharedUser source="shared class SharedUser {}" type=typeof SharedUser
+/// @definition.class symbol=SharedUser source="shared class SharedUser {}"
+
+declare const localUser: User;
+/// @type.symbol symbol=localUser source=localUser type=User
 /// @resolution.pattern source=localUser kind=binding target=localUser
 /// @resolution.name source=User target=User
 
-declare const sharedUser: shared User;
-/// @type.symbol symbol=sharedUser source=sharedUser type=shared User
+declare const sharedUser: SharedUser;
+/// @type.symbol symbol=sharedUser source=sharedUser type=SharedUser
 /// @resolution.pattern source=sharedUser kind=binding target=sharedUser
-/// @resolution.name source=User target=User
+/// @resolution.name source=SharedUser target=SharedUser
 
 const localView = &readonly localUser;
-/// @type.symbol symbol=localView source=localView type=Borrowed<User, "managed" & "local", "readonly">
+/// @type.symbol symbol=localView source=localView type=&'managed readonly User
 /// @resolution.pattern source=localView kind=binding target=localView
-/// @type.node source="&readonly localUser" type=Borrowed<User, "managed" & "local", "readonly">
+/// @type.node source="&readonly localUser" type=&'managed readonly User
 /// @resolution.name source=localUser target=localUser
-/// @resolution.place source=localUser placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=localUser placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=localUser root=localUser
 
 const sharedView = &readonly sharedUser;
-/// @type.symbol symbol=sharedView source=sharedView type=Borrowed<User, "managed" & "shared", "readonly">
+/// @type.symbol symbol=sharedView source=sharedView type=&'managed readonly SharedUser
 /// @resolution.pattern source=sharedView kind=binding target=sharedView
-/// @type.node source="&readonly sharedUser" type=Borrowed<User, "managed" & "shared", "readonly">
+/// @type.node source="&readonly sharedUser" type=&'managed readonly SharedUser
 /// @resolution.name source=sharedUser target=sharedUser
-/// @resolution.place source=sharedUser placement="shared" lifetime="managed" access="mutable"
+/// @resolution.place source=sharedUser placement="shared" lifetime="static" access="immutable"
 /// @resolution.access source=sharedUser root=sharedUser
 
-localView satisfies local &readonly User;
-/// @type.node source="localView satisfies local &readonly User" type=Borrowed<User, "managed" & "local", "readonly">
+localView satisfies &readonly User;
+/// @type.node source="localView satisfies &readonly User" type=&'managed readonly User
 /// @resolution.name source=localView target=localView
-/// @resolution.place source=localView placement="local" lifetime="managed" access="readonly"
+/// @resolution.place source=localView placement="local" lifetime="managed" access="immutable"
 /// @resolution.access source=localView root=localView
 /// @resolution.name source=User target=User
 
-sharedView satisfies shared &readonly User;
-/// @type.node source="sharedView satisfies shared &readonly User" type=Borrowed<User, "managed" & "shared", "readonly">
+sharedView satisfies &readonly SharedUser;
+/// @type.node source="sharedView satisfies &readonly SharedUser" type=&'managed readonly SharedUser
 /// @resolution.name source=sharedView target=sharedView
-/// @resolution.place source=sharedView placement="shared" lifetime="managed" access="readonly"
+/// @resolution.place source=sharedView placement="shared" lifetime="managed" access="immutable"
 /// @resolution.access source=sharedView root=sharedView
-/// @resolution.name source=User target=User
+/// @resolution.name source=SharedUser target=SharedUser
 "#,
     );
 }
@@ -87,10 +95,10 @@ fn test_distinguish_borrow_expression_from_explicit_borrow_coercion() {
         r#"
 class User {}
 
-declare const user: local User;
+declare const user: User;
 
 const projected = &readonly user;
-const coerced = user as local &readonly User;
+const coerced = user as &readonly User;
 "#,
     );
 
@@ -101,37 +109,37 @@ const coerced = user as local &readonly User;
 === annotated ===
 class User {}
 
-declare const user: local User;
+declare const user: User;
 
 const projected: &'managed readonly User = &readonly user;
-const coerced: &'static readonly User = user as local &readonly User;
+const coerced: &'managed readonly User = user as &readonly User;
 
 === dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
-declare const user: local User;
-/// @type.symbol symbol=user source=user type=local User
+declare const user: User;
+/// @type.symbol symbol=user source=user type=User
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
 const projected = &readonly user;
-/// @type.symbol symbol=projected source=projected type=Borrowed<User, "managed" & "local", "readonly">
+/// @type.symbol symbol=projected source=projected type=&'managed readonly User
 /// @resolution.pattern source=projected kind=binding target=projected
-/// @type.node source="&readonly user" type=Borrowed<User, "managed" & "local", "readonly">
+/// @type.node source="&readonly user" type=&'managed readonly User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=user placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
 
-const coerced = user as local &readonly User;
-/// @type.symbol symbol=coerced source=coerced type=&'static readonly User
+const coerced = user as &readonly User;
+/// @type.symbol symbol=coerced source=coerced type=&'managed readonly User
 /// @resolution.pattern source=coerced kind=binding target=coerced
-/// @type.node source="user as local &readonly User" type=&'static readonly User
+/// @type.node source="user as &readonly User" type=&'managed readonly User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=user placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
-/// @coercion.node source=user from=local User adjustments=[{ kind: borrow, target: &'static readonly User }] origin=explicit
+/// @coercion.node source=user from=User adjustments=[{ kind: borrow, target: &'managed readonly User }] origin=explicit
 /// @resolution.name source=User target=User
 "#,
     );
@@ -143,8 +151,10 @@ fn test_reject_explicit_borrow_access_not_granted_by_managed_source() {
         r#"
 class User {}
 
-declare const sharedUser: shared User;
-declare const readonlyUser: local readonly User;
+shared class SharedUser {}
+
+declare const sharedUser: SharedUser;
+declare const readonlyUser: readonly User;
 
 const sharedExclusive = &sharedUser;
 const readonlyMutable = &readonlyUser;
@@ -159,10 +169,12 @@ const readonlyExclusive = &readonlyUser;
 === annotated ===
 class User {}
 
-declare const sharedUser: shared User;
-declare const readonlyUser: readonly local User;
+shared class SharedUser {}
 
-const sharedExclusive: &'managed shared User = &sharedUser;
+declare const sharedUser: SharedUser;
+declare const readonlyUser: readonly User;
+
+const sharedExclusive: &'managed SharedUser = &sharedUser;
 const readonlyMutable: &'managed readonly User = &readonlyUser;
 const readonlyExclusive: &'managed readonly User = &readonlyUser;
 
@@ -171,44 +183,48 @@ class User {}
 /// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
-declare const sharedUser: shared User;
-/// @type.symbol symbol=sharedUser source=sharedUser type=shared User
-/// @resolution.pattern source=sharedUser kind=binding target=sharedUser
-/// @resolution.name source=User target=User
+shared class SharedUser {}
+/// @type.symbol symbol=SharedUser source="shared class SharedUser {}" type=typeof SharedUser
+/// @definition.class symbol=SharedUser source="shared class SharedUser {}"
 
-declare const readonlyUser: local readonly User;
-/// @type.symbol symbol=readonlyUser source=readonlyUser type=Readonly<local User>
+declare const sharedUser: SharedUser;
+/// @type.symbol symbol=sharedUser source=sharedUser type=SharedUser
+/// @resolution.pattern source=sharedUser kind=binding target=sharedUser
+/// @resolution.name source=SharedUser target=SharedUser
+
+declare const readonlyUser: readonly User;
+/// @type.symbol symbol=readonlyUser source=readonlyUser type=readonly User
 /// @resolution.pattern source=readonlyUser kind=binding target=readonlyUser
 /// @resolution.name source=User target=User
 
 const sharedExclusive = &sharedUser;
-/// @type.symbol symbol=sharedExclusive source=sharedExclusive type=Borrowed<User, "managed" & "shared", "mutable">
+/// @type.symbol symbol=sharedExclusive source=sharedExclusive type=&'managed SharedUser
 /// @resolution.pattern source=sharedExclusive kind=binding target=sharedExclusive
 /// @resolution.name source=sharedUser target=sharedUser
-/// @resolution.place source=sharedUser placement="shared" lifetime="managed" access="mutable"
+/// @resolution.place source=sharedUser placement="shared" lifetime="static" access="immutable"
 /// @resolution.access source=sharedUser root=sharedUser
 
 const readonlyMutable = &readonlyUser;
-/// @type.symbol symbol=readonlyMutable source=readonlyMutable type=Borrowed<User, "managed" & "local", "readonly">
+/// @type.symbol symbol=readonlyMutable source=readonlyMutable type=&'managed readonly User
 /// @resolution.pattern source=readonlyMutable kind=binding target=readonlyMutable
 /// @resolution.name source=readonlyUser target=readonlyUser
-/// @resolution.place source=readonlyUser placement="local" lifetime="managed" access="readonly"
+/// @resolution.place source=readonlyUser placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=readonlyUser root=readonlyUser
 
 const readonlyExclusive = &readonlyUser;
-/// @type.symbol symbol=readonlyExclusive source=readonlyExclusive type=Borrowed<User, "managed" & "local", "readonly">
+/// @type.symbol symbol=readonlyExclusive source=readonlyExclusive type=&'managed readonly User
 /// @resolution.pattern source=readonlyExclusive kind=binding target=readonlyExclusive
 /// @resolution.name source=readonlyUser target=readonlyUser
-/// @resolution.place source=readonlyUser placement="local" lifetime="managed" access="readonly"
+/// @resolution.place source=readonlyUser placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=readonlyUser root=readonlyUser
 "#,
         r#"
-/// @diagnostic.error id=borrow-access-not-granted message="'mutable' access is not granted by a value of type 'readonly local User'"
-/// @diagnostic.label line=8 column=25 span="&" line_source="const readonlyMutable = &readonlyUser;"
+/// @diagnostic.error id=borrow-access-not-granted message="'mutable' access is not granted by a value of type 'readonly User'"
+/// @diagnostic.label line=10 column=25 span="&" line_source="const readonlyMutable = &readonlyUser;"
 /// @diagnostic.note message="the source grants at most 'readonly' access"
 /// @diagnostic.help message="request the granted access or use a source that grants more"
-/// @diagnostic.error id=borrow-access-not-granted message="'mutable' access is not granted by a value of type 'readonly local User'"
-/// @diagnostic.label line=9 column=27 span="&" line_source="const readonlyExclusive = &readonlyUser;"
+/// @diagnostic.error id=borrow-access-not-granted message="'mutable' access is not granted by a value of type 'readonly User'"
+/// @diagnostic.label line=11 column=27 span="&" line_source="const readonlyExclusive = &readonlyUser;"
 /// @diagnostic.note message="the source grants at most 'readonly' access"
 /// @diagnostic.help message="request the granted access or use a source that grants more"
 "#,
@@ -244,34 +260,34 @@ declare const value: int32;
 /// @resolution.pattern source=value kind=binding target=value
 
 const readonlyValue = &readonly value;
-/// @type.symbol symbol=readonlyValue source=readonlyValue type=&'static readonly constant int32
+/// @type.symbol symbol=readonlyValue source=readonlyValue type=&'static readonly int32
 /// @resolution.pattern source=readonlyValue kind=binding target=readonlyValue
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 
 const mutableValue = &value;
-/// @type.symbol symbol=mutableValue source=mutableValue type=&'static constant int32
+/// @type.symbol symbol=mutableValue source=mutableValue type=&'static int32
 /// @resolution.pattern source=mutableValue kind=binding target=mutableValue
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 
 const exclusiveValue = &value;
-/// @type.symbol symbol=exclusiveValue source=exclusiveValue type=&'static constant int32
+/// @type.symbol symbol=exclusiveValue source=exclusiveValue type=&'static int32
 /// @resolution.pattern source=exclusiveValue kind=binding target=exclusiveValue
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 "#,
         r#"
 /// @diagnostic.error id=borrow-access-not-granted message="'mutable' access is not granted by a value of type 'int32'"
 /// @diagnostic.label line=5 column=22 span="&" line_source="const mutableValue = &value;"
-/// @diagnostic.note message="the source grants at most 'readonly' access"
+/// @diagnostic.note message="the source grants at most 'immutable' access"
 /// @diagnostic.help message="request the granted access or use a source that grants more"
 /// @diagnostic.error id=borrow-access-not-granted message="'mutable' access is not granted by a value of type 'int32'"
 /// @diagnostic.label line=6 column=24 span="&" line_source="const exclusiveValue = &value;"
-/// @diagnostic.note message="the source grants at most 'readonly' access"
+/// @diagnostic.note message="the source grants at most 'immutable' access"
 /// @diagnostic.help message="request the granted access or use a source that grants more"
 "#,
     );
@@ -283,9 +299,9 @@ fn test_assign_stronger_borrow_access_to_weaker_access() {
         r#"
 class User {}
 
-declare const user: local User;
-declare function inspect(value: local &readonly User): void;
-declare function modify(value: local &User): void;
+declare const user: User;
+declare function inspect(value: &readonly User): void;
+declare function modify(value: &User): void;
 
 inspect(&user);
 modify(&user);
@@ -301,71 +317,73 @@ modify(&user);
 === annotated ===
 class User {}
 
-declare const user: local User;
-declare function inspect<'a>(value: &'a readonly User): void;
-declare function modify<'a>(value: &'a User): void;
+declare const user: User;
+declare function inspect<'a>(value: &readonly User): void;
+declare function modify<'a>(value: &User): void;
 
-inspect(&user);
-modify(&user);
-inspect(&user);
-modify(&user);
+inspect<"managed">(&user);
+modify<"managed">(&user);
+inspect<"managed">(&user);
+modify<"managed">(&user);
 
 === dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
-declare const user: local User;
-/// @type.symbol symbol=user source=user type=local User
+declare const user: User;
+/// @type.symbol symbol=user source=user type=User
 /// @resolution.pattern source=user kind=binding target=user
 /// @resolution.name source=User target=User
 
-declare function inspect(value: local &readonly User): void;
+declare function inspect(value: &readonly User): void;
 /// @generic.template symbol=inspect parameters=('a)
-/// @type.symbol symbol=inspect source="declare function inspect(value: local &readonly User): void" type=<inspect.'a>(&inspect.'a readonly User) => void
-/// @type.symbol symbol=inspect.value source="value: local &readonly User" type=&inspect.'a readonly User
+/// @type.symbol symbol=inspect source="declare function inspect(value: &readonly User): void" type=<inspect.'a>(&inspect.'a readonly User) => void
 /// @resolution.name source=User target=User
 
-declare function modify(value: local &User): void;
+declare function modify(value: &User): void;
 /// @generic.template symbol=modify parameters=('a)
-/// @type.symbol symbol=modify source="declare function modify(value: local &User): void" type=<modify.'a>(&modify.'a User) => void
-/// @type.symbol symbol=modify.value source="value: local &User" type=&modify.'a User
+/// @type.symbol symbol=modify source="declare function modify(value: &User): void" type=<modify.'a>(&modify.'a User) => void
 /// @resolution.name source=User target=User
 
 inspect(&user);
 /// @type.node source=inspect(&user) type=void
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(&user) parameters=(Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(&user) as Borrowed<User, "managed" & "local", "readonly">) return=void regions=("managed") kind=symbol target=inspect
-/// @type.node source=&user type=Borrowed<User, "managed" & "local", "mutable">
+/// @resolution.call source=inspect(&user) parameters=(&'managed readonly User) arguments=(provided(&user) as &'managed readonly User) return=void regions=("managed" & "local") kind=symbol target=inspect instance="inspect<\"managed\" & \"local\">"
+/// @generic.instantiation id="inspect<\"managed\" & \"local\">" template=inspect arguments=("managed" & "local")
+/// @generic.instance id="inspect<\"bound0\" & \"local\">" template=inspect arguments=("bound0" & "local")
+/// @type.node source=&user type=&'managed User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=user placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
 
 modify(&user);
 /// @type.node source=modify(&user) type=void
 /// @resolution.name source=modify target=modify
-/// @resolution.call source=modify(&user) parameters=(Borrowed<User, "managed" & "local", "mutable">) arguments=(provided(&user) as Borrowed<User, "managed" & "local", "mutable">) return=void regions=("managed") kind=symbol target=modify
-/// @type.node source=&user type=Borrowed<User, "managed" & "local", "mutable">
+/// @resolution.call source=modify(&user) parameters=(&'managed User) arguments=(provided(&user) as &'managed User) return=void regions=("managed" & "local") kind=symbol target=modify instance="modify<\"managed\" & \"local\">"
+/// @generic.instantiation id="modify<\"managed\" & \"local\">" template=modify arguments=("managed" & "local")
+/// @generic.instance id="modify<\"bound0\" & \"local\">" template=modify arguments=("bound0" & "local")
+/// @type.node source=&user type=&'managed User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=user placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
 
 inspect(&user);
 /// @type.node source=inspect(&user) type=void
 /// @resolution.name source=inspect target=inspect
-/// @resolution.call source=inspect(&user) parameters=(Borrowed<User, "managed" & "local", "readonly">) arguments=(provided(&user) as Borrowed<User, "managed" & "local", "readonly">) return=void regions=("managed") kind=symbol target=inspect
-/// @type.node source=&user type=Borrowed<User, "managed" & "local", "mutable">
+/// @resolution.call source=inspect(&user) parameters=(&'managed readonly User) arguments=(provided(&user) as &'managed readonly User) return=void regions=("managed" & "local") kind=symbol target=inspect instance="inspect<\"managed\" & \"local\">"
+/// @type.node source=&user type=&'managed User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=user placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
 
 modify(&user);
 /// @type.node source=modify(&user) type=void
 /// @resolution.name source=modify target=modify
-/// @resolution.call source=modify(&user) parameters=(Borrowed<User, "managed" & "local", "mutable">) arguments=(provided(&user) as Borrowed<User, "managed" & "local", "mutable">) return=void regions=("managed") kind=symbol target=modify
-/// @type.node source=&user type=Borrowed<User, "managed" & "local", "mutable">
+/// @resolution.call source=modify(&user) parameters=(&'managed User) arguments=(provided(&user) as &'managed User) return=void regions=("managed" & "local") kind=symbol target=modify instance="modify<\"managed\" & \"local\">"
+/// @type.node source=&user type=&'managed User
 /// @resolution.name source=user target=user
-/// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=user placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=user root=user
 "#,
     );
@@ -377,8 +395,8 @@ fn test_reject_a_readonly_borrow_where_a_mutable_one_is_required() {
         r#"
 class User {}
 
-declare const readonlyView: local &readonly User;
-declare function modify(value: local &User): void;
+declare const readonlyView: &readonly User;
+declare function modify(value: &User): void;
 
 modify(readonlyView);
 "#,
@@ -392,35 +410,35 @@ modify(readonlyView);
 class User {}
 
 declare const readonlyView: &'static readonly User;
-declare function modify<'a>(value: &'a User): void;
+declare function modify<'a>(value: &User): void;
 
-modify(readonlyView);
+modify<"static">(readonlyView);
 
 === dir ===
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=typeof User
 /// @definition.class symbol=User source="class User {}"
 
-declare const readonlyView: local &readonly User;
+declare const readonlyView: &readonly User;
 /// @type.symbol symbol=readonlyView source=readonlyView type=&'static readonly User
 /// @resolution.pattern source=readonlyView kind=binding target=readonlyView
 /// @resolution.name source=User target=User
 
-declare function modify(value: local &User): void;
+declare function modify(value: &User): void;
 /// @generic.template symbol=modify parameters=('a)
-/// @type.symbol symbol=modify source="declare function modify(value: local &User): void" type=<modify.'a>(&modify.'a User) => void
-/// @type.symbol symbol=modify.value source="value: local &User" type=&modify.'a User
+/// @type.symbol symbol=modify source="declare function modify(value: &User): void" type=<modify.'a>(&modify.'a User) => void
 /// @resolution.name source=User target=User
 
 modify(readonlyView);
 /// @resolution.name source=modify target=modify
-/// @resolution.call source=modify(readonlyView) parameters=(&'static User) arguments=(provided(readonlyView) as &'static User) return=void regions=("static") kind=symbol target=modify
+/// @resolution.call source=modify(readonlyView) parameters=(&'static User) arguments=(provided(readonlyView) as &'static User) return=void regions=("static" & "local") kind=symbol target=modify instance="modify<\"static\" & \"local\">"
+/// @generic.instantiation id="modify<\"static\" & \"local\">" template=modify arguments=("static" & "local")
 /// @resolution.name source=readonlyView target=readonlyView
-/// @resolution.place source=readonlyView placement="local" lifetime="static" access="readonly"
+/// @resolution.place source=readonlyView placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=readonlyView root=readonlyView
 "#,
         r#"
-/// @diagnostic.error id=argument-not-assignable message="argument of type '&'static readonly local User' is not assignable to parameter of type '&'static local User'"
+/// @diagnostic.error id=argument-not-assignable message="argument of type '&'static readonly User' is not assignable to parameter of type '&'static User'"
 /// @diagnostic.label line=7 column=8 span="readonlyView" line_source="modify(readonlyView);"
 /// @diagnostic.related line=7 column=1 span="modify(readonlyView)" line_source="modify(readonlyView);" message="in this call"
 "#,
@@ -520,7 +538,7 @@ let point: ^Point = Point { x: 1 };
 let x = &readonly point.x;
 
 x satisfies Borrowed<int32, 'static, "readonly">;
-point.x satisfies local int32;
+point.x satisfies int32;
 "#,
     );
 
@@ -537,7 +555,7 @@ let point: Point = Point { x: 1 };
 let x: &'static readonly int32 = &readonly point.x;
 
 x satisfies Borrowed<int32, 'static, "readonly">;
-point.x satisfies local int32;
+point.x satisfies int32;
 
 === dir ===
 struct Point {
@@ -566,9 +584,9 @@ let x = &readonly point.x;
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
-/// @resolution.place source=point placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
-/// @resolution.place source=point.x placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=point.x placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point.x root=point keys=[x]
 
 x satisfies Borrowed<int32, 'static, "readonly">;
@@ -579,15 +597,15 @@ x satisfies Borrowed<int32, 'static, "readonly">;
 /// @resolution.access source=x root=x
 /// @resolution.name source=Borrowed target=Borrowed
 
-point.x satisfies local int32;
-/// @type.node source="point.x satisfies local int32" type=int32
+point.x satisfies int32;
+/// @type.node source="point.x satisfies int32" type=int32
 /// @type.node source=point type=Point
 /// @type.node source=point.x type=int32
 /// @resolution.name source=point target=point
 /// @resolution.member source=point.x receiver=Point type=int32 kind=field target_receiver=Point key=x target=Point.x target_type=int32
-/// @resolution.place source=point placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=point placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point root=point
-/// @resolution.place source=point.x placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=point.x placement="local" lifetime="static" access="exclusive"
 /// @resolution.access source=point.x root=point keys=[x]
 "#,
     );
@@ -636,7 +654,7 @@ function view(): void {
     /// @type.node source="&readonly values" type=&'frame readonly FixedArray<int32, 3>
     /// @type.node source=values type=FixedArray<int32, 3>
     /// @resolution.name source=values target=view.values
-    /// @resolution.place source=values placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=values placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=values root=view.values
 
     borrow satisfies &readonly [int32; 3];
@@ -676,7 +694,7 @@ function view<'a>(values: &'a readonly int32[]): readonly int32[] {
 }
 
 function copied<'a>(values: &'a readonly int32[]): readonly int32[] {
-    return *values;
+    return *values as readonly int32[];
 }
 
 === dir ===
@@ -699,7 +717,7 @@ function copied(values: &readonly int32[]): readonly int32[] {
 
     return *values;
     /// @resolution.place source=*values placement=copied.'a lifetime=copied.'a access="readonly"
-    /// @resolution.operator source=*values type=int32[] operator="*" kind=builtin operands=[values as &copied.'a readonly int32[]]
+    /// @resolution.operator source=*values type=^int32[] operator="*" kind=builtin operands=[values as &copied.'a readonly int32[]]
     /// @resolution.name source=values target=copied.values
     /// @resolution.place source=values placement=copied.'a lifetime=copied.'a access="readonly"
     /// @resolution.access source=values root=copied.values

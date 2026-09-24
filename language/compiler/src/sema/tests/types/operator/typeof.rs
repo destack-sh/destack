@@ -20,20 +20,19 @@ const result = queried(value);
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
-declare function identity<T, 'a>(value: &'a readonly T): &readonly T;
+declare function identity<T, 'a>(value: &readonly T): &readonly T;
 
 declare const queried: typeof identity<int32>;
 
 declare const value: &'static readonly int32;
 
-const result: &'static readonly int32 = queried(value);
+const result: &'static readonly int32 = queried<"static">(value);
 
 === dir ===
 declare function identity<T>(value: &readonly T): &readonly T;
 /// @generic.template symbol=identity parameters=(T, 'a)
 /// @type.symbol symbol=identity source="declare function identity<T>(value: &readonly T): &readonly T" type=<T, identity.'a>(&identity.'a readonly T) => &identity.'a readonly T
 /// @type.symbol symbol=identity.T source=T type=T
-/// @type.symbol symbol=identity.value source="value: &readonly T" type=&identity.'a readonly T
 /// @resolution.name source=T target=identity.T
 /// @resolution.name source=T target=identity.T
 
@@ -43,18 +42,18 @@ declare const queried: typeof identity<int32>;
 /// @resolution.name source=identity target=identity
 
 declare const value: &readonly int32;
-/// @type.symbol symbol=value source=value type=&'static readonly constant int32
+/// @type.symbol symbol=value source=value type=&'static readonly int32
 /// @resolution.pattern source=value kind=binding target=value
 
 const result = queried(value);
-/// @type.symbol symbol=result source=result type=&'static readonly constant int32
+/// @type.symbol symbol=result source=result type=&'static readonly int32
 /// @resolution.pattern source=result kind=binding target=result
 /// @resolution.name source=queried target=queried
-/// @resolution.call source=queried(value) parameters=(&'static readonly constant int32) arguments=(provided(value) as &'static readonly constant int32) return=&'static readonly constant int32 regions=("static" & "constant") kind=expression target=expression generic_arguments=(int32)
-/// @resolution.place source=queried placement="constant" lifetime="static" access="readonly"
+/// @resolution.call source=queried(value) parameters=(&'static readonly int32) arguments=(provided(value) as &'static readonly int32) return=&'static readonly int32 regions=("static" & "local") kind=expression target=expression generic_arguments=(int32, "static" & "local")
+/// @resolution.place source=queried placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=queried root=queried
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 "#,
     );
@@ -78,11 +77,11 @@ const box = new create();
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
-declare const create: new () => Box<int32, string>;
+declare const create: new () => Box<int32>;
 
 class Box<out T, out U = string> {}
 
-const box: Box<int32, string> = new create();
+const box: Box<int32> = new create();
 
 === dir ===
 declare const create: typeof Box<int32>;
@@ -103,7 +102,7 @@ const box = new create();
 /// @resolution.pattern source=box kind=binding target=box
 /// @resolution.call source="new create()" parameters=() return=Box<int32, string> kind=expression target=expression generic_arguments=(int32, string)
 /// @resolution.name source=create target=create
-/// @resolution.place source=create placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=create placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=create root=create
 "#,
     );
@@ -154,7 +153,6 @@ declare function identity<T>(value: T): T;
 /// @generic.template symbol=identity parameters=(T)
 /// @type.symbol symbol=identity source="declare function identity<T>(value: T): T" type=<T>(T) => T
 /// @type.symbol symbol=identity.T source=T type=T
-/// @type.symbol symbol=identity.value source="value: T" type=T
 /// @resolution.name source=T target=identity.T
 /// @resolution.name source=T target=identity.T
 
@@ -173,11 +171,11 @@ declare const queried: typeof identity<int32>;
 /// @resolution.name source=identity target=identity
 
 const assigned: (value: int32) => int32 = direct;
-/// @type.symbol symbol=assigned source=assigned type=Function<(int32,), int32>
+/// @type.symbol symbol=assigned source=assigned type=(int32) => int32
 /// @resolution.pattern source=assigned kind=binding target=assigned
 /// @type.symbol symbol=value source="value: int32" type=int32
 /// @resolution.name source=direct target=direct
-/// @resolution.place source=direct placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=direct placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=direct root=direct
 
 const first = direct(1);
@@ -185,7 +183,7 @@ const first = direct(1);
 /// @resolution.pattern source=first kind=binding target=first
 /// @resolution.name source=direct target=direct
 /// @resolution.call source=direct(1) parameters=(int32) arguments=(provided(1) as int32) return=int32 kind=expression target=expression generic_arguments=(int32)
-/// @resolution.place source=direct placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=direct placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=direct root=direct
 /// @coercion.node source=1 from=1 adjustments=[{ kind: materialize, target: int32 }] origin=implicit
 
@@ -194,7 +192,7 @@ const second = queried(2);
 /// @resolution.pattern source=second kind=binding target=second
 /// @resolution.name source=queried target=queried
 /// @resolution.call source=queried(2) parameters=(int32) arguments=(provided(2) as int32) return=int32 kind=expression target=expression generic_arguments=(int32)
-/// @resolution.place source=queried placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=queried placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=queried root=queried
 /// @coercion.node source=2 from=2 adjustments=[{ kind: materialize, target: int32 }] origin=implicit
 
@@ -203,7 +201,7 @@ const third = assigned(3);
 /// @resolution.pattern source=third kind=binding target=third
 /// @resolution.name source=assigned target=assigned
 /// @resolution.call source=assigned(3) parameters=(int32) arguments=(provided(3) as int32) return=int32 kind=expression target=expression
-/// @resolution.place source=assigned placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=assigned placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=assigned root=assigned
 /// @coercion.node source=3 from=3 adjustments=[{ kind: materialize, target: int32 }] origin=implicit
 "#,
@@ -260,7 +258,7 @@ const value = box.value;
 /// @resolution.pattern source=value kind=binding target=value
 /// @resolution.name source=box target=box
 /// @resolution.member source=box.value receiver=box.Box type=int32 kind=field target_receiver=box.Box key=value target=box.Box.value target_type=int32
-/// @resolution.place source=box placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=box placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=box root=box
 /// @resolution.access source=box.value root=box keys=[value]
 "#,
@@ -433,7 +431,7 @@ class Counter {
 
 type CounterCtor = typeof Counter;
 
-declare function takesCounter(ctor: new (value: int32) => Counter): void;
+declare function takesCounter(ctor: { new (value: int32): Counter }): void;
 
 takesCounter(Counter);
 let version: int32 = Counter.version;
@@ -444,7 +442,7 @@ class Counter {
 /// @definition.class symbol=Counter
 /// @definition.field symbol=Counter.value source="value: int32" key=value type=int32
 /// @definition.field symbol=Counter.version source="static version: int32 = 0" key=version static=true type=int32
-/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=<Counter.constructor.P0: Place>(int32) => Managed<Counter, Counter.constructor.P0>
+/// @definition.method symbol=Counter.constructor slot=constructor role=constructor type=(this: &'managed Counter, int32) => Counter
 
     static version: int32 = 0;
     /// @type.symbol symbol=Counter.version source="static version: int32 = 0" type=int32
@@ -453,33 +451,32 @@ class Counter {
     /// @type.symbol symbol=Counter.value source="value: int32" type=int32
 
     constructor(value: int32) {
-    /// @generic.template symbol=Counter.constructor parameters=(P0: Place)
-    /// @type.symbol symbol=Counter.constructor type=<Counter.constructor.P0: Place>(int32) => Managed<Counter, Counter.constructor.P0>
-    /// @type.symbol symbol=Counter.constructor.this type=Counter
+    /// @type.symbol symbol=Counter.constructor type=(this: &'managed Counter, int32) => Counter
+    /// @type.symbol symbol=Counter.constructor.this type=&'managed Counter
     /// @type.symbol symbol=Counter.constructor.value source="value: int32" type=int32
 
         this.value = value;
-        /// @resolution.receiver source=this kind=this declaration=Counter type=Counter
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.receiver source=this kind=this declaration=Counter type=&'managed Counter
+        /// @resolution.place source=this placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.value kind=place
+        /// @resolution.place source=this.value placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this.value root=this keys=[value]
-        /// @resolution.assignment source=this.value write="receiver=Counter, target=field(receiver=Counter, target=Counter.value, type=int32), type=int32" type=int32
+        /// @resolution.assignment source=this.value write="receiver=&'managed Counter, target=field(receiver=&'managed Counter, target=Counter.value, type=int32), type=int32" type=int32
         /// @resolution.name source=value target=Counter.constructor.value
-        /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=value root=Counter.constructor.value
 
     }
 }
 
 type CounterCtor = typeof Counter;
-/// @type.symbol symbol=CounterCtor source="type CounterCtor = typeof Counter" type=Function<(int32,), local Counter, "readonly">
+/// @type.symbol symbol=CounterCtor source="type CounterCtor = typeof Counter" type=Function<(int32,), Counter, "readonly">
 /// @definition.type symbol=CounterCtor source="type CounterCtor = typeof Counter" value=typeof Counter
 /// @resolution.name source=Counter target=Counter
 
 declare function takesCounter(ctor: { new (value: int32): Counter }): void;
 /// @type.symbol symbol=takesCounter source="declare function takesCounter(ctor: { new (value: int32): Counter }): void" type=(new (int32) => Counter) => void
-/// @type.symbol symbol=takesCounter.ctor source="ctor: { new (value: int32): Counter }" type=new (int32) => Counter
 /// @type.symbol symbol=takesCounter.value source="value: int32" type=int32
 /// @resolution.name source=Counter target=Counter
 
@@ -487,14 +484,14 @@ takesCounter(Counter);
 /// @resolution.name source=takesCounter target=takesCounter
 /// @resolution.call source=takesCounter(Counter) parameters=(new (int32) => Counter) arguments=(provided(Counter) as new (int32) => Counter) return=void kind=symbol target=takesCounter
 /// @resolution.name source=Counter target=Counter
-/// @resolution.function source=Counter type=Function<(int32,), local Counter, "readonly"> target=Counter
+/// @resolution.function source=Counter type=Function<(int32,), Counter, "readonly"> target=Counter
 
 let version: int32 = Counter.version;
 /// @type.symbol symbol=version source=version type=int32
 /// @resolution.pattern source=version kind=binding target=version
 /// @resolution.name source=Counter target=Counter
 /// @resolution.member source=Counter.version receiver=typeof Counter type=int32 kind=field target_receiver=typeof Counter key=version target=Counter.version target_type=int32
-/// @resolution.place source=Counter.version placement="local" lifetime="static" access="mutable"
+/// @resolution.place source=Counter.version placement="local" lifetime="managed" access="mutable"
 /// @resolution.access source=Counter.version root=Counter keys=[version]
 "#,
     );

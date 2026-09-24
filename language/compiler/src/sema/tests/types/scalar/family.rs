@@ -175,7 +175,7 @@ const index: usize = key;
 /// @type.symbol symbol=index source=index type=usize
 /// @resolution.pattern source=index kind=binding target=index
 /// @resolution.name source=key target=key
-/// @resolution.place source=key placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=key placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=key root=key
 "#,
         r#"

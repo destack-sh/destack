@@ -42,7 +42,11 @@ interface Options {
 declare const options: Options;
 
 const focused: Options = { ...options, only: true };
-const renamed: Options = { ...options, name: "first", ...{ name: "second" } } as Options;
+const renamed: Options = {
+    ...options,
+    name: "first" as string | undefined,
+    ...{ name: "second" },
+} as Options;
 const literal: { only: boolean; retries: int64; name: string | undefined } = {
     ...options,
     only: true,
@@ -184,7 +188,7 @@ declare const named: Named;
 declare const full: { only: boolean; name: string };
 
 const spreadOptional: Named = { ...named, only: true };
-const literalRequired: Named = { only: true, name: "x" } as Named;
+const literalRequired: Named = { only: true, name: "x" as string | undefined } as Named;
 const literalAbsent: Named = { only: true } as Named;
 const fromRequired: Named = full as Named;
 
@@ -238,7 +242,7 @@ const fromRequired: Named = full;
 /// @resolution.pattern source=fromRequired kind=binding target=fromRequired
 /// @resolution.name source=Named target=Named
 /// @resolution.name source=full target=full
-/// @resolution.place source=full placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=full placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=full root=full
 "#,
         r#"

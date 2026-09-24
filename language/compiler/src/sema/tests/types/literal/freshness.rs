@@ -37,18 +37,15 @@ declare function id<T>(value: T): T;
 /// @generic.template symbol=id parameters=(T#1)
 /// @type.symbol symbol=id source="declare function id<T>(value: T): T" type=<T#1>(T#1) => T#1
 /// @type.symbol symbol=id.T source=T type=T#1
-/// @type.symbol symbol=id.value source="value: T" type=T#1
 /// @resolution.name source=T target=id.T
 /// @resolution.name source=T target=id.T
 
 declare function withLabel<T: string, U>(label: T, callback: (label: T) => U): U;
 /// @generic.template symbol=withLabel parameters=(T#2: string, U)
-/// @type.symbol symbol=withLabel source="declare function withLabel<T: string, U>(label: T, callback: (label: T) => U): U" type=<T#2: string, U>(T#2, Function<(T#2,), U>) => U
+/// @type.symbol symbol=withLabel source="declare function withLabel<T: string, U>(label: T, callback: (label: T) => U): U" type=<T#2: string, U>(T#2, (T#2) => U) => U
 /// @type.symbol symbol=withLabel.T source="T: string" type=T#2
 /// @type.symbol symbol=withLabel.U source=U type=U
-/// @type.symbol symbol=withLabel.label#1 source="label: T" type=T#2
 /// @resolution.name source=T target=withLabel.T
-/// @type.symbol symbol=withLabel.callback source="callback: (label: T) => U" type=Function<(T#2,), U>
 /// @type.symbol symbol=withLabel.label#2 source="label: T" type=T#2
 /// @resolution.name source=T target=withLabel.T
 /// @resolution.name source=U target=withLabel.U
@@ -65,7 +62,7 @@ const again = id(tag);
 /// @resolution.call source=id(tag) parameters=("users") arguments=(provided(tag) as "users") return="users" kind=symbol target=id instance="id<\"users\">"
 /// @generic.instantiation id="id<\"users\">" template=id arguments=("users")
 /// @resolution.name source=tag target=tag
-/// @resolution.place source=tag placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=tag placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=tag root=tag
 
 const fresh = id("users");
@@ -80,7 +77,7 @@ const tags = [tag];
 /// @resolution.call source=[tag] parameters=(^Slice<"users">) arguments=(rest(provided(tag) as "users") as "users") return="users"[] kind=symbol target=arrayFromOwnedSlice instance="arrayFromOwnedSlice<\"users\">"
 /// @generic.instantiation id="arrayFromOwnedSlice<\"users\">" template=arrayFromOwnedSlice arguments=("users")
 /// @resolution.name source=tag target=tag
-/// @resolution.place source=tag placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=tag placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=tag root=tag
 
 const literals = ["users"];
@@ -93,12 +90,12 @@ const echoed = withLabel("users", (label) => label);
 /// @type.symbol symbol=echoed source=echoed type="users"
 /// @resolution.pattern source=echoed kind=binding target=echoed
 /// @resolution.name source=withLabel target=withLabel
-/// @resolution.call source="withLabel(\"users\", (label) => label)" parameters=("users", Function<("users",), "users">) arguments=(provided("users") as "users", provided((label) => label) as Function<("users",), "users">) return="users" kind=symbol target=withLabel instance="withLabel<\"users\", \"users\">"
+/// @resolution.call source="withLabel(\"users\", (label) => label)" parameters=("users", ("users") => "users") arguments=(provided("users") as "users", provided((label) => label) as ("users") => "users") return="users" kind=symbol target=withLabel instance="withLabel<\"users\", \"users\">"
 /// @generic.instantiation id="withLabel<\"users\", \"users\">" template=withLabel arguments=("users", "users")
 /// @type.symbol symbol=symbol15 source="(label) => label" type=Function<("users",), "users", "readonly">
 /// @type.symbol symbol=symbol15.label source=label type="users"
 /// @resolution.name source=label target=symbol15.label
-/// @resolution.place source=label placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=label placement="local" lifetime="frame" access="exclusive"
 /// @resolution.access source=label root=symbol15.label
 "#,
         r#"
@@ -143,7 +140,6 @@ declare function id<T>(value: T): T;
 /// @generic.template symbol=id parameters=(T)
 /// @type.symbol symbol=id source="declare function id<T>(value: T): T" type=<T>(T) => T
 /// @type.symbol symbol=id.T source=T type=T
-/// @type.symbol symbol=id.value source="value: T" type=T
 /// @resolution.name source=T target=id.T
 /// @resolution.name source=T target=id.T
 
@@ -179,7 +175,7 @@ const field = id({ name: tag });
 /// @resolution.call source="id({ name: tag })" parameters=({ name: "users" }) arguments=(provided({ name: tag }) as { name: "users" }) return={ name: "users" } kind=symbol target=id instance="id<{ name: \"users\" }>"
 /// @generic.instantiation id="id<{ name: \"users\" }>" template=id arguments=({ name: "users" })
 /// @resolution.name source=tag target=tag
-/// @resolution.place source=tag placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=tag placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=tag root=tag
 
 const fresh = id({ name: "users" });
@@ -198,7 +194,7 @@ const list = id([tag, "users"]);
 /// @resolution.call source=[tag, "users"] parameters=(^Slice<string>) arguments=(rest(provided(tag) as string, provided("users") as string) as string) return=string[] kind=symbol target=arrayFromOwnedSlice instance=arrayFromOwnedSlice<string>
 /// @generic.instantiation id=arrayFromOwnedSlice<string> template=arrayFromOwnedSlice arguments=(string)
 /// @resolution.name source=tag target=tag
-/// @resolution.place source=tag placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=tag placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=tag root=tag
 "#,
         r#"

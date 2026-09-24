@@ -68,7 +68,6 @@ declare function requireEqual<T: Equal<T>>(value: T): void;
 /// @type.symbol symbol=requireEqual.T source="T: Equal<T>" type=T#1
 /// @resolution.name source=Equal target=Equal
 /// @resolution.name source=T target=requireEqual.T
-/// @type.symbol symbol=requireEqual.value source="value: T" type=T#1
 /// @resolution.name source=T target=requireEqual.T
 
 declare function requirePartialEqual<T: PartialEqual<T>>(value: T): void;
@@ -77,7 +76,6 @@ declare function requirePartialEqual<T: PartialEqual<T>>(value: T): void;
 /// @type.symbol symbol=requirePartialEqual.T source="T: PartialEqual<T>" type=T#2
 /// @resolution.name source=PartialEqual target=PartialEqual
 /// @resolution.name source=T target=requirePartialEqual.T
-/// @type.symbol symbol=requirePartialEqual.value source="value: T" type=T#2
 /// @resolution.name source=T target=requirePartialEqual.T
 
 declare const booleanValue: boolean;
@@ -109,7 +107,7 @@ requireEqual(booleanValue);
 /// @resolution.call source=requireEqual(booleanValue) parameters=(boolean) arguments=(provided(booleanValue) as boolean) return=void kind=symbol target=requireEqual instance=requireEqual<boolean>
 /// @generic.instantiation id=requireEqual<boolean> template=requireEqual arguments=(boolean)
 /// @resolution.name source=booleanValue target=booleanValue
-/// @resolution.place source=booleanValue placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=booleanValue placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=booleanValue root=booleanValue
 
 requireEqual(characterValue);
@@ -117,7 +115,7 @@ requireEqual(characterValue);
 /// @resolution.call source=requireEqual(characterValue) parameters=(char) arguments=(provided(characterValue) as char) return=void kind=symbol target=requireEqual instance=requireEqual<char>
 /// @generic.instantiation id=requireEqual<char> template=requireEqual arguments=(char)
 /// @resolution.name source=characterValue target=characterValue
-/// @resolution.place source=characterValue placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=characterValue placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=characterValue root=characterValue
 
 requireEqual(integerValue);
@@ -125,7 +123,7 @@ requireEqual(integerValue);
 /// @resolution.call source=requireEqual(integerValue) parameters=(int32) arguments=(provided(integerValue) as int32) return=void kind=symbol target=requireEqual instance=requireEqual<int32>
 /// @generic.instantiation id=requireEqual<int32> template=requireEqual arguments=(int32)
 /// @resolution.name source=integerValue target=integerValue
-/// @resolution.place source=integerValue placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=integerValue placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=integerValue root=integerValue
 
 requirePartialEqual(floatValue);
@@ -133,7 +131,7 @@ requirePartialEqual(floatValue);
 /// @resolution.call source=requirePartialEqual(floatValue) parameters=(float64) arguments=(provided(floatValue) as float64) return=void kind=symbol target=requirePartialEqual instance=requirePartialEqual<float64>
 /// @generic.instantiation id=requirePartialEqual<float64> template=requirePartialEqual arguments=(float64)
 /// @resolution.name source=floatValue target=floatValue
-/// @resolution.place source=floatValue placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=floatValue placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=floatValue root=floatValue
 
 requireEqual(stringValue);
@@ -141,7 +139,7 @@ requireEqual(stringValue);
 /// @resolution.call source=requireEqual(stringValue) parameters=(string) arguments=(provided(stringValue) as string) return=void kind=symbol target=requireEqual instance=requireEqual<string>
 /// @generic.instantiation id=requireEqual<string> template=requireEqual arguments=(string)
 /// @resolution.name source=stringValue target=stringValue
-/// @resolution.place source=stringValue placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=stringValue placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=stringValue root=stringValue
 
 requireEqual(bigintValue);
@@ -149,7 +147,7 @@ requireEqual(bigintValue);
 /// @resolution.call source=requireEqual(bigintValue) parameters=(bigint) arguments=(provided(bigintValue) as bigint) return=void kind=symbol target=requireEqual instance=requireEqual<bigint>
 /// @generic.instantiation id=requireEqual<bigint> template=requireEqual arguments=(bigint)
 /// @resolution.name source=bigintValue target=bigintValue
-/// @resolution.place source=bigintValue placement="local" lifetime="managed" access="mutable"
+/// @resolution.place source=bigintValue placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=bigintValue root=bigintValue
 
 requireEqual(true);
@@ -177,7 +175,8 @@ requireEqual(undefined);
 /// @resolution.name source=requireEqual target=requireEqual
 /// @resolution.call source=requireEqual(undefined) parameters=(undefined) arguments=(provided(undefined) as undefined) return=void kind=symbol target=requireEqual instance=requireEqual<undefined>
 /// @generic.instantiation id=requireEqual<undefined> template=requireEqual arguments=(undefined)
-"#, "");
+"#, r#"
+"#);
 }
 
 /// Keep floating point equality partial because NaN is not equal to itself.
@@ -212,7 +211,6 @@ declare function requireEqual<T: Equal<T>>(value: T): void;
 /// @type.symbol symbol=requireEqual.T source="T: Equal<T>" type=T
 /// @resolution.name source=Equal target=Equal
 /// @resolution.name source=T target=requireEqual.T
-/// @type.symbol symbol=requireEqual.value source="value: T" type=T
 /// @resolution.name source=T target=requireEqual.T
 
 declare const value: float64;
@@ -224,7 +222,7 @@ requireEqual(value);
 /// @resolution.call source=requireEqual(value) parameters=(float64) arguments=(provided(value) as float64) return=void kind=symbol target=requireEqual instance=requireEqual<float64>
 /// @generic.instantiation id=requireEqual<float64> template=requireEqual arguments=(float64)
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 "#,
         r#"
@@ -266,7 +264,6 @@ declare function requireStringEqual<T: PartialEqual<string>>(value: T): void;
 /// @type.symbol symbol=requireStringEqual source="declare function requireStringEqual<T: PartialEqual<string>>(value: T): void" type=<T: PartialEqual<string>>(T) => void
 /// @type.symbol symbol=requireStringEqual.T source="T: PartialEqual<string>" type=T
 /// @resolution.name source=PartialEqual target=PartialEqual
-/// @type.symbol symbol=requireStringEqual.value source="value: T" type=T
 /// @resolution.name source=T target=requireStringEqual.T
 
 declare const value: int32;
@@ -278,7 +275,7 @@ requireStringEqual(value);
 /// @resolution.call source=requireStringEqual(value) parameters=(int32) arguments=(provided(value) as int32) return=void kind=symbol target=requireStringEqual instance=requireStringEqual<int32>
 /// @generic.instantiation id=requireStringEqual<int32> template=requireStringEqual arguments=(int32)
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 "#,
         r#"

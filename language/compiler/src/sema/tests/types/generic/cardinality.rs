@@ -132,8 +132,9 @@ declare const quad: Quad<uint>;
     );
 }
 
+/// A body read of a const parameter fixes it, every instantiation then supplying one exact value.
 #[test]
-fn test_reject_a_body_read_of_an_unfixed_parameter() {
+fn test_fix_a_const_parameter_read_in_the_body_at_instantiation() {
     let session = TestSession::single(
         r#"
 function count<const N: usize>(): usize {
@@ -175,8 +176,6 @@ function count<const N: usize>(): usize {
 }
 "#,
         r#"
-/// @diagnostic.error id=value-read-not-fixed message="'N' is read as a value, but no signature position fixes it to one exact value"
-/// @diagnostic.label line=5 column=38 span="N" line_source="for (let lane: usize = 0; lane < N; lane += 1) {"
 "#,
     );
 }
@@ -218,6 +217,71 @@ struct Block<const N: usize> {
 }
 "#,
         r#"
+"#,
+    );
+}
+
+/// A value parameter typed by a const parameter demands one exact argument.
+#[test]
+fn test_reject_a_widened_argument_at_a_const_typed_parameter() {
+    let session = TestSession::single(
+        r#"
+enum Ordering { Relaxed, Acquire }
+
+declare function primitive(order: Ordering): void;
+
+function load<const Order: Ordering = Ordering.Acquire>(order?: Order): void {
+    primitive(Order);
+}
+
+declare const runtime: Ordering;
+
+load();
+load(Ordering.Relaxed);
+load(runtime);
+"#,
+    );
+
+    session.assert_dir_and_diagnostics(
+        "main.ds",
+        DirRows::none(),
+        r#"
+=== annotated ===
+enum Ordering {
+    Relaxed,
+    Acquire,
+}
+
+declare function primitive(order: Ordering): void;
+
+function load<const Order: Ordering = Ordering.Acquire>(order?: Order): void {
+    primitive(Order);
+}
+
+declare const runtime: Ordering;
+
+load();
+load(Ordering.Relaxed);
+load<Ordering>(runtime as Ordering | undefined);
+
+=== dir ===
+enum Ordering { Relaxed, Acquire }
+
+declare function primitive(order: Ordering): void;
+
+function load<const Order: Ordering = Ordering.Acquire>(order?: Order): void {
+    primitive(Order);
+}
+
+declare const runtime: Ordering;
+
+load();
+load(Ordering.Relaxed);
+load(runtime);
+"#,
+        r#"
+/// @diagnostic.error id=argument-not-exact-value message="type 'Ordering' does not fix const parameter 'Order' to one exact value"
+/// @diagnostic.label line=14 column=1 span="load(runtime)" line_source="load(runtime);"
 "#,
     );
 }

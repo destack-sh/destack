@@ -128,7 +128,7 @@ const annotation = Annotation("lint", { reason: "intentional" });
 === annotated ===
 newtype Annotation = () | (string, { reason?: string });
 
-const annotation: Annotation = Annotation("lint", { reason: "intentional" });
+const annotation: Annotation = Annotation("lint", { reason: "intentional" as string | undefined });
 
 === dir ===
 newtype Annotation = () | (string, { reason?: string });
@@ -355,7 +355,7 @@ function from<T, E>(value: E): Result<T, E> {
     /// @generic.instantiation id="Result<T#2, E#2>" template=Result arguments=(T#2, E#2) owner=from
     /// @type.node source=value type=E#2
     /// @resolution.name source=value target=from.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=from.value
 
 }

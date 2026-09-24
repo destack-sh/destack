@@ -41,7 +41,7 @@ function isByte(value: int32): boolean {
     /// @resolution.coverage exhaustive=true disjoint=false
     /// @type.node source=value type=int32
     /// @resolution.name source=value target=isByte.value
-    /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=value root=isByte.value
 
         0..=255 => {
@@ -53,7 +53,7 @@ function isByte(value: int32): boolean {
             /// @type.node source="value satisfies 0..=255" type=0..=255
             /// @type.node source=value type=0..=255
             /// @resolution.name source=value target=isByte.value
-            /// @resolution.place source=value placement="local" lifetime="frame" access="mutable"
+            /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
             /// @resolution.access source=value root=isByte.value
 
             true
@@ -116,7 +116,7 @@ const label = match (value) {
 /// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=value type=Tiny
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 
     0..=1 => "low"
@@ -181,7 +181,7 @@ const isEarly = match (value) {
 /// @resolution.coverage exhaustive=true disjoint=true
 /// @type.node source=value type=LowerAscii
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 
     'a'..='m' => true
@@ -247,7 +247,7 @@ const label = match (value) {
 /// @resolution.coverage exhaustive=false disjoint=true
 /// @type.node source=value type=Tiny
 /// @resolution.name source=value target=value
-/// @resolution.place source=value placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=value placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=value root=value
 
     0..=1 => "low"

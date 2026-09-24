@@ -79,8 +79,8 @@ class User {}
 declare function make(): ^User;
 
 function run(): void {
-    let user: User = make() as User;
-    const other: User = make() as User;
+    let user: ^User = make();
+    const other: ^User = make();
 }
 
 === dir ===
@@ -96,18 +96,16 @@ function run(): void {
 /// @type.symbol symbol=run type=() => void
 
     let user = make();
-    /// @type.symbol symbol=run.user source=user type=User
+    /// @type.symbol symbol=run.user source=user type=^User
     /// @resolution.pattern source=user kind=binding target=run.user
     /// @resolution.name source=make target=make
     /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
-    /// @coercion.node source=make() from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
     const other = make();
-    /// @type.symbol symbol=run.other source=other type=User
+    /// @type.symbol symbol=run.other source=other type=^User
     /// @resolution.pattern source=other kind=binding target=run.other
     /// @resolution.name source=make target=make
     /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
-    /// @coercion.node source=make() from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
 }
 "#,
@@ -174,28 +172,28 @@ class Holder {
 /// @type.symbol symbol=Holder type=typeof Holder
 /// @definition.class symbol=Holder
 /// @definition.field symbol=Holder.user source="user: User" key=user type=User
-/// @definition.method symbol=Holder.constructor slot=constructor role=constructor type=<Holder.constructor.P0: Place>(User) => Managed<this, Holder.constructor.P0>
+/// @definition.method symbol=Holder.constructor slot=constructor role=constructor type=(this: &'managed Holder, User) => Holder
 
     user: User;
     /// @type.symbol symbol=Holder.user source="user: User" type=User
     /// @resolution.name source=User target=User
 
     constructor(user: User) {
-    /// @generic.template symbol=Holder.constructor parameters=(P0: Place)
-    /// @type.symbol symbol=Holder.constructor type=<Holder.constructor.P0: Place>(User) => Managed<this, Holder.constructor.P0>
-    /// @type.symbol symbol=Holder.constructor.this type=Holder
+    /// @type.symbol symbol=Holder.constructor type=(this: &'managed Holder, User) => Holder
+    /// @type.symbol symbol=Holder.constructor.this type=&'managed Holder
     /// @type.symbol symbol=Holder.constructor.user source="user: User" type=User
     /// @resolution.name source=User target=User
 
         this.user = user;
-        /// @resolution.receiver source=this kind=this declaration=Holder type=Holder
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.receiver source=this kind=this declaration=Holder type=&'managed Holder
+        /// @resolution.place source=this placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this root=this
         /// @resolution.pattern.assign source=this.user kind=place
+        /// @resolution.place source=this.user placement="local" lifetime="managed" access="mutable"
         /// @resolution.access source=this.user root=this keys=[user]
-        /// @resolution.assignment source=this.user write="receiver=Holder, target=field(receiver=Holder, target=Holder.user, type=User), type=User" type=User
+        /// @resolution.assignment source=this.user write="receiver=&'managed Holder, target=field(receiver=&'managed Holder, target=Holder.user, type=User), type=User" type=User
         /// @resolution.name source=user target=Holder.constructor.user
-        /// @resolution.place source=user placement="local" lifetime="managed" access="mutable"
+        /// @resolution.place source=user placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=user root=Holder.constructor.user
 
     }
@@ -207,7 +205,6 @@ declare function make(): ^User;
 
 declare function take(user: User): void;
 /// @type.symbol symbol=take source="declare function take(user: User): void" type=(User) => void
-/// @type.symbol symbol=take.user source="user: User" type=User
 /// @resolution.name source=User target=User
 
 function run(holder: Holder): User {
@@ -218,9 +215,10 @@ function run(holder: Holder): User {
 
     holder.user = make();
     /// @resolution.name source=holder target=run.holder
-    /// @resolution.place source=holder placement="local" lifetime="managed" access="mutable"
+    /// @resolution.place source=holder placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=holder root=run.holder
     /// @resolution.pattern.assign source=holder.user kind=place
+    /// @resolution.place source=holder.user placement="local" lifetime="managed" access="mutable"
     /// @resolution.access source=holder.user root=run.holder keys=[user]
     /// @resolution.assignment source=holder.user write="receiver=Holder, target=field(receiver=Holder, target=Holder.user, type=User), type=User" type=User
     /// @resolution.name source=make target=make
@@ -331,8 +329,8 @@ declare function identity<T>(value: T): T;
 declare function first<T>(value: T | undefined): T;
 
 function run(): void {
-    let user: User = identity<User>(make() as User);
-    let found: User = first<User>(make() as User | undefined);
+    let user: ^User = identity<^User>(make());
+    let found: ^User = first<^User>(make() as ^User | undefined);
 }
 
 === dir ===
@@ -348,7 +346,6 @@ declare function identity<T>(value: T): T;
 /// @generic.template symbol=identity parameters=(T#1)
 /// @type.symbol symbol=identity source="declare function identity<T>(value: T): T" type=<T#1>(T#1) => T#1
 /// @type.symbol symbol=identity.T source=T type=T#1
-/// @type.symbol symbol=identity.value source="value: T" type=T#1
 /// @resolution.name source=T target=identity.T
 /// @resolution.name source=T target=identity.T
 
@@ -356,7 +353,6 @@ declare function first<T>(value: T | undefined): T;
 /// @generic.template symbol=first parameters=(T#2)
 /// @type.symbol symbol=first source="declare function first<T>(value: T | undefined): T" type=<T#2>(T#2 | undefined) => T#2
 /// @type.symbol symbol=first.T source=T type=T#2
-/// @type.symbol symbol=first.value source="value: T | undefined" type=T#2 | undefined
 /// @resolution.name source=T target=first.T
 /// @resolution.name source=T target=first.T
 
@@ -364,24 +360,23 @@ function run(): void {
 /// @type.symbol symbol=run type=() => void
 
     let user = identity(make());
-    /// @type.symbol symbol=run.user source=user type=User
+    /// @type.symbol symbol=run.user source=user type=^User
     /// @resolution.pattern source=user kind=binding target=run.user
     /// @resolution.name source=identity target=identity
-    /// @resolution.call source=identity(make()) parameters=(User) arguments=(provided(make()) as User) return=User kind=symbol target=identity instance=identity<User>
-    /// @generic.instantiation id=identity<User> template=identity arguments=(User)
+    /// @resolution.call source=identity(make()) parameters=(^User) arguments=(provided(make()) as ^User) return=^User kind=symbol target=identity instance=identity<^User>
+    /// @generic.instantiation id=identity<^User> template=identity arguments=(^User)
     /// @resolution.name source=make target=make
     /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
-    /// @coercion.node source=make() from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
     let found = first(make());
-    /// @type.symbol symbol=run.found source=found type=User
+    /// @type.symbol symbol=run.found source=found type=^User
     /// @resolution.pattern source=found kind=binding target=run.found
     /// @resolution.name source=first target=first
-    /// @resolution.call source=first(make()) parameters=(User | undefined) arguments=(provided(make()) as User | undefined) return=User kind=symbol target=first instance=first<User>
-    /// @generic.instantiation id=first<User> template=first arguments=(User)
+    /// @resolution.call source=first(make()) parameters=(^User | undefined) arguments=(provided(make()) as ^User | undefined) return=^User kind=symbol target=first instance=first<^User>
+    /// @generic.instantiation id=first<^User> template=first arguments=(^User)
     /// @resolution.name source=make target=make
     /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
-    /// @coercion.node source=make() from=^User adjustments=[{ kind: union, target: User | undefined, cases: ({ source: ^User, target: User, adjustments: [{ kind: manage, target: User }] }) }] origin=implicit
+    /// @coercion.node source=make() from=^User adjustments=[{ kind: union, target: ^User | undefined, cases: ({ source: ^User, target: ^User }) }] origin=implicit
 
 }
 "#,
@@ -414,9 +409,9 @@ class User {}
 
 declare function make(): ^User;
 
-const get: () => User = (): User => make() as User;
-const block: () => User = (): User => {
-    return make() as User;
+const get: () => ^User = (): ^User => make();
+const block: () => ^User = (): ^User => {
+    return make();
 };
 
 === dir ===
@@ -429,22 +424,20 @@ declare function make(): ^User;
 /// @resolution.name source=User target=User
 
 const get = () => make();
-/// @type.symbol symbol=get source=get type=Function<(), User, "readonly">
+/// @type.symbol symbol=get source=get type=Function<(), ^User, "readonly">
 /// @resolution.pattern source=get kind=binding target=get
-/// @type.symbol symbol=symbol3 source=() => make() type=Function<(), User, "readonly">
+/// @type.symbol symbol=symbol3 source=() => make() type=Function<(), ^User, "readonly">
 /// @resolution.name source=make target=make
 /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
-/// @coercion.node source=make() from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
 const block = () => {
-/// @type.symbol symbol=block source=block type=Function<(), User, "readonly">
+/// @type.symbol symbol=block source=block type=Function<(), ^User, "readonly">
 /// @resolution.pattern source=block kind=binding target=block
-/// @type.symbol symbol=symbol5 type=Function<(), User, "readonly">
+/// @type.symbol symbol=symbol5 type=Function<(), ^User, "readonly">
 
     return make();
     /// @resolution.name source=make target=make
     /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
-    /// @coercion.node source=make() from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
 };
 "#,
@@ -484,7 +477,7 @@ declare function pair(): (^User, ^User);
 
 function run(): void {
     let owned: ^User = make();
-    let explicit: User = identity<^User>(make()) as User;
+    let explicit: ^User = identity<^User>(make());
     let users: (^User, ^User) = pair();
 }
 
@@ -501,7 +494,6 @@ declare function identity<T>(value: T): T;
 /// @generic.template symbol=identity parameters=(T)
 /// @type.symbol symbol=identity source="declare function identity<T>(value: T): T" type=<T>(T) => T
 /// @type.symbol symbol=identity.T source=T type=T
-/// @type.symbol symbol=identity.value source="value: T" type=T
 /// @resolution.name source=T target=identity.T
 /// @resolution.name source=T target=identity.T
 
@@ -521,12 +513,11 @@ function run(): void {
     /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
 
     let explicit = identity<^User>(make());
-    /// @type.symbol symbol=run.explicit source=explicit type=User
+    /// @type.symbol symbol=run.explicit source=explicit type=^User
     /// @resolution.pattern source=explicit kind=binding target=run.explicit
     /// @resolution.name source=identity target=identity
     /// @resolution.call source=identity<^User>(make()) parameters=(^User) arguments=(provided(make()) as ^User) return=^User kind=symbol target=identity instance=identity<^User>
     /// @generic.instantiation id=identity<^User> template=identity arguments=(^User)
-    /// @coercion.node source=identity<^User>(make()) from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
     /// @resolution.name source=User target=User
     /// @resolution.name source=make target=make
     /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
@@ -659,9 +650,9 @@ function run(): void {
     /// @resolution.pattern source=user kind=binding target=run.user
     /// @resolution.name source=User target=User
     /// @resolution.name source=make target=make
-    /// @resolution.member source=make().intoManaged receiver=^User type=(this: ^User) => local User kind=symbol target_receiver=^User target=intoManaged#1
+    /// @resolution.member source=make().intoManaged receiver=^User type=(this: ^User) => User kind=symbol target_receiver=^User target=intoManaged#1
     /// @resolution.call source=make() parameters=() return=^User kind=symbol target=make
-    /// @resolution.call source=make().intoManaged() parameters=() return=local User kind=symbol target=intoManaged#1 receiver=^User instance=^T.<extension#1>.intoManaged#1
+    /// @resolution.call source=make().intoManaged() parameters=() return=User kind=symbol target=intoManaged#1 receiver=^User instance=^T.<extension#1>.intoManaged#1
     /// @generic.instantiation id=intoManaged#1<User> template=intoManaged#1 arguments=(User)
 
 }
@@ -716,7 +707,6 @@ declare function make(): ^User;
 
 declare function take(user: User): void;
 /// @type.symbol symbol=take source="declare function take(user: User): void" type=(User) => void
-/// @type.symbol symbol=take.user source="user: User" type=User
 /// @resolution.name source=User target=User
 
 function run(): void {
@@ -733,7 +723,7 @@ function run(): void {
     /// @resolution.name source=take target=take
     /// @resolution.call source=take(owned) parameters=(User) arguments=(provided(owned) as User) return=void kind=symbol target=take
     /// @resolution.name source=owned target=run.owned
-    /// @resolution.place source=owned placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=owned placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=owned root=run.owned
     /// @coercion.node source=owned from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
@@ -741,7 +731,7 @@ function run(): void {
     /// @resolution.name source=take target=take
     /// @resolution.call source=take(owned) parameters=(User) arguments=(provided(owned) as User) return=void kind=symbol target=take
     /// @resolution.name source=owned target=run.owned
-    /// @resolution.place source=owned placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=owned placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=owned root=run.owned
     /// @coercion.node source=owned from=^User adjustments=[{ kind: manage, target: User }] origin=implicit
 
@@ -832,7 +822,7 @@ extension<T> of Owned<T> {
 
         return this;
         /// @resolution.receiver source=this kind=this declaration=<module>#2 type=^T#1
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @coercion.node source=this from=^T#1 adjustments=[{ kind: representation, target: T#1 }] origin=implicit
 
@@ -854,7 +844,7 @@ extension<T> of ^T {
 
         return this;
         /// @resolution.receiver source=this kind=this declaration=<module>#3 type=^T#2
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=this root=this
         /// @coercion.node source=this from=^T#2 adjustments=[{ kind: representation, target: T#2 }] origin=implicit
 
@@ -942,7 +932,6 @@ declare function identity<T>(value: T): T;
 /// @generic.template symbol=identity parameters=(T)
 /// @type.symbol symbol=identity source="declare function identity<T>(value: T): T" type=<T>(T) => T
 /// @type.symbol symbol=identity.T source=T type=T
-/// @type.symbol symbol=identity.value source="value: T" type=T
 /// @resolution.name source=T target=identity.T
 /// @resolution.name source=T target=identity.T
 
@@ -960,7 +949,7 @@ function forward(input: ^User): ^User {
 
     return moved;
     /// @resolution.name source=moved target=forward.moved
-    /// @resolution.place source=moved placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=moved placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=moved root=forward.moved
 
 }
@@ -976,7 +965,7 @@ function pass(input: ^User): ^User {
     /// @resolution.call source=identity(input) parameters=(^User) arguments=(provided(input) as ^User) return=^User kind=symbol target=identity instance=identity<^User>
     /// @generic.instantiation id=identity<^User> template=identity arguments=(^User)
     /// @resolution.name source=input target=pass.input
-    /// @resolution.place source=input placement="local" lifetime="frame" access="mutable"
+    /// @resolution.place source=input placement="local" lifetime="frame" access="exclusive"
     /// @resolution.access source=input root=pass.input
 
 }
@@ -1016,7 +1005,7 @@ declare function names(): ^string[];
 function run(): void {
     const user: ^User = make();
     const owned: ^string[] = names();
-    const managed: string[] = names() as string[];
+    const managed: ^string[] = names();
 }
 
 === dir ===
@@ -1047,15 +1036,156 @@ function run(): void {
     /// @resolution.call source=names() parameters=() return=^string[] kind=symbol target=names
 
     const managed = names();
-    /// @type.symbol symbol=run.managed source=managed type=string[]
+    /// @type.symbol symbol=run.managed source=managed type=^string[]
     /// @resolution.pattern source=managed kind=binding target=run.managed
     /// @resolution.name source=names target=names
     /// @resolution.call source=names() parameters=() return=^string[] kind=symbol target=names
-    /// @coercion.node source=names() from=^string[] adjustments=[{ kind: manage, target: string[] }] origin=implicit
 
 }
 "#,
         r#"
+"#,
+    );
+}
+
+/// Complete a generic default into the form its declaration writes.
+#[test]
+fn test_complete_a_generic_default_into_its_declared_form() {
+    let session = TestSession::single(
+        r#"
+struct Slot<T> {
+    value: T;
+}
+
+export extension<T> of Slot<T> {
+    static of(value: T): Slot<T> {
+        Slot { value }
+    }
+}
+
+function make<T: Default>(): T {
+    return T.default();
+}
+
+function fill<T: Default>(): Slot<T> {
+    return Slot.of(T.default());
+}
+"#,
+    );
+
+    session.assert_dir(
+        "main.ds",
+        DirRows::checked().with_reference_types().with_coercion(),
+        r#"
+=== annotated ===
+struct Slot<out T> {
+    value: T;
+}
+
+export extension<T> of Slot<T> {
+    static of(value: T): Slot<T> {
+        Slot<T> { value }
+    }
+}
+
+function make<T: Default>(): T {
+    return T.default() as T;
+}
+
+function fill<T: Default>(): Slot<T> {
+    return Slot.of<T>(T.default() as T);
+}
+
+=== dir ===
+struct Slot<T> {
+/// @generic.template symbol=Slot parameters=(out T#1)
+/// @type.symbol symbol=Slot type=Slot
+/// @definition.struct symbol=Slot template=(out T#1)
+/// @definition.field symbol=Slot.value source="value: T" key=value type=T#1
+/// @type.symbol symbol=Slot.T source=T type=T#1
+
+    value: T;
+    /// @type.symbol symbol=Slot.value source="value: T" type=T#1
+    /// @resolution.name source=T target=Slot.T
+
+}
+
+export extension<T> of Slot<T> {
+/// @generic.template symbol=<module>#2 parameters=(T#2)
+/// @generic.instance id=Slot<T#2> template=Slot arguments=(T#2)
+/// @definition.extension symbol=<module>#2 form=exported target=Slot<T#2>
+/// @definition.method symbol=of slot=of static=true type=(T#2) => Slot<T#2>
+/// @type.symbol symbol=T source=T type=T#2
+/// @resolution.name source=Slot target=Slot
+/// @resolution.name source=T target=T
+
+    static of(value: T): Slot<T> {
+    /// @type.symbol symbol=of type=(T#2) => Slot<T#2>
+    /// @type.symbol symbol=of.value source="value: T" type=T#2
+    /// @resolution.name source=T target=T
+    /// @resolution.name source=Slot target=Slot
+    /// @resolution.name source=T target=T
+
+        Slot { value }
+        /// @type.node source="Slot { value }" type=Slot<T#2>
+        /// @resolution.name source=Slot target=Slot
+        /// @type.node source=value type=T#2
+        /// @resolution.name source=value target=of.value
+        /// @resolution.place source=value placement="local" lifetime="frame" access="exclusive"
+        /// @resolution.access source=value root=of.value
+
+    }
+}
+
+function make<T: Default>(): T {
+/// @generic.template symbol=make parameters=(T#3: Default)
+/// @type.symbol symbol=make type=<T#3: Default>() => T#3
+/// @type.symbol symbol=make.T source="T: Default" type=T#3
+/// @resolution.name source=Default target=Default
+/// @resolution.name source=T target=make.T
+
+    return T.default();
+    /// @type.node source=T type=T#3
+    /// @type.node source=T.default type=() => ^T#3
+    /// @type.node source=T.default() type=^T#3
+    /// @resolution.name source=T target=make.T
+    /// @resolution.member source=T.default receiver=T#3 type=() => ^T#3 kind=symbol target_receiver=T#3 target=Default.default
+    /// @resolution.call source=T.default() parameters=() return=^T#3 kind=symbol target=Default.default
+    /// @generic.instantiation id=Default.default<T#3> template=Default.default arguments=() owner=make
+    /// @generic.instance id=Default.default<T#3> template=Default.default arguments=()
+    /// @coercion.node source=T.default() from=^T#3 adjustments=[{ kind: representation, target: T#3 }] origin=implicit
+
+}
+
+function fill<T: Default>(): Slot<T> {
+/// @generic.template symbol=fill parameters=(T#4: Default)
+/// @type.symbol symbol=fill type=<T#4: Default>() => Slot<T#4>
+/// @generic.instance id=Slot<T#4> template=Slot arguments=(T#4)
+/// @type.symbol symbol=fill.T source="T: Default" type=T#4
+/// @resolution.name source=Default target=Default
+/// @resolution.name source=Slot target=Slot
+/// @resolution.name source=T target=fill.T
+
+    return Slot.of(T.default());
+    /// @type.node source=Slot type=Slot
+    /// @type.node source=Slot.of type=(T#2) => Slot<T#2>
+    /// @type.node source=Slot.of(T.default()) type=Slot<T#4>
+    /// @resolution.name source=Slot target=Slot
+    /// @resolution.member source=Slot.of receiver=Slot type=(T#2) => Slot<T#2> kind=symbol target_receiver=Slot target=of
+    /// @resolution.call source=Slot.of(T.default()) parameters=(T#4) arguments=(provided(T.default()) as T#4) return=Slot<T#4> kind=symbol target=of instance=Slot<T#4>.<extension#1>.of
+    /// @generic.instantiation id=of<T#4> template=of arguments=(T#4) owner=fill
+    /// @generic.instance id=of<T#4> template=of arguments=(T#4)
+    /// @type.node source=T type=T#4
+    /// @type.node source=T.default type=() => ^T#4
+    /// @type.node source=T.default() type=^T#4
+    /// @resolution.name source=T target=fill.T
+    /// @resolution.member source=T.default receiver=T#4 type=() => ^T#4 kind=symbol target_receiver=T#4 target=Default.default
+    /// @resolution.call source=T.default() parameters=() return=^T#4 kind=symbol target=Default.default
+    /// @generic.instantiation id=Default.default<T#4> template=Default.default arguments=() owner=fill
+    /// @generic.instance id=Default.default<T#4> template=Default.default arguments=()
+    /// @coercion.node source=T.default() from=^T#4 adjustments=[{ kind: representation, target: T#4 }] origin=implicit
+
+}
 "#,
     );
 }

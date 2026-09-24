@@ -54,9 +54,11 @@ const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=force.Force
 /// @resolution.pattern source=scaled kind=binding target=scaled
 /// @resolution.name source=force target=force
-/// @resolution.operator source="force * 2.0" type=force.Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force regions=("static" & "constant") kind=symbol target=force.multiply receiver=force.Force adjustments=(borrow(&'static readonly constant force.Force))
-/// @resolution.place source=force placement="constant" lifetime="static" access="readonly"
+/// @resolution.operator source="force * 2.0" type=force.Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force regions=("static" & "local") kind=symbol target=force.multiply receiver=force.Force adjustments=(borrow(&'static readonly force.Force)) instance="force.Force.<extension#1>.multiply<\"static\" & \"local\">"
+/// @resolution.place source=force placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=force root=force
+/// @generic.instantiation id="force.multiply<\"static\" & \"local\">" template=force.multiply arguments=("static" & "local")
+/// @generic.instance id="force.multiply<\"bound0\" & \"local\">" template=force.multiply arguments=("bound0" & "local")
 "#,
     );
 }
@@ -150,7 +152,7 @@ extension of Force implements Multiply<float64> {
     multiply(&readonly this, other: float64): Force {
     /// @generic.template symbol=multiply parent=template#0 parameters=('a)
     /// @type.symbol symbol=multiply type=<multiply.'a>(this: &multiply.'a readonly Force, float64) => Force
-    /// @type.symbol symbol=multiply.this source="&readonly this" type=&multiply.'a readonly this
+    /// @type.symbol symbol=multiply.this source="&readonly this" type=&multiply.'a readonly Force
     /// @type.symbol symbol=multiply.other source="other: float64" type=float64
     /// @resolution.name source=Force target=Force
 
@@ -164,7 +166,7 @@ extension of Force implements Multiply<float64> {
         /// @resolution.place source=this.value placement=multiply.'a lifetime=multiply.'a access="readonly"
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.name source=other target=multiply.other
-        /// @resolution.place source=other placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=other root=multiply.other
 
     }
@@ -180,9 +182,11 @@ export const doubled: Force = inside * 2.0;
 /// @resolution.pattern source=doubled kind=binding target=doubled
 /// @resolution.name source=Force target=Force
 /// @resolution.name source=inside target=inside
-/// @resolution.operator source="inside * 2.0" type=Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=Force regions=("static" & "constant") kind=symbol target=multiply receiver=Force adjustments=(borrow(&'static readonly constant Force))
-/// @resolution.place source=inside placement="constant" lifetime="static" access="readonly"
+/// @resolution.operator source="inside * 2.0" type=Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=Force regions=("static" & "local") kind=symbol target=multiply receiver=Force adjustments=(borrow(&'static readonly Force)) instance="Force.<extension#1>.multiply<\"static\" & \"local\">"
+/// @resolution.place source=inside placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=inside root=inside
+/// @generic.instantiation id="multiply<\"static\" & \"local\">" template=multiply arguments=("static" & "local")
+/// @generic.instance id="multiply<\"bound0\" & \"local\">" template=multiply arguments=("bound0" & "local")
 "#,
     );
 
@@ -210,7 +214,7 @@ const scaled = force * 2.0;
 /// @resolution.pattern source=scaled kind=binding target=scaled
 /// @resolution.name source=force target=force
 /// @resolution.rejected source="force * 2.0"
-/// @resolution.place source=force placement="constant" lifetime="static" access="readonly"
+/// @resolution.place source=force placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=force root=force
 "#,
         r#"
@@ -280,7 +284,7 @@ extension of Force implements Multiply<float64> {
 /// @definition.extension symbol=<module>#2 form=local target=force.Force
 /// @definition.implements symbol=<module>#2 source=Multiply<float64> target=Multiply<float64>
 /// @definition.associated.type symbol=Output source="type Output = Force" key=Output value=force.Force
-/// @definition.method symbol=multiply slot=multiply type=(this: force.Force, float64) => force.Force
+/// @definition.method symbol=multiply slot=multiply type=<multiply.'a>(this: &multiply.'a readonly force.Force, float64) => force.Force
 /// @definition.conformance symbol=<module>#2 member=Output requirement=Multiply.Output
 /// @definition.conformance symbol=<module>#2 member=multiply requirement=Multiply.multiply
 /// @resolution.name source=Force target=force.Force
@@ -291,22 +295,23 @@ extension of Force implements Multiply<float64> {
     /// @resolution.name source=Force target=force.Force
 
     multiply(other: float64): Force {
-    /// @type.symbol symbol=multiply type=(this: force.Force, float64) => force.Force
-    /// @type.symbol symbol=multiply.this type=force.Force
+    /// @generic.template symbol=multiply parent=template#0 parameters=('a)
+    /// @type.symbol symbol=multiply type=<multiply.'a>(this: &multiply.'a readonly force.Force, float64) => force.Force
+    /// @type.symbol symbol=multiply.this type=&multiply.'a readonly force.Force
     /// @type.symbol symbol=multiply.other source="other: float64" type=float64
     /// @resolution.name source=Force target=force.Force
 
         Force { value: this.value * other }
         /// @resolution.name source=Force target=force.Force
-        /// @resolution.member source=this.value receiver=force.Force type=float64 kind=field target_receiver=force.Force key=value target=force.Force.value target_type=float64
+        /// @resolution.member source=this.value receiver=&multiply.'a readonly force.Force type=float64 kind=field target_receiver=&multiply.'a readonly force.Force key=value target=force.Force.value target_type=float64
         /// @resolution.operator source="this.value * other" type=float64 operator="*" kind=builtin operands=[this.value as float64 families=(float), other as float64 families=(float)]
-        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=force.Force
-        /// @resolution.place source=this placement="local" lifetime="frame" access="mutable"
+        /// @resolution.receiver source=this kind=this declaration=<module>#2 type=&multiply.'a readonly force.Force
+        /// @resolution.place source=this placement=multiply.'a lifetime=multiply.'a access="readonly"
         /// @resolution.access source=this root=this
-        /// @resolution.place source=this.value placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=this.value placement=multiply.'a lifetime=multiply.'a access="readonly"
         /// @resolution.access source=this.value root=this keys=[value]
         /// @resolution.name source=other target=multiply.other
-        /// @resolution.place source=other placement="local" lifetime="frame" access="mutable"
+        /// @resolution.place source=other placement="local" lifetime="frame" access="exclusive"
         /// @resolution.access source=other root=multiply.other
 
     }
@@ -321,9 +326,11 @@ const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=force.Force
 /// @resolution.pattern source=scaled kind=binding target=scaled
 /// @resolution.name source=force target=force
-/// @resolution.operator source="force * 2.0" type=force.Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force kind=symbol target=multiply receiver=force.Force
-/// @resolution.place source=force placement="constant" lifetime="static" access="readonly"
+/// @resolution.operator source="force * 2.0" type=force.Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force regions=("static" & "local") kind=symbol target=multiply receiver=force.Force adjustments=(borrow(&'static readonly force.Force)) instance="force.Force.<extension#1>.multiply<\"static\" & \"local\">"
+/// @resolution.place source=force placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=force root=force
+/// @generic.instantiation id="multiply<\"static\" & \"local\">" template=multiply arguments=("static" & "local")
+/// @generic.instance id="multiply<\"bound0\" & \"local\">" template=multiply arguments=("bound0" & "local")
 "#,
     );
 }
@@ -390,9 +397,11 @@ const scaled = force * 2.0;
 /// @type.symbol symbol=scaled source=scaled type=force.Force
 /// @resolution.pattern source=scaled kind=binding target=scaled
 /// @resolution.name source=force target=force
-/// @resolution.operator source="force * 2.0" type=force.Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force kind=symbol target=scaling.Scaling.multiply receiver=force.Force
-/// @resolution.place source=force placement="constant" lifetime="static" access="readonly"
+/// @resolution.operator source="force * 2.0" type=force.Force operator="*" kind=call parameters=(float64) arguments=(provided(2.0) as float64) return=force.Force regions=("static" & "local") kind=symbol target=scaling.Scaling.multiply receiver=force.Force adjustments=(borrow(&'static readonly force.Force)) instance="scaling.Scaling.multiply<\"static\" & \"local\">"
+/// @resolution.place source=force placement="local" lifetime="static" access="immutable"
 /// @resolution.access source=force root=force
+/// @generic.instantiation id="scaling.Scaling.multiply<\"static\" & \"local\">" template=scaling.Scaling.multiply arguments=("static" & "local")
+/// @generic.instance id="scaling.Scaling.multiply<\"bound0\" & \"local\">" template=scaling.Scaling.multiply arguments=("bound0" & "local")
 "#,
     );
 }
