@@ -33,7 +33,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<bool> {
-        // decide by the value's own storage
+        // decide by the storage of the value
         match self.ty(ty)? {
             // open variables fail as ambiguity until they solve
             dir::Type::Variable(_) => Ok(false),
@@ -58,9 +58,7 @@ impl CheckState<'_> {
 
                     self.is_readonly_access(access)
                 }
-                dir::Form::Owned | dir::Form::Managed { .. } => {
-                    self.is_immutable(origin, form.value, active)
-                }
+                dir::Form::Owned => self.is_immutable(origin, form.value, active),
                 dir::Form::Raw => Ok(false),
             },
             // decide parameters through their declared or assumed bounds
@@ -121,7 +119,7 @@ impl CheckState<'_> {
                     return Ok(false);
                 }
 
-                // decide the property and index signature types the shape reaches
+                // decide the property and index signature types of the shape
                 let mut ids: SmallVec<[dir::GlobalTypeId; 8]> = fields
                     .iter()
                     .flat_map(|field| field.access.types())

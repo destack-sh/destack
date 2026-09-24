@@ -3,8 +3,8 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Cause, CauseId, CauseKind, CheckState, GenericParameterId, MemberRole, Origin, Relation,
-    TypeSubstitution, Verdict,
+    CandidateOutcome, Cause, CauseId, CauseKind, CheckState, GenericParameterId, MemberRole,
+    Origin, PropertySource, Relation, TypeSubstitution, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -75,6 +75,17 @@ pub(in crate::sema) struct InterfaceMember {
     pub(in crate::sema) is_readonly: bool,
 }
 
+/// The outcome of matching one declaration's implemented interfaces against an ask.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::sema) enum ImplementedInterface {
+    /// One declared application matched, applied to the ask.
+    Matched(dir::GlobalTypeId),
+    /// No declared application matched.
+    Unmatched,
+    /// Several declared applications could match the open ask.
+    Undecided,
+}
+
 impl CheckState<'_> {
     /// Relate one source to an applied interface.
     pub(in crate::sema) fn relate_interface(
@@ -85,9 +96,19 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        // conform ownership forms through the value they store
-        let written_source = source;
-        let source = self.ownership_payload(origin, source)?;
+        // relate the subject as given, a form over an open value through the value it holds
+        let reduced_source = self.normalize(origin, source)?;
+        let interface = self.nominal_application(target)?.1.symbol;
+        let held = self.strip_form(origin, reduced_source)?;
+        let source = match self.ty(held)? {
+            dir::Type::Parameter(_) | dir::Type::Erased(_) | dir::Type::This
+                if held != reduced_source
+                    && self.requirements_accept(origin, interface, reduced_source, held)? =>
+            {
+                held
+            }
+            _ => reduced_source,
+        };
         let target = match self.type_flags(target)?.has_this() {
             true => {
                 let substitution = TypeSubstitution::default().with_receiver(source);
@@ -97,8 +118,44 @@ impl CheckState<'_> {
             false => target,
         };
 
-        // read the target interface declaration
+        // decide an open numeric literal by its default type
         let (_, target_instance) = self.nominal_application(target)?;
+        if let Some(variable) = self.root_variable(source)?
+            && let Some(fallback) = self.root_kind(variable)?.fallback()
+        {
+            let fallback = self.intern_type(fallback)?;
+            if self.decide_relation(origin, Relation::Subtype, fallback, target)? == Verdict::Fails
+            {
+                return Ok(Verdict::Fails);
+            }
+
+            return Ok(Verdict::Ambiguous);
+        }
+
+        // decide the interface by a where clause on this exact subject, like `where ^T: Unpin`
+        for predicate in self.assumed_predicates(origin)? {
+            if predicate.relation != dir::WhereRelation::Satisfies {
+                continue;
+            }
+            let left = self.shallow_resolve(predicate.left)?;
+            if !self.type_flags(left)?.has_parameter()
+                || self.ty(predicate.right)?.symbol() != Some(target_instance.symbol)
+            {
+                continue;
+            }
+            let matches_subject = left == reduced_source
+                || left == source
+                || self.decide_relation(origin, Relation::Equal, left, reduced_source)?
+                    == Verdict::Holds;
+            if matches_subject
+                && self.decide_relation(origin, Relation::Subtype, predicate.right, target)?
+                    == Verdict::Holds
+            {
+                return Ok(Verdict::Holds);
+            }
+        }
+
+        // read the target interface declaration
         let is_nominal = match self.definition(target_instance.symbol)?.as_deref() {
             Some(dir::Definition::Interface(interface)) => interface.is_nominal,
             _ => {
@@ -133,40 +190,55 @@ impl CheckState<'_> {
             .and_then(dir::AutoInterface::from_language_item)
             .filter(|interface| interface.has_builtin_implementation());
 
-        // find the target interface in the source heritage closure
-        let application = match self.ty(source)? {
-            dir::Type::Application(source_instance) => {
-                self.heritage_application(origin, source, &source_instance, target_instance.symbol)?
-            }
-            _ => None,
-        };
+        // find the target interface in the subject's heritage closure
+        let applications = self.heritage_applications(origin, source, target_instance.symbol)?;
 
         // compare the selected interface arguments by their declared variance
-        if let Some((application_module, application)) = application {
-            let source_arguments: SmallVec<[_; 8]> = self
-                .type_ids(application_module, application.arguments)?
-                .into();
+        if !applications.is_empty() {
             let target_arguments: SmallVec<[_; 8]> = self
                 .type_ids(target.module_id, target_instance.arguments)?
                 .into();
             let form = self.default_variance_form(target_instance.symbol)?;
+            if applications.len() > 1 && !self.collect_open_variables([target])?.is_empty() {
+                return Ok(Verdict::Ambiguous);
+            }
+            for (application_module, application) in &applications {
+                let source_arguments: SmallVec<[_; 8]> = self
+                    .type_ids(*application_module, application.arguments)?
+                    .into();
+                let relate = |state: &mut Self| {
+                    state.relate_type_arguments(
+                        origin,
+                        cause,
+                        target_instance.symbol,
+                        form,
+                        relation,
+                        &source_arguments,
+                        &target_arguments,
+                    )
+                };
+                if applications.len() == 1 {
+                    return relate(self);
+                }
+                let verdict = self.decide_candidate(|state| {
+                    Ok(match relate(state)? {
+                        Verdict::Holds => CandidateOutcome::Accepted(()),
+                        _ => CandidateOutcome::Rejected(()),
+                    })
+                })?;
+                if verdict == Verdict::Holds {
+                    return relate(self);
+                }
+            }
 
-            return self.relate_type_arguments(
-                origin,
-                cause,
-                target_instance.symbol,
-                form,
-                relation,
-                &source_arguments,
-                &target_arguments,
-            );
+            return Ok(Verdict::Fails);
         }
 
         // select a visible extension implementation
         let implementation = self.decide_extension_implementation(
             origin,
             target.module_id,
-            written_source,
+            reduced_source,
             &target_instance,
             None,
         )?;
@@ -181,14 +253,18 @@ impl CheckState<'_> {
         if decides_intrinsically {
             // use the intrinsic conformance the compiler decides itself
             if let Some(auto_interface) = auto_interface {
-                let decided =
-                    self.decide_intrinsic_interface(origin, source, target, auto_interface)?;
+                let decided = self.decide_intrinsic_interface(
+                    origin,
+                    reduced_source,
+                    target,
+                    auto_interface,
+                )?;
 
                 return Ok(decided.join_undecided(implemented));
             }
 
             // conform through the heritage of an intrinsically implemented interface
-            if self.inherits_intrinsic_interface(origin, source, target_instance.symbol)? {
+            if self.inherits_intrinsic_interface(origin, reduced_source, target_instance.symbol)? {
                 return Ok(Verdict::Holds);
             }
         }
@@ -218,7 +294,7 @@ impl CheckState<'_> {
         ))
     }
 
-    /// Return whether one type reaches an interface through an intrinsically implemented one.
+    /// Return whether one type implements an interface through an intrinsically implemented one.
     pub(in crate::sema) fn inherits_intrinsic_interface(
         &mut self,
         origin: Origin,
@@ -288,8 +364,9 @@ impl CheckState<'_> {
         substitution: &mut TypeSubstitution,
         interfaces: &[dir::GlobalTypeId],
         interface: &dir::GenericApplication,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // compare each declared implemented interface
+        decides_open: bool,
+    ) -> CompilerResult<ImplementedInterface> {
+        // compare each declared implemented interface against the ask
         let interface_arguments: SmallVec<[_; 8]> =
             self.type_ids(interface_module, interface.arguments)?.into();
         let arguments = self.intern_type_ids(&interface_arguments)?;
@@ -297,6 +374,38 @@ impl CheckState<'_> {
             symbol: interface.symbol,
             arguments,
         }))?;
+
+        // leave an open ask undecided while several declared applications could match it
+        if decides_open && !self.collect_open_variables([interface_type])?.is_empty() {
+            let mut viable = 0;
+            for implemented in interfaces {
+                let declared = self.shallow_resolve(*implemented)?;
+                if self.ty(declared)?.symbol() != Some(interface.symbol) {
+                    continue;
+                }
+                let matched = self.decide_candidate(|state| {
+                    let mut scratch = substitution.clone();
+                    let matched = state.substitute_type(declared, &scratch)?;
+                    let bound = state.extend_generic_substitution(
+                        origin,
+                        parameters,
+                        &mut scratch,
+                        &[(matched, interface_type)],
+                    )?;
+                    Ok(match bound {
+                        true => CandidateOutcome::Accepted(()),
+                        false => CandidateOutcome::Rejected(()),
+                    })
+                })?;
+                if matched != Verdict::Fails {
+                    viable += 1;
+                }
+            }
+            if viable > 1 {
+                return Ok(ImplementedInterface::Undecided);
+            }
+        }
+
         for implemented in interfaces {
             // fill elided arguments before matching
             let declared = self.shallow_resolve(*implemented)?;
@@ -313,12 +422,13 @@ impl CheckState<'_> {
             // bind open parameters here, relate them below
             let mut scratch = substitution.clone();
             let matched = self.substitute_type(declared, &scratch)?;
-            if !self.extend_generic_substitution(
+            let bound = self.extend_generic_substitution(
                 origin,
                 parameters,
                 &mut scratch,
                 &[(matched, interface_type)],
-            )? {
+            )?;
+            if !bound {
                 continue;
             }
 
@@ -336,18 +446,21 @@ impl CheckState<'_> {
                 .type_ids(implemented_module, implemented_instance.arguments)?
                 .into();
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-            let is_matched = self
-                .match_header_arguments(
-                    origin,
-                    cause,
-                    interface.symbol,
-                    &arguments,
-                    &interface_arguments,
-                )?
-                .holds();
+            let matched = self.match_header_arguments(
+                origin,
+                cause,
+                interface.symbol,
+                &arguments,
+                &interface_arguments,
+            )?;
+
+            // leave an open ask undecided while its variables keep this header possible
+            if matched == Verdict::Ambiguous {
+                return Ok(ImplementedInterface::Undecided);
+            }
 
             // commit the bindings of the first implementation that matched
-            if is_matched {
+            if matched == Verdict::Holds {
                 *substitution = scratch;
                 let arguments = self.intern_type_ids(&arguments)?;
                 let matched =
@@ -356,11 +469,11 @@ impl CheckState<'_> {
                         arguments,
                     }))?;
 
-                return Ok(Some(matched));
+                return Ok(ImplementedInterface::Matched(matched));
             }
         }
 
-        Ok(None)
+        Ok(ImplementedInterface::Unmatched)
     }
 
     /// Instantiate one interface implementation with its associated type bindings.
@@ -406,23 +519,22 @@ impl CheckState<'_> {
 
         // select written bindings, declared values, then interface defaults
         for member in &interface_members {
-            let dir::DefinitionMember::AssociatedType(associated) = member else {
+            let Some(key) = member.key().filter(|_| member.is_associated()) else {
                 continue;
             };
             let written = bindings
                 .iter()
-                .find(|(key, _)| *key == associated.key)
+                .find(|(candidate, _)| *candidate == key)
                 .map(|(_, value)| *value);
-            let declared = members.iter().find_map(|member| match member {
-                dir::DefinitionMember::AssociatedType(candidate)
-                    if candidate.key == associated.key =>
-                {
-                    candidate.value
+            let mut declared = None;
+            for candidate in members {
+                if candidate.kind() == member.kind() && candidate.key() == Some(key) {
+                    declared = self.associated_member_value(candidate)?;
+                    break;
                 }
-                _ => None,
-            });
+            }
             let declared = declared
-                .map(|value| self.substitute_type(value, substitution))
+                .map(|(_, value)| self.substitute_type(value, substitution))
                 .transpose()?;
 
             // reject conflicting source bindings
@@ -435,13 +547,16 @@ impl CheckState<'_> {
                 }
             }
 
-            // record the selected associated type
-            let Some(value) = written.or(declared).or(associated.value) else {
+            // record the selected associated member
+            let default = self
+                .associated_member_value(member)?
+                .map(|(_, value)| value);
+            let Some(value) = written.or(declared).or(default) else {
                 continue;
             };
-            match bindings.iter_mut().find(|(key, _)| *key == associated.key) {
+            match bindings.iter_mut().find(|(candidate, _)| *candidate == key) {
                 Some((_, current)) => *current = value,
-                None => bindings.push((associated.key, value)),
+                None => bindings.push((key, value)),
             }
         }
 
@@ -454,13 +569,13 @@ impl CheckState<'_> {
 
         // require each concrete binding to satisfy its declared bound
         for member in &interface_members {
-            let dir::DefinitionMember::AssociatedType(associated) = member else {
+            let Some(key) = member.key().filter(|_| member.is_associated()) else {
                 continue;
             };
-            let Some(constraint) = associated.constraint else {
+            let Some(constraint) = self.associated_member_constraint(base, key)? else {
                 continue;
             };
-            let Some((_, value)) = bindings.iter().find(|(key, _)| *key == associated.key) else {
+            let Some((_, value)) = bindings.iter().find(|(candidate, _)| *candidate == key) else {
                 continue;
             };
 
@@ -527,9 +642,12 @@ impl CheckState<'_> {
                         access: required,
                         is_optional: member.is_optional,
                     };
-                    let Some(relations) =
-                        self.shape_property_relations(Relation::Storable, &source, &target)
-                    else {
+                    let Some(relations) = Self::shape_property_relations(
+                        Relation::Storable,
+                        PropertySource::Stored,
+                        &source,
+                        &target,
+                    ) else {
                         return Ok(Verdict::Fails);
                     };
 
@@ -551,8 +669,8 @@ impl CheckState<'_> {
                         Relation::Storable,
                         found,
                         member_type,
-                        None,
-                        None,
+                        Some(source),
+                        Some(&TypeSubstitution::default().with_receiver(source)),
                     )?
                 }
                 // associated members use their selected value type

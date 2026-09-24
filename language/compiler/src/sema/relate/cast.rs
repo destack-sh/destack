@@ -102,7 +102,7 @@ impl CheckState<'_> {
                 .iter()
                 .all(|family| matches!(family, dir::ScalarFamily::Enum(_)))
         {
-            // require every named enum's backing to reach the cast target
+            // require every named enum's backing to convert to the cast target
             let mut backed = Verdict::Holds;
             for family in families.iter().copied() {
                 let dir::ScalarFamily::Enum(symbol) = family else {
@@ -133,35 +133,64 @@ impl CheckState<'_> {
             }
         }
 
-        // unwrap one newtype layer to exactly its backing
-        if let Some(instance) = self.decompose_newtype(origin, source)? {
-            verdict = verdict.or(self.constrain_type(
-                origin,
-                cause,
-                Relation::Equal,
-                instance.backing,
-                target,
-            )?);
-            if verdict == Verdict::Holds {
-                return Ok(Verdict::Holds);
+        // step one newtype layer of the value or of a raw pointee to exactly its backing
+        for (stepped_source, stepped_target) in self.newtype_steps(origin, source, target)? {
+            let stepped =
+                self.decide_relation(origin, Relation::Equal, stepped_source, stepped_target)?;
+            if stepped == Verdict::Holds {
+                return self.constrain_type(
+                    origin,
+                    cause,
+                    Relation::Equal,
+                    stepped_source,
+                    stepped_target,
+                );
             }
-        }
-
-        // wrap a backing value into exactly its newtype
-        if let Some(instance) = self.decompose_newtype(origin, target)? {
-            verdict = verdict.or(self.constrain_type(
-                origin,
-                cause,
-                Relation::Equal,
-                source,
-                instance.backing,
-            )?);
-            if verdict == Verdict::Holds {
-                return Ok(Verdict::Holds);
-            }
+            verdict = verdict.or(stepped);
         }
 
         // cast an included source explicitly to its target
         Ok(verdict.or(self.constrain_type(origin, cause, Relation::Subtype, source, target)?))
+    }
+
+    /// Return the pairs one newtype step equates.
+    pub(in crate::sema) fn newtype_steps(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<SmallVec<[(dir::GlobalTypeId, dir::GlobalTypeId); 4]>> {
+        let mut layers = SmallVec::<[_; 2]>::from_slice(&[(source, target)]);
+        if let (Some(source), Some(target)) = (
+            self.raw_pointee(origin, source)?,
+            self.raw_pointee(origin, target)?,
+        ) {
+            layers.push((source, target));
+        }
+        let mut steps = SmallVec::new();
+        for (source, target) in layers {
+            if let Some(instance) = self.decompose_newtype(origin, source)? {
+                steps.push((instance.backing, target));
+            }
+            if let Some(instance) = self.decompose_newtype(origin, target)? {
+                steps.push((source, instance.backing));
+            }
+        }
+
+        Ok(steps)
+    }
+
+    /// Return the pointee of one raw pointer type.
+    pub(in crate::sema) fn raw_pointee(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        let chain = self.form_chain(origin, ty)?;
+        let is_raw = chain
+            .ownership_form()
+            .is_some_and(|form| matches!(form.form, dir::Form::Raw));
+
+        Ok(is_raw.then(|| chain.base()))
     }
 }

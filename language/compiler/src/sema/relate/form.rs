@@ -25,20 +25,15 @@ impl CheckState<'_> {
             // raw pointers require identical values
             dir::Form::Raw => self.constrain_type(origin, cause, Relation::Equal, source, target),
 
-            // managed references preserve writable aliases
-            dir::Form::Managed { .. } => self.constrain_variance(
-                origin,
-                cause,
-                VarianceForm::Managed,
-                relation,
-                source,
-                target,
-            ),
-
-            // readonly borrows remove the write path through their payload
+            // readonly and immutable borrows remove the write path through their payload
             dir::Form::Borrowed(borrow) => {
+                let source = self.lent_payload(origin, source)?;
+                let target = self.lent_payload(origin, target)?;
                 let access = self.type_borrow(module, borrow)?.access;
-                if self.is_readonly_access(access)? {
+                if matches!(
+                    self.access_of(access)?,
+                    Some(dir::Access::Readonly | dir::Access::Immutable)
+                ) {
                     self.constrain_variance(
                         origin,
                         cause,
@@ -73,6 +68,24 @@ impl CheckState<'_> {
                 source,
                 target,
             ),
+        }
+    }
+
+    /// Return the object one borrow payload lends.
+    fn lent_payload(
+        &mut self,
+        origin: Origin,
+        payload: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // project an associated payload so its value shows
+        let mut resolved = self.shallow_resolve(payload)?;
+        if matches!(self.ty(resolved)?, dir::Type::Member(_)) {
+            resolved = self.normalize(origin, resolved)?;
+        }
+        match self.ty(resolved)? {
+            // an owned payload lends its object in place
+            dir::Type::Form(form) if form.form == dir::Form::Owned => Ok(form.value),
+            _ => Ok(resolved),
         }
     }
 
@@ -270,18 +283,16 @@ impl CheckState<'_> {
                     value: target_value,
                 }),
             ) => {
-                // read both borrow slots
+                // read both borrow slots as what they lend
                 let source_borrow = self.type_borrow(source.module_id, source_borrow)?;
                 let target_borrow_id = target_borrow;
                 let target_borrow = self.type_borrow(target.module_id, target_borrow_id)?;
+                let source_region = source_borrow.region;
+                let target_region = target_borrow.region;
+                let source_value = self.lent_payload(origin, source_value)?;
+                let target_value = self.lent_payload(origin, target_value)?;
 
-                // borrow through a managed handle at the handle's place
-                let (source_region, source_value) =
-                    self.borrow_through_managed(origin, cause, source_borrow.region, source_value)?;
-                let (target_region, target_value) =
-                    self.borrow_through_managed(origin, cause, target_borrow.region, target_value)?;
-
-                // borrows are covariant in their region: extent outlives, spaces widen
+                // relate the borrow region: Verify proves the extent, the spaces agree here
                 let region =
                     self.constrain_type(origin, cause, relation, source_region, target_region)?;
                 if region == Verdict::Fails {
@@ -310,6 +321,57 @@ impl CheckState<'_> {
                 )?;
 
                 Ok(Some(region.and(access).and(payload)))
+            }
+
+            // read the class handle behind a borrow granting at least mutable access
+            (
+                dir::Type::Form(dir::FormType {
+                    form: dir::Form::Borrowed(source_borrow),
+                    value: source_value,
+                }),
+                target_head,
+            ) if self.default_ownership(origin, source_value)? == Some(dir::Ownership::Managed)
+                && self.is_handle_target(origin, target)? =>
+            {
+                let source_borrow = self.type_borrow(source.module_id, source_borrow)?;
+                let mutable = self.access_literal(dir::Access::Mutable)?;
+                let access =
+                    self.constrain_access_assignable(origin, source_borrow.access, mutable)?;
+                if access == Verdict::Fails {
+                    return Ok(Some(Verdict::Fails));
+                }
+
+                // decide whether the borrow lends a heap block or a constructor's receiver
+                let extent = self.region_extent(source_borrow.region)?;
+                let managed = self.lifetime_literal(dir::Lifetime::Managed)?;
+                let is_heap = self.decide_relation(origin, Relation::Equal, extent, managed)?
+                    != Verdict::Fails;
+                let is_receiver = !is_heap
+                    && self
+                        .constructed_receiver_owner(origin, extent, source_value)?
+                        .is_some();
+                if !is_heap && !is_receiver {
+                    return Ok(Some(Verdict::Fails));
+                }
+
+                // commit a heap borrow's extent to the managed lifetime
+                if is_heap {
+                    self.constrain_type(origin, cause, Relation::Equal, extent, managed)?;
+                }
+
+                // relate the object beneath a handle target
+                let target_value = match target_head {
+                    dir::Type::Form(dir::FormType { value, .. }) => value,
+                    _ => target,
+                };
+
+                Ok(Some(access.and(self.constrain_type(
+                    origin,
+                    cause,
+                    relation,
+                    source_value,
+                    target_value,
+                )?)))
             }
 
             // memory forms check constructor then payload
@@ -341,72 +403,16 @@ impl CheckState<'_> {
                 Ok(Some(constructor.and(payload)))
             }
 
-            // copy values into uniquely owned storage
-            (_, dir::Type::Form(target_form)) if target_form.form == dir::Form::Owned => {
-                // refuse a safe reference as uniquely owned storage
-                let is_reference = self.type_is_reference(origin, source)?;
-                if is_reference {
-                    return Ok(Some(Verdict::Fails));
-                }
-
-                // copy everything else into the destination storage
-                match self.decide_auto_interface(origin, source, dir::AutoInterface::Copy)? {
-                    Verdict::Holds => {}
-                    verdict @ (Verdict::Fails | Verdict::Ambiguous) => return Ok(Some(verdict)),
-                }
-
-                Ok(Some(self.constrain_type(
-                    origin,
-                    cause,
-                    relation,
-                    source,
-                    target_form.value,
-                )?))
-            }
-
-            // admit bare values into managed storage at the storage's own space
-            (_, dir::Type::Form(target_form))
-                if !matches!(self.ty(source)?, dir::Type::Form(_))
-                    && matches!(target_form.form, dir::Form::Managed { .. }) =>
-            {
-                // read the place the managed storage names
-                let dir::Form::Managed { place } = target_form.form else {
-                    return Ok(None);
+            // hold a value in owned storage, an open value copying its object out
+            (source_head, dir::Type::Form(target_form)) if target_form.form == dir::Form::Owned => {
+                let held = match self.default_ownership(origin, source)? {
+                    _ if matches!(source_head, dir::Type::Literal(_)) => Verdict::Holds,
+                    Some(dir::Ownership::Owned) => Verdict::Holds,
+                    Some(_) => Verdict::Fails,
+                    None => self.decide_auto_interface(origin, source, dir::AutoInterface::Copy)?,
                 };
-
-                // bind an open storage place to the bare source's own place
-                let resolved = self.shallow_resolve(place)?;
-                if matches!(self.ty(resolved)?, dir::Type::Variable(_)) {
-                    let source_place = match self.form_chain(origin, source)?.place() {
-                        Some(place) => place,
-                        None => self.local_place()?,
-                    };
-                    self.constrain_type(origin, cause, Relation::Equal, source_place, resolved)?;
-                }
-
-                // defer non-shared places to the payload for the concrete recheck
-                if self.place_space(place)? != Some(dir::Space::Shared) {
-                    return Ok(Some(self.constrain_type(
-                        origin,
-                        cause,
-                        relation,
-                        source,
-                        target_form.value,
-                    )?));
-                }
-
-                // admit a reference only where its own nominal space is shared
-                let is_reference = self.type_is_reference(origin, source)?;
-                if is_reference {
-                    // intrinsically placed nominals satisfy their own space
-                    let nominal = match self.ty(source)? {
-                        dir::Type::Application(instance) => self.nominal_space(instance.symbol)?,
-                        _ => None,
-                    };
-
-                    if nominal != Some(dir::Space::Shared) {
-                        return Ok(Some(Verdict::Fails));
-                    }
+                if held != Verdict::Holds {
+                    return Ok(Some(held));
                 }
 
                 Ok(Some(self.constrain_type(
@@ -416,25 +422,6 @@ impl CheckState<'_> {
                     source,
                     target_form.value,
                 )?))
-            }
-
-            // read managed storage back as its payload, keeping shared references placed
-            (dir::Type::Form(source_form), _)
-                if let dir::Form::Managed { place } = source_form.form
-                    && !matches!(self.ty(target)?, dir::Type::Form(_)) =>
-            {
-                // read non-shared storage straight through to its payload
-                if self.place_space(place)? != Some(dir::Space::Shared) {
-                    return Ok(Some(self.constrain_type(
-                        origin,
-                        cause,
-                        relation,
-                        source_form.value,
-                        target,
-                    )?));
-                }
-
-                Ok(Some(Verdict::Fails))
             }
 
             // owned values conform to an interface through the value they store
@@ -449,11 +436,11 @@ impl CheckState<'_> {
                 )?))
             }
 
-            // transfer owned values into the destination's default form
+            // move an owned value into the destination's default form
             (dir::Type::Form(source_form), _) if source_form.form == dir::Form::Owned => {
-                if self.default_ownership(origin, source_form.value)?
-                    == Some(dir::Ownership::Managed)
-                {
+                // an owned value equals and stores as its object in a value family alone
+                let ownership = self.default_ownership(origin, source_form.value)?;
+                if relation != Relation::Subtype && ownership != Some(dir::Ownership::Owned) {
                     return Ok(Some(Verdict::Fails));
                 }
 
@@ -468,6 +455,19 @@ impl CheckState<'_> {
 
             _ => Ok(None),
         }
+    }
+
+    /// Return whether one target names a class handle.
+    fn is_handle_target(
+        &mut self,
+        origin: Origin,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        if !matches!(self.ty(target)?, dir::Type::Application(_)) {
+            return Ok(false);
+        }
+
+        Ok(self.default_ownership(origin, target)? == Some(dir::Ownership::Managed))
     }
 
     /// Relate two memory form constructors under equality.
@@ -502,10 +502,6 @@ impl CheckState<'_> {
                 )?;
 
                 Ok(access.and(region))
-            }
-            // managed handles match on their place
-            (dir::Form::Managed { place: source }, dir::Form::Managed { place: target }) => {
-                self.constrain_type(origin, cause, Relation::Equal, source, target)
             }
             // every other pair matches on the constructor alone
             _ => Ok(Verdict::decided(source.same_constructor(&target))),
@@ -543,16 +539,12 @@ impl CheckState<'_> {
 
                 Ok(access.and(region))
             }
-            // managed handles flow at one shared place
-            (dir::Form::Managed { place: source }, dir::Form::Managed { place: target }) => {
-                self.constrain_type(origin, cause, Relation::Equal, source, target)
-            }
             // every other pair flows on the constructor alone
             _ => Ok(Verdict::decided(source.same_constructor(&target))),
         }
     }
 
-    /// Relate one borrow access against a required access.
+    /// Relate one granted access against its requested access.
     pub(in crate::sema) fn relate_access_assignable(
         &mut self,
         origin: Origin,
@@ -568,21 +560,24 @@ impl CheckState<'_> {
             return Ok(Verdict::Holds);
         }
 
-        // read the concrete access each side names
-        let granted_access = self.access_of(granted)?;
-        let requested_access = self.access_of(requested)?;
-
-        // relate the two access terms
+        // grant a readonly request from every access
+        let granted = self.shallow_resolve(granted)?;
+        let requested = self.shallow_resolve(requested)?;
+        let is_readonly_request = self.access_of(requested)? == Some(dir::Access::Readonly);
         match (self.ty(granted)?, self.ty(requested)?) {
-            // every access grants readonly
-            _ if requested_access == Some(dir::Access::Readonly) => Ok(Verdict::Holds),
-
-            // compare two concrete accesses by what the granted grants
-            _ if let (Some(granted_access), Some(requested_access)) =
-                (granted_access, requested_access) =>
-            {
-                Ok(Verdict::decided(granted_access.grants(requested_access)))
-            }
+            _ if is_readonly_request => Ok(Verdict::Holds),
+            (
+                dir::Type::Literal(dir::Literal::String(granted)),
+                dir::Type::Literal(dir::Literal::String(requested)),
+            ) => Ok(Verdict::decided(
+                match (
+                    dir::Access::from_text(self.strings().get(granted)),
+                    dir::Access::from_text(self.strings().get(requested)),
+                ) {
+                    (Some(granted), Some(requested)) => granted.grants(requested),
+                    _ => false,
+                },
+            )),
 
             // require every possible granted access to grant the requirement
             (dir::Type::Union(union), _) => {
@@ -632,7 +627,7 @@ impl CheckState<'_> {
         }
     }
 
-    /// Constrain one granted access to grant a requested access.
+    /// Constrain one granted access to grant the requested access.
     pub(in crate::sema) fn constrain_access_assignable(
         &mut self,
         origin: Origin,
@@ -650,77 +645,77 @@ impl CheckState<'_> {
             return self.constrain_type(origin, cause, Relation::Storable, requested, granted);
         }
 
-        // let an open request take the access granted to it
-        if self.root_variable(requested)?.is_some() {
+        // bind an open request to the strongest admitted rung under the grant, else the grant
+        if let Some(variable) = self.root_variable(requested)? {
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
+            let domain = match self.infer.variable(variable)?.parameter {
+                Some(parameter) => match self
+                    .generic_parameter(parameter)?
+                    .and_then(|binding| binding.constraint)
+                {
+                    Some(constraint) => Some(self.access_set(constraint)?),
+                    None => None,
+                },
+                None => None,
+            };
+            if let (Some(domain), Some(granted_access)) = (domain, self.access_of(granted)?)
+                && !domain.is_all()
+            {
+                let admitted = dir::Access::ALL
+                    .into_iter()
+                    .rev()
+                    .find(|rung| domain.contains(*rung) && granted_access.grants(*rung));
+                let Some(admitted) = admitted else {
+                    return Ok(Verdict::Fails);
+                };
+                let admitted = self.access_literal(admitted)?;
 
-            return self.constrain_type(origin, cause, Relation::Storable, granted, requested);
+                return self.constrain_type(origin, cause, Relation::Equal, admitted, requested);
+            }
+
+            return self.constrain_type(origin, cause, Relation::Equal, granted, requested);
+        }
+
+        // grant through a rigid access parameter what every rung of its domain grants
+        if let dir::Type::Parameter(_) = self.ty(granted)?
+            && let Some(requested_access) = self.access_of(requested)?
+        {
+            let domain = self.access_set(granted)?;
+            if domain.is_all() {
+                return self.relate_access_assignable(origin, granted, requested);
+            }
+            let grants = dir::Access::ALL
+                .into_iter()
+                .filter(|rung| domain.contains(*rung))
+                .all(|rung| rung.grants(requested_access));
+
+            return Ok(Verdict::decided(grants));
         }
 
         self.relate_access_assignable(origin, granted, requested)
     }
 
-    /// Relate two closed access terms under one relation.
+    /// Relate two closed access terms.
     pub(in crate::sema) fn relate_access_terms(
         &mut self,
         relation: Relation,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<Verdict>> {
-        let (Some(source_access), Some(target_access)) =
+        let comparison = if let (Some(source), Some(target)) =
             (self.access_of(source)?, self.access_of(target)?)
-        else {
-            return Ok(None);
+        {
+            Some((source == target, target.grants(source)))
+        } else {
+            None
         };
 
-        // decide the two access terms under the relation
-        Ok(Some(match relation {
-            Relation::Equal => Verdict::decided(source_access == target_access),
-            Relation::Subtype | Relation::Storable => {
-                Verdict::decided(target_access.grants(source_access))
-            }
+        // compare by identity under type relations and by the rung lattice under storage
+        Ok(comparison.map(|(equal, assignable)| {
+            Verdict::decided(match relation {
+                Relation::Equal | Relation::Subtype => equal,
+                Relation::Storable => assignable,
+            })
         }))
-    }
-
-    /// Reach one borrow through a managed handle, folding the handle's place into the region.
-    fn borrow_through_managed(
-        &mut self,
-        origin: Origin,
-        cause: CauseId,
-        region: dir::GlobalTypeId,
-        value: dir::GlobalTypeId,
-    ) -> CompilerResult<(dir::GlobalTypeId, dir::GlobalTypeId)> {
-        // read the payload's managed head
-        let payload = self.shallow_resolve(value)?;
-        let dir::Type::Form(form) = self.ty(payload)? else {
-            return Ok((region, value));
-        };
-
-        // require a managed handle around the payload
-        let dir::Form::Managed { place } = form.form else {
-            return Ok((region, value));
-        };
-
-        // fold the handle place into the region's spaces
-        let resolved = self.shallow_resolve(region)?;
-        match self.ty(resolved)? {
-            // fold the place into a written region pair
-            dir::Type::Region(_) => {
-                let folded = self.with_region_space(resolved, place)?;
-
-                Ok((folded, form.value))
-            }
-            // split an open region into its extent and its place
-            dir::Type::Variable(_) => {
-                let extent = self.open_memory_type(origin, dir::MemoryParameter::Region)?;
-                let space = self.open_memory_type(origin, dir::MemoryParameter::Place)?;
-                let split = self.intern_region(extent, space)?;
-                self.constrain_type(origin, cause, Relation::Equal, resolved, split)?;
-                let pair = self.intern_region(extent, place)?;
-
-                Ok((pair, form.value))
-            }
-            _ => Ok((region, value)),
-        }
     }
 }

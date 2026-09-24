@@ -12,12 +12,11 @@ pub(in crate::sema) struct HeritageApplication {
     pub(in crate::sema) source: dir::GlobalNodeIdAny,
     /// The applied nominal or interface type.
     pub(in crate::sema) ty: dir::GlobalTypeId,
-    /// The application of the class, struct, newtype, extension, or root interface whose heritage
-    /// clause introduced this one, at the receiver's arguments.
+    /// The application whose heritage clause introduced this one, at the receiver's arguments.
     pub(in crate::sema) implementer: dir::GlobalTypeId,
 }
 
-/// One interface application a receiver's heritage reaches, with its implementing declaration.
+/// One interface application in a receiver's heritage, with its implementing declaration.
 #[derive(Debug, Clone, Copy)]
 pub(in crate::sema) struct DeclaredConformance {
     /// The application of the declaration whose heritage clause names the interface.
@@ -102,7 +101,8 @@ impl CheckState<'_> {
 
             return Err(CompilerError::Internal {
                 message: format!(
-                    "nominal relation has missing definitions: source = {}, target = {}",
+                    "nominal relation has missing definitions in {}: source = {}, target = {}",
+                    self.format_module_label(source.module_id),
                     self.format_symbol(source_instance.symbol),
                     self.format_symbol(target_instance.symbol),
                 ),
@@ -674,8 +674,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            // recurse through newly reached applications, keeping this at the root receiver, an
-            // interface's edges implemented by whatever implements the interface
+            // recurse through newly reached applications, keeping this at the root receiver
             let next_implementer = match self.definition(instance.symbol)?.as_deref() {
                 Some(dir::Definition::Interface(_)) => implementer,
                 _ => ty,
@@ -700,9 +699,6 @@ impl CheckState<'_> {
     }
 
     /// Return whether one declaration's heritage reaches a target declaration.
-    ///
-    /// The answer over-approximates the applied closure: heritage written through a parameter
-    /// or an alias reaches every declaration.
     pub(in crate::sema) fn reaches_heritage(
         &mut self,
         symbol: dir::GlobalSymbolId,
@@ -781,8 +777,42 @@ impl CheckState<'_> {
         }
     }
 
-    /// Find the application of one interface in a type's heritage closure, with the declaration
-    /// implementing it.
+    /// Find every application of one interface in a type's heritage closure.
+    pub(in crate::sema) fn heritage_applications(
+        &mut self,
+        origin: Origin,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalSymbolId,
+    ) -> CompilerResult<SmallVec<[(ModuleId, dir::GenericApplication); 2]>> {
+        // read the nominal the source names beneath its handle forms
+        let source = self.ownership_payload(origin, source)?;
+        let dir::Type::Application(source_instance) = self.ty(source)? else {
+            return Ok(SmallVec::new());
+        };
+
+        // accept the source naming the declaration
+        if source_instance.symbol == target {
+            return Ok(SmallVec::from_elem((source.module_id, source_instance), 1));
+        }
+
+        // collect each application of the declaration the source's heritage names
+        let root = self.heritage_root(origin, source)?;
+        if self.nominal_application_maybe(root)?.is_none() {
+            return Ok(SmallVec::new());
+        }
+        let closure = self.instance_heritage_closure(origin, source, root)?;
+        let mut found = SmallVec::new();
+        for application in &closure.applications {
+            let (module, instance) = self.nominal_application(application.ty)?;
+            if instance.symbol == target {
+                found.push((module, instance));
+            }
+        }
+
+        Ok(found)
+    }
+
+    /// Find the application of one interface in a type's heritage closure.
     pub(in crate::sema) fn declared_conformance(
         &mut self,
         origin: Origin,

@@ -3,9 +3,19 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    Cause, CauseId, CauseKind, CheckState, MemberRole, Origin, Relation, TypeSubstitution, Verdict,
+    Cause, CauseId, CauseKind, CheckState, GenericParameterId, MemberRole, MemoryGrounding, Origin,
+    Relation, TypeSubstitution, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
+
+/// Where the source properties of one shape relation come from.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::sema) enum PropertySource {
+    /// A literal's fields, stored once into the target's fields.
+    Constructed,
+    /// Stored fields, each read and assigned in place.
+    Stored,
+}
 
 /// One directed function assignment pair with the cause it reports under.
 type FunctionAssignabilityPair = (Option<CauseKind>, dir::GlobalTypeId, dir::GlobalTypeId);
@@ -318,7 +328,7 @@ impl CheckState<'_> {
         origin: Origin,
         cause: CauseId,
         relation: Relation,
-        constructed: bool,
+        properties: PropertySource,
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
@@ -352,15 +362,18 @@ impl CheckState<'_> {
 
                     // keep the target's exact access for a stored object
                     if relation == Relation::Storable
-                        && !constructed
+                        && properties == PropertySource::Stored
                         && source_field.access.write().is_some()
                             != target_field.access.write().is_some()
                     {
                         return Ok(Verdict::Fails);
                     }
-                    let Some(relations) =
-                        self.shape_property_relations(relation, source_field, target_field)
-                    else {
+                    let Some(relations) = Self::shape_property_relations(
+                        relation,
+                        properties,
+                        source_field,
+                        target_field,
+                    ) else {
                         return Ok(Verdict::Fails);
                     };
                     pairs.extend(relations);
@@ -517,14 +530,15 @@ impl CheckState<'_> {
 
     /// Return the value relations one matched structural property requires.
     pub(in crate::sema) fn shape_property_relations(
-        &self,
         relation: Relation,
+        properties: PropertySource,
         source: &dir::TypeProperty,
         target: &dir::TypeProperty,
     ) -> Option<SmallVec<[(Relation, dir::GlobalTypeId, dir::GlobalTypeId); 2]>> {
-        // pair the read and write slots the relation requires
+        let is_stored = properties == PropertySource::Stored;
         let mut relations = SmallVec::new();
-        let is_stored = |access: dir::PropertyAccess| matches!(access, dir::PropertyAccess::ReadWrite { read, write } if read == write);
+
+        // pair the reads and writes the relation requires
         match relation {
             // equal shapes pair each supported operation exactly
             Relation::Equal => {
@@ -543,23 +557,29 @@ impl CheckState<'_> {
                     _ => return None,
                 }
             }
-            // aliased mutable storage keeps its exact type
-            Relation::Storable if is_stored(source.access) && is_stored(target.access) => {
-                relations.push((
-                    Relation::Equal,
-                    source.access.read()?,
-                    target.access.read()?,
-                ));
+            // pair stored fields exactly
+            Relation::Storable
+                if is_stored && is_field(source.access) && is_field(target.access) =>
+            {
+                let (Some(source_read), Some(target_read)) =
+                    (source.access.read(), target.access.read())
+                else {
+                    return None;
+                };
+                relations.push((Relation::Equal, source_read, target_read));
             }
-            // flow reads out covariantly and writes in contravariantly
+            // flow reads out and writes in
             Relation::Subtype | Relation::Storable => {
                 if let Some(target_read) = target.access.read() {
-                    relations.push((relation, source.access.read()?, target_read));
+                    let source_read = source.access.read()?;
+                    relations.push((relation, source_read, target_read));
                 }
                 if let Some(target_write) = target.access.write()
+                    && is_stored
                     && (relation == Relation::Storable || target.access.read().is_none())
                 {
-                    relations.push((relation, target_write, source.access.write()?));
+                    let source_write = source.access.write()?;
+                    relations.push((relation, target_write, source_write));
                 }
             }
         }
@@ -696,7 +716,7 @@ impl CheckState<'_> {
 
         // satisfy the target from any one declared constructor
         let mut verdict = Verdict::Fails;
-        for candidate in self.constructor_signatures(origin, source)? {
+        for candidate in self.construct_signatures(origin, source, MemoryGrounding::Open)? {
             verdict =
                 verdict.or(self.constrain_type(origin, cause, relation, candidate.ty, target)?);
             if verdict == Verdict::Holds {
@@ -830,7 +850,8 @@ impl CheckState<'_> {
         let target = self.normalize(origin, target)?;
 
         // bind a polymorphic source against the required signature first
-        let Some(instantiation) = self.instantiate_signature(origin, source, target)? else {
+        let instantiation = self.instantiate_signature(origin, source, target)?;
+        let Some(instantiation) = instantiation else {
             return Ok(Verdict::Fails);
         };
         let source = instantiation.signature;
@@ -914,6 +935,7 @@ impl CheckState<'_> {
         // match the declared pairs and require the declared constraints
         let fixed = self.signature_arguments(peeled.module_id, head.arguments)?;
         let mut substitution = TypeSubstitution::default().with_carried(fixed)?;
+        self.bind_aligned_receivers(origin, &parameters, &mut substitution, peeled, required)?;
         if !self.extend_generic_substitution(origin, &parameters, &mut substitution, &pairs)? {
             return Ok(None);
         }
@@ -924,12 +946,15 @@ impl CheckState<'_> {
         // extract the complete selection when every value parameter binds
         let parameters = self.generic_template_parameters(template)?;
         let mut arguments = Some(Vec::with_capacity(parameters.len()));
+        let mut lifetimes = Vec::new();
         for parameter in parameters.iter().copied() {
             // skip lifetimes, which erase from instance identity
             let is_lifetime = self.generic_parameter(parameter)?.is_some_and(|binding| {
                 binding.memory_parameter() == Some(dir::MemoryParameter::Region)
             });
             if is_lifetime {
+                lifetimes.push(parameter);
+
                 continue;
             }
             match substitution.argument(parameter) {
@@ -943,9 +968,13 @@ impl CheckState<'_> {
             }
         }
 
-        // substitute the bound arguments into the written signature
-        let substituted = self.substitute_type(signature, &substitution)?;
+        // substitute the bound arguments, keeping the signature's own binder regions
         let regions = self.resolved_region_bindings(&substitution.bindings)?;
+        let mut bound = substitution;
+        bound
+            .bindings
+            .retain(|binding| !lifetimes.contains(&binding.parameter));
+        let substituted = self.substitute_type(signature, &bound)?;
         if substituted == signature {
             arguments = Some(Vec::new());
         }
@@ -957,6 +986,36 @@ impl CheckState<'_> {
         }))
     }
 
+    /// Bind one signature's generics through its receiver when both receiver shapes align.
+    fn bind_aligned_receivers(
+        &mut self,
+        origin: Origin,
+        parameters: &[GenericParameterId],
+        substitution: &mut TypeSubstitution,
+        source: dir::GlobalTypeId,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let (Some(signature), Some(required)) =
+            (self.signature_head(source)?, self.signature_head(target)?)
+        else {
+            return Ok(());
+        };
+        let (Some(source_this), Some(target_this)) =
+            (signature.this_parameter, required.this_parameter)
+        else {
+            return Ok(());
+        };
+
+        // keep the receiver bindings of matching shapes
+        let mut scratch = substitution.clone();
+        let pairs = [(source_this, target_this)];
+        if self.extend_generic_substitution(origin, parameters, &mut scratch, &pairs)? {
+            *substitution = scratch;
+        }
+
+        Ok(())
+    }
+
     /// Relate two receiver-bound method signatures over rigid parameters.
     pub(in crate::sema) fn relate_method(
         &mut self,
@@ -964,7 +1023,7 @@ impl CheckState<'_> {
         cause: CauseId,
         relation: Relation,
         mut source: dir::GlobalTypeId,
-        target: dir::GlobalTypeId,
+        mut target: dir::GlobalTypeId,
         receiver: Option<dir::GlobalTypeId>,
         assumed: Option<&TypeSubstitution>,
     ) -> CompilerResult<Verdict> {
@@ -1002,6 +1061,24 @@ impl CheckState<'_> {
             source = self.substitute_type(source, &receiver)?;
         }
 
+        // open the required signature's induced memory parameters for the match to bind
+        if let Some(required) = self.signature_head(target)? {
+            let parameters = self.signature_generic_parameters(target.module_id, &required)?;
+            let mut fresh = TypeSubstitution::default();
+            for parameter in parameters {
+                if let Some(kind) = self
+                    .require_generic_parameter(parameter)?
+                    .induced_memory_parameter()
+                {
+                    let variable = self.open_memory_type(origin, kind)?;
+                    fresh.bind(parameter, variable)?;
+                }
+            }
+            if !fresh.is_empty() {
+                target = self.substitute_type(target, &fresh)?;
+            }
+        }
+
         // bind the source's own generics against the required signature
         if let Some(signature) = self.signature_head(source)?
             && let Some(template) = signature.template
@@ -1028,22 +1105,13 @@ impl CheckState<'_> {
                 }
 
                 // bind receivers when the two receiver shapes align
-                if let (Some(signature), Some(required)) =
-                    (self.signature_head(source)?, self.signature_head(target)?)
-                    && let (Some(source_this), Some(target_this)) =
-                        (signature.this_parameter, required.this_parameter)
-                {
-                    let mut scratch = substitution.clone();
-                    let this_pairs = [(source_this, target_this)];
-                    if self.extend_generic_substitution(
-                        origin,
-                        &parameters,
-                        &mut scratch,
-                        &this_pairs,
-                    )? {
-                        substitution = scratch;
-                    }
-                }
+                self.bind_aligned_receivers(
+                    origin,
+                    &parameters,
+                    &mut substitution,
+                    source,
+                    target,
+                )?;
 
                 // match the slot pairs and require the declared constraints of the bound arguments
                 let is_bound = self.extend_generic_substitution(
@@ -1052,19 +1120,24 @@ impl CheckState<'_> {
                     &mut substitution,
                     &pairs,
                 )?;
-                if !is_bound
-                    || !self.relate_substitution_constraints(
+                let constrained = is_bound
+                    && self.relate_substitution_constraints(
                         origin,
                         template,
                         &substitution,
                         assumed,
-                    )?
-                {
+                    )?;
+                if !constrained {
                     return Ok(Verdict::Fails);
                 }
 
-                // ground the memory parameters the match left open
-                self.ground_ambient_memory_parameters(&parameters, &mut substitution)?;
+                // ground the memory parameters the match left unbound at their elided defaults
+                self.ground_memory_parameters(
+                    origin,
+                    &parameters,
+                    &mut substitution,
+                    MemoryGrounding::Elided,
+                )?;
 
                 // compare the instantiated source from here on
                 source = self.substitute_type(source, &substitution)?;
@@ -1148,7 +1221,7 @@ impl CheckState<'_> {
     }
 
     /// Read the receiver form one resolved `this` parameter type spells.
-    fn receiver_shape_of(
+    pub(in crate::sema) fn receiver_shape_of(
         &mut self,
         this: dir::GlobalTypeId,
     ) -> CompilerResult<Option<ReceiverShape>> {
@@ -1193,7 +1266,7 @@ impl CheckState<'_> {
 
                     Ok(self
                         .access_of(borrow.access)?
-                        .map(dir::ReceiverMode::Borrowed))
+                        .map(|access| dir::ReceiverMode::Borrowed { access }))
                 }
                 dir::Form::Owned => Ok(Some(dir::ReceiverMode::Owned)),
                 _ => Ok(None),
@@ -1381,7 +1454,7 @@ impl ThisParameterComparison {
 }
 
 /// The receiver form one `this` parameter presents.
-enum ReceiverShape {
+pub(in crate::sema) enum ReceiverShape {
     /// A whole receiver, reborrowing at every access.
     Whole,
     /// A borrowed receiver granting its access term.
@@ -1442,4 +1515,9 @@ impl CheckState<'_> {
 
         Ok(expanded)
     }
+}
+
+/// Return whether one property access stores a field, reading and writing one type.
+fn is_field(access: dir::PropertyAccess) -> bool {
+    matches!(access, dir::PropertyAccess::ReadWrite { read, write } if read == write)
 }

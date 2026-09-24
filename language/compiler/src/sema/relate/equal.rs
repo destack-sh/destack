@@ -1,7 +1,7 @@
 use destack_dir as dir;
 use smallvec::SmallVec;
 
-use crate::sema::{CauseId, CheckState, Origin, Relation, Verdict};
+use crate::sema::{CauseId, CheckState, Origin, PropertySource, Relation, Verdict};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -20,12 +20,16 @@ impl CheckState<'_> {
             return Ok(Verdict::Holds);
         }
 
-        // relate region terms by their own rule
+        // relate region terms by the region rule
         if let Some(verdict) =
             self.relate_region_terms(origin, cause, Relation::Equal, source, target)?
         {
             return Ok(verdict);
         }
+
+        // compare named types by what they name
+        let source = self.normalize_named(origin, source)?;
+        let target = self.normalize_named(origin, target)?;
 
         // decide equality by the heads standing on both sides
         let decision = match (self.ty(source)?, self.ty(target)?) {
@@ -116,10 +120,32 @@ impl CheckState<'_> {
                 constructor.and(payload)
             }
             // compare anonymous classes by shape
-            (dir::Type::Object(_), dir::Type::Object(_)) => {
-                self.relate_shape(origin, cause, Relation::Equal, false, source, target)?
+            (dir::Type::Object(_), dir::Type::Object(_)) => self.relate_shape(
+                origin,
+                cause,
+                Relation::Equal,
+                PropertySource::Stored,
+                source,
+                target,
+            )?,
+            // equate an owned form over a value type with the value, an open payload deciding later
+            (dir::Type::Form(form), _) | (_, dir::Type::Form(form))
+                if form.form == dir::Form::Owned =>
+            {
+                let other = match self.ty(source)? {
+                    dir::Type::Form(_) => target,
+                    _ => source,
+                };
+                match self.default_ownership(origin, form.value)? {
+                    Some(dir::Ownership::Owned) => {
+                        self.constrain_type(origin, cause, Relation::Equal, form.value, other)?
+                    }
+                    Some(_) => Verdict::Fails,
+                    None if self.root_variable(form.value)?.is_some() => Verdict::Ambiguous,
+                    None => Verdict::Fails,
+                }
             }
-            // composites compare fixed slots beneath one shared constructor
+            // compare the fixed children of composites under one shared constructor
             _ => match self.decompose_type_pair(source, target)? {
                 Some(pairs) => self.relate_each(origin, cause, Relation::Equal, &pairs)?,
                 None => Verdict::Fails,

@@ -11,7 +11,7 @@ use crate::sema::{
 };
 
 impl CheckState<'_> {
-    /// Decompose two same-constructor types into fixed slot pairs.
+    /// Decompose two same-constructor types into pairs of their fixed children.
     pub(in crate::sema) fn decompose_type_pair(
         &self,
         source: dir::GlobalTypeId,
@@ -61,7 +61,7 @@ impl CheckState<'_> {
                 )
             }
 
-            // memory forms decompose by constructor into their fixed type-valued slots
+            // decompose memory forms by constructor into their fixed type children
             (dir::Type::Form(source_type), dir::Type::Form(target_type)) => {
                 match (source_type.form, target_type.form) {
                     // borrows decompose over region, access, and value
@@ -82,16 +82,6 @@ impl CheckState<'_> {
                             ]),
                         )
                     }
-                    // managed forms decompose over place and value
-                    (
-                        dir::Form::Managed { place },
-                        dir::Form::Managed {
-                            place: target_place,
-                        },
-                    ) => (
-                        SmallVec::from_slice(&[place, source_type.value]),
-                        SmallVec::from_slice(&[target_place, target_type.value]),
-                    ),
                     // every other matching form decomposes over its value alone
                     (source_form, target_form) if source_form == target_form => (
                         SmallVec::from_slice(&[source_type.value]),
@@ -102,16 +92,16 @@ impl CheckState<'_> {
                 }
             }
 
-            // dynamic representations decompose over their constraints and places
+            // dynamic representations decompose over their constraints
             (dir::Type::Dynamic(source_type), dir::Type::Dynamic(target_type)) => (
-                SmallVec::from_slice(&[source_type.constraint, source_type.place]),
-                SmallVec::from_slice(&[target_type.constraint, target_type.place]),
+                SmallVec::from_slice(&[source_type.constraint]),
+                SmallVec::from_slice(&[target_type.constraint]),
             ),
 
-            // callables decompose over their signatures and environment places
+            // callables decompose over their signatures
             (dir::Type::Function(source_type), dir::Type::Function(target_type)) => (
-                SmallVec::from_slice(&[source_type.signature, source_type.place]),
-                SmallVec::from_slice(&[target_type.signature, target_type.place]),
+                SmallVec::from_slice(&[source_type.signature]),
+                SmallVec::from_slice(&[target_type.signature]),
             ),
             // function pointers decompose over their signature alone
             (dir::Type::FunctionPointer(source_type), dir::Type::FunctionPointer(target_type)) => (
@@ -132,10 +122,10 @@ impl CheckState<'_> {
                 );
             }
 
-            // slices decompose over their element and place
+            // slices decompose over their element
             (dir::Type::Slice(source_type), dir::Type::Slice(target_type)) => (
-                SmallVec::from_slice(&[source_type.element, source_type.place]),
-                SmallVec::from_slice(&[target_type.element, target_type.place]),
+                SmallVec::from_slice(&[source_type.element]),
+                SmallVec::from_slice(&[target_type.element]),
             ),
             // fixed arrays decompose over their element and length
             (dir::Type::FixedArray(source_type), dir::Type::FixedArray(target_type)) => (
@@ -344,7 +334,8 @@ impl CheckState<'_> {
                 // unary operations decompose their targets
                 (dir::TypeOperation::KeyOf(source), dir::TypeOperation::KeyOf(target))
                 | (dir::TypeOperation::NoInfer(source), dir::TypeOperation::NoInfer(target))
-                | (dir::TypeOperation::Awaited(source), dir::TypeOperation::Awaited(target)) => (
+                | (dir::TypeOperation::Awaited(source), dir::TypeOperation::Awaited(target))
+                | (dir::TypeOperation::SpaceOf(source), dir::TypeOperation::SpaceOf(target)) => (
                     SmallVec::from_slice(&[source.target]),
                     SmallVec::from_slice(&[target.target]),
                 ),
@@ -357,6 +348,10 @@ impl CheckState<'_> {
                 | (
                     dir::TypeOperation::TryResidual { value: source },
                     dir::TypeOperation::TryResidual { value: target },
+                )
+                | (
+                    dir::TypeOperation::TryFailure { value: source },
+                    dir::TypeOperation::TryFailure { value: target },
                 ) => (
                     SmallVec::from_slice(&[*source]),
                     SmallVec::from_slice(&[*target]),
@@ -450,7 +445,7 @@ impl CheckState<'_> {
         pattern: dir::GlobalTypeId,
         actual: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        // matching is inductive, so reject a pair that recurses into its own question
+        // reject a pair that recurses into the question it answers
         let question = ActiveGoal::Match(pattern, actual, substitution_fingerprint(substitution));
         if !self.active.insert(question) {
             return Ok(false);
@@ -487,13 +482,17 @@ impl CheckState<'_> {
             }
         }
 
-        // leave open pattern slots to the relation, which binds them
+        // leave open pattern children to the relation, which binds them
         if self.root_variable(pattern)?.is_some() {
             return Ok(true);
         }
 
-        // leave parameter-free patterns over an open actual to the relation
-        if self.root_variable(actual)?.is_some() && !self.type_flags(pattern)?.has_parameter() {
+        // leave a pattern binding nothing further over an open actual to the relation
+        if self.root_variable(actual)?.is_some()
+            && self.type_parameters(pattern)?.iter().all(|parameter| {
+                !parameters.contains(parameter) || substitution.argument(*parameter).is_some()
+            })
+        {
             return Ok(true);
         }
 
@@ -502,7 +501,7 @@ impl CheckState<'_> {
             return Ok(true);
         }
 
-        // match region terms by their own rule, binding free coordinates
+        // match region terms by the region rule, binding free extents and spaces
         if let Some(matched) =
             self.match_region_terms(origin, parameters, substitution, pattern, actual)?
         {
@@ -511,6 +510,11 @@ impl CheckState<'_> {
 
         // accept one identical parameter-free type
         if pattern == actual && !self.type_flags(pattern)?.has_parameter() {
+            return Ok(true);
+        }
+
+        // match two closed access rungs, the rung lattice deciding the relation afterwards
+        if self.access_of(pattern)?.is_some() && self.access_of(actual)?.is_some() {
             return Ok(true);
         }
 
@@ -543,7 +547,7 @@ impl CheckState<'_> {
 
         // match by the heads standing on both sides
         match (self.ty(pattern)?, self.ty(actual)?) {
-            // match a literal actual against the primitive pattern of its own domain
+            // match a literal actual against the primitive pattern of its domain
             (dir::Type::Primitive(primitive), dir::Type::Literal(literal))
                 if literal.widens_to_primitive(primitive) =>
             {
@@ -566,25 +570,16 @@ impl CheckState<'_> {
                 Ok(false)
             }
 
-            // a bare managed-family actual matches a managed pattern at its own place
+            // match an owned pattern against a bare value-family actual through the payload
             (dir::Type::Form(form), actual_type)
-                if matches!(form.form, dir::Form::Managed { .. })
+                if form.form == dir::Form::Owned
                     && !matches!(actual_type, dir::Type::Form(_))
-                    && self.default_ownership(origin, actual)? == Some(dir::Ownership::Managed) =>
+                    && self.default_ownership(origin, actual)? == Some(dir::Ownership::Owned) =>
             {
-                let place = match self.form_chain(origin, actual)?.place() {
-                    Some(place) => place,
-                    None => self.local_place()?,
-                };
-                let wrapped = self.intern_type(dir::Type::Form(dir::FormType {
-                    form: dir::Form::Managed { place },
-                    value: actual,
-                }))?;
-
-                self.match_generic_type(origin, parameters, substitution, pattern, wrapped)
+                self.match_generic_type(origin, parameters, substitution, form.value, actual)
             }
 
-            // match fixed slots under one shared constructor first
+            // match fixed children under one shared constructor first
             (pattern_type, actual_type) => {
                 if let Some(pairs) = self.decompose_type_pair(pattern, actual)? {
                     if self.match_generic_arguments(origin, parameters, substitution, &pairs)? {
@@ -635,11 +630,7 @@ impl CheckState<'_> {
             dir::Type::Form(_) => true,
             dir::Type::Application(instance) => matches!(
                 self.language_item(instance.symbol)?,
-                Some(
-                    dir::LanguageItem::AccessOf
-                        | dir::LanguageItem::PlaceOf
-                        | dir::LanguageItem::WithAccess
-                )
+                Some(dir::LanguageItem::AccessOf | dir::LanguageItem::WithAccess)
             ),
             _ => false,
         };
@@ -801,7 +792,7 @@ fn substitution_fingerprint(substitution: &TypeSubstitution) -> u64 {
     hasher.finish()
 }
 
-/// Zip two fixed slot lists into relation pairs.
+/// Zip two fixed child lists into relation pairs.
 fn type_pairs(
     source: SmallVec<[dir::GlobalTypeId; 4]>,
     target: SmallVec<[dir::GlobalTypeId; 4]>,

@@ -1,7 +1,10 @@
 use crate::CompilerResult;
-use crate::sema::{Cause, CauseId, CauseKind, CheckState, Cycle, Origin, Relation};
+use crate::sema::{
+    Cause, CauseId, CauseKind, CheckState, Cycle, InferSubstitution, Origin, Relation,
+};
 use destack_core::ensure_sufficient_stack;
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 /// The outcome of deciding one relation, keeping ambiguity apart from failure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -54,7 +57,7 @@ impl Verdict {
         }
     }
 
-    /// Join one disjunct reached only while this one leaves the outcome open.
+    /// Join one disjunct evaluated only while this one leaves the outcome open.
     pub(in crate::sema) fn or_else(
         self,
         other: impl FnOnce() -> CompilerResult<Self>,
@@ -239,23 +242,23 @@ impl CheckState<'_> {
     /// Return one stuck conditional's then branch with each infer binder at its constraint.
     fn substitute_infer_binders(
         &mut self,
+        origin: Origin,
         conditional: dir::ConditionalType,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let mut branch = conditional.then_type;
-
-        // replace each binder occurrence with the constraint it declares
+        // capture each named binder at the constraint it declares, an open binder at unknown
+        let mut captures = SmallVec::<[InferSubstitution; 2]>::new();
         for binder in self.collect_infer_binders(conditional.right)? {
-            // default an open binder to unknown
-            let constraint = match binder.constraint {
+            let Some(symbol) = binder.symbol else {
+                continue;
+            };
+            let ty = match binder.constraint {
                 Some(constraint) => constraint,
                 None => self.intern_type(dir::Type::Unknown)?,
             };
-            for occurrence in binder.occurrences {
-                branch = self.replace_type(branch, occurrence, constraint)?;
-            }
+            captures.push(InferSubstitution { symbol, ty });
         }
 
-        Ok(branch)
+        self.substitute_infer_captures(Some(origin), conditional.then_type, &captures)
     }
 
     /// Relate the type operator heads shared by every relation.
@@ -274,13 +277,13 @@ impl CheckState<'_> {
                 return Ok(Some(Verdict::Fails));
             }
 
-            // project the refined key out of the source
+            // project the refined key out of the source through the refined interface
             let arguments = self.intern_type_ids(&[])?;
             let projected = self.intern_member(dir::MemberType {
                 owner: source,
                 key: refined.key,
                 arguments,
-                qualifier: None,
+                qualifier: Some(refined.base),
             })?;
             let value =
                 self.constrain_type(origin, cause, Relation::Equal, projected, refined.value)?;
@@ -328,7 +331,7 @@ impl CheckState<'_> {
             && let Some(dir::TypeOperation::Conditional(conditional)) =
                 self.operation_head(source)?
         {
-            let then_type = self.substitute_infer_binders(conditional)?;
+            let then_type = self.substitute_infer_binders(origin, conditional)?;
             let then_branch = self.constrain_type(origin, cause, relation, then_type, target)?;
             if then_branch == Verdict::Fails {
                 return Ok(Some(Verdict::Fails));
@@ -340,7 +343,7 @@ impl CheckState<'_> {
             return Ok(Some(then_branch.and(else_branch)));
         }
 
-        // relate region terms by their own rule
+        // relate region terms by the region rule
         if let Some(verdict) = self.relate_region_terms(origin, cause, relation, source, target)? {
             return Ok(Some(verdict));
         }
@@ -359,15 +362,7 @@ impl CheckState<'_> {
         }
         // decide region kind inhabitants before canonicalization erases parameter kinds
         if let Some(symbol) = self.type_symbol(target)?
-            && matches!(
-                self.language_item(symbol)?,
-                Some(
-                    dir::LanguageItem::Lifetime
-                        | dir::LanguageItem::Region
-                        | dir::LanguageItem::Place
-                        | dir::LanguageItem::Space
-                )
-            )
+            && matches!(self.language_item(symbol)?, Some(dir::LanguageItem::Region))
             && self.memory_kind(source)? == Some(dir::MemoryParameter::Region)
         {
             return Ok(Some(Verdict::Holds));
@@ -395,6 +390,7 @@ impl CheckState<'_> {
             dir::Type::Reference(reference) => reference.symbol,
             _ => return Ok(None),
         };
+        let symbol = self.resolve_symbol_alias(symbol)?;
 
         // read whether the symbol declares an interface
         let is_interface = matches!(
@@ -405,7 +401,7 @@ impl CheckState<'_> {
         Ok(is_interface.then_some(symbol))
     }
 
-    /// Evaluate one relation: the operator heads shared by every relation, then its own rule.
+    /// Evaluate one relation over the shared operator heads, then its specific rule.
     fn evaluate_relation(
         &mut self,
         origin: Origin,

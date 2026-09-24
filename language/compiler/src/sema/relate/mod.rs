@@ -19,4 +19,5 @@ mod widen;
 pub(in crate::sema) use evaluate::*;
 pub(in crate::sema) use interface::*;
 pub(in crate::sema) use nominal::*;
+pub(in crate::sema) use shape::PropertySource;
 pub(in crate::sema) use variance::*;

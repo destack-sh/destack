@@ -41,7 +41,7 @@ impl CheckState<'_> {
                     strongest = None;
                     break;
                 };
-                strongest = Some(strongest.map_or(access, |known: dir::Access| known.max(access)));
+                strongest = Some(strongest.map_or(access, |known: dir::Access| known.join(access)));
             }
             if let Some(access) = strongest {
                 return self.access_literal(access);
@@ -108,7 +108,7 @@ impl CheckState<'_> {
             }
         }
 
-        // join the survivors, mutually absorbed bounds collapsing to the value they read as
+        // join mutually storable survivors as one value, read as the first bound that is no borrow
         match survivors.as_slice() {
             [single] => Ok(*single),
             [] => {
@@ -118,12 +118,14 @@ impl CheckState<'_> {
                         self.ty(bound)?,
                         dir::Type::Form(form) if matches!(form.form, dir::Form::Borrowed(_))
                     );
-                    if !is_borrow {
+                    if read.is_none() || !is_borrow {
                         read = Some(bound);
+                    }
+                    if !is_borrow {
                         break;
                     }
                 }
-                match read.or_else(|| resolved.first().copied()) {
+                match read {
                     Some(bound) => Ok(bound),
                     None => self.intern_type(dir::Type::Never),
                 }
@@ -132,9 +134,7 @@ impl CheckState<'_> {
         }
     }
 
-    /// Meet lifetime bounds.
-    ///
-    /// The shortest closed extent absorbs the join, and static drops beside others.
+    /// Meet lifetime bounds, the shortest closed extent absorbing the join.
     fn meet_lifetime_survivors(
         &mut self,
         survivors: SmallVec<[dir::GlobalTypeId; 4]>,
@@ -143,27 +143,26 @@ impl CheckState<'_> {
             return Ok(survivors);
         }
 
-        // let one frame bound absorb the whole meet, else one managed bound
-        for extent in [dir::Lifetime::Frame, dir::Lifetime::Managed] {
-            for bound in survivors.iter().copied() {
-                if self.lifetime_of(bound)? == Some(extent) {
-                    return Ok(SmallVec::from_slice(&[bound]));
-                }
-            }
-        }
-
-        // drop static bounds while shorter bounds remain
-        let mut kept = SmallVec::new();
+        // keep the bounds at the shortest extent in meet order
+        let open = dir::Lifetime::meet_rank(None);
+        let mut ranked = SmallVec::<[(u8, dir::GlobalTypeId); 4]>::new();
         for bound in survivors.iter().copied() {
-            if self.lifetime_of(bound)? != Some(dir::Lifetime::Static) {
-                kept.push(bound);
-            }
+            let rank = dir::Lifetime::meet_rank(self.lifetime_of(bound)?);
+            ranked.push((rank, bound));
         }
-        if kept.is_empty() {
-            return Ok(survivors);
+        let shortest = ranked
+            .iter()
+            .fold(ranked[0].0, |shortest, (rank, _)| shortest.min(*rank));
+        let kept = ranked
+            .into_iter()
+            .filter(|(rank, _)| *rank == shortest)
+            .map(|(_, bound)| bound)
+            .collect::<SmallVec<[_; 4]>>();
+        if shortest == open {
+            return Ok(kept);
         }
 
-        Ok(kept)
+        Ok(SmallVec::from_slice(&kept[..1]))
     }
 
     /// Join borrow bounds sharing one payload into one borrow over the joined lifetimes.
@@ -265,18 +264,6 @@ impl CheckState<'_> {
         Ok(false)
     }
 
-    /// Meet multiple contextual upper bounds into one solution.
-    pub(in crate::sema) fn intersect_bounds(
-        &mut self,
-        variable: dir::TypeVariableId,
-        bounds: &[dir::GlobalTypeId],
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let origin = self.infer.variable(variable)?.origin;
-        let _origin = self.infer.origin(origin);
-
-        self.normalized_intersection_type(bounds.iter().copied())
-    }
-
     /// Widen one closed type, rebuilding literal leaves to their bases.
     pub(in crate::sema) fn widen_type(
         &mut self,
@@ -327,18 +314,6 @@ impl CheckState<'_> {
             }
             // enum member leaves widen to the owner enum
             dir::Type::Variant(member) => Ok(Some(member.owner)),
-            // managed forms rebuild around their payloads
-            dir::Type::Form(form) if matches!(form.form, dir::Form::Managed { .. }) => {
-                let Some(widened) = self.widen_tree(module, form.value, active)? else {
-                    return Ok(None);
-                };
-                let rebuilt = dir::Type::Form(dir::FormType {
-                    form: form.form,
-                    value: widened,
-                });
-
-                Ok(Some(self.intern_type(rebuilt)?))
-            }
             // collections rebuild around widened elements
             _ if let Some(element) = self.array_element(id)? => {
                 let Some(widened) = self.widen_tree(module, element, active)? else {
@@ -354,10 +329,7 @@ impl CheckState<'_> {
                 };
 
                 Ok(Some(self.intern_type(dir::Type::Slice(
-                    dir::SliceType {
-                        element: widened,
-                        place: slice.place,
-                    },
+                    dir::SliceType { element: widened },
                 ))?))
             }
             // fixed arrays rebuild around their widened element and keep their count

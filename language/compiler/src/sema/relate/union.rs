@@ -80,33 +80,62 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        // membership tags the value into the union representation, which storage refuses
+        // refuse entering an arm under storage
         if relation == Relation::Storable {
             return Ok(Verdict::Fails);
         }
         let dir::Type::Union(union) = self.ty(target)? else {
             return Ok(Verdict::Fails);
         };
-
-        // relate the source against any one element, closed arms before open arms
         let elements: SmallVec<[_; 8]> = self.type_ids(target.module_id, union.elements)?.into();
-        let mut open: SmallVec<[_; 8]> = SmallVec::new();
-        let mut verdict = Verdict::Fails;
-        for element in elements {
-            let element = self.shallow_resolve(element)?;
-            if matches!(self.ty(element)?, dir::Type::Variable(_)) {
-                open.push(element);
-                continue;
-            }
-            verdict = verdict.or(self.constrain_type(origin, cause, relation, source, element)?);
-            if verdict == Verdict::Holds {
-                return Ok(Verdict::Holds);
-            }
+
+        // relate the source against any one arm
+        self.relate_any_target(origin, cause, relation, source, &elements)
+    }
+
+    /// Store one closed arm set into another, pairing each arm with its equal.
+    pub(in crate::sema) fn relate_type_sets_stored(
+        &mut self,
+        origin: Origin,
+        cause: CauseId,
+        relation: Relation,
+        source: &[dir::GlobalTypeId],
+        target: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Verdict> {
+        // require the same arm count on both sides
+        if source.len() != target.len() {
+            return Ok(Verdict::Fails);
         }
-        for element in open {
-            verdict = verdict.or(self.constrain_type(origin, cause, relation, source, element)?);
-            if verdict == Verdict::Holds {
-                return Ok(Verdict::Holds);
+
+        // normalize every target arm once
+        let mut unpaired = SmallVec::<[(dir::GlobalTypeId, dir::GlobalTypeId); 8]>::new();
+        for candidate in target.iter().copied() {
+            unpaired.push((candidate, self.normalize(origin, candidate)?));
+        }
+
+        // pair every source arm with the one target arm equal to it
+        let mut verdict = Verdict::Holds;
+        for arm in source.iter().copied() {
+            let normal = self.normalize(origin, arm)?;
+            let mut paired = None;
+            for (index, (candidate, candidate_normal)) in unpaired.iter().copied().enumerate() {
+                if self
+                    .decide_relation(origin, Relation::Equal, normal, candidate_normal)?
+                    .holds()
+                {
+                    paired = Some((index, candidate));
+                    break;
+                }
+            }
+            let Some((index, candidate)) = paired else {
+                return Ok(Verdict::Fails);
+            };
+            unpaired.remove(index);
+
+            // store the arm into its pair under the storage rule
+            verdict = verdict.and(self.constrain_type(origin, cause, relation, arm, candidate)?);
+            if verdict == Verdict::Fails {
+                return Ok(Verdict::Fails);
             }
         }
 

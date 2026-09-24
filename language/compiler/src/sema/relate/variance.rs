@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
@@ -65,10 +64,6 @@ impl Variance {
     }
 
     /// Return the argument relation and operand order this variance requires.
-    ///
-    /// The relation is `Widens` when the arguments name storage inside an
-    /// existing value, and `Assignable` when a conformance query encodes
-    /// call edges that convert at each use, and the predicate itself for a bound.
     pub(in crate::sema) fn argument_relation(
         self,
         relation: Relation,
@@ -301,7 +296,7 @@ impl<'a> CheckState<'a> {
         parameter: dir::GlobalGenericParameterId,
         form: VarianceForm,
     ) -> CompilerResult<Variance> {
-        // find the definition that owns the parameter's template
+        // find the definition that declares the parameter's template
         let Some(definition) = self.parameter_owner_definition(parameter)? else {
             return Ok(Variance::Invariant);
         };
@@ -317,7 +312,7 @@ impl<'a> CheckState<'a> {
         let mut members = SmallVec::<[_; 8]>::new();
         for member in definition.members() {
             let measured = match member {
-                // storage slots measure by the handle's write capability
+                // measure storage fields by the handle's write capability
                 dir::DefinitionMember::Field(field) => {
                     let position = match field.is_readonly {
                         true => Variance::Covariant,
@@ -383,7 +378,6 @@ impl<'a> CheckState<'a> {
         heritages.extend(
             definition
                 .implementations()
-                .iter()
                 .map(|conformance| conformance.interface),
         );
 
@@ -622,7 +616,7 @@ impl<'a> CheckState<'a> {
                     self.measure_type(type_form.value, position, VarianceForm::Readonly, parameter)?
                 }
                 // independently writable references stay invariant unless deeply readonly
-                dir::Form::Managed { .. } | dir::Form::Borrowed(_) | dir::Form::Raw => {
+                dir::Form::Borrowed(_) | dir::Form::Raw => {
                     self.measure_type(type_form.value, form.aliased(position), form, parameter)?
                 }
             },
@@ -723,10 +717,15 @@ impl<'a> CheckState<'a> {
 
         // relate each argument pair under its parameter's variance
         let mut verdict = Verdict::Holds;
-        for (index, (source, target)) in source.iter().zip(target.iter()).enumerate() {
+        for (index, (source, target)) in source
+            .iter()
+            .copied()
+            .zip(target.iter().copied())
+            .enumerate()
+        {
             // read both arguments through their solutions
-            let source = self.shallow_resolve(*source)?;
-            let target = self.shallow_resolve(*target)?;
+            let source = self.shallow_resolve(source)?;
+            let target = self.shallow_resolve(target)?;
             if self.is_free_argument_slot(source, target)? {
                 continue;
             }
@@ -968,92 +967,30 @@ impl<'a> CheckState<'a> {
         Ok(())
     }
 
-    /// Record the cardinalities native implementations impose on one module.
-    pub(in crate::sema) fn derive_native_cardinalities(
+    /// Return whether one const parameter ranges over literals or enum cases alone.
+    pub(in crate::sema) fn is_static_const_parameter(
         &mut self,
-        module: ModuleId,
-    ) -> CompilerResult<()> {
-        // native implementations consume their value parameters directly
-        let symbols = self
-            .module(module)
-            .iter_definitions()
-            .map(|(symbol, _)| symbol)
-            .collect::<Vec<_>>();
-        let mut native = Vec::new();
-        for symbol in symbols {
-            let Some(template) = self.symbol_template(symbol)? else {
-                continue;
-            };
-            let state = self.module(module);
-            let Some(node) = state.bindings.get_symbol(symbol.local_id).declaration else {
-                continue;
-            };
-            let is_native = state
-                .decorators_tail
-                .applications_for_owner(node)
-                .any(|application| {
-                    matches!(
-                        application.resolution.target,
-                        dir::DecoratorTarget::LanguageItem {
-                            item: dir::LanguageItem::Intrinsic | dir::LanguageItem::Binding,
-                            ..
-                        }
-                    )
-                });
-            if !is_native {
-                continue;
-            }
-
-            for parameter in self.generic_template_parameters(template)? {
-                let Some(binding) = self.generic_parameter(parameter)? else {
-                    continue;
-                };
-                if binding.is_const && binding.memory_parameter().is_none() {
-                    native.push((parameter.local_id, node));
-                }
-            }
-        }
-
-        // record the cardinalities on the checked tail
-        for (parameter, node) in native {
-            self.module_mut(module).generics_tail.set_cardinality(
-                parameter,
-                dir::Cardinality::One {
-                    source: node.local_id,
-                },
-            );
-        }
-
-        Ok(())
-    }
-
-    /// Return the One cardinality one parameter resolves to, if any.
-    pub(in crate::sema) fn resolved_cardinality(
-        &self,
         parameter: dir::GlobalGenericParameterId,
-    ) -> Option<dir::Cardinality> {
-        let mut visited = FxIndexSet::default();
-        let mut current = parameter;
-
-        // follow Of links to the committed One
-        while visited.insert(current) {
-            match self.parameter_cardinality(current)? {
-                one @ dir::Cardinality::One { .. } => return Some(one),
-                dir::Cardinality::Of { callee } => current = callee,
-            }
+    ) -> CompilerResult<bool> {
+        let Some(binding) = self.generic_parameter(parameter)? else {
+            return Ok(false);
+        };
+        if !binding.is_const || binding.memory_parameter().is_some() {
+            return Ok(false);
         }
+        let Some(constraint) = binding.constraint else {
+            return Ok(false);
+        };
+        let symbol = match self.ty(constraint)? {
+            dir::Type::Primitive(_) | dir::Type::Literal(_) | dir::Type::Variant(_) => {
+                return Ok(true);
+            }
+            dir::Type::Reference(reference) => reference.symbol,
+            dir::Type::Application(application) => application.symbol,
+            _ => return Ok(false),
+        };
 
-        None
-    }
-
-    /// Return the cardinality one parameter's module records, through its generic view.
-    fn parameter_cardinality(
-        &self,
-        parameter: dir::GlobalGenericParameterId,
-    ) -> Option<dir::Cardinality> {
-        let state = self.module_maybe(parameter.module_id)?;
-
-        state.parameter_cardinality(parameter.local_id)
+        Ok(matches!(self.symbol_kind(symbol)?, dir::SymbolKind::Enum))
     }
 
     /// Return whether one type carries One cardinality.
@@ -1075,9 +1012,9 @@ impl<'a> CheckState<'a> {
                     message: format!("unsettled variable at {origin:?}"),
                 });
             }
-            // rigid parameters carry their own committed cardinality
+            // const parameters stand for one value by declaration
             dir::Type::Parameter(parameter) => {
-                self.resolved_cardinality(parameter).is_some()
+                self.is_static_const_parameter(parameter)?
                     || self
                         .generic_parameter(parameter)?
                         .is_some_and(|binding| binding.memory_parameter().is_some())

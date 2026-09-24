@@ -2,7 +2,7 @@ use destack_dir as dir;
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::sema::{CauseId, CheckState, Origin, Relation, Verdict};
+use crate::sema::{CauseId, CheckState, Origin, PropertySource, Relation, Verdict};
 
 impl CheckState<'_> {
     /// Relate one directed pair under subtype inclusion or under storage.
@@ -66,9 +66,12 @@ impl CheckState<'_> {
                 Verdict::Holds
             }
             // patterns with only empty segments absorb the whole string domain
-            (dir::Type::Primitive(dir::PrimitiveType::String), dir::Type::Operation(operation))
+            (_, dir::Type::Operation(operation))
                 if let dir::TypeOperation::TemplateLiteral(template) =
-                    self.type_operation(target.module_id, operation)? =>
+                    self.type_operation(target.module_id, operation)?
+                    && self.ownership_payload(origin, source)?
+                        == self
+                            .intern_type(dir::Type::Primitive(dir::PrimitiveType::String))? =>
             {
                 self.relate_string_into_template(
                     origin,
@@ -93,6 +96,15 @@ impl CheckState<'_> {
                     &target_template,
                 )?
             }
+            // a primitive value inhabits its representation class
+            (source_head @ dir::Type::Primitive(_), dir::Type::Application(instance))
+                if is_inclusion
+                    && let Some(item) = source_head.representation_item()
+                    && self.language_symbol(item)? == instance.symbol =>
+            {
+                Verdict::Holds
+            }
+
             // exact property keys inhabit their primitive key domains
             (_, dir::Type::Primitive(primitive))
                 if is_inclusion
@@ -173,7 +185,7 @@ impl CheckState<'_> {
                 self.constrain_type(origin, cause, relation, keys, target)?
             }
 
-            // memory forms decide through their placement and readonly views
+            // memory forms decide through their constructors and readonly views
             _ if let Some(decision) =
                 self.relate_form(origin, cause, relation, source, target)? =>
             {
@@ -191,10 +203,11 @@ impl CheckState<'_> {
                 let is_open = self.type_flags(source)?.has_variable()
                     || self.type_flags(target)?.has_variable();
                 match is_open {
-                    // closed sets compare as sets
-                    false => self.relate_type_sets_equal(
+                    // closed sets store arm by arm
+                    false => self.relate_type_sets_stored(
                         origin,
                         cause,
+                        relation,
                         &source_elements,
                         &target_elements,
                     )?,
@@ -255,7 +268,7 @@ impl CheckState<'_> {
 
                 self.relate_any_target(origin, cause, relation, source, &elements)?
             }
-            // store a literal untagged in a union of its own scalar domain
+            // store a literal untagged in a union of its scalar domain
             (dir::Type::Literal(literal), dir::Type::Union(union))
                 if self.stores_untagged(literal, target, union)? =>
             {
@@ -263,7 +276,7 @@ impl CheckState<'_> {
                     self.type_ids(target.module_id, union.elements)?.into();
                 self.relate_any_target(origin, cause, Relation::Subtype, source, &arms)?
             }
-            // store a value in the one inhabited arm of a union slot
+            // store a value in the one inhabited arm of a union field
             (_, dir::Type::Union(union)) => {
                 let arms: SmallVec<[_; 8]> =
                     self.type_ids(target.module_id, union.elements)?.into();
@@ -328,8 +341,8 @@ impl CheckState<'_> {
             (dir::Type::Dynamic(_), _) if !self.is_conformance_target(target)? => Verdict::Fails,
 
             // scalar sources decide interface targets before literal widening
-            (dir::Type::Literal(_) | dir::Type::Range(_), dir::Type::Application(instance))
-                if self.symbol_kind(instance.symbol)?.is_interface() =>
+            (dir::Type::Literal(_) | dir::Type::Range(_), _)
+                if self.is_conformance_target(target)? =>
             {
                 self.relate_interface(origin, cause, relation, source, target)?
             }
@@ -409,9 +422,14 @@ impl CheckState<'_> {
             }
 
             // relate object types exactly by their member sets
-            (dir::Type::Object(_), dir::Type::Object(_)) => {
-                self.relate_shape(origin, cause, relation, false, source, target)?
-            }
+            (dir::Type::Object(_), dir::Type::Object(_)) => self.relate_shape(
+                origin,
+                cause,
+                relation,
+                PropertySource::Stored,
+                source,
+                target,
+            )?,
             // declaration references satisfy signatures and keyed shapes
             (dir::Type::Reference(_), dir::Type::Object(target_shape))
                 if target_shape.declares_signatures() =>
@@ -456,7 +474,7 @@ impl CheckState<'_> {
                     target,
                 )?
             }
-            // store a struct or class value as its own representation
+            // store a struct or class value as its representation
             (dir::Type::Application(instance), dir::Type::Object(_))
                 if relation == Relation::Storable
                     && matches!(
@@ -564,9 +582,7 @@ impl CheckState<'_> {
             }
 
             // every other value relates to an interface target by conformance
-            (_, dir::Type::Application(instance))
-                if self.symbol_kind(instance.symbol)?.is_interface() =>
-            {
+            (_, _) if self.is_conformance_target(target)? => {
                 self.relate_interface(origin, cause, relation, source, target)?
             }
             // reject every remaining pair
@@ -593,7 +609,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         constraint: dir::GlobalTypeId,
     ) -> CompilerResult<Verdict> {
-        // read an already erased source through its own constraint
+        // read an already erased source through its constraint
         let source = match self.ty(source)? {
             dir::Type::Dynamic(dynamic) => dynamic.constraint,
             _ => source,

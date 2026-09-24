@@ -138,7 +138,7 @@ impl CheckState<'_> {
         }
 
         // bring each operand to its comparison root
-        let (written_source, written_target) = (source, target);
+        let (unreduced_source, unreduced_target) = (source, target);
         let (source, source_variable) = self.relate_root(origin, source)?;
         let (target, target_variable) = self.relate_root(origin, target)?;
         if source == target {
@@ -154,9 +154,7 @@ impl CheckState<'_> {
         match (source_variable, target_variable, relation) {
             // alias one open side onto the other for variable equality
             (Some(source_variable), Some(target_variable), Relation::Equal) => {
-                self.alias_variable(source_variable, target_variable)?;
-
-                Ok(Verdict::Holds)
+                self.alias_variable(source_variable, target_variable)
             }
             // unify one open side with a closed type, or record the equation as a bound
             (Some(variable), None, Relation::Equal) => {
@@ -165,10 +163,9 @@ impl CheckState<'_> {
                     return Ok(Verdict::Fails);
                 }
                 if variables.is_empty() {
-                    self.commit_solution(variable, written_target)?;
-                } else {
-                    self.push_upper_bound(variable, origin, cause, target, Relation::Equal)?;
+                    return self.commit_solution(variable, unreduced_target);
                 }
+                self.push_upper_bound(variable, origin, cause, target, Relation::Equal)?;
 
                 Ok(Verdict::Holds)
             }
@@ -179,10 +176,9 @@ impl CheckState<'_> {
                     return Ok(Verdict::Fails);
                 }
                 if variables.is_empty() {
-                    self.commit_solution(variable, written_source)?;
-                } else {
-                    self.push_lower_bound(variable, origin, cause, source, Relation::Equal)?;
+                    return self.commit_solution(variable, unreduced_source);
                 }
+                self.push_lower_bound(variable, origin, cause, source, Relation::Equal)?;
 
                 Ok(Verdict::Holds)
             }
@@ -250,15 +246,22 @@ impl CheckState<'_> {
         let mut holding = SmallVec::<[_; 4]>::new();
         let mut viable = SmallVec::<[_; 4]>::new();
         for candidate in candidates.iter().copied() {
+            let mut related = Verdict::Fails;
             let verdict = self.decide_candidate(|state| {
-                match state
-                    .constrain_type(origin, cause, relation, candidate.0, candidate.1)?
-                    .holds()
-                {
-                    true => Ok(CandidateOutcome::Accepted(())),
-                    false => Ok(CandidateOutcome::Rejected(())),
-                }
+                related =
+                    state.constrain_type(origin, cause, relation, candidate.0, candidate.1)?;
+
+                Ok(match related {
+                    Verdict::Fails => CandidateOutcome::Rejected(()),
+                    _ => CandidateOutcome::Accepted(()),
+                })
             })?;
+
+            // weaken a holding arm to ambiguous when the relation stays open
+            let verdict = match (verdict, related) {
+                (Verdict::Holds, Verdict::Ambiguous) => Verdict::Ambiguous,
+                (verdict, _) => verdict,
+            };
             match verdict {
                 Verdict::Holds => {
                     holding.push(candidate);
@@ -269,11 +272,14 @@ impl CheckState<'_> {
             }
         }
 
-        // constrain through the sole viable arm
+        // constrain through the sole viable arm, or the one arm holding outright beside open ones
         match (viable.as_slice(), holding.as_slice()) {
-            ([selected], _) => self.constrain_type(origin, cause, relation, selected.0, selected.1),
+            ([selected], _) | (_, [selected]) => {
+                self.constrain_type(origin, cause, relation, selected.0, selected.1)
+            }
             ([], _) => Ok(Verdict::Fails),
             (_, []) => Ok(Verdict::Ambiguous),
+            // hold outright when several arms hold, the arms leaving nothing further to constrain
             _ => Ok(Verdict::Holds),
         }
     }
@@ -341,6 +347,21 @@ impl CheckState<'_> {
             dir::Type::Variable(variable) => Ok((id, self.open_root(variable)?)),
             // family-default ownership constructors shed to their payload
             dir::Type::Form(_) => Ok((self.reduce_default_ownership_chain(origin, id)?, None)),
+            // compare a union with solved arms as its resolved arm set
+            dir::Type::Union(union) if self.type_flags(id)?.has_variable() => {
+                let arms: SmallVec<[_; 8]> = self.type_ids(id.module_id, union.elements)?.into();
+                let mut resolved = SmallVec::<[_; 8]>::with_capacity(arms.len());
+                let mut is_changed = false;
+                for arm in &arms {
+                    let arm_resolved = self.shallow_resolve(*arm)?;
+                    is_changed |= arm_resolved != *arm;
+                    resolved.push(arm_resolved);
+                }
+                match is_changed {
+                    true => Ok((self.normalized_union_type(resolved)?, None)),
+                    false => Ok((id, None)),
+                }
+            }
             _ => Ok((id, None)),
         }
     }
