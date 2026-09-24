@@ -1,7 +1,7 @@
 import type { Rule } from "@oxlint/plugins";
 import { CheckError } from "../error/index.ts";
 
-/** Judgment rules that one line may disable with a stated reason. */
+/** Judgment rules that source may disable with a stated reason. */
 const DISABLEABLE = [
     "destack/no-sludge",
     "destack/prevent-abbreviations",
@@ -9,9 +9,9 @@ const DISABLEABLE = [
     "destack/no-silent-fallback",
 ];
 
-/** A next-line disable of naming rules with a stated reason. */
+/** A file or next-line exception for judgment rules with a stated reason. */
 const ALLOWED = new RegExp(
-    `^\\s*oxlint-disable-next-line (?:${DISABLEABLE.join("|")})(?:, (?:${DISABLEABLE.join("|")}))* -- \\S`,
+    `^\\s*oxlint-disable(?:-next-line)? (?:${DISABLEABLE.join("|")})(?:, (?:${DISABLEABLE.join("|")}))* -- \\S`,
     "u",
 );
 
@@ -33,7 +33,7 @@ export const noInlineConfiguration: Rule = {
                     if (isDirective && !ALLOWED.test(comment.value)) {
                         throw new CheckError(
                             "configuration",
-                            `${context.filename}:${comment.loc.start.line}: only 'oxlint-disable-next-line <naming rule> -- <reason>' is supported`,
+                            `${context.filename}:${comment.loc.start.line}: use 'oxlint-disable[-next-line] <judgment rule> -- <reason>'`,
                         );
                     }
                 }
