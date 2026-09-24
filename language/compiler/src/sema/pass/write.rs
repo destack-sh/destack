@@ -84,14 +84,12 @@ impl CheckState<'_> {
         })?;
 
         // settle the member sites and narrowings on the pass's final solution
-        if self.is_declaring() {
-            self.resolve_member_subjects(module)?;
-        } else {
+        self.resolve_member_subjects(module)?;
+        if !self.is_declaring() {
             ArtifactAttemptRecorder::breakdown_maybe(recorder, "write.narrowings", || {
                 self.settle_narrowings(module)
             })?;
             ArtifactAttemptRecorder::breakdown_maybe(recorder, "write.members", || {
-                self.settle_member_bindings(module)?;
                 self.settle_member_resolutions(module)
             })?;
         }
@@ -105,10 +103,8 @@ impl CheckState<'_> {
         module: ModuleId,
     ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::StaticTerm)>> {
         // read the module's expanded tree
-        let input = self.module(module);
-        let parsed = input.parsed.clone();
-        let expanded = input.expanded.clone();
-        let tree = dir::View::with_patches(&parsed.tree, std::slice::from_ref(&expanded.patch));
+        let (parsed, expanded) = self.patched_inputs(module);
+        let tree = dir::View::new(&parsed.tree).patched(&expanded.patch);
 
         // collect the constant declarator bindings and the associated consts first
         let mut bindings = Vec::new();

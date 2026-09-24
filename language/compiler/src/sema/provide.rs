@@ -26,6 +26,7 @@ impl Compiler {
             Pass::Elaborate => ArtifactKey::dir_elaborated(module, profile),
             Pass::Check => ArtifactKey::dir_checked(module, profile),
             Pass::Materialize => ArtifactKey::dir_materialized(module, profile),
+            Pass::Analyze => ArtifactKey::dir_analyzed(module, profile),
         };
         let mut dependencies = ArtifactDependencySet::default();
         for key in ArtifactKey::dir_stages(module, profile)
@@ -57,7 +58,7 @@ impl Compiler {
             .map_err(CompilerError::from)?;
         let declared_environment = match pass {
             Pass::Declare => None,
-            Pass::Elaborate | Pass::Check | Pass::Materialize => Some(
+            Pass::Elaborate | Pass::Check | Pass::Materialize | Pass::Analyze => Some(
                 artifacts
                     .read::<EnvironmentDeclared>(profile)
                     .map_err(CompilerError::from)?,
@@ -67,7 +68,7 @@ impl Compiler {
 
         // load the module's committed stages and run the pass over them
         let recorder = context.recorder();
-        let (state, types) = ArtifactAttemptRecorder::breakdown_maybe(recorder, "load", || {
+        let (view, types) = ArtifactAttemptRecorder::breakdown_maybe(recorder, "load", || {
             let view = pass.read_stages(&artifacts, (module, profile))?;
             let types = view.types().clone();
 
@@ -80,7 +81,7 @@ impl Compiler {
             context.revision(),
             module,
             profile,
-            state,
+            view,
             &types,
             &lists,
         )?;
@@ -95,13 +96,14 @@ impl Compiler {
             state,
             &externals,
             pass,
-            !matches!(pass, Pass::Materialize) && context.records_events(),
+            !matches!(pass, Pass::Materialize | Pass::Analyze) && context.records_events(),
         );
         ArtifactAttemptRecorder::breakdown_maybe(recorder, "run", || match pass {
             Pass::Declare => check.run_declare(),
             Pass::Elaborate => check.run_elaborate(),
             Pass::Check => check.run_check(),
             Pass::Materialize => check.run_materialize(),
+            Pass::Analyze => check.run_analyze(),
         })?;
 
         // record solver counters and detailed events
@@ -137,6 +139,13 @@ impl Compiler {
 
                 ArtifactPayload::DirMaterialized(Arc::new(materialized))
             }
+            Pass::Analyze => {
+                let (mut analyzed, diagnostics) = check.into_analyzed()?;
+                finish_lists(lists, &mut analyzed.types);
+                context.emit_diagnostics(diagnostics);
+
+                ArtifactPayload::DirAnalyzed(Arc::new(analyzed))
+            }
         })
     }
 
@@ -161,8 +170,7 @@ impl Compiler {
             Err(error) => return Err(error.into()),
         };
 
-        // require the declarations of every builtin and implicit module, the conformances the
-        // builtin package declares global
+        // require the declarations of every builtin and implicit module
         for module in self.environment_modules(context, &environment)? {
             dependencies.require_payload(ArtifactKey::dir_declared(module, profile));
         }
@@ -170,8 +178,7 @@ impl Compiler {
         Ok(dependencies)
     }
 
-    /// Return the builtin package's code modules with the environment's implicit modules, each
-    /// once in stable order.
+    /// Return the builtin package's code modules with the environment's implicit modules.
     fn environment_modules(
         &self,
         context: &dyn ProviderContext,

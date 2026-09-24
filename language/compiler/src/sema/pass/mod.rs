@@ -1,3 +1,4 @@
+mod analyze;
 mod artifact;
 mod capture;
 mod check;
