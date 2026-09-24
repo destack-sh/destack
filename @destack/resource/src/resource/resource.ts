@@ -1,18 +1,14 @@
 import { defineSchema, schema } from "@destack/schema";
+import { DeclarationName, type Package } from "@destack/package";
 import { ResourceHandle } from "./handle.ts";
 
-/** A declaration name within a package. */
-export const ResourceName = defineSchema(schema.string().regex(/^[a-z][a-z0-9-]*$(?![\s\S])/));
-/** A declaration name within a package. */
-export type ResourceName = schema.Infer<typeof ResourceName>;
-
 /** A named infrastructure dependency declared by a package. */
-export const ResourceDeclaration = defineSchema(
+export const ResourceDescription = defineSchema(
     schema.object({
         /** The package-local resource name. */
-        name: ResourceName,
+        name: DeclarationName,
         /** The resource kind defined by its domain library. */
-        kind: ResourceName,
+        kind: DeclarationName,
         /** The declaration format version. */
         version: schema.number().int().positive(),
         /** The specification validated by the domain library. */
@@ -20,12 +16,12 @@ export const ResourceDeclaration = defineSchema(
     }),
 );
 /** A named infrastructure dependency declared by a package. */
-export type ResourceDeclaration = schema.Infer<typeof ResourceDeclaration>;
+export type ResourceDescription = schema.Infer<typeof ResourceDescription>;
 
 /** An inert declaration with access to a host-bound client. */
 export class Resource<
     Handle,
-    Declaration extends ResourceDeclaration = ResourceDeclaration,
+    Declaration extends ResourceDescription = ResourceDescription,
 > extends ResourceHandle<Handle> {
     /** The resource kind. */
     readonly kind: Declaration["kind"];
@@ -35,8 +31,9 @@ export class Resource<
     readonly spec: Declaration["spec"];
 
     /** Retain validated metadata without opening a resource. */
-    constructor(declaration: Declaration) {
-        super(declaration.name);
+    constructor(owner: Package, declaration: Declaration) {
+        // retain the declared kind, version and spec
+        super(owner, declaration.name);
         this.kind = declaration.kind;
         this.version = declaration.version;
         this.spec = declaration.spec;
@@ -49,10 +46,10 @@ export function defineResourceSchema<const Kind extends string, Spec extends sch
     version: number,
     spec: Spec,
 ) {
-    ResourceDeclaration.pick({ kind: true, version: true }).parse({ kind, version });
+    ResourceDescription.pick({ kind: true, version: true }).parse({ kind, version });
 
     return defineSchema(
-        ResourceDeclaration.extend({
+        ResourceDescription.extend({
             kind: schema.literal(kind),
             version: schema.literal(version),
             spec,

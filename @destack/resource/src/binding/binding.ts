@@ -1,4 +1,4 @@
-import { ResourceName } from "../resource/index.ts";
+import { DeclarationName } from "@destack/package";
 import { defineSchema, identifier, schema } from "@destack/schema";
 
 /** A provisioned resource in a space. */
@@ -21,7 +21,7 @@ export const Binding = defineSchema(
         /** The package declaring the resource, including imported stack packages. */
         package: identifier("package"),
         /** The declaration name in its package. */
-        name: ResourceName,
+        name: DeclarationName,
         /** The resource selected by the host. */
         target: ResourceReference,
     }),

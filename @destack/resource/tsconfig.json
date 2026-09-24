@@ -1,5 +1,8 @@
 {
     "extends": "../../tsconfig.json",
-    "compilerOptions": { "types": ["node"], "lib": ["ESNext", "DOM", "DOM.Iterable"] },
-    "files": ["src/index.ts", "src/context/index.ts", "src/error/index.ts"]
+    "compilerOptions": {
+        "types": ["node"],
+        "lib": ["ESNext", "DOM", "DOM.Iterable"]
+    },
+    "include": ["src"]
 }
