@@ -3,11 +3,5 @@
     "compilerOptions": {
         "lib": ["ESNext", "DOM", "DOM.Iterable"]
     },
-    "include": [
-        "src",
-        "./src/index.ts",
-        "./src/store/index.ts",
-        "./src/error/index.ts",
-        "./src/inspect/index.ts"
-    ]
+    "include": ["src"]
 }
