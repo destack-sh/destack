@@ -36,19 +36,7 @@ const sourceMaps = await reader.sourceMaps();
 {
     "id": "package-01996ab0-0000-7000-8000-000000000001",
     "language": "typescript",
-    "targets": ["browser", "server"],
-    "compute": {
-        "requests": { "cpu": 1, "memory": 512 },
-        "limits": { "cpu": 2, "memory": 1024 },
-        "scaling": { "minInstances": 0, "maxInstances": 4 }
-    },
-    "workloads": {
-        "web": {
-            "entrypoint": "./server",
-            "services": ["web"],
-            "compute": { "requests": { "memory": 768 } }
-        }
-    }
+    "targets": ["browser", "server"]
 }
 ```
 

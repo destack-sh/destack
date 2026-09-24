@@ -17,7 +17,7 @@ export const DECLARATION_CONSTRUCTORS = {
     defineDatabaseSchema: { package: "@destack/db", kind: "database-schema" },
     defineObject: { package: "@destack/access", kind: "access", arguments: 1 },
     definePackage: { package: "@destack/package", arguments: 1 },
-    defineSchedule: { package: "@destack/service", kind: "schedule" },
+    defineSchedule: { package: "@destack/service", kind: "schedule", arguments: 1 },
     defineSecret: { package: "@destack/vault", kind: "secret", arguments: 1 },
     defineService: { package: "@destack/service", kind: "service", arguments: 2 },
     defineServiceConnection: {
@@ -30,6 +30,7 @@ export const DECLARATION_CONSTRUCTORS = {
     defineSettingPolicy: { package: "@destack/setting", kind: "setting-policy" },
     defineSpace: { package: "@destack/space", kind: "space" },
     defineVault: { package: "@destack/vault", kind: "resource", arguments: 1 },
+    defineWorkload: { package: "@destack/service", kind: "workload", arguments: 1 },
 } as const satisfies Record<string, DeclarationConstructor>;
 
 /** The name of a Destack declaration constructor. */

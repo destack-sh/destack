@@ -1,39 +1,42 @@
 import { defineSchema, schema } from "@destack/schema";
-import { DeclarationName } from "../definition/package.ts";
+import { DeclarationName, Entrypoint } from "../definition/package.ts";
 import { DeclarationReference } from "../declare/declaration.ts";
 import { ComputeDefinition } from "../definition/compute.ts";
-import { Entrypoint } from "../definition/package.ts";
 
-/** Code deployed and scaled together. */
+/** A unit of deployment, as its declaration defines it. */
 export const WorkloadDefinition = defineSchema(
     schema
         .object({
-            /** The exported module providing start(context) and declared schedule callbacks. */
-            entrypoint: Entrypoint,
-            /** Named services collected from code. */
-            services: schema.array(DeclarationName).optional(),
-            /** Named schedules delivered by the host scheduler. */
-            schedules: schema.array(DeclarationName).optional(),
-            /** Workload overrides of package compute defaults. */
+            /** The package-local workload name. */
+            name: DeclarationName,
+            /** Capacity and lifecycle policy for each instance. */
             compute: ComputeDefinition.optional(),
         })
         .strict(),
 );
-/** Code deployed and scaled together. */
+/** A unit of deployment, as its declaration defines it. */
 export type WorkloadDefinition = schema.Infer<typeof WorkloadDefinition>;
 
-/** A workload checked against its declarations and generated output. */
+/** A workload located in a compiled output with the declarations its code reaches. */
 export const WorkloadDescription = defineSchema(
-    WorkloadDefinition.extend({
-        /** Resource declarations collected from the workload's module dependencies. */
+    schema.object({
+        /** The package export exposing the workload declaration. */
+        entrypoint: Entrypoint,
+        /** The export name of the workload declaration within the entrypoint. */
+        export: schema.string().min(1),
+        /** Service declarations of this package reachable from the workload. */
+        services: schema.array(DeclarationReference),
+        /** Schedule declarations of this package reachable from the workload. */
+        schedules: schema.array(DeclarationReference),
+        /** Resource declarations reachable from the workload. */
         resources: schema.array(DeclarationReference),
-        /** Secret declarations collected from the workload's module dependencies. */
+        /** Secret declarations reachable from the workload. */
         secrets: schema.array(DeclarationReference),
-        /** Service connection declarations collected from the workload's module dependencies. */
+        /** Service connection declarations reachable from the workload. */
         connections: schema.array(DeclarationReference),
-        /** The effective compute settings. */
+        /** Capacity and lifecycle policy for each instance. */
         compute: ComputeDefinition,
     }),
 );
-/** A workload checked against its declarations and generated output. */
+/** A workload located in a compiled output with the declarations its code reaches. */
 export type WorkloadDescription = schema.Infer<typeof WorkloadDescription>;
