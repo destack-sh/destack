@@ -38,6 +38,7 @@ destack_artifact = { workspace = true }
 destack_core = { workspace = true }
 destack_heap = { workspace = true }
 destack_memory = { workspace = true }
+destack_signal = { workspace = true }
 destack_mir = { workspace = true }
 destack_native = { workspace = true }
 destack_program = { workspace = true }
@@ -49,6 +50,7 @@ destack_vm = { workspace = true }
 
 libc = { workspace = true }
 parking_lot = { workspace = true }
+psm = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }
 rustc-hash = { workspace = true }
 

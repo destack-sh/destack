@@ -1,5 +1,6 @@
 use destack_core::CaptureMode;
 use destack_heap as heap;
+use destack_mir as mir;
 use destack_mir::TraceMap;
 use destack_program as program;
 use destack_repository::RuntimeOptions;
@@ -15,8 +16,8 @@ use crate::world::RunOutcome;
 fn test_collect_runs_allocation_destructor() {
     let program = TestProgram::mir(
         r#"
-function Item.destruct<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): void {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>):
+function Item.destruct<'a>(v0: ref<int32, borrowed, 'a, mutable>): void {
+entry(v0: ref<int32, borrowed, 'a, mutable>):
     unreachable
 }
 
@@ -26,7 +27,7 @@ entry:
 }
 "#,
     )
-    .destructor("Item.destruct");
+    .destructor("Item.destruct", mir::Storage::heap(mir::Space::Local));
     let machine = program;
     let mut runtime = TestWorker::bytecode(
         &RuntimeOptions::default(),
@@ -61,8 +62,8 @@ entry:
 fn test_collect_reclaims_allocation_after_drop() {
     let program = TestProgram::mir(
         r#"
-function Item.destruct<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): void {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>):
+function Item.destruct<'a>(v0: ref<int32, borrowed, 'a, mutable>): void {
+entry(v0: ref<int32, borrowed, 'a, mutable>):
     return
 }
 
@@ -72,7 +73,7 @@ entry:
 }
 "#,
     )
-    .destructor("Item.destruct");
+    .destructor("Item.destruct", mir::Storage::heap(mir::Space::Local));
     let machine = program;
     let mut runtime = TestWorker::bytecode(
         &RuntimeOptions::default(),
@@ -108,8 +109,8 @@ fn test_collect_reclaims_shared_allocation_after_drop() {
     let options = RuntimeOptions::default();
     let program = TestProgram::mir(
         r#"
-function Item.destruct<'a>(v0: ref<int32, borrowed, 'a, mutable, shared>): void {
-entry(v0: ref<int32, borrowed, 'a, mutable, shared>):
+function Item.destruct<'a>(v0: ref<int32, borrowed, 'a, mutable>): void {
+entry(v0: ref<int32, borrowed, 'a, mutable>):
     return
 }
 
@@ -119,7 +120,7 @@ entry:
 }
 "#,
     )
-    .destructor("Item.destruct");
+    .destructor("Item.destruct", mir::Storage::heap(mir::Space::Shared));
     let machine = program;
     let mut runtime = TestWorld::build(&options, machine);
     let drop = heap::DropId::from_index(0);

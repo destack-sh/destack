@@ -346,7 +346,7 @@ impl VmSetup {
         {
             panic!("failed to parse footprint MIR: {:?}", parsed.diagnostics);
         }
-        let (tree, target, layouts, dispatch, drops, accesses, effects, profile, strings, _) =
+        let (tree, target, layouts, dispatch, drops, effects, profile, strings, _) =
             parsed.into_parts();
         let tree = std::sync::Arc::new(tree);
         let lowered = MirLowered {
@@ -356,7 +356,6 @@ impl VmSetup {
             dispatch,
             drops,
             witnesses: mir::WitnessTable::default(),
-            accesses,
             effects,
             profile,
             initializer: None,
@@ -376,7 +375,6 @@ impl VmSetup {
             layouts,
             dispatch: lowered.dispatch.clone(),
             drops: lowered.drops.clone(),
-            accesses: lowered.accesses.clone(),
             effects: lowered.effects.clone(),
             profile: lowered.profile.clone(),
         };

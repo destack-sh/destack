@@ -65,22 +65,19 @@ impl TestProgram {
         self
     }
 
-    /// Attach one destructor from its mutable reference parameter.
-    pub(crate) fn destructor(mut self, function_name: &str) -> Self {
+    /// Attach one destructor for the pointee of its reference parameter in one storage.
+    pub(crate) fn destructor(mut self, function_name: &str, storage: mir::Storage) -> Self {
         let function = self.function_id(function_name);
         let declaration = self.lowered.tree.get(function);
         let parameter = declaration
             .parameters
             .first()
             .expect("runtime test destructor should accept one parameter");
-        let mir::Type::Reference {
-            pointee, storage, ..
-        } = self.lowered.tree.get(parameter.ty)
-        else {
+        let mir::Type::Reference { pointee, .. } = self.lowered.tree.get(parameter.ty) else {
             panic!("runtime test destructor should accept one reference");
         };
         let ty = *pointee;
-        self.lowered.drops.set_destructor(ty, *storage, function);
+        self.lowered.drops.set_destructor(ty, storage, function);
 
         self
     }

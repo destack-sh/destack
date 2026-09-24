@@ -1,4 +1,3 @@
-use std::fmt;
 use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
 
 use destack_memory::MemoryMap;
@@ -6,17 +5,22 @@ use destack_native as native;
 use destack_native::abi;
 use destack_program as program;
 use destack_program::{EntryPoint, FunctionId, Program, Value};
+use destack_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::worker::Activation;
 
+use super::trap::{enter, handle_trap};
 use super::{Call, Error, Function, Mapping, Stop, Transfer, Unwind};
+
+/// The native stack bytes kept below the stack limit for runtime operations and unwinding.
+const NATIVE_STACK_RESERVE_BYTES: usize = 1024 * 1024;
 
 /// Process-local native code table.
 #[derive(Debug, Clone)]
 pub struct Code {
-    /// The process-local native image backing this code.
-    image: Image,
+    /// The executable mapping owning this code.
+    mapping: Mapping,
     /// Durable native frame maps used by runtime capture.
     frames: native::CodeMap,
     /// Process-local native functions keyed by Program function id.
@@ -33,21 +37,18 @@ pub enum Outcome {
 }
 
 impl Code {
-    /// Create one native code table.
-    pub fn new(image: Image, frames: native::CodeMap, functions: Vec<Option<Function>>) -> Self {
-        Self {
-            image,
-            frames,
-            functions,
-        }
-    }
-
     /// Resolve one mapped Program code image into process-local function pointers.
     pub fn mapped(
         mapping: Mapping,
         program: &Program,
         native: &native::Code,
     ) -> Result<Self, Error> {
+        // install the trap handler before any generated code can run
+        destack_signal::register(handle_trap).map_err(|error| Error::Signal {
+            signal: error.signal,
+            code: error.code,
+        })?;
+
         if native.abi_version != abi::VERSION {
             return Err(Error::AbiVersion {
                 expected: abi::VERSION,
@@ -88,12 +89,11 @@ impl Code {
             functions.push(Some(function));
         }
 
-        Ok(Self::new(Image::Object(mapping), native.map(), functions))
-    }
-
-    /// Borrow the process-local native image backing this code.
-    pub const fn image(&self) -> &Image {
-        &self.image
+        Ok(Self {
+            mapping,
+            frames: native.map(),
+            functions,
+        })
     }
 
     /// Return one process-local native function.
@@ -101,16 +101,6 @@ impl Code {
         self.functions
             .get(function.index())
             .and_then(Option::as_ref)
-    }
-
-    /// Insert one process-local native function.
-    pub fn set_function(&mut self, function: Function) {
-        let index = function.function.index();
-        if index >= self.functions.len() {
-            self.functions.resize_with(index + 1, || None);
-        }
-
-        self.functions[index] = Some(function);
     }
 
     /// Resolve one linked code range inside an executable mapping.
@@ -151,6 +141,7 @@ impl Code {
         virtuals: *const *const abi::VirtualTable,
         dynamics: *const *const abi::DynamicTable,
         memory: &MemoryMap,
+        native_stack: &vm::NativeStack,
         entry: EntryPoint,
         environment: Option<&Value>,
         args: &[Value],
@@ -210,17 +201,37 @@ impl Code {
         let mut call = Call::new(
             program,
             self.frames,
+            self.mapping.range(),
             &self.functions,
             memory,
+            native_stack.world_range(),
             activation,
             profile,
         );
-        let mut activation = call.activation(functions, virtuals, dynamics, &mut exit);
 
-        // contain platform unwinds at the canonical engine transition
-        let execution = catch_unwind(AssertUnwindSafe(|| {
-            entry.call(&mut activation, &arguments, &mut result)
-        }));
+        // limit generated frames to the stack above the reserve
+        if native_stack.byte_len() <= NATIVE_STACK_RESERVE_BYTES {
+            return Err(RuntimeError::Internal {
+                message: "a native stack no larger than its reserve".to_string(),
+            }
+            .boxed());
+        }
+        let stack_limit = native_stack.bottom() as usize + NATIVE_STACK_RESERVE_BYTES;
+        let mut activation = call.activation(functions, virtuals, dynamics, stack_limit, &mut exit);
+        let activation_pointer = &raw mut activation;
+
+        // run on the fiber's native stack, containing platform unwinds before the stack switches back
+        let execution = enter(activation_pointer, || {
+            // SAFETY: the native stack is a mapped world range the fiber holds for the whole call
+            unsafe {
+                psm::on_stack(native_stack.bottom(), native_stack.byte_len(), || {
+                    catch_unwind(AssertUnwindSafe(|| {
+                        // SAFETY: the activation lives on this frame for the whole call
+                        entry.call(activation_pointer, &arguments, &mut result)
+                    }))
+                })
+            }
+        });
         call.set_context(activation.context);
 
         // reject foreign Rust panics crossing generated code
@@ -231,6 +242,7 @@ impl Code {
                 Some(Transfer::Panic(payload)) => {
                     return Err(Error::Panicked { payload }.into());
                 }
+                Some(Transfer::Trap(trap)) => return Err(Error::Trapped { trap }.into()),
                 Some(Transfer::Retain) => exit.kind,
                 None => {
                     return Err(RuntimeError::Internal {
@@ -271,13 +283,6 @@ impl Code {
                 Ok(Outcome::Program(program::Outcome::Completed { value }))
             }
             abi::ExitKind::Cancelled => Ok(Outcome::Program(program::Outcome::Cancelled)),
-            abi::ExitKind::Trapped => {
-                let trap = abi::Trap::try_from(exit.trap)
-                    .map_err(Error::InvalidTrap)
-                    .map_err(Box::<RuntimeError>::from)?;
-
-                Err(Error::Trapped { trap }.into())
-            }
             abi::ExitKind::Stopped => {
                 let frame = self
                     .frames
@@ -325,30 +330,5 @@ impl Code {
             .into()),
             abi::ExitKind::Panicked => Err(Error::Panicked { payload: None }.into()),
         }
-    }
-}
-
-/// Process-local native image backing callable code pointers.
-#[derive(Debug, Clone)]
-pub enum Image {
-    /// Native symbols are already resident in this process.
-    Resident,
-    /// Native symbols are owned by one executable memory mapping.
-    Object(Mapping),
-}
-
-impl Image {
-    /// Create one resident code image.
-    pub const fn resident() -> Self {
-        Self::Resident
-    }
-
-    /// Create one mapped object code image.
-    pub fn object(
-        base: usize,
-        byte_len: usize,
-        owner: impl fmt::Debug + Send + Sync + 'static,
-    ) -> Self {
-        Self::Object(Mapping::new(base, byte_len, owner))
     }
 }

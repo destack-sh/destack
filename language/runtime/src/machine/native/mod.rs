@@ -8,6 +8,7 @@ mod import;
 mod load;
 mod mapping;
 mod platform;
+mod trap;
 
 pub use call::*;
 pub use code::*;

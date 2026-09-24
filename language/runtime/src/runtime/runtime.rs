@@ -247,29 +247,6 @@ impl Runtime {
         self.workers.len()
     }
 
-    /// Visit roots from runtime shared statics and every worker.
-    pub fn visit_roots(&mut self, roots: &mut impl heap::RootSink) -> RuntimeResult<()> {
-        let mut visit = |slot: heap::RootSlot<'_>| {
-            let root = slot.load()?;
-            roots.push(root);
-
-            Ok(())
-        };
-        self.program
-            .visit_static_root_slots(
-                program::GlobalLocation::SharedStatic,
-                &mut self.shared_static,
-                &mut visit,
-            )
-            .map_err(Box::<RuntimeError>::from)?;
-
-        for worker in self.workers.values_mut() {
-            worker.visit_roots(roots)?;
-        }
-
-        Ok(())
-    }
-
     /// Start one incremental local-to-shared edge scan across all workers.
     pub(crate) fn start_shared_edge_scan(&mut self) {
         for worker in self.workers.values_mut() {

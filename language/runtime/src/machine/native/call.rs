@@ -1,7 +1,7 @@
 use std::fmt;
 use std::ops::Range;
 
-use destack_heap::{HeapEdge, HeapReference, Payload, Release, SharedHeapReference};
+use destack_heap::{HeapEdge, HeapError, HeapReference, HeapReferenceKind, Payload, Release};
 use destack_memory::MemoryMap;
 use destack_mir::Space;
 use destack_native as native;
@@ -20,10 +20,14 @@ pub struct Call<'call, 'runtime, 'memory, 'state> {
     program: &'call program::Program,
     /// Native frame maps for this call.
     frames: native::CodeMap,
+    /// The addresses of the running code image.
+    code: Range<usize>,
     /// Process-local native functions used to resolve caller return addresses.
     functions: &'call [Option<Function>],
     /// World memory receiving canonical native activation bytes.
     memory: &'call MemoryMap,
+    /// The world offsets of the native stack the call's frames live on.
+    native_stack: Range<usize>,
     /// Runtime and memory operations available to generated code.
     activation: &'call mut program::Activation<'runtime, 'memory, Activation<'state>>,
     /// Optional profile receiving explicit native observations.
@@ -53,16 +57,8 @@ struct FrameCapture {
     point: program::ProgramPoint,
     /// Canonical bytes for this frame.
     bytes: Vec<u8>,
-    /// Physical stack ranges projected into canonical frame offsets.
-    ranges: Vec<FrameRange>,
-}
-
-/// One physical stack range and its canonical frame offset.
-struct FrameRange {
-    /// Native address range containing this value piece.
-    source: Range<usize>,
-    /// Byte offset inside the canonical frame.
-    target: usize,
+    /// The frame's stack segments, moving from world offsets to canonical frame offsets.
+    segments: Vec<program::FrameSegment>,
 }
 
 /// Nonlocal result retained by one active native call.
@@ -71,6 +67,8 @@ pub(super) enum Transfer {
     Error(Box<RuntimeError>),
     /// One language panic payload.
     Panic(Option<program::Value>),
+    /// One language trap at a linked trap site.
+    Trap(abi::Trap),
     /// One captured activation retained for the host.
     Retain,
 }
@@ -105,16 +103,20 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
     pub fn new(
         program: &'call program::Program,
         frames: native::CodeMap,
+        code: Range<usize>,
         functions: &'call [Option<Function>],
         memory: &'call MemoryMap,
+        native_stack: Range<usize>,
         activation: &'call mut program::Activation<'runtime, 'memory, Activation<'state>>,
         profile: Option<&'call mut program::Profile>,
     ) -> Self {
         Self {
             program,
             frames,
+            code,
             functions,
             memory,
+            native_stack,
             activation,
             profile,
             transfer: None,
@@ -129,6 +131,7 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         functions: *const usize,
         virtuals: *const *const abi::VirtualTable,
         dynamics: *const *const abi::DynamicTable,
+        stack_limit: usize,
         exit: &mut abi::Exit,
     ) -> abi::Activation {
         let call = (self as *mut Self).cast::<abi::Call>();
@@ -141,6 +144,7 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
             virtuals,
             dynamics,
             self.memory.base_address() as *mut u8,
+            stack_limit,
             memory.constants.native(),
             memory.shared_statics.native(),
             memory.local_statics.native(),
@@ -187,57 +191,45 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
             byte_len += layout.byte_len() as usize;
         }
         let mut bytes = vec![0; byte_len];
-        let mut ranges = Vec::new();
+        let mut segments = Vec::new();
 
-        // concatenate canonical frames and retain their physical address projections
+        // concatenate canonical frames and shift their segments to activation offsets
         for (capture, frame_offset) in captures.iter().zip(offsets.iter().copied()) {
             let end = frame_offset + capture.bytes.len();
             bytes[frame_offset..end].copy_from_slice(&capture.bytes);
-            ranges.extend(capture.ranges.iter().map(|range| FrameRange {
-                source: range.source.clone(),
-                target: frame_offset + range.target,
-            }));
+            segments.extend(
+                capture
+                    .segments
+                    .iter()
+                    .map(|segment| program::FrameSegment {
+                        source: segment.source.clone(),
+                        target: frame_offset + segment.target,
+                    }),
+            );
         }
 
-        // replace native stack pointers with canonical activation offsets
-        for (frame_offset, layout) in offsets.iter().copied().zip(&layouts) {
-            for slot in self.program.frame_slots(layout) {
-                let start = frame_offset + slot.offset as usize;
-                let end = start + slot.byte_len as usize;
-                let value = &mut bytes[start..end];
-                let mut is_valid = true;
-                self.program
-                    .visit_byte_frame_addresses(slot.ty, value, &mut |address| {
-                        let Some(word) = program::Word::from_bytes(address) else {
-                            is_valid = false;
+        // move frame borrows from world offsets onto encoded activation offsets
+        let frames = offsets.iter().copied().zip(&layouts);
+        self.program
+            .relocate_frame_addresses(frames, &mut bytes, |address| {
+                let offset = segments
+                    .iter()
+                    .find_map(|segment| segment.relocate(address as usize));
 
-                            return Ok(());
-                        };
-                        if word.is_nullish() {
-                            return Ok(());
-                        }
-                        let pointer = word.bits() as usize;
-                        let Some(range) =
-                            ranges.iter().find(|range| range.source.contains(&pointer))
-                        else {
-                            is_valid = false;
-
-                            return Ok(());
-                        };
-                        let target = range.target + pointer - range.source.start;
-                        let word = program::Word::from_bits(
-                            target as u64 + program::ActivationImage::FRAME_ADDRESS_BIAS,
-                        );
-                        address.copy_from_slice(&word.to_bytes());
-
-                        Ok(())
-                    })
-                    .map_err(|error| Box::<RuntimeError>::from(Error::from(error)))?;
-                if !is_valid {
-                    return Err(self.internal("native frame contains an unknown frame pointer"));
+                match offset {
+                    // encode a captured frame address
+                    Some(offset) => {
+                        Ok(Some(program::ActivationImage::encode_frame_address(offset)))
+                    }
+                    // fail a native stack address outside every captured segment
+                    None if self.native_stack.contains(&(address as usize)) => {
+                        Err(program::Error::StrayFrameAddress { address })
+                    }
+                    // keep an address outside the native stack
+                    None => Ok(None),
                 }
-            }
-        }
+            })
+            .map_err(|error| Box::<RuntimeError>::from(Error::from(error)))?;
         let frames = captures
             .iter()
             .enumerate()
@@ -440,7 +432,7 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
             )];
             let mut result = [];
             // SAFETY: the selected canonical entry uses this activation and Word ABI
-            function.call(unsafe { &mut *activation }, &arguments, &mut result);
+            unsafe { function.call(activation, &arguments, &mut result) };
         }
 
         // SAFETY: the destructors returned to this activation
@@ -465,17 +457,29 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         }
     }
 
-    /// Record one managed-reference write.
+    /// Record one managed-reference write into the allocation holding an address.
     unsafe extern "C-unwind" fn write_barrier(
         activation: *mut abi::Activation,
-        space: abi::Space,
-        object: usize,
+        object: *const u8,
         offset: usize,
         byte_len: usize,
     ) {
         // SAFETY: generated code passes the active activation supplied to abi::Entry
         let call = unsafe { Self::from_activation(activation) };
-        let edge = Self::edge(space, object);
+        // SAFETY: generated code passes an address inside world memory
+        let distance = unsafe { object.offset_from((*activation).memory_base) };
+        let owner = match usize::try_from(distance) {
+            Ok(owner) => owner,
+            Err(_) => call.fail(HeapError::InvalidReference {
+                kind: HeapReferenceKind::Heap,
+                value: distance as u64,
+            }),
+        };
+        let edge = match call.activation.memory.edge(owner) {
+            Ok(Some(edge)) => edge,
+            Ok(None) => return,
+            Err(error) => call.fail(error),
+        };
         let barrier =
             call.activation
                 .memory
@@ -706,9 +710,10 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         }
         let constants = self.frames.constants(sections);
         let mut bytes = vec![0; layout.byte_len() as usize];
-        let mut ranges = Vec::new();
+        let mut segments = Vec::new();
+        let base = self.memory.base_address();
 
-        // project every physical value piece into its canonical frame slot
+        // project every physical value location into its canonical frame slot
         for (slot, value) in slots.iter().zip(values) {
             let mut written = vec![false; slot.byte_len as usize];
             for location in self.frames.locations(sections, *value) {
@@ -732,8 +737,11 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
                         // SAFETY: the emitted stack map keeps this exact source range live
                         let source = unsafe { std::slice::from_raw_parts(source, byte_len) };
                         destination.copy_from_slice(source);
-                        let start = source.as_ptr() as usize;
-                        ranges.push(FrameRange {
+                        // record the stack segment at its world offset
+                        let start = (source.as_ptr() as usize)
+                            .checked_sub(base)
+                            .ok_or_else(|| self.internal("a native frame outside world memory"))?;
+                        segments.push(program::FrameSegment {
                             source: start..start + byte_len,
                             target: frame_target,
                         });
@@ -757,14 +765,14 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
             state,
             point,
             bytes,
-            ranges,
+            segments,
         });
 
         Ok(frame)
     }
 
     /// Recover the runtime call owning one ABI activation.
-    unsafe fn from_activation<'activation>(
+    pub(super) unsafe fn from_activation<'activation>(
         activation: *mut abi::Activation,
     ) -> &'activation mut Self {
         // SAFETY: abi::Activation.call was built from this exact Call type
@@ -773,14 +781,6 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
         *call.activation.context = program::Context::new(HeapReference::from_bits(context));
 
         call
-    }
-
-    /// Build one heap edge from stable ABI bits.
-    const fn edge(space: abi::Space, bits: usize) -> HeapEdge {
-        match space {
-            abi::Space::Local => HeapEdge::Local(HeapReference::from_bits(bits)),
-            abi::Space::Shared => HeapEdge::Shared(SharedHeapReference::from_bits(bits)),
-        }
     }
 
     /// Convert one native ABI space into the program memory domain.
@@ -814,6 +814,29 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
     /// Return one captured activation without running native cleanup blocks.
     fn retain_activation(&mut self) -> ! {
         self.transfer = Some(Transfer::Retain);
+
+        Self::raise()
+    }
+
+    /// Return the trap linked at one instruction address of the running code.
+    pub(super) fn trap_at(&self, address: usize) -> Option<abi::Trap> {
+        if !self.code.contains(&address) {
+            return None;
+        }
+
+        // find the trap site at the address's code offset
+        let offset = (address - self.code.start) as u32;
+        let traps = self.frames.traps(self.program.sections());
+        let index = traps
+            .binary_search_by_key(&offset, |trap| trap.offset)
+            .ok()?;
+
+        Some(traps[index].trap)
+    }
+
+    /// Raise one language trap without running native cleanup blocks.
+    pub(super) fn trap(&mut self, trap: abi::Trap) -> ! {
+        self.transfer = Some(Transfer::Trap(trap));
 
         Self::raise()
     }
@@ -878,7 +901,7 @@ impl<'call, 'runtime, 'memory, 'state> Call<'call, 'runtime, 'memory, 'state> {
 
         match call.transfer {
             Some(Transfer::Error(_) | Transfer::Panic(_)) => abi::UnwindAction::Cleanup,
-            Some(Transfer::Retain) => abi::UnwindAction::Retain,
+            Some(Transfer::Trap(_) | Transfer::Retain) => abi::UnwindAction::Skip,
             None => std::process::abort(),
         }
     }

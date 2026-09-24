@@ -42,8 +42,13 @@ pub enum Error {
         /// Optional language panic payload.
         payload: Option<Value>,
     },
-    /// A native trap code could not be decoded.
-    InvalidTrap(abi::TrapError),
+    /// The platform rejected the native trap handler.
+    Signal {
+        /// The rejected signal.
+        signal: i32,
+        /// The platform error code.
+        code: Option<i32>,
+    },
     /// Program metadata rejected one native call value.
     Program(Box<program::Error>),
     /// The program has no native code.
@@ -105,7 +110,10 @@ impl Clone for Error {
             Self::Panicked { payload } => Self::Panicked {
                 payload: payload.as_ref().map(Value::fork),
             },
-            Self::InvalidTrap(error) => Self::InvalidTrap(*error),
+            Self::Signal { signal, code } => Self::Signal {
+                signal: *signal,
+                code: *code,
+            },
             Self::Program(error) => Self::Program(error.clone()),
             Self::NativeCodeMissing => Self::NativeCodeMissing,
             Self::AbiVersion { expected, actual } => Self::AbiVersion {
@@ -151,7 +159,12 @@ impl fmt::Display for Error {
             Self::Panicked { payload } => {
                 write!(formatter, "native execution panicked with {payload:?}")
             }
-            Self::InvalidTrap(error) => write!(formatter, "native trap error: {error}"),
+            Self::Signal { signal, code } => {
+                write!(
+                    formatter,
+                    "native trap handler rejected for signal {signal} (code {code:?})"
+                )
+            }
             Self::Program(error) => write!(formatter, "native program error: {error}"),
             Self::NativeCodeMissing => write!(formatter, "program has no native code"),
             Self::AbiVersion { expected, actual } => {

@@ -324,20 +324,6 @@ impl Worker {
         self.event_loop.add_host_waiter(kind, callback);
     }
 
-    /// Visit roots from machine, scheduler, and registered providers.
-    pub fn visit_roots(&mut self, roots: &mut impl heap::RootSink) -> RuntimeResult<()> {
-        let mut visit = |slot: heap::RootSlot<'_>| {
-            let root = slot.load()?;
-            roots.push(root);
-
-            Ok(())
-        };
-
-        self.visit_root_slots(&mut visit)?;
-
-        Ok(())
-    }
-
     /// Visit mutable root slots from machine, scheduler, and retained host handles.
     pub fn visit_root_slots(
         &mut self,
@@ -373,10 +359,43 @@ impl Worker {
     }
 
     /// Collect shared heap roots from machine, scheduler, and registered providers.
-    pub(crate) fn collect_shared_roots(&mut self) -> RuntimeResult<Vec<heap::SharedHeapReference>> {
+    pub(crate) fn collect_shared_roots(
+        &mut self,
+        shared_static: &mut program::StaticSpace,
+    ) -> RuntimeResult<Vec<heap::SharedHeapReference>> {
+        let shared_heap = self.shared_heap.clone();
         let mut roots = Vec::new();
 
-        self.visit_roots(&mut roots)?;
+        // keep the runtime heap references and the borrows into the shared heap
+        let mut visit = |slot: heap::RootSlot<'_>| {
+            match slot {
+                heap::RootSlot::SharedHeapBytes(bytes) => {
+                    let reference = heap::SharedHeapReference::read_from_bytes(bytes)?;
+                    if !reference.is_nullish() {
+                        roots.push(reference);
+                    }
+                }
+                heap::RootSlot::BorrowBytes(bytes) => {
+                    let reference = heap::SharedHeapReference::read_from_bytes(bytes)?;
+                    if shared_heap.contains(reference) {
+                        roots.push(reference);
+                    }
+                }
+                heap::RootSlot::HeapReference(_) | heap::RootSlot::HeapBytes(_) => {}
+            }
+
+            Ok(())
+        };
+
+        // visit the runtime's shared statics beside this worker's roots
+        self.program
+            .visit_static_root_slots(
+                program::GlobalLocation::SharedStatic,
+                shared_static,
+                &mut visit,
+            )
+            .map_err(Box::<RuntimeError>::from)?;
+        self.visit_root_slots(&mut visit)?;
 
         Ok(roots)
     }

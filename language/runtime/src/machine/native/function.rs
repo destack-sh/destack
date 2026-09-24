@@ -58,8 +58,17 @@ impl Function {
     }
 
     /// Call this native function.
-    pub fn call(&self, activation: &mut abi::Activation, arguments: &[Word], result: &mut [Word]) {
-        // native entries are produced by the native linker with this ABI
+    ///
+    /// # Safety
+    ///
+    /// The activation must be live and describe the running program for the whole call.
+    pub unsafe fn call(
+        &self,
+        activation: *mut abi::Activation,
+        arguments: &[Word],
+        result: &mut [Word],
+    ) {
+        // SAFETY: native entries are produced by the native linker with this ABI
         unsafe {
             (self.entry)(
                 activation,

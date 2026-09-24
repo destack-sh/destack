@@ -660,7 +660,7 @@ impl Worker {
         host_queue: &HostQueue,
     ) -> RuntimeResult<Option<heap::GcAdvance>> {
         // direct shared roots
-        if let Some(progress) = self.assist_shared_root_scan(collection)? {
+        if let Some(progress) = self.assist_shared_root_scan(collection, shared_static)? {
             return Ok(Some(progress));
         }
 
@@ -709,7 +709,7 @@ impl Worker {
         }
 
         // direct shared roots
-        if let Some(progress) = self.assist_shared_root_scan(collection)? {
+        if let Some(progress) = self.assist_shared_root_scan(collection, shared_static)? {
             return Ok(Some(progress));
         }
 
@@ -737,6 +737,7 @@ impl Worker {
     fn assist_shared_root_scan(
         &mut self,
         collection: &Arc<SharedCollectionState>,
+        shared_static: &mut program::StaticSpace,
     ) -> RuntimeResult<Option<heap::GcAdvance>> {
         // active pass
         let Some(epoch) = collection.pending_root_epoch(self.id) else {
@@ -744,7 +745,7 @@ impl Worker {
         };
 
         // owner-local root publication
-        let roots = self.collect_shared_roots()?;
+        let roots = self.collect_shared_roots(shared_static)?;
         let work_bytes = roots.len() * std::mem::size_of::<heap::SharedHeapReference>();
         collection.replace_direct_roots(&self.shared_heap, &self.program, epoch, self.id, roots);
 

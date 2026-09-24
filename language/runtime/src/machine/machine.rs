@@ -12,6 +12,9 @@ use super::{Engine, Entry, MachineImage, Target};
 use crate::diagnostic::{MachineError, RuntimeError, RuntimeResult};
 use crate::worker::Activation;
 
+/// The usable byte length of each fiber's native stack, backed by the OS only as it is touched.
+const NATIVE_STACK_BYTES: usize = 8 * 1024 * 1024;
+
 /// Worker-owned runtime machine executing fibers over world memory.
 pub struct Machine {
     /// Shared process-local execution engine.
@@ -372,6 +375,9 @@ impl Machine {
                     .boxed()
                 })?;
 
+                let native_stack = fiber
+                    .native_stack(NATIVE_STACK_BYTES)
+                    .map_err(Box::<RuntimeError>::from)?;
                 let mut captured = None;
                 let outcome = code.run(
                     engine.program(),
@@ -380,6 +386,7 @@ impl Machine {
                     engine.virtuals(),
                     engine.dynamics(),
                     &self.memory,
+                    native_stack,
                     program::EntryPoint::from(function),
                     environment,
                     arguments,

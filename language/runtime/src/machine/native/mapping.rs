@@ -1,4 +1,5 @@
 use std::fmt;
+use std::ops::Range;
 use std::sync::Arc;
 
 /// Process-local memory mapping.
@@ -34,6 +35,11 @@ impl Mapping {
     /// Return the mapped byte size.
     pub const fn byte_size(&self) -> usize {
         self.byte_size
+    }
+
+    /// Return the mapped addresses.
+    pub const fn range(&self) -> Range<usize> {
+        self.base..self.base + self.byte_size
     }
 
     /// Return one address inside this mapped region.
