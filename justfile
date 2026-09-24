@@ -41,6 +41,7 @@ format-check:
 lint:
     just check-hygiene
     bun run destack-check check @destack/*/src platform/*/src
+    bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md docs blog @destack/*/README.md
     just platform/lint
     just dev/release/check
 
