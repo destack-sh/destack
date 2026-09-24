@@ -22,7 +22,7 @@ export const Diagnostic = defineSchema(
             schema.object({
                 /** Optional explanation attached to the span. */
                 label: schema.string().optional(),
-                /** Source coordinates reported by Oxc, with one-based line and column. */
+                /** The source location reported by Oxc, with one-based line and column. */
                 span: schema.object({
                     offset: schema.number(),
                     length: schema.number(),

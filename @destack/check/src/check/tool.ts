@@ -19,7 +19,7 @@ export interface ToolResult {
 /** Run the installed tool using the current Bun runtime. */
 export function runTool(
     executable: string,
-    args: string[],
+    toolArguments: string[],
     directory: string,
     signal?: AbortSignal,
     environment?: NodeJS.ProcessEnv,
@@ -28,15 +28,19 @@ export function runTool(
 
     return new Promise((complete, reject) => {
         // bound the child lifetime and propagate caller cancellation
-        const child = spawn(process.execPath, ["run", "--no-env-file", executable, ...args], {
-            cwd: directory,
-            env: environment,
-            stdio: ["ignore", "pipe", "pipe"],
-            signal: AbortSignal.any([
-                AbortSignal.timeout(toolTimeout),
-                ...(signal ? [signal] : []),
-            ]),
-        });
+        const child = spawn(
+            process.execPath,
+            ["run", "--no-env-file", executable, ...toolArguments],
+            {
+                cwd: directory,
+                env: environment,
+                stdio: ["ignore", "pipe", "pipe"],
+                signal: AbortSignal.any([
+                    AbortSignal.timeout(toolTimeout),
+                    ...(signal ? [signal] : []),
+                ]),
+            },
+        );
 
         // capture both output streams until the child closes
         let stdout = "";

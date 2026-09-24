@@ -9,6 +9,7 @@ import { CheckError } from "../error/index.ts";
 
 /** Format generated source with the same fixed settings as package files. */
 export async function formatSource(filename: string, source: string): Promise<string> {
+    // format with the fixed settings and reject parse failures
     const { format } = await import("oxfmt");
     const result = await format(filename, source, formatConfiguration);
     if (result.errors.length) {

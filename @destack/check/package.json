@@ -15,7 +15,8 @@
         "./error": "./src/error/index.ts"
     },
     "scripts": {
-        "check": "tsc --project tsconfig.json"
+        "check": "tsc --project tsconfig.json",
+        "test": "vitest run --config vitest.config.ts"
     },
     "dependencies": {
         "@oxlint/plugins": "1.83.0",
@@ -25,5 +26,8 @@
         "oxfmt": "0.68.0",
         "oxlint": "1.83.0",
         "oxlint-tsgolint": "7.0.2002"
+    },
+    "devDependencies": {
+        "vitest": "5.0.1"
     }
 }

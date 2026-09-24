@@ -64,6 +64,7 @@ export async function inspectErrors(
         groups.push({ root, nodes });
     }
 
+    // describe each group's throws, calls and catches
     const descriptions: ErrorDescription[] = [];
     for (const { root, nodes } of groups) {
         const description: ErrorDescription = {
@@ -142,6 +143,7 @@ export async function inspectErrors(
 
 /** Find catches covering this expression, excluding catches attached to catch/finally bodies. */
 function enclosingCatches(node: Node, root: Node, inspector: ErrorInspector): SourceRange[] {
+    // walk up to the root, collecting try blocks that contain the node
     const catches: SourceRange[] = [];
     let child = node;
     while (child !== root && child.parent) {

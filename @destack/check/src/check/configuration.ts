@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { isDeepStrictEqual } from "node:util";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import * as lint from "../lint/plugin.ts";
 import type { Plugin } from "../lint/plugin.ts";
 import { CheckError } from "../error/index.ts";
 
@@ -22,6 +23,7 @@ export const formatConfiguration = {
 
 /** Produce the fixed rules and explicitly selected trusted plugins. */
 export function lintConfiguration(plugins: readonly Plugin[] = [], absolute = false) {
+    // load the built-in rules by path for managed checks and by export for editors
     const builtin = absolute
         ? fileURLToPath(new URL("../lint/index.ts", import.meta.url))
         : "@destack/check/lint";
@@ -57,7 +59,7 @@ export function lintConfiguration(plugins: readonly Plugin[] = [], absolute = fa
                 },
             ],
 
-            // Solid assigns JSX references during compilation
+            // solid assigns JSX references during compilation
             "eslint/no-unassigned-vars": "off",
 
             // database queries implement PromiseLike and validators match control characters
@@ -68,10 +70,35 @@ export function lintConfiguration(plugins: readonly Plugin[] = [], absolute = fa
             "typescript/unbound-method": "off",
             "typescript/no-misused-spread": "off",
 
-            "destack/error-message-style": "error",
-            "destack/no-inline-config": "error",
+            // single-letter names outside indices and vector components
+            "eslint/id-length": ["error", { min: 2, exceptions: ["i", "j", "x", "y", "z", "_"] }],
+
+            // lowercase single-word or kebab-case file names
+            "unicorn/filename-case": ["error", { case: "kebabCase" }],
+
+            ...Object.fromEntries(
+                Object.keys(lint.rules).map((name) => [`destack/${name}`, "error"]),
+            ),
             ...rules,
         },
+        overrides: [
+            {
+                // keep declarations and client-safe layers free of server code
+                files: [
+                    "**/src/service/**",
+                    "**/src/connection/**",
+                    "**/src/declare/**",
+                    "**/src/stack/**",
+                    "**/src/package.ts",
+                ],
+                rules: {
+                    "eslint/no-restricted-imports": [
+                        "error",
+                        { patterns: ["**/server", "**/server/**", "*/server"] },
+                    ],
+                },
+            },
+        ],
         options: { denyWarnings: true, typeAware: true, respectEslintDisableDirectives: false },
     };
 }
