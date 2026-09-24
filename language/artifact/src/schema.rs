@@ -4,12 +4,12 @@ use destack_serde::Schema;
 use crate::{
     ArtifactDependency, ArtifactKey, ArtifactPayload, ArtifactReference, ArtifactVersion, Asset,
     Build, BuildLinkage, BuildManifest, BuildProfile, Bundle, BundleFile, BundleMode,
-    BundleSection, Code, Data, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded,
-    DirExported, DirImported, DirMaterialized, DirParsed, DirResolved, EnvironmentBound,
-    EnvironmentDeclared, Host, LanguageEnvironment, LanguageIntrinsics, MirAnalyzed, MirDeclared,
-    MirElaborated, MirInstantiated, MirLowered, MirOptimized, MirVerified, ModuleEdges,
-    ModuleGraph, ModuleIndex, ModuleLinted, Output, Platform, Product, ProductTarget,
-    ProgramAnalysis, ProgramIndex, ProgramLinted, Runtime, Script, SourceMap,
+    BundleSection, Code, Data, DirAnalyzed, DirBound, DirChecked, DirDeclared, DirElaborated,
+    DirExpanded, DirExported, DirImported, DirMaterialized, DirParsed, DirResolved,
+    EnvironmentBound, EnvironmentDeclared, Host, LanguageEnvironment, LanguageIntrinsics,
+    MirAnalyzed, MirDeclared, MirElaborated, MirInstantiated, MirLowered, MirOptimized,
+    MirVerified, ModuleEdges, ModuleGraph, ModuleIndex, ModuleLinted, Output, Platform, Product,
+    ProductTarget, ProgramAnalysis, ProgramIndex, ProgramLinted, Runtime, Script, SourceMap,
 };
 
 /// Include public artifact schema roots.
@@ -48,6 +48,7 @@ pub fn schema(schema: &mut Schema) {
     schema.register::<DirElaborated>();
     schema.register::<DirChecked>();
     schema.register::<DirMaterialized>();
+    schema.register::<DirAnalyzed>();
 
     schema.register::<MirDeclared>();
     schema.register::<MirLowered>();

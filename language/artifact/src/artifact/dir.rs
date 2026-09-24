@@ -299,8 +299,19 @@ pub struct DirMaterialized {
     pub decisions: Arc<dir::DecisionSegment>,
     /// Grounded implicit coercions.
     pub coercions: Arc<dir::CoercionSegment>,
+    /// Whether the values of each materialized type copy.
+    pub representations: Arc<dir::RepresentationSegment>,
     /// Top-level expressions.
     pub roots: Vec<dir::LocalNodeId<dir::Expression>>,
+}
+
+/// Analyzed DIR for one module under one profile, projected from the settled module for tooling.
+#[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
+pub struct DirAnalyzed {
+    /// The types the projected memberships name.
+    pub types: Arc<dir::TypeSegment>,
+    /// The membership each settled member subject projects.
+    pub members: Arc<dir::MemberSegment>,
 }
 
 /// The DIR stages of one module read up to one stage.
@@ -324,6 +335,8 @@ pub struct DirView {
     pub checked: Option<Arc<DirChecked>>,
     /// The materialized stage.
     pub materialized: Option<Arc<DirMaterialized>>,
+    /// The analyzed stage.
+    pub analyzed: Option<Arc<DirAnalyzed>>,
 
     /// The binding table over the stages read.
     bindings: dir::BindingTable<'static>,
@@ -351,6 +364,7 @@ pub struct DirView {
     coercions: Option<dir::CoercionTable<'static>>,
     /// The capture table over the stages read, from the checked stage on.
     captures: Option<dir::CaptureTable<'static>>,
+    /// The representation table over the stages read, from the elaborated stage on.
     representations: Option<dir::RepresentationTable<'static>>,
 }
 
@@ -368,8 +382,18 @@ impl DirView {
         expanded: Arc<DirExpanded>,
     ) -> Self {
         Self::new(
-            parsed, bound, imported, expanded, None, None, None, None, None,
+            parsed, bound, imported, expanded, None, None, None, None, None, None,
         )
+    }
+
+    /// Return the tree with every patch the stacked stages wrote.
+    pub fn tree(&self) -> dir::View<'_> {
+        let view = dir::View::new(&self.parsed.tree).patched(&self.expanded.patch);
+
+        match &self.materialized {
+            Some(materialized) => view.patched(&materialized.patch),
+            None => view,
+        }
     }
 
     /// Stack the stages read through declaration.
@@ -388,6 +412,7 @@ impl DirView {
             expanded,
             Some(resolved),
             Some(declared),
+            None,
             None,
             None,
             None,
@@ -415,6 +440,7 @@ impl DirView {
             Some(elaborated),
             Some(checked),
             None,
+            None,
         )
     }
 
@@ -440,6 +466,34 @@ impl DirView {
             Some(elaborated),
             Some(checked),
             Some(materialized),
+            None,
+        )
+    }
+
+    /// Stack every stage through the analyzed one.
+    pub fn analyzed(
+        parsed: Arc<DirParsed>,
+        bound: Arc<DirBound>,
+        imported: Arc<DirImported>,
+        expanded: Arc<DirExpanded>,
+        resolved: Arc<DirResolved>,
+        declared: Arc<DirDeclared>,
+        elaborated: Arc<DirElaborated>,
+        checked: Arc<DirChecked>,
+        materialized: Arc<DirMaterialized>,
+        analyzed: Arc<DirAnalyzed>,
+    ) -> Self {
+        Self::new(
+            parsed,
+            bound,
+            imported,
+            expanded,
+            Some(resolved),
+            Some(declared),
+            Some(elaborated),
+            Some(checked),
+            Some(materialized),
+            Some(analyzed),
         )
     }
 
@@ -454,6 +508,7 @@ impl DirView {
         elaborated: Option<Arc<DirElaborated>>,
         checked: Option<Arc<DirChecked>>,
         materialized: Option<Arc<DirMaterialized>>,
+        analyzed: Option<Arc<DirAnalyzed>>,
     ) -> Self {
         let mut bindings = vec![bound.bindings.clone(), expanded.bindings.clone()];
         let modules = vec![imported.modules.clone(), expanded.modules.clone()];
@@ -517,6 +572,11 @@ impl DirView {
             resolutions.push(materialized.resolutions.clone());
             decisions.push(materialized.decisions.clone());
             coercions.push(materialized.coercions.clone());
+            representations.push(materialized.representations.clone());
+        }
+        if let Some(analyzed) = &analyzed {
+            types.push(analyzed.types.clone());
+            members.push(analyzed.members.clone());
         }
 
         Self {
@@ -529,6 +589,7 @@ impl DirView {
             elaborated,
             checked,
             materialized,
+            analyzed,
             bindings: dir::BindingTable::from_segments(bindings),
             modules: dir::ModuleTable::from_segments(modules),
             types: dir::TypeTable::from_segments(types),

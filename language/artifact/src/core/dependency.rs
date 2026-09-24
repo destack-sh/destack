@@ -75,6 +75,11 @@ pub enum SourceDependency {
     Packages { fingerprint: PackageSetFingerprint },
     /// The complete repository module set.
     Modules { fingerprint: ModuleSetFingerprint },
+    /// The module set of one package.
+    PackageModules {
+        package: PackageId,
+        fingerprint: ModuleSetFingerprint,
+    },
     /// The module resolution of one probed path.
     ModulePath { file: FileId, fingerprint: u128 },
 }
@@ -94,6 +99,8 @@ pub enum SourceDependencyKey {
     Packages,
     /// The repository module set.
     Modules,
+    /// The module set of one package.
+    PackageModules(PackageId),
     /// The module resolution of one probed path.
     ModulePath(FileId),
 }
@@ -258,6 +265,14 @@ impl SourceDependency {
         }
     }
 
+    /// Build one package module set dependency.
+    pub fn package_modules(package: PackageId, modules: &[ModuleId]) -> Self {
+        Self::PackageModules {
+            package,
+            fingerprint: ModuleSetFingerprint::new(modules),
+        }
+    }
+
     /// Build one module path probe dependency.
     pub fn module_path(file: FileId, module: Option<ModuleId>) -> Self {
         let mut hasher = StableHasher::new();
@@ -278,6 +293,7 @@ impl SourceDependency {
             Self::Module { module, .. } => SourceDependencyKey::Module(module),
             Self::Packages { .. } => SourceDependencyKey::Packages,
             Self::Modules { .. } => SourceDependencyKey::Modules,
+            Self::PackageModules { package, .. } => SourceDependencyKey::PackageModules(package),
             Self::ModulePath { file, .. } => SourceDependencyKey::ModulePath(file),
         }
     }
@@ -331,6 +347,11 @@ impl ArtifactDependencySet {
     /// Declare the complete repository module identity set.
     pub fn observe_modules(&mut self, modules: &[ModuleId]) {
         self.observe(SourceDependency::modules(modules));
+    }
+
+    /// Declare the module identity set of one package.
+    pub fn observe_package_modules(&mut self, package: PackageId, modules: &[ModuleId]) {
+        self.observe(SourceDependency::package_modules(package, modules));
     }
 
     /// Mark the closure incomplete so the engine runs the collect pass again.
