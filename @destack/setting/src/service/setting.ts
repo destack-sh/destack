@@ -3,11 +3,11 @@ import { identifier, schema } from "@destack/schema";
 import { eventIterator } from "@destack/service";
 import { defineProcedure } from "@destack/service/procedure";
 import { page, PageRequest } from "@destack/service/page";
-import definition from "../../destack.json" with { type: "json" };
 import { SettingReference } from "../setting/setting.ts";
 import { SettingSelection } from "../setting/target.ts";
 import { SettingDescription } from "../inspect/setting.ts";
 import { SettingResolution } from "../setting/resolution.ts";
+import type {} from "@destack/package/import-meta";
 
 /** Maximum number of declarations resolved in one request or subscription. */
 export const SETTING_BATCH_LIMIT = 128;
@@ -50,7 +50,7 @@ export const setting = {
 function procedure(name: string) {
     return defineProcedure({
         authentication: "identity",
-        permission: { packageId: PackageId.parse(definition.id), type: "setting", name },
+        permission: { packageId: import.meta.destack.package.id, type: "setting", name },
         audit: false,
     });
 }

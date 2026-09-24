@@ -2,10 +2,10 @@ import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { Creation, defineProcedure } from "@destack/service/procedure";
 import { page, PageRequest } from "@destack/service/page";
-import definition from "../../destack.json" with { type: "json" };
 import { SettingAuthority } from "../setting/target.ts";
 import { SettingPolicy } from "../setting/policy.ts";
 import { SettingPolicyDefinition } from "../declare/policy.ts";
+import type {} from "@destack/package/import-meta";
 
 /** One policy under its administering authority. */
 const selection = schema.object({ authority: SettingAuthority, id: SettingPolicy.shape.id });
@@ -52,7 +52,7 @@ export const policy = {
 function procedure(name: string, audit: boolean) {
     return defineProcedure({
         authentication: "identity",
-        permission: { packageId: PackageId.parse(definition.id), type: "policy", name },
+        permission: { packageId: import.meta.destack.package.id, type: "policy", name },
         audit,
     });
 }

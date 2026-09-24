@@ -41,6 +41,7 @@ export async function applySettings(
     const audit = await options.audit(context);
     const source = sourceKey(RecordProvenance.parse({ ...input.source, name: "settings" }));
 
+    // apply the source records in one transaction
     const result = await store.database
         .transaction(
             async (database) => {
@@ -82,6 +83,7 @@ export async function applySettings(
                 }
 
                 // commit source revision, assignments, policies and audit records together
+
                 return reconcileSettings(new SettingStore(database), input, declarations, {
                     subject: caller.authentication.subject,
                     audit,

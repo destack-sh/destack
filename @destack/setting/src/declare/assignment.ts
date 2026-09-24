@@ -27,6 +27,6 @@ export function defineSettingAssignment<Value extends schema.Schema>(
     return SettingAssignmentDefinition.parse({
         setting: setting.reference,
         target,
-        value: setting.declaration.schema.parse(value),
+        value: setting.definition.schema.parse(value),
     });
 }

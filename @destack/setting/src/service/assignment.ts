@@ -2,11 +2,11 @@ import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { Creation, defineProcedure } from "@destack/service/procedure";
 import { PageRequest, page } from "@destack/service/page";
-import definition from "../../destack.json" with { type: "json" };
 import { SettingReference } from "../setting/setting.ts";
 import { SettingTarget } from "../setting/target.ts";
 import { SettingAssignment } from "../setting/assignment.ts";
 import { SettingEdit } from "../setting/edit.ts";
+import type {} from "@destack/package/import-meta";
 
 /** One exact assignment target and declaration. */
 const selection = schema.object({ setting: SettingReference, target: SettingTarget });
@@ -60,7 +60,7 @@ export const assignment = {
 function procedure(name: string, audit: boolean) {
     return defineProcedure({
         authentication: "identity",
-        permission: { packageId: PackageId.parse(definition.id), type: "assignment", name },
+        permission: { packageId: import.meta.destack.package.id, type: "assignment", name },
         audit,
     });
 }

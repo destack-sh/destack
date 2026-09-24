@@ -8,7 +8,7 @@ export type SettingBatch = Readonly<Record<string, Setting>>;
 /** Resolutions retaining each declaration's inferred value type. */
 export type SettingResult<Batch extends SettingBatch> = {
     readonly [Name in keyof Batch]: SettingResolution<
-        schema.Infer<Batch[Name]["declaration"]["schema"]>
+        schema.Infer<Batch[Name]["definition"]["schema"]>
     >;
 };
 

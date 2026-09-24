@@ -32,6 +32,7 @@ export async function listPolicy(
     authority: SettingAuthority,
     input: { limit: number; cursor?: string },
 ) {
+    // bind the page to the authority and read the next policies
     const selected = JSON.stringify(SettingAuthority.parse(authority));
     const page = new Page(input, ["policy", selected], schema.string());
     const rows = await database
@@ -72,6 +73,7 @@ export async function mutatePolicy(
     input: PolicyEdit,
     context: SettingWrite,
 ): Promise<SettingPolicy | null> {
+    // identify the request by caller, authority and input fingerprint
     const request = {
         caller: JSON.stringify(context.subject),
         scope: JSON.stringify(input.authority),
@@ -82,6 +84,7 @@ export async function mutatePolicy(
         await fingerprintRequest({ input, provenance: context.provenance ?? null }),
     ).toString("hex");
     const result = await store.database.transaction(async (transaction) => {
+        // replay a completed request with the same fingerprint
         const claim = await store.requests.begin(
             transaction,
             request,

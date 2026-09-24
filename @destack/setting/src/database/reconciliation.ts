@@ -47,6 +47,7 @@ export async function reconcileSettings(
     };
     const digest = Buffer.from(await fingerprintRequest(input)).toString("hex");
     const result = await store.database.transaction(async (database) => {
+        // replay a completed request with the same fingerprint
         const claim = await store.requests.begin(
             database,
             request,
@@ -68,7 +69,7 @@ export async function reconcileSettings(
         }
 
         // serialize complete applications and reject stale source revisions before editing records
-        const revision = (input.expectedRevision ?? 0) + 1;
+        const revision = input.expectedRevision === null ? 1 : input.expectedRevision + 1;
         const written =
             input.expectedRevision === null
                 ? await database
@@ -194,7 +195,7 @@ export async function reconcileSettings(
                 continue;
             }
             const setting = selectSetting(definition.setting, declarations);
-            if (!setting.declaration.schema.safeParse(definition.value).success) {
+            if (!setting.definition.schema.safeParse(definition.value).success) {
                 throw new ServiceError("BAD_REQUEST", {
                     message: "policy value does not match its setting declaration",
                 });
@@ -223,6 +224,7 @@ export async function reconcileSettings(
             );
         }
 
+        // complete the request with the applied records
         const result = { revision, assignments, policies };
         await store.requests.complete(database, request, result);
 

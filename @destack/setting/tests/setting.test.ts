@@ -123,12 +123,15 @@ test("separate identities and shared runtimes while rejecting invalid and stale 
     ).toThrowError("stored value is incompatible with the setting declaration");
 
     // shared background work selects its installation without a human subject
-    const shared = defineSetting({
-        ...editor.declaration,
-        name: "defaultTemplate",
-        scope: "space",
-        overrides: ["installation"],
-    });
+    const shared = defineSetting(
+        {
+            ...editor.definition,
+            name: "defaultTemplate",
+            scope: "space",
+            overrides: ["installation"],
+        },
+        { package: notes },
+    );
     const sharedTarget = SettingTarget.parse({
         kind: "space",
         location: { spaceId: "space-019f5530-8000-7000-8000-000000000003" },
@@ -175,12 +178,15 @@ test("describe typed declarations and retain exact conditional edit precondition
     expect(SettingEdit.parse(JSON.parse(JSON.stringify(mutation)))).toEqual(mutation);
 
     // equal required structured values do not depend on object insertion order
-    const structured = defineSetting({
-        ...editor.declaration,
-        name: "layout",
-        schema: schema.object({ width: schema.number(), compact: schema.boolean() }),
-        default: { width: 80, compact: false },
-    });
+    const structured = defineSetting(
+        {
+            ...editor.definition,
+            name: "layout",
+            schema: schema.object({ width: schema.number(), compact: schema.boolean() }),
+            default: { width: 80, compact: false },
+        },
+        { package: notes },
+    );
     const policy = {
         ...required,
         setting: structured.reference,
@@ -213,12 +219,15 @@ test("describe typed declarations and retain exact conditional edit precondition
 
 test("isolate shared installation configuration and host-local paths", () => {
     // two installations share a declaration while retaining independent values
-    const shared = defineSetting({
-        ...editor.declaration,
-        name: "defaultTemplate",
-        scope: "space",
-        overrides: ["installation"],
-    });
+    const shared = defineSetting(
+        {
+            ...editor.definition,
+            name: "defaultTemplate",
+            scope: "space",
+            overrides: ["installation"],
+        },
+        { package: notes },
+    );
     const first = SettingTarget.parse({
         kind: "space",
         location: {
@@ -265,15 +274,18 @@ test("isolate shared installation configuration and host-local paths", () => {
     });
 
     // a cache path from one host never configures a different host
-    const cache = defineSetting({
-        ...editor.declaration,
-        name: "cacheDirectory",
-        scope: "host",
-        overrides: [],
-        schema: schema.string().min(1),
-        default: "/cache",
-        apply: "restart",
-    });
+    const cache = defineSetting(
+        {
+            ...editor.definition,
+            name: "cacheDirectory",
+            scope: "host",
+            overrides: [],
+            schema: schema.string().min(1),
+            default: "/cache",
+            apply: "restart",
+        },
+        { package: notes },
+    );
     const local = SettingTarget.parse({
         kind: "host",
         hostId: "host-019f5530-8000-7000-8000-000000000015",
@@ -303,7 +315,7 @@ test("isolate shared installation configuration and host-local paths", () => {
 
 test("apply the same declaration restrictions to source assignments and retained values", () => {
     // source authoring rejects shared targets and unsupported personal refinements
-    const personalOnly = defineSetting({ ...editor.declaration, overrides: [] });
+    const personalOnly = defineSetting({ ...editor.definition, overrides: [] }, { package: notes });
     expect(() => defineSettingAssignment(personalOnly, target, "vim")).toThrowError(
         "assignment uses an unsupported setting override",
     );
@@ -347,12 +359,14 @@ test("apply the same declaration restrictions to source assignments and retained
     });
 
     // changing a package schema reports incompatible retained values explicitly
-    const upgraded = defineSetting({
-        ...editor.declaration,
-        package: { ...notes, version: "2026.10.0" },
-        schema: schema.enum(["standard", "emacs"]),
-        default: "standard",
-    });
+    const upgraded = defineSetting(
+        {
+            ...editor.definition,
+            schema: schema.enum(["standard", "emacs"]),
+            default: "standard",
+        },
+        { package: { ...notes, version: "2026.10.0" } },
+    );
     expect(() =>
         resolveSetting(upgraded, { ...snapshot, assignments: [personal] }, 1500),
     ).toThrowError("stored value is incompatible with the setting declaration");
@@ -360,11 +374,14 @@ test("apply the same declaration restrictions to source assignments and retained
 
 test("retain offline choices and qualify shared settings by the consuming package", () => {
     // reuse one declaration in two apps without conflating the declaring and consuming packages
-    const shared = defineSetting({
-        ...editor.declaration,
-        scope: "user",
-        overrides: ["package", "space", "installation", "device"],
-    });
+    const shared = defineSetting(
+        {
+            ...editor.definition,
+            scope: "user",
+            overrides: ["package", "space", "installation", "device"],
+        },
+        { package: notes },
+    );
     const homeId = PackageId.parse("package-019f5530-8000-7000-8000-000000000020");
     const home = SettingTarget.parse({ ...target, packageId: homeId });
     const appAssignment = {

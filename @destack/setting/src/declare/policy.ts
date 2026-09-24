@@ -29,6 +29,6 @@ export function defineSettingPolicy<Value extends schema.Schema>(
     return SettingPolicyDefinition.parse({
         ...policy,
         setting: setting.reference,
-        value: setting.declaration.schema.parse(value),
+        value: setting.definition.schema.parse(value),
     });
 }

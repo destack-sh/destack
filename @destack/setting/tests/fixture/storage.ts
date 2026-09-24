@@ -44,6 +44,7 @@ export class Storage {
                 {
                     actor: {
                         type: "user",
+                        authority: "global",
                         id: identifier("user").parse("user-019f5530-8000-7000-8000-000000000003"),
                     },
                     delegation: [],

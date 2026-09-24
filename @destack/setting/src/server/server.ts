@@ -16,6 +16,7 @@ import type { SettingStore } from "../database/index.ts";
 import { settingRouter } from "./setting.ts";
 import { assignmentRouter } from "./assignment.ts";
 import { policyRouter } from "./policy.ts";
+import { settingService } from "../service/index.ts";
 
 /** Host bindings required to resolve and edit settings under verified identity. */
 export interface SettingServerOptions {
@@ -48,7 +49,9 @@ export interface SettingServerOptions {
         database: DatabaseConnection,
     ) => Promise<{ policies: readonly SettingPolicy[]; validUntil: number | null }>;
     /** Attribute audit events to the verified caller and host. */
-    readonly audit: (context: ServiceContext) => Promise<AuditRecorder<DatabaseConnection>>;
+    readonly audit: (
+        context: ServiceContext,
+    ) => AuditRecorder<DatabaseConnection> | Promise<AuditRecorder<DatabaseConnection>>;
 }
 
 /** Connect authenticated settings procedures to persistence and host authorization. */
@@ -57,6 +60,7 @@ export function implementService(
     options: SettingServerOptions,
 ): ServiceImplementation {
     return {
+        service: settingService,
         authorize: async ({ context }) => {
             context.requireCaller();
         },

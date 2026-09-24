@@ -44,10 +44,11 @@ export async function listAssignment(
     cursor?: string,
     packageId?: PackageId,
 ) {
+    // bind the page to the target and package filter
     const selection = JSON.stringify(SettingTarget.parse(target));
     const page = new Page(
         { limit, cursor },
-        ["assignment", selection, packageId ?? ""],
+        ["assignment", selection, ...(packageId === undefined ? [] : [packageId])],
         schema.string(),
     );
     const rows = await database
@@ -132,7 +133,7 @@ export async function mutateAssignment(
                 message: "setting declaration is unavailable",
             });
         }
-        if (!setting.declaration.schema.safeParse(input.value).success) {
+        if (!setting.definition.schema.safeParse(input.value).success) {
             throw new ServiceError("BAD_REQUEST", {
                 message: "setting value does not match its declaration",
             });
@@ -150,6 +151,7 @@ export async function mutateAssignment(
 
     // commit request identity, assignment and audit as one transaction
     const result = await store.database.transaction(async (transaction) => {
+        // replay a completed request with the same fingerprint
         const claim = await store.requests.begin(
             transaction,
             request,
@@ -329,6 +331,7 @@ function targetColumns(target: SettingTarget) {
 
 /** Decode an assignment's explicit scope and refinements. */
 export function decodeAssignment(row: typeof settingAssignment.$inferSelect): SettingAssignment {
+    // split the scope columns from the stored record
     const {
         source: _source,
         packageId,

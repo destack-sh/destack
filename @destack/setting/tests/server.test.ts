@@ -25,7 +25,7 @@ test("resolve typed batches and observe current values through authenticated req
         let requests = 0;
         let isAllowed = true;
         let validUntil: number | null = null;
-        await using server = await Server.start({
+        await using server = Server.start({
             ...implementService(storage.store, {
                 authorize: async (_context, target, _operation, packageId) => {
                     if (
@@ -53,7 +53,7 @@ test("resolve typed batches and observe current values through authenticated req
                 audit: async () => storage.context.audit,
             }),
             audience: notes.id,
-            spaceId: "test-space",
+            scope: "test-space",
             resources: new ResourceContext(),
             health: new Health("setting"),
             drainTimeout: 100,

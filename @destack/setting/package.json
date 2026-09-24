@@ -19,7 +19,7 @@
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
-        "test": "vitest run --config vitest.config.ts"
+        "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "dependencies": {
         "@destack/audit": "workspace:*",

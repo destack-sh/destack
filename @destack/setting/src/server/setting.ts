@@ -19,10 +19,11 @@ import { reportSettingError } from "./error.ts";
 
 /** Connect declaration discovery and effective-value resolution to the verified host. */
 export function settingRouter(store: SettingStore, options: SettingServerOptions) {
-    const implementation = implement(settingService).$context<ServiceContext>();
+    const implementation = implement(settingService.router).$context<ServiceContext>();
 
     return {
         list: implementation.setting.list.handler(async ({ input, context }) => {
+            // bind the page to the consumer and sort its declarations by identity
             const declarations = await options.declarations(
                 context,
                 input.packageId,
@@ -30,7 +31,11 @@ export function settingRouter(store: SettingStore, options: SettingServerOptions
             );
             const page = new Page(
                 input,
-                ["setting", input.packageId, input.installationId ?? ""],
+                [
+                    "setting",
+                    input.packageId,
+                    ...(input.installationId === undefined ? [] : [input.installationId]),
+                ],
                 schema.string(),
             );
             const descriptions = declarations.map(describeSetting).sort((left, right) => {
@@ -107,6 +112,7 @@ export async function declaration(
     packageId: PackageId,
     target?: SettingSelection,
 ): Promise<Setting> {
+    // find the declaration in the consumer release
     const installationId =
         target && "location" in target ? target.location?.installationId : undefined;
     const declarations = await options.declarations(context, packageId, installationId);
@@ -131,6 +137,7 @@ export async function resolveSettings(
     options: SettingServerOptions,
     context: ServiceContext,
 ) {
+    // authorize the caller to read the target
     context.requireCaller();
     const { target, packageId } = input;
     await options.authorize(context, target, "read", packageId);
@@ -163,6 +170,7 @@ export async function resolveSettings(
     return store.database
         .transaction(
             async (transaction) => {
+                // read assignments and policies at one instant
                 const records = await readAssignments(transaction, references, targets);
                 const policy = await options.policies(context, references, target, transaction);
                 const now = Date.now();

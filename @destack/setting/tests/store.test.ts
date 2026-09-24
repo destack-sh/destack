@@ -208,7 +208,7 @@ test("authorize source application and removal while preserving omitted collecti
         };
         const { name: _name, ...source } = RecordProvenance.parse({
             kind: "stack",
-            spaceId: context.spaceId,
+            spaceId: context.scope,
             revisionId: "space-revision-019f5530-8000-7000-8000-000000000011",
             name: "editor",
         });

@@ -1,4 +1,4 @@
-import { Package } from "@destack/package";
+import { declaringModule, type ModuleMetadata } from "@destack/package";
 import { defineSchema, schema } from "@destack/schema";
 import { Setting, SettingName } from "../setting/setting.ts";
 
@@ -28,11 +28,9 @@ export const SettingScope = defineSchema(
 /** Supported base scope and refinements. */
 export type SettingScope = schema.Infer<typeof SettingScope>;
 
-/** Declaration metadata shared by authoring and inspection. */
+/** Setting metadata shared by authoring and inspection. */
 export const SettingMetadata = defineSchema(
     schema.object({
-        /** The declaring package release, normally import.meta.destack.package. */
-        package: Package,
         /** The stable package-local name. */
         name: SettingName,
         /** The label used in settings views. */
@@ -48,8 +46,8 @@ export const SettingMetadata = defineSchema(
     }),
 );
 
-/** Native typed schema and default, retained without evaluating an application. */
-export type SettingDeclaration<Value extends schema.Schema = schema.Schema> = schema.Infer<
+/** A setting as authored: metadata, scopes, the native value schema and its default. */
+export type SettingDefinition<Value extends schema.Schema = schema.Schema> = schema.Infer<
     typeof SettingMetadata
 > &
     SettingScope & {
@@ -61,8 +59,12 @@ export type SettingDeclaration<Value extends schema.Schema = schema.Schema> = sc
 
 /** Declare a typed setting without reading or writing assignments. */
 export function defineSetting<Value extends schema.Schema>(
-    declaration: SettingDeclaration<Value>,
+    definition: SettingDefinition<Value>,
+    module?: ModuleMetadata,
 ): Setting<Value> {
+    // stamp the declaring package supplied by the module transform
+    const owner = declaringModule(module, "defineSetting").package;
+
     // validate serializable metadata independently of the native schema
     const {
         schema: valueSchema,
@@ -70,7 +72,7 @@ export function defineSetting<Value extends schema.Schema>(
         scope,
         overrides,
         ...metadata
-    } = declaration;
+    } = definition;
     SettingMetadata.parse(metadata);
     SettingScope.parse({ scope, overrides });
 
@@ -79,5 +81,5 @@ export function defineSetting<Value extends schema.Schema>(
     valueSchema.parse(defaultValue);
     schema.json().parse(defaultValue);
 
-    return new Setting(declaration);
+    return new Setting(owner, definition);
 }

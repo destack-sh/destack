@@ -3,5 +3,5 @@ import { settingService } from "../service/index.ts";
 
 /** Connect to a host's setting service using the shared authenticated transport. */
 export function createSettingClient(options: ClientOptions) {
-    return createClient(settingService, options);
+    return createClient(settingService.router, options);
 }

@@ -27,6 +27,7 @@ export class SettingClient implements SettingContext {
         target: SettingTarget,
         signal?: AbortSignal,
     ) {
+        // retain the client, package and target
         this.client = client;
         this.packageId = packageId;
         this.target = target;
@@ -52,6 +53,7 @@ export class SettingClient implements SettingContext {
         settings: Batch,
         signal: AbortSignal,
     ): AsyncIterable<SettingResult<Batch>> {
+        // combine cancellation and select the requested settings
         const cancellation = this.signal ? AbortSignal.any([signal, this.signal]) : signal;
         const query = {
             packageId: this.packageId,
@@ -85,7 +87,7 @@ export class SettingClient implements SettingContext {
                 setting: setting.reference,
                 target,
                 expectedRevision,
-                value: schema.json().parse(setting.declaration.schema.parse(value)),
+                value: schema.json().parse(setting.definition.schema.parse(value)),
             },
             { signal: this.signal },
         );
@@ -123,6 +125,7 @@ function decode<Batch extends SettingBatch>(
     settings: Batch,
     results: readonly SettingResolution[],
 ): SettingResult<Batch> {
+    // index the results by setting identity and require a complete batch
     const expected = references(settings);
     const values = new Map(
         results.map((result) => [`${result.setting.packageId}/${result.setting.name}`, result]),
@@ -135,6 +138,7 @@ function decode<Batch extends SettingBatch>(
     }
 
     // retain the caller's property names without duplicating transport requests
+
     return Object.fromEntries(
         Object.entries(settings).map(([name, setting]) => {
             const result = values.get(`${setting.reference.packageId}/${setting.reference.name}`);
@@ -145,7 +149,7 @@ function decode<Batch extends SettingBatch>(
                 );
             }
 
-            return [name, { ...result, value: setting.declaration.schema.parse(result.value) }];
+            return [name, { ...result, value: setting.definition.schema.parse(result.value) }];
         }),
     ) as SettingResult<Batch>;
 }

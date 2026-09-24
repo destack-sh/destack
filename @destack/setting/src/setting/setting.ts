@@ -1,6 +1,7 @@
-import { PackageId } from "@destack/package";
+import { PackageId, type Package } from "@destack/package";
+import { reference } from "@destack/package/declare";
 import { defineSchema, schema } from "@destack/schema";
-import type { SettingDeclaration } from "../declare/setting.ts";
+import type { SettingDefinition } from "../declare/setting.ts";
 import type { SettingContext } from "./context.ts";
 import type { SettingResolution } from "./resolution.ts";
 import type { SettingTarget } from "./target.ts";
@@ -25,15 +26,22 @@ export type SettingReference = schema.Infer<typeof SettingReference>;
 
 /** A typed setting declaration with invocation-scoped access. */
 export class Setting<Value extends schema.Schema = schema.Schema> {
+    /** The declaring package, supplied by the module transform. */
+    readonly package: Package;
+    /** The package-local setting name. */
+    readonly name: string;
     /** The schema, default and supported application scopes. */
-    readonly declaration: SettingDeclaration<Value>;
+    readonly definition: SettingDefinition<Value>;
     /** The stable identity used by assignments and policies. */
     readonly reference: SettingReference;
 
     /** Retain a checked declaration without loading assignments. */
-    constructor(declaration: SettingDeclaration<Value>) {
-        this.declaration = declaration;
-        this.reference = { packageId: declaration.package.id, name: declaration.name };
+    constructor(owner: Package, definition: SettingDefinition<Value>) {
+        // retain the declaring package, name and definition
+        this.package = owner;
+        this.name = definition.name;
+        this.definition = definition;
+        this.reference = reference(this);
     }
 
     /** Read the effective value for the host-selected context. */
@@ -53,7 +61,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
     /** Require an assignment to use the declared scope and supported refinements. */
     assertTarget(target: SettingTarget): void {
         // require the declaration's base scope before considering refinements
-        if (target.kind !== this.declaration.scope) {
+        if (target.kind !== this.definition.scope) {
             throw new SettingError(
                 "INVALID_TARGET",
                 "assignment scope does not match the setting declaration",
@@ -77,7 +85,7 @@ export class Setting<Value extends schema.Schema = schema.Schema> {
         }
 
         // apply the same restrictions to source declarations, writes and retained assignments
-        const overrides: readonly string[] = this.declaration.overrides;
+        const overrides: readonly string[] = this.definition.overrides;
         if (refinements.some((refinement) => !overrides.includes(refinement))) {
             throw new SettingError(
                 "INVALID_TARGET",

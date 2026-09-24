@@ -13,7 +13,7 @@ import { reportSettingError } from "./error.ts";
 
 /** Connect exact-target assignment reads and mutations to authorization and persistence. */
 export function assignmentRouter(store: SettingStore, options: SettingServerOptions) {
-    const implementation = implement(settingService).$context<ServiceContext>();
+    const implementation = implement(settingService.router).$context<ServiceContext>();
 
     return {
         detach: implementation.assignment.detach.handler(async ({ input, context }) => {
@@ -25,6 +25,7 @@ export function assignmentRouter(store: SettingStore, options: SettingServerOpti
                 input.packageId,
                 input.target,
             );
+
             return mutateAssignment(
                 store,
                 setting,
@@ -37,6 +38,7 @@ export function assignmentRouter(store: SettingStore, options: SettingServerOpti
             ).catch(reportSettingError);
         }),
         get: implementation.assignment.get.handler(async ({ input, context }) => {
+            // read the assignment and report whether the caller may edit it
             await options.authorize(context, input.target, "read");
             const assignment = await getAssignment(store.database, input.setting, input.target);
             let edit: "allowed" | "denied" | "source" =

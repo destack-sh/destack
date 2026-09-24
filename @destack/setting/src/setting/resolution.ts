@@ -97,7 +97,7 @@ export function resolveSetting<Value extends schema.Schema>(
     ) {
         throw new SettingError("STALE_POLICY", "setting policy selection has expired");
     }
-    if (snapshot.target.kind !== setting.declaration.scope) {
+    if (snapshot.target.kind !== setting.definition.scope) {
         throw new SettingError(
             "INVALID_TARGET",
             "setting scope does not match the selected target",
@@ -108,8 +108,8 @@ export function resolveSetting<Value extends schema.Schema>(
     const ordinary: Candidate[] = [
         {
             rank: 0,
-            source: { kind: "default", package: setting.declaration.package },
-            value: setting.declaration.default,
+            source: { kind: "default", package: setting.package },
+            value: setting.definition.default,
         },
     ];
     const required: Candidate[] = [];
@@ -152,7 +152,7 @@ export function resolveSetting<Value extends schema.Schema>(
     // require valid values even when another source currently overrides them
     const candidates = [...ordinary, ...required];
     for (const candidate of candidates) {
-        if (!setting.declaration.schema.safeParse(candidate.value).success) {
+        if (!setting.definition.schema.safeParse(candidate.value).success) {
             throw new SettingError(
                 "INVALID_VALUE",
                 "stored value is incompatible with the setting declaration",
@@ -202,7 +202,7 @@ export function resolveSetting<Value extends schema.Schema>(
     return {
         setting: setting.reference,
         target: snapshot.target,
-        value: setting.declaration.schema.parse(winner.value),
+        value: setting.definition.schema.parse(winner.value),
         sources,
         overridden,
         enforcement: required.length ? "required" : "ordinary",

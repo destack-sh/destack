@@ -10,27 +10,31 @@ export const notes = Package.parse({
 });
 
 /** A personal editor choice with every supported contextual refinement. */
-export const editor = defineSetting({
-    package: notes,
-    name: "editor.mode",
-    title: "Editor mode",
-    description: "Keyboard behavior in the note editor.",
-    schema: schema.enum(["standard", "vim"]),
-    default: "standard",
-    scope: "user",
-    overrides: ["space", "installation", "device"],
-    apply: "immediate",
-});
+export const editor = defineSetting(
+    {
+        name: "editor.mode",
+        title: "Editor mode",
+        description: "Keyboard behavior in the note editor.",
+        schema: schema.enum(["standard", "vim"]),
+        default: "standard",
+        scope: "user",
+        overrides: ["space", "installation", "device"],
+        apply: "immediate",
+    },
+    { package: notes },
+);
 
 /** A distinct value type resolved alongside the editor mode. */
-export const lineNumbers = defineSetting({
-    package: notes,
-    name: "editor.lineNumbers",
-    title: "Line numbers",
-    description: "Show line numbers in the editor.",
-    schema: schema.boolean(),
-    default: true,
-    scope: "user",
-    overrides: ["device"],
-    apply: "immediate",
-});
+export const lineNumbers = defineSetting(
+    {
+        name: "editor.lineNumbers",
+        title: "Line numbers",
+        description: "Show line numbers in the editor.",
+        schema: schema.boolean(),
+        default: true,
+        scope: "user",
+        overrides: ["device"],
+        apply: "immediate",
+    },
+    { package: notes },
+);

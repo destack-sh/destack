@@ -14,10 +14,11 @@ import { reportSettingError } from "./error.ts";
 
 /** Connect administrative policy operations to the shared transactional store. */
 export function policyRouter(store: SettingStore, options: SettingServerOptions) {
-    const implementation = implement(settingService.policy).$context<ServiceContext>();
+    const implementation = implement(settingService.router.policy).$context<ServiceContext>();
 
     return {
         get: implementation.get.handler(async ({ input, context }) => {
+            // authorize and read the policy
             await options.authorizePolicy(context, input.authority, "read");
             const policy = await getPolicy(store.database, input.authority, input.id);
             if (!policy) {
@@ -32,6 +33,7 @@ export function policyRouter(store: SettingStore, options: SettingServerOptions)
             return listPolicy(store.database, input.authority, input);
         }),
         set: implementation.set.handler(async ({ input, context }) => {
+            // authorize and validate the value against its declaration
             await options.authorizePolicy(context, input.authority, "write");
             const declarations = await options.declarations(
                 context,
@@ -46,7 +48,7 @@ export function policyRouter(store: SettingStore, options: SettingServerOptions)
             if (!setting) {
                 throw new ServiceError("NOT_FOUND");
             }
-            if (!setting.declaration.schema.safeParse(input.value).success) {
+            if (!setting.definition.schema.safeParse(input.value).success) {
                 throw new ServiceError("BAD_REQUEST", {
                     message: "policy value does not match its setting declaration",
                 });
