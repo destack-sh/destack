@@ -53,7 +53,7 @@ impl TestProgram {
         {
             panic!("failed to parse MIR: {:?}", parsed.diagnostics);
         }
-        let (tree, target, layouts, dispatch, drops, accesses, effects, profile, strings, _) =
+        let (tree, target, layouts, dispatch, drops, effects, profile, strings, _) =
             parsed.into_parts();
 
         Self {
@@ -64,7 +64,6 @@ impl TestProgram {
                 dispatch,
                 drops,
                 witnesses: mir::WitnessTable::default(),
-                accesses,
                 effects,
                 profile,
                 initializer: None,
@@ -157,12 +156,15 @@ impl TestProgram {
     pub(crate) fn type_by_name(&self, name: &str) -> mir::TypeId {
         self.lowered
             .tree
-            .iter_nodes::<mir::Type>()
+            .types()
             .find_map(|(id, _)| {
                 let declaration = self.lowered.tree.type_declaration(id)?;
                 let declaration = self.lowered.tree.get(declaration);
 
-                (self.strings.get(declaration.name) == name).then_some(id)
+                (declaration
+                    .name
+                    .is_some_and(|id| self.strings.get(id) == name))
+                .then_some(id)
             })
             .unwrap_or_else(|| panic!("missing MIR type {name}"))
     }
@@ -231,7 +233,6 @@ impl TestProgram {
             layouts,
             dispatch: self.lowered.dispatch.clone(),
             drops: self.lowered.drops.clone(),
-            accesses: self.lowered.accesses.clone(),
             effects: self.lowered.effects.clone(),
             profile: self.lowered.profile.clone(),
         }

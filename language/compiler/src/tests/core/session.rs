@@ -1,7 +1,8 @@
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex, OnceLock};
-use std::{env, thread};
+use std::time::Instant;
+use std::{env, fs, thread};
 
 use destack_artifact::{
     Artifact, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion,
@@ -18,7 +19,7 @@ use destack_repository::{
     TraceView,
 };
 use destack_session::{ArtifactPriority, Executor, Session, SessionError};
-use destack_source::{MemoryFileSystem, ModuleId, ProfileId, TargetId};
+use destack_source::{MemoryFileSystem, ModuleId, PackageId, ProfileId, TargetId};
 use futures::executor::block_on;
 
 use crate::Compiler;
@@ -585,43 +586,12 @@ impl TestSession {
         }
     }
 
-    /// Return the tree and layouts one MIR stage holds, the lowered stage lending its target.
-    #[track_caller]
-    fn require_mir_stage(
-        &self,
-        key: ArtifactKey,
-    ) -> (destack_mir::Tree, destack_mir::LayoutTable, Arc<MirLowered>) {
-        let (module, profile, target) = match key {
-            ArtifactKey::MirLowered {
-                module,
-                profile,
-                target,
-            }
-            | ArtifactKey::MirElaborated {
-                module,
-                profile,
-                target,
-            } => (module, profile, target),
-            other => panic!("test MIR snapshot over a non-MIR key {other:?}"),
-        };
-        let lowered = self.require_mir_lowered(ArtifactKey::mir_lowered(module, profile, target));
-        match key {
-            ArtifactKey::MirElaborated { .. } => {
-                let elaborated = self.require_mir::<MirElaborated>(key);
-                (elaborated.tree.clone(), elaborated.layouts.clone(), lowered)
-            }
-            _ => (
-                destack_mir::Tree::clone(&lowered.tree),
-                lowered.layouts.clone(),
-                lowered,
-            ),
-        }
-    }
-
     /// Append rendered row blocks under formatted MIR, each separated by one empty line.
-    fn join_mir_rows<'a>(formatted: String, rows: impl IntoIterator<Item = &'a String>) -> String {
+    fn join_mir_rows<'a>(
+        mut formatted: String,
+        rows: impl IntoIterator<Item = &'a String>,
+    ) -> String {
         // append each block after one empty line
-        let mut formatted = formatted;
         for rows in rows {
             if !rows.is_empty() {
                 if !formatted.ends_with('\n') {
@@ -638,30 +608,60 @@ impl TestSession {
     /// Render one MIR artifact as formatted MIR.
     #[track_caller]
     pub(crate) fn render_mir_snapshot(&self, key: ArtifactKey) -> String {
-        // load the stage's tree with the lowered artifact it formats against
-        let (tree, layouts, lowered) = self.require_mir_stage(key);
+        let (module, profile, target) = match key {
+            ArtifactKey::MirLowered {
+                module,
+                profile,
+                target,
+            }
+            | ArtifactKey::MirElaborated {
+                module,
+                profile,
+                target,
+            } => (module, profile, target),
+            other => panic!("test MIR snapshot over a non-MIR key {other:?}"),
+        };
+        let lowered = self.require_mir_lowered(ArtifactKey::mir_lowered(module, profile, target));
+
+        // read every table from the requested stage
+        match key {
+            ArtifactKey::MirElaborated { .. } => {
+                let elaborated = self.require_mir::<MirElaborated>(key);
+                self.render_mir_tree(
+                    &elaborated.tree,
+                    lowered.target,
+                    &elaborated.layouts,
+                    &elaborated.dispatch,
+                )
+            }
+            _ => self.render_mir_tree(
+                &lowered.tree,
+                lowered.target,
+                &lowered.layouts,
+                &lowered.dispatch,
+            ),
+        }
+    }
+
+    /// Render a MIR tree with its layouts and dispatch tables.
+    fn render_mir_tree(
+        &self,
+        tree: &destack_mir::Tree,
+        target: destack_mir::TargetLayout,
+        layouts: &destack_mir::LayoutTable,
+        dispatch: &destack_mir::DispatchTable,
+    ) -> String {
         let strings = self.repository.string_pool();
 
         // format the MIR tree
-        let formatted = Formatter::new(
-            &tree,
-            lowered.target,
-            strings.as_ref(),
-            FormatOptions::default(),
-        )
-        .format()
-        .expect("test MIR should format");
+        let formatted = Formatter::new(tree, target, strings.as_ref(), FormatOptions::default())
+            .format()
+            .expect("test MIR should format");
 
         // append the aggregate layouts under their declared names
-        let layouts = Self::render_mir_layouts(
-            &tree,
-            lowered.target,
-            &layouts,
-            strings.as_ref(),
-            None,
-            |_| true,
-        );
-        let dispatch = Self::render_mir_dispatch(&lowered.dispatch, strings.as_ref());
+        let layouts =
+            Self::render_mir_layouts(tree, target, layouts, strings.as_ref(), None, |_| true);
+        let dispatch = Self::render_mir_dispatch(dispatch, strings.as_ref());
 
         Self::join_mir_rows(formatted, [&layouts, &dispatch])
     }
@@ -738,12 +738,15 @@ impl TestSession {
         let mut named_types = BTreeSet::new();
         let mut owners = Vec::new();
         for (_, declaration) in tree.iter_nodes::<destack_mir::TypeDeclaration>() {
-            named_types.insert(declaration.ty);
-            if !keeps(declaration.ty) {
+            let ty = tree
+                .identified_type(declaration.symbol)
+                .expect("declaration has a type");
+            named_types.insert(ty);
+            if !keeps(ty) {
                 continue;
             }
-            let name = format(declaration.ty).expect("test MIR type should format");
-            owners.push((declaration.ty, name));
+            let name = format(ty).expect("test MIR type should format");
+            owners.push((ty, name));
         }
 
         // follow named layouts with applications and anonymous types in node order
@@ -752,13 +755,13 @@ impl TestSession {
             .map(|(ty, _)| ty)
             .filter(|ty| !named_types.contains(ty) && keeps(*ty))
             .collect();
-        anonymous.sort_by_key(|ty| ty.id);
+        anonymous.sort_by_key(|ty| ty.0);
         owners.extend(anonymous.into_iter().map(|ty| {
             let name = match tree.get(ty) {
                 destack_mir::Type::Application { .. } => {
                     format(ty).expect("test MIR type should format")
                 }
-                _ => format!("type@{}", ty.id),
+                _ => format!("type@{}", ty.0),
             };
 
             (ty, name)
@@ -773,7 +776,10 @@ impl TestSession {
             let (size, alignment) = (layout.size, layout.alignment);
 
             // render an application through the definition it represents
-            match (&layout.shape, tree.get(tree.represented(ty))) {
+            match (
+                &layout.shape,
+                tree.get(destack_mir::Substitution::resolve(ty, tree)),
+            ) {
                 // render one struct row followed by its fields
                 (destack_mir::LayoutShape::Struct(shape), destack_mir::Type::Struct { .. }) => {
                     rows.push_str(&format!(
@@ -865,6 +871,10 @@ impl TestSession {
         expected_dir: &str,
         expected_diagnostics: &str,
     ) {
+        assert!(
+            !expected_diagnostics.is_empty(),
+            "an empty expectation is written as the blessable placeholder r#\"\\n\"#"
+        );
         let dir = self.render_dir_snapshots(&[path], rows, DirStage::Checked);
         let keys = [self.dir_declared_key(path), self.dir_checked_key(path)];
         let diagnostics = self.diagnostic_snapshot_for(&keys);
@@ -883,6 +893,10 @@ impl TestSession {
         expected_dir: &str,
         expected_diagnostics: &str,
     ) {
+        assert!(
+            !expected_diagnostics.is_empty(),
+            "an empty expectation is written as the blessable placeholder r#\"\\n\"#"
+        );
         let dir = self.render_dir_snapshots(&[path], rows, DirStage::Stage);
         let diagnostics = self.diagnostic_snapshot(self.dir_resolved_key(path));
         self.print_trace_if_requested(path);
@@ -918,6 +932,10 @@ impl TestSession {
     /// Assert diagnostics for one artifact key.
     #[track_caller]
     pub(crate) fn assert_diagnostics(&self, key: ArtifactKey, expected: &str) {
+        assert!(
+            !expected.is_empty(),
+            "an empty expectation is written as the blessable placeholder r#\"\\n\"#"
+        );
         self.print_trace_if_requested("diagnostics");
 
         // require the selected artifact to complete or report its own diagnostics
@@ -1365,6 +1383,7 @@ impl TestSession {
                 true => Some(reader.read::<DirMaterialized>(key).unwrap_or_else(read)),
                 false => None,
             },
+            None,
         )
     }
 
@@ -1431,7 +1450,7 @@ impl TestSession {
 
             return self.artifact_version(key);
         };
-        let started = std::time::Instant::now();
+        let started = Instant::now();
         let result = self
             .provide(&[key])
             .and_then(|_| self.artifact_version(key));
@@ -1561,8 +1580,7 @@ impl TestSession {
             return;
         };
 
-        static AGGREGATE: OnceLock<std::sync::Mutex<(TraceAggregate, Option<Arc<Trace>>)>> =
-            OnceLock::new();
+        static AGGREGATE: OnceLock<Mutex<(TraceAggregate, Option<Arc<Trace>>)>> = OnceLock::new();
         let aggregate = AGGREGATE.get_or_init(Default::default);
         let mut aggregate = aggregate.lock().expect("profile aggregate should lock");
         let (aggregate, merged) = &mut *aggregate;
@@ -1574,7 +1592,7 @@ impl TestSession {
         aggregate.merge(trace);
         *merged = Some(trace.clone());
         if aggregate.runs() % 64 == 0 {
-            std::fs::write(&path, aggregate.render()).expect("profile table should write");
+            fs::write(&path, aggregate.render()).expect("profile table should write");
         }
     }
 
@@ -1761,9 +1779,9 @@ impl TestSession {
         modules.into_iter().collect()
     }
 
-    /// Read the module graph for one profile.
-    pub(crate) fn module_graph(&self, profile: ProfileId) -> Arc<ModuleGraph> {
-        let version = self.require_artifact(ArtifactKey::module_graph(profile));
+    /// Read the module graph of one package under one profile.
+    pub(crate) fn module_graph(&self, package: PackageId, profile: ProfileId) -> Arc<ModuleGraph> {
+        let version = self.require_artifact(ArtifactKey::module_graph(package, profile));
         self.artifact(version)
     }
 
@@ -1790,7 +1808,7 @@ impl TestSession {
             .iter()
             .map(|(path, module)| (*module, *path))
             .collect::<BTreeMap<_, _>>();
-        let graph = self.module_graph(profile);
+        let graph = self.module_graph(self.module_entry(first).module.id.package_id, profile);
 
         // render exact selected edge rows
         let mut snapshot = String::new();
@@ -1900,14 +1918,8 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, RevisionPin) {
         let session = Session::new(repository.clone(), test_executor())
             .expect("library warmup session should start");
 
-        // resolve the builtin library's own profile and the workspace
-        //  profile fixture modules check under
+        // resolve the workspace profile the fixture modules check under
         let package = repository.embedded_builtin();
-        let target = TargetId::new(package.package_id(), "default");
-        let library_profile = repository
-            .profile_for_target(revision, target)
-            .expect("builtin library target profile should resolve")
-            .id();
         let anchor = repository
             .module_id_for_path(revision, WARM_ANCHOR_PATH.as_ref())
             .expect("warmup anchor module should resolve")
@@ -1922,16 +1934,10 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, RevisionPin) {
             .expect("workspace target profile should resolve")
             .id();
 
-        // materialize every builtin module under both profiles once so test
-        //  forks inherit warm bindings and instances for whichever world they build
+        // materialize every builtin module under the workspace profile the test forks build in
         let keys = package
             .module_ids()
-            .flat_map(|module| {
-                [
-                    ArtifactKey::dir_materialized(module, library_profile),
-                    ArtifactKey::dir_materialized(module, workspace_profile),
-                ]
-            })
+            .map(|module| ArtifactKey::dir_materialized(module, workspace_profile))
             .collect::<Vec<_>>();
         let run = session.provide(revision, &keys, ArtifactPriority::Foreground);
         block_on(run.wait()).expect("library warmup should check");
@@ -2025,8 +2031,8 @@ fn test_executor() -> Arc<Executor> {
 }
 
 /// Return one rendered MIR type reference.
-fn mir_type_name(ty: destack_mir::LocalNodeId<destack_mir::Type>) -> String {
-    format!("type@{}", ty.id)
+fn mir_type_name(ty: destack_mir::TypeId) -> String {
+    format!("type@{}", ty.0)
 }
 
 /// Return the blob store shared by every test session in this process.

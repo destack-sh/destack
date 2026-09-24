@@ -38,10 +38,7 @@ pub(crate) fn library_report(
         // keep the rendered diagnostics, or the trailing error text when none render
         let rendered = session.render_terminal_diagnostics_for(&[key]);
         let rendered = strip_terminal_styles(&rendered);
-        let mut lines = rendered
-            .lines()
-            .filter(|line| line.contains("error["))
-            .peekable();
+        let mut lines = error_rows(&rendered).into_iter().peekable();
         if lines.peek().is_none() {
             let message = error.to_string();
             let message = match message.rsplit_once("}: ") {
@@ -53,12 +50,11 @@ pub(crate) fn library_report(
         }
         let mut reported = Vec::new();
         for line in lines {
-            let line = line.trim();
-            if reported.iter().any(|known: &String| known == line) {
+            if reported.contains(&line) {
                 continue;
             }
 
-            reported.push(line.to_string());
+            reported.push(line.clone());
             report.push_str(&format!("FAIL {} :: {line}\n", file.path));
         }
     }
@@ -80,4 +76,25 @@ fn strip_terminal_styles(rendered: &str) -> String {
     }
 
     stripped
+}
+
+/// Return each rendered error header joined with the location line that follows it.
+fn error_rows(rendered: &str) -> Vec<String> {
+    let lines: Vec<&str> = rendered.lines().collect();
+    let mut rows = Vec::new();
+
+    // append the source location the renderer prints beneath each header
+    for (index, line) in lines.iter().enumerate() {
+        if !line.contains("error[") {
+            continue;
+        }
+        let location = lines
+            .get(index + 1)
+            .and_then(|next| next.trim().strip_prefix("──▶ "))
+            .map(|location| format!(" @ {location}"))
+            .unwrap_or_default();
+        rows.push(format!("{}{location}", line.trim()));
+    }
+
+    rows
 }
