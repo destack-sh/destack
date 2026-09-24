@@ -5,7 +5,7 @@ import { validate } from "../validate/schema.ts";
 export type JsonSchema = z.core.JSONSchema.JSONSchema;
 
 /** Check the supported declaration and retain native validation and inference. */
-export function defineSchema<T extends z.ZodType>(schema: T): T {
+export function defineSchema<Schema extends z.ZodType>(schema: Schema): Schema {
     validate(schema, new Map(), false);
 
     return schema;
@@ -13,6 +13,7 @@ export function defineSchema<T extends z.ZodType>(schema: T): T {
 
 /**
  * Describe a schema using JSON Schema Draft 2020-12.
+ *
  * Use the declared validator for execution; descriptions can omit format-specific checks.
  */
 export function toJsonSchema(schema: z.ZodType): JsonSchema {

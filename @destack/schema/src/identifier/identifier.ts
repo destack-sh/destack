@@ -14,6 +14,7 @@ export function identifier<const Prefix extends string>(
     }
     const pattern = new RegExp(`^${prefix}-${UUID_V7}$(?![\\s\\S])`);
 
+    // brand and register the validator
     const validator = z.string().regex(pattern).brand<Prefix>();
     defineSchema(validator);
 

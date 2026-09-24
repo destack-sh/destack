@@ -13,6 +13,7 @@ export function validate(
     visited: Map<$ZodType, Set<boolean>>,
     isProperty: boolean,
 ): void {
+    // read the zod definition
     const definition = (schema as $ZodTypes)._zod.def;
 
     // permit missing values only in object properties

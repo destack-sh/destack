@@ -1,9 +1,4 @@
 {
     "extends": "../../tsconfig.json",
-    "files": [
-        "src/index.ts",
-        "src/validate/index.ts",
-        "src/inspect/index.ts",
-        "src/identifier/index.ts"
-    ]
+    "include": ["src"]
 }
