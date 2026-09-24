@@ -1,25 +1,14 @@
 import type { ESTree, Rule } from "@oxlint/plugins";
+import { DECLARATION_CONSTRUCTORS } from "@destack/package/declare";
 import { isPackageFile } from "./package.ts";
 import { isTestFile } from "./word.ts";
 
 /** Constructors whose results build inspection collects from package exports. */
-const CONSTRUCTORS = new Set([
-    "defineAccount",
-    "defineAuditAction",
-    "defineBucket",
-    "defineDatabase",
-    "defineDatabaseSchema",
-    "defineObject",
-    "defineSchedule",
-    "defineSecret",
-    "defineService",
-    "defineServiceConnection",
-    "defineSetting",
-    "defineSettingAssignment",
-    "defineSettingPolicy",
-    "defineSpace",
-    "defineVault",
-]);
+const CONSTRUCTORS = new Set(
+    Object.entries(DECLARATION_CONSTRUCTORS)
+        .filter(([, constructor]) => "kind" in constructor)
+        .map(([name]) => name),
+);
 
 /** Require declarations to be exported module constants that inspection can find. */
 export const validDeclaration: Rule = {
