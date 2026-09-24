@@ -17,11 +17,12 @@
         "publish:live": "npm publish --access public"
     },
     "dependencies": {
+        "@destack/package": "workspace:*",
         "@destack/schema": "workspace:*",
-        "vite": "8.3.0",
-        "vitest": "5.0.1",
         "@vitest/coverage-v8": "5.0.1",
-        "@vitest/ui": "5.0.1"
+        "@vitest/ui": "5.0.1",
+        "vite": "8.3.0",
+        "vitest": "5.0.1"
     },
     "engines": {
         "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
