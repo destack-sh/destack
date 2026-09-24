@@ -10,9 +10,37 @@ use destack_source::{ModuleId, TargetId};
 
 use crate::lower::{
     DeclaredModule, DirModule, FunctionDeclaration, FunctionDefinition, FunctionLowerer,
-    GenericInstanceKey, GenericScope, Implementer, LowerPhase, NominalInstance, NominalState,
+    GenericInstanceKey, GenericScope, LowerPhase, NominalInstance, NominalState, Unbound,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
+
+/// The function one witness selects and the arguments it applies, none at its open indices.
+pub(in crate::lower) struct WitnessEntry {
+    /// The closed instance, or the template when an argument stays open.
+    pub(in crate::lower) function: mir::FunctionId,
+    /// The template's arguments with one hole per open argument, empty for a closed instance.
+    pub(in crate::lower) arguments: Vec<Option<mir::GenericArgument>>,
+}
+
+impl WitnessEntry {
+    /// Fill each hole from the domain its template generic ranges over.
+    pub(in crate::lower) fn fill(
+        &self,
+        tree: &mir::Tree,
+        mut fill: impl FnMut(&mir::GenericParameterDomain) -> Option<mir::GenericArgument>,
+    ) -> Option<Vec<mir::GenericArgument>> {
+        let generics = &tree.get(self.function).generics;
+        let mut arguments = Vec::with_capacity(self.arguments.len());
+        for (index, argument) in self.arguments.iter().enumerate() {
+            arguments.push(match argument {
+                Some(argument) => argument.clone(),
+                None => fill(&generics.get(index)?.domain)?,
+            });
+        }
+
+        Some(arguments)
+    }
+}
 
 /// One outcome the bodies read by key: the lowered value, or the first failure's diagnostic.
 pub(in crate::lower) type Memo<K, T> = FxIndexMap<K, Result<T, Arc<dyn DiagnosticLike>>>;
@@ -59,9 +87,6 @@ pub(crate) struct ModuleLowerer<'a> {
     pub(in crate::lower) modules: FxIndexMap<ModuleId, DirModule>,
     /// The declared MIR of every module read for its declarations.
     pub(in crate::lower) declared: FxIndexMap<ModuleId, DeclaredModule>,
-    /// The opaque declaration of each interface's associated type, by interface and member.
-    pub(in crate::lower) associated_types:
-        FxIndexMap<(dir::GlobalSymbolId, StringId), mir::LocalNodeId<mir::Type>>,
     /// The witnesses this module records, keyed by the lowered, lifetime-erased type answering.
     pub(in crate::lower) lowered_witnesses:
         FxIndexMap<mir::TypeId, Vec<(dir::GlobalTypeId, dir::Witness)>>,
@@ -72,9 +97,9 @@ pub(crate) struct ModuleLowerer<'a> {
 
     // memos
     /// The MIR representation behind each type the bodies read.
-    pub(in crate::lower) representations: Memo<dir::GlobalTypeId, mir::LocalNodeId<mir::Type>>,
+    pub(in crate::lower) representations: Memo<dir::GlobalTypeId, mir::TypeId>,
     /// The dispatch shape behind each constraint the bodies read.
-    pub(in crate::lower) constraints: Memo<dir::GlobalTypeId, mir::LocalNodeId<mir::Type>>,
+    pub(in crate::lower) constraints: Memo<dir::GlobalTypeId, mir::TypeId>,
     /// The nominal instance behind each application type the bodies read.
     pub(in crate::lower) stored_nominals: Memo<dir::GlobalTypeId, NominalInstance>,
     /// The state of each nominal representation being lowered or already lowered.
@@ -82,10 +107,9 @@ pub(crate) struct ModuleLowerer<'a> {
     /// The global declared for each module constant.
     pub(in crate::lower) globals: Memo<dir::GlobalSymbolId, mir::LocalNodeId<mir::Global>>,
     /// The constant String object and value type per collected literal content.
-    pub(in crate::lower) string_literals:
-        Memo<StringId, (mir::GlobalId, mir::LocalNodeId<mir::Type>)>,
+    pub(in crate::lower) string_literals: Memo<StringId, (mir::GlobalId, mir::TypeId)>,
     /// The constant BigInt object and value type per collected literal value.
-    pub(in crate::lower) bigint_literals: Memo<i64, (mir::GlobalId, mir::LocalNodeId<mir::Type>)>,
+    pub(in crate::lower) bigint_literals: Memo<i64, (mir::GlobalId, mir::TypeId)>,
 
     // outputs
     /// The declaration outcome for each callable instance key.
@@ -95,13 +119,9 @@ pub(crate) struct ModuleLowerer<'a> {
     /// The steps the module initializer runs, in source order.
     pub(in crate::lower) initializers: Vec<ModuleInitializer>,
     /// The dispatch shape registered for each lowered constraint.
-    pub(in crate::lower) dynamic_shapes: FxIndexMap<mir::LocalNodeId<mir::Type>, mir::DynamicShape>,
-    /// The implementer registered for each erased concrete type and constraint.
-    pub(in crate::lower) implementers:
-        FxIndexMap<(mir::LocalNodeId<mir::Type>, mir::LocalNodeId<mir::Type>), Implementer>,
+    pub(in crate::lower) dynamic_shapes: FxIndexMap<mir::TypeId, mir::DynamicShape>,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl<'a> ModuleLowerer<'a> {
     /// Create the lowering state over one materialized module.
     pub(crate) fn new(
@@ -134,7 +154,6 @@ impl<'a> ModuleLowerer<'a> {
             environment,
             modules: FxIndexMap::default(),
             declared: FxIndexMap::default(),
-            associated_types: FxIndexMap::default(),
             lowered_witnesses: FxIndexMap::default(),
 
             // queues
@@ -152,11 +171,10 @@ impl<'a> ModuleLowerer<'a> {
             constructors: FxIndexMap::default(),
             initializers: Vec::new(),
             dynamic_shapes: FxIndexMap::default(),
-            implementers: FxIndexMap::default(),
         }
     }
 
-    /// Return the values sema bound one application's dependent parameters to, in template order.
+    /// Return the values one application binds its dependent parameters to, in template order.
     pub(in crate::lower) fn dependent_arguments(
         &mut self,
         ty: dir::GlobalTypeId,
@@ -167,14 +185,14 @@ impl<'a> ModuleLowerer<'a> {
             return Ok(Vec::new());
         }
 
-        // read the values sema bound, the template's own application closing at its dependents
+        // read the bound values, the template's own application closing at its dependents
         let state = self.state(ty.module_id)?;
         match state.generics.application_instance(ty) {
             Some(instance) => Ok(state.generics.get_instance(instance).key.dependents.clone()),
             None if self.is_identity_application(ty, symbol)? => Ok(dependents),
             None => Err(CompilerError::Internal {
                 message: format!(
-                    "an application {:?} of '{}' without the instance sema records for it",
+                    "application {:?} of '{}' has no instance",
                     self.ty(ty)?,
                     self.symbol_path(symbol)?
                 ),
@@ -312,23 +330,21 @@ impl<'a> ModuleLowerer<'a> {
         })
     }
 
-    /// Return whether one nominal type's declaration derives Copy, its instances copying when
-    /// their stored values do.
+    /// Return whether one nominal type's declaration derives Copy.
     pub(in crate::lower) fn nominal_copies(
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        let symbol = match self.ty(ty)? {
-            dir::Type::Application(application) => application.symbol,
-            dir::Type::Reference(reference) => reference.symbol,
-            _ => return Ok(false),
+        let Some(symbol) = self.nominal_symbol(ty)? else {
+            return Ok(false);
         };
 
-        Ok(self
-            .state(symbol.module_id)?
+        self.state(symbol.module_id)?
             .representations
             .derives_copy(symbol)
-            .unwrap_or(false))
+            .ok_or_else(|| CompilerError::Internal {
+                message: format!("a nominal declaration {symbol:?} without a copy derivation"),
+            })
     }
 
     /// Return the space one nominal declaration's instances live in.
@@ -378,19 +394,50 @@ impl<'a> ModuleLowerer<'a> {
             entries.push((ty, hook));
         }
 
-        // declare each hook and register it beside the storage of its type
+        // declare each hook once and register it beside the storage of its type
         for (ty, hook) in entries {
-            let storage = self
+            let nominal = self
                 .type_lowerer(builder.tree_mut(), &GenericScope::default().erased())
-                .lower_nominal(ty)?
-                .storage;
-            let function = match self.witness_function(builder.tree_mut(), &hook) {
-                Ok(function) => function,
+                .lower_nominal(ty)?;
+            let storage = nominal.storage;
+            let entry = match self.witness_function(builder.tree_mut(), &hook) {
+                Ok(entry) => entry,
                 Err(CompilerError::Diagnostic(diagnostic)) => {
                     errors.push(diagnostic);
                     continue;
                 }
                 Err(error) => return Err(error),
+            };
+            let function = if entry.arguments.is_empty() {
+                entry.function
+            } else {
+                // borrow the dropped object for as long as it lives
+                let arguments = entry.fill(builder.tree(), |domain| match domain {
+                    mir::GenericParameterDomain::Region { .. } => {
+                        Some(mir::GenericArgument::Region(mir::Lifetime::managed()))
+                    }
+                    _ => None,
+                });
+                let Some(arguments) = arguments else {
+                    return Err(CompilerError::Internal {
+                        message: "a drop hook with unbound arguments its storage cannot fill"
+                            .to_string(),
+                    });
+                };
+                let key = GenericInstanceKey {
+                    symbol: hook.symbol,
+                    receiver: None,
+                    arguments: arguments.clone(),
+                };
+                let chain = self.symbol_scope(hook.symbol)?;
+                self.declare_specialization(
+                    builder.tree_mut(),
+                    &key,
+                    hook.symbol,
+                    entry.function,
+                    arguments,
+                    &chain,
+                )?
             };
             builder.drops_mut().set_hook(storage, function);
         }
@@ -398,48 +445,88 @@ impl<'a> ModuleLowerer<'a> {
         Ok(())
     }
 
-    /// Return the function one witness names, an open implementer's template or its instance.
+    /// Declare the function a witness selects, a template leaving its open arguments unbound.
     pub(in crate::lower) fn witness_function(
         &mut self,
         tree: &mut mir::Tree,
         key: &dir::InstanceKey,
-    ) -> CompilerResult<mir::FunctionId> {
-        // an implementer with parameters the witness leaves open answers as its template
+    ) -> CompilerResult<WitnessEntry> {
         let bindings = self.instance_bindings(&key.arguments)?;
+        let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
+        let caller = GenericScope::default().erased();
+        let instance_key = self.type_lowerer(tree, &caller).generic_instance_key(
+            key.symbol,
+            key.receiver,
+            &arguments,
+        )?;
+
+        // declare a closed callable as the function itself
         let chain = self.symbol_scope(key.symbol)?;
-        let bound = bindings.len() + usize::from(key.receiver.is_some());
-        if bound == 0 || bound < chain.count() as usize {
-            return self.template_function(tree, key.symbol);
+        if chain.count() == 0 {
+            let function = self
+                .declare_instance(
+                    tree,
+                    &instance_key,
+                    key.symbol,
+                    key.receiver,
+                    &bindings,
+                    &key.dependents,
+                    &caller,
+                )?
+                .function()?;
+
+            return Ok(WitnessEntry {
+                function,
+                arguments: Vec::new(),
+            });
         }
 
-        // declare the closed implementer instance
-        let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
-        let instance_key = self
-            .type_lowerer(tree, &GenericScope::default().erased())
-            .generic_instance_key(key.symbol, key.receiver, &arguments)?;
-
-        self.declare_instance(
+        // keep the template with its open arguments unbound, else declare the closed instance
+        let template = self.template_function(tree, key.symbol, key.receiver)?;
+        let (lowered, _) = self.instance_arguments(
             tree,
-            &instance_key,
+            template,
             key.symbol,
             key.receiver,
             &bindings,
-            &GenericScope::default().erased(),
-        )?
-        .function()
+            &key.dependents,
+            &chain,
+            &caller,
+            Unbound::ImplementerParameters,
+        )?;
+        if lowered.iter().any(Option::is_none) {
+            return Ok(WitnessEntry {
+                function: template,
+                arguments: lowered,
+            });
+        }
+        let arguments = lowered.into_iter().flatten().collect();
+        let function = self.declare_specialization(
+            tree,
+            &instance_key,
+            key.symbol,
+            template,
+            arguments,
+            &chain,
+        )?;
+
+        Ok(WitnessEntry {
+            function,
+            arguments: Vec::new(),
+        })
     }
 
     /// Return the dispatch shape one constraint registered.
     pub(in crate::lower) fn dynamic_shape(
         &self,
         tree: &mir::Tree,
-        constraint: mir::LocalNodeId<mir::Type>,
+        constraint: mir::TypeId,
     ) -> Option<(&mir::DynamicShape, Vec<mir::GenericArgument>)> {
         let (base, arguments) = match tree.get(constraint) {
             mir::Type::Application {
                 base, arguments, ..
             } if !arguments.is_empty() => (*base, arguments.clone()),
-            _ => (mir::TypeId::from(constraint), Vec::new()),
+            _ => (constraint, Vec::new()),
         };
 
         self.dynamic_shapes
@@ -459,11 +546,11 @@ impl<'a> ModuleLowerer<'a> {
         let mut table = mir::WitnessTable::default();
         for (ty, interface, witness) in entries {
             // key the witness by the erased concrete type and the interface's constraint type
-            let concrete = self.type_lowerer(tree, &caller).lower(ty)?;
-            let concrete = mir::erase_regions(tree, concrete);
-            if mir::TypeId::from(concrete).mentions_parameter(tree) {
+            if self.is_open_argument(ty)? {
                 continue;
             }
+            let concrete = self.type_lowerer(tree, &caller).lower(ty)?;
+            let concrete = mir::erase_lifetimes(tree, concrete);
             self.lowered_witnesses
                 .entry(concrete)
                 .or_default()
@@ -476,11 +563,18 @@ impl<'a> ModuleLowerer<'a> {
             // declare the implementer behind each requirement
             let mut functions = Vec::with_capacity(witness.functions.len());
             for function in &witness.functions {
-                let requirement = self.template_function(tree, function.member)?;
-                let function = self.witness_function(tree, &function.function)?;
+                let Some(member) = self.symbol_name(function.member)? else {
+                    return Err(CompilerError::Internal {
+                        message: "a witness member without a name".to_string(),
+                    });
+                };
+                let requirement = self.template_function(tree, function.member, None)?;
+                let entry = self.witness_function(tree, &function.function)?;
                 functions.push(mir::WitnessFunction {
+                    member,
                     requirement,
-                    function,
+                    function: entry.function,
+                    arguments: entry.arguments,
                 });
             }
 
@@ -495,7 +589,7 @@ impl<'a> ModuleLowerer<'a> {
                 let lowered = self.type_lowerer(tree, &caller).lower(witness_type.ty)?;
                 types.push(mir::WitnessType {
                     member,
-                    ty: mir::erase_regions(tree, lowered),
+                    ty: mir::erase_lifetimes(tree, lowered),
                 });
             }
 
@@ -518,16 +612,13 @@ impl<'a> ModuleLowerer<'a> {
                 constants.push(mir::WitnessConst { member, global });
             }
 
-            table.insert(
-                tree,
-                mir::Witness {
-                    concrete,
-                    constraint: mir::TypeId::from(constraint),
-                    functions,
-                    types,
-                    constants,
-                },
-            );
+            table.insert(mir::Witness {
+                concrete,
+                constraint: mir::erase_lifetimes(tree, constraint),
+                functions,
+                types,
+                constants,
+            });
         }
 
         Ok(table)
@@ -568,7 +659,6 @@ impl<'a> ModuleLowerer<'a> {
 
         // record the witnesses this module closes, declaring the implementers they name
         let witnesses = self.lower_witness_table(builder.tree_mut())?;
-        *builder.witnesses_mut() = witnesses;
 
         // lower every declared body
         let mut queue = VecDeque::from(bodies);
@@ -602,30 +692,28 @@ impl<'a> ModuleLowerer<'a> {
             Err(error) => return Err(error),
         }
 
-        // represent every closed application, then compute layouts for every represented type
+        // lay out every represented type, reporting a layout diagnostic beside the lowering errors
         let target = builder.target_layout();
         let (tree, layouts) = builder.tree_and_layouts_mut();
-        let mut layouts = mir::LayoutBuilder::new(tree, layouts, target);
-        layouts
+        let mut layouts = mir::LayoutBuilder::new(tree, layouts, target).witnesses(&witnesses);
+        match layouts
             .layout_reachable_types()
-            .map_err(|error| CompilerError::from((self.module, error)))?;
+            .map_err(|error| CompilerError::from((self.module, error)))
+        {
+            Ok(()) => {}
+            Err(CompilerError::Diagnostic(diagnostic)) => errors.push(diagnostic),
+            Err(error) => return Err(error),
+        }
 
-        // publish dynamic dispatch over the laid-out types
-        self.build_dispatch_tables(&mut builder, &mut errors)?;
+        // store the witness table once the layouts read it
+        *builder.witnesses_mut() = witnesses;
+
+        // publish the dispatch shapes, their tables built over the instance layouts
+        self.publish_dispatch_shapes(&mut builder);
 
         // publish the lowered names into the shared pool
-        let (
-            tree,
-            target,
-            layouts,
-            dispatch,
-            drops,
-            witnesses,
-            accesses,
-            effects,
-            profile,
-            strings,
-        ) = builder.finish();
+        let (tree, target, layouts, dispatch, drops, witnesses, effects, profile, strings) =
+            builder.finish();
         self.strings.ensure_all_from(&strings);
 
         // assemble the lowered module artifact
@@ -636,7 +724,6 @@ impl<'a> ModuleLowerer<'a> {
             dispatch,
             drops,
             witnesses,
-            accesses,
             effects,
             profile,
             initializer,

@@ -10,8 +10,7 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         _symbol: dir::GlobalSymbolId,
         definition: dir::StructDefinition,
-        ty: mir::LocalNodeId<mir::Type>,
-        copy: mir::Copy,
+        declaration: mir::LocalNodeId<mir::TypeDeclaration>,
     ) -> CompilerResult<Vec<NominalField>> {
         // gather the instance fields in declaration order
         let fields = self.lower.instance_fields(&definition.members)?;
@@ -26,17 +25,18 @@ impl TypeLowerer<'_, '_> {
                 dir::StaticKey::Name(name) => Some(name),
                 _ => None,
             };
-            field_nodes.push(self.tree.intern_field(mir::Field { name, ty }, Vec::new()));
+            field_nodes.push(self.tree.intern_field(mir::Field {
+                name,
+                ty,
+                attributes: Vec::new(),
+            }));
         }
 
         // define the struct representation from its field nodes
-        self.tree.define_type(
-            ty,
-            mir::Type::Struct {
-                fields: field_nodes,
-                copy,
-            },
-        );
+        let definition = self.tree.intern_type(mir::Type::Struct {
+            fields: field_nodes,
+        });
+        self.tree.get_mut(declaration).definition = Some(definition);
 
         Ok(fields)
     }

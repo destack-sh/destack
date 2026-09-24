@@ -1,7 +1,6 @@
 use destack_dir as dir;
 use destack_mir as mir;
 
-use crate::lower::module::callable::Receiver;
 use crate::lower::{FunctionDeclaration, GenericInstanceKey, GenericScope, ModuleLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
@@ -11,9 +10,10 @@ impl ModuleLowerer<'_> {
         &mut self,
         tree: &mut mir::Tree,
         symbol: dir::GlobalSymbolId,
+        receiver: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<mir::FunctionId> {
         // declare a foreign template or an own requirement without a body on first reach
-        let key = GenericInstanceKey::non_generic(symbol);
+        let key = self.template_key(tree, symbol, receiver)?;
         if !self.functions.contains_key(&key)
             && let Some(definition) = self.declare_callable(tree, &key, &GenericScope::default())?
         {
@@ -34,29 +34,38 @@ impl ModuleLowerer<'_> {
         }
     }
 
-    /// Return the instance parameters one callable's own signature template declares.
-    pub(in crate::lower) fn own_parameters(
+    /// Return the key one template declares under, a derived member keyed by its receiver.
+    fn template_key(
         &mut self,
+        tree: &mut mir::Tree,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Vec<dir::GlobalGenericParameterId>> {
-        // answer an empty parameter list for a signature outside a template
-        let ty = self.symbol_type(symbol)?;
-        let (signature, module) = self.signature(ty)?;
-        let Some(template) = self.types(module)?.signature(signature).template else {
-            return Ok(Vec::new());
+        receiver: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<GenericInstanceKey> {
+        if !self.is_derived_member(symbol)? {
+            return Ok(GenericInstanceKey::non_generic(symbol));
+        }
+        let Some(receiver) = receiver else {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "a derived member '{}' reached without its receiver",
+                    self.symbol_path(symbol)?
+                ),
+            });
         };
 
-        // keep the template parameters that stand for instances
-        let generics = &self.state(template.module_id)?.generics;
-        let parameters = generics
-            .get_template(template.local_id)
-            .parameters
-            .iter()
-            .filter(|parameter| generics.get_parameter(**parameter).is_instance_parameter())
-            .map(|parameter| parameter.into_global(template.module_id))
-            .collect();
+        self.type_lowerer(tree, &GenericScope::default().erased())
+            .generic_instance_key(symbol, Some(receiver), &[])
+    }
 
-        Ok(parameters)
+    /// Return whether one symbol is a member the compiler derived for one receiver's witness.
+    pub(in crate::lower) fn is_derived_member(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<bool> {
+        Ok(self
+            .state(symbol.module_id)?
+            .derived_functions
+            .contains(&symbol))
     }
 
     /// Return the template parameters one symbol lowers under.
@@ -64,24 +73,53 @@ impl ModuleLowerer<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<GenericScope> {
+        self.nested_symbol_scope(symbol, None)
+    }
+
+    /// Return the template parameters one callable lowers under beneath an enclosing callable.
+    pub(in crate::lower) fn nested_symbol_scope(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        enclosing: Option<&GenericScope>,
+    ) -> CompilerResult<GenericScope> {
         let member = self.imported_member(symbol)?;
         let owner = member.as_ref().map(|member| member.owner);
         let is_static = member.as_ref().is_some_and(|member| member.is_static);
-        let mut scope = self.callable_scope(symbol, owner, is_static)?;
 
-        // a constructor borrows its constructed storage at a slot of its own
-        if matches!(
-            self.callable_header(symbol)?.receiver,
-            Receiver::Constructs(_)
-        ) {
-            scope.push_receiver_slot();
-        }
-
-        Ok(scope)
+        self.callable_scope(symbol, owner, is_static, enclosing)
     }
 
-    /// Return the scope one class's synthesized constructor lowers under: the class's own
-    /// parameters and the slot its constructed storage is borrowed at.
+    /// Return the scope one dispatch slot indexes: the interface's parameters, then the member's.
+    pub(in crate::lower) fn dispatch_slot_scope(
+        &mut self,
+        tree: &mir::Tree,
+        interface: &GenericScope,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<GenericScope> {
+        // index the member's parameters after the interface's, its signature's template first
+        let declared = self.symbol_type(symbol)?;
+        let signature_template = match self.ty(declared)? {
+            dir::Type::FunctionSignature(signature) => {
+                self.types(declared.module_id)?
+                    .signature(signature)
+                    .template
+            }
+            _ => None,
+        };
+        let template = match signature_template {
+            Some(template) => Some(template),
+            None => self
+                .state(symbol.module_id)?
+                .generics
+                .template_by_symbol(symbol)
+                .map(|template| template.into_global(symbol.module_id)),
+        };
+
+        GenericScope::for_signature(self, template, Some(symbol))?
+            .with_parameters_of(interface, self, tree)
+    }
+
+    /// Return the scope one class's synthesized constructor lowers under.
     pub(in crate::lower) fn class_constructor_scope(
         &mut self,
         class: dir::GlobalSymbolId,

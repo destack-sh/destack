@@ -52,6 +52,12 @@ impl ModuleLowerer<'_> {
                 message: "a missing symbol for one associated const".to_string(),
             });
         };
+
+        // skip a memory-kind const, a compile-time term without runtime storage
+        let ty = self.symbol_type(symbol)?;
+        if self.argument_memory_kind(ty)?.is_some() {
+            return Ok(());
+        }
         let Some(term) = self.module_constant(symbol)?.filter(Self::is_constant_term) else {
             return Err(CompilerError::Internal {
                 message: format!(
@@ -306,7 +312,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         tree: &mut mir::Tree,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         // lower the type outside any lifetime parameters
         let scope = GenericScope::default();
 

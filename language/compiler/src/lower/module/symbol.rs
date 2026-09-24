@@ -155,6 +155,14 @@ impl ModuleLowerer<'_> {
             return Ok(symbol);
         }
 
+        // read the symbol a declaration expression declares
+        if let Ok(expression) = node.local_id.try_into_typed::<dir::Expression>()
+            && let dir::Expression::Declaration(declaration) = *state.tree().get(expression)
+            && let Some(symbol) = state.declared_symbol(declaration.into_global_any(node.module_id))
+        {
+            return Ok(symbol.into_global(node.module_id));
+        }
+
         // read the lexical resolution at the node
         let resolution = state.resolutions.name_resolution(node);
 
@@ -222,8 +230,7 @@ impl ModuleLowerer<'_> {
         Ok(written)
     }
 
-    /// Return whether one definition's representation ranges over any parameter, the receiver
-    /// among them.
+    /// Return whether one definition's representation ranges over any parameter.
     pub(in crate::lower) fn definition_is_parameterized(
         &mut self,
         module: destack_source::ModuleId,
@@ -233,7 +240,7 @@ impl ModuleLowerer<'_> {
             return Ok(false);
         };
 
-        // skip induced place parameters
+        // read the parameters declared for the representation
         let generics = &self.state(module)?.generics;
         let template = generics.get_template(template);
         let parameterized = template.parameters.iter().any(|parameter| {

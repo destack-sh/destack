@@ -13,7 +13,7 @@ pub(in crate::lower) enum CallableImplementation {
     },
     /// A runtime binding declaration.
     Binding {
-        /// The checked binding declaration.
+        /// The binding declaration.
         binding: mir::Binding,
     },
 }
@@ -78,12 +78,12 @@ impl ModuleLowerer<'_> {
         Ok(Some(self.strings.get(name).to_string()))
     }
 
-    /// Return the checked backing arguments carried by one decorator.
+    /// Return the backing arguments one decorator writes.
     pub(in crate::lower) fn decorator_arguments(
         &mut self,
         application: &dir::DecoratorApplication,
     ) -> CompilerResult<&[dir::StaticTerm]> {
-        // read the static value the decorator carries
+        // read the static value the decorator holds
         let value = self
             .state(application.value.module_id)?
             .statics

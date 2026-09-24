@@ -3,8 +3,7 @@ use destack_mir as mir;
 
 use crate::lower::{
     Body, BoundReceiver, CallableImplementation, FunctionDeclaration, FunctionDefinition,
-    GenericInstanceKey, GenericScope, ModuleLowerer, constructor_receiver_type,
-    nominal_receiver_storage,
+    GenericInstanceKey, GenericScope, ModuleLowerer,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -15,8 +14,10 @@ pub(in crate::lower) enum Receiver {
     None,
     /// The declared this parameter.
     This(dir::GlobalTypeId),
-    /// An exclusive borrow of the uninitialized storage a constructor of one class fills.
-    Constructs(dir::GlobalSymbolId),
+    /// The receiver parameter of an interface method with an implicit receiver.
+    Erased,
+    /// The declared receiver term of a constructor, borrowing its storage uninitialized.
+    Constructs(dir::GlobalTypeId),
 }
 
 /// One callable as its declaration writes it.
@@ -35,7 +36,6 @@ pub(in crate::lower) struct CallableHeader {
     pub(in crate::lower) body: Option<dir::LocalNodeId<dir::Expression>>,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl ModuleLowerer<'_> {
     /// Read one callable off its declaration.
     pub(in crate::lower) fn callable_header(
@@ -127,28 +127,32 @@ impl ModuleLowerer<'_> {
         let owner = member.as_ref().map(|member| member.owner);
         let role = member.as_ref().and_then(|member| member.role);
         let is_static = is_static || member.as_ref().is_some_and(|member| member.is_static);
-        let receiver = match (is_member && !is_static, role) {
-            (false, _) => Receiver::None,
-            (true, Some(dir::FunctionRole::Constructor)) => {
-                let Some(owner) = owner else {
-                    return Err(CompilerError::Internal {
-                        message: "a constructor without its owner".to_string(),
-                    });
-                };
+        let receiver = if is_member && !is_static {
+            let declared = self.symbol_type(symbol)?;
+            let (signature, module) = self.signature(declared)?;
+            let this = self.types(module)?.signature(signature).this_parameter;
+            let is_interface = match owner {
+                Some(owner) => {
+                    matches!(self.definition(owner)?, Some(dir::Definition::Interface(_)))
+                }
+                None => false,
+            };
 
-                Receiver::Constructs(owner)
-            }
-            (true, _) => {
-                let declared = self.symbol_type(symbol)?;
-                let (signature, module) = self.signature(declared)?;
-                let Some(this) = self.types(module)?.signature(signature).this_parameter else {
+            match (role, this) {
+                (Some(dir::FunctionRole::Constructor), Some(this)) => Receiver::Constructs(this),
+                (_, Some(this)) => Receiver::This(this),
+                (_, None) if is_interface => Receiver::Erased,
+                (_, None) => {
                     return Err(CompilerError::Internal {
-                        message: "an instance method without a receiver".to_string(),
+                        message: format!(
+                            "an instance method '{}' without a receiver",
+                            self.symbol_path(symbol)?
+                        ),
                     });
-                };
-
-                Receiver::This(this)
+                }
             }
+        } else {
+            Receiver::None
         };
 
         Ok(CallableHeader {
@@ -165,33 +169,38 @@ impl ModuleLowerer<'_> {
     pub(in crate::lower) fn lower_receiver(
         &mut self,
         tree: &mut mir::Tree,
-        symbol: dir::GlobalSymbolId,
         receiver: Receiver,
         scope: &GenericScope,
     ) -> CompilerResult<Option<mir::TypeId>> {
         match receiver {
             Receiver::None => Ok(None),
             Receiver::This(this) => Ok(Some(self.type_lowerer(tree, scope).lower(this)?)),
-            // construct into the template's place argument, else into the nominal's own storage
-            Receiver::Constructs(owner) => {
-                let owner = self.symbol_type(owner)?;
-                let nominal = self.type_lowerer(tree, scope).lower_nominal(owner)?;
-                let storage = match self.constructor_place_parameter(symbol, scope)? {
-                    Some(index) => mir::Storage::Heap(mir::Space::Parameter(index)),
-                    None => nominal_receiver_storage(tree, nominal.value),
-                };
-                let Some(slot) = scope.receiver_slot else {
+            // take the interface receiver parameter the scope indexes
+            Receiver::Erased => {
+                let Some(index) = scope.receiver else {
                     return Err(CompilerError::Internal {
-                        message: "a constructor receiver outside its receiver slot".to_string(),
+                        message: "an erased receiver outside an interface scope".to_string(),
                     });
                 };
+                let receiver = mir::Type::Parameter {
+                    index,
+                    referent: false,
+                };
 
-                Ok(Some(constructor_receiver_type(
-                    tree,
-                    nominal.storage,
-                    storage,
-                    mir::Lifetime::slot(slot.0),
-                )))
+                Ok(Some(tree.intern_type(receiver)))
+            }
+            // borrow the constructed storage uninitialized at the declared receiver term
+            Receiver::Constructs(this) => {
+                let reference = self.type_lowerer(tree, scope).lower(this)?;
+                let mut uninit = tree.type_definition(reference).clone();
+                let mir::Type::Reference { pointee, .. } = &mut uninit else {
+                    return Err(CompilerError::Internal {
+                        message: "a constructor receiver outside a reference".to_string(),
+                    });
+                };
+                *pointee = tree.intern_type(mir::Type::Uninit { value: *pointee });
+
+                Ok(Some(tree.intern_type(uninit)))
             }
         }
     }
@@ -206,10 +215,11 @@ impl ModuleLowerer<'_> {
         let symbol = key.symbol;
         let header = self.callable_header(symbol)?;
         let declared = self.symbol_type(symbol)?;
-        let own = self.symbol_scope(symbol)?;
-        let scope = &match self.is_declared_callable(symbol)? {
-            true => own,
-            false => own.with_parameters_of(enclosing),
+        let scope = &if self.is_declared_callable(symbol)? {
+            self.symbol_scope(symbol)?
+        } else {
+            self.nested_symbol_scope(symbol, Some(enclosing))?
+                .with_parameters_of(enclosing, self, tree)?
         };
 
         // a binding declares a host extern at the host's calling convention
@@ -242,7 +252,7 @@ impl ModuleLowerer<'_> {
         }
 
         // lead with the receiver, a constructor answering void
-        if let Some(this) = self.lower_receiver(tree, symbol, header.receiver, scope)? {
+        if let Some(this) = self.lower_receiver(tree, header.receiver, scope)? {
             parameters.insert(0, this);
         }
         if header.role == Some(dir::FunctionRole::Constructor) {
@@ -250,12 +260,17 @@ impl ModuleLowerer<'_> {
         }
 
         let is_defined = header.body.is_some() && symbol.module_id == self.module;
-        let linkage = match is_defined {
-            true => mir::Linkage::Local,
-            false => mir::Linkage::Import,
+        let linkage = if is_defined {
+            mir::Linkage::Local
+        } else {
+            mir::Linkage::Import
+        };
+        let kind = match header.role {
+            Some(dir::FunctionRole::Constructor) => mir::FunctionKind::Constructor,
+            _ => mir::FunctionKind::Function,
         };
         let function = self.insert_header(
-            tree, key, &name, parameters, result, scope, linkage, binding,
+            tree, key, &name, parameters, result, scope, linkage, binding, kind,
         )?;
 
         // queue the body this module defines
@@ -313,14 +328,16 @@ impl ModuleLowerer<'_> {
         scope: &GenericScope,
         linkage: mir::Linkage,
         binding: Option<mir::Binding>,
+        kind: mir::FunctionKind,
     ) -> CompilerResult<mir::FunctionId> {
         let symbol = key.symbol;
         let display = Self::key_display(key);
 
         // keep a template polymorphic over its type parameters, a specialization closed
-        let receiver = match self.definition(symbol)?.is_none() {
-            true => BoundReceiver::OfCallable(symbol),
-            false => BoundReceiver::None,
+        let receiver = if self.definition(symbol)?.is_none() {
+            BoundReceiver::OfCallable(symbol)
+        } else {
+            BoundReceiver::None
         };
         let generics = match linkage {
             mir::Linkage::Shared => Vec::new(),
@@ -329,11 +346,13 @@ impl ModuleLowerer<'_> {
 
         // declare the header under its declared or instantiated symbol
         let base = self.declared_symbol(symbol, name);
-        let instantiated = match display.is_empty() {
-            true => base,
-            false => base.instantiate(&display, tree),
+        let instantiated = if display.is_empty() {
+            base
+        } else {
+            base.instantiate(&display, tree)
         };
         let header = mir::FunctionHeaderBuilder::new(self.strings, self.module, name)
+            .kind(kind)
             .generics(generics)
             .arguments(display)
             .symbol(instantiated);
@@ -551,7 +570,7 @@ impl ModuleLowerer<'_> {
         })
     }
 
-    /// Return the type and memory bindings one selection carries, lifetimes dropped.
+    /// Return the type and memory bindings one selection holds, signature lifetimes dropped.
     pub(in crate::lower) fn instance_bindings(
         &mut self,
         generic_arguments: &[dir::GenericArgumentBinding],
@@ -560,12 +579,12 @@ impl ModuleLowerer<'_> {
         for binding in generic_arguments {
             let parameter = binding.parameter;
             let generics = &self.state(parameter.module_id)?.generics;
-            let parameter = generics.get_parameter(parameter.local_id);
-            match parameter.kind {
-                dir::GenericParameterKind::Memory(dir::MemoryParameter::Region) => continue,
-                dir::GenericParameterKind::Type | dir::GenericParameterKind::Memory(_) => {}
+            let declared = generics.get_parameter(parameter.local_id);
+            if declared.is_instance_parameter()
+                || self.is_declaration_region_parameter(parameter)?
+            {
+                bindings.push(*binding);
             }
-            bindings.push(*binding);
         }
 
         Ok(bindings)
@@ -577,21 +596,20 @@ impl ModuleLowerer<'_> {
         symbol: dir::GlobalSymbolId,
         owner: Option<dir::GlobalSymbolId>,
         is_static: bool,
+        enclosing: Option<&GenericScope>,
     ) -> CompilerResult<GenericScope> {
         // peel the callable down to its signature template, else the declaration's own
         let ty = self.symbol_type(symbol)?;
         let (signature, module) = self.signature(ty)?;
-        let signature = self
-            .types(module)?
-            .signature(signature)
-            .template
-            .or_else(|| {
-                self.state(symbol.module_id)
-                    .ok()?
-                    .generics
-                    .template_by_symbol(symbol)
-                    .map(|template| template.into_global(symbol.module_id))
-            });
+        let signature = match self.types(module)?.signature(signature).template {
+            Some(template) => Some(template),
+            None => self
+                .state(symbol.module_id)?
+                .generics
+                .template_by_symbol(symbol)
+                .map(|template| template.into_global(symbol.module_id)),
+        };
+        let signature = self.signature_template(signature, enclosing)?;
 
         // read the owner's template
         let mut owner_template = None;
@@ -614,7 +632,48 @@ impl ModuleLowerer<'_> {
             parameters.collect_dependents(self, symbol)?;
         }
 
+        // name the receiver an instance member leads with, an extension's this its target
+        if !is_static {
+            let (signature, module) = self.signature(ty)?;
+            parameters.this_parameter = self.types(module)?.signature(signature).this_parameter;
+        }
+        parameters.extension_target = self.bound_this(symbol)?;
+
         Ok(parameters)
+    }
+
+    /// Return one signature template unless the enclosing scope binds its regions.
+    pub(in crate::lower) fn signature_template(
+        &mut self,
+        template: Option<dir::GlobalGenericTemplateId>,
+        enclosing: Option<&GenericScope>,
+    ) -> CompilerResult<Option<dir::GlobalGenericTemplateId>> {
+        let (Some(template), Some(enclosing)) = (template, enclosing) else {
+            return Ok(template);
+        };
+
+        // drop a template whose regions the enclosing scope already binds
+        let generics = &self.state(template.module_id)?.generics;
+        let regions: Vec<_> = generics
+            .get_template(template.local_id)
+            .parameters
+            .iter()
+            .filter(|parameter| {
+                generics.get_parameter(**parameter).memory_parameter()
+                    == Some(dir::MemoryParameter::Region)
+            })
+            .map(|parameter| parameter.into_global(template.module_id))
+            .collect();
+        let is_bound = !regions.is_empty()
+            && regions
+                .iter()
+                .all(|region| enclosing.slots.contains_key(region));
+
+        if is_bound {
+            Ok(None)
+        } else {
+            Ok(Some(template))
+        }
     }
 
     /// Return the method symbol declared at one member node.

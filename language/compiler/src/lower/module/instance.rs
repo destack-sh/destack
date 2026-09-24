@@ -14,6 +14,15 @@ pub(in crate::lower) enum FunctionDeclaration {
     Failed,
 }
 
+/// The places one instantiation may leave unbound.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(in crate::lower) enum Unbound {
+    /// Every place binds.
+    Rejected,
+    /// An implementer's own parameters and dependents stay unbound.
+    ImplementerParameters,
+}
+
 /// One callable a selection names: a declared specialization or an applied template.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::lower) enum Instance {
@@ -84,10 +93,11 @@ impl ModuleLowerer<'_> {
         }
         let mut definitions = Vec::new();
         for symbol in symbols {
-            // leave nominals to their representations and closures to their references
+            // skip nominals, closures, and derived members, declared where they are reached
             if symbol.module_id != self.module
                 || self.definition(symbol)?.is_some()
                 || !self.is_declared_callable(symbol)?
+                || self.is_derived_member(symbol)?
             {
                 continue;
             }
@@ -110,13 +120,11 @@ impl ModuleLowerer<'_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<bool> {
         let state = self.state(symbol.module_id)?;
-        let scope = state.bindings.get_symbol(symbol.local_id).scope;
-        let kind = state.bindings.get_scope_by_id(scope.id).kind;
+        let declared = state.bindings.get_symbol(symbol.local_id);
+        let kind = state.bindings.get_scope_by_id(declared.scope.id).kind;
 
-        Ok(!matches!(
-            kind,
-            dir::ScopeKind::Function | dir::ScopeKind::Block
-        ))
+        Ok(declared.kind == dir::SymbolKind::Function
+            && !matches!(kind, dir::ScopeKind::Function | dir::ScopeKind::Block))
     }
 
     /// Declare one template's polymorphic function, its body queued.
@@ -150,6 +158,7 @@ impl ModuleLowerer<'_> {
         symbol: dir::GlobalSymbolId,
         receiver: Option<dir::GlobalTypeId>,
         bindings: &[dir::GenericArgumentBinding],
+        dependents: &[dir::GlobalTypeId],
         enclosing: &GenericScope,
     ) -> CompilerResult<Instance> {
         if let Some(FunctionDeclaration::Declared(function)) = self.functions.get(key) {
@@ -163,10 +172,12 @@ impl ModuleLowerer<'_> {
         if chain.count() == 0 && key.arguments.is_empty() {
             let declared = GenericInstanceKey::non_generic(symbol);
             if self.functions.contains_key(&declared) || symbol.module_id != self.module {
-                return self.template_function(tree, symbol).map(Instance::Declared);
+                return self
+                    .template_function(tree, symbol, receiver)
+                    .map(Instance::Declared);
             }
 
-            // a synthesized callable lowers its own body under its receiver instance name
+            // declare a derived callable under its receiver instance name
             if let Some(definition) = self.declare_callable(tree, key, enclosing)? {
                 self.pending.push(definition);
             }
@@ -179,8 +190,76 @@ impl ModuleLowerer<'_> {
         }
 
         // read the template and the argument each of its parameters takes
-        let template = self.template_function(tree, symbol)?;
+        let template = self.template_function(tree, symbol, receiver)?;
+        let (lowered, is_open) = self.instance_arguments(
+            tree,
+            template,
+            symbol,
+            receiver,
+            bindings,
+            dependents,
+            &chain,
+            enclosing,
+            Unbound::Rejected,
+        )?;
+        let mut arguments = Vec::with_capacity(lowered.len());
+        for argument in lowered {
+            let Some(argument) = argument else {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "an instantiation of '{}' leaves a place open",
+                        self.symbol_path(symbol)?
+                    ),
+                });
+            };
+            arguments.push(argument);
+        }
+
+        // apply the template in place when an argument stays open in the enclosing template
+        if is_open {
+            return Ok(Instance::Applied {
+                template,
+                arguments,
+            });
+        }
+
+        self.declare_specialization(tree, key, symbol, template, arguments, &chain)
+            .map(Instance::Declared)
+    }
+
+    /// Lower each template argument and dependent, none at unbound places, reporting open ones.
+    pub(in crate::lower) fn instance_arguments(
+        &mut self,
+        tree: &mut mir::Tree,
+        template: mir::FunctionId,
+        symbol: dir::GlobalSymbolId,
+        receiver: Option<dir::GlobalTypeId>,
+        bindings: &[dir::GenericArgumentBinding],
+        dependents: &[dir::GlobalTypeId],
+        chain: &GenericScope,
+        enclosing: &GenericScope,
+        unbound: Unbound,
+    ) -> CompilerResult<(Vec<Option<mir::GenericArgument>>, bool)> {
+        // place each dependent value, a missing one a hole only in an implementer's own template
         let mut arguments = vec![None; chain.count() as usize];
+        for (position, dependent) in chain.dependents.values().enumerate() {
+            match dependents.get(position) {
+                Some(value) => arguments[dependent.index as usize] = Some(*value),
+                None if unbound == Unbound::ImplementerParameters => {}
+                None => {
+                    let dependent = self.ty(dependent.ty)?;
+
+                    return Err(CompilerError::Internal {
+                        message: format!(
+                            "an instantiation of '{}' without a value for its dependent {dependent:?}",
+                            self.symbol_path(symbol)?
+                        ),
+                    });
+                }
+            }
+        }
+
+        // place each bound parameter, leaving induced memory and implementer parameters unbound
         for (parameter, index) in &chain.parameters {
             let binding = self
                 .state(parameter.module_id)?
@@ -193,10 +272,20 @@ impl ModuleLowerer<'_> {
                 .map(|binding| binding.argument)
                 .or(if is_receiver { receiver } else { None });
             let Some(argument) = bound else {
+                // leave induced memory arguments and an implementer's own parameters unbound
+                if binding.induced_memory_parameter().is_some()
+                    || (unbound == Unbound::ImplementerParameters && *index >= chain.owner_count)
+                {
+                    continue;
+                }
+
+                // report every other unbound parameter
+                let path = self.symbol_path(symbol)?;
+                let name = self.format_parameter_name(*parameter)?;
+
                 return Err(CompilerError::Internal {
                     message: format!(
-                        "an instantiation of '{}' without a binding for one parameter",
-                        self.symbol_path(symbol)?
+                        "an instantiation of '{path}' without a binding for its parameter '{name}'"
                     ),
                 });
             };
@@ -206,24 +295,55 @@ impl ModuleLowerer<'_> {
         // lower the arguments in the enclosing parameter space
         let mut lower = self.type_lowerer(tree, enclosing);
         let mut lowered = Vec::with_capacity(arguments.len());
+        let mut is_open = false;
         for argument in arguments {
             let Some(argument) = argument else {
-                return Err(CompilerError::Internal {
-                    message: "an unbound template parameter".to_string(),
-                });
+                lowered.push(None);
+                continue;
             };
-            lowered.push(lower.lower_generic_argument(argument)?);
+            is_open |= lower.lower.is_open_argument(argument)?;
+            lowered.push(Some(lower.lower_generic_argument(argument)?));
         }
 
-        // apply the template in place when an argument stays open in the enclosing template
-        if lowered
-            .iter()
-            .any(|argument| argument.mentions_parameter(tree))
-        {
-            return Ok(Instance::Applied {
-                template,
-                arguments: lowered,
+        // require one argument per template parameter
+        let slots = tree.get(template).generics.len();
+        if lowered.len() != slots {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "an instantiation of '{}' with {} arguments for {slots} slots",
+                    self.symbol_path(symbol)?,
+                    lowered.len()
+                ),
             });
+        }
+
+        Ok((lowered, is_open))
+    }
+
+    /// Return whether one generic argument names a parameter of its enclosing template.
+    pub(in crate::lower) fn is_open_argument(
+        &mut self,
+        argument: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let flags = self
+            .types(argument.module_id)?
+            .get_type_flags(argument.local_id);
+
+        Ok(flags.has_type_parameter() || flags.has_this())
+    }
+
+    /// Declare the specialization one key names: the template's header at closed arguments.
+    pub(in crate::lower) fn declare_specialization(
+        &mut self,
+        tree: &mut mir::Tree,
+        key: &GenericInstanceKey,
+        symbol: dir::GlobalSymbolId,
+        template: mir::FunctionId,
+        lowered: Vec<mir::GenericArgument>,
+        chain: &GenericScope,
+    ) -> CompilerResult<mir::FunctionId> {
+        if let Some(FunctionDeclaration::Declared(function)) = self.functions.get(key) {
+            return Ok(*function);
         }
 
         // declare the specialization with the template's header at the arguments
@@ -236,6 +356,19 @@ impl ModuleLowerer<'_> {
         let result = substitute_type(tree, declared.return_type, &lowered);
         let name = self.callable_path(symbol)?;
 
+        // declare a binder for every position the arguments erase a region to
+        let mut chain = chain.clone();
+        for argument in &lowered {
+            let mir::GenericArgument::Region(lifetime) = argument else {
+                continue;
+            };
+            for index in lifetime.bound_indices() {
+                while chain.names.len() <= index as usize {
+                    chain.names.push(format!("'l{}", chain.names.len()));
+                }
+            }
+        }
+
         // keep the template's lifetime parameters on its specialization, the template linked
         let function = self.insert_header(
             tree,
@@ -246,10 +379,11 @@ impl ModuleLowerer<'_> {
             &chain,
             mir::Linkage::Shared,
             None,
+            declared.kind,
         )?;
         tree.get_mut(function).template = Some(template);
 
-        Ok(Instance::Declared(function))
+        Ok(function)
     }
 
     /// Return whether one class declares instance fields with initializers.
@@ -408,14 +542,13 @@ impl ModuleLowerer<'_> {
                 .function()?;
             let mut lower = self.type_lowerer(tree, enclosing);
             let mut lowered = Vec::with_capacity(arguments.len());
+            let mut is_open = false;
             for argument in &arguments {
+                is_open |= lower.lower.is_open_argument(*argument)?;
                 lowered.push(lower.lower_generic_argument(*argument)?);
             }
             // apply the template in place when an argument stays open in the enclosing template
-            if lowered
-                .iter()
-                .any(|argument| argument.mentions_parameter(tree))
-            {
+            if is_open {
                 return Ok(Instance::Applied {
                     template: constructor,
                     arguments: lowered,
@@ -437,10 +570,11 @@ impl ModuleLowerer<'_> {
                 &key,
                 &name,
                 parameters,
-                mir::TypeId::from(void),
+                void,
                 &scope,
                 mir::Linkage::Shared,
                 None,
+                mir::FunctionKind::Constructor,
             )?;
 
             return Ok(Instance::Declared(function));
@@ -453,13 +587,8 @@ impl ModuleLowerer<'_> {
         };
         let source = self.symbol_type(class)?;
         let nominal = self.type_lowerer(tree, &scope).lower_nominal(source)?;
-        let receiver_storage = nominal_receiver_storage(tree, nominal.value);
-        let this = constructor_receiver_type(
-            tree,
-            nominal.storage,
-            receiver_storage,
-            mir::Lifetime::slot(slot.0),
-        );
+        let this =
+            constructor_receiver_type(tree, nominal.storage, mir::Lifetime::bound(slot.index));
 
         // import a foreign class's constructor, define an own class's and queue its prologue
         if class.module_id != self.module {
@@ -470,10 +599,11 @@ impl ModuleLowerer<'_> {
             &key,
             &name,
             vec![this],
-            mir::TypeId::from(void),
+            void,
             &scope,
             mir::Linkage::Local,
             None,
+            mir::FunctionKind::Constructor,
         )?;
         self.pending.push(FunctionDefinition {
             function,
@@ -492,29 +622,17 @@ impl ModuleLowerer<'_> {
 }
 
 /// Intern one constructor receiver: an exclusive borrow of the uninitialized constructed storage.
-pub(in crate::lower) fn constructor_receiver_type(
+fn constructor_receiver_type(
     tree: &mut mir::Tree,
-    storage: mir::LocalNodeId<mir::Type>,
-    receiver_storage: mir::Storage,
+    storage: mir::TypeId,
     lifetime: mir::Lifetime,
-) -> mir::LocalNodeId<mir::Type> {
+) -> mir::TypeId {
     let pointee = tree.intern_type(mir::Type::Uninit { value: storage });
 
     tree.intern_type(mir::Type::Reference {
-        kind: mir::ReferenceKind::Borrowed,
+        kind: mir::Reference::Borrowed,
         lifetime,
-        storage: receiver_storage,
-        access: mir::Access::Mutable,
+        access: mir::Access::Exclusive,
         pointee,
     })
-}
-
-/// Return the storage one nominal's constructor receiver borrows, an allocation or a frame slot.
-pub(in crate::lower) fn nominal_receiver_storage(
-    tree: &mir::Tree,
-    value: mir::LocalNodeId<mir::Type>,
-) -> mir::Storage {
-    tree.get(value)
-        .reference_storage()
-        .unwrap_or(mir::Storage::Frame)
 }

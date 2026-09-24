@@ -12,7 +12,7 @@ impl FunctionLowerer<'_, '_, '_> {
         self.lower.ty(self.node_type_id(expression)?)
     }
 
-    /// Return the checked type of one node in this function's module.
+    /// Return the type of one node in this function's module.
     pub(in crate::lower) fn node_type_id(
         &self,
         node: impl Into<dir::LocalNodeIdAny>,

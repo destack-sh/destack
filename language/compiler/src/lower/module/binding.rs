@@ -6,12 +6,12 @@ use crate::lower::ModuleLowerer;
 use crate::{CompilerError, CompilerResult};
 
 impl ModuleLowerer<'_> {
-    /// Return the checked declaration carried by one binding decorator.
+    /// Return the declaration one binding decorator names.
     pub(in crate::lower) fn decorator_binding(
         &mut self,
         application: &dir::DecoratorApplication,
     ) -> CompilerResult<mir::Binding> {
-        // read the name and options the decorator carries
+        // read the name and options the decorator holds
         let arguments = self.decorator_arguments(application)?.to_vec();
         let [name, options] = arguments.as_slice() else {
             return Err(CompilerError::Internal {
@@ -36,7 +36,7 @@ impl ModuleLowerer<'_> {
         let mut families = Vec::new();
         let mut hosts = Vec::new();
 
-        // project each checked option exactly once
+        // project each option exactly once
         for property in properties {
             // read the option name
             let Some((key, value)) = property.as_field() else {
@@ -140,14 +140,14 @@ impl ModuleLowerer<'_> {
         Ok(binding)
     }
 
-    /// Return one string from a checked binding option.
+    /// Return one string from a binding option.
     fn binding_string(&self, value: &dir::StaticTerm, name: &str) -> CompilerResult<StringId> {
         value.as_string().ok_or_else(|| CompilerError::Internal {
             message: format!("a non-string binding '{name}'"),
         })
     }
 
-    /// Return one string array from a checked binding option.
+    /// Return one string array from a binding option.
     fn binding_strings(
         &self,
         value: &dir::StaticTerm,

@@ -69,7 +69,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         tree: &mut mir::Tree,
         string: StringId,
-    ) -> CompilerResult<(mir::GlobalId, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::GlobalId, mir::TypeId)> {
         // lower the String representation named by its language item
         let nominal = self.lower_literal_nominal(tree, dir::LanguageItem::String)?;
 
@@ -96,7 +96,7 @@ impl ModuleLowerer<'_> {
         &mut self,
         tree: &mut mir::Tree,
         bigint: i64,
-    ) -> CompilerResult<(mir::GlobalId, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::GlobalId, mir::TypeId)> {
         // lower the BigInt representation named by its language item
         let nominal = self.lower_literal_nominal(tree, dir::LanguageItem::BigInt)?;
 
@@ -132,24 +132,20 @@ impl ModuleLowerer<'_> {
             _ => {}
         }
 
-        // reserve the identity the literal's name carries across modules
+        // reserve the identity the literal's name has across modules
         let name = self.singleton_name(singleton);
         let name = self.strings.intern(&name);
-        let ty = tree.reserve_type(mir::Symbol::language(name));
+        let declaration = tree.reserve_type(mir::Symbol::language(name));
 
         // define the empty storage once
-        if tree.type_is_reserved(ty) {
-            tree.define_type(
-                ty,
-                mir::Type::Struct {
-                    fields: Vec::new(),
-                    copy: mir::Copy::Yes,
-                },
-            );
-            tree.insert_type_declaration(name, Vec::new(), ty, mir::TypeHeritage::default());
+        if tree.get(declaration).definition.is_none() {
+            let definition = tree.intern_type(mir::Type::Struct { fields: Vec::new() });
+            let declared = tree.get_mut(declaration);
+            declared.definition = Some(definition);
+            declared.name = Some(name);
         }
 
-        ty
+        tree.intern_type(mir::Type::Declaration { declaration })
     }
 
     /// Return the name one literal type declares under.
@@ -183,14 +179,14 @@ impl ModuleLowerer<'_> {
     fn forward_literal_nominal(
         &self,
         tree: &mut mir::Tree,
-        storage: mir::LocalNodeId<mir::Type>,
+        storage: mir::TypeId,
         item: dir::LanguageItem,
     ) {
         let Some(declaration) = tree.type_declaration(storage) else {
             return;
         };
 
-        // skip a declaration that already carries the attribute
+        // skip a declaration that already has the attribute
         let name = self.strings.intern("languageItem");
         let already_tagged = tree
             .attributes(declaration)

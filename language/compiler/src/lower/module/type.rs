@@ -2,8 +2,8 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_source::ModuleId;
 
-use crate::lower::{GenericScope, ModuleLowerer};
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::lower::ModuleLowerer;
+use crate::{CompilerError, CompilerResult};
 
 impl ModuleLowerer<'_> {
     /// Return the type table of one module.
@@ -14,8 +14,7 @@ impl ModuleLowerer<'_> {
         Ok(&self.state(module)?.types)
     }
 
-    /// Return one type by id, a written head read as the type sema recorded it lowering through,
-    /// a newtype keeping its identity over the backing recorded for its members.
+    /// Return one type by id as sema recorded it lowering through.
     pub(in crate::lower) fn ty(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<dir::Type> {
         let written = self.written(ty)?;
         let Some(reduced) = self.types(ty.module_id)?.reduction(ty) else {
@@ -35,6 +34,18 @@ impl ModuleLowerer<'_> {
         self.ty(reduced)
     }
 
+    /// Return the declaration one nominal application or reference names.
+    pub(in crate::lower) fn nominal_symbol(
+        &mut self,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
+        Ok(match self.ty(ty)? {
+            dir::Type::Application(application) => Some(application.symbol),
+            dir::Type::Reference(reference) => Some(reference.symbol),
+            _ => None,
+        })
+    }
+
     /// Return one type by id as written.
     pub(in crate::lower) fn written(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<dir::Type> {
         self.types(ty.module_id)?
@@ -44,57 +55,6 @@ impl ModuleLowerer<'_> {
             })
     }
 
-    /// Return the inherent method implementing one constraint member.
-    pub(in crate::lower) fn implementing_method(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        name: destack_core::StringId,
-    ) -> CompilerResult<dir::GlobalSymbolId> {
-        let Some(definition) = self.definition(symbol)?.cloned() else {
-            return Err(CompilerError::Internal {
-                message: "an erased value without a definition".to_string(),
-            });
-        };
-
-        // select the inherent method carrying the member name
-        for member in definition.members() {
-            let dir::DefinitionMember::Method(method) = member else {
-                continue;
-            };
-            if self.symbol_name(method.symbol)? == Some(name) {
-                return Ok(method.symbol);
-            }
-        }
-
-        // read the extensions declared on the type's root
-        let root = dir::TypeRoot::Declaration(symbol);
-        let extensions: Vec<_> = {
-            let definitions = &self.state(symbol.module_id)?.definitions;
-            definitions
-                .root_extensions(root)
-                .filter_map(|extension| definitions.extension_definition(extension).cloned())
-                .collect()
-        };
-
-        // select the extension method carrying the member name
-        for extension in extensions {
-            for member in &extension.members {
-                let dir::DefinitionMember::Method(method) = member else {
-                    continue;
-                };
-                if self.symbol_name(method.symbol)? == Some(name) {
-                    return Ok(method.symbol);
-                }
-            }
-        }
-
-        Err(LowerError::Unsupported {
-            anchor: self.module.into(),
-            construct: "a constraint member without an implementing method".to_string(),
-        }
-        .into())
-    }
-
     /// Return the invocation count one receiver term permits.
     pub(in crate::lower) fn callable_multiplicity(
         &mut self,
@@ -102,7 +62,9 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<mir::Multiplicity> {
         // read the receiver mode
         let mode = match self.ty(receiver)? {
-            dir::Type::Literal(dir::Literal::String(text)) => dir::ReceiverMode::from_text(text),
+            dir::Type::Literal(dir::Literal::String(text)) => {
+                dir::ReceiverMode::from_text(self.strings.get(text))
+            }
             _ => None,
         };
         let Some(mode) = mode else {
@@ -113,7 +75,7 @@ impl ModuleLowerer<'_> {
 
         Ok(match mode {
             dir::ReceiverMode::Owned => mir::Multiplicity::Once,
-            dir::ReceiverMode::Borrowed(_) => mir::Multiplicity::Repeatable,
+            dir::ReceiverMode::Borrowed { .. } => mir::Multiplicity::Repeatable,
         })
     }
 
@@ -138,15 +100,67 @@ impl ModuleLowerer<'_> {
     ) -> CompilerResult<bool> {
         // admit the argument by the parameter's own kind
         Ok(match kind {
-            dir::GenericParameterKind::Memory(dir::MemoryParameter::Region) => matches!(
-                self.argument_memory_kind(argument)?,
-                Some(dir::MemoryParameter::Region | dir::MemoryParameter::Place)
-            ),
-            dir::GenericParameterKind::Memory(
-                memory @ (dir::MemoryParameter::Place | dir::MemoryParameter::Access),
-            ) => self.argument_memory_kind(argument)? == Some(memory),
-            _ => true,
+            dir::GenericParameterKind::Memory(memory) => {
+                self.argument_memory_kind(argument)? == Some(memory)
+            }
+            dir::GenericParameterKind::Type => true,
         })
+    }
+
+    /// Return the member one projection writes with its qualifying declaration.
+    pub(in crate::lower) fn member_projection(
+        &mut self,
+        id: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<(dir::MemberType, Option<dir::GlobalSymbolId>)>> {
+        let dir::Type::Member(member) = self.ty(id)? else {
+            return Ok(None);
+        };
+        let member = *self.types(id.module_id)?.member(member);
+        let qualifier = match member.qualifier {
+            Some(qualifier) => self.nominal_symbol(qualifier)?,
+            None => None,
+        };
+
+        Ok(Some((member, qualifier)))
+    }
+
+    /// Return the memory kind of the associated const one dependent projects.
+    pub(in crate::lower) fn dependent_memory_kind(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        dependent: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<dir::MemoryParameter>> {
+        let Some((member, qualifier)) = self.member_projection(dependent)? else {
+            return Ok(None);
+        };
+        let key = member.key;
+
+        // read the declaring scope: the qualifier's declaration, else the projecting member's owner
+        let owner = match qualifier {
+            Some(qualifier) => qualifier,
+            None => match self.imported_member(symbol)? {
+                Some(member) => member.owner,
+                None => symbol,
+            },
+        };
+        let Some(definition) = self.definition(owner)? else {
+            return Ok(None);
+        };
+        let constant = definition
+            .members()
+            .iter()
+            .find_map(|declared| match declared {
+                dir::DefinitionMember::AssociatedConst(constant) if constant.key == key => {
+                    Some(constant.symbol)
+                }
+                _ => None,
+            });
+        let Some(constant) = constant else {
+            return Ok(None);
+        };
+        let ty = self.symbol_type(constant)?;
+
+        self.argument_memory_kind(ty)
     }
 
     /// Return the memory kind one argument term inhabits, none for a value type.
@@ -161,9 +175,7 @@ impl ModuleLowerer<'_> {
             dir::Type::Literal(dir::Literal::String(value)) => {
                 if dir::Lifetime::parse(self.strings.get(value)).is_some() {
                     Some(dir::MemoryParameter::Region)
-                } else if dir::Space::from_text(value).is_some() {
-                    Some(dir::MemoryParameter::Place)
-                } else if dir::Access::from_text(value).is_some() {
+                } else if dir::Access::from_text(self.strings.get(value)).is_some() {
                     Some(dir::MemoryParameter::Access)
                 } else {
                     None
@@ -176,7 +188,6 @@ impl ModuleLowerer<'_> {
                     .generics
                     .get_parameter(parameter.local_id);
                 match (binding.memory_parameter(), binding.constraint) {
-                    (Some(dir::MemoryParameter::Space), _) => Some(dir::MemoryParameter::Place),
                     (Some(kind), _) => Some(kind),
                     (None, Some(constraint))
                         if matches!(self.ty(constraint)?, dir::Type::Application(_)) =>
@@ -189,11 +200,7 @@ impl ModuleLowerer<'_> {
             // name each memory domain's own kind
             dir::Type::Application(instance) => self
                 .language_item(instance.symbol)
-                .and_then(dir::MemoryParameter::from_language_item)
-                .map(|kind| match kind {
-                    dir::MemoryParameter::Space => dir::MemoryParameter::Place,
-                    kind => kind,
-                }),
+                .and_then(dir::MemoryParameter::from_language_item),
             // joins inhabit the kind every element shares
             dir::Type::Union(union) => {
                 let elements = self.types(id.module_id)?.type_ids(union.elements).to_vec();
@@ -230,8 +237,15 @@ impl ModuleLowerer<'_> {
             }
             signature @ dir::Type::FunctionSignature(_) => (signature, ty.module_id),
             other => {
+                let detail = match &other {
+                    dir::Type::Reference(reference) => {
+                        format!(" to '{}'", self.symbol_path(reference.symbol)?)
+                    }
+                    _ => String::new(),
+                };
+
                 return Err(CompilerError::Internal {
-                    message: format!("a non-callable '{}' type", other.variant_name()),
+                    message: format!("a non-callable '{}' type{detail}", other.variant_name()),
                 });
             }
         };
@@ -246,8 +260,7 @@ impl ModuleLowerer<'_> {
         Ok((signature, owner))
     }
 
-    /// Return the template one callable type's signature declares, a callable newtype declaring
-    /// none.
+    /// Return the template one callable type's signature declares.
     pub(in crate::lower) fn callable_template(
         &mut self,
         ty: dir::GlobalTypeId,
@@ -278,60 +291,6 @@ impl ModuleLowerer<'_> {
         Ok(self.types(module)?.signature(signature).template)
     }
 
-    /// Return the interface one type names with every interface it extends, each once, an alias
-    /// through its value and a union through the interfaces its arms share.
-    pub(in crate::lower) fn interface_ancestors(
-        &mut self,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Vec<(dir::GlobalSymbolId, dir::GlobalTypeId)>> {
-        let symbol = match self.ty(ty)? {
-            dir::Type::Application(application) => application.symbol,
-            dir::Type::Reference(reference) => reference.symbol,
-            dir::Type::Union(union) => {
-                let elements = self.types(ty.module_id)?.type_ids(union.elements).to_vec();
-                let mut shared: Option<Vec<(dir::GlobalSymbolId, dir::GlobalTypeId)>> = None;
-                for element in elements {
-                    let ancestors = self.interface_ancestors(element)?;
-                    shared = Some(match shared {
-                        None => ancestors,
-                        Some(shared) => shared
-                            .into_iter()
-                            .filter(|(symbol, _)| {
-                                ancestors.iter().any(|(other, _)| other == symbol)
-                            })
-                            .collect(),
-                    });
-                }
-
-                return shared.ok_or_else(|| CompilerError::Internal {
-                    message: "a union without elements".to_string(),
-                });
-            }
-            _ => return Ok(Vec::new()),
-        };
-        let extends = match self.definition(symbol)? {
-            Some(dir::Definition::Interface(definition)) => definition.extends.clone(),
-            Some(dir::Definition::TypeAlias(_)) => {
-                let value = self.symbol_type(symbol)?;
-
-                return self.interface_ancestors(value);
-            }
-            _ => return Ok(Vec::new()),
-        };
-
-        // collect the interface, then each parent's ancestors new to the list
-        let mut ancestors = vec![(symbol, ty)];
-        for parent in extends {
-            for ancestor in self.interface_ancestors(parent.ty)? {
-                if !ancestors.iter().any(|(symbol, _)| *symbol == ancestor.0) {
-                    ancestors.push(ancestor);
-                }
-            }
-        }
-
-        Ok(ancestors)
-    }
-
     /// Return whether one callable type's signature parks the current fiber.
     pub(in crate::lower) fn signature_parks(
         &mut self,
@@ -347,29 +306,6 @@ impl ModuleLowerer<'_> {
             })?;
 
         Ok(signature.parks)
-    }
-
-    /// Return the index of the place parameter one constructor constructs into, when induced.
-    pub(in crate::lower) fn constructor_place_parameter(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        scope: &GenericScope,
-    ) -> CompilerResult<Option<u32>> {
-        for (parameter, index) in &scope.parameters {
-            let binding = self
-                .state(parameter.module_id)?
-                .generics
-                .get_parameter(parameter.local_id);
-            let is_place = matches!(
-                binding.induced_memory_parameter(),
-                Some(dir::MemoryParameter::Place | dir::MemoryParameter::Space)
-            );
-            if is_place && parameter.module_id == symbol.module_id {
-                return Ok(Some(*index));
-            }
-        }
-
-        Ok(None)
     }
 
     /// Return the library class representing one compiler-primitive type.

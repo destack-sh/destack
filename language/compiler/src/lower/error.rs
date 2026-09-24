@@ -45,6 +45,9 @@ impl From<(ModuleId, mir::LayoutError)> for CompilerError {
             mir::LayoutError::Missing { ty } => Self::Internal {
                 message: format!("missing required MIR layout for {ty:?}"),
             },
+            mir::LayoutError::Unresolved(ty) => Self::Internal {
+                message: format!("unresolved layout for {ty:?}"),
+            },
             mir::LayoutError::Unsupported { construct } => LowerError::Unsupported {
                 anchor: module.into(),
                 construct,

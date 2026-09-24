@@ -24,11 +24,6 @@ mod r#type;
 pub(crate) use lower::*;
 pub(crate) use state::*;
 
-pub(in crate::lower) use alias::AliasForm;
 pub(in crate::lower) use callable::Receiver;
 pub(in crate::lower) use decorator::CallableImplementation;
-pub(in crate::lower) use dispatch::Implementer;
-pub(in crate::lower) use instance::{
-    FunctionDeclaration, GenericInstanceKey, Instance, constructor_receiver_type,
-    nominal_receiver_storage,
-};
+pub(in crate::lower) use instance::{FunctionDeclaration, GenericInstanceKey, Instance, Unbound};

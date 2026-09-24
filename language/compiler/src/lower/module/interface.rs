@@ -4,14 +4,50 @@ use destack_mir as mir;
 use destack_mir::substitute_type;
 
 use crate::lower::{GenericScope, NominalField, TypeLowerer};
-use crate::{CompilerResult, LowerError};
+use crate::{CompilerError, CompilerResult, LowerError};
+
+/// One generic parameter a member declares beyond its interface's, by domain.
+#[derive(Debug, Clone, Copy)]
+enum MemberParameter {
+    /// A type parameter.
+    Type,
+    /// A region parameter, its extent and storage one parameter.
+    Region,
+    /// An access parameter.
+    Access,
+    /// A const value parameter.
+    Value,
+}
+
+impl MemberParameter {
+    /// Return the argument naming this parameter at one index.
+    fn identity(self, tree: &mut mir::Tree, index: u32) -> mir::GenericArgument {
+        match self {
+            MemberParameter::Type => {
+                let ty = tree.intern_type(mir::Type::Parameter {
+                    index,
+                    referent: false,
+                });
+
+                mir::GenericArgument::Type(ty)
+            }
+            MemberParameter::Region => {
+                mir::GenericArgument::Region(mir::Lifetime::new([mir::Extent::Parameter(index)]))
+            }
+            MemberParameter::Access => mir::GenericArgument::Access(mir::Access::Parameter(index)),
+            MemberParameter::Value => {
+                mir::GenericArgument::Value(tree.intern_static(mir::Static::Parameter(index)))
+            }
+        }
+    }
+}
 
 /// One named member of a flattened interface.
 enum InterfaceMember {
     /// A stored property field.
     Field {
         /// The lowered field node.
-        node: mir::LocalNodeId<mir::Field>,
+        node: mir::FieldId,
         /// The field identity for member indexing.
         field: NominalField,
     },
@@ -19,6 +55,10 @@ enum InterfaceMember {
     Method {
         /// The dispatch slot.
         slot: mir::DynamicSlot,
+        /// The member's generic parameters after the interface's.
+        parameters: Vec<MemberParameter>,
+        /// The index the member's parameters start at under the declaring interface.
+        first_parameter: u32,
     },
 }
 
@@ -27,18 +67,18 @@ impl TypeLowerer<'_, '_> {
     pub(in crate::lower) fn lower_interface(
         &mut self,
         definition: dir::InterfaceDefinition,
-        ty: mir::LocalNodeId<mir::Type>,
+        declaration: mir::LocalNodeId<mir::TypeDeclaration>,
     ) -> CompilerResult<Vec<NominalField>> {
         let (fields, field_nodes, slots) = self.interface_shape(&definition)?;
 
         // define the constraint storage from its field nodes
-        self.tree.define_type(
-            ty,
-            mir::Type::Struct {
-                fields: field_nodes,
-                copy: mir::Copy::No,
-            },
-        );
+        let definition = self.tree.intern_type(mir::Type::Struct {
+            fields: field_nodes,
+        });
+        self.tree.get_mut(declaration).definition = Some(definition);
+        let ty = self
+            .tree
+            .intern_type(mir::Type::Declaration { declaration });
         self.register_interface_shape(ty, slots);
 
         Ok(fields)
@@ -48,11 +88,7 @@ impl TypeLowerer<'_, '_> {
     pub(in crate::lower) fn interface_shape(
         &mut self,
         definition: &dir::InterfaceDefinition,
-    ) -> CompilerResult<(
-        Vec<NominalField>,
-        Vec<mir::LocalNodeId<mir::Field>>,
-        Vec<mir::DynamicSlot>,
-    )> {
+    ) -> CompilerResult<(Vec<NominalField>, Vec<mir::FieldId>, Vec<mir::DynamicSlot>)> {
         // flatten the interface and its bases into one member list by name
         let mut entries = FxIndexMap::default();
         self.collect_interface_members(definition, &mut entries)?;
@@ -63,14 +99,14 @@ impl TypeLowerer<'_, '_> {
         let mut slots = Vec::with_capacity(entries.len());
         for (name, entry) in entries {
             match entry {
-                // store a property and dispatch it through its own slot
+                // store a property and dispatch it through its slot
                 InterfaceMember::Field { node, field } => {
                     fields.push(field);
                     field_nodes.push(node);
                     slots.push(mir::DynamicSlot::Field { field: node, name });
                 }
                 // dispatch a method through its slot alone
-                InterfaceMember::Method { slot } => slots.push(slot),
+                InterfaceMember::Method { slot, .. } => slots.push(slot),
             }
         }
 
@@ -80,7 +116,7 @@ impl TypeLowerer<'_, '_> {
     /// Register one constraint's unkeyed dispatch shape once.
     pub(in crate::lower) fn register_interface_shape(
         &mut self,
-        ty: mir::LocalNodeId<mir::Type>,
+        ty: mir::TypeId,
         slots: Vec<mir::DynamicSlot>,
     ) {
         self.lower
@@ -120,7 +156,7 @@ impl TypeLowerer<'_, '_> {
                 }
             };
 
-            // lower the base members under the base's own parameters, then apply the arguments
+            // lower the base members under the base's parameters, then apply the arguments
             let arguments = self
                 .lower
                 .types(base.module_id)?
@@ -130,38 +166,72 @@ impl TypeLowerer<'_, '_> {
             for argument in &arguments {
                 lowered.push(self.lower_generic_argument(*argument)?);
             }
-            let template = base_definition
-                .template
-                .map(|template| template.into_global(application.symbol.module_id));
-            let base_parameters = GenericScope::from_templates(self.lower, None, template)?;
+            let base_parameters = match base_definition.template {
+                Some(template) => GenericScope::for_declaration(
+                    self.lower,
+                    template.into_global(application.symbol.module_id),
+                )?,
+                None => GenericScope::default(),
+            };
             let mut base_entries = FxIndexMap::default();
             self.under(&base_parameters)
                 .collect_interface_members(&base_definition, &mut base_entries)?;
+
+            // reuse one argument buffer across the base's members, its prefix padded once
+            let lowered_count = lowered.len();
+            let mut arguments = lowered;
             for (name, entry) in base_entries {
                 let entry = match entry {
                     InterfaceMember::Field { node, field } => {
-                        let ty = substitute_type(self.tree, self.tree.get(node).ty, &lowered);
-                        let node = self.tree.intern_field(
-                            mir::Field {
-                                name: Some(name),
-                                ty,
-                            },
-                            Vec::new(),
-                        );
+                        let lowered = &arguments[..lowered_count];
+                        let ty = substitute_type(self.tree, self.tree.get(node).ty, lowered);
+                        let node = self.tree.intern_field(mir::Field {
+                            name: Some(name),
+                            ty,
+                            attributes: Vec::new(),
+                        });
 
                         InterfaceMember::Field { node, field }
                     }
-                    InterfaceMember::Method { slot } => InterfaceMember::Method {
-                        slot: match slot {
+                    // apply the base's arguments and reindex the member's parameters
+                    InterfaceMember::Method {
+                        slot,
+                        parameters,
+                        first_parameter,
+                    } => {
+                        // fill the base's receiver with this interface's this type
+                        let Some(this) = self.this_type else {
+                            return Err(CompilerError::Internal {
+                                message: "an interface shape without its this".to_string(),
+                            });
+                        };
+                        while (arguments.len() as u32) < first_parameter {
+                            arguments.push(mir::GenericArgument::Type(this));
+                        }
+                        let prefix = arguments.len();
+                        let first = self.scope.count();
+                        for (offset, parameter) in parameters.iter().enumerate() {
+                            arguments.push(parameter.identity(self.tree, first + offset as u32));
+                        }
+
+                        // substitute the slot, then drop the member's own arguments
+                        let slot = match slot {
                             mir::DynamicSlot::Function { name, signature } => {
                                 mir::DynamicSlot::Function {
                                     name,
-                                    signature: substitute_type(self.tree, signature, &lowered),
+                                    signature: substitute_type(self.tree, signature, &arguments),
                                 }
                             }
                             other => other,
-                        },
-                    },
+                        };
+                        arguments.truncate(prefix);
+
+                        InterfaceMember::Method {
+                            slot,
+                            parameters,
+                            first_parameter: first,
+                        }
+                    }
                 };
                 entries.insert(name, entry);
             }
@@ -182,13 +252,11 @@ impl TypeLowerer<'_, '_> {
             };
 
             // let a derived property override the inherited entry in place
-            let node = self.tree.intern_field(
-                mir::Field {
-                    name: Some(name),
-                    ty: declared,
-                },
-                Vec::new(),
-            );
+            let node = self.tree.intern_field(mir::Field {
+                name: Some(name),
+                ty: declared,
+                attributes: Vec::new(),
+            });
             entries.insert(name, InterfaceMember::Field { node, field });
         }
 
@@ -207,7 +275,7 @@ impl TypeLowerer<'_, '_> {
                 .into());
             };
 
-            // skip methods declaring their own type parameters
+            // skip methods declaring type parameters
             let signature = *self.lower.types(declared.module_id)?.signature(signature);
             let template = signature.template.or_else(|| {
                 self.lower
@@ -233,7 +301,7 @@ impl TypeLowerer<'_, '_> {
                 }
             }
 
-            // lower the bare signature under the method's own template
+            // lower the bare signature under the method's template
             let signature = self.lower_bare_signature(
                 &signature,
                 declared.module_id,
@@ -249,13 +317,30 @@ impl TypeLowerer<'_, '_> {
                 }
                 .into());
             };
+
+            // record the member's parameters in the order its dispatch scope indexes them
+            let member_scope =
+                self.lower
+                    .dispatch_slot_scope(self.tree, self.scope, method.symbol)?;
+            let first = self.scope.count();
+            let mut parameters = Vec::new();
+            for (kind, is_const) in member_scope.index_domains(self.lower, first)? {
+                parameters.push(match kind {
+                    Some(dir::MemoryParameter::Region) => MemberParameter::Region,
+                    Some(dir::MemoryParameter::Access) => MemberParameter::Access,
+                    None if is_const => MemberParameter::Value,
+                    None => MemberParameter::Type,
+                });
+            }
             entries.insert(
                 name,
                 InterfaceMember::Method {
                     slot: mir::DynamicSlot::Function {
                         name: Some(name),
-                        signature: mir::TypeId::from(signature),
+                        signature,
                     },
+                    parameters,
+                    first_parameter: first,
                 },
             );
         }

@@ -10,7 +10,7 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
         definition: dir::ClassDefinition,
-        ty: mir::LocalNodeId<mir::Type>,
+        declaration: mir::LocalNodeId<mir::TypeDeclaration>,
     ) -> CompilerResult<Vec<NominalField>> {
         // gather the nominal fields, inherited and own
         let fields = self.lower.nominal_fields(symbol)?;
@@ -27,7 +27,7 @@ impl TypeLowerer<'_, '_> {
             };
             let storage = self.lower_nominal(base)?.storage;
             self.lower.fill_heritage(self.tree, storage)?;
-            let storage = self.tree.represented(storage);
+            let storage = mir::Substitution::resolve(storage, self.tree);
             let mir::Type::Struct {
                 fields: base_nodes, ..
             } = self.tree.get(storage)
@@ -39,26 +39,27 @@ impl TypeLowerer<'_, '_> {
             field_nodes.extend(base_nodes.iter().copied());
         }
 
-        // lower each own field's stored type into a field node
-        let own = self.lower.instance_fields(&definition.members)?;
-        for field in &own {
+        // lower each declared field's stored type into a field node
+        let declared = self.lower.instance_fields(&definition.members)?;
+        for field in &declared {
             let ty = self.optional_storage_representation(field.ty, field.is_optional)?;
             let name = match field.key {
                 dir::StaticKey::Name(name) => Some(name),
                 _ => None,
             };
 
-            field_nodes.push(self.tree.intern_field(mir::Field { name, ty }, Vec::new()));
+            field_nodes.push(self.tree.intern_field(mir::Field {
+                name,
+                ty,
+                attributes: Vec::new(),
+            }));
         }
 
         // define the reference storage from its field nodes
-        self.tree.define_type(
-            ty,
-            mir::Type::Struct {
-                fields: field_nodes,
-                copy: mir::Copy::No,
-            },
-        );
+        let definition = self.tree.intern_type(mir::Type::Struct {
+            fields: field_nodes,
+        });
+        self.tree.get_mut(declaration).definition = Some(definition);
 
         Ok(fields)
     }

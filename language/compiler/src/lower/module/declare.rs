@@ -114,7 +114,7 @@ impl ModuleLowerer<'_> {
             };
 
             // leave a template to its polymorphic declaration
-            let chain = self.callable_scope(symbol, None, false)?;
+            let chain = self.callable_scope(symbol, None, false, None)?;
             if chain.count() > 0 {
                 return Ok(());
             }
@@ -183,7 +183,7 @@ impl ModuleLowerer<'_> {
         Ok(())
     }
 
-    /// Declare one member's callable, when it carries runtime code.
+    /// Declare one member's callable, when it has runtime code.
     fn declare_member(
         &mut self,
         tree: &mut mir::Tree,
@@ -280,7 +280,7 @@ impl ModuleLowerer<'_> {
         };
 
         // leave a template to its polymorphic declaration
-        let chain = self.callable_scope(symbol, Some(owner_symbol), is_static)?;
+        let chain = self.callable_scope(symbol, Some(owner_symbol), is_static, None)?;
         if chain.count() > 0 {
             return Ok(());
         }

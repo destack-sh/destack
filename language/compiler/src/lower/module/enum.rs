@@ -10,8 +10,7 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
         definition: dir::EnumDefinition,
-        ty: mir::LocalNodeId<mir::Type>,
-        copy: mir::Copy,
+        declaration: mir::LocalNodeId<mir::TypeDeclaration>,
     ) -> CompilerResult<Vec<NominalField>> {
         // require an integer representation
         let dir::EnumBackingType::Integer(_) = definition.backing else {
@@ -42,7 +41,7 @@ impl TypeLowerer<'_, '_> {
                 let floor = if is_signed { -bound } else { 0 };
                 values.iter().all(|value| (floor..bound).contains(value))
             })
-            .unwrap_or(64);
+            .unwrap_or(i64::BITS as u16);
         let integer = dir::IntegerType::Fixed { width, is_signed };
 
         // lower the discriminant scalar
@@ -56,7 +55,7 @@ impl TypeLowerer<'_, '_> {
         let fields = self.lower.nominal_fields(symbol)?;
         let mut variants = Vec::new();
         for (_, value) in definition.variants().zip(values) {
-            // build the case beside the discriminant it carries
+            // build the case beside its discriminant
             let discriminant = match integer.is_signed() {
                 true => mir::Constant::Int {
                     value: i128::from(value),
@@ -71,19 +70,15 @@ impl TypeLowerer<'_, '_> {
             variants.push(mir::VariantCase {
                 discriminant,
                 ty: storage,
-                is_boxed: false,
             });
         }
 
         // define the variant representation from its cases
-        self.tree.define_type(
-            ty,
-            mir::Type::Variant {
-                discriminant,
-                cases: variants,
-                copy,
-            },
-        );
+        let definition = self.tree.intern_type(mir::Type::Variant {
+            discriminant,
+            cases: variants,
+        });
+        self.tree.get_mut(declaration).definition = Some(definition);
 
         Ok(fields)
     }

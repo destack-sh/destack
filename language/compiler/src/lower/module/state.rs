@@ -4,7 +4,7 @@ use destack_artifact::{
     DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported, DirMaterialized,
     DirParsed, DirResolved, DirView, MirDeclared,
 };
-use destack_core::FxIndexMap;
+use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_mir as mir;
 use destack_repository::{ArtifactReader, ProfileId, ProviderContext};
@@ -15,10 +15,8 @@ use crate::{Compiler, CompilerError, CompilerResult, LowerError};
 
 /// One module's DIR, read during lowering.
 pub(crate) struct DirModule {
-    /// The artifact holding the expression tree.
-    parsed: Arc<DirParsed>,
-    /// The expansion and materialization patches over the tree.
-    patches: [dir::Patch; 2],
+    /// The stages this module lowers from, through materialization.
+    stages: DirView,
     /// The module roots.
     pub(in crate::lower) roots: Vec<dir::LocalNodeId<dir::Expression>>,
     /// The type slot of every node and symbol.
@@ -29,7 +27,7 @@ pub(crate) struct DirModule {
     pub(in crate::lower) resolutions: dir::ResolutionTable<'static>,
     /// The lexical scopes and symbols.
     pub(in crate::lower) bindings: dir::BindingTable<'static>,
-    /// The checked coercions.
+    /// The coercions.
     pub(in crate::lower) coercions: dir::CoercionTable<'static>,
     /// The declaration definitions.
     pub(in crate::lower) definitions: dir::DefinitionTable<'static>,
@@ -37,6 +35,8 @@ pub(crate) struct DirModule {
     pub(in crate::lower) statics: dir::StaticTable<'static>,
     /// The generic templates and parameters.
     pub(in crate::lower) generics: dir::GenericTable<'static>,
+    /// The member functions the compiler derived for witnesses.
+    pub(in crate::lower) derived_functions: FxIndexSet<dir::GlobalSymbolId>,
     /// The decorator applications.
     pub(in crate::lower) decorators: dir::DecoratorTable<'static>,
     /// The closure captures.
@@ -91,12 +91,11 @@ impl DirModule {
 
     /// Compose the state of one module from its stages.
     fn new(view: DirView, path: String) -> Self {
-        let parsed = Arc::clone(&view.parsed);
-        let expanded = &view.expanded;
-        let materialized = view
-            .materialized
-            .as_ref()
-            .unwrap_or_else(|| unreachable!("a lowered view without its materialized stage"));
+        let materialized = Arc::clone(
+            view.materialized
+                .as_ref()
+                .unwrap_or_else(|| unreachable!("a lowered view without its materialized stage")),
+        );
         let bindings = view.bindings().clone();
         let definitions = view.definitions().clone();
 
@@ -135,15 +134,21 @@ impl DirModule {
             definitions,
             statics: view.statics().clone(),
             generics: view.generics().clone(),
+            derived_functions: view
+                .generics()
+                .iter_witnesses()
+                .flat_map(|(_, _, witness)| witness.functions.iter())
+                .filter(|function| function.source == dir::WitnessSource::Derived)
+                .map(|function| function.function.symbol)
+                .collect(),
             decorators: view.decorators().clone(),
             captures: view.captures().clone(),
             representations: view.representations().clone(),
             members: view.members().clone(),
             path,
-            patches: [expanded.patch.clone(), materialized.patch.clone()],
-            parsed,
             declared_symbols,
             declared_methods,
+            stages: view,
         }
     }
 
@@ -165,7 +170,7 @@ impl DirModule {
 
     /// Return the expression tree with every patch over it.
     pub(in crate::lower) fn tree(&self) -> dir::View<'_> {
-        dir::View::with_patches(&self.parsed.tree, &self.patches)
+        self.stages.tree()
     }
 }
 
@@ -291,12 +296,12 @@ impl ModuleLowerer<'_> {
     pub(in crate::lower) fn fill_heritage(
         &mut self,
         tree: &mut mir::Tree,
-        storage: mir::LocalNodeId<mir::Type>,
+        storage: mir::TypeId,
     ) -> CompilerResult<()> {
         // read the declaration behind an application of a generic base
         let storage = match *tree.get(storage) {
             mir::Type::Application { base, .. } => base,
-            _ => mir::TypeId::from(storage),
+            _ => storage,
         };
         if tree.is_defined_type(storage) {
             return Ok(());
