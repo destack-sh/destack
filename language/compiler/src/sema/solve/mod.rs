@@ -20,5 +20,6 @@ pub(in crate::sema) use decide::*;
 pub(in crate::sema) use fulfill::*;
 pub(in crate::sema) use goal::*;
 pub(in crate::sema) use relation::*;
+pub(in crate::sema) use resolve::MemoryGrounding;
 pub(in crate::sema) use scope::*;
 pub(in crate::sema) use variable::*;

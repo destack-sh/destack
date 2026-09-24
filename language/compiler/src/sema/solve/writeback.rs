@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_dir::{InstanceKeyVisit, TypeFold};
 use destack_source::ModuleId;
 
-use crate::sema::{CheckModuleState, CheckState, Origin};
+use crate::sema::{CheckModuleState, CheckState, Origin, ProjectionMemo};
 use crate::{CompilerError, CompilerResult};
 
 impl<'a> CheckState<'a> {
@@ -29,12 +29,12 @@ impl<'a> CheckState<'a> {
                 false => resolved,
             };
             self.node_types.insert(node, resolved);
-            let written = self
+            let committed = self
                 .module
                 .types_tail
                 .get_node_type_id(node)
                 .or_else(|| self.module.types.get_node_type_id(node));
-            if written != Some(resolved) {
+            if committed != Some(resolved) {
                 self.module.types_tail.set_node_type(node, resolved);
             }
         }
@@ -44,13 +44,16 @@ impl<'a> CheckState<'a> {
             self.commit_coroutine_creations()?;
         }
 
-        // resolve declaration types and normalize their declared entries
+        // resolve this module's declaration types
         for index in 0..self.declaration_types.len() {
             let (symbol, ty) = self
                 .declaration_types
                 .get_index(index)
                 .map(|(k, v)| (*k, *v))
                 .expect("indexed entry");
+            if !self.is_own_module(symbol.module_id) {
+                continue;
+            }
             let resolved = self.fully_resolve(ty)?;
             let resolved = match self.is_checking() {
                 true => {
@@ -80,11 +83,14 @@ impl<'a> CheckState<'a> {
             self.write_symbol_type(symbol, resolved);
         }
 
-        // resolve the types every segment this pass wrote carries
+        // resolve the types in every segment this pass wrote
         let module = self.module_id;
         self.resolve_segment_types(dir::DecisionSegment::new(module), |state| {
             &mut state.decisions_tail
         })?;
+        if self.is_checking() {
+            self.settle_decision_projections()?;
+        }
         self.resolve_segment_types(dir::DecoratorSegment::new(module), |state| {
             &mut state.decorators_tail
         })?;
@@ -158,8 +164,32 @@ impl<'a> CheckState<'a> {
                 .or_insert(node);
         }
 
-        // keep the whole instantiations, withholding records that carry a reported failure
+        // keep the whole instantiations without records of reported failures
         for ((owner, key), source) in instantiations {
+            // require one exact value where an inferred closed argument fills a consumed parameter
+            let mut next_index = 0;
+            for binding in &key.arguments {
+                if self.is_lifetime_parameter(binding.parameter)? {
+                    continue;
+                }
+                let index = next_index;
+                next_index += 1;
+                if !self.is_static_const_parameter(binding.parameter)?
+                    || self.generic_argument_node(source, index).is_some()
+                    || matches!(self.ty(binding.argument)?, dir::Type::Parameter(_))
+                {
+                    continue;
+                }
+                let origin = Origin::Node(source, None);
+                if !self.has_one_cardinality(origin, binding.argument)? {
+                    self.report_argument_not_exact_value(
+                        source,
+                        binding.argument,
+                        binding.parameter,
+                    )?;
+                }
+            }
+
             let mut poisoned = false;
             let receiver = key.receiver.into_iter();
             let arguments = key.arguments.iter();
@@ -228,7 +258,7 @@ impl<'a> CheckState<'a> {
         Ok(None)
     }
 
-    /// Settle every type one written module segment carries.
+    /// Settle every type of one module segment.
     fn resolve_segment_types<S: TypeFold>(
         &mut self,
         replacement: S,
@@ -244,14 +274,64 @@ impl<'a> CheckState<'a> {
         Ok(())
     }
 
-    /// Write one resolved symbol type over whatever entry the artifact already carries.
+    /// Settle the projections the committed decisions and places hold.
+    fn settle_decision_projections(&mut self) -> CompilerResult<()> {
+        let decisions: Vec<_> = self
+            .module
+            .decisions_tail
+            .decision_entries()
+            .map(|(node, decision)| (node, decision.clone()))
+            .collect();
+        let places: Vec<_> = self
+            .module
+            .decisions_tail
+            .place_entries()
+            .map(|(node, place)| (node, *place))
+            .collect();
+        let mut memo = ProjectionMemo::default();
+        for (node, mut decision) in decisions {
+            if self.settle_node_projections(node, &mut decision, &mut memo)? {
+                self.module.decisions_tail.set_decision(node, decision);
+            }
+        }
+        for (node, mut place) in places {
+            if self.settle_node_projections(node, &mut place, &mut memo)? {
+                self.module.decisions_tail.set_place_resolution(node, place);
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Settle the projections one node's record holds.
+    fn settle_node_projections<T: TypeFold>(
+        &mut self,
+        node: dir::GlobalNodeIdAny,
+        record: &mut T,
+        memo: &mut ProjectionMemo,
+    ) -> CompilerResult<bool> {
+        let Some(origin) = self.node_origin_maybe(node) else {
+            return Ok(false);
+        };
+        let mut changed = false;
+        record.map_types(&mut |ty| {
+            let settled = self.settle_projections(origin, ty, memo)?;
+            changed |= settled != ty;
+
+            Ok::<_, CompilerError>(settled)
+        })?;
+
+        Ok(changed)
+    }
+
+    /// Write one resolved symbol type over the entry the artifact holds.
     fn write_symbol_type(&mut self, symbol: dir::GlobalSymbolId, resolved: dir::GlobalTypeId) {
-        let written = self
+        let committed = self
             .module
             .types_tail
             .get_symbol_type_id(symbol)
             .or_else(|| self.module.types.get_symbol_type_id(symbol));
-        if written != Some(resolved) {
+        if committed != Some(resolved) {
             self.module.types_tail.set_symbol_type(symbol, resolved);
         }
     }
@@ -329,7 +409,7 @@ impl<'a> CheckState<'a> {
 
                     self.resolve_open_type(solution, active, memo)?
                 }
-                // a clean declaration writes every type it carries
+                // write every type of a clean declaration
                 None if self.is_declaring()
                     && self.module(self.module_id).diagnostics.is_empty() =>
                 {
@@ -344,7 +424,7 @@ impl<'a> CheckState<'a> {
                 None => self.intern_type(dir::Type::Error)?,
             }
         }
-        // keep foreign types, their own module writes them back
+        // keep foreign types for their module to write back
         else if !self.is_own_module(id.module_id) {
             id
         }
@@ -379,8 +459,8 @@ impl<'a> CheckState<'a> {
 
     /// Normalize one closed computation head to the type it reduces to.
     fn resolve_computation(&mut self, id: dir::GlobalTypeId) -> CompilerResult<dir::GlobalTypeId> {
-        // typeof and associated projections resolve at check, where value types exist
-        if self.is_declaring() {
+        // resolve typeof and associated projections at check, a variant named on an enum now
+        if self.is_declaring() && !self.is_variant_selection(id)? {
             return Ok(id);
         }
 
@@ -390,12 +470,28 @@ impl<'a> CheckState<'a> {
             return Ok(id);
         }
 
-        // normalize written projections and operations, a written alias head staying as written
+        // normalize closed projections and operations, keeping every other head
         if !matches!(self.ty(id)?, dir::Type::Operation(_) | dir::Type::Member(_)) {
             return Ok(id);
         }
 
         self.normalize_closed(id)
+    }
+
+    /// Return whether one type names a variant on an enum declaration.
+    fn is_variant_selection(&mut self, id: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let dir::Type::Member(member) = self.ty(id)? else {
+            return Ok(false);
+        };
+        let member = self.type_member(id.module_id, member)?;
+        if member.qualifier.is_some() {
+            return Ok(false);
+        }
+        let Some(symbol) = self.ty(member.owner)?.symbol() else {
+            return Ok(false);
+        };
+
+        Ok(self.symbol_kind(symbol)? == dir::SymbolKind::Enum)
     }
 
     /// Settle each recorded narrowing on the solved members it keeps, dropping the vacuous ones.
@@ -409,6 +505,7 @@ impl<'a> CheckState<'a> {
         for (node, narrowing) in entries {
             let origin = Origin::Node(node, None);
             let union = self.fully_resolve(narrowing.union)?;
+            let union = self.normalize_type(origin, union)?;
             let narrowed = self.fully_resolve(narrowing.arms[0])?;
             let narrowed = self.normalize_type(origin, narrowed)?;
 

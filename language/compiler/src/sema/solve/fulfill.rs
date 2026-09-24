@@ -95,6 +95,20 @@ impl Fulfillment {
         }
     }
 
+    /// Return the queued and waiting checks, to restore after a rolled back decision.
+    pub(in crate::sema) fn scheduling(&self) -> Scheduling {
+        Scheduling {
+            ready: self.ready.clone(),
+            waiting: self.waiting.clone(),
+        }
+    }
+
+    /// Restore the queued and waiting checks of one rolled back decision.
+    pub(in crate::sema) fn restore_scheduling(&mut self, scheduling: Scheduling) {
+        self.ready = scheduling.ready;
+        self.waiting = scheduling.waiting;
+    }
+
     /// Wake the checks waiting on one event.
     pub(in crate::sema) fn wake(&mut self, event: Wake) {
         // take the waiters recorded on the event
@@ -201,7 +215,7 @@ impl CheckState<'_> {
         let mut held = Vec::new();
         let mut round = false;
 
-        // step each check the open decision owns that is still ready
+        // step each ready check of the open decision
         for id in ready {
             if id.index() < decided {
                 held.push(id);
@@ -566,4 +580,12 @@ impl CheckState<'_> {
 
         Ok(())
     }
+}
+
+/// The queued and waiting checks at one point, restored when a decision rolls back.
+pub(in crate::sema) struct Scheduling {
+    /// The checks ready to step.
+    ready: Vec<CheckId>,
+    /// The checks waiting on each event.
+    waiting: FxIndexMap<Wake, SmallVec<[CheckId; 2]>>,
 }

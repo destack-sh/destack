@@ -71,10 +71,10 @@ impl CheckState<'_> {
         if !flags.has_parameter() && !flags.has_this() {
             return Ok(Some(None));
         }
-        if !self.is_checking() {
+        if self.is_declaring() {
             return Ok(None);
         }
 
-        Ok(Some(self.assuming_scope(origin)?))
+        Ok(Some(self.origin_scope(origin)?))
     }
 }

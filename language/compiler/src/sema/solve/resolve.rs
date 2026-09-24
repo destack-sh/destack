@@ -4,10 +4,19 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     Bound, BoundSide, CauseId, CheckEvent, CheckOutcome, CheckState, GenericParameterId, Origin,
-    Relation, RelationCheck, Settle, VariableBounds, VariableKind, VariableState, Verdict, Wake,
-    WorkState,
+    Relation, RelationCheck, Settle, TypeSubstitution, VariableBounds, VariableKind, VariableState,
+    Verdict, Wake, WorkState,
 };
 use crate::{CompilerError, CompilerResult};
+
+/// How the unbound memory parameters of one substitution ground.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::sema) enum MemoryGrounding {
+    /// Open each parameter for inference at the site.
+    Open,
+    /// Bind each parameter at its elided default.
+    Elided,
+}
 
 impl CheckState<'_> {
     /// Allocate one inference variable.
@@ -26,6 +35,86 @@ impl CheckState<'_> {
         self.infer.variables.get_mut(variable)?.parameter = Some(parameter);
 
         Ok(variable)
+    }
+
+    /// Open one omitted generic parameter at its kind, eliding an undeclared memory default.
+    pub(in crate::sema) fn open_omitted_parameter(
+        &mut self,
+        origin: Origin,
+        parameter: dir::GlobalGenericParameterId,
+    ) -> CompilerResult<dir::TypeVariableId> {
+        let binding = self.require_generic_parameter(parameter)?.clone();
+        let memory = match (binding.memory_parameter(), binding.constraint) {
+            (Some(kind), _) => Some(kind),
+            (None, Some(constraint)) => self.memory_kind(constraint)?,
+            (None, None) => None,
+        };
+        let kind = memory.map_or(VariableKind::Type, VariableKind::Memory);
+        let variable = self.open_instantiation(origin, parameter, kind)?;
+
+        // elide a memory parameter without a declared default at its kind's value
+        if binding.default.is_none()
+            && let Some(memory) = memory
+        {
+            let default = self.elided_memory_default(memory)?;
+            self.infer.set_variable_default(variable, default)?;
+        }
+
+        Ok(variable)
+    }
+
+    /// Ground the unbound memory parameters of one substitution.
+    pub(in crate::sema) fn ground_memory_parameters(
+        &mut self,
+        origin: Origin,
+        parameters: &[dir::GlobalGenericParameterId],
+        substitution: &mut TypeSubstitution,
+        grounding: MemoryGrounding,
+    ) -> CompilerResult<()> {
+        // open every unbound parameter, or bind each memory parameter at its elided default
+        match grounding {
+            MemoryGrounding::Open => self.open_unbound_parameters(origin, parameters, substitution),
+            MemoryGrounding::Elided => {
+                for parameter in parameters.iter().copied() {
+                    if substitution.argument(parameter).is_some() {
+                        continue;
+                    }
+                    let binding = self.generic_parameter(parameter)?.ok_or_else(|| {
+                        CompilerError::Internal {
+                            message: format!(
+                                "a generic parameter {parameter:?} without its binding"
+                            ),
+                        }
+                    })?;
+                    let Some(kind) = binding.memory_parameter() else {
+                        continue;
+                    };
+                    let witness = self.elided_memory_default(kind)?;
+                    substitution.bind(parameter, witness)?;
+                }
+
+                Ok(())
+            }
+        }
+    }
+
+    /// Open every unbound parameter of one substitution for inference.
+    pub(in crate::sema) fn open_unbound_parameters(
+        &mut self,
+        origin: Origin,
+        parameters: &[dir::GlobalGenericParameterId],
+        substitution: &mut TypeSubstitution,
+    ) -> CompilerResult<()> {
+        for parameter in parameters.iter().copied() {
+            if substitution.argument(parameter).is_some() {
+                continue;
+            }
+            let variable = self.open_omitted_parameter(origin, parameter)?;
+            let ty = self.intern_type(dir::Type::Variable(variable))?;
+            substitution.bind(parameter, ty)?;
+        }
+
+        Ok(())
     }
 
     /// Allocate one memory-kinded inference variable as a type term.
@@ -228,7 +317,8 @@ impl CheckState<'_> {
         let mut open = SmallVec::new();
         for index in scope..self.infer.variable_count() {
             let variable = dir::TypeVariableId(index as u32);
-            if self.infer.variable(variable)?.state.is_open() {
+            let state = self.infer.variable(variable)?;
+            if state.state.is_open() && !state.is_dead {
                 open.push(variable);
             }
         }
@@ -303,8 +393,6 @@ impl CheckState<'_> {
     }
 
     /// Return whether one type names literals of a literal's domain.
-    ///
-    /// A declared bound names them through the domain's primitive as well.
     pub(in crate::sema) fn type_keeps_literal(
         &mut self,
         origin: Origin,
@@ -489,19 +577,28 @@ impl CheckState<'_> {
             return Ok(false);
         }
 
-        // choose the one lower candidate
-        let lower_solution = match lower_types.as_slice() {
-            [] => None,
+        // choose the one lower candidate, joining the candidates a memory hole collects
+        let lower_solution = match (lower_types.as_slice(), state.kind) {
+            ([], _) => None,
+            ([_, _, ..], VariableKind::Memory(kind)) => {
+                match self.join_memory_candidates(kind, &lower_types)? {
+                    Some(joined) => Some(joined),
+                    None => Some(self.best_common(variable, &lower_types)?),
+                }
+            }
             _ => Some(self.best_common(variable, &lower_types)?),
         };
 
         // widen the literals a fixed parameter lets go
+        let mut is_widened = false;
         let lower_solution = match (lower_solution, state.parameter) {
             (Some(lower), Some(parameter))
                 if state.is_fixed
                     && self.is_literal_shape(lower)?
                     && !self.parameter_keeps_literals(origin, parameter, lower, true)? =>
             {
+                is_widened = true;
+
                 Some(self.widen_fresh(origin, lower)?)
             }
             (lower, _) => lower,
@@ -511,7 +608,7 @@ impl CheckState<'_> {
         let contextual = match contextual_types.as_slice() {
             [] => None,
             [single] => Some(*single),
-            _ => Some(self.intersect_bounds(variable, &contextual_types)?),
+            _ => Some(self.normalized_intersection_type(contextual_types.iter().copied())?),
         };
 
         // take the lower solution its upper bounds admit
@@ -527,18 +624,14 @@ impl CheckState<'_> {
                 }
                 match admitted {
                     Verdict::Ambiguous if stage == Settle::Possible => return Ok(false),
-                    // let the context hold lower candidates its bounds refuse but it includes
-                    Verdict::Fails => {
-                        let mut holds = Verdict::Holds;
-                        for ty in &lower_types {
-                            let verdict =
-                                self.decide_relation(origin, Relation::Subtype, *ty, context)?;
-                            holds = holds.and(verdict);
-                        }
-                        match holds {
-                            Verdict::Holds => (None, Some(context)),
-                            _ => (Some(lower), Some(context)),
-                        }
+                    // take the context over a lower candidate its bounds refuse
+                    Verdict::Fails => (None, Some(context)),
+                    // a widened literal takes the context that includes it
+                    _ if is_widened
+                        && self.decide_relation(origin, Relation::Subtype, lower, context)?
+                            == Verdict::Holds =>
+                    {
+                        (None, Some(context))
                     }
                     _ => (Some(lower), Some(context)),
                 }
@@ -553,7 +646,9 @@ impl CheckState<'_> {
         };
         let bound = match (settles_bound, bound_types.as_slice()) {
             (true, [single]) => Some(*single),
-            (true, [_, ..]) => Some(self.intersect_bounds(variable, &bound_types)?),
+            (true, [_, ..]) => {
+                Some(self.normalized_intersection_type(bound_types.iter().copied())?)
+            }
             _ => None,
         };
 
@@ -689,7 +784,7 @@ impl CheckState<'_> {
         Ok(false)
     }
 
-    /// Return whether one variable's bounds on one side reach another variable.
+    /// Return whether one variable's bounds on one side lead to another variable.
     fn bounds_reach(
         &mut self,
         variable: dir::TypeVariableId,
@@ -751,22 +846,14 @@ impl CheckState<'_> {
         kind: VariableKind,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        // admit the bound by the variable's own kind
+        // admit the bound by the variable kind
         let ty = self.shallow_resolve(ty)?;
         match kind {
             // a type variable takes every bound
             VariableKind::Type => Ok(true),
 
             // solve a memory slot to a term of its own kind
-            VariableKind::Memory(memory) => Ok(match self.memory_kind(ty)? {
-                Some(dir::MemoryParameter::Place) => {
-                    matches!(
-                        memory,
-                        dir::MemoryParameter::Place | dir::MemoryParameter::Region
-                    )
-                }
-                found => found == Some(memory),
-            }),
+            VariableKind::Memory(memory) => Ok(self.memory_kind(ty)? == Some(memory)),
 
             // solve a numeric variable to a scalar of its domain
             VariableKind::Integer | VariableKind::Float => Ok(self
@@ -816,7 +903,7 @@ impl CheckState<'_> {
             if !visited.insert(id) {
                 continue;
             }
-            // skip closed subtrees, which carry no variable to collect
+            // skip closed subtrees without variables
             if !self.type_flags(id)?.has_variable() {
                 continue;
             }
@@ -842,6 +929,25 @@ impl CheckState<'_> {
         Ok(variables)
     }
 
+    /// Return every type the graphs of some root types name, the roots included.
+    pub(in crate::sema) fn mentioned_types(
+        &self,
+        roots: impl IntoIterator<Item = dir::GlobalTypeId>,
+    ) -> CompilerResult<FxIndexSet<dir::GlobalTypeId>> {
+        // walk each graph once, visiting every type a single time
+        let mut pending = roots.into_iter().collect::<SmallVec<[_; 8]>>();
+        let mut seen = FxIndexSet::default();
+        while let Some(id) = pending.pop() {
+            if !seen.insert(id) {
+                continue;
+            }
+            let ty = self.ty_raw(id)?;
+            self.for_each_type_child(id.module_id, &ty, |child| pending.push(child))?;
+        }
+
+        Ok(seen)
+    }
+
     /// Return whether one type contains a variable root.
     pub(in crate::sema) fn type_contains_variable(
         &self,
@@ -858,12 +964,12 @@ impl CheckState<'_> {
         Ok(false)
     }
 
-    /// Commit one variable solution.
+    /// Commit one variable solution, a bound its aliased kind refuses failing it.
     pub(in crate::sema) fn commit_solution(
         &mut self,
         variable: dir::TypeVariableId,
         solution: dir::GlobalTypeId,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Verdict> {
         // alias a solution that is itself an open variable
         let variable = self.infer.alias_root(variable)?;
         let solution = self.shallow_resolve(solution)?;
@@ -891,15 +997,16 @@ impl CheckState<'_> {
             self.report(origin.module(), error);
             let error = self.intern_type(dir::Type::Error)?;
 
-            return self.commit_error_solution(variable, error);
-        }
+            self.commit_error_solution(variable, error)?;
 
-        self.commit_variable_solution(variable, VariableState::Resolved(solution))
+            return Ok(Verdict::Holds);
+        }
+        self.commit_variable_solution(variable, VariableState::Resolved(solution))?;
+
+        Ok(Verdict::Holds)
     }
 
     /// Widen a numeric join variable that meets a candidate outside its domain.
-    ///
-    /// The family default joins the slot beside that candidate.
     fn settle_numeric_kind(
         &mut self,
         variable: dir::TypeVariableId,
@@ -954,17 +1061,17 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Alias one open variable onto an equal variable's component root.
+    /// Alias one open variable onto an equal variable's root.
     pub(in crate::sema) fn alias_variable(
         &mut self,
         first: dir::TypeVariableId,
         second: dir::TypeVariableId,
-    ) -> CompilerResult<()> {
+    ) -> CompilerResult<Verdict> {
         // read both component roots
         let first = self.infer.alias_root(first)?;
         let second = self.infer.alias_root(second)?;
         if first == second {
-            return Ok(());
+            return Ok(Verdict::Holds);
         }
 
         // keep the older variable as the component root
@@ -988,44 +1095,62 @@ impl CheckState<'_> {
         let aliased_state = *self.infer.variable(aliased)?;
 
         // forward the aliased variable onto the root, joining what each declares
+        let root_kind = self.infer.variable(root)?.kind;
         let root_state = self.infer.variable_mut(root)?;
-        root_state.kind = root_state.kind.join(aliased_state.kind);
+        root_state.kind = root_kind.join(aliased_state.kind);
         root_state.is_join |= aliased_state.is_join;
         root_state.parameter = root_state.parameter.or(aliased_state.parameter);
         root_state.is_fixed |= aliased_state.is_fixed;
         self.infer.variable_mut(aliased)?.state = VariableState::Alias(root);
         self.fulfill.wake(Wake::Variable(aliased));
 
-        // migrate the collected bounds onto the root
-        for bound in lower {
-            self.push_variable_bound(
-                root,
-                BoundSide::Lower,
-                bound.origin,
-                bound.cause,
-                bound.ty,
-                bound.relation,
-            )?;
-        }
-        for bound in upper {
-            self.push_variable_bound(
-                root,
-                BoundSide::Upper,
-                bound.origin,
-                bound.cause,
-                bound.ty,
-                bound.relation,
-            )?;
+        // re-admit the upper bounds a root joined into a numeric kind already holds
+        let mut verdict = Verdict::Holds;
+        let joined = self.infer.variable(root)?.kind;
+        if joined.is_numeric() && !root_kind.is_numeric() {
+            let origin = self.infer.origin(self.infer.variable(root)?.origin);
+            let held = self
+                .infer
+                .variables
+                .side_bounds(root, BoundSide::Upper)?
+                .map(|bound| bound.ty)
+                .collect::<SmallVec<[_; 2]>>();
+            for bound in held {
+                if self.root_variable(bound)?.is_none()
+                    && !self.numeric_bound_admits(origin, root, bound)?
+                {
+                    verdict = Verdict::Fails;
+                }
+            }
         }
 
-        // carry the declared default over to a root without one
+        // migrate the collected bounds onto the root
+        let sides = lower
+            .into_iter()
+            .map(|bound| (BoundSide::Lower, bound))
+            .chain(upper.into_iter().map(|bound| (BoundSide::Upper, bound)));
+        for (side, bound) in sides {
+            let pushed = self.push_variable_bound(
+                root,
+                side,
+                bound.origin,
+                bound.cause,
+                bound.ty,
+                bound.relation,
+            )?;
+            if pushed == Verdict::Fails {
+                verdict = Verdict::Fails;
+            }
+        }
+
+        // copy the declared default to a root without one
         if let Some(default) = aliased_state.default
             && self.infer.variable(root)?.default.is_none()
         {
             self.infer.set_variable_default(root, default)?;
         }
 
-        Ok(())
+        Ok(verdict)
     }
 
     /// Commit one failed variable solution.
@@ -1043,7 +1168,7 @@ impl CheckState<'_> {
         variable: dir::TypeVariableId,
         state: VariableState,
     ) -> CompilerResult<()> {
-        // carry the collected bounds into the completed state
+        // move the collected bounds into the completed state
         let bounds = VariableBounds {
             lower: self
                 .infer
@@ -1057,7 +1182,7 @@ impl CheckState<'_> {
                 .collect(),
         };
 
-        // require the completed state to carry its own type
+        // require the completed state to hold a type
         let ty = state.ty().ok_or_else(|| CompilerError::Internal {
             message: format!("cannot commit open check variable {variable:?}"),
         })?;
@@ -1093,6 +1218,42 @@ impl CheckState<'_> {
         }
 
         Ok(())
+    }
+
+    /// Join the lower candidates of one memory parameter, a region by extent and space.
+    fn join_memory_candidates(
+        &mut self,
+        kind: dir::MemoryParameter,
+        candidates: &[dir::GlobalTypeId],
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        match kind {
+            dir::MemoryParameter::Region => {
+                let mut extents = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+                let mut spaces = SmallVec::<[dir::GlobalTypeId; 4]>::new();
+                for candidate in candidates {
+                    match self.resolved_ty(*candidate)? {
+                        dir::Type::Region(region) => {
+                            extents.push(region.extent);
+                            spaces.push(region.space);
+                        }
+                        _ => extents.push(*candidate),
+                    }
+                }
+
+                // join bare extents as one union, region pairs by extent and space
+                if spaces.is_empty() {
+                    return Ok(Some(self.normalized_union_type(extents)?));
+                }
+                if spaces.len() != extents.len() {
+                    return Ok(None);
+                }
+                let extent = self.normalized_union_type(extents)?;
+                let space = self.normalized_union_type(spaces)?;
+
+                Ok(Some(self.intern_region(extent, space)?))
+            }
+            _ => Ok(None),
+        }
     }
 
     /// Discharge one accumulated bound against a committed solution.
@@ -1154,13 +1315,13 @@ impl CheckState<'_> {
         bound: dir::GlobalTypeId,
         relation: Relation,
     ) -> CompilerResult<Verdict> {
-        // drop a bare self-reference bound, which carries no information
+        // drop a bare self-reference bound
         let variable = self.infer.alias_root(variable)?;
         if self.root_variable(bound)? == Some(variable) {
             return Ok(Verdict::Ambiguous);
         }
 
-        // discharge a late bound as a relation check
+        // discharge a late bound as a relation check, a settled region awaiting the region solve
         if let Some(solution) = self.infer.variable(variable)?.state.ty() {
             if self.variable_memory_parameter(variable)? != Some(dir::MemoryParameter::Region) {
                 let late = Bound::new(origin, bound, relation, cause);
@@ -1180,6 +1341,17 @@ impl CheckState<'_> {
             return Ok(Verdict::Fails);
         }
 
+        // solve a memory slot outright at the closed term it equals
+        if relation == Relation::Equal
+            && matches!(kind, VariableKind::Memory(_))
+            && self.root_variable(bound)?.is_none()
+            && !self.type_contains_variable(bound, variable)?
+        {
+            self.commit_solution(variable, bound)?;
+
+            return Ok(Verdict::Holds);
+        }
+
         // merge two variables that bound one another or that meet numerically or by access
         if let Some(other) = self.root_variable(bound)? {
             let kinds = (self.root_kind(variable)?, self.root_kind(other)?);
@@ -1192,41 +1364,20 @@ impl CheckState<'_> {
                 == (
                     VariableKind::Memory(dir::MemoryParameter::Access),
                     VariableKind::Memory(dir::MemoryParameter::Access),
-                );
+                )
+                || (relation == Relation::Equal
+                    && matches!(kinds, (VariableKind::Memory(first), VariableKind::Memory(second)) if first == second));
             let is_cycle = self.bounds_reach(other, side, variable)?
                 || self.bounds_reach(variable, side.opposite(), other)?;
             if is_numeric || is_access || is_cycle {
-                self.alias_variable(variable, other)?;
+                if self.alias_variable(variable, other)? == Verdict::Fails {
+                    return Ok(Verdict::Fails);
+                }
                 if is_numeric || is_cycle {
                     self.settle_numeric_kind(variable, origin, cause)?;
                 }
 
                 return Ok(Verdict::Ambiguous);
-            }
-        }
-
-        // keep the space of a region slot's first closed region, meeting its extents
-        if side == BoundSide::Lower
-            && let dir::Type::Region(region) = self.resolved_ty(bound)?
-            && let Some(space) = self.place_space(region.space)?
-        {
-            let known = self
-                .infer
-                .variables
-                .side_bounds(variable, BoundSide::Lower)?
-                .map(|known| known.ty)
-                .collect::<SmallVec<[_; 2]>>();
-            for known in known {
-                let known = self.shallow_resolve(known)?;
-                if known == bound {
-                    continue;
-                }
-                if let dir::Type::Region(known) = self.ty(known)?
-                    && let Some(known_space) = self.place_space(known.space)?
-                    && known_space != space
-                {
-                    return Ok(Verdict::Fails);
-                }
             }
         }
 
@@ -1247,16 +1398,6 @@ impl CheckState<'_> {
         });
         if side == BoundSide::Lower {
             self.settle_numeric_kind(variable, origin, cause)?;
-        }
-
-        // take a place slot's first closed place, checking later places against it
-        if side == BoundSide::Lower
-            && self.variable_memory_parameter(variable)? == Some(dir::MemoryParameter::Place)
-            && !self.type_flags(bound.ty)?.has_variable()
-        {
-            self.commit_solution(variable, bound.ty)?;
-
-            return Ok(Verdict::Ambiguous);
         }
 
         // propagate the new bound through every bound on the opposite side
@@ -1281,7 +1422,7 @@ impl CheckState<'_> {
                 upper.cause,
             ))?;
 
-            // report a failed declared bound on its own
+            // report a failed declared bound separately
             if let Some(CheckOutcome::Fails(_)) = self.fulfill.checks.result(id)?
                 && !is_memory
                 && upper.relation != Relation::Subtype

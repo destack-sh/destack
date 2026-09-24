@@ -70,7 +70,7 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Project one resolved subject's membership, resolving the types its bindings carry.
+    /// Project one resolved subject's membership, resolving the types of its bindings.
     fn resolved_membership(
         &mut self,
         site: dir::MemberSite,
@@ -80,7 +80,7 @@ impl CheckState<'_> {
         let origin = Origin::Node(site.node(), subject.scope);
         let mut membership = self.project_membership(origin, module, subject)?;
 
-        // resolve the open types a structural binding still carries
+        // resolve the open types left in a structural binding
         for binding in &mut membership.structural {
             binding.map_types(&mut |ty| {
                 if !self.type_flags(ty)?.has_variable() {
@@ -113,10 +113,7 @@ impl CheckState<'_> {
     }
 
     /// Project the membership one resolved subject selects.
-    ///
-    /// NOTE #Incomplete: extension members compose into the structural bindings
-    /// until candidates carry their deduced arguments, where stage two references
-    /// them as sources beside the nominal owner.
+    /// NOTE #Incomplete: extension members compose into the structural bindings.
     fn project_membership(
         &mut self,
         origin: Origin,
@@ -275,45 +272,23 @@ impl CheckState<'_> {
         Ok(())
     }
 
-    /// Return the declaration one site's stored member membership selects at one key.
+    /// Return the declaration one site's resolved subject selects at one key.
     fn member_site_resolution(
         &mut self,
         module: ModuleId,
         site: dir::MemberSite,
         key: dir::StaticKey,
     ) -> CompilerResult<Option<dir::NameResolution>> {
-        // read the membership the site's resolved subject stored
+        // look the key up at the resolved subject, memberships projecting only at analysis
         let Some((subject, _)) = self.module(module).member_subject(site) else {
             return Ok(None);
         };
-        let membership = self
-            .module(module)
-            .membership(&subject)
-            .cloned()
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!("member site {site:?} stored no membership for {subject:?}"),
-            })?;
+        let origin = Origin::Node(site.node(), subject.scope);
+        let lookup = self.lookup_member(origin, module, subject, key)?;
 
-        // answer from the structural bindings the subject projected
-        if let Some(binding) = membership
-            .structural
-            .iter()
-            .find(|binding| binding.key == key)
-        {
-            return Ok(binding.declaration_resolution());
-        }
-
-        // answer from each source owner's declared bindings
-        for source in membership.sources {
-            let Some(bindings) = self.member_bindings(source.owner, subject.space)? else {
-                continue;
-            };
-            if let Some(binding) = bindings.iter().find(|binding| binding.key == key) {
-                return Ok(binding.declaration_resolution());
-            }
-        }
-
-        Ok(None)
+        Ok(self
+            .member_binding(key, &lookup)?
+            .and_then(|binding| binding.declaration_resolution()))
     }
 
     /// Commit one path segment resolution into its module's resolution segment.

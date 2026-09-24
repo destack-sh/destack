@@ -81,7 +81,7 @@ impl CheckState<'_> {
         Ok(explained)
     }
 
-    /// Report every unresolved symbol and inference variable one scope owns.
+    /// Report every unresolved symbol and inference variable of one scope.
     pub(in crate::sema) fn report_unresolved(
         &mut self,
         scope: usize,
@@ -106,7 +106,7 @@ impl CheckState<'_> {
         self.poison_unresolved(&unresolved)
     }
 
-    /// Anchor each unexplained inference graph one scope owns at one origin.
+    /// Anchor each unexplained inference graph of one scope at one origin.
     fn anchor_unresolved_groups(
         &mut self,
         scope: usize,
@@ -178,7 +178,9 @@ impl CheckState<'_> {
             if self.infer.variable(variable)?.state.is_open() {
                 let is_memory = matches!(self.root_kind(variable)?, VariableKind::Memory(_));
                 match self.variable_default(variable)? {
-                    Some(default) if is_memory => self.commit_solution(variable, default)?,
+                    Some(default) if is_memory => {
+                        self.commit_solution(variable, default)?;
+                    }
                     _ => self.commit_error_solution(variable, error)?,
                 }
             }

@@ -13,7 +13,7 @@ pub(in crate::sema) enum CandidateOutcome<T, R> {
 }
 
 impl CheckState<'_> {
-    /// Decide one attempt: its variables are scratch, nothing outside them is written.
+    /// Decide one attempt over scratch variables, rolling back everything it writes.
     pub(in crate::sema) fn decide<T>(
         &mut self,
         attempt: impl FnOnce(&mut Self) -> CompilerResult<T>,
@@ -22,11 +22,19 @@ impl CheckState<'_> {
         let checks = self.fulfill.checks.count();
         let failures = self.fulfill.failures.len();
         let symbol_variables = self.infer.symbol_variables.len();
+        let filled_applications = self.infer.filled_applications.len();
+        let declaration_types = self.declaration_types.len();
+        let binding_types = self.binding_types.len();
+        let functions = self.functions.len();
+        let lambdas = self.lambdas.len();
+        let owned_constructions = self.owned_constructions.len();
+        let fresh_consts = self.fresh_consts.len();
+        let scheduling = self.fulfill.scheduling();
 
         // mark the state the attempt rolls back to
         self.infer.snapshot(checks);
 
-        // run the attempt and settle what its own bounds decide
+        // run the attempt and settle what its bounds decide
         let attempted = attempt(self).and_then(|value| {
             self.fulfill_scope(scope, Settle::Possible)?;
 
@@ -38,13 +46,21 @@ impl CheckState<'_> {
             .map(|_| self.decision_verdict(scope, checks, failures))
             .transpose()?;
 
-        // roll the decision back over everything it wrote, queued, or failed
+        // roll the decision back over everything it wrote, queued, woke, or failed
         for node in self.infer.rollback()? {
             self.node_types.remove(node);
         }
+        self.fulfill.restore_scheduling(scheduling);
         self.fulfill.truncate(checks);
         self.fulfill.failures.truncate(failures);
         self.infer.symbol_variables.truncate(symbol_variables);
+        self.infer.filled_applications.truncate(filled_applications);
+        self.declaration_types.truncate(declaration_types);
+        self.binding_types.truncate(binding_types);
+        self.functions.truncate(functions);
+        self.lambdas.truncate(lambdas);
+        self.owned_constructions.truncate(owned_constructions);
+        self.fresh_consts.truncate(fresh_consts);
 
         // leave a nested decision's variables dead, poisoning them from the outermost one
         let is_nested = self.infer.is_deciding();

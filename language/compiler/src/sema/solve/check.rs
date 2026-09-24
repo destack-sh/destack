@@ -338,9 +338,6 @@ impl CheckTable {
     }
 
     /// Replace one check's completed outcome.
-    ///
-    /// The table stores decided outcomes alone.
-    /// An undecided check keeps its empty slot and its queued work.
     pub(in crate::sema) fn set_result(
         &mut self,
         id: CheckId,
@@ -544,8 +541,7 @@ impl CheckState<'_> {
         Ok(ambiguous.is_some())
     }
 
-    /// Evaluate one application's constraints, returning its undecided checks, a rigid argument's
-    /// declared bounds read under the instantiation assumed for its own declaration.
+    /// Evaluate one application's constraints, returning its undecided checks.
     fn evaluate_substitution_constraints(
         &mut self,
         origin: Origin,
@@ -570,18 +566,21 @@ impl CheckState<'_> {
             if !satisfied
                 && check.relation == Relation::Subtype
                 && let dir::Type::Parameter(parameter) = self.resolved_ty(check.source)?
-                && let Some(declared) = self
-                    .generic_parameter(parameter)?
-                    .and_then(|binding| binding.constraint)
             {
-                let declared = self.substitute_type(declared, substitution)?;
-                let declared = match assumed {
-                    Some(assumed) => self.substitute_type(declared, assumed)?,
-                    None => declared,
-                };
-                satisfied = self
-                    .decide_relation(check.origin, check.relation, declared, check.target)?
-                    .holds();
+                for declared in self.declared_parameter_bounds(parameter)? {
+                    let declared = self.substitute_type(declared, substitution)?;
+                    let declared = match assumed {
+                        Some(assumed) => self.substitute_type(declared, assumed)?,
+                        None => declared,
+                    };
+                    if self
+                        .decide_relation(check.origin, check.relation, declared, check.target)?
+                        .holds()
+                    {
+                        satisfied = true;
+                        break;
+                    }
+                }
             }
 
             if !satisfied {
@@ -644,7 +643,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<SmallVec<[RelationCheck; 4]>> {
         let mut checks = SmallVec::new();
 
-        // substitute bounds for every applied parameter
+        // skip a kind declaration and substitute every other applied bound
         for applied in &substitution.bindings {
             let parameter = applied.parameter;
             let argument = applied.argument;
@@ -654,6 +653,9 @@ impl CheckState<'_> {
             else {
                 continue;
             };
+            if self.is_memory_kind_item(bound)? {
+                continue;
+            }
             let bound = self.substitute_type(bound, substitution)?;
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Bound { parameter }));
             checks.push(RelationCheck::new(
@@ -668,6 +670,19 @@ impl CheckState<'_> {
         Ok(checks)
     }
 
+    /// Return whether one constraint names a memory kind itself.
+    fn is_memory_kind_item(&self, constraint: dir::GlobalTypeId) -> CompilerResult<bool> {
+        let constraint = self.shallow_resolve(constraint)?;
+        let Some(symbol) = self.ty(constraint)?.symbol() else {
+            return Ok(false);
+        };
+
+        Ok(self
+            .language_item(symbol)?
+            .and_then(dir::MemoryParameter::from_language_item)
+            .is_some())
+    }
+
     /// Substitute predicates enforced by one generic application.
     pub(in crate::sema) fn substitute_application_predicates(
         &mut self,
@@ -677,12 +692,19 @@ impl CheckState<'_> {
     ) -> CompilerResult<SmallVec<[RelationCheck; 2]>> {
         let mut checks = SmallVec::new();
 
-        // substitute every predicate free of the receiver type
+        // substitute every receiver-free predicate, and a declared one at the receiver's storage
         for predicate in self.template_predicates(Some(template))? {
             let requires_receiver = self.type_flags(predicate.left)?.has_this()
                 || self.type_flags(predicate.right)?.has_this();
             if requires_receiver {
-                continue;
+                let is_declared = predicate
+                    .source
+                    .local_id
+                    .try_into_typed::<dir::WhereClause>()
+                    .is_ok();
+                if substitution.receiver.filter(|_| is_declared).is_none() {
+                    continue;
+                }
             }
             let source = self.substitute_type(predicate.left, substitution)?;
             let target = self.substitute_type(predicate.right, substitution)?;
