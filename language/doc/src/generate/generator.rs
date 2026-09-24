@@ -1,8 +1,5 @@
-use std::sync::Arc;
-
-use destack_artifact::EnvironmentBound;
 use destack_dir as dir;
-use destack_repository::{ArtifactReader, Repository, Revision};
+use destack_repository::{Repository, Revision};
 use destack_source::{ModuleId, ProfileId};
 use rustc_hash::FxHashMap;
 
@@ -20,8 +17,6 @@ pub struct Generator<'a> {
     profile: ProfileId,
     /// The checked module closure.
     modules: FxHashMap<ModuleId, Module<'a>>,
-    /// Compiler language and global bindings.
-    environment: Arc<EnvironmentBound>,
 }
 
 impl std::fmt::Debug for Generator<'_> {
@@ -43,8 +38,6 @@ impl<'a> Generator<'a> {
         profile: ProfileId,
         module_ids: impl IntoIterator<Item = ModuleId>,
     ) -> DocResult<Self> {
-        let artifacts = ArtifactReader::new(repository, revision);
-        let environment = artifacts.read(profile)?;
         let mut modules = FxHashMap::default();
 
         // compose the complete checked module closure before rendering
@@ -62,7 +55,6 @@ impl<'a> Generator<'a> {
             revision,
             profile,
             modules,
-            environment,
         })
     }
 
@@ -98,10 +90,5 @@ impl<'a> Generator<'a> {
         let type_value = module.types().get_type(type_id.local_id);
 
         read(&type_value, module)
-    }
-
-    /// Return compiler language and global bindings.
-    pub(crate) fn environment(&self) -> &EnvironmentBound {
-        &self.environment
     }
 }

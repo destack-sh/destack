@@ -3,7 +3,6 @@ use destack_dir as dir;
 use crate::{DocError, DocResult};
 
 use super::Printer;
-use super::r#type::TypeOperand;
 
 impl Printer<'_, '_, '_> {
     /// Format one type operation.
@@ -24,14 +23,14 @@ impl Printer<'_, '_, '_> {
             }
             dir::TypeOperation::Mapped(mapped) => self.mapped(*mapped),
             dir::TypeOperation::Index(index) => {
-                let left = self.type_operand(index.left, TypeOperand::Postfix)?;
+                let left = self.type_operand(index.left, dir::TypeOperand::Postfix)?;
                 let index = self.global_type(index.index)?;
 
                 Ok(format!("{left}[{index}]"))
             }
             dir::TypeOperation::Infer(infer) => self.infer(*infer),
             dir::TypeOperation::Instantiation(application) => {
-                let target = self.type_operand(application.target, TypeOperand::Postfix)?;
+                let target = self.type_operand(application.target, dir::TypeOperand::Postfix)?;
                 let mut arguments = Vec::new();
                 for argument in self.types().type_ids(application.arguments) {
                     arguments.push(self.global_type(*argument)?);
@@ -46,7 +45,7 @@ impl Printer<'_, '_, '_> {
                 Ok(format!("typeof {value}"))
             }
             dir::TypeOperation::KeyOf(target) => {
-                let target = self.type_operand(target.target, TypeOperand::Prefix)?;
+                let target = self.type_operand(target.target, dir::TypeOperand::Prefix)?;
 
                 Ok(format!("keyof {target}"))
             }
@@ -60,6 +59,11 @@ impl Printer<'_, '_, '_> {
 
                 Ok(format!("Awaited<{target}>"))
             }
+            dir::TypeOperation::SpaceOf(target) => {
+                let target = self.global_type(target.target)?;
+
+                Ok(format!("SpaceOf<{target}>"))
+            }
             dir::TypeOperation::TryOutput { value } => {
                 let value = self.global_type(*value)?;
 
@@ -70,6 +74,11 @@ impl Printer<'_, '_, '_> {
 
                 Ok(format!("TryResidual<{value}>"))
             }
+            dir::TypeOperation::TryFailure { value } => {
+                let value = self.global_type(*value)?;
+
+                Ok(format!("TryFailure<{value}>"))
+            }
             dir::TypeOperation::StaticBinary(binary) => self.static_binary(*binary),
             dir::TypeOperation::StaticUnary(unary) => self.static_unary(*unary),
             dir::TypeOperation::TemplateLiteral(template) => self.template_literal(*template),
@@ -78,8 +87,8 @@ impl Printer<'_, '_, '_> {
 
     /// Format one conditional type.
     fn conditional(&self, conditional: dir::ConditionalType) -> DocResult<String> {
-        let left = self.type_operand(conditional.left, TypeOperand::Relation)?;
-        let right = self.type_operand(conditional.right, TypeOperand::Relation)?;
+        let left = self.type_operand(conditional.left, dir::TypeOperand::Relation)?;
+        let right = self.type_operand(conditional.right, dir::TypeOperand::Relation)?;
         let then_type = self.global_type(conditional.then_type)?;
         let else_type = self.global_type(conditional.else_type)?;
 
@@ -130,8 +139,8 @@ impl Printer<'_, '_, '_> {
 
     /// Format one static binary type.
     fn static_binary(&self, binary: dir::StaticBinaryType) -> DocResult<String> {
-        let left = self.type_operand(binary.left, TypeOperand::StaticBinary)?;
-        let right = self.type_operand(binary.right, TypeOperand::StaticBinary)?;
+        let left = self.type_operand(binary.left, dir::TypeOperand::StaticBinary)?;
+        let right = self.type_operand(binary.right, dir::TypeOperand::StaticBinary)?;
         let operator = binary.operator.text();
 
         Ok(format!("{left} {operator} {right}"))
@@ -139,7 +148,7 @@ impl Printer<'_, '_, '_> {
 
     /// Format one static unary type.
     fn static_unary(&self, unary: dir::StaticUnaryType) -> DocResult<String> {
-        let target = self.type_operand(unary.target, TypeOperand::Prefix)?;
+        let target = self.type_operand(unary.target, dir::TypeOperand::Prefix)?;
         let operator = unary.operator.text();
 
         Ok(format!("{operator}{target}"))

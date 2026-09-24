@@ -4,23 +4,6 @@ use crate::{DocError, DocResult};
 
 use super::Printer;
 
-/// One syntactic position that may require a grouped type operand.
-#[derive(Debug, Clone, Copy)]
-pub(super) enum TypeOperand {
-    /// A prefix type operator operand.
-    Prefix,
-    /// A postfix type operator or member receiver.
-    Postfix,
-    /// One union member.
-    Union,
-    /// One intersection member.
-    Intersection,
-    /// One relational type operand.
-    Relation,
-    /// One static binary operation operand.
-    StaticBinary,
-}
-
 impl Printer<'_, '_, '_> {
     /// Format one authored type expression.
     pub(super) fn type_expression(
@@ -87,7 +70,7 @@ impl Printer<'_, '_, '_> {
             dir::Type::Member(member) => return self.member(*self.types().member(*member)),
             dir::Type::Refined(refined) => {
                 let refined = *self.types().refined(*refined);
-                let base = self.type_operand(refined.base, TypeOperand::Postfix)?;
+                let base = self.type_operand(refined.base, dir::TypeOperand::Postfix)?;
                 let key = self.property_key(refined.key);
                 let value = self.global_type(refined.value)?;
 
@@ -116,15 +99,36 @@ impl Printer<'_, '_, '_> {
             dir::Type::FunctionSignature(function) => {
                 return self.function_type(self.types().signature(*function), None);
             }
-            dir::Type::Function(function) => return self.global_type(function.signature),
+            // print a function value as its signature under the elided receiver
+            dir::Type::Function(function) => {
+                let mode = self.receiver_mode(function.receiver)?;
+                if mode.is_some_and(dir::ReceiverMode::is_elided) {
+                    return self.global_type(function.signature);
+                }
+                let (parameters, return_type) = self.callable_arguments(function.signature)?;
+
+                // print a closed mode as its literal, an open receiver term as itself
+                let receiver = match mode {
+                    Some(mode) => format!("\"{}\"", mode.text()),
+                    None => self.global_type(function.receiver)?,
+                };
+
+                return Ok(format!("Function<{parameters}, {return_type}, {receiver}>"));
+            }
             dir::Type::FunctionPointer(function) => {
-                return self.global_type(function.signature);
+                let (parameters, return_type) = self.callable_arguments(function.signature)?;
+
+                return Ok(format!("FunctionPointer<{parameters}, {return_type}>"));
             }
             dir::Type::Union(union) => {
-                return self.type_list(union.elements, " | ", TypeOperand::Union);
+                return self.type_list(union.elements, " | ", dir::TypeOperand::Union);
             }
             dir::Type::Intersection(intersection) => {
-                return self.type_list(intersection.elements, " & ", TypeOperand::Intersection);
+                return self.type_list(
+                    intersection.elements,
+                    " & ",
+                    dir::TypeOperand::Intersection,
+                );
             }
             dir::Type::This => "this".to_string(),
             dir::Type::Operation(operation) => {
@@ -186,7 +190,7 @@ impl Printer<'_, '_, '_> {
 
     /// Format one member type.
     fn member(&self, member: dir::MemberType) -> DocResult<String> {
-        let owner = self.type_operand(member.owner, TypeOperand::Postfix)?;
+        let owner = self.type_operand(member.owner, dir::TypeOperand::Postfix)?;
         let key = self.member_key(member.key);
         let arguments = self.types().type_ids(member.arguments);
 
@@ -201,9 +205,8 @@ impl Printer<'_, '_, '_> {
 
     /// Format one canonical memory form.
     pub(super) fn form(&self, form: dir::FormType) -> DocResult<String> {
-        let value = self.type_operand(form.value, TypeOperand::Prefix)?;
+        let value = self.type_operand(form.value, dir::TypeOperand::Prefix)?;
         let text = match form.form {
-            dir::Form::Managed { place } => self.placed_form(place, &value)?,
             dir::Form::Owned => format!("^{value}"),
             dir::Form::Borrowed(borrow) => self.borrowed_form(borrow, &value)?,
             dir::Form::Raw => format!("*{value}"),
@@ -216,169 +219,68 @@ impl Printer<'_, '_, '_> {
     /// Format one borrowed form.
     fn borrowed_form(&self, borrow: dir::BorrowFormId, value: &str) -> DocResult<String> {
         let borrow = *self.types().borrow_form(borrow);
+        let (region, access) = dir::read_borrow(
+            &borrow,
+            |id| self.read_type(id, |type_value, _| Ok(*type_value)),
+            |text| self.module.strings().get(text).to_string(),
+            |parameter| self.generic_parameter_type(parameter),
+        )?;
+        match dir::borrow_text(region.as_ref(), access.as_ref(), value) {
+            Some(text) => Ok(text),
+            None => {
+                let region = self.global_type(borrow.region)?;
+                let access = self.global_type(borrow.access)?;
 
-        // split the region into its extent and space coordinates
-        let (extent, space) = self.read_type(borrow.region, |type_value, _| match type_value {
-            dir::Type::Region(pair) => Ok((pair.extent, Some(pair.space))),
-            _ => Ok((borrow.region, None)),
-        })?;
+                let borrowed = dir::LanguageItem::Borrowed.export_name();
 
-        // render literal referent spaces in target position, keeping written local
-        let value = match space {
-            None => value.to_string(),
-            Some(space) => match self.space_literal(space)? {
-                Some(space) => format!("{} {value}", space.text()),
-                // induced spaces elide back into the reference sugar
-                None if self.is_induced_memory_term(space)? => value.to_string(),
-                // render written parametric spaces through the full borrow application
-                None => return self.borrow_application(&borrow, value),
-            },
-        };
-
-        // written non-tick extents render the full borrow application
-        let Some(lifetime) = self.borrow_extent(extent)? else {
-            return self.borrow_application(&borrow, &value);
-        };
-
-        self.borrow_access(borrow.access, &lifetime, &value)
-    }
-
-    /// Format one full borrow application.
-    fn borrow_application(&self, borrow: &dir::BorrowForm, value: &str) -> DocResult<String> {
-        let symbol = self
-            .program
-            .environment()
-            .language
-            .symbol(dir::LanguageItem::Borrowed)
-            .ok_or(DocError::missing("Borrowed language item"))?;
-        let borrowed = self.symbol(symbol)?;
-        let region = self.global_type(borrow.region)?;
-        let access = self.global_type(borrow.access)?;
-
-        Ok(format!("{borrowed}<{value}, {region}, {access}>"))
-    }
-
-    /// Format one borrow extent as a reference prefix, or None for an unspellable extent.
-    fn borrow_extent(&self, type_id: dir::GlobalTypeId) -> DocResult<Option<String>> {
-        self.program
-            .read_type(type_id, |type_value, module| match type_value {
-                dir::Type::Literal(dir::Literal::String(value))
-                    if dir::Lifetime::parse(module.strings().get(*value))
-                        == Some(dir::Lifetime::Static) =>
-                {
-                    Ok(Some("'static ".to_string()))
-                }
-                // ticks render as prefixes, induced extents elide, written names defer
-                dir::Type::Parameter(parameter) => {
-                    let formatter = Printer::new(module, self.program);
-                    let lifetime = formatter.generic_parameter_type(*parameter)?;
-                    if lifetime.starts_with('\'') {
-                        return Ok(Some(format!("{lifetime} ")));
-                    }
-
-                    let binding = module.generics().get_parameter(parameter.local_id);
-                    Ok(binding
-                        .induced_memory_parameter()
-                        .is_some()
-                        .then(String::new))
-                }
-                // every other extent erases from the reference prefix
-                _ => Ok(Some(String::new())),
-            })
-    }
-
-    /// Return whether one term is an induced memory parameter.
-    fn is_induced_memory_term(&self, type_id: dir::GlobalTypeId) -> DocResult<bool> {
-        self.program
-            .read_type(type_id, |type_value, module| match type_value {
-                dir::Type::Parameter(parameter) => Ok(module
-                    .generics()
-                    .get_parameter(parameter.local_id)
-                    .induced_memory_parameter()
-                    .is_some()),
-                _ => Ok(false),
-            })
-    }
-
-    /// Read one literal space, or None for a parametric place.
-    fn space_literal(&self, type_id: dir::GlobalTypeId) -> DocResult<Option<dir::Space>> {
-        self.program
-            .read_type(type_id, |type_value, _| match type_value {
-                dir::Type::Literal(dir::Literal::String(text)) => dir::Space::from_text(*text)
-                    .map(Some)
-                    .ok_or_else(|| DocError::invalid(format!("space literal: {type_id:?}"))),
-                _ => Ok(None),
-            })
-    }
-
-    /// Apply one borrow access to a borrowed type.
-    fn borrow_access(
-        &self,
-        type_id: dir::GlobalTypeId,
-        lifetime: &str,
-        value: &str,
-    ) -> DocResult<String> {
-        self.read_type(type_id, |type_value, formatter| {
-            match type_value {
-                // render concrete access with its source modifier
-                dir::Type::Literal(dir::Literal::String(access))
-                    if dir::Access::from_text(*access) == Some(dir::Access::Mutable) =>
-                {
-                    Ok(format!("&{lifetime}{value}"))
-                }
-                dir::Type::Literal(dir::Literal::String(access))
-                    if dir::Access::from_text(*access) == Some(dir::Access::Readonly) =>
-                {
-                    Ok(format!("&{lifetime}readonly {value}"))
-                }
-
-                // retain generic access through its canonical language form
-                dir::Type::Parameter(parameter) => {
-                    let parameter_binding = formatter
-                        .module
-                        .generics()
-                        .get_parameter(parameter.local_id);
-                    if parameter_binding.memory_parameter() != Some(dir::MemoryParameter::Access) {
-                        return Err(DocError::invalid(format!("borrow access: {type_id:?}")));
-                    }
-
-                    let borrowed = format!("&{lifetime}{value}");
-                    let access = formatter.generic_parameter_type(*parameter)?;
-                    let symbol = formatter
-                        .program
-                        .environment()
-                        .language
-                        .symbol(dir::LanguageItem::WithAccess)
-                        .ok_or(DocError::missing("WithAccess language item"))?;
-                    let with_access = formatter.symbol(symbol)?;
-
-                    Ok(format!("{with_access}<{borrowed}, {access}>"))
-                }
-
-                // reject invalid checked borrow access
-                _ => Err(DocError::invalid(format!("borrow access: {type_id:?}"))),
+                Ok(format!("{borrowed}<{value}, {region}, {access}>"))
             }
+        }
+    }
+
+    /// Return the receiver mode one function value names, none for an open receiver term.
+    fn receiver_mode(&self, receiver: dir::GlobalTypeId) -> DocResult<Option<dir::ReceiverMode>> {
+        self.read_type(receiver, |type_value, printer| match type_value {
+            dir::Type::Literal(dir::Literal::String(text)) => {
+                dir::ReceiverMode::from_text(printer.module.strings().get(*text))
+                    .map(Some)
+                    .ok_or_else(|| DocError::invalid(format!("receiver mode: {receiver:?}")))
+            }
+            dir::Type::Parameter(_) | dir::Type::Erased(_) | dir::Type::Variable(_) => Ok(None),
+            _ => Err(DocError::invalid(format!("receiver mode: {receiver:?}"))),
         })
     }
 
-    /// Format one placement form, keeping every written space.
-    fn placed_form(&self, type_id: dir::GlobalTypeId, value: &str) -> DocResult<String> {
-        match self.space_literal(type_id)? {
-            Some(space) => Ok(format!("{} {value}", space.text())),
-            // render parametric places through the full managed application
-            None => {
-                let symbol = self
-                    .program
-                    .environment()
-                    .language
-                    .symbol(dir::LanguageItem::Managed)
-                    .ok_or(DocError::missing("Managed language item"))?;
-                let managed = self.symbol(symbol)?;
-                let place = self.global_type(type_id)?;
+    /// Print the parameter tuple and return type one callable application names.
+    fn callable_arguments(&self, signature: dir::GlobalTypeId) -> DocResult<(String, String)> {
+        self.read_type(signature, |type_value, printer| {
+            let dir::Type::FunctionSignature(signature) = type_value else {
+                return Err(DocError::invalid(format!(
+                    "callable signature: {signature:?}"
+                )));
+            };
+            let signature = *printer.types().signature(*signature);
 
-                Ok(format!("{managed}<{value}, {place}>"))
+            // print each parameter type, spreading a rest parameter
+            let mut parameters = Vec::new();
+            for parameter in printer.types().parameters(signature.parameters) {
+                let ty = printer.global_type(parameter.ty)?;
+                parameters.push(match parameter.is_rest {
+                    true => format!("...{ty}"),
+                    false => ty,
+                });
             }
-        }
+            let parameters = match parameters.as_slice() {
+                [parameter] => format!("({parameter},)"),
+                _ => format!("({})", parameters.join(", ")),
+            };
+            let return_type = match signature.return_type {
+                Some(return_type) => printer.global_type(return_type)?,
+                None => "void".to_string(),
+            };
+
+            Ok((parameters, return_type))
+        })
     }
 
     /// Format one scalar interval type.
@@ -510,7 +412,7 @@ impl Printer<'_, '_, '_> {
         &self,
         list: dir::TypeListId,
         separator: &str,
-        operand: TypeOperand,
+        operand: dir::TypeOperand,
     ) -> DocResult<String> {
         let types = self.types().type_ids(list);
         let mut formatted_types = Vec::with_capacity(types.len());
@@ -535,81 +437,21 @@ impl Printer<'_, '_, '_> {
     pub(super) fn type_operand(
         &self,
         type_id: dir::GlobalTypeId,
-        operand: TypeOperand,
+        operand: dir::TypeOperand,
     ) -> DocResult<String> {
         self.read_type(type_id, |type_value, formatter| {
             let text = formatter.local_type(type_value)?;
-            if type_needs_parentheses(type_value, operand, formatter)? {
+            let types = formatter.types();
+            let is_grouped = type_value.needs_parentheses(
+                operand,
+                |id| Ok(*types.operation(id)),
+                |receiver| formatter.receiver_mode(receiver),
+            )?;
+            if is_grouped {
                 Ok(format!("({text})"))
             } else {
                 Ok(text)
             }
         })
-    }
-}
-
-/// Return whether one type needs grouping in its parent position.
-fn type_needs_parentheses(
-    type_value: &dir::Type,
-    operand: TypeOperand,
-    formatter: &Printer<'_, '_, '_>,
-) -> DocResult<bool> {
-    let needs_parentheses = match type_value {
-        dir::Type::Region(_) => matches!(
-            operand,
-            TypeOperand::Prefix
-                | TypeOperand::Postfix
-                | TypeOperand::Intersection
-                | TypeOperand::Relation
-                | TypeOperand::StaticBinary
-        ),
-        dir::Type::Union(_) => matches!(
-            operand,
-            TypeOperand::Prefix
-                | TypeOperand::Postfix
-                | TypeOperand::Intersection
-                | TypeOperand::Relation
-                | TypeOperand::StaticBinary
-        ),
-        dir::Type::Intersection(_) => matches!(
-            operand,
-            TypeOperand::Prefix
-                | TypeOperand::Postfix
-                | TypeOperand::Relation
-                | TypeOperand::StaticBinary
-        ),
-        dir::Type::FunctionSignature(_)
-        | dir::Type::Function(_)
-        | dir::Type::FunctionPointer(_) => true,
-        dir::Type::Form(_) => matches!(operand, TypeOperand::Postfix),
-        dir::Type::Range(_) => matches!(
-            operand,
-            TypeOperand::Prefix
-                | TypeOperand::Postfix
-                | TypeOperand::Relation
-                | TypeOperand::StaticBinary
-        ),
-        dir::Type::Operation(operation) => {
-            let operation = formatter.types().operation(*operation);
-            operation_needs_parentheses(operation, operand)
-        }
-        _ => false,
-    };
-
-    Ok(needs_parentheses)
-}
-
-/// Return whether one type operation needs grouping in its parent position.
-fn operation_needs_parentheses(operation: &dir::TypeOperation, operand: TypeOperand) -> bool {
-    match operation {
-        dir::TypeOperation::Conditional(_) | dir::TypeOperation::StaticBinary(_) => true,
-        dir::TypeOperation::Mapped(_) => matches!(operand, TypeOperand::Prefix),
-        dir::TypeOperation::Infer(infer) if infer.constraint.is_some() => {
-            !matches!(operand, TypeOperand::Relation | TypeOperand::StaticBinary)
-        }
-        dir::TypeOperation::KeyOf(_)
-        | dir::TypeOperation::TypeOf(_)
-        | dir::TypeOperation::StaticUnary(_) => matches!(operand, TypeOperand::Postfix),
-        _ => false,
     }
 }

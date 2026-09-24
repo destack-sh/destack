@@ -1,5 +1,4 @@
 use std::fmt::{self, Debug, Formatter};
-use std::slice;
 use std::sync::Arc;
 
 use destack_artifact::{
@@ -23,10 +22,8 @@ pub(crate) struct Module<'a> {
     module_id: ModuleId,
     /// Shared repository strings.
     strings: &'a StringPool,
-    /// The parsed source tree.
-    parsed: Arc<DirParsed>,
-    /// The macro expansion patch.
-    expanded: Arc<DirExpanded>,
+    /// The stacked module DIR stages.
+    stages: DirView,
     /// The cumulative checked bindings.
     bindings: dir::BindingTable<'static>,
     /// The cumulative checked types.
@@ -69,8 +66,6 @@ impl<'a> Module<'a> {
             reader.read::<DirElaborated>((module_id, profile))?,
             reader.read::<DirChecked>((module_id, profile))?,
         );
-        let parsed = Arc::clone(&view.parsed);
-        let expanded = Arc::clone(&view.expanded);
         let member_index = reader.read::<ModuleIndex>((module_id, profile, IndexKind::Members))?;
         let ModuleIndex::Members(members) = member_index.as_ref() else {
             return Err(DocError::invalid(format!(
@@ -90,13 +85,12 @@ impl<'a> Module<'a> {
             revision,
             module_id,
             strings: repository.string_pool().as_ref(),
-            parsed,
-            expanded,
             bindings,
             types,
             generics,
             definitions,
             members: members.clone(),
+            stages: view,
         })
     }
 
@@ -117,7 +111,7 @@ impl<'a> Module<'a> {
 
     /// Return the visible source tree.
     pub(crate) fn view(&self) -> dir::View<'_> {
-        dir::View::with_patches(&self.parsed.tree, slice::from_ref(&self.expanded.patch))
+        self.stages.tree()
     }
 
     /// Return the cumulative binding table.
