@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 
 use crate::source::{Token, TokenType};
 use crate::{
-    Copy, Attribute, Block, CommentSpan, ExtentSlice, Field, FieldId, FieldSpan, FlagSlice,
-    FloatType, Function, FunctionHeaderSpans, Global, IndexSlice, Instruction, Local, LocalNodeId,
-    Node, NodeIndexEntry, NodeType, Provenance, ProvenanceTable, Substitution, SwitchCase,
+    Attribute, Block, CommentSpan, ExtentSlice, Field, FieldId, FieldSpan, FlagSlice, FloatType,
+    Function, FunctionHeaderSpans, Global, IndexSlice, Instruction, Local, LocalNodeId, Node,
+    NodeIndexEntry, NodeType, Provenance, ProvenanceTable, Substitution, SwitchCase,
     SwitchCaseSlice, Symbol, Terminator, Type, TypeDeclaration, TypeDeclarationSpans, TypeId,
     TypeTable, TypedValueSpan, Value, ValueSlice,
 };
@@ -180,13 +180,6 @@ impl Tree {
         }
     }
 
-
-
-
-
-
-
-
     /// Return the first global node id stored in this tree.
     #[inline]
     pub fn first_global_id(&self) -> u32 {
@@ -295,38 +288,35 @@ impl Tree {
 
     /// Return the boolean type id.
     pub fn boolean_type(&self) -> TypeId {
-        self.intern_type(Type::Boolean, Copy::Yes)
+        self.intern_type(Type::Boolean)
     }
 
     /// Return the character type id.
     pub fn character_type(&self) -> TypeId {
-        self.intern_type(Type::Character, Copy::Yes)
+        self.intern_type(Type::Character)
     }
 
     /// Return the void type id.
     pub fn void_type(&self) -> TypeId {
-        self.intern_type(Type::Void, Copy::Yes)
+        self.intern_type(Type::Void)
     }
 
     /// Return the usize type id.
     pub fn usize_type(&self) -> TypeId {
-        self.intern_type(Type::Usize, Copy::Yes)
+        self.intern_type(Type::Usize)
     }
 
     /// Return an integer type id for width and signedness.
     pub fn int_type(&self, width: u16, signed: bool) -> TypeId {
-        self.intern_type(
-            Type::Int {
-                width,
-                is_signed: signed,
-            },
-            Copy::Yes,
-        )
+        self.intern_type(Type::Int {
+            width,
+            is_signed: signed,
+        })
     }
 
     /// Return a float type id for format.
     pub fn float_type(&self, format: FloatType) -> TypeId {
-        self.intern_type(Type::Float(format), Copy::Yes)
+        self.intern_type(Type::Float(format))
     }
 
     /// Get a node or interned value by id.

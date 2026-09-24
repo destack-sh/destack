@@ -1055,7 +1055,7 @@ entry(v0: int32):
         let constraint = concrete;
         let callsite =
             mir::Point::Instruction(program.tree.get(declaration.block(0)).instructions[0]);
-        let receiver_type = program.tree.intern_type(mir::Type::Boolean, mir::Copy::Yes);
+        let receiver_type = program.tree.intern_type(mir::Type::Boolean);
 
         // select different callees for the two receiver types
         for (concrete, callee) in [(concrete, first), (receiver_type, second)] {
@@ -1257,7 +1257,7 @@ entry(v0: ref<Object, managed, mutable, local>):
 
 function test(): void {
 entry:
-    v0: ref<Object, managed, mutable, local> = new.zeroed Object
+    v0: ref<Object, managed, mutable, local> = new.zeroed Object, local
     call.virtual v0, Object, 0(v0): (ref<Object, managed, mutable, local>) => void
     return
 }

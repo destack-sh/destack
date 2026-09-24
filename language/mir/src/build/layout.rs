@@ -6,7 +6,7 @@ use crate::{
     ElementLayout, Function, Global, Layout, LayoutId, LayoutShape, LayoutTable, LocalNodeId,
     NewtypeLayout, NodeVisitor, PlaceType, Primitive, Reference, Representation, Scalar,
     ScalarField, Static, StructLayout, Substitution, TargetLayout, TraceMap, Tree, TupleLayout,
-    Type, TypeId, Validity, Vector, walk_function, walk_type,
+    Type, TypeId, Validity, Vector, WitnessTable, resolve_witness_types, walk_function, walk_type,
 };
 
 use super::aggregate::Aggregate;
@@ -21,6 +21,8 @@ pub struct LayoutBuilder<'tree> {
     layouts: &'tree mut LayoutTable,
     /// The target ABI layout.
     target: TargetLayout,
+    /// The witnesses resolving associated types, absent over a closed tree.
+    witnesses: Option<&'tree WitnessTable>,
     /// The types whose layouts are in flight.
     computing: FxIndexSet<TypeId>,
 }
@@ -133,8 +135,16 @@ impl<'tree> LayoutBuilder<'tree> {
             tree,
             layouts,
             target,
+            witnesses: None,
             computing: FxIndexSet::default(),
         }
+    }
+
+    /// Resolve associated types through one witness table.
+    pub fn witnesses(mut self, witnesses: &'tree WitnessTable) -> Self {
+        self.witnesses = Some(witnesses);
+
+        self
     }
 
     /// Compute every value layout reachable from runtime MIR roots.
@@ -187,9 +197,9 @@ impl<'tree> LayoutBuilder<'tree> {
 
                     // collect each storage layout used to compute the selected address
                     for projection in &place.path.projections {
-                        ty = ty
-                            .project(projection, self.tree)
-                            .unwrap_or_else(|| unreachable!("invalid memory place projection"));
+                        ty = ty.project(projection, self.tree).unwrap_or_else(|| {
+                            unreachable!("invalid memory place projection {projection:?}")
+                        });
                         let storage = match ty {
                             PlaceType::Value(ty) => Some(ty),
                             referent => referent.element(self.tree),
@@ -244,7 +254,8 @@ impl<'tree> LayoutBuilder<'tree> {
             | Type::Variant { .. }
             | Type::Vector { .. }
             | Type::Function { .. }
-            | Type::FunctionPointer { .. } => {
+            | Type::FunctionPointer { .. }
+            | Type::Witness { .. } => {
                 self.layout_type(ty)?;
 
                 Ok(())
@@ -261,6 +272,10 @@ impl<'tree> LayoutBuilder<'tree> {
 
         // substitute the requested definition before computing its layout
         let definition = Substitution::resolve(ty, self.tree);
+        let definition = match self.witnesses {
+            Some(witnesses) => resolve_witness_types(self.tree, witnesses, definition),
+            None => definition,
+        };
         if definition != ty {
             let layout = self.layout_type(definition)?;
             self.layouts.set_layout_id(ty, layout);
@@ -339,7 +354,7 @@ impl<'tree> LayoutBuilder<'tree> {
             }
 
             // lay out one world-relative reference with its permitted values
-            Type::Reference { kind, storage, .. } => {
+            Type::Reference { kind, lifetime, .. } => {
                 let scalar = self.reference_scalar(kind);
 
                 Ok(Layout {
@@ -348,7 +363,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     niche: scalar.niche(0),
                     size: self.pointer_bytes(),
                     alignment: self.pointer_alignment(),
-                    trace_map: TraceMap::reference(kind, storage, self.tree),
+                    trace_map: TraceMap::reference(kind, &lifetime),
                     uninhabited: false,
                 })
             }
@@ -371,7 +386,7 @@ impl<'tree> LayoutBuilder<'tree> {
             }
 
             // slices store their base reference followed by one element count
-            Type::Slice { kind, storage, .. } => {
+            Type::Slice { kind, lifetime, .. } => {
                 let reference = self.reference_scalar(kind);
                 let length = Scalar::new(Primitive::Integer {
                     width: self.target.pointer_bits(),
@@ -387,7 +402,7 @@ impl<'tree> LayoutBuilder<'tree> {
                     niche: reference.niche(0),
                     size: self.pointer_bytes() * 2,
                     alignment: self.pointer_alignment(),
-                    trace_map: TraceMap::reference(kind, storage, self.tree),
+                    trace_map: TraceMap::reference(kind, &lifetime),
                     uninhabited: false,
                 })
             }
@@ -553,7 +568,7 @@ impl<'tree> LayoutBuilder<'tree> {
             }
 
             // dynamic values store one erased payload reference and dispatch table id
-            Type::Dynamic { kind, storage, .. } => {
+            Type::Dynamic { kind, lifetime, .. } => {
                 let payload = self.reference_scalar(kind);
                 let table = Scalar::new(Primitive::Integer { width: 32 });
                 let representation = Representation::ScalarPair([
@@ -567,15 +582,15 @@ impl<'tree> LayoutBuilder<'tree> {
                     niche: payload.niche(0),
                     size: self.pointer_bytes() * 2,
                     alignment: self.pointer_alignment(),
-                    trace_map: TraceMap::reference(kind, storage, self.tree),
+                    trace_map: TraceMap::reference(kind, &lifetime),
                     uninhabited: false,
                 })
             }
 
             // closures store a function identity and erased environment reference
-            Type::Function { kind, storage, .. } => {
+            Type::Function { kind, lifetime, .. } => {
                 let environment_offset = self.pointer_bytes();
-                let environment_trace = TraceMap::reference(kind, storage, self.tree);
+                let environment_trace = TraceMap::reference(kind, &lifetime);
                 let function = self.function_scalar();
                 let environment = Scalar::new(Primitive::Pointer {
                     width: self.target.pointer_bits(),
@@ -622,7 +637,8 @@ impl<'tree> LayoutBuilder<'tree> {
             | Type::Uninit { .. }
             | Type::ManuallyDrop { .. }
             | Type::Error
-            | Type::FunctionSignature { .. } => Err(self.unsupported("type")),
+            | Type::Witness { .. }
+            | Type::FunctionSignature { .. } => Err(self.unsupported("a type without a layout")),
 
             // give the uninhabited type the zero-sized layout
             Type::Never => Ok(Layout {

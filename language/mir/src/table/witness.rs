@@ -2,7 +2,7 @@ use destack_core::StringId;
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
-use crate::{FunctionId, GenericArgument, Global, LocalNodeId, TypeId};
+use crate::{FunctionId, GenericArgument, Global, LocalNodeId, Tree, TypeId, erase_lifetimes};
 
 /// The witness each closed type records for each interface it implements.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -88,6 +88,25 @@ impl WitnessTable {
     /// Iterate every recorded witness.
     pub fn iter(&self) -> impl Iterator<Item = &Witness> {
         self.witnesses.iter()
+    }
+
+    /// Return the type one witness implements an associated type with.
+    pub fn associated_type(
+        &self,
+        tree: &Tree,
+        receiver: TypeId,
+        interface: TypeId,
+        member: StringId,
+    ) -> Option<TypeId> {
+        let concrete = erase_lifetimes(tree, receiver);
+        let constraint = erase_lifetimes(tree, interface);
+        let witness = self.get(concrete, constraint)?;
+
+        witness
+            .types
+            .iter()
+            .find(|found| found.member == member)
+            .map(|found| found.ty)
     }
 
     /// Return the witness recording how one type implements one interface.

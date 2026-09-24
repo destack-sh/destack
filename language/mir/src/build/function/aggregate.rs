@@ -1,6 +1,5 @@
 use crate::build::{BuildError, BuildResult, FunctionBuilder};
 use crate::{
-    Copy,
     BinaryOperator, ConvertMode, DispatchSlot, Instruction, Place, Substitution, Tree, Type,
     TypeId, Value, VectorReduceOperator,
 };
@@ -150,7 +149,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Read the runtime length from a slice descriptor.
     pub fn slice_length(&mut self, slice: Value) -> Value {
         let destination = self.allocate_value();
-        let usize_type = self.tree.intern_type(Type::Usize, Copy::Yes);
+        let usize_type = self.tree.intern_type(Type::Usize);
         self.insert_instruction(Instruction::SliceLength { destination, slice });
         self.define_value(destination, usize_type);
         destination
@@ -189,7 +188,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Read the concrete type id from a dynamic value.
     pub fn dynamic_type(&mut self, dynamic: Value) -> Value {
         let destination = self.allocate_value();
-        let type_id = self.tree.intern_type(Type::TypeId, Copy::Yes);
+        let type_id = self.tree.intern_type(Type::TypeId);
         self.insert_instruction(Instruction::DynamicType {
             destination,
             dynamic,

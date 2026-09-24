@@ -4,8 +4,8 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    Analysis, FunctionId, Instruction, Local, LocalId, Mutation, NodeTable, Place,
-    PlaceOrigin, PlaceTable, Projection, Reference, Substitution, Tree, Type, TypeId, Value,
+    Analysis, FunctionId, Instruction, Local, LocalId, Mutation, NodeTable, Place, PlaceOrigin,
+    PlaceTable, Projection, Reference, Substitution, Tree, Type, TypeId, Value, is_copy,
 };
 
 /// Dense structural paths whose initialization can change independently.
@@ -445,7 +445,7 @@ impl MoveTable {
             parent,
             children: Vec::new(),
             is_exhaustive: true,
-            is_copy: tree.copy(ty).is_yes(),
+            is_copy: is_copy(tree, ty, &tree.get(self.function).generics),
         });
         self.ids.insert(place, id);
 
@@ -504,10 +504,10 @@ mod tests {
     fn test_track_array_elements() {
         let program = TestModule::new(
             r#"
-function test(v0: [ref<int32, unique, mutable, local>; 1048576]): ref<int32, unique, mutable, local> {
-entry(v0: [ref<int32, unique, mutable, local>; 1048576]):
-    v1: ref<int32, unique, mutable, local> = element.get v0, 19
-    v2: ref<int32, unique, mutable, local> = element.get v0, 29
+function test(v0: [ref<int32, unique, mutable>; 1048576]): ref<int32, unique, mutable> {
+entry(v0: [ref<int32, unique, mutable>; 1048576]):
+    v1: ref<int32, unique, mutable> = element.get v0, 19
+    v2: ref<int32, unique, mutable> = element.get v0, 29
     return v1
 }
 "#,
@@ -538,9 +538,9 @@ entry(v0: [ref<int32, unique, mutable, local>; 1048576]):
     fn test_own_the_pointee_path_under_its_reference() {
         let program = TestModule::new(
             r#"
-function test(v0: ref<ref<int32, unique, mutable, local>, unique, mutable, local>): ref<int32, unique, mutable, local> {
-entry(v0: ref<ref<int32, unique, mutable, local>, unique, mutable, local>):
-    v1: ref<int32, unique, mutable, local> = load (*v0)
+function test(v0: ref<ref<int32, unique, mutable>, unique, mutable>): ref<int32, unique, mutable> {
+entry(v0: ref<ref<int32, unique, mutable>, unique, mutable>):
+    v1: ref<int32, unique, mutable> = load (*v0)
     return v1
 }
 "#,

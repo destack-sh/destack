@@ -867,10 +867,10 @@ mod tests {
     fn test_require_initialization_on_every_incoming_branch() {
         let program = TestModule::new(
             r#"
-function partial(v0: boolean, v1: ref<int32, unique, mutable, local>): void {
-    local l0: ref<int32, unique, mutable, local>
+function partial(v0: boolean, v1: ref<int32, unique, mutable>): void {
+    local l0: ref<int32, unique, mutable>
 
-entry(v0: boolean, v1: ref<int32, unique, mutable, local>):
+entry(v0: boolean, v1: ref<int32, unique, mutable>):
     branch v0 => left | right
 
 left:
@@ -884,10 +884,10 @@ join:
     return
 }
 
-function complete(v0: boolean, v1: ref<int32, unique, mutable, local>): void {
-    local l0: ref<int32, unique, mutable, local>
+function complete(v0: boolean, v1: ref<int32, unique, mutable>): void {
+    local l0: ref<int32, unique, mutable>
 
-entry(v0: boolean, v1: ref<int32, unique, mutable, local>):
+entry(v0: boolean, v1: ref<int32, unique, mutable>):
     branch v0 => left | right
 
 left:
@@ -953,15 +953,15 @@ join:
     fn test_preserve_moved_storage_across_backedges() {
         let program = TestModule::new(
             r#"
-function test(v0: ref<int32, unique, mutable, local>, v1: boolean): void {
-    local l0: ref<int32, unique, mutable, local>
+function test(v0: ref<int32, unique, mutable>, v1: boolean): void {
+    local l0: ref<int32, unique, mutable>
 
-entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
+entry(v0: ref<int32, unique, mutable>, v1: boolean):
     store l0, v0
     jump header
 
 header:
-    v2: ref<int32, unique, mutable, local> = load l0
+    v2: ref<int32, unique, mutable> = load l0
     branch v1 => header | done
 
 done:
@@ -1014,10 +1014,10 @@ done:
     fn test_ignore_unreachable_initialization() {
         let mut program = TestModule::new(
             r#"
-function test(v0: ref<int32, unique, mutable, local>): void {
-    local l0: ref<int32, unique, mutable, local>
+function test(v0: ref<int32, unique, mutable>): void {
+    local l0: ref<int32, unique, mutable>
 
-entry(v0: ref<int32, unique, mutable, local>):
+entry(v0: ref<int32, unique, mutable>):
     jump join
 
 dead:
@@ -1064,8 +1064,8 @@ join:
     fn test_preserve_swapped_block_arguments() {
         let program = TestModule::new(
             r#"
-function test(v0: boolean, v1: ref<int32, unique, mutable, local>, v2: ref<int32, unique, mutable, local>): void {
-entry(v0: boolean, v1: ref<int32, unique, mutable, local>, v2: ref<int32, unique, mutable, local>):
+function test(v0: boolean, v1: ref<int32, unique, mutable>, v2: ref<int32, unique, mutable>): void {
+entry(v0: boolean, v1: ref<int32, unique, mutable>, v2: ref<int32, unique, mutable>):
     branch v0 => entry(v0, v2, v1) | done
 
 done:
@@ -1109,13 +1109,13 @@ done:
     fn test_initialize_results_only_on_success_edges() {
         let program = TestModule::new(
             r#"
-external function make(): ref<int32, unique, mutable, local>
+external function make(): ref<int32, unique, mutable>
 
 function allocate(): void {
 entry:
-    new.zeroed.try int32 => done | failure
+    new.zeroed.try int32, local => done | failure
 
-done(v0: ref<int32, unique, mutable, local>):
+done(v0: ref<int32, unique, mutable>):
     release v0
     return
 
@@ -1125,9 +1125,9 @@ failure:
 
 function construct(): void {
 entry:
-    invoke make(): () => ref<int32, unique, mutable, local> => done | failure
+    invoke make(): () => ref<int32, unique, mutable> => done | failure
 
-done(v0: ref<int32, unique, mutable, local>):
+done(v0: ref<int32, unique, mutable>):
     release v0
     return
 
@@ -1174,8 +1174,8 @@ failure:
             r#"
 function test(): void {
 entry:
-    v0: uninit<ref<int32, unique, mutable, local>> = new.uninit int32
-    v1: ref<int32, unique, mutable, local> = new.complete v0
+    v0: uninit<ref<int32, unique, mutable>> = new.uninit int32, local
+    v1: ref<int32, unique, mutable> = new.complete v0
     jump done
 
 done:
@@ -1200,13 +1200,13 @@ done:
     fn test_report_a_partially_moved_block_argument() {
         let program = TestModule::new(
             r#"
-function test(v0: ref<ref<int32, unique, mutable, local>, unique, mutable, local>): void {
-entry(v0: ref<ref<int32, unique, mutable, local>, unique, mutable, local>):
-    v1: ref<int32, unique, mutable, local> = load (*v0)
+function test(v0: ref<ref<int32, unique, mutable>, unique, mutable>): void {
+entry(v0: ref<ref<int32, unique, mutable>, unique, mutable>):
+    v1: ref<int32, unique, mutable> = load (*v0)
     jump done(v0)
 
-done(v2: ref<ref<int32, unique, mutable, local>, unique, mutable, local>):
-    v3: ref<int32, unique, mutable, local> = load (*v2)
+done(v2: ref<ref<int32, unique, mutable>, unique, mutable>):
+    v3: ref<int32, unique, mutable> = load (*v2)
     return
 }
 "#,
@@ -1264,24 +1264,24 @@ done(v2: ref<ref<int32, unique, mutable, local>, unique, mutable, local>):
     fn test_initialize_pointees_after_explicit_assume_init() {
         let program = TestModule::new(
             r#"
-external function inspect<'a>(ref<uninit<ref<int32, unique, mutable, local>>, borrowed, 'a, mutable, frame>): void
+external function inspect<'a>(ref<uninit<ref<int32, unique, mutable>>, borrowed, 'a, mutable>): void
 
 function test(): void {
-    local l0: ref<int32, unique, mutable, local>
+    local l0: ref<int32, unique, mutable>
 
 entry:
-    v0: ref<ref<int32, unique, mutable, local>, borrowed, 'frame, mutable, frame> = address l0
-    v1: ref<uninit<ref<int32, unique, mutable, local>>, borrowed, 'frame, mutable, frame> = cast.bit v0 -> ref<uninit<ref<int32, unique, mutable, local>>, borrowed, 'frame, mutable, frame>
-    v4: ref<uninit<ref<int32, unique, mutable, local>>, borrowed, 'frame, mutable, frame> = copy v1
-    call inspect(v4): <'a>(ref<uninit<ref<int32, unique, mutable, local>>, borrowed, 'a, mutable, frame>) => void
+    v0: ref<ref<int32, unique, mutable>, borrowed, 'frame, mutable> = address l0
+    v1: ref<uninit<ref<int32, unique, mutable>>, borrowed, 'frame, mutable> = cast.bit v0 -> ref<uninit<ref<int32, unique, mutable>>, borrowed, 'frame, mutable>
+    v4: ref<uninit<ref<int32, unique, mutable>>, borrowed, 'frame, mutable> = copy v1
+    call inspect(v4): <'a>(ref<uninit<ref<int32, unique, mutable>>, borrowed, 'a, mutable>) => void
     jump pending
 
 pending:
-    v2: ref<ref<int32, unique, mutable, local>, borrowed, 'frame, mutable, frame> = intrinsic.memory.raw.transmute(v1)
+    v2: ref<ref<int32, unique, mutable>, borrowed, 'frame, mutable> = intrinsic.memory.raw.transmute(v1)
     jump complete
 
 complete:
-    v3: ref<int32, unique, mutable, local> = load l0
+    v3: ref<int32, unique, mutable> = load l0
     release v3
     return
 }
@@ -1338,10 +1338,10 @@ complete:
     fn test_move_pointee_from_merged_local() {
         let program = TestModule::new(
             r#"
-function test(v0: boolean, v1: ref<ref<int32, unique, mutable, local>, unique, mutable, local>, v2: ref<ref<int32, unique, mutable, local>, unique, mutable, local>): void {
-    local l0: ref<ref<int32, unique, mutable, local>, unique, mutable, local>
+function test(v0: boolean, v1: ref<ref<int32, unique, mutable>, unique, mutable>, v2: ref<ref<int32, unique, mutable>, unique, mutable>): void {
+    local l0: ref<ref<int32, unique, mutable>, unique, mutable>
 
-entry(v0: boolean, v1: ref<ref<int32, unique, mutable, local>, unique, mutable, local>, v2: ref<ref<int32, unique, mutable, local>, unique, mutable, local>):
+entry(v0: boolean, v1: ref<ref<int32, unique, mutable>, unique, mutable>, v2: ref<ref<int32, unique, mutable>, unique, mutable>):
     branch v0 => left | right
 
 left:
@@ -1353,9 +1353,9 @@ right:
     jump join
 
 join:
-    v3: ref<ref<int32, unique, mutable, local>, unique, mutable, local> = load l0
-    v4: ref<int32, unique, mutable, local> = load (*v3)
-    v5: ref<int32, unique, mutable, local> = load (*v3)
+    v3: ref<ref<int32, unique, mutable>, unique, mutable> = load l0
+    v4: ref<int32, unique, mutable> = load (*v3)
+    v5: ref<int32, unique, mutable> = load (*v3)
     return
 }
 "#,
@@ -1406,11 +1406,11 @@ join:
     fn test_replace_moved_pointee() {
         let program = TestModule::new(
             r#"
-function test(v0: ref<ref<int32, unique, mutable, local>, unique, mutable, local>, v1: ref<int32, unique, mutable, local>): void {
-entry(v0: ref<ref<int32, unique, mutable, local>, unique, mutable, local>, v1: ref<int32, unique, mutable, local>):
-    v2: ref<int32, unique, mutable, local> = load (*v0)
+function test(v0: ref<ref<int32, unique, mutable>, unique, mutable>, v1: ref<int32, unique, mutable>): void {
+entry(v0: ref<ref<int32, unique, mutable>, unique, mutable>, v1: ref<int32, unique, mutable>):
+    v2: ref<int32, unique, mutable> = load (*v0)
     store (*v0), v1
-    v3: ref<int32, unique, mutable, local> = load (*v0)
+    v3: ref<int32, unique, mutable> = load (*v0)
     return
 }
 "#,
@@ -1449,9 +1449,9 @@ entry(v0: ref<ref<int32, unique, mutable, local>, unique, mutable, local>, v1: r
     fn test_move_one_field_without_consuming_its_sibling() {
         let program = TestModule::new(
             r#"
-function test(v0: (ref<int32, unique, mutable, local>, ref<int32, unique, mutable, local>)): void {
-entry(v0: (ref<int32, unique, mutable, local>, ref<int32, unique, mutable, local>)):
-    v1: ref<int32, unique, mutable, local> = field.get v0, 0
+function test(v0: (ref<int32, unique, mutable>, ref<int32, unique, mutable>)): void {
+entry(v0: (ref<int32, unique, mutable>, ref<int32, unique, mutable>)):
+    v1: ref<int32, unique, mutable> = field.get v0, 0
     jump done
 
 done:

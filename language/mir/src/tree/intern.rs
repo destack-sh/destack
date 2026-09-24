@@ -8,10 +8,7 @@ use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use smallvec::SmallVec;
 
-
-use crate::{
-    Copy, Field, Space, SpaceJoinId, Static, StaticId, Storage, StorageJoinId, Tree, Type,
-};
+use crate::{Field, Static, StaticId, Tree, Type};
 
 /// Compact identity of one interned type.
 #[repr(transparent)]
@@ -51,22 +48,18 @@ pub struct FieldId(pub u32);
 /// Interning appends through a shared reference.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
 pub struct TypeTable {
-    /// The structural types, each beside the copy decision written for it.
-    types: Interned<(Type, Copy)>,
+    /// The structural types.
+    types: Interned<Type>,
     /// The struct fields.
     fields: Interned<Field>,
     /// The compile-time values.
     statics: Interned<Static>,
-    /// The space join expressions.
-    space_joins: Interned<Vec<Space>>,
-    /// The storage join expressions.
-    storage_joins: Interned<Vec<Storage>>,
 }
 
 impl Tree {
-    /// Find one type equal by structure and copy decision.
-    pub fn find_type(&self, ty: &Type, copy: Copy) -> Option<TypeId> {
-        self.types.types.find(&(ty.clone(), copy)).map(TypeId)
+    /// Find one type equal by structure.
+    pub fn find_type(&self, ty: &Type) -> Option<TypeId> {
+        self.types.types.find(ty).map(TypeId)
     }
 
     /// Intern one reference or slice type at its referent typed uninitialized, the storage alone.
@@ -74,31 +67,20 @@ impl Tree {
         let mut emptied = self.get(ty).clone();
         match &mut emptied {
             Type::Reference { pointee, .. } => {
-                *pointee = self.intern_type(Type::Uninit { value: *pointee }, Copy::No);
+                *pointee = self.intern_type(Type::Uninit { value: *pointee });
             }
             Type::Slice { element, .. } => {
-                *element = self.intern_type(Type::Uninit { value: *element }, Copy::No);
+                *element = self.intern_type(Type::Uninit { value: *element });
             }
             _ => unreachable!("emptied storage outside a unique reference or slice"),
         }
 
-        self.intern_type(emptied, self.copy(ty))
+        self.intern_type(emptied)
     }
 
-    /// Intern one type by structural equality, beside the copy decision written for it.
-    pub fn intern_type(&self, ty: Type, copy: Copy) -> TypeId {
-        TypeId(self.types.types.intern((ty, copy)))
-    }
-
-    /// Return the copy decision written for one type, a declaration naming its definition's.
-    pub fn copy(&self, ty: TypeId) -> Copy {
-        match self.types.types.get(ty.0) {
-            (Type::Declaration { declaration }, _) => match self.get(*declaration).definition {
-                Some(definition) => self.copy(definition),
-                None => Copy::No,
-            },
-            (_, copy) => *copy,
-        }
+    /// Intern one type by structural equality.
+    pub fn intern_type(&self, ty: Type) -> TypeId {
+        TypeId(self.types.types.intern(ty))
     }
 
     /// Intern one field by structural equality.
@@ -116,39 +98,13 @@ impl Tree {
         self.types.statics.get(id.0)
     }
 
-    /// Intern one space join expression in the supplied order.
-    pub fn intern_space_join(&self, spaces: impl IntoIterator<Item = Space>) -> Space {
-        Space::Join(SpaceJoinId(
-            self.types.space_joins.intern(spaces.into_iter().collect()),
-        ))
-    }
-
-    /// Return the members of one space join.
-    pub fn space_join(&self, id: SpaceJoinId) -> &[Space] {
-        self.types.space_joins.get(id.0)
-    }
-
-    /// Intern one storage join expression in the supplied order.
-    pub fn intern_storage_join(&self, storages: impl IntoIterator<Item = Storage>) -> Storage {
-        Storage::Join(StorageJoinId(
-            self.types
-                .storage_joins
-                .intern(storages.into_iter().collect()),
-        ))
-    }
-
-    /// Return the members of one storage join.
-    pub fn storage_join(&self, id: StorageJoinId) -> &[Storage] {
-        self.types.storage_joins.get(id.0)
-    }
-
     /// Iterate every interned type in interning order.
     pub fn types(&self) -> impl Iterator<Item = (TypeId, &Type)> {
         self.types
             .types
             .iter()
             .enumerate()
-            .map(|(index, (ty, _))| (TypeId(index as u32), ty))
+            .map(|(index, ty)| (TypeId(index as u32), ty))
     }
 
     /// Return the number of interned types.
@@ -159,7 +115,7 @@ impl Tree {
     /// Resolve one type id.
     #[inline]
     pub(crate) fn type_at(&self, id: TypeId) -> &Type {
-        &self.types.types.get(id.0).0
+        self.types.types.get(id.0)
     }
 
     /// Resolve one field id.

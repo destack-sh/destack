@@ -1,6 +1,5 @@
 use crate::build::{BuildError, FunctionBuilder};
 use crate::{
-    Copy,
     Call, Callee, Function, FunctionBehavior, GenericArgument, Instruction, LocalNodeId, Point,
     SignatureParameter, Substitution, Type, TypeId, Value,
 };
@@ -52,14 +51,11 @@ impl<'a> FunctionBuilder<'a> {
             .collect();
         let result = declared.return_type;
         let lifetimes = declared.lifetimes.clone();
-        let signature = self.tree.intern_type(
-            Type::FunctionSignature {
-                lifetimes,
-                parameters,
-                result,
-            },
-            Copy::Yes,
-        );
+        let signature = self.tree.intern_type(Type::FunctionSignature {
+            lifetimes,
+            parameters,
+            result,
+        });
 
         self.call(
             Callee::Direct {
@@ -136,8 +132,7 @@ impl<'a> FunctionBuilder<'a> {
         destination
     }
 
-    /// Return the result type one callable signature declares, the destination a call at that
-    /// signature defines without a caller-side type.
+    /// Return the result type one callable signature declares.
     pub fn signature_result(&mut self, signature: TypeId) -> TypeId {
         let result = self.signature_result_type(signature);
 

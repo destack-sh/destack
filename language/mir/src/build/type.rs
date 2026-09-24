@@ -2,42 +2,40 @@ use destack_core::StringId;
 
 use crate::build::ModuleBuilder;
 use crate::{
-    Access, Constant, Copy, Field, FieldId, FloatType, Lifetime, Multiplicity, Reference,
-    SignatureParameter, Static, Storage, Type, TypeId, VariantCase,
+    Access, Constant, Field, FieldId, FloatType, Lifetime, Multiplicity, Reference,
+    SignatureParameter, Static, Type, TypeId, VariantCase,
 };
 
 #[allow(clippy::too_many_arguments)]
 impl ModuleBuilder {
     /// Create a void type.
     pub fn type_void(&mut self) -> TypeId {
-        self.tree.intern_type(Type::Void, Copy::Yes)
+        self.tree.intern_type(Type::Void)
     }
 
     /// Create a boolean type.
     pub fn type_boolean(&mut self) -> TypeId {
-        self.tree.intern_type(Type::Boolean, Copy::Yes)
+        self.tree.intern_type(Type::Boolean)
     }
 
     /// Create a character type.
     pub fn type_character(&mut self) -> TypeId {
-        self.tree.intern_type(Type::Character, Copy::Yes)
+        self.tree.intern_type(Type::Character)
     }
 
     /// Create an integer type.
     pub fn type_int(&mut self, width: u16, signed: bool) -> TypeId {
-        self.tree.intern_type(
-            Type::Int {
-                width,
-                is_signed: signed,
-            },
-            Copy::Yes,
-        )
+        self.tree.intern_type(Type::Int {
+            width,
+            is_signed: signed,
+        })
     }
 
     /// Create a float type.
     pub fn type_float(&mut self, float_type: FloatType) -> TypeId {
-        self.tree.intern_type(Type::Float(float_type), Copy::Yes)
+        self.tree.intern_type(Type::Float(float_type))
     }
+
     /// Create a dynamic erased value type.
     pub fn type_dynamic(
         &mut self,
@@ -45,18 +43,13 @@ impl ModuleBuilder {
         lifetime: Lifetime,
         constraint: TypeId,
         access: Access,
-        storage: Storage,
     ) -> TypeId {
-        self.tree.intern_type(
-            Type::Dynamic {
-                kind,
-                lifetime,
-                constraint,
-                storage,
-                access,
-            },
-            kind.copy(),
-        )
+        self.tree.intern_type(Type::Dynamic {
+            kind,
+            lifetime,
+            constraint,
+            access,
+        })
     }
 
     /// Create a reference type.
@@ -66,23 +59,18 @@ impl ModuleBuilder {
         lifetime: Lifetime,
         pointee: TypeId,
         access: Access,
-        storage: Storage,
     ) -> TypeId {
-        self.tree.intern_type(
-            Type::Reference {
-                kind,
-                lifetime,
-                storage,
-                access,
-                pointee,
-            },
-            kind.copy(),
-        )
+        self.tree.intern_type(Type::Reference {
+            kind,
+            lifetime,
+            access,
+            pointee,
+        })
     }
 
     /// Create a process-local machine pointer type.
     pub fn type_pointer(&mut self, pointee: TypeId, access: Access) -> TypeId {
-        self.tree.intern_type(Type::Pointer { pointee, access }, Copy::Yes)
+        self.tree.intern_type(Type::Pointer { pointee, access })
     }
 
     /// Create a fixed array type.
@@ -91,9 +79,7 @@ impl ModuleBuilder {
             .unwrap_or_else(|_| unreachable!("fixed array length {length} exceeds MIR range"));
         let length = self.tree.intern_static(Static::Integer(length));
 
-        let copy = self.tree.copy(element);
-
-        self.tree.intern_type(Type::FixedArray { element, length }, copy)
+        self.tree.intern_type(Type::FixedArray { element, length })
     }
 
     /// Create a slice type.
@@ -103,51 +89,38 @@ impl ModuleBuilder {
         lifetime: Lifetime,
         element: TypeId,
         access: Access,
-        storage: Storage,
     ) -> TypeId {
-        self.tree.intern_type(
-            Type::Slice {
-                kind,
-                lifetime,
-                element,
-                storage,
-                access,
-            },
-            kind.copy(),
-        )
+        self.tree.intern_type(Type::Slice {
+            kind,
+            lifetime,
+            element,
+            access,
+        })
     }
 
-    /// Create a tuple type with explicit copy.
-    pub fn type_tuple(&mut self, elements: Vec<TypeId>, copy: Copy) -> TypeId {
+    /// Create a tuple type.
+    pub fn type_tuple(&mut self, elements: Vec<TypeId>) -> TypeId {
         let elements = elements.into_iter().collect();
 
-        self.tree.intern_type(Type::Tuple { elements }, copy)
+        self.tree.intern_type(Type::Tuple { elements })
     }
 
-    /// Create a struct type with explicit copy.
-    pub fn type_struct(&mut self, fields: Vec<FieldId>, copy: Copy) -> TypeId {
-        self.tree.intern_type(Type::Struct { fields }, copy)
+    /// Create a struct type.
+    pub fn type_struct(&mut self, fields: Vec<FieldId>) -> TypeId {
+        self.tree.intern_type(Type::Struct { fields })
     }
 
-    /// Create a sum type with explicit copy.
-    pub fn type_variant(
-        &mut self,
-        discriminant: TypeId,
-        cases: Vec<(Constant, TypeId)>,
-        copy: Copy,
-    ) -> TypeId {
+    /// Create a sum type.
+    pub fn type_variant(&mut self, discriminant: TypeId, cases: Vec<(Constant, TypeId)>) -> TypeId {
         let cases = cases
             .into_iter()
             .map(|(discriminant, ty)| VariantCase { discriminant, ty })
             .collect();
 
-        self.tree.intern_type(
-            Type::Variant {
-                discriminant,
-                cases,
-            },
-            copy,
-        )
+        self.tree.intern_type(Type::Variant {
+            discriminant,
+            cases,
+        })
     }
 
     /// Create a field definition for a struct type.
@@ -166,19 +139,16 @@ impl ModuleBuilder {
             .map(SignatureParameter::new)
             .collect();
 
-        self.tree.intern_type(
-            Type::FunctionSignature {
-                lifetimes: Vec::new(),
-                parameters,
-                result,
-            },
-            Copy::Yes,
-        )
+        self.tree.intern_type(Type::FunctionSignature {
+            lifetimes: Vec::new(),
+            parameters,
+            result,
+        })
     }
 
     /// Create a function pointer type.
     pub fn type_function_pointer(&mut self, signature: TypeId) -> TypeId {
-        self.tree.intern_type(Type::FunctionPointer { signature }, Copy::Yes)
+        self.tree.intern_type(Type::FunctionPointer { signature })
     }
 
     /// Create a function value type.
@@ -188,19 +158,14 @@ impl ModuleBuilder {
         multiplicity: Multiplicity,
         kind: Reference,
         lifetime: Lifetime,
-        storage: Storage,
         access: Access,
     ) -> TypeId {
-        self.tree.intern_type(
-            Type::Function {
-                signature,
-                multiplicity,
-                kind,
-                lifetime,
-                storage,
-                access,
-            },
-            kind.copy(),
-        )
+        self.tree.intern_type(Type::Function {
+            signature,
+            multiplicity,
+            kind,
+            lifetime,
+            access,
+        })
     }
 }

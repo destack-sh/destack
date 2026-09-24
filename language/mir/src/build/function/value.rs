@@ -1,9 +1,9 @@
 use crate::build::{BuildError, FunctionBuilder};
 use crate::{
-    Copy,
     AtomicAccess, AtomicRmwOperator, BinaryOperator, CastOperator, CompareExchangeAccess, Constant,
     FenceAccess, FloatType, Instruction, Intrinsic, Place, Type, TypeId, UnaryOperator, Value,
 };
+
 #[allow(clippy::too_many_arguments)]
 impl<'a> FunctionBuilder<'a> {
     /// Duplicate one SSA value.
@@ -49,7 +49,7 @@ impl<'a> FunctionBuilder<'a> {
             width,
             is_signed: signed,
         };
-        let ty_id = self.tree.intern_type(ty, Copy::Yes);
+        let ty_id = self.tree.intern_type(ty);
         self.insert_instruction(Instruction::Const {
             destination,
             value: constant,
@@ -71,7 +71,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Insert a pointer-sized signed integer constant.
     pub fn isize_const(&mut self, value: i128) -> Value {
         let destination = self.allocate_value();
-        let ty = self.tree.intern_type(Type::Isize, Copy::Yes);
+        let ty = self.tree.intern_type(Type::Isize);
         let width = self.pointer_bits;
         self.insert_instruction(Instruction::Const {
             destination,
@@ -88,7 +88,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Insert a pointer-sized unsigned integer constant.
     pub fn usize_const(&mut self, value: u128) -> Value {
         let destination = self.allocate_value();
-        let ty = self.tree.intern_type(Type::Usize, Copy::Yes);
+        let ty = self.tree.intern_type(Type::Usize);
         let width = self.pointer_bits;
         self.insert_instruction(Instruction::Const {
             destination,
@@ -105,7 +105,7 @@ impl<'a> FunctionBuilder<'a> {
             destination,
             value: Constant::Boolean { value },
         });
-        let ty_id = self.tree.intern_type(Type::Boolean, Copy::Yes);
+        let ty_id = self.tree.intern_type(Type::Boolean);
         self.define_value(destination, ty_id);
         destination
     }
@@ -117,7 +117,7 @@ impl<'a> FunctionBuilder<'a> {
             destination,
             value: Constant::Char { value },
         });
-        let ty = self.tree.intern_type(Type::Character, Copy::Yes);
+        let ty = self.tree.intern_type(Type::Character);
         self.define_value(destination, ty);
 
         destination
@@ -134,7 +134,7 @@ impl<'a> FunctionBuilder<'a> {
                 format: float_type,
             },
         });
-        let ty_id = self.tree.intern_type(Type::Float(float_type), Copy::Yes);
+        let ty_id = self.tree.intern_type(Type::Float(float_type));
         self.define_value(destination, ty_id);
         destination
     }
@@ -176,7 +176,7 @@ impl<'a> FunctionBuilder<'a> {
             right: right_value,
         });
         if operator.is_comparison() {
-            let bool_type = self.tree.intern_type(Type::Boolean, Copy::Yes);
+            let bool_type = self.tree.intern_type(Type::Boolean);
             self.define_value(destination, bool_type);
         } else {
             self.define_value(destination, left_type_id);
@@ -221,10 +221,7 @@ impl<'a> FunctionBuilder<'a> {
 
     // instruction builders: selection
 
-    /// Select between two values based on a boolean condition.
-    ///
-    /// Returns `then_value` if `condition` is true, `else_value` otherwise.
-    /// Both values must have the same type.
+    /// Select between two values by a boolean condition.
     pub fn select(&mut self, condition: Value, then_value: Value, else_value: Value) -> Value {
         let destination = self.allocate_value();
         let then_type = self.expect_value_type(then_value, "select then");

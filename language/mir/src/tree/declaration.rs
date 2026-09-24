@@ -1,4 +1,4 @@
-use crate::{Copy, LocalNodeId, Symbol, Tree, Type, TypeDeclaration, TypeHeritage, TypeId};
+use crate::{LocalNodeId, Symbol, Tree, Type, TypeDeclaration, TypeHeritage, TypeId};
 
 impl Tree {
     /// Reserve one declaration for a recursive or opaque type.
@@ -15,10 +15,11 @@ impl Tree {
             definition: None,
             generics: Vec::new(),
             heritage: TypeHeritage::default(),
+            derives_copy: true,
         };
         let local_id = self.type_declarations.allocate(declaration);
         let declaration = self.insert_node(local_id);
-        self.intern_type(Type::Declaration { declaration }, Copy::No);
+        self.intern_type(Type::Declaration { declaration });
         self.declared_types.insert(symbol, declaration);
 
         declaration
@@ -28,7 +29,7 @@ impl Tree {
     pub fn identified_type(&self, symbol: Symbol) -> Option<TypeId> {
         let declaration = *self.declared_types.get(&symbol)?;
 
-        self.find_type(&Type::Declaration { declaration }, Copy::No)
+        self.find_type(&Type::Declaration { declaration })
     }
 
     /// Return whether a declaration awaits its definition.

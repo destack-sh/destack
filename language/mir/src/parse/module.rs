@@ -2,8 +2,8 @@ use crate::source::TokenType;
 use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{
-    Attribute, AttributeArgs, AttributeIdentifier, Copy, Function, Global, GlobalInitializer,
-    Linkage, LocalNodeId, Mutability, Space, Symbol, Type, TypeDeclaration, TypeDeclarationSpans,
+    Attribute, AttributeArgs, AttributeIdentifier, Function, Global, GlobalInitializer, Linkage,
+    LocalNodeId, Mutability, Space, Symbol, Type, TypeDeclaration, TypeDeclarationSpans,
     TypeHeritage, TypeId,
 };
 
@@ -254,7 +254,7 @@ impl Parser {
                 }
 
                 let name_id = self.strings.intern(&name);
-                let void_type = self.tree.intern_type(Type::Void, Copy::Yes);
+                let void_type = self.tree.intern_type(Type::Void);
                 let base = Symbol::named(self.module, name_id);
                 let symbol = base.instantiate(&arguments, &self.tree);
                 let function =
@@ -395,7 +395,7 @@ impl Parser {
             }
         };
 
-        let type_id = self.tree.intern_type(Type::Declaration { declaration: id }, Copy::No);
+        let type_id = self.tree.intern_type(Type::Declaration { declaration: id });
 
         // direct nominal heritage
         let heritage = self.parse_type_heritage()?;
@@ -463,11 +463,10 @@ impl Parser {
 
         // define the identified representation
         let resolved = self.tree.get(ty).clone();
-        let copy = self
-            .copy_attribute(&attributes, item_start)?
-            .unwrap_or(Copy::No);
-        let definition = self.tree.intern_type(resolved, copy);
+        let derives_copy = self.copy_attribute(&attributes, item_start)?;
+        let definition = self.tree.intern_type(resolved);
         self.tree.get_mut(id).definition = Some(definition);
+        self.tree.get_mut(id).derives_copy = derives_copy;
         self.layouts.copy_type_entries(ty, type_id);
         self.dispatch.copy_type_entries(ty, type_id);
         self.drops.copy_type_entries(ty, type_id);
@@ -532,22 +531,18 @@ impl Parser {
         })
     }
 
-    /// Return the explicit copy attribute when present.
-    fn copy_attribute(
-        &self,
-        attributes: &[Attribute],
-        position: usize,
-    ) -> ParseResult<Option<Copy>> {
+    /// Return whether the declaration derives Copy, a `nocopy` marker refusing it.
+    fn copy_attribute(&self, attributes: &[Attribute], position: usize) -> ParseResult<bool> {
         let mut copy = None;
 
-        // find one explicit copy marker at most once
+        // find one copy marker at most once
         for attribute in attributes {
             let AttributeIdentifier::Identifier(name) = attribute.name else {
                 continue;
             };
             let name = self.strings.get(name);
             let next = match name {
-                "copy" => Some(Copy::Yes),
+                "nocopy" => Some(false),
                 _ => None,
             };
             let Some(next) = next else {
@@ -567,7 +562,7 @@ impl Parser {
             copy = Some(next);
         }
 
-        Ok(copy)
+        Ok(copy.unwrap_or(true))
     }
 
     /// Parse a global or constant definition or declaration.
@@ -785,4 +780,3 @@ impl Parser {
         }
     }
 }
-
