@@ -4,7 +4,11 @@ import { mkdir, mkdtemp, lstat, rename, rm } from "node:fs/promises";
 import { dlopen } from "bun:ffi";
 
 /** Copy a verified Mac application and atomically replace an existing installation. */
-export async function installApplication(source: string, destination: string): Promise<void> {
+export async function installApplication(
+    source: string,
+    destination: string,
+    identifier: string,
+): Promise<void> {
     // stage the bundle beside the destination for atomic replacement
     await mkdir(dirname(destination), { recursive: true });
     const temporary = await mkdtemp(join(dirname(destination), ".destack-"));
@@ -21,20 +25,20 @@ export async function installApplication(source: string, destination: string): P
         if (copyCode !== 0) {
             throw new UpdateError("INSTALL", copyError);
         }
-        await verifyApplication(pending);
+        await verifyApplication(pending, identifier);
 
         // exchange complete bundles in one filesystem operation and retain the old release archive
-        let exists = true;
+        let hasDestination = true;
         try {
             await lstat(destination);
         } catch (error) {
             if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
                 throw error;
             }
-            exists = false;
+            hasDestination = false;
         }
-        if (exists) {
-            await verifyApplication(destination);
+        if (hasDestination) {
+            await verifyApplication(destination, identifier);
             const system = dlopen("/usr/lib/libSystem.B.dylib", {
                 renamex_np: { args: ["buffer", "buffer", "u32"], returns: "i32" },
             });
@@ -49,7 +53,7 @@ export async function installApplication(source: string, destination: string): P
                 ) {
                     throw new UpdateError(
                         "INSTALL",
-                        `Cannot replace ${destination}. Check directory permissions.`,
+                        `cannot replace ${destination}: check directory permissions`,
                     );
                 }
             } finally {
@@ -64,7 +68,11 @@ export async function installApplication(source: string, destination: string): P
 }
 
 /** Verify the complete bundle and its application identifier. */
-async function verifyApplication(application: string): Promise<void> {
+export async function verifyApplication(
+    application: string,
+    expectedIdentifier: string,
+): Promise<void> {
+    // read the bundle identifier
     const identifier = Bun.spawn(
         [
             "/usr/bin/plutil",
@@ -79,8 +87,11 @@ async function verifyApplication(application: string): Promise<void> {
         identifier.exited,
         new Response(identifier.stdout).text(),
     ]);
-    if (identifierCode !== 0 || name.trim() !== "sh.destack.desktop") {
-        throw new UpdateError("INSTALL", `Not a Destack application: ${application}`);
+    if (identifierCode !== 0 || name.trim() !== expectedIdentifier) {
+        throw new UpdateError(
+            "INSTALL",
+            `application identifier does not match ${expectedIdentifier}: ${application}`,
+        );
     }
     const signature = Bun.spawn(
         ["/usr/bin/codesign", "--verify", "--deep", "--strict", application],

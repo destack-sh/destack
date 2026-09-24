@@ -22,7 +22,8 @@ if (update) {
 
 ## Restart
 
-Staging persists across sessions. Activation refreshes signed metadata and requires network access.
+Staging persists across sessions.
+Activation refreshes signed metadata and requires network access.
 Stop affected processes before activation; restart them after activation succeeds.
 
 ```ts

@@ -28,19 +28,29 @@ test("authenticate desktop shutdown and wait for process exit", async () => {
     });
     try {
         const reader = child.stdout.getReader();
-        const ready = await reader.read();
-        expect(new TextDecoder().decode(ready.value)).toBe("ready\n");
+        // read the readiness line independently of pipe chunk boundaries
+        let ready = "";
+        const decoder = new TextDecoder();
+        while (!ready.includes("\n")) {
+            const chunk = await reader.read();
+            if (chunk.done) {
+                throw new Error("desktop process exited before reporting readiness");
+            }
+            ready += decoder.decode(chunk.value, { stream: true });
+        }
+        expect(ready).toBe("ready\n");
         reader.releaseLock();
         const endpoint = JSON.parse(await readFile(join(directory, "desktop.json"), "utf8"));
 
         // reject browser requests and credentials from another caller
-        for (const headers of [
+        const requests: Record<string, string>[] = [
             { authorization: "Bearer wrong" },
             {
                 authorization: `Bearer ${endpoint.token}`,
                 origin: "https://example.com",
             },
-        ]) {
+        ];
+        for (const headers of requests) {
             const response = await fetch(`http://127.0.0.1:${endpoint.port}/_destack/update/stop`, {
                 method: "POST",
                 headers,

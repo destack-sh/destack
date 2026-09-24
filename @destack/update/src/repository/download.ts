@@ -1,8 +1,8 @@
 import { UpdateError } from "../error/error.ts";
 import { BaseFetcher } from "tuf-js";
 
-/** Maximum duration of an archive request. */
-const DOWNLOAD_TIMEOUT = 300_000;
+/** Maximum duration of an archive request, in milliseconds. */
+const DOWNLOAD_TIMEOUT_MS = 300_000;
 
 /** Stream archive bytes through TUF's length and digest verification. */
 export class DownloadFetcher extends BaseFetcher {
@@ -21,7 +21,7 @@ export class DownloadFetcher extends BaseFetcher {
     /** Fetch an archive and report received bytes before TUF verifies the complete file. */
     async fetch(url: string): Promise<ReadableStream<Uint8Array<ArrayBuffer>>> {
         // keep cancellation active until the response body has finished streaming
-        const timeout = AbortSignal.timeout(DOWNLOAD_TIMEOUT);
+        const timeout = AbortSignal.timeout(DOWNLOAD_TIMEOUT_MS);
         const signal = this.options.signal
             ? AbortSignal.any([timeout, this.options.signal])
             : timeout;
@@ -34,6 +34,7 @@ export class DownloadFetcher extends BaseFetcher {
         // report the signed length rather than trusting the HTTP content length
         let received = 0;
         const { total, options } = this;
+
         return response.body.pipeThrough(
             new TransformStream({
                 transform(chunk, controller) {

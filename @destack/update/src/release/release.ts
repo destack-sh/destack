@@ -1,5 +1,8 @@
 import { UpdateError } from "../error/error.ts";
 
+/** Calendar version with an optional nightly build sequence. */
+const VERSION = /^(\d{4})\.([1-9]|1[0-2])\.(0|[1-9]\d*)(?:-nightly\.(0|[1-9]\d*))?$/;
+
 /** Operating systems and architectures supported by Destack distributions. */
 export const TARGETS = [
     "aarch64-apple-darwin",
@@ -16,6 +19,7 @@ export type Target = (typeof TARGETS)[number];
 export class Release {
     /** Identify the running distribution's operating system and architecture. */
     static target(): Target {
+        // map the process architecture and platform to a release target
         const architecture =
             process.arch === "arm64" ? "aarch64" : process.arch === "x64" ? "x86_64" : undefined;
         const system =
@@ -44,19 +48,12 @@ export class Release {
 
     /** Validate the version and target from signed metadata. */
     constructor(version: unknown, target: string) {
-        if (
-            typeof version !== "string" ||
-            !/^\d{4}\.(?:[1-9]|1[0-2])\.(?:0|[1-9]\d*)$/.test(version)
-        ) {
-            throw new UpdateError("RELEASE", "Invalid release version.");
-        }
+        // validate the public release identity before selecting its platform
+        parseVersion(version);
         if (!TARGETS.includes(target as Target)) {
-            throw new UpdateError("RELEASE", `Unsupported target: ${target}`);
+            throw new UpdateError("RELEASE", `unsupported target: ${target}`);
         }
-        if (!version.split(".").every((value) => Number.isSafeInteger(Number(value)))) {
-            throw new UpdateError("RELEASE", "Invalid release version.");
-        }
-        this.version = version;
+        this.version = version as string;
         this.target = target as Target;
         Object.freeze(this);
     }
@@ -70,20 +67,23 @@ export class Release {
     get directory(): string {
         return `${this.version}-${this.target}`;
     }
+
+    /** Update feed selected by this release identity. */
+    get channel(): "stable" | "nightly" {
+        return this.version.includes("-nightly.") ? "nightly" : "stable";
+    }
+
+    /** Native application identifier for this release. */
+    get applicationIdentifier(): string {
+        return this.channel === "stable" ? "sh.destack.desktop" : "sh.destack.desktop.nightly";
+    }
 }
 
 /** Compare validated calendar versions independently of their distribution format. */
 export function compareVersions(left: string, right: string): number {
-    for (const version of [left, right]) {
-        if (
-            !/^\d{4}\.(?:[1-9]|1[0-2])\.(?:0|[1-9]\d*)$/.test(version) ||
-            !version.split(".").every((value) => Number.isSafeInteger(Number(value)))
-        ) {
-            throw new UpdateError("RELEASE", "Invalid release version.");
-        }
-    }
-    const first = left.split(".").map(Number);
-    const second = right.split(".").map(Number);
+    // compare calendar components before the optional prerelease sequence
+    const first = parseVersion(left);
+    const second = parseVersion(right);
     for (let index = 0; index < first.length; index++) {
         if (first[index] !== second[index]) {
             return Math.sign(first[index] - second[index]);
@@ -91,4 +91,23 @@ export function compareVersions(left: string, right: string): number {
     }
 
     return 0;
+}
+
+/** Read numeric calendar components and order stable after its nightly prereleases. */
+function parseVersion(version: unknown): number[] {
+    // reject malformed identities before filesystem or ordering operations
+    const match = typeof version === "string" ? VERSION.exec(version) : null;
+    if (!match) {
+        throw new UpdateError("RELEASE", "invalid release version");
+    }
+    const components = match.slice(1, 4).map(Number);
+    const sequence = match[4] === undefined ? undefined : Number(match[4]);
+    if (
+        !components.every(Number.isSafeInteger) ||
+        (sequence !== undefined && !Number.isSafeInteger(sequence))
+    ) {
+        throw new UpdateError("RELEASE", "invalid release version");
+    }
+
+    return [...components, sequence === undefined ? 1 : 0, sequence === undefined ? 0 : sequence];
 }

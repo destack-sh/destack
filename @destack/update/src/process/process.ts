@@ -27,6 +27,7 @@ export class UpdateProcess implements AsyncDisposable {
         token: string,
         shutdown: () => Promise<void>,
     ) {
+        // retain the lock, port, token and shutdown callback
         this.lock = lock;
         this.port = port;
         this.token = token;
@@ -64,6 +65,7 @@ export class UpdateProcess implements AsyncDisposable {
 
     /** Handle native shutdown requests before dispatching application routes. */
     handle(request: Request): Response | undefined {
+        // accept only authenticated local stop requests
         const url = new URL(request.url);
         if (url.pathname !== STOP_PATH) {
             return undefined;

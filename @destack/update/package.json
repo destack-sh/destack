@@ -9,6 +9,7 @@
         ".": "./src/index.ts",
         "./release": "./src/release/index.ts",
         "./process": "./src/process/index.ts",
+        "./install/macos": "./src/install/macos.ts",
         "./error": "./src/error/index.ts"
     },
     "dependencies": {
@@ -22,6 +23,6 @@
     },
     "scripts": {
         "check": "tsc --project tsconfig.json",
-        "test": "vitest run --config vitest.config.ts"
+        "test": "bun --bun run vitest run --config vitest.config.ts"
     }
 }

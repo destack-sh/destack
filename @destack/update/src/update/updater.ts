@@ -7,8 +7,8 @@ import { Update } from "./update.ts";
 import { FileLock } from "@destack/fs";
 import { mkdir, stat } from "node:fs/promises";
 
-/** Maximum time allowed for a staged executable to report its version. */
-const VERIFY_TIMEOUT = 60_000;
+/** Maximum time allowed for a staged executable to report its version, in milliseconds. */
+const VERIFY_TIMEOUT_MS = 60_000;
 
 /** A locked update session for one installed Destack distribution. */
 export class Updater implements AsyncDisposable {
@@ -17,7 +17,7 @@ export class Updater implements AsyncDisposable {
     /** Verified update repository. */
     private readonly repository: UpdateRepository;
     /** Exclusive metadata and installation lock. */
-    private readonly lock: FileLock;
+    readonly lock: FileLock;
     /** Platform and application selected by the caller. */
     private readonly options: UpdaterOptions;
     /** Whether this session has released its lock. */
@@ -27,6 +27,7 @@ export class Updater implements AsyncDisposable {
 
     /** Construct an updater after acquiring its installation lock. */
     private constructor(options: UpdaterOptions, lock: FileLock, repository: UpdateRepository) {
+        // retain the options, lock and repository
         this.options = { ...options };
         this.lock = lock;
         this.repository = repository;
@@ -58,7 +59,7 @@ export class Updater implements AsyncDisposable {
 
         // serialize trust updates and installation across CLI and desktop processes
         await mkdir(options.directory, { recursive: true, mode: 0o700 });
-        const lock = await FileLock.tryAcquire(join(options.directory, "update.lock"));
+        const lock = await FileLock.tryAcquire(`${options.directory}.lock`);
         if (!lock) {
             throw new UpdateError("BUSY", "Another Destack update is running.");
         }
@@ -92,6 +93,7 @@ export class Updater implements AsyncDisposable {
 
     /** Check for a newer authenticated release, or a first installation. */
     async check(): Promise<Update | undefined> {
+        // read the latest and installed releases on this target
         using operation = this.begin();
         const latest = await this.repository.latest(this.options.target);
         const installed = await this.installer.current();
@@ -125,6 +127,7 @@ export class Updater implements AsyncDisposable {
 
     /** Verify and stage a downloaded distribution while the current release remains active. */
     async stage(download: Download): Promise<StagedRelease> {
+        // require the downloaded release for this target
         using operation = this.begin();
         if (download.release.target !== this.options.target) {
             throw new UpdateError(
@@ -153,6 +156,7 @@ export class Updater implements AsyncDisposable {
 
     /** Activate a staged distribution after callers have stopped affected processes. */
     async activate(staged: StagedRelease): Promise<InstalledRelease> {
+        // refuse a release older than the running version
         using operation = this.begin();
         if (this.options.current && staged.release.compare(this.options.current) < 0) {
             throw new UpdateError(
@@ -234,7 +238,7 @@ async function verifyRelease(directory: string, release: Release): Promise<void>
     const name = release.target.includes("windows") ? "destack.exe" : "destack";
     const child = Bun.spawn([join(directory, "bin", name), "version", "--json"], {
         env: { ...process.env, DESTACK_UPDATE_CHECK: "1" },
-        timeout: VERIFY_TIMEOUT,
+        timeout: VERIFY_TIMEOUT_MS,
         stdout: "pipe",
         stderr: "pipe",
     });

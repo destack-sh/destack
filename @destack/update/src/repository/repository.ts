@@ -1,3 +1,4 @@
+/* oxlint-disable destack/prevent-abbreviations -- tuf-js names its directory options metadataDir and targetDir */
 import { UpdateError } from "../error/error.ts";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -107,6 +108,7 @@ export class UpdateRepository {
 
     /** Read the signed archive digest retained by the update check. */
     digest(release: Release): string {
+        // read the digest selected by the update check
         const artifact = this.selected.get(release.directory);
         const digest = artifact?.hashes.sha256;
         if (typeof digest !== "string" || !/^[0-9a-f]{64}$/.test(digest)) {
@@ -122,6 +124,7 @@ export class UpdateRepository {
         candidate?: string,
         options: DownloadOptions = {},
     ): Promise<Download> {
+        // require the selected release and its signed size and digest
         options.signal?.throwIfAborted();
         const artifact = this.selected.get(release.directory);
         if (!artifact || artifact.custom.version !== release.version) {
@@ -129,10 +132,12 @@ export class UpdateRepository {
         }
         if (
             artifact.length > 2 * 1024 ** 3 ||
-            !/^[0-9a-f]{64}$/.test(artifact.hashes.sha256 ?? "")
+            artifact.hashes.sha256 === undefined ||
+            !/^[0-9a-f]{64}$/.test(artifact.hashes.sha256)
         ) {
             throw new UpdateError("REPOSITORY", "Invalid release archive metadata.");
         }
+
         // authenticate an installer archive using the same signed length and hashes
         const downloader = new Updater({
             ...this.locations,

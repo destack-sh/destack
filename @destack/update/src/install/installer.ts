@@ -45,6 +45,7 @@ export class Installer {
 
     /** Retain a staged release across updater sessions. */
     async remember(staged: StagedRelease): Promise<void> {
+        // write the staged record atomically
         const record = { ...staged.release, sha256: staged.sha256, previous: staged.previous };
         const temporary = join(this.directory, `staged.${crypto.randomUUID()}.json`);
         await writeFile(temporary, JSON.stringify(record), { flag: "wx", mode: 0o600 });
@@ -53,6 +54,7 @@ export class Installer {
 
     /** Read the distribution waiting for an explicit restart. */
     async staged(): Promise<StagedRelease | undefined> {
+        // read the staged release record, absent when none is staged
         let source: string;
         try {
             source = await readFile(join(this.directory, "staged.json"), "utf8");
@@ -85,6 +87,7 @@ export class Installer {
 
     /** Read the current release without modifying application files. */
     async current(): Promise<InstalledRelease | undefined> {
+        // read the current release record, absent before installation
         let source: string;
         try {
             source = await readFile(join(this.directory, "current.json"), "utf8");
@@ -246,7 +249,11 @@ export class Installer {
             if (typeof record.application !== "string" || !isAbsolute(record.application)) {
                 throw new UpdateError("INSTALL", "Missing absolute application destination.");
             }
-            await installApplication(join(directory, "Destack.app"), record.application);
+            await installApplication(
+                join(directory, "Destack.app"),
+                record.application,
+                release.applicationIdentifier,
+            );
         }
 
         // select the release only after platform installation succeeds
