@@ -319,7 +319,7 @@ impl Parser {
             return Ok(self.insert_type_expression_value(value));
         }
 
-        // parse keyof T, readonly T, local T, or shared T as a value
+        // parse keyof T or readonly T as a value
         if TypePrefixOperator::from_token(TokenType::Identifier, Some(keyword)).is_some()
             && self.peek_type_operand_start_at(1)
         {

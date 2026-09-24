@@ -1171,7 +1171,7 @@ fn test_parse_nested_generic_reference_with_literal_argument() {
 
     // type T = MismatchArgs<StrictEqual<DeepPick<Actual, Expected>, Expected>, true>
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, place: _, is_ambient, is_nominal, mutability, generic_parameters, where_clauses, value, backing_visibility: _ }) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, is_shared: _, is_ambient, is_nominal, mutability, generic_parameters, where_clauses, value, backing_visibility: _ }) => {
             assert_name!(parser, *name, "T");
             assert!(export.is_none());
             assert!(!*is_ambient);
@@ -1202,7 +1202,7 @@ fn test_parse_type_member_generic_arrow_nested_parameter_type() {
 
     // type T = { method: <Expected>(...) => true }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, place: _, is_ambient, is_nominal, mutability, generic_parameters, where_clauses, value, backing_visibility: _ }) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, is_shared: _, is_ambient, is_nominal, mutability, generic_parameters, where_clauses, value, backing_visibility: _ }) => {
             assert_name!(parser, *name, "T");
             assert!(export.is_none());
             assert!(!*is_ambient);
@@ -1296,7 +1296,7 @@ fn test_parse_function_type_nested_conditional_constraint() {
 
     // type T = <Expected: ...>(...MISMATCH) => true
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, place: _, is_ambient, is_nominal, mutability, generic_parameters, where_clauses, value, backing_visibility: _ }) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, is_shared: _, is_ambient, is_nominal, mutability, generic_parameters, where_clauses, value, backing_visibility: _ }) => {
             assert_name!(parser, *name, "T");
             assert!(export.is_none());
             assert!(!*is_ambient);
@@ -1353,7 +1353,7 @@ fn test_parse_type_member_generic_arrow_nested_conditional_constraint() {
 
     // type Expect<Actual> = { toMatchObjectType: <...>(...) => true }
     assert_node!(parser.tree, expr_id, Expression::Declaration(decl_id) => {
-        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, place: _, is_ambient, is_nominal, mutability, generic_parameters, where_clauses, value, backing_visibility: _ }) => {
+        assert_node!(parser.tree, *decl_id, Declaration::Type(TypeDeclaration { name, export, is_shared: _, is_ambient, is_nominal, mutability, generic_parameters, where_clauses, value, backing_visibility: _ }) => {
             assert_name!(parser, *name, "Expect");
             assert!(export.is_none());
             assert!(!*is_ambient);
@@ -1420,7 +1420,7 @@ fn test_parse_type_member_generic_arrow_constraint_before_parameter_list() {
 
     // type T = { f: <U: A<B>>(x: U) => true }
     assert_node!(parser.tree, expression_id, Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { name, export, place: _, is_ambient, is_nominal, mutability, generic_parameters, where_clauses, value, backing_visibility: _ }) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Type(TypeDeclaration { name, export, is_shared: _, is_ambient, is_nominal, mutability, generic_parameters, where_clauses, value, backing_visibility: _ }) => {
             assert_name!(parser, *name, "T");
             assert!(export.is_none());
             assert!(!*is_ambient);

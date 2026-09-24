@@ -56,10 +56,8 @@ impl Parser {
             .as_ref()
             .map(|_| self.range_since(&generic_parameter_container_start));
 
-        // extends Base
-        let extends_types = self
-            .parse_extends_types_if_present()
-            .in_node(NodeType::Declaration)?;
+        // reject an extends clause
+        self.skip_rejected_extends()?;
 
         // implements Trait
         let implements_types = self
@@ -79,11 +77,11 @@ impl Parser {
             Declaration::Enum(EnumDeclaration {
                 name,
                 export: header.export,
-                place: header.place,
+                is_shared: header.is_shared,
                 is_ambient: header.is_ambient,
                 generic_parameters: generic_parameters.unwrap_or_default(),
                 where_clauses,
-                implements_types: implements_types.or(extends_types).unwrap_or_default(),
+                implements_types: implements_types.unwrap_or_default(),
                 fields: body.fields,
                 members: body.members,
             }),

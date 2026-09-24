@@ -2,7 +2,7 @@ use crate::{ExpressionPosition, ExpressionStop};
 use destack_dir::{
     Asynchrony, Declaration, Declarator, Expression, FloatType, FunctionDeclaration, FunctionForm,
     GenericArgument, GenericParameter, IntegerType, LetKind, Literal, Name, NodeType, Parameter,
-    Pattern, PatternField, PlaceModifier, TokenType, TypeExpression, TypeLiteral, TypeMember,
+    Pattern, PatternField, TokenType, TypeExpression, TypeLiteral, TypeMember,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -65,9 +65,9 @@ shared const registry: Registry = new Registry();
     test.assert_no_errors(&parser);
     assert_eq!(roots.len(), 2);
 
-    assert_node!(parser.tree, roots[1], Expression::Let { kind, place, declarators, .. } => {
+    assert_node!(parser.tree, roots[1], Expression::Let { kind, is_shared, declarators, .. } => {
         assert_eq!(*kind, LetKind::Const);
-        assert_eq!(*place, Some(PlaceModifier::Shared));
+        assert!(*is_shared);
         assert_eq!(declarators.len(), 1);
 
         assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {

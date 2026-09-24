@@ -364,7 +364,6 @@ pub(crate) fn classify_keyword_bytes(bytes: &[u8]) -> Option<Keyword> {
         b"is" => Some(Keyword::Is),
         b"keyof" => Some(Keyword::Keyof),
         b"let" => Some(Keyword::Let),
-        b"local" => Some(Keyword::Local),
         b"loop" => Some(Keyword::Loop),
         b"match" => Some(Keyword::Match),
         b"never" => Some(Keyword::Never),

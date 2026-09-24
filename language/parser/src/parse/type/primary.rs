@@ -204,8 +204,6 @@ impl Parser {
                 let ty = match operator {
                     TypePrefixOperator::Keyof => TypeExpression::KeyOf { target_type },
                     TypePrefixOperator::Readonly => TypeExpression::Readonly { target_type },
-                    TypePrefixOperator::Local => TypeExpression::Local { target_type },
-                    TypePrefixOperator::Shared => TypeExpression::Shared { target_type },
                     TypePrefixOperator::Not => TypeExpression::Not { target_type },
                 };
 

@@ -2,8 +2,7 @@ use crate::parse::lookahead::DelimiterDepth;
 use crate::parse::{DeclarationHeader, ExpressionPosition, TypeKeywordHeader};
 use crate::{ParseStart, Parser, ParserError, ParserResult, TokenProbe};
 use destack_dir::{
-    Asynchrony, Declaration, ExportKind, Expression, Keyword, LocalNodeId, PlaceModifier,
-    TokenType, TypeKind,
+    Asynchrony, Declaration, ExportKind, Expression, Keyword, LocalNodeId, TokenType, TypeKind,
 };
 
 impl Parser {
@@ -57,13 +56,7 @@ impl Parser {
         // consume declaration modifiers without changing parser state
         while matches!(
             probe.peek_keyword(),
-            Some(
-                Keyword::Declare
-                    | Keyword::Abstract
-                    | Keyword::Final
-                    | Keyword::Local
-                    | Keyword::Shared
-            )
+            Some(Keyword::Declare | Keyword::Abstract | Keyword::Final | Keyword::Shared)
         ) {
             probe.bump();
             if probe.peek_token().is_on_new_line() {
@@ -256,7 +249,7 @@ impl Parser {
             let is_newline_allowed = keyword == Keyword::Export;
 
             match keyword {
-                Keyword::Export => {
+                Keyword::Export if header.export.is_none() => {
                     self.bump();
                     header.export = Some(if self.peek_is_keyword(Keyword::Default) {
                         self.bump();
@@ -265,26 +258,32 @@ impl Parser {
                         ExportKind::Named
                     });
                 }
-                Keyword::Declare => {
+                Keyword::Declare if !header.is_ambient => {
                     let span = self.eat().span;
                     header.is_ambient = true;
                     header.declare_range = Some(span.range());
                 }
-                Keyword::Abstract => {
+                Keyword::Abstract if !header.is_abstract => {
                     self.bump();
                     header.is_abstract = true;
                 }
-                Keyword::Final => {
+                Keyword::Final if !header.is_final => {
                     self.bump();
                     header.is_final = true;
                 }
-                Keyword::Local => {
+                Keyword::Shared if !header.is_shared => {
                     self.bump();
-                    header.place = Some(PlaceModifier::Local);
+                    header.is_shared = true;
                 }
-                Keyword::Shared => {
+                // report a repeated modifier and skip it
+                Keyword::Export
+                | Keyword::Declare
+                | Keyword::Abstract
+                | Keyword::Final
+                | Keyword::Shared => {
+                    let range = self.peek_token().range();
+                    self.report_error(ParserError::unexpected(range));
                     self.bump();
-                    header.place = Some(PlaceModifier::Shared);
                 }
                 _ => break,
             }
@@ -336,11 +335,9 @@ impl TokenProbe<'_> {
                         self.bump();
                     }
                 }
-                Keyword::Declare
-                | Keyword::Abstract
-                | Keyword::Final
-                | Keyword::Local
-                | Keyword::Shared => self.bump(),
+                Keyword::Declare | Keyword::Abstract | Keyword::Final | Keyword::Shared => {
+                    self.bump()
+                }
                 _ => break,
             }
 

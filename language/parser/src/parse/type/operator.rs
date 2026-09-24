@@ -7,10 +7,6 @@ pub(crate) enum TypePrefixOperator {
     Keyof,
     /// `readonly T`.
     Readonly,
-    /// `local T`.
-    Local,
-    /// `shared T`.
-    Shared,
     /// `!T`.
     Not,
 }
@@ -24,8 +20,6 @@ impl TypePrefixOperator {
             TokenType::Identifier => match keyword? {
                 Keyword::Keyof => Some(Self::Keyof),
                 Keyword::Readonly => Some(Self::Readonly),
-                Keyword::Local => Some(Self::Local),
-                Keyword::Shared => Some(Self::Shared),
                 _ => None,
             },
             _ => None,

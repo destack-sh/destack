@@ -1,3 +1,4 @@
+use crate::parse::error::ParserResultExt;
 use crate::parse::{TypePosition, TypeStop};
 use crate::{Parser, ParserError, ParserResult};
 
@@ -104,6 +105,25 @@ impl Parser {
         )?;
 
         Ok(Some(types))
+    }
+
+    /// Report and skip an extends clause on a struct or enum declaration.
+    ///
+    /// Examples:
+    /// ```ds
+    /// struct Point extends Base {}   // reports `extends`
+    /// enum Day extends Weekday {}    // reports `extends`
+    /// ```
+    pub(crate) fn skip_rejected_extends(&mut self) -> ParserResult<()> {
+        if !self.peek_is_keyword(Keyword::Extends) {
+            return Ok(());
+        }
+        let range = self.peek_token().range();
+        self.parse_extends_types_if_present()
+            .in_node(NodeType::Declaration)?;
+        self.report_error(ParserError::unexpected(range).in_node(NodeType::Declaration));
+
+        Ok(())
     }
 
     /// Parse one optional implements type clause.

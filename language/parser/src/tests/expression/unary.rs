@@ -4,8 +4,7 @@ use crate::{
     assert_expression_path, assert_node, assert_value_expression_path,
 };
 use destack_dir::{
-    Access, BinaryOperator, Expression, Literal, NodeType, TokenType, TypeExpression,
-    UnaryOperator, VarianceBound,
+    Access, BinaryOperator, Expression, Literal, NodeType, TokenType, UnaryOperator, VarianceBound,
 };
 
 /// Unary operator spans point at the operator token.
@@ -243,6 +242,7 @@ fn test_parse_dereference_variable() {
         assert_expression_path!(parser, parser.tree.get(*right), "x");
     });
 }
+
 /// Parse each borrow access without changing the operand.
 #[test]
 fn test_parse_reference_variable() {

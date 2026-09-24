@@ -727,12 +727,12 @@ fn test_parse_switch_case_body_recovers_at_eof() {
             assert_node!(parser.tree, *value, Expression::Literal(Literal::Integer(10)));
             let expressions = block_expression_ids(parser.tree.get(*body));
             assert_eq!(expressions.len(), 1);
-            assert_node!(parser.tree, expressions[0], Expression::Let { kind, export, mutability, declarators, is_ambient, place } => {
+            assert_node!(parser.tree, expressions[0], Expression::Let { kind, export, mutability, declarators, is_ambient, is_shared } => {
                 assert_eq!(*kind, LetKind::Let);
                 assert_eq!(*export, None);
                 assert_eq!(*mutability, Mutability::Mutable);
                 assert!(!*is_ambient);
-                assert_eq!(*place, None);
+                assert!(!*is_shared);
                 assert_eq!(declarators.len(), 1);
                 assert_node!(parser.tree, declarators[0], Declarator { pattern, ty, value } => {
                     assert!(ty.is_none());

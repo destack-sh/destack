@@ -1,4 +1,4 @@
-use destack_dir::{ExportKind, Keyword, Mutability, PlaceModifier, TokenType, TypeKind};
+use destack_dir::{ExportKind, Keyword, Mutability, TokenType, TypeKind};
 use destack_source::ByteRange;
 
 /// Tokens that can start a declaration binding pattern.
@@ -34,8 +34,8 @@ pub(crate) struct DeclarationHeader {
     pub(crate) is_abstract: bool,
     /// Whether the declaration is final.
     pub(crate) is_final: bool,
-    /// The explicit placement modifier.
-    pub(crate) place: Option<PlaceModifier>,
+    /// Whether the declaration is shared.
+    pub(crate) is_shared: bool,
 }
 
 /// The declaration properties implied by one type keyword.

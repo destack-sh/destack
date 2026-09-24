@@ -1,6 +1,6 @@
 use destack_dir::{
     CommentKind, Declaration, Decorator, DecoratorPosition, EnumDeclaration, EnumField, Expression,
-    GenericParameter, Literal, NodeType, PlaceModifier, TokenType, TypeExpression, WhereClause,
+    GenericParameter, Literal, NodeType, TokenType, TypeExpression, WhereClause,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -10,10 +10,10 @@ use crate::{
 };
 
 #[test]
-fn test_parse_enum_with_extends_types() {
+fn test_parse_enum_with_implements_types() {
     let test = TestParser::new(
         r###"
-enum Foo extends Day {}
+enum Foo implements Day {}
 "###,
     );
     let mut parser = test.prepare();
@@ -44,9 +44,9 @@ fn test_parse_shared_enum_declaration() {
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Enum(EnumDeclaration { name, place, fields, .. }) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Enum(EnumDeclaration { name, is_shared, fields, .. }) => {
             assert_string!(parser, name.expect("expected name").string(), "Result");
-            assert_eq!(*place, Some(PlaceModifier::Shared));
+            assert!(*is_shared);
             assert_eq!(fields.len(), 2);
         });
     });
@@ -121,7 +121,7 @@ enum {
 fn test_parse_enum_with_type_name_and_values() {
     let test = TestParser::new(
         r###"
-enum Foo extends Day {
+enum Foo implements Day {
 
     Baz = 1
 
@@ -139,7 +139,7 @@ enum Foo extends Day {
         // Foo
         assert_string!(parser, name.unwrap().string(), "Foo");
 
-        // extends: Day
+        // implements: Day
         assert!(generic_parameters.is_empty());
         assert_eq!(implements_types.len(), 1);
         assert_node!(parser.tree, implements_types[0], TypeExpression::Reference { path, .. } => {
@@ -419,4 +419,29 @@ fn test_parse_enum_body_boundary_comment_on_declaration_owner() {
     });
     assert_eq!(parser.comments().len(), 1);
     assert_comment!(parser, 0, CommentKind::SingleLineBlock, " enum-body");
+}
+
+/// An enum refuses an extends clause and keeps parsing its body.
+#[test]
+fn test_report_enum_extends() {
+    let test = TestParser::new(
+        r###"
+enum Day extends Weekday implements Named {
+    Monday
+}
+"###,
+    );
+    let mut parser = test.prepare();
+
+    let start = parser.mark_parse_start();
+    let enum_id = parser
+        .parse_enum(&start, DeclarationHeader::default())
+        .unwrap();
+
+    assert_eq!(parser.errors.len(), 1);
+    assert_eq!(parser.range_str(parser.errors[0].range()), "extends");
+    assert_node!(parser.tree, enum_id, Declaration::Enum(EnumDeclaration { implements_types, fields, .. }) => {
+        assert_eq!(implements_types.len(), 1);
+        assert_eq!(fields.len(), 1);
+    });
 }

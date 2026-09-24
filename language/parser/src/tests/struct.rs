@@ -1,7 +1,7 @@
 use destack_dir::{
-    ClassDeclaration, CommentKind, Declaration, ExportKind, Expression, GenericParameter,
-    IntegerType, Literal, Member, Name, Parameter, PlaceModifier, StructDeclaration,
-    TypeExpression, TypeLiteral, Visibility, WhereClause,
+    ClassDeclaration, CommentKind, Declaration, Expression, GenericParameter, IntegerType, Literal,
+    Member, Name, Parameter, StructDeclaration, TypeExpression, TypeLiteral, Visibility,
+    WhereClause,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -81,59 +81,6 @@ struct Foo { x: int32, y: int32 }
 }
 
 #[test]
-fn test_parse_local_class_declaration() {
-    let test = TestParser::new("local class Promise {}");
-    let mut parser = test.prepare();
-    let expressions = parser.parse_in_place();
-
-    test.assert_no_errors(&parser);
-    assert_eq!(expressions.len(), 1);
-
-    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { name, place, .. }) => {
-            assert_string!(parser, name.expect("expected name").string(), "Promise");
-            assert_eq!(*place, Some(PlaceModifier::Local));
-        });
-    });
-}
-
-#[test]
-fn test_parse_exported_local_class_declaration() {
-    let test = TestParser::new("export local class Promise {}");
-    let mut parser = test.prepare();
-    let expressions = parser.parse_in_place();
-
-    test.assert_no_errors(&parser);
-    assert_eq!(expressions.len(), 1);
-
-    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { export, name, place, .. }) => {
-            assert_eq!(*export, Some(ExportKind::Named));
-            assert_string!(parser, name.expect("expected name").string(), "Promise");
-            assert_eq!(*place, Some(PlaceModifier::Local));
-        });
-    });
-}
-
-#[test]
-fn test_parse_export_default_local_class_declaration() {
-    let test = TestParser::new("export default local class Promise {}");
-    let mut parser = test.prepare();
-    let expressions = parser.parse_in_place();
-
-    test.assert_no_errors(&parser);
-    assert_eq!(expressions.len(), 1);
-
-    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { export, name, place, .. }) => {
-            assert_eq!(*export, Some(ExportKind::Default));
-            assert_string!(parser, name.expect("expected name").string(), "Promise");
-            assert_eq!(*place, Some(PlaceModifier::Local));
-        });
-    });
-}
-
-#[test]
 fn test_parse_shared_struct_declaration() {
     let test = TestParser::new("shared struct Channel<T> {}");
     let mut parser = test.prepare();
@@ -143,9 +90,9 @@ fn test_parse_shared_struct_declaration() {
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Struct(StructDeclaration { name, place, .. }) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Struct(StructDeclaration { name, is_shared, .. }) => {
             assert_string!(parser, name.string(), "Channel");
-            assert_eq!(*place, Some(PlaceModifier::Shared));
+            assert!(*is_shared);
         });
     });
 }
@@ -572,6 +519,24 @@ fn test_parse_struct_negative_implements_type() {
             assert_node!(parser.tree, *target_type, TypeExpression::Reference { path, .. } => {
                 assert_path!(parser, *path, "Unpin");
             });
+        });
+    });
+}
+
+/// A repeated declaration modifier is reported at its second occurrence and the declaration still parses.
+#[test]
+fn test_reject_a_repeated_declaration_modifier() {
+    let test = TestParser::new("shared shared class User {}");
+    let mut parser = test.prepare();
+    let expressions = parser.parse_in_place();
+
+    assert_eq!(parser.errors.len(), 1);
+    assert_eq!(parser.range_str(parser.errors[0].range()), "shared");
+    assert_eq!(expressions.len(), 1);
+    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Class(ClassDeclaration { name, is_shared, .. }) => {
+            assert_string!(parser, name.expect("expected name").string(), "User");
+            assert!(*is_shared);
         });
     });
 }

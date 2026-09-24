@@ -5,8 +5,8 @@ use crate::{
 };
 use destack_dir::{
     CommentKind, Declaration, Expression, GenericArgument, GenericParameter, IntegerType,
-    InterfaceDeclaration, Name, Parameter, Pattern, PatternField, PlaceModifier, TypeExpression,
-    TypeKind, TypeLiteral, TypeMember, VarianceModifier, WhereClause,
+    InterfaceDeclaration, Name, Parameter, Pattern, PatternField, TypeExpression, TypeKind,
+    TypeLiteral, TypeMember, VarianceModifier, WhereClause,
 };
 use destack_source::{NodeSpanRegion, NodeSpanType};
 
@@ -722,24 +722,6 @@ fn test_parse_newtype_interface_empty() {
 }
 
 #[test]
-fn test_parse_local_newtype_interface() {
-    let test = TestParser::new("local newtype interface Awaitable {}");
-    let mut parser = test.prepare();
-    let expressions = parser.parse_in_place();
-
-    test.assert_no_errors(&parser);
-    assert_eq!(expressions.len(), 1);
-
-    assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Interface(InterfaceDeclaration { name, place, is_nominal, .. }) => {
-            assert_string!(parser, name.expect("expected name").string(), "Awaitable");
-            assert_eq!(*place, Some(PlaceModifier::Local));
-            assert!(*is_nominal);
-        });
-    });
-}
-
-#[test]
 fn test_parse_shared_newtype_interface() {
     let test = TestParser::new("shared newtype interface Channel {}");
     let mut parser = test.prepare();
@@ -749,9 +731,9 @@ fn test_parse_shared_newtype_interface() {
     assert_eq!(expressions.len(), 1);
 
     assert_node!(parser.tree, expressions[0], Expression::Declaration(declaration_id) => {
-        assert_node!(parser.tree, *declaration_id, Declaration::Interface(InterfaceDeclaration { name, place, is_nominal, .. }) => {
+        assert_node!(parser.tree, *declaration_id, Declaration::Interface(InterfaceDeclaration { name, is_shared, is_nominal, .. }) => {
             assert_string!(parser, name.expect("expected name").string(), "Channel");
-            assert_eq!(*place, Some(PlaceModifier::Shared));
+            assert!(*is_shared);
             assert!(*is_nominal);
         });
     });

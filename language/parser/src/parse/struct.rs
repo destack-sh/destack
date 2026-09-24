@@ -53,25 +53,14 @@ impl Parser {
             .as_ref()
             .map(|_| self.range_since(&generic_parameter_container_start));
 
-        // extends Base
-        let unexpected_extends_range = if !is_class && self.peek_is_keyword(Keyword::Extends) {
-            Some(self.peek_token().range())
-        } else {
-            None
-        };
+        // read the base a class extends, rejecting one elsewhere
         let extends_clause = if is_class {
             self.parse_extends_types_if_present()
                 .in_node(NodeType::Declaration)?
-        } else if unexpected_extends_range.is_some() {
-            self.parse_extends_types_if_present()
-                .in_node(NodeType::Declaration)?;
-            None
         } else {
+            self.skip_rejected_extends()?;
             None
         };
-        if let Some(range) = unexpected_extends_range {
-            self.report_error(ParserError::unexpected(range).in_node(NodeType::Declaration));
-        }
 
         // implements Trait
         let implements_types = self
@@ -108,7 +97,7 @@ impl Parser {
             Declaration::Class(ClassDeclaration {
                 name,
                 export: header.export,
-                place: header.place,
+                is_shared: header.is_shared,
                 is_ambient: header.is_ambient,
                 is_abstract: header.is_abstract,
                 is_final: header.is_final,
@@ -126,7 +115,7 @@ impl Parser {
             Declaration::Struct(StructDeclaration {
                 name,
                 export: header.export,
-                place: header.place,
+                is_shared: header.is_shared,
                 is_ambient: header.is_ambient,
                 generic_parameters: generic_parameters.unwrap_or_default(),
                 where_clauses,
