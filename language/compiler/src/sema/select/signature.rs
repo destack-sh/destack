@@ -792,12 +792,13 @@ impl CheckState<'_> {
 
             // split a nominal owner's parameters by the ones this signature names
             if is_nominal {
-                let named: SmallVec<[dir::GlobalTypeId; 8]> = signature_parameters
-                    .iter()
-                    .map(|parameter| parameter.ty)
-                    .chain(function.return_type)
-                    .chain(function.this_parameter)
-                    .collect();
+                let named = self.mentioned_types(
+                    signature_parameters
+                        .iter()
+                        .map(|parameter| parameter.ty)
+                        .chain(function.return_type)
+                        .chain(function.this_parameter),
+                )?;
                 let mut open = SmallVec::<[_; 4]>::new();
                 let mut unnamed = SmallVec::<[_; 4]>::new();
                 for parameter in parameters {
@@ -805,14 +806,7 @@ impl CheckState<'_> {
                         continue;
                     }
                     let parameter_type = self.generic_parameter_type(parameter)?;
-                    let mut is_named = false;
-                    for ty in &named {
-                        if self.type_mentions(*ty, parameter_type)? {
-                            is_named = true;
-                            break;
-                        }
-                    }
-                    match is_named {
+                    match named.contains(&parameter_type) {
                         true => open.push(parameter),
                         false => unnamed.push(parameter),
                     }
