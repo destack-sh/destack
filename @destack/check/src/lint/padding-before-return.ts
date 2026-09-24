@@ -23,11 +23,20 @@ export const paddingBeforeReturn: Rule = {
                     return;
                 }
 
-                // require an empty line between the previous code or comment and the return
-                const previous = context.sourceCode.getTokenBefore(node, {
+                // treat comments directly above the return as part of its block
+                let first: { loc: typeof node.loc } = node;
+                for (const comment of context.sourceCode.getCommentsBefore(node).toReversed()) {
+                    if (comment.loc.end.line !== first.loc.start.line - 1) {
+                        break;
+                    }
+                    first = comment;
+                }
+
+                // require an empty line between the previous code and that block
+                const previous = context.sourceCode.getTokenBefore(first as never, {
                     includeComments: true,
                 })!;
-                if (node.loc.start.line - previous.loc.end.line < 2) {
+                if (first.loc.start.line - previous.loc.end.line < 2) {
                     context.report({
                         node,
                         messageId: "blank",
