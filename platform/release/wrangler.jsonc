@@ -1,0 +1,14 @@
+{
+    "$schema": "node_modules/wrangler/config-schema.json",
+    "name": "destack-release-publication",
+    "account_id": "27c0d00fb3a27a4ccbf46a3cceab9301",
+    "main": "src/server/worker.ts",
+    "compatibility_date": "2026-07-30",
+    "compatibility_flags": ["nodejs_compat"],
+    "workers_dev": false,
+    "preview_urls": false,
+    "r2_buckets": [
+        { "binding": "STABLE_RELEASES", "bucket_name": "destack-releases-stable" },
+        { "binding": "NIGHTLY_RELEASES", "bucket_name": "destack-releases-nightly" },
+    ],
+}

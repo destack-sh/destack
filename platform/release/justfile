@@ -1,0 +1,55 @@
+set shell := ["bash", "-cu"]
+
+bun := env("DESTACK_BUN", "bun")
+
+# check
+check:
+    {{bun}} run tsc --project tsconfig.json
+
+# build
+build target="":
+    {{bun}} run src/distribution/build.ts {{target}}
+
+# pack
+pack target="":
+    {{bun}} run src/distribution/pack.ts {{target}}
+
+# build application icons
+icon *args:
+    {{bun}} run src/icon/icon.ts {{args}}
+
+# installer
+installer:
+    {{bun}} run src/installer/build.ts
+
+# verify a native archive with disposable signing keys
+rehearse version archive:
+    {{bun}} run src/distribution/rehearse.ts "{{version}}" "{{archive}}"
+
+# sign
+sign +targets:
+    {{bun}} run src/repository/sign.ts {{targets}}
+
+# publish
+publish directory="dist/update":
+    {{bun}} run --env-file=../../.env.local src/repository/upload.ts {{directory}}
+
+# refresh
+refresh:
+    {{bun}} run src/repository/renew.ts
+
+# format
+format *args:
+    {{bun}} run destack-check format {{args}} src
+
+# enforce the shared source rules
+lint:
+    {{bun}} run destack-check check src
+
+# verify release tooling with disposable keys
+test:
+    {{bun}} --bun run vitest run --config vitest.config.ts
+
+# check formatting
+format-check:
+    {{bun}} run destack-check format-check src

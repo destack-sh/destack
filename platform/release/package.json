@@ -1,0 +1,29 @@
+{
+    "name": "@destack/release",
+    "version": "2026.9.0",
+    "private": true,
+    "type": "module",
+    "scripts": {
+        "check": "tsc --project tsconfig.json",
+        "test": "bun --bun run vitest run --config vitest.config.ts"
+    },
+    "devDependencies": {
+        "@cloudflare/workers-types": "5.20260917.1",
+        "miniflare": "4.20260730.0",
+        "@destack/test": "workspace:*",
+        "@destack/sandbox": "workspace:*"
+    },
+    "dependencies": {
+        "@destack/service": "workspace:*",
+        "@destack/schema": "workspace:*",
+        "@destack/package": "workspace:*",
+        "rolldown": "1.2.9",
+        "magic-string": "1.4.1",
+        "@opentui/solid": "0.5.12",
+        "@tufjs/models": "5.0.0",
+        "tuf-js": "6.0.0",
+        "@destack/build": "workspace:*",
+        "@destack/update": "workspace:*",
+        "wrangler": "4.134.0"
+    }
+}

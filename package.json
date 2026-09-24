@@ -13,7 +13,7 @@
         "@destack/account",
         "@destack/repository",
         "@destack/gateway",
-        "dev/release",
+        "platform/release",
         "@destack/build",
         "@destack/build/tests/fixture/*/source",
         "@destack/update",

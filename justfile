@@ -17,7 +17,7 @@ update:
 # build
 build:
     just platform/build
-    just dev/release/build
+    just platform/release/build
 
 # generate
 generate:
@@ -27,7 +27,7 @@ generate:
 format:
     just @destack/format
     just platform/format
-    just dev/release/format
+    just platform/release/format
 
 alias fmt := format
 
@@ -35,7 +35,7 @@ alias fmt := format
 format-check:
     just @destack/format-check
     just platform/format-check
-    just dev/release/format-check
+    just platform/release/format-check
 
 # lint
 lint:
@@ -43,7 +43,7 @@ lint:
     bun run destack-check check @destack/*/src platform/*/src
     bun run destack-check check README.md AGENTS.md CONTRIBUTING.md SECURITY.md docs blog @destack/*/README.md
     just platform/lint
-    just dev/release/check
+    just platform/release/check
 
 # test
 test:
@@ -56,7 +56,7 @@ check:
     just @destack/check
     just platform/site/typecheck
     just platform/stack/check
-    just dev/release/check
+    just platform/release/check
 
 alias check-quick := check
 alias check-full := check
@@ -71,4 +71,4 @@ version:
 
 # pack
 pack target="":
-    just dev/release/pack "{{target}}"
+    just platform/release/pack "{{target}}"
