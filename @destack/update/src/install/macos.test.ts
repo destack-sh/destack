@@ -16,7 +16,7 @@ test.runIf(process.platform === "darwin")(
             const release = new Release("2026.9.1", Release.target());
             const staged = join(installer.directory, "versions", release.directory);
             const application = join(staged, "Destack.app");
-            await writeApplication(application, release);
+            await writeApplication(application, release, "org.example.editor");
 
             // force staging cleanup to fail after the native bundle is replaced
             const sha256 = "a".repeat(64);
@@ -29,6 +29,7 @@ test.runIf(process.platform === "darwin")(
                     target: release.target,
                     sha256,
                     application: destination,
+                    applicationIdentifier: "org.example.editor",
                 }),
             );
             await mkdir(join(installer.directory, "staged.json"));
@@ -60,8 +61,8 @@ test.skipIf(process.platform !== "darwin")(
             const destination = join(directory, "renamed.app");
             for (const version of ["2026.9.1-nightly.1", "2026.9.1-nightly.2"]) {
                 const release = new Release(version, Release.target());
-                await writeApplication(source, release);
-                await installApplication(source, destination, release.applicationIdentifier);
+                await writeApplication(source, release, "org.example.editor.nightly");
+                await installApplication(source, destination, "org.example.editor.nightly");
                 expect(
                     await readFile(join(destination, "Contents/Resources/version"), "utf8"),
                 ).toBe(version);
@@ -69,11 +70,11 @@ test.skipIf(process.platform !== "darwin")(
 
             // reject another distribution identity without changing the installed bundle
             const stable = new Release("2026.9.2", Release.target());
-            await writeApplication(source, stable);
+            await writeApplication(source, stable, "org.example.editor");
             await expect(
-                installApplication(source, destination, stable.applicationIdentifier),
+                installApplication(source, destination, "org.example.editor"),
             ).rejects.toThrow(
-                `application identifier does not match sh.destack.desktop: ${destination}`,
+                `application identifier does not match org.example.editor: ${destination}`,
             );
             expect(await readFile(join(destination, "Contents/Resources/version"), "utf8")).toBe(
                 "2026.9.1-nightly.2",
@@ -85,7 +86,11 @@ test.skipIf(process.platform !== "darwin")(
 );
 
 /** Write and sign a real bundle for installation and recovery scenarios. */
-async function writeApplication(application: string, release: Release): Promise<void> {
+async function writeApplication(
+    application: string,
+    release: Release,
+    identifier: string,
+): Promise<void> {
     // write executable and versioned bundle contents before signing
     await mkdir(join(application, "Contents/MacOS"), { recursive: true });
     await mkdir(join(application, "Contents/Resources"), { recursive: true });
@@ -94,7 +99,7 @@ async function writeApplication(application: string, release: Release): Promise<
     await writeFile(
         join(application, "Contents/Info.plist"),
         `<?xml version="1.0"?><plist version="1.0"><dict>
-<key>CFBundleIdentifier</key><string>${release.applicationIdentifier}</string>
+<key>CFBundleIdentifier</key><string>${identifier}</string>
 <key>CFBundleExecutable</key><string>application</string>
 <key>CFBundlePackageType</key><string>APPL</string>
 <key>CFBundleVersion</key><string>${release.version}</string>

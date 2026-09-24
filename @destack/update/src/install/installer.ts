@@ -185,14 +185,21 @@ export class Installer {
     }
 
     /** Record activation before replacing application files so interrupted updates can resume. */
-    async activate(installed: InstalledRelease, application?: string): Promise<void> {
+    async activate(
+        installed: InstalledRelease,
+        application?: string,
+        applicationIdentifier?: string,
+    ): Promise<void> {
         // reject stale activation before recording its intent
         await this.checkActivation(installed.release, installed.sha256);
 
         // require a destination for native macOS bundles
         const isMac = installed.release.target.endsWith("apple-darwin");
-        if (isMac !== (application !== undefined)) {
-            throw new UpdateError("INSTALL", "macOS releases require an application destination.");
+        if (isMac !== (application !== undefined) || (isMac && !applicationIdentifier)) {
+            throw new UpdateError(
+                "INSTALL",
+                "macOS releases require an application destination and identifier",
+            );
         }
 
         // persist the intended release before changing either active location
@@ -201,6 +208,7 @@ export class Installer {
             target: installed.release.target,
             sha256: installed.sha256,
             application,
+            applicationIdentifier,
         };
         const temporary = join(this.directory, `activate.${crypto.randomUUID()}.json`);
         await writeFile(temporary, JSON.stringify(record), { flag: "wx", mode: 0o600 });
@@ -246,13 +254,21 @@ export class Installer {
         }
         await this.checkActivation(release, record.sha256);
         if (release.target.endsWith("apple-darwin")) {
-            if (typeof record.application !== "string" || !isAbsolute(record.application)) {
-                throw new UpdateError("INSTALL", "Missing absolute application destination.");
+            if (
+                typeof record.application !== "string" ||
+                !isAbsolute(record.application) ||
+                typeof record.applicationIdentifier !== "string" ||
+                !record.applicationIdentifier
+            ) {
+                throw new UpdateError(
+                    "INSTALL",
+                    "missing absolute application destination or identifier",
+                );
             }
             await installApplication(
                 join(directory, "Destack.app"),
                 record.application,
-                release.applicationIdentifier,
+                record.applicationIdentifier,
             );
         }
 

@@ -43,11 +43,12 @@ export class Updater implements AsyncDisposable {
         const isMac = options.target.endsWith("apple-darwin");
         if (
             isMac !== (options.application !== undefined) ||
+            (isMac && !options.applicationIdentifier) ||
             (options.application !== undefined && !isAbsolute(options.application))
         ) {
             throw new UpdateError(
                 "INSTALL",
-                "macOS releases require an absolute application destination.",
+                "macOS releases require an absolute application destination and identifier",
             );
         }
         if (options.current && options.current.target !== options.target) {
@@ -184,7 +185,11 @@ export class Updater implements AsyncDisposable {
         const installed = await this.installer.stage(download, (directory) =>
             verifyRelease(directory, latest),
         );
-        await this.installer.activate(installed, this.options.application);
+        await this.installer.activate(
+            installed,
+            this.options.application,
+            this.options.applicationIdentifier,
+        );
 
         return installed;
     }
@@ -230,6 +235,8 @@ export interface UpdaterOptions {
     current?: Release;
     /** Absolute macOS application destination. */
     application?: string;
+    /** Expected macOS bundle identifier, required when an application destination is supplied. */
+    applicationIdentifier?: string;
 }
 
 /** Check staged executable identity and the presence of its desktop application. */

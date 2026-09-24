@@ -72,11 +72,6 @@ export class Release {
     get channel(): "stable" | "nightly" {
         return this.version.includes("-nightly.") ? "nightly" : "stable";
     }
-
-    /** Native application identifier for this release. */
-    get applicationIdentifier(): string {
-        return this.channel === "stable" ? "sh.destack.desktop" : "sh.destack.desktop.nightly";
-    }
 }
 
 /** Compare validated calendar versions independently of their distribution format. */
