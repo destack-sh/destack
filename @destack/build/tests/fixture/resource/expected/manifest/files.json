@@ -1,8 +1,8 @@
 [
     {
         "path": "destack.json",
-        "digest": "b873c9c5b647ea0840d501a87eee5a523775c212539900494cf0509b80388dfd",
-        "size": 110,
+        "digest": "76837d4925b9e743081842499df1442b7cb188147b383d05d801bf79dea69bd8",
+        "size": 118,
         "mediaType": "application/json"
     },
     {
@@ -18,25 +18,25 @@
         "mediaType": "application/octet-stream"
     },
     {
-        "path": "output/library/index-3AY5SgEi.js",
-        "digest": "cea6e092f42497096b85dd70bd09a2fab0e007046b9bdce56b2d570708f3049d",
-        "size": 212147,
+        "path": "output/library/index-BOTAnCMe.js",
+        "digest": "eefdecb6d9f1221072d40304eccdd145d59e58840b01b180d96da7a5d3fbc805",
+        "size": 215973,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/library/index-3AY5SgEi.js.map",
-        "digest": "3dc076139225d1e215711eb0bc0a01d0f649b3f8dddb26607c3392aad050fcbc",
-        "size": 600362,
+        "path": "output/library/index-BOTAnCMe.js.map",
+        "digest": "b02a2c2feab4723e43e09e66c75193c26e5dcc238f34209c3051a6bd566de3cd",
+        "size": 611400,
         "mediaType": "application/json"
     },
     {
         "path": "package.json",
-        "digest": "42e96609994801e73fc829c995e4662cafb3da553880e95e9f8b786d14aac6a9",
-        "size": 179,
+        "digest": "85516d6e5b1da5e151063b52155ceb44655ef8a8f7a0f9d8421d09122dc3b770",
+        "size": 203,
         "mediaType": "application/json"
     },
     {
-        "path": "src/index.ts",
+        "path": "src/database.ts",
         "digest": "808c1ae7548ca781c21ceec12144858e2a46d61f3f5d5cbd291e72d30406d03a",
         "size": 639,
         "mediaType": "application/octet-stream",
@@ -52,9 +52,34 @@
                     "library"
                 ],
                 "file": {
+                    "path": "manifest/files/src/database.ts.json",
+                    "digest": "34880fb6c128cadca701416902c035afa4924c49f0b6da07b47438cc7729377b",
+                    "size": 15153,
+                    "mediaType": "application/json"
+                }
+            }
+        ]
+    },
+    {
+        "path": "src/index.ts",
+        "digest": "9dbb8142e9a6382c2bc20d1e042c97409933b927c74916dcadeea7e850287eee",
+        "size": 31,
+        "mediaType": "application/octet-stream",
+        "descriptions": [
+            {
+                "package": {
+                    "id": "package-01a0c80b-614d-75ab-8b3b-456b8fdb73f1",
+                    "name": "@destack/package",
+                    "version": "2026.9.0"
+                },
+                "kind": "module",
+                "outputs": [
+                    "library"
+                ],
+                "file": {
                     "path": "manifest/files/src/index.ts.json",
-                    "digest": "2102973c675a4662e91678e981ee8418a24ce29bc26249a9cfc779460391f2e1",
-                    "size": 15072,
+                    "digest": "0baeb4fbfe286c88e18a285451c7d680003582d8b183f641930fe5d7014f2290",
+                    "size": 1063,
                     "mediaType": "application/json"
                 }
             }

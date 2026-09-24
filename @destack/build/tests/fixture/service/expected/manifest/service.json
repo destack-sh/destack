@@ -1,45 +1,6 @@
 [
     {
         "name": "notes",
-        "kind": "service-connection",
-        "constructor": {
-            "package": {
-                "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
-                "name": "@destack/service",
-                "version": "2026.9.0"
-            },
-            "symbol": {
-                "module": "src/declare/connection.ts",
-                "name": "defineServiceConnection"
-            }
-        },
-        "symbol": {
-            "package": {
-                "id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
-                "name": "@destack/build-service-fixture",
-                "version": "2026.9.0"
-            },
-            "symbol": {
-                "module": "src/server.ts",
-                "name": "notes"
-            }
-        },
-        "source": {
-            "file": "src/server.ts",
-            "line": 43,
-            "column": 21
-        },
-        "description": {
-            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
-            "name": "notes",
-            "service": {
-                "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
-                "name": "notes"
-            }
-        }
-    },
-    {
-        "name": "notes",
         "kind": "service",
         "constructor": {
             "package": {
@@ -65,13 +26,12 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 53,
+            "line": 41,
             "column": 23
         },
         "description": {
             "name": "notes",
             "version": 1,
-            "handler": "fetch",
             "protocol": "http",
             "api": {
                 "name": "notes",
@@ -141,6 +101,85 @@
         }
     },
     {
+        "name": "notes",
+        "kind": "service-connection",
+        "constructor": {
+            "package": {
+                "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+                "name": "@destack/service",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/declare/connection.ts",
+                "name": "defineServiceConnection"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                "name": "@destack/build-service-fixture",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/server.ts",
+                "name": "notes"
+            }
+        },
+        "source": {
+            "file": "src/server.ts",
+            "line": 43,
+            "column": 21
+        },
+        "description": {
+            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+            "name": "notes",
+            "service": {
+                "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                "name": "notes"
+            }
+        }
+    },
+    {
+        "name": "web",
+        "kind": "workload",
+        "constructor": {
+            "package": {
+                "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+                "name": "@destack/service",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/workload/workload.ts",
+                "name": "defineWorkload"
+            }
+        },
+        "symbol": {
+            "package": {
+                "id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                "name": "@destack/build-service-fixture",
+                "version": "2026.9.0"
+            },
+            "symbol": {
+                "module": "src/server.ts",
+                "name": "web"
+            }
+        },
+        "source": {
+            "file": "src/server.ts",
+            "line": 59,
+            "column": 19
+        },
+        "description": {
+            "name": "web",
+            "compute": {
+                "requests": {},
+                "limits": {},
+                "scaling": {},
+                "cpuTime": 1000
+            }
+        }
+    },
+    {
         "name": "reminders",
         "kind": "schedule",
         "constructor": {
@@ -167,13 +206,12 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 100,
+            "line": 73,
             "column": 25
         },
         "description": {
             "name": "reminders",
             "version": 1,
-            "handler": "remind",
             "concurrency": "forbid",
             "deadline": 60000,
             "timing": "cron",
@@ -208,13 +246,12 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 112,
+            "line": 83,
             "column": 23
         },
         "description": {
             "name": "refresh",
             "version": 1,
-            "handler": "remind",
             "concurrency": "forbid",
             "deadline": 60000,
             "timing": "interval",
@@ -250,13 +287,12 @@
         },
         "source": {
             "file": "src/server.ts",
-            "line": 125,
+            "line": 94,
             "column": 27
         },
         "description": {
             "name": "appointment",
             "version": 1,
-            "handler": "remind",
             "concurrency": "allow",
             "deadline": 60000,
             "timing": "once",

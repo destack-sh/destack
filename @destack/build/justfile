@@ -12,6 +12,6 @@ test:
 update:
     UPDATE_BUILD_FIXTURES=1 bun run test --update
 
-# format
+# format authored source, tests and fixture inputs, leaving generated expected outputs exact
 format:
-    bun run destack-check format src package.json destack.json
+    bun run destack-check format src package.json destack.json tests/*.ts tests/fixture/*/request.ts tests/fixture/*/source/src tests/fixture/*/source/*.json tests/fixture/template

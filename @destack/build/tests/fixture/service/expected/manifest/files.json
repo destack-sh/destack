@@ -1,32 +1,32 @@
 [
     {
         "path": "destack.json",
-        "digest": "ad05eafda763cfc71c1fcdff9aa850902c64aabaa41709b65fe8dc1805c3d6fd",
-        "size": 492,
+        "digest": "f8a10e740f65a9b94fd76ad73d6173634e5a41b660b30e413696b1124421601b",
+        "size": 118,
         "mediaType": "application/json"
     },
     {
-        "path": "output/bun/server-umCVDsJM.js",
-        "digest": "a5c3730d093d50ddf12507f5e269ecbc3b890b3efb12449a3e5d0e93034eddd0",
-        "size": 372119,
+        "path": "output/bun/server-wG9ewff2.js",
+        "digest": "26aa0bfd2db4745871d2eac98c8d2aa87a4141e6452f4bb3eae3869620dc5e49",
+        "size": 276464,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/bun/server-umCVDsJM.js.map",
-        "digest": "202a89d35ad727098a689e63443fc9ffbef1dec50da8ce781a6fe807167999a8",
-        "size": 1014970,
+        "path": "output/bun/server-wG9ewff2.js.map",
+        "digest": "0539eebe7d0e4d1ee845738bdbe196ad883cd22b7d8be91cdfeda2b4bfc58a61",
+        "size": 752829,
         "mediaType": "application/json"
     },
     {
-        "path": "output/worker/server-umCVDsJM.js",
-        "digest": "a5c3730d093d50ddf12507f5e269ecbc3b890b3efb12449a3e5d0e93034eddd0",
-        "size": 372119,
+        "path": "output/worker/server-wG9ewff2.js",
+        "digest": "26aa0bfd2db4745871d2eac98c8d2aa87a4141e6452f4bb3eae3869620dc5e49",
+        "size": 276464,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/worker/server-umCVDsJM.js.map",
-        "digest": "202a89d35ad727098a689e63443fc9ffbef1dec50da8ce781a6fe807167999a8",
-        "size": 1014970,
+        "path": "output/worker/server-wG9ewff2.js.map",
+        "digest": "0539eebe7d0e4d1ee845738bdbe196ad883cd22b7d8be91cdfeda2b4bfc58a61",
+        "size": 752829,
         "mediaType": "application/json"
     },
     {
@@ -37,8 +37,8 @@
     },
     {
         "path": "src/server.ts",
-        "digest": "529e892275f333eb43ef4afbce9c48084a8e5334e5db1c068a0583077e3463f5",
-        "size": 4363,
+        "digest": "2a698bf640de8c6fe77a60ec1713f5248189a66e36d06a9fe1d59c584cfba5f6",
+        "size": 3742,
         "mediaType": "application/octet-stream",
         "descriptions": [
             {
@@ -54,8 +54,8 @@
                 ],
                 "file": {
                     "path": "manifest/files/src/server.ts.json",
-                    "digest": "54f116f6433aa22a71ebc283850a9dec34f777f3d82e17e813e505c1387acb8d",
-                    "size": 125254,
+                    "digest": "cc03801616e7ff8cd05faac461ca2f72931cf234271eea50b9fb10b5e5accc89",
+                    "size": 113006,
                     "mediaType": "application/json"
                 }
             }

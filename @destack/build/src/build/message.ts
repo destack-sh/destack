@@ -38,6 +38,7 @@ export type BuildResult =
 
 /** Read length-prefixed compiler messages without copying accumulated chunks. */
 export async function* readMessages(stream: AsyncIterable<Uint8Array>): AsyncGenerator<unknown> {
+    // read message headers and bodies from the stream
     let buffer = Buffer.allocUnsafe(4);
     let offset = 0;
     let isHeader = true;
@@ -72,6 +73,7 @@ export async function* readMessages(stream: AsyncIterable<Uint8Array>): AsyncGen
         }
     }
 
+    // reject a truncated stream
     if (offset || !isHeader) {
         throw new BuildError("BUILD_FAILED", "Incomplete compiler message.");
     }
@@ -79,11 +81,13 @@ export async function* readMessages(stream: AsyncIterable<Uint8Array>): AsyncGen
 
 /** Write a compiler message, preserving byte arrays and regular expressions. */
 export async function writeMessage(stream: Writable, value: unknown): Promise<void> {
+    // write the length header
     const payload = serialize(value);
     const header = Buffer.allocUnsafe(4);
     header.writeUInt32LE(payload.length);
     stream.write(header);
 
+    // write the payload and wait for the flush
     await new Promise<void>((resolve, reject) => {
         stream.write(payload, (error) => (error ? reject(error) : resolve()));
     });

@@ -5,7 +5,7 @@ import { resolve, join, dirname } from "node:path";
 import { type Package } from "@destack/package";
 import { describeFile, type PackageFile } from "@destack/package/file";
 import { type PackageOutput, type PackageManifest } from "@destack/package/manifest";
-import type { DependencyResolution } from "@destack/package/package";
+import type { DependencyResolution } from "@destack/package";
 import { type SourceMapReference } from "@destack/package/source";
 import { type TypeScriptInspection, TypeScriptCompiler } from "../typescript/index.ts";
 import { inspectModules, type InspectOptions } from "../inspect/inspection.ts";
@@ -23,10 +23,8 @@ import { resolveView } from "../source/view.ts";
 import { checkRuntime, RuntimeCompiler } from "../compile/runtime.ts";
 import { checkPackage, formatPackage } from "@destack/check";
 import { serializeDescriptions, encodeDescription, type ManifestDescription } from "./manifest.ts";
-import testMetadata from "../../../test/package.json" with { type: "json" };
-import testDefinition from "../../../test/destack.json" with { type: "json" };
-import packageMetadata from "../../../package/package.json" with { type: "json" };
-import packageDefinition from "../../../package/destack.json" with { type: "json" };
+import { ModulePackages } from "@destack/package/transform";
+import { fileURLToPath } from "node:url";
 
 /** Compiler state and configurations retained for one source package. */
 export class BuildCompiler implements AsyncDisposable {
@@ -108,7 +106,7 @@ export class BuildCompiler implements AsyncDisposable {
                         kind: "module",
                         target: "browser",
                         runtime: "browser",
-                        entries: { ".": output.app ?? "src/App.tsx" },
+                        entries: { ".": output.app ?? "src/app.tsx" },
                         minify: output.minify,
                         base: output.base,
                     },
@@ -123,7 +121,7 @@ export class BuildCompiler implements AsyncDisposable {
                             kind: "module",
                             target: "server",
                             runtime: output.ssr.runtime,
-                            entries: { ".": output.app ?? "src/App.tsx" },
+                            entries: { ".": output.app ?? "src/app.tsx" },
                             minify: output.minify,
                             base: output.base,
                         },
@@ -139,6 +137,7 @@ export class BuildCompiler implements AsyncDisposable {
             }
         }
 
+        // require at least one output
         if (!requested.size) {
             throw new BuildError("BUILD_FAILED", "A build requires at least one output.");
         }
@@ -374,7 +373,7 @@ export class BuildCompiler implements AsyncDisposable {
                 project,
                 outputs[name].exports,
                 buildDescription,
-                request.side === "ssr" ? applications.get(request.application!.name)!.handlers : [],
+                request.side === "ssr",
             );
 
             // retain exact dependency resolutions once
@@ -420,16 +419,8 @@ export class BuildCompiler implements AsyncDisposable {
                 modules: moduleDescriptions,
                 declarations: declarationDescriptions,
                 tests: testDescriptions,
-                modulePackage: {
-                    id: packageDefinition.id as Package["id"],
-                    name: packageMetadata.name,
-                    version: packageMetadata.version,
-                },
-                testPackage: {
-                    id: testDefinition.id as Package["id"],
-                    name: testMetadata.name,
-                    version: testMetadata.version,
-                },
+                modulePackage: await findPackage("@destack/package"),
+                testPackage: await findPackage("@destack/test"),
                 selections,
             },
             outputs,
@@ -472,6 +463,7 @@ export class BuildCompiler implements AsyncDisposable {
             await writeBuildFile(path, bytes, destination, records);
         }
 
+        // assemble the manifest
         const result: PackageManifest = {
             formatVersion: 1,
             package: source!,
@@ -555,6 +547,7 @@ function retainDescription<Value>(
     values: Value[],
     indices: Map<string, number>,
 ): number {
+    // reuse the index of an equal value
     const key = stringifyInspection(value);
     const existing = indices.get(key);
     if (existing !== undefined) {
@@ -617,6 +610,7 @@ async function describeBuildFile(
     directory: string,
     records: Map<string, PackageFile>,
 ): Promise<void> {
+    // hash and measure the file
     const hash = createHash("sha256");
     let size = 0;
     for await (const bytes of createReadStream(join(directory, path))) {
@@ -644,4 +638,14 @@ function fileMediaType(path: string): string {
             : extension === "css"
               ? "text/css"
               : "application/octet-stream";
+}
+
+/** Read the identity of a Destack package resolved from the build tool's dependencies. */
+async function findPackage(specifier: string): Promise<Package> {
+    const owner = await new ModulePackages().find(fileURLToPath(import.meta.resolve(specifier)));
+    if (!owner) {
+        throw new BuildError("BUILD_FAILED", `missing Destack package: ${specifier}`);
+    }
+
+    return owner.metadata.package;
 }

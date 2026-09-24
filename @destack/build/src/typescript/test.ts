@@ -23,6 +23,7 @@ export async function collectTests(
     file: string,
     project: Project,
 ): Promise<TestDeclaration[]> {
+    // map imported test bindings by symbol
     const bindings = new Map<number, "test" | "suite">();
 
     // identify imports by compiler symbols so local shadowing cannot create false matches
@@ -53,6 +54,7 @@ export async function collectTests(
         }
     }
 
+    // skip files without test imports
     if (!bindings.size) {
         return [];
     }

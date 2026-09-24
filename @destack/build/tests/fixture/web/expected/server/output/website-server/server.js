@@ -6010,7 +6010,7 @@ function provideRequestEvent(init, cb) {
 }
 var _virtual_solid_manifest_default = {
 	"virtual:solid-ssr-entry-client.tsx": {
-		"file": "assets/virtual_solid-ssr-entry-client-_NyLQ9aj.js",
+		"file": "assets/virtual_solid-ssr-entry-client-NSujsqV_.js",
 		"name": "virtual_solid-ssr-entry-client",
 		"src": "virtual:solid-ssr-entry-client.tsx",
 		"isEntry": true,
@@ -7009,7 +7009,7 @@ var skyDark = {
 	sky11: "#75c7f0",
 	sky12: "#c2f3ff"
 };
-/** Mint light scale. */
+/** Light scale of the teal-green Radix color. */
 var mint = {
 	mint1: "#f9fefd",
 	mint2: "#f2fbf9",
@@ -7024,7 +7024,7 @@ var mint = {
 	mint11: "#027864",
 	mint12: "#16433c"
 };
-/** Mint dark scale. */
+/** Dark scale of the teal-green Radix color. */
 var mintDark = {
 	mint1: "#0e1515",
 	mint2: "#0f1b1b",

@@ -7,7 +7,7 @@ import { buildPackage, PackageBuild, PackageBuilder } from "../index.ts";
 import { request } from "../../tests/fixture/library/request.ts";
 import { readDependencies } from "../local/index.ts";
 import { linkDependencies } from "../source/index.ts";
-import { request as resourceRequest } from "../../tests/fixture/resource/request.ts";
+import * as resource from "../../tests/fixture/resource/request.ts";
 import { Fixture, expectBuild, expectFiles } from "../../tests/fixture.ts";
 import { requests } from "../../tests/fixture/web/request.ts";
 import { formatSource } from "@destack/check";
@@ -16,7 +16,7 @@ import { DeclarationDescription } from "@destack/package/inspect";
 
 test("rebuild a web application with emitted assets and restore every output", async () => {
     await using fixture = await Fixture.open("web");
-    const file = join(fixture.source, "src/App.tsx");
+    const file = join(fixture.source, "src/app.tsx");
     const original = await readFile(file, "utf8");
 
     // declare the asset imports used by this standalone application
@@ -25,7 +25,7 @@ test("rebuild a web application with emitted assets and restore every output", a
         declaration,
         await formatSource(
             declaration,
-            'declare module "*.svg?url" { const url: string; export default url; }',
+            '/** SVG assets imported as URLs. */\ndeclare module "*.svg?url" { const url: string; export default url; }',
         ),
     );
 
@@ -66,32 +66,33 @@ test("reinspect edited declaration helpers in a retained compiler", async () => 
     const fixture = new URL("../../tests/fixture/resource/source/", import.meta.url);
     const directory = await mkdtemp(join(tmpdir(), "destack-declaration-edit-"));
     try {
-        // evaluate an ordinary imported helper and retain the complete initial output
+        // evaluate an ordinary imported title module and retain the complete initial output
         await cp(fixture, directory, {
             recursive: true,
             filter: (path) => !path.endsWith("/node_modules") && !path.endsWith("\\node_modules"),
         });
         await linkDependencies(fileURLToPath(fixture), directory);
-        const file = join(directory, "src/index.ts");
+        const file = join(directory, "src/database.ts");
         const source = await readFile(file, "utf8");
         await writeFile(
             file,
             'import { title } from "./title.ts";\n' +
                 source.replace('text("title").notNull()', "text(title()).notNull()"),
         );
-        const helper = join(directory, "src/title.ts");
-        const original = 'export function title(): string {\n    return "title";\n}\n';
-        await writeFile(helper, original);
+        const titleModule = join(directory, "src/title.ts");
+        const original =
+            '/** Return the column name. */\nexport function title(): string {\n    return "title";\n}\n';
+        await writeFile(titleModule, original);
         const dependencies = await readDependencies(fileURLToPath(fixture));
         await using builder = await PackageBuilder.start(directory);
-        await using first = await builder.build({ dependencies, ...resourceRequest });
+        await using first = await builder.build({ dependencies, ...resource.request });
 
-        // reload the helper and preserve declaration logs outside the result stream
+        // reload the title module and preserve declaration logs outside the result stream
         await writeFile(
-            helper,
-            'console.info("inspecting title");\nexport function title(): string {\n    return "heading";\n}\n',
+            titleModule,
+            'console.info("inspecting title");\n/** Return the column name. */\nexport function title(): string {\n    return "heading";\n}\n',
         );
-        await using edited = await builder.build({ dependencies, ...resourceRequest });
+        await using edited = await builder.build({ dependencies, ...resource.request });
         const baseline = (
             await first.reader.domain("db", schema.array(DeclarationDescription))
         ).find((declaration) => declaration.kind === "database-schema")!;
@@ -107,9 +108,9 @@ test("reinspect edited declaration helpers in a retained compiler", async () => 
         }
         expect(actual).toEqual(expected);
 
-        // restore the helper and compare every distributed byte and the full manifest
-        await writeFile(helper, original);
-        await using restored = await builder.build({ dependencies, ...resourceRequest });
+        // restore the title module and compare every distributed byte and the full manifest
+        await writeFile(titleModule, original);
+        await using restored = await builder.build({ dependencies, ...resource.request });
         expect(restored.manifest).toEqual(first.manifest);
         await expectFiles(restored, first);
 
@@ -158,7 +159,10 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         await expectFiles(restoredSource, build);
 
         // reject an API unavailable in the selected runtime, then accept restored source
-        await writeFile(notePath, note + "\nexport const page = document.title;\n");
+        await writeFile(
+            notePath,
+            note + "\n/** The page title. */\nexport const page = document.title;\n",
+        );
         await expect(
             builder.build({
                 dependencies: {},
@@ -168,12 +172,13 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
             }),
         ).rejects.toMatchObject({
             code: "BUILD_FAILED",
-            message: `Unsupported workerd API: document.title at src/note.ts:${note.length + 21}`,
+            message: `Unsupported workerd API: document.title at src/note.ts:${note.length + 44}`,
         });
 
         // accept browser index signatures through the runtime's actual type declarations
         const browserSource =
-            note + "\nexport const page = document.documentElement.dataset.theme;\n";
+            note +
+            "\n/** The page theme. */\nexport const page = document.documentElement.dataset.theme;\n";
         await writeFile(notePath, browserSource);
         await using browser = await builder.build({
             dependencies: {},
@@ -187,7 +192,7 @@ test("rebuild edited source, reject incompatible APIs, restore distributed outpu
         });
         expect(await readFile(join(browser.directory, "src/note.ts"), "utf8")).toBe(browserSource);
 
-        // reject server functions before their bodies can reach a browser output
+        // reject server functions before their bodies can enter a browser output
         await writeFile(notePath, '"use server";\n' + note);
         const rejected = builder.build({
             dependencies: {},

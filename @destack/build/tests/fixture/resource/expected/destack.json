@@ -1,2 +1,5 @@
 {
-    "id": "package-01a0c80b-614f-73f0-b2a5-37fb7fb295b5", "language": "typescript", "targets": ["server"] }
+    "id": "package-01a0c80b-614f-73f0-b2a5-37fb7fb295b5",
+    "language": "typescript",
+    "targets": ["server"]
+}

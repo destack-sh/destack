@@ -137,11 +137,11 @@ const implementation = implementService({
     },
 }, { authorize, audit });
 
-await using server = await Server.start({
+await using server = Server.start({
     ...implementation,
     health,
     audience: buildPackageId,
-    spaceId,
+    scope: spaceId,
     resources,
     authenticate,
     authorizeHost: authorizeInstallation,

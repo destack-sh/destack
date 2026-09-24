@@ -27,6 +27,7 @@ test("inspect and build authorized source through the service", async () => {
     const alice = createCaller("alice");
 
     // resolve client references before exposing source to the compiler
+    await using resources = new AsyncDisposableStack();
     const service = implementService(
         {
             limits: {
@@ -89,9 +90,10 @@ test("inspect and build authorized source through the service", async () => {
             },
         },
         hosting,
+        resources,
     );
     let owner = "alice";
-    await using http = await Server.start({
+    await using http = Server.start({
         ...hosting,
         ...service,
         health: new Health("build"),

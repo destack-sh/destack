@@ -105,6 +105,7 @@ export class RuntimeCompiler implements AsyncDisposable {
 
     /** Initialize each runtime once without importing application ambient declarations. */
     async #open(runtime: Runtime) {
+        // reuse an opened runtime environment
         const existing = this.#environments.get(runtime);
         if (existing) {
             return existing;
@@ -190,13 +191,14 @@ function unsupported(reference: GlobalReference, runtime: Runtime): BuildError {
     );
 }
 
-/** Check emitted source against declared runtime support and the runtime's global APIs. */
+/** Check emitted source against the declared runtime APIs and the runtime's global APIs. */
 export async function checkRuntime(
     build: BuildDescription,
     modules: readonly ModuleDescription[],
     runtime: Runtime,
     compiler: RuntimeCompiler,
 ): Promise<void> {
+    // index the compiled inputs and source modules
     const inputs = new Set(Object.values(build.outputs).flatMap((output) => output.inputs));
     const source = new Map(modules.map((module) => [module.path, module]));
     const globals = [];
@@ -223,6 +225,7 @@ export async function checkRuntime(
         }
     }
 
+    // check the collected globals against the runtime
     await compiler.check(globals, runtime);
 }
 

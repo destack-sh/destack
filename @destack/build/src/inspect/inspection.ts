@@ -23,6 +23,7 @@ export interface InspectOptions {
 
 /** Collect code and tests, then evaluate exported domain declarations. */
 export async function inspectPackage(options: InspectOptions): Promise<PackageInspection> {
+    // start an isolated compiler
     const { PackageBuilder } = await import("../build/builder.ts");
     const { directory, ...request } = options;
     await using compiler = await PackageBuilder.start(directory);

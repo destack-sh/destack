@@ -24,6 +24,7 @@ export async function prerender(
     module: string,
     options: PrerenderOptions,
 ): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
+    // require an HTTP origin
     const origin = new URL(options.origin);
     if (origin.origin !== options.origin || !["http:", "https:"].includes(origin.protocol)) {
         throw new BuildError("BUILD_FAILED", `Expected an HTTP origin: ${options.origin}`);
@@ -33,6 +34,7 @@ export async function prerender(
     // reject ambiguous URLs before executing application code
     const routes = [...options.routes, ...(options.notFound ? [options.notFound] : [])];
     const requests = routes.map((route) => {
+        // require a canonical path on the same origin
         const url = new URL(route, origin);
         if (url.origin !== origin.origin || url.pathname !== route || url.search || url.hash) {
             throw new BuildError("BUILD_FAILED", `Expected a canonical URL path: ${route}`);
@@ -90,7 +92,8 @@ export async function prerender(
                 }
                 if (
                     response.headers["set-cookie"] ||
-                    /private|no-store/i.test(response.headers["cache-control"] ?? "") ||
+                    (response.headers["cache-control"] !== undefined &&
+                        /private|no-store/i.test(response.headers["cache-control"])) ||
                     response.headers.vary
                 ) {
                     throw new BuildError(
@@ -122,6 +125,7 @@ export async function runProgram(program: string, timeout: number, count: number
     });
 
     await new Promise<void>((resolve, reject) => {
+        // stop the renderer when a response exceeds the timeout
         let completed = 0;
         let diagnostics = "";
         let failure: Error | undefined;

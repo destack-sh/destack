@@ -56,6 +56,7 @@ export class PackageBuilder implements AsyncDisposable {
 
     /** Start the isolated process and receive build results. */
     private constructor(directory: string, temporary: string) {
+        // start the compiler process with a production environment
         this.directory = resolve(directory);
         this.#temporary = temporary;
         const environment: Record<string, string> = {
@@ -76,6 +77,8 @@ export class PackageBuilder implements AsyncDisposable {
             process.execPath,
             [
                 "run",
+                "--preload",
+                fileURLToPath(import.meta.resolve("@destack/package/transform/preload")),
                 "--no-env-file",
                 fileURLToPath(new URL("./worker.ts", import.meta.url)),
                 this.directory,
@@ -88,6 +91,7 @@ export class PackageBuilder implements AsyncDisposable {
         );
         this.#closed = new Promise((resolve) => {
             this.#child.once("close", (code) => {
+                // record the exit and fail unexpected exits
                 this.#exitCode = code;
                 if (code !== 0 || !this.#disposed) {
                     this.#failure ??= new BuildError(
@@ -202,6 +206,7 @@ export class PackageBuilder implements AsyncDisposable {
         );
         signal?.addEventListener("abort", abort, { once: true });
 
+        // send the request and wait for its response
         try {
             this.#stderr = "";
             const response = await new Promise<BuildResponse>((resolve, reject) => {
@@ -233,6 +238,7 @@ export class PackageBuilder implements AsyncDisposable {
 
     /** Drain the compiler before releasing its temporary files. */
     async #close(): Promise<void> {
+        // mark disposal, fail a pending build and end the compiler input
         this.#disposed = true;
         if (this.#pending) {
             this.#fail(new BuildError("BUILD_FAILED", "Compiler closed during a build."));
@@ -259,6 +265,7 @@ export class PackageBuilder implements AsyncDisposable {
 
     /** Terminate the compiler and its native children after a terminal failure. */
     #fail(error: Error): void {
+        // reject the pending build once and stop the compiler
         this.#failure ??= error;
         this.#pending?.reject(this.#failure);
         if (this.#stopping) {
@@ -270,6 +277,7 @@ export class PackageBuilder implements AsyncDisposable {
         }
         this.#stopping = true;
 
+        // kill the process tree
         if (process.platform === "win32") {
             const killer = spawn("taskkill", ["/pid", String(pid), "/T", "/F"]);
             killer.on("error", (failure) => {
@@ -289,6 +297,7 @@ export class PackageBuilder implements AsyncDisposable {
 
 /** Compile once and close the isolated compiler. */
 export async function buildPackage(options: BuildOptions): Promise<PackageBuild> {
+    // reject a cancelled request before starting a compiler
     options.signal?.throwIfAborted();
     const { directory, ...request } = options;
     let result: PackageBuild | undefined;

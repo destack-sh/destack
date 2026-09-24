@@ -1,7 +1,7 @@
 {
-    "path": "src/App.tsx",
+    "path": "src/app.tsx",
     "source": {
-        "path": "src/App.tsx",
+        "path": "src/app.tsx",
         "digest": "bec9563f747d70659385fa1a045f7098e8d10fe26a2edff3c84cfab0c374def7",
         "size": 1182,
         "mediaType": "text/plain"
@@ -33,7 +33,7 @@
             ],
             "dynamic": false,
             "source": {
-                "file": "src/App.tsx",
+                "file": "src/app.tsx",
                 "start": 1141,
                 "end": 1149
             }
@@ -55,7 +55,7 @@
             ],
             "dynamic": false,
             "source": {
-                "file": "src/App.tsx",
+                "file": "src/app.tsx",
                 "start": 703,
                 "end": 711
             }
@@ -77,7 +77,7 @@
             ],
             "dynamic": false,
             "source": {
-                "file": "src/App.tsx",
+                "file": "src/app.tsx",
                 "start": 774,
                 "end": 782
             }
@@ -86,7 +86,7 @@
     "errors": [
         {
             "source": {
-                "file": "src/App.tsx",
+                "file": "src/app.tsx",
                 "start": 0,
                 "end": 1182
             },
@@ -94,7 +94,7 @@
             "calls": [
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 330,
                         "end": 379
                     },
@@ -113,7 +113,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 451,
                         "end": 505
                     },
@@ -137,7 +137,7 @@
             "unknowns": [
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 330,
                         "end": 379
                     },
@@ -145,7 +145,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 330,
                         "end": 342
                     },
@@ -153,7 +153,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 361,
                         "end": 374
                     },
@@ -161,7 +161,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 451,
                         "end": 505
                     },
@@ -171,7 +171,7 @@
         },
         {
             "source": {
-                "file": "src/App.tsx",
+                "file": "src/app.tsx",
                 "start": 541,
                 "end": 1049
             },
@@ -179,7 +179,7 @@
             "calls": [
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 603,
                         "end": 618
                     },
@@ -198,7 +198,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 677,
                         "end": 833
                     },
@@ -217,7 +217,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 895,
                         "end": 920
                     },
@@ -236,12 +236,12 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 1007,
                         "end": 1014
                     },
                     "target": {
-                        "module": "src/App.tsx",
+                        "module": "src/app.tsx",
                         "name": "count"
                     },
                     "isAwaited": false,
@@ -253,7 +253,7 @@
             "unknowns": [
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 603,
                         "end": 618
                     },
@@ -261,7 +261,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 677,
                         "end": 833
                     },
@@ -269,7 +269,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 895,
                         "end": 920
                     },
@@ -277,7 +277,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 895,
                         "end": 906
                     },
@@ -285,7 +285,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 907,
                         "end": 919
                     },
@@ -293,7 +293,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 1007,
                         "end": 1014
                     },
@@ -303,7 +303,7 @@
         },
         {
             "source": {
-                "file": "src/App.tsx",
+                "file": "src/app.tsx",
                 "start": 687,
                 "end": 832
             },
@@ -311,7 +311,7 @@
             "calls": [
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 703,
                         "end": 751
                     },
@@ -334,7 +334,7 @@
             "unknowns": [
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 703,
                         "end": 751
                     },
@@ -342,7 +342,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 703,
                         "end": 728
                     },
@@ -352,7 +352,7 @@
         },
         {
             "source": {
-                "file": "src/App.tsx",
+                "file": "src/app.tsx",
                 "start": 768,
                 "end": 825
             },
@@ -360,7 +360,7 @@
             "calls": [
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 774,
                         "end": 825
                     },
@@ -383,7 +383,7 @@
             "unknowns": [
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 774,
                         "end": 825
                     },
@@ -391,7 +391,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 774,
                         "end": 802
                     },
@@ -401,7 +401,7 @@
         },
         {
             "source": {
-                "file": "src/App.tsx",
+                "file": "src/app.tsx",
                 "start": 970,
                 "end": 997
             },
@@ -409,12 +409,12 @@
             "calls": [
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 976,
                         "end": 997
                     },
                     "target": {
-                        "module": "src/App.tsx",
+                        "module": "src/app.tsx",
                         "name": "setCount"
                     },
                     "isAwaited": false,
@@ -422,12 +422,12 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 985,
                         "end": 992
                     },
                     "target": {
-                        "module": "src/App.tsx",
+                        "module": "src/app.tsx",
                         "name": "count"
                     },
                     "isAwaited": false,
@@ -439,7 +439,7 @@
             "unknowns": [
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 976,
                         "end": 997
                     },
@@ -447,7 +447,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 985,
                         "end": 996
                     },
@@ -455,7 +455,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 985,
                         "end": 992
                     },
@@ -465,7 +465,7 @@
         },
         {
             "source": {
-                "file": "src/App.tsx",
+                "file": "src/app.tsx",
                 "start": 1111,
                 "end": 1181
             },
@@ -473,7 +473,7 @@
             "calls": [
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 1141,
                         "end": 1178
                     },
@@ -492,7 +492,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 1141,
                         "end": 1169
                     },
@@ -515,7 +515,7 @@
             "unknowns": [
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 1141,
                         "end": 1178
                     },
@@ -523,7 +523,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 1141,
                         "end": 1176
                     },
@@ -531,7 +531,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 1141,
                         "end": 1169
                     },
@@ -539,7 +539,7 @@
                 },
                 {
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 1141,
                         "end": 1163
                     },
@@ -555,7 +555,7 @@
                 {
                     "kind": "BindingElement",
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 584,
                         "end": 589
                     },
@@ -606,7 +606,7 @@
                 {
                     "kind": "FunctionDeclaration",
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 541,
                         "end": 1049
                     },
@@ -627,7 +627,7 @@
                 "text": "() => import(\"@solidjs/web\").JSX.Element",
                 "references": [
                     {
-                        "module": "src/App.tsx",
+                        "module": "src/app.tsx",
                         "name": "default"
                     }
                 ]
@@ -665,7 +665,7 @@
                 {
                     "kind": "BindingElement",
                     "source": {
-                        "file": "src/App.tsx",
+                        "file": "src/app.tsx",
                         "start": 591,
                         "end": 599
                     },
@@ -950,7 +950,7 @@
         {
             "name": "default",
             "symbol": {
-                "module": "src/App.tsx",
+                "module": "src/app.tsx",
                 "name": "default"
             },
             "isTypeOnly": false

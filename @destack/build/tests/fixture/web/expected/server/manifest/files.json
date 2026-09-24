@@ -7,20 +7,20 @@
     },
     {
         "path": "output/website-browser/.vite/manifest.json",
-        "digest": "05c2e9ebeb344c6534650328c81ebf77e36c8ab595135ec8d1024a56a0696d71",
+        "digest": "b99374615ce5e3da5b2d07ac4115b7de8f4c874bbf8232a1d3c38ebffbb4705c",
         "size": 420,
         "mediaType": "application/json"
     },
     {
-        "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-_NyLQ9aj.js",
-        "digest": "362b4789a9dbedb50a1b2d2e220fb0c496e06392d6ea1b426203c1dcdd351c58",
-        "size": 159213,
+        "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-NSujsqV_.js",
+        "digest": "944012dca8ff5f3235d0144b2a4014827a6453229ae70803586e2f7364e6c8aa",
+        "size": 159263,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-_NyLQ9aj.js.map",
-        "digest": "b8cf6655e59a25d5958181214c73bd3ff550a0eebfb2fb9c0fcd868e47add176",
-        "size": 540289,
+        "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-NSujsqV_.js.map",
+        "digest": "5f2cafc2ae31072a848bc27fc146b88a0b271cd61dd8671c586253603f808fd2",
+        "size": 540479,
         "mediaType": "application/json"
     },
     {
@@ -37,47 +37,21 @@
     },
     {
         "path": "output/website-server/server.js",
-        "digest": "80adb74ee3ed4ff1120226b9de479be6bfb1d3cd7215bd82d1796330115a9404",
-        "size": 221407,
+        "digest": "caaa48cd825056ee4730b58b10717f6fe0c7aae9c6ef5d6cf4b7cd9ae6ac8ace",
+        "size": 221457,
         "mediaType": "text/javascript"
     },
     {
         "path": "output/website-server/server.js.map",
-        "digest": "9719fc85bc8cd7be97e3f4838529cb9845483bd1cbdb5a237daad7fc9cb8c3f3",
-        "size": 540399,
+        "digest": "62b60f7f0fefdaee0997a33f02bd23e183ff2c510e8772cfb0d75d57c6187f44",
+        "size": 540589,
         "mediaType": "application/json"
     },
     {
         "path": "package.json",
-        "digest": "7385fe2bb228c15c7cb642b8281640ef13a7fe582ee60d125ca4da75df941c77",
+        "digest": "a2e65a180623f23d1743e4e55e2a08c77688a920bc9da207a7987c212685d062",
         "size": 368,
         "mediaType": "application/json"
-    },
-    {
-        "path": "src/App.tsx",
-        "digest": "bec9563f747d70659385fa1a045f7098e8d10fe26a2edff3c84cfab0c374def7",
-        "size": 1182,
-        "mediaType": "application/octet-stream",
-        "descriptions": [
-            {
-                "package": {
-                    "id": "package-01a0c80b-614d-75ab-8b3b-456b8fdb73f1",
-                    "name": "@destack/package",
-                    "version": "2026.9.0"
-                },
-                "kind": "module",
-                "outputs": [
-                    "website-browser",
-                    "website-server"
-                ],
-                "file": {
-                    "path": "manifest/files/src/App.tsx.json",
-                    "digest": "a8804bc6ef9ac8bf8caa9595c531787741fedb4032739a9930252cc74b4b5b07",
-                    "size": 33387,
-                    "mediaType": "application/json"
-                }
-            }
-        ]
     },
     {
         "path": "src/app.test.ts",
@@ -100,6 +74,32 @@
                     "path": "manifest/files/src/app.test.ts.json",
                     "digest": "aa09e9af13c525395f330e40c8376d10e1f502bf184e286fec08093b975a0b29",
                     "size": 8365,
+                    "mediaType": "application/json"
+                }
+            }
+        ]
+    },
+    {
+        "path": "src/app.tsx",
+        "digest": "bec9563f747d70659385fa1a045f7098e8d10fe26a2edff3c84cfab0c374def7",
+        "size": 1182,
+        "mediaType": "application/octet-stream",
+        "descriptions": [
+            {
+                "package": {
+                    "id": "package-01a0c80b-614d-75ab-8b3b-456b8fdb73f1",
+                    "name": "@destack/package",
+                    "version": "2026.9.0"
+                },
+                "kind": "module",
+                "outputs": [
+                    "website-browser",
+                    "website-server"
+                ],
+                "file": {
+                    "path": "manifest/files/src/app.tsx.json",
+                    "digest": "5f476bcba68d6289cdb08ada713492577b139f11fa6e3ac08a3df8b2c6774a97",
+                    "size": 33387,
                     "mediaType": "application/json"
                 }
             }

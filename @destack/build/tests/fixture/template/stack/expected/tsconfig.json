@@ -9,5 +9,5 @@
         "noEmit": true,
         "allowImportingTsExtensions": true
     },
-    "files": ["src/index.ts", "src/account/index.ts", "src/space/index.ts"]
+    "include": ["src"]
 }

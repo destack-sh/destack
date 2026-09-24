@@ -7,20 +7,20 @@
     },
     {
         "path": "output/website-browser/.vite/manifest.json",
-        "digest": "8623b755cff4dd002ff8aa3b11f47595476515e1201d6a53220e28a92eb0aea3",
+        "digest": "0f8e7666831ba18b34c7d2a231403dc4e668a3b8ce297651b74fa487f9e257aa",
         "size": 420,
         "mediaType": "application/json"
     },
     {
-        "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-6gsEq8xi.js",
-        "digest": "178f86c63b2abcb2b85dda08d223c0e84706c93d145c7e730c2600fc49c1501f",
-        "size": 134099,
+        "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-CYeSRSrL.js",
+        "digest": "d35ae7744e0ef3a5e8ad97f1b9b6e9a70b4672363cb8f32b478be54cea29fb46",
+        "size": 134149,
         "mediaType": "text/javascript"
     },
     {
-        "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-6gsEq8xi.js.map",
-        "digest": "20cd88cd44b9d82f01aaac42036e63d72a1047dc57d9c0b00c8cf8243b351563",
-        "size": 524743,
+        "path": "output/website-browser/assets/virtual_solid-ssr-entry-client-CYeSRSrL.js.map",
+        "digest": "06adaa6ae72ed4a694590788d0c20da459fc33ec3b88e8b49449703b227c3d29",
+        "size": 524933,
         "mediaType": "application/json"
     },
     {
@@ -31,40 +31,15 @@
     },
     {
         "path": "output/website-browser/index.html",
-        "digest": "c46da6c0c71cc5f3f0f6721bd9f91ca8f7827fd6afe0cf4029d7e10928f38bf0",
+        "digest": "23eaed1790f4a531b9337c2f4067f80c546e79ad6bbfb520709cf3fe4eb1a0a3",
         "size": 326,
         "mediaType": "text/html"
     },
     {
         "path": "package.json",
-        "digest": "7385fe2bb228c15c7cb642b8281640ef13a7fe582ee60d125ca4da75df941c77",
+        "digest": "a2e65a180623f23d1743e4e55e2a08c77688a920bc9da207a7987c212685d062",
         "size": 368,
         "mediaType": "application/json"
-    },
-    {
-        "path": "src/App.tsx",
-        "digest": "bec9563f747d70659385fa1a045f7098e8d10fe26a2edff3c84cfab0c374def7",
-        "size": 1182,
-        "mediaType": "application/octet-stream",
-        "descriptions": [
-            {
-                "package": {
-                    "id": "package-01a0c80b-614d-75ab-8b3b-456b8fdb73f1",
-                    "name": "@destack/package",
-                    "version": "2026.9.0"
-                },
-                "kind": "module",
-                "outputs": [
-                    "website-browser"
-                ],
-                "file": {
-                    "path": "manifest/files/src/App.tsx.json",
-                    "digest": "a8804bc6ef9ac8bf8caa9595c531787741fedb4032739a9930252cc74b4b5b07",
-                    "size": 33387,
-                    "mediaType": "application/json"
-                }
-            }
-        ]
     },
     {
         "path": "src/app.test.ts",
@@ -86,6 +61,31 @@
                     "path": "manifest/files/src/app.test.ts.json",
                     "digest": "aa09e9af13c525395f330e40c8376d10e1f502bf184e286fec08093b975a0b29",
                     "size": 8365,
+                    "mediaType": "application/json"
+                }
+            }
+        ]
+    },
+    {
+        "path": "src/app.tsx",
+        "digest": "bec9563f747d70659385fa1a045f7098e8d10fe26a2edff3c84cfab0c374def7",
+        "size": 1182,
+        "mediaType": "application/octet-stream",
+        "descriptions": [
+            {
+                "package": {
+                    "id": "package-01a0c80b-614d-75ab-8b3b-456b8fdb73f1",
+                    "name": "@destack/package",
+                    "version": "2026.9.0"
+                },
+                "kind": "module",
+                "outputs": [
+                    "website-browser"
+                ],
+                "file": {
+                    "path": "manifest/files/src/app.tsx.json",
+                    "digest": "5f476bcba68d6289cdb08ada713492577b139f11fa6e3ac08a3df8b2c6774a97",
+                    "size": 33387,
                     "mediaType": "application/json"
                 }
             }

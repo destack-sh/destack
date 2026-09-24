@@ -1,618 +1,3 @@
-var entityKind = Symbol.for("drizzle:entityKind");
-function is(value, type) {
-	if (!value || typeof value !== "object") return false;
-	if (value instanceof type) return true;
-	if (!Object.prototype.hasOwnProperty.call(type, entityKind)) throw new Error(`Class "${type.name ?? "<unknown>"}" doesn't look like a Drizzle entity. If this is incorrect and the class is provided by Drizzle, please report this as a bug.`);
-	let cls = Object.getPrototypeOf(value)?.constructor;
-	if (cls) while (cls) {
-		if (entityKind in cls && cls[entityKind] === type[entityKind]) return true;
-		cls = Object.getPrototypeOf(cls);
-	}
-	return false;
-}
-var OriginalColumn = Symbol.for("drizzle:OriginalColumn");
-var noop = (v) => v;
-noop.isNoop = true;
-var Column$1 = class {
-	static [entityKind] = "Column";
-	/** @internal */
-	codec;
-	name;
-	keyAsName;
-	primary;
-	notNull;
-	default;
-	defaultFn;
-	onUpdateFn;
-	hasDefault;
-	isUnique;
-	uniqueName;
-	uniqueType;
-	dataType;
-	columnType;
-	enumValues = void 0;
-	generated = void 0;
-	generatedIdentity = void 0;
-	length;
-	isLengthExact;
-	isAlias;
-	/** @internal */
-	config;
-	/** @internal */
-	table;
-	/** @internal */
-	onInit() {}
-	constructor(table, config) {
-		this.config = config;
-		this.onInit();
-		this.table = table;
-		this.name = config.name;
-		this.isAlias = false;
-		this.keyAsName = config.keyAsName;
-		this.notNull = config.notNull;
-		this.default = config.default;
-		this.defaultFn = config.defaultFn;
-		this.onUpdateFn = config.onUpdateFn;
-		this.hasDefault = config.hasDefault;
-		this.primary = config.primaryKey;
-		this.isUnique = config.isUnique;
-		this.uniqueName = config.uniqueName;
-		this.uniqueType = config.uniqueType;
-		this.dataType = config.dataType;
-		this.columnType = config.columnType;
-		this.generated = config.generated;
-		this.generatedIdentity = config.generatedIdentity;
-		this.length = config["length"];
-		this.isLengthExact = config["isLengthExact"];
-	}
-	mapFromDriverValue = noop;
-	mapToDriverValue = noop;
-	/** @internal */
-	postBuild() {
-		return this;
-	}
-	/** @internal */
-	shouldDisableInsert() {
-		return this.config.generated !== void 0 && this.config.generated.type !== "byDefault";
-	}
-	/** @internal */
-	[OriginalColumn]() {
-		return this;
-	}
-};
-/** @internal */
-var TableName = Symbol.for("drizzle:Name");
-/** @internal */
-var TableSchema = Symbol.for("drizzle:Schema");
-/** @internal */
-var TableColumns = Symbol.for("drizzle:Columns");
-/** @internal */
-var ExtraConfigColumns = Symbol.for("drizzle:ExtraConfigColumns");
-/** @internal */
-var OriginalName = Symbol.for("drizzle:OriginalName");
-/** @internal */
-var BaseName = Symbol.for("drizzle:BaseName");
-/** @internal */
-var IsAlias = Symbol.for("drizzle:IsAlias");
-/** @internal */
-var ExtraConfigBuilder = Symbol.for("drizzle:ExtraConfigBuilder");
-var IsDrizzleTable = Symbol.for("drizzle:IsDrizzleTable");
-var Table$1 = class {
-	static [entityKind] = "Table";
-	/** @internal */
-	static Symbol = {
-		Name: TableName,
-		Schema: TableSchema,
-		OriginalName,
-		Columns: TableColumns,
-		ExtraConfigColumns,
-		BaseName,
-		IsAlias,
-		ExtraConfigBuilder
-	};
-	/**
-	* @internal
-	* Can be changed if the table is aliased.
-	*/
-	[TableName];
-	/**
-	* @internal
-	* Used to store the original name of the table, before any aliasing.
-	*/
-	[OriginalName];
-	/** @internal */
-	[TableSchema];
-	/** @internal */
-	[TableColumns];
-	/** @internal */
-	[ExtraConfigColumns];
-	/**
-	*  @internal
-	* Used to store the table name before the transformation via the `tableCreator` functions.
-	*/
-	[BaseName];
-	/** @internal */
-	[IsAlias] = false;
-	/** @internal */
-	[IsDrizzleTable] = true;
-	/** @internal */
-	[ExtraConfigBuilder] = void 0;
-	constructor(name, schema, baseName) {
-		this[TableName] = this[OriginalName] = name;
-		this[TableSchema] = schema;
-		this[BaseName] = baseName;
-	}
-};
-var Subquery = class {
-	static [entityKind] = "Subquery";
-	constructor(sql, fields, alias, isWith = false, usedTables = []) {
-		this._ = {
-			brand: "Subquery",
-			sql,
-			selectedFields: fields,
-			alias,
-			isWith,
-			usedTables
-		};
-	}
-};
-/** @internal */
-var tracer = { startActiveSpan(name, fn) {
-	return fn();
-} };
-var ViewBaseConfig = Symbol.for("drizzle:ViewBaseConfig");
-function isSQLWrapper(value) {
-	return value !== null && value !== void 0 && typeof value.getSQL === "function";
-}
-function mergeQueries(queries) {
-	const result = {
-		sql: "",
-		params: []
-	};
-	for (const query of queries) {
-		result.sql += query.sql;
-		result.params.push(...query.params);
-	}
-	return result;
-}
-function _mergeQueries(queries) {
-	const result = {
-		sql: "",
-		params: []
-	};
-	const sqls = [];
-	for (const query of queries) {
-		sqls.push(query.sql);
-		result.params.push(...query.params);
-	}
-	result._sql = Object.assign(sqls, { raw: sqls });
-	return result;
-}
-var StringChunk = class {
-	static [entityKind] = "StringChunk";
-	value;
-	constructor(value) {
-		this.value = Array.isArray(value) ? value : [value];
-	}
-	getSQL() {
-		return new SQL([this]);
-	}
-};
-var SQL = class SQL {
-	static [entityKind] = "SQL";
-	/** @internal */
-	decoder = noopDecoder;
-	/** @internal */
-	shouldInlineParams = false;
-	/** @internal */
-	usedTables = [];
-	constructor(queryChunks) {
-		this.queryChunks = queryChunks;
-		for (const chunk of queryChunks) if (is(chunk, Table$1)) {
-			const schemaName = chunk[Table$1.Symbol.Schema];
-			this.usedTables.push(schemaName === void 0 ? chunk[Table$1.Symbol.Name] : schemaName + "." + chunk[Table$1.Symbol.Name]);
-		}
-	}
-	append(query) {
-		this.queryChunks.push(...query.queryChunks);
-		return this;
-	}
-	toQuery(config) {
-		return tracer.startActiveSpan("drizzle.buildSQL", (span) => {
-			const query = this.buildQueryFromSourceParams(this.queryChunks, config);
-			span?.setAttributes({
-				"drizzle.query.text": query.sql,
-				"drizzle.query.params": JSON.stringify(query.params)
-			});
-			return query;
-		});
-	}
-	buildQueryFromSourceParams(chunks, _config) {
-		const config = Object.assign({}, _config, {
-			inlineParams: _config.inlineParams || this.shouldInlineParams,
-			paramStartIndex: _config.paramStartIndex || { value: 0 }
-		});
-		const { escapeName, escapeParam, codecs, inlineParams, paramStartIndex, invokeSource } = config;
-		const mappedChunks = chunks.map((chunk) => {
-			if (is(chunk, StringChunk)) return {
-				sql: chunk.value.join(""),
-				params: []
-			};
-			if (is(chunk, Name)) return {
-				sql: escapeName(chunk.value),
-				params: []
-			};
-			if (chunk === void 0) return {
-				sql: "",
-				params: []
-			};
-			if (Array.isArray(chunk)) {
-				const result = [new StringChunk("(")];
-				for (const [i, p] of chunk.entries()) {
-					result.push(p);
-					if (i < chunk.length - 1) result.push(new StringChunk(", "));
-				}
-				result.push(new StringChunk(")"));
-				return this.buildQueryFromSourceParams(result, config);
-			}
-			if (is(chunk, SQL)) return this.buildQueryFromSourceParams(chunk.queryChunks, {
-				...config,
-				inlineParams: inlineParams || chunk.shouldInlineParams
-			});
-			if (is(chunk, Table$1)) {
-				const schemaName = chunk[Table$1.Symbol.Schema];
-				const tableName = chunk[Table$1.Symbol.Name];
-				if (invokeSource === "mssql-view-with-schemabinding") return {
-					sql: (schemaName === void 0 ? escapeName("dbo") : escapeName(schemaName)) + "." + escapeName(tableName),
-					params: []
-				};
-				return {
-					sql: schemaName === void 0 || chunk[IsAlias] ? escapeName(tableName) : escapeName(schemaName) + "." + escapeName(tableName),
-					params: []
-				};
-			}
-			if (is(chunk, Column$1)) {
-				const columnName = chunk.name;
-				if (_config.invokeSource === "indexes") return {
-					sql: escapeName(columnName),
-					params: []
-				};
-				const schemaName = invokeSource === "mssql-check" ? void 0 : chunk.table[Table$1.Symbol.Schema];
-				return {
-					sql: chunk.isAlias ? escapeName(chunk.name) : chunk.table[IsAlias] || schemaName === void 0 ? escapeName(chunk.table[Table$1.Symbol.Name]) + "." + escapeName(columnName) : escapeName(schemaName) + "." + escapeName(chunk.table[Table$1.Symbol.Name]) + "." + escapeName(columnName),
-					params: []
-				};
-			}
-			if (is(chunk, View)) {
-				const schemaName = chunk[ViewBaseConfig].schema;
-				const viewName = chunk[ViewBaseConfig].name;
-				return {
-					sql: schemaName === void 0 || chunk[ViewBaseConfig].isAlias ? escapeName(viewName) : escapeName(schemaName) + "." + escapeName(viewName),
-					params: []
-				};
-			}
-			if (is(chunk, Param)) {
-				if (is(chunk.value, SQL)) return this.buildQueryFromSourceParams([chunk.value], config);
-				const useCodecs = codecs && is(chunk.encoder, Column$1);
-				if (is(chunk.value, Placeholder)) {
-					const escaped = escapeParam(paramStartIndex.value++, chunk);
-					chunk.codec = useCodecs ? (value) => codecs.apply(chunk.encoder, "normalizeParam", value) : void 0;
-					return {
-						sql: useCodecs ? codecs.apply(chunk.encoder, "castParam", escaped) : escaped,
-						params: [chunk]
-					};
-				}
-				let mappedValue;
-				if (chunk.value === null) mappedValue = chunk.value;
-				else {
-					mappedValue = chunk.encoder.mapToDriverValue.isNoop ? chunk.value : chunk.encoder.mapToDriverValue(chunk.value);
-					if (is(mappedValue, SQL)) return this.buildQueryFromSourceParams([mappedValue], config);
-					if (useCodecs) mappedValue = codecs.apply(chunk.encoder, "normalizeParam", mappedValue);
-				}
-				if (inlineParams) return {
-					sql: this.mapInlineParam(mappedValue, config),
-					params: []
-				};
-				const escaped = escapeParam(paramStartIndex.value++, mappedValue);
-				return {
-					sql: useCodecs ? codecs.apply(chunk.encoder, "castParam", escaped) : escaped,
-					params: [mappedValue]
-				};
-			}
-			if (is(chunk, Placeholder)) return {
-				sql: escapeParam(paramStartIndex.value++, chunk),
-				params: [chunk]
-			};
-			if (is(chunk, SQL.Aliased) && chunk.fieldAlias !== void 0) return {
-				sql: (chunk.origin !== void 0 ? escapeName(chunk.origin) + "." : "") + escapeName(chunk.fieldAlias),
-				params: []
-			};
-			if (is(chunk, Subquery)) {
-				if (chunk._.isWith) return {
-					sql: escapeName(chunk._.alias),
-					params: []
-				};
-				return this.buildQueryFromSourceParams([
-					new StringChunk("("),
-					chunk._.sql,
-					new StringChunk(") "),
-					new Name(chunk._.alias)
-				], config);
-			}
-			if (typeof chunk === "function" && "enumName" in chunk) {
-				if ("schema" in chunk && chunk.schema) return {
-					sql: escapeName(chunk.schema) + "." + escapeName(chunk.enumName),
-					params: []
-				};
-				return {
-					sql: escapeName(chunk.enumName),
-					params: []
-				};
-			}
-			if (isSQLWrapper(chunk)) {
-				if (chunk.shouldOmitSQLParens?.()) return this.buildQueryFromSourceParams([chunk.getSQL()], config);
-				return this.buildQueryFromSourceParams([
-					new StringChunk("("),
-					chunk.getSQL(),
-					new StringChunk(")")
-				], config);
-			}
-			if (inlineParams) return {
-				sql: this.mapInlineParam(chunk, config),
-				params: []
-			};
-			return {
-				sql: escapeParam(paramStartIndex.value++, chunk),
-				params: [chunk]
-			};
-		});
-		if (_config.tagged) return _mergeQueries(mappedChunks);
-		return mergeQueries(mappedChunks);
-	}
-	mapInlineParam(chunk, { escapeString }) {
-		if (chunk === null) return "null";
-		if (typeof chunk === "number" || typeof chunk === "boolean" || typeof chunk === "bigint") return chunk.toString();
-		if (typeof chunk === "string") return escapeString(chunk);
-		if (typeof chunk === "object") {
-			const mappedValueAsString = chunk.toString();
-			if (mappedValueAsString === "[object Object]") return escapeString(JSON.stringify(chunk));
-			return escapeString(mappedValueAsString);
-		}
-		throw new Error("Unexpected param value: " + chunk);
-	}
-	getSQL() {
-		return this;
-	}
-	as(alias) {
-		if (alias === void 0) return this;
-		return new SQL.Aliased(this, alias);
-	}
-	mapWith(decoder) {
-		this.decoder = typeof decoder === "function" ? { mapFromDriverValue: decoder } : decoder;
-		return this;
-	}
-	nullable() {
-		return this;
-	}
-	inlineParams() {
-		this.shouldInlineParams = true;
-		return this;
-	}
-	/**
-	* This method is used to conditionally include a part of the query.
-	*
-	* @param condition - Condition to check
-	* @returns itself if the condition is `true`, otherwise `undefined`
-	*/
-	if(condition) {
-		return condition ? this : void 0;
-	}
-};
-/**
-* Any DB name (table, column, index etc.)
-*/
-var Name = class {
-	static [entityKind] = "Name";
-	brand;
-	constructor(value) {
-		this.value = value;
-	}
-	getSQL() {
-		return new SQL([this]);
-	}
-};
-var noopDecoder = { mapFromDriverValue: (value) => value };
-noopDecoder.mapFromDriverValue.isNoop = true;
-var noopEncoder = { mapToDriverValue: (value) => value };
-noopEncoder.mapToDriverValue.isNoop = true;
-({
-	...noopDecoder,
-	...noopEncoder
-});
-/** Parameter value that is optionally bound to an encoder (for example, a column). */
-var Param = class {
-	static [entityKind] = "Param";
-	brand;
-	/**
-	* @param value - Parameter value
-	* @param encoder - Encoder to convert the value to a driver parameter
-	*/
-	constructor(value, encoder = noopEncoder, codec) {
-		this.value = value;
-		this.encoder = encoder;
-		this.codec = codec;
-	}
-	getSQL() {
-		return new SQL([this]);
-	}
-};
-function sql(strings, ...params) {
-	const queryChunks = [];
-	if (params.length > 0 || strings.length > 0 && strings[0] !== "") queryChunks.push(new StringChunk(strings[0]));
-	for (const [paramIndex, param] of params.entries()) queryChunks.push(param, new StringChunk(strings[paramIndex + 1]));
-	return new SQL(queryChunks);
-}
-(function(_sql) {
-	function empty() {
-		return new SQL([]);
-	}
-	_sql.empty = empty;
-	function fromList(list) {
-		return new SQL(list);
-	}
-	_sql.fromList = fromList;
-	function raw(str) {
-		return new SQL([new StringChunk(str)]);
-	}
-	_sql.raw = raw;
-	function join(chunks, separator) {
-		const result = [];
-		for (const [i, chunk] of chunks.entries()) {
-			if (i > 0 && separator !== void 0) result.push(separator);
-			result.push(chunk);
-		}
-		return new SQL(result);
-	}
-	_sql.join = join;
-	function identifier(value) {
-		return new Name(value);
-	}
-	_sql.identifier = identifier;
-	function placeholder(name) {
-		return new Placeholder(name);
-	}
-	_sql.placeholder = placeholder;
-	function param(value, encoder) {
-		return new Param(value, encoder);
-	}
-	_sql.param = param;
-	function comment(input) {
-		const encoded = sqlCommenter(input);
-		if (!encoded.length) return void 0;
-		return sql.raw(encoded);
-	}
-	_sql.comment = comment;
-})(sql || (sql = {}));
-function sqlCommenter(input) {
-	const encoded = sqlCommenter.encodeInput(input);
-	if (!encoded.length) return "";
-	return `/*${encoded}*/`;
-}
-(function(_sqlCommenter) {
-	function merge(input1, input2) {
-		let encoded;
-		if (typeof input1 === "object" && typeof input2 === "object") encoded = encodeInput({
-			...input1,
-			...input2
-		});
-		else if (input1 && input2) encoded = [encodeInput(input1), encodeInput(input2)].filter((i) => i.length).join(",");
-		else if (input2) encoded = encodeInput(input2);
-		else if (input1) encoded = encodeInput(input1);
-		else return "";
-		if (!encoded.length) return "";
-		return `/*${encoded}*/`;
-	}
-	_sqlCommenter.merge = merge;
-	function encodeInput(input) {
-		if (typeof input === "string") {
-			if (!input.length) return input;
-			return sanitizeStringInput(input);
-		}
-		const parts = [];
-		for (const [key, value] of Object.entries(input)) {
-			if (value === null || value === void 0 || value === "") continue;
-			const encodedKey = sanitizeObjectElement(key);
-			const encodedValue = sanitizeObjectElement(String(value));
-			parts.push(`${encodedKey}='${encodedValue}'`);
-		}
-		if (!parts.length) return "";
-		return parts.sort().join(",");
-	}
-	_sqlCommenter.encodeInput = encodeInput;
-	function sanitizeObjectElement(key) {
-		return encodeURIComponent(key).replace(/'/g, `\\'`);
-	}
-	_sqlCommenter.sanitizeObjectElement = sanitizeObjectElement;
-	function sanitizeStringInput(input) {
-		return input.replace(/\/\*/g, "/ *").replace(/\*\//g, "* /");
-	}
-	_sqlCommenter.sanitizeStringInput = sanitizeStringInput;
-})(sqlCommenter || (sqlCommenter = {}));
-(function(_SQL) {
-	class Aliased {
-		static [entityKind] = "SQL.Aliased";
-		/** @internal */
-		isSelectionField = false;
-		/** @internal */
-		origin;
-		constructor(sql, fieldAlias) {
-			this.sql = sql;
-			this.fieldAlias = fieldAlias;
-		}
-		getSQL() {
-			return this.sql;
-		}
-		/** @internal */
-		clone() {
-			return new Aliased(this.sql, this.fieldAlias);
-		}
-	}
-	_SQL.Aliased = Aliased;
-})(SQL || (SQL = {}));
-var Placeholder = class {
-	static [entityKind] = "Placeholder";
-	constructor(name) {
-		this.name = name;
-	}
-	getSQL() {
-		return new SQL([this]);
-	}
-};
-var IsDrizzleView = Symbol.for("drizzle:IsDrizzleView");
-var View = class {
-	static [entityKind] = "View";
-	/** @internal */
-	[ViewBaseConfig];
-	/** @internal */
-	[IsDrizzleView] = true;
-	/** @internal */
-	get [TableName]() {
-		return this[ViewBaseConfig].name;
-	}
-	/** @internal */
-	get [TableSchema]() {
-		return this[ViewBaseConfig].schema;
-	}
-	/** @internal */
-	get [IsAlias]() {
-		return this[ViewBaseConfig].isAlias;
-	}
-	/** @internal */
-	get [OriginalName]() {
-		return this[ViewBaseConfig].originalName;
-	}
-	/** @internal */
-	get [TableColumns]() {
-		return this[ViewBaseConfig].selectedFields;
-	}
-	constructor({ name, schema, selectedFields, query }) {
-		this[ViewBaseConfig] = {
-			name,
-			originalName: name,
-			schema,
-			selectedFields,
-			query,
-			isExisting: !query,
-			isAlias: false
-		};
-	}
-};
-Column$1.prototype.getSQL = function() {
-	return new SQL([this]);
-};
-Subquery.prototype.getSQL = function() {
-	return new SQL([this]);
-};
 function getEnumValues(entries) {
 	const numericValues = Object.values(entries).filter((v) => typeof v === "number");
 	return Object.entries(entries).filter(([k, _]) => numericValues.indexOf(+k) === -1).map(([_, v]) => v);
@@ -749,7 +134,7 @@ function slugify(input) {
 	return input.toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "");
 }
 var captureStackTrace = "captureStackTrace" in Error ? Error.captureStackTrace : (..._args) => {};
-function isObject(data) {
+function isObject$1(data) {
 	return typeof data === "object" && data !== null && !Array.isArray(data);
 }
 var allowsEval = /* @__PURE__*/ cached(() => {
@@ -763,12 +148,12 @@ var allowsEval = /* @__PURE__*/ cached(() => {
 	}
 });
 function isPlainObject(o) {
-	if (isObject(o) === false) return false;
+	if (isObject$1(o) === false) return false;
 	const ctor = o.constructor;
 	if (ctor === void 0) return true;
 	if (typeof ctor !== "function") return true;
 	const prot = ctor.prototype;
-	if (isObject(prot) === false) return false;
+	if (isObject$1(prot) === false) return false;
 	if (Object.prototype.hasOwnProperty.call(prot, "isPrototypeOf") === false) return false;
 	return true;
 }
@@ -1636,7 +1021,7 @@ function datetime(args) {
 	return new RegExp(`^${dateSource}T(?:${timeRegex})$`);
 }
 var anyString = /^[\s\S]{0,}$/;
-var integer$1 = /^-?\d+$/;
+var integer = /^-?\d+$/;
 var number$1 = /^-?\d+(?:\.\d+)?$/;
 var boolean$1 = /^(?:true|false)$/i;
 var _null$2 = /^null$/i;
@@ -2630,7 +2015,7 @@ var $ZodObject = /*@__PURE__*/ $constructor("$ZodObject", (inst, def) => {
 		}
 		return propValues;
 	});
-	const isObject$2 = isObject;
+	const isObject = isObject$1;
 	const catchall = def.catchall;
 	let value;
 	const memo = globalConfig.memoizer;
@@ -2638,7 +2023,7 @@ var $ZodObject = /*@__PURE__*/ $constructor("$ZodObject", (inst, def) => {
 	inst._zod.parse = (payload, ctx) => {
 		value ?? (value = _normalized.value);
 		const input = payload.value;
-		if (!isObject$2(input)) {
+		if (!isObject(input)) {
 			payload.issues.push({
 				expected: "object",
 				code: "invalid_type",
@@ -2768,7 +2153,7 @@ var $ZodObjectJIT = /*@__PURE__*/ $constructor("$ZodObjectJIT", (inst, def) => {
 		return doc.compile();
 	};
 	let fastpass;
-	const isObject$1 = isObject;
+	const isObject = isObject$1;
 	const jit = !globalConfig.jitless;
 	const fastEnabled = jit && allowsEval.value;
 	const catchall = def.catchall;
@@ -2776,7 +2161,7 @@ var $ZodObjectJIT = /*@__PURE__*/ $constructor("$ZodObjectJIT", (inst, def) => {
 	inst._zod.parse = (payload, ctx) => {
 		value ?? (value = _normalized.value);
 		const input = payload.value;
-		if (!isObject$1(input)) {
+		if (!isObject(input)) {
 			payload.issues.push({
 				expected: "object",
 				code: "invalid_type",
@@ -5036,7 +4421,7 @@ function stringifyKeyNames(bySchema, json, visited) {
 	else if (typeof rest.const === "number") rest.const = String(rest.const);
 	if (!numericType) return rest;
 	rest.type = "string";
-	if (!values) rest.pattern = (types.includes("number") ? number$1 : integer$1).source;
+	if (!values) rest.pattern = (types.includes("number") ? number$1 : integer).source;
 	return rest;
 }
 /** Every record of one conversion, so the carriers are found in a single pass rather than once per record. */
@@ -6119,7 +5504,7 @@ var ZodLazy = /*@__PURE__*/ $constructor("ZodLazy", (inst, def) => {
 	inst._zod.processJSONSchema = (ctx, json, params) => lazyProcessor(inst, ctx, json, params);
 	inst.unwrap = () => inst._zod.def.getter();
 });
-function lazy(getter) {
+function lazy$1(getter) {
 	return new ZodLazy({
 		type: "lazy",
 		getter
@@ -6137,7 +5522,7 @@ function superRefine(fn, params) {
 	return /* @__PURE__ */ _superRefine(fn, params);
 }
 function json(params) {
-	const jsonSchema = lazy(() => {
+	const jsonSchema = lazy$1(() => {
 		return union([
 			string(params),
 			number(),
@@ -6160,13 +5545,13 @@ var METADATA_KEYS = /* @__PURE__ */ new Set([
 	"examples"
 ]);
 /** Require declarative schemas for JSON-compatible values. */
-function validate(schema, visited, isProperty) {
+function validate(schema, visited, isOptionalAllowed) {
 	const definition = schema._zod.def;
-	if (definition.type === "optional" && !isProperty) throw new TypeError("optional schemas are only supported as object properties");
+	if (definition.type === "optional" && !isOptionalAllowed) throw new TypeError("optional schemas are only supported as object properties");
 	const contexts = visited.get(schema);
-	if (contexts?.has(isProperty)) return;
-	if (contexts) contexts.add(isProperty);
-	else visited.set(schema, /* @__PURE__ */ new Set([isProperty]));
+	if (contexts?.has(isOptionalAllowed)) return;
+	if (contexts) contexts.add(isOptionalAllowed);
+	else visited.set(schema, /* @__PURE__ */ new Set([isOptionalAllowed]));
 	const metadata = globalRegistry.get(schema);
 	for (const key of Object.keys(metadata ?? {})) if (!METADATA_KEYS.has(key)) throw new TypeError(`unsupported schema metadata: ${key}`);
 	if (metadata !== void 0) json().parse(metadata);
@@ -6254,20 +5639,23 @@ function validate(schema, visited, isProperty) {
 			validate(definition.valueType, visited, false);
 			break;
 		case "intersection":
-			validate(definition.left, visited, isProperty);
-			validate(definition.right, visited, isProperty);
+			validate(definition.left, visited, isOptionalAllowed);
+			validate(definition.right, visited, isOptionalAllowed);
 			break;
 		case "union":
-			for (const option of definition.options) validate(option, visited, isProperty);
+			for (const option of definition.options) validate(option, visited, isOptionalAllowed);
 			break;
 		case "nullable":
-			validate(definition.innerType, visited, isProperty);
+			validate(definition.innerType, visited, isOptionalAllowed);
 			break;
 		case "optional":
-			validate(definition.innerType, visited, isProperty);
+			validate(definition.innerType, visited, isOptionalAllowed);
+			break;
+		case "nonoptional":
+			validate(definition.innerType, visited, true);
 			break;
 		case "lazy":
-			validate(definition.getter(), visited, isProperty);
+			validate(definition.getter(), visited, isOptionalAllowed);
 			break;
 		default: throw new TypeError(`unsupported schema type: ${definition.type}`);
 	}
@@ -6277,149 +5665,161 @@ function defineSchema(schema) {
 	validate(schema, /* @__PURE__ */ new Map(), false);
 	return schema;
 }
-/** A logical SQL column and its application value. */
-var Column = class {
-	/** The column declaration. */
-	definition;
-	/** The SQL table name. */
-	table;
-	/** Attach a column declaration to its table. */
-	constructor(table, definition) {
-		this.table = table;
-		this.definition = definition;
-	}
-	/** Return the qualified column expression. */
-	getSQL() {
-		return sql`${sql.identifier(this.table)}.${sql.identifier(this.definition.name)}`;
-	}
-	/** Emit column references without parentheses. */
-	shouldOmitSQLParens() {
-		return true;
-	}
-	/** Retain query parameters until a physical dialect supplies their encoding. */
-	mapToDriverValue(value) {
-		return value;
-	}
-	/** Require a concrete database dialect before decoding a driver value. */
-	mapFromDriverValue(_value) {
-		throw new TypeError("bind the logical column to a database before decoding values");
+/** The canonical lowercase UUIDv7 representation from RFC 9562. */
+var UUID_V7 = "[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}";
+/** Define a typed entity identifier with a lowercase prefix and a UUIDv7 suffix. */
+function identifier(prefix) {
+	if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/.test(prefix)) throw new TypeError(`Invalid identifier prefix: ${prefix}`);
+	const pattern = new RegExp(`^${prefix}-${UUID_V7}$(?![\\s\\S])`);
+	const validator = string().regex(pattern).brand();
+	defineSchema(validator);
+	return validator;
+}
+defineSchema(_enum([
+	"INVALID_DEFINITION",
+	"UNSUPPORTED_LANGUAGE",
+	"UNSUPPORTED_TARGET",
+	"INVALID_EXPORT",
+	"INVALID_DEPENDENCY",
+	"INVALID_FILE",
+	"INVALID_INSPECTION"
+]));
+/** A package failure with its original cause. */
+var PackageError = class extends Error {
+	/** Stable failure code. */
+	code;
+	/** Create a package error with its code, message and cause. */
+	constructor(code, message, options) {
+		super(message, options);
+		this.name = "PackageError";
+		this.code = code;
 	}
 };
-/** A column declaration before attachment to a table. */
-var ColumnBuilder = class ColumnBuilder {
-	/** The logical type, validation, defaults, and constraints. */
-	definition;
-	/** Retain a logical column declaration. */
-	constructor(definition) {
-		this.definition = definition;
-	}
-	/** Require a value on every persisted row. */
-	notNull() {
-		return new ColumnBuilder({
-			...this.definition,
-			nullable: false
-		});
-	}
-	/** Supply a database default when an insert omits the column. */
-	default(value) {
-		return new ColumnBuilder({
-			...this.definition,
-			default: value
-		});
-	}
-	/** Supply an application default when an insert omits the column. */
-	$defaultFn(value) {
-		return new ColumnBuilder({
-			...this.definition,
-			defaultFn: value
-		});
-	}
-	/** Supply an application value when an update omits the column. */
-	$onUpdateFn(value) {
-		return new ColumnBuilder({
-			...this.definition,
-			onUpdateFn: value
-		});
-	}
-	/** Declare the table's primary key. */
-	primaryKey() {
-		return new ColumnBuilder({
-			...this.definition,
-			nullable: false,
-			primaryKey: true
-		});
-	}
-	/** Require distinct non-null values. */
-	unique(name) {
-		return new ColumnBuilder({
-			...this.definition,
-			unique: { name }
-		});
-	}
-	/** Reference a column in another table. */
-	references(column, actions = {}) {
-		return new ColumnBuilder({
-			...this.definition,
-			reference: {
-				column,
-				...actions
-			}
-		});
-	}
-	/** Refine the application's static value type. */
-	$type() {
-		return new ColumnBuilder(this.definition);
-	}
-	/** Compute a value in SQL with an explicit storage mode. */
-	generatedAlwaysAs(expression, options = { mode: "stored" }) {
-		return new ColumnBuilder({
-			...this.definition,
-			generated: {
-				expression,
-				mode: options.mode
-			}
-		});
-	}
-};
-/** Define text, optionally constrained to a set of strings. */
-function text(name, options) {
-	const validator = options ? _enum(options.enum) : string();
-	return new ColumnBuilder({
-		name,
-		kind: "text",
-		enumValues: options?.enum,
-		types: {
-			sqlite: "text",
-			postgresql: "text"
-		},
-		schema: validator,
-		nullable: true,
-		encode: (value) => validator.parse(value),
-		decode: (value) => validator.parse(value)
-	});
+/** A canonical package-relative path using slash separators. */
+var PackagePath = defineSchema(string().regex(/^(?!\/)(?![A-Za-z]:)(?!.*\\)(?!.*(?:^|\/)\.{1,2}(?:\/|$))[^/\x00-\x1f\x7f]+(?:\/[^/\x00-\x1f\x7f]+)*$(?![\s\S])/));
+/** A SHA-256 digest encoded as lowercase hexadecimal. */
+var Digest = defineSchema(string().length(64).regex(/^[a-f0-9]{64}$/));
+defineSchema(strictObject({
+	/** The path relative to the source or build root. */
+	path: PackagePath,
+	/** The SHA-256 digest of the file bytes. */
+	digest: Digest,
+	/** The file size in bytes. */
+	size: number().int().min(0),
+	/** The file's media type. */
+	mediaType: string().min(1)
+}));
+/** A concrete package export containing runnable code. */
+var Entrypoint = defineSchema(string().regex(/^\.(?:\/[^\s*]+)?$(?![\s\S])/));
+/** The immutable identity retained across package renames and releases. */
+var PackageId = identifier("package");
+/** A declaration name within a package. */
+var DeclarationName = defineSchema(string().regex(/^[a-z][a-z0-9-]*$(?![\s\S])/));
+/** A scoped Destack package name. */
+var PackageName = defineSchema(string().max(214).regex(/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$(?![\s\S])/));
+defineSchema(strictObject({
+	name: defineSchema(string().max(214).regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$(?![\s\S])/)),
+	version: string().min(1)
+}));
+/** The immutable identity, current name and version declared by a Destack package. */
+var Package = defineSchema(strictObject({
+	/** The identity retained across renames and releases. */
+	id: PackageId,
+	/** The package name, qualified by its owner. */
+	name: PackageName,
+	/** The package version. */
+	version: string().min(1)
+}));
+defineSchema(strictObject({
+	/** The released package name and version. */
+	package: Package,
+	/** The digest of its immutable build manifest. */
+	manifest: Digest
+}));
+/** CPU and memory capacity assigned to one running instance. */
+var ComputeResources = defineSchema(strictObject({
+	/** CPU capacity in cores. */
+	cpu: number().positive().optional(),
+	/** Memory capacity in MiB. */
+	memory: number().int().positive().optional()
+}));
+/** Capacity and lifecycle policy for a workload. */
+var ComputeDefinition = defineSchema(strictObject({
+	/** Minimum capacity requested when scheduling an instance. */
+	requests: ComputeResources.optional(),
+	/** Maximum capacity allowed for an instance. */
+	limits: ComputeResources.optional(),
+	/** Scaling bounds, including whether idle execution may stop. */
+	scaling: strictObject({
+		/** Minimum warm instances; zero permits stopping all idle instances. */
+		minInstances: number().int().nonnegative().optional(),
+		/** Maximum simultaneous instances. */
+		maxInstances: number().int().positive().optional()
+	}).optional(),
+	/** Time in milliseconds to retain an idle instance. */
+	idleTimeout: number().int().nonnegative().optional(),
+	/** Time in milliseconds allowed for graceful shutdown. */
+	shutdownTimeout: number().int().positive().optional(),
+	/** CPU time allowed per invocation in milliseconds. */
+	cpuTime: number().int().positive().optional()
+}));
+/** Build metadata supplied to a module through import.meta.destack. */
+var ModuleMetadata = defineSchema(strictObject({ 
+/** The package containing this module, including modules bundled from dependencies. */
+package: Package }));
+/** Require the module metadata the Destack module transform passes to a declaration constructor. */
+function declaringModule(module, constructor) {
+	if (!module) throw new PackageError("INVALID_DEFINITION", `${constructor} requires the Destack module transform to supply its package`);
+	return ModuleMetadata.parse(module);
 }
-/** Define an integer represented exactly by a JavaScript number. */
-function integer(name) {
-	const validator = number().int().min(Number.MIN_SAFE_INTEGER).max(Number.MAX_SAFE_INTEGER);
-	return new ColumnBuilder({
-		name,
-		kind: "integer",
-		types: {
-			sqlite: "integer",
-			postgresql: "bigint"
-		},
-		schema: validator,
-		nullable: true,
-		encode: (value) => validator.parse(value),
-		decode: (value) => validator.parse(typeof value === "string" || typeof value === "bigint" ? Number(value) : value)
-	});
+/** A declaration qualified by its declaring package, as bindings, permissions and events store it. */
+var DeclarationReference = defineSchema(strictObject({
+	/** The immutable identity of the declaring package. */
+	packageId: PackageId,
+	/** The package-local declaration name. */
+	name: DeclarationName
+}));
+/** Reference a declaration by its package identity and name. */
+function reference(declaration) {
+	return {
+		packageId: declaration.package.id,
+		name: declaration.name
+	};
 }
+/** A unit of deployment, as its declaration defines it. */
+var WorkloadDefinition = defineSchema(strictObject({
+	/** The package-local workload name. */
+	name: DeclarationName,
+	/** Capacity and lifecycle policy for each instance. */
+	compute: ComputeDefinition.optional()
+}).strict());
+defineSchema(strictObject({
+	/** The package export exposing the workload declaration. */
+	entrypoint: Entrypoint,
+	/** The export name of the workload declaration within the entrypoint. */
+	export: string().min(1),
+	/** Service declarations of this package reachable from the workload. */
+	services: array(DeclarationReference),
+	/** Schedule declarations of this package reachable from the workload. */
+	schedules: array(DeclarationReference),
+	/** Resource declarations reachable from the workload. */
+	resources: array(DeclarationReference),
+	/** Secret declarations reachable from the workload. */
+	secrets: array(DeclarationReference),
+	/** Service connection declarations reachable from the workload. */
+	connections: array(DeclarationReference),
+	/** Capacity and lifecycle policy for each instance. */
+	compute: ComputeDefinition
+}));
 /** A named declaration whose client is selected by the invocation's host. */
 var ResourceHandle = class {
+	/** The package declaring the handle, supplied by the module transform. */
+	package;
 	/** Package-local resource name. */
 	name;
-	/** Retain the package-local binding name. */
-	constructor(name) {
+	/** Retain the declaring package and its package-local binding name. */
+	constructor(owner, name) {
+		this.package = owner;
 		this.name = name;
 	}
 	/** Get the client bound to the current operation. */
@@ -6427,14 +5827,12 @@ var ResourceHandle = class {
 		return context.get(this);
 	}
 };
-/** A declaration name within a package. */
-var ResourceName = defineSchema(string().regex(/^[a-z][a-z0-9-]*$(?![\s\S])/));
 /** A named infrastructure dependency declared by a package. */
-var ResourceDeclaration = defineSchema(strictObject({
+var ResourceDescription = defineSchema(strictObject({
 	/** The package-local resource name. */
-	name: ResourceName,
+	name: DeclarationName,
 	/** The resource kind defined by its domain library. */
-	kind: ResourceName,
+	kind: DeclarationName,
 	/** The declaration format version. */
 	version: number().int().positive(),
 	/** The specification validated by the domain library. */
@@ -6449,8 +5847,8 @@ var Resource = class extends ResourceHandle {
 	/** The domain specification. */
 	spec;
 	/** Retain validated metadata without opening a resource. */
-	constructor(declaration) {
-		super(declaration.name);
+	constructor(owner, declaration) {
+		super(owner, declaration.name);
 		this.kind = declaration.kind;
 		this.version = declaration.version;
 		this.spec = declaration.spec;
@@ -6458,21 +5856,21 @@ var Resource = class extends ResourceHandle {
 };
 /** Define a resource declaration with a concrete specification. */
 function defineResourceSchema(kind, version, spec) {
-	ResourceDeclaration.pick({
+	ResourceDescription.pick({
 		kind: true,
 		version: true
 	}).parse({
 		kind,
 		version
 	});
-	return defineSchema(ResourceDeclaration.extend({
+	return defineSchema(ResourceDescription.extend({
 		kind: literal(kind),
 		version: literal(version),
 		spec
 	}));
 }
 /** A named database dependency. */
-var DatabaseDeclaration = defineResourceSchema("database", 1, defineSchema(strictObject({ 
+var DatabaseDescription = defineResourceSchema("database", 1, defineSchema(strictObject({ 
 /** The dialect used by queries and migrations. */
 dialect: defineSchema(_enum(["sqlite", "postgresql"])) })));
 /** An inert database declaration with invocation-scoped connection access. */
@@ -6485,125 +5883,2703 @@ var Database = class extends Resource {
 	}
 };
 /** Declare a database dependency. */
-function defineDatabase(declaration) {
-	return new Database(DatabaseDeclaration.parse({
+function defineDatabase(declaration, module) {
+	const owner = declaringModule(module, "defineDatabase").package;
+	return new Database(owner, DatabaseDescription.parse({
 		...declaration,
 		kind: "database",
 		version: 1
 	}));
 }
-/** A reference from one group of columns to another. */
-var ForeignKey = class ForeignKey {
-	/** The constraint category. */
-	kind = "foreignKey";
-	/** The SQL constraint name. */
-	name;
-	/** The referencing columns in order. */
-	columns;
-	/** The referenced columns in matching order. */
-	foreignColumns;
-	/** The referential actions. */
-	actions;
-	/** Declare a foreign key. */
-	constructor(definition, actions = {}) {
-		this.name = definition.name;
-		this.columns = definition.columns;
-		this.foreignColumns = definition.foreignColumns;
-		this.actions = actions;
-	}
-	/** Select the action for referenced row deletion. */
-	onDelete(action) {
-		return new ForeignKey(this, {
-			...this.actions,
-			onDelete: action
-		});
-	}
-	/** Select the action for referenced key updates. */
-	onUpdate(action) {
-		return new ForeignKey(this, {
-			...this.actions,
-			onUpdate: action
-		});
+/** A vault resource dependency. */
+var VaultDescription = defineResourceSchema("vault", 1, defineSchema(strictObject({})));
+/** Declare a vault resource. */
+function defineVault(declaration, module) {
+	const owner = declaringModule(module, "defineVault").package;
+	return new Resource(owner, VaultDescription.parse({
+		...declaration,
+		kind: "vault",
+		version: 1
+	}));
+}
+/** A secret selected when installing a package. */
+var SecretDescription = defineSchema(strictObject({
+	/** The package-local secret name. */
+	name: DeclarationName,
+	/** The declaration format version. */
+	version: literal(1)
+}));
+defineSchema(strictObject({
+	/** The space administering the vault. */
+	space: identifier("space"),
+	/** The secret identifier. */
+	secret: identifier("secret"),
+	/** An exact version; omit to select the current version at access time. */
+	version: number().int().positive().optional()
+}));
+/** An inert secret declaration with host-authorized value access. */
+var Secret = class extends ResourceHandle {
+	/** Declaration format version. */
+	version;
+	/** Retain validated metadata without acquiring credentials. */
+	constructor(owner, declaration) {
+		super(owner, declaration.name);
+		this.version = declaration.version;
 	}
 };
-/** Declare a named row predicate. */
-function check(name, expression) {
-	return {
-		kind: "check",
-		name,
-		expression
+/** Declare a secret without embedding its value. */
+function defineSecret(declaration, module) {
+	const owner = declaringModule(module, "defineSecret").package;
+	return new Secret(owner, SecretDescription.parse({
+		...declaration,
+		version: 1
+	}));
+}
+/** Fields shared by calendar, interval, and one-off schedules. */
+var SCHEDULE = strictObject({
+	/** The package-local schedule name. */
+	name: DeclarationName,
+	/** The declaration format version. */
+	version: literal(1),
+	/** Whether occurrences may overlap. */
+	concurrency: _enum([
+		"allow",
+		"forbid",
+		"replace"
+	]),
+	/** How late an occurrence may start, in milliseconds. */
+	deadline: number().int().nonnegative()
+});
+/** A controller-managed schedule, as the manifest describes it. */
+var ScheduleDescription = defineSchema(union([
+	SCHEDULE.extend({
+		/** Evaluate calendar occurrences in the selected time zone. */
+		timing: literal("cron"),
+		/** A five-field cron expression. */
+		cron: string().regex(/^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/),
+		/** The IANA time zone used to evaluate occurrences. */
+		timezone: string().min(1),
+		/** The earliest occurrence time in UTC epoch milliseconds. */
+		startsAt: number().int().nonnegative().optional(),
+		/** The exclusive end time in UTC epoch milliseconds. */
+		endsAt: number().int().nonnegative().optional()
+	}),
+	SCHEDULE.extend({
+		/** Repeat at a fixed interval from the first occurrence. */
+		timing: literal("interval"),
+		/** The interval in milliseconds. */
+		interval: number().int().positive(),
+		/** The first occurrence time in UTC epoch milliseconds. */
+		startsAt: number().int().nonnegative(),
+		/** The exclusive end time in UTC epoch milliseconds. */
+		endsAt: number().int().nonnegative().optional()
+	}),
+	SCHEDULE.extend({
+		/** Run the schedule once at the selected time. */
+		timing: literal("once"),
+		/** The occurrence time in UTC epoch milliseconds. */
+		startsAt: number().int().nonnegative()
+	})
+]));
+/** Declare a controller-managed schedule. */
+function defineSchedule(definition, module) {
+	const owner = declaringModule(module, "defineSchedule").package;
+	const description = ScheduleDescription.parse({
+		...definition,
+		version: 1
+	});
+	return Object.freeze({
+		...description,
+		package: owner
+	});
+}
+function resolveMaybeOptionalOptions(rest) {
+	return rest[0] ?? {};
+}
+function toArray(value) {
+	return Array.isArray(value) ? value : value === void 0 || value === null ? [] : [value];
+}
+var ORPC_SHARED_PACKAGE_NAME = "@orpc/shared";
+var ORPC_SHARED_PACKAGE_VERSION = "1.15.1";
+function sequential(fn) {
+	let lastOperationPromise = Promise.resolve();
+	return (...args) => {
+		return lastOperationPromise = lastOperationPromise.catch(() => {}).then(() => {
+			return fn(...args);
+		});
 	};
 }
-/** The table declaration, separate from user-defined column properties. */
-var TABLE = Symbol("destack.table");
-/** The declaration and columns of one logical SQL table. */
-var Table = class {
-	/** The SQL name, columns, and deferred constraints. */
-	[TABLE];
-	/** Retain the table declaration. */
-	constructor(name, columns, constraints, source) {
-		this[TABLE] = {
-			name,
-			columns,
-			constraints,
-			source
+var SPAN_ERROR_STATUS = 2;
+var GLOBAL_OTEL_CONFIG_KEY = `__${ORPC_SHARED_PACKAGE_NAME}@${ORPC_SHARED_PACKAGE_VERSION}/otel/config__`;
+function getGlobalOtelConfig() {
+	return globalThis[GLOBAL_OTEL_CONFIG_KEY];
+}
+function startSpan(name, options = {}, context) {
+	return (getGlobalOtelConfig()?.tracer)?.startSpan(name, options, context);
+}
+function setSpanError(span, error, options = {}) {
+	if (!span) return;
+	const exception = toOtelException(error);
+	span.recordException(exception);
+	if (!options.signal?.aborted || options.signal.reason !== error) span.setStatus({
+		code: SPAN_ERROR_STATUS,
+		message: exception.message
+	});
+}
+function toOtelException(error) {
+	if (error instanceof Error) {
+		const exception = {
+			message: error.message,
+			name: error.name,
+			stack: error.stack
+		};
+		if ("code" in error && (typeof error.code === "string" || typeof error.code === "number")) exception.code = error.code;
+		return exception;
+	}
+	return { message: String(error) };
+}
+async function runWithSpan({ name, context, ...options }, fn) {
+	const tracer = getGlobalOtelConfig()?.tracer;
+	if (!tracer) return fn();
+	const callback = async (span) => {
+		try {
+			return await fn(span);
+		} catch (e) {
+			setSpanError(span, e, options);
+			throw e;
+		} finally {
+			span.end();
+		}
+	};
+	if (context) return tracer.startActiveSpan(name, options, context, callback);
+	else return tracer.startActiveSpan(name, options, callback);
+}
+async function runInSpanContext(span, fn) {
+	const otelConfig = getGlobalOtelConfig();
+	if (!span || !otelConfig) return fn();
+	const ctx = otelConfig.trace.setSpan(otelConfig.context.active(), span);
+	return otelConfig.context.with(ctx, fn);
+}
+function isAsyncIteratorObject(maybe) {
+	if (!maybe || typeof maybe !== "object") return false;
+	return "next" in maybe && typeof maybe.next === "function" && Symbol.asyncIterator in maybe && typeof maybe[Symbol.asyncIterator] === "function";
+}
+var asyncDisposeSymbol = Symbol.asyncDispose ?? Symbol.for("asyncDispose");
+var AsyncIteratorClass = class {
+	#isDone = false;
+	#isExecuteComplete = false;
+	#cleanup;
+	#next;
+	constructor(next, cleanup) {
+		this.#cleanup = cleanup;
+		this.#next = sequential(async () => {
+			if (this.#isDone) return {
+				done: true,
+				value: void 0
+			};
+			try {
+				const result = await next();
+				if (result.done) this.#isDone = true;
+				return result;
+			} catch (err) {
+				this.#isDone = true;
+				throw err;
+			} finally {
+				if (this.#isDone && !this.#isExecuteComplete) {
+					this.#isExecuteComplete = true;
+					await this.#cleanup("next");
+				}
+			}
+		});
+	}
+	next() {
+		return this.#next();
+	}
+	async return(value) {
+		this.#isDone = true;
+		if (!this.#isExecuteComplete) {
+			this.#isExecuteComplete = true;
+			await this.#cleanup("return");
+		}
+		return {
+			done: true,
+			value
 		};
 	}
-	/** Return the table identifier. */
-	getSQL() {
-		return sql`${sql.identifier(this[TABLE].name)}`;
-	}
-	/** Emit table identifiers without parentheses. */
-	shouldOmitSQLParens() {
-		return true;
-	}
-	/** Collect declared constraints and column references for a dialect. */
-	constraints(dialect) {
-		const constraints = [...this[TABLE].constraints()];
-		for (const column of Object.values(this[TABLE].columns)) {
-			const definition = column.definition;
-			if (dialect === "sqlite" && definition.primaryKey && definition.types.sqlite !== "integer") constraints.push(check(`${this[TABLE].name}_${definition.name}_not_null`, sql`${column} IS NOT NULL`));
-			const reference = definition.reference;
-			if (reference) constraints.push(new ForeignKey({
-				columns: [column],
-				foreignColumns: [reference.column()]
-			}, reference));
+	async throw(err) {
+		this.#isDone = true;
+		if (!this.#isExecuteComplete) {
+			this.#isExecuteComplete = true;
+			await this.#cleanup("throw");
 		}
-		return constraints;
+		throw err;
+	}
+	/**
+	* asyncDispose symbol only available in esnext, we should fallback to Symbol.for('asyncDispose')
+	*/
+	async [asyncDisposeSymbol]() {
+		this.#isDone = true;
+		if (!this.#isExecuteComplete) {
+			this.#isExecuteComplete = true;
+			await this.#cleanup("dispose");
+		}
+	}
+	[Symbol.asyncIterator]() {
+		return this;
 	}
 };
-/** Declare a table with typed columns and deferred constraints. */
-function table(name, builders, constraints) {
-	const names = /* @__PURE__ */ new Set();
-	for (const builder of Object.values(builders)) {
-		const definition = builder.definition;
-		if (definition.generated && (definition.default !== void 0 || definition.defaultFn || definition.onUpdateFn)) throw new TypeError(`Generated SQL column cannot define defaults: ${definition.name}.`);
-		const name = builder.definition.name;
-		if (names.has(name)) throw new TypeError(`duplicate SQL column: ${name}`);
-		names.add(name);
+function asyncIteratorWithSpan({ name, ...options }, iterator) {
+	let span;
+	return new AsyncIteratorClass(async () => {
+		span ??= startSpan(name);
+		try {
+			const result = await runInSpanContext(span, () => iterator.next());
+			span?.addEvent(result.done ? "completed" : "yielded");
+			return result;
+		} catch (err) {
+			setSpanError(span, err, options);
+			throw err;
+		}
+	}, async (reason) => {
+		try {
+			if (reason !== "next") await runInSpanContext(span, () => iterator.return?.());
+		} catch (err) {
+			setSpanError(span, err, options);
+			throw err;
+		} finally {
+			span?.end();
+		}
+	});
+}
+function intercept(interceptors, options, main) {
+	const next = (options2, index) => {
+		const interceptor = interceptors[index];
+		if (!interceptor) return main(options2);
+		return interceptor({
+			...options2,
+			next: (newOptions = options2) => next(newOptions, index + 1)
+		});
+	};
+	return next(options, 0);
+}
+function getConstructor(value) {
+	if (!isTypescriptObject(value)) return null;
+	return Object.getPrototypeOf(value)?.constructor;
+}
+function isObject(value) {
+	if (!value || typeof value !== "object") return false;
+	const proto = Object.getPrototypeOf(value);
+	return proto === Object.prototype || !proto || !proto.constructor;
+}
+function isTypescriptObject(value) {
+	return !!value && (typeof value === "object" || typeof value === "function");
+}
+function value(value2, ...args) {
+	if (typeof value2 === "function") return value2(...args);
+	return value2;
+}
+function overlayProxy(target, partial) {
+	return new Proxy(typeof target === "function" ? partial : target, {
+		get(_, prop) {
+			const targetValue = prop in partial ? partial : value(target);
+			const v = Reflect.get(targetValue, prop);
+			return typeof v === "function" ? v.bind(targetValue) : v;
+		},
+		has(_, prop) {
+			return Reflect.has(partial, prop) || Reflect.has(value(target), prop);
+		}
+	});
+}
+var ORPC_CLIENT_PACKAGE_NAME = "@orpc/client";
+var ORPC_CLIENT_PACKAGE_VERSION = "1.15.1";
+var COMMON_ORPC_ERROR_DEFS = {
+	BAD_REQUEST: {
+		status: 400,
+		message: "Bad Request"
+	},
+	UNAUTHORIZED: {
+		status: 401,
+		message: "Unauthorized"
+	},
+	FORBIDDEN: {
+		status: 403,
+		message: "Forbidden"
+	},
+	NOT_FOUND: {
+		status: 404,
+		message: "Not Found"
+	},
+	METHOD_NOT_SUPPORTED: {
+		status: 405,
+		message: "Method Not Supported"
+	},
+	NOT_ACCEPTABLE: {
+		status: 406,
+		message: "Not Acceptable"
+	},
+	TIMEOUT: {
+		status: 408,
+		message: "Request Timeout"
+	},
+	CONFLICT: {
+		status: 409,
+		message: "Conflict"
+	},
+	PRECONDITION_FAILED: {
+		status: 412,
+		message: "Precondition Failed"
+	},
+	PAYLOAD_TOO_LARGE: {
+		status: 413,
+		message: "Payload Too Large"
+	},
+	UNSUPPORTED_MEDIA_TYPE: {
+		status: 415,
+		message: "Unsupported Media Type"
+	},
+	UNPROCESSABLE_CONTENT: {
+		status: 422,
+		message: "Unprocessable Content"
+	},
+	TOO_MANY_REQUESTS: {
+		status: 429,
+		message: "Too Many Requests"
+	},
+	CLIENT_CLOSED_REQUEST: {
+		status: 499,
+		message: "Client Closed Request"
+	},
+	INTERNAL_SERVER_ERROR: {
+		status: 500,
+		message: "Internal Server Error"
+	},
+	NOT_IMPLEMENTED: {
+		status: 501,
+		message: "Not Implemented"
+	},
+	BAD_GATEWAY: {
+		status: 502,
+		message: "Bad Gateway"
+	},
+	SERVICE_UNAVAILABLE: {
+		status: 503,
+		message: "Service Unavailable"
+	},
+	GATEWAY_TIMEOUT: {
+		status: 504,
+		message: "Gateway Timeout"
 	}
-	const columns = Object.fromEntries(Object.entries(builders).map(([property, builder]) => [property, new Column(name, builder.definition)]));
-	const definition = new Table(name, columns, () => constraints?.(columns) ?? []);
-	return Object.assign(definition, columns);
+};
+function fallbackORPCErrorStatus(code, status) {
+	return status ?? COMMON_ORPC_ERROR_DEFS[code]?.status ?? 500;
 }
-/** Declare a schema without opening a database or applying migrations. */
-function defineDatabaseSchema(definition) {
-	return definition;
+function fallbackORPCErrorMessage(code, message) {
+	return message || COMMON_ORPC_ERROR_DEFS[code]?.message || code;
 }
-/** The database selected by the destination space. */
+var globalORPCErrorConstructors;
+var ORPCError = class ORPCError extends Error {
+	defined;
+	code;
+	status;
+	data;
+	static {
+		const GLOBAL_ORPC_ERROR_CONSTRUCTORS_SYMBOL = Symbol.for(`__${ORPC_CLIENT_PACKAGE_NAME}@${ORPC_CLIENT_PACKAGE_VERSION}/error/ORPC_ERROR_CONSTRUCTORS__`);
+		globalThis[GLOBAL_ORPC_ERROR_CONSTRUCTORS_SYMBOL] ??= /* @__PURE__ */ new WeakSet();
+		globalORPCErrorConstructors = globalThis[GLOBAL_ORPC_ERROR_CONSTRUCTORS_SYMBOL];
+		globalORPCErrorConstructors.add(ORPCError);
+	}
+	constructor(code, ...rest) {
+		const options = resolveMaybeOptionalOptions(rest);
+		if (options.status !== void 0 && !isORPCErrorStatus(options.status)) throw new Error("[ORPCError] Invalid error status code.");
+		const message = fallbackORPCErrorMessage(code, options.message);
+		super(message, options);
+		this.code = code;
+		this.status = fallbackORPCErrorStatus(code, options.status);
+		this.defined = options.defined ?? false;
+		this.data = options.data;
+	}
+	toJSON() {
+		return {
+			defined: this.defined,
+			code: this.code,
+			status: this.status,
+			message: this.message,
+			data: this.data
+		};
+	}
+	/**
+	* Workaround for Next.js where different contexts use separate
+	* dependency graphs, causing multiple ORPCError constructors existing and breaking
+	* `instanceof` checks across contexts.
+	*
+	* This is particularly problematic with "Optimized SSR", where orpc-client
+	* executes in one context but is invoked from another. When an error is thrown
+	* in the execution context, `instanceof ORPCError` checks fail in the
+	* invocation context due to separate class constructors.
+	*
+	* @todo Remove this and related code if Next.js resolves the multiple dependency graph issue.
+	*/
+	static [Symbol.hasInstance](instance) {
+		if (globalORPCErrorConstructors.has(this)) {
+			const constructor = getConstructor(instance);
+			if (constructor && globalORPCErrorConstructors.has(constructor)) return true;
+		}
+		return super[Symbol.hasInstance](instance);
+	}
+};
+function toORPCError(error) {
+	return error instanceof ORPCError ? error : new ORPCError("INTERNAL_SERVER_ERROR", {
+		message: "Internal server error",
+		cause: error
+	});
+}
+function isORPCErrorStatus(status) {
+	return status < 200 || status >= 400;
+}
+var EventEncoderError = class extends TypeError {};
+TransformStream;
+var LINE_ENDING_REGEX = /\r\n|[\n\r]/;
+function containsLineBreak(value) {
+	return LINE_ENDING_REGEX.test(value);
+}
+function assertEventId(id) {
+	if (containsLineBreak(id)) throw new EventEncoderError("Event's id must not contain a carriage return or newline character");
+}
+function assertEventRetry(retry) {
+	if (!Number.isInteger(retry) || retry < 0) throw new EventEncoderError("Event's retry must be a integer and >= 0");
+}
+function assertEventComment(comment) {
+	if (containsLineBreak(comment)) throw new EventEncoderError("Event's comment must not contain a carriage return or newline character");
+}
+var EVENT_SOURCE_META_SYMBOL = Symbol("ORPC_EVENT_SOURCE_META");
+function withEventMeta(container, meta) {
+	if (meta.id === void 0 && meta.retry === void 0 && !meta.comments?.length) return container;
+	if (meta.id !== void 0) assertEventId(meta.id);
+	if (meta.retry !== void 0) assertEventRetry(meta.retry);
+	if (meta.comments !== void 0) for (const comment of meta.comments) assertEventComment(comment);
+	return new Proxy(container, { get(target, prop, receiver) {
+		if (prop === EVENT_SOURCE_META_SYMBOL) return meta;
+		return Reflect.get(target, prop, receiver);
+	} });
+}
+function getEventMeta(container) {
+	return isTypescriptObject(container) ? Reflect.get(container, EVENT_SOURCE_META_SYMBOL) : void 0;
+}
+var HibernationEventIterator = class extends AsyncIteratorClass {
+	/**
+	* this property is not transferred to the client, so it should be optional for type safety
+	*/
+	hibernationCallback;
+	constructor(hibernationCallback) {
+		super(async () => {
+			throw new Error("Cannot iterate over hibernating iterator directly");
+		}, async (reason) => {
+			if (reason !== "next") throw new Error("Cannot cleanup hibernating iterator directly");
+		});
+		this.hibernationCallback = hibernationCallback;
+	}
+};
+function mapEventIterator(iterator, maps) {
+	const mapError = async (error) => {
+		let mappedError = await maps.error(error);
+		if (mappedError !== error) {
+			const meta = getEventMeta(error);
+			if (meta && isTypescriptObject(mappedError)) mappedError = withEventMeta(mappedError, meta);
+		}
+		return mappedError;
+	};
+	return new AsyncIteratorClass(async () => {
+		const { done, value } = await (async () => {
+			try {
+				return await iterator.next();
+			} catch (error) {
+				throw await mapError(error);
+			}
+		})();
+		let mappedValue = await maps.value(value, done);
+		if (mappedValue !== value) {
+			const meta = getEventMeta(value);
+			if (meta && isTypescriptObject(mappedValue)) mappedValue = withEventMeta(mappedValue, meta);
+		}
+		return {
+			done,
+			value: mappedValue
+		};
+	}, async () => {
+		try {
+			await iterator.return?.();
+		} catch (error) {
+			throw await mapError(error);
+		}
+	});
+}
+var ValidationError = class extends Error {
+	issues;
+	data;
+	constructor(options) {
+		super(options.message, options);
+		this.issues = options.issues;
+		this.data = options.data;
+	}
+};
+function mergeErrorMap(errorMap1, errorMap2) {
+	return {
+		...errorMap1,
+		...errorMap2
+	};
+}
+async function validateORPCError(map, error) {
+	const { code, status, message, data, cause, defined } = error;
+	const config = map?.[error.code];
+	if (!config || fallbackORPCErrorStatus(error.code, config.status) !== error.status) return defined ? new ORPCError(code, {
+		defined: false,
+		status,
+		message,
+		data,
+		cause
+	}) : error;
+	if (!config.data) return defined ? error : new ORPCError(code, {
+		defined: true,
+		status,
+		message,
+		data,
+		cause
+	});
+	const validated = await config.data["~standard"].validate(error.data);
+	if (validated.issues) return defined ? new ORPCError(code, {
+		defined: false,
+		status,
+		message,
+		data,
+		cause
+	}) : error;
+	return new ORPCError(code, {
+		defined: true,
+		status,
+		message,
+		data: validated.value,
+		cause
+	});
+}
+var ContractProcedure = class {
+	/**
+	* This property holds the defined options for the contract procedure.
+	*/
+	"~orpc";
+	constructor(def) {
+		if (def.route?.successStatus && isORPCErrorStatus(def.route.successStatus)) throw new Error("[ContractProcedure] Invalid successStatus.");
+		if (Object.values(def.errorMap).some((val) => val && val.status && !isORPCErrorStatus(val.status))) throw new Error("[ContractProcedure] Invalid error status code.");
+		this["~orpc"] = def;
+	}
+};
+function isContractProcedure(item) {
+	if (item instanceof ContractProcedure) return true;
+	return (typeof item === "object" || typeof item === "function") && item !== null && "~orpc" in item && typeof item["~orpc"] === "object" && item["~orpc"] !== null && "errorMap" in item["~orpc"] && "route" in item["~orpc"] && "meta" in item["~orpc"];
+}
+function mergeMeta(meta1, meta2) {
+	return {
+		...meta1,
+		...meta2
+	};
+}
+function mergeRoute(a, b) {
+	return {
+		...a,
+		...b
+	};
+}
+function prefixRoute(route, prefix) {
+	if (!route.path) return route;
+	return {
+		...route,
+		path: `${prefix}${route.path}`
+	};
+}
+function unshiftTagRoute(route, tags) {
+	return {
+		...route,
+		tags: [...tags, ...route.tags ?? []]
+	};
+}
+function mergePrefix(a, b) {
+	return a ? `${a}${b}` : b;
+}
+function mergeTags(a, b) {
+	return a ? [...a, ...b] : b;
+}
+function enhanceRoute(route, options) {
+	let router = route;
+	if (options.prefix) router = prefixRoute(router, options.prefix);
+	if (options.tags?.length) router = unshiftTagRoute(router, options.tags);
+	return router;
+}
+function getContractRouter(router, path) {
+	let current = router;
+	for (let i = 0; i < path.length; i++) {
+		const segment = path[i];
+		if (!current) return;
+		if (isContractProcedure(current)) return;
+		if (typeof current !== "object") return;
+		current = current[segment];
+	}
+	return current;
+}
+function enhanceContractRouter(router, options) {
+	if (isContractProcedure(router)) return new ContractProcedure({
+		...router["~orpc"],
+		errorMap: mergeErrorMap(options.errorMap, router["~orpc"].errorMap),
+		route: enhanceRoute(router["~orpc"].route, options)
+	});
+	if (typeof router !== "object" || router === null) return router;
+	const enhanced = {};
+	for (const key in router) enhanced[key] = enhanceContractRouter(router[key], options);
+	return enhanced;
+}
+var oc = new class ContractBuilder extends ContractProcedure {
+	constructor(def) {
+		super(def);
+		this["~orpc"].prefix = def.prefix;
+		this["~orpc"].tags = def.tags;
+	}
+	/**
+	* Sets or overrides the initial meta.
+	*
+	* @see {@link https://orpc.dev/docs/metadata Metadata Docs}
+	*/
+	$meta(initialMeta) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			meta: initialMeta
+		});
+	}
+	/**
+	* Sets or overrides the initial route.
+	* This option is typically relevant when integrating with OpenAPI.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing OpenAPI Routing Docs}
+	* @see {@link https://orpc.dev/docs/openapi/input-output-structure OpenAPI Input/Output Structure Docs}
+	*/
+	$route(initialRoute) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			route: initialRoute
+		});
+	}
+	/**
+	* Sets or overrides the initial input schema.
+	*
+	* @see {@link https://orpc.dev/docs/procedure#initial-configuration Initial Procedure Configuration Docs}
+	*/
+	$input(initialInputSchema) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			inputSchema: initialInputSchema
+		});
+	}
+	/**
+	* Adds type-safe custom errors to the contract.
+	* The provided errors are spared-merged with any existing errors in the contract.
+	*
+	* @see {@link https://orpc.dev/docs/error-handling#type%E2%80%90safe-error-handling Type-Safe Error Handling Docs}
+	*/
+	errors(errors) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			errorMap: mergeErrorMap(this["~orpc"].errorMap, errors)
+		});
+	}
+	/**
+	* Sets or updates the metadata for the contract.
+	* The provided metadata is spared-merged with any existing metadata in the contract.
+	*
+	* @see {@link https://orpc.dev/docs/metadata Metadata Docs}
+	*/
+	meta(meta) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			meta: mergeMeta(this["~orpc"].meta, meta)
+		});
+	}
+	/**
+	* Sets or updates the route definition for the contract.
+	* The provided route is spared-merged with any existing route in the contract.
+	* This option is typically relevant when integrating with OpenAPI.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing OpenAPI Routing Docs}
+	* @see {@link https://orpc.dev/docs/openapi/input-output-structure OpenAPI Input/Output Structure Docs}
+	*/
+	route(route) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			route: mergeRoute(this["~orpc"].route, route)
+		});
+	}
+	/**
+	* Defines the input validation schema for the contract.
+	*
+	* @see {@link https://orpc.dev/docs/procedure#input-output-validation Input Validation Docs}
+	*/
+	input(schema) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			inputSchema: schema
+		});
+	}
+	/**
+	* Defines the output validation schema for the contract.
+	*
+	* @see {@link https://orpc.dev/docs/procedure#input-output-validation Output Validation Docs}
+	*/
+	output(schema) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			outputSchema: schema
+		});
+	}
+	/**
+	* Prefixes all procedures in the contract router.
+	* The provided prefix is post-appended to any existing router prefix.
+	*
+	* @note This option does not affect procedures that do not define a path in their route definition.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing#route-prefixes OpenAPI Route Prefixes Docs}
+	*/
+	prefix(prefix) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			prefix: mergePrefix(this["~orpc"].prefix, prefix)
+		});
+	}
+	/**
+	* Adds tags to all procedures in the contract router.
+	* This helpful when you want to group procedures together in the OpenAPI specification.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/openapi-specification#operation-metadata OpenAPI Operation Metadata Docs}
+	*/
+	tag(...tags) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			tags: mergeTags(this["~orpc"].tags, tags)
+		});
+	}
+	/**
+	* Applies all of the previously defined options to the specified contract router.
+	*
+	* @see {@link https://orpc.dev/docs/router#extending-router Extending Router Docs}
+	*/
+	router(router) {
+		return enhanceContractRouter(router, this["~orpc"]);
+	}
+}({
+	errorMap: {},
+	route: {},
+	meta: {}
+});
+/** A stable declaration-local name used by access rules. */
+var AccessName = string().regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/);
+defineSchema(strictObject({
+	/** The package that declares the object type. */
+	packageId: PackageId,
+	/** The declaration-local object type name. */
+	type: AccessName,
+	/** The authority scope containing the object. */
+	scope: string().min(1),
+	/** The stable application record identity. */
+	id: string().min(1)
+}));
+/** A stable reference to a declared permission, independent of a package version. */
+var PermissionReference = defineSchema(strictObject({
+	/** The package that declares the permission. */
+	packageId: PackageId,
+	/** The declaration-local object type name. */
+	type: AccessName,
+	/** The permission name within that object type. */
+	name: AccessName
+}));
+strictObject({
+	/** Credentials required before invoking the procedure. */
+	authentication: _enum([
+		"public",
+		"identity",
+		"host"
+	]),
+	/** The declared permission checked in the request's authorized scope. */
+	permission: PermissionReference.nullable(),
+	/** Whether successful and failed attempts require security audit records. */
+	audit: boolean()
+});
+/** Declare a procedure with explicit access requirements and conventional errors. */
+function defineProcedure(access) {
+	return oc.$meta(access).errors({
+		NOT_IMPLEMENTED: { status: 501 },
+		UNAUTHORIZED: { status: 401 },
+		FORBIDDEN: { status: 403 },
+		NOT_FOUND: { status: 404 },
+		CONFLICT: { status: 409 },
+		PRECONDITION_FAILED: { status: 412 },
+		SOURCE_MANAGED: { status: 409 },
+		UNSUPPORTED: { status: 422 },
+		RATE_LIMITED: { status: 429 },
+		UNAVAILABLE: { status: 503 }
+	});
+}
+/** Declare an HTTP service and its procedures for workload routing. */
+function defineService(name, router, module) {
+	const owner = Package.parse(declaringModule(module, "defineService").package);
+	return Object.freeze({
+		package: owner,
+		name: DeclarationName.parse(name),
+		version: 1,
+		protocol: "http",
+		router
+	});
+}
+/** A named dependency on a provided service. */
+var ServiceConnectionDescription = defineSchema(strictObject({
+	/** The immutable identity of the declaring package. */
+	packageId: PackageId,
+	/** The package-local connection name. */
+	name: DeclarationName,
+	/** The required service declaration. */
+	service: DeclarationReference
+}));
+/** An inert service dependency with a host-bound typed client. */
+var ServiceConnection = class extends ResourceHandle {
+	/** The required service declaration. */
+	service;
+	/** The procedure definitions used to construct the client. */
+	router;
+	/** Retain the dependency description and its typed API without opening a connection. */
+	constructor(owner, declaration, router) {
+		super(owner, declaration.name);
+		this.service = declaration.service;
+		this.router = router;
+	}
+};
+/** Define a named dependency on a declared service, collected by package inspection. */
+function defineServiceConnection(name, service, module) {
+	const owner = declaringModule(module, "defineServiceConnection").package;
+	return new ServiceConnection(owner, ServiceConnectionDescription.parse({
+		packageId: owner.id,
+		name,
+		service: reference(service)
+	}), service.router);
+}
+var VERSION = "1.9.1";
+var re = /^(\d+)\.(\d+)\.(\d+)(-(.+))?$/;
+/**
+* Create a function to test an API version to see if it is compatible with the provided ownVersion.
+*
+* The returned function has the following semantics:
+* - Exact match is always compatible
+* - Major versions must match exactly
+*    - 1.x package cannot use global 2.x package
+*    - 2.x package cannot use global 1.x package
+* - The minor version of the API module requesting access to the global API must be less than or equal to the minor version of this API
+*    - 1.3 package may use 1.4 global because the later global contains all functions 1.3 expects
+*    - 1.4 package may NOT use 1.3 global because it may try to call functions which don't exist on 1.3
+* - If the major version is 0, the minor version is treated as the major and the patch is treated as the minor
+* - Patch and build tag differences are not considered at this time
+*
+* @param ownVersion version which should be checked against
+*/
+function _makeCompatibilityCheck(ownVersion) {
+	const acceptedVersions = /* @__PURE__ */ new Set([ownVersion]);
+	const rejectedVersions = /* @__PURE__ */ new Set();
+	const myVersionMatch = ownVersion.match(re);
+	if (!myVersionMatch) return () => false;
+	const ownVersionParsed = {
+		major: +myVersionMatch[1],
+		minor: +myVersionMatch[2],
+		patch: +myVersionMatch[3],
+		prerelease: myVersionMatch[4]
+	};
+	if (ownVersionParsed.prerelease != null) return function isExactmatch(globalVersion) {
+		return globalVersion === ownVersion;
+	};
+	function _reject(v) {
+		rejectedVersions.add(v);
+		return false;
+	}
+	function _accept(v) {
+		acceptedVersions.add(v);
+		return true;
+	}
+	return function isCompatible(globalVersion) {
+		if (acceptedVersions.has(globalVersion)) return true;
+		if (rejectedVersions.has(globalVersion)) return false;
+		const globalVersionMatch = globalVersion.match(re);
+		if (!globalVersionMatch) return _reject(globalVersion);
+		const globalVersionParsed = {
+			major: +globalVersionMatch[1],
+			minor: +globalVersionMatch[2],
+			patch: +globalVersionMatch[3],
+			prerelease: globalVersionMatch[4]
+		};
+		if (globalVersionParsed.prerelease != null) return _reject(globalVersion);
+		if (ownVersionParsed.major !== globalVersionParsed.major) return _reject(globalVersion);
+		if (ownVersionParsed.major === 0) {
+			if (ownVersionParsed.minor === globalVersionParsed.minor && ownVersionParsed.patch <= globalVersionParsed.patch) return _accept(globalVersion);
+			return _reject(globalVersion);
+		}
+		if (ownVersionParsed.minor <= globalVersionParsed.minor) return _accept(globalVersion);
+		return _reject(globalVersion);
+	};
+}
+/**
+* Test an API version to see if it is compatible with this API.
+*
+* - Exact match is always compatible
+* - Major versions must match exactly
+*    - 1.x package cannot use global 2.x package
+*    - 2.x package cannot use global 1.x package
+* - The minor version of the API module requesting access to the global API must be less than or equal to the minor version of this API
+*    - 1.3 package may use 1.4 global because the later global contains all functions 1.3 expects
+*    - 1.4 package may NOT use 1.3 global because it may try to call functions which don't exist on 1.3
+* - If the major version is 0, the minor version is treated as the major and the patch is treated as the minor
+* - Patch and build tag differences are not considered at this time
+*
+* @param version version of the API requesting an instance of the global API
+*/
+var isCompatible = _makeCompatibilityCheck(VERSION);
+var major = VERSION.split(".")[0];
+var GLOBAL_OPENTELEMETRY_API_KEY = Symbol.for(`opentelemetry.js.api.${major}`);
+var _global$1 = typeof globalThis === "object" ? globalThis : typeof self === "object" ? self : typeof window === "object" ? window : typeof global === "object" ? global : {};
+function registerGlobal(type, instance, diag, allowOverride = false) {
+	var _a;
+	const api = _global$1[GLOBAL_OPENTELEMETRY_API_KEY] = (_a = _global$1[GLOBAL_OPENTELEMETRY_API_KEY]) !== null && _a !== void 0 ? _a : { version: VERSION };
+	if (!allowOverride && api[type]) {
+		const err = /* @__PURE__ */ new Error(`@opentelemetry/api: Attempted duplicate registration of API: ${type}`);
+		diag.error(err.stack || err.message);
+		return false;
+	}
+	if (api.version !== "1.9.1") {
+		const err = /* @__PURE__ */ new Error(`@opentelemetry/api: Registration of version v${api.version} for ${type} does not match previously registered API v${VERSION}`);
+		diag.error(err.stack || err.message);
+		return false;
+	}
+	api[type] = instance;
+	diag.debug(`@opentelemetry/api: Registered a global for ${type} v${VERSION}.`);
+	return true;
+}
+function getGlobal(type) {
+	var _a, _b;
+	const globalVersion = (_a = _global$1[GLOBAL_OPENTELEMETRY_API_KEY]) === null || _a === void 0 ? void 0 : _a.version;
+	if (!globalVersion || !isCompatible(globalVersion)) return;
+	return (_b = _global$1[GLOBAL_OPENTELEMETRY_API_KEY]) === null || _b === void 0 ? void 0 : _b[type];
+}
+function unregisterGlobal(type, diag) {
+	diag.debug(`@opentelemetry/api: Unregistering a global for ${type} v${VERSION}.`);
+	const api = _global$1[GLOBAL_OPENTELEMETRY_API_KEY];
+	if (api) delete api[type];
+}
+/**
+* Component Logger which is meant to be used as part of any component which
+* will add automatically additional namespace in front of the log message.
+* It will then forward all message to global diag logger
+* @example
+* const cLogger = diag.createComponentLogger({ namespace: '@opentelemetry/instrumentation-http' });
+* cLogger.debug('test');
+* // @opentelemetry/instrumentation-http test
+*/
+var DiagComponentLogger = class {
+	constructor(props) {
+		this._namespace = props.namespace || "DiagComponentLogger";
+	}
+	debug(...args) {
+		return logProxy("debug", this._namespace, args);
+	}
+	error(...args) {
+		return logProxy("error", this._namespace, args);
+	}
+	info(...args) {
+		return logProxy("info", this._namespace, args);
+	}
+	warn(...args) {
+		return logProxy("warn", this._namespace, args);
+	}
+	verbose(...args) {
+		return logProxy("verbose", this._namespace, args);
+	}
+};
+function logProxy(funcName, namespace, args) {
+	const logger = getGlobal("diag");
+	if (!logger) return;
+	return logger[funcName](namespace, ...args);
+}
+/**
+* Defines the available internal logging levels for the diagnostic logger, the numeric values
+* of the levels are defined to match the original values from the initial LogLevel to avoid
+* compatibility/migration issues for any implementation that assume the numeric ordering.
+*/
+var DiagLogLevel;
+(function(DiagLogLevel) {
+	/** Diagnostic Logging level setting to disable all logging (except and forced logs) */
+	DiagLogLevel[DiagLogLevel["NONE"] = 0] = "NONE";
+	/** Identifies an error scenario */
+	DiagLogLevel[DiagLogLevel["ERROR"] = 30] = "ERROR";
+	/** Identifies a warning scenario */
+	DiagLogLevel[DiagLogLevel["WARN"] = 50] = "WARN";
+	/** General informational log message */
+	DiagLogLevel[DiagLogLevel["INFO"] = 60] = "INFO";
+	/** General debug log message */
+	DiagLogLevel[DiagLogLevel["DEBUG"] = 70] = "DEBUG";
+	/**
+	* Detailed trace level logging should only be used for development, should only be set
+	* in a development environment.
+	*/
+	DiagLogLevel[DiagLogLevel["VERBOSE"] = 80] = "VERBOSE";
+	/** Used to set the logging level to include all logging */
+	DiagLogLevel[DiagLogLevel["ALL"] = 9999] = "ALL";
+})(DiagLogLevel || (DiagLogLevel = {}));
+function createLogLevelDiagLogger(maxLevel, logger) {
+	if (maxLevel < DiagLogLevel.NONE) maxLevel = DiagLogLevel.NONE;
+	else if (maxLevel > DiagLogLevel.ALL) maxLevel = DiagLogLevel.ALL;
+	logger = logger || {};
+	function _filterFunc(funcName, theLevel) {
+		const theFunc = logger[funcName];
+		if (typeof theFunc === "function" && maxLevel >= theLevel) return theFunc.bind(logger);
+		return function() {};
+	}
+	return {
+		error: _filterFunc("error", DiagLogLevel.ERROR),
+		warn: _filterFunc("warn", DiagLogLevel.WARN),
+		info: _filterFunc("info", DiagLogLevel.INFO),
+		debug: _filterFunc("debug", DiagLogLevel.DEBUG),
+		verbose: _filterFunc("verbose", DiagLogLevel.VERBOSE)
+	};
+}
+var API_NAME$3 = "diag";
+/**
+* Singleton object which represents the entry point to the OpenTelemetry internal
+* diagnostic API
+*
+* @since 1.0.0
+*/
+var DiagAPI = class DiagAPI {
+	/** Get the singleton instance of the DiagAPI API */
+	static instance() {
+		if (!this._instance) this._instance = new DiagAPI();
+		return this._instance;
+	}
+	/**
+	* Private internal constructor
+	* @private
+	*/
+	constructor() {
+		function _logProxy(funcName) {
+			return function(...args) {
+				const logger = getGlobal("diag");
+				if (!logger) return;
+				return logger[funcName](...args);
+			};
+		}
+		const self = this;
+		const setLogger = (logger, optionsOrLogLevel = { logLevel: DiagLogLevel.INFO }) => {
+			var _a, _b, _c;
+			if (logger === self) {
+				const err = /* @__PURE__ */ new Error("Cannot use diag as the logger for itself. Please use a DiagLogger implementation like ConsoleDiagLogger or a custom implementation");
+				self.error((_a = err.stack) !== null && _a !== void 0 ? _a : err.message);
+				return false;
+			}
+			if (typeof optionsOrLogLevel === "number") optionsOrLogLevel = { logLevel: optionsOrLogLevel };
+			const oldLogger = getGlobal("diag");
+			const newLogger = createLogLevelDiagLogger((_b = optionsOrLogLevel.logLevel) !== null && _b !== void 0 ? _b : DiagLogLevel.INFO, logger);
+			if (oldLogger && !optionsOrLogLevel.suppressOverrideMessage) {
+				const stack = (_c = (/* @__PURE__ */ new Error()).stack) !== null && _c !== void 0 ? _c : "<failed to generate stacktrace>";
+				oldLogger.warn(`Current logger will be overwritten from ${stack}`);
+				newLogger.warn(`Current logger will overwrite one already registered from ${stack}`);
+			}
+			return registerGlobal("diag", newLogger, self, true);
+		};
+		self.setLogger = setLogger;
+		self.disable = () => {
+			unregisterGlobal(API_NAME$3, self);
+		};
+		self.createComponentLogger = (options) => {
+			return new DiagComponentLogger(options);
+		};
+		self.verbose = _logProxy("verbose");
+		self.debug = _logProxy("debug");
+		self.info = _logProxy("info");
+		self.warn = _logProxy("warn");
+		self.error = _logProxy("error");
+	}
+};
+/**
+* Get a key to uniquely identify a context value
+*
+* @since 1.0.0
+*/
+function createContextKey(description) {
+	return Symbol.for(description);
+}
+/**
+* The root context is used as the default parent context when there is no active context
+*
+* @since 1.0.0
+*/
+var ROOT_CONTEXT = new class BaseContext {
+	/**
+	* Construct a new context which inherits values from an optional parent context.
+	*
+	* @param parentContext a context from which to inherit values
+	*/
+	constructor(parentContext) {
+		const self = this;
+		self._currentContext = parentContext ? new Map(parentContext) : /* @__PURE__ */ new Map();
+		self.getValue = (key) => self._currentContext.get(key);
+		self.setValue = (key, value) => {
+			const context = new BaseContext(self._currentContext);
+			context._currentContext.set(key, value);
+			return context;
+		};
+		self.deleteValue = (key) => {
+			const context = new BaseContext(self._currentContext);
+			context._currentContext.delete(key);
+			return context;
+		};
+	}
+}();
+/**
+* NoopMeter is a noop implementation of the {@link Meter} interface. It reuses
+* constant NoopMetrics for all of its methods.
+*/
+var NoopMeter = class {
+	constructor() {}
+	/**
+	* @see {@link Meter.createGauge}
+	*/
+	createGauge(_name, _options) {
+		return NOOP_GAUGE_METRIC;
+	}
+	/**
+	* @see {@link Meter.createHistogram}
+	*/
+	createHistogram(_name, _options) {
+		return NOOP_HISTOGRAM_METRIC;
+	}
+	/**
+	* @see {@link Meter.createCounter}
+	*/
+	createCounter(_name, _options) {
+		return NOOP_COUNTER_METRIC;
+	}
+	/**
+	* @see {@link Meter.createUpDownCounter}
+	*/
+	createUpDownCounter(_name, _options) {
+		return NOOP_UP_DOWN_COUNTER_METRIC;
+	}
+	/**
+	* @see {@link Meter.createObservableGauge}
+	*/
+	createObservableGauge(_name, _options) {
+		return NOOP_OBSERVABLE_GAUGE_METRIC;
+	}
+	/**
+	* @see {@link Meter.createObservableCounter}
+	*/
+	createObservableCounter(_name, _options) {
+		return NOOP_OBSERVABLE_COUNTER_METRIC;
+	}
+	/**
+	* @see {@link Meter.createObservableUpDownCounter}
+	*/
+	createObservableUpDownCounter(_name, _options) {
+		return NOOP_OBSERVABLE_UP_DOWN_COUNTER_METRIC;
+	}
+	/**
+	* @see {@link Meter.addBatchObservableCallback}
+	*/
+	addBatchObservableCallback(_callback, _observables) {}
+	/**
+	* @see {@link Meter.removeBatchObservableCallback}
+	*/
+	removeBatchObservableCallback(_callback) {}
+};
+var NoopMetric = class {};
+var NoopCounterMetric = class extends NoopMetric {
+	add(_value, _attributes) {}
+};
+var NoopUpDownCounterMetric = class extends NoopMetric {
+	add(_value, _attributes) {}
+};
+var NoopGaugeMetric = class extends NoopMetric {
+	record(_value, _attributes) {}
+};
+var NoopHistogramMetric = class extends NoopMetric {
+	record(_value, _attributes) {}
+};
+var NoopObservableMetric = class {
+	addCallback(_callback) {}
+	removeCallback(_callback) {}
+};
+var NoopObservableCounterMetric = class extends NoopObservableMetric {};
+var NoopObservableGaugeMetric = class extends NoopObservableMetric {};
+var NoopObservableUpDownCounterMetric = class extends NoopObservableMetric {};
+var NOOP_METER = new NoopMeter();
+var NOOP_COUNTER_METRIC = new NoopCounterMetric();
+var NOOP_GAUGE_METRIC = new NoopGaugeMetric();
+var NOOP_HISTOGRAM_METRIC = new NoopHistogramMetric();
+var NOOP_UP_DOWN_COUNTER_METRIC = new NoopUpDownCounterMetric();
+var NOOP_OBSERVABLE_COUNTER_METRIC = new NoopObservableCounterMetric();
+var NOOP_OBSERVABLE_GAUGE_METRIC = new NoopObservableGaugeMetric();
+var NOOP_OBSERVABLE_UP_DOWN_COUNTER_METRIC = new NoopObservableUpDownCounterMetric();
+var NoopContextManager = class {
+	active() {
+		return ROOT_CONTEXT;
+	}
+	with(_context, fn, thisArg, ...args) {
+		return fn.call(thisArg, ...args);
+	}
+	bind(_context, target) {
+		return target;
+	}
+	enable() {
+		return this;
+	}
+	disable() {
+		return this;
+	}
+};
+var API_NAME$2 = "context";
+var NOOP_CONTEXT_MANAGER = new NoopContextManager();
+/**
+* Singleton object which represents the entry point to the OpenTelemetry Context API
+*
+* @since 1.0.0
+*/
+var ContextAPI = class ContextAPI {
+	/** Empty private constructor prevents end users from constructing a new instance of the API */
+	constructor() {}
+	/** Get the singleton instance of the Context API */
+	static getInstance() {
+		if (!this._instance) this._instance = new ContextAPI();
+		return this._instance;
+	}
+	/**
+	* Set the current context manager.
+	*
+	* @returns true if the context manager was successfully registered, else false
+	*/
+	setGlobalContextManager(contextManager) {
+		return registerGlobal(API_NAME$2, contextManager, DiagAPI.instance());
+	}
+	/**
+	* Get the currently active context
+	*/
+	active() {
+		return this._getContextManager().active();
+	}
+	/**
+	* Execute a function with an active context
+	*
+	* @param context context to be active during function execution
+	* @param fn function to execute in a context
+	* @param thisArg optional receiver to be used for calling fn
+	* @param args optional arguments forwarded to fn
+	*/
+	with(context, fn, thisArg, ...args) {
+		return this._getContextManager().with(context, fn, thisArg, ...args);
+	}
+	/**
+	* Bind a context to a target function or event emitter
+	*
+	* @param context context to bind to the event emitter or function. Defaults to the currently active context
+	* @param target function or event emitter to bind
+	*/
+	bind(context, target) {
+		return this._getContextManager().bind(context, target);
+	}
+	_getContextManager() {
+		return getGlobal(API_NAME$2) || NOOP_CONTEXT_MANAGER;
+	}
+	/** Disable and remove the global context manager */
+	disable() {
+		this._getContextManager().disable();
+		unregisterGlobal(API_NAME$2, DiagAPI.instance());
+	}
+};
+/**
+* @since 1.0.0
+*/
+var TraceFlags;
+(function(TraceFlags) {
+	/** Represents no flag set. */
+	TraceFlags[TraceFlags["NONE"] = 0] = "NONE";
+	/** Bit to represent whether trace is sampled in trace flags. */
+	TraceFlags[TraceFlags["SAMPLED"] = 1] = "SAMPLED";
+})(TraceFlags || (TraceFlags = {}));
+/**
+* @since 1.0.0
+*/
+var INVALID_SPAN_CONTEXT = {
+	traceId: "00000000000000000000000000000000",
+	spanId: "0000000000000000",
+	traceFlags: TraceFlags.NONE
+};
+/**
+* The NonRecordingSpan is the default {@link Span} that is used when no Span
+* implementation is available. All operations are no-op including context
+* propagation.
+*/
+var NonRecordingSpan = class {
+	constructor(spanContext = INVALID_SPAN_CONTEXT) {
+		this._spanContext = spanContext;
+	}
+	spanContext() {
+		return this._spanContext;
+	}
+	setAttribute(_key, _value) {
+		return this;
+	}
+	setAttributes(_attributes) {
+		return this;
+	}
+	addEvent(_name, _attributes) {
+		return this;
+	}
+	addLink(_link) {
+		return this;
+	}
+	addLinks(_links) {
+		return this;
+	}
+	setStatus(_status) {
+		return this;
+	}
+	updateName(_name) {
+		return this;
+	}
+	end(_endTime) {}
+	isRecording() {
+		return false;
+	}
+	recordException(_exception, _time) {}
+};
+/**
+* span key
+*/
+var SPAN_KEY = createContextKey("OpenTelemetry Context Key SPAN");
+/**
+* Return the span if one exists
+*
+* @param context context to get span from
+*/
+function getSpan(context) {
+	return context.getValue(SPAN_KEY) || void 0;
+}
+/**
+* Gets the span from the current context, if one exists.
+*/
+function getActiveSpan() {
+	return getSpan(ContextAPI.getInstance().active());
+}
+/**
+* Set the span on a context
+*
+* @param context context to use as parent
+* @param span span to set active
+*/
+function setSpan(context, span) {
+	return context.setValue(SPAN_KEY, span);
+}
+/**
+* Remove current span stored in the context
+*
+* @param context context to delete span from
+*/
+function deleteSpan(context) {
+	return context.deleteValue(SPAN_KEY);
+}
+/**
+* Wrap span context in a NoopSpan and set as span in a new
+* context
+*
+* @param context context to set active span on
+* @param spanContext span context to be wrapped
+*/
+function setSpanContext(context, spanContext) {
+	return setSpan(context, new NonRecordingSpan(spanContext));
+}
+/**
+* Get the span context of the span if it exists.
+*
+* @param context context to get values from
+*/
+function getSpanContext(context) {
+	var _a;
+	return (_a = getSpan(context)) === null || _a === void 0 ? void 0 : _a.spanContext();
+}
+var isHex = new Uint8Array([
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1
+]);
+function isValidHex(id, length) {
+	if (typeof id !== "string" || id.length !== length) return false;
+	let r = 0;
+	for (let i = 0; i < id.length; i += 4) r += (isHex[id.charCodeAt(i)] | 0) + (isHex[id.charCodeAt(i + 1)] | 0) + (isHex[id.charCodeAt(i + 2)] | 0) + (isHex[id.charCodeAt(i + 3)] | 0);
+	return r === length;
+}
+/**
+* @since 1.0.0
+*/
+function isValidTraceId(traceId) {
+	return isValidHex(traceId, 32) && traceId !== "00000000000000000000000000000000";
+}
+/**
+* @since 1.0.0
+*/
+function isValidSpanId(spanId) {
+	return isValidHex(spanId, 16) && spanId !== "0000000000000000";
+}
+/**
+* Returns true if this {@link SpanContext} is valid.
+* @return true if this {@link SpanContext} is valid.
+*
+* @since 1.0.0
+*/
+function isSpanContextValid(spanContext) {
+	return isValidTraceId(spanContext.traceId) && isValidSpanId(spanContext.spanId);
+}
+/**
+* Wrap the given {@link SpanContext} in a new non-recording {@link Span}
+*
+* @param spanContext span context to be wrapped
+* @returns a new non-recording {@link Span} with the provided context
+*/
+function wrapSpanContext(spanContext) {
+	return new NonRecordingSpan(spanContext);
+}
+var contextApi = ContextAPI.getInstance();
+/**
+* No-op implementations of {@link Tracer}.
+*/
+var NoopTracer = class {
+	startSpan(name, options, context = contextApi.active()) {
+		if (Boolean(options === null || options === void 0 ? void 0 : options.root)) return new NonRecordingSpan();
+		const parentFromContext = context && getSpanContext(context);
+		if (isSpanContext(parentFromContext) && isSpanContextValid(parentFromContext)) return new NonRecordingSpan(parentFromContext);
+		else return new NonRecordingSpan();
+	}
+	startActiveSpan(name, arg2, arg3, arg4) {
+		let opts;
+		let ctx;
+		let fn;
+		if (arguments.length < 2) return;
+		else if (arguments.length === 2) fn = arg2;
+		else if (arguments.length === 3) {
+			opts = arg2;
+			fn = arg3;
+		} else {
+			opts = arg2;
+			ctx = arg3;
+			fn = arg4;
+		}
+		const parentContext = ctx !== null && ctx !== void 0 ? ctx : contextApi.active();
+		const span = this.startSpan(name, opts, parentContext);
+		const contextWithSpanSet = setSpan(parentContext, span);
+		return contextApi.with(contextWithSpanSet, fn, void 0, span);
+	}
+};
+function isSpanContext(spanContext) {
+	return spanContext !== null && typeof spanContext === "object" && "spanId" in spanContext && typeof spanContext["spanId"] === "string" && "traceId" in spanContext && typeof spanContext["traceId"] === "string" && "traceFlags" in spanContext && typeof spanContext["traceFlags"] === "number";
+}
+var NOOP_TRACER = new NoopTracer();
+/**
+* Proxy tracer provided by the proxy tracer provider
+*
+* @since 1.0.0
+*/
+var ProxyTracer = class {
+	constructor(provider, name, version, options) {
+		this._provider = provider;
+		this.name = name;
+		this.version = version;
+		this.options = options;
+	}
+	startSpan(name, options, context) {
+		return this._getTracer().startSpan(name, options, context);
+	}
+	startActiveSpan(_name, _options, _context, _fn) {
+		const tracer = this._getTracer();
+		return Reflect.apply(tracer.startActiveSpan, tracer, arguments);
+	}
+	/**
+	* Try to get a tracer from the proxy tracer provider.
+	* If the proxy tracer provider has no delegate, return a noop tracer.
+	*/
+	_getTracer() {
+		if (this._delegate) return this._delegate;
+		const tracer = this._provider.getDelegateTracer(this.name, this.version, this.options);
+		if (!tracer) return NOOP_TRACER;
+		this._delegate = tracer;
+		return this._delegate;
+	}
+};
+/**
+* An implementation of the {@link TracerProvider} which returns an impotent
+* Tracer for all calls to `getTracer`.
+*
+* All operations are no-op.
+*/
+var NoopTracerProvider = class {
+	getTracer(_name, _version, _options) {
+		return new NoopTracer();
+	}
+};
+var NOOP_TRACER_PROVIDER = new NoopTracerProvider();
+/**
+* Tracer provider which provides {@link ProxyTracer}s.
+*
+* Before a delegate is set, tracers provided are NoOp.
+*   When a delegate is set, traces are provided from the delegate.
+*   When a delegate is set after tracers have already been provided,
+*   all tracers already provided will use the provided delegate implementation.
+*
+* @deprecated This will be removed in the next major version.
+* @since 1.0.0
+*/
+var ProxyTracerProvider = class {
+	/**
+	* Get a {@link ProxyTracer}
+	*/
+	getTracer(name, version, options) {
+		var _a;
+		return (_a = this.getDelegateTracer(name, version, options)) !== null && _a !== void 0 ? _a : new ProxyTracer(this, name, version, options);
+	}
+	getDelegate() {
+		var _a;
+		return (_a = this._delegate) !== null && _a !== void 0 ? _a : NOOP_TRACER_PROVIDER;
+	}
+	/**
+	* Set the delegate tracer provider
+	*/
+	setDelegate(delegate) {
+		this._delegate = delegate;
+	}
+	getDelegateTracer(name, version, options) {
+		var _a;
+		return (_a = this._delegate) === null || _a === void 0 ? void 0 : _a.getTracer(name, version, options);
+	}
+};
+/**
+* An implementation of the {@link MeterProvider} which returns an impotent Meter
+* for all calls to `getMeter`
+*/
+var NoopMeterProvider = class {
+	getMeter(_name, _version, _options) {
+		return NOOP_METER;
+	}
+};
+var NOOP_METER_PROVIDER = new NoopMeterProvider();
+var API_NAME$1 = "metrics";
+/**
+* Entrypoint for metrics API
+*
+* @since 1.3.0
+*/
+var metrics = class MetricsAPI {
+	/** Empty private constructor prevents end users from constructing a new instance of the API */
+	constructor() {}
+	/** Get the singleton instance of the Metrics API */
+	static getInstance() {
+		if (!this._instance) this._instance = new MetricsAPI();
+		return this._instance;
+	}
+	/**
+	* Set the current global meter provider.
+	* Returns true if the meter provider was successfully registered, else false.
+	*/
+	setGlobalMeterProvider(provider) {
+		return registerGlobal(API_NAME$1, provider, DiagAPI.instance());
+	}
+	/**
+	* Returns the global meter provider.
+	*/
+	getMeterProvider() {
+		return getGlobal(API_NAME$1) || NOOP_METER_PROVIDER;
+	}
+	/**
+	* Returns a meter from the global meter provider.
+	*/
+	getMeter(name, version, options) {
+		return this.getMeterProvider().getMeter(name, version, options);
+	}
+	/** Remove the global meter provider */
+	disable() {
+		unregisterGlobal(API_NAME$1, DiagAPI.instance());
+	}
+}.getInstance();
+var API_NAME = "trace";
+/**
+* Entrypoint for trace API
+*
+* @since 1.0.0
+*/
+var trace = class TraceAPI {
+	/** Empty private constructor prevents end users from constructing a new instance of the API */
+	constructor() {
+		this._proxyTracerProvider = new ProxyTracerProvider();
+		this.wrapSpanContext = wrapSpanContext;
+		this.isSpanContextValid = isSpanContextValid;
+		this.deleteSpan = deleteSpan;
+		this.getSpan = getSpan;
+		this.getActiveSpan = getActiveSpan;
+		this.getSpanContext = getSpanContext;
+		this.setSpan = setSpan;
+		this.setSpanContext = setSpanContext;
+	}
+	/** Get the singleton instance of the Trace API */
+	static getInstance() {
+		if (!this._instance) this._instance = new TraceAPI();
+		return this._instance;
+	}
+	/**
+	* Set the current global tracer.
+	*
+	* @returns true if the tracer provider was successfully registered, else false
+	*/
+	setGlobalTracerProvider(provider) {
+		const success = registerGlobal(API_NAME, this._proxyTracerProvider, DiagAPI.instance());
+		if (success) this._proxyTracerProvider.setDelegate(provider);
+		return success;
+	}
+	/**
+	* Returns the global tracer provider.
+	*/
+	getTracerProvider() {
+		return getGlobal(API_NAME) || this._proxyTracerProvider;
+	}
+	/**
+	* Returns a tracer from the global tracer provider.
+	*/
+	getTracer(name, version) {
+		return this.getTracerProvider().getTracer(name, version);
+	}
+	/** Remove the global tracer provider */
+	disable() {
+		unregisterGlobal(API_NAME, DiagAPI.instance());
+		this._proxyTracerProvider = new ProxyTracerProvider();
+	}
+}.getInstance();
+var NoopLogger = class {
+	emit(_logRecord) {}
+	enabled() {
+		return false;
+	}
+};
+var NOOP_LOGGER = new NoopLogger();
+var GLOBAL_LOGS_API_KEY = Symbol.for("io.opentelemetry.js.api.logs");
+var _global = globalThis;
+/**
+* Make a function which accepts a version integer and returns the instance of an API if the version
+* is compatible, or a fallback version (usually NOOP) if it is not.
+*
+* @param requiredVersion Backwards compatibility version which is required to return the instance
+* @param instance Instance which should be returned if the required version is compatible
+* @param fallback Fallback instance, usually NOOP, which will be returned if the required version is not compatible
+*/
+function makeGetter(requiredVersion, instance, fallback) {
+	return (version) => version === requiredVersion ? instance : fallback;
+}
+var NoopLoggerProvider = class {
+	getLogger(_name, _version, _options) {
+		return new NoopLogger();
+	}
+};
+var NOOP_LOGGER_PROVIDER = new NoopLoggerProvider();
+var ProxyLogger = class {
+	constructor(provider, name, version, options) {
+		this._provider = provider;
+		this.name = name;
+		this.version = version;
+		this.options = options;
+	}
+	/**
+	* Emit a log record. This method should only be used by log appenders.
+	*
+	* @param logRecord
+	*/
+	emit(logRecord) {
+		this._getLogger().emit(logRecord);
+	}
+	enabled(options) {
+		return this._getLogger().enabled(options);
+	}
+	/**
+	* Try to get a logger from the proxy logger provider.
+	* If the proxy logger provider has no delegate, return a noop logger.
+	*/
+	_getLogger() {
+		if (this._delegate) return this._delegate;
+		const logger = this._provider._getDelegateLogger(this.name, this.version, this.options);
+		if (!logger) return NOOP_LOGGER;
+		this._delegate = logger;
+		return this._delegate;
+	}
+};
+var ProxyLoggerProvider = class {
+	getLogger(name, version, options) {
+		var _a;
+		return (_a = this._getDelegateLogger(name, version, options)) !== null && _a !== void 0 ? _a : new ProxyLogger(this, name, version, options);
+	}
+	/**
+	* Get the delegate logger provider.
+	* Used by tests only.
+	* @internal
+	*/
+	_getDelegate() {
+		var _a;
+		return (_a = this._delegate) !== null && _a !== void 0 ? _a : NOOP_LOGGER_PROVIDER;
+	}
+	/**
+	* Set the delegate logger provider
+	* @internal
+	*/
+	_setDelegate(delegate) {
+		this._delegate = delegate;
+	}
+	/**
+	* @internal
+	*/
+	_getDelegateLogger(name, version, options) {
+		var _a;
+		return (_a = this._delegate) === null || _a === void 0 ? void 0 : _a.getLogger(name, version, options);
+	}
+};
+var logs = class LogsAPI {
+	constructor() {
+		this._proxyLoggerProvider = new ProxyLoggerProvider();
+	}
+	static getInstance() {
+		if (!this._instance) this._instance = new LogsAPI();
+		return this._instance;
+	}
+	setGlobalLoggerProvider(provider) {
+		if (_global[GLOBAL_LOGS_API_KEY]) return this.getLoggerProvider();
+		_global[GLOBAL_LOGS_API_KEY] = makeGetter(1, provider, NOOP_LOGGER_PROVIDER);
+		this._proxyLoggerProvider._setDelegate(provider);
+		return provider;
+	}
+	/**
+	* Returns the global logger provider.
+	*
+	* @returns LoggerProvider
+	*/
+	getLoggerProvider() {
+		var _a, _b;
+		return (_b = (_a = _global[GLOBAL_LOGS_API_KEY]) === null || _a === void 0 ? void 0 : _a.call(_global, 1)) !== null && _b !== void 0 ? _b : this._proxyLoggerProvider;
+	}
+	/**
+	* Returns a Logger, creating one if one with the given name, version,
+	* schemaUrl, and attributes is not already created.
+	*
+	* Getting a Logger may be expensive, especially when `attributes` are
+	* provided. Reuse Logger instances where possible instead of calling
+	* `getLogger()` on hot paths.
+	*
+	* @param name The name of the logger or instrumentation library.
+	* @param version The version of the logger or instrumentation library.
+	* @param options The options of the logger or instrumentation library.
+	* @returns {@link Logger}
+	*/
+	getLogger(name, version, options) {
+		return this.getLoggerProvider().getLogger(name, version, options);
+	}
+	/** Remove the global logger provider */
+	disable() {
+		delete _global[GLOBAL_LOGS_API_KEY];
+		this._proxyLoggerProvider = new ProxyLoggerProvider();
+	}
+}.getInstance();
+/** Obtain package instruments from the providers registered by the host. */
+function scope(source) {
+	return {
+		tracer: trace.getTracer(source.name, source.version),
+		meter: metrics.getMeter(source.name, source.version),
+		logger: logs.getLogger(source.name, source.version)
+	};
+}
+var LAZY_SYMBOL = Symbol("ORPC_LAZY_SYMBOL");
+function lazy(loader, meta = {}) {
+	return { [LAZY_SYMBOL]: {
+		loader,
+		meta
+	} };
+}
+function isLazy(item) {
+	return (typeof item === "object" || typeof item === "function") && item !== null && LAZY_SYMBOL in item;
+}
+function getLazyMeta(lazied) {
+	return lazied[LAZY_SYMBOL].meta;
+}
+function unlazy(lazied) {
+	return isLazy(lazied) ? lazied[LAZY_SYMBOL].loader() : Promise.resolve({ default: lazied });
+}
+function isStartWithMiddlewares(middlewares, compare) {
+	if (compare.length > middlewares.length) return false;
+	for (let i = 0; i < middlewares.length; i++) {
+		if (compare[i] === void 0) return true;
+		if (middlewares[i] !== compare[i]) return false;
+	}
+	return true;
+}
+function mergeMiddlewares(first, second, options) {
+	if (options.dedupeLeading && isStartWithMiddlewares(second, first)) return second;
+	return [...first, ...second];
+}
+function addMiddleware(middlewares, addition) {
+	return [...middlewares, addition];
+}
+var Procedure = class {
+	/**
+	* This property holds the defined options.
+	*/
+	"~orpc";
+	constructor(def) {
+		this["~orpc"] = def;
+	}
+};
+function isProcedure(item) {
+	if (item instanceof Procedure) return true;
+	return isContractProcedure(item) && "middlewares" in item["~orpc"] && "inputValidationIndex" in item["~orpc"] && "outputValidationIndex" in item["~orpc"] && "handler" in item["~orpc"];
+}
+function mergeCurrentContext(context, other) {
+	return {
+		...context,
+		...other
+	};
+}
+function createORPCErrorConstructorMap(errors) {
+	return new Proxy(errors, { get(target, code) {
+		if (typeof code !== "string") return Reflect.get(target, code);
+		const item = (...rest) => {
+			const options = resolveMaybeOptionalOptions(rest);
+			const config = errors[code];
+			return new ORPCError(code, {
+				defined: Boolean(config),
+				status: config?.status,
+				message: options.message ?? config?.message,
+				data: options.data,
+				cause: options.cause
+			});
+		};
+		return item;
+	} });
+}
+function middlewareOutputFn(output) {
+	return {
+		output,
+		context: {}
+	};
+}
+function createProcedureClient(lazyableProcedure, ...rest) {
+	const options = resolveMaybeOptionalOptions(rest);
+	return async (...[input, callerOptions]) => {
+		const path = toArray(options.path);
+		const { default: procedure } = await unlazy(lazyableProcedure);
+		const clientContext = callerOptions?.context ?? {};
+		const context = await value(options.context ?? {}, clientContext);
+		const errors = createORPCErrorConstructorMap(procedure["~orpc"].errorMap);
+		const validateError = async (e) => {
+			if (e instanceof ORPCError) return await validateORPCError(procedure["~orpc"].errorMap, e);
+			return e;
+		};
+		try {
+			const output = await runWithSpan({
+				name: "call_procedure",
+				signal: callerOptions?.signal
+			}, (span) => {
+				span?.setAttribute("procedure.path", [...path]);
+				return intercept(toArray(options.interceptors), {
+					context,
+					input,
+					errors,
+					path,
+					procedure,
+					signal: callerOptions?.signal,
+					lastEventId: callerOptions?.lastEventId
+				}, (interceptorOptions) => executeProcedureInternal(interceptorOptions.procedure, interceptorOptions));
+			});
+			if (isAsyncIteratorObject(output)) {
+				if (output instanceof HibernationEventIterator) return output;
+				return overlayProxy(output, mapEventIterator(asyncIteratorWithSpan({
+					name: "consume_event_iterator_output",
+					signal: callerOptions?.signal
+				}, output), {
+					value: (v) => v,
+					error: (e) => validateError(e)
+				}));
+			}
+			return output;
+		} catch (e) {
+			throw await validateError(e);
+		}
+	};
+}
+async function validateInput(procedure, input) {
+	const schema = procedure["~orpc"].inputSchema;
+	if (!schema) return input;
+	return runWithSpan({ name: "validate_input" }, async () => {
+		const result = await schema["~standard"].validate(input);
+		if (result.issues) throw new ORPCError("BAD_REQUEST", {
+			message: "Input validation failed",
+			data: { issues: result.issues },
+			cause: new ValidationError({
+				message: "Input validation failed",
+				issues: result.issues,
+				data: input
+			})
+		});
+		return result.value;
+	});
+}
+async function validateOutput(procedure, output) {
+	const schema = procedure["~orpc"].outputSchema;
+	if (!schema) return output;
+	return runWithSpan({ name: "validate_output" }, async () => {
+		const result = await schema["~standard"].validate(output);
+		if (result.issues) throw new ORPCError("INTERNAL_SERVER_ERROR", {
+			message: "Output validation failed",
+			cause: new ValidationError({
+				message: "Output validation failed",
+				issues: result.issues,
+				data: output
+			})
+		});
+		return result.value;
+	});
+}
+async function executeProcedureInternal(procedure, options) {
+	const middlewares = procedure["~orpc"].middlewares;
+	const inputValidationIndex = Math.min(Math.max(0, procedure["~orpc"].inputValidationIndex), middlewares.length);
+	const outputValidationIndex = Math.min(Math.max(0, procedure["~orpc"].outputValidationIndex), middlewares.length);
+	const next = async (index, context, input) => {
+		let currentInput = input;
+		if (index === inputValidationIndex) currentInput = await validateInput(procedure, currentInput);
+		const mid = middlewares[index];
+		const output = mid ? await runWithSpan({
+			name: `middleware.${mid.name}`,
+			signal: options.signal
+		}, async (span) => {
+			span?.setAttribute("middleware.index", index);
+			span?.setAttribute("middleware.name", mid.name);
+			return (await mid({
+				...options,
+				context,
+				next: async (...[nextOptions]) => {
+					const nextContext = nextOptions?.context ?? {};
+					return {
+						output: await next(index + 1, mergeCurrentContext(context, nextContext), currentInput),
+						context: nextContext
+					};
+				}
+			}, currentInput, middlewareOutputFn)).output;
+		}) : await runWithSpan({
+			name: "handler",
+			signal: options.signal
+		}, () => procedure["~orpc"].handler({
+			...options,
+			context,
+			input: currentInput
+		}));
+		if (index === outputValidationIndex) return await validateOutput(procedure, output);
+		return output;
+	};
+	return next(0, options.context, options.input);
+}
+var HIDDEN_ROUTER_CONTRACT_SYMBOL = Symbol("ORPC_HIDDEN_ROUTER_CONTRACT");
+function setHiddenRouterContract(router, contract) {
+	return new Proxy(router, { get(target, key) {
+		if (key === HIDDEN_ROUTER_CONTRACT_SYMBOL) return contract;
+		return Reflect.get(target, key);
+	} });
+}
+function getRouter(router, path) {
+	let current = router;
+	for (let i = 0; i < path.length; i++) {
+		const segment = path[i];
+		if (!current) return;
+		if (isProcedure(current)) return;
+		if (!isTypescriptObject(current)) return;
+		if (!isLazy(current)) {
+			current = current[segment];
+			continue;
+		}
+		const lazied = current;
+		const rest = path.slice(i);
+		return lazy(async () => {
+			return unlazy(getRouter((await unlazy(lazied)).default, rest));
+		}, getLazyMeta(lazied));
+	}
+	return current;
+}
+function createAccessibleLazyRouter(lazied) {
+	return new Proxy(lazied, { get(target, key) {
+		if (typeof key !== "string") return Reflect.get(target, key);
+		return createAccessibleLazyRouter(getRouter(lazied, [key]));
+	} });
+}
+function enhanceRouter(router, options) {
+	if (isLazy(router)) {
+		const laziedMeta = getLazyMeta(router);
+		const enhancedPrefix = laziedMeta?.prefix ? mergePrefix(options.prefix, laziedMeta?.prefix) : options.prefix;
+		return createAccessibleLazyRouter(lazy(async () => {
+			const { default: unlaziedRouter } = await unlazy(router);
+			return unlazy(enhanceRouter(unlaziedRouter, options));
+		}, {
+			...laziedMeta,
+			prefix: enhancedPrefix
+		}));
+	}
+	if (isProcedure(router)) {
+		const newMiddlewares = mergeMiddlewares(options.middlewares, router["~orpc"].middlewares, { dedupeLeading: options.dedupeLeadingMiddlewares });
+		const newMiddlewareAdded = newMiddlewares.length - router["~orpc"].middlewares.length;
+		return new Procedure({
+			...router["~orpc"],
+			route: enhanceRoute(router["~orpc"].route, options),
+			errorMap: mergeErrorMap(options.errorMap, router["~orpc"].errorMap),
+			middlewares: newMiddlewares,
+			inputValidationIndex: router["~orpc"].inputValidationIndex + newMiddlewareAdded,
+			outputValidationIndex: router["~orpc"].outputValidationIndex + newMiddlewareAdded
+		});
+	}
+	if (typeof router !== "object" || router === null) return router;
+	const enhanced = {};
+	for (const key in router) enhanced[key] = enhanceRouter(router[key], options);
+	return enhanced;
+}
+var DEFAULT_CONFIG = {
+	initialInputValidationIndex: 0,
+	initialOutputValidationIndex: 0,
+	dedupeLeadingMiddlewares: true
+};
+function fallbackConfig(key, value) {
+	if (value === void 0) return DEFAULT_CONFIG[key];
+	return value;
+}
+function decorateMiddleware(middleware) {
+	const decorated = ((...args) => middleware(...args));
+	decorated.mapInput = (mapInput) => {
+		return decorateMiddleware((options, input, ...rest) => middleware(options, mapInput(input), ...rest));
+	};
+	decorated.concat = (concatMiddleware, mapInput) => {
+		const mapped = mapInput ? decorateMiddleware(concatMiddleware).mapInput(mapInput) : concatMiddleware;
+		return decorateMiddleware((options, input, output, ...rest) => {
+			return middleware({
+				...options,
+				next: (...[nextOptions1]) => mapped({
+					...options,
+					context: {
+						...options.context,
+						...nextOptions1?.context
+					},
+					next: (...[nextOptions2]) => options.next({ context: {
+						...nextOptions1?.context,
+						...nextOptions2?.context
+					} })
+				}, input, output, ...rest)
+			}, input, output, ...rest);
+		});
+	};
+	return decorated;
+}
+function createActionableClient(client) {
+	const action = async (input) => {
+		try {
+			return [null, await client(input)];
+		} catch (error) {
+			if (error instanceof Error && "digest" in error && typeof error.digest === "string" && error.digest.startsWith("NEXT_")) throw error;
+			if (error instanceof Response && "options" in error && isObject(error.options) || isObject(error) && error.isNotFound === true) throw error;
+			return [toORPCError(error).toJSON(), void 0];
+		}
+	};
+	return action;
+}
+var DecoratedProcedure = class DecoratedProcedure extends Procedure {
+	/**
+	* Adds type-safe custom errors.
+	* The provided errors are spared-merged with any existing errors.
+	*
+	* @see {@link https://orpc.dev/docs/error-handling#type%E2%80%90safe-error-handling Type-Safe Error Handling Docs}
+	*/
+	errors(errors) {
+		return new DecoratedProcedure({
+			...this["~orpc"],
+			errorMap: mergeErrorMap(this["~orpc"].errorMap, errors)
+		});
+	}
+	/**
+	* Sets or updates the metadata.
+	* The provided metadata is spared-merged with any existing metadata.
+	*
+	* @see {@link https://orpc.dev/docs/metadata Metadata Docs}
+	*/
+	meta(meta) {
+		return new DecoratedProcedure({
+			...this["~orpc"],
+			meta: mergeMeta(this["~orpc"].meta, meta)
+		});
+	}
+	/**
+	* Sets or updates the route definition.
+	* The provided route is spared-merged with any existing route.
+	* This option is typically relevant when integrating with OpenAPI.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing OpenAPI Routing Docs}
+	* @see {@link https://orpc.dev/docs/openapi/input-output-structure OpenAPI Input/Output Structure Docs}
+	*/
+	route(route) {
+		return new DecoratedProcedure({
+			...this["~orpc"],
+			route: mergeRoute(this["~orpc"].route, route)
+		});
+	}
+	use(middleware, mapInput) {
+		const mapped = mapInput ? decorateMiddleware(middleware).mapInput(mapInput) : middleware;
+		return new DecoratedProcedure({
+			...this["~orpc"],
+			middlewares: addMiddleware(this["~orpc"].middlewares, mapped)
+		});
+	}
+	/**
+	* Make this procedure callable (works like a function while still being a procedure).
+	*
+	* @see {@link https://orpc.dev/docs/client/server-side Server-side Client Docs}
+	*/
+	callable(...rest) {
+		const client = createProcedureClient(this, ...rest);
+		return new Proxy(client, {
+			get: (target, key) => {
+				return Reflect.has(this, key) ? Reflect.get(this, key) : Reflect.get(target, key);
+			},
+			has: (target, key) => {
+				return Reflect.has(this, key) || Reflect.has(target, key);
+			}
+		});
+	}
+	/**
+	* Make this procedure compatible with server action.
+	*
+	* @see {@link https://orpc.dev/docs/server-action Server Action Docs}
+	*/
+	actionable(...rest) {
+		const action = createActionableClient(createProcedureClient(this, ...rest));
+		return new Proxy(action, {
+			get: (target, key) => {
+				return Reflect.has(this, key) ? Reflect.get(this, key) : Reflect.get(target, key);
+			},
+			has: (target, key) => {
+				return Reflect.has(this, key) || Reflect.has(target, key);
+			}
+		});
+	}
+};
+var Builder = class Builder {
+	/**
+	* This property holds the defined options.
+	*/
+	"~orpc";
+	constructor(def) {
+		this["~orpc"] = def;
+	}
+	/**
+	* Sets or overrides the config.
+	*
+	* @see {@link https://orpc.dev/docs/client/server-side#middlewares-order Middlewares Order Docs}
+	* @see {@link https://orpc.dev/docs/best-practices/dedupe-middleware#configuration Dedupe Middleware Docs}
+	*/
+	$config(config) {
+		const inputValidationCount = this["~orpc"].inputValidationIndex - fallbackConfig("initialInputValidationIndex", this["~orpc"].config.initialInputValidationIndex);
+		const outputValidationCount = this["~orpc"].outputValidationIndex - fallbackConfig("initialOutputValidationIndex", this["~orpc"].config.initialOutputValidationIndex);
+		return new Builder({
+			...this["~orpc"],
+			config,
+			dedupeLeadingMiddlewares: fallbackConfig("dedupeLeadingMiddlewares", config.dedupeLeadingMiddlewares),
+			inputValidationIndex: fallbackConfig("initialInputValidationIndex", config.initialInputValidationIndex) + inputValidationCount,
+			outputValidationIndex: fallbackConfig("initialOutputValidationIndex", config.initialOutputValidationIndex) + outputValidationCount
+		});
+	}
+	/**
+	* Set or override the initial context.
+	*
+	* @see {@link https://orpc.dev/docs/context Context Docs}
+	*/
+	$context() {
+		return new Builder({
+			...this["~orpc"],
+			middlewares: [],
+			inputValidationIndex: fallbackConfig("initialInputValidationIndex", this["~orpc"].config.initialInputValidationIndex),
+			outputValidationIndex: fallbackConfig("initialOutputValidationIndex", this["~orpc"].config.initialOutputValidationIndex)
+		});
+	}
+	/**
+	* Sets or overrides the initial meta.
+	*
+	* @see {@link https://orpc.dev/docs/metadata Metadata Docs}
+	*/
+	$meta(initialMeta) {
+		return new Builder({
+			...this["~orpc"],
+			meta: initialMeta
+		});
+	}
+	/**
+	* Sets or overrides the initial route.
+	* This option is typically relevant when integrating with OpenAPI.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing OpenAPI Routing Docs}
+	* @see {@link https://orpc.dev/docs/openapi/input-output-structure OpenAPI Input/Output Structure Docs}
+	*/
+	$route(initialRoute) {
+		return new Builder({
+			...this["~orpc"],
+			route: initialRoute
+		});
+	}
+	/**
+	* Sets or overrides the initial input schema.
+	*
+	* @see {@link https://orpc.dev/docs/procedure#initial-configuration Initial Procedure Configuration Docs}
+	*/
+	$input(initialInputSchema) {
+		return new Builder({
+			...this["~orpc"],
+			inputSchema: initialInputSchema
+		});
+	}
+	/**
+	* Creates a middleware.
+	*
+	* @see {@link https://orpc.dev/docs/middleware Middleware Docs}
+	*/
+	middleware(middleware) {
+		return decorateMiddleware(middleware);
+	}
+	/**
+	* Adds type-safe custom errors.
+	* The provided errors are spared-merged with any existing errors.
+	*
+	* @see {@link https://orpc.dev/docs/error-handling#type%E2%80%90safe-error-handling Type-Safe Error Handling Docs}
+	*/
+	errors(errors) {
+		return new Builder({
+			...this["~orpc"],
+			errorMap: mergeErrorMap(this["~orpc"].errorMap, errors)
+		});
+	}
+	use(middleware, mapInput) {
+		const mapped = mapInput ? decorateMiddleware(middleware).mapInput(mapInput) : middleware;
+		return new Builder({
+			...this["~orpc"],
+			middlewares: addMiddleware(this["~orpc"].middlewares, mapped)
+		});
+	}
+	/**
+	* Sets or updates the metadata.
+	* The provided metadata is spared-merged with any existing metadata.
+	*
+	* @see {@link https://orpc.dev/docs/metadata Metadata Docs}
+	*/
+	meta(meta) {
+		return new Builder({
+			...this["~orpc"],
+			meta: mergeMeta(this["~orpc"].meta, meta)
+		});
+	}
+	/**
+	* Sets or updates the route definition.
+	* The provided route is spared-merged with any existing route.
+	* This option is typically relevant when integrating with OpenAPI.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing OpenAPI Routing Docs}
+	* @see {@link https://orpc.dev/docs/openapi/input-output-structure OpenAPI Input/Output Structure Docs}
+	*/
+	route(route) {
+		return new Builder({
+			...this["~orpc"],
+			route: mergeRoute(this["~orpc"].route, route)
+		});
+	}
+	/**
+	* Defines the input validation schema.
+	*
+	* @see {@link https://orpc.dev/docs/procedure#input-output-validation Input Validation Docs}
+	*/
+	input(schema) {
+		return new Builder({
+			...this["~orpc"],
+			inputSchema: schema,
+			inputValidationIndex: fallbackConfig("initialInputValidationIndex", this["~orpc"].config.initialInputValidationIndex) + this["~orpc"].middlewares.length
+		});
+	}
+	/**
+	* Defines the output validation schema.
+	*
+	* @see {@link https://orpc.dev/docs/procedure#input-output-validation Output Validation Docs}
+	*/
+	output(schema) {
+		return new Builder({
+			...this["~orpc"],
+			outputSchema: schema,
+			outputValidationIndex: fallbackConfig("initialOutputValidationIndex", this["~orpc"].config.initialOutputValidationIndex) + this["~orpc"].middlewares.length
+		});
+	}
+	/**
+	* Defines the handler of the procedure.
+	*
+	* @see {@link https://orpc.dev/docs/procedure Procedure Docs}
+	*/
+	handler(handler) {
+		return new DecoratedProcedure({
+			...this["~orpc"],
+			handler
+		});
+	}
+	/**
+	* Prefixes all procedures in the router.
+	* The provided prefix is post-appended to any existing router prefix.
+	*
+	* @note This option does not affect procedures that do not define a path in their route definition.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing#route-prefixes OpenAPI Route Prefixes Docs}
+	*/
+	prefix(prefix) {
+		return new Builder({
+			...this["~orpc"],
+			prefix: mergePrefix(this["~orpc"].prefix, prefix)
+		});
+	}
+	/**
+	* Adds tags to all procedures in the router.
+	* This helpful when you want to group procedures together in the OpenAPI specification.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/openapi-specification#operation-metadata OpenAPI Operation Metadata Docs}
+	*/
+	tag(...tags) {
+		return new Builder({
+			...this["~orpc"],
+			tags: mergeTags(this["~orpc"].tags, tags)
+		});
+	}
+	/**
+	* Applies all of the previously defined options to the specified router.
+	*
+	* @see {@link https://orpc.dev/docs/router#extending-router Extending Router Docs}
+	*/
+	router(router) {
+		return enhanceRouter(router, this["~orpc"]);
+	}
+	/**
+	* Create a lazy router
+	* And applies all of the previously defined options to the specified router.
+	*
+	* @see {@link https://orpc.dev/docs/router#extending-router Extending Router Docs}
+	*/
+	lazy(loader) {
+		return enhanceRouter(lazy(loader), this["~orpc"]);
+	}
+};
+new Builder({
+	config: {},
+	route: {},
+	meta: {},
+	errorMap: {},
+	inputValidationIndex: fallbackConfig("initialInputValidationIndex"),
+	outputValidationIndex: fallbackConfig("initialOutputValidationIndex"),
+	middlewares: [],
+	dedupeLeadingMiddlewares: true
+});
+function implementerInternal(contract, config, middlewares) {
+	if (isContractProcedure(contract)) return new Builder({
+		...contract["~orpc"],
+		config,
+		middlewares,
+		inputValidationIndex: fallbackConfig("initialInputValidationIndex", config?.initialInputValidationIndex) + middlewares.length,
+		outputValidationIndex: fallbackConfig("initialOutputValidationIndex", config?.initialOutputValidationIndex) + middlewares.length,
+		dedupeLeadingMiddlewares: fallbackConfig("dedupeLeadingMiddlewares", config.dedupeLeadingMiddlewares)
+	});
+	return new Proxy(contract, { get: (target, key) => {
+		if (typeof key !== "string") return Reflect.get(target, key);
+		let method;
+		if (key === "middleware") method = (mid) => decorateMiddleware(mid);
+		else if (key === "use") method = (mid) => {
+			return implementerInternal(contract, config, addMiddleware(middlewares, mid));
+		};
+		else if (key === "router") method = (router) => {
+			return setHiddenRouterContract(enhanceRouter(router, {
+				middlewares,
+				errorMap: {},
+				prefix: void 0,
+				tags: void 0,
+				dedupeLeadingMiddlewares: fallbackConfig("dedupeLeadingMiddlewares", config.dedupeLeadingMiddlewares)
+			}), contract);
+		};
+		else if (key === "lazy") method = (loader) => {
+			return setHiddenRouterContract(enhanceRouter(lazy(loader), {
+				middlewares,
+				errorMap: {},
+				prefix: void 0,
+				tags: void 0,
+				dedupeLeadingMiddlewares: fallbackConfig("dedupeLeadingMiddlewares", config.dedupeLeadingMiddlewares)
+			}), contract);
+		};
+		const next = getContractRouter(target, [key]);
+		if (!next) return method ?? next;
+		const nextImpl = implementerInternal(next, config, middlewares);
+		if (method) return new Proxy(method, { get(_, key2) {
+			return Reflect.get(nextImpl, key2);
+		} });
+		return nextImpl;
+	} });
+}
+function implement(contract, config = {}) {
+	const implInternal = implementerInternal(contract, config, []);
+	const impl = new Proxy(implInternal, { get: (target, key) => {
+		let method;
+		if (key === "$context") method = () => impl;
+		else if (key === "$config") method = (config2) => implement(contract, config2);
+		const next = Reflect.get(target, key);
+		if (!method || !next || typeof next !== "function" && typeof next !== "object") return method || next;
+		return new Proxy(method, { get(_, key2) {
+			return Reflect.get(next, key2);
+		} });
+	} });
+	return impl;
+}
+/** Declare a workload with its compute settings and start function. */
+function defineWorkload(definition, module) {
+	const owner = declaringModule(module, "defineWorkload").package;
+	const { start, ...fields } = definition;
+	return Object.freeze({
+		...WorkloadDefinition.parse(fields),
+		start,
+		package: owner
+	});
+}
+/** A package-local action named Noun.verb, with PascalCase nouns and a camelCase present-tense verb. */
+var AuditActionName = defineSchema(string().regex(/^[A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)*\.[a-z][A-Za-z0-9]*$/));
+defineSchema(strictObject({
+	package: Package,
+	name: AuditActionName,
+	version: number().int().positive()
+}));
+/** Declare an action without recording an event or acquiring authority. */
+function defineAuditAction(definition, module) {
+	AuditActionName.parse(definition.name);
+	number().int().positive().parse(definition.version);
+	return Object.freeze({
+		...definition,
+		package: Package.parse(declaringModule(module, "defineAuditAction").package)
+	});
+}
+var __destackModule = Object.freeze({ "package": {
+	"id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+	"name": "@destack/build-service-fixture",
+	"version": "2026.9.0"
+} });
+/** Record a published note under its declaring package. */
+var publishNote = defineAuditAction({
+	name: "Note.publish",
+	version: 1,
+	targets: strictObject({ note: strictObject({
+		type: literal("note"),
+		id: string()
+	}) }),
+	details: strictObject({ revision: number().int() })
+}, __destackModule);
+/** Package instruments initialized from build-injected metadata. */
+var instruments = scope(__destackModule.package);
+/** The shared application database. */
 var database = defineDatabase({
 	name: "main",
 	spec: { dialect: "sqlite" }
-});
-/** Tables and committed migration files distributed with the package. */
-var notes = defineDatabaseSchema({
-	name: "notes",
-	tables: { note: table("note", {
-		id: integer("id").primaryKey(),
-		title: text("title").notNull()
-	}) },
-	migrations: new URL("../../", new URL("asset/87b17192782a477c60547a58f765413ddd8c7c2ff58ea1d61859d2d2c4c6188c/postgresql/20260920000000_note/migration.sql", import.meta.url).href)
-});
-export { database, notes };
+}, __destackModule);
+/** The application's secret collection. */
+var vault = defineVault({
+	name: "credentials",
+	spec: {}
+}, __destackModule);
+/** The secret selected during installation. */
+var token = defineSecret({ name: "mail-token" }, __destackModule);
+/** The public notes API. */
+var router = { list: defineProcedure({
+	authentication: "public",
+	permission: null,
+	audit: false
+}).route({
+	method: "GET",
+	path: "/notes"
+}).output(strictObject({ path: string() })) };
+/** The public HTTP service. */
+var service = defineService("notes", router, __destackModule);
+/** A dependency on the installation's notes service. */
+var notes = defineServiceConnection("notes", service, __destackModule);
+/** Implement the public notes procedures. */
+function implementService() {
+	const implementation = implement(router);
+	return {
+		service,
+		router: implementation.router({ list: implementation.list.handler(() => ({ path: "/notes" })) }),
+		authorize: async () => {}
+	};
+}
+/** The web workload hosting notes and reminders. */
+var web = defineWorkload({
+	name: "web",
+	compute: { cpuTime: 1e3 },
+	start: async () => {
+		instruments.logger.emit({ body: "Workload started" });
+		return {
+			services: [implementService()],
+			schedules: [
+				reminders,
+				refresh,
+				appointment
+			].map(implementSchedule)
+		};
+	}
+}, __destackModule);
+/** The daily reminder schedule. */
+var reminders = defineSchedule({
+	name: "reminders",
+	timing: "cron",
+	cron: "0 9 * * *",
+	timezone: "UTC",
+	concurrency: "forbid",
+	deadline: 6e4
+}, __destackModule);
+/** Repeat from a fixed first occurrence. */
+var refresh = defineSchedule({
+	name: "refresh",
+	timing: "interval",
+	interval: 3e5,
+	startsAt: 18e11,
+	endsAt: 18000864e5,
+	concurrency: "forbid",
+	deadline: 6e4
+}, __destackModule);
+/** Send a reminder at one specified time. */
+var appointment = defineSchedule({
+	name: "appointment",
+	timing: "once",
+	startsAt: 18e11,
+	concurrency: "allow",
+	deadline: 6e4
+}, __destackModule);
+/** Log each occurrence of a reminder schedule. */
+function implementSchedule(schedule) {
+	return {
+		schedule,
+		run: async (signal) => {
+			signal.throwIfAborted();
+			instruments.logger.emit({ body: `Reminder ${schedule.name}` });
+		}
+	};
+}
+export { appointment, database, implementService, notes, publishNote, refresh, reminders, router, service, token, vault, web };
 
-//# sourceMappingURL=index-3AY5SgEi.js.map
+//# sourceMappingURL=server-wG9ewff2.js.map

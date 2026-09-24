@@ -10,6 +10,8 @@ import { request as resourceRequest } from "./fixture/resource/request.ts";
 import { request as stackRequest } from "./fixture/stack/request.ts";
 import { requests } from "./fixture/web/request.ts";
 import { PackageReader } from "@destack/package/manifest";
+import { WorkloadInstance } from "@destack/service/workload";
+import { ResourceContext } from "@destack/resource/context";
 
 /** Complete build scenarios and their expected output directories. */
 const fixtures = [
@@ -60,12 +62,27 @@ test.concurrent.for(fixtures)("build $name $expected", async (fixture, { expect 
         expect(module.createNote("A note")).toEqual({ title: "A note", complete: false });
     } else if (fixture.name === "service") {
         for (const output of Object.values(build.manifest.outputs)) {
+            // start the declared workload through the export its description names
+            const { entrypoint, export: name } = output.workloads.web;
             const module = await import(
-                pathToFileURL(join(destination, output.exports["./server"])).href
+                pathToFileURL(join(destination, output.exports[entrypoint])).href
             );
-            const response = await module.fetch(new Request("https://example.test/notes"));
+            await using instance = await WorkloadInstance.start(module[name], {
+                resources: new ResourceContext(),
+                service: () => ({
+                    audience: build.manifest.package.id,
+                    scope: "fixture",
+                    drainTimeout: 1000,
+                    authenticate: async () => null,
+                    authorizeHost: async () => {},
+                }),
+            });
+            const response = await instance.fetch(
+                module.service,
+                new Request("https://example.test/notes"),
+            );
             expect([response.status, await response.json()]).toEqual([200, { path: "/notes" }]);
-            expect(module.remind({ id: "occurrence-1" })).toBe("occurrence-1");
+            await instance.run(module.reminders, AbortSignal.timeout(1000));
         }
     } else if (fixture.name === "resource") {
         const module = await import(
@@ -87,6 +104,21 @@ test.concurrent.for(fixtures)("build $name $expected", async (fixture, { expect 
         );
         expect(module.personal.resources).toEqual({
             main: { declaration: module.database, retention: "retain", tags: {} },
+        });
+        expect(module.personal.installations).toEqual({
+            notes: {
+                package: {
+                    id: module.stack.id,
+                    name: "@example/stack",
+                    version: "1.0.0",
+                },
+                status: "enabled",
+                alias: "stack",
+                resources: { [module.database.package.id]: { main: { resource: "main" } } },
+                secrets: {},
+                compute: {},
+                tags: {},
+            },
         });
     } else if (fixture.name === "web") {
         const server = build.manifest.outputs["website-server"];
@@ -135,13 +167,13 @@ const invalid = [
         source: "export {};\n",
         code: "BUILD_FAILED",
         message: "select a view or an app source path",
-        application: { ...requests.browser, app: "src/App.tsx" },
+        application: { ...requests.browser, app: "src/app.tsx" },
     },
     {
         file: "server.ts",
-        source: "export function render(): string {\n    return document.title;\n}\n",
+        source: "/** Render the page title. */\nexport function render(): string {\n    return document.title;\n}\n",
         code: "BUILD_FAILED",
-        message: "Unsupported bun API: document.title at server.ts:46",
+        message: "Unsupported bun API: document.title at server.ts:76",
         application: { ...requests.static, entryServer: "server.ts", entryClient: "client.ts" },
     },
 ];

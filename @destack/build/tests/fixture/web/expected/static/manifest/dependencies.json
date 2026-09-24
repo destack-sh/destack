@@ -191,8 +191,8 @@
             },
             {
                 "path": "src/palette/colors.ts",
-                "digest": "1c6a5314a40e9739014aea0f0c26435190ffef10883a30b829d2f941dce02b6a",
-                "size": 26019,
+                "digest": "7580ec9608286edc0b482bf4d865803fe68690f8830aeded2f3d9070a4345c53",
+                "size": 26207,
                 "mediaType": "application/octet-stream"
             },
             {
@@ -249,8 +249,8 @@
             },
             {
                 "path": "package.json",
-                "digest": "c281f7827dd0cd9d31f0c79913d6d0809053c086687983f22f73eabb0cc8de0b",
-                "size": 1115,
+                "digest": "6e92d5aac8f313975d744fce9dbecb71ac43fff6ce74f913fd49dec2c5888fc9",
+                "size": 1129,
                 "mediaType": "application/json"
             },
             {

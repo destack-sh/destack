@@ -134,7 +134,7 @@ function slugify(input) {
 	return input.toLowerCase().trim().replace(/[^\w\s-]/g, "").replace(/[\s_-]+/g, "-").replace(/^-+|-+$/g, "");
 }
 var captureStackTrace = "captureStackTrace" in Error ? Error.captureStackTrace : (..._args) => {};
-function isObject(data) {
+function isObject$1(data) {
 	return typeof data === "object" && data !== null && !Array.isArray(data);
 }
 var allowsEval = /* @__PURE__*/ cached(() => {
@@ -148,12 +148,12 @@ var allowsEval = /* @__PURE__*/ cached(() => {
 	}
 });
 function isPlainObject(o) {
-	if (isObject(o) === false) return false;
+	if (isObject$1(o) === false) return false;
 	const ctor = o.constructor;
 	if (ctor === void 0) return true;
 	if (typeof ctor !== "function") return true;
 	const prot = ctor.prototype;
-	if (isObject(prot) === false) return false;
+	if (isObject$1(prot) === false) return false;
 	if (Object.prototype.hasOwnProperty.call(prot, "isPrototypeOf") === false) return false;
 	return true;
 }
@@ -989,8 +989,8 @@ function emoji() {
 }
 var ipv4 = /^(?:(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(?:25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$/;
 var ipv6 = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))$/;
-var cidrv4$1 = /^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/([0-9]|[1-2][0-9]|3[0-2])$/;
-var cidrv6$1 = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))\/(12[0-8]|1[01][0-9]|[1-9]?[0-9])$/;
+var cidrv4 = /^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\/([0-9]|[1-2][0-9]|3[0-2])$/;
+var cidrv6 = /^(([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:))\/(12[0-8]|1[01][0-9]|[1-9]?[0-9])$/;
 var base64 = /^$|^(?:[0-9a-zA-Z+/]{4})*(?:(?:[0-9a-zA-Z+/]{2}==)|(?:[0-9a-zA-Z+/]{3}=))?$/;
 var base64url = /^(?:[A-Za-z0-9_-]{4})*(?:[A-Za-z0-9_-]{2,3})?$/;
 var httpProtocol = /^https?$/;
@@ -1692,7 +1692,7 @@ var $ZodIPv6 = /*@__PURE__*/ $constructor("$ZodIPv6", (inst, def) => {
 	};
 });
 var $ZodCIDRv4 = /*@__PURE__*/ $constructor("$ZodCIDRv4", (inst, def) => {
-	def.pattern ?? (def.pattern = cidrv4$1);
+	def.pattern ?? (def.pattern = cidrv4);
 	$ZodStringFormat.init(inst, def);
 });
 function isValidCIDRv6(value) {
@@ -1706,7 +1706,7 @@ function isValidCIDRv6(value) {
 	return isValidIPv6(address);
 }
 var $ZodCIDRv6 = /*@__PURE__*/ $constructor("$ZodCIDRv6", (inst, def) => {
-	def.pattern ?? (def.pattern = cidrv6$1);
+	def.pattern ?? (def.pattern = cidrv6);
 	$ZodStringFormat.init(inst, def);
 	inst._zod.check = (payload) => {
 		if (!isValidCIDRv6(payload.value)) payload.issues.push({
@@ -2015,7 +2015,7 @@ var $ZodObject = /*@__PURE__*/ $constructor("$ZodObject", (inst, def) => {
 		}
 		return propValues;
 	});
-	const isObject$2 = isObject;
+	const isObject = isObject$1;
 	const catchall = def.catchall;
 	let value;
 	const memo = globalConfig.memoizer;
@@ -2023,7 +2023,7 @@ var $ZodObject = /*@__PURE__*/ $constructor("$ZodObject", (inst, def) => {
 	inst._zod.parse = (payload, ctx) => {
 		value ?? (value = _normalized.value);
 		const input = payload.value;
-		if (!isObject$2(input)) {
+		if (!isObject(input)) {
 			payload.issues.push({
 				expected: "object",
 				code: "invalid_type",
@@ -2153,7 +2153,7 @@ var $ZodObjectJIT = /*@__PURE__*/ $constructor("$ZodObjectJIT", (inst, def) => {
 		return doc.compile();
 	};
 	let fastpass;
-	const isObject$1 = isObject;
+	const isObject = isObject$1;
 	const jit = !globalConfig.jitless;
 	const fastEnabled = jit && allowsEval.value;
 	const catchall = def.catchall;
@@ -2161,7 +2161,7 @@ var $ZodObjectJIT = /*@__PURE__*/ $constructor("$ZodObjectJIT", (inst, def) => {
 	inst._zod.parse = (payload, ctx) => {
 		value ?? (value = _normalized.value);
 		const input = payload.value;
-		if (!isObject$1(input)) {
+		if (!isObject(input)) {
 			payload.issues.push({
 				expected: "object",
 				code: "invalid_type",
@@ -2232,70 +2232,6 @@ var $ZodUnion = /*@__PURE__*/ $constructor("$ZodUnion", (inst, def) => {
 		return Promise.all(results).then((results) => {
 			return handleUnionResults(results, payload, inst, ctx);
 		});
-	};
-});
-function discriminatorMap(def) {
-	const map = /* @__PURE__ */ new Map();
-	for (const option of def.options) {
-		const values = option._zod.propValues?.[def.discriminator];
-		if (!values || values.size === 0) throw new Error(`Invalid discriminated union option at index "${def.options.indexOf(option)}"`);
-		for (const value of values) if (map.has(value)) {
-			if (value !== void 0) throw new Error(`Duplicate discriminator value "${String(value)}"`);
-			map.set(value, null);
-		} else map.set(value, option);
-	}
-	return map;
-}
-var $ZodDiscriminatedUnion = /*@__PURE__*/ $constructor("$ZodDiscriminatedUnion", (inst, def) => {
-	def.inclusive = false;
-	$ZodUnion.init(inst, def);
-	const _super = inst._zod.parse;
-	defineLazyInternal(inst, "propValues", (zod) => {
-		const propValues = {};
-		let undefinedCount = 0;
-		for (const option of zod.def.options) {
-			const pv = option._zod.propValues;
-			if (!pv || Object.keys(pv).length === 0) throw new Error(`Invalid discriminated union option at index "${zod.def.options.indexOf(option)}"`);
-			if (pv[zod.def.discriminator]?.has(void 0)) undefinedCount++;
-			for (const [k, v] of Object.entries(pv)) {
-				if (!Object.prototype.hasOwnProperty.call(propValues, k)) assignProp(propValues, k, /* @__PURE__ */ new Set());
-				for (const val of v) propValues[k].add(val);
-			}
-		}
-		if (!zod.def.unionFallback && undefinedCount > 1) propValues[zod.def.discriminator]?.delete(void 0);
-		return propValues;
-	});
-	def.options.forEach((option, i) => {
-		const propShape = rawShape(option._zod.def);
-		if (propShape && !Object.prototype.hasOwnProperty.call(propShape, def.discriminator)) throw new Error(`Invalid discriminated union option at index "${i}"`);
-	});
-	const disc = cached(() => discriminatorMap(def));
-	inst._zod.parse = (payload, ctx) => {
-		const input = payload.value;
-		if (!isObject(input)) {
-			payload.issues.push({
-				code: "invalid_type",
-				expected: "object",
-				input,
-				inst
-			});
-			return payload;
-		}
-		const value = input?.[def.discriminator];
-		const opt = disc.value.get(value);
-		if (opt && (value !== void 0 || ctx.direction !== "backward")) return opt._zod.run(payload, ctx);
-		if (def.unionFallback || ctx.direction === "backward") return _super(payload, ctx);
-		payload.issues.push({
-			code: "invalid_union",
-			errors: [],
-			note: "No matching discriminator",
-			discriminator: def.discriminator,
-			options: Array.from(disc.value.keys()).filter((value) => disc.value.get(value) !== null),
-			input,
-			path: [def.discriminator],
-			inst
-		});
-		return payload;
 	};
 });
 var $ZodIntersection = /*@__PURE__*/ $constructor("$ZodIntersection", (inst, def) => {
@@ -2411,114 +2347,6 @@ function handleIntersectionResults(result, left, right) {
 	}
 	result.value = merged.data;
 	return result;
-}
-var $ZodTuple = /*@__PURE__*/ $constructor("$ZodTuple", (inst, def) => {
-	$ZodType.init(inst, def);
-	const items = def.items;
-	const memo = globalConfig.memoizer;
-	memo?.attach(inst);
-	inst._zod.parse = (payload, ctx) => {
-		const input = payload.value;
-		if (!Array.isArray(input)) {
-			payload.issues.push({
-				input,
-				inst,
-				expected: "tuple",
-				code: "invalid_type"
-			});
-			return payload;
-		}
-		payload.value = memo ? memo.alloc(inst, payload, [], ctx) : [];
-		const proms = [];
-		const optinStart = getTupleOptStart(items, "optin");
-		const optoutStart = getTupleOptStart(items, "optout");
-		if (!def.rest) {
-			if (input.length < optinStart) {
-				payload.issues.push({
-					code: "too_small",
-					minimum: optinStart,
-					inclusive: true,
-					input,
-					inst,
-					origin: "array"
-				});
-				return payload;
-			}
-			if (input.length > items.length) payload.issues.push({
-				code: "too_big",
-				maximum: items.length,
-				inclusive: true,
-				input,
-				inst,
-				origin: "array"
-			});
-		}
-		const itemResults = new Array(items.length);
-		const abortEarly = def.rest ? ctx?.abortEarly : void 0;
-		let itemAborted = false;
-		for (let i = 0; i < items.length; i++) {
-			const r = items[i]._zod.run({
-				value: input[i],
-				issues: []
-			}, ctx);
-			if (r instanceof Promise) proms.push(r.then((rr) => {
-				itemResults[i] = rr;
-			}));
-			else {
-				itemResults[i] = r;
-				if (abortEarly && !itemAborted && r.issues.length) itemAborted = aborted(r);
-			}
-		}
-		if (def.rest && !itemAborted) {
-			let i = items.length - 1;
-			const rest = input.slice(items.length);
-			let seen = payload.issues.length;
-			for (const el of rest) {
-				if (abortEarly && payload.issues.length !== seen) {
-					if (aborted(payload, seen)) break;
-					seen = payload.issues.length;
-				}
-				i++;
-				const result = def.rest._zod.run({
-					value: el,
-					issues: []
-				}, ctx);
-				if (result instanceof Promise) proms.push(result.then((r) => handleTupleResult(r, payload, i)));
-				else handleTupleResult(result, payload, i);
-			}
-		}
-		if (proms.length) return Promise.all(proms).then(() => handleTupleResults(itemResults, payload, items, input, optoutStart));
-		return handleTupleResults(itemResults, payload, items, input, optoutStart);
-	};
-});
-function getTupleOptStart(items, key) {
-	for (let i = items.length - 1; i >= 0; i--) if (!(key === "optin" ? items[i]._zod.optin !== void 0 : items[i]._zod.optout === "optional")) return i + 1;
-	return 0;
-}
-function handleTupleResult(result, final, index) {
-	if (result.issues.length) final.issues.push(...prefixIssues(index, result.issues));
-	final.value[index] = result.value;
-}
-function handleTupleResults(itemResults, final, items, input, optoutStart) {
-	for (let i = 0; i < items.length; i++) {
-		const r = itemResults[i];
-		const isPresent = i < input.length;
-		if (!isPresent && i >= optoutStart && items[i]._zod.optin === "optional") {
-			final.value.length = i;
-			break;
-		}
-		if (r.issues.length) {
-			if (!isPresent && i >= optoutStart) {
-				final.value.length = i;
-				break;
-			}
-			final.issues.push(...prefixIssues(i, r.issues));
-		}
-		final.value[i] = r.value;
-	}
-	for (let i = final.value.length - 1; i >= input.length; i--) if (items[i]._zod.optout === "optional" && final.value[i] === void 0) final.value.length = i;
-	else break;
-	return final;
 }
 var $ZodRecord = /*@__PURE__*/ $constructor("$ZodRecord", (inst, def) => {
 	$ZodType.init(inst, def);
@@ -4557,58 +4385,6 @@ var intersectionProcessor = (schema, ctx, json, params) => {
 	json.allOf = allOf;
 	ctx.intersections.push(allOf);
 };
-var tupleProcessor = (schema, ctx, _json, params) => {
-	const json = _json;
-	const def = schema._zod.def;
-	json.type = "array";
-	const prefixPath = ctx.target === "draft-2020-12" ? "prefixItems" : "items";
-	const restPath = ctx.target === "draft-2020-12" ? "items" : ctx.target === "openapi-3.0" ? "items" : "additionalItems";
-	const prefixItems = def.items.map((x, i) => processSchema(x, ctx, {
-		...params,
-		path: [
-			...params.path,
-			prefixPath,
-			i
-		]
-	}));
-	const rest = def.rest ? processSchema(def.rest, ctx, {
-		...params,
-		path: [
-			...params.path,
-			restPath,
-			...ctx.target === "openapi-3.0" ? [def.items.length] : []
-		]
-	}) : null;
-	let minItems = def.items.length;
-	while (minItems > 0) {
-		const item = def.items[minItems - 1];
-		if (!(ctx.io === "input" ? inputOptin(item) !== void 0 : item._zod.optout === "optional")) break;
-		minItems--;
-	}
-	const maxItems = def.items.length;
-	const isClosed = !def.rest;
-	if (ctx.target === "draft-2020-12") {
-		json.prefixItems = prefixItems;
-		if (isClosed) json.items = false;
-		else if (rest) json.items = rest;
-		if (minItems > 0) json.minItems = minItems;
-		if (isClosed) json.maxItems = maxItems;
-	} else if (ctx.target === "openapi-3.0") {
-		json.items = { anyOf: prefixItems };
-		if (rest) json.items.anyOf.push(rest);
-		if (minItems > 0) json.minItems = minItems;
-		if (isClosed) json.maxItems = maxItems;
-	} else {
-		json.items = prefixItems;
-		if (isClosed) json.additionalItems = false;
-		else if (rest) json.additionalItems = rest;
-		if (minItems > 0) json.minItems = minItems;
-		if (isClosed) json.maxItems = maxItems;
-	}
-	const { minimum, maximum } = aggregateChecks(schema);
-	if (typeof minimum === "number") json.minItems = minimum;
-	if (typeof maximum === "number") json.maxItems = maximum;
-};
 /** JSON object keys are always strings, so a numeric record key schema is re-expressed over the
 * numeric-string form the record parser matches. Deferred to `finalize`, after the flatten: a key
 * behind a wrapper only carries its own `type` before then, and a union key only has its branches.
@@ -5256,16 +5032,10 @@ var ZodCIDRv4 = /*@__PURE__*/ $constructor("ZodCIDRv4", (inst, def) => {
 	$ZodCIDRv4.init(inst, def);
 	ZodStringFormat.init(inst, def);
 });
-function cidrv4(params) {
-	return /* @__PURE__ */ _cidrv4(ZodCIDRv4, params);
-}
 var ZodCIDRv6 = /*@__PURE__*/ $constructor("ZodCIDRv6", (inst, def) => {
 	$ZodCIDRv6.init(inst, def);
 	ZodStringFormat.init(inst, def);
 });
-function cidrv6(params) {
-	return /* @__PURE__ */ _cidrv6(ZodCIDRv6, params);
-}
 var ZodBase64 = /*@__PURE__*/ $constructor("ZodBase64", (inst, def) => {
 	$ZodBase64.init(inst, def);
 	ZodStringFormat.init(inst, def);
@@ -5487,18 +5257,6 @@ function union(options, params) {
 		...normalizeParams(params)
 	});
 }
-var ZodDiscriminatedUnion = /*@__PURE__*/ $constructor("ZodDiscriminatedUnion", (inst, def) => {
-	ZodUnion.init(inst, def);
-	$ZodDiscriminatedUnion.init(inst, def);
-});
-function discriminatedUnion(discriminator, options, params) {
-	return new ZodDiscriminatedUnion({
-		type: "union",
-		options,
-		discriminator,
-		...normalizeParams(params)
-	});
-}
 var ZodIntersection = /*@__PURE__*/ $constructor("ZodIntersection", (inst, def) => {
 	$ZodIntersection.init(inst, def);
 	ZodType.init(inst, def);
@@ -5509,39 +5267,6 @@ function intersection(left, right) {
 		type: "intersection",
 		left,
 		right
-	});
-}
-var ZodTuple = /*@__PURE__*/ $constructor("ZodTuple", (inst, def) => {
-	_ensureDefaultMemoizer();
-	$ZodTuple.init(inst, def);
-	ZodType.init(inst, def);
-	inst._zod.processJSONSchema = (ctx, json, params) => tupleProcessor(inst, ctx, json, params);
-}, {
-	rest(rest) {
-		return this.clone({
-			...this._zod.def,
-			rest
-		});
-	},
-	partial() {
-		const def = this._zod.def;
-		if (def.checks?.length) throw new Error(".partial() cannot be used on tuple schemas containing refinements");
-		return this.clone({
-			...def,
-			items: def.items.map((item) => new ZodOptional({
-				type: "optional",
-				innerType: item
-			}))
-		});
-	}
-});
-function tuple(items, _paramsOrRest, _params) {
-	const hasRest = _paramsOrRest instanceof $ZodType;
-	return new ZodTuple({
-		type: "tuple",
-		items,
-		rest: hasRest ? _paramsOrRest : null,
-		...normalizeParams(hasRest ? _params : _paramsOrRest)
 	});
 }
 var ZodRecord = /*@__PURE__*/ $constructor("ZodRecord", (inst, def) => {
@@ -5779,7 +5504,7 @@ var ZodLazy = /*@__PURE__*/ $constructor("ZodLazy", (inst, def) => {
 	inst._zod.processJSONSchema = (ctx, json, params) => lazyProcessor(inst, ctx, json, params);
 	inst.unwrap = () => inst._zod.def.getter();
 });
-function lazy(getter) {
+function lazy$1(getter) {
 	return new ZodLazy({
 		type: "lazy",
 		getter
@@ -5797,7 +5522,7 @@ function superRefine(fn, params) {
 	return /* @__PURE__ */ _superRefine(fn, params);
 }
 function json(params) {
-	const jsonSchema = lazy(() => {
+	const jsonSchema = lazy$1(() => {
 		return union([
 			string(params),
 			number(),
@@ -5820,13 +5545,13 @@ var METADATA_KEYS = /* @__PURE__ */ new Set([
 	"examples"
 ]);
 /** Require declarative schemas for JSON-compatible values. */
-function validate(schema, visited, isProperty) {
+function validate(schema, visited, isOptionalAllowed) {
 	const definition = schema._zod.def;
-	if (definition.type === "optional" && !isProperty) throw new TypeError("optional schemas are only supported as object properties");
+	if (definition.type === "optional" && !isOptionalAllowed) throw new TypeError("optional schemas are only supported as object properties");
 	const contexts = visited.get(schema);
-	if (contexts?.has(isProperty)) return;
-	if (contexts) contexts.add(isProperty);
-	else visited.set(schema, /* @__PURE__ */ new Set([isProperty]));
+	if (contexts?.has(isOptionalAllowed)) return;
+	if (contexts) contexts.add(isOptionalAllowed);
+	else visited.set(schema, /* @__PURE__ */ new Set([isOptionalAllowed]));
 	const metadata = globalRegistry.get(schema);
 	for (const key of Object.keys(metadata ?? {})) if (!METADATA_KEYS.has(key)) throw new TypeError(`unsupported schema metadata: ${key}`);
 	if (metadata !== void 0) json().parse(metadata);
@@ -5914,20 +5639,23 @@ function validate(schema, visited, isProperty) {
 			validate(definition.valueType, visited, false);
 			break;
 		case "intersection":
-			validate(definition.left, visited, isProperty);
-			validate(definition.right, visited, isProperty);
+			validate(definition.left, visited, isOptionalAllowed);
+			validate(definition.right, visited, isOptionalAllowed);
 			break;
 		case "union":
-			for (const option of definition.options) validate(option, visited, isProperty);
+			for (const option of definition.options) validate(option, visited, isOptionalAllowed);
 			break;
 		case "nullable":
-			validate(definition.innerType, visited, isProperty);
+			validate(definition.innerType, visited, isOptionalAllowed);
 			break;
 		case "optional":
-			validate(definition.innerType, visited, isProperty);
+			validate(definition.innerType, visited, isOptionalAllowed);
+			break;
+		case "nonoptional":
+			validate(definition.innerType, visited, true);
 			break;
 		case "lazy":
-			validate(definition.getter(), visited, isProperty);
+			validate(definition.getter(), visited, isOptionalAllowed);
 			break;
 		default: throw new TypeError(`unsupported schema type: ${definition.type}`);
 	}
@@ -5947,88 +5675,23 @@ function identifier(prefix) {
 	defineSchema(validator);
 	return validator;
 }
-/** A named declaration whose client is selected by the invocation's host. */
-var ResourceHandle = class {
-	/** Package-local resource name. */
-	name;
-	/** Retain the package-local binding name. */
-	constructor(name) {
-		this.name = name;
-	}
-	/** Get the client bound to the current operation. */
-	get(context) {
-		return context.get(this);
-	}
-};
-/** A declaration name within a package. */
-var ResourceName = defineSchema(string().regex(/^[a-z][a-z0-9-]*$(?![\s\S])/));
-/** A named infrastructure dependency declared by a package. */
-var ResourceDeclaration = defineSchema(strictObject({
-	/** The package-local resource name. */
-	name: ResourceName,
-	/** The resource kind defined by its domain library. */
-	kind: ResourceName,
-	/** The declaration format version. */
-	version: number().int().positive(),
-	/** The specification validated by the domain library. */
-	spec: record(string(), json())
-}));
-/** An inert declaration with access to a host-bound client. */
-var Resource = class extends ResourceHandle {
-	/** The resource kind. */
-	kind;
-	/** The declaration format version. */
-	version;
-	/** The domain specification. */
-	spec;
-	/** Retain validated metadata without opening a resource. */
-	constructor(declaration) {
-		super(declaration.name);
-		this.kind = declaration.kind;
-		this.version = declaration.version;
-		this.spec = declaration.spec;
-	}
-};
-/** Define a resource declaration with a concrete specification. */
-function defineResourceSchema(kind, version, spec) {
-	ResourceDeclaration.pick({
-		kind: true,
-		version: true
-	}).parse({
-		kind,
-		version
-	});
-	return defineSchema(ResourceDeclaration.extend({
-		kind: literal(kind),
-		version: literal(version),
-		spec
-	}));
-}
-/** A provisioned resource in a space. */
-var ResourceReference = defineSchema(strictObject({
-	/** The space containing the resource. */
-	space: identifier("space"),
-	/** The persistent resource identifier. */
-	resource: identifier("resource")
-}));
-defineSchema(strictObject({
-	/** The installation containing the declaration. */
-	installation: identifier("installation"),
-	/** The package declaring the resource, including imported stack packages. */
-	package: identifier("package"),
-	/** The declaration name in its package. */
-	name: ResourceName,
-	/** The resource selected by the host. */
-	target: ResourceReference
-}));
-/** An invalid space configuration. */
-var SpaceError = class extends Error {
+defineSchema(_enum([
+	"INVALID_DEFINITION",
+	"UNSUPPORTED_LANGUAGE",
+	"UNSUPPORTED_TARGET",
+	"INVALID_EXPORT",
+	"INVALID_DEPENDENCY",
+	"INVALID_FILE",
+	"INVALID_INSPECTION"
+]));
+/** A package failure with its original cause. */
+var PackageError = class extends Error {
 	/** Stable failure code. */
 	code;
-	/** Create a configuration failure. */
+	/** Create a package error with its code, message and cause. */
 	constructor(code, message, options) {
 		super(message, options);
-		this.name = "SpaceError";
+		this.name = "PackageError";
 		this.code = code;
 	}
 };
@@ -6050,12 +5713,12 @@ defineSchema(strictObject({
 var Entrypoint = defineSchema(string().regex(/^\.(?:\/[^\s*]+)?$(?![\s\S])/));
 /** The immutable identity retained across package renames and releases. */
 var PackageId = identifier("package");
+/** A declaration name within a package. */
+var DeclarationName = defineSchema(string().regex(/^[a-z][a-z0-9-]*$(?![\s\S])/));
 /** A scoped Destack package name. */
 var PackageName = defineSchema(string().max(214).regex(/^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$(?![\s\S])/));
-/** A scoped or unscoped dependency name. */
-var DependencyName = defineSchema(string().max(214).regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$(?![\s\S])/));
 defineSchema(strictObject({
-	name: DependencyName,
+	name: defineSchema(string().max(214).regex(/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$(?![\s\S])/)),
 	version: string().min(1)
 }));
 /** The immutable identity, current name and version declared by a Destack package. */
@@ -6100,500 +5763,114 @@ var ComputeDefinition = defineSchema(strictObject({
 	/** CPU time allowed per invocation in milliseconds. */
 	cpuTime: number().int().positive().optional()
 }));
-/** A resource created by the configuration or explicitly adopted into its administration. */
-var SpaceResource = defineSchema(strictObject({
-	/** The resource declaration imported from its domain library. */
-	declaration: ResourceDeclaration,
-	/** An existing resource to adopt, subject to ownership and residency checks. */
-	adopt: ResourceReference.optional(),
-	/** Whether authorised removal retains or destroys the resource contents. */
-	retention: _enum(["retain", "delete"]),
-	/** Provider placement, absent when selected by the host. */
-	placement: strictObject({
-		/** The provider adapter. */
-		provider: string().min(1),
-		/** The location code accepted by the provider adapter. */
-		location: string().min(1).optional(),
-		/** The host administering the resource. */
-		host: identifier("host").optional()
-	}).optional(),
-	/** User-defined labels. */
-	tags: record(string().min(1), string())
+/** Build metadata supplied to a module through import.meta.destack. */
+var ModuleMetadata = defineSchema(strictObject({ 
+/** The package containing this module, including modules bundled from dependencies. */
+package: Package }));
+/** Require the module metadata the Destack module transform passes to a declaration constructor. */
+function declaringModule(module, constructor) {
+	if (!module) throw new PackageError("INVALID_DEFINITION", `${constructor} requires the Destack module transform to supply its package`);
+	return ModuleMetadata.parse(module);
+}
+/** A declaration qualified by its declaring package, as bindings, permissions and events store it. */
+var DeclarationReference = defineSchema(strictObject({
+	/** The immutable identity of the declaring package. */
+	packageId: PackageId,
+	/** The package-local declaration name. */
+	name: DeclarationName
 }));
-/** Secret metadata declared in source, with values supplied through the vault API. */
-var SpaceSecret = defineSchema(strictObject({
-	/** The configuration resource containing the secret. */
-	vault: ResourceName,
-	/** The name within the vault. */
-	name: ResourceName
-}));
-/** Select a declared or existing resource in the destination space. */
-var SpaceResourceBinding = defineSchema(union([strictObject({ 
-/** The resource key in this configuration. */
-resource: ResourceName }), strictObject({ 
-/** The existing resource; application verifies its destination space. */
-external: ResourceReference })]));
-/** Select a configuration secret or an explicitly authorised existing secret. */
-var SpaceSecretBinding = defineSchema(strictObject({
-	/** The selected secret. */
-	target: union([strictObject({ 
-	/** The secret key in this configuration. */
-secret: ResourceName }), strictObject({
-		/** The destination space containing the existing secret. */
-		space: identifier("space"),
-		/** The existing secret. */
-		secret: identifier("secret")
-	})]),
-	/** Exact version; absence selects the current version at access time. */
-	version: number().int().positive().optional()
-}));
-/** The decision applied to a matching package. */
-var PackageDecision = defineSchema(_enum(["allow", "deny"]));
-/** Package admission for a space and its installations. */
-var PackagePolicyDefinition = defineSchema(strictObject({ 
-/** Rules for the root package and every resolved dependency. */
-admission: defineSchema(strictObject({
-	/** The decision when no rule matches. */
-	default: PackageDecision,
-	/** Rules keyed by stable names used in diagnostics and audit records. */
-	rules: record(ResourceName, defineSchema(strictObject({
-		/** All specified selector fields must match. */
-		package: defineSchema(strictObject({
-			/** The package format, including source packages authored for Destack. */
-			kind: _enum(["npm", "destack"]),
-			/** The canonical registry URL; omission matches any registry of this format. */
-			registry: string().regex(/^https?:\/\/[^\s?#@]+\/$/).optional(),
-			/** An exact package name; omission matches every name. */
-			name: DependencyName.optional(),
-			/** An npm version range; omission matches every version. */
-			version: string().min(1).optional(),
-			/** Exact content integrity; omission permits any content matching the other fields. */
-			integrity: string().min(1).optional()
-		})),
-		/** Deny takes precedence over allow within this policy. */
-		decision: PackageDecision
-	})))
-})) }));
-/** An outbound connection rule. */
-var NetworkRule = defineSchema(strictObject({
-	/** The destination to match, checked again after redirects and DNS resolution. */
-	destination: defineSchema(union([
-		strictObject({ 
-		/** Globally routable destinations, excluding host and provider control endpoints. */
-kind: literal("public") }),
-		strictObject({
-			/** Match a canonical DNS hostname. */
-			kind: literal("hostname"),
-			/** Lowercase ASCII hostname, without a trailing dot or wildcard. */
-			hostname: string().max(253).regex(/^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)*[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/),
-			/** Include descendants of this hostname. */
-			subdomains: boolean()
-		}),
-		strictObject({
-			/** Match the actual destination address against an IP network. */
-			kind: literal("network"),
-			/** An IPv4 or IPv6 address range; use /32 or /128 for a single address. */
-			cidr: union([cidrv4(), cidrv6()])
-		})
-	])),
-	/** The application protocol or raw transport. */
-	protocol: _enum([
-		"http",
-		"https",
-		"ws",
-		"wss",
-		"tcp",
-		"udp"
-	]),
-	/** Matching ports; omission uses protocol defaults, or any raw transport port. */
-	ports: array(int().min(1).max(65535)).min(1).optional(),
-	/** Deny takes precedence over allow within this policy. */
-	decision: _enum(["allow", "deny"])
-}));
-/**
-* Outbound network restrictions for an account, space, installation, or workload.
-*/
-var NetworkPolicyDefinition = defineSchema(strictObject({
-	/** The decision for unmatched public destinations. */
-	default: _enum(["allow", "deny"]),
-	/** Named rules; nonpublic destinations require an explicit IP network allow rule. */
-	rules: record(ResourceName, NetworkRule)
-}));
-/** Source-managed policies applied throughout a space. */
-var SpacePolicies = defineSchema(strictObject({
-	/** Package admission rules. */
-	packages: PackagePolicyDefinition.optional(),
-	/** Outbound access intersected with account and host restrictions. */
-	network: NetworkPolicyDefinition.optional()
-}));
-/** Network restrictions applied to an installation and its named workloads. */
-var InstallationPolicies = defineSchema(strictObject({
-	/** Restrictions shared by every workload in the installation. */
-	network: NetworkPolicyDefinition.optional(),
-	/** Additional restrictions for individual package workloads. */
-	workloads: record(ResourceName, strictObject({ 
-	/** Outbound access intersected with installation, space, account, and host restrictions. */
-network: NetworkPolicyDefinition })).optional()
-}));
-/** Select an installation by configuration key or persistent identifier in the destination space. */
-var SpaceInstallationReference = defineSchema(union([ResourceName, strictObject({ 
-/** The existing installation checked when applying the configuration. */
-id: identifier("installation") })]));
-/** A package installation declared in a configuration. */
-var SpaceInstallation = defineSchema(strictObject({
-	/** Additional restrictions for this installation and its workloads. */
-	policies: InstallationPolicies.optional(),
-	/** The package release selected by this configuration. */
-	package: Package,
-	/** Whether this installation should serve requests. */
-	status: _enum(["enabled", "suspended"]),
-	/** Space-local URL alias, independent of the stable installation key. */
-	alias: ResourceName,
-	/** Resource selections keyed by immutable package ID and declaration name. */
-	resources: record(PackageId, record(ResourceName, SpaceResourceBinding)),
-	/** Secret selections keyed by immutable package ID and declaration name. */
-	secrets: record(PackageId, record(ResourceName, SpaceSecretBinding)),
-	/** Workload compute settings checked against package and host policy. */
-	compute: record(ResourceName, ComputeDefinition),
-	/** User-defined labels. */
-	tags: record(string().min(1), string())
-}));
-/** An authenticated identity or a verified group or bearer-token identity. */
-var Subject = defineSchema(strictObject({
-	/** The authenticated identity category. */
-	kind: _enum([
-		"user",
-		"service-account",
-		"group",
-		"share-token"
-	]),
-	/** The authority responsible for the identity. */
-	authority: string().min(1),
-	/** The immutable identifier assigned by that authority. */
-	id: string().min(1)
-}));
-/** A scalar attribute accepted by both memory and SQL evaluation. */
-var Attribute = union([
-	string(),
-	number().finite(),
-	boolean()
-]);
-/** A stable declaration-local name used by access rules. */
-var AccessName = string().regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/);
-/** Construct a relation membership expression. */
-function relation(name) {
+/** Reference a declaration by its package identity and name. */
+function reference(declaration) {
 	return {
-		kind: "relation",
-		name: AccessName.parse(name)
+		packageId: declaration.package.id,
+		name: declaration.name
 	};
 }
-/** Reject an invalid declaration, unavailable record, or unauthorized operation. */
-var AccessError = class extends Error {
-	/** Stable failure classification. */
-	code;
-	/** Retain the error classification and cause. */
-	constructor(code, message, options) {
-		super(message, options);
-		this.name = "AccessError";
-		this.code = code;
+/** A unit of deployment, as its declaration defines it. */
+var WorkloadDefinition = defineSchema(strictObject({
+	/** The package-local workload name. */
+	name: DeclarationName,
+	/** Capacity and lifecycle policy for each instance. */
+	compute: ComputeDefinition.optional()
+}).strict());
+defineSchema(strictObject({
+	/** The package export exposing the workload declaration. */
+	entrypoint: Entrypoint,
+	/** The export name of the workload declaration within the entrypoint. */
+	export: string().min(1),
+	/** Service declarations of this package reachable from the workload. */
+	services: array(DeclarationReference),
+	/** Schedule declarations of this package reachable from the workload. */
+	schedules: array(DeclarationReference),
+	/** Resource declarations reachable from the workload. */
+	resources: array(DeclarationReference),
+	/** Secret declarations reachable from the workload. */
+	secrets: array(DeclarationReference),
+	/** Service connection declarations reachable from the workload. */
+	connections: array(DeclarationReference),
+	/** Capacity and lifecycle policy for each instance. */
+	compute: ComputeDefinition
+}));
+/** A named declaration whose client is selected by the invocation's host. */
+var ResourceHandle = class {
+	/** The package declaring the handle, supplied by the module transform. */
+	package;
+	/** Package-local resource name. */
+	name;
+	/** Retain the declaring package and its package-local binding name. */
+	constructor(owner, name) {
+		this.package = owner;
+		this.name = name;
+	}
+	/** Get the client bound to the current operation. */
+	get(context) {
+		return context.get(this);
 	}
 };
-/** Serialized scalar references used by access inspection. */
-var AccessOperandDescription = union([strictObject({
-	kind: literal("literal"),
-	value: Attribute
-}), strictObject({
-	kind: _enum(["object", "context"]),
-	name: AccessName,
-	type: _enum([
-		"string",
-		"number",
-		"boolean"
-	])
-})]);
-/** Serialized permission expressions with no executable callbacks. */
-var AccessExpressionDescription = lazy(() => union([
-	strictObject({
-		kind: _enum(["relation", "permission"]),
-		name: AccessName
-	}),
-	strictObject({
-		kind: _enum(["union", "intersection"]),
-		expressions: array(AccessExpressionDescription).min(1)
-	}),
-	strictObject({
-		kind: literal("exclusion"),
-		include: AccessExpressionDescription,
-		exclude: AccessExpressionDescription
-	}),
-	strictObject({
-		kind: literal("compare"),
-		operator: _enum([
-			"eq",
-			"ne",
-			"lt",
-			"lte",
-			"gt",
-			"gte"
-		]),
-		left: AccessOperandDescription,
-		right: AccessOperandDescription
-	}),
-	strictObject({
-		kind: literal("through"),
-		relation: AccessName,
-		permission: AccessName,
-		transitive: boolean()
-	})
-]));
-/** A package's inspectable object types, relationships, and permissions. */
-var AccessDeclaration = defineSchema(strictObject({
-	packageId: PackageId,
-	name: AccessName,
-	attributes: record(AccessName, _enum([
-		"string",
-		"number",
-		"boolean"
-	])),
-	relations: record(AccessName, discriminatedUnion("kind", [
-		strictObject({
-			kind: literal("grant"),
-			subjects: array(_enum([
-				"user",
-				"group",
-				"service-account",
-				"share-token",
-				"everyone"
-			])).min(1),
-			permission: AccessName
-		}),
-		strictObject({
-			kind: literal("subject"),
-			subjects: array(_enum([
-				"user",
-				"group",
-				"service-account",
-				"share-token"
-			])).min(1)
-		}),
-		strictObject({
-			kind: literal("object"),
-			type: AccessName
-		})
-	])),
-	permissions: record(AccessName, AccessExpressionDescription)
+/** A named infrastructure dependency declared by a package. */
+var ResourceDescription = defineSchema(strictObject({
+	/** The package-local resource name. */
+	name: DeclarationName,
+	/** The resource kind defined by its domain library. */
+	kind: DeclarationName,
+	/** The declaration format version. */
+	version: number().int().positive(),
+	/** The specification validated by the domain library. */
+	spec: record(string(), json())
 }));
-/** A protected object within an explicit authority and installation scope. */
-var ObjectReference = defineSchema(strictObject({
-	/** The package that declares the object type. */
-	packageId: PackageId,
-	/** The declaration-local object type name. */
-	type: AccessName,
-	/** The authority scope containing the object. */
-	scope: string().min(1),
-	/** The stable application record identity. */
-	id: string().min(1)
-}));
-/** A declaration with typed references to its permissions and relations. */
-var ObjectType = class {
-	/** The immutable serializable declaration. */
-	definition;
-	/** Copy a declaration so later caller mutations cannot change access rules. */
-	constructor(definition) {
-		this.definition = freeze(AccessDeclaration.parse(definition));
-	}
-	/** Identify an object without inferring its installation or authority. */
-	ref(scope, id) {
-		return ObjectReference.parse({
-			packageId: this.definition.packageId,
-			type: this.definition.name,
-			scope,
-			id
-		});
-	}
-	/** Reference one of this type's declared permissions. */
-	permission(name) {
-		if (!Object.hasOwn(this.definition.permissions, name)) throw new AccessError("INVALID_DECLARATION", `unknown permission: ${name}`);
-		return {
-			packageId: this.definition.packageId,
-			type: this.definition.name,
-			name
-		};
+/** An inert declaration with access to a host-bound client. */
+var Resource = class extends ResourceHandle {
+	/** The resource kind. */
+	kind;
+	/** The declaration format version. */
+	version;
+	/** The domain specification. */
+	spec;
+	/** Retain validated metadata without opening a resource. */
+	constructor(owner, declaration) {
+		super(owner, declaration.name);
+		this.kind = declaration.kind;
+		this.version = declaration.version;
+		this.spec = declaration.spec;
 	}
 };
-/** A stable reference to a declared permission, independent of a package version. */
-var PermissionReference = defineSchema(strictObject({
-	/** The package that declares the permission. */
-	packageId: PackageId,
-	/** The declaration-local object type name. */
-	type: AccessName,
-	/** The permission name within that object type. */
-	name: AccessName
-}));
-/** Declare a protected type while retaining literal permission names. */
-function defineObject(definition) {
-	return new ObjectType(definition);
-}
-/** Freeze every declaration node after copying it. */
-function freeze(value) {
-	if (value !== null && typeof value === "object") {
-		for (const child of Object.values(value)) freeze(child);
-		Object.freeze(value);
-	}
-	return value;
-}
-/** An object selected from the resulting configuration or by its persistent identifier. */
-var SpacePermissionTarget = defineSchema(union([strictObject({
-	/** The configuration collection containing the object. */
-	kind: _enum([
-		"resource",
-		"secret",
-		"installation"
-	]),
-	/** The stable key within that collection. */
-	name: ResourceName
-}), strictObject({ 
-/** The persistent identifier checked against the role's space scope. */
-id: union([
-	identifier("resource"),
-	identifier("secret"),
-	identifier("installation")
-]) })]));
-/** An exact API action granted within the space. */
-var SpacePermission = defineSchema(PermissionReference.extend({ 
-/** A selected object; absence grants all objects of the type within the space. */
-target: SpacePermissionTarget.optional() }));
-/** A role whose generated grants are restricted to the configured space. */
-var SpaceRole = defineSchema(strictObject({
-	/** The role's purpose. */
-	description: string().min(1),
-	/** Additive permissions evaluated within the space. */
-	permissions: array(SpacePermission)
-}));
-/** A subject receiving a space-scoped role. */
-var SpaceSubject = defineSchema(union([
-	strictObject({ 
-	/** The existing account membership. */
-membership: identifier("account-membership") }),
-	strictObject({ 
-	/** The existing account group. */
-group: identifier("group") }),
-	strictObject({ 
-	/** The existing workload service account in this space. */
-service: identifier("service-account") }),
-	strictObject({ 
-	/** The external service account administered by the global account service. */
-accountService: identifier("service-account") }),
-	strictObject({
-		/** The configured or existing installation in the destination space. */
-		installation: SpaceInstallationReference,
-		/** The installed package's workload name. */
-		workload: ResourceName
-	})
-]));
-/** Grant one configuration role to an existing member, group, or installed workload. */
-var SpaceRoleBinding = defineSchema(strictObject({
-	/** The configured or existing role, checked against the destination space. */
-	role: union([ResourceName, strictObject({ 
-	/** The existing role. */
-id: identifier("role") })]),
-	/** The subject receiving the role. */
-	subject: SpaceSubject,
-	/** Optional expiry in UTC epoch milliseconds. */
-	expiresAt: number().int().nonnegative().optional()
-}));
-/** A route on a domain the account is authorised to administer. */
-var SpaceRoute = defineSchema(strictObject({
-	/** The registered domain; domain ownership is checked when applying the configuration. */
-	domain: identifier("domain"),
-	/** The absolute URL path without a query or fragment. */
-	path: string().regex(/^\/[^\s?#]*$/),
-	/** The path matching rule. */
-	match: _enum(["exact", "prefix"]),
-	/** The application entrypoint or HTTP redirect. */
-	destination: union([strictObject({
-		/** The configured or existing installation in the destination space. */
-		installation: SpaceInstallationReference,
-		/** The public package export serving this route. */
-		entrypoint: Entrypoint
-	}), strictObject({
-		/** The absolute HTTP destination. */
-		redirect: string().regex(/^https?:\/\/[^\s]+$/),
-		/** The HTTP redirect response status. */
-		status: union([
-			literal(301),
-			literal(302),
-			literal(303),
-			literal(307),
-			literal(308)
-		])
-	})])
-}));
-/** Source-managed space objects, keyed independently of display names and provider identifiers. */
-var SpaceDefinition = defineSchema(strictObject({
-	/** Source-managed package and network policies. */
-	policies: SpacePolicies.optional(),
-	/** Resources created or adopted by the configuration. */
-	resources: record(ResourceName, SpaceResource).optional(),
-	/** Secret metadata; secret values never occur in this definition. */
-	secrets: record(ResourceName, SpaceSecret).optional(),
-	/** Independently configured package installations. */
-	installations: record(ResourceName, SpaceInstallation).optional(),
-	/** Space-scoped role definitions. */
-	roles: record(ResourceName, SpaceRole).optional(),
-	/** Grants evaluated using existing authority before application. */
-	bindings: record(ResourceName, SpaceRoleBinding).optional(),
-	/** Routes under domains administered by the account. */
-	routes: record(ResourceName, SpaceRoute).optional()
-}));
-/** Define a configuration and check references without contacting hosts or provisioning resources. */
-function defineSpace(value) {
-	const configuration = SpaceDefinition.parse(value);
-	const { resources = {}, secrets: secretDefinitions = {}, installations = {}, roles = {}, bindings = {}, routes: routeDefinitions = {} } = configuration;
-	const adopted = /* @__PURE__ */ new Set();
-	for (const resource of Object.values(resources)) if (resource.adopt) {
-		const key = `${resource.adopt.space}/${resource.adopt.resource}`;
-		if (adopted.has(key)) throw new SpaceError("INVALID_DEFINITION", `Duplicate resource adoption: ${key}`);
-		adopted.add(key);
-	}
-	const secrets = /* @__PURE__ */ new Set();
-	for (const secret of Object.values(secretDefinitions)) {
-		if (resources[secret.vault]?.declaration.kind !== "vault") throw new SpaceError("INVALID_DEFINITION", `Unknown vault: ${secret.vault}`);
-		const key = `${secret.vault}/${secret.name}`;
-		if (secrets.has(key)) throw new SpaceError("INVALID_DEFINITION", `Duplicate secret: ${key}`);
-		secrets.add(key);
-	}
-	const aliases = /* @__PURE__ */ new Set();
-	for (const installation of Object.values(installations)) {
-		if (aliases.has(installation.alias)) throw new SpaceError("INVALID_DEFINITION", `Duplicate alias: ${installation.alias}`);
-		aliases.add(installation.alias);
-		for (const binding of Object.values(installation.resources).flatMap(Object.values)) if ("resource" in binding && !Object.hasOwn(resources, binding.resource)) throw new SpaceError("INVALID_DEFINITION", `Unknown resource: ${binding.resource}`);
-		for (const binding of Object.values(installation.secrets).flatMap(Object.values)) if (!("space" in binding.target) && !Object.hasOwn(secretDefinitions, binding.target.secret)) throw new SpaceError("INVALID_DEFINITION", `Unknown secret: ${binding.target.secret}`);
-	}
-	const collections = {
-		resource: resources,
-		secret: secretDefinitions,
-		installation: installations
-	};
-	for (const role of Object.values(roles)) for (const permission of role.permissions) {
-		const target = permission.target;
-		if (target && "kind" in target && !Object.hasOwn(collections[target.kind], target.name)) throw new SpaceError("INVALID_DEFINITION", `Unknown ${target.kind}: ${target.name}`);
-	}
-	for (const binding of Object.values(bindings)) {
-		if (typeof binding.role === "string" && !Object.hasOwn(roles, binding.role)) throw new SpaceError("INVALID_DEFINITION", `Unknown role: ${binding.role}`);
-		if ("installation" in binding.subject && typeof binding.subject.installation === "string" && !Object.hasOwn(installations, binding.subject.installation)) throw new SpaceError("INVALID_DEFINITION", `Unknown installation: ${binding.subject.installation}`);
-	}
-	const routes = /* @__PURE__ */ new Set();
-	for (const route of Object.values(routeDefinitions)) {
-		const key = `${route.domain}:${route.match}:${route.path}`;
-		if (routes.has(key)) throw new SpaceError("INVALID_DEFINITION", `Duplicate route: ${key}`);
-		routes.add(key);
-		if ("installation" in route.destination && typeof route.destination.installation === "string" && !Object.hasOwn(installations, route.destination.installation)) throw new SpaceError("INVALID_DEFINITION", `Unknown route installation: ${route.destination.installation}`);
-	}
-	return configuration;
+/** Define a resource declaration with a concrete specification. */
+function defineResourceSchema(kind, version, spec) {
+	ResourceDescription.pick({
+		kind: true,
+		version: true
+	}).parse({
+		kind,
+		version
+	});
+	return defineSchema(ResourceDescription.extend({
+		kind: literal(kind),
+		version: literal(version),
+		spec
+	}));
 }
 /** A named database dependency. */
-var DatabaseDeclaration = defineResourceSchema("database", 1, defineSchema(strictObject({ 
+var DatabaseDescription = defineResourceSchema("database", 1, defineSchema(strictObject({ 
 /** The dialect used by queries and migrations. */
 dialect: defineSchema(_enum(["sqlite", "postgresql"])) })));
 /** An inert database declaration with invocation-scoped connection access. */
@@ -6606,349 +5883,2703 @@ var Database = class extends Resource {
 	}
 };
 /** Declare a database dependency. */
-function defineDatabase(declaration) {
-	return new Database(DatabaseDeclaration.parse({
+function defineDatabase(declaration, module) {
+	const owner = declaringModule(module, "defineDatabase").package;
+	return new Database(owner, DatabaseDescription.parse({
 		...declaration,
 		kind: "database",
 		version: 1
 	}));
 }
-/** User-defined labels indexed by name. */
-var Tags = record(string().min(1).max(128), string().max(256));
-/** An invalid standard model declaration. */
-var ModelError = class extends Error {
-	/** The stable failure code. */
-	code;
-	/** Create a model declaration failure. */
-	constructor(code, message, options) {
-		super(message, options);
-		this.name = "ModelError";
-		this.code = code;
+/** A vault resource dependency. */
+var VaultDescription = defineResourceSchema("vault", 1, defineSchema(strictObject({})));
+/** Declare a vault resource. */
+function defineVault(declaration, module) {
+	const owner = declaringModule(module, "defineVault").package;
+	return new Resource(owner, VaultDescription.parse({
+		...declaration,
+		kind: "vault",
+		version: 1
+	}));
+}
+/** A secret selected when installing a package. */
+var SecretDescription = defineSchema(strictObject({
+	/** The package-local secret name. */
+	name: DeclarationName,
+	/** The declaration format version. */
+	version: literal(1)
+}));
+defineSchema(strictObject({
+	/** The space administering the vault. */
+	space: identifier("space"),
+	/** The secret identifier. */
+	secret: identifier("secret"),
+	/** An exact version; omit to select the current version at access time. */
+	version: number().int().positive().optional()
+}));
+/** An inert secret declaration with host-authorized value access. */
+var Secret = class extends ResourceHandle {
+	/** Declaration format version. */
+	version;
+	/** Retain validated metadata without acquiring credentials. */
+	constructor(owner, declaration) {
+		super(owner, declaration.name);
+		this.version = declaration.version;
 	}
 };
-/** An account-defined environment; its declaration key is its stable name. */
-var EnvironmentDefinition = defineSchema(strictObject({ 
-/** Additional account-defined metadata. */
-tags: Tags.optional() }));
-/** A permission restricted to the account or one object within it. */
-var AccountPermission = defineSchema(PermissionReference.extend({ 
-/** The selected object; absence selects all objects in the binding's scope. */
-objectId: string().min(1).optional() }));
-/** An account role declared in source. */
-var AccountRole = defineSchema(strictObject({
-	/** The role's purpose. */
-	description: string().min(1),
-	/** Permissions evaluated within the role binding's scope. */
-	permissions: array(AccountPermission)
-}));
-/** A grant to an existing account member, group, or service account. */
-var AccountRoleBinding = defineSchema(strictObject({
-	/** A declared role name or an existing role in this account. */
-	role: union([ResourceName, strictObject({ id: identifier("role") })]),
-	/** The existing subject in this account. */
-	subject: union([
-		strictObject({ membership: identifier("account-membership") }),
-		strictObject({ group: identifier("group") }),
-		strictObject({ service: identifier("service-account") })
-	]),
-	/** An optional space restriction within the account. */
-	spaceId: identifier("space").optional(),
-	/** Optional expiry in UTC epoch milliseconds. */
-	expiresAt: number().int().nonnegative().optional()
-}));
-/** Account records declared by a repository export. */
-var AccountDefinition = defineSchema(strictObject({
-	/** Account-local environment names. */
-	environments: record(ResourceName, EnvironmentDefinition).optional(),
-	/** Account roles available to bindings. */
-	roles: record(ResourceName, AccountRole).optional(),
-	/** Grants applied using the caller's existing authority. */
-	bindings: record(ResourceName, AccountRoleBinding).optional()
-}));
-/** Declare account records without creating or changing an account. */
-function defineAccount(definition) {
-	const account = AccountDefinition.parse(definition);
-	for (const binding of Object.values(account.bindings ?? {})) if (typeof binding.role === "string" && !Object.hasOwn(account.roles ?? {}, binding.role)) throw new ModelError("INVALID_DEFINITION", `unknown role: ${binding.role}`);
-	return account;
+/** Declare a secret without embedding its value. */
+function defineSecret(declaration, module) {
+	const owner = declaringModule(module, "defineSecret").package;
+	return new Secret(owner, SecretDescription.parse({
+		...declaration,
+		version: 1
+	}));
 }
-/** The space's shared application database. */
+/** Fields shared by calendar, interval, and one-off schedules. */
+var SCHEDULE = strictObject({
+	/** The package-local schedule name. */
+	name: DeclarationName,
+	/** The declaration format version. */
+	version: literal(1),
+	/** Whether occurrences may overlap. */
+	concurrency: _enum([
+		"allow",
+		"forbid",
+		"replace"
+	]),
+	/** How late an occurrence may start, in milliseconds. */
+	deadline: number().int().nonnegative()
+});
+/** A controller-managed schedule, as the manifest describes it. */
+var ScheduleDescription = defineSchema(union([
+	SCHEDULE.extend({
+		/** Evaluate calendar occurrences in the selected time zone. */
+		timing: literal("cron"),
+		/** A five-field cron expression. */
+		cron: string().regex(/^\S+\s+\S+\s+\S+\s+\S+\s+\S+$/),
+		/** The IANA time zone used to evaluate occurrences. */
+		timezone: string().min(1),
+		/** The earliest occurrence time in UTC epoch milliseconds. */
+		startsAt: number().int().nonnegative().optional(),
+		/** The exclusive end time in UTC epoch milliseconds. */
+		endsAt: number().int().nonnegative().optional()
+	}),
+	SCHEDULE.extend({
+		/** Repeat at a fixed interval from the first occurrence. */
+		timing: literal("interval"),
+		/** The interval in milliseconds. */
+		interval: number().int().positive(),
+		/** The first occurrence time in UTC epoch milliseconds. */
+		startsAt: number().int().nonnegative(),
+		/** The exclusive end time in UTC epoch milliseconds. */
+		endsAt: number().int().nonnegative().optional()
+	}),
+	SCHEDULE.extend({
+		/** Run the schedule once at the selected time. */
+		timing: literal("once"),
+		/** The occurrence time in UTC epoch milliseconds. */
+		startsAt: number().int().nonnegative()
+	})
+]));
+/** Declare a controller-managed schedule. */
+function defineSchedule(definition, module) {
+	const owner = declaringModule(module, "defineSchedule").package;
+	const description = ScheduleDescription.parse({
+		...definition,
+		version: 1
+	});
+	return Object.freeze({
+		...description,
+		package: owner
+	});
+}
+function resolveMaybeOptionalOptions(rest) {
+	return rest[0] ?? {};
+}
+function toArray(value) {
+	return Array.isArray(value) ? value : value === void 0 || value === null ? [] : [value];
+}
+var ORPC_SHARED_PACKAGE_NAME = "@orpc/shared";
+var ORPC_SHARED_PACKAGE_VERSION = "1.15.1";
+function sequential(fn) {
+	let lastOperationPromise = Promise.resolve();
+	return (...args) => {
+		return lastOperationPromise = lastOperationPromise.catch(() => {}).then(() => {
+			return fn(...args);
+		});
+	};
+}
+var SPAN_ERROR_STATUS = 2;
+var GLOBAL_OTEL_CONFIG_KEY = `__${ORPC_SHARED_PACKAGE_NAME}@${ORPC_SHARED_PACKAGE_VERSION}/otel/config__`;
+function getGlobalOtelConfig() {
+	return globalThis[GLOBAL_OTEL_CONFIG_KEY];
+}
+function startSpan(name, options = {}, context) {
+	return (getGlobalOtelConfig()?.tracer)?.startSpan(name, options, context);
+}
+function setSpanError(span, error, options = {}) {
+	if (!span) return;
+	const exception = toOtelException(error);
+	span.recordException(exception);
+	if (!options.signal?.aborted || options.signal.reason !== error) span.setStatus({
+		code: SPAN_ERROR_STATUS,
+		message: exception.message
+	});
+}
+function toOtelException(error) {
+	if (error instanceof Error) {
+		const exception = {
+			message: error.message,
+			name: error.name,
+			stack: error.stack
+		};
+		if ("code" in error && (typeof error.code === "string" || typeof error.code === "number")) exception.code = error.code;
+		return exception;
+	}
+	return { message: String(error) };
+}
+async function runWithSpan({ name, context, ...options }, fn) {
+	const tracer = getGlobalOtelConfig()?.tracer;
+	if (!tracer) return fn();
+	const callback = async (span) => {
+		try {
+			return await fn(span);
+		} catch (e) {
+			setSpanError(span, e, options);
+			throw e;
+		} finally {
+			span.end();
+		}
+	};
+	if (context) return tracer.startActiveSpan(name, options, context, callback);
+	else return tracer.startActiveSpan(name, options, callback);
+}
+async function runInSpanContext(span, fn) {
+	const otelConfig = getGlobalOtelConfig();
+	if (!span || !otelConfig) return fn();
+	const ctx = otelConfig.trace.setSpan(otelConfig.context.active(), span);
+	return otelConfig.context.with(ctx, fn);
+}
+function isAsyncIteratorObject(maybe) {
+	if (!maybe || typeof maybe !== "object") return false;
+	return "next" in maybe && typeof maybe.next === "function" && Symbol.asyncIterator in maybe && typeof maybe[Symbol.asyncIterator] === "function";
+}
+var asyncDisposeSymbol = Symbol.asyncDispose ?? Symbol.for("asyncDispose");
+var AsyncIteratorClass = class {
+	#isDone = false;
+	#isExecuteComplete = false;
+	#cleanup;
+	#next;
+	constructor(next, cleanup) {
+		this.#cleanup = cleanup;
+		this.#next = sequential(async () => {
+			if (this.#isDone) return {
+				done: true,
+				value: void 0
+			};
+			try {
+				const result = await next();
+				if (result.done) this.#isDone = true;
+				return result;
+			} catch (err) {
+				this.#isDone = true;
+				throw err;
+			} finally {
+				if (this.#isDone && !this.#isExecuteComplete) {
+					this.#isExecuteComplete = true;
+					await this.#cleanup("next");
+				}
+			}
+		});
+	}
+	next() {
+		return this.#next();
+	}
+	async return(value) {
+		this.#isDone = true;
+		if (!this.#isExecuteComplete) {
+			this.#isExecuteComplete = true;
+			await this.#cleanup("return");
+		}
+		return {
+			done: true,
+			value
+		};
+	}
+	async throw(err) {
+		this.#isDone = true;
+		if (!this.#isExecuteComplete) {
+			this.#isExecuteComplete = true;
+			await this.#cleanup("throw");
+		}
+		throw err;
+	}
+	/**
+	* asyncDispose symbol only available in esnext, we should fallback to Symbol.for('asyncDispose')
+	*/
+	async [asyncDisposeSymbol]() {
+		this.#isDone = true;
+		if (!this.#isExecuteComplete) {
+			this.#isExecuteComplete = true;
+			await this.#cleanup("dispose");
+		}
+	}
+	[Symbol.asyncIterator]() {
+		return this;
+	}
+};
+function asyncIteratorWithSpan({ name, ...options }, iterator) {
+	let span;
+	return new AsyncIteratorClass(async () => {
+		span ??= startSpan(name);
+		try {
+			const result = await runInSpanContext(span, () => iterator.next());
+			span?.addEvent(result.done ? "completed" : "yielded");
+			return result;
+		} catch (err) {
+			setSpanError(span, err, options);
+			throw err;
+		}
+	}, async (reason) => {
+		try {
+			if (reason !== "next") await runInSpanContext(span, () => iterator.return?.());
+		} catch (err) {
+			setSpanError(span, err, options);
+			throw err;
+		} finally {
+			span?.end();
+		}
+	});
+}
+function intercept(interceptors, options, main) {
+	const next = (options2, index) => {
+		const interceptor = interceptors[index];
+		if (!interceptor) return main(options2);
+		return interceptor({
+			...options2,
+			next: (newOptions = options2) => next(newOptions, index + 1)
+		});
+	};
+	return next(options, 0);
+}
+function getConstructor(value) {
+	if (!isTypescriptObject(value)) return null;
+	return Object.getPrototypeOf(value)?.constructor;
+}
+function isObject(value) {
+	if (!value || typeof value !== "object") return false;
+	const proto = Object.getPrototypeOf(value);
+	return proto === Object.prototype || !proto || !proto.constructor;
+}
+function isTypescriptObject(value) {
+	return !!value && (typeof value === "object" || typeof value === "function");
+}
+function value(value2, ...args) {
+	if (typeof value2 === "function") return value2(...args);
+	return value2;
+}
+function overlayProxy(target, partial) {
+	return new Proxy(typeof target === "function" ? partial : target, {
+		get(_, prop) {
+			const targetValue = prop in partial ? partial : value(target);
+			const v = Reflect.get(targetValue, prop);
+			return typeof v === "function" ? v.bind(targetValue) : v;
+		},
+		has(_, prop) {
+			return Reflect.has(partial, prop) || Reflect.has(value(target), prop);
+		}
+	});
+}
+var ORPC_CLIENT_PACKAGE_NAME = "@orpc/client";
+var ORPC_CLIENT_PACKAGE_VERSION = "1.15.1";
+var COMMON_ORPC_ERROR_DEFS = {
+	BAD_REQUEST: {
+		status: 400,
+		message: "Bad Request"
+	},
+	UNAUTHORIZED: {
+		status: 401,
+		message: "Unauthorized"
+	},
+	FORBIDDEN: {
+		status: 403,
+		message: "Forbidden"
+	},
+	NOT_FOUND: {
+		status: 404,
+		message: "Not Found"
+	},
+	METHOD_NOT_SUPPORTED: {
+		status: 405,
+		message: "Method Not Supported"
+	},
+	NOT_ACCEPTABLE: {
+		status: 406,
+		message: "Not Acceptable"
+	},
+	TIMEOUT: {
+		status: 408,
+		message: "Request Timeout"
+	},
+	CONFLICT: {
+		status: 409,
+		message: "Conflict"
+	},
+	PRECONDITION_FAILED: {
+		status: 412,
+		message: "Precondition Failed"
+	},
+	PAYLOAD_TOO_LARGE: {
+		status: 413,
+		message: "Payload Too Large"
+	},
+	UNSUPPORTED_MEDIA_TYPE: {
+		status: 415,
+		message: "Unsupported Media Type"
+	},
+	UNPROCESSABLE_CONTENT: {
+		status: 422,
+		message: "Unprocessable Content"
+	},
+	TOO_MANY_REQUESTS: {
+		status: 429,
+		message: "Too Many Requests"
+	},
+	CLIENT_CLOSED_REQUEST: {
+		status: 499,
+		message: "Client Closed Request"
+	},
+	INTERNAL_SERVER_ERROR: {
+		status: 500,
+		message: "Internal Server Error"
+	},
+	NOT_IMPLEMENTED: {
+		status: 501,
+		message: "Not Implemented"
+	},
+	BAD_GATEWAY: {
+		status: 502,
+		message: "Bad Gateway"
+	},
+	SERVICE_UNAVAILABLE: {
+		status: 503,
+		message: "Service Unavailable"
+	},
+	GATEWAY_TIMEOUT: {
+		status: 504,
+		message: "Gateway Timeout"
+	}
+};
+function fallbackORPCErrorStatus(code, status) {
+	return status ?? COMMON_ORPC_ERROR_DEFS[code]?.status ?? 500;
+}
+function fallbackORPCErrorMessage(code, message) {
+	return message || COMMON_ORPC_ERROR_DEFS[code]?.message || code;
+}
+var globalORPCErrorConstructors;
+var ORPCError = class ORPCError extends Error {
+	defined;
+	code;
+	status;
+	data;
+	static {
+		const GLOBAL_ORPC_ERROR_CONSTRUCTORS_SYMBOL = Symbol.for(`__${ORPC_CLIENT_PACKAGE_NAME}@${ORPC_CLIENT_PACKAGE_VERSION}/error/ORPC_ERROR_CONSTRUCTORS__`);
+		globalThis[GLOBAL_ORPC_ERROR_CONSTRUCTORS_SYMBOL] ??= /* @__PURE__ */ new WeakSet();
+		globalORPCErrorConstructors = globalThis[GLOBAL_ORPC_ERROR_CONSTRUCTORS_SYMBOL];
+		globalORPCErrorConstructors.add(ORPCError);
+	}
+	constructor(code, ...rest) {
+		const options = resolveMaybeOptionalOptions(rest);
+		if (options.status !== void 0 && !isORPCErrorStatus(options.status)) throw new Error("[ORPCError] Invalid error status code.");
+		const message = fallbackORPCErrorMessage(code, options.message);
+		super(message, options);
+		this.code = code;
+		this.status = fallbackORPCErrorStatus(code, options.status);
+		this.defined = options.defined ?? false;
+		this.data = options.data;
+	}
+	toJSON() {
+		return {
+			defined: this.defined,
+			code: this.code,
+			status: this.status,
+			message: this.message,
+			data: this.data
+		};
+	}
+	/**
+	* Workaround for Next.js where different contexts use separate
+	* dependency graphs, causing multiple ORPCError constructors existing and breaking
+	* `instanceof` checks across contexts.
+	*
+	* This is particularly problematic with "Optimized SSR", where orpc-client
+	* executes in one context but is invoked from another. When an error is thrown
+	* in the execution context, `instanceof ORPCError` checks fail in the
+	* invocation context due to separate class constructors.
+	*
+	* @todo Remove this and related code if Next.js resolves the multiple dependency graph issue.
+	*/
+	static [Symbol.hasInstance](instance) {
+		if (globalORPCErrorConstructors.has(this)) {
+			const constructor = getConstructor(instance);
+			if (constructor && globalORPCErrorConstructors.has(constructor)) return true;
+		}
+		return super[Symbol.hasInstance](instance);
+	}
+};
+function toORPCError(error) {
+	return error instanceof ORPCError ? error : new ORPCError("INTERNAL_SERVER_ERROR", {
+		message: "Internal server error",
+		cause: error
+	});
+}
+function isORPCErrorStatus(status) {
+	return status < 200 || status >= 400;
+}
+var EventEncoderError = class extends TypeError {};
+TransformStream;
+var LINE_ENDING_REGEX = /\r\n|[\n\r]/;
+function containsLineBreak(value) {
+	return LINE_ENDING_REGEX.test(value);
+}
+function assertEventId(id) {
+	if (containsLineBreak(id)) throw new EventEncoderError("Event's id must not contain a carriage return or newline character");
+}
+function assertEventRetry(retry) {
+	if (!Number.isInteger(retry) || retry < 0) throw new EventEncoderError("Event's retry must be a integer and >= 0");
+}
+function assertEventComment(comment) {
+	if (containsLineBreak(comment)) throw new EventEncoderError("Event's comment must not contain a carriage return or newline character");
+}
+var EVENT_SOURCE_META_SYMBOL = Symbol("ORPC_EVENT_SOURCE_META");
+function withEventMeta(container, meta) {
+	if (meta.id === void 0 && meta.retry === void 0 && !meta.comments?.length) return container;
+	if (meta.id !== void 0) assertEventId(meta.id);
+	if (meta.retry !== void 0) assertEventRetry(meta.retry);
+	if (meta.comments !== void 0) for (const comment of meta.comments) assertEventComment(comment);
+	return new Proxy(container, { get(target, prop, receiver) {
+		if (prop === EVENT_SOURCE_META_SYMBOL) return meta;
+		return Reflect.get(target, prop, receiver);
+	} });
+}
+function getEventMeta(container) {
+	return isTypescriptObject(container) ? Reflect.get(container, EVENT_SOURCE_META_SYMBOL) : void 0;
+}
+var HibernationEventIterator = class extends AsyncIteratorClass {
+	/**
+	* this property is not transferred to the client, so it should be optional for type safety
+	*/
+	hibernationCallback;
+	constructor(hibernationCallback) {
+		super(async () => {
+			throw new Error("Cannot iterate over hibernating iterator directly");
+		}, async (reason) => {
+			if (reason !== "next") throw new Error("Cannot cleanup hibernating iterator directly");
+		});
+		this.hibernationCallback = hibernationCallback;
+	}
+};
+function mapEventIterator(iterator, maps) {
+	const mapError = async (error) => {
+		let mappedError = await maps.error(error);
+		if (mappedError !== error) {
+			const meta = getEventMeta(error);
+			if (meta && isTypescriptObject(mappedError)) mappedError = withEventMeta(mappedError, meta);
+		}
+		return mappedError;
+	};
+	return new AsyncIteratorClass(async () => {
+		const { done, value } = await (async () => {
+			try {
+				return await iterator.next();
+			} catch (error) {
+				throw await mapError(error);
+			}
+		})();
+		let mappedValue = await maps.value(value, done);
+		if (mappedValue !== value) {
+			const meta = getEventMeta(value);
+			if (meta && isTypescriptObject(mappedValue)) mappedValue = withEventMeta(mappedValue, meta);
+		}
+		return {
+			done,
+			value: mappedValue
+		};
+	}, async () => {
+		try {
+			await iterator.return?.();
+		} catch (error) {
+			throw await mapError(error);
+		}
+	});
+}
+var ValidationError = class extends Error {
+	issues;
+	data;
+	constructor(options) {
+		super(options.message, options);
+		this.issues = options.issues;
+		this.data = options.data;
+	}
+};
+function mergeErrorMap(errorMap1, errorMap2) {
+	return {
+		...errorMap1,
+		...errorMap2
+	};
+}
+async function validateORPCError(map, error) {
+	const { code, status, message, data, cause, defined } = error;
+	const config = map?.[error.code];
+	if (!config || fallbackORPCErrorStatus(error.code, config.status) !== error.status) return defined ? new ORPCError(code, {
+		defined: false,
+		status,
+		message,
+		data,
+		cause
+	}) : error;
+	if (!config.data) return defined ? error : new ORPCError(code, {
+		defined: true,
+		status,
+		message,
+		data,
+		cause
+	});
+	const validated = await config.data["~standard"].validate(error.data);
+	if (validated.issues) return defined ? new ORPCError(code, {
+		defined: false,
+		status,
+		message,
+		data,
+		cause
+	}) : error;
+	return new ORPCError(code, {
+		defined: true,
+		status,
+		message,
+		data: validated.value,
+		cause
+	});
+}
+var ContractProcedure = class {
+	/**
+	* This property holds the defined options for the contract procedure.
+	*/
+	"~orpc";
+	constructor(def) {
+		if (def.route?.successStatus && isORPCErrorStatus(def.route.successStatus)) throw new Error("[ContractProcedure] Invalid successStatus.");
+		if (Object.values(def.errorMap).some((val) => val && val.status && !isORPCErrorStatus(val.status))) throw new Error("[ContractProcedure] Invalid error status code.");
+		this["~orpc"] = def;
+	}
+};
+function isContractProcedure(item) {
+	if (item instanceof ContractProcedure) return true;
+	return (typeof item === "object" || typeof item === "function") && item !== null && "~orpc" in item && typeof item["~orpc"] === "object" && item["~orpc"] !== null && "errorMap" in item["~orpc"] && "route" in item["~orpc"] && "meta" in item["~orpc"];
+}
+function mergeMeta(meta1, meta2) {
+	return {
+		...meta1,
+		...meta2
+	};
+}
+function mergeRoute(a, b) {
+	return {
+		...a,
+		...b
+	};
+}
+function prefixRoute(route, prefix) {
+	if (!route.path) return route;
+	return {
+		...route,
+		path: `${prefix}${route.path}`
+	};
+}
+function unshiftTagRoute(route, tags) {
+	return {
+		...route,
+		tags: [...tags, ...route.tags ?? []]
+	};
+}
+function mergePrefix(a, b) {
+	return a ? `${a}${b}` : b;
+}
+function mergeTags(a, b) {
+	return a ? [...a, ...b] : b;
+}
+function enhanceRoute(route, options) {
+	let router = route;
+	if (options.prefix) router = prefixRoute(router, options.prefix);
+	if (options.tags?.length) router = unshiftTagRoute(router, options.tags);
+	return router;
+}
+function getContractRouter(router, path) {
+	let current = router;
+	for (let i = 0; i < path.length; i++) {
+		const segment = path[i];
+		if (!current) return;
+		if (isContractProcedure(current)) return;
+		if (typeof current !== "object") return;
+		current = current[segment];
+	}
+	return current;
+}
+function enhanceContractRouter(router, options) {
+	if (isContractProcedure(router)) return new ContractProcedure({
+		...router["~orpc"],
+		errorMap: mergeErrorMap(options.errorMap, router["~orpc"].errorMap),
+		route: enhanceRoute(router["~orpc"].route, options)
+	});
+	if (typeof router !== "object" || router === null) return router;
+	const enhanced = {};
+	for (const key in router) enhanced[key] = enhanceContractRouter(router[key], options);
+	return enhanced;
+}
+var oc = new class ContractBuilder extends ContractProcedure {
+	constructor(def) {
+		super(def);
+		this["~orpc"].prefix = def.prefix;
+		this["~orpc"].tags = def.tags;
+	}
+	/**
+	* Sets or overrides the initial meta.
+	*
+	* @see {@link https://orpc.dev/docs/metadata Metadata Docs}
+	*/
+	$meta(initialMeta) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			meta: initialMeta
+		});
+	}
+	/**
+	* Sets or overrides the initial route.
+	* This option is typically relevant when integrating with OpenAPI.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing OpenAPI Routing Docs}
+	* @see {@link https://orpc.dev/docs/openapi/input-output-structure OpenAPI Input/Output Structure Docs}
+	*/
+	$route(initialRoute) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			route: initialRoute
+		});
+	}
+	/**
+	* Sets or overrides the initial input schema.
+	*
+	* @see {@link https://orpc.dev/docs/procedure#initial-configuration Initial Procedure Configuration Docs}
+	*/
+	$input(initialInputSchema) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			inputSchema: initialInputSchema
+		});
+	}
+	/**
+	* Adds type-safe custom errors to the contract.
+	* The provided errors are spared-merged with any existing errors in the contract.
+	*
+	* @see {@link https://orpc.dev/docs/error-handling#type%E2%80%90safe-error-handling Type-Safe Error Handling Docs}
+	*/
+	errors(errors) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			errorMap: mergeErrorMap(this["~orpc"].errorMap, errors)
+		});
+	}
+	/**
+	* Sets or updates the metadata for the contract.
+	* The provided metadata is spared-merged with any existing metadata in the contract.
+	*
+	* @see {@link https://orpc.dev/docs/metadata Metadata Docs}
+	*/
+	meta(meta) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			meta: mergeMeta(this["~orpc"].meta, meta)
+		});
+	}
+	/**
+	* Sets or updates the route definition for the contract.
+	* The provided route is spared-merged with any existing route in the contract.
+	* This option is typically relevant when integrating with OpenAPI.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing OpenAPI Routing Docs}
+	* @see {@link https://orpc.dev/docs/openapi/input-output-structure OpenAPI Input/Output Structure Docs}
+	*/
+	route(route) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			route: mergeRoute(this["~orpc"].route, route)
+		});
+	}
+	/**
+	* Defines the input validation schema for the contract.
+	*
+	* @see {@link https://orpc.dev/docs/procedure#input-output-validation Input Validation Docs}
+	*/
+	input(schema) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			inputSchema: schema
+		});
+	}
+	/**
+	* Defines the output validation schema for the contract.
+	*
+	* @see {@link https://orpc.dev/docs/procedure#input-output-validation Output Validation Docs}
+	*/
+	output(schema) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			outputSchema: schema
+		});
+	}
+	/**
+	* Prefixes all procedures in the contract router.
+	* The provided prefix is post-appended to any existing router prefix.
+	*
+	* @note This option does not affect procedures that do not define a path in their route definition.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing#route-prefixes OpenAPI Route Prefixes Docs}
+	*/
+	prefix(prefix) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			prefix: mergePrefix(this["~orpc"].prefix, prefix)
+		});
+	}
+	/**
+	* Adds tags to all procedures in the contract router.
+	* This helpful when you want to group procedures together in the OpenAPI specification.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/openapi-specification#operation-metadata OpenAPI Operation Metadata Docs}
+	*/
+	tag(...tags) {
+		return new ContractBuilder({
+			...this["~orpc"],
+			tags: mergeTags(this["~orpc"].tags, tags)
+		});
+	}
+	/**
+	* Applies all of the previously defined options to the specified contract router.
+	*
+	* @see {@link https://orpc.dev/docs/router#extending-router Extending Router Docs}
+	*/
+	router(router) {
+		return enhanceContractRouter(router, this["~orpc"]);
+	}
+}({
+	errorMap: {},
+	route: {},
+	meta: {}
+});
+/** A stable declaration-local name used by access rules. */
+var AccessName = string().regex(/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$(?![\s\S])/);
+defineSchema(strictObject({
+	/** The package that declares the object type. */
+	packageId: PackageId,
+	/** The declaration-local object type name. */
+	type: AccessName,
+	/** The authority scope containing the object. */
+	scope: string().min(1),
+	/** The stable application record identity. */
+	id: string().min(1)
+}));
+/** A stable reference to a declared permission, independent of a package version. */
+var PermissionReference = defineSchema(strictObject({
+	/** The package that declares the permission. */
+	packageId: PackageId,
+	/** The declaration-local object type name. */
+	type: AccessName,
+	/** The permission name within that object type. */
+	name: AccessName
+}));
+strictObject({
+	/** Credentials required before invoking the procedure. */
+	authentication: _enum([
+		"public",
+		"identity",
+		"host"
+	]),
+	/** The declared permission checked in the request's authorized scope. */
+	permission: PermissionReference.nullable(),
+	/** Whether successful and failed attempts require security audit records. */
+	audit: boolean()
+});
+/** Declare a procedure with explicit access requirements and conventional errors. */
+function defineProcedure(access) {
+	return oc.$meta(access).errors({
+		NOT_IMPLEMENTED: { status: 501 },
+		UNAUTHORIZED: { status: 401 },
+		FORBIDDEN: { status: 403 },
+		NOT_FOUND: { status: 404 },
+		CONFLICT: { status: 409 },
+		PRECONDITION_FAILED: { status: 412 },
+		SOURCE_MANAGED: { status: 409 },
+		UNSUPPORTED: { status: 422 },
+		RATE_LIMITED: { status: 429 },
+		UNAVAILABLE: { status: 503 }
+	});
+}
+/** Declare an HTTP service and its procedures for workload routing. */
+function defineService(name, router, module) {
+	const owner = Package.parse(declaringModule(module, "defineService").package);
+	return Object.freeze({
+		package: owner,
+		name: DeclarationName.parse(name),
+		version: 1,
+		protocol: "http",
+		router
+	});
+}
+/** A named dependency on a provided service. */
+var ServiceConnectionDescription = defineSchema(strictObject({
+	/** The immutable identity of the declaring package. */
+	packageId: PackageId,
+	/** The package-local connection name. */
+	name: DeclarationName,
+	/** The required service declaration. */
+	service: DeclarationReference
+}));
+/** An inert service dependency with a host-bound typed client. */
+var ServiceConnection = class extends ResourceHandle {
+	/** The required service declaration. */
+	service;
+	/** The procedure definitions used to construct the client. */
+	router;
+	/** Retain the dependency description and its typed API without opening a connection. */
+	constructor(owner, declaration, router) {
+		super(owner, declaration.name);
+		this.service = declaration.service;
+		this.router = router;
+	}
+};
+/** Define a named dependency on a declared service, collected by package inspection. */
+function defineServiceConnection(name, service, module) {
+	const owner = declaringModule(module, "defineServiceConnection").package;
+	return new ServiceConnection(owner, ServiceConnectionDescription.parse({
+		packageId: owner.id,
+		name,
+		service: reference(service)
+	}), service.router);
+}
+var VERSION = "1.9.1";
+var re = /^(\d+)\.(\d+)\.(\d+)(-(.+))?$/;
+/**
+* Create a function to test an API version to see if it is compatible with the provided ownVersion.
+*
+* The returned function has the following semantics:
+* - Exact match is always compatible
+* - Major versions must match exactly
+*    - 1.x package cannot use global 2.x package
+*    - 2.x package cannot use global 1.x package
+* - The minor version of the API module requesting access to the global API must be less than or equal to the minor version of this API
+*    - 1.3 package may use 1.4 global because the later global contains all functions 1.3 expects
+*    - 1.4 package may NOT use 1.3 global because it may try to call functions which don't exist on 1.3
+* - If the major version is 0, the minor version is treated as the major and the patch is treated as the minor
+* - Patch and build tag differences are not considered at this time
+*
+* @param ownVersion version which should be checked against
+*/
+function _makeCompatibilityCheck(ownVersion) {
+	const acceptedVersions = /* @__PURE__ */ new Set([ownVersion]);
+	const rejectedVersions = /* @__PURE__ */ new Set();
+	const myVersionMatch = ownVersion.match(re);
+	if (!myVersionMatch) return () => false;
+	const ownVersionParsed = {
+		major: +myVersionMatch[1],
+		minor: +myVersionMatch[2],
+		patch: +myVersionMatch[3],
+		prerelease: myVersionMatch[4]
+	};
+	if (ownVersionParsed.prerelease != null) return function isExactmatch(globalVersion) {
+		return globalVersion === ownVersion;
+	};
+	function _reject(v) {
+		rejectedVersions.add(v);
+		return false;
+	}
+	function _accept(v) {
+		acceptedVersions.add(v);
+		return true;
+	}
+	return function isCompatible(globalVersion) {
+		if (acceptedVersions.has(globalVersion)) return true;
+		if (rejectedVersions.has(globalVersion)) return false;
+		const globalVersionMatch = globalVersion.match(re);
+		if (!globalVersionMatch) return _reject(globalVersion);
+		const globalVersionParsed = {
+			major: +globalVersionMatch[1],
+			minor: +globalVersionMatch[2],
+			patch: +globalVersionMatch[3],
+			prerelease: globalVersionMatch[4]
+		};
+		if (globalVersionParsed.prerelease != null) return _reject(globalVersion);
+		if (ownVersionParsed.major !== globalVersionParsed.major) return _reject(globalVersion);
+		if (ownVersionParsed.major === 0) {
+			if (ownVersionParsed.minor === globalVersionParsed.minor && ownVersionParsed.patch <= globalVersionParsed.patch) return _accept(globalVersion);
+			return _reject(globalVersion);
+		}
+		if (ownVersionParsed.minor <= globalVersionParsed.minor) return _accept(globalVersion);
+		return _reject(globalVersion);
+	};
+}
+/**
+* Test an API version to see if it is compatible with this API.
+*
+* - Exact match is always compatible
+* - Major versions must match exactly
+*    - 1.x package cannot use global 2.x package
+*    - 2.x package cannot use global 1.x package
+* - The minor version of the API module requesting access to the global API must be less than or equal to the minor version of this API
+*    - 1.3 package may use 1.4 global because the later global contains all functions 1.3 expects
+*    - 1.4 package may NOT use 1.3 global because it may try to call functions which don't exist on 1.3
+* - If the major version is 0, the minor version is treated as the major and the patch is treated as the minor
+* - Patch and build tag differences are not considered at this time
+*
+* @param version version of the API requesting an instance of the global API
+*/
+var isCompatible = _makeCompatibilityCheck(VERSION);
+var major = VERSION.split(".")[0];
+var GLOBAL_OPENTELEMETRY_API_KEY = Symbol.for(`opentelemetry.js.api.${major}`);
+var _global$1 = typeof globalThis === "object" ? globalThis : typeof self === "object" ? self : typeof window === "object" ? window : typeof global === "object" ? global : {};
+function registerGlobal(type, instance, diag, allowOverride = false) {
+	var _a;
+	const api = _global$1[GLOBAL_OPENTELEMETRY_API_KEY] = (_a = _global$1[GLOBAL_OPENTELEMETRY_API_KEY]) !== null && _a !== void 0 ? _a : { version: VERSION };
+	if (!allowOverride && api[type]) {
+		const err = /* @__PURE__ */ new Error(`@opentelemetry/api: Attempted duplicate registration of API: ${type}`);
+		diag.error(err.stack || err.message);
+		return false;
+	}
+	if (api.version !== "1.9.1") {
+		const err = /* @__PURE__ */ new Error(`@opentelemetry/api: Registration of version v${api.version} for ${type} does not match previously registered API v${VERSION}`);
+		diag.error(err.stack || err.message);
+		return false;
+	}
+	api[type] = instance;
+	diag.debug(`@opentelemetry/api: Registered a global for ${type} v${VERSION}.`);
+	return true;
+}
+function getGlobal(type) {
+	var _a, _b;
+	const globalVersion = (_a = _global$1[GLOBAL_OPENTELEMETRY_API_KEY]) === null || _a === void 0 ? void 0 : _a.version;
+	if (!globalVersion || !isCompatible(globalVersion)) return;
+	return (_b = _global$1[GLOBAL_OPENTELEMETRY_API_KEY]) === null || _b === void 0 ? void 0 : _b[type];
+}
+function unregisterGlobal(type, diag) {
+	diag.debug(`@opentelemetry/api: Unregistering a global for ${type} v${VERSION}.`);
+	const api = _global$1[GLOBAL_OPENTELEMETRY_API_KEY];
+	if (api) delete api[type];
+}
+/**
+* Component Logger which is meant to be used as part of any component which
+* will add automatically additional namespace in front of the log message.
+* It will then forward all message to global diag logger
+* @example
+* const cLogger = diag.createComponentLogger({ namespace: '@opentelemetry/instrumentation-http' });
+* cLogger.debug('test');
+* // @opentelemetry/instrumentation-http test
+*/
+var DiagComponentLogger = class {
+	constructor(props) {
+		this._namespace = props.namespace || "DiagComponentLogger";
+	}
+	debug(...args) {
+		return logProxy("debug", this._namespace, args);
+	}
+	error(...args) {
+		return logProxy("error", this._namespace, args);
+	}
+	info(...args) {
+		return logProxy("info", this._namespace, args);
+	}
+	warn(...args) {
+		return logProxy("warn", this._namespace, args);
+	}
+	verbose(...args) {
+		return logProxy("verbose", this._namespace, args);
+	}
+};
+function logProxy(funcName, namespace, args) {
+	const logger = getGlobal("diag");
+	if (!logger) return;
+	return logger[funcName](namespace, ...args);
+}
+/**
+* Defines the available internal logging levels for the diagnostic logger, the numeric values
+* of the levels are defined to match the original values from the initial LogLevel to avoid
+* compatibility/migration issues for any implementation that assume the numeric ordering.
+*/
+var DiagLogLevel;
+(function(DiagLogLevel) {
+	/** Diagnostic Logging level setting to disable all logging (except and forced logs) */
+	DiagLogLevel[DiagLogLevel["NONE"] = 0] = "NONE";
+	/** Identifies an error scenario */
+	DiagLogLevel[DiagLogLevel["ERROR"] = 30] = "ERROR";
+	/** Identifies a warning scenario */
+	DiagLogLevel[DiagLogLevel["WARN"] = 50] = "WARN";
+	/** General informational log message */
+	DiagLogLevel[DiagLogLevel["INFO"] = 60] = "INFO";
+	/** General debug log message */
+	DiagLogLevel[DiagLogLevel["DEBUG"] = 70] = "DEBUG";
+	/**
+	* Detailed trace level logging should only be used for development, should only be set
+	* in a development environment.
+	*/
+	DiagLogLevel[DiagLogLevel["VERBOSE"] = 80] = "VERBOSE";
+	/** Used to set the logging level to include all logging */
+	DiagLogLevel[DiagLogLevel["ALL"] = 9999] = "ALL";
+})(DiagLogLevel || (DiagLogLevel = {}));
+function createLogLevelDiagLogger(maxLevel, logger) {
+	if (maxLevel < DiagLogLevel.NONE) maxLevel = DiagLogLevel.NONE;
+	else if (maxLevel > DiagLogLevel.ALL) maxLevel = DiagLogLevel.ALL;
+	logger = logger || {};
+	function _filterFunc(funcName, theLevel) {
+		const theFunc = logger[funcName];
+		if (typeof theFunc === "function" && maxLevel >= theLevel) return theFunc.bind(logger);
+		return function() {};
+	}
+	return {
+		error: _filterFunc("error", DiagLogLevel.ERROR),
+		warn: _filterFunc("warn", DiagLogLevel.WARN),
+		info: _filterFunc("info", DiagLogLevel.INFO),
+		debug: _filterFunc("debug", DiagLogLevel.DEBUG),
+		verbose: _filterFunc("verbose", DiagLogLevel.VERBOSE)
+	};
+}
+var API_NAME$3 = "diag";
+/**
+* Singleton object which represents the entry point to the OpenTelemetry internal
+* diagnostic API
+*
+* @since 1.0.0
+*/
+var DiagAPI = class DiagAPI {
+	/** Get the singleton instance of the DiagAPI API */
+	static instance() {
+		if (!this._instance) this._instance = new DiagAPI();
+		return this._instance;
+	}
+	/**
+	* Private internal constructor
+	* @private
+	*/
+	constructor() {
+		function _logProxy(funcName) {
+			return function(...args) {
+				const logger = getGlobal("diag");
+				if (!logger) return;
+				return logger[funcName](...args);
+			};
+		}
+		const self = this;
+		const setLogger = (logger, optionsOrLogLevel = { logLevel: DiagLogLevel.INFO }) => {
+			var _a, _b, _c;
+			if (logger === self) {
+				const err = /* @__PURE__ */ new Error("Cannot use diag as the logger for itself. Please use a DiagLogger implementation like ConsoleDiagLogger or a custom implementation");
+				self.error((_a = err.stack) !== null && _a !== void 0 ? _a : err.message);
+				return false;
+			}
+			if (typeof optionsOrLogLevel === "number") optionsOrLogLevel = { logLevel: optionsOrLogLevel };
+			const oldLogger = getGlobal("diag");
+			const newLogger = createLogLevelDiagLogger((_b = optionsOrLogLevel.logLevel) !== null && _b !== void 0 ? _b : DiagLogLevel.INFO, logger);
+			if (oldLogger && !optionsOrLogLevel.suppressOverrideMessage) {
+				const stack = (_c = (/* @__PURE__ */ new Error()).stack) !== null && _c !== void 0 ? _c : "<failed to generate stacktrace>";
+				oldLogger.warn(`Current logger will be overwritten from ${stack}`);
+				newLogger.warn(`Current logger will overwrite one already registered from ${stack}`);
+			}
+			return registerGlobal("diag", newLogger, self, true);
+		};
+		self.setLogger = setLogger;
+		self.disable = () => {
+			unregisterGlobal(API_NAME$3, self);
+		};
+		self.createComponentLogger = (options) => {
+			return new DiagComponentLogger(options);
+		};
+		self.verbose = _logProxy("verbose");
+		self.debug = _logProxy("debug");
+		self.info = _logProxy("info");
+		self.warn = _logProxy("warn");
+		self.error = _logProxy("error");
+	}
+};
+/**
+* Get a key to uniquely identify a context value
+*
+* @since 1.0.0
+*/
+function createContextKey(description) {
+	return Symbol.for(description);
+}
+/**
+* The root context is used as the default parent context when there is no active context
+*
+* @since 1.0.0
+*/
+var ROOT_CONTEXT = new class BaseContext {
+	/**
+	* Construct a new context which inherits values from an optional parent context.
+	*
+	* @param parentContext a context from which to inherit values
+	*/
+	constructor(parentContext) {
+		const self = this;
+		self._currentContext = parentContext ? new Map(parentContext) : /* @__PURE__ */ new Map();
+		self.getValue = (key) => self._currentContext.get(key);
+		self.setValue = (key, value) => {
+			const context = new BaseContext(self._currentContext);
+			context._currentContext.set(key, value);
+			return context;
+		};
+		self.deleteValue = (key) => {
+			const context = new BaseContext(self._currentContext);
+			context._currentContext.delete(key);
+			return context;
+		};
+	}
+}();
+/**
+* NoopMeter is a noop implementation of the {@link Meter} interface. It reuses
+* constant NoopMetrics for all of its methods.
+*/
+var NoopMeter = class {
+	constructor() {}
+	/**
+	* @see {@link Meter.createGauge}
+	*/
+	createGauge(_name, _options) {
+		return NOOP_GAUGE_METRIC;
+	}
+	/**
+	* @see {@link Meter.createHistogram}
+	*/
+	createHistogram(_name, _options) {
+		return NOOP_HISTOGRAM_METRIC;
+	}
+	/**
+	* @see {@link Meter.createCounter}
+	*/
+	createCounter(_name, _options) {
+		return NOOP_COUNTER_METRIC;
+	}
+	/**
+	* @see {@link Meter.createUpDownCounter}
+	*/
+	createUpDownCounter(_name, _options) {
+		return NOOP_UP_DOWN_COUNTER_METRIC;
+	}
+	/**
+	* @see {@link Meter.createObservableGauge}
+	*/
+	createObservableGauge(_name, _options) {
+		return NOOP_OBSERVABLE_GAUGE_METRIC;
+	}
+	/**
+	* @see {@link Meter.createObservableCounter}
+	*/
+	createObservableCounter(_name, _options) {
+		return NOOP_OBSERVABLE_COUNTER_METRIC;
+	}
+	/**
+	* @see {@link Meter.createObservableUpDownCounter}
+	*/
+	createObservableUpDownCounter(_name, _options) {
+		return NOOP_OBSERVABLE_UP_DOWN_COUNTER_METRIC;
+	}
+	/**
+	* @see {@link Meter.addBatchObservableCallback}
+	*/
+	addBatchObservableCallback(_callback, _observables) {}
+	/**
+	* @see {@link Meter.removeBatchObservableCallback}
+	*/
+	removeBatchObservableCallback(_callback) {}
+};
+var NoopMetric = class {};
+var NoopCounterMetric = class extends NoopMetric {
+	add(_value, _attributes) {}
+};
+var NoopUpDownCounterMetric = class extends NoopMetric {
+	add(_value, _attributes) {}
+};
+var NoopGaugeMetric = class extends NoopMetric {
+	record(_value, _attributes) {}
+};
+var NoopHistogramMetric = class extends NoopMetric {
+	record(_value, _attributes) {}
+};
+var NoopObservableMetric = class {
+	addCallback(_callback) {}
+	removeCallback(_callback) {}
+};
+var NoopObservableCounterMetric = class extends NoopObservableMetric {};
+var NoopObservableGaugeMetric = class extends NoopObservableMetric {};
+var NoopObservableUpDownCounterMetric = class extends NoopObservableMetric {};
+var NOOP_METER = new NoopMeter();
+var NOOP_COUNTER_METRIC = new NoopCounterMetric();
+var NOOP_GAUGE_METRIC = new NoopGaugeMetric();
+var NOOP_HISTOGRAM_METRIC = new NoopHistogramMetric();
+var NOOP_UP_DOWN_COUNTER_METRIC = new NoopUpDownCounterMetric();
+var NOOP_OBSERVABLE_COUNTER_METRIC = new NoopObservableCounterMetric();
+var NOOP_OBSERVABLE_GAUGE_METRIC = new NoopObservableGaugeMetric();
+var NOOP_OBSERVABLE_UP_DOWN_COUNTER_METRIC = new NoopObservableUpDownCounterMetric();
+var NoopContextManager = class {
+	active() {
+		return ROOT_CONTEXT;
+	}
+	with(_context, fn, thisArg, ...args) {
+		return fn.call(thisArg, ...args);
+	}
+	bind(_context, target) {
+		return target;
+	}
+	enable() {
+		return this;
+	}
+	disable() {
+		return this;
+	}
+};
+var API_NAME$2 = "context";
+var NOOP_CONTEXT_MANAGER = new NoopContextManager();
+/**
+* Singleton object which represents the entry point to the OpenTelemetry Context API
+*
+* @since 1.0.0
+*/
+var ContextAPI = class ContextAPI {
+	/** Empty private constructor prevents end users from constructing a new instance of the API */
+	constructor() {}
+	/** Get the singleton instance of the Context API */
+	static getInstance() {
+		if (!this._instance) this._instance = new ContextAPI();
+		return this._instance;
+	}
+	/**
+	* Set the current context manager.
+	*
+	* @returns true if the context manager was successfully registered, else false
+	*/
+	setGlobalContextManager(contextManager) {
+		return registerGlobal(API_NAME$2, contextManager, DiagAPI.instance());
+	}
+	/**
+	* Get the currently active context
+	*/
+	active() {
+		return this._getContextManager().active();
+	}
+	/**
+	* Execute a function with an active context
+	*
+	* @param context context to be active during function execution
+	* @param fn function to execute in a context
+	* @param thisArg optional receiver to be used for calling fn
+	* @param args optional arguments forwarded to fn
+	*/
+	with(context, fn, thisArg, ...args) {
+		return this._getContextManager().with(context, fn, thisArg, ...args);
+	}
+	/**
+	* Bind a context to a target function or event emitter
+	*
+	* @param context context to bind to the event emitter or function. Defaults to the currently active context
+	* @param target function or event emitter to bind
+	*/
+	bind(context, target) {
+		return this._getContextManager().bind(context, target);
+	}
+	_getContextManager() {
+		return getGlobal(API_NAME$2) || NOOP_CONTEXT_MANAGER;
+	}
+	/** Disable and remove the global context manager */
+	disable() {
+		this._getContextManager().disable();
+		unregisterGlobal(API_NAME$2, DiagAPI.instance());
+	}
+};
+/**
+* @since 1.0.0
+*/
+var TraceFlags;
+(function(TraceFlags) {
+	/** Represents no flag set. */
+	TraceFlags[TraceFlags["NONE"] = 0] = "NONE";
+	/** Bit to represent whether trace is sampled in trace flags. */
+	TraceFlags[TraceFlags["SAMPLED"] = 1] = "SAMPLED";
+})(TraceFlags || (TraceFlags = {}));
+/**
+* @since 1.0.0
+*/
+var INVALID_SPAN_CONTEXT = {
+	traceId: "00000000000000000000000000000000",
+	spanId: "0000000000000000",
+	traceFlags: TraceFlags.NONE
+};
+/**
+* The NonRecordingSpan is the default {@link Span} that is used when no Span
+* implementation is available. All operations are no-op including context
+* propagation.
+*/
+var NonRecordingSpan = class {
+	constructor(spanContext = INVALID_SPAN_CONTEXT) {
+		this._spanContext = spanContext;
+	}
+	spanContext() {
+		return this._spanContext;
+	}
+	setAttribute(_key, _value) {
+		return this;
+	}
+	setAttributes(_attributes) {
+		return this;
+	}
+	addEvent(_name, _attributes) {
+		return this;
+	}
+	addLink(_link) {
+		return this;
+	}
+	addLinks(_links) {
+		return this;
+	}
+	setStatus(_status) {
+		return this;
+	}
+	updateName(_name) {
+		return this;
+	}
+	end(_endTime) {}
+	isRecording() {
+		return false;
+	}
+	recordException(_exception, _time) {}
+};
+/**
+* span key
+*/
+var SPAN_KEY = createContextKey("OpenTelemetry Context Key SPAN");
+/**
+* Return the span if one exists
+*
+* @param context context to get span from
+*/
+function getSpan(context) {
+	return context.getValue(SPAN_KEY) || void 0;
+}
+/**
+* Gets the span from the current context, if one exists.
+*/
+function getActiveSpan() {
+	return getSpan(ContextAPI.getInstance().active());
+}
+/**
+* Set the span on a context
+*
+* @param context context to use as parent
+* @param span span to set active
+*/
+function setSpan(context, span) {
+	return context.setValue(SPAN_KEY, span);
+}
+/**
+* Remove current span stored in the context
+*
+* @param context context to delete span from
+*/
+function deleteSpan(context) {
+	return context.deleteValue(SPAN_KEY);
+}
+/**
+* Wrap span context in a NoopSpan and set as span in a new
+* context
+*
+* @param context context to set active span on
+* @param spanContext span context to be wrapped
+*/
+function setSpanContext(context, spanContext) {
+	return setSpan(context, new NonRecordingSpan(spanContext));
+}
+/**
+* Get the span context of the span if it exists.
+*
+* @param context context to get values from
+*/
+function getSpanContext(context) {
+	var _a;
+	return (_a = getSpan(context)) === null || _a === void 0 ? void 0 : _a.spanContext();
+}
+var isHex = new Uint8Array([
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0,
+	1,
+	1,
+	1,
+	1,
+	1,
+	1
+]);
+function isValidHex(id, length) {
+	if (typeof id !== "string" || id.length !== length) return false;
+	let r = 0;
+	for (let i = 0; i < id.length; i += 4) r += (isHex[id.charCodeAt(i)] | 0) + (isHex[id.charCodeAt(i + 1)] | 0) + (isHex[id.charCodeAt(i + 2)] | 0) + (isHex[id.charCodeAt(i + 3)] | 0);
+	return r === length;
+}
+/**
+* @since 1.0.0
+*/
+function isValidTraceId(traceId) {
+	return isValidHex(traceId, 32) && traceId !== "00000000000000000000000000000000";
+}
+/**
+* @since 1.0.0
+*/
+function isValidSpanId(spanId) {
+	return isValidHex(spanId, 16) && spanId !== "0000000000000000";
+}
+/**
+* Returns true if this {@link SpanContext} is valid.
+* @return true if this {@link SpanContext} is valid.
+*
+* @since 1.0.0
+*/
+function isSpanContextValid(spanContext) {
+	return isValidTraceId(spanContext.traceId) && isValidSpanId(spanContext.spanId);
+}
+/**
+* Wrap the given {@link SpanContext} in a new non-recording {@link Span}
+*
+* @param spanContext span context to be wrapped
+* @returns a new non-recording {@link Span} with the provided context
+*/
+function wrapSpanContext(spanContext) {
+	return new NonRecordingSpan(spanContext);
+}
+var contextApi = ContextAPI.getInstance();
+/**
+* No-op implementations of {@link Tracer}.
+*/
+var NoopTracer = class {
+	startSpan(name, options, context = contextApi.active()) {
+		if (Boolean(options === null || options === void 0 ? void 0 : options.root)) return new NonRecordingSpan();
+		const parentFromContext = context && getSpanContext(context);
+		if (isSpanContext(parentFromContext) && isSpanContextValid(parentFromContext)) return new NonRecordingSpan(parentFromContext);
+		else return new NonRecordingSpan();
+	}
+	startActiveSpan(name, arg2, arg3, arg4) {
+		let opts;
+		let ctx;
+		let fn;
+		if (arguments.length < 2) return;
+		else if (arguments.length === 2) fn = arg2;
+		else if (arguments.length === 3) {
+			opts = arg2;
+			fn = arg3;
+		} else {
+			opts = arg2;
+			ctx = arg3;
+			fn = arg4;
+		}
+		const parentContext = ctx !== null && ctx !== void 0 ? ctx : contextApi.active();
+		const span = this.startSpan(name, opts, parentContext);
+		const contextWithSpanSet = setSpan(parentContext, span);
+		return contextApi.with(contextWithSpanSet, fn, void 0, span);
+	}
+};
+function isSpanContext(spanContext) {
+	return spanContext !== null && typeof spanContext === "object" && "spanId" in spanContext && typeof spanContext["spanId"] === "string" && "traceId" in spanContext && typeof spanContext["traceId"] === "string" && "traceFlags" in spanContext && typeof spanContext["traceFlags"] === "number";
+}
+var NOOP_TRACER = new NoopTracer();
+/**
+* Proxy tracer provided by the proxy tracer provider
+*
+* @since 1.0.0
+*/
+var ProxyTracer = class {
+	constructor(provider, name, version, options) {
+		this._provider = provider;
+		this.name = name;
+		this.version = version;
+		this.options = options;
+	}
+	startSpan(name, options, context) {
+		return this._getTracer().startSpan(name, options, context);
+	}
+	startActiveSpan(_name, _options, _context, _fn) {
+		const tracer = this._getTracer();
+		return Reflect.apply(tracer.startActiveSpan, tracer, arguments);
+	}
+	/**
+	* Try to get a tracer from the proxy tracer provider.
+	* If the proxy tracer provider has no delegate, return a noop tracer.
+	*/
+	_getTracer() {
+		if (this._delegate) return this._delegate;
+		const tracer = this._provider.getDelegateTracer(this.name, this.version, this.options);
+		if (!tracer) return NOOP_TRACER;
+		this._delegate = tracer;
+		return this._delegate;
+	}
+};
+/**
+* An implementation of the {@link TracerProvider} which returns an impotent
+* Tracer for all calls to `getTracer`.
+*
+* All operations are no-op.
+*/
+var NoopTracerProvider = class {
+	getTracer(_name, _version, _options) {
+		return new NoopTracer();
+	}
+};
+var NOOP_TRACER_PROVIDER = new NoopTracerProvider();
+/**
+* Tracer provider which provides {@link ProxyTracer}s.
+*
+* Before a delegate is set, tracers provided are NoOp.
+*   When a delegate is set, traces are provided from the delegate.
+*   When a delegate is set after tracers have already been provided,
+*   all tracers already provided will use the provided delegate implementation.
+*
+* @deprecated This will be removed in the next major version.
+* @since 1.0.0
+*/
+var ProxyTracerProvider = class {
+	/**
+	* Get a {@link ProxyTracer}
+	*/
+	getTracer(name, version, options) {
+		var _a;
+		return (_a = this.getDelegateTracer(name, version, options)) !== null && _a !== void 0 ? _a : new ProxyTracer(this, name, version, options);
+	}
+	getDelegate() {
+		var _a;
+		return (_a = this._delegate) !== null && _a !== void 0 ? _a : NOOP_TRACER_PROVIDER;
+	}
+	/**
+	* Set the delegate tracer provider
+	*/
+	setDelegate(delegate) {
+		this._delegate = delegate;
+	}
+	getDelegateTracer(name, version, options) {
+		var _a;
+		return (_a = this._delegate) === null || _a === void 0 ? void 0 : _a.getTracer(name, version, options);
+	}
+};
+/**
+* An implementation of the {@link MeterProvider} which returns an impotent Meter
+* for all calls to `getMeter`
+*/
+var NoopMeterProvider = class {
+	getMeter(_name, _version, _options) {
+		return NOOP_METER;
+	}
+};
+var NOOP_METER_PROVIDER = new NoopMeterProvider();
+var API_NAME$1 = "metrics";
+/**
+* Entrypoint for metrics API
+*
+* @since 1.3.0
+*/
+var metrics = class MetricsAPI {
+	/** Empty private constructor prevents end users from constructing a new instance of the API */
+	constructor() {}
+	/** Get the singleton instance of the Metrics API */
+	static getInstance() {
+		if (!this._instance) this._instance = new MetricsAPI();
+		return this._instance;
+	}
+	/**
+	* Set the current global meter provider.
+	* Returns true if the meter provider was successfully registered, else false.
+	*/
+	setGlobalMeterProvider(provider) {
+		return registerGlobal(API_NAME$1, provider, DiagAPI.instance());
+	}
+	/**
+	* Returns the global meter provider.
+	*/
+	getMeterProvider() {
+		return getGlobal(API_NAME$1) || NOOP_METER_PROVIDER;
+	}
+	/**
+	* Returns a meter from the global meter provider.
+	*/
+	getMeter(name, version, options) {
+		return this.getMeterProvider().getMeter(name, version, options);
+	}
+	/** Remove the global meter provider */
+	disable() {
+		unregisterGlobal(API_NAME$1, DiagAPI.instance());
+	}
+}.getInstance();
+var API_NAME = "trace";
+/**
+* Entrypoint for trace API
+*
+* @since 1.0.0
+*/
+var trace = class TraceAPI {
+	/** Empty private constructor prevents end users from constructing a new instance of the API */
+	constructor() {
+		this._proxyTracerProvider = new ProxyTracerProvider();
+		this.wrapSpanContext = wrapSpanContext;
+		this.isSpanContextValid = isSpanContextValid;
+		this.deleteSpan = deleteSpan;
+		this.getSpan = getSpan;
+		this.getActiveSpan = getActiveSpan;
+		this.getSpanContext = getSpanContext;
+		this.setSpan = setSpan;
+		this.setSpanContext = setSpanContext;
+	}
+	/** Get the singleton instance of the Trace API */
+	static getInstance() {
+		if (!this._instance) this._instance = new TraceAPI();
+		return this._instance;
+	}
+	/**
+	* Set the current global tracer.
+	*
+	* @returns true if the tracer provider was successfully registered, else false
+	*/
+	setGlobalTracerProvider(provider) {
+		const success = registerGlobal(API_NAME, this._proxyTracerProvider, DiagAPI.instance());
+		if (success) this._proxyTracerProvider.setDelegate(provider);
+		return success;
+	}
+	/**
+	* Returns the global tracer provider.
+	*/
+	getTracerProvider() {
+		return getGlobal(API_NAME) || this._proxyTracerProvider;
+	}
+	/**
+	* Returns a tracer from the global tracer provider.
+	*/
+	getTracer(name, version) {
+		return this.getTracerProvider().getTracer(name, version);
+	}
+	/** Remove the global tracer provider */
+	disable() {
+		unregisterGlobal(API_NAME, DiagAPI.instance());
+		this._proxyTracerProvider = new ProxyTracerProvider();
+	}
+}.getInstance();
+var NoopLogger = class {
+	emit(_logRecord) {}
+	enabled() {
+		return false;
+	}
+};
+var NOOP_LOGGER = new NoopLogger();
+var GLOBAL_LOGS_API_KEY = Symbol.for("io.opentelemetry.js.api.logs");
+var _global = globalThis;
+/**
+* Make a function which accepts a version integer and returns the instance of an API if the version
+* is compatible, or a fallback version (usually NOOP) if it is not.
+*
+* @param requiredVersion Backwards compatibility version which is required to return the instance
+* @param instance Instance which should be returned if the required version is compatible
+* @param fallback Fallback instance, usually NOOP, which will be returned if the required version is not compatible
+*/
+function makeGetter(requiredVersion, instance, fallback) {
+	return (version) => version === requiredVersion ? instance : fallback;
+}
+var NoopLoggerProvider = class {
+	getLogger(_name, _version, _options) {
+		return new NoopLogger();
+	}
+};
+var NOOP_LOGGER_PROVIDER = new NoopLoggerProvider();
+var ProxyLogger = class {
+	constructor(provider, name, version, options) {
+		this._provider = provider;
+		this.name = name;
+		this.version = version;
+		this.options = options;
+	}
+	/**
+	* Emit a log record. This method should only be used by log appenders.
+	*
+	* @param logRecord
+	*/
+	emit(logRecord) {
+		this._getLogger().emit(logRecord);
+	}
+	enabled(options) {
+		return this._getLogger().enabled(options);
+	}
+	/**
+	* Try to get a logger from the proxy logger provider.
+	* If the proxy logger provider has no delegate, return a noop logger.
+	*/
+	_getLogger() {
+		if (this._delegate) return this._delegate;
+		const logger = this._provider._getDelegateLogger(this.name, this.version, this.options);
+		if (!logger) return NOOP_LOGGER;
+		this._delegate = logger;
+		return this._delegate;
+	}
+};
+var ProxyLoggerProvider = class {
+	getLogger(name, version, options) {
+		var _a;
+		return (_a = this._getDelegateLogger(name, version, options)) !== null && _a !== void 0 ? _a : new ProxyLogger(this, name, version, options);
+	}
+	/**
+	* Get the delegate logger provider.
+	* Used by tests only.
+	* @internal
+	*/
+	_getDelegate() {
+		var _a;
+		return (_a = this._delegate) !== null && _a !== void 0 ? _a : NOOP_LOGGER_PROVIDER;
+	}
+	/**
+	* Set the delegate logger provider
+	* @internal
+	*/
+	_setDelegate(delegate) {
+		this._delegate = delegate;
+	}
+	/**
+	* @internal
+	*/
+	_getDelegateLogger(name, version, options) {
+		var _a;
+		return (_a = this._delegate) === null || _a === void 0 ? void 0 : _a.getLogger(name, version, options);
+	}
+};
+var logs = class LogsAPI {
+	constructor() {
+		this._proxyLoggerProvider = new ProxyLoggerProvider();
+	}
+	static getInstance() {
+		if (!this._instance) this._instance = new LogsAPI();
+		return this._instance;
+	}
+	setGlobalLoggerProvider(provider) {
+		if (_global[GLOBAL_LOGS_API_KEY]) return this.getLoggerProvider();
+		_global[GLOBAL_LOGS_API_KEY] = makeGetter(1, provider, NOOP_LOGGER_PROVIDER);
+		this._proxyLoggerProvider._setDelegate(provider);
+		return provider;
+	}
+	/**
+	* Returns the global logger provider.
+	*
+	* @returns LoggerProvider
+	*/
+	getLoggerProvider() {
+		var _a, _b;
+		return (_b = (_a = _global[GLOBAL_LOGS_API_KEY]) === null || _a === void 0 ? void 0 : _a.call(_global, 1)) !== null && _b !== void 0 ? _b : this._proxyLoggerProvider;
+	}
+	/**
+	* Returns a Logger, creating one if one with the given name, version,
+	* schemaUrl, and attributes is not already created.
+	*
+	* Getting a Logger may be expensive, especially when `attributes` are
+	* provided. Reuse Logger instances where possible instead of calling
+	* `getLogger()` on hot paths.
+	*
+	* @param name The name of the logger or instrumentation library.
+	* @param version The version of the logger or instrumentation library.
+	* @param options The options of the logger or instrumentation library.
+	* @returns {@link Logger}
+	*/
+	getLogger(name, version, options) {
+		return this.getLoggerProvider().getLogger(name, version, options);
+	}
+	/** Remove the global logger provider */
+	disable() {
+		delete _global[GLOBAL_LOGS_API_KEY];
+		this._proxyLoggerProvider = new ProxyLoggerProvider();
+	}
+}.getInstance();
+/** Obtain package instruments from the providers registered by the host. */
+function scope(source) {
+	return {
+		tracer: trace.getTracer(source.name, source.version),
+		meter: metrics.getMeter(source.name, source.version),
+		logger: logs.getLogger(source.name, source.version)
+	};
+}
+var LAZY_SYMBOL = Symbol("ORPC_LAZY_SYMBOL");
+function lazy(loader, meta = {}) {
+	return { [LAZY_SYMBOL]: {
+		loader,
+		meta
+	} };
+}
+function isLazy(item) {
+	return (typeof item === "object" || typeof item === "function") && item !== null && LAZY_SYMBOL in item;
+}
+function getLazyMeta(lazied) {
+	return lazied[LAZY_SYMBOL].meta;
+}
+function unlazy(lazied) {
+	return isLazy(lazied) ? lazied[LAZY_SYMBOL].loader() : Promise.resolve({ default: lazied });
+}
+function isStartWithMiddlewares(middlewares, compare) {
+	if (compare.length > middlewares.length) return false;
+	for (let i = 0; i < middlewares.length; i++) {
+		if (compare[i] === void 0) return true;
+		if (middlewares[i] !== compare[i]) return false;
+	}
+	return true;
+}
+function mergeMiddlewares(first, second, options) {
+	if (options.dedupeLeading && isStartWithMiddlewares(second, first)) return second;
+	return [...first, ...second];
+}
+function addMiddleware(middlewares, addition) {
+	return [...middlewares, addition];
+}
+var Procedure = class {
+	/**
+	* This property holds the defined options.
+	*/
+	"~orpc";
+	constructor(def) {
+		this["~orpc"] = def;
+	}
+};
+function isProcedure(item) {
+	if (item instanceof Procedure) return true;
+	return isContractProcedure(item) && "middlewares" in item["~orpc"] && "inputValidationIndex" in item["~orpc"] && "outputValidationIndex" in item["~orpc"] && "handler" in item["~orpc"];
+}
+function mergeCurrentContext(context, other) {
+	return {
+		...context,
+		...other
+	};
+}
+function createORPCErrorConstructorMap(errors) {
+	return new Proxy(errors, { get(target, code) {
+		if (typeof code !== "string") return Reflect.get(target, code);
+		const item = (...rest) => {
+			const options = resolveMaybeOptionalOptions(rest);
+			const config = errors[code];
+			return new ORPCError(code, {
+				defined: Boolean(config),
+				status: config?.status,
+				message: options.message ?? config?.message,
+				data: options.data,
+				cause: options.cause
+			});
+		};
+		return item;
+	} });
+}
+function middlewareOutputFn(output) {
+	return {
+		output,
+		context: {}
+	};
+}
+function createProcedureClient(lazyableProcedure, ...rest) {
+	const options = resolveMaybeOptionalOptions(rest);
+	return async (...[input, callerOptions]) => {
+		const path = toArray(options.path);
+		const { default: procedure } = await unlazy(lazyableProcedure);
+		const clientContext = callerOptions?.context ?? {};
+		const context = await value(options.context ?? {}, clientContext);
+		const errors = createORPCErrorConstructorMap(procedure["~orpc"].errorMap);
+		const validateError = async (e) => {
+			if (e instanceof ORPCError) return await validateORPCError(procedure["~orpc"].errorMap, e);
+			return e;
+		};
+		try {
+			const output = await runWithSpan({
+				name: "call_procedure",
+				signal: callerOptions?.signal
+			}, (span) => {
+				span?.setAttribute("procedure.path", [...path]);
+				return intercept(toArray(options.interceptors), {
+					context,
+					input,
+					errors,
+					path,
+					procedure,
+					signal: callerOptions?.signal,
+					lastEventId: callerOptions?.lastEventId
+				}, (interceptorOptions) => executeProcedureInternal(interceptorOptions.procedure, interceptorOptions));
+			});
+			if (isAsyncIteratorObject(output)) {
+				if (output instanceof HibernationEventIterator) return output;
+				return overlayProxy(output, mapEventIterator(asyncIteratorWithSpan({
+					name: "consume_event_iterator_output",
+					signal: callerOptions?.signal
+				}, output), {
+					value: (v) => v,
+					error: (e) => validateError(e)
+				}));
+			}
+			return output;
+		} catch (e) {
+			throw await validateError(e);
+		}
+	};
+}
+async function validateInput(procedure, input) {
+	const schema = procedure["~orpc"].inputSchema;
+	if (!schema) return input;
+	return runWithSpan({ name: "validate_input" }, async () => {
+		const result = await schema["~standard"].validate(input);
+		if (result.issues) throw new ORPCError("BAD_REQUEST", {
+			message: "Input validation failed",
+			data: { issues: result.issues },
+			cause: new ValidationError({
+				message: "Input validation failed",
+				issues: result.issues,
+				data: input
+			})
+		});
+		return result.value;
+	});
+}
+async function validateOutput(procedure, output) {
+	const schema = procedure["~orpc"].outputSchema;
+	if (!schema) return output;
+	return runWithSpan({ name: "validate_output" }, async () => {
+		const result = await schema["~standard"].validate(output);
+		if (result.issues) throw new ORPCError("INTERNAL_SERVER_ERROR", {
+			message: "Output validation failed",
+			cause: new ValidationError({
+				message: "Output validation failed",
+				issues: result.issues,
+				data: output
+			})
+		});
+		return result.value;
+	});
+}
+async function executeProcedureInternal(procedure, options) {
+	const middlewares = procedure["~orpc"].middlewares;
+	const inputValidationIndex = Math.min(Math.max(0, procedure["~orpc"].inputValidationIndex), middlewares.length);
+	const outputValidationIndex = Math.min(Math.max(0, procedure["~orpc"].outputValidationIndex), middlewares.length);
+	const next = async (index, context, input) => {
+		let currentInput = input;
+		if (index === inputValidationIndex) currentInput = await validateInput(procedure, currentInput);
+		const mid = middlewares[index];
+		const output = mid ? await runWithSpan({
+			name: `middleware.${mid.name}`,
+			signal: options.signal
+		}, async (span) => {
+			span?.setAttribute("middleware.index", index);
+			span?.setAttribute("middleware.name", mid.name);
+			return (await mid({
+				...options,
+				context,
+				next: async (...[nextOptions]) => {
+					const nextContext = nextOptions?.context ?? {};
+					return {
+						output: await next(index + 1, mergeCurrentContext(context, nextContext), currentInput),
+						context: nextContext
+					};
+				}
+			}, currentInput, middlewareOutputFn)).output;
+		}) : await runWithSpan({
+			name: "handler",
+			signal: options.signal
+		}, () => procedure["~orpc"].handler({
+			...options,
+			context,
+			input: currentInput
+		}));
+		if (index === outputValidationIndex) return await validateOutput(procedure, output);
+		return output;
+	};
+	return next(0, options.context, options.input);
+}
+var HIDDEN_ROUTER_CONTRACT_SYMBOL = Symbol("ORPC_HIDDEN_ROUTER_CONTRACT");
+function setHiddenRouterContract(router, contract) {
+	return new Proxy(router, { get(target, key) {
+		if (key === HIDDEN_ROUTER_CONTRACT_SYMBOL) return contract;
+		return Reflect.get(target, key);
+	} });
+}
+function getRouter(router, path) {
+	let current = router;
+	for (let i = 0; i < path.length; i++) {
+		const segment = path[i];
+		if (!current) return;
+		if (isProcedure(current)) return;
+		if (!isTypescriptObject(current)) return;
+		if (!isLazy(current)) {
+			current = current[segment];
+			continue;
+		}
+		const lazied = current;
+		const rest = path.slice(i);
+		return lazy(async () => {
+			return unlazy(getRouter((await unlazy(lazied)).default, rest));
+		}, getLazyMeta(lazied));
+	}
+	return current;
+}
+function createAccessibleLazyRouter(lazied) {
+	return new Proxy(lazied, { get(target, key) {
+		if (typeof key !== "string") return Reflect.get(target, key);
+		return createAccessibleLazyRouter(getRouter(lazied, [key]));
+	} });
+}
+function enhanceRouter(router, options) {
+	if (isLazy(router)) {
+		const laziedMeta = getLazyMeta(router);
+		const enhancedPrefix = laziedMeta?.prefix ? mergePrefix(options.prefix, laziedMeta?.prefix) : options.prefix;
+		return createAccessibleLazyRouter(lazy(async () => {
+			const { default: unlaziedRouter } = await unlazy(router);
+			return unlazy(enhanceRouter(unlaziedRouter, options));
+		}, {
+			...laziedMeta,
+			prefix: enhancedPrefix
+		}));
+	}
+	if (isProcedure(router)) {
+		const newMiddlewares = mergeMiddlewares(options.middlewares, router["~orpc"].middlewares, { dedupeLeading: options.dedupeLeadingMiddlewares });
+		const newMiddlewareAdded = newMiddlewares.length - router["~orpc"].middlewares.length;
+		return new Procedure({
+			...router["~orpc"],
+			route: enhanceRoute(router["~orpc"].route, options),
+			errorMap: mergeErrorMap(options.errorMap, router["~orpc"].errorMap),
+			middlewares: newMiddlewares,
+			inputValidationIndex: router["~orpc"].inputValidationIndex + newMiddlewareAdded,
+			outputValidationIndex: router["~orpc"].outputValidationIndex + newMiddlewareAdded
+		});
+	}
+	if (typeof router !== "object" || router === null) return router;
+	const enhanced = {};
+	for (const key in router) enhanced[key] = enhanceRouter(router[key], options);
+	return enhanced;
+}
+var DEFAULT_CONFIG = {
+	initialInputValidationIndex: 0,
+	initialOutputValidationIndex: 0,
+	dedupeLeadingMiddlewares: true
+};
+function fallbackConfig(key, value) {
+	if (value === void 0) return DEFAULT_CONFIG[key];
+	return value;
+}
+function decorateMiddleware(middleware) {
+	const decorated = ((...args) => middleware(...args));
+	decorated.mapInput = (mapInput) => {
+		return decorateMiddleware((options, input, ...rest) => middleware(options, mapInput(input), ...rest));
+	};
+	decorated.concat = (concatMiddleware, mapInput) => {
+		const mapped = mapInput ? decorateMiddleware(concatMiddleware).mapInput(mapInput) : concatMiddleware;
+		return decorateMiddleware((options, input, output, ...rest) => {
+			return middleware({
+				...options,
+				next: (...[nextOptions1]) => mapped({
+					...options,
+					context: {
+						...options.context,
+						...nextOptions1?.context
+					},
+					next: (...[nextOptions2]) => options.next({ context: {
+						...nextOptions1?.context,
+						...nextOptions2?.context
+					} })
+				}, input, output, ...rest)
+			}, input, output, ...rest);
+		});
+	};
+	return decorated;
+}
+function createActionableClient(client) {
+	const action = async (input) => {
+		try {
+			return [null, await client(input)];
+		} catch (error) {
+			if (error instanceof Error && "digest" in error && typeof error.digest === "string" && error.digest.startsWith("NEXT_")) throw error;
+			if (error instanceof Response && "options" in error && isObject(error.options) || isObject(error) && error.isNotFound === true) throw error;
+			return [toORPCError(error).toJSON(), void 0];
+		}
+	};
+	return action;
+}
+var DecoratedProcedure = class DecoratedProcedure extends Procedure {
+	/**
+	* Adds type-safe custom errors.
+	* The provided errors are spared-merged with any existing errors.
+	*
+	* @see {@link https://orpc.dev/docs/error-handling#type%E2%80%90safe-error-handling Type-Safe Error Handling Docs}
+	*/
+	errors(errors) {
+		return new DecoratedProcedure({
+			...this["~orpc"],
+			errorMap: mergeErrorMap(this["~orpc"].errorMap, errors)
+		});
+	}
+	/**
+	* Sets or updates the metadata.
+	* The provided metadata is spared-merged with any existing metadata.
+	*
+	* @see {@link https://orpc.dev/docs/metadata Metadata Docs}
+	*/
+	meta(meta) {
+		return new DecoratedProcedure({
+			...this["~orpc"],
+			meta: mergeMeta(this["~orpc"].meta, meta)
+		});
+	}
+	/**
+	* Sets or updates the route definition.
+	* The provided route is spared-merged with any existing route.
+	* This option is typically relevant when integrating with OpenAPI.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing OpenAPI Routing Docs}
+	* @see {@link https://orpc.dev/docs/openapi/input-output-structure OpenAPI Input/Output Structure Docs}
+	*/
+	route(route) {
+		return new DecoratedProcedure({
+			...this["~orpc"],
+			route: mergeRoute(this["~orpc"].route, route)
+		});
+	}
+	use(middleware, mapInput) {
+		const mapped = mapInput ? decorateMiddleware(middleware).mapInput(mapInput) : middleware;
+		return new DecoratedProcedure({
+			...this["~orpc"],
+			middlewares: addMiddleware(this["~orpc"].middlewares, mapped)
+		});
+	}
+	/**
+	* Make this procedure callable (works like a function while still being a procedure).
+	*
+	* @see {@link https://orpc.dev/docs/client/server-side Server-side Client Docs}
+	*/
+	callable(...rest) {
+		const client = createProcedureClient(this, ...rest);
+		return new Proxy(client, {
+			get: (target, key) => {
+				return Reflect.has(this, key) ? Reflect.get(this, key) : Reflect.get(target, key);
+			},
+			has: (target, key) => {
+				return Reflect.has(this, key) || Reflect.has(target, key);
+			}
+		});
+	}
+	/**
+	* Make this procedure compatible with server action.
+	*
+	* @see {@link https://orpc.dev/docs/server-action Server Action Docs}
+	*/
+	actionable(...rest) {
+		const action = createActionableClient(createProcedureClient(this, ...rest));
+		return new Proxy(action, {
+			get: (target, key) => {
+				return Reflect.has(this, key) ? Reflect.get(this, key) : Reflect.get(target, key);
+			},
+			has: (target, key) => {
+				return Reflect.has(this, key) || Reflect.has(target, key);
+			}
+		});
+	}
+};
+var Builder = class Builder {
+	/**
+	* This property holds the defined options.
+	*/
+	"~orpc";
+	constructor(def) {
+		this["~orpc"] = def;
+	}
+	/**
+	* Sets or overrides the config.
+	*
+	* @see {@link https://orpc.dev/docs/client/server-side#middlewares-order Middlewares Order Docs}
+	* @see {@link https://orpc.dev/docs/best-practices/dedupe-middleware#configuration Dedupe Middleware Docs}
+	*/
+	$config(config) {
+		const inputValidationCount = this["~orpc"].inputValidationIndex - fallbackConfig("initialInputValidationIndex", this["~orpc"].config.initialInputValidationIndex);
+		const outputValidationCount = this["~orpc"].outputValidationIndex - fallbackConfig("initialOutputValidationIndex", this["~orpc"].config.initialOutputValidationIndex);
+		return new Builder({
+			...this["~orpc"],
+			config,
+			dedupeLeadingMiddlewares: fallbackConfig("dedupeLeadingMiddlewares", config.dedupeLeadingMiddlewares),
+			inputValidationIndex: fallbackConfig("initialInputValidationIndex", config.initialInputValidationIndex) + inputValidationCount,
+			outputValidationIndex: fallbackConfig("initialOutputValidationIndex", config.initialOutputValidationIndex) + outputValidationCount
+		});
+	}
+	/**
+	* Set or override the initial context.
+	*
+	* @see {@link https://orpc.dev/docs/context Context Docs}
+	*/
+	$context() {
+		return new Builder({
+			...this["~orpc"],
+			middlewares: [],
+			inputValidationIndex: fallbackConfig("initialInputValidationIndex", this["~orpc"].config.initialInputValidationIndex),
+			outputValidationIndex: fallbackConfig("initialOutputValidationIndex", this["~orpc"].config.initialOutputValidationIndex)
+		});
+	}
+	/**
+	* Sets or overrides the initial meta.
+	*
+	* @see {@link https://orpc.dev/docs/metadata Metadata Docs}
+	*/
+	$meta(initialMeta) {
+		return new Builder({
+			...this["~orpc"],
+			meta: initialMeta
+		});
+	}
+	/**
+	* Sets or overrides the initial route.
+	* This option is typically relevant when integrating with OpenAPI.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing OpenAPI Routing Docs}
+	* @see {@link https://orpc.dev/docs/openapi/input-output-structure OpenAPI Input/Output Structure Docs}
+	*/
+	$route(initialRoute) {
+		return new Builder({
+			...this["~orpc"],
+			route: initialRoute
+		});
+	}
+	/**
+	* Sets or overrides the initial input schema.
+	*
+	* @see {@link https://orpc.dev/docs/procedure#initial-configuration Initial Procedure Configuration Docs}
+	*/
+	$input(initialInputSchema) {
+		return new Builder({
+			...this["~orpc"],
+			inputSchema: initialInputSchema
+		});
+	}
+	/**
+	* Creates a middleware.
+	*
+	* @see {@link https://orpc.dev/docs/middleware Middleware Docs}
+	*/
+	middleware(middleware) {
+		return decorateMiddleware(middleware);
+	}
+	/**
+	* Adds type-safe custom errors.
+	* The provided errors are spared-merged with any existing errors.
+	*
+	* @see {@link https://orpc.dev/docs/error-handling#type%E2%80%90safe-error-handling Type-Safe Error Handling Docs}
+	*/
+	errors(errors) {
+		return new Builder({
+			...this["~orpc"],
+			errorMap: mergeErrorMap(this["~orpc"].errorMap, errors)
+		});
+	}
+	use(middleware, mapInput) {
+		const mapped = mapInput ? decorateMiddleware(middleware).mapInput(mapInput) : middleware;
+		return new Builder({
+			...this["~orpc"],
+			middlewares: addMiddleware(this["~orpc"].middlewares, mapped)
+		});
+	}
+	/**
+	* Sets or updates the metadata.
+	* The provided metadata is spared-merged with any existing metadata.
+	*
+	* @see {@link https://orpc.dev/docs/metadata Metadata Docs}
+	*/
+	meta(meta) {
+		return new Builder({
+			...this["~orpc"],
+			meta: mergeMeta(this["~orpc"].meta, meta)
+		});
+	}
+	/**
+	* Sets or updates the route definition.
+	* The provided route is spared-merged with any existing route.
+	* This option is typically relevant when integrating with OpenAPI.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing OpenAPI Routing Docs}
+	* @see {@link https://orpc.dev/docs/openapi/input-output-structure OpenAPI Input/Output Structure Docs}
+	*/
+	route(route) {
+		return new Builder({
+			...this["~orpc"],
+			route: mergeRoute(this["~orpc"].route, route)
+		});
+	}
+	/**
+	* Defines the input validation schema.
+	*
+	* @see {@link https://orpc.dev/docs/procedure#input-output-validation Input Validation Docs}
+	*/
+	input(schema) {
+		return new Builder({
+			...this["~orpc"],
+			inputSchema: schema,
+			inputValidationIndex: fallbackConfig("initialInputValidationIndex", this["~orpc"].config.initialInputValidationIndex) + this["~orpc"].middlewares.length
+		});
+	}
+	/**
+	* Defines the output validation schema.
+	*
+	* @see {@link https://orpc.dev/docs/procedure#input-output-validation Output Validation Docs}
+	*/
+	output(schema) {
+		return new Builder({
+			...this["~orpc"],
+			outputSchema: schema,
+			outputValidationIndex: fallbackConfig("initialOutputValidationIndex", this["~orpc"].config.initialOutputValidationIndex) + this["~orpc"].middlewares.length
+		});
+	}
+	/**
+	* Defines the handler of the procedure.
+	*
+	* @see {@link https://orpc.dev/docs/procedure Procedure Docs}
+	*/
+	handler(handler) {
+		return new DecoratedProcedure({
+			...this["~orpc"],
+			handler
+		});
+	}
+	/**
+	* Prefixes all procedures in the router.
+	* The provided prefix is post-appended to any existing router prefix.
+	*
+	* @note This option does not affect procedures that do not define a path in their route definition.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/routing#route-prefixes OpenAPI Route Prefixes Docs}
+	*/
+	prefix(prefix) {
+		return new Builder({
+			...this["~orpc"],
+			prefix: mergePrefix(this["~orpc"].prefix, prefix)
+		});
+	}
+	/**
+	* Adds tags to all procedures in the router.
+	* This helpful when you want to group procedures together in the OpenAPI specification.
+	*
+	* @see {@link https://orpc.dev/docs/openapi/openapi-specification#operation-metadata OpenAPI Operation Metadata Docs}
+	*/
+	tag(...tags) {
+		return new Builder({
+			...this["~orpc"],
+			tags: mergeTags(this["~orpc"].tags, tags)
+		});
+	}
+	/**
+	* Applies all of the previously defined options to the specified router.
+	*
+	* @see {@link https://orpc.dev/docs/router#extending-router Extending Router Docs}
+	*/
+	router(router) {
+		return enhanceRouter(router, this["~orpc"]);
+	}
+	/**
+	* Create a lazy router
+	* And applies all of the previously defined options to the specified router.
+	*
+	* @see {@link https://orpc.dev/docs/router#extending-router Extending Router Docs}
+	*/
+	lazy(loader) {
+		return enhanceRouter(lazy(loader), this["~orpc"]);
+	}
+};
+new Builder({
+	config: {},
+	route: {},
+	meta: {},
+	errorMap: {},
+	inputValidationIndex: fallbackConfig("initialInputValidationIndex"),
+	outputValidationIndex: fallbackConfig("initialOutputValidationIndex"),
+	middlewares: [],
+	dedupeLeadingMiddlewares: true
+});
+function implementerInternal(contract, config, middlewares) {
+	if (isContractProcedure(contract)) return new Builder({
+		...contract["~orpc"],
+		config,
+		middlewares,
+		inputValidationIndex: fallbackConfig("initialInputValidationIndex", config?.initialInputValidationIndex) + middlewares.length,
+		outputValidationIndex: fallbackConfig("initialOutputValidationIndex", config?.initialOutputValidationIndex) + middlewares.length,
+		dedupeLeadingMiddlewares: fallbackConfig("dedupeLeadingMiddlewares", config.dedupeLeadingMiddlewares)
+	});
+	return new Proxy(contract, { get: (target, key) => {
+		if (typeof key !== "string") return Reflect.get(target, key);
+		let method;
+		if (key === "middleware") method = (mid) => decorateMiddleware(mid);
+		else if (key === "use") method = (mid) => {
+			return implementerInternal(contract, config, addMiddleware(middlewares, mid));
+		};
+		else if (key === "router") method = (router) => {
+			return setHiddenRouterContract(enhanceRouter(router, {
+				middlewares,
+				errorMap: {},
+				prefix: void 0,
+				tags: void 0,
+				dedupeLeadingMiddlewares: fallbackConfig("dedupeLeadingMiddlewares", config.dedupeLeadingMiddlewares)
+			}), contract);
+		};
+		else if (key === "lazy") method = (loader) => {
+			return setHiddenRouterContract(enhanceRouter(lazy(loader), {
+				middlewares,
+				errorMap: {},
+				prefix: void 0,
+				tags: void 0,
+				dedupeLeadingMiddlewares: fallbackConfig("dedupeLeadingMiddlewares", config.dedupeLeadingMiddlewares)
+			}), contract);
+		};
+		const next = getContractRouter(target, [key]);
+		if (!next) return method ?? next;
+		const nextImpl = implementerInternal(next, config, middlewares);
+		if (method) return new Proxy(method, { get(_, key2) {
+			return Reflect.get(nextImpl, key2);
+		} });
+		return nextImpl;
+	} });
+}
+function implement(contract, config = {}) {
+	const implInternal = implementerInternal(contract, config, []);
+	const impl = new Proxy(implInternal, { get: (target, key) => {
+		let method;
+		if (key === "$context") method = () => impl;
+		else if (key === "$config") method = (config2) => implement(contract, config2);
+		const next = Reflect.get(target, key);
+		if (!method || !next || typeof next !== "function" && typeof next !== "object") return method || next;
+		return new Proxy(method, { get(_, key2) {
+			return Reflect.get(next, key2);
+		} });
+	} });
+	return impl;
+}
+/** Declare a workload with its compute settings and start function. */
+function defineWorkload(definition, module) {
+	const owner = declaringModule(module, "defineWorkload").package;
+	const { start, ...fields } = definition;
+	return Object.freeze({
+		...WorkloadDefinition.parse(fields),
+		start,
+		package: owner
+	});
+}
+/** A package-local action named Noun.verb, with PascalCase nouns and a camelCase present-tense verb. */
+var AuditActionName = defineSchema(string().regex(/^[A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)*\.[a-z][A-Za-z0-9]*$/));
+defineSchema(strictObject({
+	package: Package,
+	name: AuditActionName,
+	version: number().int().positive()
+}));
+/** Declare an action without recording an event or acquiring authority. */
+function defineAuditAction(definition, module) {
+	AuditActionName.parse(definition.name);
+	number().int().positive().parse(definition.version);
+	return Object.freeze({
+		...definition,
+		package: Package.parse(declaringModule(module, "defineAuditAction").package)
+	});
+}
+var __destackModule = Object.freeze({ "package": {
+	"id": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+	"name": "@destack/build-service-fixture",
+	"version": "2026.9.0"
+} });
+/** Record a published note under its declaring package. */
+var publishNote = defineAuditAction({
+	name: "Note.publish",
+	version: 1,
+	targets: strictObject({ note: strictObject({
+		type: literal("note"),
+		id: string()
+	}) }),
+	details: strictObject({ revision: number().int() })
+}, __destackModule);
+/** Package instruments initialized from build-injected metadata. */
+var instruments = scope(__destackModule.package);
+/** The shared application database. */
 var database = defineDatabase({
 	name: "main",
 	spec: { dialect: "sqlite" }
-});
-/** An explicit setting resolution failure without private assignment contents. */
-var SettingError = class extends Error {
-	/** Machine-readable failure category. */
-	code;
-	/** Report a declaration or resolution failure. */
-	constructor(code, message) {
-		super(message);
-		this.name = "SettingError";
-		this.code = code;
-	}
-};
-/** A package-local setting name, retained across releases. */
-var SettingName = defineSchema(string().regex(/^[a-z][a-zA-Z0-9]*(?:\.[a-z][a-zA-Z0-9]*)*$(?![\s\S])/));
-/** The stable identity of a setting across package renames and releases. */
-var SettingReference = defineSchema(strictObject({
-	/** The package defining the setting. */
-	packageId: PackageId,
-	/** The stable declaration name. */
-	name: SettingName
-}));
-/** A typed setting declaration with invocation-scoped access. */
-var Setting = class {
-	/** The schema, default and supported application scopes. */
-	declaration;
-	/** The stable identity used by assignments and policies. */
-	reference;
-	/** Retain a checked declaration without loading assignments. */
-	constructor(declaration) {
-		this.declaration = declaration;
-		this.reference = {
-			packageId: declaration.package.id,
-			name: declaration.name
+}, __destackModule);
+/** The application's secret collection. */
+var vault = defineVault({
+	name: "credentials",
+	spec: {}
+}, __destackModule);
+/** The secret selected during installation. */
+var token = defineSecret({ name: "mail-token" }, __destackModule);
+/** The public notes API. */
+var router = { list: defineProcedure({
+	authentication: "public",
+	permission: null,
+	audit: false
+}).route({
+	method: "GET",
+	path: "/notes"
+}).output(strictObject({ path: string() })) };
+/** The public HTTP service. */
+var service = defineService("notes", router, __destackModule);
+/** A dependency on the installation's notes service. */
+var notes = defineServiceConnection("notes", service, __destackModule);
+/** Implement the public notes procedures. */
+function implementService() {
+	const implementation = implement(router);
+	return {
+		service,
+		router: implementation.router({ list: implementation.list.handler(() => ({ path: "/notes" })) }),
+		authorize: async () => {}
+	};
+}
+/** The web workload hosting notes and reminders. */
+var web = defineWorkload({
+	name: "web",
+	compute: { cpuTime: 1e3 },
+	start: async () => {
+		instruments.logger.emit({ body: "Workload started" });
+		return {
+			services: [implementService()],
+			schedules: [
+				reminders,
+				refresh,
+				appointment
+			].map(implementSchedule)
 		};
 	}
-	/** Read the effective value for the host-selected context. */
-	async get(context) {
-		return (await this.resolve(context)).value;
-	}
-	/** Explain the effective value for the host-selected context. */
-	async resolve(context) {
-		return (await context.resolve({ setting: this })).setting;
-	}
-	/** Require an assignment to use the declared scope and supported refinements. */
-	assertTarget(target) {
-		if (target.kind !== this.declaration.scope) throw new SettingError("INVALID_TARGET", "assignment scope does not match the setting declaration");
-		const refinements = [];
-		if (target.kind === "user" && target.packageId) refinements.push("package");
-		if ("location" in target && target.location) {
-			if (target.location.installationId) refinements.push("installation");
-			else if (target.kind === "user") refinements.push("space");
+}, __destackModule);
+/** The daily reminder schedule. */
+var reminders = defineSchedule({
+	name: "reminders",
+	timing: "cron",
+	cron: "0 9 * * *",
+	timezone: "UTC",
+	concurrency: "forbid",
+	deadline: 6e4
+}, __destackModule);
+/** Repeat from a fixed first occurrence. */
+var refresh = defineSchedule({
+	name: "refresh",
+	timing: "interval",
+	interval: 3e5,
+	startsAt: 18e11,
+	endsAt: 18000864e5,
+	concurrency: "forbid",
+	deadline: 6e4
+}, __destackModule);
+/** Send a reminder at one specified time. */
+var appointment = defineSchedule({
+	name: "appointment",
+	timing: "once",
+	startsAt: 18e11,
+	concurrency: "allow",
+	deadline: 6e4
+}, __destackModule);
+/** Log each occurrence of a reminder schedule. */
+function implementSchedule(schedule) {
+	return {
+		schedule,
+		run: async (signal) => {
+			signal.throwIfAborted();
+			instruments.logger.emit({ body: `Reminder ${schedule.name}` });
 		}
-		if (target.kind === "user" && target.deviceId) refinements.push("device");
-		const overrides = this.declaration.overrides;
-		if (refinements.some((refinement) => !overrides.includes(refinement))) throw new SettingError("INVALID_TARGET", "assignment uses an unsupported setting override");
-	}
-};
-/** Supported base scopes and their permitted refinements. */
-var SettingScope = defineSchema(discriminatedUnion("scope", [
-	strictObject({
-		/** Personal values resolved for the represented user. */
-		scope: literal("user"),
-		/** Refinements enabled for this declaration. */
-		overrides: array(_enum([
-			"package",
-			"space",
-			"installation",
-			"device"
-		]))
-	}),
-	strictObject({
-		/** Shared values resolved for the receiving space. */
-		scope: literal("space"),
-		/** Installation-specific configuration, when supported. */
-		overrides: array(literal("installation"))
-	}),
-	strictObject({
-		/** Values retained on one execution host. */
-		scope: literal("host"),
-		/** Host settings have no implicit child scope. */
-		overrides: tuple([])
-	})
-]));
-/** Declaration metadata shared by authoring and inspection. */
-var SettingMetadata = defineSchema(strictObject({
-	/** The declaring package release, normally import.meta.destack.package. */
-	package: Package,
-	/** The stable package-local name. */
-	name: SettingName,
-	/** The label used in settings views. */
-	title: string().min(1),
-	/** The behavior controlled by the value. */
-	description: string().min(1),
-	/** An optional presentation group within the declaring package. */
-	group: string().min(1).optional(),
-	/** When a consumer applies a changed effective value. */
-	apply: _enum(["immediate", "restart"]),
-	/** Migration guidance for a declaration retained for compatibility. */
-	deprecated: string().min(1).optional()
-}));
-/** Declare a typed setting without reading or writing assignments. */
-function defineSetting(declaration) {
-	const { schema: valueSchema, default: defaultValue, scope, overrides, ...metadata } = declaration;
-	SettingMetadata.parse(metadata);
-	SettingScope.parse({
-		scope,
-		overrides
-	});
-	defineSchema(valueSchema);
-	valueSchema.parse(defaultValue);
-	json().parse(defaultValue);
-	return new Setting(declaration);
+	};
 }
-/** The complete identity of a person whose settings are selected. */
-var SettingUser = defineSchema(Subject.extend({ kind: literal("user") }));
-/** A space or an installation within that space. */
-var SettingLocation = defineSchema(strictObject({
-	/** The containing space. */
-	spaceId: identifier("space"),
-	/** The receiving installation, when the selection is installation-specific. */
-	installationId: identifier("installation").optional()
-}));
-/** A typed selection of the person or shared runtime being configured. */
-var SettingTarget = defineSchema(discriminatedUnion("kind", [
-	strictObject({
-		/** Personal configuration for an authority-qualified user. */
-		kind: literal("user"),
-		/** The person represented by the authenticated caller. */
-		user: SettingUser,
-		/** The consuming package, independently of the package declaring the setting. */
-		packageId: PackageId.optional(),
-		/** An optional space or installation refinement. */
-		location: SettingLocation.optional(),
-		/** An optional authenticated device refinement. */
-		deviceId: identifier("device").optional()
-	}),
-	strictObject({
-		/** Shared configuration independent of the interactive caller. */
-		kind: literal("space"),
-		/** The configured space or installation. */
-		location: SettingLocation
-	}),
-	strictObject({
-		/** Configuration local to one execution host. */
-		kind: literal("host"),
-		/** The configured host. */
-		hostId: identifier("host")
-	})
-]));
-defineSchema(union([SettingTarget, strictObject({
-	/** Personal presentation defaults for an anonymous visitor. */
-	kind: literal("user"),
-	/** Anonymous callers have no persistent personal assignment identity. */
-	user: _null(),
-	/** The consuming package selected by the host. */
-	packageId: PackageId.optional(),
-	/** The receiving space or installation. */
-	location: SettingLocation.optional()
-})]));
-/** The administrative scope whose rules apply to a setting. */
-var SettingAuthority = defineSchema(discriminatedUnion("kind", [
-	strictObject({
-		/** Account administration, limited to its verified scope. */
-		kind: literal("account"),
-		/** The administering account. */
-		accountId: identifier("account")
-	}),
-	strictObject({
-		/** Space administration. */
-		kind: literal("space"),
-		/** The administering space. */
-		spaceId: identifier("space")
-	}),
-	strictObject({
-		/** Local host administration. */
-		kind: literal("host"),
-		/** The administering host. */
-		hostId: identifier("host")
-	})
-]));
-/** Desired assignment contents; reconciliation supplies identity and provenance. */
-var SettingAssignmentDefinition = defineSchema(strictObject({
-	/** The declaration configured by the source. */
-	setting: SettingReference,
-	/** The person or runtime selected by the source. */
-	target: SettingTarget,
-	/** The value checked against the selected package declaration. */
-	value: json()
-}));
-/** Describe an assignment using the imported setting's inferred value type. */
-function defineSettingAssignment(setting, target, value) {
-	setting.assertTarget(target);
-	return SettingAssignmentDefinition.parse({
-		setting: setting.reference,
-		target,
-		value: setting.declaration.schema.parse(value)
-	});
-}
-/** Desired policy contents; applying them requires existing administrative permission. */
-var SettingPolicyDefinition = defineSchema(strictObject({
-	/** The declaration governed by the policy. */
-	setting: SettingReference,
-	/** The administering account, space or host. */
-	authority: SettingAuthority,
-	/** An optional receiving installation within the administered scope. */
-	installationId: identifier("installation").optional(),
-	/** Recommended values remain overridable; required values must agree. */
-	mode: _enum(["recommended", "required"]),
-	/** The complete value checked against the consuming declaration. */
-	value: json()
-}));
-/** Describe a typed recommendation or required value under an administrative authority. */
-function defineSettingPolicy(setting, policy, value) {
-	return SettingPolicyDefinition.parse({
-		...policy,
-		setting: setting.reference,
-		value: setting.declaration.schema.parse(value)
-	});
-}
-/** Describe a shared setting without reading runtime values. */
-var language = defineSetting({
-	package: { "package": {
-		"id": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
-		"name": "@example/stack",
-		"version": "1.0.0"
-	} }.package,
-	name: "language",
-	title: "Language",
-	description: "Language used for shared documents.",
-	schema: _enum(["en", "de"]),
-	default: "en",
-	scope: "space",
-	overrides: ["installation"],
-	apply: "immediate"
-});
-/** Configure the same declared value through typed source authoring. */
-var languageAssignment = defineSettingAssignment(language, {
-	kind: "space",
-	location: { spaceId: identifier("space").parse("space-019f5530-8000-7000-8000-000000000003") }
-}, "de");
-/** Describe a recommendation independently of the persisted assignment. */
-var languagePolicy = defineSettingPolicy(language, {
-	authority: {
-		kind: "space",
-		spaceId: identifier("space").parse("space-019f5530-8000-7000-8000-000000000003")
-	},
-	mode: "recommended"
-}, "en");
-/** Declare environments independently of the destination space. */
-var account = defineAccount({ environments: {
-	development: {},
-	production: {}
-} });
-/** Declare inspectable application permissions. */
-var note = defineObject({
-	packageId: { "package": {
-		"id": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
-		"name": "@example/stack",
-		"version": "1.0.0"
-	} }.package.id,
-	name: "note",
-	attributes: {},
-	relations: { owner: {
-		kind: "subject",
-		subjects: ["user"]
-	} },
-	permissions: { read: relation("owner") }
-});
-/** Configure a space without provisioning resources during compilation. */
-var personal = defineSpace({ resources: { main: {
-	declaration: database,
-	retention: "retain",
-	tags: {}
-} } });
-export { account, database, language, languageAssignment, languagePolicy, note, personal };
+export { appointment, database, implementService, notes, publishNote, refresh, reminders, router, service, token, vault, web };
 
-//# sourceMappingURL=index-BujnDoQo.js.map
+//# sourceMappingURL=server-wG9ewff2.js.map

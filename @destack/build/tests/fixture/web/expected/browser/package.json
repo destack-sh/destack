@@ -3,7 +3,7 @@
     "version": "2026.9.0",
     "type": "module",
     "exports": {
-        ".": "./src/App.tsx"
+        ".": "./src/app.tsx"
     },
     "devDependencies": {
         "@destack/test": "workspace:*"

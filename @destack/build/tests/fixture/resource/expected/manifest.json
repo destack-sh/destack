@@ -8,8 +8,8 @@
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "c837b854e0ecf2881d047210cc3d6372ae90722de69231ebfdf48fb30ee5ffce",
-        "size": 11868,
+        "digest": "68cb2ea796638ee5a33f6961b6d7519d899798470880a4ad67cc66414f3c512d",
+        "size": 22668,
         "mediaType": "application/json"
     },
     "descriptions": {
@@ -21,8 +21,8 @@
             },
             "file": {
                 "path": "manifest/db.json",
-                "digest": "c737e4952e9f2c186c89aa124e887c8d0db0b0ceb60d6cc2994a05a96d1a11a7",
-                "size": 6957,
+                "digest": "c2246f8ee802abdf17453eb743940a2f6c6a1055c4b1cdf5dcb87fddc94d434e",
+                "size": 6969,
                 "mediaType": "application/json"
             }
         }
@@ -41,20 +41,20 @@
             },
             "directory": "output/library",
             "exports": {
-                ".": "output/library/index-3AY5SgEi.js"
+                ".": "output/library/index-BOTAnCMe.js"
             },
             "dependencies": {}
         }
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "85110403be82e8a09da8ef3edd8dc562053777089999bc4e4017e5829ac715be",
-        "size": 2818,
+        "digest": "8ac95066c5f00ced44650739f3520da348060c1bf76612660f2ba5d6adddbe17",
+        "size": 3704,
         "mediaType": "application/json"
     },
     "sourceMaps": {
         "path": "manifest/sourceMaps.json",
-        "digest": "add50dc5c011be264606d0063969d386a7d0adb44ae53f60c5c6c08b7698da49",
+        "digest": "102821723437a04439da5bef33ec4a3e2c5209e2cce6f055e13c429eba34b21c",
         "size": 127,
         "mediaType": "application/json"
     }

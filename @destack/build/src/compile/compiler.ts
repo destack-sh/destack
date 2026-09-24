@@ -2,7 +2,7 @@ import solid, { type StartOptions } from "@solidjs/vite-plugin";
 import { unplugin } from "@stylexjs/unplugin";
 import { type PluginOption, type Plugin } from "vite";
 import { type PackageSource } from "../source/index.ts";
-import { metadataPlugin } from "./source.ts";
+import { modulePlugin } from "@destack/package/transform/vite";
 import { fileURLToPath } from "node:url";
 import { parseSync, Visitor, type ESTree, transformSync } from "rolldown/utils";
 import { BuildError } from "../error/index.ts";
@@ -28,7 +28,7 @@ export function compilationPlugins(
             solid: { moduleName: "@destack/view/runtime" },
             start: start && { ...start, env: start.env ?? false },
         }),
-        metadataPlugin(project.directory, project.declaration.package, project.configuration),
+        modulePlugin(),
     ];
 }
 
@@ -99,7 +99,8 @@ export function virtualPlugin(directory: string): Plugin {
         transform: {
             filter: { id: /^\0?virtual:/ },
             handler(code, id) {
-                let changed = false;
+                // parse the generated module
+                let isChanged = false;
                 const parsed = parseSync(id, code);
                 if (parsed.errors.length) {
                     throw new BuildError("BUILD_FAILED", `Invalid generated module: ${id}`);
@@ -107,12 +108,12 @@ export function virtualPlugin(directory: string): Plugin {
 
                 // replace only parsed module specifiers within the application directory
                 const imports = new Map<number, ESTree.StringLiteral>();
-                const manifest = id.replace(/^\0/, "") === "virtual:solid-manifest";
+                const isManifest = id.replace(/^\0/, "") === "virtual:solid-manifest";
                 new Visitor({
                     Literal(node) {
                         // normalize Vite's cwd-relative virtual entry names in the runtime manifest
                         if (
-                            manifest &&
+                            isManifest &&
                             typeof node.value === "string" &&
                             /(^|\/)virtual:solid-/.test(node.value)
                         ) {
@@ -142,13 +143,13 @@ export function virtualPlugin(directory: string): Plugin {
                 for (const imported of [...imports.values()].sort(
                     (left, right) => right.start - left.start,
                 )) {
-                    if (manifest && /(^|\/)virtual:solid-/.test(imported.value)) {
+                    if (isManifest && /(^|\/)virtual:solid-/.test(imported.value)) {
                         const name = imported.value.slice(imported.value.indexOf("virtual:"));
                         code =
                             code.slice(0, imported.start) +
                             JSON.stringify(name) +
                             code.slice(imported.end);
-                        changed = true;
+                        isChanged = true;
                         continue;
                     }
                     if (!isAbsolute(imported.value)) {
@@ -162,9 +163,9 @@ export function virtualPlugin(directory: string): Plugin {
                         code.slice(0, imported.start) +
                         JSON.stringify(PREFIX + path) +
                         code.slice(imported.end);
-                    changed = true;
+                    isChanged = true;
                 }
-                if (!changed) {
+                if (!isChanged) {
                     return;
                 }
 

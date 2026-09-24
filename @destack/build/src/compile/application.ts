@@ -20,7 +20,7 @@ import { type CompileOptions } from "./module.ts";
 import { compilationPlugins, virtualPlugin } from "./compiler.ts";
 import { sourcePlugin, mapSource } from "./source.ts";
 import { prerender, type PrerenderOptions } from "./prerender/prerender.ts";
-import { type DependencyResolution } from "@destack/package/package";
+import { type DependencyResolution } from "@destack/package";
 import { dependencyPlugin, type ModuleSource } from "./dependency.ts";
 import { describeAssets, directoryPlugin } from "./asset.ts";
 import { externalModule, runtimeConditions, checkRuntime } from "./runtime.ts";
@@ -60,8 +60,6 @@ export interface ApplicationOptions extends Pick<
 
 /** Browser assets and an optional request handler from a Solid application. */
 export interface ApplicationCompilation {
-    /** Callable exports supplied by the server adapter. */
-    handlers: string[];
     /** Compiler descriptions keyed by output name. */
     inspections: Record<string, BuildDescription>;
     /** Named client and SSR outputs. */
@@ -88,6 +86,7 @@ export async function compileApplication(
     runtimes: RuntimeCompiler,
     destinationRoot: string,
 ): Promise<ApplicationCompilation> {
+    // stage the package and collect its application files
     await using stage = await stagePackage(project);
     const temporary = join(stage.directory, "dist");
     const files = new Map<string, Uint8Array<ArrayBuffer>>();
@@ -252,9 +251,9 @@ export async function compileApplication(
             ...(server ? [["ssr", server.target]] : []),
         ] as const) {
             const directory = `output/${name}-${side === "client" ? "browser" : "server"}`;
-            const distribute =
+            const shouldDistribute =
                 side === "client" || (start.ssr !== false && start.ssr.emit !== false);
-            const entries = distribute
+            const entries = shouldDistribute
                 ? await readdir(join(temporary, side === "ssr" ? "server" : side), {
                       recursive: true,
                       withFileTypes: true,
@@ -317,7 +316,6 @@ export async function compileApplication(
             paths,
             sourceMaps,
             inspections,
-            handlers: server ? ["handleRequest"] : [],
         };
     }
 }

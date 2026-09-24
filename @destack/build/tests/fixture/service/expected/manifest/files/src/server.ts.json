@@ -2,20 +2,19 @@
     "path": "src/server.ts",
     "source": {
         "path": "src/server.ts",
-        "digest": "529e892275f333eb43ef4afbce9c48084a8e5334e5db1c068a0583077e3463f5",
-        "size": 4363,
+        "digest": "2a698bf640de8c6fe77a60ec1713f5248189a66e36d06a9fe1d59c584cfba5f6",
+        "size": 3742,
         "mediaType": "text/plain"
     },
-    "length": 4363,
+    "length": 3742,
     "imports": [
         "@destack/db/declare",
         "@destack/vault",
         "@destack/service/schedule",
         "@destack/service",
         "@destack/service/server",
-        "@destack/resource/context",
-        "@destack/service/error",
-        "@destack/service/health",
+        "@destack/service/schedule",
+        "@destack/service/workload",
         "@destack/schema",
         "@destack/telemetry",
         "@destack/package/import-meta",
@@ -27,15 +26,15 @@
             "source": {
                 "file": "src/server.ts",
                 "start": 0,
-                "end": 4363
+                "end": 3742
             },
             "throws": [],
             "calls": [
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 803,
-                        "end": 1095
+                        "start": 772,
+                        "end": 1022
                     },
                     "target": {
                         "package": {
@@ -54,8 +53,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 920,
-                        "end": 1026
+                        "start": 847,
+                        "end": 953
                     },
                     "target": {
                         "package": {
@@ -73,7 +72,64 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 950,
+                        "start": 877,
+                        "end": 945
+                    },
+                    "target": {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "strictObject"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 899,
+                        "end": 921
+                    },
+                    "target": {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "literal"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 927,
+                        "end": 942
+                    },
+                    "target": {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "string"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 968,
                         "end": 1018
                     },
                     "target": {
@@ -92,65 +148,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 972,
-                        "end": 994
-                    },
-                    "target": {
-                        "package": {
-                            "name": "zod",
-                            "version": "4.6.5"
-                        },
-                        "symbol": {
-                            "module": "v4/classic/schemas.d.cts",
-                            "name": "literal"
-                        }
-                    },
-                    "isAwaited": false,
-                    "catches": []
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 1000,
+                        "start": 994,
                         "end": 1015
-                    },
-                    "target": {
-                        "package": {
-                            "name": "zod",
-                            "version": "4.6.5"
-                        },
-                        "symbol": {
-                            "module": "v4/classic/schemas.d.cts",
-                            "name": "string"
-                        }
-                    },
-                    "isAwaited": false,
-                    "catches": []
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 1041,
-                        "end": 1091
-                    },
-                    "target": {
-                        "package": {
-                            "name": "zod",
-                            "version": "4.6.5"
-                        },
-                        "symbol": {
-                            "module": "v4/classic/schemas.d.cts",
-                            "name": "strictObject"
-                        }
-                    },
-                    "isAwaited": false,
-                    "catches": []
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 1067,
-                        "end": 1088
                     },
                     "target": {
                         "package": {
@@ -168,8 +167,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1067,
-                        "end": 1082
+                        "start": 994,
+                        "end": 1009
                     },
                     "target": {
                         "package": {
@@ -187,8 +186,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1187,
-                        "end": 1231
+                        "start": 1114,
+                        "end": 1158
                     },
                     "target": {
                         "package": {
@@ -207,8 +206,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1298,
-                        "end": 1368
+                        "start": 1225,
+                        "end": 1295
                     },
                     "target": {
                         "package": {
@@ -227,8 +226,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1435,
-                        "end": 1481
+                        "start": 1362,
+                        "end": 1408
                     },
                     "target": {
                         "package": {
@@ -247,8 +246,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1552,
-                        "end": 1588
+                        "start": 1479,
+                        "end": 1515
                     },
                     "target": {
                         "package": {
@@ -267,8 +266,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1653,
-                        "end": 1838
+                        "start": 1580,
+                        "end": 1765
                     },
                     "target": {
                         "package": {
@@ -286,8 +285,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1653,
-                        "end": 1780
+                        "start": 1580,
+                        "end": 1707
                     },
                     "target": {
                         "package": {
@@ -305,8 +304,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1653,
-                        "end": 1730
+                        "start": 1580,
+                        "end": 1657
                     },
                     "target": {
                         "package": {
@@ -325,8 +324,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1797,
-                        "end": 1837
+                        "start": 1724,
+                        "end": 1764
                     },
                     "target": {
                         "package": {
@@ -344,8 +343,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1819,
-                        "end": 1834
+                        "start": 1746,
+                        "end": 1761
                     },
                     "target": {
                         "package": {
@@ -363,28 +362,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1921,
-                        "end": 2125
-                    },
-                    "target": {
-                        "package": {
-                            "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
-                            "name": "@destack/service",
-                            "version": "2026.9.0"
-                        },
-                        "symbol": {
-                            "module": "src/declare/connection.ts",
-                            "name": "defineServiceConnection"
-                        }
-                    },
-                    "isAwaited": false,
-                    "catches": []
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 2183,
-                        "end": 2319
+                        "start": 1825,
+                        "end": 1855
                     },
                     "target": {
                         "package": {
@@ -403,8 +382,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 2734,
-                        "end": 3193
+                        "start": 1935,
+                        "end": 1976
                     },
                     "target": {
                         "package": {
@@ -413,8 +392,8 @@
                             "version": "2026.9.0"
                         },
                         "symbol": {
-                            "module": "src/server/server.ts",
-                            "name": "Server.start"
+                            "module": "src/declare/connection.ts",
+                            "name": "defineServiceConnection"
                         }
                     },
                     "isAwaited": false,
@@ -423,41 +402,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 2756,
-                        "end": 2774
-                    },
-                    "target": {
-                        "module": "src/server.ts",
-                        "name": "implementService"
-                    },
-                    "isAwaited": false,
-                    "catches": []
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 2861,
-                        "end": 2882
-                    },
-                    "target": {
-                        "package": {
-                            "id": "package-01a0c80b-614f-73eb-9845-7906f2b7cfe0",
-                            "name": "@destack/resource",
-                            "version": "2026.9.0"
-                        },
-                        "symbol": {
-                            "module": "src/context/context.ts",
-                            "name": "ResourceContext"
-                        }
-                    },
-                    "isAwaited": false,
-                    "catches": []
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 2896,
-                        "end": 2915
+                        "start": 2406,
+                        "end": 2723
                     },
                     "target": {
                         "package": {
@@ -466,8 +412,8 @@
                             "version": "2026.9.0"
                         },
                         "symbol": {
-                            "module": "src/health/health.ts",
-                            "name": "Health"
+                            "module": "src/workload/workload.ts",
+                            "name": "defineWorkload"
                         }
                     },
                     "isAwaited": false,
@@ -476,8 +422,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 3472,
-                        "end": 3665
+                        "start": 2787,
+                        "end": 2941
                     },
                     "target": {
                         "package": {
@@ -496,8 +442,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 3736,
-                        "end": 3965
+                        "start": 3012,
+                        "end": 3202
                     },
                     "target": {
                         "package": {
@@ -516,8 +462,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 4041,
-                        "end": 4220
+                        "start": 3278,
+                        "end": 3418
                     },
                     "target": {
                         "package": {
@@ -540,47 +486,79 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 803,
-                        "end": 1095
+                        "start": 772,
+                        "end": 1022
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 836,
-                        "end": 863
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 836,
-                        "end": 855
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 920,
-                        "end": 1026
+                        "start": 847,
+                        "end": 953
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 920,
-                        "end": 933
+                        "start": 847,
+                        "end": 860
                     },
                     "reason": "property"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 950,
+                        "start": 877,
+                        "end": 945
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 877,
+                        "end": 890
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 899,
+                        "end": 921
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 899,
+                        "end": 913
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 927,
+                        "end": 942
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 927,
+                        "end": 940
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 968,
                         "end": 1018
                     },
                     "reason": "call"
@@ -588,31 +566,15 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 950,
-                        "end": 963
+                        "start": 968,
+                        "end": 981
                     },
                     "reason": "property"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 972,
-                        "end": 994
-                    },
-                    "reason": "call"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 972,
-                        "end": 986
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 1000,
+                        "start": 994,
                         "end": 1015
                     },
                     "reason": "call"
@@ -620,7 +582,7 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1000,
+                        "start": 994,
                         "end": 1013
                     },
                     "reason": "property"
@@ -628,328 +590,192 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1041,
-                        "end": 1091
+                        "start": 994,
+                        "end": 1009
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1041,
-                        "end": 1054
+                        "start": 994,
+                        "end": 1007
                     },
                     "reason": "property"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1067,
-                        "end": 1088
+                        "start": 1114,
+                        "end": 1158
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1067,
-                        "end": 1086
+                        "start": 1114,
+                        "end": 1129
                     },
                     "reason": "property"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1067,
-                        "end": 1082
+                        "start": 1130,
+                        "end": 1157
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 1130,
+                        "end": 1149
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 1225,
+                        "end": 1295
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1067,
-                        "end": 1080
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 1187,
-                        "end": 1231
+                        "start": 1362,
+                        "end": 1408
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1187,
-                        "end": 1202
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 1203,
-                        "end": 1230
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 1203,
-                        "end": 1222
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 1298,
-                        "end": 1368
+                        "start": 1479,
+                        "end": 1515
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1435,
-                        "end": 1481
+                        "start": 1580,
+                        "end": 1765
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1552,
-                        "end": 1588
-                    },
-                    "reason": "call"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 1653,
-                        "end": 1838
-                    },
-                    "reason": "call"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 1653,
-                        "end": 1796
+                        "start": 1580,
+                        "end": 1723
                     },
                     "reason": "property"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1653,
-                        "end": 1780
+                        "start": 1580,
+                        "end": 1707
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1653,
-                        "end": 1745
+                        "start": 1580,
+                        "end": 1672
                     },
                     "reason": "property"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1653,
-                        "end": 1730
+                        "start": 1580,
+                        "end": 1657
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1797,
-                        "end": 1837
+                        "start": 1724,
+                        "end": 1764
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1797,
-                        "end": 1810
+                        "start": 1724,
+                        "end": 1737
                     },
                     "reason": "property"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1819,
-                        "end": 1834
+                        "start": 1746,
+                        "end": 1761
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1819,
-                        "end": 1832
+                        "start": 1746,
+                        "end": 1759
                     },
                     "reason": "property"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1921,
-                        "end": 2125
+                        "start": 1825,
+                        "end": 1855
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1971,
-                        "end": 2001
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 1971,
-                        "end": 1998
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 1971,
-                        "end": 1990
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 2056,
-                        "end": 2086
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 2056,
-                        "end": 2083
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 2056,
-                        "end": 2075
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 2183,
-                        "end": 2319
+                        "start": 1935,
+                        "end": 1976
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 2734,
-                        "end": 3193
+                        "start": 2406,
+                        "end": 2723
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 2734,
-                        "end": 2746
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 2756,
-                        "end": 2774
+                        "start": 2787,
+                        "end": 2941
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 2790,
-                        "end": 2820
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 2790,
-                        "end": 2817
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 2790,
-                        "end": 2809
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 2861,
-                        "end": 2882
+                        "start": 3012,
+                        "end": 3202
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 2896,
-                        "end": 2915
-                    },
-                    "reason": "call"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 3472,
-                        "end": 3665
-                    },
-                    "reason": "call"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 3736,
-                        "end": 3965
-                    },
-                    "reason": "call"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 4041,
-                        "end": 4220
+                        "start": 3278,
+                        "end": 3418
                     },
                     "reason": "call"
                 }
@@ -958,16 +784,16 @@
         {
             "source": {
                 "file": "src/server.ts",
-                "start": 2368,
-                "end": 2658
+                "start": 2025,
+                "end": 2332
             },
             "throws": [],
             "calls": [
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 2455,
-                        "end": 2472
+                        "start": 2112,
+                        "end": 2129
                     },
                     "target": {
                         "package": {
@@ -985,8 +811,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 2504,
-                        "end": 2613
+                        "start": 2178,
+                        "end": 2287
                     },
                     "target": {
                         "package": {
@@ -1004,8 +830,8 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 2546,
-                        "end": 2601
+                        "start": 2220,
+                        "end": 2275
                     },
                     "target": {
                         "package": {
@@ -1027,48 +853,48 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 2455,
-                        "end": 2472
+                        "start": 2112,
+                        "end": 2129
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 2504,
-                        "end": 2613
+                        "start": 2178,
+                        "end": 2287
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 2504,
-                        "end": 2525
+                        "start": 2178,
+                        "end": 2199
                     },
                     "reason": "property"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 2546,
-                        "end": 2601
+                        "start": 2220,
+                        "end": 2275
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 2546,
-                        "end": 2573
+                        "start": 2220,
+                        "end": 2247
                     },
                     "reason": "property"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 2546,
-                        "end": 2565
+                        "start": 2220,
+                        "end": 2239
                     },
                     "reason": "property"
                 }
@@ -1077,8 +903,8 @@
         {
             "source": {
                 "file": "src/server.ts",
-                "start": 2574,
-                "end": 2600
+                "start": 2248,
+                "end": 2274
             },
             "throws": [],
             "calls": [],
@@ -1089,8 +915,8 @@
         {
             "source": {
                 "file": "src/server.ts",
-                "start": 2634,
-                "end": 2648
+                "start": 2308,
+                "end": 2322
             },
             "throws": [],
             "calls": [],
@@ -1101,187 +927,16 @@
         {
             "source": {
                 "file": "src/server.ts",
-                "start": 2935,
-                "end": 3130
-            },
-            "throws": [
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 3053,
-                        "end": 3092
-                    },
-                    "type": {
-                        "text": "ServiceError<\"UNAUTHORIZED\", unknown>",
-                        "references": [
-                            {
-                                "package": {
-                                    "name": "@orpc/client",
-                                    "version": "1.15.1"
-                                },
-                                "symbol": {
-                                    "module": "dist/index.d.mts",
-                                    "name": "ORPCError"
-                                }
-                            }
-                        ]
-                    },
-                    "catches": []
-                }
-            ],
-            "calls": [
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 2968,
-                        "end": 3004
-                    },
-                    "target": {
-                        "compiler": {
-                            "name": "typescript",
-                            "version": "7.0.2"
-                        },
-                        "symbol": {
-                            "module": "lib.dom.d.ts",
-                            "name": "Headers.has"
-                        }
-                    },
-                    "isAwaited": false,
-                    "catches": []
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 3008,
-                        "end": 3037
-                    },
-                    "target": {
-                        "compiler": {
-                            "name": "typescript",
-                            "version": "7.0.2"
-                        },
-                        "symbol": {
-                            "module": "lib.dom.d.ts",
-                            "name": "Headers.has"
-                        }
-                    },
-                    "isAwaited": false,
-                    "catches": []
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 3059,
-                        "end": 3091
-                    },
-                    "target": {
-                        "package": {
-                            "name": "@orpc/client",
-                            "version": "1.15.1"
-                        },
-                        "symbol": {
-                            "module": "dist/index.d.mts",
-                            "name": "ORPCError"
-                        }
-                    },
-                    "isAwaited": false,
-                    "catches": []
-                }
-            ],
-            "catches": [],
-            "finally": [],
-            "unknowns": [
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 2968,
-                        "end": 3037
-                    },
-                    "reason": "implicit"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 2968,
-                        "end": 3004
-                    },
-                    "reason": "call"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 2968,
-                        "end": 2987
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 2968,
-                        "end": 2983
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 3008,
-                        "end": 3037
-                    },
-                    "reason": "call"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 3008,
-                        "end": 3027
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 3008,
-                        "end": 3023
-                    },
-                    "reason": "property"
-                },
-                {
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 3059,
-                        "end": 3091
-                    },
-                    "reason": "call"
-                }
-            ]
-        },
-        {
-            "source": {
-                "file": "src/server.ts",
-                "start": 3151,
-                "end": 3165
-            },
-            "throws": [],
-            "calls": [],
-            "catches": [],
-            "finally": [],
-            "unknowns": []
-        },
-        {
-            "source": {
-                "file": "src/server.ts",
-                "start": 3240,
-                "end": 3410
+                "start": 2483,
+                "end": 2719
             },
             "throws": [],
             "calls": [
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 3311,
-                        "end": 3364
+                        "start": 2505,
+                        "end": 2558
                     },
                     "target": {
                         "package": {
@@ -1299,18 +954,30 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 3378,
-                        "end": 3407
+                        "start": 2601,
+                        "end": 2619
                     },
                     "target": {
-                        "package": {
-                            "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
-                            "name": "@destack/service",
-                            "version": "2026.9.0"
+                        "module": "src/server.ts",
+                        "name": "implementService"
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 2645,
+                        "end": 2701
+                    },
+                    "target": {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
                         },
                         "symbol": {
-                            "module": "src/server/server.ts",
-                            "name": "Server.fetch"
+                            "module": "lib.es5.d.ts",
+                            "name": "Array.map"
                         }
                     },
                     "isAwaited": false,
@@ -1323,69 +990,168 @@
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 3311,
-                        "end": 3364
+                        "start": 2505,
+                        "end": 2558
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 3311,
-                        "end": 3334
+                        "start": 2505,
+                        "end": 2528
                     },
                     "reason": "property"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 3311,
-                        "end": 3329
+                        "start": 2505,
+                        "end": 2523
                     },
                     "reason": "property"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 3378,
-                        "end": 3407
+                        "start": 2601,
+                        "end": 2619
                     },
                     "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 3378,
-                        "end": 3398
+                        "start": 2645,
+                        "end": 2701
                     },
-                    "reason": "property"
+                    "reason": "call"
                 },
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 3379,
-                        "end": 3391
+                        "start": 2645,
+                        "end": 2682
                     },
-                    "reason": "await"
+                    "reason": "property"
                 }
             ]
         },
         {
             "source": {
                 "file": "src/server.ts",
-                "start": 4274,
-                "end": 4362
+                "start": 3472,
+                "end": 3741
             },
             "throws": [],
             "calls": [],
+            "catches": [],
+            "finally": [],
+            "unknowns": []
+        },
+        {
+            "source": {
+                "file": "src/server.ts",
+                "start": 3589,
+                "end": 3731
+            },
+            "throws": [],
+            "calls": [
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 3621,
+                        "end": 3644
+                    },
+                    "target": {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.dom.d.ts",
+                            "name": "AbortSignal.throwIfAborted"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 3658,
+                        "end": 3720
+                    },
+                    "target": {
+                        "package": {
+                            "name": "@opentelemetry/api-logs",
+                            "version": "0.222.0"
+                        },
+                        "symbol": {
+                            "module": "build/src/types/Logger.d.ts",
+                            "name": "Logger.emit"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                }
+            ],
             "catches": [],
             "finally": [],
             "unknowns": [
                 {
                     "source": {
                         "file": "src/server.ts",
-                        "start": 4346,
-                        "end": 4359
+                        "start": 3621,
+                        "end": 3644
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 3621,
+                        "end": 3642
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 3658,
+                        "end": 3720
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 3658,
+                        "end": 3681
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 3658,
+                        "end": 3676
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 3690,
+                        "end": 3717
+                    },
+                    "reason": "implicit"
+                },
+                {
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 3702,
+                        "end": 3715
                     },
                     "reason": "property"
                 }
@@ -1400,8 +1166,8 @@
                     "kind": "VariableDeclaration",
                     "source": {
                         "file": "src/server.ts",
-                        "start": 4027,
-                        "end": 4220
+                        "start": 3264,
+                        "end": 3418
                     },
                     "modifiers": [],
                     "typeParameters": [],
@@ -1414,8 +1180,20 @@
             },
             "typeSignatures": [],
             "valueType": {
-                "text": "{ name: string; version: 1; handler: string; concurrency: \"allow\" | \"forbid\" | \"replace\"; deadline: number; timing: \"cron\"; cron: string; timezone: string; startsAt?: number | undefined; endsAt?: number | undefined; } | { name: string; version: 1; handler: string; concurrency: \"allow\" | \"forbid\" | \"replace\"; deadline: number; timing: \"interval\"; interval: number; startsAt: number; endsAt?: number | undefined; } | { name: string; version: 1; handler: string; concurrency: \"allow\" | \"forbid\" | \"replace\"; deadline: number; timing: \"once\"; startsAt: number; }",
-                "references": []
+                "text": "Schedule",
+                "references": [
+                    {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+                            "name": "@destack/service",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/schedule/schedule.ts",
+                            "name": "Schedule"
+                        }
+                    }
+                ]
             },
             "signatures": [],
             "members": [],
@@ -1429,8 +1207,8 @@
                     "kind": "VariableDeclaration",
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1287,
-                        "end": 1368
+                        "start": 1214,
+                        "end": 1295
                     },
                     "modifiers": [],
                     "typeParameters": [],
@@ -1464,104 +1242,14 @@
             "indexes": []
         },
         {
-            "name": "fetch",
-            "declarations": [
-                {
-                    "kind": "FunctionDeclaration",
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 3240,
-                        "end": 3410
-                    },
-                    "modifiers": [
-                        "export",
-                        "async"
-                    ],
-                    "typeParameters": [],
-                    "heritage": []
-                }
-            ],
-            "documentation": {
-                "text": "Respond through the emitted handler.",
-                "tags": []
-            },
-            "typeSignatures": [],
-            "valueType": {
-                "text": "(request: Request) => Promise<Response>",
-                "references": [
-                    {
-                        "module": "src/server.ts",
-                        "name": "fetch"
-                    }
-                ]
-            },
-            "signatures": [
-                {
-                    "kind": "call",
-                    "text": "(request: Request): Promise<Response>;",
-                    "typeParameters": [],
-                    "parameters": [
-                        {
-                            "name": "request",
-                            "type": {
-                                "text": "Request",
-                                "references": [
-                                    {
-                                        "compiler": {
-                                            "name": "typescript",
-                                            "version": "7.0.2"
-                                        },
-                                        "symbol": {
-                                            "module": "lib.dom.d.ts",
-                                            "name": "Request"
-                                        }
-                                    }
-                                ]
-                            },
-                            "isOptional": false,
-                            "isRest": false
-                        }
-                    ],
-                    "returns": {
-                        "text": "Promise<Response>",
-                        "references": [
-                            {
-                                "compiler": {
-                                    "name": "typescript",
-                                    "version": "7.0.2"
-                                },
-                                "symbol": {
-                                    "module": "lib.dom.d.ts",
-                                    "name": "Response"
-                                }
-                            },
-                            {
-                                "compiler": {
-                                    "name": "typescript",
-                                    "version": "7.0.2"
-                                },
-                                "symbol": {
-                                    "module": "lib.es5.d.ts",
-                                    "name": "Promise"
-                                }
-                            }
-                        ]
-                    }
-                }
-            ],
-            "members": [],
-            "exports": [],
-            "indexes": []
-        },
-        {
             "name": "implementService",
             "declarations": [
                 {
                     "kind": "FunctionDeclaration",
                     "source": {
                         "file": "src/server.ts",
-                        "start": 2368,
-                        "end": 2658
+                        "start": 2025,
+                        "end": 2332
                     },
                     "modifiers": [
                         "export"
@@ -1619,8 +1307,8 @@
                     "kind": "VariableDeclaration",
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1913,
-                        "end": 2125
+                        "start": 1927,
+                        "end": 1976
                     },
                     "modifiers": [],
                     "typeParameters": [],
@@ -1740,8 +1428,8 @@
                     "kind": "VariableDeclaration",
                     "source": {
                         "file": "src/server.ts",
-                        "start": 789,
-                        "end": 1095
+                        "start": 758,
+                        "end": 1022
                     },
                     "modifiers": [],
                     "typeParameters": [],
@@ -1831,8 +1519,8 @@
                     "kind": "VariableDeclaration",
                     "source": {
                         "file": "src/server.ts",
-                        "start": 3726,
-                        "end": 3965
+                        "start": 3002,
+                        "end": 3202
                     },
                     "modifiers": [],
                     "typeParameters": [],
@@ -1845,67 +1533,22 @@
             },
             "typeSignatures": [],
             "valueType": {
-                "text": "{ name: string; version: 1; handler: string; concurrency: \"allow\" | \"forbid\" | \"replace\"; deadline: number; timing: \"cron\"; cron: string; timezone: string; startsAt?: number | undefined; endsAt?: number | undefined; } | { name: string; version: 1; handler: string; concurrency: \"allow\" | \"forbid\" | \"replace\"; deadline: number; timing: \"interval\"; interval: number; startsAt: number; endsAt?: number | undefined; } | { name: string; version: 1; handler: string; concurrency: \"allow\" | \"forbid\" | \"replace\"; deadline: number; timing: \"once\"; startsAt: number; }",
-                "references": []
-            },
-            "signatures": [],
-            "members": [],
-            "exports": [],
-            "indexes": []
-        },
-        {
-            "name": "remind",
-            "declarations": [
-                {
-                    "kind": "FunctionDeclaration",
-                    "source": {
-                        "file": "src/server.ts",
-                        "start": 4274,
-                        "end": 4362
-                    },
-                    "modifiers": [
-                        "export"
-                    ],
-                    "typeParameters": [],
-                    "heritage": []
-                }
-            ],
-            "documentation": {
-                "text": "Return the scheduled occurrence identifier.",
-                "tags": []
-            },
-            "typeSignatures": [],
-            "valueType": {
-                "text": "(occurrence: { id: string; }) => string",
+                "text": "Schedule",
                 "references": [
                     {
-                        "module": "src/server.ts",
-                        "name": "remind"
+                        "package": {
+                            "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+                            "name": "@destack/service",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/schedule/schedule.ts",
+                            "name": "Schedule"
+                        }
                     }
                 ]
             },
-            "signatures": [
-                {
-                    "kind": "call",
-                    "text": "(occurrence: {\n    id: string;\n}): string;",
-                    "typeParameters": [],
-                    "parameters": [
-                        {
-                            "name": "occurrence",
-                            "type": {
-                                "text": "{ id: string; }",
-                                "references": []
-                            },
-                            "isOptional": false,
-                            "isRest": false
-                        }
-                    ],
-                    "returns": {
-                        "text": "string",
-                        "references": []
-                    }
-                }
-            ],
+            "signatures": [],
             "members": [],
             "exports": [],
             "indexes": []
@@ -1917,8 +1560,8 @@
                     "kind": "VariableDeclaration",
                     "source": {
                         "file": "src/server.ts",
-                        "start": 3460,
-                        "end": 3665
+                        "start": 2775,
+                        "end": 2941
                     },
                     "modifiers": [],
                     "typeParameters": [],
@@ -1931,8 +1574,20 @@
             },
             "typeSignatures": [],
             "valueType": {
-                "text": "{ name: string; version: 1; handler: string; concurrency: \"allow\" | \"forbid\" | \"replace\"; deadline: number; timing: \"cron\"; cron: string; timezone: string; startsAt?: number | undefined; endsAt?: number | undefined; } | { name: string; version: 1; handler: string; concurrency: \"allow\" | \"forbid\" | \"replace\"; deadline: number; timing: \"interval\"; interval: number; startsAt: number; endsAt?: number | undefined; } | { name: string; version: 1; handler: string; concurrency: \"allow\" | \"forbid\" | \"replace\"; deadline: number; timing: \"once\"; startsAt: number; }",
-                "references": []
+                "text": "Schedule",
+                "references": [
+                    {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+                            "name": "@destack/service",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/schedule/schedule.ts",
+                            "name": "Schedule"
+                        }
+                    }
+                ]
             },
             "signatures": [],
             "members": [],
@@ -1946,8 +1601,8 @@
                     "kind": "VariableDeclaration",
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1632,
-                        "end": 1841
+                        "start": 1559,
+                        "end": 1768
                     },
                     "modifiers": [],
                     "typeParameters": [],
@@ -2056,8 +1711,8 @@
                     "kind": "VariableDeclaration",
                     "source": {
                         "file": "src/server.ts",
-                        "start": 2173,
-                        "end": 2319
+                        "start": 1815,
+                        "end": 1855
                     },
                     "modifiers": [],
                     "typeParameters": [],
@@ -2070,7 +1725,7 @@
             },
             "typeSignatures": [],
             "valueType": {
-                "text": "import(\"@destack/service\").ServiceDefinition<{ list: import(\"@orpc/contract\").ContractProcedureBuilderWithOutput<import(\"@orpc/contract\").Schema<unknown, unknown>, schema.Object<{ path: import(\"zod\").ZodString; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>, { authentication: \"host\" | \"identity\" | \"public\"; permission: { packageId: string & import(\"zod\").$brand<\"package\">; type: string; name: string; } | null; audit: boolean; } & Record<never, never>>; }>",
+                "text": "import(\"@destack/service\").Service<{ list: import(\"@orpc/contract\").ContractProcedureBuilderWithOutput<import(\"@orpc/contract\").Schema<unknown, unknown>, schema.Object<{ path: import(\"zod\").ZodString; }, import(\"zod/v4/core\").$strict>, import(\"@orpc/contract\").MergedErrorMap<Record<never, never>, { NOT_IMPLEMENTED: { status: number; }; UNAUTHORIZED: { status: number; }; FORBIDDEN: { status: number; }; NOT_FOUND: { status: number; }; CONFLICT: { status: number; }; PRECONDITION_FAILED: { status: number; }; SOURCE_MANAGED: { status: number; }; UNSUPPORTED: { status: number; }; RATE_LIMITED: { status: number; }; UNAVAILABLE: { status: number; }; }>, { authentication: \"host\" | \"identity\" | \"public\"; permission: { packageId: string & import(\"zod\").$brand<\"package\">; type: string; name: string; } | null; audit: boolean; } & Record<never, never>>; }>",
                 "references": [
                     {
                         "compiler": {
@@ -2090,7 +1745,7 @@
                         },
                         "symbol": {
                             "module": "src/declare/service.ts",
-                            "name": "ServiceDefinition"
+                            "name": "Service"
                         }
                     },
                     {
@@ -2177,8 +1832,8 @@
                     "kind": "VariableDeclaration",
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1544,
-                        "end": 1588
+                        "start": 1471,
+                        "end": 1515
                     },
                     "modifiers": [],
                     "typeParameters": [],
@@ -2218,8 +1873,8 @@
                     "kind": "VariableDeclaration",
                     "source": {
                         "file": "src/server.ts",
-                        "start": 1427,
-                        "end": 1481
+                        "start": 1354,
+                        "end": 1408
                     },
                     "modifiers": [],
                     "typeParameters": [],
@@ -2511,6 +2166,47 @@
             "members": [],
             "exports": [],
             "indexes": []
+        },
+        {
+            "name": "web",
+            "declarations": [
+                {
+                    "kind": "VariableDeclaration",
+                    "source": {
+                        "file": "src/server.ts",
+                        "start": 2400,
+                        "end": 2723
+                    },
+                    "modifiers": [],
+                    "typeParameters": [],
+                    "heritage": []
+                }
+            ],
+            "documentation": {
+                "text": "The web workload hosting notes and reminders.",
+                "tags": []
+            },
+            "typeSignatures": [],
+            "valueType": {
+                "text": "import(\"@destack/service/workload\").Workload",
+                "references": [
+                    {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73ee-8687-f9c041e21f17",
+                            "name": "@destack/service",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/workload/workload.ts",
+                            "name": "Workload"
+                        }
+                    }
+                ]
+            },
+            "signatures": [],
+            "members": [],
+            "exports": [],
+            "indexes": []
         }
     ],
     "exports": [
@@ -2527,14 +2223,6 @@
             "symbol": {
                 "module": "src/server.ts",
                 "name": "database"
-            },
-            "isTypeOnly": false
-        },
-        {
-            "name": "fetch",
-            "symbol": {
-                "module": "src/server.ts",
-                "name": "fetch"
             },
             "isTypeOnly": false
         },
@@ -2567,14 +2255,6 @@
             "symbol": {
                 "module": "src/server.ts",
                 "name": "refresh"
-            },
-            "isTypeOnly": false
-        },
-        {
-            "name": "remind",
-            "symbol": {
-                "module": "src/server.ts",
-                "name": "remind"
             },
             "isTypeOnly": false
         },
@@ -2615,6 +2295,14 @@
             "symbol": {
                 "module": "src/server.ts",
                 "name": "vault"
+            },
+            "isTypeOnly": false
+        },
+        {
+            "name": "web",
+            "symbol": {
+                "module": "src/server.ts",
+                "name": "web"
             },
             "isTypeOnly": false
         }

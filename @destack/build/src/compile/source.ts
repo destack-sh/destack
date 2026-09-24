@@ -4,9 +4,6 @@ import { type Plugin } from "vite";
 import { PackagePath } from "@destack/package/file";
 import { type ModuleSource } from "./dependency.ts";
 import { BuildError } from "../error/index.ts";
-import { transform } from "rolldown/utils";
-import { ModuleMetadata } from "@destack/package/package";
-import { modulePackage } from "../source/dependency.ts";
 
 /** Retain authored files read by Vite. */
 export function sourcePlugin(
@@ -109,58 +106,4 @@ export function mapSource(
     }
 
     return relative(dirname(output), location.path).split(sep).join("/");
-}
-
-/** Replace module metadata before bundling and preserve the transformation's source map. */
-export function metadataPlugin(
-    directory: string,
-    source: ModuleMetadata["package"],
-    configuration: string,
-): Plugin {
-    const metadata = ModuleMetadata.parse({ package: source });
-
-    return {
-        name: "destack-module-metadata",
-        transform: {
-            filter: { id: /\.[cm]?[jt]sx?$/, code: /import\.meta\.destack/ },
-            async handler(code, id) {
-                // leave bundler-generated virtual modules outside package metadata injection
-                if (id.startsWith("\0")) {
-                    return;
-                }
-                const path = relative(directory, id);
-                const external =
-                    isAbsolute(path) ||
-                    path === ".." ||
-                    path.startsWith(`..${sep}`) ||
-                    path.split(sep).includes("node_modules");
-                let identity = metadata;
-                if (external) {
-                    const owner = await modulePackage(dirname(id));
-                    const definition = JSON.parse(
-                        await readFile(resolve(owner.directory, "destack.json"), "utf8"),
-                    );
-                    identity = ModuleMetadata.parse({
-                        package: { id: definition.id, name: owner.name, version: owner.version },
-                    });
-                }
-
-                // replace each module's metadata before code from multiple modules is combined
-                const result = await transform(id, code, {
-                    tsconfig: configuration,
-                    jsx: "preserve",
-                    sourcemap: true,
-                    define: { "import.meta.destack": JSON.stringify(identity) },
-                });
-                if (result.errors.length) {
-                    throw new BuildError(
-                        "BUILD_FAILED",
-                        `Module transformation failed: ${JSON.stringify(result.errors)}`,
-                    );
-                }
-
-                return { code: result.code, map: result.map };
-            },
-        },
-    };
 }

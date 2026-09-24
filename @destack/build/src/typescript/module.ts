@@ -9,20 +9,21 @@ import {
 } from "typescript/unstable/async";
 import {
     isExportDeclaration,
+    isImportDeclaration,
     isNoSubstitutionTemplateLiteral,
     isStringLiteral,
     type SourceFile,
     SyntaxKind,
 } from "typescript/unstable/ast";
 import { DependencySymbol, ModuleDescription } from "@destack/package/code";
-import { Package, DependencyPackage } from "@destack/package/package";
+import { Package, DependencyPackage } from "@destack/package";
 import { SymbolInspector } from "./symbol.ts";
 import { describeFile } from "@destack/package/file";
 import type { TestDeclaration } from "@destack/test/inspect";
 import { inspectErrors } from "@destack/check/inspect";
 import { collectTests } from "./test.ts";
 import { collectDeclarations } from "./declaration.ts";
-import type { Declaration } from "../declaration/declaration.ts";
+import type { DeclarationExport } from "../declaration/declaration.ts";
 import { collectGlobals } from "./global.ts";
 import { collectDirectories, type DirectoryReference } from "./directory.ts";
 import { modulePackage } from "../source/dependency.ts";
@@ -34,7 +35,7 @@ export interface TypeScriptInspection {
     /** Literal directory references indexed by absolute source module path. */
     directories: Map<string, DirectoryReference[]>;
     /** Exported domain declarations to evaluate after static collection. */
-    declarations: Declaration[];
+    declarations: DeclarationExport[];
     /** Public declarations and exports. */
     modules: ModuleDescription[];
     /** Statically collected test and suite declarations. */
@@ -50,7 +51,7 @@ export async function describeProject(
     const modules = new Map<string, ModuleDescription>();
     const sources = new Map<string, Uint8Array<ArrayBuffer>>();
     const tests: TestDeclaration[] = [];
-    const declarations: Declaration[] = [];
+    const declarations: DeclarationExport[] = [];
     const directories = new Map<string, DirectoryReference[]>();
 
     // queue declarations reached through exports and public types
@@ -71,6 +72,7 @@ export async function describeProject(
         (file) => contains(root, file) && !relative(root, file).split(sep).includes("node_modules"),
     );
     const authored = new Set(files);
+    const runtime = await collectRuntimeFiles(project, files);
     const sourceFiles = new Map<string, SourceFile>();
 
     // preserve domain declarations imported from shared source packages
@@ -99,7 +101,9 @@ export async function describeProject(
         const owner = await modulePackage(dirname(file));
         const path = relative(owner.directory, file).split(sep).join("/");
         const cases = await collectTests(source, path, project);
-        declarations.push(...(await collectDeclarations(source, path, project, owner, cases)));
+        if (runtime.has(file)) {
+            declarations.push(...(await collectDeclarations(source, path, project, owner, cases)));
+        }
         if (authored.has(file)) {
             tests.push(...cases);
         }
@@ -192,6 +196,52 @@ export async function describeProject(
     const result = [...modules.values()].map((module) => ModuleDescription.parse(module));
 
     return { modules: result, sources, tests, declarations, directories };
+}
+
+/** Collect modules reached from authored modules through imports and reexports kept at runtime. */
+async function collectRuntimeFiles(
+    project: Project,
+    authored: readonly string[],
+): Promise<Set<string>> {
+    // follow imports from the authored files
+    const reached = new Set(authored);
+    const pending = [...authored];
+    for (const file of pending) {
+        // skip declaration files, which contribute no runtime modules
+        const source = await project.program.getSourceFile(file);
+        if (!source || source.isDeclarationFile) {
+            continue;
+        }
+
+        // select specifiers of imports and reexports that remain after type erasure
+        const specifiers = source.statements.flatMap((statement) => {
+            if (isImportDeclaration(statement)) {
+                return statement.importClause?.phaseModifier === SyntaxKind.TypeKeyword
+                    ? []
+                    : [statement.moduleSpecifier];
+            } else if (isExportDeclaration(statement) && statement.moduleSpecifier) {
+                return statement.isTypeOnly ? [] : [statement.moduleSpecifier];
+            } else {
+                return [];
+            }
+        });
+        if (!specifiers.length) {
+            continue;
+        }
+
+        // follow each resolved module once
+        const modules = await project.checker.getSymbolAtLocation(specifiers);
+        for (const module of modules) {
+            const declaration = await module?.declarations[0]?.resolve(project);
+            const target = declaration?.getSourceFile().fileName;
+            if (target && !reached.has(target)) {
+                reached.add(target);
+                pending.push(target);
+            }
+        }
+    }
+
+    return reached;
 }
 
 /** Follow named and star reexports while preserving explicit type-only declarations. */

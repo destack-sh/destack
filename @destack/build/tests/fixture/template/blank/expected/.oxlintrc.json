@@ -1,20 +1,11 @@
 {
-    "plugins": [
-        "typescript",
-        "oxc",
-        "unicorn"
-    ],
+    "plugins": ["typescript", "oxc", "unicorn"],
     "categories": {
         "correctness": "error"
     },
-    "jsPlugins": [
-        "@destack/check/lint"
-    ],
+    "jsPlugins": ["@destack/check/lint"],
     "rules": {
-        "eslint/curly": [
-            "error",
-            "all"
-        ],
+        "eslint/curly": ["error", "all"],
         "typescript/parameter-properties": [
             "error",
             {
@@ -36,9 +27,57 @@
         "eslint/no-control-regex": "off",
         "typescript/unbound-method": "off",
         "typescript/no-misused-spread": "off",
+        "eslint/id-length": [
+            "error",
+            {
+                "min": 2,
+                "exceptions": ["i", "j", "x", "y", "z", "_"]
+            }
+        ],
+        "unicorn/filename-case": [
+            "error",
+            {
+                "case": "kebabCase"
+            }
+        ],
+        "destack/boolean-prefix": "error",
+        "destack/branch-comment-position": "error",
+        "destack/comment-style": "error",
         "destack/error-message-style": "error",
-        "destack/no-inline-config": "error"
+        "destack/jsdoc-sentence": "error",
+        "destack/no-import-alias": "error",
+        "destack/no-index-logic": "error",
+        "destack/no-inline-config": "error",
+        "destack/no-manifest-import": "error",
+        "destack/no-partial-assertions": "error",
+        "destack/no-silent-fallback": "error",
+        "destack/no-sludge": "error",
+        "destack/padding-before-return": "error",
+        "destack/prevent-abbreviations": "error",
+        "destack/require-block-comment": "error",
+        "destack/require-jsdoc": "error",
+        "destack/valid-declaration": "error",
+        "destack/valid-package-handle": "error"
     },
+    "overrides": [
+        {
+            "files": [
+                "**/src/service/**",
+                "**/src/connection/**",
+                "**/src/declare/**",
+                "**/src/stack/**",
+                "**/src/package.ts"
+            ],
+            "rules": {
+                "eslint/no-restricted-imports": [
+                    "error",
+                    {
+                        "patterns": ["**/server", "**/server/**", "*/server"]
+                    }
+                ]
+            }
+        }
+    ],
     "options": {
         "denyWarnings": true,
         "typeAware": true,

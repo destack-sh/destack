@@ -1,7 +1,8 @@
 import { lstat, mkdir, readdir, readFile, writeFile } from "node:fs/promises";
+import { formatSource } from "@destack/check";
 import { dirname, join, resolve } from "node:path";
 import { PackageDefinition } from "@destack/package";
-import { Package } from "@destack/package/package";
+import { Package } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
 import { TemplateParameters } from "@destack/package/template";
 import { PackageError } from "@destack/package/error";
@@ -73,7 +74,8 @@ export class Template {
     }
 
     /** Copy source and replace declared dependencies without executing package code. */
-    instantiate(parameters: TemplateParameters): Map<string, Uint8Array> {
+    async instantiate(parameters: TemplateParameters): Promise<Map<string, Uint8Array>> {
+        // read the template files
         const source = this.files;
 
         // read declarations from the selected source package
@@ -171,12 +173,20 @@ export class Template {
         files.set("package.json", encoder.encode(JSON.stringify(manifest, null, 4) + "\n"));
         files.set("destack.json", encoder.encode(JSON.stringify(definition, null, 4) + "\n"));
 
+        // format generated and copied text so new packages start formatted
+        for (const [path, bytes] of files) {
+            if (/\.(?:[cm]?[jt]sx?|json|css|md|html)$/.test(path)) {
+                files.set(path, encoder.encode(await formatSource(path, decoder.decode(bytes))));
+            }
+        }
+
         return files;
     }
 
     /** Instantiate a package into a new directory. */
     async write(directory: string, parameters: TemplateParameters): Promise<void> {
-        const files = this.instantiate(parameters);
+        // instantiate the files
+        const files = await this.instantiate(parameters);
         // validate relative paths before creating the destination
         for (const path of files.keys()) {
             PackagePath.parse(path);

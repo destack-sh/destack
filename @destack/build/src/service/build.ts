@@ -1,9 +1,8 @@
-import { PackageId } from "@destack/package/package";
-import packageDefinition from "../../destack.json" with { type: "json" };
 import { schema } from "@destack/schema";
 import { PackageLocation } from "@destack/package/manifest";
 import { defineOperation, defineOperationProcedures } from "@destack/service/operation";
 import { defineProcedure } from "@destack/service";
+import type {} from "@destack/package/import-meta";
 
 /** Select immutable source and named outputs from the host's build configuration. */
 export const BuildRequest = schema.object({
@@ -44,7 +43,7 @@ export const build = {
     start: defineProcedure({
         authentication: "identity",
         permission: {
-            packageId: PackageId.parse(packageDefinition.id),
+            packageId: import.meta.destack.package.id,
             type: "build",
             name: "start",
         },

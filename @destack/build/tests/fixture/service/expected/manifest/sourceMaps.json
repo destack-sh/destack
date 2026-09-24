@@ -1,10 +1,10 @@
 [
     {
-        "generated": "output/bun/server-umCVDsJM.js",
-        "map": "output/bun/server-umCVDsJM.js.map"
+        "generated": "output/bun/server-wG9ewff2.js",
+        "map": "output/bun/server-wG9ewff2.js.map"
     },
     {
-        "generated": "output/worker/server-umCVDsJM.js",
-        "map": "output/worker/server-umCVDsJM.js.map"
+        "generated": "output/worker/server-wG9ewff2.js",
+        "map": "output/worker/server-wG9ewff2.js.map"
     }
 ]

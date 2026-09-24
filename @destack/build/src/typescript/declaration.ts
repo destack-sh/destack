@@ -20,10 +20,11 @@ import type { DeclarationDescription } from "@destack/package/inspect";
 import { Package } from "@destack/package";
 import { BuildError } from "../error/index.ts";
 import { type InspectorName, INSPECTORS } from "../declaration/inspector.ts";
+import { DECLARATION_CONSTRUCTORS } from "@destack/package/declare";
 import { modulePackage } from "../source/dependency.ts";
 import type { TestDeclaration } from "@destack/test/inspect";
 
-import type { Declaration } from "../declaration/declaration.ts";
+import type { DeclarationExport } from "../declaration/declaration.ts";
 
 /** Locate exported declarations without evaluating package modules. */
 export async function collectDeclarations(
@@ -32,9 +33,9 @@ export async function collectDeclarations(
     project: Project,
     sourcePackage: Awaited<ReturnType<typeof modulePackage>>,
     tests: readonly TestDeclaration[] = [],
-): Promise<Declaration[]> {
+): Promise<DeclarationExport[]> {
     // collect calls before resolving constructor symbols in one request
-    const declarations: Declaration[] = [];
+    const declarations: DeclarationExport[] = [];
     const calls: CallExpression[] = [];
     const testEnds = new Map(
         tests.filter((test) => test.kind === "test").map((test) => [test.start, test.end]),
@@ -95,7 +96,7 @@ export async function collectDeclarations(
         const { name, constructor } = inspector;
 
         // require a named variable initialized by the constructor
-        const definition = INSPECTORS[name];
+        const definition = DECLARATION_CONSTRUCTORS[name];
         const declaration = node.parent;
         if (
             !isVariableDeclaration(declaration) ||
@@ -180,8 +181,7 @@ async function resolveInspector(
         return undefined;
     }
     const owner = await modulePackage(dirname(declaration.getSourceFile().fileName));
-
-    if (owner.name !== INSPECTORS[name].package) {
+    if (owner.name !== DECLARATION_CONSTRUCTORS[name].package) {
         return undefined;
     }
 

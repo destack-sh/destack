@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { dirname, isAbsolute, join, relative, resolve, sep, posix } from "node:path";
 import { type Plugin } from "vite";
-import { type DependencyResolution } from "@destack/package/package";
+import { type DependencyResolution } from "@destack/package";
 import { BuildError } from "../error/index.ts";
 import { type PackageSource } from "../source/index.ts";
 import { describeFile } from "@destack/package/file";
@@ -75,6 +75,7 @@ export function dependencyPlugin(
     locations = new Map<string, ModuleSource>(),
     assets: ReadonlyMap<string, Uint8Array<ArrayBuffer>> = new Map(),
 ): Plugin {
+    // track resolved packages, runtimes and imports across hooks
     const resolver = new DependencyResolver();
     const directories = new Map<string, string>();
     const runtimes = new Map<string, Runtime[]>();
@@ -127,6 +128,7 @@ export function dependencyPlugin(
                 });
             }
 
+            // record project sources with their runtimes and unresolved imports
             if (source.directory === project.directory) {
                 const unresolved = unresolvedImports(this.parse(module.code));
                 locations.set(module.id, {
@@ -220,15 +222,15 @@ export function dependencyPlugin(
                     const owner = await modulePackage(dirname(absolute));
                     const path = relative(owner.directory, absolute).split(sep).join("/");
                     const key = `${owner.name}@${owner.version}`;
-                    const external = owner.directory !== project.directory;
+                    const isExternal = owner.directory !== project.directory;
                     if (!locations.has(absolute)) {
                         locations.set(absolute, {
                             kind: "source",
                             path,
-                            ...(external ? { package: key } : {}),
+                            ...(isExternal ? { package: key } : {}),
                         });
                     }
-                    if (external && !description.packages[key]) {
+                    if (isExternal && !description.packages[key]) {
                         const resolution = resolutions[key] ?? resolutions[owner.name];
                         if (
                             !resolution ||
@@ -269,6 +271,7 @@ export function dependencyPlugin(
                 }
             }
 
+            // describe the compiled inputs and outputs
             const inspection = describeCompilation(
                 locations,
                 description.packages,
@@ -342,6 +345,7 @@ export function resolutionPlugin(
                     throw new BuildError("BUILD_FAILED", `Undeclared runtime dependency: ${name}`);
                 }
 
+                // resolve the package owning the imported file
                 const path = resolved.id.split("?")[0];
                 const directory = dirname(path);
                 const owner = await resolver.package(directory);
@@ -404,6 +408,7 @@ export function describeCompilation(
     bundle: OutputBundle,
     information: ReadonlyMap<string, ModuleImports>,
 ): BuildDescription {
+    // start the description from the package index
     const description: BuildDescription = { packages, inputs: {}, outputs: {} };
 
     // index parsed inputs in stable source order
@@ -414,6 +419,7 @@ export function describeCompilation(
         if (!location) {
             throw new BuildError("BUILD_FAILED", `Missing parsed module: ${id}`);
         }
+        // oxlint-disable-next-line destack/no-silent-fallback -- the empty package name sorts project modules first
         names.set(id, JSON.stringify([location.kind, location.package ?? "", location.path]));
     }
     modules.sort((left, right) => {
@@ -436,12 +442,12 @@ export function describeCompilation(
         ] as const) {
             for (const path of paths) {
                 // external imports do not produce moduleParsed events
-                const external = !information.has(path);
-                const reference = external ? path : identifiers.get(path);
+                const isExternal = !information.has(path);
+                const reference = isExternal ? path : identifiers.get(path);
                 if (!reference) {
                     throw new BuildError("BUILD_FAILED", `Unresolved module: ${path}`);
                 }
-                imports.push({ path: reference, external, dynamic });
+                imports.push({ path: reference, external: isExternal, dynamic });
             }
         }
         description.inputs[identifiers.get(id)!] = { ...location, imports };
@@ -459,7 +465,7 @@ export function describeCompilation(
                 if (modules[id].renderedLength === 0) {
                     continue;
                 }
-                // Rolldown adds its runtime after parsing authored and virtual inputs
+                // rolldown adds its runtime after parsing authored and virtual inputs
                 if (id === RUNTIME_MODULE_ID && !identifiers.has(id)) {
                     const reference = "generated:rolldown/runtime";
                     identifiers.set(id, reference);

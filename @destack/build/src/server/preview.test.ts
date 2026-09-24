@@ -27,7 +27,7 @@ test("serve an application and invalidate its edited source", async () => {
         await linkDependencies(fileURLToPath(new URL("source/", fixture)), directory);
         // retain real source and routing through the service lifecycle
         let released = 0;
-        let failRelease = false;
+        let shouldFailRelease = false;
         await using previews = new PreviewPool(
             {
                 async open(owner, request) {
@@ -47,8 +47,8 @@ test("serve an application and invalidate its edited source", async () => {
                             return server.vite.resolvedUrls!.local[0];
                         },
                         async [Symbol.asyncDispose]() {
-                            if (failRelease) {
-                                failRelease = false;
+                            if (shouldFailRelease) {
+                                shouldFailRelease = false;
                                 throw new ServiceError("CONFLICT", {
                                     message: "checkout is still retained",
                                 });
@@ -60,7 +60,7 @@ test("serve an application and invalidate its edited source", async () => {
             },
             { concurrency: 1, capacity: 2, retention: 60_000 },
         );
-        await using server = await Server.start({
+        await using server = Server.start({
             ...hosting,
             router: { preview: implementPreview(previews) },
             health: new Health("build"),
@@ -79,16 +79,16 @@ test("serve an application and invalidate its edited source", async () => {
 
         // wait for the public URL and verify caller isolation
         const started = await client.preview.start({ source: "web", application: "server" });
-        expect(started.state).toBe("starting");
+        expect(started.status).toBe("starting");
         const stream = await client.preview.watch({ id: started.id });
         let running = started;
         for await (const value of stream) {
             running = value;
-            if (value.state !== "starting") {
+            if (value.status !== "starting") {
                 break;
             }
         }
-        if (running.state !== "running") {
+        if (running.status !== "running") {
             throw new Error(JSON.stringify(running));
         }
         expect(await client.preview.get({ id: started.id })).toEqual(running);
@@ -114,7 +114,7 @@ test("serve an application and invalidate its edited source", async () => {
         ).toMatchFileSnapshot(fileURLToPath(new URL("expected/local.html", fixture)));
 
         // observe the completed reload through the served document
-        const path = join(directory, "src/App.tsx");
+        const path = join(directory, "src/app.tsx");
         const source = await readFile(path, "utf8");
         await writeFile(path, source.replace("Hello Destack", "Edited Destack"));
         await expect
@@ -122,6 +122,7 @@ test("serve an application and invalidate its edited source", async () => {
                 async () => {
                     const edited = await fetch(url, { headers: { accept: "text/html" } });
                     expect(edited.status).toBe(200);
+
                     return await edited.text();
                 },
                 { timeout: 3000 },
@@ -129,7 +130,7 @@ test("serve an application and invalidate its edited source", async () => {
             .toBe(document.replace("Hello Destack", "Edited Destack"));
 
         // retain failed cleanup for retry and count it against the active preview limit
-        failRelease = true;
+        shouldFailRelease = true;
         await expect(client.preview.stop({ id: started.id })).rejects.toMatchObject({
             code: "CONFLICT",
         });
@@ -147,7 +148,7 @@ test("serve an application and invalidate its edited source", async () => {
             createdAt: started.createdAt,
             updatedAt: stopped.updatedAt,
             stoppedAt: stopped.updatedAt,
-            state: "stopped",
+            status: "stopped",
         });
         expect(await client.preview.stop({ id: started.id })).toEqual(stopped);
         expect(released).toBe(1);
@@ -163,7 +164,7 @@ test("serve an application and invalidate its edited source", async () => {
             createdAt: pending.createdAt,
             updatedAt: cancelled.updatedAt,
             stoppedAt: cancelled.updatedAt,
-            state: "stopped",
+            status: "stopped",
         });
         expect(released).toBe(2);
     } finally {

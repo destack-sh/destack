@@ -28,6 +28,7 @@ export async function serializeDescriptions(
     source: ManifestDescription,
     outputs: Record<string, PackageOutput>,
 ) {
+    // group descriptions by package
     const files = new Map<string, Uint8Array<ArrayBuffer>>();
     const descriptions: PackageManifest["descriptions"] = {};
     const groups = new Map<string, { package: Package; values: unknown[] }>();
@@ -56,7 +57,8 @@ export async function serializeDescriptions(
     const names = new Map<string, number>();
     for (const group of groups.values()) {
         const name = group.package.name.split("/").at(-1)!;
-        names.set(name, (names.get(name) ?? 0) + 1);
+        const count = names.get(name);
+        names.set(name, count === undefined ? 1 : count + 1);
     }
     const domains = new Map<string, string>();
     for (const [key, group] of groups) {
@@ -90,7 +92,8 @@ export async function serializeDescriptions(
     // identify paths with target-specific descriptions
     const counts = new Map<string, number>();
     for (const module of source.modules) {
-        counts.set(module.path, (counts.get(module.path) ?? 0) + 1);
+        const count = counts.get(module.path);
+        counts.set(module.path, count === undefined ? 1 : count + 1);
     }
     const owners = new Map<number, string[]>();
     for (const name of [...source.selections.keys()].sort()) {

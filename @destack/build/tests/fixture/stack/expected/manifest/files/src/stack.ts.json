@@ -1,0 +1,903 @@
+{
+    "path": "src/stack.ts",
+    "source": {
+        "path": "src/stack.ts",
+        "digest": "665d1055b89db9d80ea380e2adb0239d813433aa37b80991280de2133feb2606",
+        "size": 2314,
+        "mediaType": "text/plain"
+    },
+    "length": 2314,
+    "imports": [
+        "@destack/space",
+        "./package.ts",
+        "@destack/package/import-meta",
+        "@destack/model/declare",
+        "@destack/access",
+        "@destack/template-stack",
+        "@destack/setting/declare",
+        "@destack/schema",
+        "@destack/template-stack"
+    ],
+    "globals": [],
+    "errors": [
+        {
+            "source": {
+                "file": "src/stack.ts",
+                "start": 0,
+                "end": 2314
+            },
+            "throws": [],
+            "calls": [
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 568,
+                        "end": 822
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-019f5530-8000-7000-8000-000000000001",
+                            "name": "@destack/setting",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/declare/setting.ts",
+                            "name": "defineSetting"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 697,
+                        "end": 722
+                    },
+                    "target": {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "_enum"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 932,
+                        "end": 1143
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-019f5530-8000-7000-8000-000000000001",
+                            "name": "@destack/setting",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/declare/assignment.ts",
+                            "name": "defineSettingAssignment"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1041,
+                        "end": 1112
+                    },
+                    "target": {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "ZodType.parse"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1041,
+                        "end": 1060
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-01a0c80b-614e-739b-bf41-8570d1151a11",
+                            "name": "@destack/schema",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/identifier/identifier.ts",
+                            "name": "identifier"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1252,
+                        "end": 1493
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-019f5530-8000-7000-8000-000000000001",
+                            "name": "@destack/setting",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/declare/policy.ts",
+                            "name": "defineSettingPolicy"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1362,
+                        "end": 1433
+                    },
+                    "target": {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "ZodType.parse"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1362,
+                        "end": 1381
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-01a0c80b-614e-739b-bf41-8570d1151a11",
+                            "name": "@destack/schema",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/identifier/identifier.ts",
+                            "name": "identifier"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1709,
+                        "end": 1777
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73f3-b32b-12779e5cd20a",
+                            "name": "@destack/model",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/declare/account.ts",
+                            "name": "defineAccount"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1852,
+                        "end": 2020
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-01a0c80b-614e-739e-a21a-66fd749e17ca",
+                            "name": "@destack/access",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/access/object.ts",
+                            "name": "defineObject"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1997,
+                        "end": 2014
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-01a0c80b-614e-739e-a21a-66fd749e17ca",
+                            "name": "@destack/access",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/access/expression.ts",
+                            "name": "relation"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 2123,
+                        "end": 2312
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-01a0c80b-614e-739c-9b50-70e5119010b1",
+                            "name": "@destack/space",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/declare/space.ts",
+                            "name": "defineSpace"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 2269,
+                        "end": 2301
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-01a0c80b-614e-739c-9b50-70e5119010b1",
+                            "name": "@destack/space",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/declare/installation.ts",
+                            "name": "install"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                }
+            ],
+            "catches": [],
+            "finally": [],
+            "unknowns": [
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 568,
+                        "end": 822
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 697,
+                        "end": 722
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 697,
+                        "end": 708
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 932,
+                        "end": 1143
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1041,
+                        "end": 1112
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1041,
+                        "end": 1066
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1041,
+                        "end": 1060
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1252,
+                        "end": 1493
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1362,
+                        "end": 1433
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1362,
+                        "end": 1387
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1362,
+                        "end": 1381
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1709,
+                        "end": 1777
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1852,
+                        "end": 2020
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1997,
+                        "end": 2014
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 2123,
+                        "end": 2312
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 2269,
+                        "end": 2301
+                    },
+                    "reason": "call"
+                }
+            ]
+        }
+    ],
+    "symbols": [
+        {
+            "name": "account",
+            "declarations": [
+                {
+                    "kind": "VariableDeclaration",
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1699,
+                        "end": 1777
+                    },
+                    "modifiers": [],
+                    "typeParameters": [],
+                    "heritage": []
+                }
+            ],
+            "documentation": {
+                "text": "Declare environments independently of the destination space.",
+                "tags": []
+            },
+            "typeSignatures": [],
+            "valueType": {
+                "text": "{ environments?: Record<string, { tags?: Record<string, string> | undefined; }> | undefined; roles?: Record<string, { description: string; permissions: { packageId: string & import(\"zod\").$brand<\"package\">; type: string; name: string; objectId?: string | undefined; }[]; }> | undefined; bindings?: Record<string, { role: string | { id: string & import(\"zod\").$brand<\"role\">; }; subject: { membership: string & import(\"zod\").$brand<\"account-membership\">; } | { group: string & import(\"zod\").$brand<\"group\">; } | { service: string & import(\"zod\").$brand<\"service-account\">; }; spaceId?: (string & import(\"zod\").$brand<\"space\">) | undefined; expiresAt?: number | undefined; }> | undefined; }",
+                "references": [
+                    {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es5.d.ts",
+                            "name": "Array"
+                        }
+                    },
+                    {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es5.d.ts",
+                            "name": "Record"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/core/core.d.cts",
+                            "name": "$brand"
+                        }
+                    }
+                ]
+            },
+            "signatures": [],
+            "members": [],
+            "exports": [],
+            "indexes": []
+        },
+        {
+            "name": "language",
+            "declarations": [
+                {
+                    "kind": "VariableDeclaration",
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 557,
+                        "end": 822
+                    },
+                    "modifiers": [],
+                    "typeParameters": [],
+                    "heritage": []
+                }
+            ],
+            "documentation": {
+                "text": "Describe a shared setting without reading runtime values.",
+                "tags": []
+            },
+            "typeSignatures": [],
+            "valueType": {
+                "text": "import(\"../node_modules/@destack/setting/src/setting/setting.ts\").Setting<import(\"zod\").ZodEnum<{ de: \"de\"; en: \"en\"; }>>",
+                "references": [
+                    {
+                        "package": {
+                            "id": "package-019f5530-8000-7000-8000-000000000001",
+                            "name": "@destack/setting",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/setting/setting.ts",
+                            "name": "Setting"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/classic/schemas.d.cts",
+                            "name": "ZodEnum"
+                        }
+                    }
+                ]
+            },
+            "signatures": [],
+            "members": [],
+            "exports": [],
+            "indexes": []
+        },
+        {
+            "name": "languageAssignment",
+            "declarations": [
+                {
+                    "kind": "VariableDeclaration",
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 911,
+                        "end": 1143
+                    },
+                    "modifiers": [],
+                    "typeParameters": [],
+                    "heritage": []
+                }
+            ],
+            "documentation": {
+                "text": "Configure the same declared value through typed source authoring.",
+                "tags": []
+            },
+            "typeSignatures": [],
+            "valueType": {
+                "text": "{ setting: { packageId: string & import(\"zod\").$brand<\"package\">; name: string; }; target: { kind: \"user\"; user: { authority: string; id: string; kind: \"user\"; }; packageId?: (string & import(\"zod\").$brand<\"package\">) | undefined; location?: { spaceId: string & import(\"zod\").$brand<\"space\">; installationId?: (string & import(\"zod\").$brand<\"installation\">) | undefined; } | undefined; deviceId?: (string & import(\"zod\").$brand<\"device\">) | undefined; } | { kind: \"space\"; location: { spaceId: string & import(\"zod\").$brand<\"space\">; installationId?: (string & import(\"zod\").$brand<\"installation\">) | undefined; }; } | { kind: \"host\"; hostId: string & import(\"zod\").$brand<\"host\">; }; value: import(\"zod\").JSONType; }",
+                "references": [
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/core/core.d.cts",
+                            "name": "$brand"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/core/util.d.cts",
+                            "name": "JSONType"
+                        }
+                    }
+                ]
+            },
+            "signatures": [],
+            "members": [],
+            "exports": [],
+            "indexes": []
+        },
+        {
+            "name": "languagePolicy",
+            "declarations": [
+                {
+                    "kind": "VariableDeclaration",
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1235,
+                        "end": 1493
+                    },
+                    "modifiers": [],
+                    "typeParameters": [],
+                    "heritage": []
+                }
+            ],
+            "documentation": {
+                "text": "Describe a recommendation independently of the persisted assignment.",
+                "tags": []
+            },
+            "typeSignatures": [],
+            "valueType": {
+                "text": "{ setting: { packageId: string & import(\"zod\").$brand<\"package\">; name: string; }; authority: { kind: \"account\"; accountId: string & import(\"zod\").$brand<\"account\">; } | { kind: \"space\"; spaceId: string & import(\"zod\").$brand<\"space\">; } | { kind: \"host\"; hostId: string & import(\"zod\").$brand<\"host\">; }; installationId?: (string & import(\"zod\").$brand<\"installation\">) | undefined; mode: \"recommended\" | \"required\"; value: import(\"zod\").JSONType; }",
+                "references": [
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/core/core.d.cts",
+                            "name": "$brand"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/core/util.d.cts",
+                            "name": "JSONType"
+                        }
+                    }
+                ]
+            },
+            "signatures": [],
+            "members": [],
+            "exports": [],
+            "indexes": []
+        },
+        {
+            "name": "note",
+            "declarations": [
+                {
+                    "kind": "VariableDeclaration",
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 1845,
+                        "end": 2020
+                    },
+                    "modifiers": [],
+                    "typeParameters": [],
+                    "heritage": []
+                }
+            ],
+            "documentation": {
+                "text": "Declare inspectable application permissions.",
+                "tags": []
+            },
+            "typeSignatures": [],
+            "valueType": {
+                "text": "import(\"@destack/access\").ObjectType<{ readonly name: \"note\"; readonly attributes: {}; readonly relations: { readonly owner: { readonly kind: \"subject\"; readonly subjects: readonly [\"user\"]; }; }; readonly permissions: { read: import(\"@destack/access\").AccessExpression; }; } & { packageId: import(\"@destack/package\").PackageId; }>",
+                "references": [
+                    {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es2015.iterable.d.ts",
+                            "name": "ArrayIterator"
+                        }
+                    },
+                    {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es2019.array.d.ts",
+                            "name": "FlatArray"
+                        }
+                    },
+                    {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es5.d.ts",
+                            "name": "Array"
+                        }
+                    },
+                    {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es5.d.ts",
+                            "name": "ConcatArray"
+                        }
+                    },
+                    {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es5.d.ts",
+                            "name": "Intl.DateTimeFormatOptions"
+                        }
+                    },
+                    {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es5.d.ts",
+                            "name": "Intl.NumberFormatOptions"
+                        }
+                    },
+                    {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es5.d.ts",
+                            "name": "ReadonlyArray"
+                        }
+                    },
+                    {
+                        "package": {
+                            "id": "package-01a0c80b-614e-739e-a21a-66fd749e17ca",
+                            "name": "@destack/access",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/access/expression.ts",
+                            "name": "AccessExpression"
+                        }
+                    },
+                    {
+                        "package": {
+                            "id": "package-01a0c80b-614e-739e-a21a-66fd749e17ca",
+                            "name": "@destack/access",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/access/object.ts",
+                            "name": "ObjectType"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/core/core.d.cts",
+                            "name": "$brand"
+                        }
+                    }
+                ]
+            },
+            "signatures": [],
+            "members": [],
+            "exports": [],
+            "indexes": []
+        },
+        {
+            "name": "personal",
+            "declarations": [
+                {
+                    "kind": "VariableDeclaration",
+                    "source": {
+                        "file": "src/stack.ts",
+                        "start": 2112,
+                        "end": 2312
+                    },
+                    "modifiers": [],
+                    "typeParameters": [],
+                    "heritage": []
+                }
+            ],
+            "documentation": {
+                "text": "Configure a space without provisioning resources during compilation.",
+                "tags": []
+            },
+            "typeSignatures": [],
+            "valueType": {
+                "text": "{ policies?: { packages?: { admission: { default: \"allow\" | \"deny\"; rules: Record<string, { package: { kind: \"destack\" | \"npm\"; registry?: string | undefined; name?: string | undefined; version?: string | undefined; integrity?: string | undefined; }; decision: \"allow\" | \"deny\"; }>; }; } | undefined; network?: { default: \"allow\" | \"deny\"; rules: Record<string, { destination: { kind: \"public\"; } | { kind: \"hostname\"; hostname: string; subdomains: boolean; } | { kind: \"network\"; cidr: string; }; protocol: \"http\" | \"https\" | \"tcp\" | \"udp\" | \"ws\" | \"wss\"; ports?: number[] | undefined; decision: \"allow\" | \"deny\"; }>; } | undefined; } | undefined; resources?: Record<string, { declaration: { name: string; kind: string; version: number; spec: Record<string, import(\"zod\").JSONType>; package: { id: string & import(\"zod\").$brand<\"package\">; name: string; version: string; }; }; adopt?: { space: string & import(\"zod\").$brand<\"space\">; resource: string & import(\"zod\").$brand<\"resource\">; } | undefined; retention: \"delete\" | \"retain\"; placement?: { provider: string; location?: string | undefined; host?: (string & import(\"zod\").$brand<\"host\">) | undefined; } | undefined; tags: Record<string, string>; }> | undefined; secrets?: Record<string, { vault: string; name: string; }> | undefined; installations?: Record<string, { policies?: { network?: { default: \"allow\" | \"deny\"; rules: Record<string, { destination: { kind: \"public\"; } | { kind: \"hostname\"; hostname: string; subdomains: boolean; } | { kind: \"network\"; cidr: string; }; protocol: \"http\" | \"https\" | \"tcp\" | \"udp\" | \"ws\" | \"wss\"; ports?: number[] | undefined; decision: \"allow\" | \"deny\"; }>; } | undefined; workloads?: Record<string, { network: { default: \"allow\" | \"deny\"; rules: Record<string, { destination: { kind: \"public\"; } | { kind: \"hostname\"; hostname: string; subdomains: boolean; } | { kind: \"network\"; cidr: string; }; protocol: \"http\" | \"https\" | \"tcp\" | \"udp\" | \"ws\" | \"wss\"; ports?: number[] | undefined; decision: \"allow\" | \"deny\"; }>; }; }> | undefined; } | undefined; package: { id: string & import(\"zod\").$brand<\"package\">; name: string; version: string; }; status: \"enabled\" | \"suspended\"; alias: string; resources: Record<string & import(\"zod\").$brand<\"package\">, Record<string, { resource: string; } | { external: { space: string & import(\"zod\").$brand<\"space\">; resource: string & import(\"zod\").$brand<\"resource\">; }; }>>; secrets: Record<string & import(\"zod\").$brand<\"package\">, Record<string, { target: { secret: string; } | { space: string & import(\"zod\").$brand<\"space\">; secret: string & import(\"zod\").$brand<\"secret\">; }; version?: number | undefined; }>>; compute: Record<string, { requests?: { cpu?: number | undefined; memory?: number | undefined; } | undefined; limits?: { cpu?: number | undefined; memory?: number | undefined; } | undefined; scaling?: { minInstances?: number | undefined; maxInstances?: number | undefined; } | undefined; idleTimeout?: number | undefined; shutdownTimeout?: number | undefined; cpuTime?: number | undefined; }>; tags: Record<string, string>; }> | undefined; roles?: Record<string, { description: string; permissions: { packageId: string & import(\"zod\").$brand<\"package\">; type: string; name: string; target?: { kind: \"installation\" | \"resource\" | \"secret\"; name: string; } | { id: (string & import(\"zod\").$brand<\"installation\">) | (string & import(\"zod\").$brand<\"resource\">) | (string & import(\"zod\").$brand<\"secret\">); } | undefined; }[]; }> | undefined; bindings?: Record<string, { role: string | { id: string & import(\"zod\").$brand<\"role\">; }; subject: { membership: string & import(\"zod\").$brand<\"account-membership\">; } | { group: string & import(\"zod\").$brand<\"group\">; } | { service: string & import(\"zod\").$brand<\"service-account\">; } | { accountService: string & import(\"zod\").$brand<\"service-account\">; } | { installation: string | { id: string & import(\"zod\").$brand<\"installation\">; }; workload: string; }; expiresAt?: number | undefined; }> | undefined; routes?: Record<string, { domain: string & import(\"zod\").$brand<\"domain\">; path: string; match: \"exact\" | \"prefix\"; destination: { installation: string | { id: string & import(\"zod\").$brand<\"installation\">; }; entrypoint: string; } | { redirect: string; status: 301 | 302 | 303 | 307 | 308; }; }> | undefined; }",
+                "references": [
+                    {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es5.d.ts",
+                            "name": "Array"
+                        }
+                    },
+                    {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.es5.d.ts",
+                            "name": "Record"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/core/core.d.cts",
+                            "name": "$brand"
+                        }
+                    },
+                    {
+                        "package": {
+                            "name": "zod",
+                            "version": "4.6.5"
+                        },
+                        "symbol": {
+                            "module": "v4/core/util.d.cts",
+                            "name": "JSONType"
+                        }
+                    }
+                ]
+            },
+            "signatures": [],
+            "members": [],
+            "exports": [],
+            "indexes": []
+        }
+    ],
+    "exports": [
+        {
+            "name": "account",
+            "symbol": {
+                "module": "src/stack.ts",
+                "name": "account"
+            },
+            "isTypeOnly": false
+        },
+        {
+            "name": "database",
+            "symbol": {
+                "package": {
+                    "id": "package-01a0c80b-6148-71fe-af7d-35098929d5dd",
+                    "name": "@destack/template-stack",
+                    "version": "2026.9.0"
+                },
+                "symbol": {
+                    "module": "src/database/database.ts",
+                    "name": "database"
+                }
+            },
+            "isTypeOnly": false
+        },
+        {
+            "name": "language",
+            "symbol": {
+                "module": "src/stack.ts",
+                "name": "language"
+            },
+            "isTypeOnly": false
+        },
+        {
+            "name": "languageAssignment",
+            "symbol": {
+                "module": "src/stack.ts",
+                "name": "languageAssignment"
+            },
+            "isTypeOnly": false
+        },
+        {
+            "name": "languagePolicy",
+            "symbol": {
+                "module": "src/stack.ts",
+                "name": "languagePolicy"
+            },
+            "isTypeOnly": false
+        },
+        {
+            "name": "note",
+            "symbol": {
+                "module": "src/stack.ts",
+                "name": "note"
+            },
+            "isTypeOnly": false
+        },
+        {
+            "name": "personal",
+            "symbol": {
+                "module": "src/stack.ts",
+                "name": "personal"
+            },
+            "isTypeOnly": false
+        }
+    ]
+}

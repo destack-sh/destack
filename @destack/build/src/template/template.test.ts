@@ -1,10 +1,11 @@
+import type { TemplateParameters } from "@destack/package/template";
 import { test } from "@destack/test";
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Template } from "../template/index.ts";
-import { PackageId } from "@destack/package/package";
+import { PackageId } from "@destack/package";
 import { expectDirectory } from "../../tests/fixture.ts";
 
 test.each(["stack", "blank"])("instantiate the %s package template", async (name) => {
@@ -12,7 +13,7 @@ test.each(["stack", "blank"])("instantiate the %s package template", async (name
     const template = await Template.read(
         fileURLToPath(new URL(`../../../template-${name}/`, import.meta.url)),
     );
-    const parameters = {
+    const parameters: TemplateParameters = {
         id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000005"),
         name: `@example/${name}`,
         dependencies:

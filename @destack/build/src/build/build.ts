@@ -1,4 +1,4 @@
-import { type DependencyResolution } from "@destack/package/package";
+import { type DependencyResolution } from "@destack/package";
 import { type CompileOptions } from "../compile/module.ts";
 import { type ApplicationOptions } from "../compile/application.ts";
 import { mkdir, readFile, writeFile, copyFile, rm } from "node:fs/promises";
@@ -29,6 +29,7 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
 
     /** Associate compiler output or imported files with their manifest. */
     constructor(manifest: PackageManifest, directory: string, ownership: "temporary" | "retained") {
+        // retain the manifest, directory and reader
         this.manifest = manifest;
         this.directory = directory;
         this.ownership = ownership;
@@ -41,6 +42,7 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
 
     /** Stream a file selected from this build's inventory. */
     async open(path: string, signal?: AbortSignal): Promise<ReadableStream<Uint8Array>> {
+        // require a path from the build inventory
         PackagePath.parse(path);
         this.#paths ??= this.reader
             .inventory()
@@ -59,7 +61,7 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
         }
     }
 
-    /** Read only the root manifest and load descriptions on demand. */
+    /** Read only the root manifest and load each description when requested. */
     static async open(directory: string): Promise<PackageReader> {
         const manifest = PackageManifest.parse(
             JSON.parse(await readFile(resolve(directory, "manifest.json"), "utf8")),
@@ -74,6 +76,7 @@ export class PackageBuild implements PackageDistribution, AsyncDisposable {
 
     /** Read a distributed build and verify its files. */
     static async read(directory: string): Promise<PackageBuild> {
+        // read the manifest
         const manifest = PackageManifest.parse(
             JSON.parse(await readFile(resolve(directory, "manifest.json"), "utf8")),
         );

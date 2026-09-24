@@ -1,23 +1,23 @@
 import { relative, sep } from "node:path";
 import { mergeCompute } from "@destack/package";
-import { type DeclarationReference, WorkloadDescription } from "@destack/package/workload";
+import { WorkloadDefinition, WorkloadDescription } from "@destack/package/workload";
+import { type DeclarationReference, reference } from "@destack/package/declare";
 import type { ModuleDescription } from "@destack/package/code";
 import type { BuildDescription, DeclarationDescription } from "@destack/package/inspect";
-import { ScheduleDeclaration } from "@destack/service/schedule";
-import { ServiceInspection } from "@destack/service/inspect";
 import type { PackageSource } from "../source/index.ts";
 import { BuildError } from "../error/index.ts";
 import { isRuntimeModule } from "../compile/runtime.ts";
 
-/** Validate workload references, handlers and runtime imports against a compiled output. */
+/** Describe declared workloads with the declarations and runtime imports their code reaches. */
 export async function describeWorkloads(
     declarations: DeclarationDescription[],
     modules: ModuleDescription[],
     project: PackageSource,
     exports: Record<string, string>,
     build: BuildDescription,
-    generatedHandlers: readonly string[] = [],
+    isServerRendered: boolean,
 ): Promise<Record<string, WorkloadDescription>> {
+    // describe no workloads for browser packages
     const result: Record<string, WorkloadDescription> = {};
     if (project.runtime === "browser") {
         return result;
@@ -40,89 +40,29 @@ export async function describeWorkloads(
         declared.set(key, declaration);
     }
 
-    // inspect workloads selected by this output
-    for (const [name, definition] of Object.entries(
-        project.declaration.definition.workloads ?? {},
-    )) {
-        const entry = project.exports[definition.entrypoint];
-        if (!entry) {
+    // describe workloads this package declares and this output exports
+    for (const workload of declarations) {
+        const owner = workload.symbol.package;
+        if (workload.kind !== "workload" || owner.id !== project.declaration.package.id) {
             continue;
         }
-        if (!exports[definition.entrypoint]) {
-            throw invalid(`Workload ${name} has no compiled entrypoint: ${definition.entrypoint}`);
+        const located = locateExport(workload, modules, project, exports);
+        if (!located) {
+            continue;
         }
-
-        // locate the authored module and its emitted entry
-        const path = relative(project.directory, entry).split(sep).join("/");
-        const module = modules.find((entry) => entry.path === path);
-        const emitted = build.outputs[exports[definition.entrypoint]];
-        if (!module || !emitted) {
-            throw invalid(`Missing workload module: ${name}`);
+        const { entrypoint, name: exportName, path } = located;
+        const { name } = workload;
+        if (Object.hasOwn(result, name)) {
+            throw invalid(`Duplicate workload: ${name}`);
         }
-
-        // resolve service and schedule handlers
-        const handlers = Object.values(definition.lifecycle ?? {});
-        for (const [kind, names] of [
-            ["service", definition.services ?? []],
-            ["schedule", definition.schedules ?? []],
-        ] as const) {
-            const keys = names.map((name) => `${project.declaration.package.id}:${kind}:${name}`);
-            if (new Set(keys).size !== keys.length) {
-                throw invalid(`Duplicate ${kind} reference in workload: ${name}`);
-            }
-
-            // collect handlers from the referenced declarations
-            for (const reference of keys) {
-                const declaration = declared.get(reference);
-                if (!declaration) {
-                    throw invalid(`Unknown ${kind}: ${reference} in workload ${name}`);
-                }
-                if (kind === "schedule") {
-                    handlers.push(ScheduleDeclaration.parse(declaration.description).handler);
-                }
-                if (kind === "service") {
-                    handlers.push(ServiceInspection.parse(declaration.description).handler);
-                }
-            }
-        }
-
-        // require at least one callable workload handler
-        if (!handlers.length) {
-            throw invalid(`Workload has no service, schedule or lifecycle handler: ${name}`);
-        }
-        for (const handler of handlers) {
-            // require adapter-generated handlers to remain exported by the emitted module
-            if (generatedHandlers.includes(handler)) {
-                if (!emitted.exports.includes(handler)) {
-                    throw invalid(`Missing generated handler: ${name}#${handler}`);
-                }
-                continue;
-            }
-
-            // resolve authored handlers through the source module graph
-            const exported = module.exports.find(
-                (entry) => entry.name === handler && !entry.isTypeOnly,
-            );
-            if (!exported || !("module" in exported.symbol)) {
-                throw invalid(`Handler must resolve to package source: ${name}#${handler}`);
-            }
-
-            // require a callable symbol retained in the compiled output
-            const reference = exported.symbol;
-            const symbol = modules
-                .find((entry) => entry.path === reference.module)
-                ?.symbols.find((entry) => entry.name === reference.name);
-            if (
-                !symbol?.signatures.some((signature) => signature.kind === "call") ||
-                !emitted.exports.includes(handler)
-            ) {
-                throw invalid(`Handler is not an emitted callable export: ${name}#${handler}`);
-            }
+        const emitted = build.outputs[exports[entrypoint]];
+        if (!emitted) {
+            throw invalid(`Workload ${name} has no compiled entrypoint: ${entrypoint}`);
         }
 
         // inspect the transitive emitted inputs before selecting a runtime
         const pending: string[] = [];
-        const chunks = [exports[definition.entrypoint]];
+        const chunks = [exports[entrypoint]];
         const visitedChunks = new Set<string>();
         for (const path of chunks) {
             if (visitedChunks.has(path)) {
@@ -151,17 +91,19 @@ export async function describeWorkloads(
         const roots = Object.entries(build.inputs)
             .filter(([, input]) => !input.package && input.path.split("?")[0] === path)
             .map(([id]) => id);
-        if (!roots.length && !generatedHandlers.length) {
+        if (!roots.length && !isServerRendered) {
             throw invalid(`Missing workload input: ${name}`);
         }
 
         // traverse each source module once
         const reachable = new Set<string>();
-        const sources = generatedHandlers.length ? [...pending, ...roots] : [...roots];
+        const sources = isServerRendered ? [...pending, ...roots] : [...roots];
         const paths = new Map<string, Set<string>>();
         const resources: DeclarationReference[] = [];
         const secrets: DeclarationReference[] = [];
         const connections: DeclarationReference[] = [];
+        const services: DeclarationReference[] = [];
+        const schedules: DeclarationReference[] = [];
         for (const id of sources) {
             if (reachable.has(id)) {
                 continue;
@@ -195,15 +137,14 @@ export async function describeWorkloads(
         }
 
         // retain qualified references once per declaration
+        const selections: Partial<Record<string, DeclarationReference[]>> = {
+            resource: resources,
+            secret: secrets,
+            "service-connection": connections,
+            service: services,
+            schedule: schedules,
+        };
         for (const declaration of declared.values()) {
-            if (
-                declaration.kind !== "resource" &&
-                declaration.kind !== "secret" &&
-                declaration.kind !== "service-connection"
-            ) {
-                continue;
-            }
-
             // select declarations present in reachable modules
             const owner = declaration.symbol.package;
             const used = paths.get(`${owner.name}@${owner.version}`)?.has(declaration.source.file);
@@ -211,22 +152,21 @@ export async function describeWorkloads(
                 continue;
             }
 
-            const reference = { packageId: owner.id, name: declaration.name };
-            if (declaration.kind === "resource") {
-                resources.push(reference);
-            } else if (declaration.kind === "secret") {
-                secrets.push(reference);
-            } else {
-                connections.push(reference);
+            // implement only services and schedules this package declares
+            const isImplemented = declaration.kind === "service" || declaration.kind === "schedule";
+            if (isImplemented && owner.id !== project.declaration.package.id) {
+                continue;
             }
+            selections[declaration.kind]?.push(
+                reference({ package: owner, name: declaration.name }),
+            );
         }
 
         // reject lifetime and capacity guarantees unavailable in worker isolates
-        const compute = mergeCompute(project.declaration.definition.compute, definition.compute);
+        const compute = mergeCompute(WorkloadDefinition.parse(workload.description).compute);
         if (
             project.runtime === "workerd" &&
-            (Object.keys(definition.lifecycle ?? {}).length > 0 ||
-                Object.keys(compute.requests ?? {}).length ||
+            (Object.keys(compute.requests ?? {}).length ||
                 Object.keys(compute.limits ?? {}).length ||
                 Object.keys(compute.scaling ?? {}).length ||
                 compute.idleTimeout !== undefined ||
@@ -236,7 +176,10 @@ export async function describeWorkloads(
         }
 
         result[name] = WorkloadDescription.parse({
-            ...definition,
+            entrypoint,
+            export: exportName,
+            services,
+            schedules,
             resources,
             secrets,
             connections,
@@ -245,6 +188,39 @@ export async function describeWorkloads(
     }
 
     return result;
+}
+
+/** Find the first package export in this output exposing a workload declaration. */
+function locateExport(
+    workload: DeclarationDescription,
+    modules: readonly ModuleDescription[],
+    project: PackageSource,
+    exports: Record<string, string>,
+): { entrypoint: string; name: string; path: string } | undefined {
+    const { module, name } = workload.symbol.symbol;
+    for (const [entrypoint, file] of Object.entries(project.exports)) {
+        // skip exports this output does not compile
+        if (!exports[entrypoint]) {
+            continue;
+        }
+
+        // match exports resolving to the declared constant
+        const path = relative(project.directory, file).split(sep).join("/");
+        const exported = modules
+            .find((entry) => entry.path === path)
+            ?.exports.find(
+                (entry) =>
+                    !entry.isTypeOnly &&
+                    "module" in entry.symbol &&
+                    entry.symbol.module === module &&
+                    entry.symbol.name === name,
+            );
+        if (exported) {
+            return { entrypoint, name: exported.name, path };
+        }
+    }
+
+    return undefined;
 }
 
 /** Report an invalid workload. */

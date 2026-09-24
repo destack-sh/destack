@@ -4,7 +4,7 @@ import type { ApplicationOptions } from "../compile/application.ts";
 import { compilationPlugins } from "../compile/compiler.ts";
 import { resolutionPlugin } from "../compile/dependency.ts";
 import { runtimeConditions } from "../compile/runtime.ts";
-import type { DependencyResolution } from "@destack/package/package";
+import type { DependencyResolution } from "@destack/package";
 import { resolveView } from "../source/view.ts";
 
 /** A local application server with Vite's watcher and module graph. */
@@ -26,13 +26,14 @@ export class LocalServer implements AsyncDisposable {
 
     /** Start the application with the build's JSX, style, and metadata transforms. */
     static async start(options: LocalServerOptions): Promise<LocalServer> {
+        // resolve the view and open its package source
         const application = await resolveView(options.directory, options.application);
         const runtime = application.ssr === false ? "browser" : application.ssr.runtime;
         const source = await openPackage({
             directory: options.directory,
             target: "browser",
             configuration: options.configuration,
-            entries: { ".": application.app ?? "src/App.tsx" },
+            entries: { ".": application.app ?? "src/app.tsx" },
         });
         let vite: ViteDevServer | undefined;
 

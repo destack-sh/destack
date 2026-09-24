@@ -1,0 +1,123 @@
+{
+    "path": "src/package.ts",
+    "source": {
+        "path": "src/package.ts",
+        "digest": "4121f43a1bfe72c9400188e1d7ad1f943be04cfa2913d263fd3158273a1af570",
+        "size": 233,
+        "mediaType": "text/plain"
+    },
+    "length": 233,
+    "imports": [
+        "@destack/package/declare",
+        "@destack/template-stack"
+    ],
+    "globals": [],
+    "errors": [
+        {
+            "source": {
+                "file": "src/package.ts",
+                "start": 0,
+                "end": 233
+            },
+            "throws": [],
+            "calls": [
+                {
+                    "source": {
+                        "file": "src/package.ts",
+                        "start": 183,
+                        "end": 231
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-01a0c80b-614d-75ab-8b3b-456b8fdb73f1",
+                            "name": "@destack/package",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/declare/package.ts",
+                            "name": "definePackage"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                }
+            ],
+            "catches": [],
+            "finally": [],
+            "unknowns": [
+                {
+                    "source": {
+                        "file": "src/package.ts",
+                        "start": 183,
+                        "end": 231
+                    },
+                    "reason": "call"
+                }
+            ]
+        }
+    ],
+    "symbols": [
+        {
+            "name": "default",
+            "declarations": [
+                {
+                    "kind": "ExportAssignment",
+                    "source": {
+                        "file": "src/package.ts",
+                        "start": 168,
+                        "end": 232
+                    },
+                    "modifiers": [],
+                    "typeParameters": [],
+                    "heritage": []
+                }
+            ],
+            "documentation": {
+                "text": "The handle stacks import to install this package.",
+                "tags": []
+            },
+            "typeSignatures": [],
+            "valueType": {
+                "text": "import(\"@destack/package/declare\").PackageHandle<{ readonly resources: { main: import(\"@destack/db\").Database; }; }>",
+                "references": [
+                    {
+                        "package": {
+                            "id": "package-01a0c80b-614d-75ab-8b3b-456b8fdb73f1",
+                            "name": "@destack/package",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/declare/package.ts",
+                            "name": "PackageHandle"
+                        }
+                    },
+                    {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+                            "name": "@destack/db",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/declare/database.ts",
+                            "name": "Database"
+                        }
+                    }
+                ]
+            },
+            "signatures": [],
+            "members": [],
+            "exports": [],
+            "indexes": []
+        }
+    ],
+    "exports": [
+        {
+            "name": "default",
+            "symbol": {
+                "module": "src/package.ts",
+                "name": "default"
+            },
+            "isTypeOnly": false
+        }
+    ]
+}

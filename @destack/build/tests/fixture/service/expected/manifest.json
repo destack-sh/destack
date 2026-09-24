@@ -8,8 +8,8 @@
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "626ff74098b4dc75303cbd73ab77e3b43c3bb72f0ec6d3ae833465b301d7cb28",
-        "size": 49264,
+        "digest": "0616cb92cf15146d301e193a92946e305ef32e14c7473823b0398b44a0b6e637",
+        "size": 50085,
         "mediaType": "application/json"
     },
     "descriptions": {
@@ -21,7 +21,7 @@
             },
             "file": {
                 "path": "manifest/audit.json",
-                "digest": "be089ac5e82274e33619e2858e90750abfcadbf63e7ac095bf210e5ab8e4b899",
+                "digest": "314eaa7a0128229654720e472e6b03218a4a4da7ba273a4ffcb2b127c76786b7",
                 "size": 2697,
                 "mediaType": "application/json"
             }
@@ -34,7 +34,7 @@
             },
             "file": {
                 "path": "manifest/db.json",
-                "digest": "79a140f838002aa847af5009e4f02c03105fd89c8e2977c9fe71c6d6df971cbd",
+                "digest": "d6ec8db25bbb1392c99db8743e68fbe942652dde6155fb9a71430b83829d850e",
                 "size": 1086,
                 "mediaType": "application/json"
             }
@@ -47,7 +47,7 @@
             },
             "file": {
                 "path": "manifest/vault.json",
-                "digest": "e948474f9ff3b16b44033e87d9e7a96c9b24dcc2885be19070a500b45e37fdb2",
+                "digest": "b694eecc70979889e739d37044780d2fa7ab506fde0db9fbab7b6ff2d68c54f2",
                 "size": 2026,
                 "mediaType": "application/json"
             }
@@ -60,8 +60,8 @@
             },
             "file": {
                 "path": "manifest/service.json",
-                "digest": "f28ddfdbd3f73954e75456f42f06f5e08c236035c481596219a426854bb42296",
-                "size": 8416,
+                "digest": "554dc236d689f7c553ada355d62bdf6c27cc04ec7c8d4ffcc62c0b65f92b552a",
+                "size": 9398,
                 "mediaType": "application/json"
             }
         }
@@ -74,21 +74,27 @@
             "workloads": {
                 "web": {
                     "entrypoint": "./server",
+                    "export": "web",
                     "services": [
-                        "notes"
+                        {
+                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                            "name": "notes"
+                        }
                     ],
                     "schedules": [
-                        "reminders",
-                        "refresh",
-                        "appointment"
+                        {
+                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                            "name": "reminders"
+                        },
+                        {
+                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                            "name": "refresh"
+                        },
+                        {
+                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                            "name": "appointment"
+                        }
                     ],
-                    "lifecycle": {},
-                    "compute": {
-                        "requests": {},
-                        "limits": {},
-                        "scaling": {},
-                        "cpuTime": 1000
-                    },
                     "resources": [
                         {
                             "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
@@ -110,7 +116,13 @@
                             "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
                             "name": "notes"
                         }
-                    ]
+                    ],
+                    "compute": {
+                        "requests": {},
+                        "limits": {},
+                        "scaling": {},
+                        "cpuTime": 1000
+                    }
                 }
             },
             "descriptions": {
@@ -129,12 +141,13 @@
                     1,
                     2,
                     3,
-                    4
+                    4,
+                    5
                 ]
             },
             "directory": "output/bun",
             "exports": {
-                "./server": "output/bun/server-umCVDsJM.js"
+                "./server": "output/bun/server-wG9ewff2.js"
             },
             "dependencies": {}
         },
@@ -145,21 +158,27 @@
             "workloads": {
                 "web": {
                     "entrypoint": "./server",
+                    "export": "web",
                     "services": [
-                        "notes"
+                        {
+                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                            "name": "notes"
+                        }
                     ],
                     "schedules": [
-                        "reminders",
-                        "refresh",
-                        "appointment"
+                        {
+                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                            "name": "reminders"
+                        },
+                        {
+                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                            "name": "refresh"
+                        },
+                        {
+                            "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
+                            "name": "appointment"
+                        }
                     ],
-                    "lifecycle": {},
-                    "compute": {
-                        "requests": {},
-                        "limits": {},
-                        "scaling": {},
-                        "cpuTime": 1000
-                    },
                     "resources": [
                         {
                             "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
@@ -181,7 +200,13 @@
                             "packageId": "package-01a0c80b-6150-71b1-a0c5-78117553227d",
                             "name": "notes"
                         }
-                    ]
+                    ],
+                    "compute": {
+                        "requests": {},
+                        "limits": {},
+                        "scaling": {},
+                        "cpuTime": 1000
+                    }
                 }
             },
             "descriptions": {
@@ -200,25 +225,26 @@
                     1,
                     2,
                     3,
-                    4
+                    4,
+                    5
                 ]
             },
             "directory": "output/worker",
             "exports": {
-                "./server": "output/worker/server-umCVDsJM.js"
+                "./server": "output/worker/server-wG9ewff2.js"
             },
             "dependencies": {}
         }
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "4b41bf43b1f8ef9c32b328687a0079e4ab20c9f2a8fb0351ab2247b8f6336c4b",
-        "size": 2161,
+        "digest": "557298c18a13696145d651e3e745d7dcc8d528f6ac12af4b0776efeb55ee889f",
+        "size": 2159,
         "mediaType": "application/json"
     },
     "sourceMaps": {
         "path": "manifest/sourceMaps.json",
-        "digest": "b8e2c678c692cd8e63a9c5c7f119378ec01ddacf93c50bbf9758b58dc3828141",
+        "digest": "e9ad09c7460a2be401879772686ca2189480a716e64ac72c6c9f67c787aee9cd",
         "size": 245,
         "mediaType": "application/json"
     }

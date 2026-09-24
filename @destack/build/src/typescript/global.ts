@@ -89,7 +89,7 @@ export async function collectGlobals(
         ) {
             // retain property access without evaluating computed application expressions
             const members: string[] = [];
-            let dynamic = false;
+            let isDynamic = false;
             let expression: Node = node;
             while (true) {
                 const parent = expression.parent;
@@ -100,7 +100,7 @@ export async function collectGlobals(
                     if (isStringLiteral(argument) || isNumericLiteral(argument)) {
                         members.push(argument.text);
                     } else {
-                        dynamic = true;
+                        isDynamic = true;
                     }
                 } else {
                     break;
@@ -113,7 +113,7 @@ export async function collectGlobals(
                 name: node.text,
                 symbol: declarations.length ? await reference(symbol) : undefined,
                 members,
-                dynamic,
+                dynamic: isDynamic,
                 source: { file, start: node.getStart(), end: node.getEnd() },
             });
         }

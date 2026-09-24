@@ -20,12 +20,12 @@
                 "version": "1.0.0"
             },
             "symbol": {
-                "module": "src/index.ts",
+                "module": "src/stack.ts",
                 "name": "note"
             }
         },
         "source": {
-            "file": "src/index.ts",
+            "file": "src/stack.ts",
             "line": 57,
             "column": 20
         },

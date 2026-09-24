@@ -102,6 +102,7 @@ export function directoryPlugin(
 
 /** Read regular files in deterministic order and reject symbolic links. */
 async function readDirectory(directory: string): Promise<Map<string, Uint8Array<ArrayBuffer>>> {
+    // walk directories breadth first and collect regular files
     const files = new Map<string, Uint8Array<ArrayBuffer>>();
     const pending = [""];
     for (const parent of pending) {

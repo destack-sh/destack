@@ -20,21 +20,16 @@
                 "version": "1.0.0"
             },
             "symbol": {
-                "module": "src/index.ts",
+                "module": "src/stack.ts",
                 "name": "language"
             }
         },
         "source": {
-            "file": "src/index.ts",
-            "line": 13,
+            "file": "src/stack.ts",
+            "line": 14,
             "column": 24
         },
         "description": {
-            "package": {
-                "id": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
-                "name": "@example/stack",
-                "version": "1.0.0"
-            },
             "name": "language",
             "title": "Language",
             "description": "Language used for shared documents.",
@@ -44,6 +39,11 @@
                 "installation"
             ],
             "apply": "immediate",
+            "package": {
+                "id": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
+                "name": "@example/stack",
+                "version": "1.0.0"
+            },
             "schema": {
                 "$schema": "https://json-schema.org/draft/2020-12/schema",
                 "type": "string",
@@ -75,12 +75,12 @@
                 "version": "1.0.0"
             },
             "symbol": {
-                "module": "src/index.ts",
+                "module": "src/stack.ts",
                 "name": "languageAssignment"
             }
         },
         "source": {
-            "file": "src/index.ts",
+            "file": "src/stack.ts",
             "line": 26,
             "column": 34
         },
@@ -119,12 +119,12 @@
                 "version": "1.0.0"
             },
             "symbol": {
-                "module": "src/index.ts",
+                "module": "src/stack.ts",
                 "name": "languagePolicy"
             }
         },
         "source": {
-            "file": "src/index.ts",
+            "file": "src/stack.ts",
             "line": 38,
             "column": 30
         },

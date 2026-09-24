@@ -1,8 +1,5 @@
 {
     "id": "package-01996ab0-0000-7000-8000-000000000005",
     "language": "typescript",
-    "targets": [
-        "browser",
-        "server"
-    ]
+    "targets": ["browser", "server"]
 }

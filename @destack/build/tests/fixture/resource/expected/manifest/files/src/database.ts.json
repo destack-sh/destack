@@ -1,0 +1,434 @@
+{
+    "path": "src/database.ts",
+    "source": {
+        "path": "src/database.ts",
+        "digest": "808c1ae7548ca781c21ceec12144858e2a46d61f3f5d5cbd291e72d30406d03a",
+        "size": 639,
+        "mediaType": "text/plain"
+    },
+    "length": 639,
+    "imports": [
+        "@destack/db",
+        "@destack/db/declare"
+    ],
+    "globals": [
+        {
+            "name": "URL",
+            "symbol": {
+                "compiler": {
+                    "name": "typescript",
+                    "version": "7.0.2"
+                },
+                "symbol": {
+                    "module": "lib.dom.d.ts",
+                    "name": "URL"
+                }
+            },
+            "members": [],
+            "dynamic": false,
+            "source": {
+                "file": "src/database.ts",
+                "start": 597,
+                "end": 600
+            }
+        }
+    ],
+    "errors": [
+        {
+            "source": {
+                "file": "src/database.ts",
+                "start": 0,
+                "end": 639
+            },
+            "throws": [],
+            "calls": [
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 208,
+                        "end": 269
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+                            "name": "@destack/db",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/declare/database.ts",
+                            "name": "defineDatabase"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 334,
+                        "end": 415
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+                            "name": "@destack/db",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/table/table.ts",
+                            "name": "table"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 354,
+                        "end": 380
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+                            "name": "@destack/db",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/table/column.ts",
+                            "name": "ColumnBuilder.primaryKey"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 354,
+                        "end": 367
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+                            "name": "@destack/db",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/table/column.ts",
+                            "name": "integer"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 389,
+                        "end": 412
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+                            "name": "@destack/db",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/table/column.ts",
+                            "name": "ColumnBuilder.notNull"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 389,
+                        "end": 402
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+                            "name": "@destack/db",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/table/column.ts",
+                            "name": "text"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 513,
+                        "end": 637
+                    },
+                    "target": {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+                            "name": "@destack/db",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/schema/schema.ts",
+                            "name": "defineDatabaseSchema"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                },
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 593,
+                        "end": 633
+                    },
+                    "target": {
+                        "compiler": {
+                            "name": "typescript",
+                            "version": "7.0.2"
+                        },
+                        "symbol": {
+                            "module": "lib.dom.d.ts",
+                            "name": "URL"
+                        }
+                    },
+                    "isAwaited": false,
+                    "catches": []
+                }
+            ],
+            "catches": [],
+            "finally": [],
+            "unknowns": [
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 208,
+                        "end": 269
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 334,
+                        "end": 415
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 354,
+                        "end": 380
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 354,
+                        "end": 378
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 354,
+                        "end": 367
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 389,
+                        "end": 412
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 389,
+                        "end": 410
+                    },
+                    "reason": "property"
+                },
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 389,
+                        "end": 402
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 513,
+                        "end": 637
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 593,
+                        "end": 633
+                    },
+                    "reason": "call"
+                },
+                {
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 617,
+                        "end": 632
+                    },
+                    "reason": "property"
+                }
+            ]
+        }
+    ],
+    "symbols": [
+        {
+            "name": "database",
+            "declarations": [
+                {
+                    "kind": "VariableDeclaration",
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 197,
+                        "end": 269
+                    },
+                    "modifiers": [],
+                    "typeParameters": [],
+                    "heritage": []
+                }
+            ],
+            "documentation": {
+                "text": "The database selected by the destination space.",
+                "tags": []
+            },
+            "typeSignatures": [],
+            "valueType": {
+                "text": "import(\"@destack/db\").Database",
+                "references": [
+                    {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+                            "name": "@destack/db",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/declare/database.ts",
+                            "name": "Database"
+                        }
+                    }
+                ]
+            },
+            "signatures": [],
+            "members": [],
+            "exports": [],
+            "indexes": []
+        },
+        {
+            "name": "notes",
+            "declarations": [
+                {
+                    "kind": "VariableDeclaration",
+                    "source": {
+                        "file": "src/database.ts",
+                        "start": 505,
+                        "end": 637
+                    },
+                    "modifiers": [],
+                    "typeParameters": [],
+                    "heritage": []
+                }
+            ],
+            "documentation": {
+                "text": "Tables and committed migration files distributed with the package.",
+                "tags": []
+            },
+            "typeSignatures": [],
+            "valueType": {
+                "text": "import(\"@destack/db\").DatabaseSchema<{ note: import(\"@destack/db\").Table<\"note\", import(\"@destack/db\").TableColumns<{ id: import(\"@destack/db\").ColumnBuilder<number, true, false, false>; title: import(\"@destack/db\").ColumnBuilder<string, true, false, false>; }, \"note\">> & import(\"@destack/db\").TableColumns<{ id: import(\"@destack/db\").ColumnBuilder<number, true, false, false>; title: import(\"@destack/db\").ColumnBuilder<string, true, false, false>; }, \"note\">; }, {}>",
+                "references": [
+                    {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+                            "name": "@destack/db",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/schema/schema.ts",
+                            "name": "DatabaseSchema"
+                        }
+                    },
+                    {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+                            "name": "@destack/db",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/table/column.ts",
+                            "name": "ColumnBuilder"
+                        }
+                    },
+                    {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+                            "name": "@destack/db",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/table/table.ts",
+                            "name": "Table"
+                        }
+                    },
+                    {
+                        "package": {
+                            "id": "package-01a0c80b-614f-73f4-a451-d79e4b96b4d1",
+                            "name": "@destack/db",
+                            "version": "2026.9.0"
+                        },
+                        "symbol": {
+                            "module": "src/table/table.ts",
+                            "name": "TableColumns"
+                        }
+                    }
+                ]
+            },
+            "signatures": [],
+            "members": [],
+            "exports": [],
+            "indexes": []
+        }
+    ],
+    "exports": [
+        {
+            "name": "database",
+            "symbol": {
+                "module": "src/database.ts",
+                "name": "database"
+            },
+            "isTypeOnly": false
+        },
+        {
+            "name": "notes",
+            "symbol": {
+                "module": "src/database.ts",
+                "name": "notes"
+            },
+            "isTypeOnly": false
+        }
+    ]
+}

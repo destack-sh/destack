@@ -20,13 +20,13 @@
                 "version": "1.0.0"
             },
             "symbol": {
-                "module": "src/index.ts",
+                "module": "src/stack.ts",
                 "name": "personal"
             }
         },
         "source": {
-            "file": "src/index.ts",
-            "line": 66,
+            "file": "src/stack.ts",
+            "line": 65,
             "column": 24
         },
         "description": {
@@ -38,9 +38,35 @@
                         "version": 1,
                         "spec": {
                             "dialect": "sqlite"
+                        },
+                        "package": {
+                            "id": "package-01a0c80b-6148-71fe-af7d-35098929d5dd",
+                            "name": "@destack/template-stack",
+                            "version": "2026.9.0"
                         }
                     },
                     "retention": "retain",
+                    "tags": {}
+                }
+            },
+            "installations": {
+                "notes": {
+                    "package": {
+                        "id": "package-01a0c80b-614f-73f2-a9cd-9cb63f4d528d",
+                        "name": "@example/stack",
+                        "version": "1.0.0"
+                    },
+                    "status": "enabled",
+                    "alias": "stack",
+                    "resources": {
+                        "package-01a0c80b-6148-71fe-af7d-35098929d5dd": {
+                            "main": {
+                                "resource": "main"
+                            }
+                        }
+                    },
+                    "secrets": {},
+                    "compute": {},
                     "tags": {}
                 }
             }

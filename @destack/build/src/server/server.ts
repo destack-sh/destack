@@ -7,6 +7,7 @@ import {
     type ServiceImplementation,
 } from "@destack/service/server";
 import type { OperationStoreOptions } from "@destack/service/server";
+import type { WorkloadContext } from "@destack/service/workload";
 import {
     buildPackage,
     PackageBuilder,
@@ -32,7 +33,7 @@ import { PreviewPool, type PreviewHost, type PreviewLimits } from "../preview/in
 /** Build and preview procedures with bounded, caller-scoped state. */
 class BuildServer implements AsyncDisposable {
     /** Build procedures hosted through the shared Server lifecycle. */
-    readonly router: Router<typeof buildService, ServiceContext>;
+    readonly router: Router<typeof buildService.router, ServiceContext>;
     /** Retained operation records. */
     readonly builds: OperationStore<BuildResult, BuildProgress>;
     /** Retained previews and their live servers. */
@@ -50,7 +51,7 @@ class BuildServer implements AsyncDisposable {
         this.#options = options;
         this.builds = new OperationStore(BuildOperation, options.limits.build);
         this.#previews = new PreviewPool(options.previews, options.limits.preview);
-        const service = implement(buildService).$context<ServiceContext>();
+        const service = implement(buildService.router).$context<ServiceContext>();
 
         // retain host source access until compilation and storage have settled
         const start = service.build.start.handler(({ input, context }) =>
@@ -58,6 +59,7 @@ class BuildServer implements AsyncDisposable {
                 context.requireCaller().id,
                 { phase: "preparing" },
                 async ({ signal, report }) => {
+                    // open the build source
                     await using source = await options.builds.open(
                         context.requireCaller().id,
                         input,
@@ -107,6 +109,7 @@ class BuildServer implements AsyncDisposable {
 
     /** Stop accepting work and await build and preview cleanup. */
     async [Symbol.asyncDispose](): Promise<void> {
+        // stop accepting work and cancel running inspections
         this.#closed = true;
         for (const controller of this.#inspections.keys()) {
             controller.abort();
@@ -169,14 +172,12 @@ class BuildServer implements AsyncDisposable {
 export function implementService(
     options: BuildServerOptions,
     access: Pick<ServiceImplementation, "authorize" | "audit">,
+    context: Pick<WorkloadContext, "defer">,
 ): ServiceImplementation {
     const server = new BuildServer(options);
+    context.defer(() => server[Symbol.asyncDispose]());
 
-    return {
-        ...access,
-        router: server.router,
-        dispose: () => server[Symbol.asyncDispose](),
-    };
+    return { ...access, service: buildService, router: server.router };
 }
 
 /** Host-retained immutable checkout and resolved build inputs. */

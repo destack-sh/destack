@@ -5,7 +5,7 @@ import { type InspectOptions } from "../inspect/inspection.ts";
 import { runtimeConditions } from "../compile/runtime.ts";
 import { linkDependencies } from "./dependency.ts";
 import { PackageError } from "@destack/package/error";
-import { mergeCompute, PackageDeclaration, type Target } from "@destack/package";
+import { PackageDescription, type Target } from "@destack/package";
 import { schema } from "@destack/schema";
 import { PackagePath } from "@destack/package/file";
 import { type Runtime } from "@destack/package/runtime";
@@ -17,7 +17,7 @@ export interface PackageSource extends AsyncDisposable {
     /** The absolute package directory. */
     directory: string;
     /** Combined authored package declarations. */
-    declaration: PackageDeclaration;
+    declaration: PackageDescription;
     /** Source files keyed by public export name. */
     exports: Record<string, string>;
     /** Source declarations keyed by public export name. */
@@ -35,6 +35,7 @@ export async function openPackage(
         files?: readonly string[];
     },
 ): Promise<PackageSource> {
+    // read the package declaration
     const definition = await readPackageDeclaration(
         options.directory,
         options.target,
@@ -132,7 +133,7 @@ export async function readPackageDeclaration(
         .record(schema.string(), schema.json())
         .parse(JSON.parse(await readFile(resolve(directory, "package.json"), "utf8")));
     const configuration = JSON.parse(await readFile(resolve(directory, "destack.json"), "utf8"));
-    const declaration = PackageDeclaration.parse({
+    const declaration = PackageDescription.parse({
         package: { id: configuration.id, name: metadata.name, version: metadata.version },
         definition: configuration,
         exports: metadata.exports,
@@ -159,7 +160,7 @@ export async function readPackageDeclaration(
         }
     }
 
-    // check workload selection against authored exports before applying target filters
+    // check view selection against authored exports before applying target filters
     const declaredExports = declaration.exports;
     const names =
         declaredExports &&
@@ -170,7 +171,6 @@ export async function readPackageDeclaration(
             : declaredExports === undefined || declaredExports === null
               ? []
               : ["."];
-    mergeCompute(definition.compute);
 
     // require named views to reference explicit browser exports
     for (const [name, view] of Object.entries(definition.views ?? {})) {
@@ -179,15 +179,6 @@ export async function readPackageDeclaration(
             throw new PackageError(
                 "INVALID_DEFINITION",
                 `view ${name} requires a browser export: ${view.entrypoint}`,
-            );
-        }
-    }
-
-    for (const [name, workload] of Object.entries(definition.workloads ?? {})) {
-        if (!names.includes(workload.entrypoint)) {
-            throw new PackageError(
-                "INVALID_DEFINITION",
-                `Workload ${name} names an undeclared export: ${workload.entrypoint}`,
             );
         }
     }
@@ -267,6 +258,7 @@ export async function readPackageDeclaration(
         }
     }
 
+    // require at least one runtime or type export
     if (!Object.keys(exports).length && !Object.keys(types).length) {
         throw new PackageError("UNSUPPORTED_TARGET", `No runtime exports for target: ${target}`);
     }

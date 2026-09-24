@@ -1,7 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { relative, resolve, sep } from "node:path";
 import { build } from "vite";
-import { DependencyRelease, type DependencyResolution } from "@destack/package/package";
+import { DependencyRelease, type DependencyResolution } from "@destack/package";
 import { PackagePath } from "@destack/package/file";
 import { type PackageOutput } from "@destack/package/manifest";
 import { type BuildDescription } from "@destack/package/inspect";
@@ -61,6 +61,7 @@ export async function compilePackage(
     directories: ReadonlyMap<string, readonly DirectoryReference[]>,
     destinationRoot: string,
 ): Promise<Compilation> {
+    // collect output paths and files under the output directory
     const directory = `output/${name}`;
     const destination = resolve(destinationRoot, directory);
     const paths: string[] = [];

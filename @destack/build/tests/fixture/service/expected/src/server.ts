@@ -2,10 +2,9 @@ import { defineDatabase } from "@destack/db/declare";
 import { defineSecret, defineVault } from "@destack/vault";
 import { defineSchedule } from "@destack/service/schedule";
 import { defineService, defineProcedure, defineServiceConnection } from "@destack/service";
-import { implement, Server, type ServiceImplementation } from "@destack/service/server";
-import { ResourceContext } from "@destack/resource/context";
-import { ServiceError } from "@destack/service/error";
-import { Health } from "@destack/service/health";
+import { implement, type ServiceImplementation } from "@destack/service/server";
+import type { Schedule, ScheduleImplementation } from "@destack/service/schedule";
+import { defineWorkload } from "@destack/service/workload";
 import { schema } from "@destack/schema";
 import { telemetry } from "@destack/telemetry";
 import type {} from "@destack/package/import-meta";
@@ -13,8 +12,7 @@ import { defineAuditAction } from "@destack/audit";
 
 /** Record a published note under its declaring package. */
 export const publishNote = defineAuditAction({
-    package: import.meta.destack.package,
-    name: "note.publish",
+    name: "Note.publish",
     version: 1,
     targets: schema.object({
         note: schema.object({ type: schema.literal("note"), id: schema.string() }),
@@ -40,32 +38,17 @@ export const router = {
         .route({ method: "GET", path: "/notes" })
         .output(schema.object({ path: schema.string() })),
 };
-/** A dependency on the installation's notes service. */
-export const notes = defineServiceConnection(
-    {
-        packageId: import.meta.destack.package.id,
-        name: "notes",
-        service: { packageId: import.meta.destack.package.id, name: "notes" },
-    },
-    router,
-);
-
 /** The public HTTP service. */
-export const service = defineService(
-    {
-        name: "notes",
-        version: 1,
-        protocol: "http",
-        handler: "fetch",
-    },
-    router,
-);
+export const service = defineService("notes", router);
+/** A dependency on the installation's notes service. */
+export const notes = defineServiceConnection("notes", service);
 
 /** Implement the public notes procedures. */
 export function implementService(): ServiceImplementation {
     const implementation = implement(router);
 
     return {
+        service,
         router: implementation.router({
             list: implementation.list.handler(() => ({ path: "/notes" })),
         }),
@@ -73,35 +56,23 @@ export function implementService(): ServiceImplementation {
     };
 }
 
-/** The HTTP service hosted by both supported runtimes. */
-const server = Server.start({
-    ...implementService(),
-    audience: import.meta.destack.package.id,
-    spaceId: "fixture",
-    resources: new ResourceContext(),
-    health: new Health("notes"),
-    authenticate: async (request) => {
-        if (request.headers.has("authorization") || request.headers.has("cookie")) {
-            throw new ServiceError("UNAUTHORIZED");
-        }
+/** The web workload hosting notes and reminders. */
+export const web = defineWorkload({
+    name: "web",
+    compute: { cpuTime: 1000 },
+    start: async () => {
+        instruments.logger.emit({ body: "Workload started" });
 
-        return null;
+        return {
+            services: [implementService()],
+            schedules: [reminders, refresh, appointment].map(implementSchedule),
+        };
     },
-    authorizeHost: async () => {},
-    drainTimeout: 1000,
 });
 
-/** Respond through the emitted handler. */
-export async function fetch(request: Request): Promise<Response> {
-    instruments.logger.emit({ body: "Request received" });
-
-    return (await server).fetch(request);
-}
 /** The daily reminder schedule. */
 export const reminders = defineSchedule({
     name: "reminders",
-    version: 1,
-    handler: "remind",
     timing: "cron",
     cron: "0 9 * * *",
     timezone: "UTC",
@@ -112,8 +83,6 @@ export const reminders = defineSchedule({
 /** Repeat from a fixed first occurrence. */
 export const refresh = defineSchedule({
     name: "refresh",
-    version: 1,
-    handler: "remind",
     timing: "interval",
     interval: 300000,
     startsAt: 1800000000000,
@@ -125,15 +94,19 @@ export const refresh = defineSchedule({
 /** Send a reminder at one specified time. */
 export const appointment = defineSchedule({
     name: "appointment",
-    version: 1,
-    handler: "remind",
     timing: "once",
     startsAt: 1800000000000,
     concurrency: "allow",
     deadline: 60000,
 });
 
-/** Return the scheduled occurrence identifier. */
-export function remind(occurrence: { id: string }): string {
-    return occurrence.id;
+/** Log each occurrence of a reminder schedule. */
+function implementSchedule(schedule: Schedule): ScheduleImplementation {
+    return {
+        schedule,
+        run: async (signal) => {
+            signal.throwIfAborted();
+            instruments.logger.emit({ body: `Reminder ${schedule.name}` });
+        },
+    };
 }

@@ -1,14 +1,7 @@
 {
     "extends": "../../tsconfig.json",
-    "compilerOptions": { "types": ["bun"] },
-    "files": [
-        "src/index.ts",
-        "src/local/index.ts",
-        "src/inspect/index.ts",
-        "src/template/index.ts",
-        "src/build/worker.ts",
-        "src/service/index.ts",
-        "src/server/index.ts",
-        "src/client/index.ts"
-    ]
+    "compilerOptions": {
+        "types": ["bun"]
+    },
+    "include": ["src", "tests/*.ts"]
 }

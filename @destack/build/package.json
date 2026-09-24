@@ -43,8 +43,7 @@
         "@stylexjs/unplugin": "0.19.1",
         "vite": "8.3.0",
         "typescript": "7.0.2",
-        "rolldown": "1.2.9",
-        "cron-parser": "5.7.0"
+        "rolldown": "1.2.9"
     },
     "devDependencies": {
         "@stylexjs/stylex": "0.19.1"

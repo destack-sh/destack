@@ -1,7 +1,7 @@
 import { readFile, stat, symlink } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 import { BuildError } from "../error/index.ts";
-import { DependencyName, DependencyResolution } from "@destack/package/package";
+import { DependencyName, DependencyResolution } from "@destack/package";
 import { JSONC } from "bun";
 import { schema } from "@destack/schema";
 
@@ -27,15 +27,15 @@ export async function linkDependencies(source: string, destination: string): Pro
     while (true) {
         // preserve the package manager's installed dependency tree
         const path = join(directory, "node_modules");
-        let exists = false;
+        let isDirectory = false;
         try {
-            exists = (await stat(path)).isDirectory();
+            isDirectory = (await stat(path)).isDirectory();
         } catch (error) {
             if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) {
                 throw error;
             }
         }
-        if (exists) {
+        if (isDirectory) {
             await symlink(path, join(destination, "node_modules"), "junction");
 
             return;
@@ -96,13 +96,16 @@ export async function readDependencies(
             throw new BuildError("BUILD_FAILED", `unsupported locked dependency: ${id}`);
         }
 
-        // Bun stores the full tarball URL for non-default registries
+        // read the registry from the full tarball URL that Bun stores for other registries
         const suffix = `/${name}/-/`;
-        const position = location?.indexOf(suffix) ?? -1;
-        if (location && position < 0) {
-            throw new BuildError("BUILD_FAILED", `unsupported registry location: ${location}`);
+        let registry = "https://registry.npmjs.org/";
+        if (location) {
+            const position = location.indexOf(suffix);
+            if (position < 0) {
+                throw new BuildError("BUILD_FAILED", `unsupported registry location: ${location}`);
+            }
+            registry = location.slice(0, position + 1);
         }
-        const registry = location ? location.slice(0, position + 1) : "https://registry.npmjs.org/";
         const key = `${name}@${version}`;
         const resolution = DependencyResolution.parse({
             kind: "npm",

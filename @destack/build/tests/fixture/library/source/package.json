@@ -2,5 +2,8 @@
     "name": "@destack/build-library-fixture",
     "version": "1.0.0",
     "type": "module",
-    "exports": { ".": "./src/index.ts", "./note": "./src/note.ts" }
+    "exports": {
+        ".": "./src/index.ts",
+        "./note": "./src/note.ts"
+    }
 }

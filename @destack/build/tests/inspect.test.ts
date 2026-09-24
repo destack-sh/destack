@@ -13,7 +13,7 @@ test("inspect test bodies without declaring their temporary resources", async ({
     await using input = await Fixture.open("web");
     const manifest = join(input.source, "package.json");
     const metadata = JSON.parse(await readFile(manifest, "utf8"));
-    await writeFile(manifest, JSON.stringify({ ...metadata, exports: { ".": "./src/App.tsx" } }));
+    await writeFile(manifest, JSON.stringify({ ...metadata, exports: { ".": "./src/app.tsx" } }));
     await using compiler = await PackageBuilder.start(input.source);
     const before = await compiler.inspect({ target: "server", runtime: "bun" });
     const description = schema.object({
@@ -23,7 +23,7 @@ test("inspect test bodies without declaring their temporary resources", async ({
     const original = description.parse(before.descriptions);
 
     // exercise a real declaration constructor inside an ordinary registered test
-    const vault = fileURLToPath(new URL("../../vault/src/index.ts", import.meta.url));
+    const vault = fileURLToPath(new URL("../../vault/src/declare/index.ts", import.meta.url));
     const source = `import { test } from "@destack/test";
 import { defineSecret } from ${JSON.stringify(vault)};
 test("bind a secret", () => {
@@ -72,7 +72,7 @@ test.concurrent.for(invalid)("reject $message", async (fixture, { expect }) => {
     await writeFile(join(input.source, fixture.file), fixture.source);
     const path = join(input.source, "package.json");
     const metadata = JSON.parse(await readFile(path, "utf8"));
-    await writeFile(path, JSON.stringify({ ...metadata, exports: { ".": "./src/App.tsx" } }));
+    await writeFile(path, JSON.stringify({ ...metadata, exports: { ".": "./src/app.tsx" } }));
     await using compiler = await PackageBuilder.start(input.source);
     await expect(compiler.inspect({ target: "browser" })).rejects.toMatchObject({
         code: fixture.code,

@@ -3,7 +3,7 @@ import type { DeclarationDescription, BuildDescription } from "@destack/package/
 import type { InspectorName } from "./inspector.ts";
 
 /** An exported declaration located by the compiler. */
-export interface Declaration {
+export interface DeclarationExport {
     /** The declaration constructor verified by its compiler symbol. */
     inspector: InspectorName;
     /** The absolute source module path. */
@@ -32,6 +32,7 @@ export function selectDeclarations(
     }
 
     // retain authored declarations and only the dependencies used by this output
+
     return declarations.filter((declaration) => {
         const owner = declaration.symbol.package;
         if (owner.id === source.id && owner.version === source.version) {

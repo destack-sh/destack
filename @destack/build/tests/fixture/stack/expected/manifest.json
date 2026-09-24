@@ -8,8 +8,8 @@
     "language": "typescript",
     "dependencies": {
         "path": "manifest/dependencies.json",
-        "digest": "016292769ed3e618e7317c772a4de09771b1a6e4b72cef818683d7cbaadd9d6e",
-        "size": 41701,
+        "digest": "ef0a6e87c660bbab5908182c9a1fd2264f217293e70d2ba58548aebd286e6867",
+        "size": 42765,
         "mediaType": "application/json"
     },
     "descriptions": {
@@ -60,7 +60,7 @@
             },
             "file": {
                 "path": "manifest/setting.json",
-                "digest": "c5816513f9dec5a036ccaacf8ab2708c7fa99ba803a1e9328d805ab7c3f10cce",
+                "digest": "187aa5c90b691d5052361bf712eb23c92a5490bd6e4569bf6f82bb8302068de6",
                 "size": 4261,
                 "mediaType": "application/json"
             }
@@ -73,7 +73,7 @@
             },
             "file": {
                 "path": "manifest/model.json",
-                "digest": "4518610209da4334f8db5d2be6bda3dddf3054449847f3bce4705ac199d8986a",
+                "digest": "91187a02826a0d24c9cfdc189e1d4b714eec25243a7224952b2a6fb43b258cbe",
                 "size": 1021,
                 "mediaType": "application/json"
             }
@@ -86,7 +86,7 @@
             },
             "file": {
                 "path": "manifest/access.json",
-                "digest": "af1b0f70011ff2763b30f3e71514b36a854ff234f3b15b40400d3ad253a0ba05",
+                "digest": "d2deb7f5777cbba91a4aebcfc4a1c99af0c1e686dbad697ecf3ec51040a773a2",
                 "size": 1407,
                 "mediaType": "application/json"
             }
@@ -99,8 +99,8 @@
             },
             "file": {
                 "path": "manifest/space.json",
-                "digest": "3aaa84911b19efb7660ef8776f4e437f03c201720ec698ca5179e37d6f986f1a",
-                "size": 1354,
+                "digest": "560d34878d77e6f23ca0d5905c19c905ca0b879c06b5b4fa85e4476b6195e831",
+                "size": 2388,
                 "mediaType": "application/json"
             }
         }
@@ -138,20 +138,20 @@
             },
             "directory": "output/stack",
             "exports": {
-                ".": "output/stack/index-BujnDoQo.js"
+                ".": "output/stack/index-D6Ta5ZhB.js"
             },
             "dependencies": {}
         }
     },
     "files": {
         "path": "manifest/files.json",
-        "digest": "04e2436720846ee2b14d727b6779c6b7aacb6a42ffa511c4b8f7eb46130948b5",
-        "size": 1697,
+        "digest": "395a7db2c53ce8639705171b382a495b4a5f08f86a5ce2def40a40621309f45d",
+        "size": 3458,
         "mediaType": "application/json"
     },
     "sourceMaps": {
         "path": "manifest/sourceMaps.json",
-        "digest": "e9fde722c63108c35af7c116c49a2bc5cd4cda80c184653a3a8e3a4e28153b06",
+        "digest": "023adc92d3791225e9fd6a615adf7faaf7dfe7cf415b6ff91dda653aed2caa7a",
         "size": 123,
         "mediaType": "application/json"
     }

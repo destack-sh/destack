@@ -38,6 +38,7 @@ export class TypeScriptCompiler implements AsyncDisposable {
             fileChanges: { changed: [configuration] },
         });
 
+        // inspect the project and release the snapshot
         try {
             // require the requested compiler project
             const project = snapshot.getProject(configuration);

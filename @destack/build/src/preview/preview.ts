@@ -44,7 +44,7 @@ export class PreviewPool implements AsyncDisposable {
             (entry) =>
                 entry.server ||
                 entry.source ||
-                !["stopped", "failed"].includes(entry.watch.value.state),
+                !["stopped", "failed"].includes(entry.watch.value.status),
         );
         if (
             active.length >= this.options.concurrency ||
@@ -53,7 +53,7 @@ export class PreviewPool implements AsyncDisposable {
             throw new ServiceError("RATE_LIMITED");
         }
 
-        // publish starting state before running host code
+        // publish starting status before running host code
         const now = Date.now();
         const value: Preview = {
             id: crypto.randomUUID(),
@@ -61,7 +61,7 @@ export class PreviewPool implements AsyncDisposable {
             application: request.application,
             createdAt: now,
             updatedAt: now,
-            state: "starting",
+            status: "starting",
         };
         const entry: PreviewEntry = {
             owner,
@@ -90,14 +90,14 @@ export class PreviewPool implements AsyncDisposable {
             .map((entry) => structuredClone(entry.watch.value));
     }
 
-    /** Stream current state until the preview stops or the subscriber disconnects. */
+    /** Stream current status until the preview stops or the subscriber disconnects. */
     async *watch(owner: string, id: string, signal?: AbortSignal): AsyncGenerator<Preview> {
         const entry = this.#entry(owner, id);
 
-        // end subscriptions after their terminal state has been delivered
+        // end subscriptions after their terminal status has been delivered
         for await (const value of entry.watch.watch(signal)) {
             yield structuredClone(value);
-            if (value.state === "stopped" || value.state === "failed") {
+            if (value.status === "stopped" || value.status === "failed") {
                 return;
             }
         }
@@ -105,6 +105,7 @@ export class PreviewPool implements AsyncDisposable {
 
     /** Stop serving and release the source before acknowledging completion. */
     async stop(owner: string, id: string): Promise<Preview> {
+        // wait for the shared stop
         const entry = this.#entry(owner, id);
         const stopping = (entry.stop ??= this.#stop(entry));
         try {
@@ -163,7 +164,7 @@ export class PreviewPool implements AsyncDisposable {
                     application: value.application,
                     createdAt: value.createdAt,
                     updatedAt: Date.now(),
-                    state: "running",
+                    status: "running",
                     url,
                 }),
             );
@@ -188,12 +189,12 @@ export class PreviewPool implements AsyncDisposable {
         }
     }
 
-    /** Serialize stop with startup and publish the terminal state after cleanup. */
+    /** Serialize stop with startup and publish the terminal status after cleanup. */
     async #stop(entry: PreviewEntry): Promise<void> {
         // acknowledge repeated stops without reopening released resources
         const previous = entry.watch.value;
         if (
-            (previous.state === "stopped" || previous.state === "failed") &&
+            (previous.status === "stopped" || previous.status === "failed") &&
             !entry.server &&
             !entry.source
         ) {
@@ -207,7 +208,7 @@ export class PreviewPool implements AsyncDisposable {
             application: previous.application,
             createdAt: previous.createdAt,
             updatedAt: Date.now(),
-            state: "stopping",
+            status: "stopping",
         });
         entry.controller.abort();
         await entry.ready;
@@ -222,7 +223,7 @@ export class PreviewPool implements AsyncDisposable {
                 application: previous.application,
                 createdAt: previous.createdAt,
                 updatedAt: now,
-                state: "stopped",
+                status: "stopped",
                 stoppedAt: now,
             });
         } catch (error) {
@@ -244,6 +245,7 @@ export class PreviewPool implements AsyncDisposable {
 
     /** Record startup or cleanup failure without exposing internal diagnostics. */
     #fail(entry: PreviewEntry, error: unknown): void {
+        // publish the failed state
         const failure = reportError(error);
         const value = entry.watch.value;
         const now = Date.now();
@@ -254,13 +256,14 @@ export class PreviewPool implements AsyncDisposable {
             createdAt: value.createdAt,
             updatedAt: now,
             stoppedAt: now,
-            state: "failed",
+            status: "failed",
             error: { code: failure.code, message: failure.message },
         });
     }
 
     /** Resolve a preview without revealing another caller's records. */
     #entry(owner: string, id: string): PreviewEntry {
+        // drop expired previews and hide other callers' records
         this.#expire();
         const entry = this.#entries.get(id);
         if (!entry || entry.owner !== owner) {
@@ -276,7 +279,7 @@ export class PreviewPool implements AsyncDisposable {
         for (const [id, entry] of this.#entries) {
             const value = entry.watch.value;
             if (
-                (value.state === "stopped" || value.state === "failed") &&
+                (value.status === "stopped" || value.status === "failed") &&
                 !entry.server &&
                 !entry.source &&
                 value.stoppedAt <= cutoff
@@ -292,7 +295,7 @@ export class PreviewPool implements AsyncDisposable {
 interface PreviewEntry {
     /** Authenticated scope selected by the host. */
     owner: string;
-    /** Current state and coalesced subscriptions. */
+    /** Current status and coalesced subscriptions. */
     watch: Watch<Preview>;
     /** Startup cancellation requested by stop or shutdown. */
     controller: AbortController;

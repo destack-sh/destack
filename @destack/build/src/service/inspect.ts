@@ -1,8 +1,7 @@
-import { PackageId } from "@destack/package/package";
-import packageDefinition from "../../destack.json" with { type: "json" };
 import { schema } from "@destack/schema";
 import { PackageInspection } from "@destack/package/inspect";
 import { defineProcedure } from "@destack/service";
+import type {} from "@destack/package/import-meta";
 
 /** Select source and a named compiler configuration for inspection. */
 export const InspectRequest = schema.object({
@@ -19,7 +18,7 @@ export type InspectRequest = schema.Infer<typeof InspectRequest>;
 export const inspect = defineProcedure({
     authentication: "identity",
     permission: {
-        packageId: PackageId.parse(packageDefinition.id),
+        packageId: import.meta.destack.package.id,
         type: "build",
         name: "inspect",
     },

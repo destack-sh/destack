@@ -1,10 +1,9 @@
-import { PackageId } from "@destack/package/package";
-import packageDefinition from "../../destack.json" with { type: "json" };
 import { schema } from "@destack/schema";
 import { OperationError } from "@destack/service/operation";
 import { defineProcedure, eventIterator } from "@destack/service";
+import type {} from "@destack/package/import-meta";
 
-/** Fields shared by every preview state. */
+/** Fields shared by every preview status. */
 const fields = schema.object({
     /** Identifier assigned by the build service. */
     id: schema.uuid(),
@@ -19,19 +18,19 @@ const fields = schema.object({
 });
 
 /** A running application updated from an editable package. */
-export const Preview = schema.discriminatedUnion("state", [
-    fields.extend({ state: schema.literal("starting") }),
-    fields.extend({ state: schema.literal("running"), url: schema.url() }),
-    fields.extend({ state: schema.literal("stopping") }),
-    fields.extend({ state: schema.literal("stopped"), stoppedAt: schema.number().int() }),
+export const Preview = schema.discriminatedUnion("status", [
+    fields.extend({ status: schema.literal("starting") }),
+    fields.extend({ status: schema.literal("running"), url: schema.url() }),
+    fields.extend({ status: schema.literal("stopping") }),
+    fields.extend({ status: schema.literal("stopped"), stoppedAt: schema.number().int() }),
     fields.extend({
-        state: schema.literal("failed"),
+        status: schema.literal("failed"),
         stoppedAt: schema.number().int(),
         error: OperationError,
     }),
 ]);
 
-/** Observable preview state. */
+/** Observable preview status. */
 export type Preview = schema.Infer<typeof Preview>;
 
 /** Select an editable source and its named application settings. */
@@ -71,7 +70,7 @@ function access(action: "read" | "start" | "stop") {
     return defineProcedure({
         authentication: "identity",
         permission: {
-            packageId: PackageId.parse(packageDefinition.id),
+            packageId: import.meta.destack.package.id,
             type: "preview",
             name: action,
         },

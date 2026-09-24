@@ -4,16 +4,16 @@ import { SourceTextModule, SyntheticModule } from "node:vm";
 import { rolldown } from "rolldown";
 import { transform } from "rolldown/utils";
 import { DeclarationDescription } from "@destack/package/inspect";
-import type { Declaration } from "./declaration.ts";
+import type { DeclarationExport } from "./declaration.ts";
 import type { PackageSource } from "../source/index.ts";
-import { metadataPlugin } from "../compile/source.ts";
+import { modulePlugin } from "@destack/package/transform/vite";
 import { BuildError } from "../error/index.ts";
 import { stringifyInspection } from "../build/serialization.ts";
 import { runtimeConditions } from "../compile/runtime.ts";
 
 /** Evaluate exported declarations together in the current build worker. */
 export async function evaluateDeclarations(
-    declarations: readonly Declaration[],
+    declarations: readonly DeclarationExport[],
     project: PackageSource,
 ): Promise<DeclarationDescription[]> {
     if (!declarations.length) {
@@ -32,20 +32,20 @@ export async function evaluateDeclarations(
     // call each registered inspector with its declaring package
     const descriptions = declarations.map(
         (declaration, index) =>
-            `INSPECTORS[${JSON.stringify(declaration.inspector)}].describe(declaration${index}, ${JSON.stringify(
+            `describeDeclaration(${JSON.stringify(declaration.inspector)}, declaration${index}, ${JSON.stringify(
                 declaration.description.symbol.package,
             )})`,
     );
 
     // collect all descriptions through one generated entry
     const source = [
-        `import { INSPECTORS } from ${JSON.stringify(inspector)};`,
+        `import { describeDeclaration } from ${JSON.stringify(inspector)};`,
         ...imports,
         `export default await Promise.all([${descriptions.join(",\n")}]);`,
     ].join("\n");
     const entry = "\0destack-declarations";
 
-    // rebuild the complete graph so edits to imported helpers cannot leave stale values
+    // rebuild the complete graph so edits to imported modules cannot leave stale values
     let bundle: Awaited<ReturnType<typeof rolldown>> | undefined;
     try {
         bundle = await rolldown({
@@ -81,11 +81,7 @@ export async function evaluateDeclarations(
                         },
                     },
                 },
-                metadataPlugin(
-                    project.directory,
-                    project.declaration.package,
-                    project.configuration,
-                ),
+                modulePlugin(),
             ],
         });
 
@@ -108,6 +104,7 @@ export async function evaluateDeclarations(
                 );
             }
 
+            // expose the imported module's exports
             const exports = await import(specifier);
             const names = Object.keys(exports);
 
