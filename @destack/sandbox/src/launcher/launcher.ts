@@ -33,6 +33,7 @@ export async function runLauncher(): Promise<void> {
         }
     });
 
+    // point the manager at a fresh temporary directory
     const temporary = await realpath(await mkdtemp(join(tmpdir(), "destack-sandbox-")));
     process.env.CLAUDE_CODE_TMPDIR = temporary;
     try {

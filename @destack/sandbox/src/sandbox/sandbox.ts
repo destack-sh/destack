@@ -27,6 +27,7 @@ export class Sandbox implements AsyncDisposable {
 
     /** Retain one launcher until its process and proxies close. */
     private constructor(launcher: ChildProcess, exited: Promise<SandboxExit>) {
+        // retain the launcher and its output streams
         this.#launcher = launcher;
         this.stdout = launcher.stdout!;
         this.stderr = launcher.stderr!;
@@ -78,18 +79,18 @@ export class Sandbox implements AsyncDisposable {
         const closed = Promise.withResolvers<void>();
         let result: SandboxExit | undefined;
         let failure: SandboxError | undefined;
-        let started = false;
+        let isStarted = false;
 
         // retain the workload result separately from launcher failures
         launcher.on("message", (message: LauncherMessage) => {
             if (message.type === "ready") {
-                started = true;
+                isStarted = true;
                 ready.resolve();
             } else if (message.type === "exit") {
                 result = message.exit;
             } else if (message.type === "error") {
                 failure = new SandboxError(
-                    started ? "STOP_FAILED" : "START_FAILED",
+                    isStarted ? "STOP_FAILED" : "START_FAILED",
                     message.message,
                 );
                 ready.reject(failure);
@@ -97,7 +98,7 @@ export class Sandbox implements AsyncDisposable {
         });
         launcher.once("error", (cause) => {
             failure = new SandboxError(
-                started ? "STOP_FAILED" : "START_FAILED",
+                isStarted ? "STOP_FAILED" : "START_FAILED",
                 "sandbox launcher failed",
                 { cause },
             );
@@ -107,7 +108,7 @@ export class Sandbox implements AsyncDisposable {
             // require the workload result and successful manager cleanup
             if (!failure && (code !== 0 || signal !== null || !result)) {
                 failure = new SandboxError(
-                    started ? "STOP_FAILED" : "START_FAILED",
+                    isStarted ? "STOP_FAILED" : "START_FAILED",
                     "sandbox launcher terminated without successful cleanup",
                 );
             }
