@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_heap::{
-    AllocationCache, AllocationPlan, Heap, HeapLimits, HeapOptions, Root, SharedHeap,
-    SharedHeapLimits, SharedHeapOptions, SharedMarkWorker,
+    AllocationCache, AllocationPlan, Heap, HeapLimits, HeapOptions, HeapReference, RootSlot,
+    SharedHeap, SharedHeapLimits, SharedHeapOptions, SharedMarkWorker,
 };
 use destack_memory::{MemoryMap, MemoryRange};
 use destack_program as program;
@@ -242,12 +242,16 @@ impl TestMachine {
         self.fiber = fiber;
     }
 
-    /// Return heap roots retained by the machine.
-    pub(crate) fn roots(&mut self) -> Vec<Root> {
+    /// Return the worker heap roots retained by the machine.
+    pub(crate) fn roots(&mut self) -> Vec<HeapReference> {
         let mut roots = Vec::new();
         self.machine
             .visit_root_slots(&mut self.fiber, &mut |slot| {
-                let root = slot.load()?;
+                let root = match slot {
+                    RootSlot::HeapReference(reference) => *reference,
+                    RootSlot::HeapBytes(bytes) => HeapReference::read_from_bytes(bytes)?,
+                    RootSlot::SharedHeapBytes(_) | RootSlot::BorrowBytes(_) => return Ok(()),
+                };
                 if !root.is_nullish() {
                     roots.push(root);
                 }

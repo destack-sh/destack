@@ -236,15 +236,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                 | Storage::Static(Space::Local)
                 | Storage::Static(Space::Shared)),
             ) => self.global_range(storage, address, byte_len)?,
-            Some(
-                Storage::Heap(Space::Constant | Space::Parameter(_) | Space::Join(_) | Space::Of(_))
-                | Storage::Static(Space::Parameter(_) | Space::Join(_) | Space::Of(_))
-                | Storage::Parameter(_)
-                | Storage::Bound { .. }
-                | Storage::Join(_),
-            ) => {
-                return Err(self.invalid_instruction());
-            }
+            Some(Storage::Heap(Space::Constant)) => return Err(self.invalid_instruction()),
             None => MemoryRange::address(address as u64, byte_len as u64),
         };
 
@@ -262,12 +254,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
             Storage::Static(Space::Constant) => GlobalLocation::Constant,
             Storage::Static(Space::Local) => GlobalLocation::LocalStatic,
             Storage::Static(Space::Shared) => GlobalLocation::SharedStatic,
-            Storage::Heap(_)
-            | Storage::Static(Space::Parameter(_) | Space::Join(_) | Space::Of(_))
-            | Storage::Frame
-            | Storage::Parameter(_)
-            | Storage::Bound { .. }
-            | Storage::Join(_) => {
+            Storage::Heap(_) | Storage::Frame => {
                 return Err(self.invalid_instruction());
             }
         };

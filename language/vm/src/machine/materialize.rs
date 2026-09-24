@@ -1,6 +1,7 @@
 use destack_bytecode::{CodeOffset, Instruction, Opcode};
 use destack_program::{
-    ActivationImage, CallMode, FrameImage, FrameReturn, FunctionId, ProgramPoint, TypeId, Word,
+    ActivationImage, CallMode, FrameImage, FrameReturn, FrameSegment, FunctionId, ProgramPoint,
+    Word,
 };
 
 use crate::diagnostic::{Error, Result};
@@ -217,18 +218,34 @@ impl Machine {
             return Err(Error::invalid_image());
         }
 
-        // restore every frame address before copying values into registers
+        // move every frame address from its canonical offset onto the fiber stack
+        let mut segments = Vec::new();
         for mapping in mappings {
-            let slots = self.program.frame_slots(&mapping.layout);
-            for slot in slots {
-                let bytes = Self::slot_bytes(
-                    bytes,
-                    mapping.byte_offset + slot.offset as usize,
-                    slot.byte_len as usize,
-                )?;
-                self.restore_frame_addresses(fiber, slot.ty, bytes, mappings)?;
+            let (slots, spans) = mapping.values(&self.program, self.bytecode)?;
+            for (slot, span) in slots.iter().zip(spans) {
+                let start = mapping.byte_offset + slot.offset as usize;
+                let physical = mapping.frame.byte_offset() + span.start.index() * Word::BYTE_LEN;
+                segments.push(FrameSegment {
+                    source: start..start + slot.byte_len as usize,
+                    target: fiber.stack.memory_offset(physical),
+                });
             }
         }
+        let frames = mappings
+            .iter()
+            .map(|mapping| (mapping.byte_offset, &mapping.layout));
+        self.program
+            .relocate_frame_addresses(frames, bytes, |address| {
+                let Some(offset) = ActivationImage::decode_frame_address(address) else {
+                    return Ok(None);
+                };
+                let moved = segments
+                    .iter()
+                    .find_map(|segment| segment.relocate(offset))
+                    .ok_or(destack_program::Error::StrayFrameAddress { address })?;
+
+                Ok(Some(moved as u64))
+            })?;
 
         // copy canonical live values into their physical register spans
         for mapping in mappings {
@@ -245,72 +262,6 @@ impl Machine {
         }
 
         Ok(())
-    }
-
-    /// Decode canonical image offsets as physical frame addresses.
-    fn restore_frame_addresses(
-        &self,
-        fiber: &Fiber,
-        ty: TypeId,
-        bytes: &mut [u8],
-        mappings: &[FrameMapping],
-    ) -> Result<()> {
-        let bias = ActivationImage::FRAME_ADDRESS_BIAS as usize;
-        let mut is_valid = true;
-        self.program
-            .visit_byte_frame_addresses(ty, bytes, &mut |address| {
-                if !is_valid {
-                    return Ok(());
-                }
-                let Some(word) = Word::from_bytes(address) else {
-                    is_valid = false;
-
-                    return Ok(());
-                };
-                if word.is_nullish() {
-                    return Ok(());
-                }
-                let Some(canonical_offset) = (word.bits() as usize).checked_sub(bias) else {
-                    is_valid = false;
-
-                    return Ok(());
-                };
-                let physical_offset = self.physical_offset(canonical_offset, mappings);
-                let Ok(Some(physical_offset)) = physical_offset else {
-                    is_valid = false;
-
-                    return Ok(());
-                };
-                let reference = fiber.stack.memory_offset(physical_offset);
-                address.copy_from_slice(&Word::from_bits(reference as u64).to_bytes());
-
-                Ok(())
-            })
-            .map_err(|_| Error::invalid_image())?;
-        if !is_valid {
-            return Err(Error::invalid_image());
-        }
-
-        Ok(())
-    }
-
-    /// Translate one canonical image offset into a physical frame offset.
-    fn physical_offset(&self, offset: usize, mappings: &[FrameMapping]) -> Result<Option<usize>> {
-        for mapping in mappings {
-            let (slots, spans) = mapping.values(&self.program, self.bytecode)?;
-
-            for (slot, span) in slots.iter().zip(spans) {
-                let start = mapping.byte_offset + slot.offset as usize;
-                let end = start + slot.byte_len as usize;
-                if (start..end).contains(&offset) {
-                    let physical = span.start.index() * Word::BYTE_LEN + offset - start;
-
-                    return Ok(Some(mapping.frame.byte_offset() + physical));
-                }
-            }
-        }
-
-        Ok(None)
     }
 
     /// Borrow one canonical slot from mutable image bytes.

@@ -421,21 +421,24 @@ impl TestProgram {
     /// Return the exact trace map for one reference representation.
     fn reference_trace(kind: Reference, storage: Storage) -> TraceMap {
         match (kind, storage) {
-            (Reference::Managed, Storage::Heap(Space::Local)) => TraceMap::Fixed {
+            (Reference::Managed(Space::Local), Storage::Heap(Space::Local)) => TraceMap::Fixed {
                 local_offsets: Box::new([0]),
                 shared_offsets: Box::new([]),
                 frame_offsets: Box::new([]),
+                borrow_offsets: Box::default(),
             },
-            (Reference::Managed, Storage::Heap(Space::Shared)) => TraceMap::Fixed {
+            (Reference::Managed(Space::Shared), Storage::Heap(Space::Shared)) => TraceMap::Fixed {
                 local_offsets: Box::new([]),
                 shared_offsets: Box::new([0]),
                 frame_offsets: Box::new([]),
+                borrow_offsets: Box::default(),
             },
-            (Reference::Managed | Reference::Unique | Reference::Borrowed, Storage::Frame) => {
+            (Reference::Managed(_) | Reference::Unique | Reference::Borrowed, Storage::Frame) => {
                 TraceMap::Fixed {
                     local_offsets: Box::new([]),
                     shared_offsets: Box::new([]),
                     frame_offsets: Box::new([0]),
+                    borrow_offsets: Box::new([]),
                 }
             }
             _ => TraceMap::empty(),

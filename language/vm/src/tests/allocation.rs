@@ -57,7 +57,7 @@ fn test_execute_reference_operations() {
         r#"
 function f0 {
     new.zeroed r2, a0
-    barrier r2, r0, r1: ref<managed, local>
+    barrier r2, r0, r1
     new.zeroed r3, a1
     release r3
     constant.boolean r4, true

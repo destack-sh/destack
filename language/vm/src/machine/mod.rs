@@ -14,5 +14,5 @@ pub(crate) use cursor::*;
 pub use fiber::*;
 pub(crate) use frame::*;
 pub use machine::*;
-pub(crate) use stack::*;
+pub use stack::*;
 pub(crate) use state::*;

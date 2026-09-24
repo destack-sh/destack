@@ -14,7 +14,6 @@ mod memory;
 mod profile;
 mod program;
 mod runtime;
-mod slice;
 mod stop;
 mod value;
 mod vector;

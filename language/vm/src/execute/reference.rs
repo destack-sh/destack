@@ -14,9 +14,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         match space {
             mir::Space::Local => Ok(HeapEdge::Local(HeapReference::from_bits(bits))),
             mir::Space::Shared => Ok(HeapEdge::Shared(SharedHeapReference::from_bits(bits))),
-            mir::Space::Constant | mir::Space::Parameter(_) | mir::Space::Join(_) | mir::Space::Of(_) => {
-                Err(self.invalid_instruction())
-            }
+            mir::Space::Constant => Err(self.invalid_instruction()),
         }
     }
 
@@ -122,8 +120,12 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     pub(crate) fn execute_reference(&mut self, instruction: Instruction<'_>) -> Result<()> {
         let mut operands = self.operands(instruction);
         let register = operands.register()?;
-        let reference = operands.reference()?;
-        let edge = self.read_reference_edge(register, reference)?;
+
+        // skip a frame or static address, which has no edge
+        let bits = self.read(register.0).bits() as usize;
+        let Some(edge) = self.activation.memory.edge(bits).map_err(Error::heap)? else {
+            return Ok(());
+        };
 
         // execute one operation through engine-neutral program storage
         match instruction.opcode() {

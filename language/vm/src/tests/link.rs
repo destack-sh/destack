@@ -173,11 +173,7 @@ impl TestProgram {
                     Storage::Frame => entry.frame = Optional::some(*function),
                     Storage::Heap(Space::Local) => entry.local = Optional::some(*function),
                     Storage::Heap(Space::Shared) => entry.shared = Optional::some(*function),
-                    Storage::Heap(Space::Constant | Space::Parameter(_) | Space::Join(_))
-                    | Storage::Static(_)
-                    | Storage::Parameter(_)
-                    | Storage::Bound { .. }
-                    | Storage::Join(_) => {
+                    Storage::Heap(Space::Constant) | Storage::Static(_) => {
                         panic!("test destructor storage must be frame or heap")
                     }
                 }

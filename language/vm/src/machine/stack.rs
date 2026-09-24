@@ -1,7 +1,9 @@
+use std::ops::Range;
 use std::sync::Arc;
 use std::{process, ptr};
 
 use destack_memory::{MemoryMap, MemoryRange};
+use destack_program as program;
 use destack_program::Word;
 
 use crate::diagnostic::{Error, Result};
@@ -295,6 +297,86 @@ impl Stack {
 
 impl Drop for Stack {
     /// Release this stack's reserved world-memory range.
+    fn drop(&mut self) {
+        if self.memory.release(self.range).is_err() {
+            process::abort();
+        }
+    }
+}
+
+/// One fiber's native machine stack in world memory, above a frozen guard frame.
+#[derive(Debug)]
+pub struct NativeStack {
+    /// The world memory map.
+    memory: Arc<MemoryMap>,
+    /// The reserved range, the guard frame lowest.
+    range: MemoryRange,
+}
+
+impl NativeStack {
+    /// Reserve one native stack of at least one usable byte length.
+    pub(crate) fn new(memory: Arc<MemoryMap>, byte_len: usize) -> Result<Self> {
+        let frame_byte_len = memory.frame_size_bytes();
+        let byte_len = byte_len.next_multiple_of(frame_byte_len);
+        let range = memory
+            .allocate(frame_byte_len + byte_len, frame_byte_len)
+            .map_err(|_| Error::memory_exhausted())?;
+        let stack = Self { memory, range };
+
+        // freeze the lowest frame so an overflowing write faults, then map the frames above it
+        let guard = MemoryRange {
+            offset: range.offset,
+            byte_len: frame_byte_len,
+        };
+        stack.memory.freeze(guard).map_err(program::Error::from)?;
+        stack
+            .memory
+            .materialize(range.offset + frame_byte_len, byte_len)
+            .map_err(program::Error::from)?;
+
+        Ok(stack)
+    }
+
+    /// Rebuild one native stack over a range retained in restored world memory.
+    pub(crate) fn from_range(memory: Arc<MemoryMap>, range: MemoryRange) -> Self {
+        Self { memory, range }
+    }
+
+    /// Return the reserved range in world memory, the guard frame included.
+    pub(crate) const fn range(&self) -> MemoryRange {
+        self.range
+    }
+
+    /// Fork this native stack over the corresponding range in one forked memory map.
+    pub(crate) fn fork(&self, memory: Arc<MemoryMap>) -> Self {
+        Self {
+            memory,
+            range: self.range,
+        }
+    }
+
+    /// Return the native address of the lowest usable byte, just above the guard frame.
+    pub fn bottom(&self) -> *mut u8 {
+        let offset = self.range.offset + self.memory.frame_size_bytes();
+
+        (self.memory.base_address() + offset) as *mut u8
+    }
+
+    /// Return the world offsets of the usable stack above the guard frame.
+    pub fn world_range(&self) -> Range<usize> {
+        let start = self.range.offset + self.memory.frame_size_bytes();
+
+        start..start + self.byte_len()
+    }
+
+    /// Return the usable byte length above the guard frame.
+    pub fn byte_len(&self) -> usize {
+        self.range.byte_len - self.memory.frame_size_bytes()
+    }
+}
+
+impl Drop for NativeStack {
+    /// Release this native stack's reserved world-memory range.
     fn drop(&mut self) {
         if self.memory.release(self.range).is_err() {
             process::abort();

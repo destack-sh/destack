@@ -226,8 +226,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                         }
                     }
 
-                    // slices and function values
-                    Opcode::SLICE_VIEW => self.execute_slice(instruction)?,
+                    // function values
                     Opcode::FUNCTION_ADDRESS | Opcode::FUNCTION_BIND => {
                         self.execute_function(instruction)?
                     }

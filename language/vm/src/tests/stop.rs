@@ -10,7 +10,12 @@ fn test_pause_at_poll() {
     let allocation = TestProgram::value_allocation(0, 0, Space::Local, 1);
     let program = TestProgram::words()
         .allocations([allocation])
-        .reference(1, 0, Reference::Managed, Storage::Heap(Space::Local))
+        .reference(
+            1,
+            0,
+            Reference::Managed(Space::Local),
+            Storage::Heap(Space::Local),
+        )
         .frame(0, 2, [(RegisterSpan::new(RegisterId(0), 1), 1)]);
     let mut machine = TestMachine::parse(
         r#"
@@ -206,7 +211,12 @@ fn test_visit_stopped_roots() {
     let allocation = TestProgram::value_allocation(0, 0, Space::Local, 1);
     let program = TestProgram::words()
         .allocations([allocation])
-        .reference(1, 0, Reference::Managed, Storage::Heap(Space::Local))
+        .reference(
+            1,
+            0,
+            Reference::Managed(Space::Local),
+            Storage::Heap(Space::Local),
+        )
         .frame(0, 2, [(RegisterSpan::new(RegisterId(0), 1), 1)]);
     let mut machine = TestMachine::parse(
         r#"

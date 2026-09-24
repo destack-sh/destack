@@ -17,7 +17,6 @@ mod observe;
 mod panic;
 mod profile;
 mod reference;
-mod slice;
 mod stop;
 mod value;
 mod vector;
