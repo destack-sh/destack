@@ -1,6 +1,6 @@
 import { FileLock } from "../lock.ts";
 
-// retain ownership until the parent closes stdin or terminates this process
+/** The lock retained until the parent closes stdin or terminates this process. */
 await using lock = await FileLock.acquire(process.argv[2]);
 console.log("locked");
 

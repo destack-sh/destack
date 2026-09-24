@@ -7,6 +7,7 @@ const POLL_INTERVAL = 25;
 
 /**
  * An exclusive operating-system file lock.
+ *
  * Use a persistent lock file in a trusted directory; keep its path intact while locks can exist.
  */
 export class FileLock implements AsyncDisposable {
@@ -49,7 +50,6 @@ export class FileLock implements AsyncDisposable {
         // retain the file only after acquiring ownership
         const native = await open(path);
         let isAcquired = false;
-
         try {
             isAcquired = native.tryAcquire();
             if (isAcquired) {

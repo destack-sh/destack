@@ -66,7 +66,6 @@ export class NativeLock {
         if (code === WOULD_BLOCK) {
             return false;
         }
-
         throw new FileSystemError("lock", this.path, code);
     }
 

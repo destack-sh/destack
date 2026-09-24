@@ -2,14 +2,19 @@ import { dlopen } from "bun:ffi";
 import { toNamespacedPath } from "node:path";
 import { FileSystemError } from "../error/index.ts";
 
-/** Windows file access, sharing, and creation flags. */
+/** The access flags requesting read and write access. */
 const GENERIC_READ_WRITE = 0xc0000000;
+/** The share flags allowing other handles to read and write. */
 const FILE_SHARE_READ_WRITE = 3;
+/** The creation disposition opening or creating the file. */
 const OPEN_ALWAYS = 4;
+/** The attributes of a plain file. */
 const FILE_ATTRIBUTE_NORMAL = 0x80;
 /** Acquire exclusive byte-range ownership without waiting. */
 const LOCK_EXCLUSIVE_NONBLOCKING = 3;
+/** The error code for a range locked by another handle. */
 const ERROR_LOCK_VIOLATION = 33;
+/** The handle value returned when opening fails. */
 const INVALID_HANDLE = 0xffffffffffffffffn;
 /** Use native handles directly, independently of runtime file-descriptor translation. */
 const SYSTEM = dlopen("kernel32.dll", {
@@ -79,7 +84,6 @@ export class NativeLock {
         if (code === ERROR_LOCK_VIOLATION) {
             return false;
         }
-
         throw new FileSystemError("lock", this.path, code);
     }
 

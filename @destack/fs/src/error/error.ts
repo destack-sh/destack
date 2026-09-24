@@ -9,12 +9,11 @@ export class FileSystemError extends Error {
 
     /** Retain the operation, path, and operating-system failure. */
     constructor(operation: string, path: string, code: string | number, options?: ErrorOptions) {
+        // describe the failure and keep its operation, path and code
         super(`cannot ${operation} ${path}: ${code}`, options);
-
         this.operation = operation;
         this.path = path;
         this.code = code;
-
         this.name = "FileSystemError";
     }
 }
