@@ -23,7 +23,6 @@ pub(super) fn analyse(elaborated: &MirElaborated) -> CompilerResult<MirAnalyzed>
         let body = mir::FunctionEffectBody::analyse(
             function,
             &resolution,
-            &elaborated.accesses,
             &elaborated.effects,
             &elaborated.tree,
         )

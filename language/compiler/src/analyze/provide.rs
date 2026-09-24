@@ -6,8 +6,8 @@ use destack_artifact::{
     ProgramAnalysis,
 };
 use destack_mir as mir;
-use destack_repository::{ProfileId, ProviderContext, ProviderError};
-use destack_source::{ModuleId, TargetId};
+use destack_repository::{ArtifactReader, ProfileId, ProviderContext, ProviderError};
+use destack_source::{ModuleId, PackageId, TargetId};
 
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -56,15 +56,20 @@ impl Compiler {
         target: TargetId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactDependencySet> {
-        // track the module graph and target configuration
+        // track the module graphs the target package sees and the target configuration
         let mut dependencies = ArtifactDependencySet::default();
-        dependencies.require_payload(ArtifactKey::module_graph(profile));
+        let artifacts = self.artifact_reader(context);
+        let packages = artifacts
+            .package_closure(target.package_id())
+            .map_err(CompilerError::from)?;
+        for package in &packages {
+            dependencies.require_payload(ArtifactKey::module_graph(*package, profile));
+        }
         self.observe_package_config(context, target.package_id(), &mut dependencies)?;
 
-        // read the module graph or request another collection attempt
-        let artifacts = self.artifact_reader(context);
-        let graph = match artifacts.read::<ModuleGraph>(profile) {
-            Ok(graph) => graph,
+        // read the module graphs or request another collection attempt
+        let graphs = match self.module_graphs(&artifacts, &packages, profile) {
+            Ok(graphs) => graphs,
             Err(ProviderError::Blocked { .. }) => {
                 dependencies.mark_partial();
 
@@ -74,12 +79,52 @@ impl Compiler {
         };
 
         // require symbol analysis for every module imported from the target roots
-        let roots = self.analysis_roots(target, &graph, context)?;
-        for module in graph.reachable(&roots) {
+        let (_, modules) = self.analysis_modules(target, &graphs, context)?;
+        for module in modules {
             dependencies.require_payload(ArtifactKey::mir_analyzed(module, profile, target));
         }
 
         Ok(dependencies)
+    }
+
+    /// Return one target's root modules and every module they import across the package graphs.
+    fn analysis_modules(
+        &self,
+        target: TargetId,
+        graphs: &[Arc<ModuleGraph>],
+        context: &dyn ProviderContext,
+    ) -> CompilerResult<(Vec<ModuleId>, Vec<ModuleId>)> {
+        // select the graph of the target's package
+        let package = target.package_id();
+        let graph = graphs
+            .iter()
+            .find(|graph| graph.package() == package)
+            .ok_or_else(|| {
+                ProviderError::internal(format!(
+                    "no module graph for the target package '{package}'"
+                ))
+            })?;
+
+        // walk the imports of the target roots across every graph
+        let roots = self.analysis_roots(target, graph, context)?;
+        let modules = ModuleGraph::reachable_across(graphs, &roots).map_err(|module| {
+            ProviderError::internal(format!("no module graph holds module '{module}'"))
+        })?;
+
+        Ok((roots, modules))
+    }
+
+    /// Read the module graphs of one package list under one profile.
+    fn module_graphs(
+        &self,
+        artifacts: &ArtifactReader<'_>,
+        packages: &[PackageId],
+        profile: ProfileId,
+    ) -> Result<Vec<Arc<ModuleGraph>>, ProviderError> {
+        packages
+            .iter()
+            .map(|package| artifacts.read::<ModuleGraph>((*package, profile)))
+            .collect()
     }
 
     /// Build the whole-program analysis for one profile and target.
@@ -89,15 +134,17 @@ impl Compiler {
         target: TargetId,
         context: &dyn ProviderContext,
     ) -> CompilerResult<ArtifactPayload> {
-        // read the module graph
+        // read the module graphs the target package sees
         let artifacts = self.artifact_reader(context);
-        let graph = artifacts
-            .read::<ModuleGraph>(profile)
+        let packages = artifacts
+            .package_closure(target.package_id())
+            .map_err(CompilerError::from)?;
+        let graphs = self
+            .module_graphs(&artifacts, &packages, profile)
             .map_err(CompilerError::from)?;
 
         // select the target roots and their imported modules
-        let root_modules = self.analysis_roots(target, &graph, context)?;
-        let modules = graph.reachable(&root_modules);
+        let (root_modules, modules) = self.analysis_modules(target, &graphs, context)?;
         let root_modules: HashSet<ModuleId> = root_modules.into_iter().collect();
 
         // collect symbol links and the runtime entry points
