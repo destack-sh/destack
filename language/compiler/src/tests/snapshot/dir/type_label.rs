@@ -1,4 +1,5 @@
 use destack_dir as dir;
+use destack_source::ModuleId;
 
 use super::DirSnapshotBuilder;
 
@@ -103,7 +104,7 @@ impl DirSnapshotBuilder<'_> {
         let types = if variant.owner.module_id == self.tree.module_id {
             self.types
                 .as_ref()
-                .unwrap_or_else(|| panic!("dir snapshot is missing its local type table"))
+                .unwrap_or_else(|| panic!("dir snapshot is missing its type table"))
         } else {
             self.foreign_types
                 .get(&variant.owner.module_id)
@@ -159,18 +160,30 @@ impl DirSnapshotBuilder<'_> {
         types: &dir::TypeTable<'_>,
         function: &dir::FunctionType,
     ) -> String {
+        // print the signature under the elided receiver, the application under every other receiver
+        let mode = self.receiver_mode_at(types, function.receiver);
+        let receiver = self.type_id_label(types, function.receiver);
         let (types, signature) = self.function_signature_type(types, function.signature);
+        if mode.is_some_and(dir::ReceiverMode::is_elided) {
+            return self.function_type_label(types, &signature);
+        }
         let parameters = self.function_parameter_tuple_label(types, &signature);
         let return_type = self.function_return_type_label(types, &signature);
 
-        // omit the receiver the stdlib elides
-        let receiver = self.type_id_label(types, function.receiver);
-        let elided = format!("\"{}\"", dir::ReceiverMode::ELIDED.text());
-        if receiver == elided || receiver == "_" {
-            format!("Function<{parameters}, {return_type}>")
-        } else {
-            format!("Function<{parameters}, {return_type}, {receiver}>")
-        }
+        format!("Function<{parameters}, {return_type}, {receiver}>")
+    }
+
+    /// Return the settled receiver mode one function value names, none for an open receiver.
+    fn receiver_mode_at(
+        &self,
+        types: &dir::TypeTable<'_>,
+        receiver: dir::GlobalTypeId,
+    ) -> Option<dir::ReceiverMode> {
+        let dir::Type::Literal(dir::Literal::String(text)) = self.type_at(types, receiver)? else {
+            return None;
+        };
+
+        dir::ReceiverMode::from_text(self.strings.get(text))
     }
 
     /// Return one function pointer type label.
@@ -277,7 +290,11 @@ impl DirSnapshotBuilder<'_> {
             return label;
         }
 
-        let arguments = self.type_id_list_label(types, arguments, ", ");
+        let arguments = arguments
+            .iter()
+            .map(|argument| self.type_id_label(types, *argument))
+            .collect::<Vec<_>>()
+            .join(", ");
         let symbol = self.reference_symbol_label(instance.symbol);
 
         format!("{symbol}<{arguments}>")
@@ -352,110 +369,73 @@ impl DirSnapshotBuilder<'_> {
         }
     }
 
-    /// Return whether one region's space term is an induced place parameter.
-    fn is_induced_space_term(&self, types: &dir::TypeTable<'_>, region: dir::GlobalTypeId) -> bool {
-        // read the space coordinate of a local region pair
-        if region.module_id != types.module_id {
-            return false;
-        }
-        let dir::Type::Region(pair) = types.get_type(region.local_id) else {
-            return false;
-        };
-        if pair.space.module_id != types.module_id {
-            return false;
-        }
-        let dir::Type::Parameter(parameter) = types.get_type(pair.space.local_id) else {
-            return false;
-        };
-
-        // look the parameter's binding up in its module's generic table
-        let generics = match parameter.module_id == self.tree.module_id {
-            true => self.generics.as_ref(),
-            false => self.foreign_generics.get(&parameter.module_id),
-        };
-
-        generics
-            .and_then(|generics| generics.get_parameter_maybe(parameter.local_id))
-            .is_some_and(|binding| binding.induced_memory_parameter().is_some())
-    }
-
     /// Return one form type label.
     fn form_type_label(&self, types: &dir::TypeTable<'_>, form: &dir::FormType) -> String {
-        // render the payload once, all forms wrap the same value
+        // group a payload that binds looser than the form
         let value = self.type_id_label(types, form.value);
+        let is_grouped = self.type_at(types, form.value).is_some_and(|payload| {
+            payload
+                .needs_parentheses(
+                    dir::TypeOperand::Prefix,
+                    |id| Ok::<_, ()>(self.operation_at(types, form.value.module_id, id)),
+                    |receiver| Ok(self.receiver_mode_at(types, receiver)),
+                )
+                .expect("snapshot type tables are complete")
+        });
+        let value = match is_grouped {
+            true => format!("({value})"),
+            false => value,
+        };
 
         // render canonical form constructors
         match &form.form {
-            dir::Form::Managed { place } => {
-                let place = self.type_id_label(types, *place);
-                match place.as_str() {
-                    "\"local\"" => format!("local {value}"),
-                    "\"shared\"" => format!("shared {value}"),
-                    "\"constant\"" => format!("constant {value}"),
-                    _ => format!("Managed<{value}, {place}>"),
-                }
-            }
             dir::Form::Owned => format!("^{value}"),
             dir::Form::Borrowed(borrow) => {
                 let borrow = types.borrow_form(*borrow);
-                let region = self.type_id_label(types, borrow.region);
-                let (lifetime, mut place) = match region.split_once(" & ") {
-                    Some((extent, spaces)) => (extent.to_string(), spaces.to_string()),
-                    None => (region.clone(), String::new()),
-                };
+                let (region, access) = dir::read_borrow(
+                    borrow,
+                    |id| self.type_at(types, id).ok_or(()),
+                    |text| self.strings.get(text).to_string(),
+                    |parameter| Ok(self.parameter_type_label(&parameter)),
+                )
+                .expect("snapshot type tables are complete");
+                match dir::borrow_text(region.as_ref(), access.as_ref(), &value) {
+                    Some(text) => text,
+                    None => {
+                        let region = self.type_id_label(types, borrow.region);
+                        let access = self.type_id_label(types, borrow.access);
 
-                // induced spaces elide back into the reference sugar
-                if self.is_induced_space_term(types, borrow.region) {
-                    place = String::new();
-                }
-                let access = self.type_id_label(types, borrow.access);
-
-                // spell settled borrows through the tick form
-                let tick = match lifetime.as_str() {
-                    "\"static\"" => Some("'static".to_string()),
-                    "\"frame\"" => Some("'frame".to_string()),
-                    bound if bound.starts_with("\"bound") => {
-                        Some(format!("'{}", bound.trim_matches('"')))
+                        format!("Borrowed<{value}, {region}, {access}>")
                     }
-                    _ => lifetime
-                        .rsplit('.')
-                        .next()
-                        .is_some_and(|name| name.starts_with('\''))
-                        .then(|| lifetime.clone()),
-                };
-                let modifier = match access.as_str() {
-                    "\"mutable\"" => Some(""),
-                    "\"readonly\"" => Some("readonly "),
-                    "\"exclusive\"" => Some("exclusive "),
-                    _ => None,
-                };
-                let spelled = match place.as_str() {
-                    "\"local\"" | "" => Some(""),
-                    "\"shared\"" => Some("shared "),
-                    "\"constant\"" => Some("constant "),
-                    _ => None,
-                };
-                if let (Some(tick), Some(modifier), Some(spelled)) = (tick, modifier, spelled) {
-                    return format!("&{tick} {modifier}{spelled}{value}");
-                }
-
-                format!("Borrowed<{value}, {region}, {access}>")
-            }
-            dir::Form::Raw => format!("Raw<{value}>"),
-            dir::Form::Readonly if form.value.module_id == types.module_id => {
-                match types.get_type(form.value.local_id) {
-                    dir::Type::Tuple(_) => format!("readonly {value}"),
-                    dir::Type::Application(instance)
-                        if self.language_item_by_symbol.get(&instance.symbol)
-                            == Some(&dir::LanguageItem::Array) =>
-                    {
-                        format!("readonly {value}")
-                    }
-                    _ => format!("Readonly<{value}>"),
                 }
             }
-            dir::Form::Readonly => format!("Readonly<{value}>"),
+            dir::Form::Raw => format!("*{value}"),
+            dir::Form::Readonly => format!("readonly {value}"),
         }
+    }
+
+    /// Return one type operation through the table owning it.
+    fn operation_at(
+        &self,
+        types: &dir::TypeTable<'_>,
+        module: ModuleId,
+        id: dir::TypeOperationId,
+    ) -> dir::TypeOperation {
+        match module == types.module_id {
+            true => *types.operation(id),
+            false => *self.foreign_types[&module].operation(id),
+        }
+    }
+
+    /// Return one type through the table owning it, none for a module without a table.
+    fn type_at(&self, types: &dir::TypeTable<'_>, type_id: dir::GlobalTypeId) -> Option<dir::Type> {
+        if type_id.module_id == types.module_id {
+            return Some(types.get_type(type_id.local_id));
+        }
+
+        self.foreign_types
+            .get(&type_id.module_id)
+            .map(|types| types.get_type(type_id.local_id))
     }
 
     /// Return one operation type label.
@@ -527,6 +507,11 @@ impl DirSnapshotBuilder<'_> {
 
                 format!("Awaited<{target}>")
             }
+            dir::TypeOperation::SpaceOf(unary) => {
+                let target = self.type_id_label(types, unary.target);
+
+                format!("SpaceOf<{target}>")
+            }
             dir::TypeOperation::TryOutput { value } => {
                 let value = self.type_id_label(types, *value);
 
@@ -536,6 +521,11 @@ impl DirSnapshotBuilder<'_> {
                 let value = self.type_id_label(types, *value);
 
                 format!("TryResidual<{value}>")
+            }
+            dir::TypeOperation::TryFailure { value } => {
+                let value = self.type_id_label(types, *value);
+
+                format!("TryFailure<{value}>")
             }
             dir::TypeOperation::StaticBinary(binary) => {
                 let left = self.type_id_label(types, binary.left);

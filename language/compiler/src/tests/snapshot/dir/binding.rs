@@ -52,7 +52,7 @@ impl SnapshotTable for dir::BindingSegment {
 
             if matches!(
                 symbol.visibility,
-                dir::SymbolVisibility::Member | dir::SymbolVisibility::Control
+                dir::SymbolVisibility::Member | dir::SymbolVisibility::Hidden
             ) {
                 row = row.field(
                     "visibility",

@@ -1204,9 +1204,9 @@ fn dereference_resolution_label(
 
 /// Return one singular dereference snapshot label.
 fn dereference_label(builder: &DirSnapshotBuilder<'_>, dereference: &dir::Dereference) -> String {
-    let target = match &dereference.target {
-        dir::DereferenceTarget::Direct => "direct".to_string(),
-        dir::DereferenceTarget::Call(call) => call_label(builder, call),
+    let target = match &dereference.protocol {
+        None => "builtin".to_string(),
+        Some(call) => call_label(builder, call),
     };
 
     format!(
@@ -1528,10 +1528,18 @@ fn add_construct_decision_row(
         );
 
     let row = match &resolution.target {
-        dir::ConstructTarget::Class { key, constructor } => {
-            add_class_construct_fields(builder, row.field("kind", "class"), key, constructor)
-        }
-        dir::ConstructTarget::Newtype { key, backing } => {
+        dir::ConstructTarget::Class {
+            key,
+            constructor,
+            arguments,
+        } => add_class_construct_fields(
+            builder,
+            row.field("kind", "class"),
+            key,
+            constructor,
+            arguments,
+        ),
+        dir::ConstructTarget::Newtype { key, backing, .. } => {
             add_newtype_construct_fields(builder, row.field("kind", "newtype"), key, *backing)
         }
     };
@@ -1810,6 +1818,10 @@ fn add_pattern_destructure_fields(
             pattern_positional_field_labels(builder, segment, &tuple.fields),
         ),
         dir::PatternDestructureResolution::Object(object) => row
+            .optional_field(
+                "adjustments",
+                receiver_adjustments_label(builder, &object.adjustments),
+            )
             .object_field(
                 "fields",
                 pattern_keyed_fields_label(builder, segment, &object.fields),
@@ -1822,6 +1834,10 @@ fn add_pattern_destructure_fields(
                     .map(|rest| pattern_rest_label(builder, segment, rest)),
             ),
         dir::PatternDestructureResolution::Nominal(nominal) => row
+            .optional_field(
+                "adjustments",
+                receiver_adjustments_label(builder, &nominal.adjustments),
+            )
             .field("target", builder.symbol_path_label(nominal.key.symbol))
             .optional_field(
                 "instance",
@@ -2013,6 +2029,9 @@ fn receiver_adjustment_label(
             builder.global_type_label(*arm),
             builder.global_type_label(*ty)
         ),
+        dir::ReceiverAdjustment::Upcast { ty } => {
+            format!("upcast({})", builder.global_type_label(*ty))
+        }
     }
 }
 
@@ -2041,13 +2060,17 @@ fn add_class_construct_fields(
     row: SnapshotRow,
     key: &dir::InstanceKey,
     constructor: &dir::ClassConstructor,
+    arguments: &[dir::GenericArgumentBinding],
 ) -> SnapshotRow {
+    let call = constructor.call_symbol().unwrap_or(key.symbol);
+
     row.field("target", builder.symbol_path_label(key.symbol))
         .optional_field("constructor", class_constructor_label(builder, constructor))
         .optional_field(
             "instance",
             generic_instance_label(builder, key.symbol, &key.arguments),
         )
+        .optional_field("call", generic_instance_label(builder, call, arguments))
 }
 
 /// Return the selected class constructor label.
