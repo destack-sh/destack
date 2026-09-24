@@ -2,7 +2,7 @@ import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import { defineSchema, schema } from "@destack/schema";
 import type { ServiceConnection } from "../declare/index.ts";
-import type { Service } from "../service/service.ts";
+import type { ServiceRouter } from "../service/service.ts";
 import { ServiceError } from "../error/index.ts";
 import { bindServiceConnection, ServiceConnectionBinding } from "./binding.ts";
 import type { ClientOptions } from "./client.ts";
@@ -40,16 +40,16 @@ export class ClientContext {
     }
 
     /** Construct the client selected for one declared dependency. */
-    bind<Router extends Service>(connection: ServiceConnection<Router>): void {
+    bind<Router extends ServiceRouter>(connection: ServiceConnection<Router>): void {
         // require one unambiguous endpoint for the consumer declaration
         const bindings = this.configuration.services.filter(
             (binding) =>
-                binding.declaration.packageId === connection.packageId &&
+                binding.declaration.packageId === connection.package.id &&
                 binding.declaration.name === connection.name,
         );
         if (bindings.length !== 1) {
             throw new ServiceError("BAD_REQUEST", {
-                message: `client requires one binding for ${connection.packageId}/${connection.name}`,
+                message: `client requires one binding for ${connection.package.id}/${connection.name}`,
             });
         }
 

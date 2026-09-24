@@ -1,6 +1,6 @@
 import { expect, test } from "@destack/test";
 import { schema } from "@destack/schema";
-import { PackageId } from "@destack/package/package";
+import { PackageId } from "@destack/package";
 import { ResourceContext } from "@destack/resource/context";
 import {
     Access,
@@ -21,25 +21,66 @@ import { createClient } from "../client/index.ts";
 import { implement } from "./handler.ts";
 import { Server } from "./server.ts";
 import type { ServiceContext } from "./context.ts";
+import { createCaller, hosting } from "./tests/fixture.ts";
+
+test.each(["global", "host-local", "account-personal", "space-personal"])(
+    "enforce the configured %s authorization scope",
+    async (scope) => {
+        // use the same procedure and verified identity for every hosting scope
+        const definition = {
+            read: defineProcedure({ authentication: "identity", permission: null, audit: false })
+                .route({ method: "GET", path: "/scope" })
+                .output(schema.string()),
+        };
+        const implementation = implement(definition).$context<ServiceContext>();
+        let credentialScope = scope;
+        await using server = Server.start({
+            ...hosting,
+            scope,
+            health: new Health("scope"),
+            drainTimeout: 100,
+            authenticate: async () =>
+                new Caller({ ...createCaller("alice").authentication, scope: credentialScope }),
+            router: implementation.router({
+                read: implementation.read.handler(({ context }) => context.scope),
+            }),
+        });
+        const client = createClient(definition, {
+            url: "https://fixture.test",
+            fetch: (request) => server.fetch(request),
+        });
+
+        // return the selected scope and reject credentials issued for another scope
+        expect(await client.read()).toBe(scope);
+        credentialScope = "another-scope";
+        await expect(client.read()).rejects.toMatchObject({
+            code: "UNAUTHORIZED",
+            message: "caller authentication is expired or has a different audience or scope",
+        });
+    },
+);
 
 /** Apply the same identity and object rules to direct and forwarded user-service requests. */
 test.each(["direct", "forwarded"])("host personal notes through %s requests", async (transport) => {
     // declare application permissions independently of hosting and identity providers
     const packageId = PackageId.parse("package-019f7480-0000-7000-8000-000000000001");
     const spaceId = "space-019f7480-0000-7000-8000-000000000002";
-    const note = defineObject({
-        packageId,
-        name: "note",
-        attributes: {},
-        relations: {
-            owner: { kind: "subject", subjects: ["user"] },
-            reader: { kind: "grant", subjects: ["user", "everyone"], permission: "share" },
+    const module = { package: { id: packageId, name: "@example/notes", version: "2026.9.0" } };
+    const note = defineObject(
+        {
+            name: "note",
+            attributes: {},
+            relations: {
+                owner: { kind: "subject", subjects: ["user"] },
+                reader: { kind: "grant", subjects: ["user", "everyone"], permission: "share" },
+            },
+            permissions: {
+                read: union(relation("owner"), relation("reader")),
+                share: relation("owner"),
+            },
         },
-        permissions: {
-            read: union(relation("owner"), relation("reader")),
-            share: relation("owner"),
-        },
-    });
+        module,
+    );
     const model = new AccessModel([note]);
     const key = schema.object({ id: schema.string() });
     const service = {
@@ -107,9 +148,9 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     const outcomes: string[] = [];
     const resources = new ResourceContext();
     const implementation = implement(service).$context<ServiceContext>();
-    await using server = await Server.start({
+    await using server = Server.start({
         audience: packageId,
-        spaceId,
+        scope: spaceId,
         resources,
         authenticate: async (request) => {
             authentications++;
@@ -129,6 +170,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
             read: implementation.read.handler(({ context }) => {
                 invocations++;
                 expect(context.resources).toBe(resources);
+
                 return "personal note";
             }),
             watch: implementation.watch.handler(async function* () {
@@ -148,7 +190,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
                     1,
                     [
                         {
-                            reference: note.ref(spaceId, id),
+                            reference: note.reference(spaceId, id),
                             attributes: {},
                             subjects: { owner: [owner] },
                             objects: {},
@@ -158,7 +200,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
                 );
                 const allowed = new Access(model, snapshot).check(
                     access.permission,
-                    note.ref(spaceId, id),
+                    note.reference(spaceId, id),
                     context.access(),
                 );
                 if (!allowed) {
@@ -211,7 +253,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     grants = [
         {
             id: "share-one",
-            object: note.ref(spaceId, "one"),
+            object: note.reference(spaceId, "one"),
             relation: "reader",
             subject: guest,
             createdAt: Date.now(),
@@ -228,7 +270,7 @@ test.each(["direct", "forwarded"])("host personal notes through %s requests", as
     grants = [
         {
             id: "public-one",
-            object: note.ref(spaceId, "one"),
+            object: note.reference(spaceId, "one"),
             relation: "reader",
             subject: { kind: "everyone" },
             createdAt: Date.now(),

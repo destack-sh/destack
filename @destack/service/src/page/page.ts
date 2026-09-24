@@ -24,6 +24,7 @@ export class Page<Position extends schema.Schema> {
         scope: readonly string[],
         position: Position,
     ) {
+        // bind the scope and validate the limit
         this.scope = scope;
         this.limit = input.limit ?? 50;
         if (!Number.isInteger(this.limit) || this.limit < 1 || this.limit > 1000) {
@@ -55,6 +56,7 @@ export class Page<Position extends schema.Schema> {
 
     /** Return bounded records and a continuation only when another record exists. */
     result<Item>(rows: Item[], position: (item: Item) => schema.Infer<Position>) {
+        // return up to the limit and a cursor after the last returned record
         const items = rows.slice(0, this.limit);
         const last = items.at(-1);
         const cursor =

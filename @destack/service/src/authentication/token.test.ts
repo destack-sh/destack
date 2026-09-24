@@ -4,7 +4,7 @@ import { TokenVerifier } from "./token.ts";
 import { TokenIssuer } from "./issuer.ts";
 import { Caller } from "./caller.ts";
 import { permitsDelegation, permitsCredential, type Subject } from "@destack/access";
-import { PackageId } from "@destack/package/package";
+import { PackageId } from "@destack/package";
 import { identifier } from "@destack/schema";
 
 /** Verify signed identity while rejecting cross-service, cross-space and stale authority. */

@@ -99,7 +99,7 @@ import { implementService } from "./server/index.ts";
 import { Health } from "@destack/service/health";
 
 const health = new Health("notes");
-await using server = await Server.start({
+await using server = Server.start({
     ...implementService(notebook),
     health,
     audience: servicePackageId,
@@ -108,7 +108,6 @@ await using server = await Server.start({
     authenticate,
     authorizeHost: authorizeInstallation,
     drainTimeout: 10000,
-    dispose: () => database.close(),
 });
 
 // pass requests from the host's listener
@@ -141,40 +140,40 @@ const administration = {
 
 ```ts
 // workload/workload.ts
-import type { WorkloadContext, WorkloadImplementation } from "@destack/service/workload";
+import { defineWorkload } from "@destack/service/workload";
 import { implementService } from "../server/index.ts";
 import { database } from "../stack/db.ts";
 import { Notebook } from "../notebook/index.ts";
 
-export async function start(context: WorkloadContext): Promise<WorkloadImplementation> {
-    const notebook = new Notebook(database.get(context.resources));
+export const workload = defineWorkload({
+    name: "main",
+    compute: { limits: { memory: 512 } },
+    start: async (context) => {
+        const notebook = new Notebook(database.get(context.resources));
+        context.defer(() => notebook.close());
 
-    return { services: { notes: implementService(notebook) } };
-}
-```
-
-```json
-{
-    "workloads": {
-        "main": { "entrypoint": "./workload", "services": ["notes"] }
-    }
-}
+        return {
+            services: [implementService(notebook)],
+            schedules: [{ schedule: reminders, run: (signal) => notebook.remind(signal) }],
+        };
+    },
+});
 ```
 
 ```ts
 // host startup, with authentication and resources selected by the host
-import { Workload } from "@destack/service/workload";
+import { WorkloadInstance } from "@destack/service/workload";
 import { runWorkload } from "@destack/service/workload/bun";
-import { start } from "@example/notes/workload";
+import { workload } from "@example/notes/workload";
 
-await using workload = await Workload.start(start, { resources, service: serviceOptions });
-await runWorkload(workload, { services: { notes: { hostname: "127.0.0.1", port: 8080 } } });
+await using instance = await WorkloadInstance.start(workload, { resources, service: serviceOptions });
+await runWorkload(instance, { services: [{ service: notesService, hostname: "127.0.0.1", port: 8080 }] });
 ```
 
 ```ts
 // a request-driven host dispatches directly without opening a listener
-const workload = await Workload.start(start, { resources, service: serviceOptions });
-const response = await workload.fetch("notes", request);
+const instance = await WorkloadInstance.start(workload, { resources, service: serviceOptions });
+const response = await instance.fetch(notesService, request);
 ```
 
 ## Schedules
@@ -184,8 +183,6 @@ import { defineSchedule } from "@destack/service/schedule";
 
 export const reminders = defineSchedule({
     name: "reminders",
-    version: 1,
-    handler: "remind",
     timing: "cron",
     cron: "0 9 * * *",
     timezone: "Europe/Zurich",
@@ -209,7 +206,7 @@ const router = implementation.router({
             .where(noteAccess.where(noteRead, spaceId, context.access())),
     ),
 });
-const server = await Server.start({
+const server = Server.start({
     router,
     audience: servicePackageId,
     scope: spaceId,

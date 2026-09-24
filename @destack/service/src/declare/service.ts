@@ -1,33 +1,31 @@
-import { defineSchema, schema } from "@destack/schema";
-import { ResourceName } from "@destack/resource";
-import type { Service } from "../service/service.ts";
+import { DeclarationName, declaringModule, Package, type ModuleMetadata } from "@destack/package";
+import type { Declaration } from "@destack/package/declare";
+import type { ServiceRouter } from "../service/service.ts";
 
-/** An HTTP service handled by a workload's exported function. */
-export const ServiceDeclaration = defineSchema(
-    schema.object({
-        /** The package-local service name. */
-        name: ResourceName,
-        /** The declaration format version. */
-        version: schema.literal(1),
-        /** The exported function accepting a Request and returning a Response. */
-        handler: schema.string().min(1),
-        /** The service transport. */
-        protocol: schema.literal("http"),
-    }),
-);
-/** An HTTP service handled by a workload's exported function. */
-export type ServiceDeclaration = schema.Infer<typeof ServiceDeclaration>;
-
-/** An HTTP declaration and its optional typed router. */
-export interface ServiceDefinition<Router extends Service = Service> extends ServiceDeclaration {
-    /** Procedures used by the declared handler. */
-    router?: Router;
+/** A declared HTTP service and the procedures its workload implements. */
+export interface Service<Router extends ServiceRouter = ServiceRouter> extends Declaration {
+    /** The declaration format version. */
+    readonly version: 1;
+    /** The service transport. */
+    readonly protocol: "http";
+    /** Procedures implemented by the named service. */
+    readonly router: Router;
 }
 
-/** Declare an HTTP service for workload routing. */
-export function defineService<Router extends Service = Service>(
-    declaration: ServiceDeclaration,
-    router?: Router,
-): ServiceDefinition<Router> {
-    return { ...ServiceDeclaration.parse(declaration), ...(router ? { router } : {}) };
+/** Declare an HTTP service and its procedures for workload routing. */
+export function defineService<Router extends ServiceRouter>(
+    name: string,
+    router: Router,
+    module?: ModuleMetadata,
+): Service<Router> {
+    // stamp the declaring package supplied by the module transform
+    const owner = Package.parse(declaringModule(module, "defineService").package);
+
+    return Object.freeze({
+        package: owner,
+        name: DeclarationName.parse(name),
+        version: 1,
+        protocol: "http",
+        router,
+    });
 }

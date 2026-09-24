@@ -83,6 +83,7 @@ export class IdempotencyStore {
             });
         }
 
+        // store the response once for this request
         const result = schema.json().parse(value);
         const updated = await database
             .update(this.table)

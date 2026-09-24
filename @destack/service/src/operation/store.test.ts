@@ -25,7 +25,7 @@ test.for([undefined, "/builds"] as const)(
         const service = defineOperationProcedures(definition, path);
         const router = implementOperation(store, path);
         const alice = createCaller("alice");
-        await using server = await Server.start({
+        await using server = Server.start({
             ...hosting,
             router,
             health: new Health("operations"),
@@ -99,7 +99,7 @@ test.for([undefined, "/builds"] as const)(
 
         // acknowledge cancellation only after the runner observes its signal and cleans up
         const entered = Promise.withResolvers<void>();
-        let cleaned = false;
+        let isCleaned = false;
         const cancelled = store.start(alice.id, { step: "wait" }, async ({ signal }) => {
             const aborted = Promise.withResolvers<void>();
             signal.addEventListener("abort", () => aborted.resolve(), { once: true });
@@ -110,7 +110,7 @@ test.for([undefined, "/builds"] as const)(
 
                 return { count: 0 };
             } finally {
-                cleaned = true;
+                isCleaned = true;
             }
         });
 
@@ -127,7 +127,7 @@ test.for([undefined, "/builds"] as const)(
         }
 
         // retain the cancelled operation with its final progress
-        expect(cleaned).toBe(true);
+        expect(isCleaned).toBe(true);
         expect(outcomes.at(-1)).toEqual({
             ...cancelled,
             updatedAt: expect.any(Number),
@@ -250,14 +250,14 @@ test("enforce deadlines, expire completed operations, and cancel work on shutdow
     );
 
     // stop a runner before it starts and refuse further work after disposal
-    let invoked = false;
+    let isInvoked = false;
     store.start("alice", 0, async () => {
-        invoked = true;
+        isInvoked = true;
 
         return "unexpected";
     });
     await store.close();
-    expect(invoked).toBe(false);
+    expect(isInvoked).toBe(false);
     expect(() => store.start("alice", 0, async () => "unexpected")).toThrow(
         expect.objectContaining({ code: "UNAVAILABLE" }),
     );

@@ -10,8 +10,8 @@ export class ServiceContext {
     readonly request: Request;
     /** Receiving package identifier fixed by the hosting deployment. */
     readonly audience: PackageId;
-    /** Verified credential space, or the hosting space for an unscoped caller. */
-    readonly spaceId: string;
+    /** Authorization scope selected from verified credentials or host configuration. */
+    readonly scope: string;
     /** Authenticated identity, or null for an anonymous request. */
     readonly caller: Caller | null;
     /** Resource clients bound by the host for this installation. */
@@ -27,14 +27,15 @@ export class ServiceContext {
     constructor(
         request: Request,
         audience: PackageId,
-        spaceId: string,
+        scope: string,
         caller: Caller | null,
         resources: ResourceContext,
         authenticationError?: unknown,
     ) {
+        // retain the request and its authenticated caller
         this.request = request;
         this.audience = audience;
-        this.spaceId = spaceId;
+        this.scope = scope;
         this.caller = caller;
         this.resources = resources;
         this.authenticationError = authenticationError;
@@ -68,7 +69,7 @@ export class ServiceContext {
         if (!this.caller) {
             throw new ServiceError("UNAUTHORIZED");
         }
-        this.caller.context(this.audience, Date.now(), this.spaceId);
+        this.caller.context(this.audience, Date.now(), this.scope);
 
         return this.caller;
     }
@@ -80,7 +81,7 @@ export class ServiceContext {
         }
 
         return this.caller
-            ? this.caller.context(this.audience, Date.now(), this.spaceId)
+            ? this.caller.context(this.audience, Date.now(), this.scope)
             : { subjects: [], attributes: {}, now: Date.now() };
     }
 }

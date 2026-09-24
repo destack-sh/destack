@@ -7,12 +7,12 @@ export class Watch<Value> {
     ): AsyncGenerator<Value> {
         while (!signal.aborted) {
             // each successful subscription must publish its current snapshot
-            let received = false;
+            let isReceived = false;
             for await (const value of await open(signal)) {
-                received = true;
+                isReceived = true;
                 yield value;
             }
-            if (!received && !signal.aborted) {
+            if (!isReceived && !signal.aborted) {
                 throw new Error("snapshot subscription closed without a value");
             }
         }

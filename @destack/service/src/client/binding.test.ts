@@ -1,7 +1,8 @@
+import { reference } from "@destack/package/declare";
 import { expect, test } from "@destack/test";
 import { ResourceContext } from "@destack/resource/context";
 import { schema } from "@destack/schema";
-import { defineServiceConnection } from "../declare/index.ts";
+import { defineService, defineServiceConnection } from "../declare/index.ts";
 import { defineProcedure } from "../procedure/index.ts";
 import { Health } from "../health/index.ts";
 import { implement, Server, type ServiceContext } from "../server/index.ts";
@@ -16,17 +17,14 @@ test("route independent connections through typed clients and retain verified ca
             .route({ method: "GET", path: "/value" })
             .output(schema.string()),
     };
-    const service = { packageId: hosting.audience, name: "notes" };
-    const personal = defineServiceConnection(
-        { packageId: hosting.audience, name: "personal", service },
-        router,
-    );
-    const work = defineServiceConnection(
-        { packageId: hosting.audience, name: "work", service },
-        router,
-    );
+    const module = {
+        package: { id: hosting.audience, name: "@example/notes", version: "2026.9.0" },
+    };
+    const service = defineService("notes", router, module);
+    const personal = defineServiceConnection("personal", service, module);
+    const work = defineServiceConnection("work", service, module);
     const implementation = implement(router).$context<ServiceContext>();
-    const server = await Server.start({
+    const server = Server.start({
         ...hosting,
         drainTimeout: 1000,
         health: new Health("binding"),
@@ -47,7 +45,7 @@ test("route independent connections through typed clients and retain verified ca
             bindServiceConnection(
                 connection,
                 {
-                    declaration: { packageId: connection.packageId, name: connection.name },
+                    declaration: reference(connection),
                     url: "https://service.test",
                 },
                 {
@@ -69,7 +67,7 @@ test("route independent connections through typed clients and retain verified ca
             bindServiceConnection(
                 personal,
                 {
-                    declaration: { packageId: work.packageId, name: work.name },
+                    declaration: reference(work),
                     url: "https://service.test",
                 },
                 {},
@@ -80,7 +78,7 @@ test("route independent connections through typed clients and retain verified ca
             bindServiceConnection(
                 personal,
                 {
-                    declaration: { packageId: personal.packageId, name: personal.name },
+                    declaration: reference(personal),
                     url: "https://service.test",
                 },
                 {},
@@ -90,13 +88,13 @@ test("route independent connections through typed clients and retain verified ca
 
         // reject absent or ambiguous host configuration before constructing a client
         const binding = {
-            declaration: { packageId: personal.packageId, name: personal.name },
+            declaration: reference(personal),
             url: "https://service.test",
         };
         for (const services of [[], [binding, binding]]) {
             const client = new ClientContext({ packageId: hosting.audience, services }, {});
             expect(() => client.bind(personal)).toThrow(
-                `client requires one binding for ${personal.packageId}/${personal.name}`,
+                `client requires one binding for ${personal.package.id}/${personal.name}`,
             );
         }
     } finally {

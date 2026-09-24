@@ -1,10 +1,11 @@
+import type { Service } from "../declare/service.ts";
 import type { PackageId } from "@destack/package";
 import type { Health } from "../health/health.ts";
 import { ServiceHandler, type HandlerOptions, type Router } from "./handler.ts";
 import { permitsCredential, permitsDelegation } from "@destack/access";
 import type { ResourceContext } from "@destack/resource/context";
 import type { Caller } from "../authentication/index.ts";
-import type { Service } from "../service/index.ts";
+import type { ServiceRouter } from "../service/index.ts";
 import { ServiceError } from "../error/index.ts";
 import { ServiceContext } from "./context.ts";
 import type { ProcedureCall } from "./access.ts";
@@ -22,8 +23,15 @@ export class Server implements AsyncDisposable {
     readonly #requests = new Set<AbortController>();
     /** Notification when accepted requests complete. */
     readonly #drained = Promise.withResolvers<void>();
+    /** Completion of request draining and resource disposal, including after a timeout. */
+    readonly #stopped = Promise.withResolvers<void>();
     /** The single shutdown attempt. */
     #closing?: Promise<void>;
+
+    /** Wait until accepted requests have actually finished. */
+    get stopped(): Promise<void> {
+        return this.#stopped.promise;
+    }
 
     /** Construct the HTTP handler and retain lifecycle settings. */
     private constructor(options: ServerOptions) {
@@ -57,28 +65,10 @@ export class Server implements AsyncDisposable {
         });
     }
 
-    /** Configure request handling and initialize resources before publishing readiness. */
-    static async start(options: ServerOptions): Promise<Server> {
-        // publish readiness after initialization completes
+    /** Configure request handling and publish readiness. */
+    static start(options: ServerOptions): Server {
         const server = new Server(options);
-        server.health.set("starting");
-        try {
-            await options.initialize?.();
-            server.health.set("serving");
-        } catch (error) {
-            // release partially initialized resources before reporting failure
-            server.health.set("stopped");
-            try {
-                await options.dispose?.();
-            } catch (cleanup) {
-                throw new AggregateError(
-                    [error, cleanup],
-                    "service initialization and cleanup failed",
-                );
-            }
-
-            throw error;
-        }
+        server.health.set("serving");
 
         return server;
     }
@@ -165,7 +155,7 @@ export class Server implements AsyncDisposable {
             caller?.context(
                 options.audience,
                 Date.now(),
-                options.target ? caller.authentication.scope : options.spaceId,
+                options.target ? caller.authentication.scope : options.scope,
             );
         } catch (error) {
             authenticationError = error ?? new ServiceError("UNAUTHORIZED");
@@ -174,7 +164,7 @@ export class Server implements AsyncDisposable {
         return new ServiceContext(
             request,
             options.audience,
-            options.target ? (caller?.authentication.scope ?? options.spaceId) : options.spaceId,
+            options.target ? (caller?.authentication.scope ?? options.scope) : options.scope,
             caller,
             options.resources,
             authenticationError,
@@ -194,7 +184,7 @@ export class Server implements AsyncDisposable {
 
         // constrain the operation before application authorization selects its exact objects
         const permission = call.access.permission;
-        const target = options.target ? await options.target(call) : { scope: options.spaceId };
+        const target = options.target ? await options.target(call) : { scope: options.scope };
         if (call.context.caller) {
             access = call.context.caller.context(options.audience, Date.now(), target.scope);
         }
@@ -206,6 +196,7 @@ export class Server implements AsyncDisposable {
             throw new ServiceError("FORBIDDEN");
         }
 
+        // let the host authorize the call
         await options.authorizeHost(call);
     }
 
@@ -299,20 +290,13 @@ export class Server implements AsyncDisposable {
             this.#drained.resolve();
         }
 
-        // release resources after every accepted request finishes
-        const completion = this.#drained.promise.then(async () => {
-            try {
-                await this.#options.dispose?.();
-            } catch (error) {
-                // report cleanup failures even when the shutdown deadline already expired
-                reportError(error);
-                throw error;
-            } finally {
-                this.health.set("stopped");
-            }
+        // report stopped after every accepted request finishes
+        const completion = this.#drained.promise.then(() => {
+            this.health.set("stopped");
+            this.#stopped.resolve();
         });
 
-        // abort overdue requests while retaining cleanup after they settle
+        // abort overdue requests after the drain deadline
         const deadline = Promise.withResolvers<never>();
         const timer = setTimeout(() => {
             const error = new DOMException("Service drain deadline exceeded.", "TimeoutError");
@@ -323,7 +307,7 @@ export class Server implements AsyncDisposable {
             deadline.reject(error);
         }, this.#options.drainTimeout);
 
-        // bound the caller's wait while cleanup retains its own completion promise
+        // bound the caller's wait while draining retains its own completion promise
         try {
             await Promise.race([completion, deadline.promise]);
         } finally {
@@ -333,13 +317,13 @@ export class Server implements AsyncDisposable {
 }
 
 /** Authentication, authorization, resources and lifecycle for one hosted service. */
-export interface ServerOptions extends ServiceImplementation {
+export interface ServerOptions extends Omit<ServiceImplementation, "service"> {
     /** Readiness shared with the host. */
     health: Health;
     /** Fixed receiving package identifier. */
     audience: PackageId;
-    /** Hosting space, also used as the default authorization scope. */
-    spaceId: string;
+    /** Default authorization scope, such as a space, host, account or global authority. */
+    scope: string;
     /** Installation resource clients selected by the host. */
     resources: ResourceContext;
     /** Verify credentials; return null only when the request has no credential. */
@@ -352,8 +336,10 @@ export interface ServerOptions extends ServiceImplementation {
 
 /** Implemented procedures, domain enforcement and resource lifecycle. */
 export interface ServiceImplementation extends Omit<HandlerOptions<ServiceContext>, "health"> {
+    /** The declared service these procedures implement. */
+    readonly service: Service;
     /** Application procedures receiving the standard service context. */
-    router: Router<Service, ServiceContext>;
+    router: Router<ServiceRouter, ServiceContext>;
     /** Response headers enforced on every response, including failures and probes. */
     responseHeaders?: ConstructorParameters<typeof Headers>[0];
     /** Select an exact authorization target when a service administers other spaces or objects. */
@@ -362,8 +348,4 @@ export interface ServiceImplementation extends Omit<HandlerOptions<ServiceContex
     route?(request: Request): Promise<Response | undefined>;
     /** Enforce application permissions, including exact objects and sharing grants. */
     authorize(call: ProcedureCall<ServiceContext>): Promise<void>;
-    /** Complete initialization before accepting application requests. */
-    initialize?(): Promise<void>;
-    /** Release resources after accepted requests finish. */
-    dispose?(): Promise<void>;
 }

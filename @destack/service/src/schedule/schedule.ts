@@ -1,22 +1,21 @@
 import { defineSchema, schema } from "@destack/schema";
-import { ResourceName } from "@destack/resource";
+import { DeclarationName, declaringModule, type ModuleMetadata } from "@destack/package";
+import type { Declaration } from "@destack/package/declare";
 
 /** Fields shared by calendar, interval, and one-off schedules. */
 const SCHEDULE = schema.object({
     /** The package-local schedule name. */
-    name: ResourceName,
+    name: DeclarationName,
     /** The declaration format version. */
     version: schema.literal(1),
-    /** The exported handler receiving the scheduled occurrence. */
-    handler: schema.string().min(1),
     /** Whether occurrences may overlap. */
     concurrency: schema.enum(["allow", "forbid", "replace"]),
     /** How late an occurrence may start, in milliseconds. */
     deadline: schema.number().int().nonnegative(),
 });
 
-/** A controller-managed schedule invoking an exported workload handler. */
-export const ScheduleDeclaration = defineSchema(
+/** A controller-managed schedule, as the manifest describes it. */
+export const ScheduleDescription = defineSchema(
     schema.union([
         SCHEDULE.extend({
             /** Evaluate calendar occurrences in the selected time zone. */
@@ -41,17 +40,40 @@ export const ScheduleDeclaration = defineSchema(
             endsAt: schema.number().int().nonnegative().optional(),
         }),
         SCHEDULE.extend({
-            /** Invoke the handler once at the selected time. */
+            /** Run the schedule once at the selected time. */
             timing: schema.literal("once"),
             /** The occurrence time in UTC epoch milliseconds. */
             startsAt: schema.number().int().nonnegative(),
         }),
     ]),
 );
-/** A controller-managed schedule invoking an exported workload handler. */
-export type ScheduleDeclaration = schema.Infer<typeof ScheduleDeclaration>;
+/** A controller-managed schedule, as the manifest describes it. */
+export type ScheduleDescription = schema.Infer<typeof ScheduleDescription>;
 
-/** Declare a schedule for build-time validation. */
-export function defineSchedule(value: ScheduleDeclaration): ScheduleDeclaration {
-    return ScheduleDeclaration.parse(value);
+/** A schedule as authored, before the declaration format version is added. */
+export type ScheduleDefinition = WithoutVersion<ScheduleDescription>;
+
+/** Remove the version from each timing variant. */
+type WithoutVersion<Description> = Description extends unknown
+    ? Omit<Description, "version">
+    : never;
+
+/** A declared schedule, run by the workload that implements it. */
+export type Schedule = Declaration & ScheduleDescription;
+
+/** A workload's handler for one declared schedule. */
+export interface ScheduleImplementation {
+    /** The declared schedule this handler runs. */
+    readonly schedule: Schedule;
+    /** Run one occurrence, observing cancellation. */
+    run(signal: AbortSignal): Promise<void>;
+}
+
+/** Declare a controller-managed schedule. */
+export function defineSchedule(definition: ScheduleDefinition, module?: ModuleMetadata): Schedule {
+    // stamp the declaring package supplied by the module transform
+    const owner = declaringModule(module, "defineSchedule").package;
+    const description = ScheduleDescription.parse({ ...definition, version: 1 });
+
+    return Object.freeze({ ...description, package: owner });
 }

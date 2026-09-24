@@ -1,10 +1,11 @@
 import { defineSchema, schema } from "@destack/schema";
-import type { Service } from "../service/index.ts";
+import type { ServiceRouter } from "../service/index.ts";
 import { describeProcedures, ProcedureDescription } from "./procedure.ts";
-import { ServiceDeclaration, type ServiceDefinition } from "../declare/service.ts";
+import type { Service } from "../declare/service.ts";
+import { DeclarationName } from "@destack/package";
 
 /** Routes, payloads and errors declared by a named service. */
-export const ServiceDescription = defineSchema(
+export const RouterDescription = defineSchema(
     schema.object({
         /** The package-local service name. */
         name: schema.string().min(1),
@@ -13,31 +14,37 @@ export const ServiceDescription = defineSchema(
     }),
 );
 /** Routes, payloads and errors declared by a named service. */
-export type ServiceDescription = schema.Infer<typeof ServiceDescription>;
+export type RouterDescription = schema.Infer<typeof RouterDescription>;
 
-/** An HTTP handler declaration and its inspected API. */
-export const ServiceInspection = defineSchema(
-    ServiceDeclaration.extend({
-        /** Procedures declared by the associated router. */
-        api: ServiceDescription.optional(),
+/** A declared service and its inspected API. */
+export const ServiceDescription = defineSchema(
+    schema.object({
+        /** The package-local service name. */
+        name: DeclarationName,
+        /** The declaration format version. */
+        version: schema.literal(1),
+        /** The service transport. */
+        protocol: schema.literal("http"),
+        /** Procedures declared by the service's router. */
+        api: RouterDescription,
     }),
 );
-/** An HTTP handler declaration and its inspected API. */
-export type ServiceInspection = schema.Infer<typeof ServiceInspection>;
+/** A declared service and its inspected API. */
+export type ServiceDescription = schema.Infer<typeof ServiceDescription>;
 
-/** Describe a declared handler and its associated procedures. */
-export function inspectService(definition: ServiceDefinition): ServiceInspection {
-    // separate the serializable declaration from its executable router
-    const { router, ...metadata } = definition;
-    const declaration = ServiceDeclaration.parse(metadata);
-    const api = router ? describeService(definition.name, router) : undefined;
-
-    return { ...declaration, ...(api ? { api } : {}) };
+/** Describe a declared service and its procedures. */
+export function describeService(service: Service): ServiceDescription {
+    return ServiceDescription.parse({
+        name: service.name,
+        version: service.version,
+        protocol: service.protocol,
+        api: describeRouter(service.name, service.router),
+    });
 }
 
 /** Describe service routes and application schemas. */
-export function describeService(name: string, service: Service): ServiceDescription {
+export function describeRouter(name: string, service: ServiceRouter): RouterDescription {
     // retain application schemas and declared errors
     const procedures = describeProcedures(service);
-    return ServiceDescription.parse({ name, procedures });
+    return RouterDescription.parse({ name, procedures });
 }

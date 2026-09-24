@@ -8,9 +8,11 @@
     "sideEffects": false,
     "scripts": {
         "check": "tsc --project tsconfig.json",
-        "test": "vitest run --config vitest.config.ts"
+        "test": "bun --bun run vitest run --config vitest.config.ts"
     },
     "exports": {
+        "./workload": "./src/workload/index.ts",
+        "./workload/bun": "./src/workload/bun.ts",
         "./authentication": "./src/authentication/index.ts",
         "./request": "./src/request/index.ts",
         "./database": "./src/database/index.ts",
@@ -46,6 +48,7 @@
         "@orpc/json-schema": "1.15.1",
         "@orpc/server": "1.15.1",
         "@destack/resource": "workspace:*",
-        "@destack/access": "workspace:*"
+        "@destack/access": "workspace:*",
+        "cron-parser": "5.7.0"
     }
 }

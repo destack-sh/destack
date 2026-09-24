@@ -29,6 +29,7 @@ export function createRequestId(): string {
 
 /** Reject expired or future mutation keys even after their stored responses are removed. */
 export function requestExpiry(requestId: string, now = Date.now()): number {
+    // read the creation time from the UUIDv7 key and reject keys outside the retry period
     const key = RequestId.parse(requestId);
     const createdAt = Number.parseInt(key.slice(0, 13).replaceAll("-", ""), 16);
     const expiresAt = createdAt + REQUEST_LIFETIME_MS;

@@ -143,6 +143,7 @@ export class TokenVerifier {
         spaceId?: string,
         now = Date.now(),
     ): Promise<Caller<schema.Infer<typeof TokenAuthentication>["credential"]>> {
+        // require one bearer token without cookies
         const authorization = request.headers.get("authorization");
         if (
             !authorization ||
@@ -204,6 +205,7 @@ export class TokenVerifier {
             throw new ServiceError("UNAUTHORIZED", { message: "invalid access token claims" });
         }
 
+        // build the caller and check its freshness and issuer authority
         const caller = new Caller({
             ...parsed.data,
             scope: parsed.data.spaceId,
@@ -229,7 +231,7 @@ export interface TokenVerifierOptions {
     /** Trusted public keys, or a fixed HTTPS JWKS endpoint. */
     readonly keys: URL | JSONWebKeySet;
     /** Host transport for public-key discovery. */
-    readonly fetch?: typeof globalThis.fetch;
+    readonly fetch?: (...arguments_: Parameters<typeof globalThis.fetch>) => Promise<Response>;
 }
 
 /** Identity assertions permitted for a trusted issuer's signing keys. */
@@ -251,6 +253,7 @@ export function verifyTokenAuthentication(
     authority: TokenIssuerAuthority,
     now: number,
 ): void {
+    // collect every asserted identity
     const subjects = [authentication.subject, ...authentication.subjects];
 
     // a space signing key cannot assert global users, memberships or another space's identities

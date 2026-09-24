@@ -8,7 +8,7 @@ import {
     type Context,
     type Router,
 } from "@orpc/server";
-import type { Service } from "../service/index.ts";
+import type { ServiceRouter } from "../service/index.ts";
 import { ProcedureAccess } from "../procedure/procedure.ts";
 import type { Health } from "../health/health.ts";
 import { invokeProcedure, type ProcedureCall, type ProcedureAudit } from "./access.ts";
@@ -20,12 +20,12 @@ import { schemaConverter } from "../openapi/document.ts";
 export { implement } from "@orpc/server";
 
 /** Dispatch Fetch requests to service procedures using their HTTP routes. */
-export class ServiceHandler<T extends Context> extends OpenAPIHandler<T> {
+export class ServiceHandler<State extends Context> extends OpenAPIHandler<State> {
     /** Readiness shared with the hosting lifecycle. */
     readonly health: Health;
 
     /** Configure HTTP handling and extract trace context for each request. */
-    constructor(router: Router<Service, T>, options: HandlerOptions<T>) {
+    constructor(router: Router<ServiceRouter, State>, options: HandlerOptions<State>) {
         // reject missing enforcement before serving any request
         ServiceHandler.#checkAccess(router, options, new Set());
         const telemetry = new ServiceTelemetry("server");
@@ -42,7 +42,7 @@ export class ServiceHandler<T extends Context> extends OpenAPIHandler<T> {
                 async ({ next, procedure, path, input, context, signal }) => {
                     // evaluate declared access before entering application middleware
                     const access = ProcedureAccess.parse(procedure["~orpc"].meta);
-                    const call: ProcedureCall<T> = { access, path, input, context, signal };
+                    const call: ProcedureCall<State> = { access, path, input, context, signal };
 
                     return invokeProcedure(call, next, options);
                 },
@@ -59,8 +59,8 @@ export class ServiceHandler<T extends Context> extends OpenAPIHandler<T> {
 
     /** Answer probes through the same HTTP path on every host. */
     override async handle(
-        ...args: Parameters<OpenAPIHandler<T>["handle"]>
-    ): ReturnType<OpenAPIHandler<T>["handle"]> {
+        ...args: Parameters<OpenAPIHandler<State>["handle"]>
+    ): ReturnType<OpenAPIHandler<State>["handle"]> {
         const response = this.health.probe(args[0]);
         if (response) {
             return { matched: true, response };
@@ -108,13 +108,13 @@ export class ServiceHandler<T extends Context> extends OpenAPIHandler<T> {
 }
 
 /** HTTP transport settings and required host enforcement. */
-export interface HandlerOptions<T extends Context> extends OpenAPIHandlerOptions<T> {
+export interface HandlerOptions<State extends Context> extends OpenAPIHandlerOptions<State> {
     /** Readiness shared with the host. */
     health: Health;
     /** Require authenticated request context and enforce the procedure's declared access. */
-    authorize?(call: ProcedureCall<T>): Promise<void>;
+    authorize?(call: ProcedureCall<State>): Promise<void>;
     /** Persist required audit events before acknowledging their completion. */
-    audit?(event: ProcedureAudit<T>): Promise<void>;
+    audit?(event: ProcedureAudit<State>): Promise<void>;
 }
 export type { Context, Middleware, Router } from "@orpc/server";
 export type { FetchHandleResult as HandleResult } from "@orpc/server/fetch";

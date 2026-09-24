@@ -5,7 +5,7 @@ import {
     OpenAPIGenerator,
     type OpenAPIGeneratorGenerateOptions,
 } from "@orpc/openapi";
-import type { Service } from "../service/index.ts";
+import type { ServiceRouter } from "../service/index.ts";
 
 /** Convert portable Destack schemas for HTTP decoding and OpenAPI documents. */
 export const schemaConverter: ConditionalSchemaConverter = {
@@ -23,7 +23,7 @@ export const schemaConverter: ConditionalSchemaConverter = {
 export type DocumentOptions = OpenAPIGeneratorGenerateOptions;
 
 /** Generate OpenAPI from the service's routes and portable Destack schemas. */
-export function createDocument(definition: Service, options: DocumentOptions) {
+export function createDocument(definition: ServiceRouter, options: DocumentOptions) {
     // use the same schema restrictions as other Destack packages
     const generator = new OpenAPIGenerator({
         schemaConverters: [schemaConverter],

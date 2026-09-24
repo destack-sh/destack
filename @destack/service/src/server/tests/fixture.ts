@@ -7,7 +7,7 @@ import { ServiceError } from "../../error/index.ts";
 /** Trusted hosting configuration for HTTP lifecycle and operation scenarios. */
 export const hosting = {
     audience: PackageId.parse("package-019f7480-0000-7000-8000-000000000001"),
-    spaceId: "test-space",
+    scope: "test-space",
     resources: new ResourceContext(),
     authenticate: async (request: Request) => {
         const name = request.headers.get("authorization");
@@ -31,7 +31,7 @@ export function createCaller(name: string): Caller {
         subjects: [subject],
         credential: { kind: "user", id: name },
         audience: hosting.audience,
-        scope: hosting.spaceId,
+        scope: hosting.scope,
         verifiedAt: now,
         expiresAt: now + 60000,
     });

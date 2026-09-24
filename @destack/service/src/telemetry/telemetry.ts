@@ -12,16 +12,10 @@ import {
 } from "@destack/telemetry";
 import { AsyncIteratorClass, setGlobalOtelConfig } from "@orpc/shared";
 import { ServiceError } from "../error/index.ts";
-import metadata from "../../package.json" with { type: "json" };
-import definition from "../../destack.json" with { type: "json" };
-import { Package } from "@destack/package";
+import type {} from "@destack/package/import-meta";
 
 /** The package declaring service instrumentation. */
-const manifest = Package.parse({
-    id: definition.id,
-    name: metadata.name,
-    version: metadata.version,
-});
+const manifest = import.meta.destack.package;
 
 /** Record complete RPC calls, including streamed results. */
 export class ServiceTelemetry {
@@ -127,6 +121,7 @@ export class ServiceTelemetry {
 
     /** Record bounded failure labels and elapsed seconds. */
     #record(started: number, attributes: Attributes, span: Span, error?: unknown): void {
+        // label the failure and end the span
         if (error !== undefined) {
             attributes["error.type"] =
                 error instanceof ServiceError ? String(error.status) : "internal";

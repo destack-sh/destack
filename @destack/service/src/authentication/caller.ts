@@ -40,6 +40,7 @@ export class Caller<Credential = unknown> {
 
     /** Build a current access context after enforcing audience and authentication freshness. */
     context(audience: PackageId, now = Date.now(), scope?: string): AccessContext {
+        // reject a different audience or scope and stale authentication
         const authentication = this.authentication;
         if (
             authentication.audience !== audience ||

@@ -48,9 +48,9 @@ export async function invokeProcedure<State extends Context>(
         }
     } catch (error) {
         if (audit) {
-            const denied =
+            const isDenied =
                 error instanceof ServiceError && (error.status === 401 || error.status === 403);
-            await recordAudit({ call, outcome: denied ? "denied" : "failed", error }, audit);
+            await recordAudit({ call, outcome: isDenied ? "denied" : "failed", error }, audit);
         }
         throw reportError(error);
     }
@@ -61,9 +61,9 @@ export async function invokeProcedure<State extends Context>(
         result = await next();
     } catch (error) {
         if (audit) {
-            const denied =
+            const isDenied =
                 error instanceof ServiceError && (error.status === 401 || error.status === 403);
-            await recordAudit({ call, outcome: denied ? "denied" : "failed", error }, audit);
+            await recordAudit({ call, outcome: isDenied ? "denied" : "failed", error }, audit);
         }
         throw reportError(error);
     }

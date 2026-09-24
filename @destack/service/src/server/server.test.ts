@@ -21,7 +21,7 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
     const implementation = implement(service)
         .$context<ServiceContext>()
         .use(({ next }) => next({ context: { application: "snapshot" } }));
-    const server = await Server.start({
+    const server = Server.start({
         ...hosting,
         health: new Health("snapshot"),
         drainTimeout: 1000,
@@ -65,7 +65,7 @@ test("reauthenticate completed snapshot subscriptions and report revoked access"
     }
 });
 
-test("drain complete HTTP response streams before disposing service resources", async () => {
+test("drain complete HTTP response streams before reporting the server stopped", async () => {
     // declare health and a stream whose completion the caller controls
     const release = Promise.withResolvers<void>();
     const readiness = new Health("reader");
@@ -87,10 +87,8 @@ test("drain complete HTTP response streams before disposing service resources", 
         }),
     });
 
-    // retain lifecycle calls while serving the declared procedures
-    const lifecycle: string[] = [];
     for (const callback of ["authenticate", "authorizeHost", "authorize"] as const) {
-        await expect(
+        expect(() =>
             Server.start({
                 ...hosting,
                 router,
@@ -98,9 +96,9 @@ test("drain complete HTTP response streams before disposing service resources", 
                 drainTimeout: 1000,
                 [callback]: undefined,
             } as unknown as ServerOptions),
-        ).rejects.toThrow(`${callback} must be configured before starting a server`);
+        ).toThrow(`${callback} must be configured before starting a server`);
     }
-    const server = await Server.start({
+    const server = Server.start({
         ...hosting,
         router,
         health: readiness,
@@ -115,12 +113,6 @@ test("drain complete HTTP response streams before disposing service resources", 
             }
         },
         responseHeaders: { "Cache-Control": "no-store" },
-        initialize: async () => {
-            lifecycle.push("initialize");
-        },
-        dispose: async () => {
-            lifecycle.push("dispose");
-        },
         drainTimeout: 1000,
     });
 
@@ -170,14 +162,13 @@ test("drain complete HTTP response streams before disposing service resources", 
     expect((await server.fetch(new Request("https://test.local/livez"))).status).toBe(200);
     expect((await server.fetch(new Request("https://test.local/read"))).status).toBe(503);
     expect((await server.fetch(new Request("https://test.local/auth/keys"))).status).toBe(503);
-    expect(lifecycle).toEqual(["initialize"]);
+    expect(server.health.status).toBe("draining");
 
-    // finish the response before disposing resources exactly once
+    // finish the response before reporting the server stopped
     release.resolve();
     expect(await stream.next()).toEqual({ done: false, value: "last" });
     expect(await stream.next()).toEqual({ done: true, value: undefined });
     await closing;
-    expect(lifecycle).toEqual(["initialize", "dispose"]);
     expect(server.health.check()).toEqual({ name: "reader", status: "stopped" });
 });
 
@@ -203,18 +194,16 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
         }),
     });
 
-    // observe cleanup independently of the caller's shutdown deadline
-    let disposed = false;
-    const disposal = Promise.withResolvers<void>();
-    const server = await Server.start({
+    // observe stopping independently of the caller's shutdown deadline
+    let isStopped = false;
+    const server = Server.start({
         ...hosting,
         router,
         health: new Health("work"),
-        dispose: async () => {
-            disposed = true;
-            disposal.resolve();
-        },
         drainTimeout: 5,
+    });
+    void server.stopped.then(() => {
+        isStopped = true;
     });
 
     // reject unauthenticated requests through the typed HTTP client
@@ -249,7 +238,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
     await entered.promise;
     try {
         await expect(server.close()).rejects.toMatchObject({ name: "TimeoutError" });
-        expect(disposed).toBe(false);
+        expect(isStopped).toBe(false);
         expect(server.health.status).toBe("draining");
     } finally {
         waiting.resolve();
@@ -257,7 +246,7 @@ test("serialize authentication failures and preserve drain timeout causes", asyn
 
     // finish cleanup after the request releases its resources
     await rejected;
-    await disposal.promise;
-    expect(disposed).toBe(true);
+    await server.stopped;
+    expect(isStopped).toBe(true);
     expect(server.health.status).toBe("stopped");
 });

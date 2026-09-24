@@ -1,8 +1,8 @@
-import { DeclarationReference } from "@destack/package/workload";
+import { DeclarationReference } from "@destack/package/declare";
 import { ResourceContext } from "@destack/resource/context";
 import { defineSchema, schema } from "@destack/schema";
 import type { ServiceConnection } from "../declare/connection.ts";
-import type { Service } from "../service/service.ts";
+import type { ServiceRouter } from "../service/service.ts";
 import { ServiceError } from "../error/index.ts";
 import { createClient, type ClientOptions } from "./client.ts";
 
@@ -19,7 +19,7 @@ export const ServiceConnectionBinding = defineSchema(
 export type ServiceConnectionBinding = schema.Infer<typeof ServiceConnectionBinding>;
 
 /** Bind a declared service client using host-selected routing and transport authentication. */
-export function bindServiceConnection<Router extends Service>(
+export function bindServiceConnection<Router extends ServiceRouter>(
     connection: ServiceConnection<Router>,
     binding: ServiceConnectionBinding,
     options: Omit<ClientOptions, "url">,
@@ -27,7 +27,7 @@ export function bindServiceConnection<Router extends Service>(
 ): void {
     // reject routing intended for a different declaration
     if (
-        binding.declaration.packageId !== connection.packageId ||
+        binding.declaration.packageId !== connection.package.id ||
         binding.declaration.name !== connection.name
     ) {
         throw new ServiceError("BAD_REQUEST", {

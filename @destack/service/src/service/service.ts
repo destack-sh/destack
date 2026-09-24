@@ -6,7 +6,7 @@ export * from "../declare/index.ts";
 export { eventIterator } from "@orpc/contract";
 
 export type {
-    AnyContractRouter as Service,
+    AnyContractRouter as ServiceRouter,
     ContractRouterClient as Client,
     InferContractRouterInputs as ServiceInputs,
     InferContractRouterOutputs as ServiceOutputs,

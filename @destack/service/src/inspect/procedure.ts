@@ -1,6 +1,6 @@
 import { defineSchema, schema, toJsonSchema } from "@destack/schema";
 import { type AnySchema, getEventIteratorSchemaDetails, isContractProcedure } from "@orpc/contract";
-import type { Service } from "../service/index.ts";
+import type { ServiceRouter } from "../service/index.ts";
 
 /** A JSON Schema describing a procedure value. */
 const JsonSchema = schema.record(schema.string(), schema.json());
@@ -60,7 +60,7 @@ export const ProcedureDescription = defineSchema(
 export type ProcedureDescription = schema.Infer<typeof ProcedureDescription>;
 
 /** Describe each procedure without executing its handler. */
-export function describeProcedures(service: Service): ProcedureDescription[] {
+export function describeProcedures(service: ServiceRouter): ProcedureDescription[] {
     // collect declared procedures in stable key order
     const procedures: ProcedureDescription[] = [];
     visit(service, [], new Set(), procedures);
@@ -70,21 +70,21 @@ export function describeProcedures(service: Service): ProcedureDescription[] {
 
 /** Traverse nested routers while rejecting recursive router objects. */
 function visit(
-    service: Service,
+    service: ServiceRouter,
     name: string[],
-    ancestors: Set<Service>,
+    ancestors: Set<ServiceRouter>,
     procedures: ProcedureDescription[],
 ): void {
     if (ancestors.has(service)) {
         throw new TypeError(`Cyclic service definition: ${name.join(".")}`);
     }
 
-    // preserve explicitly declared schemas independently of generated OpenAPI defaults
+    // describe a procedure from its declared schemas, independent of generated OpenAPI defaults
     if (isContractProcedure(service)) {
-        // describe declared error payloads
         const definition = service["~orpc"];
         const errors = Object.fromEntries(
             Object.entries(definition.errorMap).map(([code, value]) => {
+                // oxlint-disable-next-line destack/no-sludge -- oRPC error map field name
                 const error = value as { status?: number; message?: string; data?: AnySchema };
 
                 return [

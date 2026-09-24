@@ -1,7 +1,7 @@
 import { type ClientContext, createORPCClient } from "@orpc/client";
 import { injectContext } from "@destack/telemetry";
 import { OpenAPILink, type OpenAPILinkOptions } from "@orpc/openapi-client/fetch";
-import type { Client, Service } from "../service/index.ts";
+import type { Client, ServiceRouter } from "../service/index.ts";
 import { ServiceTelemetry } from "../telemetry/index.ts";
 
 /** Configure the service URL, request headers, fetch implementation, and interceptors. */
@@ -10,7 +10,7 @@ export type ClientOptions<Context extends ClientContext = Record<never, never>> 
 
 /** Create a typed HTTP client from a service definition. */
 export function createClient<
-    Definition extends Service,
+    Definition extends ServiceRouter,
     Context extends ClientContext = Record<never, never>,
 >(definition: Definition, options: ClientOptions<Context>): Client<Definition, Context> {
     // connect client tracing to the host's telemetry providers

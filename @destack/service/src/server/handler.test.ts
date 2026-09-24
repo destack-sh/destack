@@ -1,5 +1,3 @@
-import { PackageId } from "@destack/package/package";
-import packageDefinition from "../../destack.json" with { type: "json" };
 import { schema } from "@destack/schema";
 import { expect, test } from "@destack/test";
 import { startTelemetry } from "@destack/telemetry/host";
@@ -10,6 +8,7 @@ import { ServiceError } from "../error/index.ts";
 import { Health } from "../health/index.ts";
 import { defineProcedure, eventIterator } from "../service/index.ts";
 import { implement, ServiceHandler, type HandlerOptions } from "./handler.ts";
+import type {} from "@destack/package/import-meta";
 
 test("enforce access and audit requirements through streamed HTTP calls", async ({
     onTestFinished,
@@ -43,7 +42,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         read: defineProcedure({
             authentication: "identity",
             permission: {
-                packageId: PackageId.parse(packageDefinition.id),
+                packageId: import.meta.destack.package.id,
                 type: "notes",
                 name: "read",
             },
@@ -71,7 +70,7 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
         if (
             context.caller !== "alice" ||
             access.authentication !== "identity" ||
-            access.permission?.packageId !== packageDefinition.id ||
+            access.permission?.packageId !== import.meta.destack.package.id ||
             access.permission.type !== "notes" ||
             access.permission.name !== "read"
         ) {
@@ -206,8 +205,8 @@ test("enforce access and audit requirements through streamed HTTP calls", async 
 test("withhold streamed values after access revocation", async () => {
     const waiting = Promise.withResolvers<void>();
     const release = Promise.withResolvers<void>();
-    let allowed = true;
-    let closed = false;
+    let isAllowed = true;
+    let isClosed = false;
     const outcomes: string[] = [];
     const service = {
         watch: defineProcedure({ authentication: "identity", permission: null, audit: true })
@@ -222,7 +221,7 @@ test("withhold streamed values after access revocation", async () => {
                 await release.promise;
                 yield "private";
             } finally {
-                closed = true;
+                isClosed = true;
             }
         }),
     });
@@ -231,7 +230,7 @@ test("withhold streamed values after access revocation", async () => {
     const handler = new ServiceHandler(router, {
         health: new Health("watch"),
         authorize: async () => {
-            if (!allowed) {
+            if (!isAllowed) {
                 throw new ServiceError("FORBIDDEN");
             }
         },
@@ -257,10 +256,10 @@ test("withhold streamed values after access revocation", async () => {
     })();
     const rejected = expect(received).rejects.toMatchObject({ code: "FORBIDDEN", status: 403 });
     await waiting.promise;
-    allowed = false;
+    isAllowed = false;
     release.resolve();
     await rejected;
-    expect(closed).toBe(true);
+    expect(isClosed).toBe(true);
     expect(outcomes).toEqual(["started", "denied"]);
 });
 
