@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use destack_core::SectionEntry;
 use destack_serde::Reflect;
 
-use crate::{Discriminant, Reference, Storage, StorageSet, Tree, VariantEncoding};
+use crate::{Discriminant, Lifetime, Reference, Space, VariantEncoding};
 
 /// Reference trace map for one value layout.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -12,12 +12,14 @@ pub enum TraceMap {
     Empty,
     /// The payload stores reference words at fixed byte offsets.
     Fixed {
-        /// Byte offsets of references that may address the local heap.
+        /// Byte offsets of references that address the local heap.
         local_offsets: Box<[u32]>,
-        /// Byte offsets of references that may address the shared heap.
+        /// Byte offsets of references that address the shared heap.
         shared_offsets: Box<[u32]>,
-        /// Byte offsets of references that may address frames.
+        /// Byte offsets of references that address frames.
         frame_offsets: Box<[u32]>,
+        /// Byte offsets of borrows classified by address at run time.
+        borrow_offsets: Box<[u32]>,
     },
     /// The payload stores one nested map at a byte offset.
     Nested {
@@ -55,51 +57,38 @@ impl TraceMap {
         Self::Empty
     }
 
-    /// Trace a world-relative reference in each possible reclaimable storage category.
-    pub fn reference(kind: Reference, storage: Storage, tree: &Tree) -> Self {
-        if kind == Reference::Raw {
-            return Self::Empty;
-        }
+    /// Trace one reference word by the storage its kind and lifetime can address.
+    pub fn reference(kind: Reference, lifetime: &Lifetime) -> Self {
+        let mut local_offsets = Vec::new();
+        let mut shared_offsets = Vec::new();
+        let mut frame_offsets = Vec::new();
+        let mut borrow_offsets = Vec::new();
 
-        let storage = Self::reference_storage(storage, tree);
-        if storage.is_empty() {
-            return Self::Empty;
+        // file the word under each list it belongs to
+        match kind {
+            Reference::Raw | Reference::Managed(Space::Constant) => {}
+            Reference::Managed(Space::Local) => local_offsets.push(0),
+            Reference::Managed(Space::Shared) => shared_offsets.push(0),
+            // TODO #Broken: a unique allocation's heap is unknown until result-location typing lands
+            Reference::Unique => {
+                local_offsets.push(0);
+                shared_offsets.push(0);
+            }
+            Reference::Borrowed if lifetime.is_static() => {}
+            Reference::Borrowed if lifetime.is_frame() => frame_offsets.push(0),
+            Reference::Borrowed => borrow_offsets.push(0),
         }
+        let map = Self::Fixed {
+            local_offsets: local_offsets.into(),
+            shared_offsets: shared_offsets.into(),
+            frame_offsets: frame_offsets.into(),
+            borrow_offsets: borrow_offsets.into(),
+        };
 
-        Self::Fixed {
-            local_offsets: storage
-                .contains(StorageSet::LOCAL)
-                .then_some(0)
-                .into_iter()
-                .collect(),
-            shared_offsets: storage
-                .contains(StorageSet::SHARED)
-                .then_some(0)
-                .into_iter()
-                .collect(),
-            frame_offsets: storage
-                .contains(StorageSet::FRAME)
-                .then_some(0)
-                .into_iter()
-                .collect(),
-        }
-    }
-
-    /// Return the storage categories that can require tracing.
-    fn reference_storage(storage: Storage, tree: &Tree) -> StorageSet {
-        match storage {
-            Storage::Static(_) => StorageSet::NONE,
-            Storage::Join(id) => tree
-                .storage_join(id)
-                .iter()
-                .fold(StorageSet::NONE, |set, storage| {
-                    set.union(Self::reference_storage(*storage, tree))
-                }),
-            storage => storage.storage_set(tree).intersection(
-                StorageSet::LOCAL
-                    .union(StorageSet::SHARED)
-                    .union(StorageSet::FRAME),
-            ),
+        if map.has_reference() {
+            map
+        } else {
+            Self::Empty
         }
     }
 
@@ -141,17 +130,17 @@ impl TraceMap {
         }
     }
 
-    /// Return whether this map can reach any reference.
+    /// Return whether this map holds any reference.
     pub fn has_reference(&self) -> bool {
-        self.has_heap_reference() || self.has_frame_reference()
+        self.has_heap_reference() || self.has_frame_reference() || self.has_borrow_reference()
     }
 
-    /// Return whether this map can reach any heap reference.
+    /// Return whether this map holds any heap reference.
     pub fn has_heap_reference(&self) -> bool {
         self.has_local_reference() || self.has_shared_reference()
     }
 
-    /// Return whether this map can reach local heap references.
+    /// Return whether this map holds local heap references.
     pub fn has_local_reference(&self) -> bool {
         match self {
             Self::Empty => false,
@@ -163,7 +152,7 @@ impl TraceMap {
         }
     }
 
-    /// Return whether this map can reach shared heap references.
+    /// Return whether this map holds shared heap references.
     pub fn has_shared_reference(&self) -> bool {
         match self {
             Self::Empty => false,
@@ -175,7 +164,7 @@ impl TraceMap {
         }
     }
 
-    /// Return whether this map can reach frame references.
+    /// Return whether this map holds frame references.
     pub fn has_frame_reference(&self) -> bool {
         match self {
             Self::Empty => false,
@@ -184,6 +173,18 @@ impl TraceMap {
             Self::Composite { maps } => maps.iter().any(Self::has_frame_reference),
             Self::Repeated { count, element, .. } => *count > 0 && element.has_frame_reference(),
             Self::Variant { cases, .. } => cases.iter().any(|case| case.map.has_frame_reference()),
+        }
+    }
+
+    /// Return whether this map holds borrows classified by address.
+    pub fn has_borrow_reference(&self) -> bool {
+        match self {
+            Self::Empty => false,
+            Self::Fixed { borrow_offsets, .. } => !borrow_offsets.is_empty(),
+            Self::Nested { map, .. } => map.has_borrow_reference(),
+            Self::Composite { maps } => maps.iter().any(Self::has_borrow_reference),
+            Self::Repeated { count, element, .. } => *count > 0 && element.has_borrow_reference(),
+            Self::Variant { cases, .. } => cases.iter().any(|case| case.map.has_borrow_reference()),
         }
     }
 
