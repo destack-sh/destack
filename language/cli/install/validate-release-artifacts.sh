@@ -50,8 +50,8 @@ resolve_release_channel() {
 # resolve the release stability
 resolve_release_stability() {
     local stability_value="${DESTACK_RELEASE_STABILITY_INPUT}"
-    if [ -z "${stability_value}" ] && [ -f "dev/release/config.json" ]; then
-        stability_value="$(node -p 'JSON.parse(require("node:fs").readFileSync("dev/release/config.json", "utf8")).stability')"
+    if [ -z "${stability_value}" ] && [ -f "platform/release/config.json" ]; then
+        stability_value="$(node -p 'JSON.parse(require("node:fs").readFileSync("platform/release/config.json", "utf8")).stability')"
     fi
 
     case "${stability_value}" in
