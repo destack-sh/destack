@@ -127,7 +127,7 @@ runtime_run_linux_container_runtime_lane() {
 			apt-get install -y pkg-config python3 >/dev/null
 			rustup toolchain install '${toolchain_channel}' --profile minimal --component clippy >/dev/null
 			rustup default '${toolchain_channel}' >/dev/null
-			source /work/dev/toolchain/lib/runtime-common.sh
+			source /work/language/toolchain/lib/runtime-common.sh
 			runtime_set_standard_environment
 			export CARGO_BUILD_JOBS=1
 			export CARGO_PROFILE_DEV_DEBUG=0
@@ -164,7 +164,7 @@ runtime_run_linux_container_x11_lane() {
 			apt-get install -y ${container_packages} >/dev/null
 			rustup toolchain install '${toolchain_channel}' --profile minimal >/dev/null
 			rustup default '${toolchain_channel}' >/dev/null
-			source /work/dev/toolchain/lib/runtime-common.sh
+			source /work/language/toolchain/lib/runtime-common.sh
 			runtime_set_standard_environment
 			export CARGO_BUILD_JOBS=1
 			export CARGO_PROFILE_DEV_DEBUG=0
@@ -172,7 +172,7 @@ runtime_run_linux_container_x11_lane() {
 			export RUSTFLAGS='${container_rustflags}'
 			export CARGO_TARGET_DIR=/work/target/runtime-linux-x11-container
 			export DESTACK_X11_RUNTIME_TEST_FILTER='${test_filter}'
-			bash /work/dev/toolchain/check-runtime-linux-x11.sh
+			bash /work/language/toolchain/check-runtime-linux-x11.sh
 		"
 }
 

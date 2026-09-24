@@ -3,7 +3,7 @@ set -euo pipefail
 
 script_directory="$(cd "$(dirname "$0")" && pwd)"
 
-# shellcheck source=./dev/toolchain/lib/runtime-common.sh
+# shellcheck source=./language/toolchain/lib/runtime-common.sh
 source "${script_directory}/lib/runtime-common.sh"
 
 runtime_set_standard_environment

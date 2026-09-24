@@ -20,39 +20,39 @@ test-runtime-privileged:
 
 # install toolchain
 install-toolchain:
-    bash ../dev/toolchain/runtime-toolchain.sh install
+    bash ../language/toolchain/runtime-toolchain.sh install
 
 # doctor toolchain
 doctor-toolchain:
-    bash ../dev/toolchain/runtime-toolchain.sh doctor
+    bash ../language/toolchain/runtime-toolchain.sh doctor
 
 # ensure toolchain
 ensure-toolchain:
-    bash ../dev/toolchain/runtime-toolchain.sh ensure
+    bash ../language/toolchain/runtime-toolchain.sh ensure
 
 # lint toolchain
 lint-toolchain:
-    bash ../dev/toolchain/runtime-toolchain.sh lint
+    bash ../language/toolchain/runtime-toolchain.sh lint
 
 # check runtime linux
 check-runtime-linux:
-    bash ../dev/toolchain/check-runtime-linux.sh
+    bash ../language/toolchain/check-runtime-linux.sh
 
 # check runtime linux x11
 check-runtime-linux-x11:
-    bash ../dev/toolchain/check-runtime-linux-x11.sh
+    bash ../language/toolchain/check-runtime-linux-x11.sh
 
 # check runtime linux aarch64
 check-runtime-linux-aarch64:
-    bash ../dev/toolchain/check-runtime-linux-aarch64.sh
+    bash ../language/toolchain/check-runtime-linux-aarch64.sh
 
 # check runtime windows gnu
 check-runtime-windows-gnu:
-    bash ../dev/toolchain/check-runtime-windows-gnu.sh
+    bash ../language/toolchain/check-runtime-windows-gnu.sh
 
 # check runtime linux wayland
 check-runtime-linux-wayland:
-    bash ../dev/toolchain/check-runtime-linux-wayland.sh
+    bash ../language/toolchain/check-runtime-linux-wayland.sh
 
 # check runtime macos rust
 check-runtime-macos-rust:
@@ -66,7 +66,7 @@ check-runtime-macos:
 
 # check runtime windows msvc
 check-runtime-windows-msvc:
-    bash ../dev/toolchain/check-runtime-windows-msvc.sh
+    bash ../language/toolchain/check-runtime-windows-msvc.sh
 
 # build
 build:
