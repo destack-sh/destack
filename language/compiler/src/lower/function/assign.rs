@@ -145,7 +145,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // store through each arm's downcast place and rejoin
         let exit = self.builder.block();
-        for ((arm, chain), &(_, block)) in arms.iter().zip(&chains).zip(&targets) {
+        for ((arm, chain), &(case, block)) in arms.iter().zip(&chains).zip(&targets) {
             self.builder.switch_to_block(block);
 
             // project the dispatched case and the arm's remaining steps
@@ -153,7 +153,7 @@ impl FunctionLowerer<'_, '_, '_> {
             let mut arm_place = place.clone();
             arm_place
                 .path
-                .push(PlaceProjection::Downcast { ty: payload });
+                .push(PlaceProjection::Downcast { case, ty: payload });
             let mut arm_place = self.project_place_adjustments(arm_place, &chain[prefix + 1..])?;
 
             // project the written field on this arm

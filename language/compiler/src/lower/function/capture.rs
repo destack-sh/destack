@@ -27,6 +27,19 @@ enum EnvironmentEntry {
 }
 
 impl FunctionLowerer<'_, '_, '_> {
+    /// Release one moved-out environment allocation as uninitialized storage.
+    pub(in crate::lower) fn release_emptied(
+        &mut self,
+        environment: mir::Value,
+        reference: mir::TypeId,
+    ) {
+        let emptied = self.builder.tree_mut().emptied_type(reference);
+        let environment = self
+            .builder
+            .cast(mir::CastOperator::Bitcast, environment, emptied);
+        self.builder.release(environment);
+    }
+
     /// Bind the captured environment of one closure body, a once body taking it whole.
     pub(in crate::lower) fn bind_captures(
         &mut self,
@@ -49,9 +62,10 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // take an owned environment out of its allocation, an entry leaving it to its body
         let taken = match (kind, is_entry) {
-            (mir::ReferenceKind::Unique, false) => {
-                let taken = self.builder.load(environment, pointee);
-                self.builder.release(environment);
+            (mir::Reference::Unique, false) => {
+                let place = mir::Place::value(environment).with_projection(mir::Projection::Deref);
+                let taken = self.load_place(place, pointee);
+                self.release_emptied(environment, reference);
 
                 Some(taken)
             }
@@ -84,14 +98,14 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
                 EnvironmentEntry::This { ty } => {
                     let ty = self.lower_type(*ty)?;
-                    let value = self.environment_field(taken, environment, index, ty);
+                    let value = self.environment_field(taken, environment, index, ty)?;
                     let local = self.home(value);
                     self.this = Some(Binding::Local(local));
                 }
                 EnvironmentEntry::Frame { frame } => {
                     let frame = self.source().captures.get_frame(*frame).clone();
                     let frame_type = self.lower_type(frame.ty)?;
-                    let loaded = self.environment_field(taken, environment, index, frame_type);
+                    let loaded = self.environment_field(taken, environment, index, frame_type)?;
                     self.frames.insert(frame.scope, loaded);
                     self.bind_frame_captures(&capture, &frame, frame_type, loaded)?;
                 }
@@ -107,23 +121,23 @@ impl FunctionLowerer<'_, '_, '_> {
         taken: Option<mir::Value>,
         environment: mir::Value,
         index: u32,
-        ty: mir::LocalNodeId<mir::Type>,
-    ) -> mir::Value {
-        match taken {
+        ty: mir::TypeId,
+    ) -> CompilerResult<mir::Value> {
+        Ok(match taken {
             Some(taken) => self.builder.field_get(taken, index),
-            None => {
-                let address = self.field_address(environment, index, ty, mir::Access::Readonly);
-
-                self.builder.load(address, ty)
-            }
-        }
+            None => self.read_binding(Binding::Captured {
+                frame: environment,
+                field: index,
+                ty,
+            })?,
+        })
     }
 
     /// Return the kind one closure owns its environment in, as its capture record decides.
-    fn environment_kind(&self, capture: &dir::Capture) -> mir::ReferenceKind {
+    fn environment_kind(&self, capture: &dir::Capture) -> mir::Reference {
         match capture.ownership {
-            dir::Ownership::Owned => mir::ReferenceKind::Unique,
-            _ => mir::ReferenceKind::Managed,
+            dir::Ownership::Owned => mir::Reference::Unique,
+            _ => mir::Reference::Managed(mir::Space::Local),
         }
     }
 
@@ -132,7 +146,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         capture: &dir::Capture,
         frame: &dir::CaptureFrame,
-        frame_type: mir::LocalNodeId<mir::Type>,
+        frame_type: mir::TypeId,
         environment: mir::Value,
     ) -> CompilerResult<()> {
         for (field, entry) in frame.fields.iter().enumerate() {
@@ -161,7 +175,7 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn capture_environment_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<mir::LocalNodeId<mir::Type>>> {
+    ) -> CompilerResult<Option<mir::TypeId>> {
         let Some(capture) = self.source().captures.capture(symbol) else {
             return Ok(None);
         };
@@ -200,7 +214,7 @@ impl FunctionLowerer<'_, '_, '_> {
                         });
                     };
 
-                    self.read_binding(binding)
+                    self.read_binding(binding)?
                 }
                 EnvironmentEntry::This { ty } => {
                     let Some(binding) = self.this else {
@@ -208,7 +222,7 @@ impl FunctionLowerer<'_, '_, '_> {
                             message: "a captured receiver outside a method".to_string(),
                         });
                     };
-                    let value = self.read_binding(binding);
+                    let value = self.read_binding(binding)?;
 
                     self.constructed_this_at(*ty, value)?
                 }
@@ -230,7 +244,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the capture environment this body receives, either forwarded or read from the frame.
-    fn received_environment(&mut self, reference: mir::LocalNodeId<mir::Type>) -> mir::Value {
+    fn received_environment(&mut self, reference: mir::TypeId) -> mir::Value {
         match self.captures {
             Some(environment) => environment,
             None => self.builder.function_environment_current(reference),
@@ -279,8 +293,8 @@ impl FunctionLowerer<'_, '_, '_> {
     fn environment_types(
         &mut self,
         entries: &[EnvironmentEntry],
-        kind: mir::ReferenceKind,
-    ) -> CompilerResult<(mir::LocalNodeId<mir::Type>, mir::LocalNodeId<mir::Type>)> {
+        kind: mir::Reference,
+    ) -> CompilerResult<(mir::TypeId, mir::TypeId)> {
         let mut slots = Vec::with_capacity(entries.len());
         for entry in entries {
             let ty = match entry {
@@ -302,33 +316,30 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Intern the struct holding one environment's slots and the reference addressing it.
     pub(in crate::lower) fn environment_reference_types(
         &mut self,
-        slots: &[mir::LocalNodeId<mir::Type>],
-        kind: mir::ReferenceKind,
-    ) -> (mir::LocalNodeId<mir::Type>, mir::LocalNodeId<mir::Type>) {
+        slots: &[mir::TypeId],
+        kind: mir::Reference,
+    ) -> (mir::TypeId, mir::TypeId) {
         let fields = slots
             .iter()
             .map(|ty| {
-                self.builder.tree_mut().intern_field(
-                    mir::Field {
-                        name: None,
-                        ty: mir::TypeId::from(*ty),
-                    },
-                    Vec::new(),
-                )
+                self.builder.tree_mut().intern_field(mir::Field {
+                    name: None,
+                    ty: *ty,
+                    attributes: Vec::new(),
+                })
             })
             .collect();
-        let pointee = self.builder.tree_mut().intern_type(mir::Type::Struct {
-            fields,
-            copy: mir::Copy::No,
-        });
+        let pointee = self
+            .builder
+            .tree_mut()
+            .intern_type(mir::Type::Struct { fields });
         let lifetime = match kind {
-            mir::ReferenceKind::Borrowed => mir::Lifetime::frame(),
+            mir::Reference::Borrowed => mir::Lifetime::frame(),
             _ => mir::Lifetime::empty(),
         };
         let reference = self.builder.tree_mut().intern_type(mir::Type::Reference {
             kind,
             lifetime,
-            storage: mir::Storage::Heap(mir::Space::Local),
             access: mir::Access::Mutable,
             pointee,
         });
@@ -350,8 +361,10 @@ impl FunctionLowerer<'_, '_, '_> {
         let frame = self.allocate_frame_maybe(scope, frame_ty)?;
         let frame_type = self.lower_type(frame_ty)?;
         let ty = self.frame_field_type(frame_type, field)?;
-        let address = self.field_address(frame, field, ty, mir::Access::Mutable);
-        self.builder.store(address, value);
+        let place = mir::Place::value(frame)
+            .with_projection(mir::Projection::Deref)
+            .with_projection(mir::Projection::Field { index: field });
+        self.builder.store(place, value);
         self.values
             .insert(symbol.local_id, Binding::Captured { frame, field, ty });
 
@@ -396,18 +409,15 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
         let pointee = *pointee;
-        let frame = self.builder.new_zeroed(pointee, frame_type);
+        let space = self.allocation_space(frame_type)?;
+        let frame = self.builder.new_zeroed(pointee, frame_type, space);
         self.frames.insert(scope, frame);
 
         Ok(frame)
     }
 
     /// Return the stored field type at one index of a lifted frame.
-    fn frame_field_type(
-        &self,
-        frame_type: mir::LocalNodeId<mir::Type>,
-        field: u32,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    fn frame_field_type(&self, frame_type: mir::TypeId, field: u32) -> CompilerResult<mir::TypeId> {
         // peel the managed reference down to its struct storage
         let tree = self.builder.tree();
         let mir::Type::Reference { pointee, .. } = tree.get(frame_type) else {

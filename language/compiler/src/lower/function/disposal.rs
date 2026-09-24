@@ -3,7 +3,7 @@ use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
 use crate::lower::function::lower::Binding;
-use crate::lower::function::place::PlaceProjection;
+use crate::lower::function::operand::Operand;
 use crate::{CompilerError, CompilerResult};
 
 /// One action a scope runs on every way out of it.
@@ -148,18 +148,26 @@ impl FunctionLowerer<'_, '_, '_> {
             }
         };
 
-        // branch around an absent resource
-        let value = self.read_binding(home);
-        let join = match self.split_absent(value)? {
-            Some((present, absent)) => {
-                let join = self.builder.block();
-                self.builder.switch_to_block(absent);
-                self.builder.jump(join);
-                self.builder.switch_to_block(present);
+        // inspect the tag without moving the resource
+        let held = self.binding_representation(home);
+        let cases = self.nullish_cases(held);
+        let join = if cases.is_empty() {
+            None
+        } else {
+            // switch each nullish case to the absent block
+            let place = self.binding_home(home)?;
+            let present = self.builder.block();
+            let absent = self.builder.block();
+            let join = self.builder.block();
+            let targets = cases.into_iter().map(|case| (case, absent)).collect();
+            self.switch_place(&place, Some(present), targets)?;
 
-                Some(join)
-            }
-            None => None,
+            // skip the disposal of an absent resource
+            self.builder.switch_to_block(absent);
+            self.builder.jump(join);
+            self.builder.switch_to_block(present);
+
+            Some(join)
         };
 
         // call the disposal on the homed resource
@@ -207,27 +215,8 @@ impl FunctionLowerer<'_, '_, '_> {
                         message: "a disposal call without a selected receiver".to_string(),
                     });
                 };
-                let receiver = match adjusted.adjustments.as_slice() {
-                    // borrow the home in place, a union home at its present arm
-                    [dir::ReceiverAdjustment::Borrow { ty }, rest @ ..] => {
-                        let target = self.lower_type(*ty)?;
-                        let mut place = self.binding_home(home)?;
-                        let held = self.binding_representation(home);
-                        if matches!(self.builder.tree().get(held), mir::Type::Variant { .. }) {
-                            let arm = self.lower_type(adjusted.source)?;
-                            place.path.push(PlaceProjection::Downcast { ty: arm });
-                        }
-                        let borrowed =
-                            self.borrow_place(&place, target, mir::AddressKind::Borrow)?;
-
-                        self.lower_receiver_adjustments(borrowed, rest)?
-                    }
-                    adjustments => {
-                        let value = self.read_binding(home);
-
-                        self.lower_receiver_adjustments(value, adjustments)?
-                    }
-                };
+                let place = self.binding_home(home)?;
+                let receiver = self.adjust_receiver(Operand::Place(place), adjusted)?;
 
                 self.lower_direct_call(Some(receiver), &function.key, call)
             }
@@ -237,21 +226,18 @@ impl FunctionLowerer<'_, '_, '_> {
                 function: dir::DynamicFunction::Symbol(symbol),
                 ..
             } => {
-                let receiver = self.read_binding(home);
+                let receiver = self.read_binding(home)?;
                 let receiver =
                     self.lower_receiver_adjustments(receiver, &dispatch.receiver.adjustments)?;
 
-                self.lower_dynamic_symbol_call(receiver, dispatch, *symbol, &call.arguments)
+                self.lower_dynamic_symbol_call(receiver, dispatch, *symbol, call)
             }
             _ => Err(self.unsupported("a virtual disposal call")),
         }
     }
 
     /// Return the representation one binding's home holds.
-    pub(in crate::lower) fn binding_representation(
-        &self,
-        home: Binding,
-    ) -> mir::LocalNodeId<mir::Type> {
+    pub(in crate::lower) fn binding_representation(&self, home: Binding) -> mir::TypeId {
         match home {
             Binding::Local(local) => self.builder.tree().get(local).ty,
             Binding::Captured { ty, .. } => ty,

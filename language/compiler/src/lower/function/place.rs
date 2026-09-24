@@ -9,7 +9,7 @@ use crate::{CompilerError, CompilerResult};
 /// One resolved place base.
 #[derive(Clone, Copy)]
 pub(in crate::lower) enum PlaceRoot {
-    /// A mutable local holding the base aggregate.
+    /// A local holding the base aggregate.
     Local(mir::LocalNodeId<mir::Local>),
     /// A module global holding the base aggregate.
     Global(mir::LocalNodeId<mir::Global>),
@@ -30,12 +30,14 @@ pub(in crate::lower) enum PlaceProjection {
         /// The field index within its aggregate.
         field: u32,
         /// The projected value type.
-        ty: mir::LocalNodeId<mir::Type>,
+        ty: mir::TypeId,
     },
     /// One union case selected behind the variant discriminant.
     Downcast {
-        /// The case payload type, resolved to its case in the addressed variant.
-        ty: mir::LocalNodeId<mir::Type>,
+        /// The case index in the union order.
+        case: u32,
+        /// The case payload type.
+        ty: mir::TypeId,
     },
 }
 
@@ -101,10 +103,7 @@ impl FunctionLowerer<'_, '_, '_> {
             }
             // write through the reference a dereference reads
             dir::WriteResolution::Dereference(dir::OperationResolution::One(
-                dir::Dereference {
-                    target: dir::DereferenceTarget::Direct,
-                    ..
-                },
+                dir::Dereference { protocol: None, .. },
             )) => {
                 let dir::Expression::Unary { right, .. } = *self.source().tree().get(source) else {
                     return Err(CompilerError::Internal {
@@ -130,17 +129,16 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return one type through its lifetime application and representation.
-    pub(in crate::lower) fn resolved_type(
-        &self,
-        ty: mir::LocalNodeId<mir::Type>,
-    ) -> mir::LocalNodeId<mir::Type> {
-        self.builder.tree().represented(ty)
+    pub(in crate::lower) fn resolved_type(&mut self, ty: mir::TypeId) -> mir::TypeId {
+        mir::Substitution::resolve(ty, self.builder.tree_mut())
     }
 
     /// Return whether one home holds a reference a place can root at.
-    fn is_reference_local(&self, held: mir::LocalNodeId<mir::Type>) -> bool {
+    fn is_reference_local(&mut self, held: mir::TypeId) -> bool {
+        let held = self.resolved_type(held);
+
         matches!(
-            self.builder.tree().get(self.resolved_type(held)),
+            self.builder.tree().get(held),
             mir::Type::Reference { .. } | mir::Type::Pointer { .. }
         )
     }
@@ -205,6 +203,14 @@ impl FunctionLowerer<'_, '_, '_> {
             return self.reference_place(expression);
         }
 
+        self.storage_place(expression)
+    }
+
+    /// Return the place one expression's own storage occupies.
+    fn storage_place(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Place> {
         match *self.source().tree().get(expression) {
             // a written dereference names the place behind its reference
             dir::Expression::Unary {
@@ -267,12 +273,9 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<bool> {
-        let node = expression.into_global_any(self.source);
-        let Some(narrowing) = self.source().decisions.narrowing(node).cloned() else {
-            return Ok(false);
-        };
-
-        Ok(narrowing.arms.len() > 1)
+        Ok(self
+            .representation_narrowing(expression)?
+            .is_some_and(|narrowing| narrowing.arms.len() > 1))
     }
 
     /// Project one place onto the one case a read's narrowing proves, else keep it whole.
@@ -281,12 +284,11 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         place: Place,
     ) -> CompilerResult<Place> {
-        let node = expression.into_global_any(self.source);
-        let Some(narrowing) = self.source().decisions.narrowing(node).cloned() else {
+        let Some(narrowing) = self.representation_narrowing(expression)? else {
             return Ok(place);
         };
         match narrowing.arms.as_slice() {
-            [member] => self.downcast_place(place, *member),
+            [member] => self.downcast_place(place, narrowing.union, *member),
             _ => Ok(place),
         }
     }
@@ -296,12 +298,12 @@ impl FunctionLowerer<'_, '_, '_> {
         let held = self.place_type(&place)?;
         let held = self.resolved_type(held);
         if !matches!(
-            self.builder.tree().get(held),
+            self.builder.tree().type_definition(held),
             mir::Type::Reference { .. } | mir::Type::Pointer { .. }
         ) {
             return Ok(place);
         }
-        let value = self.read_place(&place)?;
+        let value = self.place_reborrow(&place)?;
         let Some((reference, access)) = self.innermost_reference(value, None)? else {
             return Ok(Place::local(self.home(value)));
         };
@@ -457,23 +459,36 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Place> {
         for step in steps {
             match step {
-                // unwrap a newtype layer as its payload field, a transparent layer staying put
-                dir::ReceiverAdjustment::NewtypePayload { ty, .. } => {
-                    let held = self.place_type(&place)?;
-                    let held = self.builder.tree().represented(held);
-                    if !matches!(self.builder.tree().get(held), mir::Type::Newtype { .. }) {
-                        continue;
+                // unwrap a newtype layer as its payload field, an intrinsic newtype as is
+                dir::ReceiverAdjustment::NewtypePayload { key, .. } => {
+                    let backing = match self.lower.definition(key.symbol)? {
+                        Some(dir::Definition::Newtype(newtype)) => Some(newtype.backing),
+                        _ => None,
+                    };
+                    let is_intrinsic = match backing {
+                        Some(backing) => matches!(self.lower.ty(backing)?, dir::Type::Intrinsic),
+                        None => false,
+                    };
+                    if !is_intrinsic {
+                        let held = self.place_type(&place)?;
+                        let held = mir::Substitution::resolve(held, self.builder.tree_mut());
+                        let mir::Type::Newtype { inner, .. } =
+                            *self.builder.tree().type_definition(held)
+                        else {
+                            return Err(self.internal("a newtype payload over a non-newtype place"));
+                        };
+                        place.path.push(PlaceProjection::Field {
+                            field: 0,
+                            ty: inner,
+                        });
                     }
-                    let ty = *ty;
-                    let ty = self.lower_type(ty)?;
-                    place.path.push(PlaceProjection::Field { field: 0, ty });
                 }
-                // read the reference and root the place behind it, a view strip keeping it
+                // read the reference and root the place behind it, a view keeping it
                 dir::ReceiverAdjustment::Dereference(dereference) => {
-                    if self.is_view_strip(dereference)? {
+                    if self.dereference_is_view(dereference)? {
                         continue;
                     }
-                    let value = self.read_place(&place)?;
+                    let value = self.place_reborrow(&place)?;
                     let received = self.value_representation(value)?;
                     let Some(access) = self.rooted_access(received) else {
                         return Err(CompilerError::Internal {
@@ -485,21 +500,22 @@ impl FunctionLowerer<'_, '_, '_> {
                         path: Vec::new(),
                     };
                 }
-                // project a flow-proven union case behind its discriminant, a niched union whole
-                dir::ReceiverAdjustment::UnionPayload { ty, .. } => {
-                    let held = self.place_type(&place)?;
-                    let held = self.builder.tree().represented(held);
-                    if !matches!(self.builder.tree().get(held), mir::Type::Variant { .. }) {
+                // project the flow-proven union case, a niched union as is
+                dir::ReceiverAdjustment::UnionPayload { union, arm, .. } => {
+                    let Some(variant) = self.place_variant(&place)? else {
                         continue;
-                    }
-                    let ty = *ty;
-                    let ty = self.lower_type(ty)?;
-                    place.path.push(PlaceProjection::Downcast { ty });
+                    };
+                    let members = self.lower.union_members(*union)?;
+                    let case = self.case(&members, *arm)?;
+                    let Some(ty) = self.builder.tree_mut().case_payload(variant, case) else {
+                        return Err(self.internal("a union payload outside the variant cases"));
+                    };
+                    place.path.push(PlaceProjection::Downcast { case, ty });
                 }
-                // report a borrow adjustment inside a place path
-                dir::ReceiverAdjustment::Borrow { .. } => {
+                // report a call adjustment inside a place path
+                dir::ReceiverAdjustment::Borrow { .. } | dir::ReceiverAdjustment::Upcast { .. } => {
                     return Err(CompilerError::Internal {
-                        message: "a place walking a borrow adjustment".to_string(),
+                        message: "a place walking a call adjustment".to_string(),
                     });
                 }
             }
@@ -513,23 +529,16 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         reference: mir::Value,
         index: u32,
-        field: mir::LocalNodeId<mir::Type>,
+        field: mir::TypeId,
         access: mir::Access,
-    ) -> mir::Value {
-        // interior addresses inherit the base reference's storage
+    ) -> CompilerResult<mir::Value> {
         let mut pointee = field;
-        let mut storage = mir::Storage::Heap(mir::Space::Local);
-        if let Some(ty) = self.builder.value_type(reference)
-            && let Some(base) = self.builder.tree().get(ty).reference_storage()
-        {
-            storage = base;
-        }
 
         // project an uninitialized field out of an uninitialized aggregate
         if let Some(ty) = self.builder.value_type(reference)
             && let mir::Type::Reference {
                 pointee: aggregate, ..
-            } = self.builder.tree().get(ty)
+            } = self.builder.tree().type_definition(ty)
             && matches!(
                 self.builder.tree().get(*aggregate),
                 mir::Type::Uninit { .. }
@@ -544,15 +553,164 @@ impl FunctionLowerer<'_, '_, '_> {
         // borrow interior addresses from the object reference, for as long as it lives
         let lifetime = self.reborrow_lifetime(reference);
         let address = self.builder.tree_mut().intern_type(mir::Type::Reference {
-            kind: mir::ReferenceKind::Borrowed,
+            kind: mir::Reference::Borrowed,
             lifetime,
-            storage,
             access,
             pointee,
         });
 
-        self.builder
-            .field_addr(reference, index, address, mir::AddressKind::Projection)
+        let place = mir::Place::value(reference)
+            .with_projection(mir::Projection::Deref)
+            .with_projection(mir::Projection::Field { index });
+
+        Ok(self.builder.address(place, address))
+    }
+
+    /// Read a stored reference as a borrowed view without transferring its owner.
+    pub(in crate::lower) fn dereference(
+        &mut self,
+        pointer: mir::Value,
+    ) -> CompilerResult<mir::Value> {
+        let stored = self.reference_pointee(pointer)?;
+        let held = self.value_representation(pointer)?;
+        let through = self
+            .rooted_access(held)
+            .ok_or_else(|| CompilerError::Internal {
+                message: "a dereference through a pointer without a rooted access".to_string(),
+            })?;
+        let place = mir::Place::value(pointer).with_projection(mir::Projection::Deref);
+
+        // view a stored handle's object for the object's life, else for the pointer's extent
+        let is_handle = matches!(
+            self.builder.tree().type_definition(stored).reference_kind(),
+            Some(mir::Reference::Managed(_))
+        );
+        let lifetime = if is_handle {
+            self.reborrow_lifetime_of(stored)
+        } else {
+            self.reborrow_lifetime(pointer)
+        };
+
+        // load a raw pointer, read a handle out at the view type, else borrow the referent
+        let Some(target) = self.reborrowed_type(stored, through, lifetime)? else {
+            return Ok(self.load_place(place, stored));
+        };
+        if is_handle {
+            // view a handle's object at the path's access
+            let view = self.builder.tree().get(target).clone();
+            let target = self
+                .builder
+                .tree_mut()
+                .intern_type(view.with_reference_access(through));
+            let handle = self.load_place(place, stored);
+
+            return Ok(self
+                .builder
+                .cast(mir::CastOperator::Bitcast, handle, target));
+        }
+
+        Ok(self
+            .builder
+            .address(place.with_projection(mir::Projection::Deref), target))
+    }
+
+    /// Return the access one global's space grants.
+    fn global_access(&self, global: mir::LocalNodeId<mir::Global>) -> mir::Access {
+        match self.builder.tree().get(global).space {
+            mir::Space::Local | mir::Space::Shared => mir::Access::Mutable,
+            mir::Space::Constant => mir::Access::Readonly,
+        }
+    }
+
+    /// Reborrow the reference one place holds through the place itself.
+    pub(in crate::lower) fn place_reborrow(&mut self, place: &Place) -> CompilerResult<mir::Value> {
+        let held = self.place_type(place)?;
+        let held = self.resolved_type(held);
+        let slot = place.lower(self)?;
+
+        // grant at most the access the root lends
+        let through = match place.root {
+            PlaceRoot::Reference { access, .. } => access,
+            PlaceRoot::Local(_) => mir::Access::Exclusive,
+            PlaceRoot::Global(global) => self.global_access(global),
+        };
+        let lifetime = self.reborrow_lifetime_of(held);
+
+        // load a raw pointer, else borrow the referent
+        let Some(target) = self.reborrowed_type(held, through, lifetime)? else {
+            return Ok(self.load_place(slot, held));
+        };
+
+        Ok(self
+            .builder
+            .address(slot.with_projection(mir::Projection::Deref), target))
+    }
+
+    /// Return one stored reference's type reborrowed at a lifetime and access, none for a pointer.
+    fn reborrowed_type(
+        &mut self,
+        held: mir::TypeId,
+        through: mir::Access,
+        lifetime: mir::Lifetime,
+    ) -> CompilerResult<Option<mir::TypeId>> {
+        let mut target = self.builder.tree().type_definition(held).clone();
+        match &mut target {
+            mir::Type::Reference {
+                kind,
+                lifetime: extent,
+                access,
+                ..
+            }
+            | mir::Type::Slice {
+                kind,
+                lifetime: extent,
+                access,
+                ..
+            }
+            | mir::Type::Dynamic {
+                kind,
+                lifetime: extent,
+                access,
+                ..
+            }
+            | mir::Type::Function {
+                kind,
+                lifetime: extent,
+                access,
+                ..
+            } => {
+                *kind = mir::Reference::Borrowed;
+                *extent = lifetime;
+                *access = access.meet(through);
+            }
+            mir::Type::Pointer { .. } => return Ok(None),
+            _ => return Err(self.internal("a reborrow of storage without a reference")),
+        }
+
+        Ok(Some(self.builder.tree_mut().intern_type(target)))
+    }
+
+    /// Reborrow one borrowed or unique reference at a target type.
+    pub(in crate::lower) fn reborrow_or_reinterpret(
+        &mut self,
+        value: mir::Value,
+        target: mir::TypeId,
+    ) -> CompilerResult<mir::Value> {
+        let received = self.value_representation(value)?;
+        let kind = self
+            .builder
+            .tree()
+            .type_definition(received)
+            .reference_kind();
+
+        Ok(match kind {
+            Some(mir::Reference::Borrowed | mir::Reference::Unique) => {
+                let referent = mir::Place::value(value).with_projection(mir::Projection::Deref);
+
+                self.builder.address(referent, target)
+            }
+            _ => self.builder.cast(mir::CastOperator::Bitcast, value, target),
+        })
     }
 
     /// Load the references stored behind an address until it addresses an aggregate.
@@ -560,14 +718,15 @@ impl FunctionLowerer<'_, '_, '_> {
         // load one reference layer at a time until the pointee is an aggregate
         loop {
             let pointee = self.reference_pointee(address)?;
+            let pointee = self.resolved_type(pointee);
             if !matches!(
-                self.builder.tree().get(self.resolved_type(pointee)),
+                self.builder.tree().get(pointee),
                 mir::Type::Reference { .. } | mir::Type::Pointer { .. }
             ) {
                 return Ok(address);
             }
 
-            address = self.builder.load(address, pointee);
+            address = self.dereference(address)?;
         }
     }
 
@@ -575,43 +734,31 @@ impl FunctionLowerer<'_, '_, '_> {
     fn payload_address(
         &mut self,
         reference: mir::Value,
-        payload: mir::LocalNodeId<mir::Type>,
+        case: u32,
+        payload: mir::TypeId,
         access: mir::Access,
-        leaf: Option<(mir::LocalNodeId<mir::Type>, mir::AddressKind)>,
+        leaf: Option<mir::TypeId>,
     ) -> CompilerResult<mir::Value> {
-        // find the case in the addressed variant by its payload representation
-        let received = self.value_representation(reference)?;
-        let (storage, pointee) = match self.builder.tree().get(self.resolved_type(received)) {
-            mir::Type::Reference {
-                storage, pointee, ..
-            } => (*storage, *pointee),
-            _ => {
-                return Err(CompilerError::Internal {
-                    message: "a payload address through a non-reference value".to_string(),
-                });
-            }
-        };
-        let case = self.payload_case(pointee, payload)?;
-
         // address the payload at the leaf form the caller asked for, or borrow it
-        let (address, kind) = match leaf {
+        let address = match leaf {
             Some(leaf) => leaf,
             None => {
                 let lifetime = self.reborrow_lifetime(reference);
-                let address = self.builder.tree_mut().intern_type(mir::Type::Reference {
-                    kind: mir::ReferenceKind::Borrowed,
+
+                self.builder.tree_mut().intern_type(mir::Type::Reference {
+                    kind: mir::Reference::Borrowed,
                     lifetime,
-                    storage,
                     access,
                     pointee: payload,
-                });
-                (address, mir::AddressKind::Projection)
+                })
             }
         };
 
-        Ok(self
-            .builder
-            .variant_payload_addr(reference, case, address, kind))
+        let place = mir::Place::value(reference)
+            .with_projection(mir::Projection::Deref)
+            .with_projection(mir::Projection::Variant { case });
+
+        Ok(self.builder.address(place, address))
     }
 
     /// Return the place one reference expression addresses, rooted at the reference value.
@@ -627,6 +774,7 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
         let received = self.value_representation(value)?;
+        let received = self.resolved_type(received);
         let Some(access) = self.rooted_access(received) else {
             return Err(CompilerError::Internal {
                 message: "a reference receiver without an indirection".to_string(),
@@ -656,20 +804,12 @@ impl FunctionLowerer<'_, '_, '_> {
         )
     }
 
-    /// Return whether one local's value copies.
-    pub(in crate::lower) fn copies_local(&self, local: mir::LocalNodeId<mir::Local>) -> bool {
-        let ty = self.builder.tree().get(local).ty;
-
-        self.copies(mir::TypeId::from(ty))
-    }
-
     /// Return the type one place holds.
-    pub(in crate::lower) fn place_type(
-        &self,
-        place: &Place,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    pub(in crate::lower) fn place_type(&mut self, place: &Place) -> CompilerResult<mir::TypeId> {
         match place.path.last() {
-            Some(PlaceProjection::Field { ty, .. } | PlaceProjection::Downcast { ty }) => Ok(*ty),
+            Some(PlaceProjection::Field { ty, .. } | PlaceProjection::Downcast { ty, .. }) => {
+                Ok(*ty)
+            }
             None => match place.root {
                 PlaceRoot::Local(local) => Ok(self.builder.tree().get(local).ty),
                 PlaceRoot::Global(global) => Ok(self.builder.tree().get(global).ty),
@@ -678,36 +818,34 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Read one place: a whole or copied local by value, every other place through its address.
+    /// Read one place, loading its value.
     pub(in crate::lower) fn read_place(&mut self, place: &Place) -> CompilerResult<mir::Value> {
-        if let PlaceRoot::Local(local) = place.root
-            && (place.path.is_empty() || self.copies_local(local))
-        {
-            let mut value = self.builder.local_get(local);
-            for projection in &place.path {
-                value = match *projection {
-                    PlaceProjection::Field { field, .. } => self.builder.field_get(value, field),
-                    PlaceProjection::Downcast { ty } => {
-                        let held = self.value_representation(value)?;
-                        let variant = self.builder.tree().represented(held);
-                        let case = self.payload_case(variant, ty)?;
+        let ty = self.place_type(place)?;
+        let place = place.lower(self)?;
 
-                        self.builder.variant_payload(value, case)
-                    }
-                };
-            }
+        Ok(self.load_place(place, ty))
+    }
 
-            return Ok(value);
+    /// Load one place, a moving reference reborrowed at each read instead.
+    pub(in crate::lower) fn load_place(
+        &mut self,
+        place: mir::Place,
+        ty: mir::TypeId,
+    ) -> mir::Value {
+        // reborrow every read of a non-copy borrow
+        let is_reborrow = matches!(
+            self.builder.tree().type_definition(ty),
+            mir::Type::Reference { kind: mir::Reference::Borrowed, access, .. }
+            | mir::Type::Slice { kind: mir::Reference::Borrowed, access, .. }
+            if !access.copies()
+        );
+        if is_reborrow {
+            let referent = place.with_projection(mir::Projection::Deref);
+
+            return self.builder.address(referent, ty);
         }
 
-        // load the leaf through its address
-        let address = self.place_address(place, mir::Access::Readonly)?;
-        let leaf = match place.path.last() {
-            Some(PlaceProjection::Field { ty, .. } | PlaceProjection::Downcast { ty }) => *ty,
-            None => self.reference_pointee(address)?,
-        };
-
-        Ok(self.builder.load(address, leaf))
+        self.builder.load(place, ty)
     }
 
     /// Write one value through a place.
@@ -716,36 +854,26 @@ impl FunctionLowerer<'_, '_, '_> {
         place: &Place,
         value: mir::Value,
     ) -> CompilerResult<()> {
-        // store whole locals by value
-        if let PlaceRoot::Local(local) = place.root
-            && place.path.is_empty()
-        {
-            self.builder.local_set(local, value);
-
-            return Ok(());
-        }
-
-        // store through the leaf address with the rights the root grants
-        let address = self.place_address(place, mir::Access::Mutable)?;
-        self.builder.store(address, value);
+        let place = place.lower(self)?;
+        self.builder.store(place, value);
 
         Ok(())
     }
 
     /// Return the access one reference grants over its storage.
     pub(in crate::lower) fn rooted_access(
-        &self,
-        reference: mir::LocalNodeId<mir::Type>,
+        &mut self,
+        reference: mir::TypeId,
     ) -> Option<mir::Access> {
+        let reference = self.resolved_type(reference);
         let (mir::Type::Reference { kind, access, .. }
         | mir::Type::Slice { kind, access, .. }
         | mir::Type::Dynamic { kind, access, .. }
-        | mir::Type::Function { kind, access, .. }) =
-            *self.builder.tree().get(self.resolved_type(reference))
+        | mir::Type::Function { kind, access, .. }) = *self.builder.tree().get(reference)
         else {
             // a handle outside this tree's representations grants its managed access
             return matches!(
-                self.builder.tree().get(self.resolved_type(reference)),
+                self.builder.tree().get(reference),
                 mir::Type::Application { .. }
             )
             .then_some(mir::Access::Mutable);
@@ -757,14 +885,17 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         Some(match kind {
-            mir::ReferenceKind::Borrowed => access,
-            mir::ReferenceKind::Unique => mir::Access::Mutable,
-            mir::ReferenceKind::Managed => mir::Access::Mutable,
+            mir::Reference::Borrowed | mir::Reference::Raw => access,
+            mir::Reference::Unique => mir::Access::Mutable,
+            mir::Reference::Managed(_) => mir::Access::Mutable,
         })
     }
 
     /// Return the pointee type of one reference value.
-    fn reference_pointee(&self, value: mir::Value) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    pub(in crate::lower) fn reference_pointee(
+        &mut self,
+        value: mir::Value,
+    ) -> CompilerResult<mir::TypeId> {
         let received = self.value_representation(value)?;
         let resolved = self.resolved_type(received);
         match self.builder.tree().get(resolved) {
@@ -777,280 +908,175 @@ impl FunctionLowerer<'_, '_, '_> {
         }
     }
 
-    /// Address the storage one place selects at the requested access.
-    pub(in crate::lower) fn place_address(
-        &mut self,
-        place: &Place,
-        access: mir::Access,
-    ) -> CompilerResult<mir::Value> {
-        // address the root, an unprojected place ending there
-        let (reference, access) = self.place_root_address(place, access)?;
-        if place.path.is_empty() {
-            return Ok(reference);
-        }
-
-        // walk the projection path to the leaf address
-        let (address, _) = self.path_address(place.root, reference, access, &place.path, None)?;
-
-        Ok(address)
-    }
-
-    /// Address the root of one place, answering the access the path may use.
-    fn place_root_address(
-        &mut self,
-        place: &Place,
-        access: mir::Access,
-    ) -> CompilerResult<(mir::Value, mir::Access)> {
-        match place.root {
-            // address locals inside the frame
-            PlaceRoot::Local(local) => {
-                let pointee = self.builder.tree().get(local).ty;
-                let address = self.root_address_type(pointee, mir::Storage::Frame, access);
-
-                Ok((
-                    self.builder
-                        .local_addr(local, address, mir::AddressKind::Projection),
-                    access,
-                ))
-            }
-            // address globals in their space
-            PlaceRoot::Global(global) => {
-                let pointee = self.builder.tree().get(global).ty;
-                let space = self.builder.tree().get(global).space;
-                let granted = match space {
-                    mir::Space::Local => mir::Access::Mutable,
-                    mir::Space::Constant => mir::Access::Readonly,
-                    mir::Space::Parameter(_) => {
-                        return Err(CompilerError::Internal {
-                            message: "a global in a parameter space".to_string(),
-                        });
-                    }
-                    mir::Space::Shared => mir::Access::Mutable,
-                };
-                let access = access.min(granted);
-                let address = self.root_address_type(pointee, mir::Storage::global(space), access);
-
-                Ok((
-                    self.builder
-                        .global_addr(global, address, mir::AddressKind::Projection),
-                    access,
-                ))
-            }
-            // take the reference a rooted place already holds at its own access
-            PlaceRoot::Reference {
-                value,
-                access: held,
-            } => Ok((value, held.min(access))),
-        }
-    }
-
-    /// Trap unless one addressed variant holds the case of a payload, a narrowing gone stale
-    /// through an alias.
-    fn check_payload_case(
-        &mut self,
-        reference: mir::Value,
-        payload: mir::LocalNodeId<mir::Type>,
-    ) -> CompilerResult<()> {
-        let variant = self.reference_pointee(reference)?;
-        let case = self.payload_case(variant, payload)?;
-        let stored = self.builder.tree().storage_type(mir::TypeId::from(variant));
-        let mir::Type::Variant { cases, .. } = self.builder.tree().get(stored) else {
-            return Err(CompilerError::Internal {
-                message: "a case check outside a variant".to_string(),
-            });
-        };
-        let discriminant = match cases[case as usize].discriminant {
-            mir::Constant::UInt { value, .. } => value as i128,
-            mir::Constant::Int { value, .. } => value,
-            mir::Constant::Boolean { value } => value as i128,
-            _ => {
-                return Err(CompilerError::Internal {
-                    message: "a case check on a non-scalar discriminant".to_string(),
-                });
-            }
-        };
-        let live = self.builder.block();
-        let stale = self.builder.block();
-        let tag = self.builder.variant_tag_load(reference, variant);
-        self.builder.switch(tag, stale, vec![(discriminant, live)]);
-        self.builder.switch_to_block(stale);
-        self.builder.panic(None);
-        self.builder.switch_to_block(live);
-
-        Ok(())
-    }
-
-    /// Return whether one place root is owned storage: a frame local, a global, or a unique box.
-    fn is_owned_root(&self, root: PlaceRoot) -> CompilerResult<bool> {
-        let PlaceRoot::Reference { value, .. } = root else {
-            return Ok(true);
-        };
-        let held = self.value_representation(value)?;
-
-        Ok(self
-            .builder
-            .tree()
-            .get(self.resolved_type(held))
-            .is_unique_storage())
-    }
-
-    /// Return the lifetime a borrow taken through one reference value lives for: the borrow's own
-    /// region, a managed object's while the borrow is held, a unique pointee's frame.
-    pub(in crate::lower) fn reborrow_lifetime(&self, reference: mir::Value) -> mir::Lifetime {
+    /// Return the lifetime a borrow taken through one reference value lives for.
+    pub(in crate::lower) fn reborrow_lifetime(&mut self, reference: mir::Value) -> mir::Lifetime {
         let Some(ty) = self.builder.value_type(reference) else {
             unreachable!("a reborrow through an untyped value");
         };
-        match self.builder.tree().get(self.resolved_type(ty)) {
+
+        self.reborrow_lifetime_of(ty)
+    }
+
+    /// Return the lifetime a borrow taken through one reference type lives for.
+    fn reborrow_lifetime_of(&mut self, ty: mir::TypeId) -> mir::Lifetime {
+        let ty = self.resolved_type(ty);
+
+        match self.builder.tree().get(ty) {
             mir::Type::Reference {
-                kind: mir::ReferenceKind::Borrowed,
+                kind: mir::Reference::Borrowed,
                 lifetime,
                 ..
             }
             | mir::Type::Slice {
-                kind: mir::ReferenceKind::Borrowed,
+                kind: mir::Reference::Borrowed,
                 lifetime,
                 ..
             } => lifetime.clone(),
             mir::Type::Reference {
-                kind: mir::ReferenceKind::Managed,
+                kind: mir::Reference::Managed(_),
                 ..
             }
             | mir::Type::Slice {
-                kind: mir::ReferenceKind::Managed,
+                kind: mir::Reference::Managed(_),
                 ..
             } => mir::Lifetime::managed(),
             _ => mir::Lifetime::frame(),
         }
     }
 
-    /// Intern the borrowed reference type addressing one root place in its storage, a frame
-    /// place living for the frame and a global for the program.
-    fn root_address_type(
-        &mut self,
-        pointee: mir::LocalNodeId<mir::Type>,
-        storage: mir::Storage,
-        access: mir::Access,
-    ) -> mir::LocalNodeId<mir::Type> {
-        let lifetime = match storage.residence() {
-            mir::Residence::Frame => mir::Lifetime::frame(),
-            mir::Residence::Static => mir::Lifetime::static_storage(),
-            mir::Residence::Heap => unreachable!("a root place address in heap storage"),
-        };
-        self.builder.tree_mut().intern_type(mir::Type::Reference {
-            kind: mir::ReferenceKind::Borrowed,
-            lifetime,
-            storage,
-            access,
-            pointee,
-        })
-    }
-
     /// Borrow the storage one place selects at one reference type.
     pub(in crate::lower) fn borrow_place(
         &mut self,
         place: &Place,
-        target: mir::LocalNodeId<mir::Type>,
-        kind: mir::AddressKind,
+        target: mir::TypeId,
     ) -> CompilerResult<mir::Value> {
-        // reborrow a bare handle as the target form
-        if place.path.is_empty()
-            && let PlaceRoot::Reference { value, .. } = place.root
-            && !matches!(
-                self.builder.tree().get(self.value_representation(value)?),
-                mir::Type::Reference { .. } | mir::Type::Pointer { .. }
-            )
-        {
-            return Ok(self.builder.cast(mir::CastOperator::Bitcast, value, target));
+        // reborrow a whole root through the reference it holds,
+        //  a local only when the target borrows its referent
+        if place.path.is_empty() {
+            let reference = match place.root {
+                PlaceRoot::Reference { value, .. } => Some(value),
+                PlaceRoot::Local(local) => {
+                    let held = self.builder.tree().get(local).ty;
+                    self.borrows_referent(held, target)
+                        .then(|| self.load_place(mir::Place::local(local), held))
+                }
+                PlaceRoot::Global(_) => None,
+            };
+            if let Some(reference) = reference {
+                return self.reborrow_or_reinterpret(reference, target);
+            }
         }
 
         // read a fat owner's descriptor at the borrowed form its target names
         let mir::Type::Reference { access, .. } = *self.builder.tree().get(target) else {
-            let address = self.place_address(place, mir::Access::Readonly)?;
+            let referent = place.lower(self)?.with_projection(mir::Projection::Deref);
 
-            return Ok(self.builder.load(address, target));
+            return Ok(self.builder.address(referent, target));
         };
 
-        // borrow a whole root directly, reborrowing a bare reference as the target form
-        if place.path.is_empty() {
-            return Ok(match place.root {
-                PlaceRoot::Local(local) => self.builder.local_addr(local, target, kind),
-                PlaceRoot::Global(global) => self.builder.global_addr(global, target, kind),
-                PlaceRoot::Reference { value, .. } => {
-                    self.builder.cast(mir::CastOperator::Bitcast, value, target)
-                }
-            });
+        // address a frame or global place, a rooted reference through its path
+        match place.root {
+            PlaceRoot::Local(_) | PlaceRoot::Global(_) => {
+                let projected = place.lower(self)?;
+
+                Ok(self.builder.address(projected, target))
+            }
+            PlaceRoot::Reference {
+                value,
+                access: held,
+            } => self.path_address(value, held.meet(access), &place.path, Some(target)),
         }
-
-        // borrow a projected place at its leaf address
-        let (root, access) = self.place_root_address(place, access)?;
-        let (address, _) =
-            self.path_address(place.root, root, access, &place.path, Some((target, kind)))?;
-
-        Ok(address)
     }
 
-    /// Return the place one borrow expression addresses: a reference's pointee, a named place,
-    /// or the frame slot any other value spills into.
+    /// Return whether one borrow target borrows the referent of a held reference type.
+    fn borrows_referent(&self, held: mir::TypeId, target: mir::TypeId) -> bool {
+        let (
+            mir::Type::Reference { pointee, .. },
+            mir::Type::Reference {
+                pointee: borrowed, ..
+            },
+        ) = (
+            self.builder.tree().type_definition(held),
+            self.builder.tree().type_definition(target),
+        )
+        else {
+            return false;
+        };
+
+        pointee == borrowed
+    }
+
+    /// Return the place one borrow addresses: the expression's storage, else its referent.
     pub(in crate::lower) fn borrowed_place(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
+        target: mir::TypeId,
     ) -> CompilerResult<Place> {
-        // reborrow indirect sources as a form change, owners keep their place
-        let source = self.node_type_id(expression)?;
-        if self.lower.indirection(source, &self.scope)?.is_some()
-            && self.lower.ownership(source)? != dir::Ownership::Owned
-        {
-            let value = self.lower_value(expression)?;
-
-            return self.place_behind(value);
-        }
-
-        // a dereference of a reference reborrows the reference itself
-        if let dir::Expression::Unary {
-            operator: dir::UnaryOperator::Dereference,
-            right,
-        } = *self.source().tree().get(expression)
-            && self
-                .lower
-                .indirection(self.node_type_id(right)?, &self.scope)?
-                .is_some()
-        {
-            let value = self.lower_value(right)?;
-
-            return self.place_behind(value);
-        }
-
         // reborrow the address an Index protocol read returns
         if let dir::Expression::Index {
             left, is_optional, ..
         } = *self.source().tree().get(expression)
             && let dir::OperationResolution::One(subscript) = self.subscript_decision(expression)?
             && let dir::SubscriptTarget::Index(read) = subscript.target
+            && read.dereference.is_some()
         {
             let address = self.lower_index_address(left, read, is_optional)?;
 
             return self.place_behind(address);
         }
 
-        // address a place, spilling any other value into the frame
-        match self.is_place_expression(expression) {
-            true => self.receiver_place(expression),
-            false => {
-                let value = self.lower_value(expression)?;
+        // reborrow through the reference the expression holds when the target lies past it
+        let source = self.node_type_id(expression)?;
+        let held = self.lower_type(source)?;
+        if !self.addresses_value(target, held) && self.reborrows_through(held) {
+            let value = self.lower_value(expression)?;
 
-                Ok(Place::local(self.home(value)))
+            return self.place_behind(value);
+        }
+
+        // address a place, spilling a converted or computed value into the frame
+        if self.is_place_expression(expression) && self.coercion(expression).is_none() {
+            self.storage_place(expression)
+        } else {
+            let value = self.lower_value(expression)?;
+
+            Ok(Place::local(self.home(value)))
+        }
+    }
+
+    /// Return whether a borrow of one held value reborrows it; an owner keeps its storage.
+    pub(in crate::lower) fn reborrows_through(&mut self, held: mir::TypeId) -> bool {
+        let held = self.resolved_type(held);
+
+        matches!(
+            self.builder.tree().type_definition(held).reference_kind(),
+            Some(mir::Reference::Borrowed | mir::Reference::Managed(_) | mir::Reference::Raw)
+        )
+    }
+
+    /// Return whether one reference type addresses a value of the held type itself.
+    pub(in crate::lower) fn addresses_value(
+        &mut self,
+        target: mir::TypeId,
+        held: mir::TypeId,
+    ) -> bool {
+        match self.builder.tree().type_definition(target) {
+            mir::Type::Reference { pointee, .. } => {
+                self.resolved_type(*pointee) == self.resolved_type(held)
             }
+            _ => false,
         }
     }
 
     /// Return the place one reference value addresses.
     pub(in crate::lower) fn place_behind(&mut self, value: mir::Value) -> CompilerResult<Place> {
         let received = self.value_representation(value)?;
+        let received = self.resolved_type(received);
         let Some(access) = self.rooted_access(received) else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "a place behind a non-reference value {:?}",
-                    self.builder.tree().get(self.resolved_type(received))
+                    self.builder.tree().get(received)
                 ),
             });
         };
@@ -1064,12 +1090,11 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Project one address chain to the leaf of a path, borrowing the leaf at the kind asked for.
     fn path_address(
         &mut self,
-        root: PlaceRoot,
         reference: mir::Value,
         access: mir::Access,
         path: &[PlaceProjection],
-        leaf: Option<(mir::LocalNodeId<mir::Type>, mir::AddressKind)>,
-    ) -> CompilerResult<(mir::Value, mir::LocalNodeId<mir::Type>)> {
+        leaf: Option<mir::TypeId>,
+    ) -> CompilerResult<mir::Value> {
         // require at least one projection to address
         if path.is_empty() {
             return Err(CompilerError::Internal {
@@ -1086,60 +1111,36 @@ impl FunctionLowerer<'_, '_, '_> {
                 PlaceProjection::Field { field, ty } => {
                     let current = self.innermost_address(current)?;
                     match leaf {
-                        Some((result_type, kind)) => {
-                            self.builder.field_addr(current, field, result_type, kind)
-                        }
-                        None => self.field_address(current, field, ty, access),
-                    }
-                }
-                // project a case of owned storage under borrowck
-                PlaceProjection::Downcast { ty } if self.is_owned_root(root)? => {
-                    let current = self.innermost_address(current)?;
-                    self.payload_address(current, ty, access, leaf)?
-                }
-                // project a case of aliasable storage behind a fresh tag check, an inline Copy
-                // payload through a frame copy
-                PlaceProjection::Downcast { ty } => {
-                    let current = self.innermost_address(current)?;
-                    self.check_payload_case(current, ty)?;
-                    let is_inline_copy = self.copies(mir::TypeId::from(ty))
-                        && !self
-                            .builder
-                            .tree()
-                            .get(self.resolved_type(ty))
-                            .is_reference_representation();
-                    match leaf {
-                        Some((result_type, kind)) if is_inline_copy => {
-                            let slot =
-                                self.payload_address(current, ty, mir::Access::Readonly, None)?;
-                            let value = self.builder.load(slot, ty);
-                            let local = self.home(value);
+                        Some(result_type) => {
+                            let place = mir::Place::value(current)
+                                .with_projection(mir::Projection::Deref)
+                                .with_projection(mir::Projection::Field { index: field });
 
-                            self.builder.local_addr(local, result_type, kind)
+                            self.builder.address(place, result_type)
                         }
-                        _ => self.payload_address(current, ty, access, leaf)?,
+                        None => self.field_address(current, field, ty, access)?,
                     }
+                }
+                // address the case selected by the narrowing
+                PlaceProjection::Downcast { case, ty } => {
+                    let current = self.innermost_address(current)?;
+                    self.payload_address(current, case, ty, access, leaf)?
                 }
             };
         }
 
-        // answer the leaf type of the final projection
-        let (PlaceProjection::Field { ty: leaf, .. } | PlaceProjection::Downcast { ty: leaf }) =
-            path[path.len() - 1];
-
-        Ok((current, leaf))
+        Ok(current)
     }
 
     /// Lower one expression into a borrow of its place or reference.
     pub(in crate::lower) fn lower_borrowed_place(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
-        target: mir::LocalNodeId<mir::Type>,
-        kind: mir::AddressKind,
+        target: mir::TypeId,
     ) -> CompilerResult<mir::Value> {
-        let place = self.borrowed_place(expression)?;
+        let place = self.borrowed_place(expression, target)?;
 
-        self.borrow_place(&place, target, kind)
+        self.borrow_place(&place, target)
     }
 }
 
@@ -1154,7 +1155,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let held = self.resolved_type(held);
         let mir::Type::Reference {
             access, pointee, ..
-        } = *self.builder.tree().get(held)
+        } = *self.builder.tree().type_definition(held)
         else {
             return self.declared_reference(value, declared);
         };
@@ -1169,12 +1170,12 @@ impl FunctionLowerer<'_, '_, '_> {
                 access: inner_access,
                 pointee: inner,
                 ..
-            } = *self.builder.tree().get(stored)
+            } = *self.builder.tree().type_definition(stored)
             else {
                 break;
             };
-            value = self.builder.load(value, pointee);
-            access = access.min(inner_access);
+            value = self.dereference(value)?;
+            access = access.meet(inner_access);
             pointee = inner;
         }
 
@@ -1200,9 +1201,8 @@ impl FunctionLowerer<'_, '_, '_> {
             if inner.stored == layer.stored {
                 break;
             }
-            let pointee = self.lower_type(layer.stored)?;
-            value = self.builder.load(value, pointee);
-            access = access.min(inner.access);
+            value = self.dereference(value)?;
+            access = access.meet(inner.access);
             layer = inner;
         }
 
@@ -1225,6 +1225,55 @@ impl FunctionLowerer<'_, '_, '_> {
             storage.index,
             storage.read,
             access,
-        )))
+        )?))
+    }
+}
+
+impl Place {
+    /// Lower the selected storage to one MIR operand.
+    pub(in crate::lower) fn lower(
+        &self,
+        lower: &mut FunctionLowerer<'_, '_, '_>,
+    ) -> CompilerResult<mir::Place> {
+        // select the root storage
+        let (mut place, mut ty) = match self.root {
+            PlaceRoot::Local(local) => {
+                (mir::Place::local(local), lower.builder.tree().get(local).ty)
+            }
+            PlaceRoot::Global(global) => (
+                mir::Place::global(global),
+                lower.builder.tree().get(global).ty,
+            ),
+            PlaceRoot::Reference { value, .. } => (
+                mir::Place::value(value).with_projection(mir::Projection::Deref),
+                lower.reference_pointee(value)?,
+            ),
+        };
+
+        // traverse stored references before selecting each aggregate member
+        for projection in &self.path {
+            loop {
+                let resolved = lower.resolved_type(ty);
+                match lower.builder.tree().get(resolved) {
+                    mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
+                        ty = *pointee;
+                        place.push(mir::Projection::Deref);
+                    }
+                    _ => break,
+                }
+            }
+
+            // retain the field or case and its type
+            let (projection, selected) = match *projection {
+                PlaceProjection::Field { field, ty } => {
+                    (mir::Projection::Field { index: field }, ty)
+                }
+                PlaceProjection::Downcast { case, ty } => (mir::Projection::Variant { case }, ty),
+            };
+            place.push(projection);
+            ty = selected;
+        }
+
+        Ok(place)
     }
 }

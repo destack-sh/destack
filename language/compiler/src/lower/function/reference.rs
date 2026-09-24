@@ -45,13 +45,18 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Materialize one callable reference at its coercion-selected instance.
     pub(in crate::lower) fn lower_instantiated_value(
         &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
         symbol: dir::GlobalSymbolId,
         target: dir::GlobalTypeId,
         arguments: &[dir::GenericArgumentBinding],
     ) -> CompilerResult<mir::Value> {
-        // select the instance by the coercion's selected arguments
-        let bindings = self.lower.instance_bindings(arguments)?;
-        let instance = self.instance_of(symbol, &dir::InstanceKey::new(symbol, bindings))?;
+        // select the instance by the coercion's arguments, a body-local closure by its declaration
+        let instance = if self.is_body_local_closure(expression, symbol) {
+            Instance::Declared(self.function(&GenericInstanceKey::non_generic(symbol))?)
+        } else {
+            let bindings = self.lower.instance_bindings(arguments)?;
+            self.instance_of(symbol, &dir::InstanceKey::new(symbol, bindings))?
+        };
         let ty = self.lower_type(target)?;
 
         // require a callable representation
@@ -69,6 +74,13 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Instance> {
+        // declare a body-local closure once, polymorphic over the enclosing template
+        if self.is_body_local_closure(expression, symbol) {
+            let key = GenericInstanceKey::non_generic(symbol);
+
+            return self.function(&key).map(Instance::Declared);
+        }
+
         // read the instance selected at this reference
         let node = expression.into_global_any(self.source);
         let selected = self
@@ -107,18 +119,6 @@ impl FunctionLowerer<'_, '_, '_> {
             return self.instance_of(symbol, &selection);
         }
 
-        // declare a body-local closure once, polymorphic over the enclosing template
-        if symbol.module_id == self.source
-            && matches!(
-                self.source().tree().get(expression),
-                dir::Expression::Declaration(_)
-            )
-        {
-            let key = GenericInstanceKey::non_generic(symbol);
-
-            return self.function(&key).map(Instance::Declared);
-        }
-
         // reject a generic reference whose instantiating coercion selected no instance
         let declared = self.lower.symbol_type(symbol)?;
         let is_callable = matches!(
@@ -138,7 +138,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Emit one function value of one lowered callable type.
     pub(in crate::lower) fn bind_function_value(
         &mut self,
-        ty: mir::LocalNodeId<mir::Type>,
+        ty: mir::TypeId,
         instance: Instance,
         environment: Option<mir::Value>,
     ) -> CompilerResult<Option<mir::Value>> {
@@ -151,7 +151,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // emit by the callable representation
-        match self.builder.tree().get(ty) {
+        match self.builder.tree().type_definition(ty) {
             // pair fat function values with their environment
             mir::Type::Function { .. } => {
                 // pair environment-free values with the absent environment
@@ -159,16 +159,13 @@ impl FunctionLowerer<'_, '_, '_> {
                     Some(environment) => environment,
                     None => {
                         let tree = self.builder.tree_mut();
-                        let environment = tree.ensure_function_environment_type();
                         let void = tree.void_type();
-                        let Some(absent) = tree.payload_case(environment, void) else {
-                            return Err(CompilerError::Internal {
-                                message: "a function environment without its absent case"
-                                    .to_string(),
-                            });
-                        };
+                        let environment = tree.intern_type(mir::Type::Pointer {
+                            pointee: void,
+                            access: mir::Access::Readonly,
+                        });
 
-                        self.builder.variant_new(environment, absent, None)
+                        self.builder.constant(mir::Constant::Null, environment)
                     }
                 };
 
@@ -189,17 +186,26 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Read the current value of one binding.
-    pub(in crate::lower) fn read_binding(&mut self, binding: Binding) -> mir::Value {
+    pub(in crate::lower) fn read_binding(
+        &mut self,
+        binding: Binding,
+    ) -> CompilerResult<mir::Value> {
         // read by the storage the binding holds
-        match binding {
-            Binding::Local(local) => self.builder.local_get(local),
+        Ok(match binding {
+            Binding::Local(local) => {
+                let ty = self.builder.tree().get(local).ty;
+
+                self.load_place(mir::Place::local(local), ty)
+            }
             // load captured bindings through their frame field
             Binding::Captured { frame, field, ty } => {
-                let address = self.field_address(frame, field, ty, mir::Access::Readonly);
+                let place = mir::Place::value(frame)
+                    .with_projection(mir::Projection::Deref)
+                    .with_projection(mir::Projection::Field { index: field });
 
-                self.builder.load(address, ty)
+                self.load_place(place, ty)
             }
-        }
+        })
     }
 
     /// Lower one value expression that resolved to a symbol.
@@ -216,7 +222,7 @@ impl FunctionLowerer<'_, '_, '_> {
         };
         match binding {
             Some(binding) => {
-                let value = self.read_binding(binding);
+                let value = self.read_binding(binding)?;
 
                 // project a flow-narrowed read onto its recorded narrowing
                 self.lower_narrowing(expression, value)
@@ -248,6 +254,21 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<mir::Value>> {
+        let Some(index) = self.const_parameter_index(symbol)? else {
+            return Ok(None);
+        };
+        let ty = self.lower_type(self.node_type_id(expression)?)?;
+
+        Ok(Some(
+            self.builder.constant(mir::Constant::Parameter(index), ty),
+        ))
+    }
+
+    /// Return the template index one const parameter symbol names.
+    pub(in crate::lower) fn const_parameter_index(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<Option<u32>> {
         let Some(parameter) = self
             .lower
             .state(symbol.module_id)?
@@ -257,16 +278,30 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(None);
         };
         let parameter = parameter.into_global(symbol.module_id);
-        let Some(index) = self.scope.parameter_index(parameter) else {
-            return Err(CompilerError::Internal {
+        match self.scope.parameter_index(parameter) {
+            Some(index) => Ok(Some(index)),
+            None => Err(CompilerError::Internal {
                 message: "a const parameter read outside its template".to_string(),
-            });
-        };
-        let ty = self.lower_type(self.node_type_id(expression)?)?;
+            }),
+        }
+    }
 
-        Ok(Some(
-            self.builder.constant(mir::Constant::Parameter(index), ty),
-        ))
+    /// Return the const parameter index one expression reads, `None` for every other expression.
+    pub(in crate::lower) fn read_parameter_index(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Option<u32>> {
+        let node = expression.into_global_any(self.source);
+        let Some(symbol) = self
+            .source()
+            .resolutions
+            .name_resolution(node)
+            .and_then(|resolution| resolution.single_symbol())
+        else {
+            return Ok(None);
+        };
+
+        self.const_parameter_index(symbol)
     }
 
     /// Return the declared global behind one constant binding, a foreign one imported.
@@ -275,5 +310,18 @@ impl FunctionLowerer<'_, '_, '_> {
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<mir::LocalNodeId<mir::Global>>> {
         self.lower.constant_global(self.builder.tree_mut(), symbol)
+    }
+
+    /// Return whether one reference names a closure declared in this body.
+    fn is_body_local_closure(
+        &self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        symbol: dir::GlobalSymbolId,
+    ) -> bool {
+        symbol.module_id == self.source
+            && matches!(
+                self.source().tree().get(expression),
+                dir::Expression::Declaration(_)
+            )
     }
 }

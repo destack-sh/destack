@@ -10,8 +10,7 @@ use crate::lower::{
 };
 use crate::{CompilerError, CompilerResult};
 
-/// The use one lowered receiver serves, a member access reading storage and a call reading the
-/// value.
+/// The use one lowered receiver serves.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::lower) enum ReceiverUse {
     /// The receiver's storage, projected by a member access.
@@ -62,14 +61,13 @@ impl FunctionLowerer<'_, '_, '_> {
                     return self.lower_profile_call(call, item);
                 }
 
-                // route intrinsic callables before declared functions, a method-form one over
-                // its lowered receiver
+                // route intrinsic callables before declared ones, a method form over its receiver
                 if let Some(CallableImplementation::Intrinsic { name }) =
                     self.lower.callable_implementation(function.key.symbol)?
                 {
                     let receiver = match self.lower.callable_header(function.key.symbol)?.receiver {
                         Receiver::None => None,
-                        Receiver::This(_) | Receiver::Constructs(_) => {
+                        Receiver::This(_) | Receiver::Erased | Receiver::Constructs(_) => {
                             let (receiver, is_optional) = self.member_call_receiver(expression)?;
                             Some(match &function.receiver {
                                 Some(adjusted) => self.lower_adjusted_receiver(
@@ -132,11 +130,37 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<Callee> {
         let instance = self.instance_of(symbol, selection)?;
 
-        Ok(self.callee_of(instance))
+        self.callee_of(instance)
+    }
+
+    /// Return one selection with the type definition lifetimes its call binds among its arguments.
+    pub(in crate::lower) fn with_type_lifetimes(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        key: &dir::InstanceKey,
+        regions: &[dir::GenericArgumentBinding],
+    ) -> CompilerResult<dir::InstanceKey> {
+        let mut key = key.clone();
+        let scope = self.lower.symbol_scope(symbol)?;
+        for binding in regions {
+            if scope.parameters.contains_key(&binding.parameter)
+                && self
+                    .lower
+                    .is_declaration_region_parameter(binding.parameter)?
+                && !key
+                    .arguments
+                    .iter()
+                    .any(|bound| bound.parameter == binding.parameter)
+            {
+                key.arguments.push(*binding);
+            }
+        }
+
+        Ok(key)
     }
 
     /// Return the callee of one instance, an applied template calling at its arguments.
-    pub(in crate::lower) fn callee_of(&mut self, instance: Instance) -> Callee {
+    pub(in crate::lower) fn callee_of(&mut self, instance: Instance) -> CompilerResult<Callee> {
         let (function, arguments) = match instance {
             Instance::Declared(function) => (function, Vec::new()),
             Instance::Applied {
@@ -144,9 +168,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 arguments,
             } => (template, arguments),
         };
-        let (signature, parameters, result) = self.function_signature(function, &arguments);
+        let (signature, parameters, result) = self.function_signature(function, &arguments)?;
 
-        Callee {
+        Ok(Callee {
             target: mir::Callee::Direct {
                 function,
                 arguments,
@@ -154,7 +178,7 @@ impl FunctionLowerer<'_, '_, '_> {
             signature,
             parameters,
             result,
-        }
+        })
     }
 
     /// Instantiate one signature's late-bound regions.
@@ -164,41 +188,72 @@ impl FunctionLowerer<'_, '_, '_> {
         result: &mut mir::TypeId,
         scope: &GenericScope,
         bindings: &[dir::GenericArgumentBinding],
+        positions: &[(dir::GlobalGenericParameterId, u32)],
         receiver: Option<mir::Lifetime>,
     ) -> CompilerResult<()> {
-        // lower the lifetime bound at each slot in the caller's scope
+        // lower the region bound at each slot in the caller's scope and at each erased position
         let slots = &scope.slots;
-        let mut lifetimes = vec![None; scope.names.len()];
-        if lifetimes.is_empty() {
+        let count = positions
+            .iter()
+            .map(|(_, position)| *position as usize + 1)
+            .max()
+            .unwrap_or(0)
+            .max(scope.names.len());
+        let mut regions = vec![None; count];
+        if regions.is_empty() {
             return Ok(());
         }
-        if let Some(slot) = scope.receiver_slot {
-            lifetimes[slot.0 as usize] = receiver;
+
+        // bind the receiver's region at the slots its borrow names
+        if let Some(receiver) = receiver {
+            let first = parameters
+                .first()
+                .map(|first| self.builder.tree().get(*first));
+            let Some(mir::Type::Reference { lifetime, .. }) = first else {
+                return Err(CompilerError::Internal {
+                    message: "a receiver region bound outside a leading reference".to_string(),
+                });
+            };
+            let lifetime = lifetime.clone();
+            for index in lifetime.bound_indices() {
+                regions[index as usize] = Some(receiver.clone());
+            }
         }
         for binding in bindings {
             let name = self.lower.format_parameter_name(binding.parameter)?;
-            let Some(slot) = slots.get(&binding.parameter) else {
-                if self.lower.is_region_parameter(binding.parameter)? {
-                    return Err(CompilerError::Internal {
-                        message: format!("a region bound at '{name}' without a slot at the call"),
-                    });
-                }
+            let position = positions
+                .iter()
+                .find(|(parameter, _)| *parameter == binding.parameter)
+                .map(|(_, position)| *position);
+            let Some(index) = slots
+                .get(&binding.parameter)
+                .map(|slot| slot.index)
+                .or(position)
+            else {
+                // skip a binding the signature's binder leaves out, the slot check below stays loud
                 continue;
             };
-            let lifetime = self
+            let tree = self.builder.tree_mut();
+            let region = self
                 .lower
-                .lower_lifetime(binding.argument, &self.scope)
+                .type_lowerer(tree, &self.scope)
+                .lower_region_argument(binding.argument)
                 .map_err(|error| match error {
                     CompilerError::Internal { message } => CompilerError::Internal {
                         message: format!("{message} bound at '{name}'"),
                     },
                     error => error,
                 })?;
-            lifetimes[slot.0 as usize] = Some(lifetime);
+            let mir::GenericArgument::Region(lifetime) = region else {
+                return Err(CompilerError::Internal {
+                    message: format!("a region bound at '{name}' outside a region argument"),
+                });
+            };
+            regions[index as usize] = Some(lifetime);
         }
-        let mut instantiation = Vec::with_capacity(lifetimes.len());
-        for (slot, lifetime) in lifetimes.into_iter().enumerate() {
-            let Some(lifetime) = lifetime else {
+        let mut instantiation = Vec::with_capacity(regions.len());
+        for (slot, region) in regions.into_iter().enumerate() {
+            let Some(region) = region else {
                 let parameter = slots.get_index(slot).map(|(parameter, _)| *parameter);
                 let name = match parameter {
                     Some(parameter) => self.lower.format_parameter_name(parameter)?,
@@ -208,15 +263,15 @@ impl FunctionLowerer<'_, '_, '_> {
                     message: format!("a region slot {slot} ({name}) unbound at a call"),
                 });
             };
-            instantiation.push(lifetime);
+            instantiation.push(region);
         }
 
         // instantiate the signature's parameters and result
         let tree = self.builder.tree_mut();
         for parameter in parameters {
-            *parameter = mir::instantiate_slots(tree, *parameter, &instantiation);
+            *parameter = mir::instantiate_regions(tree, *parameter, &instantiation);
         }
-        *result = mir::instantiate_slots(tree, *result, &instantiation);
+        *result = mir::instantiate_regions(tree, *result, &instantiation);
 
         Ok(())
     }
@@ -225,49 +280,104 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn instantiate_symbol_callee(
         &mut self,
         callee: &mut Callee,
-        symbol: dir::GlobalSymbolId,
+        selection: &dir::InstanceKey,
         call: &dir::Call,
     ) -> CompilerResult<()> {
+        let symbol = selection.symbol;
         let scope = self.lower.symbol_scope(symbol)?;
         let path = self.lower.symbol_path(symbol)?;
+        let positions = self.erased_region_positions(selection)?;
         let Callee {
-            parameters, result, ..
+            parameters,
+            result,
+            signature,
+            ..
         } = callee;
-
-        self.instantiate_signature(parameters, result, &scope, &call.regions, None)
+        self.instantiate_signature(parameters, result, &scope, &call.regions, &positions, None)
             .map_err(|error| match error {
                 CompilerError::Internal { message } => CompilerError::Internal {
                     message: format!("{message} calling '{path}'"),
                 },
                 error => error,
-            })
+            })?;
+
+        // intern the signature the call binds at its instantiated regions
+        let parameters = parameters
+            .iter()
+            .map(|ty| mir::SignatureParameter::new(*ty))
+            .collect();
+        *signature = self
+            .builder
+            .tree_mut()
+            .intern_type(mir::Type::FunctionSignature {
+                lifetimes: Vec::new(),
+                parameters,
+                result: *result,
+            });
+
+        Ok(())
     }
 
-    /// Return the signature one function takes at generic arguments, with its parameters and
-    /// result.
+    /// Return the position each region parameter of one selection's instance erased to.
+    pub(in crate::lower) fn erased_region_positions(
+        &mut self,
+        selection: &dir::InstanceKey,
+    ) -> CompilerResult<Vec<(dir::GlobalGenericParameterId, u32)>> {
+        let mut positions = Vec::new();
+        for binding in self.lower.selection_bindings(selection)? {
+            let extent = match self.lower.ty(binding.argument)? {
+                dir::Type::Region(pair) => pair.extent,
+                _ => binding.argument,
+            };
+            let Some(text) = self.lower.memory_text(extent)? else {
+                continue;
+            };
+            if let Some(dir::Lifetime::Bound(position)) =
+                dir::Lifetime::parse(self.lower.strings.get(text))
+            {
+                positions.push((binding.parameter, position));
+            }
+        }
+
+        Ok(positions)
+    }
+
+    /// Return the signature one function takes at generic arguments.
     fn function_signature(
         &mut self,
         function: mir::FunctionId,
         arguments: &[mir::GenericArgument],
-    ) -> (mir::TypeId, Vec<mir::TypeId>, mir::TypeId) {
+    ) -> CompilerResult<(mir::TypeId, Vec<mir::TypeId>, mir::TypeId)> {
         let tree = self.builder.tree_mut();
         let declared = tree.get(function).clone();
-        let parameters: Vec<_> = declared
-            .parameters
-            .iter()
-            .map(|parameter| substitute_type(tree, parameter.ty, arguments))
-            .collect();
-        let result = substitute_type(tree, declared.return_type, arguments);
+
+        // require one argument per template parameter when applying a template
+        if !arguments.is_empty() && arguments.len() != declared.generics.len() {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "a call to '{}' with {} arguments for {} slots",
+                    self.lower.strings.get(declared.name),
+                    arguments.len(),
+                    declared.generics.len()
+                ),
+            });
+        }
+
+        // substitute the arguments under the signature's region binder
         let signature = tree.intern_type(mir::Type::FunctionSignature {
             lifetimes: declared.lifetimes,
-            parameters: parameters
+            parameters: declared
+                .parameters
                 .iter()
-                .map(|parameter| mir::SignatureParameter::new(*parameter))
+                .map(|parameter| mir::SignatureParameter::new(parameter.ty))
                 .collect(),
-            result,
+            result: declared.return_type,
         });
+        let signature = substitute_type(tree, signature, arguments);
+        let parameters = self.signature_parameters(signature)?;
+        let result = self.builder.signature_result(signature);
 
-        (mir::TypeId::from(signature), parameters, result)
+        Ok((signature, parameters, result))
     }
 
     /// Call one callee at its signature.
@@ -308,8 +418,9 @@ impl FunctionLowerer<'_, '_, '_> {
         key: &dir::InstanceKey,
         call: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
-        let mut callee = self.resolve_callee(key)?;
-        self.instantiate_symbol_callee(&mut callee, key.symbol, call)?;
+        let key = self.with_type_lifetimes(key.symbol, key, &call.regions)?;
+        let mut callee = self.resolve_callee(&key)?;
+        self.instantiate_symbol_callee(&mut callee, &key, call)?;
         let parameters = callee.parameters.clone();
 
         // pass the receiver at its declared slot ahead of the arguments
@@ -386,13 +497,15 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a method call without a selected receiver".to_string(),
             })?;
 
-        // split the declared receiver slot off the value parameters
-        let mut selected = self.resolve_callee(&function.key)?;
-        self.instantiate_symbol_callee(&mut selected, function.key.symbol, resolution)?;
+        // split the declared receiver off the value parameters
+        let key =
+            self.with_type_lifetimes(function.key.symbol, &function.key, &resolution.regions)?;
+        let mut selected = self.resolve_callee(&key)?;
+        self.instantiate_symbol_callee(&mut selected, &key, resolution)?;
         let parameters = selected.parameters.clone();
         let Some((_, parameters)) = parameters.split_first() else {
             return Err(CompilerError::Internal {
-                message: "a method call without a declared receiver slot".to_string(),
+                message: "a method call without a declared receiver".to_string(),
             });
         };
 
@@ -411,10 +524,10 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(result)
     }
 
-    /// Lower one selected call over an already lowered receiver value.
-    pub(in crate::lower) fn lower_value_target_call(
+    /// Lower one selected call over a receiver value or place.
+    pub(in crate::lower) fn lower_target_call(
         &mut self,
-        receiver: mir::Value,
+        receiver: Operand,
         call: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         match &call.target {
@@ -424,10 +537,13 @@ impl FunctionLowerer<'_, '_, '_> {
                 dispatch: dir::FunctionDispatch::Direct,
             } => {
                 let receiver = match &function.receiver {
-                    Some(adjusted) => {
-                        self.lower_receiver_adjustments(receiver, &adjusted.adjustments)?
-                    }
-                    None => receiver,
+                    Some(adjusted) => self.adjust_receiver(receiver, adjusted)?,
+                    None => match receiver {
+                        Operand::Value(value) => value,
+                        _ => {
+                            return Err(self.internal("a receiver place without its adjustments"));
+                        }
+                    },
                 };
 
                 self.lower_direct_call(Some(receiver), &function.key, call)
@@ -438,13 +554,52 @@ impl FunctionLowerer<'_, '_, '_> {
                 function: dir::DynamicFunction::Symbol(symbol),
                 ..
             } => {
-                let receiver =
-                    self.lower_receiver_adjustments(receiver, &dispatch.receiver.adjustments)?;
+                let receiver = self.adjust_receiver(receiver, &dispatch.receiver)?;
 
-                self.lower_dynamic_symbol_call(receiver, dispatch, *symbol, &call.arguments)
+                self.lower_dynamic_symbol_call(receiver, dispatch, *symbol, call)
             }
             _ => Err(self.unsupported("a virtual value call")),
         }
+    }
+
+    /// Apply receiver adjustments to a value or its storage.
+    pub(in crate::lower) fn adjust_receiver(
+        &mut self,
+        receiver: Operand,
+        adjusted: &dir::AdjustedReceiver,
+    ) -> CompilerResult<mir::Value> {
+        let value = match receiver {
+            Operand::Value(value) => value,
+            Operand::Place(place) => {
+                // project storage up to the selected borrow
+                if let Some((index, ty)) =
+                    adjusted
+                        .adjustments
+                        .iter()
+                        .enumerate()
+                        .find_map(|(index, step)| match step {
+                            dir::ReceiverAdjustment::Borrow { ty } => Some((index, *ty)),
+                            _ => None,
+                        })
+                {
+                    let place =
+                        self.project_place_adjustments(place, &adjusted.adjustments[..index])?;
+                    let target = self.lower_type(ty)?;
+
+                    return self.finish_receiver(
+                        Operand::Place(place),
+                        Some(target),
+                        &adjusted.adjustments[index + 1..],
+                    );
+                }
+                self.read_place(&place)?
+            }
+            Operand::Constant(_) => {
+                return Err(self.internal("an unmaterialized constant receiver"));
+            }
+        };
+
+        self.lower_receiver_adjustments(value, &adjusted.adjustments)
     }
 
     /// Call one constraint slot on an adjusted erased receiver, the slot named by its symbol.
@@ -453,7 +608,7 @@ impl FunctionLowerer<'_, '_, '_> {
         receiver: mir::Value,
         dispatch: &dir::DynamicDispatch,
         symbol: dir::GlobalSymbolId,
-        arguments: &[dir::ArgumentBinding],
+        call: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         let Some(name) = self.lower.symbol_name(symbol)? else {
             return Err(CompilerError::Internal {
@@ -461,7 +616,7 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
 
-        self.lower_dynamic_slot_call(receiver, name, dispatch, arguments)
+        self.lower_dynamic_slot_call(receiver, name, dispatch, call)
     }
 
     /// Mark the call inserted last when the selected signature parks the current fiber.
@@ -483,78 +638,16 @@ impl FunctionLowerer<'_, '_, '_> {
             return self.resolve_callee_of(selection.symbol, selection);
         };
 
-        // an open receiver resolves a requirement through its witness at instantiation
-        let flags = self
-            .lower
-            .types(receiver.module_id)?
-            .get_type_flags(receiver.local_id);
-        if flags.has_parameter() || flags.has_this() {
-            return match self.lower.requirement_owner(selection.symbol)? {
-                Some(_) => self.selected_witness(receiver, selection),
-                None => self.resolve_callee_of(selection.symbol, selection),
-            };
+        // resolve a member outside an interface at the receiver directly
+        if self.lower.requirement_owner(selection.symbol)?.is_none() {
+            return self.resolve_callee_of(selection.symbol, selection);
         }
 
-        // require a witness for the closed receiver
-        let lowered = self.lower_type(receiver)?;
-        let lowered = mir::erase_regions(self.builder.tree_mut(), lowered);
-        let Some(witnesses) = self.lower.lowered_witnesses.get(&lowered).cloned() else {
-            return Err(CompilerError::Internal {
-                message: format!(
-                    "a call to '{}' at {receiver:?} without a witness",
-                    self.lower.symbol_path(selection.symbol)?
-                ),
-            });
-        };
-
-        // read the implementer that witness names for the member
-        let implementer = witnesses
-            .iter()
-            .flat_map(|(_, witness)| witness.functions.iter())
-            .find(|function| function.member == selection.symbol)
-            .map(|function| function.function.clone());
-        let Some(mut implementer) = implementer else {
-            // a requirement the witness names no function for is answered by representation
-            let owner = self.lower.requirement_owner(selection.symbol)?;
-            let mut answered = false;
-            if let Some(owner) = owner {
-                for (interface, _) in witnesses.iter() {
-                    answered |= self.lower.ty(*interface)?.symbol() == Some(owner);
-                }
-            }
-            return match answered {
-                true => self.selected_witness(receiver, selection),
-                false => self.resolve_callee_of(selection.symbol, selection),
-            };
-        };
-
-        // bind the implementer's own parameters as the call binds the requirement's
-        let own = self.lower.own_parameters(selection.symbol)?;
-        let arguments: Vec<_> = own
-            .iter()
-            .filter_map(|parameter| {
-                selection
-                    .arguments
-                    .iter()
-                    .find(|binding| binding.parameter == *parameter)
-                    .map(|binding| binding.argument)
-            })
-            .collect();
-        for (parameter, argument) in self
-            .lower
-            .own_parameters(implementer.symbol)?
-            .into_iter()
-            .zip(arguments)
-        {
-            implementer
-                .arguments
-                .push(dir::GenericArgumentBinding::new(parameter, argument));
-        }
-
-        self.resolve_callee_of(implementer.symbol, &implementer)
+        // dispatch every other receiver through its witness at instantiation
+        self.selected_witness(receiver, selection)
     }
 
-    /// Return the witness call of one interface member at an open receiver.
+    /// Return the witness call of one interface member at its receiver.
     fn selected_witness(
         &mut self,
         receiver: dir::GlobalTypeId,
@@ -578,20 +671,6 @@ impl FunctionLowerer<'_, '_, '_> {
             parameters.insert(0, this);
         }
 
-        // close the template at the selection's arguments and the receiver
-        let arguments = self.selection_arguments(receiver, selection, &chain)?;
-        let tree = self.builder.tree_mut();
-        let parameters: Vec<_> = parameters
-            .into_iter()
-            .map(|parameter| substitute_type(tree, parameter, &arguments))
-            .collect();
-        let result = substitute_type(tree, result, &arguments);
-        let (receiver, interface) =
-            self.lower_witness_types(owner, receiver, &chain, &arguments)?;
-        let requirement = self
-            .lower
-            .template_function(self.builder.tree_mut(), selection.symbol)?;
-
         // build the signature the witness call takes under the requirement's region binders
         let lifetimes = chain.declarations(self.lower.strings);
         let signature = self
@@ -606,6 +685,22 @@ impl FunctionLowerer<'_, '_, '_> {
                 result,
             });
 
+        // close the template at the selection's arguments and the receiver, under the binders
+        let arguments = self.selection_arguments(receiver, selection, &chain)?;
+        let signature = substitute_type(self.builder.tree_mut(), signature, &arguments);
+        let parameters = self.signature_parameters(signature)?;
+        let result = self.builder.signature_result(signature);
+        let (receiver, interface) =
+            self.lower_witness_types(owner, receiver, &chain, &arguments)?;
+        let requirement =
+            self.lower
+                .template_function(self.builder.tree_mut(), selection.symbol, None)?;
+
+        // pass the requirement's arguments, filling the implementer's open places
+        let requirement_arguments = (chain.owner_count..chain.count())
+            .map(|index| arguments[index as usize].clone())
+            .collect();
+
         Ok(Callee {
             parameters,
             result,
@@ -613,8 +708,9 @@ impl FunctionLowerer<'_, '_, '_> {
                 receiver,
                 interface,
                 requirement,
+                arguments: requirement_arguments,
             },
-            signature: mir::TypeId::from(signature),
+            signature,
         })
     }
 
@@ -634,10 +730,15 @@ impl FunctionLowerer<'_, '_, '_> {
             .lower_nominal(interface)?
             .storage;
         let tree = self.builder.tree_mut();
-        let interface = substitute_type(tree, mir::TypeId::from(interface), arguments);
+        let interface = substitute_type(tree, interface, arguments);
         let receiver = self.lower_type(receiver)?;
 
-        Ok((mir::TypeId::from(receiver), interface))
+        // construct the dispatch key independently of signature lifetimes
+        let tree = self.builder.tree_mut();
+        let receiver = mir::erase_lifetimes(tree, receiver);
+        let interface = mir::erase_lifetimes(tree, interface);
+
+        Ok((receiver, interface))
     }
 
     /// Return the argument bound to each parameter of one member's template, in index order.
@@ -668,9 +769,9 @@ impl FunctionLowerer<'_, '_, '_> {
             arguments[index as usize] = Some(self.lower_generic_argument(argument)?);
         }
 
-        // place each dependent's evaluated value, the owners' first as sema records them
+        // place each dependent's evaluated value, the owners' first
         let mut values = self.lower.selection_dependents(selection)?.into_iter();
-        for (_, index) in chain.dependents.clone() {
+        for dependent in chain.dependents.clone().into_values() {
             let Some(value) = values.next() else {
                 return Err(CompilerError::Internal {
                     message: format!(
@@ -679,7 +780,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     ),
                 });
             };
-            arguments[index as usize] = Some(self.lower_generic_argument(value)?);
+            arguments[dependent.index as usize] = Some(self.lower_generic_argument(value)?);
         }
 
         arguments
@@ -698,15 +799,25 @@ impl FunctionLowerer<'_, '_, '_> {
         symbol: dir::GlobalSymbolId,
         selection: &dir::InstanceKey,
     ) -> CompilerResult<Instance> {
-        // a key without a receiver or arguments names a declared function
+        // call a symbol without template parameters as its declared function
         let bindings = self.lower.selection_bindings(selection)?;
         let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
         let key = self.generic_instance_key(symbol, selection.receiver, &arguments)?;
-        if key.receiver.is_none() && key.arguments.is_empty() {
+        let slots = self.lower.symbol_scope(symbol)?.count();
+        if slots == 0 {
             return self.function(&key).map(Instance::Declared);
+        }
+        if key.receiver.is_none() && key.arguments.is_empty() {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "a call to '{}' without arguments for its {slots} slots",
+                    self.lower.symbol_path(symbol)?
+                ),
+            });
         }
 
         // declare the instance the key names
+        let dependents = self.lower.selection_dependents(selection)?;
         let tree = self.builder.tree_mut();
         self.lower.declare_instance(
             tree,
@@ -714,6 +825,7 @@ impl FunctionLowerer<'_, '_, '_> {
             symbol,
             selection.receiver,
             &bindings,
+            &dependents,
             &self.scope,
         )
     }
@@ -743,9 +855,9 @@ impl FunctionLowerer<'_, '_, '_> {
         match declaration {
             // call the declared instance
             Some(FunctionDeclaration::Declared(function)) => Ok(*function),
-            // cascade from declarations that already reported their diagnostics
+            // report a call into a callable that failed to declare
             Some(FunctionDeclaration::Failed) => {
-                Err(self.internal("a call into an undeclared callable"))
+                Err(self.unsupported("a call into a callable that failed to declare"))
             }
             // report an undeclared symbol reached by a call
             None => {
@@ -793,8 +905,12 @@ impl FunctionLowerer<'_, '_, '_> {
         // take the callable at the receiver mode its type declares, a borrowed one from its place
         let callable = self.node_type_id(left)?;
         let declared = self.lower_type(callable)?;
-        let borrowed = match self.callable_receiver_access(left)? {
-            Some(access) => Some((self.borrowed_place(left)?, access)),
+        let borrowed = match self.callable_borrow(left)? {
+            Some(access) => {
+                let target = self.borrowed_callable_type(declared, access);
+
+                Some((self.borrowed_place(left, target)?, target))
+            }
             None => None,
         };
         let callee = match borrowed {
@@ -824,13 +940,14 @@ impl FunctionLowerer<'_, '_, '_> {
             Some(template) => GenericScope::for_signature(self.lower, Some(template), None)?,
             None => GenericScope::default(),
         };
-        let mut parameters = self.signature_parameters(mir::TypeId::from(signature))?;
-        let mut result = self.builder.signature_result(mir::TypeId::from(signature));
+        let mut parameters = self.signature_parameters(signature)?;
+        let mut result = self.builder.signature_result(signature);
         self.instantiate_signature(
             &mut parameters,
             &mut result,
             &scope,
             &resolution.regions,
+            &[],
             None,
         )?;
         let values = self.lower_call_arguments(&resolution.arguments, &parameters, &[])?;
@@ -838,11 +955,7 @@ impl FunctionLowerer<'_, '_, '_> {
         // borrow the callable after its arguments, for the call alone
         let callee = match (callee, borrowed) {
             (Some(callee), _) => callee,
-            (None, Some((place, access))) => {
-                let target = self.borrowed_callable_type(declared, access);
-
-                self.borrow_place(&place, target, mir::AddressKind::Borrow)?
-            }
+            (None, Some((place, target))) => self.borrow_place(&place, target)?,
             (None, None) => unreachable!("a callable is a value or a borrowed place"),
         };
 
@@ -854,8 +967,8 @@ impl FunctionLowerer<'_, '_, '_> {
         ))
     }
 
-    /// Return the access a call borrows one callable expression at, absent for a consumed one.
-    fn callable_receiver_access(
+    /// Return the qualifiers used to borrow a callable, absent when consumed.
+    fn callable_borrow(
         &mut self,
         callee: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<Option<mir::Access>> {
@@ -870,24 +983,22 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // read the receiver mode the callable declares
         let mode = match self.lower.ty(function.receiver)? {
-            dir::Type::Literal(dir::Literal::String(text)) => dir::ReceiverMode::from_text(text),
+            dir::Type::Literal(dir::Literal::String(text)) => {
+                dir::ReceiverMode::from_text(self.lower.strings.get(text))
+            }
             _ => None,
         };
 
         Ok(match mode {
-            Some(dir::ReceiverMode::Borrowed(access)) => Some(ModuleLowerer::mir_access(access)),
+            Some(dir::ReceiverMode::Borrowed { access }) => Some(ModuleLowerer::mir_access(access)),
             Some(dir::ReceiverMode::Owned) | None => None,
         })
     }
 
-    /// Return one callable type re-qualified as a borrow at one access.
-    fn borrowed_callable_type(
-        &mut self,
-        ty: mir::LocalNodeId<mir::Type>,
-        access: mir::Access,
-    ) -> mir::LocalNodeId<mir::Type> {
-        // only a function type declares a receiver mode
-        let mut borrowed = self.builder.tree().get(ty).clone();
+    /// Return a callable type with the requested borrow qualifiers.
+    fn borrowed_callable_type(&mut self, ty: mir::TypeId, access: mir::Access) -> mir::TypeId {
+        // re-qualify a function type, every other representation staying as it is
+        let mut borrowed = self.builder.tree().type_definition(ty).clone();
         let mir::Type::Function {
             kind,
             lifetime,
@@ -899,13 +1010,13 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // re-qualify it as a borrow for the call alone, a handle borrowed while the call holds it
-        if *kind != mir::ReferenceKind::Borrowed {
+        if !matches!(kind, mir::Reference::Borrowed) {
             *lifetime = match kind {
-                mir::ReferenceKind::Managed => mir::Lifetime::managed(),
+                mir::Reference::Managed(_) => mir::Lifetime::managed(),
                 _ => mir::Lifetime::frame(),
             };
         }
-        *kind = mir::ReferenceKind::Borrowed;
+        *kind = mir::Reference::Borrowed;
         *declared = access;
 
         self.builder.tree_mut().intern_type(borrowed)
@@ -929,8 +1040,7 @@ impl FunctionLowerer<'_, '_, '_> {
         self.finish_receiver(source, borrow, rest)
     }
 
-    /// Read one receiver expression, a member access on this reading the receiver's storage
-    /// itself and a value use reading the constructed object.
+    /// Read one receiver expression at its member access or value use.
     fn receiver_value(
         &mut self,
         receiver: dir::LocalNodeId<dir::Expression>,
@@ -967,13 +1077,12 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a this outside a method body".to_string(),
             });
         };
-        let value = self.read_binding(binding);
+        let value = self.read_binding(binding)?;
 
         self.lower_narrowing(expression, value)
     }
 
-    /// Evaluate one receiver expression up to the borrow its adjustments lead with, the place
-    /// left to borrow at the reference type the borrow produces.
+    /// Evaluate one receiver expression up to the borrow its adjustments lead with.
     fn receiver_source<'adjust>(
         &mut self,
         receiver: dir::LocalNodeId<dir::Expression>,
@@ -982,16 +1091,16 @@ impl FunctionLowerer<'_, '_, '_> {
         use_: ReceiverUse,
     ) -> CompilerResult<(
         Operand,
-        Option<mir::LocalNodeId<mir::Type>>,
+        Option<mir::TypeId>,
         &'adjust [dir::ReceiverAdjustment],
     )> {
         // guard the receiver when an optional chain encloses it
         let is_guarded = is_optional && !self.chains.is_empty();
 
-        // take the place behind a view strip over a value
+        // take the place behind a view over a value
         let mut adjustments = adjusted.adjustments.as_slice();
         while let [dir::ReceiverAdjustment::Dereference(dereference), rest @ ..] = adjustments
-            && self.is_view_strip(dereference)?
+            && self.dereference_is_view(dereference)?
         {
             adjustments = rest;
         }
@@ -1007,20 +1116,8 @@ impl FunctionLowerer<'_, '_, '_> {
 
                         self.place_behind(storage)?
                     }
-                    _ => self.borrowed_place(receiver)?,
+                    _ => self.borrowed_place(receiver, target)?,
                 };
-
-                Ok((Operand::Place(place), Some(target), rest))
-            }
-            // a borrow behind a reference dereference reborrows the reference itself
-            [
-                dir::ReceiverAdjustment::Dereference(dereference),
-                dir::ReceiverAdjustment::Borrow { ty },
-                rest @ ..,
-            ] if !is_guarded && self.is_reference_dereference(dereference)? => {
-                let target = self.lower_type(*ty)?;
-                let value = self.receiver_value(receiver, use_)?;
-                let place = self.place_behind(value)?;
 
                 Ok((Operand::Place(place), Some(target), rest))
             }
@@ -1041,13 +1138,11 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn finish_receiver(
         &mut self,
         receiver: Operand,
-        borrow: Option<mir::LocalNodeId<mir::Type>>,
+        borrow: Option<mir::TypeId>,
         rest: &[dir::ReceiverAdjustment],
     ) -> CompilerResult<mir::Value> {
         let value = match (receiver, borrow) {
-            (Operand::Place(place), Some(target)) => {
-                self.borrow_place(&place, target, mir::AddressKind::Borrow)?
-            }
+            (Operand::Place(place), Some(target)) => self.borrow_place(&place, target)?,
             (Operand::Value(value), None) => value,
             _ => {
                 return Err(CompilerError::Internal {
@@ -1068,24 +1163,13 @@ impl FunctionLowerer<'_, '_, '_> {
         while let [adjustment, rest @ ..] = adjustments {
             adjustments = rest;
 
-            // a borrow behind a reference dereference reborrows the reference itself
-            if let dir::ReceiverAdjustment::Dereference(dereference) = adjustment
-                && let [dir::ReceiverAdjustment::Borrow { ty }, rest @ ..] = rest
-                && self.is_reference_dereference(dereference)?
-            {
-                let target = self.lower_type(*ty)?;
-                value = self.builder.cast(mir::CastOperator::Bitcast, value, target);
-                adjustments = rest;
-                continue;
-            }
-
             // apply the adjustment the selection recorded
             value = match adjustment {
-                // borrow spilled storage when no source place exists
+                // borrow the receiver value at the selected form
                 dir::ReceiverAdjustment::Borrow { ty } => {
                     let target = self.lower_type(*ty)?;
 
-                    self.spill_borrow(value, target)?
+                    self.borrow_value(value, target)?
                 }
                 // read through one reference or pointer receiver
                 dir::ReceiverAdjustment::Dereference(dereference) => {
@@ -1093,51 +1177,54 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
                 // unwrap a newtype value or stored newtype place
                 dir::ReceiverAdjustment::NewtypePayload { ty, .. } => {
-                    let value_type = self.value_representation(value)?;
+                    let target = self.lower_type(*ty)?;
+                    let stored = self.stored_projection(value, |definition| match definition {
+                        mir::Type::Newtype { inner, .. } => Some(*inner),
+                        _ => None,
+                    })?;
+                    match stored {
+                        Some((inner, access)) => {
+                            let projection = mir::Projection::Field { index: 0 };
 
-                    // retain the address form of stored receivers
-                    match self.builder.tree().get(value_type) {
-                        mir::Type::Reference { .. } | mir::Type::Pointer { .. } => {
-                            let target = self.lower_type(*ty)?;
-
-                            self.builder
-                                .field_addr(value, 0, target, mir::AddressKind::Projection)
+                            self.stored_payload(value, projection, inner, access, target)?
                         }
-                        _ => self.builder.field_get(value, 0),
+                        None => self.builder.field_get(value, 0),
                     }
                 }
                 // project a narrowed union value or stored union place
-                dir::ReceiverAdjustment::UnionPayload { union, arm, .. } => {
-                    let index = self.case(*union, *arm)?;
+                dir::ReceiverAdjustment::UnionPayload { union, arm, ty } => {
+                    let members = self.lower.union_members(*union)?;
+                    let index = self.case(&members, *arm)?;
+                    let target = self.lower_type(*ty)?;
+                    let stored = self.stored_projection(value, |definition| match definition {
+                        mir::Type::Variant { cases, .. } => {
+                            cases.get(index as usize).map(|case| case.ty)
+                        }
+                        _ => None,
+                    })?;
+                    match stored {
+                        Some((payload, access)) => {
+                            let projection = mir::Projection::Variant { case: index };
 
-                    // retain the address form of stored tagged receivers
-                    let value_type = self.value_representation(value)?;
-                    match self.builder.tree().get(value_type).clone() {
-                        mir::Type::Reference { pointee, .. }
-                        | mir::Type::Pointer { pointee, .. }
-                            if matches!(
-                                self.builder.tree().get(pointee),
-                                mir::Type::Variant { .. }
-                            ) =>
-                        {
-                            let target = self.lower_type(adjustment.ty())?;
-
-                            self.builder.variant_payload_addr(
-                                value,
-                                index,
-                                target,
-                                mir::AddressKind::Projection,
-                            )
+                            self.stored_payload(value, projection, payload, access, target)?
                         }
                         // extract tagged payloads by their case
-                        mir::Type::Variant { .. } => self.builder.variant_payload(value, index),
-                        // niched references narrow to their arm in place
-                        _ => {
-                            let target = self.lower_type(adjustment.ty())?;
-
-                            self.builder.cast(mir::CastOperator::Bitcast, value, target)
+                        None if matches!(
+                            self.builder.tree().get(self.value_representation(value)?),
+                            mir::Type::Variant { .. }
+                        ) =>
+                        {
+                            self.builder.variant_payload(value, index)
                         }
+                        // niched references narrow to their arm in place
+                        None => self.builder.cast(mir::CastOperator::Bitcast, value, target),
                     }
+                }
+                // reinterpret the receiver at the base class declaring the member
+                dir::ReceiverAdjustment::Upcast { ty } => {
+                    let target = self.lower_type(*ty)?;
+
+                    self.builder.cast(mir::CastOperator::Bitcast, value, target)
                 }
             };
         }
@@ -1145,63 +1232,129 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(value)
     }
 
-    /// Borrow one value through spilled local storage.
-    pub(in crate::lower) fn spill_borrow(
+    /// Return the payload one stored receiver projects, with the access its storage exposes.
+    fn stored_projection(
         &mut self,
         value: mir::Value,
-        target: mir::LocalNodeId<mir::Type>,
-    ) -> CompilerResult<mir::Value> {
-        let ty = self.value_representation(value)?;
-        let local = self.builder.local(ty, mir::Mutability::Immutable);
-        self.builder.local_set(local, value);
+        select: impl Fn(&mir::Type) -> Option<mir::TypeId>,
+    ) -> CompilerResult<Option<(mir::TypeId, mir::Access)>> {
+        let held = self.value_representation(value)?;
+        let Some(access) = self.rooted_access(held) else {
+            return Ok(None);
+        };
+        let pointee = self.reference_pointee(value)?;
+        let pointee = self.resolved_type(pointee);
 
-        Ok(self
-            .builder
-            .local_addr(local, target, mir::AddressKind::Borrow))
+        Ok(select(self.builder.tree().type_definition(pointee)).map(|payload| (payload, access)))
     }
 
-    /// Return whether a direct dereference strips a view over a value, keeping its representation.
-    pub(in crate::lower) fn is_view_strip(
+    /// Address one projected payload of a stored receiver, borrowing the object past a handle.
+    fn stored_payload(
+        &mut self,
+        value: mir::Value,
+        projection: mir::Projection,
+        stored: mir::TypeId,
+        access: mir::Access,
+        target: mir::TypeId,
+    ) -> CompilerResult<mir::Value> {
+        // reinterpret a handle at the object newtype's leading payload
+        if matches!(projection, mir::Projection::Field { index: 0 })
+            && matches!(
+                self.builder.tree().type_definition(target),
+                mir::Type::Reference {
+                    kind: mir::Reference::Managed(_),
+                    ..
+                }
+            )
+        {
+            return Ok(self.builder.cast(mir::CastOperator::Bitcast, value, target));
+        }
+        let place = mir::Place::value(value)
+            .with_projection(mir::Projection::Deref)
+            .with_projection(projection);
+        if self.addresses_value(target, stored) || self.rooted_access(stored).is_none() {
+            return Ok(self.builder.address(place, target));
+        }
+
+        // borrow the object the stored handle names for as long as the receiver lives
+        let lifetime = self.reborrow_lifetime(value);
+        let slot = self.builder.tree_mut().intern_type(mir::Type::Reference {
+            kind: mir::Reference::Borrowed,
+            lifetime,
+            access,
+            pointee: stored,
+        });
+        let slot = self.builder.address(place, slot);
+        let handle = self.dereference(slot)?;
+
+        self.reborrow_or_reinterpret(handle, target)
+    }
+
+    /// Borrow one value at the target type: a fresh temporary, else the reference's referent.
+    pub(in crate::lower) fn borrow_value(
+        &mut self,
+        value: mir::Value,
+        target: mir::TypeId,
+    ) -> CompilerResult<mir::Value> {
+        let held = self.value_representation(value)?;
+        if !self.addresses_value(target, held) && self.rooted_access(held).is_some() {
+            let place = self.place_behind(value)?;
+
+            return self.borrow_place(&place, target);
+        }
+
+        self.borrow_temporary(value, target)
+    }
+
+    /// Store one value in a fresh frame local and borrow it at the target type.
+    pub(in crate::lower) fn borrow_temporary(
+        &mut self,
+        value: mir::Value,
+        target: mir::TypeId,
+    ) -> CompilerResult<mir::Value> {
+        let ty = self.value_representation(value)?;
+        let local = self.builder.local(ty, mir::Mutability::Mutable);
+        self.builder.local_set(local, value);
+
+        Ok(self.builder.address(mir::Place::local(local), target))
+    }
+
+    /// Return whether one dereference strips a view over the value itself.
+    pub(in crate::lower) fn dereference_is_view(
         &mut self,
         dereference: &dir::Dereference,
     ) -> CompilerResult<bool> {
-        let is_direct = matches!(dereference.target, dir::DereferenceTarget::Direct);
-
-        Ok(is_direct
-            && self
-                .lower
-                .indirection(dereference.receiver, &self.scope)?
-                .is_none())
+        Ok(matches!(
+            self.lower.ty(dereference.receiver)?,
+            dir::Type::Form(form) if matches!(form.form, dir::Form::Readonly | dir::Form::Owned)
+        ))
     }
 
-    /// Return whether one dereference reads through a physical reference.
-    fn is_reference_dereference(&mut self, dereference: &dir::Dereference) -> CompilerResult<bool> {
-        let is_direct = matches!(dereference.target, dir::DereferenceTarget::Direct);
-
-        Ok(is_direct
-            && self
-                .lower
-                .indirection(dereference.receiver, &self.scope)?
-                .is_some())
+    /// Return whether one built-in dereference yields a managed object.
+    fn dereferences_object(&mut self, dereference: &dir::Dereference) -> CompilerResult<bool> {
+        Ok(self.lower.ownership(dereference.ty)? == dir::Ownership::Managed)
     }
 
-    /// Dereference one receiver value through its selected target.
+    /// Dereference one receiver value: a view reads through.
     fn lower_dereference(
         &mut self,
         value: mir::Value,
         dereference: &dir::Dereference,
     ) -> CompilerResult<mir::Value> {
-        match &dereference.target {
-            // keep the value a view over it reads
-            dir::DereferenceTarget::Direct if self.is_view_strip(dereference)? => Ok(value),
-            // load through the physical reference
-            dir::DereferenceTarget::Direct => {
+        match &dereference.protocol {
+            None if self.dereference_is_view(dereference)? => Ok(value),
+            None if self.dereferences_object(dereference)? => {
                 let ty = self.lower_type(dereference.ty)?;
 
-                Ok(self.builder.load(value, ty))
+                Ok(self.builder.cast(mir::CastOperator::Bitcast, value, ty))
             }
-            // call the selected method for a protocol dereference
-            dir::DereferenceTarget::Call(call) => {
+            None => {
+                let ty = self.lower_type(dereference.ty)?;
+                let place = mir::Place::value(value).with_projection(mir::Projection::Deref);
+
+                Ok(self.load_place(place, ty))
+            }
+            Some(call) => {
                 let dir::CallableTarget::Symbol {
                     function,
                     dispatch: dir::FunctionDispatch::Direct,
@@ -1212,7 +1365,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     });
                 };
                 let mut target = self.resolve_callee(&function.key)?;
-                self.instantiate_symbol_callee(&mut target, function.key.symbol, call)?;
+                self.instantiate_symbol_callee(&mut target, &function.key, call)?;
                 let result = self.call(&target, vec![value]);
 
                 result.ok_or_else(|| CompilerError::Internal {

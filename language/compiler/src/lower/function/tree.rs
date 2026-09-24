@@ -179,7 +179,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         attribute: &dir::TreeAttributeBinding,
     ) -> CompilerResult<mir::Value> {
-        // lower an attribute carrying an expression value
+        // lower an attribute with an expression value
         if let Some(value) = attribute.value {
             let Ok(expression) = value.local_id.try_into_typed::<dir::Expression>() else {
                 return Err(CompilerError::Internal {
@@ -242,8 +242,13 @@ impl FunctionLowerer<'_, '_, '_> {
         construct: &dir::ConstructDecision,
         resolution: &dir::TreeDecision,
     ) -> CompilerResult<mir::Value> {
-        // require a class target carrying a single props argument
-        let dir::ConstructTarget::Class { key, constructor } = &construct.target else {
+        // require a class target with a single props argument
+        let dir::ConstructTarget::Class {
+            constructor,
+            arguments,
+            ..
+        } = &construct.target
+        else {
             return Err(CompilerError::Internal {
                 message: "a non-class tree component target".to_string(),
             });
@@ -259,7 +264,7 @@ impl FunctionLowerer<'_, '_, '_> {
         self.lower_class_instance(
             construct.return_type,
             constructor,
-            &key.arguments,
+            arguments,
             &construct.regions,
             vec![props],
         )
