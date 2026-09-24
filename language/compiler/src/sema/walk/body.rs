@@ -53,7 +53,7 @@ impl WalkState<'_, '_> {
             }
             // walk class members under a managed receiver
             dir::Declaration::Class(class) => {
-                // declare a body-local class before walking its members
+                // declare a class in a body before walking its members
                 let definition = self.check.definition(symbol)?;
                 let Some(dir::Definition::Class(declared)) = definition.as_deref() else {
                     return Ok(false);
@@ -98,8 +98,24 @@ impl WalkState<'_, '_> {
                                 )?;
 
                                 // check default bodies against their declared signatures
-                                if let Some(body) = body {
-                                    walk.walk_declared_default_body(*member, &signature, body)?;
+                                match body {
+                                    Some(body) => {
+                                        walk.walk_declared_default_body(*member, &signature, body)?;
+                                    }
+                                    None => {
+                                        if let Some(symbol) =
+                                            walk.declared_symbol(member.into_any())
+                                            && let Some(method) =
+                                                walk.check.adopt_symbol_type_maybe(symbol)?
+                                            && let Some(head) = walk.check.signature_head(method)?
+                                        {
+                                            walk.bind_declared_parameters(
+                                                &signature,
+                                                method.module_id,
+                                                &head,
+                                            )?;
+                                        }
+                                    }
                                 }
                             }
                             dir::TypeMember::CallSignature { signature } => walk
@@ -113,9 +129,6 @@ impl WalkState<'_, '_> {
                             _ => {}
                         }
                     }
-
-                    // queue interface obligations
-                    let _source = id.into_global_any(walk.module);
 
                     Ok(true)
                 })
@@ -161,14 +174,11 @@ impl WalkState<'_, '_> {
 
                 Ok(true)
             }
-            // aliases carry no bodies, nominal values check parameter use
-            dir::Declaration::Type(declaration) => {
-                // declare a body-local type before answering for it
+            // check parameter use on nominal values, which have bodies
+            dir::Declaration::Type(_) => {
+                // declare a type in a body before answering for it
                 if self.check.definition(symbol)?.is_none() {
                     return Ok(false);
-                }
-                if declaration.is_nominal {
-                    let _source = id.into_global_any(self.module);
                 }
 
                 Ok(true)
@@ -193,13 +203,19 @@ impl WalkState<'_, '_> {
         // bind each written parameter to its declared type
         for (parameter, declared) in signature.parameters.iter().zip(declared_parameters) {
             let node = self.tree.get(*parameter).clone();
+            let origin = Origin::Node(
+                parameter.into_global_any(self.module),
+                self.flow().template_scope(),
+            );
+            let declared = declared.ty;
+            self.bind_named_parameter(*parameter, declared)?;
 
             // destructure the written pattern against the declared type
             if let Some(pattern) = node.pattern() {
                 self.walk_pattern(pattern, self.tree.get(pattern), false)?;
                 self.check_assignable(
                     pattern,
-                    declared.ty,
+                    declared,
                     CauseKind::Pattern {
                         pattern: pattern.into_global_any(self.module),
                     },
@@ -209,11 +225,7 @@ impl WalkState<'_, '_> {
 
             // check the written default against the narrowed body binding
             if let Some(default) = node.default_value() {
-                let origin = Origin::Node(
-                    parameter.into_global_any(self.module),
-                    self.flow().template_scope(),
-                );
-                let target = self.defaulted_value_type(origin, declared.ty)?;
+                let target = self.defaulted_value_type(origin, declared)?;
                 let before_default = self.fork_flow();
                 self.walk_expression(default, self.tree.get(default))?;
                 self.check_assignable(
@@ -228,6 +240,52 @@ impl WalkState<'_, '_> {
                 )?;
                 self.restore_flow(before_default);
             }
+        }
+
+        Ok(())
+    }
+
+    /// Bind one named parameter's symbol to its body type, stripping a default's undefined.
+    pub(in crate::sema) fn bind_named_parameter(
+        &mut self,
+        parameter: dir::LocalNodeId<dir::Parameter>,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let Some(symbol) = self.declared_symbol(parameter.into_any()) else {
+            return Ok(());
+        };
+        let binding = match self.tree.get(parameter).default_value() {
+            Some(_) => {
+                let origin = Origin::Node(
+                    parameter.into_global_any(self.module),
+                    self.flow().template_scope(),
+                );
+
+                self.defaulted_value_type(origin, ty)?
+            }
+            None => ty,
+        };
+        self.commit_symbol_type(symbol, binding)?;
+
+        Ok(())
+    }
+
+    /// Bind one bodiless signature's parameters to the types of its declared head.
+    pub(in crate::sema) fn bind_declared_parameters(
+        &mut self,
+        signature: &dir::FunctionSignature,
+        module: ModuleId,
+        head: &dir::FunctionSignatureType,
+    ) -> CompilerResult<()> {
+        if let (Some(parameter), Some(ty)) = (signature.this_parameter, head.this_parameter) {
+            self.bind_named_parameter(parameter, ty)?;
+        }
+        let declared = self
+            .check
+            .signature_parameters(module, head.parameters)?
+            .to_vec();
+        for (parameter, declared) in signature.parameters.iter().zip(declared) {
+            self.bind_named_parameter(*parameter, declared.ty)?;
         }
 
         Ok(())
@@ -325,20 +383,25 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         // read the declared method signature the body checks against
         let Some(symbol) = self.declared_symbol(member.into_any()) else {
-            return Ok(());
+            return Err(CompilerError::Internal {
+                message: format!("default body {member:?} has no declaration symbol"),
+            });
         };
         let Some(method) = self.check.adopt_symbol_type_maybe(symbol)? else {
-            return Ok(());
+            return Err(CompilerError::Internal {
+                message: format!("default body {symbol:?} has no declared type"),
+            });
         };
         let Some(head) = self.check.signature_head(method)? else {
-            return Ok(());
+            return Err(CompilerError::Internal {
+                message: format!("default body {symbol:?} has no signature"),
+            });
         };
         let Some(result) = head.return_type else {
-            return Ok(());
+            return Err(CompilerError::Internal {
+                message: format!("default body {symbol:?} has no result type"),
+            });
         };
-
-        // bind the method's declared parameters
-        self.walk_declared_parameters(signature, method.module_id, &head)?;
 
         // bind the written receiver to its declared type
         let receiver = match (signature.this_parameter, head.this_parameter) {
@@ -347,6 +410,9 @@ impl WalkState<'_, '_> {
             }
             _ => None,
         };
+
+        // bind the method's declared parameters
+        self.walk_declared_parameters(signature, method.module_id, &head)?;
 
         self.walk_function_body(symbol, signature, body, result, receiver, None)?;
 
@@ -388,9 +454,6 @@ impl WalkState<'_, '_> {
             return Ok(false);
         };
 
-        // bind the function value's declared parameters
-        self.walk_declared_parameters(&declaration.signature, signature.module_id, &head)?;
-
         // bind the written receiver to its declared type
         let receiver = match (declaration.signature.this_parameter, head.this_parameter) {
             (Some(parameter), Some(ty)) => {
@@ -398,6 +461,9 @@ impl WalkState<'_, '_> {
             }
             _ => None,
         };
+
+        // bind the declared parameters
+        self.walk_declared_parameters(&declaration.signature, signature.module_id, &head)?;
         let enclosing_receiver = self
             .check
             .flow

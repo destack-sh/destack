@@ -5,7 +5,7 @@ use crate::sema::{
     Cause, CauseKind, CheckState, Expectation, FlowSite, FlowState, InducedParameterOwner, Origin,
     Relation, RelationCheck, ValueUse, VariableKind,
 };
-use crate::{CheckError, CompilerError, CompilerResult};
+use crate::{CheckError, CompilerResult};
 
 /// State used only while walking one module.
 pub(in crate::sema) struct WalkState<'check, 'state> {
@@ -16,13 +16,15 @@ pub(in crate::sema) struct WalkState<'check, 'state> {
     /// The module being walked.
     pub(in crate::sema) module: ModuleId,
     /// The elision rule for borrow regions in the active type position.
-    region_elision: ElisionSite,
+    pub(in crate::sema) elision: ElisionSite,
     /// The declaration receiving the parameters induced by the active signature walk.
     pub(in crate::sema) induced_owner: Option<InducedParameterOwner>,
+    /// The function type whose own binder receives the borrow regions of the active walk.
+    pub(in crate::sema) binder_owner: Option<InducedParameterOwner>,
     /// Whether this walk runs inside a body, where value reads check fixed requirements.
     pub(in crate::sema) is_body: bool,
     /// Elided borrow regions tracked by the active return type.
-    elided_return_regions: Vec<dir::TypeVariableId>,
+    elided_return_regions: Vec<dir::GlobalTypeId>,
     /// Conditional extends clauses enclosing the active type position.
     pub(in crate::sema) extends_clauses: u32,
 }
@@ -30,15 +32,15 @@ pub(in crate::sema) struct WalkState<'check, 'state> {
 /// The rule for elided borrow regions, one per walked type position.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(in crate::sema) enum ElisionSite {
-    /// Signature positions induce one hidden parameter per elided coordinate.
+    /// Signature positions induce one hidden parameter per elided memory component.
     Signature,
     /// Return positions track one placeholder for the return election rule.
     Return,
-    /// Body positions close extents at the frame and leave spaces to inference.
+    /// Body positions leave regions to inference.
     Body,
-    /// Module binding positions read constant storage forever.
+    /// Module binding positions borrow local storage with a static extent.
     Module,
-    /// Member positions place elided components at the enclosing instance's own place.
+    /// Member positions induce parameters on the enclosing declaration.
     Member,
 }
 
@@ -67,8 +69,9 @@ impl<'check, 'state> WalkState<'check, 'state> {
             check,
             tree,
             module,
-            region_elision: ElisionSite::Signature,
+            elision: ElisionSite::Signature,
             induced_owner: None,
+            binder_owner: None,
             is_body: false,
             elided_return_regions: Vec::new(),
             extends_clauses: 0,
@@ -101,9 +104,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
     }
 
     /// Flush the cursor's durable points into the module flow table.
-    ///
-    /// Sites commit into module state at their first visit, so
-    /// syncing the point log is all a flush adds.
     pub(in crate::sema) fn flush_flows(&mut self) -> CompilerResult<()> {
         let module = self.module;
         let flow = std::mem::take(&mut self.check.flow);
@@ -131,7 +131,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.check.visit_site(id.into_global_any(self.module))
     }
 
-    /// Return one source node occurrence site already reached by the walk.
+    /// Return one source node occurrence site the walk already visited.
     pub(in crate::sema) fn node_site<T: dir::Node>(
         &self,
         id: dir::LocalNodeId<T>,
@@ -161,93 +161,160 @@ impl<'check, 'state> WalkState<'check, 'state> {
         id: dir::LocalNodeId<dir::TypeExpression>,
         elision: ElisionSite,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let previous = self.region_elision;
-        self.region_elision = elision;
-        let result = self.walk_type_expression(id);
-        self.region_elision = previous;
+        self.with_elision(elision, |walk| walk.walk_type_expression(id))
+    }
+
+    /// Run one walk step under one elision site, restoring the enclosing site after.
+    pub(in crate::sema) fn with_elision<R>(
+        &mut self,
+        elision: ElisionSite,
+        step: impl FnOnce(&mut Self) -> CompilerResult<R>,
+    ) -> CompilerResult<R> {
+        let previous = std::mem::replace(&mut self.elision, elision);
+        let result = step(self);
+        self.elision = previous;
 
         result
+    }
+
+    /// Walk one type annotation in a value position.
+    pub(in crate::sema) fn walk_value_type(
+        &mut self,
+        node: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // read the row the declare pass wrote, else walk the type here
+        let ty = match self
+            .check
+            .declared_node_type(node.into_global_any(self.module))
+        {
+            Some(declared) => declared,
+            None => self.walk_type_expression_type(node)?,
+        };
+        self.commit_node_type(node, ty)?;
+
+        Ok(ty)
+    }
+
+    /// Walk one binding's annotation at the site its regions elide by.
+    pub(in crate::sema) fn walk_binding_type(
+        &mut self,
+        node: dir::LocalNodeId<dir::TypeExpression>,
+        is_ambient: bool,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let site = match self.flow().current_function().is_some() && !is_ambient {
+            true => ElisionSite::Body,
+            false => ElisionSite::Module,
+        };
+
+        self.walk_value_type_in(node, site)
+    }
+
+    /// Walk one type annotation in a value position under one elision site.
+    pub(in crate::sema) fn walk_value_type_in(
+        &mut self,
+        node: dir::LocalNodeId<dir::TypeExpression>,
+        elision: ElisionSite,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.with_elision(elision, |walk| walk.walk_value_type(node))
     }
 
     /// Walk one return type while tracking its elided borrow components.
     pub(in crate::sema) fn walk_return_type_expression(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
-    ) -> CompilerResult<(dir::GlobalTypeId, Vec<dir::TypeVariableId>)> {
-        let previous = self.region_elision;
+    ) -> CompilerResult<(dir::GlobalTypeId, Vec<dir::GlobalTypeId>)> {
         let first_region = self.elided_return_regions.len();
-        self.region_elision = ElisionSite::Return;
-        let result = self.walk_type_expression(id);
-        self.region_elision = previous;
+        let result = self.with_elision(ElisionSite::Return, |walk| walk.walk_value_type(id));
         let tracked = self.elided_return_regions.split_off(first_region);
 
         Ok((result?, tracked))
     }
 
-    /// Induce one region for a synthesized receiver borrow.
-    pub(in crate::sema) fn induce_receiver_borrow_region(
+    /// Induce the region of one signature-level elision.
+    pub(in crate::sema) fn induce_signature_region(
         &mut self,
         source: dir::LocalNodeIdAny,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        let previous = self.region_elision;
-        self.region_elision = ElisionSite::Signature;
-        let result = self.elided_borrow_region(source);
-        self.region_elision = previous;
-
-        result
+        self.with_elision(ElisionSite::Signature, |walk| {
+            walk.induce_region(source, None)
+        })
     }
 
-    /// Return the region one borrow with an elided region carries.
+    /// Return the region of one borrow with an elided region.
     pub(in crate::sema) fn elided_borrow_region(
         &mut self,
         source: dir::LocalNodeIdAny,
+        payload: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // signatures and returns elide the whole region as one term
-        match self.region_elision {
-            ElisionSite::Signature | ElisionSite::Member => {
-                return self.induce_memory_parameter(source, dir::MemoryParameter::Region);
-            }
-            ElisionSite::Return => return self.elided_borrow_extent(source),
-            ElisionSite::Body | ElisionSite::Module => {}
+        let region = self.induce_region(source, payload)?;
+        if self.elision == ElisionSite::Return {
+            self.elided_return_regions.push(region);
         }
-        let extent = self.elided_borrow_extent(source)?;
-        let spaces = self.elided_memory_component(source, dir::MemoryParameter::Place)?;
 
-        self.check.intern_region(extent, spaces)
+        Ok(region)
     }
 
-    /// Return the elided extent for one borrow region.
-    pub(in crate::sema) fn elided_borrow_extent(
+    /// Pair one region term with the space its payload stores in.
+    pub(in crate::sema) fn borrow_region(
         &mut self,
         source: dir::LocalNodeIdAny,
+        region: dir::GlobalTypeId,
+        payload: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // keep a region pair and a region parameter with its storage
+        if matches!(
+            self.check.ty(region)?,
+            dir::Type::Region(_) | dir::Type::Parameter(_)
+        ) {
+            return Ok(region);
+        }
+
+        // pair an extent with the space the payload stores in
+        let space = self.payload_space(source, payload)?;
+
+        self.check.intern_region(region, space)
+    }
+
+    /// Return the space term one borrowed payload stores in.
+    fn payload_space(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        payload: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        let origin = Origin::Node(
+            source.into_global(self.module),
+            self.flow().template_scope(),
+        );
+
+        self.check.space_term(origin, payload)
+    }
+
+    /// Return the region one elided borrow takes at the active site.
+    pub(in crate::sema) fn induce_region(
+        &mut self,
+        source: dir::LocalNodeIdAny,
+        payload: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         // close an elided region by the site it stands in
-        match self.region_elision {
-            ElisionSite::Signature | ElisionSite::Member => {
-                self.induce_memory_parameter(source, dir::MemoryParameter::Region)
+        match self.elision {
+            ElisionSite::Signature | ElisionSite::Member => self.induce_parameter_on(
+                self.binder_owner.or(self.induced_owner),
+                source,
+                dir::MemoryParameter::Region,
+            ),
+            ElisionSite::Return | ElisionSite::Body => {
+                self.open_memory_hole(source, dir::MemoryParameter::Region)
             }
-            ElisionSite::Return => {
-                let extent = self.open_memory_hole(source, dir::MemoryParameter::Region)?;
-                if let Some(variable) = self.check.root_variable(extent)? {
-                    self.elided_return_regions.push(variable);
-                }
+            ElisionSite::Module => {
+                let extent = self.lifetime_literal(dir::Lifetime::Static)?;
+                let place = match payload {
+                    Some(payload) => self.payload_space(source, payload)?,
+                    None => self.check.local_space()?,
+                };
 
-                Ok(extent)
+                self.check.intern_region(extent, place)
             }
-            ElisionSite::Body => self.lifetime_literal(dir::Lifetime::Frame),
-            ElisionSite::Module => self.lifetime_literal(dir::Lifetime::Static),
         }
-    }
-
-    /// Lift one bare space term into the region holding that coordinate.
-    pub(in crate::sema) fn lift_place_to_region(
-        &mut self,
-        source: dir::LocalNodeIdAny,
-        place: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let extent = self.elided_borrow_extent(source)?;
-
-        self.check.intern_region(extent, place)
     }
 
     /// Return one elided memory component in a written application slot.
@@ -256,39 +323,38 @@ impl<'check, 'state> WalkState<'check, 'state> {
         source: dir::LocalNodeIdAny,
         kind: dir::MemoryParameter,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        if kind == dir::MemoryParameter::Region {
+            return self.elided_borrow_region(source, None);
+        }
+
         // signature positions induce hidden parameters
-        if self.region_elision == ElisionSite::Signature {
+        if self.elision == ElisionSite::Signature {
             return self.induce_memory_parameter(source, kind);
         }
 
-        // module bindings reference constant storage
-        if kind == dir::MemoryParameter::Place && self.region_elision == ElisionSite::Module {
-            return self.check.place_literal(dir::Space::Constant);
-        }
-
-        // member positions project the enclosing instance's own place
-        if kind == dir::MemoryParameter::Place && self.region_elision == ElisionSite::Member {
-            let this = self.intern_type(dir::Type::This)?;
-
-            return self.language_type_reference(dir::LanguageItem::PlaceOf, &[this]);
-        }
-
-        // body and return positions leave the component to inference
+        // leave the component to inference elsewhere
         self.open_memory_hole(source, kind)
     }
 
     /// Induce one memory parameter on the active owner's template.
-    ///
-    /// Signature elision writes the parameter at the elided position, so a
-    /// committed declaration type never carries an inference variable.
     pub(in crate::sema) fn induce_memory_parameter(
         &mut self,
         source: dir::LocalNodeIdAny,
         kind: dir::MemoryParameter,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // contextual signatures without a declaration leave the component to inference
-        let Some(owner) = self.induced_owner else {
-            return self.open_memory_hole(source, kind);
+        self.induce_parameter_on(self.induced_owner, source, kind)
+    }
+
+    /// Induce one memory parameter on one owner's template.
+    fn induce_parameter_on(
+        &mut self,
+        owner: Option<InducedParameterOwner>,
+        source: dir::LocalNodeIdAny,
+        memory: dir::MemoryParameter,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // leave the component to inference for a contextual signature without a declaration
+        let Some(owner) = owner else {
+            return self.open_memory_hole(source, memory);
         };
 
         // type declarations write their lifetimes
@@ -301,7 +367,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
             Some(symbol) => self.check.symbol_kind(symbol)?.is_type_definition(),
             None => false,
         };
-        if is_type_declaration && kind == dir::MemoryParameter::Region {
+        if is_type_declaration && memory == dir::MemoryParameter::Region {
             self.check
                 .report_elided_lifetime_in_named_declaration(owner.declaration, site)?;
 
@@ -309,10 +375,12 @@ impl<'check, 'state> WalkState<'check, 'state> {
         }
 
         // induce the parameter on the owner's template
-        let template = self.check.open_generic_template(owner.declaration)?;
+        let template = self
+            .check
+            .open_generic_template(owner.declaration, self.flow().template_scope())?;
         let parameter = self
             .check
-            .push_induced_memory_parameter(template, site, kind)?;
+            .push_induced_memory_parameter(template, site, memory)?;
 
         self.intern_type(dir::Type::Parameter(parameter))
     }
@@ -393,80 +461,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
         Ok(())
     }
 
-    /// Return one symbol's type slot.
-    pub(in crate::sema) fn symbol_type_slot(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        if let Some(ty) = self.check.adopt_symbol_type_maybe(symbol)? {
-            return Ok(ty);
-        }
-
-        // report foreign value reads while declaring
-        let ty = if !self.check.is_own_module(symbol.module_id) && self.check.is_declaring() {
-            let source = self
-                .check
-                .walking_declarations
-                .last()
-                .map(|node| node.local_id)
-                .unwrap_or(self.check.module.parsed.anchor_expression.into_any());
-            self.check
-                .report_export_type_not_derivable(self.module, source);
-
-            self.intern_type(dir::Type::Error)?
-        }
-        // read committed symbols from imported modules
-        else if !self.check.is_own_module(symbol.module_id) {
-            self.external_symbol_type(symbol)?
-        }
-        // local variables use body-owned binding types
-        else if self.check.symbol_kind(symbol)?.is_binding() {
-            self.binding_type_slot(symbol)?
-        }
-        // local declarations use stable declaration types
-        else {
-            self.declaration_type_slot(symbol)?
-        };
-
-        Ok(ty)
-    }
-
-    /// Return one imported symbol's committed type.
-    fn external_symbol_type(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let committed = self
-            .check
-            .external(symbol.module_id)?
-            .and_then(|external| external.types().get_symbol_type_id(symbol));
-        let Some(ty) = committed else {
-            return Err(CompilerError::Internal {
-                message: format!("external symbol {symbol:?} has no imported type"),
-            });
-        };
-
-        Ok(ty)
-    }
-
-    /// Return one declaration type slot.
-    pub(in crate::sema) fn declaration_type_slot(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        if let Some(ty) = self.check.declaration_type_maybe(symbol) {
-            return Ok(ty);
-        }
-
-        // infer declaration types when recursion and forward references need one
-        let origin = Origin::Symbol(symbol);
-        let variable = self.check.open_variable(origin);
-        let ty = self.check.variable_type(variable)?;
-        self.check.commit_declaration_type(symbol, ty)?;
-
-        Ok(ty)
-    }
-
     /// Return one binding type slot.
     pub(in crate::sema) fn binding_type_slot(
         &mut self,
@@ -482,120 +476,6 @@ impl<'check, 'state> WalkState<'check, 'state> {
         self.check.commit_binding_type(symbol, ty)?;
 
         Ok(ty)
-    }
-
-    /// Intern one type into this module's working segment.
-    pub(in crate::sema) fn intern_type(
-        &mut self,
-        ty: dir::Type,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.intern_type(ty)
-    }
-
-    /// Intern one borrow form into this module's working segment.
-    pub(in crate::sema) fn intern_borrow(
-        &mut self,
-        region: dir::GlobalTypeId,
-        access: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::Form> {
-        self.check.intern_borrow(region, access)
-    }
-
-    /// Intern one member projection into this module's working segment.
-    pub(in crate::sema) fn intern_member(
-        &mut self,
-        member: dir::MemberType,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.intern_member(member)
-    }
-
-    /// Intern one refined application into this module's working segment.
-    pub(in crate::sema) fn intern_refined(
-        &mut self,
-        refined: dir::RefinedType,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.intern_refined(refined)
-    }
-
-    /// Intern one function signature into this module's working segment.
-    pub(in crate::sema) fn intern_signature(
-        &mut self,
-        signature: dir::FunctionSignatureType,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.intern_signature(signature)
-    }
-
-    /// Intern one type operation into this module's working segment.
-    pub(in crate::sema) fn intern_operation(
-        &mut self,
-        operation: dir::TypeOperation,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.intern_operation(operation)
-    }
-
-    /// Intern one type id list into this module's working segment.
-    pub(in crate::sema) fn intern_type_ids(
-        &mut self,
-        values: &[dir::GlobalTypeId],
-    ) -> CompilerResult<dir::TypeListId> {
-        self.check.intern_type_ids(values)
-    }
-
-    /// Intern one tuple element list into this module's working segment.
-    pub(in crate::sema) fn intern_elements(
-        &mut self,
-        values: &[dir::TypeElement],
-    ) -> CompilerResult<dir::TypeListId> {
-        self.check.intern_elements(values)
-    }
-
-    /// Intern one shape property list into this module's working segment.
-    pub(in crate::sema) fn intern_properties(
-        &mut self,
-        values: &[dir::TypeProperty],
-    ) -> CompilerResult<dir::TypeListId> {
-        self.check.intern_properties(values)
-    }
-
-    /// Intern one function parameter list into this module's working segment.
-    pub(in crate::sema) fn intern_parameters(
-        &mut self,
-        values: &[dir::FunctionParameterType],
-    ) -> CompilerResult<dir::TypeListId> {
-        self.check.intern_parameters(values)
-    }
-
-    /// Intern one index signature list into this module's working segment.
-    pub(in crate::sema) fn intern_index_signatures(
-        &mut self,
-        values: &[dir::TypeIndexSignature],
-    ) -> CompilerResult<dir::TypeListId> {
-        self.check.intern_index_signatures(values)
-    }
-
-    /// Intern one string list into this module's working segment.
-    pub(in crate::sema) fn intern_strings(
-        &mut self,
-        values: &[destack_source::StringId],
-    ) -> CompilerResult<dir::TypeListId> {
-        self.check.intern_strings(values)
-    }
-
-    /// Return a normalized union type.
-    pub(in crate::sema) fn normalized_union_type(
-        &mut self,
-        elements: impl IntoIterator<Item = dir::GlobalTypeId>,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.normalized_union_type(elements)
-    }
-
-    /// Return a reference type for one well-known library declaration.
-    pub(in crate::sema) fn language_type_reference(
-        &mut self,
-        item: dir::LanguageItem,
-        arguments: &[dir::GlobalTypeId],
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        self.check.language_type(item, arguments)
     }
 
     /// Return a value type with `undefined` included.

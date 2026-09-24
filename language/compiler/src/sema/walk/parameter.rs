@@ -1,8 +1,7 @@
 use destack_dir as dir;
 
 use crate::sema::{
-    CauseKind, ElisionSite, GenericParameterId, GenericTemplateId, InducedParameterOwner, Origin,
-    ValueUse, WalkState,
+    CauseKind, ElisionSite, GenericParameterId, GenericTemplateId, Origin, ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -71,10 +70,12 @@ impl WalkState<'_, '_> {
         let resolved = self.check.module.resolved.clone();
         let kind = self.check.declared_parameter_kind(
             self.module,
+            &self.tree,
             &resolved,
             generic_parameter,
             constraint,
         )?;
+
         let parameter = self.check.push_generic_parameter(
             template,
             id.into_global_any(self.module),
@@ -89,7 +90,7 @@ impl WalkState<'_, '_> {
             is_const,
         )?;
 
-        // the parameter name writes its own parameter type
+        // write the parameter type under the parameter name
         let ty = self.check.generic_parameter_type(parameter)?;
         self.commit_symbol_type(symbol, ty)?;
 
@@ -130,28 +131,27 @@ impl WalkState<'_, '_> {
                 let (constraint, default) = (*constraint, *default);
 
                 // induce elided bound borrows on the declaring template
-                let previous_owner = self.induced_owner;
-                if let Some(declared) = self.check.generic_template(template)? {
-                    let induction =
-                        InducedParameterOwner::new(declared.source, None, declared.symbol);
-                    self.induced_owner = Some(induction);
-                }
-                let constraint = constraint
-                    .map(|constraint| {
-                        self.walk_type_expression_in(constraint, ElisionSite::Signature)
-                    })
-                    .transpose()?;
-                let default = default
-                    .map(|default| self.walk_type_expression_in(default, ElisionSite::Signature))
-                    .transpose()?;
-                self.induced_owner = previous_owner;
+                let (constraint, default) = self.with_template_owner(template, |walk| {
+                    let constraint = constraint
+                        .map(|constraint| {
+                            walk.walk_type_expression_in(constraint, ElisionSite::Signature)
+                        })
+                        .transpose()?;
+                    let default = default
+                        .map(|default| {
+                            walk.walk_type_expression_in(default, ElisionSite::Signature)
+                        })
+                        .transpose()?;
+
+                    Ok((constraint, default))
+                })?;
 
                 self.check
                     .update_generic_parameter_bounds(parameter, constraint, default)?;
             }
             // <'a>
             dir::GenericParameter::Lifetime { .. } => {
-                let constraint = self.language_type_reference(dir::LanguageItem::Lifetime, &[])?;
+                let constraint = self.language_type(dir::LanguageItem::Region, &[])?;
 
                 self.check
                     .update_generic_parameter_bounds(parameter, Some(constraint), None)?;
@@ -198,7 +198,7 @@ impl WalkState<'_, '_> {
             return Ok(None);
         }
 
-        // build the declared type for the parameter's own form
+        // build the declared type for the parameter form
         let mut result = None;
         match parameter {
             // (p: T), (p: ...T)

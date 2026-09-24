@@ -35,21 +35,6 @@ impl WalkState<'_, '_> {
                 );
                 self.walk_declaration(declaration, self.tree.get(declaration))?;
 
-                // walk the declared bodies left behind by the declaration walk
-                if !is_lambda && let Some(symbol) = self.declared_symbol(declaration.into_any()) {
-                    let is_declared = self.walk_declared_body(
-                        declaration,
-                        &self.tree.get(declaration).clone(),
-                        symbol,
-                    )?;
-                    if !is_declared {
-                        return Err(CompilerError::Internal {
-                            message: format!(
-                                "local declaration {declaration:?} was not declared before its body"
-                            ),
-                        });
-                    }
-                }
                 if is_lambda {
                     let Some(symbol) = self.declared_symbol(declaration.into_any()) else {
                         return Err(CompilerError::Internal {
@@ -59,9 +44,13 @@ impl WalkState<'_, '_> {
 
                     // function values register their bodies at their expression
                     if let dir::Declaration::Function(function) = self.tree.get(declaration).clone()
+                        && !self.walk_declared_function_body(declaration, &function, symbol)?
                     {
-                        let _registered =
-                            self.walk_declared_function_body(declaration, &function, symbol)?;
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "function value {id:?} was not declared before its body"
+                            ),
+                        });
                     }
                     // move the body from independent roots to its value expression
                     let Some(body) = self.check.functions.swap_remove(&symbol) else {
@@ -80,6 +69,20 @@ impl WalkState<'_, '_> {
                         });
                     }
                 } else {
+                    // walk the declared body left behind by the declaration walk
+                    if let Some(symbol) = self.declared_symbol(declaration.into_any())
+                        && !self.walk_declared_body(
+                            declaration,
+                            &self.tree.get(declaration).clone(),
+                            symbol,
+                        )?
+                    {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "local declaration {declaration:?} was not declared before its body"
+                            ),
+                        });
+                    }
                     let void = self.intern_type(dir::Type::Void)?;
                     self.commit_node_type(id, void)?;
                 }
@@ -109,18 +112,12 @@ impl WalkState<'_, '_> {
             }
             // let x = value
             dir::Expression::Let {
-                kind,
                 declarators,
                 is_ambient,
                 ..
             } => {
                 for declarator in declarators {
-                    self.walk_declarator(
-                        *declarator,
-                        self.tree.get(*declarator),
-                        Some(*kind),
-                        *is_ambient,
-                    )?;
+                    self.walk_declarator(*declarator, self.tree.get(*declarator), *is_ambient)?;
                     let node = self.tree.get(*declarator).clone();
                     self.assign_declarator_bindings(&node, *is_ambient);
                 }
@@ -128,7 +125,7 @@ impl WalkState<'_, '_> {
             // using x = value
             dir::Expression::Using { declarators, .. } => {
                 for declarator in declarators {
-                    self.walk_declarator(*declarator, self.tree.get(*declarator), None, false)?;
+                    self.walk_declarator(*declarator, self.tree.get(*declarator), false)?;
                     let node = self.tree.get(*declarator).clone();
                     self.assign_declarator_bindings(&node, false);
                 }
@@ -233,7 +230,7 @@ impl WalkState<'_, '_> {
             }
             // import.meta
             dir::Expression::ImportMeta => {
-                let meta = self.language_type_reference(dir::LanguageItem::ImportMeta, &[])?;
+                let meta = self.language_type(dir::LanguageItem::ImportMeta, &[])?;
                 self.commit_node_type(id, meta)?;
             }
             // import.source resolves to its module source descriptor at lowering
@@ -341,9 +338,9 @@ impl WalkState<'_, '_> {
                 if matches!(self.tree.get(target_type), dir::TypeExpression::Const) {
                     self.walk_expression(child, self.tree.get(child))?;
                 }
-                // the checker relates the cast; the walk only records shapes
+                // walk the written target type before the operand
                 else {
-                    self.walk_type_expression(target_type)?;
+                    self.walk_value_type_in(target_type, ElisionSite::Body)?;
                     self.walk_expression(child, self.tree.get(child))?;
                 }
             }
@@ -354,13 +351,13 @@ impl WalkState<'_, '_> {
             } => {
                 let (child, target_type) = (*child, *target_type);
                 self.walk_expression(child, self.tree.get(child))?;
-                self.walk_type_expression_in(target_type, ElisionSite::Body)?;
+                self.walk_value_type_in(target_type, ElisionSite::Body)?;
             }
             // value is T
             dir::Expression::Is { value, target_type } => {
                 let (value, target_type) = (*value, *target_type);
                 self.walk_expression(value, self.tree.get(value))?;
-                self.walk_type_expression_in(target_type, ElisionSite::Body)?;
+                self.walk_value_type_in(target_type, ElisionSite::Body)?;
             }
             // value instanceof Target
             dir::Expression::InstanceOf { value, target } => {
@@ -585,11 +582,9 @@ impl WalkState<'_, '_> {
                 self.walk_expression(condition, self.tree.get(condition))?;
             }
             // pattern binding condition
-            dir::ConditionOperand::Binding {
-                kind, declarator, ..
-            } => {
+            dir::ConditionOperand::Binding { declarator, .. } => {
                 let declarator = *declarator;
-                self.walk_declarator(declarator, self.tree.get(declarator), Some(*kind), false)?;
+                self.walk_declarator(declarator, self.tree.get(declarator), false)?;
                 self.narrow_let_condition(declarator)?;
             }
         }

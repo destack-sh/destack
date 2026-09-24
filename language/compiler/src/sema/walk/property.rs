@@ -76,7 +76,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
-        // walk by the property's own syntax
+        // walk by the property kind
         match property {
             // { name: value }
             dir::Property::Field { value, .. } => {
@@ -150,7 +150,7 @@ impl WalkState<'_, '_> {
             return Ok(None);
         }
         self.with_receiver_scope(receiver_scope.filter(|_| member.binds_receiver()), |walk| {
-            // declare by the member's own syntax
+            // declare by the member kind
             let definition: CompilerResult<Option<dir::DefinitionMember>> = match member {
                 // type Item = T
                 dir::Member::AssociatedType {
@@ -275,7 +275,7 @@ impl WalkState<'_, '_> {
                         walk.commit_symbol_type(symbol, field_type)?;
                     }
 
-                    // check an annotated default, and read the type an unannotated one supplies
+                    // check an annotated default at the holder's type
                     let checks_default = declared_type.is_none() || !walk.check.is_declaring();
                     if checks_default
                         && let (Some(field_type), Some(default)) = (field_type, default)
@@ -345,6 +345,13 @@ impl WalkState<'_, '_> {
 
                     // open signature parameters under the signature's own scope
                     walk.with_template_scope(template, |walk| {
+                        let implicit_receiver_scope =
+                            if *is_static { None } else { receiver_scope };
+                        let receiver_type = walk.implicit_receiver_type(
+                            id.into_any(),
+                            signature,
+                            implicit_receiver_scope,
+                        )?;
                         let header =
                             walk.walk_function_signature(template, signature, *is_ambient)?;
                         let this_parameter = header.this_parameter;
@@ -364,38 +371,21 @@ impl WalkState<'_, '_> {
                             let source = id.into_global_any(walk.module);
                             walk.check.report_missing_declaration_body(source, member);
                         }
-                        let implicit_receiver_scope =
-                            if *is_static { None } else { receiver_scope };
-                        let receiver_form =
-                            walk.implicit_receiver_form(id, signature, implicit_receiver_scope)?;
+                        // bind the receiver the method reads its holder through
                         let receiver = walk.method_receiver_binding(
                             id,
                             signature,
                             implicit_receiver_scope,
                             this_parameter,
-                            receiver_form,
+                            receiver_type,
                         )?;
+
+                        // walk the result type and track its elided components
                         let (result, tracked) =
                             walk.walk_method_result_type(id, signature, *body, receiver)?;
 
-                        // write the method's function type
-                        let receiver_type = match (receiver, signature.is_constructor()) {
-                            (Some(_), false) => {
-                                let this = walk.intern_type(dir::Type::This)?;
-                                let this = match receiver_form {
-                                    Some(form) => {
-                                        walk.intern_type(dir::Type::Form(dir::FormType {
-                                            form,
-                                            value: this,
-                                        }))?
-                                    }
-                                    None => this,
-                                };
-
-                                Some(this)
-                            }
-                            _ => None,
-                        };
+                        // write the method's function type, this naming the owner
+                        let receiver_type = receiver.map(|binding| binding.receiver.ty);
                         let method = walk.walk_function_signature_type(
                             id.into_any(),
                             signature,
@@ -405,6 +395,12 @@ impl WalkState<'_, '_> {
                             result,
                             tracked,
                         )?;
+
+                        // apply the receiver scope
+                        let origin = Origin::Node(source, walk.flow().template_scope());
+                        let method = walk.apply_receiver_scope(origin, receiver_scope, method)?;
+
+                        // restore the enclosing owner
                         walk.induced_owner = previous;
 
                         // write the method symbol type
@@ -459,10 +455,6 @@ impl WalkState<'_, '_> {
         // walk parameter decorators even when no body is written
         self.walk_parameter_decorators(signature.this_parameter, &signature.parameters)?;
 
-        // only written method bodies check against a declared signature
-        if body.is_none() || *is_ambient || abstraction.is_abstract() {
-            return Ok(None);
-        }
         let Some(symbol) = self.declared_symbol(id.into_any()) else {
             return Ok(None);
         };
@@ -473,25 +465,30 @@ impl WalkState<'_, '_> {
             return Ok(None);
         };
 
+        // bind a bodiless member's parameters as declared, a body checking them itself
+        if body.is_none() || *is_ambient || abstraction.is_abstract() {
+            self.bind_declared_parameters(signature, method.module_id, &head)?;
+
+            return Ok(None);
+        }
+
+        // bind the receiver for instance methods to the declared receiver
+        let implicit = if *is_static { None } else { receiver_scope };
+        let receiver =
+            self.method_receiver_binding(id, signature, implicit, head.this_parameter, None)?;
+
         // bind the method's declared parameters
         self.walk_declared_parameters(signature, method.module_id, &head)?;
 
-        // bind the receiver for instance methods
-        let implicit = if *is_static { None } else { receiver_scope };
-        let receiver_form = self.implicit_receiver_form(id, signature, implicit)?;
-        let receiver = self.method_receiver_binding(
-            id,
-            signature,
-            implicit,
-            head.this_parameter,
-            receiver_form,
-        )?;
-
-        // read the declared result type with this naming the declaration's receiver type
-        let result = match (&receiver, head.return_type) {
-            (Some(_), Some(result)) => Some(self.apply_receiver_scope(implicit, result)?),
-            (_, result) => result,
-        };
+        // read the declared result type with this naming the owner
+        let origin = Origin::Node(
+            id.into_global_any(self.module),
+            self.flow().template_scope(),
+        );
+        let result = head
+            .return_type
+            .map(|result| self.apply_receiver_scope(origin, receiver_scope, result))
+            .transpose()?;
 
         Ok(result.map(|result| MethodBody { receiver, result }))
     }
@@ -592,7 +589,7 @@ impl WalkState<'_, '_> {
                     .report_interface_member_visibility(walk.module, id.into_any());
             }
 
-            // declare by the type member's own syntax
+            // declare by the type member kind
             match member {
                 // field: T
                 dir::TypeMember::Field {
@@ -686,18 +683,14 @@ impl WalkState<'_, '_> {
                         body,
                         false,
                     )?;
-                    let receiver_type =
-                        match (receiver_scope.filter(|_| !is_static), header.this_parameter) {
-                            (Some(_), None) => Some(walk.intern_type(dir::Type::This)?),
-                            _ => None,
-                        };
+
                     let header_this = header.this_parameter;
                     let method = walk.walk_function_signature_type(
                         id.into_any(),
                         signature,
                         header,
                         Some(induction),
-                        receiver_type,
+                        None,
                         result,
                         tracked,
                     )?;
@@ -858,8 +851,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Walk one associated constant.
-    ///
-    /// A written value takes the given implementation, and an omitted value stays required.
     fn walk_associated_constant(
         &mut self,
         id: dir::LocalNodeIdAny,
@@ -872,18 +863,18 @@ impl WalkState<'_, '_> {
 
         // type the annotation and static value
         let declared = declared_type
-            .map(|declared_type| self.walk_type_expression(declared_type))
+            .map(|declared_type| self.walk_value_type(declared_type))
             .transpose()?;
         let written = value
             .map(|value| self.walk_static_term(value))
             .transpose()?;
-        let is_transcribable =
-            value.is_some_and(|value| self.check.is_transcribable_literal(self.module, value));
+        let is_literal =
+            value.is_some_and(|value| self.check.is_literal_initializer(self.module, value));
 
         // take the member type from its annotation or from the value its literal holds
         let ty = match (declared, written) {
             (Some(declared), _) => declared,
-            (None, Some(written)) if is_transcribable => self.check.static_value_type(written)?,
+            (None, Some(written)) if is_literal => self.check.static_value_type(written)?,
             (None, _) => {
                 self.check.report_missing_type_annotation(self.module, id);
 
@@ -946,7 +937,7 @@ impl WalkState<'_, '_> {
         signature: &dir::FunctionSignature,
         implicit_receiver_scope: Option<Receiver>,
         this_parameter: Option<dir::GlobalTypeId>,
-        receiver_form: Option<dir::Form>,
+        receiver_type: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<ReceiverBinding>> {
         // prefer explicit `this` parameters before implicit receivers
         if let (Some(parameter), Some(ty)) = (signature.this_parameter, this_parameter) {
@@ -974,42 +965,65 @@ impl WalkState<'_, '_> {
 
         // bind implicit receivers to the declared receiver type
         if let Some(ty) = this_parameter {
-            let ty = self.apply_receiver_scope(Some(scope), ty)?;
-            self.commit_receiver_symbol_type(symbol, ty)?;
+            let origin = Origin::Node(
+                id.into_global_any(self.module),
+                self.flow().template_scope(),
+            );
+            let ty = self.apply_receiver_scope(origin, Some(scope), ty)?;
+            let receiver = self.receiver_with_super(Receiver { ty, ..scope })?;
+            self.commit_receiver_symbol_type(symbol, receiver.ty)?;
 
-            return Ok(Some(ReceiverBinding {
-                symbol,
-                receiver: Receiver { ty, ..scope },
-            }));
+            return Ok(Some(ReceiverBinding { symbol, receiver }));
         }
 
-        // value-family receivers borrow this under the synthesized form
-        let receiver = match receiver_form {
-            Some(dir::Form::Managed { place }) => {
-                let origin = Origin::Node(
-                    id.into_global_any(self.module),
-                    self.flow().template_scope(),
-                );
-                let ty = self.check.with_referent_place(origin, scope.ty, place)?;
-
-                Receiver { ty, ..scope }
-            }
-            Some(form) => Receiver {
-                ty: self.intern_type(dir::Type::Form(dir::FormType {
-                    form,
-                    value: scope.ty,
-                }))?,
-                ..scope
-            },
+        // bind the synthesized receiver type
+        let receiver = match receiver_type {
+            Some(ty) => Receiver { ty, ..scope },
             None => scope,
         };
+        let receiver = self.receiver_with_super(receiver)?;
         self.commit_receiver_symbol_type(symbol, receiver.ty)?;
 
         Ok(Some(ReceiverBinding { symbol, receiver }))
     }
 
+    /// Return one receiver with `super` naming the superclass under the receiver's own forms.
+    pub(in crate::sema) fn receiver_with_super(
+        &mut self,
+        receiver: Receiver,
+    ) -> CompilerResult<Receiver> {
+        let Some(super_ty) = receiver.super_ty else {
+            return Ok(receiver);
+        };
+        let super_ty = self.rewrap_receiver_value(receiver.ty, super_ty)?;
+
+        Ok(Receiver {
+            super_ty: Some(super_ty),
+            ..receiver
+        })
+    }
+
+    /// Return one receiver type's forms wrapped around another value.
+    fn rewrap_receiver_value(
+        &mut self,
+        receiver: dir::GlobalTypeId,
+        value: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        match self.check.ty(receiver)? {
+            dir::Type::Form(form) => {
+                let value = self.rewrap_receiver_value(form.value, value)?;
+
+                self.intern_type(dir::Type::Form(dir::FormType {
+                    form: form.form,
+                    value,
+                }))
+            }
+            _ => Ok(value),
+        }
+    }
+
     /// Commit one synthesized receiver symbol's type, the first derivation winning.
-    fn commit_receiver_symbol_type(
+    pub(in crate::sema) fn commit_receiver_symbol_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
         ty: dir::GlobalTypeId,
@@ -1023,32 +1037,39 @@ impl WalkState<'_, '_> {
         Ok(())
     }
 
-    /// Synthesize the implicit receiver form shared by signature and body.
-    fn implicit_receiver_form(
+    /// Synthesize the implicit receiver type shared by signature and body.
+    fn implicit_receiver_type(
         &mut self,
-        id: dir::LocalNodeId<dir::Member>,
+        id: dir::LocalNodeIdAny,
         signature: &dir::FunctionSignature,
         scope: Option<Receiver>,
-    ) -> CompilerResult<Option<dir::Form>> {
-        // explicit receivers and constructors write their own form
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // infer nothing for an explicit receiver
         let Some(scope) = scope else {
             return Ok(None);
         };
-        if signature.this_parameter.is_some() || signature.is_constructor() {
+        if signature.this_parameter.is_some() {
             return Ok(None);
         }
 
+        // borrow a constructor's storage exclusively at the place its result names
+        if signature.is_constructor() {
+            let form = self.constructor_receiver_form(id)?;
+
+            return Ok(Some(self.intern_type(dir::Type::Form(dir::FormType {
+                form,
+                value: scope.ty,
+            }))?));
+        }
+
         // preserve every explicitly written receiver form
-        let origin = Origin::Node(
-            id.into_global_any(self.module),
-            self.flow().template_scope(),
-        );
+        let origin = Origin::Node(id.into_global(self.module), self.flow().template_scope());
         let chain = self.check.form_chain(origin, scope.ty)?;
         if chain.ownership_form().is_some() || chain.is_readonly() {
             return Ok(None);
         }
 
-        // fat pointer receivers carry their referent place in their own constructor
+        // read the referent place of a fat pointer receiver from its constructor
         let normalized = self.check.normalize(origin, scope.ty)?;
         let normalized = self.check.shallow_resolve(normalized)?;
         if matches!(
@@ -1058,33 +1079,20 @@ impl WalkState<'_, '_> {
             return Ok(None);
         }
 
-        // readonly getters retain managed ownership or borrow value storage
-        if signature.role == Some(dir::FunctionRole::Getter) {
-            if scope.ownership == Some(dir::Ownership::Managed) {
-                return Ok(Some(dir::Form::Readonly));
-            }
-
-            let region = self.induce_receiver_borrow_region(id.into_any())?;
-            let access = self.access_literal(dir::Access::Readonly)?;
-
-            return Ok(Some(self.intern_borrow(region, access)?));
+        // take an object receiver's handle, a getter reading it readonly
+        if self.is_object_receiver(&scope)? {
+            return Ok(Some(match signature.role {
+                Some(dir::FunctionRole::Getter) => {
+                    self.intern_type(dir::Type::Form(dir::FormType {
+                        form: dir::Form::Readonly,
+                        value: scope.ty,
+                    }))?
+                }
+                _ => scope.ty,
+            }));
         }
 
-        // ambient class receivers take a hidden place parameter
-        if scope.ownership == Some(dir::Ownership::Managed) {
-            if let Some(declaration) = scope.declaration
-                && self.check.declared_space(declaration)?.is_none()
-            {
-                let place =
-                    self.elided_memory_component(id.into_any(), dir::MemoryParameter::Place)?;
-
-                return Ok(Some(dir::Form::Managed { place }));
-            }
-
-            return Ok(None);
-        }
-
-        // bare value methods borrow readonly, setters mutably
+        // a value receiver borrows its storage, a setter mutably
         if scope.ownership != Some(dir::Ownership::Owned) {
             return Ok(None);
         }
@@ -1092,10 +1100,10 @@ impl WalkState<'_, '_> {
             Some(dir::FunctionRole::Setter) => dir::Access::Mutable,
             _ => dir::Access::Readonly,
         };
-        let region = self.induce_receiver_borrow_region(id.into_any())?;
+        let region = self.induce_signature_region(id)?;
         let access = self.access_literal(requested)?;
 
-        Ok(Some(self.intern_borrow(region, access)?))
+        Ok(Some(self.check.borrow_value(region, access, scope.ty)?))
     }
 
     /// Return the name used to report one method body requirement.
@@ -1118,6 +1126,20 @@ impl WalkState<'_, '_> {
         }
     }
 
+    /// Synthesize one constructor's receiver form, its region bound at the construction.
+    fn constructor_receiver_form(&mut self, id: dir::LocalNodeIdAny) -> CompilerResult<dir::Form> {
+        let region = self.induce_signature_region(id)?;
+        let access = self.access_literal(dir::Access::Exclusive)?;
+
+        self.intern_borrow(region, access)
+    }
+
+    /// Return whether one receiver scope names an object: a class, or an extension target of one.
+    pub(in crate::sema) fn is_object_receiver(&mut self, scope: &Receiver) -> CompilerResult<bool> {
+        Ok(scope.ownership == Some(dir::Ownership::Managed)
+            || self.check.ownership(scope.ty)? == Some(dir::Ownership::Managed))
+    }
+
     /// Walk one method return annotation or return the constructor receiver.
     ///
     /// Example:
@@ -1130,7 +1152,7 @@ impl WalkState<'_, '_> {
         signature: &dir::FunctionSignature,
         body: Option<dir::LocalNodeId<dir::Expression>>,
         receiver: Option<ReceiverBinding>,
-    ) -> CompilerResult<(Option<dir::GlobalTypeId>, Vec<dir::TypeVariableId>)> {
+    ) -> CompilerResult<(Option<dir::GlobalTypeId>, Vec<dir::GlobalTypeId>)> {
         // reject source result annotations and use the receiver result
         if signature.is_constructor() {
             if signature.this_form.is_some() || signature.this_parameter.is_some() {
@@ -1147,27 +1169,8 @@ impl WalkState<'_, '_> {
                     .report_constructor_result_annotation(self.module, return_type.into_any());
             }
 
-            // construct a reference nominal at the space its owner declares
+            // construct the receiver's own type
             let result = match receiver {
-                Some(binding) if binding.receiver.ownership == Some(dir::Ownership::Managed) => {
-                    let owner_space = binding
-                        .receiver
-                        .declaration
-                        .map(|owner| self.check.nominal_space(owner))
-                        .transpose()?
-                        .flatten();
-                    let place = match owner_space {
-                        Some(space) => self.check.place_literal(space)?,
-                        None => self
-                            .induce_memory_parameter(id.into_any(), dir::MemoryParameter::Place)?,
-                    };
-                    let this = self.intern_type(dir::Type::This)?;
-
-                    Some(self.intern_type(dir::Type::Form(dir::FormType {
-                        form: dir::Form::Managed { place },
-                        value: this,
-                    }))?)
-                }
                 Some(_) => Some(self.intern_type(dir::Type::This)?),
                 None => None,
             };

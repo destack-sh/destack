@@ -216,6 +216,19 @@ impl WalkState<'_, '_> {
         Ok(true)
     }
 
+    /// Reject one expression as a static value, its node typed as the error type.
+    fn reject_static_value(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+        source: dir::LocalNodeIdAny,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        self.check
+            .report_undecidable_static_value(self.module, source);
+        let ty = self.intern_type(dir::Type::Error)?;
+
+        self.commit_node_type(expression, ty)
+    }
+
     /// Walk one expression in static term position.
     ///
     /// Returns the type level term produced by the expression.
@@ -307,9 +320,11 @@ impl WalkState<'_, '_> {
                     .resolved
                     .references
                     .get(expression.into_global_any(self.module));
-                // a type literal name stands as its denoted type
+
+                // read a type literal name as its denoted type
                 if let Some(dir::Reference::TypeLiteral(literal)) = reference {
-                    let ty = self.intern_type(dir::Type::from(literal.clone()))?;
+                    let literal = literal.clone();
+                    let ty = self.intern_type(dir::Type::from(literal))?;
 
                     return self.commit_node_type(expression, ty);
                 }
@@ -329,14 +344,10 @@ impl WalkState<'_, '_> {
                     | None => None,
                 };
                 let Some(symbol) = symbol else {
-                    self.check
-                        .report_undecidable_static_value(self.module, source);
-                    let ty = self.intern_type(dir::Type::Error)?;
-
-                    return self.commit_node_type(expression, ty);
+                    return self.reject_static_value(expression, source);
                 };
 
-                // record the name edge for checked output
+                // record the name edge
                 let global_source = expression.into_global_any(self.module);
                 self.capture_symbol_reference(global_source, symbol)?;
                 self.check
@@ -344,23 +355,6 @@ impl WalkState<'_, '_> {
 
                 // const parameters write their parameter type
                 if let Some(parameter) = self.check.parameter_by_symbol(symbol)? {
-                    // declared value reads pin the parameter to one exact value
-                    if !self.is_body && parameter.module_id == self.module {
-                        let cardinality = dir::Cardinality::One {
-                            source: expression.into_any(),
-                        };
-                        self.check
-                            .module_mut(self.module)
-                            .generics_tail
-                            .set_cardinality(parameter.local_id, cardinality);
-                    }
-                    // body value reads consume the value the signature must fix
-                    else if self.is_body && self.check.resolved_cardinality(parameter).is_none() {
-                        self.check.report_value_read_not_fixed(
-                            expression.into_global_any(self.module),
-                            parameter,
-                        )?;
-                    }
                     let ty = self.intern_type(dir::Type::Parameter(parameter))?;
 
                     return self.commit_node_type(expression, ty);
@@ -382,11 +376,7 @@ impl WalkState<'_, '_> {
                 right,
             } => {
                 let Ok(operator) = dir::StaticBinaryOperator::try_from(*operator) else {
-                    self.check
-                        .report_undecidable_static_value(self.module, source);
-                    let ty = self.intern_type(dir::Type::Error)?;
-
-                    return self.commit_node_type(expression, ty);
+                    return self.reject_static_value(expression, source);
                 };
                 let left = self.walk_static_term(*left)?;
                 let right = self.walk_static_term(*right)?;
@@ -402,11 +392,7 @@ impl WalkState<'_, '_> {
             // !C
             dir::Expression::Unary { operator, right } => {
                 let Ok(operator) = dir::StaticUnaryOperator::try_from(*operator) else {
-                    self.check
-                        .report_undecidable_static_value(self.module, source);
-                    let ty = self.intern_type(dir::Type::Error)?;
-
-                    return self.commit_node_type(expression, ty);
+                    return self.reject_static_value(expression, source);
                 };
                 let target = self.walk_static_term(*right)?;
                 let operation =
@@ -462,14 +448,10 @@ impl WalkState<'_, '_> {
 
                 // require a resolved newtype head
                 let Some(symbol) = self.check.written_newtype_head(self.module, left) else {
-                    self.check
-                        .report_undecidable_static_value(self.module, source);
-                    let ty = self.intern_type(dir::Type::Error)?;
-
-                    return self.commit_node_type(expression, ty);
+                    return self.reject_static_value(expression, source);
                 };
 
-                // record the head's name edge for checked output
+                // record the head's name edge
                 let head_source = left.into_global_any(self.module);
                 self.capture_symbol_reference(head_source, symbol)?;
                 self.check
@@ -479,11 +461,7 @@ impl WalkState<'_, '_> {
                 let mut elements = Vec::with_capacity(arguments.len());
                 for argument in &arguments {
                     let dir::Argument::Positional { value } = self.tree.get(*argument) else {
-                        self.check
-                            .report_undecidable_static_value(self.module, source);
-                        let ty = self.intern_type(dir::Type::Error)?;
-
-                        return self.commit_node_type(expression, ty);
+                        return self.reject_static_value(expression, source);
                     };
                     let ty = self.walk_static_term(*value)?;
                     let origin = Origin::Node(
@@ -495,11 +473,7 @@ impl WalkState<'_, '_> {
                         dir::Type::Literal(value) => dir::StaticTerm::Literal { value },
                         dir::Type::Static(value) => self.check.r#static(value)?.clone(),
                         _ => {
-                            self.check
-                                .report_undecidable_static_value(self.module, source);
-                            let ty = self.intern_type(dir::Type::Error)?;
-
-                            return self.commit_node_type(expression, ty);
+                            return self.reject_static_value(expression, source);
                         }
                     };
                     elements.push(term);
@@ -523,7 +497,8 @@ impl WalkState<'_, '_> {
                     .module_mut(self.module)
                     .statics_tail
                     .push_static(term);
-                let ty = self.intern_type(dir::Type::Static(id.into_global(self.module)))?;
+                let id = id.into_global(self.module);
+                let ty = self.intern_type(dir::Type::Static(id))?;
 
                 self.commit_node_type(expression, ty)
             }
@@ -544,13 +519,7 @@ impl WalkState<'_, '_> {
                 self.commit_node_type(expression, ty)
             }
             // every other expression
-            _ => {
-                self.check
-                    .report_undecidable_static_value(self.module, source);
-                let ty = self.intern_type(dir::Type::Error)?;
-
-                self.commit_node_type(expression, ty)
-            }
+            _ => self.reject_static_value(expression, source),
         }
     }
 }

@@ -97,7 +97,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
-        // declare by the declaration's own syntax
+        // declare by the declaration kind
         match declaration {
             // global { ... }
             dir::Declaration::Global(declaration) => {
@@ -111,59 +111,16 @@ impl WalkState<'_, '_> {
                     self.visit_expression_templates(*expression, self.tree.get(*expression), pass)?;
                 }
             }
-            // type X<T> = T
-            dir::Declaration::Type(declaration) => {
-                self.visit_declaration_template(
-                    id,
-                    &declaration.generic_parameters,
-                    &declaration.where_clauses,
-                    pass,
-                )?;
-            }
-            // struct S<T> {}
-            dir::Declaration::Struct(declaration) => {
-                self.visit_declaration_template(
-                    id,
-                    &declaration.generic_parameters,
-                    &declaration.where_clauses,
-                    pass,
-                )?;
-            }
-            // class C<T> {}
-            dir::Declaration::Class(declaration) => {
-                self.visit_declaration_template(
-                    id,
-                    &declaration.generic_parameters,
-                    &declaration.where_clauses,
-                    pass,
-                )?;
-            }
-            // enum E<T> {}
-            dir::Declaration::Enum(declaration) => {
-                self.visit_declaration_template(
-                    id,
-                    &declaration.generic_parameters,
-                    &declaration.where_clauses,
-                    pass,
-                )?;
-            }
-            // interface I<T> {}
-            dir::Declaration::Interface(declaration) => {
-                self.visit_declaration_template(
-                    id,
-                    &declaration.generic_parameters,
-                    &declaration.where_clauses,
-                    pass,
-                )?;
-            }
-            // extension T<U> {}
-            dir::Declaration::Extension(declaration) => {
-                self.visit_declaration_template(
-                    id,
-                    &declaration.generic_parameters,
-                    &declaration.where_clauses,
-                    pass,
-                )?;
+            // type X<T> = T, struct S<T> {}, class C<T> {}, enum E<T> {}, interface I<T> {}
+            dir::Declaration::Type(_)
+            | dir::Declaration::Struct(_)
+            | dir::Declaration::Class(_)
+            | dir::Declaration::Enum(_)
+            | dir::Declaration::Interface(_)
+            | dir::Declaration::Extension(_) => {
+                let generic_parameters = declaration.generic_parameters().unwrap_or_default();
+                let where_clauses = declaration.where_clauses().unwrap_or_default();
+                self.visit_declaration_template(id, generic_parameters, where_clauses, pass)?;
             }
             // function f<T>() {}
             dir::Declaration::Function(declaration) => {
@@ -202,12 +159,15 @@ impl WalkState<'_, '_> {
                     .implements_types()
                     .is_some_and(|types| !types.is_empty());
             if template.is_none() && assumes {
-                self.check.open_generic_template(source)?;
+                self.check
+                    .open_generic_template(source, self.flow().template_scope())?;
             }
 
             // an interface declares its receiver as an implicit parameter
             if self.check.symbol_kind(symbol)?.is_interface() {
-                let template = self.check.open_generic_template(source)?;
+                let template = self
+                    .check
+                    .open_generic_template(source, self.flow().template_scope())?;
                 self.check
                     .push_receiver_parameter(template, source, symbol)?;
             }
@@ -277,7 +237,7 @@ impl WalkState<'_, '_> {
         id: dir::LocalNodeId<dir::Declaration>,
         signature: &dir::FunctionSignature,
     ) -> CompilerResult<()> {
-        // symbol-less declarations own no template
+        // skip declarations without a symbol, which have no template
         if self.declared_symbol(id.into_any()).is_none() {
             return Ok(());
         }
@@ -354,7 +314,7 @@ impl WalkState<'_, '_> {
             return Ok(());
         }
 
-        // walk by the declaration's own syntax
+        // walk by the declaration kind
         match declaration {
             // global { ... }
             dir::Declaration::Global(declaration) => {
@@ -411,6 +371,11 @@ impl WalkState<'_, '_> {
             return Ok(());
         };
 
+        // reject a space on an alias, which names no type of its own
+        if declaration.is_shared && !declaration.is_nominal {
+            self.check.report_space_on_alias(self.module, id.into_any());
+        }
+
         // walk generic header
         let source = id.into_global_any(self.module);
         let induction = InducedParameterOwner::new(source, None, Some(symbol));
@@ -440,7 +405,7 @@ impl WalkState<'_, '_> {
                 let definition = if receiver.is_some() {
                     let template = walk.induced_owner_template(induction, template)?;
                     dir::Definition::Newtype(dir::NewtypeDefinition {
-                        space: declaration.place.map(dir::PlaceModifier::space),
+                        space: declaration.is_shared.then_some(dir::Space::Shared),
                         template: template.map(|template| template.local_id),
                         derives: walk.declared_derives(id)?.0,
                         backing: value,
@@ -477,26 +442,6 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<()> {
         let source = id.into_global_any(self.module);
 
-        // intrinsic representations consume their value parameters directly
-        if let Some(template) = template {
-            for parameter in self.check.generic_template_parameters(template)? {
-                let Some(binding) = self.check.generic_parameter(parameter)? else {
-                    continue;
-                };
-                if binding.is_const && binding.memory_parameter().is_none() {
-                    self.check
-                        .module_mut(self.module)
-                        .generics_tail
-                        .set_cardinality(
-                            parameter.local_id,
-                            dir::Cardinality::One {
-                                source: id.into_any(),
-                            },
-                        );
-                }
-            }
-        }
-
         // type an intrinsic declaration as opaque
         let value = self.intern_type(dir::Type::Intrinsic)?;
         self.commit_node_type(declaration.value, value)?;
@@ -504,7 +449,7 @@ impl WalkState<'_, '_> {
         // intrinsic newtypes stay opaque
         if declaration.is_nominal {
             let definition = dir::Definition::Newtype(dir::NewtypeDefinition {
-                space: declaration.place.map(dir::PlaceModifier::space),
+                space: declaration.is_shared.then_some(dir::Space::Shared),
                 template: template.map(|template| template.local_id),
                 derives: None,
                 backing: value,
@@ -611,6 +556,7 @@ impl WalkState<'_, '_> {
             conformances.push(dir::NominalConformance {
                 source: expression,
                 interface: applied,
+                polarity: dir::Polarity::Positive,
             });
         }
 
@@ -663,7 +609,7 @@ impl WalkState<'_, '_> {
                 let mut implements = implements;
                 implements.extend(conformances);
                 let definition = dir::Definition::Struct(dir::StructDefinition {
-                    space: declaration.place.map(dir::PlaceModifier::space),
+                    space: declaration.is_shared.then_some(dir::Space::Shared),
                     template: template.map(|template| template.local_id),
                     derives,
                     implements,
@@ -698,7 +644,8 @@ impl WalkState<'_, '_> {
                 let mut extends = None;
                 let mut super_ty = None;
                 if let Some(extends_type) = declaration.extends_type {
-                    let ty = walk.walk_type_expression(extends_type)?;
+                    // store the base subobject inside the derived instance
+                    let ty = walk.walk_type_expression_in(extends_type, ElisionSite::Member)?;
                     if let Some((source, instance)) = walk.heritage_instance(extends_type, ty)? {
                         if walk
                             .check
@@ -756,8 +703,6 @@ impl WalkState<'_, '_> {
                         members.push(definition);
                     }
                 }
-                let constructors =
-                    walk.class_construct_candidates(receiver.ty, extends.is_some(), &members)?;
 
                 // commit the class definition
                 let template = walk.induced_owner_template(induction, template)?;
@@ -765,14 +710,13 @@ impl WalkState<'_, '_> {
                 let mut implements = implements;
                 implements.extend(conformances);
                 let definition = dir::Definition::Class(dir::ClassDefinition {
-                    space: declaration.place.map(dir::PlaceModifier::space),
+                    space: declaration.is_shared.then_some(dir::Space::Shared),
                     template: template.map(|template| template.local_id),
                     derives,
                     is_abstract: declaration.is_abstract,
                     is_final: declaration.is_final,
                     extends,
                     implements,
-                    constructors,
                     members,
                 });
                 walk.check.insert_definition(symbol, source, definition)?;
@@ -792,119 +736,124 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<Vec<dir::NominalConformance>> {
         let mut implements = Vec::new();
         for implemented_type in implements_types {
+            // read the interface beneath a negated clause's operator
+            let negated = self.negated_implements(*implemented_type);
+            let heritage_annotation = negated.unwrap_or(*implemented_type);
+
             // induce elided heritage borrows on the declaring template
             let previous_owner = self.induced_owner;
             self.induced_owner = Some(induction);
-            let ty = self.walk_type_expression_in(*implemented_type, ElisionSite::Signature);
+            let ty = self.walk_type_expression_in(heritage_annotation, ElisionSite::Signature);
             self.induced_owner = previous_owner;
             let ty = ty?;
 
-            // require a written interface instance
-            let Some((source, instance)) = self.heritage_instance(*implemented_type, ty)? else {
-                let name = self.check.format_symbol(symbol);
-                self.check.report_implementation_target_not_interface_type(
-                    name,
-                    ty,
-                    implemented_type.into_global_any(self.module),
-                );
-
+            // classify the clause, assuming `this` satisfies a positive interface
+            let name = self.check.format_symbol(symbol);
+            let Some(conformance) = self.implemented_conformance(
+                symbol,
+                &name,
+                *implemented_type,
+                heritage_annotation,
+                ty,
+                negated.is_some(),
+            )?
+            else {
                 continue;
             };
-            if self
-                .check
-                .symbol_kind(instance.symbol)
-                .map(|kind| !kind.is_interface())?
+            if conformance.polarity == dir::Polarity::Positive
+                && let Some(template) = template
             {
-                let name = self.check.format_symbol(symbol);
-                self.check
-                    .report_implementation_target_not_interface_symbol(
-                        name,
-                        instance.symbol,
-                        source,
-                    );
-
-                continue;
+                self.push_this_heritage_predicate(conformance.source, template, ty)?;
             }
-
-            // members assume this satisfies the implemented interface
-            if let Some(template) = template {
-                self.push_this_heritage_predicate(source, template, ty)?;
-            }
-            implements.push(dir::NominalConformance {
-                source,
-                interface: ty,
-            });
+            implements.push(conformance);
         }
 
         Ok(implements)
     }
 
-    /// Return direct construct candidates for one class.
-    fn class_construct_candidates(
+    /// Classify one walked implements clause, reporting a clause that names no interface.
+    fn implemented_conformance(
         &mut self,
-        receiver: dir::GlobalTypeId,
-        is_derived: bool,
-        members: &[dir::DefinitionMember],
-    ) -> CompilerResult<Vec<dir::ClassConstructorDefinition>> {
-        let declared = self.declared_class_construct_candidates(members)?;
-        if !declared.is_empty() {
-            return Ok(declared);
-        }
-        if is_derived {
-            return Ok(Vec::new());
-        }
+        symbol: dir::GlobalSymbolId,
+        name: &str,
+        implemented_type: dir::LocalNodeId<dir::TypeExpression>,
+        heritage_annotation: dir::LocalNodeId<dir::TypeExpression>,
+        ty: dir::GlobalTypeId,
+        is_negated: bool,
+    ) -> CompilerResult<Option<dir::NominalConformance>> {
+        // require a written interface instance
+        let Some((source, instance)) = self.heritage_instance(heritage_annotation, ty)? else {
+            self.check.report_implementation_target_not_interface_type(
+                name.to_string(),
+                ty,
+                implemented_type.into_global_any(self.module),
+            );
 
-        self.default_class_construct_candidate(receiver)
-    }
-
-    /// Return explicitly declared class construct candidates.
-    fn declared_class_construct_candidates(
-        &mut self,
-        members: &[dir::DefinitionMember],
-    ) -> CompilerResult<Vec<dir::ClassConstructorDefinition>> {
-        let mut constructors = Vec::new();
-        for member in members {
-            let dir::DefinitionMember::Method(method) = member else {
-                continue;
-            };
-            if method.slot != dir::MemberSlot::Constructor {
-                continue;
-            }
-
-            constructors.push(dir::ClassConstructorDefinition {
-                constructor: dir::ClassConstructor::Declared {
-                    symbol: method.symbol,
-                },
-                ty: self.symbol_type_slot(method.symbol)?,
-            });
-        }
-
-        Ok(constructors)
-    }
-
-    /// Return a base class default construct candidate.
-    fn default_class_construct_candidate(
-        &mut self,
-        receiver: dir::GlobalTypeId,
-    ) -> CompilerResult<Vec<dir::ClassConstructorDefinition>> {
-        let function = dir::FunctionSignatureType {
-            parks: false,
-            asynchrony: dir::Asynchrony::Sync,
-            template: None,
-            arguments: dir::TypeListId::EMPTY,
-            this_parameter: None,
-            parameters: dir::TypeListId::EMPTY,
-            return_type: Some(receiver),
-            is_generator: false,
-            is_construct: false,
+            return Ok(None);
         };
-        let ty = self.intern_signature(function)?;
 
-        // declare the default constructor
-        Ok(vec![dir::ClassConstructorDefinition {
-            constructor: dir::ClassConstructor::Default,
-            ty,
-        }])
+        // require an interface declaration
+        if self
+            .check
+            .symbol_kind(instance.symbol)
+            .map(|kind| !kind.is_interface())?
+        {
+            self.check
+                .report_implementation_target_not_interface_symbol(
+                    name.to_string(),
+                    instance.symbol,
+                    source,
+                );
+
+            return Ok(None);
+        }
+
+        // refuse a negated clause over an interface without a compiler rule
+        let polarity = match is_negated {
+            true if !self.require_auto_interface(symbol, instance.symbol, source)? => {
+                return Ok(None);
+            }
+            true => dir::Polarity::Negative,
+            false => dir::Polarity::Positive,
+        };
+
+        Ok(Some(dir::NominalConformance {
+            source,
+            interface: ty,
+            polarity,
+        }))
+    }
+
+    /// Return the interface one negated implements clause names, like `!Copy`.
+    fn negated_implements(
+        &self,
+        implemented_type: dir::LocalNodeId<dir::TypeExpression>,
+    ) -> Option<dir::LocalNodeId<dir::TypeExpression>> {
+        match self.tree.get(implemented_type) {
+            dir::TypeExpression::Not { target_type } => Some(*target_type),
+            _ => None,
+        }
+    }
+
+    /// Require one negated clause to name an auto interface, reporting it otherwise.
+    fn require_auto_interface(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        interface: dir::GlobalSymbolId,
+        source: dir::GlobalNodeIdAny,
+    ) -> CompilerResult<bool> {
+        let is_auto = self
+            .check
+            .language_item(interface)?
+            .and_then(dir::AutoInterface::from_language_item)
+            .is_some();
+        if !is_auto {
+            let name = self.check.format_symbol(symbol);
+            self.check
+                .report_negative_implementation_not_auto(name, interface, source);
+        }
+
+        Ok(is_auto)
     }
 
     /// Walk one enum declaration.
@@ -1000,7 +949,7 @@ impl WalkState<'_, '_> {
 
                 // declare the enum ahead of its members, which read its variants
                 let declared = dir::Definition::Enum(dir::EnumDefinition {
-                    space: declaration.place.map(dir::PlaceModifier::space),
+                    space: declaration.is_shared.then_some(dir::Space::Shared),
                     template: None,
                     derives: Default::default(),
                     backing: backing.unwrap_or(dir::EnumBackingType::DEFAULT),
@@ -1028,7 +977,7 @@ impl WalkState<'_, '_> {
                 let mut implements = implements;
                 implements.extend(conformances);
                 let definition = dir::Definition::Enum(dir::EnumDefinition {
-                    space: declaration.place.map(dir::PlaceModifier::space),
+                    space: declaration.is_shared.then_some(dir::Space::Shared),
                     template: template.map(|template| template.local_id),
                     derives,
                     backing: backing.unwrap_or(dir::EnumBackingType::DEFAULT),
@@ -1106,7 +1055,7 @@ impl WalkState<'_, '_> {
                 // commit the interface definition
                 let template = walk.induced_owner_template(induction, template)?;
                 let definition = dir::Definition::Interface(dir::InterfaceDefinition {
-                    space: declaration.place.map(dir::PlaceModifier::space),
+                    space: declaration.is_shared.then_some(dir::Space::Shared),
                     template: template.map(|template| template.local_id),
                     is_nominal: declaration.is_nominal,
                     extends,
@@ -1139,6 +1088,7 @@ impl WalkState<'_, '_> {
             let target_type = walk.walk_type_expression(declaration.target_type)?;
             let origin = Origin::Node(source, walk.flow().template_scope());
             let target = walk.walk_extension_target(origin, target_type)?;
+
             // name the target for the extension's diagnostics
             let target_name = match &target {
                 dir::ExtensionTarget::Rooted { root, .. } => match root {
@@ -1159,34 +1109,20 @@ impl WalkState<'_, '_> {
                 // walk implemented interfaces
                 let mut implements = Vec::new();
                 for implemented_type in &declaration.implements_types {
-                    let ty = walk.walk_type_expression(*implemented_type)?;
-                    if let Some((source, instance)) =
-                        walk.heritage_instance(*implemented_type, ty)?
-                    {
-                        // skip kind validation on foreign symbols, checking reads their kind
-                        if walk
-                            .check
-                            .symbol_kind(instance.symbol)
-                            .map(|kind| kind.is_interface())?
-                        {
-                            implements.push(dir::NominalConformance {
-                                source,
-                                interface: ty,
-                            });
-                        } else {
-                            walk.check
-                                .report_implementation_target_not_interface_symbol(
-                                    target_name.clone(),
-                                    instance.symbol,
-                                    source,
-                                );
-                        }
-                    } else {
-                        walk.check.report_implementation_target_not_interface_type(
-                            target_name.clone(),
-                            ty,
-                            implemented_type.into_global_any(walk.module),
-                        );
+                    let negated = walk.negated_implements(*implemented_type);
+                    let heritage_annotation = negated.unwrap_or(*implemented_type);
+                    let ty = walk.walk_type_expression(heritage_annotation)?;
+
+                    // classify the clause against the extension target
+                    if let Some(conformance) = walk.implemented_conformance(
+                        symbol,
+                        &target_name,
+                        *implemented_type,
+                        heritage_annotation,
+                        ty,
+                        negated.is_some(),
+                    )? {
+                        implements.push(conformance);
                     }
                 }
 
@@ -1210,6 +1146,7 @@ impl WalkState<'_, '_> {
                 } else {
                     dir::ExtensionForm::Local
                 };
+
                 // commit the extension definition
                 let template = walk.induced_owner_template(induction, template)?;
                 let definition = dir::Definition::Extension(dir::ExtensionDefinition {
@@ -1287,9 +1224,11 @@ impl WalkState<'_, '_> {
                     self.check
                         .open_memory_type(origin, dir::MemoryParameter::Access)?
                 }
-                dir::FunctionForm::Function => self
-                    .check
-                    .receiver_literal(dir::ReceiverMode::Borrowed(dir::Access::Readonly))?,
+                dir::FunctionForm::Function => {
+                    self.check.receiver_literal(dir::ReceiverMode::Borrowed {
+                        access: dir::Access::Readonly,
+                    })?
+                }
             };
 
             self.push_function_value_type(signature, receiver)?
@@ -1412,11 +1351,21 @@ impl WalkState<'_, '_> {
         template: Option<GenericTemplateId>,
         id: dir::LocalNodeId<dir::WhereClause>,
     ) -> CompilerResult<()> {
-        // walk operands
+        // walk the operands, elided bound borrows inducing on the declaring template
         let clause = self.tree.get(id);
         let (relation, left, right) = (clause.relation, clause.left, clause.right);
-        let left = self.walk_type_expression(left)?;
-        let right = self.walk_type_expression(right)?;
+        let (left, right) = match template {
+            Some(template) => self.with_template_owner(template, |walk| {
+                let left = walk.walk_type_expression_in(left, ElisionSite::Signature)?;
+                let right = walk.walk_type_expression_in(right, ElisionSite::Signature)?;
+
+                Ok((left, right))
+            })?,
+            None => (
+                self.walk_type_expression(left)?,
+                self.walk_type_expression(right)?,
+            ),
+        };
 
         // require a lifetime bound to name exactly one lifetime
         if self.check.memory_kind(left)? == Some(dir::MemoryParameter::Region)
@@ -1476,18 +1425,17 @@ impl WalkState<'_, '_> {
 
         // require annotations on every declared callable parameter
         let is_annotation_required = signature.form != dir::FunctionForm::Lambda;
-        let this_parameter = if let Some(parameter) = signature.this_parameter {
-            self.walk_parameter(
+
+        // walk the receiver and value parameters
+        let this_parameter = match signature.this_parameter {
+            Some(parameter) => self.walk_parameter(
                 parameter,
                 self.tree.get(parameter),
                 is_annotation_required,
                 is_ambient,
-            )?
-        } else {
-            None
+            )?,
+            None => None,
         };
-
-        // walk the value parameters
         let mut parameters = Vec::new();
         for parameter in &signature.parameters {
             let Some(ty) = self.walk_parameter(
@@ -1524,7 +1472,9 @@ impl WalkState<'_, '_> {
             return Ok(None);
         }
 
-        self.check.open_generic_template(source).map(Some)
+        self.check
+            .open_generic_template(source, self.flow().template_scope())
+            .map(Some)
     }
 
     /// Return the receiver introduced by one `this` parameter.
@@ -1545,30 +1495,34 @@ impl WalkState<'_, '_> {
         };
 
         // apply the surrounding receiver scope to the written type
-        let ty = self.apply_receiver_scope(scope, ty)?;
+        let origin = Origin::Node(
+            parameter.into_global_any(self.module),
+            self.flow().template_scope(),
+        );
+        let ty = self.apply_receiver_scope(origin, scope, ty)?;
+        let receiver = self.receiver_with_super(Receiver {
+            declaration: scope.and_then(|scope| scope.declaration),
+            ownership: scope.and_then(|scope| scope.ownership),
+            ty,
+            super_ty: scope.and_then(|scope| scope.super_ty),
+        })?;
+        self.commit_receiver_symbol_type(symbol, receiver.ty)?;
 
-        Ok(ReceiverBinding {
-            symbol,
-            receiver: Receiver {
-                declaration: scope.and_then(|scope| scope.declaration),
-                ownership: scope.and_then(|scope| scope.ownership),
-                ty,
-                super_ty: scope.and_then(|scope| scope.super_ty),
-            },
-        })
+        Ok(ReceiverBinding { symbol, receiver })
     }
 
-    /// Apply the active receiver scope to one receiver parameter type.
+    /// Resolve `this` in one member type to the object the active receiver scope names.
     pub(in crate::sema) fn apply_receiver_scope(
         &mut self,
+        origin: Origin,
         scope: Option<Receiver>,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let Some(scope) = scope else {
             return Ok(ty);
         };
-
-        let substitution = TypeSubstitution::default().with_receiver(scope.ty);
+        let object = self.check.strip_form(origin, scope.ty)?;
+        let substitution = TypeSubstitution::default().with_receiver(object);
 
         self.check.substitute_type(ty, &substitution)
     }
@@ -1584,7 +1538,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<(
         FunctionHeader,
         Option<dir::GlobalTypeId>,
-        Vec<dir::TypeVariableId>,
+        Vec<dir::GlobalTypeId>,
     )> {
         // walk the whole header under the template it declares
         self.with_template_scope(template, |walk| {
@@ -1601,7 +1555,7 @@ impl WalkState<'_, '_> {
         source: dir::LocalNodeIdAny,
         signature: &dir::FunctionSignature,
         body: Option<dir::LocalNodeId<dir::Expression>>,
-    ) -> CompilerResult<(Option<dir::GlobalTypeId>, Vec<dir::TypeVariableId>)> {
+    ) -> CompilerResult<(Option<dir::GlobalTypeId>, Vec<dir::GlobalTypeId>)> {
         // use explicit return annotations
         if let Some(return_type) = signature.return_type {
             let (result, tracked) = self.walk_return_type_expression(return_type)?;
@@ -1678,7 +1632,7 @@ impl WalkState<'_, '_> {
         })
     }
 
-    /// Return the nominal instance written in one heritage annotation.
+    /// Return the nominal instance one heritage annotation names.
     fn heritage_instance(
         &mut self,
         source: dir::LocalNodeId<dir::TypeExpression>,
@@ -1723,7 +1677,7 @@ impl WalkState<'_, '_> {
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::ExtensionTarget> {
-        // root written memory forms at their payload's family
+        // root annotated memory forms at their payload's default ownership
         let mut payload = ty;
         let mut form_root = None;
         loop {

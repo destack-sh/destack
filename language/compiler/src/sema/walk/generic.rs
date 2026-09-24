@@ -30,13 +30,35 @@ impl InducedParameterOwner {
 }
 
 impl WalkState<'_, '_> {
+    /// Walk with a template's declaration owning the parameters it induces.
+    pub(in crate::sema) fn with_template_owner<R>(
+        &mut self,
+        template: GenericTemplateId,
+        walk: impl FnOnce(&mut Self) -> CompilerResult<R>,
+    ) -> CompilerResult<R> {
+        let previous = self.induced_owner;
+        if previous.is_none()
+            && let Some(declared) = self.check.generic_template(template)?
+        {
+            self.induced_owner = Some(InducedParameterOwner::new(
+                declared.source,
+                None,
+                declared.symbol,
+            ));
+        }
+        let result = walk(self);
+        self.induced_owner = previous;
+
+        result
+    }
+
     /// Return the generic template enclosing one member declaration.
     pub(in crate::sema) fn enclosing_generic_template(
         &self,
         receiver: Option<Receiver>,
         declaration: Option<InducedParameterOwner>,
     ) -> CompilerResult<Option<GenericTemplateId>> {
-        // prefer the declaration that owns the member
+        // prefer the declaration of the member
         if let Some(symbol) = declaration.and_then(|declaration| declaration.symbol)
             && let Some(template) = self.check.template_by_symbol(symbol)?
         {
@@ -74,7 +96,9 @@ impl WalkState<'_, '_> {
                 message: format!("generic template source {source:?} is outside the walked module"),
             });
         }
-        let template = self.check.open_generic_template(source)?;
+        let template = self
+            .check
+            .open_generic_template(source, self.flow().template_scope())?;
 
         // open parameter identities before walking any bounds
         for parameter in parameters {

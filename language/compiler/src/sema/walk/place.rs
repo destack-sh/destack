@@ -22,7 +22,7 @@ impl WalkState<'_, '_> {
         self.enter_node(id)?;
         let expression = self.tree.get(id).clone();
 
-        // walk by the place expression's own syntax
+        // walk by the place expression kind
         match expression {
             // x
             dir::Expression::Identifier { .. } => self.walk_named_assigned_place(id.into_any()),
@@ -34,7 +34,7 @@ impl WalkState<'_, '_> {
 
                 // walk the receiver and keep direct fields of the instance as places
                 self.walk_expression(left, self.tree.get(left))?;
-                let receiver_type = self.check.assigned_receiver_type();
+                let receiver_type = self.check.assigned_receiver_type()?;
                 let place = match (self.tree.get(left), name, receiver_type) {
                     (
                         dir::Expression::This | dir::Expression::Super,

@@ -20,13 +20,13 @@ impl WalkState<'_, '_> {
     }
 
     /// Return the type denoted by one type expression.
-    fn walk_type_expression_type(
+    pub(in crate::sema) fn walk_type_expression_type(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
         let source = id.into_any();
 
-        // walk by the type expression's own syntax
+        // walk by the type expression kind
         match self.tree.get(id) {
             // "ok", 42, true
             dir::TypeExpression::Literal { value } => self.intern_type(dir::Type::Literal(*value)),
@@ -58,9 +58,8 @@ impl WalkState<'_, '_> {
             // [T]
             dir::TypeExpression::Slice { element } => {
                 let element = self.walk_type_expression(*element)?;
-                let place = self.check.local_place()?;
 
-                self.intern_type(dir::Type::Slice(dir::SliceType { element, place }))
+                self.intern_type(dir::Type::Slice(dir::SliceType { element }))
             }
             // [T; N]
             dir::TypeExpression::FixedArray { element, length } => {
@@ -176,8 +175,28 @@ impl WalkState<'_, '_> {
 
                 self.intern_type(dir::Type::Error)
             }
-            // this
-            dir::TypeExpression::This => self.intern_type(dir::Type::This),
+            // this, read at an extension's receiver and polymorphic in a class
+            dir::TypeExpression::This => {
+                let receiver = self.flow().current_receiver();
+                let extension_receiver = match receiver {
+                    Some(receiver) => match receiver.declaration {
+                        Some(declaration)
+                            if matches!(
+                                self.check.symbol_kind(declaration)?,
+                                dir::SymbolKind::Extension
+                            ) =>
+                        {
+                            Some(receiver.ty)
+                        }
+                        _ => None,
+                    },
+                    None => None,
+                };
+                match extension_receiver {
+                    Some(ty) => Ok(ty),
+                    None => self.intern_type(dir::Type::This),
+                }
+            }
             // readonly T
             dir::TypeExpression::Readonly { target_type } => {
                 let value = self.walk_type_expression(*target_type)?;
@@ -186,14 +205,6 @@ impl WalkState<'_, '_> {
                     form: dir::Form::Readonly,
                     value,
                 }))
-            }
-            // local T
-            dir::TypeExpression::Local { target_type } => {
-                self.walk_placed_type(id, *target_type, dir::Space::Local)
-            }
-            // shared T
-            dir::TypeExpression::Shared { target_type } => {
-                self.walk_placed_type(id, *target_type, dir::Space::Shared)
             }
             // keyof T
             dir::TypeExpression::KeyOf { target_type } => {
@@ -236,15 +247,6 @@ impl WalkState<'_, '_> {
                 target_type,
                 ..
             } => {
-                // owned values live in their container's space
-                if matches!(
-                    self.tree.get(*target_type),
-                    dir::TypeExpression::Local { .. } | dir::TypeExpression::Shared { .. }
-                ) {
-                    self.check
-                        .report_placement_on_owned(self.module, id.into_any());
-                }
-
                 let value = self.walk_type_expression(*target_type)?;
                 let value = if *mutability == Some(dir::Mutability::Immutable) {
                     self.intern_type(dir::Type::Form(dir::FormType {
@@ -266,25 +268,10 @@ impl WalkState<'_, '_> {
             // walk the written borrow lifetime, or open the elided hole
             dir::TypeExpression::BorrowedOf {
                 lifetime,
-                mutability,
+                access,
                 target_type,
                 ..
-            } => {
-                let value = self.walk_type_expression(*target_type)?;
-                let access = mutability
-                    .map(dir::Mutability::access)
-                    .unwrap_or(dir::Access::Mutable);
-                let access = self.access_literal(access)?;
-
-                // take a written region term whole, it carries both coordinates
-                let region = match lifetime {
-                    Some(lifetime) => self.walk_type_expression(*lifetime)?,
-                    None => self.elided_borrow_region(source)?,
-                };
-                let form = self.check.intern_borrow(region, access)?;
-
-                self.intern_type(dir::Type::Form(dir::FormType { form, value }))
-            }
+            } => self.walk_borrowed_type(id, *lifetime, *access, *target_type),
             // *T
             dir::TypeExpression::PointerOf { target_type, .. } => {
                 let value = self.walk_type_expression(*target_type)?;
@@ -310,26 +297,6 @@ impl WalkState<'_, '_> {
                 let mut element_types = Vec::new();
                 for element in elements {
                     element_types.push(self.walk_type_expression(element)?);
-                }
-
-                // read a written extent & space pair as the closed region it names
-                if let [first, second] = element_types.as_slice() {
-                    let kinds = (
-                        self.check.memory_kind(*first)?,
-                        self.check.memory_kind(*second)?,
-                    );
-                    let pair = match kinds {
-                        (Some(dir::MemoryParameter::Region), Some(dir::MemoryParameter::Place)) => {
-                            Some((*first, *second))
-                        }
-                        (Some(dir::MemoryParameter::Place), Some(dir::MemoryParameter::Region)) => {
-                            Some((*second, *first))
-                        }
-                        _ => None,
-                    };
-                    if let Some((extent, spaces)) = pair {
-                        return self.check.intern_region(extent, spaces);
-                    }
                 }
 
                 let elements = self.intern_type_ids(&element_types)?;
@@ -363,7 +330,9 @@ impl WalkState<'_, '_> {
                 // assume the parameter's extension inside the true branch, as a where clause would
                 if is_distributive {
                     let source = source.into_global(self.module);
-                    let template = self.check.open_generic_template(source)?;
+                    let template = self
+                        .check
+                        .open_generic_template(source, self.flow().template_scope())?;
                     self.check.push_template_predicate(
                         template,
                         dir::WherePredicate {
@@ -379,7 +348,9 @@ impl WalkState<'_, '_> {
                 for binder in self.check.collect_infer_binders(right)? {
                     if let (Some(symbol), Some(constraint)) = (binder.symbol, binder.constraint) {
                         let source = source.into_global(self.module);
-                        let template = self.check.open_generic_template(source)?;
+                        let template = self
+                            .check
+                            .open_generic_template(source, self.flow().template_scope())?;
                         let arguments = self.intern_type_ids(&[])?;
                         let capture =
                             self.intern_type(dir::Type::Application(dir::GenericApplication {
@@ -483,14 +454,14 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // ordinary annotations retain their written constraints
+        // read an ordinary annotation as the collection
         let dir::TypeExpression::Infer {
             form: dir::InferForm::Infer,
             name,
             constraint: None,
         } = *self.tree.get(id)
         else {
-            return self.walk_type_expression(id);
+            return self.walk_value_type(id);
         };
 
         // infer the complete tuple of arguments, including optional and rest elements
@@ -523,7 +494,7 @@ impl WalkState<'_, '_> {
     ) -> CompilerResult<dir::GlobalTypeId> {
         let source = id.into_any();
 
-        // walk by the infer form's own syntax
+        // walk by the infer form kind
         match form {
             // open anonymous holes for ordinary inference
             dir::InferForm::Hole => {
@@ -1026,7 +997,7 @@ impl WalkState<'_, '_> {
     }
 
     /// Return the value binding one symbolic argument reference names.
-    fn written_binding_symbol(
+    fn argument_binding_symbol(
         &mut self,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
@@ -1079,8 +1050,6 @@ impl WalkState<'_, '_> {
     }
 
     /// Bind written arguments to a declaration's parameter slots in order.
-    ///
-    /// Returns `None` after reporting when the written arity cannot bind.
     fn bind_written_arguments(
         &mut self,
         source: dir::LocalNodeIdAny,
@@ -1123,7 +1092,7 @@ impl WalkState<'_, '_> {
                 cursor += 1;
 
                 // interpret a value binding argument by the slot's kind
-                let argument = match self.written_binding_symbol(argument)? {
+                match self.argument_binding_symbol(argument)? {
                     // resolve a const slot's binding to its static value
                     Some(value) if binding.is_const => {
                         self.static_binding_argument(source, value, argument)?
@@ -1137,33 +1106,7 @@ impl WalkState<'_, '_> {
                         self.intern_type(dir::Type::Error)?
                     }
                     None => argument,
-                };
-
-                // lift a bare space term into the region holding that coordinate
-                let argument = if binding.memory_parameter() == Some(dir::MemoryParameter::Region)
-                    && self.check.memory_kind(argument)? == Some(dir::MemoryParameter::Place)
-                {
-                    self.lift_place_to_region(source, argument)?
-                } else {
-                    argument
-                };
-
-                // a rigid argument parameter inherits the callee slot's cardinality
-                if !self.is_body
-                    && let dir::Type::Parameter(argument_parameter) = self.check.ty(argument)?
-                    && argument_parameter.module_id == self.module
-                    && argument_parameter != parameter
-                {
-                    self.check
-                        .module_mut(self.module)
-                        .generics_tail
-                        .set_cardinality(
-                            argument_parameter.local_id,
-                            dir::Cardinality::Of { callee: parameter },
-                        );
                 }
-
-                argument
             }
             // evaluate defaults against the application built so far
             else if let Some(default) = binding.default {
@@ -1172,7 +1115,7 @@ impl WalkState<'_, '_> {
             // elide omitted memory parameters like unwritten borrow lifetimes
             else if let Some(kind) = binding.memory_parameter() {
                 match kind {
-                    dir::MemoryParameter::Region => self.elided_borrow_region(source)?,
+                    dir::MemoryParameter::Region => self.elided_borrow_region(source, None)?,
                     kind => self.elided_memory_component(source, kind)?,
                 }
             }
@@ -1228,7 +1171,7 @@ impl WalkState<'_, '_> {
         self.apply_named_refinements(ty, applied)
     }
 
-    /// Bind written arguments to a foreign template's parameters by kind, eliding omitted memory parameters by site.
+    /// Bind arguments to a foreign template's parameters by kind, eliding omitted memory ones.
     fn bind_foreign_arguments(
         &mut self,
         source: dir::LocalNodeIdAny,
@@ -1244,6 +1187,12 @@ impl WalkState<'_, '_> {
             return Ok(written.to_vec());
         }
         let parameters = self.check.template_parameters(symbol)?;
+
+        // bind a complete argument list positionally, blind to unresolved argument shapes
+        if written.len() == parameters.len() {
+            return Ok(written.to_vec());
+        }
+
         let mut arguments = Vec::with_capacity(parameters.len());
         let mut cursor = 0;
         for parameter in parameters {
@@ -1267,7 +1216,7 @@ impl WalkState<'_, '_> {
             // elide omitted memory parameters like unwritten borrow lifetimes
             match parameter.kind {
                 dir::GenericParameterKind::Memory(dir::MemoryParameter::Region) => {
-                    arguments.push(self.elided_borrow_region(source)?);
+                    arguments.push(self.elided_borrow_region(source, None)?);
                 }
                 dir::GenericParameterKind::Memory(memory) => {
                     arguments.push(self.elided_memory_component(source, memory)?);
@@ -1305,19 +1254,11 @@ impl WalkState<'_, '_> {
 
         // build the form the item constructs
         let form = match item {
-            // take the plain forms the item names, carrying the written place
-            dir::LanguageItem::Managed => {
-                let place = match arguments.get(1).copied() {
-                    Some(place) => self.check.normalize_memory_component(origin, place)?,
-                    None => self.check.local_place()?,
-                };
-
-                dir::Form::Managed { place }
-            }
+            // take the plain forms the item names
             dir::LanguageItem::Owned => dir::Form::Owned,
             dir::LanguageItem::Raw => dir::Form::Raw,
             dir::LanguageItem::Readonly => dir::Form::Readonly,
-            // carry the written borrow components, eliding like the `&T` sugar
+            // keep the written borrow components, eliding like the `&T` sugar
             dir::LanguageItem::Borrowed => {
                 // slide an access-kinded second argument into the access slot
                 let second = arguments.get(1).copied();
@@ -1333,23 +1274,19 @@ impl WalkState<'_, '_> {
                 };
 
                 let region = match region_argument {
-                    // lift a bare space term into the region holding that coordinate
-                    Some(region)
-                        if self.check.memory_kind(region)? == Some(dir::MemoryParameter::Place) =>
-                    {
-                        let place = self.check.normalize_memory_component(origin, region)?;
+                    Some(region) => {
+                        let region = self.check.normalize_memory_component(origin, region)?;
 
-                        self.lift_place_to_region(source, place)?
+                        self.borrow_region(source, region, value)?
                     }
-                    Some(region) => self.check.normalize_memory_component(origin, region)?,
-                    None => self.elided_borrow_region(source)?,
+                    None => self.elided_borrow_region(source, Some(value))?,
                 };
                 let access = match access_argument {
                     Some(access) => self.check.normalize_memory_component(origin, access)?,
-                    None => self.access_literal(dir::Access::Mutable)?,
+                    None => self.access_literal(dir::Access::BARE)?,
                 };
 
-                self.check.intern_borrow(region, access)?
+                return self.check.borrow_value(region, access, value);
             }
             // fail on every other head
             _ => {
@@ -1384,24 +1321,17 @@ impl WalkState<'_, '_> {
                 .commit_subject(site, subject, Some(dir::StaticKey::Name(name)));
         }
 
-        // sort by key, so equal refinement sets intern identically
-        let mut refinements = applied
+        // refine the application by its named arguments
+        let refinements = applied
             .iter()
-            .filter_map(|argument| argument.name.map(|name| (name, argument.ty)))
+            .filter_map(|argument| {
+                argument
+                    .name
+                    .map(|name| (dir::StaticKey::Name(name), argument.ty))
+            })
             .collect::<SmallVec<[_; 2]>>();
-        refinements.sort_by_key(|(name, _)| *name);
 
-        // wrap the application once per named refinement
-        let mut ty = ty;
-        for (name, value) in refinements {
-            ty = self.intern_refined(dir::RefinedType {
-                base: ty,
-                key: dir::StaticKey::Name(name),
-                value,
-            })?;
-        }
-
-        Ok(ty)
+        self.check.intern_refinements(ty, &refinements)
     }
 
     /// Return a type-member path from one resolved base symbol.
@@ -1496,7 +1426,7 @@ impl WalkState<'_, '_> {
                         None => self.intern_type(dir::Type::Unknown)?,
                     };
 
-                    // write the field symbol's declared type for checked output
+                    // type the field symbol
                     if let Some(symbol) = self.declared_symbol(member.into_any()) {
                         self.commit_symbol_type(symbol, ty)?;
                     }
@@ -1653,7 +1583,7 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::TupleElement>,
     ) -> CompilerResult<dir::TypeElement> {
-        // walk by the element's own syntax
+        // walk by the element kind
         match self.tree.get(id) {
             // label: T
             dir::TupleElement::Element {
@@ -1701,61 +1631,30 @@ impl WalkState<'_, '_> {
         }
     }
 
-    /// Return one placed type expression.
-    fn walk_placed_type(
+    /// Return one borrowed type expression.
+    fn walk_borrowed_type(
         &mut self,
         id: dir::LocalNodeId<dir::TypeExpression>,
+        lifetime: Option<dir::LocalNodeId<dir::TypeExpression>>,
+        access: Option<dir::Access>,
         target_type: dir::LocalNodeId<dir::TypeExpression>,
-        space: dir::Space,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // walk the borrowed value and the written access
+        let source = id.into_any();
         let value = self.walk_type_expression(target_type)?;
-        let place = self.check.place_literal(space)?;
+        let access = self.access_literal(access.unwrap_or(dir::Access::BARE))?;
 
-        // write the space onto the reference type it qualifies
-        match self.check.ty(value)? {
-            dir::Type::Form(form) if let dir::Form::Borrowed(borrow) = form.form => {
-                let borrow = self.check.type_borrow(value.module_id, borrow)?;
-                let region = self.check.with_region_space(borrow.region, place)?;
-                let rebuilt = self.check.intern_borrow(region, borrow.access)?;
+        // take an annotated region term whole, elide the region otherwise
+        let region = match lifetime {
+            Some(lifetime) => {
+                let region = self.walk_type_expression(lifetime)?;
 
-                return self.intern_type(dir::Type::Form(dir::FormType {
-                    form: rebuilt,
-                    value: form.value,
-                }));
+                self.borrow_region(source, region, value)?
             }
-            dir::Type::Slice(slice) => {
-                return self.intern_type(dir::Type::Slice(dir::SliceType {
-                    element: slice.element,
-                    place,
-                }));
-            }
-            dir::Type::Dynamic(dynamic) => {
-                return self.intern_type(dir::Type::Dynamic(dir::DynamicType {
-                    constraint: dynamic.constraint,
-                    place,
-                }));
-            }
-            dir::Type::Function(function) => {
-                return self
-                    .intern_type(dir::Type::Function(dir::FunctionType { place, ..function }));
-            }
-            // owned values live in their container's space
-            dir::Type::Form(form) if matches!(form.form, dir::Form::Owned) => {
-                self.check
-                    .report_placement_on_owned(self.module, id.into_any());
+            None => self.elided_borrow_region(source, Some(value))?,
+        };
 
-                return Ok(value);
-            }
-            _ => {}
-        }
-
-        // place the referent of every other written type
-        let origin = Origin::Node(
-            id.into_global_any(self.module),
-            self.flow().template_scope(),
-        );
-
-        self.check.with_referent_place(origin, value, place)
+        self.check.borrow_value(region, access, value)
     }
 
     /// Return one range type expression from its literal bounds.
@@ -1851,9 +1750,10 @@ impl WalkState<'_, '_> {
             Some(binder) => binder,
             None => {
                 // the mapped type introduces the scope its key parameter lives in
-                let template = self
-                    .check
-                    .open_generic_template(id.into_global_any(self.module))?;
+                let template = self.check.open_generic_template(
+                    id.into_global_any(self.module),
+                    self.flow().template_scope(),
+                )?;
                 self.check.push_generic_parameter(
                     template,
                     parameter.into_global_any(self.module),

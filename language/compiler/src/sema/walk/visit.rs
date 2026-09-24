@@ -1,5 +1,3 @@
-use std::slice::from_ref;
-
 use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
@@ -42,10 +40,8 @@ impl CheckState<'_> {
         module: ModuleId,
         pass: TemplatePass,
     ) -> CompilerResult<()> {
-        let input = self.module(module);
-        let parsed = input.parsed.clone();
-        let expanded = input.expanded.clone();
-        let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
+        let (parsed, expanded) = self.patched_inputs(module);
+        let tree = dir::View::new(&parsed.tree).patched(&expanded.patch);
 
         // walk the module over its patched view
         let mut walk = WalkState::new(module, tree, self);
@@ -66,10 +62,8 @@ impl CheckState<'_> {
     /// export function value(): number { 1 }
     /// ```
     pub(in crate::sema) fn walk_module_bodies(&mut self, module: ModuleId) -> CompilerResult<()> {
-        let input = self.module(module);
-        let parsed = input.parsed.clone();
-        let expanded = input.expanded.clone();
-        let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
+        let (parsed, expanded) = self.patched_inputs(module);
+        let tree = dir::View::new(&parsed.tree).patched(&expanded.patch);
 
         // walk and type each root in source order
         let mut walk = WalkState::new(module, tree, self);
@@ -188,17 +182,11 @@ impl CheckState<'_> {
                 self.collect_application_bounds(source, head, instance, scope)?;
             }
 
-            // oblige index operations and placed forms to be well-formed
+            // oblige index operations to be well-formed
             let resolved = self.shallow_resolve(ty)?;
             let checked = matches!(
                 self.operation_head(resolved)?,
                 Some(dir::TypeOperation::Index(_))
-            ) || matches!(
-                self.ty(resolved)?,
-                dir::Type::Form(dir::FormType {
-                    form: dir::Form::Managed { .. },
-                    ..
-                })
             );
             if !checked {
                 continue;
@@ -211,7 +199,7 @@ impl CheckState<'_> {
             )?;
         }
 
-        // oblige the alias and annotation values declared symbols carry
+        // oblige the alias and annotation values of declared symbols
         for (symbol, ty) in symbols {
             if let dir::Type::Application(instance) = self.ty(ty)? {
                 // commit written symbol values so bound failures close them
@@ -284,9 +272,7 @@ impl CheckState<'_> {
                 continue;
             }
 
-            let argument_source = self
-                .written_generic_argument(source, index)
-                .unwrap_or(source);
+            let argument_source = self.generic_argument_node(source, index).unwrap_or(source);
             let origin = Origin::Node(argument_source, scope);
             let cause = self.intern_cause(Cause::root(origin, CauseKind::Bound { parameter }));
             self.push_relation(RelationCheck::generic_bound(
@@ -328,13 +314,11 @@ impl CheckState<'_> {
         parameter: dir::GlobalGenericParameterId,
         argument: dir::GlobalTypeId,
     ) -> CompilerResult<()> {
-        if self.resolved_cardinality(parameter).is_none() {
+        if !self.is_static_const_parameter(parameter)? {
             return Ok(());
         }
 
-        let argument_source = self
-            .written_generic_argument(source, index)
-            .unwrap_or(source);
+        let argument_source = self.generic_argument_node(source, index).unwrap_or(source);
         let origin = Origin::Node(argument_source, scope);
 
         if !self.has_one_cardinality(origin, argument)? {
@@ -345,13 +329,13 @@ impl CheckState<'_> {
     }
 
     /// Return one written application's generic argument node by position.
-    fn written_generic_argument(
+    pub(in crate::sema) fn generic_argument_node(
         &self,
         source: dir::GlobalNodeIdAny,
         index: usize,
     ) -> Option<dir::GlobalNodeIdAny> {
         let module = self.module_maybe(source.module_id)?;
-        let tree = dir::View::with_patches(&module.parsed.tree, from_ref(&module.expanded.patch));
+        let tree = dir::View::new(&module.parsed.tree).patched(&module.expanded.patch);
 
         // alias declarations apply in their value expression
         let node = match source.try_into_typed::<dir::Declaration>() {
@@ -392,10 +376,8 @@ impl CheckState<'_> {
     /// export function value(): number { 1 }
     /// ```
     pub(in crate::sema) fn walk_module(&mut self, module: ModuleId) -> CompilerResult<()> {
-        let input = self.module(module);
-        let parsed = input.parsed.clone();
-        let expanded = input.expanded.clone();
-        let tree = dir::View::with_patches(&parsed.tree, from_ref(&expanded.patch));
+        let (parsed, expanded) = self.patched_inputs(module);
+        let tree = dir::View::new(&parsed.tree).patched(&expanded.patch);
 
         // walk module roots in source order
         let mut walk = WalkState::new(module, tree, self);
@@ -436,9 +418,6 @@ impl CheckState<'_> {
 
 impl WalkState<'_, '_> {
     /// Type one walked body root, recursing into block members.
-    ///
-    /// Global and module blocks nest statement roots.
-    /// A root the walk never entered stays untyped.
     fn type_body_root(
         &mut self,
         module: ModuleId,

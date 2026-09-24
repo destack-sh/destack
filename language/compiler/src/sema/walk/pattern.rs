@@ -41,7 +41,7 @@ impl WalkState<'_, '_> {
             dir::Pattern::Default { pattern, value } => {
                 self.walk_pattern(*pattern, self.tree.get(*pattern), is_binding)?;
 
-                // walk default values while checking, declaring transcribes them
+                // walk default values while checking, declaring reads their literal types
                 if !self.check.is_declaring() {
                     let before_value = self.fork_flow();
                     self.walk_expression(*value, self.tree.get(*value))?;

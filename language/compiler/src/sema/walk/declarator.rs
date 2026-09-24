@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::sema::{
-    CheckState, ElisionSite, ExpectedType, FlowPredicate, Obligation, PatternCoverage,
+    CheckState, ExpectedType, FlowPredicate, Obligation, PatternCoverage,
     PatternCoverageObligation, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
@@ -18,7 +18,6 @@ impl WalkState<'_, '_> {
         &mut self,
         id: dir::LocalNodeId<dir::Declarator>,
         declarator: &dir::Declarator,
-        binding_kind: Option<dir::LetKind>,
         is_ambient: bool,
     ) -> CompilerResult<()> {
         if !self.walk_decorators(id.into_any())? {
@@ -26,7 +25,7 @@ impl WalkState<'_, '_> {
         }
 
         // walk the pattern and its annotation
-        let matched = self.walk_declarator_pattern(declarator, binding_kind, is_ambient)?;
+        let matched = self.walk_declarator_pattern(declarator, is_ambient)?;
 
         // walk matched value
         if let Some(value) = declarator.value {
@@ -65,7 +64,6 @@ impl WalkState<'_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
         let dir::Expression::Let {
-            kind,
             declarators,
             is_ambient,
             ..
@@ -76,7 +74,7 @@ impl WalkState<'_, '_> {
             });
         };
 
-        // walk each declarator that carries a declared type
+        // walk each declarator with a declared type
         for id in declarators {
             let declarator = self.tree.get(id).clone();
             if !self.declare_decorators(id.into_any())? {
@@ -110,13 +108,13 @@ impl WalkState<'_, '_> {
             }
 
             // walk the pattern and its annotation
-            self.walk_declarator_pattern(&declarator, Some(kind), is_ambient)?;
+            self.walk_declarator_pattern(&declarator, is_ambient)?;
 
             // exported bindings without annotations keep literal values only
             if declarator.ty.is_none()
                 && let Some(value) = declarator.value
             {
-                if self.check.is_transcribable_literal(self.module, value) {
+                if self.check.is_literal_initializer(self.module, value) {
                     self.walk_expression(value, self.tree.get(value))?;
                 } else {
                     self.check.report_missing_export_binding_type(
@@ -134,31 +132,14 @@ impl WalkState<'_, '_> {
     fn walk_declarator_pattern(
         &mut self,
         declarator: &dir::Declarator,
-        _binding_kind: Option<dir::LetKind>,
         is_ambient: bool,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let is_binding = true;
-        self.walk_pattern(
-            declarator.pattern,
-            self.tree.get(declarator.pattern),
-            is_binding,
-        )?;
-
-        // the declared layer already carries transcribed annotation entries
-        let declared_row = self
-            .declared_symbol(declarator.pattern.into_any())
-            .is_some_and(|symbol| {
-                let module = self.check.module(self.module);
-                module.declared.is_some() && module.types.get_symbol_type_id(symbol).is_some()
-            });
+        // walk the bound pattern itself
+        self.walk_pattern(declarator.pattern, self.tree.get(declarator.pattern), true)?;
 
         // walk the declared pattern type
         let matched = match declarator.ty {
-            Some(_) if declared_row && !self.check.is_declaring() => None,
-            Some(annotation) => Some(match is_ambient || self.check.is_declaring() {
-                true => self.walk_type_expression_in(annotation, ElisionSite::Module)?,
-                false => self.walk_type_expression(annotation)?,
-            }),
+            Some(annotation) => Some(self.walk_binding_type(annotation, is_ambient)?),
             None => None,
         };
 
@@ -415,8 +396,8 @@ impl CheckState<'_> {
         matches!(*definition, dir::Definition::Newtype(_)).then_some(*symbol)
     }
 
-    /// Return whether an initializer's type transcribes without inference.
-    pub(in crate::sema) fn is_transcribable_literal(
+    /// Return whether an initializer's type reads off its written form without inference.
+    pub(in crate::sema) fn is_literal_initializer(
         &self,
         module: ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -441,41 +422,50 @@ impl CheckState<'_> {
                 right,
             } => {
                 dir::StaticBinaryOperator::try_from(*operator).is_ok()
-                    && self.is_transcribable_literal(module, *left)
-                    && self.is_transcribable_literal(module, *right)
+                    && self.is_literal_initializer(module, *left)
+                    && self.is_literal_initializer(module, *right)
             }
+            // Color.Red, this.width
+            dir::Expression::Member {
+                left,
+                name: Some(_),
+                is_optional: false,
+            } => matches!(
+                tree.get(*left),
+                dir::Expression::Identifier { .. } | dir::Expression::This
+            ),
             // value as const
             dir::Expression::As {
                 expression,
                 target_type,
             } if matches!(tree.get(*target_type), dir::TypeExpression::Const) => {
-                self.is_transcribable_literal(module, *expression)
+                self.is_literal_initializer(module, *expression)
             }
             // [1, 2], (1, "a")
             dir::Expression::ArrayExpression { elements }
             | dir::Expression::TupleExpression { elements } => {
                 elements.iter().all(|element| match tree.get(*element) {
                     dir::Argument::Positional { value } => {
-                        self.is_transcribable_literal(module, *value)
+                        self.is_literal_initializer(module, *value)
                     }
                     _ => false,
                 })
             }
             // [0; 16]
             dir::Expression::FixedArrayExpression { value, length } => {
-                self.is_transcribable_literal(module, *value)
-                    && self.is_transcribable_literal(module, *length)
+                self.is_literal_initializer(module, *value)
+                    && self.is_literal_initializer(module, *length)
             }
             // { name: "a" }
             dir::Expression::ObjectExpression { properties } => {
                 properties.iter().all(|property| match tree.get(*property) {
                     dir::Property::Field { value, .. } => {
-                        self.is_transcribable_literal(module, *value)
+                        self.is_literal_initializer(module, *value)
                     }
                     _ => false,
                 })
             }
-            // SocketFlags(1), the head names a newtype over transcribable values
+            // SocketFlags(1), the head names a newtype over literal initializers
             dir::Expression::Call {
                 position: dir::PostfixPosition::Direct,
                 left,
@@ -486,7 +476,7 @@ impl CheckState<'_> {
                 self.written_newtype_head(module, *left).is_some()
                     && arguments.iter().all(|argument| match tree.get(*argument) {
                         dir::Argument::Positional { value } => {
-                            self.is_transcribable_literal(module, *value)
+                            self.is_literal_initializer(module, *value)
                         }
                         _ => false,
                     })
@@ -495,7 +485,7 @@ impl CheckState<'_> {
             dir::Expression::StructExpression { properties, .. } => {
                 properties.iter().all(|property| match tree.get(*property) {
                     dir::Property::Field { value, .. } => {
-                        self.is_transcribable_literal(module, *value)
+                        self.is_literal_initializer(module, *value)
                     }
                     _ => false,
                 })
