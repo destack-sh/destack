@@ -11,32 +11,10 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         shape: &dir::ObjectType,
         module: ModuleId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         let fields = self.object_fields(shape, module)?;
 
-        Ok(self.tree.intern_type(mir::Type::Struct {
-            fields,
-            copy: mir::Copy::No,
-        }))
-    }
-
-    /// Define one declared object type into its reserved alias identity.
-    pub(in crate::lower) fn define_object_struct(
-        &mut self,
-        shape: &dir::ObjectType,
-        module: ModuleId,
-        ty: mir::LocalNodeId<mir::Type>,
-    ) -> CompilerResult<()> {
-        let fields = self.object_fields(shape, module)?;
-        self.tree.define_type(
-            ty,
-            mir::Type::Struct {
-                fields,
-                copy: mir::Copy::No,
-            },
-        );
-
-        Ok(())
+        Ok(self.tree.intern_type(mir::Type::Struct { fields }))
     }
 
     /// Lower each written property into a named field.
@@ -44,7 +22,7 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         shape: &dir::ObjectType,
         module: ModuleId,
-    ) -> CompilerResult<Vec<mir::LocalNodeId<mir::Field>>> {
+    ) -> CompilerResult<Vec<mir::FieldId>> {
         // read the properties the shape declares
         let properties = self
             .lower
@@ -63,13 +41,11 @@ impl TypeLowerer<'_, '_> {
                 .into());
             };
             let ty = self.lower_property_representation(property)?;
-            fields.push(self.tree.intern_field(
-                mir::Field {
-                    name: Some(name),
-                    ty: mir::TypeId::from(ty),
-                },
-                Vec::new(),
-            ));
+            fields.push(self.tree.intern_field(mir::Field {
+                name: Some(name),
+                ty,
+                attributes: Vec::new(),
+            }));
         }
 
         Ok(fields)
@@ -79,7 +55,7 @@ impl TypeLowerer<'_, '_> {
     pub(in crate::lower) fn lower_property_representation(
         &mut self,
         property: &dir::TypeProperty,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         let Some(read) = property.access.read() else {
             return Err(CompilerError::Internal {
                 message: "an object property without a read type".to_string(),
@@ -94,7 +70,7 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         ty: dir::GlobalTypeId,
         is_optional: bool,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         if !is_optional {
             return self.lower(ty);
         }

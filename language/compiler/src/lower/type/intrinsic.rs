@@ -10,7 +10,7 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
         arguments: &[dir::GlobalTypeId],
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         // dispatch on the language item the newtype names
         let item = self.lower.language_item(symbol);
         match item {
@@ -52,9 +52,8 @@ impl TypeLowerer<'_, '_> {
                 let pointee = self.lower_pointee(*payload)?;
 
                 Ok(self.tree.intern_type(mir::Type::Reference {
-                    kind: mir::ReferenceKind::Unique,
+                    kind: mir::Reference::Unique,
                     lifetime: mir::Lifetime::empty(),
-                    storage: mir::Storage::Heap(mir::Space::Local),
                     access: mir::Access::Mutable,
                     pointee,
                 }))
@@ -67,41 +66,31 @@ impl TypeLowerer<'_, '_> {
                     });
                 };
                 let constraint = match self.lower.ty(*constraint)? {
-                    dir::Type::Parameter(_) => mir::TypeId::from(self.lower(*constraint)?),
+                    dir::Type::Parameter(_) => self.lower(*constraint)?,
                     _ => self.lower_dynamic_constraint(*constraint)?,
                 };
 
                 Ok(self.tree.intern_type(mir::Type::Dynamic {
-                    kind: mir::ReferenceKind::Managed,
+                    kind: mir::Reference::Managed(mir::Space::Local),
                     lifetime: mir::Lifetime::empty(),
                     constraint,
-                    storage: mir::Storage::Heap(mir::Space::Local),
                     access: mir::Access::Mutable,
                 }))
             }
-            // store the atomic payload in an atomic cell
-            Some(dir::LanguageItem::Atomic) => {
+            // keep the runtime type identity, erasing the reflected type
+            Some(dir::LanguageItem::Type) => Ok(self.tree.intern_type(mir::Type::TypeId)),
+            // preserve the declared initialization or drop state of stored values
+            Some(dir::LanguageItem::MaybeUninit | dir::LanguageItem::ManuallyDrop) => {
                 let [value] = arguments else {
                     return Err(CompilerError::Internal {
-                        message: "Atomic instantiated without its value".to_string(),
+                        message: "a memory form requires one value argument".to_string(),
                     });
                 };
                 let value = self.lower(*value)?;
 
-                Ok(self.tree.intern_type(mir::Type::Atomic { value }))
+                self.insert_storage_form(symbol, value)
             }
-            // carry the runtime type identity, erasing the reflected type
-            Some(dir::LanguageItem::Type) => Ok(self.tree.intern_type(mir::Type::TypeId)),
-            // carry the payload representation, leaving it uninitialized
-            Some(dir::LanguageItem::MaybeUninit) => {
-                let [payload] = arguments else {
-                    return Err(CompilerError::Internal {
-                        message: "MaybeUninit instantiated without its payload".to_string(),
-                    });
-                };
-                self.lower(*payload)
-            }
-            // carry the value representation under an aliasing exemption
+            // keep the value representation under an aliasing exemption
             Some(dir::LanguageItem::UnsafeCell) => {
                 let [value] = arguments else {
                     return Err(CompilerError::Internal {
@@ -110,9 +99,9 @@ impl TypeLowerer<'_, '_> {
                 };
                 self.lower(*value)
             }
-            // carry callable values at their declared signature and receiver mode
+            // keep callable values at their declared signature and receiver mode
             Some(dir::LanguageItem::Function) => {
-                // read the parameter tuple the instantiation carries
+                // read the parameter tuple of the instantiation
                 let [parameters, result, receiver] = arguments else {
                     return Err(CompilerError::Internal {
                         message: "Function instantiated without its signature".to_string(),
@@ -132,13 +121,11 @@ impl TypeLowerer<'_, '_> {
                     .tuple_element_types(parameters.module_id, &tuple)?;
                 let mut lowered = Vec::with_capacity(elements.len());
                 for element in elements {
-                    lowered.push(mir::SignatureParameter::new(mir::TypeId::from(
-                        self.lower(element)?,
-                    )));
+                    lowered.push(mir::SignatureParameter::new(self.lower(element)?));
                 }
 
                 // intern the signature the callable answers at
-                let result = mir::TypeId::from(self.lower(*result)?);
+                let result = self.lower(*result)?;
                 let signature = self.tree.intern_type(mir::Type::FunctionSignature {
                     lifetimes: Vec::new(),
                     parameters: lowered,
@@ -151,10 +138,9 @@ impl TypeLowerer<'_, '_> {
                 // define the callable as a managed function reference
                 Ok(self.tree.intern_type(mir::Type::Function {
                     multiplicity,
-                    kind: mir::ReferenceKind::Managed,
+                    kind: mir::Reference::Managed(mir::Space::Local),
                     lifetime: mir::Lifetime::empty(),
-                    signature: mir::TypeId::from(signature),
-                    storage: mir::Storage::Heap(mir::Space::Local),
+                    signature,
                     access: mir::Access::Mutable,
                 }))
             }
@@ -167,21 +153,7 @@ impl TypeLowerer<'_, '_> {
                 };
                 let inner = self.lower(*pointer)?;
 
-                Ok(self.tree.intern_type(mir::Type::Newtype {
-                    inner: mir::TypeId::from(inner),
-                    copy: mir::Copy::Yes,
-                }))
-            }
-            // hold owned storage whose drop is suppressed
-            Some(dir::LanguageItem::ManuallyDrop) => {
-                let [value] = arguments else {
-                    return Err(CompilerError::Internal {
-                        message: "ManuallyDrop instantiated without its value".to_string(),
-                    });
-                };
-                let value = mir::TypeId::from(self.lower(*value)?);
-
-                Ok(self.tree.intern_type(mir::Type::ManuallyDrop { value }))
+                Ok(self.tree.intern_type(mir::Type::Newtype { inner }))
             }
             // lay lanes of one element out at a closed lane count
             Some(dir::LanguageItem::Vector) => {
@@ -190,7 +162,7 @@ impl TypeLowerer<'_, '_> {
                         message: "Vector instantiated without its element and lanes".to_string(),
                     });
                 };
-                let element = mir::TypeId::from(self.lower(*element)?);
+                let element = self.lower(*element)?;
                 let mir::GenericArgument::Value(lanes) = self.lower_generic_argument(*lanes)?
                 else {
                     return Err(CompilerError::Internal {
@@ -200,15 +172,29 @@ impl TypeLowerer<'_, '_> {
 
                 Ok(self.tree.intern_type(mir::Type::Vector { element, lanes }))
             }
+            // address one value through a raw pointer
+            Some(dir::LanguageItem::Pointer) => {
+                let [pointee] = arguments else {
+                    return Err(CompilerError::Internal {
+                        message: "a pointer requires one pointee argument".to_string(),
+                    });
+                };
+                let pointee = self.lower(*pointee)?;
+
+                Ok(self.tree.intern_type(mir::Type::Pointer {
+                    pointee,
+                    access: mir::Access::Mutable,
+                }))
+            }
             // define markers as void, like every other zero-sized singleton
             Some(dir::LanguageItem::Phantom) => Ok(self.tree.intern_type(mir::Type::Void)),
             // define profile instruments as zero-sized singletons, naming them in their types
             Some(dir::LanguageItem::ProfileCounter | dir::LanguageItem::ProfileSampler) => {
                 Ok(self.tree.intern_type(mir::Type::Void))
             }
-            // reject lifetime markers, which live in MIR lifetime slots alone
-            Some(dir::LanguageItem::Lifetime) => Err(CompilerError::Internal {
-                message: "a runtime value of the 'memory.Lifetime' marker".to_string(),
+            // reject region markers, which live in MIR lifetime slots alone
+            Some(dir::LanguageItem::Region) => Err(CompilerError::Internal {
+                message: "a runtime value of the 'memory.Region' marker".to_string(),
             }),
             // reject every remaining intrinsic
             _ => Err(LowerError::Unsupported {

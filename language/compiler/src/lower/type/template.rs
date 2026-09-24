@@ -3,7 +3,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::ModuleLowerer;
-use crate::{CompilerError, CompilerResult, LowerError};
+use crate::{CompilerError, CompilerResult};
 
 /// What `this` names inside the bounds of one template's parameters.
 #[derive(Clone, Copy)]
@@ -13,7 +13,51 @@ pub(in crate::lower) enum BoundReceiver {
     /// The receiver one callable declares.
     OfCallable(dir::GlobalSymbolId),
     /// One lowered receiver type.
-    Lowered(mir::LocalNodeId<mir::Type>),
+    Lowered(mir::TypeId),
+}
+
+/// One dependent's index and domain in the parameter space of a definition.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::lower) struct Dependent {
+    /// The dependent type as first recorded.
+    pub(in crate::lower) ty: dir::GlobalTypeId,
+    /// The generic index the dependent takes.
+    pub(in crate::lower) index: u32,
+    /// The memory kind the dependent qualifies, none for a type dependent.
+    pub(in crate::lower) kind: Option<dir::MemoryParameter>,
+}
+
+/// The identity one dependent is recorded under: a projection by its owner and key, else its type.
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+pub(in crate::lower) enum DependentKey {
+    /// A member projection by owner, key, and qualifier.
+    Projection {
+        /// The projected owner.
+        owner: dir::GlobalTypeId,
+        /// The projected member key.
+        key: dir::StaticKey,
+        /// The qualifying interface declaration.
+        qualifier: Option<dir::GlobalSymbolId>,
+    },
+    /// Any other dependent type by identity.
+    Type(dir::GlobalTypeId),
+}
+
+impl DependentKey {
+    /// Return the identity one dependent type is recorded under.
+    pub(in crate::lower) fn of(
+        lower: &mut ModuleLowerer<'_>,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<Self> {
+        Ok(match lower.member_projection(ty)? {
+            Some((member, qualifier)) => Self::Projection {
+                owner: member.owner,
+                key: member.key,
+                qualifier,
+            },
+            None => Self::Type(ty),
+        })
+    }
 }
 
 /// The lifetime slots and parameter indices one definition lowers under.
@@ -23,21 +67,67 @@ pub(in crate::lower) struct GenericScope {
     pub(in crate::lower) parameters: FxIndexMap<dir::GlobalGenericParameterId, u32>,
     /// The index of the interface receiver parameter, on interface member templates.
     pub(in crate::lower) receiver: Option<u32>,
-    /// The index of each dependent the templates declare, after their parameters.
-    pub(in crate::lower) dependents: FxIndexMap<dir::GlobalTypeId, u32>,
+    /// The declared type of the receiver the scope's callable leads with.
+    pub(in crate::lower) this_parameter: Option<dir::GlobalTypeId>,
+    /// The type an extension member's `this` names, the extension's target.
+    pub(in crate::lower) extension_target: Option<dir::GlobalTypeId>,
+    /// Each dependent the templates declare by its identity, indexed after the parameters.
+    pub(in crate::lower) dependents: FxIndexMap<DependentKey, Dependent>,
+    /// The argument each index takes under a grounded application; empty outside one.
+    pub(in crate::lower) grounding: Vec<mir::GenericArgument>,
+    /// The number of indices the owner template takes ahead of the signature's own.
+    pub(in crate::lower) owner_count: u32,
     /// The function-local slot of each lifetime parameter.
-    pub(in crate::lower) slots: FxIndexMap<dir::GlobalGenericParameterId, mir::LifetimeSlot>,
+    pub(in crate::lower) slots: FxIndexMap<dir::GlobalGenericParameterId, mir::RegionBound>,
     /// The declared name of each slot, without the tick.
     pub(in crate::lower) names: Vec<String>,
     /// The declared outlives pairs between slots, left outliving right.
-    pub(in crate::lower) outlives: Vec<(mir::LifetimeSlot, mir::LifetimeSlot)>,
+    pub(in crate::lower) outlives: Vec<(mir::RegionBound, mir::RegionBound)>,
     /// The slot a constructor borrows its constructed storage at, after the declared ones.
-    pub(in crate::lower) receiver_slot: Option<mir::LifetimeSlot>,
-    /// Whether a region parameter outside the scope erases, at the seams keyed on erased types.
+    pub(in crate::lower) receiver_slot: Option<mir::RegionBound>,
+    /// Whether a region parameter outside the scope erases, where keys hold erased types.
     erases_regions: bool,
 }
 
 impl GenericScope {
+    /// Return the memory kind and const flag of each index from one index on, in index order.
+    pub(in crate::lower) fn index_domains(
+        &self,
+        lower: &mut ModuleLowerer<'_>,
+        first: u32,
+    ) -> CompilerResult<Vec<(Option<dir::MemoryParameter>, bool)>> {
+        // read each parameter's declared kind
+        let mut domains = vec![None; self.count().saturating_sub(first) as usize];
+        for (parameter, index) in &self.parameters {
+            if *index >= first {
+                let binding = lower
+                    .state(parameter.module_id)?
+                    .generics
+                    .get_parameter(parameter.local_id);
+                domains[(*index - first) as usize] =
+                    Some((binding.memory_parameter(), binding.is_const));
+            }
+        }
+
+        // read each dependent's memory kind
+        for dependent in self.dependents.values() {
+            if dependent.index >= first {
+                domains[(dependent.index - first) as usize] = Some((dependent.kind, false));
+            }
+        }
+
+        // require a domain at every index
+        domains
+            .into_iter()
+            .zip(first..)
+            .map(|(domain, index)| {
+                domain.ok_or_else(|| CompilerError::Internal {
+                    message: format!("generic index {index} without a parameter"),
+                })
+            })
+            .collect()
+    }
+
     /// Capture the enclosing type and lifetime parameters used by generated code.
     pub(in crate::lower) fn capture(
         &mut self,
@@ -45,7 +135,7 @@ impl GenericScope {
         enclosing: &Self,
         lower: &mut ModuleLowerer<'_>,
     ) -> CompilerResult<()> {
-        // visit each checked type once, in the order supplied
+        // visit each type once, in the order supplied
         let mut pending: FxIndexSet<_> = types.into_iter().collect();
         let mut slots = vec![None; enclosing.names.len()];
         let mut position = 0;
@@ -54,9 +144,14 @@ impl GenericScope {
             position += 1;
 
             // retain dependent types as the parameters already selected by sema
-            if enclosing.dependents.contains_key(&id) {
+            let key = DependentKey::of(lower, id)?;
+            if let Some(enclosed) = enclosing.dependents.get(&key) {
                 let index = self.count();
-                self.dependents.entry(id).or_insert(index);
+                self.dependents.entry(key).or_insert(Dependent {
+                    ty: id,
+                    index,
+                    kind: enclosed.kind,
+                });
 
                 continue;
             }
@@ -73,27 +168,26 @@ impl GenericScope {
                 } else if let Some(slot) = enclosing.slots.get(&parameter)
                     && !self.slots.contains_key(&parameter)
                 {
-                    let index = mir::LifetimeSlot(self.names.len() as u32);
+                    let index = mir::RegionBound::new(self.names.len() as u32);
                     self.slots.insert(parameter, index);
-                    self.names.push(enclosing.names[slot.0 as usize].clone());
+                    self.names
+                        .push(enclosing.names[slot.index as usize].clone());
                 }
                 if let Some(slot) = enclosing.slots.get(&parameter) {
-                    slots[slot.0 as usize] = self.slots.get(&parameter).copied();
+                    slots[slot.index as usize] = self.slots.get(&parameter).copied();
                 }
 
-                // include the types and lifetimes required by each parameter's bounds
+                // include the types and lifetimes the filled bounds and where clauses require
                 let state = lower.state(parameter.module_id)?;
                 let binding = state.generics.get_parameter(parameter.local_id);
-                pending.extend(binding.constraint);
                 if let Some(bounds) = state.generics.parameter_bounds(parameter.local_id) {
                     pending.extend(state.types.type_ids(bounds));
                 }
-                for predicate in &state.generics.get_template(binding.template).predicates {
-                    if predicate.relation == dir::WhereRelation::Satisfies
-                        && predicate.left == binding.ty
-                    {
-                        pending.insert(predicate.right);
-                    }
+                if let Some(bounds) = state
+                    .generics
+                    .assumed_bounds(binding.template, parameter.local_id)
+                {
+                    pending.extend(state.types.type_ids(bounds));
                 }
             } else {
                 lower.types(id.module_id)?.for_each_child(&ty, |child| {
@@ -104,7 +198,8 @@ impl GenericScope {
 
         // translate the retained lifetime relations into this function's indices
         for (left, right) in &enclosing.outlives {
-            if let (Some(left), Some(right)) = (slots[left.0 as usize], slots[right.0 as usize])
+            if let (Some(left), Some(right)) =
+                (slots[left.index as usize], slots[right.index as usize])
                 && !self.outlives.contains(&(left, right))
             {
                 self.outlives.push((left, right));
@@ -115,9 +210,9 @@ impl GenericScope {
     }
 
     /// Append the slot a constructor borrows its constructed storage at.
-    pub(in crate::lower) fn push_receiver_slot(&mut self) -> mir::LifetimeSlot {
+    pub(in crate::lower) fn push_receiver_slot(&mut self) -> mir::RegionBound {
         let name = dir::free_region_name(self.names.iter().map(String::as_str));
-        let slot = mir::LifetimeSlot(self.names.len() as u32);
+        let slot = mir::RegionBound::new(self.names.len() as u32);
         self.names.push(name);
         self.receiver_slot = Some(slot);
 
@@ -138,7 +233,12 @@ impl GenericScope {
         template: Option<dir::GlobalGenericTemplateId>,
         declaration: Option<dir::GlobalSymbolId>,
     ) -> CompilerResult<Self> {
-        let mut parameters = Self::from_templates(lower, None, template)?;
+        // instantiate a declaration's regions, bind a function type's late at each call
+        let mut parameters = Self::default();
+        if let Some(template) = template {
+            parameters.collect_instance_parameters(lower, template, true, declaration.is_some())?;
+            parameters.collect_lifetimes(lower, template)?;
+        }
         if let Some(declaration) = declaration {
             parameters.collect_dependents(lower, declaration)?;
         }
@@ -164,8 +264,12 @@ impl GenericScope {
         signature: Option<dir::GlobalGenericTemplateId>,
     ) -> CompilerResult<Self> {
         let mut parameters = Self::default();
-        for template in owner.into_iter().chain(signature) {
-            parameters.collect_instance_parameters(lower, template, true, false)?;
+        if let Some(owner) = owner {
+            parameters.collect_instance_parameters(lower, owner, true, true)?;
+            parameters.owner_count = parameters.count();
+        }
+        if let Some(signature) = signature {
+            parameters.collect_instance_parameters(lower, signature, true, false)?;
         }
         for template in owner.into_iter().chain(signature) {
             parameters.collect_lifetimes(lower, template)?;
@@ -174,8 +278,7 @@ impl GenericScope {
         Ok(parameters)
     }
 
-    /// Index the instance parameters one template declares, a type declaration's regions among
-    /// them and a function's left to its binder.
+    /// Index the parameters one template declares, its regions among them when they instantiate.
     fn collect_instance_parameters(
         &mut self,
         lower: &mut ModuleLowerer<'_>,
@@ -183,7 +286,7 @@ impl GenericScope {
         receiver: bool,
         regions: bool,
     ) -> CompilerResult<()> {
-        // index each instance parameter in declaration order
+        // index each parameter in declaration order
         let generics = &lower.state(template.module_id)?.generics;
         let declared = generics.get_template(template.local_id);
         for parameter in &declared.parameters {
@@ -231,9 +334,34 @@ impl GenericScope {
             });
         };
         for dependent in dependents {
-            if !self.dependents.contains_key(&dependent) {
-                let index = self.count();
-                self.dependents.insert(dependent, index);
+            let kind = lower.dependent_memory_kind(symbol, dependent)?;
+            let key = DependentKey::of(lower, dependent)?;
+            match self.dependents.get_mut(&key) {
+                Some(recorded) => {
+                    // reject one dependent recorded at two memory kinds
+                    if let (Some(kind), Some(held)) = (kind, recorded.kind)
+                        && kind != held
+                    {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "a dependent of '{}' at two memory kinds",
+                                lower.symbol_path(symbol)?
+                            ),
+                        });
+                    }
+                    recorded.kind = kind.or(recorded.kind);
+                }
+                None => {
+                    let index = self.count();
+                    self.dependents.insert(
+                        key,
+                        Dependent {
+                            ty: dependent,
+                            index,
+                            kind,
+                        },
+                    );
+                }
             }
         }
 
@@ -245,45 +373,55 @@ impl GenericScope {
         (self.parameters.len() + self.dependents.len()) as u32
     }
 
-    /// Return these parameters indexed after the parameters of an enclosing definition, its
-    /// region slots ahead of the own ones.
-    pub(in crate::lower) fn with_parameters_of(mut self, enclosing: &Self) -> Self {
-        // remember the own parameters and the index each of them had
-        let own: Vec<_> = self.parameters.keys().copied().collect();
-        let own_dependents: Vec<_> = self.dependents.keys().copied().collect();
-        let reindexed: Vec<_> = own
+    /// Return these parameters indexed after the parameters of an enclosing definition.
+    pub(in crate::lower) fn with_parameters_of(
+        mut self,
+        enclosing: &Self,
+        lower: &mut ModuleLowerer<'_>,
+        tree: &mir::Tree,
+    ) -> CompilerResult<Self> {
+        // remember the nested parameters and the index each of them had
+        let nested: Vec<_> = self.parameters.keys().copied().collect();
+        let nested_dependents: Vec<_> = self
+            .dependents
+            .iter()
+            .map(|(key, dependent)| (*key, *dependent))
+            .collect();
+        let reindexed: Vec<_> = nested
             .iter()
             .map(|parameter| self.parameters[parameter])
             .collect();
-        let own_receiver = self.receiver;
+        let nested_receiver = self.receiver;
 
         // start from the enclosing definition's parameters
         self.parameters = enclosing.parameters.clone();
         self.dependents = enclosing.dependents.clone();
         self.receiver = enclosing.receiver;
+        self.this_parameter = self.this_parameter.or(enclosing.this_parameter);
+        self.extension_target = self.extension_target.or(enclosing.extension_target);
 
-        // append the own region slots after the enclosing ones
+        // append the nested region slots after the enclosing ones
         let offset = enclosing.slots.len() as u32;
-        let own_slots: Vec<_> = self.slots.drain(..).collect();
-        let own_names: Vec<_> = self.names.drain(..).collect();
-        let own_outlives: Vec<_> = self.outlives.drain(..).collect();
+        let nested_slots: Vec<_> = self.slots.drain(..).collect();
+        let nested_names: Vec<_> = self.names.drain(..).collect();
+        let nested_outlives: Vec<_> = self.outlives.drain(..).collect();
         self.slots = enclosing.slots.clone();
         self.names = enclosing.names.clone();
         self.outlives = enclosing.outlives.clone();
-        for (parameter, slot) in own_slots {
+        for (parameter, slot) in nested_slots {
             self.slots
-                .insert(parameter, mir::LifetimeSlot(slot.0 + offset));
+                .insert(parameter, mir::RegionBound::new(slot.index + offset));
         }
-        self.names.extend(own_names);
-        for (left, right) in own_outlives {
+        self.names.extend(nested_names);
+        for (left, right) in nested_outlives {
             self.outlives.push((
-                mir::LifetimeSlot(left.0 + offset),
-                mir::LifetimeSlot(right.0 + offset),
+                mir::RegionBound::new(left.index + offset),
+                mir::RegionBound::new(right.index + offset),
             ));
         }
 
-        // append each own parameter to the enclosing definition
-        for (parameter, previous) in own.into_iter().zip(reindexed) {
+        // append each nested parameter to the enclosing definition
+        for (parameter, previous) in nested.into_iter().zip(reindexed) {
             let index = match self.parameters.get(&parameter) {
                 Some(index) => *index,
                 None => {
@@ -292,25 +430,92 @@ impl GenericScope {
                     index
                 }
             };
-            if own_receiver == Some(previous) {
+            if nested_receiver == Some(previous) {
                 self.receiver = Some(index);
             }
         }
 
-        // append each own dependent new to the enclosing definition
-        for dependent in own_dependents {
-            if !self.dependents.contains_key(&dependent) {
+        // append each nested dependent new to the enclosing definition
+        for (key, dependent) in nested_dependents {
+            if !self.dependents.contains_key(&key) {
                 let index = self.count();
-                self.dependents.insert(dependent, index);
+                self.dependents
+                    .insert(key, Dependent { index, ..dependent });
             }
         }
 
-        self
+        // ground the nested indices at themselves under a grounded enclosing definition
+        if !enclosing.grounding.is_empty() {
+            self.grounding = enclosing.grounding.clone();
+            let nested = self.identity_arguments(lower, tree, enclosing.count())?;
+            self.grounding.extend(nested);
+        }
+
+        Ok(self)
+    }
+
+    /// Nest these parameters beneath one enclosing scope, its region slots one binder out.
+    pub(in crate::lower) fn nested_in(
+        mut self,
+        enclosing: &Self,
+        lower: &mut ModuleLowerer<'_>,
+        tree: &mir::Tree,
+    ) -> CompilerResult<Self> {
+        let nested_slots: Vec<_> = self.slots.drain(..).collect();
+        let nested_names: Vec<_> = self.names.drain(..).collect();
+        let nested_outlives: Vec<_> = self.outlives.drain(..).collect();
+        self = self.with_parameters_of(enclosing, lower, tree)?;
+
+        // shift the enclosing slots out one binder and declare the nested slots
+        self.slots = enclosing
+            .slots
+            .iter()
+            .map(|(parameter, slot)| {
+                let outer = mir::RegionBound {
+                    depth: slot.depth + 1,
+                    index: slot.index,
+                };
+
+                (*parameter, outer)
+            })
+            .collect();
+        self.names = nested_names;
+        self.outlives = nested_outlives;
+        for (parameter, slot) in nested_slots {
+            self.slots.insert(parameter, slot);
+        }
+
+        Ok(self)
+    }
+
+    /// Return the argument standing for each index from one position on: the index itself.
+    pub(in crate::lower) fn identity_arguments(
+        &self,
+        lower: &mut ModuleLowerer<'_>,
+        tree: &mir::Tree,
+        from: u32,
+    ) -> CompilerResult<Vec<mir::GenericArgument>> {
+        let domains = self.index_domains(lower, from)?;
+        let mut arguments = Vec::with_capacity(domains.len());
+        for ((kind, is_const), index) in domains.into_iter().zip(from..) {
+            arguments.push(lower.index_argument(tree, index, kind, is_const)?);
+        }
+
+        Ok(arguments)
     }
 
     /// Return the index of one dependent the templates declare.
-    pub(in crate::lower) fn dependent_index(&self, dependent: dir::GlobalTypeId) -> Option<u32> {
-        self.dependents.get(&dependent).copied()
+    pub(in crate::lower) fn dependent_index(
+        &self,
+        lower: &mut ModuleLowerer<'_>,
+        dependent: dir::GlobalTypeId,
+    ) -> CompilerResult<Option<u32>> {
+        if self.dependents.is_empty() {
+            return Ok(None);
+        }
+        let key = DependentKey::of(lower, dependent)?;
+
+        Ok(self.dependents.get(&key).map(|dependent| dependent.index))
     }
 
     /// Return the index of one collected parameter.
@@ -339,7 +544,14 @@ impl GenericScope {
             .map(|(parameter, binding)| (parameter, binding.key))
             .collect();
         for (parameter, key) in regions {
-            let slot = mir::LifetimeSlot(self.slots.len() as u32);
+            // skip a type definition's lifetime, closed per instance without a slot
+            if self
+                .parameters
+                .contains_key(&parameter.into_global(template.module_id))
+            {
+                continue;
+            }
+            let slot = mir::RegionBound::new(self.slots.len() as u32);
             let name = match key {
                 dir::GenericParameterKey::Symbol(symbol) => lower.symbol_name(symbol)?,
                 dir::GenericParameterKey::Anonymous => None,
@@ -382,7 +594,7 @@ impl GenericScope {
         &mut self,
         lower: &mut ModuleLowerer<'_>,
         ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<mir::LifetimeSlot>> {
+    ) -> CompilerResult<Option<mir::RegionBound>> {
         let dir::Type::Parameter(parameter) = lower.ty(ty)? else {
             return Ok(None);
         };
@@ -391,12 +603,13 @@ impl GenericScope {
     }
 
     /// Return the outlives slots declared for one slot.
-    fn slot_outlives(&self, slot: mir::LifetimeSlot) -> Vec<mir::LifetimeSlot> {
-        self.outlives
-            .iter()
-            .filter(|(left, _)| *left == slot)
-            .map(|(_, right)| *right)
-            .collect()
+    fn slot_outlives(&self, slot: mir::RegionBound) -> mir::Lifetime {
+        mir::Lifetime::new(
+            self.outlives
+                .iter()
+                .filter(|(left, _)| *left == slot)
+                .map(|(_, right)| mir::Extent::Bound(*right)),
+        )
     }
 
     /// Declare these lifetime slots on one function header.
@@ -405,7 +618,7 @@ impl GenericScope {
         mut header: mir::FunctionHeaderBuilder<'a>,
     ) -> mir::FunctionHeaderBuilder<'a> {
         for (slot, name) in self.names.iter().enumerate() {
-            let outlives = self.slot_outlives(mir::LifetimeSlot(slot as u32));
+            let outlives = self.slot_outlives(mir::RegionBound::new(slot as u32));
             header = header.lifetime_outlives(name, outlives);
         }
 
@@ -422,7 +635,7 @@ impl GenericScope {
             .enumerate()
             .map(|(slot, name)| {
                 let name = strings.intern(name);
-                let outlives = self.slot_outlives(mir::LifetimeSlot(slot as u32));
+                let outlives = self.slot_outlives(mir::RegionBound::new(slot as u32));
 
                 mir::LifetimeParameter::with_outlives(Some(name), outlives)
             })
@@ -442,6 +655,36 @@ impl ModuleLowerer<'_> {
             .get_parameter(parameter.local_id);
 
         Ok(binding.memory_parameter() == Some(dir::MemoryParameter::Region))
+    }
+
+    /// Return whether one parameter is a region an owner declaration closes per instance.
+    pub(in crate::lower) fn is_declaration_region_parameter(
+        &mut self,
+        parameter: dir::GlobalGenericParameterId,
+    ) -> CompilerResult<bool> {
+        if !self.is_region_parameter(parameter)? {
+            return Ok(false);
+        }
+        let generics = &self.state(parameter.module_id)?.generics;
+        let template = generics.get_parameter(parameter.local_id).template;
+
+        // leave an induced template out, it belongs to no declaration
+        let Some(symbol) = generics.get_template(template).symbol else {
+            return Ok(false);
+        };
+        let definition = self.definition(symbol)?;
+
+        Ok(matches!(
+            definition,
+            Some(
+                dir::Definition::Struct(_)
+                    | dir::Definition::Class(_)
+                    | dir::Definition::Enum(_)
+                    | dir::Definition::Newtype(_)
+                    | dir::Definition::Interface(_)
+                    | dir::Definition::Extension(_)
+            )
+        ))
     }
 
     /// Return the region generics one region parameter of a type declaration outlives.
@@ -510,6 +753,12 @@ impl ModuleLowerer<'_> {
         let ty = self.symbol_type(callable)?;
         let (signature, module) = self.signature(ty)?;
         templates.extend(self.types(module)?.signature(signature).template);
+        templates.extend(
+            self.state(callable.module_id)?
+                .generics
+                .template_by_symbol(callable)
+                .map(|template| template.into_global(callable.module_id)),
+        );
         if let Some(member) = self.imported_member(callable)?
             && let Some(template) = self
                 .definition(member.owner)?
@@ -519,6 +768,24 @@ impl ModuleLowerer<'_> {
                 member.owner.module_id,
                 template,
             ));
+        }
+
+        // assume the where clauses of every enclosing template, a closure's enclosing function too
+        let mut position = 0;
+        while position < templates.len() {
+            let template = templates[position];
+            position += 1;
+            let state = self.state(template.module_id)?;
+            let parent = state
+                .generics
+                .get_template(template.local_id)
+                .parent
+                .map(|parent| dir::GlobalGenericTemplateId::new(template.module_id, parent));
+            if let Some(parent) = parent
+                && !templates.contains(&parent)
+            {
+                templates.push(parent);
+            }
         }
 
         // read the filled bounds each template recorded for the parameter
@@ -544,8 +811,7 @@ impl ModuleLowerer<'_> {
         Ok(bounds)
     }
 
-    /// Lower the generic parameters one template declares with their names, domains, and bounds,
-    /// `this` in the bounds read as the receiver names.
+    /// Lower the generic parameters one template declares with their names, domains, and bounds.
     pub(in crate::lower) fn generic_parameters(
         &mut self,
         tree: &mut mir::Tree,
@@ -586,20 +852,10 @@ impl ModuleLowerer<'_> {
 
             // read the domain the parameter ranges over
             let domain = match binding.memory_parameter() {
-                Some(dir::MemoryParameter::Space | dir::MemoryParameter::Place) => {
-                    mir::GenericParameterDomain::Space
-                }
                 Some(dir::MemoryParameter::Access) => mir::GenericParameterDomain::Access,
                 Some(dir::MemoryParameter::Region) => mir::GenericParameterDomain::Region {
                     outlives: self.region_outlives(parameter, scope)?,
                 },
-                Some(dir::MemoryParameter::Ownership) => {
-                    return Err(LowerError::Unsupported {
-                        anchor: self.module.into(),
-                        construct: "an ownership instance parameter".to_string(),
-                    }
-                    .into());
-                }
                 None if binding.is_const => {
                     let Some(constraint) = binding.constraint else {
                         return Err(CompilerError::Internal {
@@ -608,25 +864,16 @@ impl ModuleLowerer<'_> {
                     };
                     let ty = self.type_lowerer(tree, scope).lower(constraint)?;
 
-                    mir::GenericParameterDomain::Value {
-                        ty: mir::TypeId::from(ty),
-                    }
+                    mir::GenericParameterDomain::Value { ty }
                 }
                 None => {
-                    // bound the parameter by its written constraint, its recorded bounds, and the
-                    // callable's where clauses
+                    // bound the parameter by the bounds sema filled, then the where clauses
                     let mut bounds = {
                         let state = self.state(parameter.module_id)?;
-                        let mut bounds = Vec::from_iter(binding.constraint);
-                        if let Some(list) = state.generics.parameter_bounds(parameter.local_id) {
-                            for bound in state.types.type_ids(list) {
-                                if !bounds.contains(bound) {
-                                    bounds.push(*bound);
-                                }
-                            }
+                        match state.generics.parameter_bounds(parameter.local_id) {
+                            Some(list) => state.types.type_ids(list).to_vec(),
+                            None => Vec::new(),
                         }
-
-                        bounds
                     };
                     if let Some(callable) = callable {
                         for bound in self.where_bounds(callable, parameter)? {
@@ -662,13 +909,17 @@ impl ModuleLowerer<'_> {
             generics[index as usize] = Some(mir::GenericParameter { name, domain });
         }
 
-        // name each dependent by its position, an unbounded type the instance closes
-        for (position, index) in scope.dependents.values().enumerate() {
+        // name each dependent by its position, an unbounded value of its kind the instance closes
+        for (position, dependent) in scope.dependents.values().enumerate() {
             let name = self.strings.intern(&format!("P{position}"));
-            generics[*index as usize] = Some(mir::GenericParameter {
-                name,
-                domain: mir::GenericParameterDomain::Type { bounds: Vec::new() },
-            });
+            let domain = match dependent.kind {
+                Some(dir::MemoryParameter::Access) => mir::GenericParameterDomain::Access,
+                Some(dir::MemoryParameter::Region) => mir::GenericParameterDomain::Region {
+                    outlives: Vec::new(),
+                },
+                None => mir::GenericParameterDomain::Type { bounds: Vec::new() },
+            };
+            generics[dependent.index as usize] = Some(mir::GenericParameter { name, domain });
         }
 
         generics
@@ -682,7 +933,7 @@ impl ModuleLowerer<'_> {
     }
 
     /// Return the type `this` names inside the bounds of one callable's template.
-    fn bound_this(
+    pub(in crate::lower) fn bound_this(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
@@ -706,25 +957,65 @@ impl ModuleLowerer<'_> {
         })
     }
 
-    /// Lower one lifetime into the current lifetime environment.
+    /// Return the generic argument naming one index in its own domain.
+    pub(in crate::lower) fn index_argument(
+        &self,
+        tree: &mir::Tree,
+        index: u32,
+        kind: Option<dir::MemoryParameter>,
+        is_const: bool,
+    ) -> CompilerResult<mir::GenericArgument> {
+        Ok(match kind {
+            Some(dir::MemoryParameter::Region) => {
+                mir::GenericArgument::Region(mir::Lifetime::new([mir::Extent::Parameter(index)]))
+            }
+            Some(dir::MemoryParameter::Access) => {
+                mir::GenericArgument::Access(mir::Access::Parameter(index))
+            }
+            None if is_const => {
+                mir::GenericArgument::Value(tree.intern_static(mir::Static::Parameter(index)))
+            }
+            None => mir::GenericArgument::Type(tree.intern_type(mir::Type::Parameter {
+                index,
+                referent: false,
+            })),
+        })
+    }
+
+    /// Lower one lifetime into the current lifetime environment, grounded where the scope is.
     pub(in crate::lower) fn lower_lifetime(
+        &mut self,
+        tree: &mir::Tree,
+        lifetime: dir::GlobalTypeId,
+        parameters: &GenericScope,
+    ) -> CompilerResult<mir::Lifetime> {
+        let lifetime = self.lower_lifetime_terms(lifetime, parameters)?;
+        if parameters.grounding.is_empty() {
+            return Ok(lifetime);
+        }
+
+        Ok(mir::Substitution::new(tree, &parameters.grounding).lifetime(&lifetime))
+    }
+
+    /// Lower one lifetime's terms into the current lifetime environment.
+    fn lower_lifetime_terms(
         &mut self,
         lifetime: dir::GlobalTypeId,
         parameters: &GenericScope,
     ) -> CompilerResult<mir::Lifetime> {
         match self.ty(lifetime)? {
             // read the extent of a region pair
-            dir::Type::Region(region) => self.lower_lifetime(region.extent, parameters),
+            dir::Type::Region(region) => self.lower_lifetime_terms(region.extent, parameters),
             // name a type declaration's region generic, or a function's binder slot
             dir::Type::Parameter(parameter) => {
                 if parameters.erases_regions {
                     return Ok(mir::Lifetime::empty());
                 }
                 if let Some(index) = parameters.parameter_index(parameter) {
-                    return Ok(mir::Lifetime::new([mir::LifetimeTerm::Parameter(index)]));
+                    return Ok(mir::Lifetime::new([mir::Extent::Parameter(index)]));
                 }
                 match parameters.slots.get(&parameter) {
-                    Some(slot) => Ok(mir::Lifetime::slot(slot.0)),
+                    Some(slot) => Ok(mir::Lifetime::new([mir::Extent::Bound(*slot)])),
                     None => {
                         let template = self
                             .state(parameter.module_id)?
@@ -750,21 +1041,21 @@ impl ModuleLowerer<'_> {
                     }
                 }
             }
-            // retain every region term of a lifetime union
+            // retain every extent of a lifetime union
             dir::Type::Union(union) => {
                 let elements = self
                     .types(lifetime.module_id)?
                     .type_ids(union.elements)
                     .to_vec();
 
-                // lower each element of the union into its terms
-                let mut terms = Vec::new();
+                // lower each element of the union into its extents
+                let mut extents = Vec::new();
                 for element in elements {
-                    let lifetime = self.lower_lifetime(element, parameters)?;
-                    terms.extend(lifetime.terms);
+                    let lifetime = self.lower_lifetime_terms(element, parameters)?;
+                    extents.extend(lifetime.extents);
                 }
 
-                Ok(mir::Lifetime::new(terms))
+                Ok(mir::Lifetime::new(extents))
             }
             // lower concrete lifetime values
             _ => match self
@@ -774,8 +1065,8 @@ impl ModuleLowerer<'_> {
                 Some(dir::Lifetime::Static) => Ok(mir::Lifetime::static_storage()),
                 Some(dir::Lifetime::Frame) => Ok(mir::Lifetime::frame()),
                 Some(dir::Lifetime::Managed) => Ok(mir::Lifetime::managed()),
-                // an instance's positional region erases with the instance it names
-                Some(dir::Lifetime::Bound(_)) => Ok(mir::Lifetime::empty()),
+                // an instance's positional region names the binder its specialization declares
+                Some(dir::Lifetime::Bound(index)) => Ok(mir::Lifetime::bound(index)),
                 None => Err(CompilerError::Internal {
                     message: format!(
                         "an unknown lifetime value in a '{}' type",

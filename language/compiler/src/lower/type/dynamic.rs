@@ -9,31 +9,25 @@ impl TypeLowerer<'_, '_> {
     pub(in crate::lower) fn lower_dynamic(
         &mut self,
         constraint: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         let constraint = self.lower_dynamic_constraint(constraint)?;
 
         Ok(self.dynamic_over(constraint))
     }
 
     /// Lower one open shape, type algebra over a parameter, to the top dynamic reference.
-    pub(in crate::lower) fn lower_open_dynamic(
-        &mut self,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    pub(in crate::lower) fn lower_open_dynamic(&mut self) -> CompilerResult<mir::TypeId> {
         let constraint = self.dynamic_shape_constraint(Vec::new(), false)?;
 
         Ok(self.dynamic_over(constraint))
     }
 
     /// Reference one constraint shape through the erased dynamic representation.
-    fn dynamic_over(
-        &mut self,
-        constraint: mir::LocalNodeId<mir::Type>,
-    ) -> mir::LocalNodeId<mir::Type> {
+    fn dynamic_over(&mut self, constraint: mir::TypeId) -> mir::TypeId {
         self.tree.intern_type(mir::Type::Dynamic {
-            kind: mir::ReferenceKind::Managed,
+            kind: mir::Reference::Managed(mir::Space::Local),
             lifetime: mir::Lifetime::empty(),
             constraint,
-            storage: mir::Storage::Heap(mir::Space::Local),
             access: mir::Access::Mutable,
         })
     }
@@ -42,7 +36,7 @@ impl TypeLowerer<'_, '_> {
     pub(in crate::lower) fn lower_dynamic_constraint(
         &mut self,
         constraint: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         // read the properties the constraint declares
         let (properties, is_keyed) = match self.lower.ty(constraint)? {
             dir::Type::Object(shape) => {
@@ -85,7 +79,7 @@ impl TypeLowerer<'_, '_> {
         &mut self,
         properties: Vec<dir::TypeProperty>,
         is_keyed: bool,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         // build the constraint's fields and dispatch shape
         let mut fields = Vec::with_capacity(properties.len());
         let mut slots = Vec::with_capacity(properties.len());
@@ -100,20 +94,17 @@ impl TypeLowerer<'_, '_> {
 
             // intern the property as a field and its dispatch slot
             let ty = self.lower_property_representation(property)?;
-            let field = self.tree.intern_field(
-                mir::Field {
-                    name: Some(name),
-                    ty: mir::TypeId::from(ty),
-                },
-                Vec::new(),
-            );
+            let field = self.tree.intern_field(mir::Field {
+                name: Some(name),
+                ty,
+                attributes: Vec::new(),
+            });
             fields.push(field);
             slots.push(mir::DynamicSlot::Field { field, name });
         }
 
         // intern the constraint's fields as one non-copy struct
-        let copy = mir::Copy::No;
-        let struct_type = self.tree.intern_type(mir::Type::Struct { fields, copy });
+        let struct_type = self.tree.intern_type(mir::Type::Struct { fields });
 
         // register the constraint's dispatch shape once
         self.lower

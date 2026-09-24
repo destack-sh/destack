@@ -6,7 +6,7 @@ use crate::lower::{GenericScope, ModuleLowerer, TypeLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
 
 impl TypeLowerer<'_, '_> {
-    /// Lower one checked callable signature into MIR parameter and result types.
+    /// Lower one callable signature into MIR parameter and result types.
     fn signature_types(
         &mut self,
         declared: dir::GlobalTypeId,
@@ -37,14 +37,14 @@ impl TypeLowerer<'_, '_> {
         Ok((parameters, result))
     }
 
-    /// Lower one checked callable signature into a MIR signature type.
+    /// Lower one callable signature into a MIR signature type.
     pub(in crate::lower) fn lower_callable_signature(
         &mut self,
         declared: dir::GlobalTypeId,
     ) -> CompilerResult<mir::TypeId> {
         let signature = self.lower_signature_type(declared)?;
 
-        Ok(mir::TypeId::from(signature))
+        Ok(signature)
     }
 }
 
@@ -64,10 +64,7 @@ impl ModuleLowerer<'_> {
 
 impl TypeLowerer<'_, '_> {
     /// Lower one callable signature type closed over its own lifetimes.
-    fn lower_signature_type(
-        &mut self,
-        id: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    fn lower_signature_type(&mut self, id: dir::GlobalTypeId) -> CompilerResult<mir::TypeId> {
         // require a plain function signature without a receiver
         let (_, owner) = self.lower.signature(id)?;
         let dir::Type::FunctionSignature(signature) = self.lower.ty(id)? else {
@@ -94,11 +91,13 @@ impl TypeLowerer<'_, '_> {
         module: ModuleId,
         template: Option<dir::GlobalGenericTemplateId>,
         declaration: Option<dir::GlobalSymbolId>,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
-        // close the signature over its own lifetime slots and dependents
-        let scope =
-            GenericScope::for_signature(self.lower, signature.template.or(template), declaration)?
-                .with_parameters_of(self.scope);
+    ) -> CompilerResult<mir::TypeId> {
+        // close the signature over its own lifetime slots beneath the enclosing binder
+        let template = self
+            .lower
+            .signature_template(signature.template.or(template), Some(self.scope))?;
+        let scope = GenericScope::for_signature(self.lower, template, declaration)?
+            .nested_in(self.scope, self.lower, self.tree)?;
 
         // read the parameters the signature declares
         let declared = self
