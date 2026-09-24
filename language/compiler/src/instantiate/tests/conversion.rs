@@ -5,7 +5,7 @@ use crate::tests::TestSession;
 fn test_instantiate_clones_a_copy_argument_as_a_load() {
     let session = TestSession::single(
         r#"
-function duplicate<T: Clone>(value: &readonly T): T {
+function duplicate<T: Clone>(value: &immutable T): T {
     return value.clone();
 }
 
@@ -17,75 +17,73 @@ function main(): int32 {
 
     session.assert_mir_elaborated(
         "main.ds", r#"
+@nocopy
 @languageItem("memory.Clone")
 type Clone { }
 
+@nocopy
+@languageItem("math.Integer")
+type Integer extends Concrete, Copy, IntegerDomain, Zero, One { }
+
+@nocopy
 @languageItem("memory.Concrete")
 type Concrete { }
 
+@nocopy
 @languageItem("memory.Copy")
 type Copy extends Clone { }
 
+@nocopy
 @languageItem("math.IntegerDomain")
 type IntegerDomain { }
 
+@nocopy
 @languageItem("math.Zero")
 type Zero { }
 
+@nocopy
 @languageItem("math.One")
 type One { }
-
-@languageItem("math.Integer")
-type Integer extends Concrete, Copy, IntegerDomain, Zero, One { }
 
 function test.main.main(): int32 {
     local l0: int32
 
 entry:
     v0: int32 = 1
-    local.set l0, v0
-    v1: ref<int32, borrowed, 'frame, readonly, local> = local.address l0
-    v2: int32 = call test.main.duplicate<int32>(v1): <'a>(ref<int32, borrowed, 'a, readonly, local>) => int32
+    store l0, v0
+    v1: ref<int32, borrowed, 'frame, immutable> = address l0
+    v2: int32 = call test.main.duplicate<int32>(v1): (ref<int32, borrowed, 'frame, immutable>) => int32
     return v2
 }
 
-function test.main.duplicate<T: Clone, 'a>(v0: ref<T, borrowed, 'a, readonly, local>): T;
+function test.main.duplicate<T: Clone, 'a>(v0: ref<?T, borrowed, 'a, immutable>): T;
 
-external function Clone.clone<this: Clone, 'a>(ref<this, borrowed, 'a, readonly, local>): this
+external function Clone.clone<this: Clone, 'a>(ref<?this, borrowed, 'a, immutable>): ?this
 
-external function Integer.Clone.clone<T: Integer, 'a>(ref<T, borrowed, 'a, readonly, local>): T
+external function Integer.Clone.clone<T: Integer, 'a>(ref<?T, borrowed, 'a, immutable>): ?T
 
-shared function Integer.Clone.clone<int32, 'a>(v0: ref<int32, borrowed, 'a, readonly, local>): int32 {
-    local l0: ref<int32, borrowed, 'a, readonly, local>
+shared function Integer.Clone.clone<int32, 'a>(v0: ref<int32, borrowed, 'a, immutable>): int32 {
+    local l0: ref<int32, borrowed, 'a, immutable>
 
-entry(v0: ref<int32, borrowed, 'a, readonly, local>):
-    local.set l0, v0
-    v1: ref<int32, borrowed, 'a, readonly, local> = local.get l0
-    v2: int32 = load v1
+entry(v0: ref<int32, borrowed, 'a, immutable>):
+    store l0, v0
+    v1: ref<int32, borrowed, 'a, immutable> = load l0
+    v2: int32 = load (*v1)
     return v2
 }
 
-shared function test.main.duplicate<int32, 'a>(v0: ref<int32, borrowed, 'a, readonly, local>): int32 {
-    local l0: ref<int32, borrowed, 'a, readonly, local>
+shared function test.main.duplicate<int32, 'a>(v0: ref<int32, borrowed, 'a, immutable>): int32 {
+    local l0: ref<int32, borrowed, 'a, immutable>
 
-entry(v0: ref<int32, borrowed, 'a, readonly, local>):
-    local.set l0, v0
-    v1: ref<int32, borrowed, 'a, readonly, local> = local.get l0
-    v2: int32 = load v1
-    return v2
+entry(v0: ref<int32, borrowed, 'a, immutable>):
+    store l0, v0
+    v1: ref<int32, borrowed, 'a, immutable> = load l0
+    v2: int32 = call Integer.Clone.clone<int32>(v1): (ref<int32, borrowed, 'a, immutable>) => int32
+    v3: int32 = copy v2
+    return v3
 }
-
-/// @layout.struct name=Clone size=0 align=1
-/// @layout.struct name=Concrete size=0 align=1
-/// @layout.struct name=Copy size=0 align=1
-/// @layout.struct name=IntegerDomain size=0 align=1
-/// @layout.struct name=Zero size=0 align=1
-/// @layout.struct name=One size=0 align=1
-/// @layout.struct name=Integer size=0 align=1
 
 /// @dispatch.shape constraint=type@4 function=clone function=cloneFrom
-/// @dispatch.shape constraint=type@20 function=zero
-/// @dispatch.shape constraint=type@22 function=one
 "#,
     );
 }

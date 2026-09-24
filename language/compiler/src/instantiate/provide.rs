@@ -2,6 +2,7 @@ use destack_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirMaterialized, MirLowered, MirVerified,
 };
 use destack_core::FxIndexSet;
+use destack_mir as mir;
 use destack_repository::{ProfileId, ProviderContext, ProviderError};
 use destack_source::{ModuleId, TargetId};
 
@@ -35,8 +36,18 @@ impl Compiler {
             Err(error) => return Err(error.into()),
         };
 
+        let lowered = match artifacts.read::<MirLowered>((module, profile, target)) {
+            Ok(lowered) => lowered,
+            Err(ProviderError::Blocked { .. }) => {
+                dependencies.mark_partial();
+
+                return Ok(dependencies);
+            }
+            Err(error) => return Err(error.into()),
+        };
+
         // require the generic bodies of imported templates
-        for template in Self::template_modules(module, &materialized) {
+        for template in Self::template_modules(module, &materialized, &lowered.tree) {
             dependencies.require_payload(ArtifactKey::mir_lowered(template, profile, target));
             dependencies.require(ArtifactKey::mir_verified(template, profile, target));
         }
@@ -63,11 +74,12 @@ impl Compiler {
         let verified = artifacts
             .read::<MirVerified>((module, profile, target))
             .map_err(CompilerError::from)?;
+        let lowered_tree = lowered.tree.clone();
         let mut state =
             InstantiateState::new(module, lowered, self.strings(), &artifacts, profile, target);
 
         // read foreign templates through the provider's tracked artifact reader
-        for template in Self::template_modules(module, &materialized) {
+        for template in Self::template_modules(module, &materialized, &lowered_tree) {
             let lowered = artifacts
                 .read::<MirLowered>((template, profile, target))
                 .map_err(CompilerError::from)?;
@@ -84,12 +96,24 @@ impl Compiler {
     pub(crate) fn template_modules(
         module: ModuleId,
         materialized: &DirMaterialized,
+        tree: &mir::Tree,
     ) -> FxIndexSet<ModuleId> {
-        materialized
+        let mut modules = materialized
             .generics
             .iter_instances()
             .map(|(_, instance)| instance.key.symbol.module_id)
-            .filter(|template| *template != module)
-            .collect()
+            .collect::<FxIndexSet<_>>();
+
+        // add the module declaring each polymorphic template the tree applies, then drop this one
+        for (_, function) in tree.iter_nodes::<mir::Function>() {
+            if function.is_polymorphic()
+                && let Some(declaring) = function.symbol.module()
+            {
+                modules.insert(declaring);
+            }
+        }
+        modules.swap_remove(&module);
+
+        modules
     }
 }

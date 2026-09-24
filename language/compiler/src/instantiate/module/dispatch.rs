@@ -39,8 +39,12 @@ impl InstantiateState<'_> {
         receiver: mir::TypeId,
         interface: mir::TypeId,
         requirement: mir::FunctionId,
+        applied: &[mir::GenericArgument],
     ) -> CompilerResult<Dispatch> {
-        let Some(witness) = self.witnesses.get(&self.tree, receiver, interface) else {
+        // normalize types introduced by generic substitution
+        let receiver = mir::erase_lifetimes(&self.tree, receiver);
+        let interface = mir::erase_lifetimes(&self.tree, interface);
+        let Some(witness) = self.witnesses.get(receiver, interface) else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "a witness call to '{}' at a closed receiver without a witness",
@@ -49,32 +53,189 @@ impl InstantiateState<'_> {
             });
         };
 
-        // take the implementer the witness names
+        // take the function the witness selects for this requirement
         let named = witness
             .functions
             .iter()
             .find(|function| function.requirement == requirement)
-            .map(|function| function.function);
+            .cloned();
         if let Some(function) = named {
-            return Ok(Dispatch::Function(function));
+            if !self.tree.get(function.function).is_polymorphic() {
+                return Ok(Dispatch::Function(function.function));
+            }
+            let Some(arguments) = function.fill(applied) else {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "a witness call to '{}' with {} arguments for the implementer's places",
+                        self.strings.get(self.tree.get(requirement).name),
+                        applied.len()
+                    ),
+                });
+            };
+
+            return self
+                .specialization(function.function, arguments)
+                .map(Dispatch::Function);
         }
 
-        // specialize the requirement's default body at the receiver
+        // specialize the requirement's default body at the receiver and its own arguments
         let symbol = self.tree.get(requirement).symbol;
         if self.templates.contains_key(&symbol) {
             let mut arguments = vec![mir::GenericArgument::Type(receiver)];
             if let mir::Type::Application {
-                arguments: applied, ..
+                arguments: interface_arguments,
+                ..
             } = self.tree.get(interface)
             {
-                arguments.extend(applied.iter().cloned());
+                arguments.extend(interface_arguments.iter().cloned());
             }
+            arguments.extend(applied.iter().cloned());
             let specialization = self.specialization(requirement, arguments)?;
 
             return Ok(Dispatch::Function(specialization));
         }
 
         self.intrinsic_requirement(interface, requirement)
+    }
+
+    /// Declare the dynamic tables one function body binds.
+    pub(crate) fn declare_dynamic_tables(
+        &mut self,
+        function: mir::FunctionId,
+    ) -> CompilerResult<()> {
+        let function = self.tree.get(function);
+        let Some(body) = &function.body else {
+            return Ok(());
+        };
+
+        // collect each erased concrete type and its constraint
+        let mut erasures = Vec::new();
+        for block in body.blocks() {
+            for instruction in &self.tree.get(*block).instructions {
+                if let mir::Instruction::DynamicBind {
+                    destination,
+                    concrete,
+                    ..
+                } = self.tree.get(*instruction)
+                {
+                    let dynamic = function.value_type(*destination).ok_or_else(|| {
+                        CompilerError::Internal {
+                            message: "an erasure without a typed destination".to_string(),
+                        }
+                    })?;
+                    let mir::Type::Dynamic { constraint, .. } = *self.tree.type_definition(dynamic)
+                    else {
+                        return Err(CompilerError::Internal {
+                            message: "an erasure outside a dynamic destination".to_string(),
+                        });
+                    };
+                    erasures.push((*concrete, constraint));
+                }
+            }
+        }
+
+        // declare the implementations before the function worklist drains
+        for (concrete, constraint) in erasures {
+            self.declare_dynamic_table(concrete, constraint)?;
+        }
+
+        Ok(())
+    }
+
+    /// Record the dynamic table one closed concrete type answers a constraint with, once.
+    pub(crate) fn declare_dynamic_table(
+        &mut self,
+        concrete: mir::TypeId,
+        constraint: mir::TypeId,
+    ) -> CompilerResult<()> {
+        if self.dispatch.dynamic_table(concrete, constraint).is_some() {
+            return Ok(());
+        }
+        let Some(shape) = self.dispatch.dynamic_shape(constraint).cloned() else {
+            return Err(CompilerError::Internal {
+                message: "an erasure without a registered constraint shape".to_string(),
+            });
+        };
+        let witness = self.witnesses.get(concrete, constraint).cloned();
+
+        // lay out the concrete storage before recording field offsets
+        let storage = match self.tree.type_definition(concrete) {
+            mir::Type::Reference { pointee, .. } => *pointee,
+            _ => concrete,
+        };
+        let storage = self.tree.storage_type(storage);
+        mir::LayoutBuilder::new(&self.tree, &mut self.layouts, self.layout)
+            .witnesses(&self.witnesses)
+            .layout_type(storage)
+            .map_err(|error| CompilerError::Internal {
+                message: format!("dynamic storage layout failed: {error:?}"),
+            })?;
+        let fields = self.layouts.named_field_offsets(storage);
+
+        // fill one entry per constraint slot from the layout and the witness
+        let mut entries = Vec::with_capacity(shape.slots.len());
+        for slot in &shape.slots {
+            let entry = match slot {
+                // read a field at its laid-out offset, an absent optional field as undefined
+                mir::DynamicSlot::Field { name, .. } => {
+                    match fields.iter().find(|(field, _)| field == name) {
+                        Some((_, offset)) => mir::DynamicEntry::Field { offset: *offset },
+                        None => mir::DynamicEntry::Absent,
+                    }
+                }
+                mir::DynamicSlot::Function {
+                    name: Some(name), ..
+                } => {
+                    // select the witness function implementing the slot's member
+                    let function = witness.as_ref().and_then(|witness| {
+                        witness
+                            .functions
+                            .iter()
+                            .find(|function| function.member == *name)
+                            .cloned()
+                    });
+                    let Some(function) = function else {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "a dynamic slot '{}' without an implementing function",
+                                self.strings.get(*name)
+                            ),
+                        });
+                    };
+                    mir::DynamicEntry::Function {
+                        function: function.function,
+                    }
+                }
+                mir::DynamicSlot::Function { name: None, .. } => {
+                    return Err(CompilerError::Internal {
+                        message: "a call-signature constraint member".to_string(),
+                    });
+                }
+            };
+            entries.push(entry);
+        }
+
+        // index the concrete fields by name for keyed constraints
+        let mut names = Vec::new();
+        if shape.is_keyed {
+            names.extend(fields.iter().map(|(name, offset)| mir::DynamicNamedEntry {
+                name: *name,
+                entry: mir::DynamicEntry::Field { offset: *offset },
+            }));
+            names.sort_by(|left, right| {
+                self.strings
+                    .get(left.name)
+                    .cmp(self.strings.get(right.name))
+            });
+        }
+        self.dispatch.insert_dynamic_table(mir::DynamicTable {
+            concrete,
+            constraint,
+            entries,
+            names,
+        });
+
+        Ok(())
     }
 
     /// Return the global one closed receiver answers an interface's associated const with.
@@ -84,7 +245,10 @@ impl InstantiateState<'_> {
         interface: mir::TypeId,
         member: StringId,
     ) -> CompilerResult<mir::GlobalId> {
-        let Some(witness) = self.witnesses.get(&self.tree, receiver, interface) else {
+        // normalize types introduced by generic substitution
+        let receiver = mir::erase_lifetimes(&self.tree, receiver);
+        let interface = mir::erase_lifetimes(&self.tree, interface);
+        let Some(witness) = self.witnesses.get(receiver, interface) else {
             return Err(CompilerError::Internal {
                 message: format!(
                     "a witness const '{}' read at a closed receiver without a witness",
@@ -172,6 +336,8 @@ impl InstantiateState<'_> {
         ty: mir::TypeId,
         arguments: &[mir::GenericArgument],
     ) -> mir::TypeId {
-        Substitution::new(&mut self.tree, arguments).ty(ty)
+        let closed = Substitution::new(&self.tree, arguments).ty(ty);
+
+        mir::resolve_witness_types(&self.tree, &self.witnesses, closed)
     }
 }

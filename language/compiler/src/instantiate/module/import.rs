@@ -69,7 +69,10 @@ impl InstantiateState<'_> {
     }
 
     /// Run one import with every reachable module's declared tree on hand.
-    fn import_declared<T>(&mut self, import: impl FnOnce(&mut mir::Importer<'_, '_>) -> T) -> T {
+    pub(crate) fn import_declared<T>(
+        &mut self,
+        import: impl FnOnce(&mut mir::Importer<'_, '_>) -> T,
+    ) -> T {
         let Self {
             tree,
             declared,

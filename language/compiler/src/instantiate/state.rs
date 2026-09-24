@@ -22,10 +22,10 @@ pub(crate) struct InstantiateState<'a> {
     pub(super) tree: mir::Tree,
     /// Type layouts covering the instances.
     pub(super) layouts: mir::LayoutTable,
+    /// Dispatch shapes and tables.
+    pub(super) dispatch: mir::DispatchTable,
     /// Drop hooks by type.
     pub(super) drops: mir::DropTable,
-    /// Memory accesses by instruction.
-    pub(super) accesses: mir::AccessTable,
     /// Function and call effects.
     pub(super) effects: mir::EffectTable,
     /// The witness each closed type answers an interface with.
@@ -70,8 +70,8 @@ impl<'a> InstantiateState<'a> {
             layout: lowered.target,
             tree: mir::Tree::clone(&lowered.tree),
             layouts: lowered.layouts.clone(),
+            dispatch: lowered.dispatch.clone(),
             drops: lowered.drops.clone(),
-            accesses: lowered.accesses.clone(),
             effects: lowered.effects.clone(),
             witnesses: lowered.witnesses.clone(),
             sources: FxIndexMap::from_iter([(module, lowered)]),
@@ -98,16 +98,26 @@ impl<'a> InstantiateState<'a> {
         // index the module's functions, globals, and templates
         self.index();
 
-        // queue every shared specialization still without a body
+        // queue every shared specialization still without a body, keeping the concrete bodies
+        let mut bodies = Vec::new();
         for (id, function) in self.tree.iter_nodes::<mir::Function>() {
             if function.linkage == mir::Linkage::Shared && function.body.is_none() {
                 self.pending.push(id);
             }
+            if function.body.is_some() && !function.is_polymorphic() {
+                bodies.push(id);
+            }
         }
 
-        // instantiate queued functions and record their bodies
+        // close calls and allocations in the module's existing concrete bodies
+        for function in bodies {
+            self.declare_dynamic_tables(function)?;
+        }
+
+        // process each new body, including specializations its tables and drop hooks require
         while let Some(instance) = self.pending.pop() {
             self.specialize(instance)?;
+            self.declare_dynamic_tables(instance)?;
             self.specializations.push(instance);
         }
 
@@ -134,6 +144,7 @@ impl<'a> InstantiateState<'a> {
 
         // compute layouts for the instantiated types
         mir::LayoutBuilder::new(&self.tree, &mut self.layouts, self.layout)
+            .witnesses(&self.witnesses)
             .layout_reachable_types()
             .map_err(|error| CompilerError::Internal {
                 message: format!("instance layouts failed: {error:?}"),
@@ -143,19 +154,20 @@ impl<'a> InstantiateState<'a> {
         let source = &self.sources[&self.module];
         let mut analyses = VerifyState::over(
             &self.tree,
+            self.strings,
             &self.drops,
-            &self.accesses,
-            &source.dispatch,
+            &self.dispatch,
             &self.effects,
             None,
             self.layout,
         );
         analyses.verify_functions(&self.specializations);
 
-        // reject an instance that fails verification
-        if let Some(error) = analyses.take_errors().pop() {
+        // reject an instance that fails verification, every failure named
+        let errors = analyses.take_errors();
+        if !errors.is_empty() {
             return Err(CompilerError::Internal {
-                message: format!("a verified template failed at an instance: {error:?}"),
+                message: format!("a verified template failed at an instance: {errors:?}"),
             });
         }
 
@@ -169,9 +181,8 @@ impl<'a> InstantiateState<'a> {
             tree: Arc::new(self.tree),
             initializer: source.initializer,
             layouts: self.layouts,
-            dispatch: source.dispatch.clone(),
+            dispatch: self.dispatch,
             drops: self.drops,
-            accesses: self.accesses,
             effects: self.effects,
             profile: source.profile.clone(),
             retention,
@@ -240,6 +251,18 @@ impl<'a> InstantiateState<'a> {
         let (module, template) = self.template_definition(instance)?;
         let source = self.sources[&module].clone();
 
+        // require one argument per template parameter
+        let slots = source.tree.get(template).generics.len();
+        if arguments.len() != slots {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "a specialization of '{}' with {} arguments for {slots} slots",
+                    self.strings.get(self.tree.get(instance).name),
+                    arguments.len()
+                ),
+            });
+        }
+
         // copy the template's body at the arguments
         let mut specialization = Specialization {
             state: self,
@@ -249,9 +272,8 @@ impl<'a> InstantiateState<'a> {
             arguments,
             locals: FxIndexMap::default(),
             blocks: FxIndexMap::default(),
-            added_values: Vec::new(),
         };
-        let body = specialization.body(&source.accesses)?;
+        let body = specialization.body()?;
 
         // copy the template's effects to the instance
         let effect = source.effects.function(template).cloned();
