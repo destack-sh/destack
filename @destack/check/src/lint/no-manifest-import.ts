@@ -10,7 +10,7 @@ export const noManifestImport: Rule = {
         docs: { description: "read package identity from import.meta.destack or a package handle" },
         messages: {
             manifest:
-                "[WT13] read package identity from import.meta.destack or a package handle instead of {{file}}",
+                "[PK07] read package identity from import.meta.destack or a package handle instead of {{file}}",
         },
     },
     create(context) {

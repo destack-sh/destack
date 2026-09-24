@@ -8,8 +8,8 @@ export const validPackageHandle: Rule = {
         schema: [],
         docs: { description: "default-export the package handle from src/package.ts" },
         messages: {
-            location: "[WT12] declare the package handle in src/package.ts",
-            missing: "[WT12] export default definePackage(...) from src/package.ts",
+            location: "[PK06] declare the package handle in src/package.ts",
+            missing: "[PK06] export default definePackage(...) from src/package.ts",
         },
     },
     create(context) {

@@ -16,7 +16,7 @@ export const validDeclaration: Rule = {
         type: "problem",
         schema: [],
         docs: { description: "declare as an exported module constant" },
-        messages: { export: "[WT11] assign '{{name}}(...)' to an exported module-level const" },
+        messages: { export: "[PK05] assign '{{name}}(...)' to an exported module-level const" },
     },
     create(context) {
         return {

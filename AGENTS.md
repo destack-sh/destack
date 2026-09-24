@@ -4,6 +4,7 @@ The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY follow RFC 2119.
 Every rule has a stable code: verb letter, noun letter, number.
 New rules take the next free number, and retired codes stay unused.
 A lint name in parentheses, like (`destack/comment-style`), marks a rule the linter enforces.
+Destack packages MUST also follow the package rules in [`@destack/template-blank/AGENTS.md`](@destack/template-blank/AGENTS.md).
 
 ## Plan (P)
 
@@ -191,6 +192,7 @@ Write code and prose that read plainly.
 - **WN16** Generalisations MUST NOT introduce arbitrary interfaces only to avoid `x_for_y`.
 - **WN17** Names MAY keep `x_for_y` in data transcription.
 - **WN18** Accessors SHOULD NOT nest projections such as `revision_files`; a general `files` with a filter, or `files_at_revision`, reads better.
+- **WN19** Audit actions MUST be named `Noun.verb`, with PascalCase nouns and a camelCase present-tense verb, such as `Login.signIn` or `ServiceAccount.create`.
 
 ### Logic (WL)
 
@@ -327,18 +329,7 @@ Write code and prose that read plainly.
 
 - **WT01** Class fields MUST be declared explicitly, with documentation above each field. (`destack/require-jsdoc`)
 - **WT02** Class fields MUST be assigned in constructor bodies, not through constructor parameter properties. (`typescript/parameter-properties`)
-- **WT03** Public service procedures MUST live in `service/`, and their implementation in `server/`.
-- **WT04** Consumed service declarations MUST live in `connection/`, with `index.ts` re-exports.
-- **WT05** Connection declarations MUST stay inert; runtime clients bind during application startup or host invocation setup.
-- **WT06** Endpoint discovery and credential renewal MUST live in host or client transport code, outside connection declarations.
-- **WT07** `server/index.ts` MUST export `implementService(...)`, returning `ServiceImplementation`.
-- **WT08** Services MUST be hosted through `@destack/service`'s `Server.start(...)`.
 - **WT09** Domain operations MUST live in noun modules; `*Store` names MUST be reserved for persistence.
-- **WT10** Reusable domain operations SHOULD live beside `server/` and take verified context explicitly.
-- **WT11** Declarations MUST be exported module-level constants initialised by their `define*` constructor. (`destack/valid-declaration`)
-- **WT12** Package handles MUST be default-exported from `src/package.ts`. (`destack/valid-package-handle`)
-- **WT13** Package identity MUST come from `import.meta.destack` or package handles, never from imported `destack.json` or `package.json`. (`destack/no-manifest-import`)
-- **WT14** Index modules MUST contain only re-exports. (`destack/no-index-logic`)
 
 ### Rust (WR)
 
