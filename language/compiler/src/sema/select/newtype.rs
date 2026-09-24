@@ -16,6 +16,8 @@ pub(in crate::sema) const REPORTED_REJECTIONS: usize = 4;
 struct NewtypeCandidate {
     /// The reduced backing alternative.
     backing: dir::GlobalTypeId,
+    /// The backing union arm this alternative selects, none for the whole backing.
+    arm: Option<u32>,
     /// The signature used for argument matching.
     signature: dir::GlobalTypeId,
 }
@@ -40,6 +42,8 @@ pub(in crate::sema) struct NewtypeSignature {
     pub(in crate::sema) key: dir::InstanceKey,
     /// The selected instantiated backing alternative.
     pub(in crate::sema) backing: dir::GlobalTypeId,
+    /// The position of the backing union arm the alternative enters, absent for the whole backing.
+    pub(in crate::sema) arm: Option<u32>,
     /// The selected backing signature.
     pub(in crate::sema) signature: SignatureSelection,
 }
@@ -74,7 +78,7 @@ impl CheckState<'_> {
             Some(_) => self.selection_goal(
                 origin,
                 Callee::Newtype(symbol, rule),
-                expectation.map(|expectation| expectation.target),
+                expectation.and_then(Expectation::contextual_target),
                 &operands,
             )?,
             None => None,
@@ -98,7 +102,7 @@ impl CheckState<'_> {
         let type_arguments = if type_arguments.is_empty() {
             self.expected_newtype_arguments(
                 symbol,
-                expectation.map(|expectation| expectation.target),
+                expectation.and_then(Expectation::contextual_target),
             )?
         } else {
             type_arguments.to_vec()
@@ -172,6 +176,7 @@ impl CheckState<'_> {
         let signature = NewtypeSignature {
             key: dir::InstanceKey::new(symbol, signature.generic_arguments.clone()),
             backing,
+            arm: candidate.arm,
             signature,
         };
 
@@ -179,7 +184,7 @@ impl CheckState<'_> {
     }
 
     /// Intern the nominal return applying one declaration over its own parameters.
-    fn nominal_return_type(
+    pub(in crate::sema) fn nominal_return_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
         generic_parameters: &[dir::GlobalGenericParameterId],
@@ -246,23 +251,25 @@ impl CheckState<'_> {
         rule: OverloadRule,
     ) -> CompilerResult<SmallVec<[NewtypeCandidate; 2]>> {
         // try each union arm before the complete union domain
-        let mut backings = SmallVec::<[dir::GlobalTypeId; 2]>::new();
+        let mut backings = SmallVec::<[(dir::GlobalTypeId, Option<u32>); 2]>::new();
         if let dir::Type::Union(union) = self.ty(backing)? {
             let elements = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(
                 self.type_ids(backing.module_id, union.elements)?,
             );
             backings.reserve(elements.len() + 1);
-            backings.extend(elements);
+            for (index, element) in elements.into_iter().enumerate() {
+                backings.push((element, Some(index as u32)));
+            }
             if rule == OverloadRule::Ordered {
-                backings.push(backing);
+                backings.push((backing, None));
             }
         } else {
-            backings.push(backing);
+            backings.push((backing, None));
         }
 
         // map scalar and tuple backings onto ordinary callable signatures
         let mut candidates = SmallVec::<[NewtypeCandidate; 2]>::with_capacity(backings.len());
-        for backing in backings {
+        for (backing, arm) in backings {
             let parameters = match self.ty(backing)? {
                 dir::Type::Tuple(tuple) => self
                     .tuple_elements(backing.module_id, tuple.elements)?
@@ -294,7 +301,11 @@ impl CheckState<'_> {
                 is_construct: false,
             };
             let signature = self.intern_signature(function)?;
-            candidates.push(NewtypeCandidate { backing, signature });
+            candidates.push(NewtypeCandidate {
+                backing,
+                arm,
+                signature,
+            });
         }
 
         Ok(candidates)
@@ -318,6 +329,8 @@ impl CheckState<'_> {
             });
         };
 
+        let return_type = function.return_type;
+
         // match the constructor signature against the written arguments
         self.match_signature(
             origin,
@@ -326,7 +339,7 @@ impl CheckState<'_> {
             &[],
             type_arguments,
             &function,
-            function.return_type,
+            return_type,
             None,
             arguments,
             expectation,

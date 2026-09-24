@@ -4,9 +4,10 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     AssignedPlace, CallableArgument, Cause, CauseId, CauseKind, CheckFailure, CheckOutcome,
-    CheckState, Expectation, FailedCheck, FlowSite, GenericParameterId, NewtypeMatch,
-    NewtypeSignature, Origin, OverloadRule, OverloadSelection, PlaceUse, Relation, SignatureMatch,
-    SignatureRejection, SignatureSelection, TypeSubstitution, Value, ValueCheck, ValueUse,
+    CheckState, Expectation, FailedCheck, FlowSite, GenericParameterId, InferMode, MemoryGrounding,
+    NewtypeMatch, NewtypeSignature, Origin, OverloadRule, OverloadSelection, PlaceUse, Relation,
+    SignatureMatch, SignatureRejection, SignatureSelection, StoreTarget, TypeSubstitution, Value,
+    ValueCheck, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -59,7 +60,8 @@ impl CheckState<'_> {
             Some(selected) => selected,
             None => {
                 // require one signature when no expected type selects an overload
-                let constructors = self.constructor_signatures(site.origin(), source)?;
+                let constructors =
+                    self.construct_signatures(site.origin(), source, MemoryGrounding::Open)?;
                 let [constructor] = constructors.as_slice() else {
                     let dir::Type::Reference(reference) = self.ty(source)? else {
                         return Err(CompilerError::Internal {
@@ -98,11 +100,12 @@ impl CheckState<'_> {
         self.commit_node_type(site.node, target)
     }
 
-    /// Return the allocating signatures exposed by a class value.
-    pub(in crate::sema) fn constructor_signatures(
+    /// Return one class value's construct signatures, grounding their induced memory parameters.
+    pub(in crate::sema) fn construct_signatures(
         &mut self,
         origin: Origin,
         source: dir::GlobalTypeId,
+        grounding: MemoryGrounding,
     ) -> CompilerResult<Vec<dir::ClassConstructorDefinition>> {
         // require a concrete class declaration
         let dir::Type::Reference(reference) = self.ty(source)? else {
@@ -154,11 +157,15 @@ impl CheckState<'_> {
             let parameters = self.signature_generic_parameters(ty.module_id, &head)?;
             let mut induced = SmallVec::<[GenericParameterId; 4]>::new();
             for parameter in parameters {
-                if self
+                let memory = self
                     .require_generic_parameter(parameter)?
-                    .induced_memory_parameter()
-                    .is_some()
-                {
+                    .induced_memory_parameter();
+                // an elided extent stays a binder of the class value's signature
+                let is_grounded = match grounding {
+                    MemoryGrounding::Open => memory.is_some(),
+                    MemoryGrounding::Elided => memory == Some(dir::MemoryParameter::Access),
+                };
+                if is_grounded {
                     induced.push(parameter);
                 }
             }
@@ -166,21 +173,26 @@ impl CheckState<'_> {
             let mut allocation = TypeSubstitution::default()
                 .with_carried(arguments)?
                 .with_carried(&substitution.bindings)?;
-            self.ground_ambient_memory_parameters(&induced, &mut allocation)?;
+            self.ground_memory_parameters(origin, &induced, &mut allocation, grounding)?;
             let ty = self.substitute_type(ty, &allocation)?;
             let arguments = self.intern_generic_arguments(&allocation.bindings)?;
 
-            // present the declared signature in its construct form
+            // present the declared signature in its construct form, its parameters in this module
             let head = self
                 .signature_head(ty)?
                 .ok_or_else(|| CompilerError::Internal {
                     message: "a class constructor without its signature".to_string(),
                 })?;
+            let parameters = self
+                .signature_parameters(ty.module_id, head.parameters)?
+                .to_vec();
+            let parameters = self.intern_parameters(&parameters)?;
             constructor.ty = self.intern_signature(dir::FunctionSignatureType {
                 is_construct: true,
                 this_parameter: None,
                 template: head.template.or(template),
                 arguments,
+                parameters,
                 ..head
             })?;
         }
@@ -210,7 +222,7 @@ impl CheckState<'_> {
         }
 
         // select in the same declaration order as a direct construction
-        let constructors = self.constructor_signatures(origin, source)?;
+        let constructors = self.construct_signatures(origin, source, MemoryGrounding::Open)?;
         for constructor in constructors {
             let Some(instantiation) = self.instantiate_signature(origin, constructor.ty, target)?
             else {
@@ -237,7 +249,19 @@ impl CheckState<'_> {
             let returned = self.strip_form(origin, return_type)?;
             let (module, instance) = self.nominal_application(returned)?;
             let arguments: SmallVec<[_; 4]> = self.type_ids(module, instance.arguments)?.into();
-            let arguments = self.symbol_generic_argument_bindings(instance.symbol, &arguments)?;
+            let mut arguments =
+                self.symbol_generic_argument_bindings(instance.symbol, &arguments)?;
+            let signature_bindings = self
+                .signature_arguments(instantiation.signature.module_id, signature.arguments)?
+                .to_vec();
+            for binding in signature_bindings {
+                if !arguments
+                    .iter()
+                    .any(|bound| bound.parameter == binding.parameter)
+                {
+                    arguments.push(binding);
+                }
+            }
             let key = dir::InstanceKey::new(instance.symbol, arguments);
 
             // supply the generated function's parameters to the selected constructor
@@ -262,10 +286,8 @@ impl CheckState<'_> {
             if let Some(symbol) = constructor.constructor.call_symbol() {
                 self.check_symbol_access(origin, symbol, "constructor")?;
             }
-            let target = dir::ConstructTarget::Class {
-                key,
-                constructor: constructor.constructor,
-            };
+            let target =
+                self.class_construct_target(key.symbol, constructor.constructor, key.arguments)?;
 
             let mut construction =
                 dir::ConstructDecision::new(target, arguments, return_type, instantiation.regions);
@@ -365,7 +387,7 @@ impl CheckState<'_> {
 
         // peel the owned and managed forms around the constructed instance
         while let dir::Type::Form(form) = self.ty(target)?
-            && matches!(form.form, dir::Form::Owned | dir::Form::Managed { .. })
+            && matches!(form.form, dir::Form::Owned)
         {
             target = form.value;
         }
@@ -391,9 +413,7 @@ impl CheckState<'_> {
                     }
                     matched = Some(candidate);
                 }
-                dir::Type::Form(form)
-                    if matches!(form.form, dir::Form::Owned | dir::Form::Managed { .. }) =>
-                {
+                dir::Type::Form(form) if matches!(form.form, dir::Form::Owned) => {
                     pending.push(form.value);
                 }
                 dir::Type::Union(union) => {
@@ -494,12 +514,12 @@ impl CheckState<'_> {
 
         // separate destination forms from the constructed instance
         let mut forms = SmallVec::<[dir::Form; 2]>::new();
-        let mut expected_value = expectation.map(|expectation| expectation.target);
+        let mut expected_value = expectation.and_then(Expectation::contextual_target);
         while let Some(expected) = expected_value {
             let dir::Type::Form(form) = self.ty(expected)? else {
                 break;
             };
-            if !matches!(form.form, dir::Form::Owned | dir::Form::Managed { .. }) {
+            if !matches!(form.form, dir::Form::Owned) {
                 break;
             }
             forms.push(form.form);
@@ -662,23 +682,8 @@ impl CheckState<'_> {
             });
         }
 
-        // resolve relative constructor member types through the destination place
-        let receiver = forms
-            .iter()
-            .find_map(|form| match form {
-                dir::Form::Managed { place } => Some(*place),
-                _ => None,
-            })
-            .map(|place| {
-                self.intern_type(dir::Type::Form(dir::FormType {
-                    form: dir::Form::Managed { place },
-                    value: target,
-                }))
-            })
-            .transpose()?;
-
-        // expect the constructed instance in its destination place
-        let expectation = receiver.or(expected_value).and_then(|target| {
+        // expect the constructed instance where the destination holds it
+        let expectation = expected_value.and_then(|target| {
             expectation.map(|expectation| Expectation {
                 target,
                 ..expectation
@@ -700,7 +705,7 @@ impl CheckState<'_> {
                     constructor.ty,
                     &arguments,
                     expectation,
-                    receiver,
+                    None,
                 )
             },
         )?;
@@ -753,6 +758,35 @@ impl CheckState<'_> {
         }
     }
 
+    /// Derive and commit one class's construct candidates at its declared parameters.
+    pub(in crate::sema) fn derive_class_constructors(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<()> {
+        // instantiate the class over its declared parameters
+        let template = self.symbol_template(symbol)?;
+        let parameters = match template {
+            Some(template) => self.generic_template_parameters(template)?,
+            None => SmallVec::new(),
+        };
+        let receiver = self.nominal_return_type(symbol, &parameters)?;
+        let dir::Type::Application(instance) = self.ty(receiver)? else {
+            return Err(CompilerError::Internal {
+                message: format!("class {symbol:?} without an application of itself"),
+            });
+        };
+
+        // record the declared, forwarded, or default candidates
+        let origin = Origin::Symbol(symbol);
+        let constructors =
+            self.class_constructors(origin, receiver, &instance, &mut SmallVec::new())?;
+        self.module_mut(symbol.module_id)
+            .members_tail
+            .set_class_constructors(symbol, constructors);
+
+        Ok(())
+    }
+
     /// Return construct candidates for one class instance.
     pub(in crate::sema) fn class_constructors(
         &mut self,
@@ -773,18 +807,53 @@ impl CheckState<'_> {
         };
 
         // keep the constructors the class declares itself
-        if !class.constructors.is_empty() {
-            return Ok(class.constructors.clone());
+        let mut declared = Vec::new();
+        for member in &class.members {
+            let dir::DefinitionMember::Method(method) = member else {
+                continue;
+            };
+            if method.slot != dir::MemberSlot::Constructor {
+                continue;
+            }
+            declared.push(dir::ClassConstructorDefinition {
+                constructor: dir::ClassConstructor::Declared {
+                    symbol: method.symbol,
+                },
+                ty: self.symbol_type(method.symbol)?,
+            });
+        }
+        if !declared.is_empty() {
+            return Ok(declared);
         }
 
-        // require a base class to forward from
-        let Some(extends) = class.extends.clone() else {
-            return Err(CompilerError::Internal {
-                message: format!("class {:?} has no construct candidates", instance.symbol),
-            });
-        };
+        // forward a derived class's base constructors, a base class constructing by `new T()`
+        match class.extends.clone() {
+            Some(extends) => self.inherited_constructors(origin, receiver, &extends, active),
+            None => Ok(vec![self.default_class_constructor(receiver)?]),
+        }
+    }
 
-        self.inherited_constructors(origin, receiver, &extends, active)
+    /// Return the `new T()` candidate a base class without a declared constructor offers.
+    fn default_class_constructor(
+        &mut self,
+        receiver: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::ClassConstructorDefinition> {
+        let ty = self.intern_signature(dir::FunctionSignatureType {
+            parks: false,
+            asynchrony: dir::Asynchrony::Sync,
+            template: None,
+            arguments: dir::TypeListId::EMPTY,
+            this_parameter: None,
+            parameters: dir::TypeListId::EMPTY,
+            return_type: Some(receiver),
+            is_generator: false,
+            is_construct: false,
+        })?;
+
+        Ok(dir::ClassConstructorDefinition {
+            constructor: dir::ClassConstructor::Default,
+            ty,
+        })
     }
 
     /// Return constructors forwarded from one base class.
@@ -861,12 +930,13 @@ impl CheckState<'_> {
         expectation: Option<Expectation>,
         receiver: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<SignatureMatch> {
-        // read the constructor shape before matching arguments
-        let Some(function) = self.signature_head(function_type)? else {
+        // read the constructor shape without its receiver term, which the allocation supplies
+        let Some(mut function) = self.signature_head(function_type)? else {
             return Ok(SignatureMatch::Inapplicable(
                 SignatureRejection::Inapplicable,
             ));
         };
+        let this = function.this_parameter.take();
         let return_type = function.return_type;
 
         // infer omitted class arguments while testing this constructor
@@ -880,11 +950,14 @@ impl CheckState<'_> {
             _ => false,
         };
         if infers_arguments {
+            let carried =
+                self.construct_region_bindings(origin, function_type.module_id, &function, this)?;
+
             return self.match_signature(
                 origin,
                 function_type.module_id,
                 Some(instance.symbol),
-                &[],
+                &carried,
                 &[],
                 &function,
                 return_type,
@@ -899,18 +972,26 @@ impl CheckState<'_> {
             .instance_substitution(instance_module, instance)?
             .with_receiver(target);
         let function_type = self.substitute_type(function_type, &substitution)?;
-        let Some(function) = self.signature_head(function_type)? else {
+        let Some(mut function) = self.signature_head(function_type)? else {
             return Ok(SignatureMatch::Inapplicable(
                 SignatureRejection::Inapplicable,
             ));
         };
+        let this = function.this_parameter.take();
 
-        // fall back to the constructed target as the return type
+        // construct the target when the constructor writes no result
         let return_type = function.return_type.or(Some(target));
+        function.return_type = return_type;
 
-        // carry the class's instance and region bindings into the constructor's own template
+        // pass the class's bindings and the destination place into the constructor's template
         let mut carried = self.resolved_argument_bindings(&substitution.bindings)?;
         carried.extend(self.resolved_region_bindings(&substitution.bindings)?);
+        carried.extend(self.construct_region_bindings(
+            origin,
+            function_type.module_id,
+            &function,
+            this,
+        )?);
 
         // match the constructor signature against the written arguments
         self.match_signature(
@@ -925,6 +1006,36 @@ impl CheckState<'_> {
             arguments,
             expectation,
         )
+    }
+
+    /// Bind the constructor's receiver region at the constructed class's space.
+    fn construct_region_bindings(
+        &mut self,
+        origin: Origin,
+        module: ModuleId,
+        function: &dir::FunctionSignatureType,
+        this: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<Vec<dir::GenericArgumentBinding>> {
+        // bind the region parameter the receiver borrows the construction at
+        let mut bound = Vec::new();
+        if let Some(this) = this
+            && let Some(region) = self.form_chain(origin, this)?.region()
+            && let dir::Type::Parameter(region_parameter) = self.ty(self.shallow_resolve(region)?)?
+        {
+            let place = self.space_term(origin, this)?;
+            let extent = self.lifetime_literal(dir::Lifetime::Managed)?;
+            let construction = self.intern_region(extent, place)?;
+            bound.push((region_parameter, construction));
+        }
+
+        let mut bindings = Vec::new();
+        for parameter in self.signature_generic_parameters(module, function)? {
+            if let Some((_, argument)) = bound.iter().find(|(bound, _)| *bound == parameter) {
+                bindings.push(dir::GenericArgumentBinding::new(parameter, *argument));
+            }
+        }
+
+        Ok(bindings)
     }
 
     /// Select one newtype construction.
@@ -997,6 +1108,7 @@ impl CheckState<'_> {
         let NewtypeSignature {
             key,
             backing,
+            arm,
             signature,
         } = signature;
 
@@ -1008,18 +1120,21 @@ impl CheckState<'_> {
             self.commit_coercion(*source, coercion.clone())?;
         }
 
-        // commit the construction over the selected newtype backing
-        let target = dir::ConstructTarget::Newtype { key, backing };
+        // commit the construction over the selected newtype backing and its arm
+        let target = dir::ConstructTarget::Newtype { key, backing, arm };
+        let arguments = signature.bind_arguments(Origin::Node(node, None), self)?;
         let resolution = dir::ConstructDecision::new(
             target,
-            signature.bind_arguments(Origin::Node(node, None), self)?,
+            arguments,
             signature.return_type,
             signature.region_arguments.clone(),
         );
         self.commit_decision(node, dir::Decision::Construct(resolution))?;
         self.commit_node_type(node, signature.return_type)?;
 
-        let expected = expectation.map_or(signature.return_type, |expectation| expectation.target);
+        let expected = expectation
+            .and_then(Expectation::contextual_target)
+            .unwrap_or(signature.return_type);
 
         Ok(ValueCheck {
             source: signature.return_type,
@@ -1038,8 +1153,8 @@ impl CheckState<'_> {
         signature: SignatureSelection,
         forms: &[dir::Form],
     ) -> CompilerResult<dir::GlobalTypeId> {
-        // bind generic arguments from the class instance when inference stayed closed
-        let generic_arguments = if signature.generic_arguments.is_empty() {
+        // bind the constructor's chain, the class instance's arguments when inference stayed closed
+        let arguments = if signature.generic_arguments.is_empty() {
             let arguments: SmallVec<[_; 8]> =
                 self.type_ids(instance_module, instance.arguments)?.into();
 
@@ -1054,19 +1169,16 @@ impl CheckState<'_> {
         }
 
         // select the class and the constructor this construction runs
-        let target = dir::ConstructTarget::Class {
-            key: dir::InstanceKey::new(instance.symbol, generic_arguments),
-            constructor,
-        };
+        let target = self.class_construct_target(instance.symbol, constructor, arguments)?;
+
+        // record an owned construction for the escape check at module end
+        if forms.contains(&dir::Form::Owned) {
+            self.owned_constructions.push((node, instance.symbol));
+        }
 
         // wrap the produced instance in the destination forms, replacing its own heap form
         let mut produced = signature.return_type;
-        if !forms.is_empty()
-            && let dir::Type::Form(form) = self.ty(produced)?
-            && matches!(form.form, dir::Form::Managed { .. })
-        {
-            produced = form.value;
-        }
+
         for form in forms.iter().rev().copied() {
             produced = self.intern_type(dir::Type::Form(dir::FormType {
                 form,
@@ -1119,19 +1231,30 @@ impl CheckState<'_> {
         let callee_site = self.visit_site(callee.into_global_any(module))?;
         self.infer_node_type(callee_site, PlaceUse::Read)?;
 
-        // read the base instance committed on the super callee
-        let super_ty = self.require_node_type(callee.into_global_any(module))?;
+        // read the base receiver committed on the super callee
+        let super_receiver = self.require_node_type(callee.into_global_any(module))?;
 
         // poison the call when the super type carries a reported error
-        if matches!(self.ty(super_ty)?, dir::Type::Error) {
+        if matches!(self.ty(super_receiver)?, dir::Type::Error) {
             return self.poison_call(node, None);
         }
 
-        // read the base class this super call initializes
+        // read the base class this super call initializes beneath the receiver's forms
+        let super_ty = self.strip_form(origin, super_receiver)?;
         let (base_module, instance) = self.nominal_application(super_ty)?;
         // collect base constructors including forwarded defaults
         let mut active = SmallVec::new();
         let constructors = self.class_constructors(origin, super_ty, &instance, &mut active)?;
+
+        // construct the base the super receiver names
+        let expectation = Some(Expectation {
+            target: super_ty,
+            relation: Relation::Storable,
+            cause: self.intern_cause(Cause::root(origin, CauseKind::Expression)),
+            use_: ValueUse::Store,
+            mode: InferMode::Regular,
+            store: StoreTarget::Exact,
+        });
 
         // select the first applicable base constructor in declaration order
         let selection = self.select_callable(
@@ -1147,8 +1270,8 @@ impl CheckState<'_> {
                     super_ty,
                     constructor.ty,
                     &arguments,
-                    None,
-                    None,
+                    expectation,
+                    Some(super_ty),
                 )
             },
         )?;
@@ -1207,8 +1330,8 @@ impl CheckState<'_> {
             self.commit_coercion(*source, coercion.clone())?;
         }
 
-        // bind generic arguments from the base instance when inference stayed closed
-        let generic_arguments = if signature.generic_arguments.is_empty() {
+        // bind the constructor's chain, the base instance's arguments when inference stayed closed
+        let arguments = if signature.generic_arguments.is_empty() {
             let arguments: SmallVec<[_; 8]> =
                 self.type_ids(base_module, instance.arguments)?.into();
 
@@ -1219,10 +1342,7 @@ impl CheckState<'_> {
 
         // initialize this through a super call, which produces void
         let produced = self.intern_type(dir::Type::Void)?;
-        let target = dir::ConstructTarget::Class {
-            key: dir::InstanceKey::new(instance.symbol, generic_arguments),
-            constructor,
-        };
+        let target = self.class_construct_target(instance.symbol, constructor, arguments)?;
         let resolution = dir::ConstructDecision::new(
             target,
             signature.bind_arguments(Origin::Node(node, None), self)?,
@@ -1264,10 +1384,9 @@ impl CheckState<'_> {
         target: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // read the nominal head the aggregate names
-        let symbol = match self.ty(target)? {
-            dir::Type::Application(instance) => instance.symbol,
-            dir::Type::Reference(reference) => reference.symbol,
-            _ => return Ok(None),
+        let symbol = match self.ty(target)?.symbol() {
+            Some(symbol) => symbol,
+            None => return Ok(None),
         };
 
         // reject the families aggregate literals never construct

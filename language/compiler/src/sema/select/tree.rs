@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     ArgumentValue, CallableArgument, Cause, CauseKind, CheckState, Expectation, FlowSite,
-    InferMode, Origin, PlaceUse, Relation, SignatureMatch, Value, ValueUse, Verdict,
+    InferMode, Origin, PlaceUse, Relation, SignatureMatch, StoreTarget, Value, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -104,7 +104,6 @@ impl CheckState<'_> {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 impl CheckState<'_> {
     /// Check one tree literal form against its resolved builder.
     fn check_tree_form(
@@ -514,6 +513,7 @@ impl CheckState<'_> {
             cause,
             use_: ValueUse::Store,
             mode: InferMode::Regular,
+            store: StoreTarget::Exact,
         };
         self.check_value(site, value, expectation)?;
 
@@ -733,12 +733,13 @@ impl CheckState<'_> {
                 message: "tree class component rejected its checked props construction".to_string(),
             });
         };
-        let generic_arguments = selection.generic_arguments.clone();
+        let target = self.class_construct_target(
+            symbol,
+            constructor.constructor,
+            selection.generic_arguments.clone(),
+        )?;
         let construct = dir::ConstructDecision::new(
-            dir::ConstructTarget::Class {
-                key: dir::InstanceKey::new(symbol, generic_arguments),
-                constructor: constructor.constructor,
-            },
+            target,
             vec![dir::ArgumentBinding {
                 coercion: None,
                 parameter_type: row,

@@ -37,6 +37,8 @@ struct CallableReceiver {
     value: Value,
     /// The per-call receiver parameter a callable value is taken through.
     parameter: Option<dir::GlobalTypeId>,
+    /// The base class application an inherited member is declared at.
+    base: Option<dir::GlobalTypeId>,
 }
 
 /// One callable candidate collected from a callee node.
@@ -427,6 +429,7 @@ impl CheckState<'_> {
             &candidate.regions,
             candidate.receiver.ty(),
         )?;
+
         // read the receiver each callable target carries
         let receiver = match &target {
             CallableTarget::Expression => None,
@@ -437,11 +440,12 @@ impl CheckState<'_> {
                     ..receiver
                 },
                 parameter: None,
+                base: self.inherited_base(origin, candidate)?,
             }),
         };
         let candidate = CallableCandidate {
             target,
-            generic_scope: self.call_generic_scope(candidate)?,
+            generic_scope: Some(candidate.owner),
             receiver,
             member_space: Some(candidate.space),
             ty,
@@ -451,8 +455,38 @@ impl CheckState<'_> {
         Ok(Some(candidate))
     }
 
-    /// Return the arguments one member call carries: the owner's generic and region bindings,
-    /// then the member's receiver region bound at the region the receiver carries.
+    /// Return the base class application one inherited member is declared at.
+    fn inherited_base(
+        &mut self,
+        origin: Origin,
+        candidate: &dir::MemberCandidate,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // require a class owner other than the receiver's own class
+        if !matches!(
+            self.definition(candidate.owner)?.as_deref(),
+            Some(dir::Definition::Class(_))
+        ) {
+            return Ok(None);
+        }
+        let object = self.strip_form(origin, candidate.receiver.ty())?;
+        let symbol = match self.ty(object)? {
+            dir::Type::Application(instance) => instance.symbol,
+            dir::Type::Reference(reference) => reference.symbol,
+            _ => return Ok(None),
+        };
+        if symbol == candidate.owner {
+            return Ok(None);
+        }
+
+        // apply the owner at the arguments the receiver matched through it
+        let mut arguments = candidate.key.arguments.clone();
+        arguments.extend(candidate.regions.iter().cloned());
+        let key = dir::InstanceKey::new(candidate.owner, arguments);
+
+        Ok(Some(self.instance_application(&key)?))
+    }
+
+    /// Return the arguments of one member call.
     pub(in crate::sema) fn member_call_arguments(
         &mut self,
         origin: Origin,
@@ -472,8 +506,7 @@ impl CheckState<'_> {
         Ok(carried)
     }
 
-    /// Return the binding of one member's receiver region parameter at the region the adjusted
-    /// receiver carries, the borrow the member takes its this through.
+    /// Return the binding of one member's receiver region at the receiver's region.
     fn receiver_region_binding(
         &mut self,
         origin: Origin,
@@ -490,11 +523,17 @@ impl CheckState<'_> {
         let Some(region) = self.form_chain(Origin::Symbol(symbol), this)?.region() else {
             return Ok(None);
         };
-        let extent = self.region_extent(region)?;
-        let dir::Type::Parameter(parameter) = self.ty(extent)? else {
+        let Some(held) = self.form_chain(origin, receiver)?.region() else {
             return Ok(None);
         };
-        let Some(held) = self.form_chain(origin, receiver)?.region() else {
+
+        // bind a region parameter to the held region whole, a lifetime parameter to its extent
+        let region = self.shallow_resolve(region)?;
+        if let dir::Type::Parameter(parameter) = self.ty(region)? {
+            return Ok(Some(dir::GenericArgumentBinding::new(parameter, held)));
+        }
+        let extent = self.region_extent(region)?;
+        let dir::Type::Parameter(parameter) = self.ty(extent)? else {
             return Ok(None);
         };
         let held = self.region_extent(held)?;
@@ -518,24 +557,6 @@ impl CheckState<'_> {
                 ),
             }),
         }
-    }
-
-    /// Return the generic scope whose arguments participate in this call.
-    fn call_generic_scope(
-        &mut self,
-        candidate: &dir::MemberCandidate,
-    ) -> CompilerResult<Option<dir::GlobalSymbolId>> {
-        if candidate.space != dir::MemberSpace::Static {
-            return Ok(Some(candidate.owner));
-        }
-        if matches!(
-            self.definition(candidate.owner)?.as_deref(),
-            Some(dir::Definition::Extension(_) | dir::Definition::Interface(_))
-        ) {
-            return Ok(Some(candidate.owner));
-        }
-
-        Ok(None)
     }
 
     /// Return the invocable form of one type.
@@ -613,8 +634,16 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         family: SignatureFamily,
     ) -> CompilerResult<SmallVec<[CallableCandidate; 2]>> {
-        // read the arm's reduced callable head
+        // read the arm's callable object beneath its forms
         let ty = self.normalize(origin, ty)?;
+        let ty = match self.ty(ty)? {
+            dir::Type::Form(_) => {
+                let chain = self.form_chain(origin, ty)?;
+
+                self.normalize(origin, chain.base())?
+            }
+            _ => ty,
+        };
 
         // flatten intersection signatures into one declaration alternative set
         if let dir::Type::Intersection(intersection) = self.ty(ty)? {
@@ -629,7 +658,7 @@ impl CheckState<'_> {
             return Ok(overloads);
         }
 
-        // call erased values through their apparent constraint signatures
+        // call an erased value through its constraint signatures
         if let Some(constraint) = self.erased_constraint(ty)? {
             let signatures = self.apparent_signatures(constraint, family)?;
             let generic_arguments = self.application_generic_argument_bindings(constraint)?;
@@ -673,6 +702,7 @@ impl CheckState<'_> {
                         )),
                         value: receiver,
                         parameter: Some(parameter),
+                        base: None,
                     })
                 }
                 _ => None,
@@ -884,7 +914,7 @@ impl CheckState<'_> {
         let callee_site = self.visit_site(callee.into_global_any(module))?;
 
         // collect callable candidates from the callee
-        let expected = expectation.map(|expectation| expectation.target);
+        let expected = expectation.and_then(Expectation::contextual_target);
         let Some(callees) =
             self.callable_candidates(origin, module, callee_site, is_optional, expected)?
         else {
@@ -962,8 +992,9 @@ impl CheckState<'_> {
 
             return Ok(None);
         };
-        // name the newtype the target constructs
-        let symbol = match self.ty(target)? {
+        // name the newtype the target constructs, an object beneath its handle
+        let object = self.normalize(origin, target)?;
+        let symbol = match self.ty(object)? {
             dir::Type::Application(instance)
                 if matches!(self.symbol_kind(instance.symbol)?, dir::SymbolKind::Newtype) =>
             {
@@ -1013,7 +1044,7 @@ impl CheckState<'_> {
         let arguments = self.callable_arguments(module, argument_nodes, ValueUse::Argument)?;
 
         // pose the selection goal of a sole declared callee over the committed argument types
-        let expected = expectation.map(|expectation| expectation.target);
+        let expected = expectation.and_then(Expectation::contextual_target);
         let is_pending = arguments
             .iter()
             .any(|argument| self.lambdas.contains_key(&argument.source));
@@ -1097,9 +1128,12 @@ impl CheckState<'_> {
                             .entry(goal.clone())
                             .or_insert(Answer::Selection(position));
                     }
+
+                    // pass a failing arm's outcome to the joined call
                     if arm_outcome != CheckOutcome::Holds {
                         outcome = arm_outcome;
                     }
+
                     selected.push((candidate, signature));
                 }
                 // keep the refused candidate so downstream passes keep a target
@@ -1125,6 +1159,9 @@ impl CheckState<'_> {
                 }
             }
         }
+
+        // type the arguments a refused candidate left unchecked
+        self.infer_argument_types(site, argument_nodes)?;
 
         // require one argument conversion across every runtime arm, then commit them
         let mut coercions = SmallVec::<[(dir::GlobalNodeIdAny, dir::Coercion); 4]>::new();
@@ -1212,8 +1249,7 @@ impl CheckState<'_> {
                     constraint: *constraint,
                 },
                 function: *function,
-                // record the signature's own bindings, dropping the parameters
-                //  the constraint application already carries
+                // record the signature's own bindings, dropping the constraint's parameters
                 generic_arguments: signature
                     .generic_arguments
                     .iter()
@@ -1245,14 +1281,28 @@ impl CheckState<'_> {
                     .selected_receiver(signature)
                     .filter(|_| candidate.member_space != Some(dir::MemberSpace::Static))
                 {
-                    Some(dir::MemberReceiver::Direct(receiver)) => dir::CallableTarget::Symbol {
-                        function: candidate.function_target(
-                            signature,
-                            Some(receiver),
-                            key_receiver,
-                        )?,
-                        dispatch: dir::FunctionDispatch::Direct,
-                    },
+                    Some(dir::MemberReceiver::Direct(mut receiver)) => {
+                        // reinterpret the receiver at the base class an inherited member names
+                        if let Some(base) = candidate
+                            .receiver
+                            .as_ref()
+                            .and_then(|receiver| receiver.base)
+                        {
+                            let ty = self.replace_form_value(origin, receiver.ty(), base)?;
+                            receiver
+                                .adjustments
+                                .push(dir::ReceiverAdjustment::Upcast { ty });
+                        }
+
+                        dir::CallableTarget::Symbol {
+                            function: candidate.function_target(
+                                signature,
+                                Some(receiver),
+                                key_receiver,
+                            )?,
+                            dispatch: dir::FunctionDispatch::Direct,
+                        }
+                    }
                     Some(dir::MemberReceiver::Dynamic(dispatch)) => dir::CallableTarget::Dynamic {
                         dispatch,
                         function: dir::DynamicFunction::Symbol(*symbol),

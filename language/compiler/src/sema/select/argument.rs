@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     ArgumentValue, CallableArgument, Cause, CauseId, CauseKind, CheckFailure, CheckState,
-    Expectation, FlowSite, Origin, PlaceUse, Relation, Value, ValueUse,
+    Expectation, FlowSite, InferMode, NodeForm, Origin, PlaceUse, Relation, Value, ValueUse,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -81,7 +81,7 @@ impl CheckState<'_> {
             dir::ArgumentSource::Provided(source)
                 if source.local_id.ty == dir::NodeType::Argument =>
             {
-                self.argument_source(source.into_typed())?
+                self.argument_source(source.into_typed(), None)?
             }
             _ => source.clone(),
         };
@@ -98,6 +98,7 @@ impl CheckState<'_> {
     pub(in crate::sema) fn argument_source(
         &mut self,
         argument: dir::GlobalNodeId<dir::Argument>,
+        context: Option<Expectation>,
     ) -> CompilerResult<dir::ArgumentSource> {
         match self
             .module(argument.module_id)
@@ -108,10 +109,11 @@ impl CheckState<'_> {
                 Ok(dir::ArgumentSource::Provided(argument.into_any()))
             }
             dir::Argument::Spread { value } => {
-                // select iteration from the checked source value
+                // select iteration from the source value, inferred under the context
                 let value = value.into_global_any(argument.module_id);
                 let site = self.visit_site(value)?;
-                let ty = self.infer_node_type(site, PlaceUse::Read)?;
+                let ty = self.infer_node_in(site, PlaceUse::Read, InferMode::Regular, context)?;
+                let ty = self.flow_type_at(site, ty)?;
                 let value = self.expression_value(site, ty)?;
                 let source = dir::ArgumentSource::Provided(argument.into_any());
 
@@ -357,10 +359,16 @@ impl CheckState<'_> {
             match self.argument_expression(module, *argument) {
                 Some(value) => {
                     let site = self.visit_site(value)?;
-                    let supplied = if self.is_composite_node(value) {
-                        ArgumentValue::Composite
+                    let supplied = if self.is_contextually_typed(value) {
+                        // check a function value's closed body ahead of the candidates
+                        if matches!(self.node_form(value), NodeForm::FunctionValue) {
+                            self.commit_function_value(value)?;
+                            self.queue_check_function_body(value)?;
+                        }
+
+                        ArgumentValue::Contextual
                     } else if is_spread {
-                        prepared = self.argument_source(argument.into_global(module))?;
+                        prepared = self.argument_source(argument.into_global(module), None)?;
                         let ty = match &prepared {
                             dir::ArgumentSource::Spread(spread) => spread.element,
                             dir::ArgumentSource::Error => self.intern_type(dir::Type::Error)?,

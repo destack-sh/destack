@@ -1,7 +1,8 @@
 use destack_dir as dir;
+use smallvec::SmallVec;
 
 use crate::CompilerResult;
-use crate::sema::{CheckState, GenericParameterId, Origin, TypeSubstitution, VariableKind};
+use crate::sema::{CheckState, GenericParameterId, Origin, TypeSubstitution, VariableState};
 
 impl CheckState<'_> {
     /// Bind one written argument to one parameter.
@@ -129,9 +130,12 @@ impl CheckState<'_> {
             // reuse a parameter opened earlier at this typing position
             let origin_id = self.infer.intern_origin(origin);
             if let Some(existing) = self.infer.instantiation(origin_id, parameter) {
+                let variable = self.infer.variable(existing)?;
+                let is_killed =
+                    variable.is_dead || matches!(variable.state, VariableState::Error(_));
                 let is_stale_memory =
                     binding.memory_parameter().is_some() && self.open_root(existing)?.is_none();
-                if !is_stale_memory {
+                if !is_killed && !is_stale_memory {
                     let argument = self.variable_type(existing)?;
                     substitution.bind(parameter, argument)?;
 
@@ -140,23 +144,14 @@ impl CheckState<'_> {
             }
 
             // open one inference variable for the omitted parameter
-            let memory_kind = match (binding.memory_parameter(), binding.constraint) {
-                (Some(kind), _) => Some(kind),
-                (None, Some(constraint)) => self.memory_kind(constraint)?,
-                (None, None) => None,
-            };
-            let kind = memory_kind.map_or(VariableKind::Type, VariableKind::Memory);
-            let variable = self.open_instantiation(origin, parameter, kind)?;
+            let variable = self.open_omitted_parameter(origin, parameter)?;
 
             // record the instantiation while the site claims its typing position
             self.infer
                 .insert_instantiation(origin_id, parameter, variable);
 
-            // keep the declared default for dry inference
-            if let Some(kind) = memory_kind {
-                let default = self.elided_memory_default(kind)?;
-                self.set_variable_default(variable, default)?;
-            } else if let Some(default) = binding.default {
+            // substitute the declared default into the site
+            if let Some(default) = binding.default {
                 let default = self.substitute_type(default, &substitution)?;
                 self.set_variable_default(variable, default)?;
             }
@@ -166,5 +161,79 @@ impl CheckState<'_> {
         }
 
         Ok(Some(substitution))
+    }
+
+    /// Instantiate one symbol's callable, the targets binding its type parameters in order.
+    pub(in crate::sema) fn instantiate_symbol_call(
+        &mut self,
+        origin: Origin,
+        symbol: dir::GlobalSymbolId,
+        targets: &[dir::GlobalTypeId],
+        bound: TypeSubstitution,
+    ) -> CompilerResult<Option<dir::Call>> {
+        let Some(callable_type) = self.adopt_symbol_type_maybe(symbol)? else {
+            return Ok(None);
+        };
+        let parameters = match self.symbol_template(symbol)? {
+            Some(template) => self.generic_template_parameters(template)?,
+            None => SmallVec::new(),
+        };
+        let Some(substitution) =
+            self.instantiate_parameters(origin, &parameters, targets, bound)?
+        else {
+            return Ok(None);
+        };
+
+        // apply the instantiation to the declared signature
+        let signature = match self.ty(callable_type)? {
+            dir::Type::FunctionSignature(signature) => {
+                self.type_signature(callable_type.module_id, signature)?
+            }
+            _ => return Ok(None),
+        };
+        let declared = self.signature_parameters(callable_type.module_id, signature.parameters)?;
+        let mut arguments = Vec::with_capacity(declared.len());
+        for (index, parameter) in declared.iter().enumerate() {
+            let ty = self.substitute_type(parameter.ty, &substitution)?;
+            arguments.push(dir::ArgumentBinding {
+                coercion: None,
+                parameter_type: ty,
+                argument_type: ty,
+                source: dir::ArgumentSource::Supplied(index as u32),
+            });
+        }
+        let return_type = match signature.return_type {
+            Some(return_type) => self.substitute_type(return_type, &substitution)?,
+            None => self.intern_type(dir::Type::Void)?,
+        };
+        // key the instance by its own parameters first, then the owner bindings the caller gave
+        let mut bindings = Vec::with_capacity(substitution.bindings.len());
+        for parameter in parameters.iter().copied() {
+            if let Some(argument) = substitution.argument(parameter) {
+                bindings.push(dir::GenericArgumentBinding::new(parameter, argument));
+            }
+        }
+        for binding in substitution.bindings.iter().copied() {
+            if !parameters.contains(&binding.parameter) {
+                bindings.push(binding);
+            }
+        }
+        let key = dir::InstanceKey::new(symbol, bindings);
+        let call = dir::Call {
+            regions: self.resolved_region_bindings(&substitution.bindings)?,
+            target: dir::CallableTarget::Symbol {
+                function: dir::FunctionTarget {
+                    receiver: None,
+                    generic_scope: None,
+                    key,
+                },
+                dispatch: dir::FunctionDispatch::Direct,
+            },
+            callable_type,
+            arguments,
+            return_type,
+        };
+
+        Ok(Some(call))
     }
 }

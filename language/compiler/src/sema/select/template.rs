@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::sema::{CheckState, FlowSite, Origin, PlaceUse};
+use crate::sema::{CheckState, FlowSite, Origin, PlaceUse, TypeSubstitution};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -115,8 +115,7 @@ impl CheckState<'_> {
             spans.push(call);
         }
 
-        // join the chunks with the rendered spans
-        // leave the template undecided while its join is unloaded, lower rejecting it there
+        // join the chunks with the rendered spans, leaving an unloaded join undecided
         let Some(build) = self.select_template_join(origin, string)? else {
             return Ok(());
         };
@@ -133,44 +132,16 @@ impl CheckState<'_> {
         origin: Origin,
         string: dir::GlobalTypeId,
     ) -> CompilerResult<Option<dir::Call>> {
-        // read the declared join and its parameters
         let symbol = self.language_symbol(dir::LanguageItem::StringFromTemplate)?;
-        let Some(callable) = self.adopt_symbol_type_maybe(symbol)? else {
-            return Ok(None);
-        };
-        let Some((signature_type, signature)) = self.callable_signature_type(origin, callable)?
+        let Some(call) =
+            self.instantiate_symbol_call(origin, symbol, &[], TypeSubstitution::default())?
         else {
             return Ok(None);
         };
-        let parameters =
-            self.signature_parameters(signature_type.module_id, signature.parameters)?;
-
-        // bind the chunks and spans the construct supplies
-        let arguments = parameters
-            .iter()
-            .enumerate()
-            .map(|(index, parameter)| dir::ArgumentBinding {
-                coercion: None,
-                parameter_type: parameter.ty,
-                argument_type: parameter.ty,
-                source: dir::ArgumentSource::Supplied(index as u32),
-            })
-            .collect();
-        let key = dir::InstanceKey::new(symbol, Vec::new());
 
         Ok(Some(dir::Call {
-            regions: Vec::new(),
-            target: dir::CallableTarget::Symbol {
-                function: dir::FunctionTarget {
-                    receiver: None,
-                    generic_scope: None,
-                    key,
-                },
-                dispatch: dir::FunctionDispatch::Direct,
-            },
-            callable_type: callable,
-            arguments,
             return_type: string,
+            ..call
         }))
     }
 }
