@@ -30,82 +30,25 @@ impl FunctionLowerer<'_, '_, '_> {
         source: &mir::Type,
         target: &mir::Type,
     ) -> CompilerResult<mir::CastOperator> {
-        // resolve pointer-sized representations to their concrete widths
         let pointer_bits = self.builder.pointer_bits();
-        let concrete = |ty: &mir::Type| match *ty {
-            mir::Type::Isize => mir::Type::Int {
-                width: pointer_bits,
-                is_signed: true,
-            },
-            mir::Type::Usize => mir::Type::Int {
-                width: pointer_bits,
-                is_signed: false,
-            },
-            ref other => other.clone(),
-        };
-        let source = &concrete(source);
-        let target = &concrete(target);
-
-        Ok(match (source, target) {
-            // truncate, extend by source sign, or reinterpret between integers
-            (
-                mir::Type::Int {
-                    width: from,
-                    is_signed,
-                },
-                mir::Type::Int { width: to, .. },
-            ) => match from.cmp(to) {
-                std::cmp::Ordering::Greater => mir::CastOperator::Truncate,
-                std::cmp::Ordering::Equal => mir::CastOperator::Bitcast,
-                std::cmp::Ordering::Less => match is_signed {
-                    true => mir::CastOperator::SignExtend,
-                    false => mir::CastOperator::ZeroExtend,
-                },
-            },
-
-            // convert integer to float by source sign
-            (
-                mir::Type::Int {
-                    is_signed: true, ..
-                },
-                mir::Type::Float(_),
-            ) => mir::CastOperator::SignedIntToFloat,
-            (
-                mir::Type::Int {
-                    is_signed: false, ..
-                },
-                mir::Type::Float(_),
-            ) => mir::CastOperator::UnsignedIntToFloat,
-
-            // saturate float into the integer target range
-            (
-                mir::Type::Float(_),
-                mir::Type::Int {
-                    is_signed: true, ..
-                },
-            ) => mir::CastOperator::FloatToSignedIntSaturating,
-            (
-                mir::Type::Float(_),
-                mir::Type::Int {
-                    is_signed: false, ..
-                },
-            ) => mir::CastOperator::FloatToUnsignedIntSaturating,
-
-            // truncate or extend between float widths
-            (mir::Type::Float(from), mir::Type::Float(to)) => match from.width().cmp(&to.width()) {
-                std::cmp::Ordering::Greater => mir::CastOperator::FloatTruncate,
-                std::cmp::Ordering::Equal => mir::CastOperator::FloatConvert,
-                std::cmp::Ordering::Less => mir::CastOperator::FloatExtend,
-            },
-
-            // reject every other conversion
-            (source, target) => {
+        let source_integer = source.integer(pointer_bits).is_some();
+        let target_integer = target.integer(pointer_bits).is_some();
+        let source_float = matches!(source, mir::Type::Float(_));
+        let target_float = matches!(target, mir::Type::Float(_));
+        let operator = match (source_integer, source_float, target_integer, target_float) {
+            (true, _, true, _) => mir::CastOperator::IntToInt,
+            (true, _, _, true) => mir::CastOperator::IntToFloat,
+            (_, true, true, _) => mir::CastOperator::FloatToInt,
+            (_, true, _, true) => mir::CastOperator::FloatToFloat,
+            _ => {
                 let source = self.scalar_name(source);
                 let target = self.scalar_name(target);
 
                 return Err(self.internal(format!("a cast from {source} to {target}")));
             }
-        })
+        };
+
+        Ok(operator)
     }
 
     /// Name one concrete scalar representation for diagnostics.

@@ -40,6 +40,15 @@ impl LayoutIntrinsic {
     }
 }
 
+/// One intrinsic call being lowered: its selected call and the receiver evaluated ahead of it.
+#[derive(Clone, Copy)]
+pub(in crate::lower) struct IntrinsicCall<'call> {
+    /// The call sema selected.
+    pub(in crate::lower) resolution: &'call dir::Call,
+    /// The receiver, argument 0 when present.
+    pub(in crate::lower) receiver: Option<mir::Value>,
+}
+
 impl FunctionLowerer<'_, '_, '_> {
     /// Lower one intrinsic call through the callable's declared name.
     pub(in crate::lower) fn lower_intrinsic_call(
@@ -52,13 +61,12 @@ impl FunctionLowerer<'_, '_, '_> {
         let Some(name) = name else {
             return Err(self.internal("an unnamed intrinsic callable"));
         };
+        let call = IntrinsicCall {
+            resolution,
+            receiver,
+        };
 
-        // read the receiver as argument 0 for the intrinsic's duration
-        let enclosing = std::mem::replace(&mut self.intrinsic_receiver, receiver);
-        let lowered = self.lower_named_intrinsic_call(expression, &name, resolution);
-        self.intrinsic_receiver = enclosing;
-
-        lowered
+        self.lower_named_intrinsic_call(expression, &name, call)
     }
 
     /// Lower one intrinsic call by its name through the intrinsic namespaces.
@@ -66,26 +74,26 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
         name: &str,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
     ) -> CompilerResult<Option<mir::Value>> {
         // route the name through each intrinsic namespace in declaration order
         if let Ok(operation) = name.parse::<mir::Intrinsic>() {
-            return self.lower_operation_intrinsic(operation, resolution);
+            return self.lower_operation_intrinsic(operation, call);
         }
         if let Some(instruction) = IntrinsicInstruction::from_name(name) {
-            return self.lower_instruction_intrinsic(expression, instruction, resolution);
+            return self.lower_instruction_intrinsic(expression, instruction, call);
         }
         if let Some(terminator) = IntrinsicTerminator::from_name(name) {
-            return self.lower_terminator_intrinsic(terminator, resolution);
+            return self.lower_terminator_intrinsic(terminator, call);
         }
         if let Some(layout) = LayoutIntrinsic::from_name(name) {
-            return self.lower_layout_intrinsic(layout, resolution);
+            return self.lower_layout_intrinsic(layout, call);
         }
         if let Some(context) = ContextIntrinsic::from_name(name) {
-            return self.lower_context_intrinsic(context, resolution);
+            return self.lower_context_intrinsic(context, call);
         }
         if matches!(name, "profile.counter" | "profile.sampler") {
-            return self.lower_profile_instrument(expression, resolution);
+            return self.lower_profile_instrument(expression, call);
         }
 
         Err(self.unsupported(format!("the '{name}' intrinsic")))
@@ -95,10 +103,10 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_profile_instrument(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
     ) -> CompilerResult<Option<mir::Value>> {
         // evaluate the arguments for their effects
-        for binding in &resolution.arguments {
+        for binding in &call.resolution.arguments {
             if let dir::ArgumentSource::Provided(argument) = binding.source {
                 self.lower_argument(argument)?;
             }
@@ -163,7 +171,7 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(None)
     }
 
-    /// Return the instrument name one receiver's type carries as its first type argument.
+    /// Return the instrument name one receiver's type names as its first type argument.
     fn profile_instrument_name(&mut self, ty: dir::GlobalTypeId) -> CompilerResult<StringId> {
         let mut ty = self.lower.stored(ty)?;
         while let Some(layer) = self.lower.indirection(ty, &self.scope)? {
@@ -196,10 +204,10 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_operation_intrinsic(
         &mut self,
         operation: mir::Intrinsic,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
     ) -> CompilerResult<Option<mir::Value>> {
         // lower the arguments without declared parameter representations
-        let values = self.lower_call_arguments(&resolution.arguments, &[], &[])?;
+        let values = self.lower_call_arguments(&call.resolution.arguments, &[], &[])?;
 
         // emit a void operation and hand back no value
         if !operation.has_result() {
@@ -209,7 +217,7 @@ impl FunctionLowerer<'_, '_, '_> {
         }
 
         // bind the operation result at the declared return type
-        let result = self.lower_type(resolution.return_type)?;
+        let result = self.lower_type(call.resolution.return_type)?;
 
         Ok(Some(self.builder.intrinsic(operation, result, values)))
     }
@@ -219,34 +227,30 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
         instruction: IntrinsicInstruction,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
     ) -> CompilerResult<Option<mir::Value>> {
         // dispatch on the instruction the name denotes
         match instruction {
-            IntrinsicInstruction::AtomicFence => self.lower_atomic_fence(resolution),
-            IntrinsicInstruction::AtomicLoad => self.lower_atomic_load(resolution),
+            IntrinsicInstruction::AtomicFence => self.lower_atomic_fence(call),
+            IntrinsicInstruction::AtomicLoad => self.lower_atomic_load(call),
             IntrinsicInstruction::AtomicCompareExchange { weak } => {
-                self.lower_atomic_compare_exchange(weak, resolution)
+                self.lower_atomic_compare_exchange(weak, call)
             }
-            IntrinsicInstruction::AtomicRmw(operator) => {
-                self.lower_atomic_rmw(operator, resolution)
-            }
-            IntrinsicInstruction::AtomicStore => self.lower_atomic_store(resolution),
+            IntrinsicInstruction::AtomicRmw(operator) => self.lower_atomic_rmw(operator, call),
+            IntrinsicInstruction::AtomicStore => self.lower_atomic_store(call),
             IntrinsicInstruction::Breakpoint => {
                 self.builder.breakpoint();
 
                 Ok(None)
             }
-            IntrinsicInstruction::Cast(operator) => self.lower_cast_intrinsic(operator, resolution),
-            IntrinsicInstruction::PointerLoad => self.lower_pointer_load(resolution),
-            IntrinsicInstruction::PointerStore => self.lower_pointer_store(resolution),
-            IntrinsicInstruction::PointerReplace => self.lower_pointer_replace(resolution),
-            IntrinsicInstruction::PointerSwap => self.lower_pointer_swap(resolution),
-            IntrinsicInstruction::PointerDropInPlace => {
-                self.lower_pointer_drop_in_place(resolution)
-            }
+            IntrinsicInstruction::Cast(operator) => self.lower_cast_intrinsic(operator, call),
+            IntrinsicInstruction::PointerLoad => self.lower_pointer_load(call),
+            IntrinsicInstruction::PointerStore => self.lower_pointer_store(call),
+            IntrinsicInstruction::PointerReplace => self.lower_pointer_replace(call),
+            IntrinsicInstruction::PointerSwap => self.lower_pointer_swap(call),
+            IntrinsicInstruction::PointerDropInPlace => self.lower_pointer_drop_in_place(call),
             IntrinsicInstruction::Drop => {
-                let value = self.argument_value(resolution, 0)?;
+                let value = self.argument_value(call, 0)?;
                 let dropped = self.builder.drop_value(value);
 
                 // anchor the authored drop call at its written extent
@@ -260,27 +264,27 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(None)
             }
             IntrinsicInstruction::InitUninit => {
-                self.lower_storage_constant(mir::Constant::Uninit, resolution)
+                self.lower_storage_constant(mir::Constant::Uninit, call)
             }
             IntrinsicInstruction::InitZeroed => {
-                self.lower_storage_constant(mir::Constant::Zeroed, resolution)
+                self.lower_storage_constant(mir::Constant::Zeroed, call)
             }
-            IntrinsicInstruction::InitWrite => self.lower_init_write(resolution),
-            IntrinsicInstruction::SliceFromRaw => self.lower_slice_from_raw(resolution),
-            IntrinsicInstruction::SliceGet => self.lower_slice_get(resolution),
-            IntrinsicInstruction::SliceLength => self.lower_slice_length(resolution),
-            IntrinsicInstruction::SliceSet => self.lower_slice_set(resolution),
-            IntrinsicInstruction::SliceView => self.lower_slice_view(resolution),
-            IntrinsicInstruction::SliceUninit => self.lower_slice_uninit(resolution),
-            IntrinsicInstruction::SliceIndex => self.lower_slice_index(resolution),
-            IntrinsicInstruction::SliceAssumeInit => self.lower_slice_assume_init(resolution),
+            IntrinsicInstruction::InitWrite => self.lower_init_write(call),
+            IntrinsicInstruction::SliceFromRaw => self.lower_slice_from_raw(call),
+            IntrinsicInstruction::SliceGet => self.lower_slice_get(call),
+            IntrinsicInstruction::SliceLength => self.lower_slice_length(call),
+            IntrinsicInstruction::SliceSet => self.lower_slice_set(call),
+            IntrinsicInstruction::SliceView => self.lower_slice_view(call),
+            IntrinsicInstruction::SliceUninit => self.lower_slice_uninit(call),
+            IntrinsicInstruction::SliceIndex => self.lower_slice_index(call),
+            IntrinsicInstruction::SliceAssumeInit => self.lower_slice_assume_init(call),
             // lower instrument intrinsics at their instrument method call sites
             IntrinsicInstruction::ProfileIncrement | IntrinsicInstruction::ProfileSample => {
                 Err(self.internal("a profile instrument outside its call site"))
             }
             IntrinsicInstruction::Transmute => {
-                let value = self.argument_value(resolution, 0)?;
-                let result = self.lower_type(resolution.return_type)?;
+                let value = self.argument_value(call, 0)?;
+                let result = self.lower_type(call.resolution.return_type)?;
 
                 Ok(Some(self.builder.intrinsic(
                     mir::Intrinsic::Transmute,
@@ -289,53 +293,53 @@ impl FunctionLowerer<'_, '_, '_> {
                 )))
             }
             IntrinsicInstruction::Manage => {
-                let value = self.argument_value(resolution, 0)?;
-                let result = self.lower_type(resolution.return_type)?;
+                let value = self.argument_value(call, 0)?;
+                let result = self.lower_type(call.resolution.return_type)?;
 
                 Ok(Some(self.adopt(value, result)?))
             }
             IntrinsicInstruction::DynamicType => {
-                let dynamic = self.argument_value(resolution, 0)?;
+                let dynamic = self.argument_value(call, 0)?;
 
                 Ok(Some(self.builder.dynamic_type(dynamic)))
             }
             IntrinsicInstruction::DynamicPayload => {
-                let dynamic = self.argument_pointee_value(resolution, 0)?;
-                let result = self.lower_type(resolution.return_type)?;
+                let dynamic = self.argument_pointee_value(call, 0)?;
+                let result = self.lower_type(call.resolution.return_type)?;
 
                 Ok(Some(self.builder.dynamic_payload(dynamic, result)))
             }
             IntrinsicInstruction::VectorSplat => {
-                let value = self.argument_value(resolution, 0)?;
-                let vector = self.lower_type(resolution.return_type)?;
+                let value = self.argument_value(call, 0)?;
+                let vector = self.lower_type(call.resolution.return_type)?;
 
                 Ok(Some(self.builder.vector_splat(vector, value)))
             }
             IntrinsicInstruction::VectorExtract => {
-                let vector = self.argument_value(resolution, 0)?;
-                let index = self.argument_value(resolution, 1)?;
+                let vector = self.argument_value(call, 0)?;
+                let index = self.argument_value(call, 1)?;
 
                 Ok(Some(self.builder.vector_extract(vector, index)))
             }
             IntrinsicInstruction::VectorInsert => {
-                let vector = self.argument_value(resolution, 0)?;
-                let index = self.argument_value(resolution, 1)?;
-                let value = self.argument_value(resolution, 2)?;
+                let vector = self.argument_value(call, 0)?;
+                let index = self.argument_value(call, 1)?;
+                let value = self.argument_value(call, 2)?;
 
                 Ok(Some(self.builder.vector_insert(vector, index, value)))
             }
             IntrinsicInstruction::VectorSelect => {
-                let mask = self.argument_value(resolution, 0)?;
-                let then_value = self.argument_value(resolution, 1)?;
-                let else_value = self.argument_value(resolution, 2)?;
+                let mask = self.argument_value(call, 0)?;
+                let then_value = self.argument_value(call, 1)?;
+                let else_value = self.argument_value(call, 2)?;
 
                 Ok(Some(
                     self.builder.vector_select(mask, then_value, else_value),
                 ))
             }
             IntrinsicInstruction::VectorConvert => {
-                let vector = self.argument_value(resolution, 0)?;
-                let result = self.lower_type(resolution.return_type)?;
+                let vector = self.argument_value(call, 0)?;
+                let result = self.lower_type(call.resolution.return_type)?;
 
                 Ok(Some(self.builder.vector_convert(
                     result,
@@ -344,33 +348,32 @@ impl FunctionLowerer<'_, '_, '_> {
                 )))
             }
             IntrinsicInstruction::VectorCompare(operator) => {
-                let left = self.argument_value(resolution, 0)?;
-                let right = self.argument_value(resolution, 1)?;
-                let result = self.lower_type(resolution.return_type)?;
+                let left = self.argument_value(call, 0)?;
+                let right = self.argument_value(call, 1)?;
+                let result = self.lower_type(call.resolution.return_type)?;
 
                 Ok(Some(
                     self.builder.vector_compare(result, operator, left, right),
                 ))
             }
             IntrinsicInstruction::VectorReduce(operator) => {
-                let vector = self.argument_value(resolution, 0)?;
+                let vector = self.argument_value(call, 0)?;
 
                 Ok(Some(self.builder.vector_reduce(operator, vector)))
             }
         }
     }
 
-    /// Lower one argument and read the value behind the reference it passes, a fat reference
-    /// family value standing for itself.
+    /// Lower one argument and read the value behind the reference it passes.
     fn argument_pointee_value(
         &mut self,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
         index: usize,
     ) -> CompilerResult<mir::Value> {
-        let reference = self.argument_value(resolution, index)?;
+        let reference = self.argument_value(call, index)?;
         let representation = self.value_representation(reference)?;
-        match *self.builder.tree().get(representation) {
-            mir::Type::Reference { pointee, .. } => Ok(self.builder.load(reference, pointee)),
+        match *self.builder.tree().type_definition(representation) {
+            mir::Type::Reference { .. } => self.dereference(reference),
             mir::Type::Dynamic { .. } | mir::Type::Slice { .. } | mir::Type::Function { .. } => {
                 Ok(reference)
             }
@@ -384,18 +387,18 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_terminator_intrinsic(
         &mut self,
         terminator: IntrinsicTerminator,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
     ) -> CompilerResult<Option<mir::Value>> {
         // emit the terminator the name denotes
         match terminator {
             IntrinsicTerminator::Abort => {
-                let values = self.lower_call_arguments(&resolution.arguments, &[], &[])?;
+                let values = self.lower_call_arguments(&call.resolution.arguments, &[], &[])?;
 
                 self.builder.abort(values.into_iter().next());
             }
             IntrinsicTerminator::Unreachable => self.builder.unreachable(),
             IntrinsicTerminator::Panic => {
-                let values = self.lower_call_arguments(&resolution.arguments, &[], &[])?;
+                let values = self.lower_call_arguments(&call.resolution.arguments, &[], &[])?;
 
                 self.builder.panic(values.into_iter().next());
             }
@@ -409,8 +412,11 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Lower one atomic fence from its const ordering configuration.
-    fn lower_atomic_fence(&mut self, resolution: &dir::Call) -> CompilerResult<Option<mir::Value>> {
-        let access = self.atomic_access(resolution, 0)?;
+    fn lower_atomic_fence(
+        &mut self,
+        call: IntrinsicCall<'_>,
+    ) -> CompilerResult<Option<mir::Value>> {
+        let access = self.atomic_access(call, 0)?;
         self.builder.atomic_fence(mir::FenceAccess {
             ordering: access.ordering,
             scope: access.scope,
@@ -421,20 +427,25 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Lower one atomic load from its pointer and const configuration.
-    fn lower_atomic_load(&mut self, resolution: &dir::Call) -> CompilerResult<Option<mir::Value>> {
-        let pointer = self.argument_value(resolution, 0)?;
-        let access = self.atomic_access(resolution, 1)?;
-        let result = self.lower_type(resolution.return_type)?;
+    fn lower_atomic_load(&mut self, call: IntrinsicCall<'_>) -> CompilerResult<Option<mir::Value>> {
+        let pointer = self.argument_value(call, 0)?;
+        let place = mir::Place::value(pointer).with_projection(mir::Projection::Deref);
+        let access = self.atomic_access(call, 1)?;
+        let result = self.lower_type(call.resolution.return_type)?;
 
-        Ok(Some(self.builder.atomic_load(pointer, access, result)))
+        Ok(Some(self.builder.atomic_load(place, access, result)))
     }
 
     /// Lower one atomic store from its pointer, value, and configuration.
-    fn lower_atomic_store(&mut self, resolution: &dir::Call) -> CompilerResult<Option<mir::Value>> {
-        let pointer = self.argument_value(resolution, 0)?;
-        let value = self.argument_value(resolution, 1)?;
-        let access = self.atomic_access(resolution, 2)?;
-        self.builder.atomic_store(pointer, value, access);
+    fn lower_atomic_store(
+        &mut self,
+        call: IntrinsicCall<'_>,
+    ) -> CompilerResult<Option<mir::Value>> {
+        let pointer = self.argument_value(call, 0)?;
+        let place = mir::Place::value(pointer).with_projection(mir::Projection::Deref);
+        let value = self.argument_value(call, 1)?;
+        let access = self.atomic_access(call, 2)?;
+        self.builder.atomic_store(place, value, access);
 
         Ok(None)
     }
@@ -443,44 +454,39 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_atomic_rmw(
         &mut self,
         operator: mir::AtomicRmwOperator,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
     ) -> CompilerResult<Option<mir::Value>> {
-        let pointer = self.argument_value(resolution, 0)?;
-        let value = self.argument_value(resolution, 1)?;
-        let access = self.atomic_access(resolution, 2)?;
-        let result = self.lower_type(resolution.return_type)?;
+        let pointer = self.argument_value(call, 0)?;
+        let place = mir::Place::value(pointer).with_projection(mir::Projection::Deref);
+        let value = self.argument_value(call, 1)?;
+        let access = self.atomic_access(call, 2)?;
+        let result = self.lower_type(call.resolution.return_type)?;
 
         Ok(Some(
             self.builder
-                .atomic_rmw(operator, pointer, value, access, result),
+                .atomic_rmw(operator, place, value, access, result),
         ))
     }
 
     /// Lower one atomic compare-exchange returning the old value and success.
-    ///
-    /// The failed comparison loads at the success ordering stripped of its release half.
     fn lower_atomic_compare_exchange(
         &mut self,
         weak: bool,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
     ) -> CompilerResult<Option<mir::Value>> {
-        let pointer = self.argument_value(resolution, 0)?;
-        let expected = self.argument_value(resolution, 1)?;
-        let desired = self.argument_value(resolution, 2)?;
-        let access = self.atomic_access(resolution, 3)?;
-        let failure_ordering = match access.ordering {
-            mir::MemoryOrdering::Release => mir::MemoryOrdering::Relaxed,
-            mir::MemoryOrdering::AcquireRelease => mir::MemoryOrdering::Acquire,
-            ordering => ordering,
-        };
-        let result = self.lower_type(resolution.return_type)?;
+        let pointer = self.argument_value(call, 0)?;
+        let place = mir::Place::value(pointer).with_projection(mir::Projection::Deref);
+        let expected = self.argument_value(call, 1)?;
+        let desired = self.argument_value(call, 2)?;
+        let access = self.atomic_access(call, 3)?;
+        let result = self.lower_type(call.resolution.return_type)?;
 
         Ok(Some(self.builder.atomic_compare_exchange(
-            pointer,
+            place,
             expected,
             desired,
             weak,
-            mir::CompareExchangeAccess::new(access, failure_ordering),
+            mir::CompareExchangeAccess::with_success(access),
             result,
         )))
     }
@@ -488,33 +494,31 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Read one atomic configuration starting at one argument position.
     fn atomic_access(
         &mut self,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
         start: usize,
     ) -> CompilerResult<mir::AtomicAccess> {
-        // read the ordering in the case order the language enum declares
-        let ordering = match self.enum_argument_ordinal(resolution, start, "an atomic ordering")? {
-            0 => mir::MemoryOrdering::Relaxed,
-            1 => mir::MemoryOrdering::Acquire,
-            2 => mir::MemoryOrdering::Release,
-            3 => mir::MemoryOrdering::AcquireRelease,
-            4 => mir::MemoryOrdering::SequentiallyConsistent,
-            other => {
-                return Err(
-                    self.internal(format!("the atomic ordering in declaration order {other}"))
-                );
+        // read the memory ordering, a const parameter by its index
+        let source = self.argument_expression(call, start)?;
+        let ordering = match self.read_parameter_index(source)? {
+            Some(index) => mir::MemoryOrdering::Parameter(index),
+            None => {
+                let ordinal = self.enum_argument_ordinal(call, start, "an atomic ordering")?;
+                let Some(ordering) = mir::MemoryOrdering::from_ordinal(ordinal) else {
+                    return Err(self.internal(format!(
+                        "an atomic ordering ordinal {ordinal} without a declared case"
+                    )));
+                };
+
+                ordering
             }
         };
 
         // read the execution scope in the case order the language enum declares
-        let scope = match self.enum_argument_ordinal(resolution, start + 1, "an atomic scope")? {
-            0 => mir::ExecutionScope::Invocation,
-            1 => mir::ExecutionScope::Subgroup,
-            2 => mir::ExecutionScope::Workgroup,
-            3 => mir::ExecutionScope::Device,
-            7 => mir::ExecutionScope::System,
-            other => {
-                return Err(self.internal(format!("the atomic scope in declaration order {other}")));
-            }
+        let ordinal = self.enum_argument_ordinal(call, start + 1, "an atomic scope")?;
+        let Some(scope) = mir::ExecutionScope::from_ordinal(ordinal) else {
+            return Err(self.internal(format!(
+                "an atomic scope ordinal {ordinal} without a declared case"
+            )));
         };
 
         // reject the three trailing flags
@@ -523,7 +527,7 @@ impl FunctionLowerer<'_, '_, '_> {
             (5, "an availability-publishing atomic"),
             (6, "a visibility-acquiring atomic"),
         ] {
-            if self.const_boolean(resolution, start + offset, flag)? {
+            if self.const_boolean(call, start + offset, flag)? {
                 return Err(self.unsupported(flag.to_string()));
             }
         }
@@ -535,45 +539,14 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_cast_intrinsic(
         &mut self,
         operator: mir::CastOperator,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
     ) -> CompilerResult<Option<mir::Value>> {
         // lower the operand the cast converts
-        let source = self.argument_expression(resolution, 0)?;
+        let source = self.argument_expression(call, 0)?;
         let operand = self.lower_value(source)?;
 
-        // read both scalar formats, a parameter keeping the cast as written
-        let source_type = self.node_type_id(source)?;
-        let source_type = self.lower.ty(source_type)?;
-        let target_type = self.lower.ty(resolution.return_type)?;
-        if matches!(source_type, dir::Type::Parameter(_))
-            || matches!(target_type, dir::Type::Parameter(_))
-        {
-            let target = self.lower_type(resolution.return_type)?;
-            let source = self.value_representation(operand)?;
-            if source == target {
-                return Ok(Some(operand));
-            }
-
-            return Ok(Some(self.builder.cast(operator, operand, target)));
-        }
-        let source_format = self.lower.scalar_type(&source_type)?;
-        let target_format = self.lower.scalar_type(&target_type)?;
-
-        // hand the value through unchanged when it already carries the target
-        if source_format == target_format {
-            return Ok(Some(operand));
-        }
-
-        // refine the declared conversion intent to the instantiated formats
-        let operator = match operator {
-            mir::CastOperator::Truncate
-            | mir::CastOperator::FloatToSignedIntSaturating
-            | mir::CastOperator::FloatToUnsignedIntSaturating => {
-                self.cast_operator(&source_format, &target_format)?
-            }
-            operator => operator,
-        };
-        let target = self.lower_type(resolution.return_type)?;
+        // preserve the declared conversion until concrete emission
+        let target = self.lower_type(call.resolution.return_type)?;
 
         Ok(Some(self.builder.cast(operator, operand, target)))
     }
@@ -581,147 +554,135 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one slice view over a raw address and length.
     fn lower_slice_from_raw(
         &mut self,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
     ) -> CompilerResult<Option<mir::Value>> {
-        let address = self.argument_value(resolution, 0)?;
-        let length = self.argument_value(resolution, 1)?;
-        let start = self.builder.iconst(0, 64, false);
-        let result = self.lower_type(resolution.return_type)?;
+        let address = self.argument_value(call, 0)?;
+        let length = self.argument_value(call, 1)?;
+        let result = self.lower_type(call.resolution.return_type)?;
 
-        Ok(Some(
-            self.builder.slice_view(address, start, length, result),
-        ))
+        Ok(Some(self.builder.aggregate(result, vec![address, length])))
     }
 
     /// Lower one slice element read.
-    fn lower_slice_get(&mut self, resolution: &dir::Call) -> CompilerResult<Option<mir::Value>> {
-        let slice = self.argument_value(resolution, 0)?;
-        let index = self.argument_value(resolution, 1)?;
-        let element = self.lower_type(resolution.return_type)?;
-        let pointer = self.element_address(slice, index, element)?;
+    fn lower_slice_get(&mut self, call: IntrinsicCall<'_>) -> CompilerResult<Option<mir::Value>> {
+        let slice = self.argument_value(call, 0)?;
+        let index = self.argument_value(call, 1)?;
+        let element = self.lower_type(call.resolution.return_type)?;
+        let place = mir::Place::value(slice)
+            .with_projection(mir::Projection::Deref)
+            .with_projection(mir::Projection::Index { index });
 
-        Ok(Some(self.builder.load(pointer, element)))
+        Ok(Some(self.load_place(place, element)))
     }
 
     /// Lower one slice element write.
-    fn lower_slice_set(&mut self, resolution: &dir::Call) -> CompilerResult<Option<mir::Value>> {
-        let slice = self.argument_value(resolution, 0)?;
-        let index = self.argument_value(resolution, 1)?;
-        let value = self.argument_value(resolution, 2)?;
-        let element = self.value_representation(value)?;
-        let pointer = self.element_address(slice, index, element)?;
-        self.builder.store(pointer, value);
+    fn lower_slice_set(&mut self, call: IntrinsicCall<'_>) -> CompilerResult<Option<mir::Value>> {
+        let slice = self.argument_value(call, 0)?;
+        let index = self.argument_value(call, 1)?;
+        let value = self.argument_value(call, 2)?;
+        let place = mir::Place::value(slice)
+            .with_projection(mir::Projection::Deref)
+            .with_projection(mir::Projection::Index { index });
+        self.builder.store(place, value);
 
         Ok(None)
     }
 
     /// Lower one slice length read.
-    fn lower_slice_length(&mut self, resolution: &dir::Call) -> CompilerResult<Option<mir::Value>> {
-        let slice = self.argument_value(resolution, 0)?;
+    fn lower_slice_length(
+        &mut self,
+        call: IntrinsicCall<'_>,
+    ) -> CompilerResult<Option<mir::Value>> {
+        let slice = self.argument_value(call, 0)?;
 
         Ok(Some(self.builder.slice_length(slice)))
     }
 
     /// Lower one slice view over a contiguous range.
-    fn lower_slice_view(&mut self, resolution: &dir::Call) -> CompilerResult<Option<mir::Value>> {
-        let slice = self.argument_value(resolution, 0)?;
-        let start = self.argument_value(resolution, 1)?;
-        let length = self.argument_value(resolution, 2)?;
-        let result = self.lower_type(resolution.return_type)?;
+    fn lower_slice_view(&mut self, call: IntrinsicCall<'_>) -> CompilerResult<Option<mir::Value>> {
+        let slice = self.argument_value(call, 0)?;
+        let start = self.argument_value(call, 1)?;
+        let length = self.argument_value(call, 2)?;
+        let result = self.lower_type(call.resolution.return_type)?;
 
-        Ok(Some(self.builder.slice_view(slice, start, length, result)))
+        let place = mir::Place::value(slice)
+            .with_projection(mir::Projection::Deref)
+            .with_projection(mir::Projection::Slice { start, length });
+
+        Ok(Some(self.builder.address(place, result)))
     }
 
     /// Lower one owned allocation of uninitialized slice elements.
-    fn lower_slice_uninit(&mut self, resolution: &dir::Call) -> CompilerResult<Option<mir::Value>> {
-        let length = self.argument_value(resolution, 0)?;
-        let result = self.lower_type(resolution.return_type)?;
+    fn lower_slice_uninit(
+        &mut self,
+        call: IntrinsicCall<'_>,
+    ) -> CompilerResult<Option<mir::Value>> {
+        let length = self.argument_value(call, 0)?;
+        let result = self.lower_type(call.resolution.return_type)?;
         let mir::Type::Slice { element, .. } = self.builder.tree().get(result) else {
             return Err(CompilerError::Internal {
                 message: "an uninitialized slice allocation outside a slice result".to_string(),
             });
         };
         let element = *element;
+        let space = self.allocation_space(result)?;
 
-        Ok(Some(self.builder.new_slice_uninit(element, length, result)))
+        Ok(Some(
+            self.builder
+                .new_slice_uninit(element, length, result, space),
+        ))
     }
 
     /// Lower one slice element borrow at the declared access.
-    fn lower_slice_index(&mut self, resolution: &dir::Call) -> CompilerResult<Option<mir::Value>> {
-        let slice = self.argument_value(resolution, 0)?;
-        let index = self.argument_value(resolution, 1)?;
-        let result = self.lower_type(resolution.return_type)?;
+    fn lower_slice_index(&mut self, call: IntrinsicCall<'_>) -> CompilerResult<Option<mir::Value>> {
+        let slice = self.argument_value(call, 0)?;
+        let index = self.argument_value(call, 1)?;
+        let result = self.lower_type(call.resolution.return_type)?;
 
-        Ok(Some(self.builder.element_addr(
-            slice,
-            index,
-            result,
-            mir::AddressKind::Borrow,
-        )))
+        let place = mir::Place::value(slice)
+            .with_projection(mir::Projection::Deref)
+            .with_projection(mir::Projection::Index { index });
+
+        Ok(Some(self.builder.address(place, result)))
     }
 
     /// Lower the completion of one owned slice with initialized elements.
     fn lower_slice_assume_init(
         &mut self,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
     ) -> CompilerResult<Option<mir::Value>> {
-        let storage = self.argument_value(resolution, 0)?;
-        let result = self.lower_type(resolution.return_type)?;
+        let storage = self.argument_value(call, 0)?;
+        let result = self.lower_type(call.resolution.return_type)?;
 
         Ok(Some(self.builder.new_complete(storage, result)))
     }
 
-    /// Address one slice element behind an exclusive borrow representation.
-    fn element_address(
-        &mut self,
-        slice: mir::Value,
-        index: mir::Value,
-        element: mir::LocalNodeId<mir::Type>,
-    ) -> CompilerResult<mir::Value> {
-        // address the element at the slice's own storage and access
-        let representation = self.value_representation(slice)?;
-        let (storage, access) = match *self.builder.tree().get(representation) {
-            mir::Type::Slice {
-                storage, access, ..
-            } => (storage, access),
-            _ => {
-                return Err(CompilerError::Internal {
-                    message: "a slice value without slice storage".to_string(),
-                });
-            }
-        };
-        let lifetime = self.reborrow_lifetime(slice);
-        let pointer = self.insert_reference(
-            mir::ReferenceKind::Borrowed,
-            lifetime,
-            access,
-            storage,
-            element,
-        );
-
-        Ok(self
-            .builder
-            .element_addr(slice, index, pointer, mir::AddressKind::Borrow))
-    }
-
     /// Lower one load through a raw pointer.
-    fn lower_pointer_load(&mut self, resolution: &dir::Call) -> CompilerResult<Option<mir::Value>> {
-        let pointer = self.argument_value(resolution, 0)?;
-        let pointer = self.raw_pointer(pointer)?;
-        let result = self.lower_type(resolution.return_type)?;
+    fn lower_pointer_load(
+        &mut self,
+        call: IntrinsicCall<'_>,
+    ) -> CompilerResult<Option<mir::Value>> {
+        let pointer = self.argument_value(call, 0)?;
+        let result = self.lower_type(call.resolution.return_type)?;
 
-        Ok(Some(self.builder.load(pointer, result)))
+        // express the caller's unchecked read through the corresponding raw address
+        let pointer = self.raw_pointer(pointer, result)?;
+        let place = mir::Place::value(pointer).with_projection(mir::Projection::Deref);
+
+        Ok(Some(self.load_place(place, result)))
     }
 
     /// Lower one store through a raw pointer.
     fn lower_pointer_store(
         &mut self,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
     ) -> CompilerResult<Option<mir::Value>> {
-        let pointer = self.argument_value(resolution, 0)?;
-        let pointer = self.raw_pointer(pointer)?;
-        let value = self.argument_value(resolution, 1)?;
-        self.builder.store(pointer, value);
+        let pointer = self.argument_value(call, 0)?;
+        let pointee = self.pointee_type(pointer)?;
+        let pointer = self.raw_pointer(pointer, pointee)?;
+        let place = mir::Place::value(pointer).with_projection(mir::Projection::Deref);
+        let value = self.argument_value(call, 1)?;
+        self.builder.store(place, value);
 
         Ok(None)
     }
@@ -729,46 +690,33 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one pointed-to value exchange returning the old value.
     fn lower_pointer_replace(
         &mut self,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
     ) -> CompilerResult<Option<mir::Value>> {
-        let pointer = self.argument_value(resolution, 0)?;
-        let pointer = self.raw_pointer(pointer)?;
-        let value = self.argument_value(resolution, 1)?;
-        let result = self.lower_type(resolution.return_type)?;
-        let old = self.builder.load(pointer, result);
-        self.builder.store(pointer, value);
+        let pointer = self.argument_value(call, 0)?;
+        let result = self.lower_type(call.resolution.return_type)?;
+        let pointer = self.raw_pointer(pointer, result)?;
+        let place = mir::Place::value(pointer).with_projection(mir::Projection::Deref);
+        let value = self.argument_value(call, 1)?;
+        let old = self.load_place(place.clone(), result);
+        self.builder.store(place, value);
 
         Ok(Some(old))
     }
 
-    /// Return one reference or pointer as a raw pointer.
-    fn raw_pointer(&mut self, value: mir::Value) -> CompilerResult<mir::Value> {
-        let ty = self.value_representation(value)?;
-        let mir::Type::Reference {
-            pointee, access, ..
-        } = *self.builder.tree().get(ty)
-        else {
-            return Ok(value);
-        };
-        let pointer = self
-            .builder
-            .tree_mut()
-            .intern_type(mir::Type::Pointer { pointee, access });
-
-        Ok(self
-            .builder
-            .cast(mir::CastOperator::Bitcast, value, pointer))
-    }
-
     /// Lower one swap of two pointed-to values.
-    fn lower_pointer_swap(&mut self, resolution: &dir::Call) -> CompilerResult<Option<mir::Value>> {
-        let first = self.argument_value(resolution, 0)?;
-        let first = self.raw_pointer(first)?;
-        let second = self.argument_value(resolution, 1)?;
-        let second = self.raw_pointer(second)?;
+    fn lower_pointer_swap(
+        &mut self,
+        call: IntrinsicCall<'_>,
+    ) -> CompilerResult<Option<mir::Value>> {
+        let first = self.argument_value(call, 0)?;
+        let second = self.argument_value(call, 1)?;
         let pointee = self.pointee_type(first)?;
-        let first_value = self.builder.load(first, pointee);
-        let second_value = self.builder.load(second, pointee);
+        let first = self.raw_pointer(first, pointee)?;
+        let second = self.raw_pointer(second, pointee)?;
+        let first = mir::Place::value(first).with_projection(mir::Projection::Deref);
+        let second = mir::Place::value(second).with_projection(mir::Projection::Deref);
+        let first_value = self.load_place(first.clone(), pointee);
+        let second_value = self.load_place(second.clone(), pointee);
         self.builder.store(first, second_value);
         self.builder.store(second, first_value);
 
@@ -778,20 +726,47 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one drop of the pointed-to value.
     fn lower_pointer_drop_in_place(
         &mut self,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
     ) -> CompilerResult<Option<mir::Value>> {
-        let pointer = self.argument_value(resolution, 0)?;
+        let pointer = self.argument_value(call, 0)?;
         let pointee = self.pointee_type(pointer)?;
-        let value = self.builder.load(pointer, pointee);
+        let pointer = self.raw_pointer(pointer, pointee)?;
+        let place = mir::Place::value(pointer).with_projection(mir::Projection::Deref);
+        let value = self.load_place(place, pointee);
         self.builder.drop_value(value);
 
         Ok(None)
     }
 
+    /// Reinterpret one pointer as the raw address its unchecked memory operations go through.
+    fn raw_pointer(
+        &mut self,
+        pointer: mir::Value,
+        pointee: mir::TypeId,
+    ) -> CompilerResult<mir::Value> {
+        let source = self.value_representation(pointer)?;
+        let target = match *self.builder.tree().type_definition(source) {
+            mir::Type::Reference { access, .. } => mir::Type::Reference {
+                kind: mir::Reference::Raw,
+                lifetime: mir::Lifetime::empty(),
+                access,
+                pointee,
+            },
+            mir::Type::Pointer { access, .. } => mir::Type::Pointer { pointee, access },
+            _ => return Err(self.internal("an unchecked memory operation without a pointer")),
+        };
+        let target = self.builder.tree_mut().intern_type(target);
+        if source == target {
+            return Ok(pointer);
+        }
+
+        Ok(self.builder.bitcast(pointer, target))
+    }
+
     /// Return the pointee type behind one lowered pointer value.
     fn pointee_type(&mut self, pointer: mir::Value) -> CompilerResult<mir::TypeId> {
         let pointer_type = self.value_representation(pointer)?;
-        let pointee = match self.builder.tree().get(pointer_type) {
+        let pointee = match self.builder.tree().type_definition(pointer_type) {
             mir::Type::Pointer { pointee, .. } | mir::Type::Reference { pointee, .. } => pointee,
             _ => {
                 return Err(CompilerError::Internal {
@@ -807,19 +782,20 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_storage_constant(
         &mut self,
         constant: mir::Constant,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
     ) -> CompilerResult<Option<mir::Value>> {
-        let result = self.lower_type(resolution.return_type)?;
+        let result = self.lower_type(call.resolution.return_type)?;
 
         Ok(Some(self.builder.constant(constant, result)))
     }
 
     /// Lower one initializing store returning the initialized borrow.
-    fn lower_init_write(&mut self, resolution: &dir::Call) -> CompilerResult<Option<mir::Value>> {
-        let pointer = self.argument_value(resolution, 0)?;
-        let value = self.argument_value(resolution, 1)?;
-        self.builder.store(pointer, value);
-        let result = self.lower_type(resolution.return_type)?;
+    fn lower_init_write(&mut self, call: IntrinsicCall<'_>) -> CompilerResult<Option<mir::Value>> {
+        let pointer = self.argument_value(call, 0)?;
+        let place = mir::Place::value(pointer).with_projection(mir::Projection::Deref);
+        let value = self.argument_value(call, 1)?;
+        self.builder.store(place, value);
+        let result = self.lower_type(call.resolution.return_type)?;
 
         Ok(Some(self.builder.intrinsic(
             mir::Intrinsic::Transmute,
@@ -832,39 +808,38 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_layout_intrinsic(
         &mut self,
         layout: LayoutIntrinsic,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
     ) -> CompilerResult<Option<mir::Value>> {
         let value = match layout {
             // measure the subject size
             LayoutIntrinsic::SizeOf => {
-                let ty = self.lower_type(resolution.return_type)?;
-                self.subject_measure(resolution, mir::LayoutMeasure::Size, ty)?
+                let ty = self.lower_type(call.resolution.return_type)?;
+                self.subject_measure(call, mir::LayoutMeasure::Size, ty)?
             }
             // measure the subject alignment
             LayoutIntrinsic::AlignOf => {
-                let ty = self.lower_type(resolution.return_type)?;
-                self.subject_measure(resolution, mir::LayoutMeasure::Alignment, ty)?
+                let ty = self.lower_type(call.resolution.return_type)?;
+                self.subject_measure(call, mir::LayoutMeasure::Alignment, ty)?
             }
             // measure the padded element step
             LayoutIntrinsic::StrideOf => {
-                let ty = self.lower_type(resolution.return_type)?;
-                self.subject_measure(resolution, mir::LayoutMeasure::Stride, ty)?
+                let ty = self.lower_type(call.resolution.return_type)?;
+                self.subject_measure(call, mir::LayoutMeasure::Stride, ty)?
             }
             // hand back the alignment itself as a well-aligned dangling address
             LayoutIntrinsic::Dangling => {
-                let pointer = self.lower_type(resolution.return_type)?;
-                let address =
-                    self.subject_measure(resolution, mir::LayoutMeasure::Alignment, pointer)?;
+                let pointer = self.lower_type(call.resolution.return_type)?;
+                let address = self.subject_measure(call, mir::LayoutMeasure::Alignment, pointer)?;
 
                 self.builder
                     .intrinsic(mir::Intrinsic::Transmute, pointer, vec![address])
             }
             // move the pointer by an element count scaled to the stride
             LayoutIntrinsic::Offset => {
-                let pointer = self.argument_value(resolution, 0)?;
-                let count = self.argument_value(resolution, 1)?;
+                let pointer = self.argument_value(call, 0)?;
+                let count = self.argument_value(call, 1)?;
                 let domain = self.value_representation(count)?;
-                let step = self.subject_measure(resolution, mir::LayoutMeasure::Stride, domain)?;
+                let step = self.subject_measure(call, mir::LayoutMeasure::Stride, domain)?;
                 let domain = self.value_representation(step)?;
                 let address =
                     self.builder
@@ -875,17 +850,17 @@ impl FunctionLowerer<'_, '_, '_> {
                 let moved = self
                     .builder
                     .binary(mir::BinaryOperator::Add, address, bytes);
-                let result = self.lower_type(resolution.return_type)?;
+                let result = self.lower_type(call.resolution.return_type)?;
 
                 self.builder
                     .intrinsic(mir::Intrinsic::Transmute, result, vec![moved])
             }
             // divide the byte distance between two pointers back into elements
             LayoutIntrinsic::OffsetFrom => {
-                let pointer = self.argument_value(resolution, 0)?;
-                let origin = self.argument_value(resolution, 1)?;
-                let domain = self.lower_type(resolution.return_type)?;
-                let step = self.subject_measure(resolution, mir::LayoutMeasure::Stride, domain)?;
+                let pointer = self.argument_value(call, 0)?;
+                let origin = self.argument_value(call, 1)?;
+                let domain = self.lower_type(call.resolution.return_type)?;
+                let step = self.subject_measure(call, mir::LayoutMeasure::Stride, domain)?;
                 let domain = self.value_representation(step)?;
                 let bytes = self.builder.intrinsic(
                     mir::Intrinsic::PointerByteOffsetFrom,
@@ -901,45 +876,28 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(Some(value))
     }
 
-    /// Measure one call's subject type argument, folded unless the subject mentions a parameter.
+    /// Emit the layout measure resolved during instantiation.
     fn subject_measure(
         &mut self,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
         measure: mir::LayoutMeasure,
-        ty: mir::LocalNodeId<mir::Type>,
+        ty: mir::TypeId,
     ) -> CompilerResult<mir::Value> {
-        let subject = self.subject_type(resolution)?;
-        if mir::TypeId::from(subject).mentions_parameter(self.builder.tree()) {
-            let constant = mir::Constant::Layout {
-                ty: mir::TypeId::from(subject),
-                measure,
-            };
-            return Ok(self.builder.constant(constant, ty));
-        }
-        let layout = self.subject_layout(resolution)?;
-        let value = match measure {
-            mir::LayoutMeasure::Size => layout.size,
-            mir::LayoutMeasure::Alignment => layout.alignment.max(1),
-            mir::LayoutMeasure::Stride => layout.size.next_multiple_of(layout.alignment.max(1)),
+        let subject = self.subject_type(call)?;
+        let constant = mir::Constant::Layout {
+            ty: subject,
+            measure,
         };
-        Ok(match self.builder.tree().get(ty).clone() {
-            mir::Type::Isize => self.builder.isize_const(value as i128),
-            mir::Type::Int { width, is_signed } => {
-                self.builder.iconst(value as i128, width, is_signed)
-            }
-            _ => self.builder.usize_const(value as u128),
-        })
+
+        Ok(self.builder.constant(constant, ty))
     }
 
     /// Return the lowered subject type argument of one layout call.
-    fn subject_type(
-        &mut self,
-        resolution: &dir::Call,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    fn subject_type(&mut self, call: IntrinsicCall<'_>) -> CompilerResult<mir::TypeId> {
         let dir::Call {
             target: dir::CallableTarget::Symbol { function, .. },
             ..
-        } = resolution
+        } = call.resolution
         else {
             return Err(CompilerError::Internal {
                 message: "a layout intrinsic without a candidate".to_string(),
@@ -955,32 +913,16 @@ impl FunctionLowerer<'_, '_, '_> {
         self.lower_type(subject)
     }
 
-    /// Return the folded layout of one call's subject type argument.
-    fn subject_layout(&mut self, resolution: &dir::Call) -> CompilerResult<mir::Layout> {
-        let subject = self.subject_type(resolution)?;
-
-        // lay the subject out at the target to answer the query
-        let pointer_bytes = (self.builder.pointer_bits() / 8) as u8;
-        let target = mir::TargetLayout::for_pointer_bytes(pointer_bytes);
-        let mut layouts = mir::LayoutTable::default();
-        let mut builder = mir::LayoutBuilder::new(self.builder.tree_mut(), &mut layouts, target);
-        let id = builder
-            .layout_type(subject)
-            .map_err(|error| CompilerError::from((self.lower.module, error)))?;
-
-        Ok(layouts.layout(id).clone())
-    }
-
     /// Lower one provided argument's value expression.
     pub(in crate::lower) fn argument_value(
         &mut self,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
         index: usize,
     ) -> CompilerResult<mir::Value> {
-        if let (Some(receiver), 0) = (self.intrinsic_receiver, index) {
+        if let (Some(receiver), 0) = (call.receiver, index) {
             return Ok(receiver);
         }
-        let source = self.argument_expression(resolution, index)?;
+        let source = self.argument_expression(call, index)?;
 
         self.lower_value(source)
     }
@@ -988,11 +930,11 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Read one enum-valued const argument as its declared case ordinal.
     fn enum_argument_ordinal(
         &mut self,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
         index: usize,
         construct: &str,
     ) -> CompilerResult<u32> {
-        let source = self.argument_expression(resolution, index)?;
+        let source = self.argument_expression(call, index)?;
         let dir::Type::Variant(member) = self.node_type(source)? else {
             return Err(self.internal(format!("{construct} without a const-evaluated value")));
         };
@@ -1008,25 +950,24 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Read one const boolean argument.
     fn const_boolean(
         &mut self,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
         index: usize,
         construct: &str,
     ) -> CompilerResult<bool> {
-        let source = self.argument_expression(resolution, index)?;
+        let source = self.argument_expression(call, index)?;
         match self.node_type(source)? {
             dir::Type::Literal(dir::Literal::Boolean(value)) => Ok(value),
             _ => Err(self.internal(format!("{construct} without a const-evaluated value"))),
         }
     }
 
-    /// Return one provided argument's value expression node, argument 0 following a method-form
-    /// intrinsic's receiver.
+    /// Return one provided argument's value expression node after the receiver.
     fn argument_expression(
         &mut self,
-        resolution: &dir::Call,
+        call: IntrinsicCall<'_>,
         index: usize,
     ) -> CompilerResult<dir::LocalNodeId<dir::Expression>> {
-        let index = match self.intrinsic_receiver {
+        let index = match call.receiver {
             Some(_) if index == 0 => {
                 return Err(CompilerError::Internal {
                     message: "an intrinsic reading its receiver as an expression".to_string(),
@@ -1035,9 +976,9 @@ impl FunctionLowerer<'_, '_, '_> {
             Some(_) => index - 1,
             None => index,
         };
-        let arguments = &resolution.arguments;
+        let arguments = &call.resolution.arguments;
         let Some(binding) = arguments.get(index) else {
-            let callee = match &resolution.target {
+            let callee = match &call.resolution.target {
                 dir::CallableTarget::Symbol { function, .. } => {
                     self.lower.symbol_path(function.key.symbol)?
                 }
