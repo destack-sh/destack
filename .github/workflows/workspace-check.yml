@@ -1,0 +1,84 @@
+name: Check workspace
+
+on:
+    pull_request:
+    push:
+        branches: [main]
+    workflow_dispatch:
+    workflow_call:
+
+permissions:
+    contents: read
+
+concurrency:
+    group: ci-${{ github.workflow }}-${{ github.ref }}
+    cancel-in-progress: true
+
+jobs:
+    filesystem:
+        name: Test filesystem and updater (${{ matrix.os }})
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-24.04, macos-15, windows-2025]
+        runs-on: ${{ matrix.os }}
+        timeout-minutes: 5
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              with:
+                  persist-credentials: false
+            - name: Install Bun
+              uses: ./.github/actions/setup-bun
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+            - name: Check filesystem types
+              run: bun run --cwd @destack/fs check
+            - name: Test filesystem operations
+              run: bun --bun run --cwd @destack/fs test
+            - name: Check updater types
+              run: bun run --cwd @destack/update check
+            - name: Test updates
+              run: bun --bun run --cwd @destack/update test
+
+    check:
+        name: Check workspace
+        runs-on: ubuntu-24.04
+        timeout-minutes: 20
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              with:
+                  persist-credentials: false
+            - name: Install platform tools
+              uses: ./.github/actions/setup-platform
+            - name: Install OpenTofu
+              uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f
+              with:
+                  tofu_version: 1.12.6
+            - name: Build bundled view
+              run: bun run platform/release/src/distribution/frontend.ts
+            - name: Check workspace
+              run: just check
+            - name: Lint source
+              run: bun run destack-check check @destack/*/src platform/*/src
+            - name: Check source formatting
+              run: bun run destack-check format-check @destack/*/src platform/*/src
+
+    test:
+        name: Test workspace
+        runs-on: ubuntu-24.04
+        timeout-minutes: 15
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              with:
+                  persist-credentials: false
+            - name: Install platform tools
+              uses: ./.github/actions/setup-platform
+            - name: Build bundled view
+              run: bun run platform/release/src/distribution/frontend.ts
+            - name: Test workspace
+              run: just test
+            - name: Test releases
+              run: bun --bun run --cwd platform/release test

@@ -1,0 +1,21 @@
+name: Install Bun
+description: Install the pinned Bun toolchain.
+
+runs:
+    using: composite
+    steps:
+        - name: Read Bun version
+          id: version
+          shell: bash
+          run: |
+              version=$(jq -er '.packageManager | select(startswith("bun@")) | ltrimstr("bun@")' package.json)
+              echo "bun=${version}" >> "${GITHUB_OUTPUT}"
+        - name: Install Bun
+          uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6
+          with:
+              bun-version: ${{ steps.version.outputs.bun }}
+        - name: Cache Bun dependencies
+          uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7
+          with:
+              path: ~/.bun/install/cache
+              key: bun-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.bun }}-${{ hashFiles('bun.lock') }}

@@ -1,0 +1,395 @@
+name: Publish release
+
+on:
+    schedule:
+        - cron: "17 2 * * *"
+    push:
+        tags: ["v*"]
+    workflow_dispatch:
+        inputs:
+            publish:
+                description: Publish signed distributions from main
+                type: boolean
+                default: false
+
+permissions:
+    contents: read
+
+concurrency:
+    group: release-${{ github.ref }}
+    cancel-in-progress: false
+
+jobs:
+    ci:
+        name: Check workspace
+        uses: ./.github/workflows/workspace-check.yml
+
+    prepare:
+        name: Prepare release
+        runs-on: ubuntu-24.04
+        timeout-minutes: 5
+        outputs:
+            version: ${{ steps.release.outputs.version }}
+            publish: ${{ steps.release.outputs.publish }}
+            channel: ${{ steps.release.outputs.channel }}
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              with:
+                  persist-credentials: false
+                  fetch-depth: 0
+            - name: Install Bun
+              uses: ./.github/actions/setup-bun
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+            - name: Select release version and channel
+              id: release
+              run: bun run platform/release/src/distribution/prepare.ts
+              env:
+                  DESTACK_PUBLISH: ${{ inputs.publish }}
+
+    build:
+        name: Build distribution (${{ matrix.target }})
+        needs: [prepare, ci]
+        env:
+            DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+            DESTACK_RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - runner: macos-15
+                      target: aarch64-apple-darwin
+                    - runner: macos-15-intel
+                      target: x86_64-apple-darwin
+                    - runner: ubuntu-24.04
+                      target: x86_64-unknown-linux-gnu
+                    - runner: ubuntu-24.04-arm
+                      target: aarch64-unknown-linux-gnu
+                    - runner: windows-2025
+                      target: x86_64-pc-windows-msvc
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 30
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              with:
+                  persist-credentials: false
+            - name: Install Bun
+              uses: ./.github/actions/setup-bun
+            - name: Install native desktop dependencies
+              if: runner.os == 'Linux'
+              run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev build-essential libssl-dev librsvg2-dev libxdo-dev libayatana-appindicator3-dev
+            - name: Install Rust
+              shell: bash
+              run: |
+                  source language/toolchain/versions.sh
+                  rustup toolchain install "$DESTACK_RUST_TOOLCHAIN" --profile minimal
+            - name: Install Windows installer compiler
+              if: runner.os == 'Windows'
+              shell: pwsh
+              run: |
+                  choco install nsis --version=3.12 -y --no-progress
+                  "${env:ProgramFiles(x86)}\NSIS" >> $env:GITHUB_PATH
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+            - name: Check out the matching Turso native source
+              if: matrix.target == 'x86_64-apple-darwin'
+              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              with:
+                  repository: tursodatabase/turso
+                  ref: 046e9cbf67d22491e8ecc941ec2891b02a9f3cad
+                  path: dist/turso
+                  persist-credentials: false
+            - name: Build the Intel macOS Turso addon
+              if: matrix.target == 'x86_64-apple-darwin'
+              run: bun run platform/release/src/distribution/turso.ts dist/turso
+            - name: Build distribution
+              run: bun run platform/release/src/distribution/build.ts ${{ matrix.target }}
+            - name: Build Windows Setup
+              if: runner.os == 'Windows'
+              run: |
+                  bun run platform/release/src/installer/build.ts windows-prepare
+                  bun run platform/release/src/installer/build.ts windows
+            - name: Verify distribution
+              run: bun run platform/release/src/distribution/verify.ts ${{ matrix.target }}
+            - name: Pack distribution
+              run: bun run platform/release/src/distribution/pack.ts ${{ matrix.target }}
+            - name: Verify archive staging and activation with disposable signing keys
+              run: bun run platform/release/src/distribution/rehearse.ts "$DESTACK_RELEASE_VERSION" "dist/$DESTACK_RELEASE_VERSION/destack-$DESTACK_RELEASE_VERSION-${{ matrix.target }}.tar.gz"
+              shell: bash
+            - name: Upload unsigned distributions
+              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+              with:
+                  name: unsigned-${{ matrix.target }}
+                  retention-days: 14
+                  path: |
+                      dist/*/*.tar.gz
+                      dist/*/*.exe
+                  if-no-files-found: error
+
+    sign:
+        name: Sign distribution (${{ matrix.target }})
+        if: needs.prepare.outputs.publish == 'true'
+        needs: [prepare, build]
+        environment: release-${{ needs.prepare.outputs.channel }}
+        permissions:
+            contents: read
+            id-token: write
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - runner: macos-15
+                      target: aarch64-apple-darwin
+                    - runner: macos-15-intel
+                      target: x86_64-apple-darwin
+                    - runner: windows-2025
+                      target: x86_64-pc-windows-msvc
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 40
+        env:
+            DESTACK_SIGNING: release
+            DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+            DESTACK_RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              with:
+                  persist-credentials: false
+            - name: Install Bun
+              uses: ./.github/actions/setup-bun
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+            - name: Download unsigned distribution
+              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              with:
+                  name: unsigned-${{ matrix.target }}
+                  path: dist/${{ needs.prepare.outputs.version }}
+            - name: Unpack distribution
+              run: bun run platform/release/src/signing/sign.ts unpack ${{ matrix.target }}
+            - name: Prepare Windows uninstaller for signing
+              if: runner.os == 'Windows'
+              shell: pwsh
+              run: |
+                  choco install nsis --version=3.12 -y --no-progress
+                  $env:PATH = "${env:ProgramFiles(x86)}\NSIS;$env:PATH"
+                  "${env:ProgramFiles(x86)}\NSIS" >> $env:GITHUB_PATH
+                  bun run platform/release/src/installer/build.ts windows-prepare
+            - name: Prepare Apple signing credentials
+              uses: ./.github/actions/setup-apple
+              if: runner.os == 'macOS'
+              with:
+                  certificate: ${{ secrets.APPLE_CERTIFICATE }}
+                  password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+                  identity: ${{ vars.APPLE_SIGNING_IDENTITY }}
+                  key: ${{ secrets.APPLE_NOTARY_KEY }}
+                  key-id: ${{ vars.APPLE_NOTARY_KEY_ID }}
+                  issuer: ${{ vars.APPLE_NOTARY_ISSUER }}
+            - name: Sign and notarize macOS distribution
+              if: runner.os == 'macOS'
+              run: bun run platform/release/src/signing/sign.ts sign ${{ matrix.target }}
+            - name: Authenticate with Azure
+              uses: azure/login@7184910d9eb2b1c5e48f7073824a90609bb9b6d6
+              if: runner.os == 'Windows'
+              with:
+                  client-id: ${{ vars.AZURE_SIGNING_CLIENT_ID }}
+                  tenant-id: ${{ vars.AZURE_TENANT_ID }}
+                  subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+            - name: Sign Windows executables
+              uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82
+              if: runner.os == 'Windows'
+              with:
+                  endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+                  signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+                  certificate-profile-name: ${{ vars.AZURE_SIGNING_PROFILE }}
+                  files-folder: ${{ github.workspace }}/dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}
+                  files-folder-filter: exe,dll
+                  files-folder-recurse: true
+                  file-digest: SHA256
+                  timestamp-rfc3161: http://timestamp.acs.microsoft.com
+                  timestamp-digest: SHA256
+            - name: Verify Windows signatures
+              if: runner.os == 'Windows'
+              shell: pwsh
+              env:
+                  DISTRIBUTION: dist/${{ needs.prepare.outputs.version }}/${{ matrix.target }}
+              run: |
+                  $files = Get-ChildItem -LiteralPath $env:DISTRIBUTION -Recurse -File |
+                    Where-Object { $_.Extension -in '.exe', '.dll' }
+                  if (-not $files) { throw 'no Windows executables to verify' }
+                  foreach ($file in $files) {
+                    $signature = Get-AuthenticodeSignature -LiteralPath $file.FullName
+                    if ($signature.Status -ne 'Valid') { throw "invalid signature: $($file.FullName)" }
+                  }
+            - name: Verify distribution
+              run: bun run platform/release/src/distribution/verify.ts ${{ matrix.target }}
+            - name: Pack distribution
+              run: bun run platform/release/src/distribution/pack.ts ${{ matrix.target }}
+            - name: Embed the signed Windows uninstaller and application
+              if: runner.os == 'Windows'
+              run: bun run platform/release/src/installer/build.ts windows
+            - name: Sign Windows installer
+              uses: azure/artifact-signing-action@c7ab2a863ab5f9a846ddb8265964877ef296ee82
+              if: runner.os == 'Windows'
+              with:
+                  endpoint: ${{ vars.AZURE_SIGNING_ENDPOINT }}
+                  signing-account-name: ${{ vars.AZURE_SIGNING_ACCOUNT }}
+                  certificate-profile-name: ${{ vars.AZURE_SIGNING_PROFILE }}
+                  files-folder: ${{ github.workspace }}/dist/${{ needs.prepare.outputs.version }}
+                  files-folder-filter: exe
+                  files-folder-recurse: false
+                  file-digest: SHA256
+                  timestamp-rfc3161: http://timestamp.acs.microsoft.com
+                  timestamp-digest: SHA256
+            - name: Verify Windows Setup signature
+              if: runner.os == 'Windows'
+              shell: pwsh
+              run: |
+                  $setup = "dist/${{ needs.prepare.outputs.version }}/destack-${{ needs.prepare.outputs.version }}-${{ matrix.target }}.exe"
+                  if ((Get-AuthenticodeSignature -LiteralPath $setup).Status -ne 'Valid') { throw 'invalid Windows Setup signature' }
+            - name: Upload signed distributions
+              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+              with:
+                  name: signed-${{ matrix.target }}
+                  retention-days: 14
+                  path: |
+                      dist/*/*.tar.gz
+                      dist/*/*.exe
+                  if-no-files-found: error
+            - name: Remove Apple signing credentials
+              if: always() && runner.os == 'macOS'
+              run: bun run platform/release/src/signing/credential.ts remove
+
+    installer:
+        name: Build macOS installer
+        if: always() && needs.build.result == 'success' && (needs.sign.result == 'success' || needs.sign.result == 'skipped')
+        needs: [prepare, build, sign]
+        runs-on: macos-15
+        environment: ${{ needs.prepare.outputs.publish == 'true' && format('release-{0}', needs.prepare.outputs.channel) || 'build' }}
+        timeout-minutes: 40
+        env:
+            DESTACK_SIGNING: ${{ needs.prepare.outputs.publish == 'true' && 'release' || 'development' }}
+            DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+            DESTACK_RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              with:
+                  persist-credentials: false
+            - name: Install Bun
+              uses: ./.github/actions/setup-bun
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+            - name: Download macOS distributions
+              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              with:
+                  pattern: ${{ needs.prepare.outputs.publish == 'true' && 'signed' || 'unsigned' }}-*-apple-darwin
+                  merge-multiple: true
+                  path: dist/${{ needs.prepare.outputs.version }}
+            - name: Prepare Apple signing credentials
+              uses: ./.github/actions/setup-apple
+              if: needs.prepare.outputs.publish == 'true'
+              with:
+                  certificate: ${{ secrets.APPLE_CERTIFICATE }}
+                  password: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+                  identity: ${{ vars.APPLE_SIGNING_IDENTITY }}
+                  key: ${{ secrets.APPLE_NOTARY_KEY }}
+                  key-id: ${{ vars.APPLE_NOTARY_KEY_ID }}
+                  issuer: ${{ vars.APPLE_NOTARY_ISSUER }}
+            - name: Build universal macOS installer
+              run: bun run platform/release/src/installer/build.ts
+            - name: Upload macOS installer
+              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+              with:
+                  name: macos-installer
+                  retention-days: 14
+                  path: dist/*/*.dmg
+                  if-no-files-found: error
+            - name: Remove Apple signing credentials
+              if: always() && needs.prepare.outputs.publish == 'true'
+              run: bun run platform/release/src/signing/credential.ts remove
+
+    publish:
+        name: Publish release
+        if: needs.prepare.outputs.publish == 'true'
+        needs: [prepare, sign, installer]
+        runs-on: ubuntu-24.04
+        timeout-minutes: 20
+        environment: release-${{ needs.prepare.outputs.channel }}
+        env:
+            DESTACK_RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
+            DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        concurrency:
+            group: update-repository-${{ needs.prepare.outputs.channel }}
+            cancel-in-progress: false
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              with:
+                  persist-credentials: false
+            - name: Install Bun
+              uses: ./.github/actions/setup-bun
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+            - name: Download signed distributions
+              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              with:
+                  pattern: signed-*
+                  merge-multiple: true
+                  path: dist/${{ needs.prepare.outputs.version }}
+            - name: Download Linux distributions
+              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              with:
+                  pattern: unsigned-*-unknown-linux-gnu
+                  merge-multiple: true
+                  path: dist/${{ needs.prepare.outputs.version }}
+            - name: Download macOS installer
+              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              with:
+                  name: macos-installer
+                  path: dist/${{ needs.prepare.outputs.version }}
+            - name: Prepare update signing keys
+              run: bun run platform/release/src/key/credential.ts release
+              env:
+                  DESTACK_TARGETS_KEY: ${{ secrets.DESTACK_TARGETS_KEY }}
+                  DESTACK_SNAPSHOT_KEY: ${{ secrets.DESTACK_SNAPSHOT_KEY }}
+                  DESTACK_TIMESTAMP_KEY: ${{ secrets.DESTACK_TIMESTAMP_KEY }}
+            - name: Sign and publish updates
+              run: |
+                  bun run platform/release/src/repository/sign.ts aarch64-apple-darwin x86_64-apple-darwin x86_64-unknown-linux-gnu aarch64-unknown-linux-gnu x86_64-pc-windows-msvc
+                  bun run platform/release/src/repository/upload.ts
+                  bun run platform/release/src/repository/verify.ts
+              env:
+                  CLOUDFLARE_RELEASE_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_RELEASE_ACCESS_KEY_ID }}
+                  CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY }}
+            - name: Remove update signing keys
+              if: always()
+              run: bun run platform/release/src/key/credential.ts remove
+
+    verify:
+        name: Verify installation and updates (${{ matrix.runner }})
+        needs: [prepare, publish]
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 10
+        strategy:
+            fail-fast: false
+            matrix:
+                runner: [macos-15, macos-15-intel, ubuntu-24.04, ubuntu-24.04-arm, windows-2025]
+        env:
+            DESTACK_RELEASE_CHANNEL: ${{ needs.prepare.outputs.channel }}
+            DESTACK_RELEASE_VERSION: ${{ needs.prepare.outputs.version }}
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              with:
+                  persist-credentials: false
+            - name: Install Bun
+              uses: ./.github/actions/setup-bun
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+            - name: Install Linux desktop runtime dependencies
+              if: runner.os == 'Linux'
+              run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-0
+            - name: Install the published distribution and verify restart and updates
+              run: bun run platform/release/src/distribution/install.ts

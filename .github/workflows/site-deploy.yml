@@ -1,0 +1,68 @@
+name: Deploy site
+
+on:
+    workflow_dispatch:
+    workflow_run:
+        workflows: [Check workspace]
+        types: [completed]
+        branches: [main]
+
+permissions:
+    contents: read
+
+concurrency:
+    group: platform-${{ github.ref }}
+    cancel-in-progress: false
+
+jobs:
+    check:
+        name: Check platform
+        if: >-
+            (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+            (github.event.workflow_run.conclusion == 'success' &&
+             github.event.workflow_run.event == 'push' &&
+             github.event.workflow_run.head_branch == 'main' &&
+             github.event.workflow_run.head_repository.full_name == github.repository)
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              with:
+                  persist-credentials: false
+                  ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+            - name: Install platform tools
+              uses: ./.github/actions/setup-platform
+
+            - name: Install OpenTofu
+              uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f
+              with:
+                  tofu_version: 1.12.6
+
+            - name: Check platform
+              run: |
+                  just platform/check-quick
+
+    deploy:
+        name: Deploy site
+        needs: [check]
+        permissions:
+            contents: read
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+        environment: production
+        env:
+            CLOUDFLARE_COMPANY_API_TOKEN: ${{ secrets.CLOUDFLARE_COMPANY_API_TOKEN }}
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              with:
+                  persist-credentials: false
+                  ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+            - name: Install platform tools
+              uses: ./.github/actions/setup-platform
+
+            - name: Deploy site
+              run: just platform/deploy

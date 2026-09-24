@@ -1,0 +1,62 @@
+name: Renew release metadata
+
+on:
+    schedule:
+        - cron: "23 4 * * *"
+    workflow_dispatch:
+        inputs:
+            targets:
+                description: Renew targets authorization using the protected release environment
+                type: boolean
+                default: false
+
+permissions:
+    contents: read
+
+jobs:
+    refresh:
+        name: Renew release metadata (${{ matrix.channel }})
+        if: github.ref == 'refs/heads/main'
+        runs-on: ubuntu-24.04
+        timeout-minutes: 10
+        strategy:
+            fail-fast: false
+            matrix:
+                channel: [stable, nightly]
+        environment: ${{ inputs.targets == true && format('release-{0}', matrix.channel) || format('renewal-{0}', matrix.channel) }}
+        concurrency:
+            group: update-repository-${{ matrix.channel }}
+            cancel-in-progress: false
+        env:
+            DESTACK_RELEASE_CHANNEL: ${{ matrix.channel }}
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              with:
+                  persist-credentials: false
+            - name: Install Bun
+              uses: ./.github/actions/setup-bun
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+            - name: Prepare signing keys
+              run: bun run platform/release/src/key/credential.ts ${{ inputs.targets == true && 'release' || 'renew' }}
+              env:
+                  DESTACK_TARGETS_KEY: ${{ inputs.targets == true && secrets.DESTACK_TARGETS_KEY || '' }}
+                  DESTACK_SNAPSHOT_KEY: ${{ secrets.DESTACK_SNAPSHOT_KEY }}
+                  DESTACK_TIMESTAMP_KEY: ${{ secrets.DESTACK_TIMESTAMP_KEY }}
+            - name: Renew metadata
+              run: bun run platform/release/src/repository/renew.ts ${{ inputs.targets == true && 'targets' || 'freshness' }}
+            - name: Publish signed freshness
+              if: inputs.targets != true
+              run: bun run platform/release/src/repository/submit.ts dist/refresh
+            - name: Publish targets authorization
+              if: inputs.targets == true
+              run: bun run platform/release/src/repository/upload.ts dist/refresh
+              env:
+                  CLOUDFLARE_RELEASE_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_RELEASE_ACCESS_KEY_ID }}
+                  CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_RELEASE_SECRET_ACCESS_KEY }}
+            - name: Verify published metadata
+              run: bun run platform/release/src/repository/verify.ts dist/refresh
+            - name: Remove signing keys
+              if: always()
+              run: bun run platform/release/src/key/credential.ts remove

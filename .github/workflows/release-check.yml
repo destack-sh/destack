@@ -1,0 +1,47 @@
+name: Check release trust
+
+on:
+    schedule:
+        - cron: "43 6,18 * * *"
+    workflow_dispatch:
+
+permissions:
+    contents: read
+    issues: write
+
+jobs:
+    expiry:
+        name: Check release trust (${{ matrix.channel }})
+        if: github.ref == 'refs/heads/main'
+        runs-on: ubuntu-24.04
+        timeout-minutes: 5
+        strategy:
+            fail-fast: false
+            matrix:
+                channel: [stable, nightly]
+        env:
+            DESTACK_RELEASE_CHANNEL: ${{ matrix.channel }}
+        steps:
+            - name: Check out repository
+              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+              with:
+                  persist-credentials: false
+            - name: Install Bun
+              uses: ./.github/actions/setup-bun
+            - name: Install dependencies
+              run: bun install --frozen-lockfile
+            - name: Check release trust expiry
+              id: expiry
+              run: bun run platform/release/src/repository/expiry.ts
+            - name: Open a release trust alert
+              if: failure() && steps.expiry.outcome == 'failure'
+              env:
+                  GH_TOKEN: ${{ github.token }}
+                  GH_REPO: ${{ github.repository }}
+                  ALERT_TITLE: Release trust requires attention (${{ matrix.channel }})
+                  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              run: |
+                  existing=$(gh issue list --state open --search "$ALERT_TITLE in:title" --json title --jq '.[].title')
+                  if ! printf '%s\n' "$existing" | grep -Fxq "$ALERT_TITLE"; then
+                    gh issue create --title "$ALERT_TITLE" --assignee flotothemoon --body "Public metadata verification or expiration checks failed. Review $RUN_URL before the update repository becomes unavailable."
+                  fi

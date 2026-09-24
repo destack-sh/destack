@@ -1,0 +1,22 @@
+name: Install platform tools
+description: Install Bun, just, actionlint, and workspace dependencies.
+
+runs:
+    using: composite
+    steps:
+        - name: Install Bun
+          uses: ./.github/actions/setup-bun
+
+        - name: Install just
+          uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+          with:
+              tool: just
+
+        - name: Install actionlint
+          uses: taiki-e/install-action@29932c26a55563997b9acacb544fc35fd54aa781
+          with:
+              tool: actionlint
+
+        - name: Install dependencies
+          shell: bash
+          run: bun install --frozen-lockfile

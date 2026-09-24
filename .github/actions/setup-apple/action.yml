@@ -1,0 +1,34 @@
+name: Prepare Apple signing
+description: Import signing credentials into an isolated temporary keychain.
+inputs:
+    certificate:
+        required: true
+        description: Base64 Developer ID Application PKCS12 certificate.
+    password:
+        required: true
+        description: Certificate encryption password.
+    identity:
+        required: true
+        description: Developer ID Application signing identity.
+    key:
+        required: true
+        description: App Store Connect notarization private key.
+    key-id:
+        required: true
+        description: Notarization API key identifier.
+    issuer:
+        required: true
+        description: Notarization API issuer identifier.
+runs:
+    using: composite
+    steps:
+        - name: Import Apple signing credentials
+          shell: bash
+          run: bun run platform/release/src/signing/credential.ts prepare
+          env:
+              APPLE_CERTIFICATE: ${{ inputs.certificate }}
+              APPLE_CERTIFICATE_PASSWORD: ${{ inputs.password }}
+              APPLE_SIGNING_IDENTITY: ${{ inputs.identity }}
+              APPLE_NOTARY_KEY: ${{ inputs.key }}
+              APPLE_NOTARY_KEY_ID: ${{ inputs.key-id }}
+              APPLE_NOTARY_ISSUER: ${{ inputs.issuer }}
