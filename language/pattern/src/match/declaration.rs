@@ -158,7 +158,7 @@ impl Matcher<'_, '_> {
         bindings: &mut Bindings,
     ) -> Result<bool, MatchError> {
         if pattern.export != candidate.export
-            || pattern.place != candidate.place
+            || pattern.is_shared != candidate.is_shared
             || pattern.mutability != candidate.mutability
             || pattern.is_ambient != candidate.is_ambient
             || pattern.is_nominal != candidate.is_nominal
@@ -204,7 +204,7 @@ impl Matcher<'_, '_> {
         bindings: &mut Bindings,
     ) -> Result<bool, MatchError> {
         if pattern.export != candidate.export
-            || pattern.place != candidate.place
+            || pattern.is_shared != candidate.is_shared
             || pattern.is_ambient != candidate.is_ambient
             || !self.match_name(
                 nodes,
@@ -256,7 +256,7 @@ impl Matcher<'_, '_> {
         bindings: &mut Bindings,
     ) -> Result<bool, MatchError> {
         if pattern.export != candidate.export
-            || pattern.place != candidate.place
+            || pattern.is_shared != candidate.is_shared
             || pattern.is_ambient != candidate.is_ambient
             || pattern.is_abstract != candidate.is_abstract
             || pattern.is_final != candidate.is_final
@@ -315,7 +315,7 @@ impl Matcher<'_, '_> {
         bindings: &mut Bindings,
     ) -> Result<bool, MatchError> {
         if pattern.export != candidate.export
-            || pattern.place != candidate.place
+            || pattern.is_shared != candidate.is_shared
             || pattern.is_ambient != candidate.is_ambient
             || !self.match_optional_name(
                 nodes,
@@ -368,7 +368,7 @@ impl Matcher<'_, '_> {
         bindings: &mut Bindings,
     ) -> Result<bool, MatchError> {
         if pattern.export != candidate.export
-            || pattern.place != candidate.place
+            || pattern.is_shared != candidate.is_shared
             || pattern.is_ambient != candidate.is_ambient
             || pattern.is_nominal != candidate.is_nominal
             || !self.match_optional_name(

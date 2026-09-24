@@ -81,7 +81,7 @@ impl Matcher<'_, '_> {
                     mutability: pattern_mutability,
                     declarators: pattern_declarators,
                     is_ambient: pattern_ambient,
-                    place: pattern_place,
+                    is_shared: pattern_shared,
                 },
                 dir::Expression::Let {
                     kind: candidate_kind,
@@ -89,14 +89,14 @@ impl Matcher<'_, '_> {
                     mutability: candidate_mutability,
                     declarators: candidate_declarators,
                     is_ambient: candidate_ambient,
-                    place: candidate_place,
+                    is_shared: candidate_shared,
                 },
             ) => {
                 if pattern_kind != candidate_kind
                     || pattern_export != candidate_export
                     || pattern_mutability != candidate_mutability
                     || pattern_ambient != candidate_ambient
-                    || pattern_place != candidate_place
+                    || pattern_shared != candidate_shared
                 {
                     return Ok(false);
                 }

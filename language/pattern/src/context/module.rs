@@ -1,7 +1,6 @@
-use std::slice;
 use std::sync::Arc;
 
-use destack_artifact::{DirExpanded, DirExported, DirParsed, DirResolved, DirView};
+use destack_artifact::{DirExported, DirResolved, DirView};
 use destack_dir as dir;
 use destack_source::ModuleId;
 
@@ -10,10 +9,8 @@ use crate::ContextError;
 /// Checked DIR state for one module.
 #[derive(Debug)]
 pub struct ModuleContext {
-    /// The parsed module DIR.
-    parsed: Arc<DirParsed>,
-    /// The expanded module DIR.
-    expanded: Arc<DirExpanded>,
+    /// The stacked module DIR stages.
+    stages: DirView,
     /// The resolved import and source-reference DIR.
     resolved: Arc<DirResolved>,
     /// The exported module DIR.
@@ -38,7 +35,7 @@ impl ModuleContext {
     /// Build one module context from a coherent checked artifact set.
     pub fn new(view: DirView, exported: Arc<DirExported>) -> Result<Self, ContextError> {
         let bound = &view.bound;
-        let expanded = Arc::clone(&view.expanded);
+        let expanded = &view.expanded;
         let resolved = Arc::clone(view.resolved.as_ref().unwrap_or_else(|| unreachable!()));
         let checked = view.checked.as_ref().unwrap_or_else(|| unreachable!());
         let module = checked.bindings.module_id;
@@ -72,8 +69,6 @@ impl ModuleContext {
         }
 
         Ok(Self {
-            parsed: Arc::clone(&view.parsed),
-            expanded,
             resolved,
             exported,
             bindings: view.bindings().clone(),
@@ -82,6 +77,7 @@ impl ModuleContext {
             resolutions: view.resolutions().clone(),
             decisions: view.decisions().clone(),
             generics: view.generics().clone(),
+            stages: view,
             module,
         })
     }
@@ -93,12 +89,12 @@ impl ModuleContext {
 
     /// Return the post-expansion DIR view.
     pub fn view(&self) -> dir::View<'_> {
-        dir::View::with_patches(&self.parsed.tree, slice::from_ref(&self.expanded.patch))
+        self.stages.tree()
     }
 
     /// Return the parsed source tree.
     pub fn tree(&self) -> &dir::Tree {
-        &self.parsed.tree
+        &self.stages.parsed.tree
     }
 
     /// Return the checked binding table.

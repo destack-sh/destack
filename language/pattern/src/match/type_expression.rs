@@ -228,22 +228,6 @@ impl Matcher<'_, '_> {
                 },
             )
             | (
-                dir::TypeExpression::Local {
-                    target_type: pattern_target,
-                },
-                dir::TypeExpression::Local {
-                    target_type: candidate_target,
-                },
-            )
-            | (
-                dir::TypeExpression::Shared {
-                    target_type: pattern_target,
-                },
-                dir::TypeExpression::Shared {
-                    target_type: candidate_target,
-                },
-            )
-            | (
                 dir::TypeExpression::KeyOf {
                     target_type: pattern_target,
                 },
