@@ -34,7 +34,7 @@ export function implementService(
     history: AuditHistory,
     options: AuditServerOptions,
 ): ServiceImplementation {
-    const implementation = implement(auditService)
+    const implementation = implement(auditService.router)
         .$context<ServiceContext>()
         .use(async ({ context, next }) => {
             return next({
@@ -46,6 +46,7 @@ export function implementService(
         });
 
     return {
+        service: auditService,
         target: async (call) => {
             // qualify credential restrictions by the selected history collection
             if (call.path.at(-1) === "ingest") {
@@ -85,6 +86,7 @@ export function implementService(
                 return access(context, "list", input.scope, () => history.list(input));
             }),
             export: implementation.export.handler(async function* ({ input, context, signal }) {
+                // open the attempt and assume cancellation until the stream finishes
                 const attempt = await beginAccess(context, "export", input.scope);
                 let result: AuditResult = { outcome: "cancelled", errorCode: "CANCELLED" };
                 let failureCause: unknown;
@@ -147,6 +149,7 @@ async function access<Value>(
     scope: AuditScope,
     execute: () => Promise<Value>,
 ): Promise<Value> {
+    // persist the attempt before running the operation
     const attempt = await beginAccess(context, operation, scope);
     let value: Value;
 
@@ -168,6 +171,7 @@ async function beginAccess(
     operation: "get" | "list" | "export" | "prune",
     scope: AuditScope,
 ): Promise<AuditEvent> {
+    // persist the attempt and complete it as failed when authorization fails
     const id = scopeId(scope);
     const attempt = context.audit.begin(auditAction[operation], {
         targets: { collection: { type: scope.type, id } },

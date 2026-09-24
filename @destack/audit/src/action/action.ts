@@ -1,10 +1,10 @@
 import { defineSchema, schema } from "@destack/schema";
 import { AuditTarget } from "../event/target.ts";
-import { Package } from "@destack/package";
+import { declaringModule, Package, type ModuleMetadata } from "@destack/package";
 
-/** A package-local action named noun.verb, with a present-tense verb and optional nested nouns. */
+/** A package-local action named Noun.verb, with PascalCase nouns and a camelCase present-tense verb. */
 export const AuditActionName = defineSchema(
-    schema.string().regex(/^[a-z][a-z0-9-]*(?:\.[a-z][a-z0-9-]*)+$/),
+    schema.string().regex(/^[A-Z][A-Za-z0-9]*(?:\.[A-Z][A-Za-z0-9]*)*\.[a-z][A-Za-z0-9]*$/),
 );
 
 /** Declaring package, action name, and action schema version. */
@@ -23,9 +23,9 @@ export interface AuditAction<
     Targets extends schema.Schema = schema.Schema,
     Details extends schema.Schema = schema.Schema,
 > {
-    /** The declaring package, normally import.meta.destack.package. */
+    /** The declaring package, supplied by the module transform. */
     readonly package: Package;
-    /** The package-local noun.verb action name, with a present-tense verb. */
+    /** The package-local Noun.verb action name, with a present-tense verb. */
     readonly name: string;
     /** The version of the targets and details schemas. */
     readonly version: number;
@@ -41,10 +41,16 @@ export interface AuditAction<
 export function defineAuditAction<
     Targets extends schema.Schema<Record<string, AuditTarget>>,
     Details extends schema.Schema,
->(action: AuditAction<Targets, Details>): AuditAction<Targets, Details> {
-    AuditActionName.parse(action.name);
-    Package.parse(action.package);
-    schema.number().int().positive().parse(action.version);
+>(
+    definition: Omit<AuditAction<Targets, Details>, "package">,
+    module?: ModuleMetadata,
+): AuditAction<Targets, Details> {
+    // validate the action name and schema version
+    AuditActionName.parse(definition.name);
+    schema.number().int().positive().parse(definition.version);
 
-    return Object.freeze({ ...action });
+    return Object.freeze({
+        ...definition,
+        package: Package.parse(declaringModule(module, "defineAuditAction").package),
+    });
 }

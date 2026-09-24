@@ -5,14 +5,10 @@ import { defineAuditAction } from "../action/index.ts";
 import { AuditRecorder } from "../record/index.ts";
 import type { AuditEvent, AuditResult } from "../event/index.ts";
 import { AuditError } from "../error/index.ts";
-import manifest from "../../package.json" with { type: "json" };
-import definition from "../../destack.json" with { type: "json" };
-import { PackageId } from "@destack/package";
 
 /** Procedure execution, separate from any domain action committed by its handler. */
 export const invokeService = defineAuditAction({
-    package: { id: PackageId.parse(definition.id), name: manifest.name, version: manifest.version },
-    name: "service.invoke",
+    name: "Service.invoke",
     version: 1,
     targets: schema.object({
         procedure: schema.object({ type: schema.literal("procedure"), id: schema.string().min(1) }),
@@ -34,6 +30,7 @@ export function createProcedureAudit<State extends object>(
     >();
 
     return async (event) => {
+        // persist the attempt when the procedure starts
         if (event.outcome === "started") {
             const writer = await recorder(event.call);
             const attempt = writer.begin(invokeService, {
@@ -42,8 +39,9 @@ export function createProcedureAudit<State extends object>(
             });
             await writer.append(attempt);
             attempts.set(event.call, { recorder: writer, event: attempt });
-        } else {
-            // record codes only; exception messages can contain credentials or application contents
+        }
+        // complete the attempt with codes only: exception messages can contain credentials
+        else {
             const attempt = attempts.get(event.call);
             if (!attempt) {
                 throw new AuditError(

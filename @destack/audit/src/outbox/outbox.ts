@@ -161,6 +161,7 @@ export class AuditOutbox implements AuditWriter<DatabaseConnection> {
 
     /** Deliver a bounded number of events without holding application transactions open. */
     async flush(destination: AuditDestination, limit = 100, signal?: AbortSignal): Promise<number> {
+        // deliver events until the limit or an empty outbox
         checkLimit(limit);
         let delivered = 0;
         while (delivered < limit) {
@@ -184,6 +185,7 @@ export class AuditOutbox implements AuditWriter<DatabaseConnection> {
 
     /** Retry delivery with bounded backoff until the host stops. */
     async run(destination: AuditDestination, options: AuditOutboxOptions): Promise<void> {
+        // validate the retry interval and start backoff at it
         const interval = options.interval ?? 1000;
         if (!Number.isFinite(interval) || interval < 1 || interval > 60000) {
             throw new AuditError(
@@ -210,6 +212,7 @@ export class AuditOutbox implements AuditWriter<DatabaseConnection> {
 
             // release retry timers immediately during shutdown
             await new Promise<void>((resolve) => {
+                // resolve once on timeout or abort
                 const finish = () => {
                     clearTimeout(timer);
                     options.signal.removeEventListener("abort", finish);

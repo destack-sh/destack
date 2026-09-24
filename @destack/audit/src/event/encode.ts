@@ -6,6 +6,7 @@ const MAX_EVENT_BYTES = 65536;
 
 /** Encode a validated, bounded event for durable storage. */
 export function encodeEvent(value: AuditEvent): { event: AuditEvent; content: string } {
+    // validate the event
     const event = AuditEvent.parse(value);
 
     // require a distinct occurrence reference before persistence

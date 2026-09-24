@@ -9,8 +9,7 @@ import { defineAuditAction } from "@destack/audit";
 import { schema } from "@destack/schema";
 
 export const renameNote = defineAuditAction({
-    package: import.meta.destack.package,
-    name: "note.rename",
+    name: "Note.rename",
     version: 1,
     targets: schema.object({
         note: schema.object({ type: schema.literal("note"), id: schema.string() }),
@@ -68,7 +67,7 @@ const record = (context) => createRecorder(context, outbox, {
 
 // migrate auditSchema in the local or regional history database
 const history = new AuditHistory(historyDatabase);
-const server = await Server.start({
+const server = Server.start({
     ...implementService(history, { authorize: authorizeAudit, record }),
     audience: receivingPackageId,
     scope: spaceId,

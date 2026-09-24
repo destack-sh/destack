@@ -3,7 +3,7 @@ import { auditService } from "../service/service.ts";
 
 /** Connect to a local or regional audit service. */
 export function createAuditClient(options: ClientOptions) {
-    return createClient(auditService, options);
+    return createClient(auditService.router, options);
 }
 /** The typed remote audit client. */
 export type AuditClient = ReturnType<typeof createAuditClient>;

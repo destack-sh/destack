@@ -13,19 +13,23 @@ import { document, testSchema } from "./stack/index.ts";
 import { PackageId } from "@destack/package";
 
 /** A declared change with explicit historical details. */
-export const renameDocument = defineAuditAction({
-    package: {
-        id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000004"),
-        name: "@example/document",
-        version: "1.0.0",
+export const renameDocument = defineAuditAction(
+    {
+        name: "Document.rename",
+        version: 1,
+        targets: schema.object({
+            document: schema.object({ type: schema.literal("document"), id: schema.string() }),
+        }),
+        details: schema.object({ name: schema.string() }),
     },
-    name: "document.rename",
-    version: 1,
-    targets: schema.object({
-        document: schema.object({ type: schema.literal("document"), id: schema.string() }),
-    }),
-    details: schema.object({ name: schema.string() }),
-});
+    {
+        package: {
+            id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000004"),
+            name: "@example/document",
+            version: "1.0.0",
+        },
+    },
+);
 
 /** Persistent local storage shared by recording and delivery scenarios. */
 export class AuditStorage {
@@ -35,9 +39,11 @@ export class AuditStorage {
     database: Awaited<ReturnType<typeof connect>> | Awaited<ReturnType<typeof postgres.connect>>;
     /** Isolated PostgreSQL database URL, when explicitly requested by the runner. */
     readonly url?: string;
-    /** Prepared pending delivery and history. */
+    /** The pending delivery queue. */
     outbox: AuditOutbox;
+    /** The accepted history. */
     history: AuditHistory;
+    /** The recorder writing into the outbox. */
     recorder: AuditRecorder<DatabaseConnection>;
 
     /** Bind the same authority after each connection restart. */

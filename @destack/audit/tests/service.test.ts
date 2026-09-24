@@ -15,19 +15,23 @@ import { AuditContext } from "../src/event/index.ts";
 import { PackageId } from "@destack/package";
 
 /** Typed application action exercised through the HTTP service. */
-const publishDocument = defineAuditAction({
-    package: {
-        id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000004"),
-        name: "@example/document",
-        version: "1.0.0",
+const publishDocument = defineAuditAction(
+    {
+        name: "Document.publish",
+        version: 1,
+        targets: schema.object({
+            document: schema.object({ type: schema.literal("document"), id: schema.string() }),
+        }),
+        details: schema.object({ revision: schema.number().int() }),
     },
-    name: "document.publish",
-    version: 1,
-    targets: schema.object({
-        document: schema.object({ type: schema.literal("document"), id: schema.string() }),
-    }),
-    details: schema.object({ revision: schema.number().int() }),
-});
+    {
+        package: {
+            id: PackageId.parse("package-01996ab0-0000-7000-8000-000000000004"),
+            name: "@example/document",
+            version: "1.0.0",
+        },
+    },
+);
 
 test("authorize producers and readers, stream history, and record denied access", async () => {
     const storage = await AuditStorage.open();
@@ -44,7 +48,7 @@ test("authorize producers and readers, stream history, and record denied access"
             accountId: "account-01995da9-7223-7000-8000-000000000001",
         });
         const recorder = new AuditRecorder(context, outbox);
-        await using server = await Server.start({
+        await using server = Server.start({
             ...implementService(history, {
                 record: (request) =>
                     createRecorder(request, outbox, {
@@ -130,14 +134,14 @@ test("authorize producers and readers, stream history, and record denied access"
             (event) => event.action.package.id === auditList.package.id,
         );
         expect(accesses.map((event) => event.action.name)).toEqual([
-            "audit.list",
-            "audit.list",
-            "audit.list",
-            "audit.list",
-            "audit.export",
-            "audit.export",
-            "audit.get",
-            "audit.get",
+            "Audit.list",
+            "Audit.list",
+            "Audit.list",
+            "Audit.list",
+            "Audit.export",
+            "Audit.export",
+            "Audit.get",
+            "Audit.get",
         ]);
         expect(accesses.map((event) => event.result)).toEqual([
             { stage: "attempt" },

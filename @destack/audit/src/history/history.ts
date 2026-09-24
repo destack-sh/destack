@@ -32,6 +32,7 @@ export class AuditHistory {
 
     /** Accept an ordered event and acknowledge its durable producer position. */
     async ingest(value: AuditEntry): Promise<AuditAcknowledgement> {
+        // encode the event and digest its content
         const entry = AuditEntry.parse(value);
         const { event, content } = encodeEvent(entry.event);
         const hash = await digest(content);
@@ -218,6 +219,7 @@ export class AuditHistory {
 
     /** Read a bounded page in durable acceptance order. */
     async list(request: AuditQuery): Promise<AuditPage> {
+        // parse the query and filter by collection
         const query = AuditQuery.parse(request);
         const filters: (SQL | undefined)[] = [scopeFilter(query.scope)];
 
@@ -343,7 +345,8 @@ export class AuditHistory {
     async *export(request: AuditQuery, signal?: AbortSignal) {
         const query = AuditQuery.parse({
             ...request,
-            before: Math.min(request.before ?? Infinity, Date.now()),
+            before:
+                request.before === undefined ? Date.now() : Math.min(request.before, Date.now()),
         });
         while (true) {
             // keep memory bounded and stop before fetching another page on cancellation

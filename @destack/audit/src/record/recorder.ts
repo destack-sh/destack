@@ -31,6 +31,7 @@ export class AuditRecorder<Transaction = never> {
         action: AuditAction<Targets, Details>,
         values: { targets: schema.Input<Targets>; details: schema.Input<Details> } & AuditResult,
     ): Promise<AuditEvent> {
+        // build the result event and append it in the caller's transaction
         const { targets, details, ...result } = values;
         const event = this.#event(
             action,
@@ -70,6 +71,7 @@ export class AuditRecorder<Transaction = never> {
             occurredAt: Date.now(),
             result: { stage: "result", ...AuditResult.parse(result) },
         });
+
         return event;
     }
 
