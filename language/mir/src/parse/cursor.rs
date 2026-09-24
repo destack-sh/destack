@@ -27,7 +27,6 @@ impl Parser {
 
         match token.ty {
             TokenType::Identifier => TokenType::from_identifier(text),
-            TokenType::Question => TokenType::Unknown,
             ty => ty,
         }
     }

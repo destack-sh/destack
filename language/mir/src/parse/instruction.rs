@@ -685,18 +685,22 @@ impl Parser {
                     // allocation operations
                     "new.zeroed" => {
                         let storage_type = self.parse_type()?;
+                        let space = self.parse_allocation_space()?;
                         Instruction::NewZeroed {
                             destination,
                             storage_type,
                             result_type: destination_type,
+                            space,
                         }
                     }
                     "new.uninit" => {
                         let storage_type = self.parse_type()?;
+                        let space = self.parse_allocation_space()?;
                         Instruction::NewUninit {
                             destination,
                             storage_type,
                             result_type: destination_type,
+                            space,
                         }
                     }
                     "new.complete" => {
@@ -711,22 +715,26 @@ impl Parser {
                         let element = self.parse_type()?;
                         self.eat_token(TokenType::Comma)?;
                         let length = self.parse_value()?;
+                        let space = self.parse_allocation_space()?;
                         Instruction::NewSliceZeroed {
                             destination,
                             element,
                             length,
                             result_type: destination_type,
+                            space,
                         }
                     }
                     "new.slice.uninit" => {
                         let element = self.parse_type()?;
                         self.eat_token(TokenType::Comma)?;
                         let length = self.parse_value()?;
+                        let space = self.parse_allocation_space()?;
                         Instruction::NewSliceUninit {
                             destination,
                             element,
                             length,
                             result_type: destination_type,
+                            space,
                         }
                     }
                     // atomic memory operations

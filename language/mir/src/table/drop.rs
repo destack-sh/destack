@@ -11,8 +11,8 @@ use crate::{Function, LocalNodeId, Reference, Space, Storage, Substitution, Tree
 pub struct DropTable {
     /// Generated destructors keyed by type and storage.
     destructors: FxIndexMap<(TypeId, Storage), LocalNodeId<Function>>,
-    /// User-authored drop hooks keyed by type and the space the dropped storage lies in.
-    hooks: FxIndexMap<(TypeId, Space), LocalNodeId<Function>>,
+    /// User-authored drop hooks keyed by type.
+    hooks: FxIndexMap<TypeId, LocalNodeId<Function>>,
 }
 
 impl DropTable {
@@ -32,13 +32,8 @@ impl DropTable {
             self.set_destructor(to, storage, function);
         }
 
-        let hooks = self
-            .hooks
-            .iter()
-            .filter_map(|(&(ty, space), &function)| (ty == from).then_some((space, function)))
-            .collect::<Vec<_>>();
-        for (space, function) in hooks {
-            self.set_hook(to, space, function);
+        if let Some(function) = self.hooks.get(&from).copied() {
+            self.set_hook(to, function);
         }
     }
 
@@ -74,19 +69,19 @@ impl DropTable {
 
     /// Return whether releasing one unique allocation destroys values before freeing its storage.
     pub fn release_destroys(&self, ty: TypeId, tree: &Tree) -> bool {
+        // read the answer in one heap, the same in every heap
+        let storage = Storage::Heap(Space::Local);
         match tree.type_definition(tree.storage_type(ty)) {
             Type::Reference {
                 kind: Reference::Unique,
                 pointee,
-                storage,
                 ..
-            } => self.requires_destructor(*pointee, *storage, tree),
+            } => self.requires_destructor(*pointee, storage, tree),
             Type::Slice {
                 kind: Reference::Unique,
                 element,
-                storage,
                 ..
-            } => self.requires_destructor(*element, *storage, tree),
+            } => self.requires_destructor(*element, storage, tree),
             Type::Dynamic { .. } | Type::Function { .. } => true,
             _ => unreachable!("a released value outside a unique reference"),
         }
@@ -109,31 +104,28 @@ impl DropTable {
         self.hooks.retain(|_, hook| *hook != function);
     }
 
-    /// Return the user-authored drop hook for a type in one space.
-    pub fn hook(&self, ty: TypeId, space: Space) -> Option<LocalNodeId<Function>> {
-        self.hooks.get(&(ty, space)).copied()
+    /// Return the user-authored drop hook for a type.
+    pub fn hook(&self, ty: TypeId) -> Option<LocalNodeId<Function>> {
+        self.hooks.get(&ty).copied()
     }
 
-    /// Return whether any user-authored drop hook exists for a type.
+    /// Return whether a user-authored drop hook exists for a type.
     pub fn has_hook(&self, ty: TypeId) -> bool {
-        self.hooks.keys().any(|(candidate, _)| *candidate == ty)
+        self.hooks.contains_key(&ty)
     }
 
     /// Iterate user-authored drop hooks.
-    pub fn hooks(&self) -> impl Iterator<Item = (TypeId, Space, LocalNodeId<Function>)> + '_ {
-        self.hooks
-            .iter()
-            .map(|(&(ty, space), &function)| (ty, space, function))
+    pub fn hooks(&self) -> impl Iterator<Item = (TypeId, LocalNodeId<Function>)> + '_ {
+        self.hooks.iter().map(|(&ty, &function)| (ty, function))
     }
 
-    /// Record the user-authored drop hook for a type in one space.
+    /// Record the user-authored drop hook for a type.
     pub fn set_hook(
         &mut self,
         ty: TypeId,
-        space: Space,
         function: LocalNodeId<Function>,
     ) -> Option<LocalNodeId<Function>> {
-        self.hooks.insert((ty, space), function)
+        self.hooks.insert(ty, function)
     }
 
     /// Return whether one inline child requires destruction.
@@ -171,9 +163,8 @@ impl DropTable {
             Type::Slice {
                 kind: Reference::Unique,
                 element,
-                storage,
                 ..
-            } => self.child_requires_destructor(*element, *storage, tree, seen),
+            } => self.child_requires_destructor(*element, Storage::Heap(Space::Local), tree, seen),
             _ => false,
         }
     }

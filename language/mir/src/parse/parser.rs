@@ -8,8 +8,8 @@ use crate::source::{Lexer, Token, TokenType};
 use crate::{
     Access, Block, DispatchTable, DropTable, EffectTable, Extent, Function, GenericArgument,
     GenericParameter, GenericParameterDomain, Global, LayoutTable, Lifetime, LifetimeParameter,
-    Local, LocalNodeId, Node, ProfileTable, RegionBound, Space, Static, Storage, TargetLayout,
-    Tree, Type, TypeDeclaration, TypeId, Value,
+    Local, LocalNodeId, Node, ProfileTable, RegionBound, Static, TargetLayout, Tree, Type,
+    TypeDeclaration, TypeId, Value,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -310,21 +310,14 @@ impl Parser {
 
             return Ok(match parameter.domain {
                 GenericParameterDomain::Type { .. } => {
-                    let copy = self.parameter_copy(&parameter);
-
-                    GenericArgument::Type(self.intern_type(
-                        Type::Parameter {
-                            index,
-                            referent: false,
-                        },
-                        copy,
-                    )?)
+                    GenericArgument::Type(self.intern_type(Type::Parameter {
+                        index,
+                        referent: false,
+                    })?)
                 }
-                GenericParameterDomain::Region { .. } => GenericArgument::Region {
-                    lifetime: Lifetime::new([Extent::Parameter(index)]),
-                    storage: Storage::Parameter(index),
-                },
-                GenericParameterDomain::Space => GenericArgument::Space(Space::Parameter(index)),
+                GenericParameterDomain::Region { .. } => {
+                    GenericArgument::Region(Lifetime::new([Extent::Parameter(index)]))
+                }
                 GenericParameterDomain::Access => GenericArgument::Access(Access::Parameter(index)),
                 GenericParameterDomain::Value { .. } => {
                     GenericArgument::Value(self.tree.intern_static(Static::Parameter(index)))
@@ -333,12 +326,7 @@ impl Parser {
         }
 
         match kind {
-            // closed spaces and accesses by their keywords
-            TokenType::Identifier if let Some(space) = Space::from_name(&text) => {
-                self.bump();
-
-                Ok(GenericArgument::Space(space))
-            }
+            // closed accesses by their keywords
             TokenType::Identifier if let Some(access) = Access::from_name(&text) => {
                 self.bump();
 
@@ -531,7 +519,7 @@ impl Parser {
         let text = self.tree.source_text(token.span).to_string();
         let start = token.start();
 
-        // read the domain a `Name: Space`, `Name: Access`, const, or type parameter declares
+        // read the domain a `Name: Access`, const, or type parameter declares
         let memory_domain = match (kind, self.peek_memory_domain()) {
             (TokenType::Identifier, Some(domain)) => Some(domain),
             _ => None,
@@ -549,7 +537,7 @@ impl Parser {
         // read the parameter name, a memory parameter naming its domain after the colon
         let name_token = match domain {
             Some(GenericParameterDomain::Type { .. }) => token,
-            Some(GenericParameterDomain::Space | GenericParameterDomain::Access) => {
+            Some(GenericParameterDomain::Access) => {
                 self.eat_token(TokenType::Colon)?;
                 self.eat_token(TokenType::Identifier)?;
 
@@ -602,7 +590,6 @@ impl Parser {
         // treat a declared name or literal as an argument and a bound name as a parameter
         let is_declared = Type::from_primitive_name(text).is_some()
             || self.type_declaration_map.contains_key(text)
-            || Space::from_name(text).is_some()
             || Access::from_name(text).is_some()
             || matches!(
                 text,
@@ -615,7 +602,7 @@ impl Parser {
         is_bound || !is_declared
     }
 
-    /// Return the memory domain a `Name: Space` or `Name: Access` declaration ahead names.
+    /// Return the memory domain a `Name: Access` declaration ahead names.
     fn peek_memory_domain(&self) -> Option<GenericParameterDomain> {
         let colon = self.peek_nth_token(1)?;
         if self.token_type(colon) != TokenType::Colon {
@@ -623,7 +610,6 @@ impl Parser {
         }
         let domain = self.peek_nth_token(2)?;
         match self.tree.source_text(domain.span) {
-            "Space" => Some(GenericParameterDomain::Space),
             "Access" => Some(GenericParameterDomain::Access),
             _ => None,
         }

@@ -8,11 +8,11 @@ fn test_format_allocation_family() {
         r#"
 function allocFamily(v0: int64): ref<int32, managed, mutable, local> {
 entry(v0: int64):
-    v1: ref<int32, managed, mutable, local> = new.zeroed int32
-    v2: slice<int32, managed, mutable, local> = new.slice.zeroed int32, v0
-    v3: uninit<ref<int32, managed, mutable, local>> = new.uninit int32
+    v1: ref<int32, managed, mutable, local> = new.zeroed int32, local
+    v2: slice<int32, managed, mutable, local> = new.slice.zeroed int32, v0, local
+    v3: uninit<ref<int32, managed, mutable, local>> = new.uninit int32, local
     v4: ref<int32, managed, mutable, local> = new.complete v3
-    v5: uninit<slice<int32, managed, mutable, local>> = new.slice.uninit int32, v0
+    v5: uninit<slice<int32, managed, mutable, local>> = new.slice.uninit int32, v0, local
     v6: slice<int32, managed, mutable, local> = new.complete v5
     return v4
 }
@@ -27,10 +27,10 @@ fn test_format_fallible_allocation_family() {
         r#"
 function allocTry(v0: int64): int32 {
 entry(v0: int64):
-    new.zeroed.try int32 => b1 | b2
+    new.zeroed.try int32, local => b1 | b2
 
 b1(v1: ref<int32, managed, mutable, local>):
-    new.slice.uninit.try int32, v0 => b3 | b2
+    new.slice.uninit.try int32, v0, local => b3 | b2
 
 b2:
     v2: int32 = 0
@@ -50,9 +50,9 @@ b3(v3: uninit<slice<int32, managed, mutable, local>>):
 fn test_format_slice_view() {
     assert_format(
         r#"
-function subslice<'a>(v0: slice<int32, borrowed, 'a & local, mutable>, v1: int64, v2: int64): slice<int32, borrowed, 'a & local, mutable> {
-entry(v0: slice<int32, borrowed, 'a & local, mutable>, v1: int64, v2: int64):
-    v3: slice<int32, borrowed, 'a & local, mutable> = address (*v0)[v1; v2]
+function subslice<'a>(v0: slice<int32, borrowed, 'a, mutable>, v1: int64, v2: int64): slice<int32, borrowed, 'a, mutable> {
+entry(v0: slice<int32, borrowed, 'a, mutable>, v1: int64, v2: int64):
+    v3: slice<int32, borrowed, 'a, mutable> = address (*v0)[v1; v2]
     return v3
 }
 "#,
@@ -66,12 +66,12 @@ fn test_format_load_store_family() {
         r#"
 global counter: int32 = zeroinit
 
-function memory<'a>(v0: ref<int32, borrowed, 'a & local, mutable>): int32 {
+function memory<'a>(v0: ref<int32, borrowed, 'a, mutable>): int32 {
     local l0: int32
 
-entry(v0: ref<int32, borrowed, 'a & local, mutable>):
-    v1: ref<int32, borrowed, 'static & local, mutable> = address @counter
-    v2: ref<int32, borrowed, 'frame & frame, mutable> = address l0
+entry(v0: ref<int32, borrowed, 'a, mutable>):
+    v1: ref<int32, borrowed, 'static, mutable> = address @counter
+    v2: ref<int32, borrowed, 'frame, mutable> = address l0
     v3: int32 = load (*v0)
     v4: int32 = copy v3
     store (*v0), v3
@@ -92,10 +92,10 @@ entry(v0: ref<int32, borrowed, 'a & local, mutable>):
 fn test_format_nested_reference_places() {
     assert_format(
         r#"
-function view<'a>(v0: ref<ref<int32, unique, mutable, local>, borrowed, 'a & frame, exclusive>, v1: ref<slice<int32, unique, mutable, local>, borrowed, 'a & frame, exclusive>): void {
-entry(v0: ref<ref<int32, unique, mutable, local>, borrowed, 'a & frame, exclusive>, v1: ref<slice<int32, unique, mutable, local>, borrowed, 'a & frame, exclusive>):
-    v2: ref<int32, borrowed, 'a & local, immutable> = address (*(*v0))
-    v3: slice<int32, borrowed, 'a & local, mutable> = address (*(*v1))
+function view<'a>(v0: ref<ref<int32, unique, mutable>, borrowed, 'a, exclusive>, v1: ref<slice<int32, unique, mutable>, borrowed, 'a, exclusive>): void {
+entry(v0: ref<ref<int32, unique, mutable>, borrowed, 'a, exclusive>, v1: ref<slice<int32, unique, mutable>, borrowed, 'a, exclusive>):
+    v2: ref<int32, borrowed, 'a, immutable> = address (*(*v0))
+    v3: slice<int32, borrowed, 'a, mutable> = address (*(*v1))
     return
 }
 "#,
@@ -109,12 +109,12 @@ fn test_format_projected_places() {
         r#"
 type Packet = variant<uint1> { 0uint1 = void; 1uint1 = (int32, [int32; 4]); };
 
-function project<'a>(v0: ref<Packet, borrowed, 'a & local, immutable>, v1: usize, v2: usize): int32 {
-entry(v0: ref<Packet, borrowed, 'a & local, immutable>, v1: usize, v2: usize):
+function project<'a>(v0: ref<Packet, borrowed, 'a, immutable>, v1: usize, v2: usize): int32 {
+entry(v0: ref<Packet, borrowed, 'a, immutable>, v1: usize, v2: usize):
     v3: int32 = load ((*v0) as 1).0
     v4: int32 = load ((*v0) as 1).1[0]
     v5: int32 = load ((*v0) as 1).1[v1]
-    v6: slice<int32, borrowed, 'a & local, immutable> = address ((*v0) as 1).1[v1; v2]
+    v6: slice<int32, borrowed, 'a, immutable> = address ((*v0) as 1).1[v1; v2]
     return v3
 }
 "#,
@@ -126,8 +126,8 @@ entry(v0: ref<Packet, borrowed, 'a & local, immutable>, v1: usize, v2: usize):
 fn test_format_atomic_load_store_and_fence_family() {
     assert_format(
         r#"
-function atomics<'a>(v0: ref<int32, borrowed, 'a & frame, mutable>): int32 {
-entry(v0: ref<int32, borrowed, 'a & frame, mutable>):
+function atomics<'a>(v0: ref<int32, borrowed, 'a, mutable>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable>):
     v1: int32 = atomic.load (*v0), acquire, scope(device)
     atomic.store (*v0), v1, release, scope(device)
     atomic.fence sequentiallyConsistent, scope(device), storage(shared)
@@ -142,8 +142,8 @@ entry(v0: ref<int32, borrowed, 'a & frame, mutable>):
 fn test_format_atomic_compare_exchange_and_rmw_family() {
     assert_format(
         r#"
-function atomics<'a>(v0: ref<uint32, borrowed, 'a & frame, mutable>): uint32 {
-entry(v0: ref<uint32, borrowed, 'a & frame, mutable>):
+function atomics<'a>(v0: ref<uint32, borrowed, 'a, mutable>): uint32 {
+entry(v0: ref<uint32, borrowed, 'a, mutable>):
     v1: uint32 = 1
     v2: uint32 = 2
     v3: (uint32, boolean) = atomic.cas (*v0), v1, v2, acquireRelease, failure(acquire)
@@ -158,8 +158,8 @@ entry(v0: ref<uint32, borrowed, 'a & frame, mutable>):
 #[test]
 fn test_format_atomic_compare_exchange_default_failure_ordering() {
     let source = r#"
-function atomics<const Order: uint32, const Failure: uint32, 'a>(v0: ref<uint32, borrowed, 'a & frame, mutable>): (uint32, boolean) {
-entry(v0: ref<uint32, borrowed, 'a & frame, mutable>):
+function atomics<const Order: uint32, const Failure: uint32, 'a>(v0: ref<uint32, borrowed, 'a, mutable>): (uint32, boolean) {
+entry(v0: ref<uint32, borrowed, 'a, mutable>):
     v1: uint32 = 1
     v2: uint32 = 2
     v3: (uint32, boolean) = atomic.cas (*v0), v1, v2, Order

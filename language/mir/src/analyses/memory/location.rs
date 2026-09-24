@@ -151,10 +151,10 @@ impl MemoryLocation {
     }
 
     /// Return the memory spaces this location can touch.
-    pub fn spaces(&self, tree: &mir::Tree) -> mir::StorageSet {
+    pub fn spaces(&self) -> mir::StorageSet {
         self.reference_storage
             .as_ref()
-            .map(|storage| storage.storage_set(tree))
+            .map(|storage| storage.storage_set())
             .unwrap_or(mir::StorageSet::ANY)
     }
 
@@ -606,7 +606,7 @@ impl<'a> MemoryRegionBuilder<'a> {
             mir::PlaceOrigin::Local(local) => StorageRoot::LocalSlot(local),
             mir::PlaceOrigin::Global(global) => StorageRoot::Global {
                 global,
-                spaces: mir::Storage::global(self.tree.get(global).space).storage_set(self.tree),
+                spaces: mir::Storage::global(self.tree.get(global).space).storage_set(),
             },
             mir::PlaceOrigin::Value(_) => StorageRoot::Address {
                 place: prefix.clone(),
@@ -632,10 +632,8 @@ impl<'a> MemoryRegionBuilder<'a> {
                         let spaces = self
                             .tree
                             .type_definition(reference)
-                            .reference_storage()
-                            .map_or(mir::StorageSet::ANY, |storage| {
-                                storage.storage_set(self.tree)
-                            });
+                            .reference_storage_set()
+                            .unwrap_or(mir::StorageSet::ANY);
                         let place = prefix.clone().with_projection(mir::Projection::Deref);
                         region =
                             MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Address {
@@ -927,21 +925,13 @@ impl<'a> MemoryRegionBuilder<'a> {
 
         MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Parameter {
             index: index as u32,
-            spaces: ty
-                .reference_storage()
-                .map_or(mir::StorageSet::ANY, |storage| {
-                    storage.storage_set(self.tree)
-                }),
+            spaces: ty.reference_storage_set().unwrap_or(mir::StorageSet::ANY),
         }))
     }
 
     /// Return the storage created by one allocation.
     fn allocation_region(&mut self, point: mir::Point, address: mir::Value) -> MemoryRegion {
-        let ty = self.value_type(address);
-        let ty = self.tree.get(ty);
-        let Some(storage) = ty.reference_storage() else {
-            unreachable!("MIR allocation result requires reference storage");
-        };
+        let space = self.allocation_space(point);
 
         // locate the block that creates the allocation
         let block = match point {
@@ -955,19 +945,28 @@ impl<'a> MemoryRegionBuilder<'a> {
         MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Allocation {
             point,
             block,
-            spaces: storage.storage_set(self.tree),
+            spaces: space.space_set(),
         }))
+    }
+
+    /// Return the heap one allocation point names.
+    fn allocation_space(&self, point: mir::Point) -> mir::Space {
+        let space = match point {
+            mir::Point::Instruction(instruction) => self.tree.get(instruction).allocation_space(),
+            mir::Point::Terminator(block) => self
+                .tree
+                .get(self.tree.get(block).terminator)
+                .allocation_space(),
+        };
+
+        space.unwrap_or_else(|| unreachable!("allocation point outside an allocation"))
     }
 
     /// Retain an unknown allocation's base address and permitted memory spaces.
     fn address_region(&mut self, address: mir::Value) -> MemoryRegion {
         let ty = self.value_type(address);
         let ty = self.tree.get(ty);
-        let spaces = ty
-            .reference_storage()
-            .map_or(mir::StorageSet::ANY, |storage| {
-                storage.storage_set(self.tree)
-            });
+        let spaces = ty.reference_storage_set().unwrap_or(mir::StorageSet::ANY);
 
         MemoryRegion::Place(MemoryPlace::from_root(StorageRoot::Address {
             place: mir::Place::value(address).with_projection(mir::Projection::Deref),
@@ -1132,10 +1131,9 @@ impl<'a> MemoryRegionBuilder<'a> {
                     .get(self.tree.get(self.function).expect_value_type(*argument));
                 let target = self.tree.get(*to_type);
                 let pointer_bits = self.target.pointer_bits();
-                if let (Some((source_width, source_signed)), Some((target_width, target_signed))) = (
-                    source.int_info_with_pointer_width(pointer_bits),
-                    target.int_info_with_pointer_width(pointer_bits),
-                ) {
+                if let (Some((source_width, source_signed)), Some((target_width, target_signed))) =
+                    (source.integer(pointer_bits), target.integer(pointer_bits))
+                {
                     let preserves_value = (target_width >= source_width
                         && source_signed == target_signed)
                         || (target_width > source_width && !source_signed);
@@ -1178,8 +1176,7 @@ impl<'a> MemoryRegionBuilder<'a> {
         let ty = self
             .tree
             .get(self.tree.get(self.function).expect_value_type(left));
-        let Some((width, is_signed)) = ty.int_info_with_pointer_width(self.target.pointer_bits())
-        else {
+        let Some((width, is_signed)) = ty.integer(self.target.pointer_bits()) else {
             return false;
         };
         let mask = u128::MAX >> (128 - width);

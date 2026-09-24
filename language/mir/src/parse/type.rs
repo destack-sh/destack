@@ -2,10 +2,9 @@ use crate::source::{Token, TokenType};
 use destack_source::Span;
 
 use crate::{
-    Access, Copy, Extent, Field, FieldSpan, GenericArgument, GenericParameter,
-    GenericParameterDomain, LanguageItem, Lifetime, LifetimeParameter, Multiplicity, Reference,
-    SignatureParameter, Space, Static, StaticId, Storage, Type, TypeDeclarationSpans, TypeId,
-    VariantCase,
+    Access, Extent, Field, FieldSpan, GenericArgument, GenericParameterDomain, Lifetime,
+    LifetimeParameter, Multiplicity, Reference, SignatureParameter, Space, Static, StaticId, Type,
+    TypeDeclarationSpans, TypeId, VariantCase,
 };
 
 use super::error::{ParseError, ParseResult};
@@ -20,8 +19,8 @@ struct ReferenceQualifiers {
     lifetime: Lifetime,
     /// Whether a lifetime was written, the erased wildcard among them.
     has_lifetime: bool,
-    /// The referenced storage, written or named by the lifetime's region parameter.
-    storage: Option<Storage>,
+    /// The heap space a managed reference addresses.
+    space: Option<Space>,
     /// The exposed access mode.
     access: Option<Access>,
 }
@@ -33,7 +32,7 @@ impl ReferenceQualifiers {
             kind: None,
             lifetime: Lifetime::empty(),
             has_lifetime: false,
-            storage: None,
+            space: None,
             access: None,
         }
     }
@@ -54,17 +53,16 @@ impl ReferenceQualifiers {
             return Err(ParseError::invalid("borrowed reference lifetime", pos));
         }
 
-        // use explicit storage or the complete storage of the lifetime's region parameter
-        let storage = match (self.storage, self.lifetime.extents.as_slice()) {
-            (Some(storage), _) => storage,
-            (None, [Extent::Parameter(index)]) => Storage::Parameter(*index),
-            (None, _) => return Err(ParseError::invalid("reference storage", pos)),
+        // place a managed reference in its given space, the local heap by default
+        let kind = match (kind, self.space) {
+            (Reference::Managed(_), space) => Reference::Managed(space.unwrap_or_default()),
+            (kind, None) => kind,
+            (_, Some(_)) => return Err(ParseError::invalid("reference space", pos)),
         };
 
         Ok(ResolvedReferenceQualifiers {
             kind,
             lifetime: self.lifetime,
-            storage,
             access: self
                 .access
                 .ok_or_else(|| ParseError::invalid("reference access", pos))?,
@@ -79,8 +77,6 @@ struct ResolvedReferenceQualifiers {
     kind: Reference,
     /// The explicit reference lifetime.
     lifetime: Lifetime,
-    /// The referenced storage.
-    storage: Storage,
     /// The exposed access mode.
     access: Access,
 }
@@ -172,9 +168,7 @@ impl Parser {
             return Ok(base);
         }
 
-        let copy = self.tree.copy(base);
-
-        self.intern_type(Type::Application { base, arguments }, copy)
+        self.intern_type(Type::Application { base, arguments })
     }
 
     /// Parse a type expression and append its span as one source segment.
@@ -335,6 +329,11 @@ impl Parser {
             TokenType::Identifier | TokenType::TypeName => {
                 return self.parse_named_type(&token_text, token_start);
             }
+            TokenType::Question => {
+                self.bump();
+
+                return self.parse_referent_type();
+            }
             TokenType::Function => self.parse_function_type()?,
             TokenType::Ref => self.parse_reference_type()?,
             TokenType::Vector => self.parse_vector_type()?,
@@ -353,9 +352,30 @@ impl Parser {
                 return Err(ParseError::unexpected("type", kind, token_start));
             }
         };
-        let copy = self.parsed_copy(&ty);
 
-        self.intern_type(ty, copy)
+        self.intern_type(ty)
+    }
+
+    /// Parse the referent parameter a `?` marks over a type parameter in scope.
+    fn parse_referent_type(&mut self) -> ParseResult<TypeId> {
+        let (name, start) = {
+            let token = self
+                .peek()
+                .ok_or_else(|| ParseError::unexpected_end("type parameter", self.pos()))?;
+            (self.tree.source_text(token.span).to_string(), token.start())
+        };
+        let Some((index, parameter)) = self.generic_parameter(&name) else {
+            return Err(ParseError::invalid("type parameter", start));
+        };
+        let GenericParameterDomain::Type { .. } = parameter.domain else {
+            return Err(ParseError::invalid("type parameter", start));
+        };
+        self.bump();
+
+        self.intern_type(Type::Parameter {
+            index,
+            referent: true,
+        })
     }
 
     /// Parse a named type form.
@@ -363,7 +383,7 @@ impl Parser {
         if let Some(primitive) = Type::from_primitive_name(name) {
             self.bump();
 
-            return self.intern_type(primitive, Copy::Yes);
+            return self.intern_type(primitive);
         }
 
         // a type parameter in scope
@@ -371,20 +391,17 @@ impl Parser {
             let GenericParameterDomain::Type { .. } = parameter.domain else {
                 return Err(ParseError::invalid("type parameter", start));
             };
-            let copy = self.parameter_copy(parameter);
             self.bump();
 
-            return self.intern_type(
-                Type::Parameter {
-                    index,
-                    referent: false,
-                },
-                copy,
-            );
+            return self.intern_type(Type::Parameter {
+                index,
+                referent: false,
+            });
         }
 
         let ty = match name {
             "fn" => self.parse_function_pointer_type()?,
+            "witness" => self.parse_witness_type()?,
             "ptr" => self.parse_pointer_type()?,
             "slice" => self.parse_slice_type()?,
             "dynamic" => self.parse_dynamic_type()?,
@@ -404,14 +421,13 @@ impl Parser {
 
                 let base = self
                     .tree
-                    .intern_type(Type::Declaration { declaration: base }, Copy::No);
+                    .intern_type(Type::Declaration { declaration: base });
 
                 return self.apply_type_arguments(base, arguments);
             }
         };
-        let copy = self.parsed_copy(&ty);
 
-        self.intern_type(ty, copy)
+        self.intern_type(ty)
     }
 
     /// Parse the generic arguments on an identified type.
@@ -435,80 +451,34 @@ impl Parser {
         Ok(arguments)
     }
 
-    /// Parse a region argument, with explicit storage after `&` when needed.
+    /// Parse a region argument.
     pub(super) fn parse_region_argument(&mut self) -> ParseResult<GenericArgument> {
-        let start = self.pos();
-        let lifetime = self.parse_lifetime_union()?;
-        let storage = if self.eat_token_if(TokenType::Ampersand) {
-            self.parse_storage_argument()?
-        } else {
-            match lifetime.extents.as_slice() {
-                [Extent::Parameter(index)] => Storage::Parameter(*index),
-                _ => {
-                    return Err(ParseError::invalid(
-                        "region argument without storage",
-                        start,
-                    ));
-                }
-            }
-        };
-
-        Ok(GenericArgument::Region { lifetime, storage })
+        Ok(GenericArgument::Region(self.parse_lifetime_union()?))
     }
 
-    /// Parse one space, a join of spaces separated by pipes interning as one.
-    fn parse_space_argument(&mut self) -> ParseResult<Space> {
-        let mut spaces = vec![self.parse_space_atom()?];
-        while self.eat_token_if(TokenType::Pipe) {
-            spaces.push(self.parse_space_atom()?);
-        }
-        if let [space] = spaces.as_slice() {
-            return Ok(*space);
-        }
-
-        Ok(self.tree.intern_space_join(spaces))
-    }
-
-    /// Parse one space by its name or by a space or region parameter in scope.
-    fn parse_space_atom(&mut self) -> ParseResult<Space> {
+    /// Parse an associated type projection.
+    fn parse_witness_type(&mut self) -> ParseResult<Type> {
+        self.bump();
+        self.eat_token(TokenType::LessThan)?;
+        let (receiver, _) = self.parse_type_use_part()?;
+        self.eat_token(TokenType::Comma)?;
+        let (interface, _) = self.parse_type_use_part()?;
+        self.eat_token(TokenType::Comma)?;
         let token = self
             .peek()
-            .ok_or_else(|| ParseError::unexpected_end("region space", self.pos()))?;
-        let text = self.tree.source_text(token.span).to_string();
-        let start = token.start();
-        if self.token_type(token) == TokenType::Lifetime {
-            return match self.parse_extent()? {
-                Extent::Parameter(index) => Ok(Space::Parameter(index)),
-                _ => Err(ParseError::invalid("region space", start)),
-            };
+            .ok_or_else(|| ParseError::unexpected_end("witness member", self.pos()))?;
+        if self.token_type(token) != TokenType::Identifier {
+            return Err(ParseError::invalid("witness member", token.start()));
         }
-        if let Some(space) = Space::from_name(&text) {
-            self.bump();
+        let member = self.tree.source_text(token.span).to_string();
+        self.bump();
+        self.eat_token(TokenType::GreaterThan)?;
 
-            return Ok(space);
-        }
-
-        // read the space of one type's storage
-        if text == "PlaceOf" {
-            self.bump();
-            self.eat_token(TokenType::LessThan)?;
-            let (ty, _) = self.parse_type_use_part()?;
-            self.eat_token(TokenType::GreaterThan)?;
-
-            return Ok(Space::Of(ty));
-        }
-        if let Some((index, parameter)) = self.generic_parameter(&text)
-            && matches!(
-                parameter.domain,
-                GenericParameterDomain::Space | GenericParameterDomain::Region { .. }
-            )
-        {
-            self.bump();
-
-            return Ok(Space::Parameter(index));
-        }
-
-        Err(ParseError::invalid("region space", start))
+        Ok(Type::Witness {
+            receiver,
+            interface,
+            member: self.strings.intern(&member),
+        })
     }
 
     /// Parse a function pointer type.
@@ -540,14 +510,13 @@ impl Parser {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
         let (element, _) = self.parse_type_use_part()?;
-        let (kind, lifetime, storage, access) = self.parse_slice_qualifiers()?;
+        let (kind, lifetime, access) = self.parse_slice_qualifiers()?;
         self.eat_token(TokenType::GreaterThan)?;
 
         Ok(Type::Slice {
             kind,
             lifetime,
             element,
-            storage,
             access,
         })
     }
@@ -564,7 +533,6 @@ impl Parser {
             kind: qualifiers.kind,
             lifetime: qualifiers.lifetime,
             constraint,
-            storage: qualifiers.storage,
             access: qualifiers.access,
         })
     }
@@ -588,7 +556,6 @@ impl Parser {
             kind: qualifiers.kind,
             lifetime: qualifiers.lifetime,
             signature,
-            storage: qualifiers.storage,
             access: qualifiers.access,
         })
     }
@@ -704,14 +671,11 @@ impl Parser {
     ) -> ParseResult<TypeId> {
         let (result, _) = self.parse_type_use_part()?;
         self.parse_lifetime_where(&mut lifetimes)?;
-        self.intern_type(
-            Type::FunctionSignature {
-                lifetimes,
-                parameters,
-                result,
-            },
-            Copy::Yes,
-        )
+        self.intern_type(Type::FunctionSignature {
+            lifetimes,
+            parameters,
+            result,
+        })
     }
 
     /// Parse a fixed array type.
@@ -832,7 +796,7 @@ impl Parser {
         let close_brace_span = self.span_at(close_brace_start, close_brace_length);
 
         let struct_type = Type::Struct { fields };
-        let type_id = self.intern_type(struct_type, Copy::No)?;
+        let type_id = self.intern_type(struct_type)?;
 
         Ok((
             type_id,
@@ -855,7 +819,6 @@ impl Parser {
         Ok(Type::Reference {
             kind: qualifiers.kind,
             lifetime: qualifiers.lifetime,
-            storage: qualifiers.storage,
             access: qualifiers.access,
             pointee,
         })
@@ -943,7 +906,7 @@ impl Parser {
     }
 
     /// Parse optional trailing qualifiers for one slice type.
-    fn parse_slice_qualifiers(&mut self) -> ParseResult<(Reference, Lifetime, Storage, Access)> {
+    fn parse_slice_qualifiers(&mut self) -> ParseResult<(Reference, Lifetime, Access)> {
         let mut qualifiers = ReferenceQualifiers::new();
 
         while self.peek_is(TokenType::Comma) {
@@ -960,12 +923,7 @@ impl Parser {
 
         let qualifiers = qualifiers.finish("slice kind", self.pos())?;
 
-        Ok((
-            qualifiers.kind,
-            qualifiers.lifetime,
-            qualifiers.storage,
-            qualifiers.access,
-        ))
+        Ok((qualifiers.kind, qualifiers.lifetime, qualifiers.access))
     }
 
     /// Parse one access: a keyword or an access parameter in scope.
@@ -1017,15 +975,9 @@ impl Parser {
             }
             qualifiers.lifetime = self.parse_lifetime_union()?;
             qualifiers.has_lifetime = true;
-            if self.eat_token_if(TokenType::Ampersand) {
-                let storage = self.parse_storage_argument()?;
-                if qualifiers.storage.replace(storage).is_some() {
-                    return Err(ParseError::invalid("duplicate reference storage", pos));
-                }
-            }
-        } else if let Some(storage) = self.parse_storage_if()? {
-            if qualifiers.storage.replace(storage).is_some() {
-                return Err(ParseError::invalid("duplicate reference storage", pos));
+        } else if let Some(space) = self.parse_space_if() {
+            if qualifiers.space.replace(space).is_some() {
+                return Err(ParseError::invalid("duplicate reference space", pos));
             }
         } else {
             return Err(ParseError::invalid("reference qualifier", pos));
@@ -1047,7 +999,7 @@ impl Parser {
         }
 
         let kind = match self.tree.source_text(token.span) {
-            "managed" => Reference::Managed,
+            "managed" => Reference::Managed(Space::Local),
             "unique" => Reference::Unique,
             "borrowed" => Reference::Borrowed,
             "raw" => Reference::Raw,
@@ -1058,101 +1010,25 @@ impl Parser {
         Ok(Some(kind))
     }
 
-    /// Parse one optional reference storage.
-    fn parse_storage_if(&mut self) -> ParseResult<Option<Storage>> {
-        let Some(token) = self.peek() else {
-            return Ok(None);
-        };
-        let text = self.tree.source_text(token.span);
-        let is_parameter = self.generic_parameter(text).is_some_and(|(_, parameter)| {
-            matches!(
-                parameter.domain,
-                GenericParameterDomain::Space | GenericParameterDomain::Region { .. }
-            )
-        });
-        let is_bound = self.token_type(token) == TokenType::Lifetime;
-        if !matches!(text, "frame" | "heap" | "static")
-            && Space::from_name(text).is_none()
-            && !is_parameter
-            && !is_bound
-        {
-            return Ok(None);
+    /// Parse the heap space one allocation names after its operands, the local heap by default.
+    pub(super) fn parse_allocation_space(&mut self) -> ParseResult<Space> {
+        if !self.peek_is(TokenType::Comma) {
+            return Ok(Space::Local);
         }
+        self.bump();
+        let pos = self.pos();
 
-        self.parse_storage_argument().map(Some)
+        self.parse_space_if()
+            .ok_or_else(|| ParseError::invalid("allocation space", pos))
     }
 
-    /// Parse a set of possible storage locations.
-    fn parse_storage_argument(&mut self) -> ParseResult<Storage> {
-        let mut members = vec![self.parse_storage_atom()?];
-        while self.eat_token_if(TokenType::Pipe) {
-            members.push(self.parse_storage_atom()?);
-        }
+    /// Parse one optional heap space by its name.
+    fn parse_space_if(&mut self) -> Option<Space> {
+        let token = self.peek()?;
+        let space = Space::from_name(self.tree.source_text(token.span))?;
+        self.bump();
 
-        if let [storage] = members.as_slice() {
-            return Ok(*storage);
-        }
-
-        Ok(self.tree.intern_storage_join(members))
-    }
-
-    /// Parse one concrete storage location or region parameter.
-    fn parse_storage_atom(&mut self) -> ParseResult<Storage> {
-        // read concrete residences with an implicit local space
-        if self.eat_name_if("frame") {
-            return Ok(Storage::Frame);
-        }
-        if self.eat_name_if("static") {
-            let space = if self.eat_token_if(TokenType::OpenParenthesis) {
-                let space = self.parse_space_argument()?;
-                self.eat_token(TokenType::CloseParenthesis)?;
-                space
-            } else {
-                Space::Local
-            };
-
-            return Ok(Storage::Static(space));
-        }
-        if self.eat_name_if("heap") {
-            self.eat_token(TokenType::OpenParenthesis)?;
-            let space = self.parse_space_argument()?;
-            self.eat_token(TokenType::CloseParenthesis)?;
-
-            return Ok(Storage::heap(space));
-        }
-
-        // read the complete storage supplied for a region parameter, a bound one in its space
-        if self.peek_is(TokenType::Lifetime) {
-            return match self.parse_extent()? {
-                Extent::Parameter(index) => Ok(Storage::Parameter(index)),
-                Extent::Bound(bound) => {
-                    self.eat_token(TokenType::Ampersand)?;
-                    let space = self.parse_space_argument()?;
-
-                    Ok(Storage::Bound { bound, space })
-                }
-                _ => Err(ParseError::invalid("storage parameter", self.pos())),
-            };
-        }
-        if let Some(token) = self.peek()
-            && let Some((index, parameter)) =
-                self.generic_parameter(self.tree.source_text(token.span))
-            && matches!(parameter.domain, GenericParameterDomain::Region { .. })
-        {
-            self.bump();
-
-            return Ok(Storage::Parameter(index));
-        }
-
-        // read a concrete residence in the selected space
-        let space = self.parse_space_atom()?;
-        let storage = if self.eat_name_if("static") {
-            Storage::Static(space)
-        } else {
-            Storage::heap(space)
-        };
-
-        Ok(storage)
+        Some(space)
     }
 
     /// Parse one tick lifetime union.
@@ -1200,49 +1076,13 @@ impl Parser {
         Ok(term)
     }
 
-    /// Return the copy decision one parsed shape takes, a declaration's set by its attribute.
-    fn parsed_copy(&self, ty: &Type) -> Copy {
-        match ty {
-            Type::Reference { kind, .. }
-            | Type::Slice { kind, .. }
-            | Type::Dynamic { kind, .. }
-            | Type::Function { kind, .. } => kind.copy(),
-            Type::Uninit { .. } | Type::Struct { .. } | Type::Newtype { .. } | Type::Variant { .. } => {
-                Copy::No
-            }
-            Type::ManuallyDrop { value } => self.tree.copy(*value),
-            Type::FixedArray { element, .. } | Type::Vector { element, .. } => {
-                self.tree.copy(*element)
-            }
-            Type::Tuple { elements } => match elements.iter().all(|element| self.tree.copy(*element).is_yes()) {
-                true => Copy::Yes,
-                false => Copy::No,
-            },
-            _ => Copy::Yes,
-        }
-    }
-
-    /// Return the copy decision one type parameter's bounds write.
-    pub(super) fn parameter_copy(&self, parameter: &GenericParameter) -> Copy {
-        match &parameter.domain {
-            GenericParameterDomain::Type { bounds }
-                if bounds
-                    .iter()
-                    .any(|bound| LanguageItem::Copy.is_bound_by(&self.tree, *bound)) =>
-            {
-                Copy::Yes
-            }
-            _ => Copy::No,
-        }
-    }
-
     /// Return a canonical type id for the provided type shape.
-    pub(super) fn intern_type(&mut self, ty: Type, copy: Copy) -> ParseResult<TypeId> {
-        Ok(self.tree.intern_type(ty, copy))
+    pub(super) fn intern_type(&mut self, ty: Type) -> ParseResult<TypeId> {
+        Ok(self.tree.intern_type(ty))
     }
 
     /// Return the canonical parse-recovery type.
     pub(super) fn error_type(&mut self) -> TypeId {
-        self.tree.intern_type(Type::Error, Copy::Yes)
+        self.tree.intern_type(Type::Error)
     }
 }

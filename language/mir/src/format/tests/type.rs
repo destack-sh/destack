@@ -1,6 +1,6 @@
 use super::{assert_format, assert_format_eq, assert_output_eq, format_tree_with_options};
 use crate::{
-    Attribute, AttributeArgs, AttributeIdentifier, Copy, Field, FormatOptions, Symbol, Tree, Type,
+    Attribute, AttributeArgs, AttributeIdentifier, Field, FormatOptions, Symbol, Tree, Type,
 };
 use destack_core::StringPool;
 
@@ -51,8 +51,8 @@ entry:
 fn test_format_reference_kinds() {
     assert_format(
         r#"
-function refs(v0: ref<int32, managed, mutable, local>, v1: ref<int32, unique, readonly, local>): ref<int32, managed, mutable, local> {
-entry(v0: ref<int32, managed, mutable, local>, v1: ref<int32, unique, readonly, local>):
+function refs(v0: ref<int32, managed, mutable, local>, v1: ref<int32, unique, readonly>): ref<int32, managed, mutable, local> {
+entry(v0: ref<int32, managed, mutable, local>, v1: ref<int32, unique, readonly>):
     return v0
 }
 "#,
@@ -90,26 +90,13 @@ entry(v0: Nullish, v1: null):
     );
 }
 
-/// Formats each reference storage canonically.
-#[test]
-fn test_format_reference_storage() {
-    assert_format(
-        r#"
-function storage<'a, 'b, 'c>(v0: ref<int32, borrowed, 'a & shared, mutable>, v1: ref<int32, borrowed, 'b & frame, mutable>, v2: ref<int32, borrowed, 'c & constant, mutable>, v3: ref<int32, borrowed, 'static & static, mutable>, v4: ref<int32, borrowed, 'static & shared static, mutable>): ref<int32, borrowed, 'a & shared, mutable> {
-entry(v0: ref<int32, borrowed, 'a & shared, mutable>, v1: ref<int32, borrowed, 'b & frame, mutable>, v2: ref<int32, borrowed, 'c & constant, mutable>, v3: ref<int32, borrowed, 'static & static, mutable>, v4: ref<int32, borrowed, 'static & shared static, mutable>):
-    return v0
-}
-"#,
-    );
-}
-
 /// Formats parameter borrow lifetimes canonically.
 #[test]
 fn test_format_parameter_borrow_lifetime() {
     assert_format(
         r#"
-function borrowParam<'a>(v0: ref<int32, borrowed, 'a & local, mutable>): ref<int32, borrowed, 'a & local, mutable> {
-entry(v0: ref<int32, borrowed, 'a & local, mutable>):
+function borrowParam<'a>(v0: ref<int32, borrowed, 'a, mutable>): ref<int32, borrowed, 'a, mutable> {
+entry(v0: ref<int32, borrowed, 'a, mutable>):
     return v0
 }
 "#,
@@ -121,8 +108,8 @@ entry(v0: ref<int32, borrowed, 'a & local, mutable>):
 fn test_format_static_borrow_lifetime() {
     assert_format(
         r#"
-function staticBorrow(v0: ref<int32, borrowed, 'static & local, mutable>): ref<int32, borrowed, 'static & local, mutable> {
-entry(v0: ref<int32, borrowed, 'static & local, mutable>):
+function staticBorrow(v0: ref<int32, borrowed, 'static, mutable>): ref<int32, borrowed, 'static, mutable> {
+entry(v0: ref<int32, borrowed, 'static, mutable>):
     return v0
 }
 "#,
@@ -134,8 +121,8 @@ entry(v0: ref<int32, borrowed, 'static & local, mutable>):
 fn test_format_frame_borrow_lifetime() {
     assert_format(
         r#"
-function frameBorrow(v0: ref<int32, borrowed, 'frame & frame, mutable>): ref<int32, borrowed, 'frame & frame, mutable> {
-entry(v0: ref<int32, borrowed, 'frame & frame, mutable>):
+function frameBorrow(v0: ref<int32, borrowed, 'frame, mutable>): ref<int32, borrowed, 'frame, mutable> {
+entry(v0: ref<int32, borrowed, 'frame, mutable>):
     return v0
 }
 "#,
@@ -148,12 +135,12 @@ fn test_format_named_lifetimes() {
     assert_format(
         r#"
 type Player<'LWorld, 'LMesh> {
-    world: ref<int32, borrowed, 'LWorld & local, mutable>;
-    mesh: ref<float64, borrowed, 'LMesh & local, mutable>;
+    world: ref<int32, borrowed, 'LWorld, mutable>;
+    mesh: ref<float64, borrowed, 'LMesh, mutable>;
 }
 
-function tickPlayer<'LPlayer, 'LWorld, 'LMesh>(v0: ref<Player<'LWorld & local, 'LMesh & local>, borrowed, 'LPlayer & local, mutable>): void {
-entry(v0: ref<Player<'LWorld & local, 'LMesh & local>, borrowed, 'LPlayer & local, mutable>):
+function tickPlayer<'LPlayer, 'LWorld, 'LMesh>(v0: ref<Player<'LWorld, 'LMesh>, borrowed, 'LPlayer, mutable>): void {
+entry(v0: ref<Player<'LWorld, 'LMesh>, borrowed, 'LPlayer, mutable>):
     return
 }
 "#,
@@ -186,11 +173,11 @@ fn test_format_type_applications() {
     assert_format(
         r#"
 type Box<T, 'a> {
-    value: ref<T, borrowed, 'a & local, readonly>;
+    value: ref<T, borrowed, 'a, readonly>;
 }
 
-function borrow(v0: Box<int32, 'static & local>): Box<int32, 'static & local> {
-entry(v0: Box<int32, 'static & local>):
+function borrow(v0: Box<int32, 'static>): Box<int32, 'static> {
+entry(v0: Box<int32, 'static>):
     return v0
 }
 "#,
@@ -202,8 +189,8 @@ entry(v0: Box<int32, 'static & local>):
 fn test_format_lifetime_outlives_bounds() {
     assert_format(
         r#"
-function pass<'LA, 'LC>(v0: ref<int32, borrowed, 'LA & local, mutable>): ref<int32, borrowed, 'LC & local, mutable> where 'LA: 'LC {
-entry(v0: ref<int32, borrowed, 'LA & local, mutable>):
+function pass<'LA, 'LC>(v0: ref<int32, borrowed, 'LA, mutable>): ref<int32, borrowed, 'LC, mutable> where 'LA: 'LC {
+entry(v0: ref<int32, borrowed, 'LA, mutable>):
     return v0
 }
 "#,
@@ -215,8 +202,8 @@ entry(v0: ref<int32, borrowed, 'LA & local, mutable>):
 fn test_format_borrowed_slices() {
     assert_format(
         r#"
-function views<'a>(v0: slice<int32, borrowed, 'a & local, readonly>): void {
-entry(v0: slice<int32, borrowed, 'a & local, readonly>):
+function views<'a>(v0: slice<int32, borrowed, 'a, readonly>): void {
+entry(v0: slice<int32, borrowed, 'a, readonly>):
     return
 }
 "#,
@@ -360,11 +347,10 @@ fn test_format_type_copy_markers() {
     assert_format(
         r#"
 type OwnedPair {
-    ref<int32, unique, mutable, local>;
-    ref<int32, unique, mutable, local>;
+    ref<int32, unique, mutable>;
+    ref<int32, unique, mutable>;
 }
 
-@copy
 type CopyPair {
     int32;
     int32;
@@ -382,7 +368,7 @@ fn test_format_synthetic_copy_marker() {
     let int32_type = tree.intern_type(Type::Int {
         width: 32,
         is_signed: true,
-    }, Copy::Yes);
+    });
     let declaration_name = strings.intern("Pair");
 
     let left = tree.intern_field(Field {
@@ -395,12 +381,9 @@ fn test_format_synthetic_copy_marker() {
         ty: int32_type,
         attributes: Vec::new(),
     });
-    let struct_type = tree.intern_type(
-        Type::Struct {
-            fields: vec![left, right],
-        },
-        Copy::Yes,
-    );
+    let struct_type = tree.intern_type(Type::Struct {
+        fields: vec![left, right],
+    });
     let pair = tree.reserve_type(Symbol::named(crate::TEST_MODULE, declaration_name));
     let declaration = tree.get_mut(pair);
     declaration.definition = Some(struct_type);
@@ -410,7 +393,6 @@ fn test_format_synthetic_copy_marker() {
 
     assert_output_eq(
         r#"
-@copy
 type Pair {
     int32;
     int32;
@@ -430,7 +412,7 @@ fn test_format_struct_fields_with_attributes_without_parsed_spans() {
     let int32_type = tree.intern_type(Type::Int {
         width: 32,
         is_signed: true,
-    }, Copy::Yes);
+    });
     let attribute_name = strings.intern("packed");
     let declaration_name = strings.intern("Point");
     let field_name = strings.intern("x");
@@ -444,12 +426,9 @@ fn test_format_struct_fields_with_attributes_without_parsed_spans() {
         }],
     });
 
-    let struct_type = tree.intern_type(
-        Type::Struct {
-            fields: vec![field_id],
-        },
-        Copy::Yes,
-    );
+    let struct_type = tree.intern_type(Type::Struct {
+        fields: vec![field_id],
+    });
     let point = tree.reserve_type(Symbol::named(crate::TEST_MODULE, declaration_name));
     let declaration = tree.get_mut(point);
     declaration.definition = Some(struct_type);
@@ -459,7 +438,6 @@ fn test_format_struct_fields_with_attributes_without_parsed_spans() {
 
     assert_output_eq(
         r#"
-@copy
 type Point {
     @packed
     x: int32;
@@ -467,21 +445,6 @@ type Point {
 "#
         .trim(),
         output,
-    );
-}
-
-/// Preserve joined storage places independently of their first term and storage duration.
-#[test]
-fn test_roundtrip_joined_storage_places() {
-    assert_format(
-        r#"
-type Borrows<P: Space, Q: Space, 'a> {
-    sharedFirst: ref<int32, borrowed, 'a & shared|heap(P), readonly>;
-    parameterFirst: ref<int32, borrowed, 'a & heap(P)|local, readonly>;
-    staticJoin: ref<int32, borrowed, 'a & static(Q|P), readonly>;
-    residenceJoin: ref<int32, borrowed, 'a & shared|frame|static, readonly>;
-}
-"#,
     );
 }
 
@@ -496,14 +459,14 @@ type Borrows<T, 'a, A: Access> {
     exclusive: ref<T, borrowed, 'a, exclusive>;
     immutable: ref<T, borrowed, 'a, immutable>;
     generic: ref<T, borrowed, 'a, A>;
-    raw: ref<T, raw, mutable, local>;
-    rawSlice: slice<T, raw, readonly, shared>;
+    raw: ref<T, raw, mutable>;
+    rawSlice: slice<T, raw, readonly>;
     slice: slice<T, borrowed, 'a, immutable>;
-    erased: ref<T, borrowed, '_ & shared, immutable>;
+    erased: ref<T, borrowed, '_, immutable>;
     @held: ref<T, borrowed, 'a, readonly>;
 }
 
-type Applied = newtype<Borrows<int32, 'static & shared, immutable>>;
+type Applied = newtype<Borrows<int32, 'static, immutable>>;
 "#,
     );
 }
@@ -518,7 +481,7 @@ type Node<T> {
     value: T;
 }
 
-type Choice = variant<uint8> { 7uint8 = ref<Node<int32>, unique, mutable, local>; 2uint8 = int32; };
+type Choice = variant<uint8> { 7uint8 = ref<Node<int32>, unique, mutable>; 2uint8 = int32; };
 "#,
     );
 }
@@ -527,10 +490,10 @@ type Choice = variant<uint8> { 7uint8 = ref<Node<int32>, unique, mutable, local>
 #[test]
 fn test_format_nested_lifetime_binders() {
     assert_format(
-        "type Callback = <'a>(<'b>(ref<int32, borrowed, 'a & local, readonly>, ref<int32, borrowed, 'b & local, readonly>) => ref<int32, borrowed, 'a & local, readonly> where 'b: 'a) => void;",
+        "type Callback = <'a>(<'b>(ref<int32, borrowed, 'a, readonly>, ref<int32, borrowed, 'b, readonly>) => ref<int32, borrowed, 'a, readonly> where 'b: 'a) => void;",
     );
     assert_format_eq(
-        "type Callback = <'a>(<'a>(ref<int32, borrowed, 'a & local, readonly>) => void) => void;",
-        "type Callback = <'a>(<'a_1>(ref<int32, borrowed, 'a_1 & local, readonly>) => void) => void;",
+        "type Callback = <'a>(<'a>(ref<int32, borrowed, 'a, readonly>) => void) => void;",
+        "type Callback = <'a>(<'a_1>(ref<int32, borrowed, 'a_1, readonly>) => void) => void;",
     );
 }

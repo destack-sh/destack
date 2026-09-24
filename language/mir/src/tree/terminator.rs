@@ -4,7 +4,7 @@ use smallvec::{SmallVec, smallvec};
 
 use crate::{
     BinaryOperator, Block, BlockId, BlockParameter, Call, CallDispatch, Edge, FunctionId,
-    LocalNodeId, Node, NodeType, Successor, Tree, Type, TypeId, Value, ValueSlice,
+    LocalNodeId, Node, NodeType, Space, Successor, Tree, Type, TypeId, Value, ValueSlice,
 };
 
 /// One control-flow edge target.
@@ -310,6 +310,8 @@ pub enum Terminator {
     NewZeroedTry {
         /// The type stored in the allocation.
         storage_type: TypeId,
+        /// The heap receiving the allocation.
+        space: Space,
         /// The block to jump to when allocation succeeds.
         success: BlockTarget,
         /// The block to jump to when allocation fails.
@@ -319,6 +321,8 @@ pub enum Terminator {
     NewUninitTry {
         /// The type stored in the allocation.
         storage_type: TypeId,
+        /// The heap receiving the allocation.
+        space: Space,
         /// The block to jump to when allocation succeeds.
         success: BlockTarget,
         /// The block to jump to when allocation fails.
@@ -330,6 +334,8 @@ pub enum Terminator {
         element: TypeId,
         /// The number of elements.
         length: Value,
+        /// The heap receiving the allocation.
+        space: Space,
         /// The block to jump to when allocation succeeds.
         success: BlockTarget,
         /// The block to jump to when allocation fails.
@@ -341,6 +347,8 @@ pub enum Terminator {
         element: TypeId,
         /// The number of elements.
         length: Value,
+        /// The heap receiving the allocation.
+        space: Space,
         /// The block to jump to when allocation succeeds.
         success: BlockTarget,
         /// The block to jump to when allocation fails.
@@ -374,6 +382,17 @@ impl Node for Terminator {
 }
 
 impl Terminator {
+    /// Return the heap one allocating terminator names.
+    pub fn allocation_space(&self) -> Option<Space> {
+        match self {
+            Terminator::NewZeroedTry { space, .. }
+            | Terminator::NewUninitTry { space, .. }
+            | Terminator::NewSliceZeroedTry { space, .. }
+            | Terminator::NewSliceUninitTry { space, .. } => Some(*space),
+            _ => None,
+        }
+    }
+
     /// Enumerate the control flow edges leaving this terminator.
     pub fn edges(&self, tree: &Tree, source: BlockId) -> Vec<(Edge, BlockId)> {
         self.targets(tree, source)
@@ -1133,7 +1152,7 @@ mod tests {
             r#"
 function test(v0: int64, v9: int32): int32 {
 entry(v0: int64, v9: int32):
-    new.slice.uninit.try int32, v0 => b1(v9) | b2(v9)
+    new.slice.uninit.try int32, v0, local => b1(v9) | b2(v9)
 
 b1(v1: uninit<slice<int32, managed, mutable, local>>, v2: int32):
     return v2

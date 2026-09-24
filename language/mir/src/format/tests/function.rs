@@ -23,8 +23,8 @@ type Point {
     x: int32;
 }
 
-constructor Point.constructor<'a>(v0: ref<uninit<Point>, borrowed, 'a & local, exclusive>, v1: int32): void {
-entry(v0: ref<uninit<Point>, borrowed, 'a & local, exclusive>, v1: int32):
+constructor Point.constructor<'a>(v0: ref<uninit<Point>, borrowed, 'a, exclusive>, v1: int32): void {
+entry(v0: ref<uninit<Point>, borrowed, 'a, exclusive>, v1: int32):
     store (*v0).0, v1
     return
 }
@@ -59,7 +59,7 @@ function localAddr(): void {
     local l0: int32
 
 entry:
-    v0: ref<int32, borrowed, 'frame & frame, mutable> = address l0
+    v0: ref<int32, borrowed, 'frame, mutable> = address l0
     return
 }
 "#,
@@ -134,8 +134,8 @@ entry(v0: int32):
     return v0
 }
 
-function borrow<int32, 'a>(v0: ref<int32, borrowed, 'a & local, readonly>): ref<int32, borrowed, 'a & local, readonly> {
-entry(v0: ref<int32, borrowed, 'a & local, readonly>):
+function borrow<int32, 'a>(v0: ref<int32, borrowed, 'a, readonly>): ref<int32, borrowed, 'a, readonly> {
+entry(v0: ref<int32, borrowed, 'a, readonly>):
     return v0
 }
 
@@ -168,8 +168,8 @@ entry(v3: int32):
 fn test_format_reference_access_preserved() {
     assert_format(
         r#"
-function refMutability(v0: ref<int32, managed, mutable, local>, v1: ref<int32, unique, readonly, local>): ref<int32, managed, mutable, local> {
-entry(v0: ref<int32, managed, mutable, local>, v1: ref<int32, unique, readonly, local>):
+function refMutability(v0: ref<int32, managed, mutable, local>, v1: ref<int32, unique, readonly>): ref<int32, managed, mutable, local> {
+entry(v0: ref<int32, managed, mutable, local>, v1: ref<int32, unique, readonly>):
     return v0
 }
 "#,
@@ -190,7 +190,7 @@ type Box<T> {
 }
 
 type Pair<T, U, 'a> {
-    left: ref<T, borrowed, 'a & local, readonly>;
+    left: ref<T, borrowed, 'a, readonly>;
     right: U;
 }
 
@@ -210,9 +210,9 @@ entry(v0: int32):
     return v1
 }
 
-function place<T, S: Space, A: Access, const N: usize, 'a>(v0: ref<T, borrowed, 'a & heap(S), A>, v1: [T; N]): ref<T, borrowed, 'a & static(S), A> {
-entry(v0: ref<T, borrowed, 'a & heap(S), A>, v1: [T; N]):
-    v2: ref<T, borrowed, 'a & static(S), A> = cast.bit v0 -> ref<T, borrowed, 'a & static(S), A>
+function place<T, A: Access, const N: usize, 'a>(v0: ref<T, borrowed, 'a, A>, v1: [T; N]): ref<T, borrowed, 'a, A> {
+entry(v0: ref<T, borrowed, 'a, A>, v1: [T; N]):
+    v2: ref<T, borrowed, 'a, A> = cast.bit v0 -> ref<T, borrowed, 'a, A>
     return v2
 }
 

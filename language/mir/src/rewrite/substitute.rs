@@ -1,7 +1,6 @@
 use crate::{
-    lend, referent_of,
-    Access, Extent, Field, GenericArgument, Lifetime, RegionBound, Space, Static, StaticId,
-    Storage, Tree, Type, TypeId,
+    Access, Extent, Field, GenericArgument, Lifetime, RegionBound, Static, StaticId, Tree, Type,
+    TypeId, lend, referent_of,
 };
 
 /// Substitute generic arguments and bound regions through MIR types.
@@ -12,7 +11,7 @@ pub struct Substitution<'a> {
     /// Arguments replacing template parameters.
     arguments: &'a [GenericArgument],
     /// Arguments replacing the enclosing region binder.
-    regions: &'a [(Lifetime, Storage)],
+    regions: &'a [Lifetime],
     /// The number of nested binders entered.
     depth: u32,
     /// Additional enclosing binders for a replacement argument.
@@ -37,7 +36,7 @@ impl<'a> Substitution<'a> {
                 // substitute one representation while retaining nominal child types
                 let arguments = arguments.clone();
 
-                Substitution::new(tree, &arguments).definition(ty, definition)
+                Substitution::new(tree, &arguments).definition(definition)
             }
             _ => ty,
         }
@@ -62,11 +61,11 @@ impl<'a> Substitution<'a> {
             return ty;
         }
 
-        self.definition(ty, self.tree.get(ty).clone())
+        self.definition(self.tree.get(ty).clone())
     }
 
-    /// Substitute one definition and its children, the result copying as its source does.
-    fn definition(&mut self, ty: TypeId, mut definition: Type) -> TypeId {
+    /// Substitute one definition and its children.
+    fn definition(&mut self, mut definition: Type) -> TypeId {
         // take a referent parameter's argument as its object, without capturing bound regions
         if let Type::Parameter { index, referent } = definition
             && !self.arguments.is_empty()
@@ -83,7 +82,6 @@ impl<'a> Substitution<'a> {
         if let Type::Reference {
             kind,
             lifetime,
-            storage,
             access,
             pointee,
         } = &definition
@@ -94,11 +92,10 @@ impl<'a> Substitution<'a> {
             && !self.arguments.is_empty()
         {
             let lifetime = self.lifetime(lifetime);
-            let storage = self.storage(*storage);
             let access = self.access(*access);
             let target = self.parameter_argument(*index);
 
-            return lend(self.tree, *kind, lifetime, storage, access, target);
+            return lend(self.tree, *kind, lifetime, access, target);
         }
 
         // enter the signature's region binder
@@ -111,31 +108,18 @@ impl<'a> Substitution<'a> {
         // substitute reference qualifiers and signature bounds
         match &mut definition {
             Type::Reference {
-                lifetime,
-                storage,
-                access,
-                ..
+                lifetime, access, ..
             }
             | Type::Dynamic {
-                lifetime,
-                storage,
-                access,
-                ..
+                lifetime, access, ..
             }
             | Type::Slice {
-                lifetime,
-                storage,
-                access,
-                ..
+                lifetime, access, ..
             }
             | Type::Function {
-                lifetime,
-                storage,
-                access,
-                ..
+                lifetime, access, ..
             } => {
                 *lifetime = self.lifetime(lifetime);
-                *storage = self.storage(*storage);
                 *access = self.access(*access);
             }
             Type::Pointer { access, .. } => *access = self.access(*access),
@@ -166,7 +150,7 @@ impl<'a> Substitution<'a> {
         }
         self.depth = depth;
 
-        self.tree.intern_type(definition, self.tree.copy(ty))
+        self.tree.intern_type(definition)
     }
 
     /// Return the type bound to one type parameter, rebound past the entered binders.
@@ -182,11 +166,7 @@ impl<'a> Substitution<'a> {
     pub fn argument(&mut self, argument: GenericArgument) -> GenericArgument {
         match argument {
             GenericArgument::Type(ty) => GenericArgument::Type(self.ty(ty)),
-            GenericArgument::Region { lifetime, storage } => GenericArgument::Region {
-                lifetime: self.lifetime(&lifetime),
-                storage: self.storage(storage),
-            },
-            GenericArgument::Space(space) => GenericArgument::Space(self.space(space)),
+            GenericArgument::Region(lifetime) => GenericArgument::Region(self.lifetime(&lifetime)),
             GenericArgument::Access(access) => GenericArgument::Access(self.access(access)),
             GenericArgument::Value(value) => GenericArgument::Value(self.value(value)),
         }
@@ -225,16 +205,14 @@ impl<'a> Substitution<'a> {
                     Some(self.arguments[index as usize].clone())
                 }
                 Extent::Bound(bound) if !self.regions.is_empty() && bound.depth == self.depth => {
-                    let (lifetime, storage) = &self.regions[bound.index as usize];
-                    Some(GenericArgument::Region {
-                        lifetime: lifetime.clone(),
-                        storage: *storage,
-                    })
+                    Some(GenericArgument::Region(
+                        self.regions[bound.index as usize].clone(),
+                    ))
                 }
                 _ => None,
             };
             if let Some(argument) = argument {
-                let GenericArgument::Region { lifetime, .. } = self.rebind(argument) else {
+                let GenericArgument::Region(lifetime) = self.rebind(argument) else {
                     unreachable!("region parameter bound to a non-region argument");
                 };
                 extents.extend(lifetime.extents);
@@ -247,82 +225,6 @@ impl<'a> Substitution<'a> {
         }
 
         Lifetime::new(extents)
-    }
-
-    /// Substitute a space and its joined members.
-    pub fn space(&mut self, space: Space) -> Space {
-        match space {
-            Space::Parameter(index) if !self.arguments.is_empty() => {
-                match self.rebind(self.arguments[index as usize].clone()) {
-                    GenericArgument::Space(space) => space,
-                    GenericArgument::Region { storage, .. } => storage.space(self.tree),
-                    _ => unreachable!("space parameter bound to an incompatible argument"),
-                }
-            }
-            // read the space of a type's storage once substitution closes it
-            Space::Of(ty) => {
-                let ty = self.ty(ty);
-                match self.tree.get(ty).reference_storage() {
-                    Some(storage) => storage.space(self.tree),
-                    None => Space::Of(ty),
-                }
-            }
-            Space::Join(id) => {
-                let members = self.tree.space_join(id).to_vec();
-                let members = members
-                    .into_iter()
-                    .map(|space| self.space(space))
-                    .collect::<Vec<_>>();
-
-                self.tree.intern_space_join(members)
-            }
-            space => space,
-        }
-    }
-
-    /// Substitute storage and its joined members.
-    pub fn storage(&mut self, storage: Storage) -> Storage {
-        match storage {
-            Storage::Parameter(index) if !self.arguments.is_empty() => {
-                let GenericArgument::Region { storage, .. } =
-                    self.rebind(self.arguments[index as usize].clone())
-                else {
-                    unreachable!("storage parameter bound to a non-region argument");
-                };
-
-                storage
-            }
-            Storage::Bound { bound, .. }
-                if !self.regions.is_empty() && bound.depth == self.depth =>
-            {
-                let (lifetime, storage) = &self.regions[bound.index as usize];
-                let argument = GenericArgument::Region {
-                    lifetime: lifetime.clone(),
-                    storage: *storage,
-                };
-                let GenericArgument::Region { storage, .. } = self.rebind(argument) else {
-                    unreachable!("region substitution changes its argument domain");
-                };
-
-                storage
-            }
-            Storage::Bound { bound, space } => Storage::Bound {
-                bound: self.bound(bound),
-                space: self.space(space),
-            },
-            Storage::Heap(space) => Storage::Heap(self.space(space)),
-            Storage::Static(space) => Storage::Static(self.space(space)),
-            Storage::Join(id) => {
-                let members = self.tree.storage_join(id).to_vec();
-                let members = members
-                    .into_iter()
-                    .map(|storage| self.storage(storage))
-                    .collect::<Vec<_>>();
-
-                self.tree.intern_storage_join(members)
-            }
-            storage => storage,
-        }
     }
 
     /// Substitute an access parameter.
@@ -345,9 +247,6 @@ impl<'a> Substitution<'a> {
         let mut value = self.tree.static_value(id).clone();
         value.map_values(&mut |value| self.value(value));
         value.map_types(&mut |ty| self.ty(ty));
-        if let Static::Space(space) = &mut value {
-            *space = self.space(*space);
-        }
 
         self.tree.intern_static(value)
     }
@@ -374,7 +273,7 @@ pub fn substitute_type(tree: &Tree, ty: TypeId, arguments: &[GenericArgument]) -
 }
 
 /// Substitute the enclosing region binder while preserving nested binders.
-pub fn instantiate_regions(tree: &Tree, ty: TypeId, regions: &[(Lifetime, Storage)]) -> TypeId {
+pub fn instantiate_regions(tree: &Tree, ty: TypeId, regions: &[Lifetime]) -> TypeId {
     let mut substitution = Substitution::new(tree, &[]);
     substitution.regions = regions;
 

@@ -351,6 +351,14 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, ty: &Typ
         Type::FunctionPointer { signature } => {
             walk_type_id(visitor, tree, signature);
         }
+        Type::Witness {
+            receiver,
+            interface,
+            ..
+        } => {
+            walk_type_id(visitor, tree, receiver);
+            walk_type_id(visitor, tree, interface);
+        }
         Type::Function { signature, .. } => {
             walk_type_id(visitor, tree, signature);
         }
@@ -385,8 +393,7 @@ fn walk_argument<V: NodeVisitor + ?Sized>(
     match argument {
         GenericArgument::Type(ty) => walk_type_id(visitor, tree, ty),
         GenericArgument::Value(value) => walk_static(visitor, tree, *value),
-        GenericArgument::Region { .. } | GenericArgument::Space(_) | GenericArgument::Access(_) => {
-        }
+        GenericArgument::Region(_) | GenericArgument::Access(_) => {}
     }
 }
 
@@ -451,7 +458,6 @@ fn walk_static<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, id: Static
         }
         Static::Parameter(_)
         | Static::Null
-        | Static::Space(_)
         | Static::Undefined
         | Static::Boolean(_)
         | Static::Integer(_)

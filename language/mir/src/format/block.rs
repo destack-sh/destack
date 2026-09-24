@@ -212,30 +212,50 @@ fn format_terminator<'a>(term: &Terminator, f: &mut Writer<'a, '_>) -> FormatRes
 
         Terminator::NewZeroedTry {
             storage_type,
+            space: heap,
             success,
             failure,
-            ..
         } => {
-            write!(f, [token("new.zeroed.try"), space(), storage_type])?;
+            write!(
+                f,
+                [
+                    token("new.zeroed.try"),
+                    space(),
+                    storage_type,
+                    token(","),
+                    space(),
+                    token(heap.label())
+                ]
+            )?;
             format_allocation_continuation(success, failure, f)
         }
 
         Terminator::NewUninitTry {
             storage_type,
+            space: heap,
             success,
             failure,
-            ..
         } => {
-            write!(f, [token("new.uninit.try"), space(), storage_type])?;
+            write!(
+                f,
+                [
+                    token("new.uninit.try"),
+                    space(),
+                    storage_type,
+                    token(","),
+                    space(),
+                    token(heap.label())
+                ]
+            )?;
             format_allocation_continuation(success, failure, f)
         }
 
         Terminator::NewSliceZeroedTry {
             element,
             length,
+            space: heap,
             success,
             failure,
-            ..
         } => {
             write!(
                 f,
@@ -245,7 +265,10 @@ fn format_terminator<'a>(term: &Terminator, f: &mut Writer<'a, '_>) -> FormatRes
                     element,
                     token(","),
                     space(),
-                    length
+                    length,
+                    token(","),
+                    space(),
+                    token(heap.label())
                 ]
             )?;
             format_allocation_continuation(success, failure, f)
@@ -254,9 +277,9 @@ fn format_terminator<'a>(term: &Terminator, f: &mut Writer<'a, '_>) -> FormatRes
         Terminator::NewSliceUninitTry {
             element,
             length,
+            space: heap,
             success,
             failure,
-            ..
         } => {
             write!(
                 f,
@@ -266,7 +289,10 @@ fn format_terminator<'a>(term: &Terminator, f: &mut Writer<'a, '_>) -> FormatRes
                     element,
                     token(","),
                     space(),
-                    length
+                    length,
+                    token(","),
+                    space(),
+                    token(heap.label())
                 ]
             )?;
             format_allocation_continuation(success, failure, f)

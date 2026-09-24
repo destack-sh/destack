@@ -23,7 +23,7 @@ pub fn erase_lifetimes(tree: &Tree, ty: TypeId) -> TypeId {
     erased.map_values(&mut |value| erase_value(tree, value));
     erased.map_child_type_ids(&mut |child| erase_lifetimes(tree, child));
 
-    tree.intern_type(erased, tree.copy(ty))
+    tree.intern_type(erased)
 }
 
 /// Erase lifetime requirements from types reflected in a compile-time value.

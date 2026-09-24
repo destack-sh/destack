@@ -832,6 +832,7 @@ impl FormatNode for Instruction {
             Instruction::NewZeroed {
                 destination,
                 storage_type,
+                space: heap,
                 ..
             } => {
                 format_typed_destination(*destination, f)?;
@@ -843,7 +844,10 @@ impl FormatNode for Instruction {
                         space(),
                         token("new.zeroed"),
                         space(),
-                        storage_type
+                        storage_type,
+                        token(","),
+                        space(),
+                        token(heap.label())
                     ]
                 )
             }
@@ -851,6 +855,7 @@ impl FormatNode for Instruction {
             Instruction::NewUninit {
                 destination,
                 storage_type,
+                space: heap,
                 ..
             } => {
                 format_typed_destination(*destination, f)?;
@@ -862,7 +867,10 @@ impl FormatNode for Instruction {
                         space(),
                         token("new.uninit"),
                         space(),
-                        storage_type
+                        storage_type,
+                        token(","),
+                        space(),
+                        token(heap.label())
                     ]
                 )
             }
@@ -888,6 +896,7 @@ impl FormatNode for Instruction {
                 destination,
                 element,
                 length,
+                space: heap,
                 ..
             } => {
                 format_typed_destination(*destination, f)?;
@@ -902,7 +911,10 @@ impl FormatNode for Instruction {
                         element,
                         token(","),
                         space(),
-                        length
+                        length,
+                        token(","),
+                        space(),
+                        token(heap.label())
                     ]
                 )
             }
@@ -911,6 +923,7 @@ impl FormatNode for Instruction {
                 destination,
                 element,
                 length,
+                space: heap,
                 ..
             } => {
                 format_typed_destination(*destination, f)?;
@@ -925,7 +938,10 @@ impl FormatNode for Instruction {
                         element,
                         token(","),
                         space(),
-                        length
+                        length,
+                        token(","),
+                        space(),
+                        token(heap.label())
                     ]
                 )
             }

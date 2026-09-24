@@ -27,7 +27,6 @@ pub(super) fn format_static<'a>(id: StaticId, f: &mut Writer<'a, '_>) -> FormatR
         }
         Static::Regex { content, flags } => format_regex(*content, *flags, f),
         Static::Type(ty) => format_static_type(*ty, f),
-        Static::Space(space) => super::r#type::format_space(*space, f),
         Static::Array(values) => format_array(values, f),
         Static::FixedArray { value, length } => {
             write!(f, [token("[")])?;

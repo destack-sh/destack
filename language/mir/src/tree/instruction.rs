@@ -8,7 +8,7 @@ use smallvec::{SmallVec, smallvec};
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CallDispatch, CompareExchangeAccess,
     Constant, ConvertMode, CounterId, DispatchSlot, FenceAccess, FunctionId, GenericArgument,
-    IndexSlice, Intrinsic, MemoryOrdering, Node, NodeType, Place, SamplerId, Tree, TypeId,
+    IndexSlice, Intrinsic, MemoryOrdering, Node, NodeType, Place, SamplerId, Space, Tree, TypeId,
     UnaryOperator, Value, ValueSlice, VectorReduceOperator,
 };
 
@@ -442,6 +442,8 @@ pub enum Instruction {
         storage_type: TypeId,
         /// The result type of the allocation.
         result_type: TypeId,
+        /// The heap receiving the allocation.
+        space: Space,
     },
     /// Allocate uninitialized typed heap storage (`new.uninit`).
     ///
@@ -453,6 +455,8 @@ pub enum Instruction {
         storage_type: TypeId,
         /// The result type of the allocation.
         result_type: TypeId,
+        /// The heap receiving the allocation.
+        space: Space,
     },
     /// Complete initialization of one allocation (`new.complete`).
     NewComplete {
@@ -475,6 +479,8 @@ pub enum Instruction {
         length: Value,
         /// The result type of the allocation.
         result_type: TypeId,
+        /// The heap receiving the allocation.
+        space: Space,
     },
     /// Allocate uninitialized typed repeated heap storage (`new.slice.uninit`).
     ///
@@ -488,6 +494,8 @@ pub enum Instruction {
         length: Value,
         /// The result type of the allocation.
         result_type: TypeId,
+        /// The heap receiving the allocation.
+        space: Space,
     },
     /// Release ownership of an allocation while retaining its initialized contents for live aliases.
     ///
@@ -753,6 +761,17 @@ impl Instruction {
             | Self::AtomicStore { place, .. }
             | Self::AtomicCompareExchange { place, .. }
             | Self::AtomicRmw { place, .. } => Some(place),
+            _ => None,
+        }
+    }
+
+    /// Return the heap one allocating instruction names.
+    pub fn allocation_space(&self) -> Option<Space> {
+        match self {
+            Instruction::NewZeroed { space, .. }
+            | Instruction::NewUninit { space, .. }
+            | Instruction::NewSliceZeroed { space, .. }
+            | Instruction::NewSliceUninit { space, .. } => Some(*space),
             _ => None,
         }
     }

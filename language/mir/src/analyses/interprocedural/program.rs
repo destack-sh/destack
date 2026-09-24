@@ -346,7 +346,7 @@ mod tests {
         let leaf_source = r#"
 export function leaf(v0: int32): int32 {
 entry(v0: int32):
-    v1: ref<int32, unique, mutable, local> = new.zeroed int32
+    v1: ref<int32, unique, mutable> = new.zeroed int32, local
     return v0
 }
 "#;
@@ -387,7 +387,7 @@ entry(v0: int32):
         // add an allocation while preserving the callee effects consumed by its caller
         let edited = leaf_source.replacen(
             "    return v0",
-            "    v2: ref<int32, unique, mutable, local> = new.zeroed int32\n    return v0",
+            "    v2: ref<int32, unique, mutable> = new.zeroed int32\n    return v0",
             1,
         );
         let mut program = TestProgram::new(&[&edited, caller_source]);

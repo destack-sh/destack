@@ -3,12 +3,11 @@ use destack_core::StringPool;
 use crate::build::ModuleBuilder;
 use crate::parse::{ParseOptions, Parser, test_file};
 use crate::{
-    type_lifetime, type_contains_borrowed_refs, type_borrowed_paths, 
-    Access, BinaryOperator, Callee, Copy, ExecutionScope, Extent, FenceAccess, FloatType,
-    FormatOptions, Formatter, GenericArgument, GenericParameter, GenericParameterDomain, Importer,
+    Access, BinaryOperator, Callee, ExecutionScope, Extent, FenceAccess, FloatType, FormatOptions,
+    Formatter, GenericArgument, GenericParameter, GenericParameterDomain, Importer, Intrinsic,
     LayoutBuilder, LayoutTable, Lifetime, MemoryOrdering, Multiplicity, Mutability, Place,
-    Projection, Reference, Space, Storage, StorageSet, Substitution, Symbol, TargetLayout,
-    TraceMap, Tree, Type, TypeDeclaration,
+    Projection, Reference, Space, StorageSet, Substitution, Symbol, TEST_MODULE, TargetLayout,
+    Tree, Type, TypeDeclaration, type_borrowed_paths, type_contains_borrowed_refs, type_lifetime,
 };
 
 /// Format one test MIR tree.
@@ -27,7 +26,7 @@ fn format_test_mir(tree: &Tree, strings: &StringPool) -> String {
 #[test]
 fn test_build_empty_function() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let void_type = module.type_void();
 
     // build empty function
@@ -54,7 +53,7 @@ entry:
 #[test]
 fn test_build_function_with_parameters() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let i32_type = module.type_int(32, true);
 
     // build add function
@@ -88,7 +87,7 @@ entry(v0: int32, v1: int32):
 #[test]
 fn test_build_function_with_locals() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let i64_type = module.type_int(64, true);
 
     // build function with local
@@ -126,7 +125,7 @@ entry:
 #[test]
 fn test_build_function_with_branch() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let bool_type = module.type_boolean();
     let i32_type = module.type_int(32, true);
 
@@ -194,7 +193,7 @@ b3:
 #[test]
 fn test_build_function_with_invoke() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let signature = module.type_function_signature(vec![i32_type], i32_type);
     let callee_header = module
@@ -265,7 +264,7 @@ b2:
 #[test]
 fn test_build_calls_from_callee_and_signature() {
     // setup callable declarations
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let void_type = module.type_void();
     let i32_type = module.type_int(32, true);
     let identity_signature = module.type_function_signature(vec![i32_type], i32_type);
@@ -336,14 +335,13 @@ entry(v0: int32):
 #[test]
 fn test_build_function_with_panic_terminator() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let string_type = module.type_reference(
-        Reference::Managed,
+        Reference::Managed(Space::Local),
         Lifetime::empty(),
         i32_type,
         Access::Readonly,
-        Storage::Heap(Space::Local),
     );
     let void_type = module.type_void();
 
@@ -373,7 +371,7 @@ entry:
 #[test]
 fn test_ssa_define_use_single_block() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let i32_type = module.type_int(32, true);
 
     // build function
@@ -411,7 +409,7 @@ entry:
 #[test]
 fn test_ssa_redefine_variable() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let i32_type = module.type_int(32, true);
 
     // build function
@@ -452,7 +450,7 @@ entry:
 #[test]
 fn test_ssa_branch_with_phi() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let bool_type = module.type_boolean();
     let i32_type = module.type_int(32, true);
 
@@ -525,7 +523,7 @@ b3(v3: int32):
 #[test]
 fn test_ssa_trivial_phi_removal() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let bool_type = module.type_boolean();
     let i32_type = module.type_int(32, true);
 
@@ -595,7 +593,7 @@ b3:
 #[test]
 fn test_ssa_trivial_phi_unsealed() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let bool_type = module.type_boolean();
     let i32_type = module.type_int(32, true);
 
@@ -664,7 +662,7 @@ b3:
 #[test]
 fn test_build_arithmetic_operations() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let i32_type = module.type_int(32, true);
 
     // build function
@@ -707,7 +705,7 @@ entry(v0: int32, v1: int32):
 #[test]
 fn test_build_comparison_operations() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
 
@@ -748,10 +746,8 @@ entry(v0: int32, v1: int32):
 /// Type construction methods create correct types.
 #[test]
 fn test_type_construction() {
-    use crate::Type;
-
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
 
     // create various types
     let void_type = module.type_void();
@@ -763,15 +759,14 @@ fn test_type_construction() {
     let f64_type = module.type_float(FloatType::Float64);
     let pointer_type = module.type_pointer(i32_type, Access::Readonly);
     let array_type = module.type_fixed_array(i32_type, 10);
-    let tuple_type = module.type_tuple(vec![i32_type, i64_type], Copy::Yes);
+    let tuple_type = module.type_tuple(vec![i32_type, i64_type]);
     let signature = module.type_function_signature(vec![i32_type], i32_type);
     let function_pointer_type = module.type_function_pointer(signature);
     let callable_type = module.type_function(
         signature,
         Multiplicity::Repeatable,
-        Reference::Managed,
+        Reference::Managed(Space::Local),
         Lifetime::empty(),
-        Storage::Heap(Space::Local),
         Access::Mutable,
     );
 
@@ -813,7 +808,7 @@ fn test_type_construction() {
 #[test]
 fn test_seal_all_blocks() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let void_type = module.type_void();
 
     // build multi-block function
@@ -855,26 +850,22 @@ b2:
 /// Constructs reference and pointer access forms.
 #[test]
 fn test_construct_reference_and_pointer_types() {
-    use crate::Type;
-
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
 
     // create managed reference types
     let i32_type = module.type_int(32, true);
     let managed_readonly_type = module.type_reference(
-        Reference::Managed,
+        Reference::Managed(Space::Local),
         Lifetime::empty(),
         i32_type,
         Access::Readonly,
-        Storage::Heap(Space::Local),
     );
     let managed_mutable_type = module.type_reference(
-        Reference::Managed,
+        Reference::Managed(Space::Local),
         Lifetime::empty(),
         i32_type,
         Access::Mutable,
-        Storage::Heap(Space::Local),
     );
     let pointer_readonly_type = module.type_pointer(i32_type, Access::Readonly);
     let pointer_mutable_type = module.type_pointer(i32_type, Access::Mutable);
@@ -884,7 +875,7 @@ fn test_construct_reference_and_pointer_types() {
     assert!(matches!(
         tree.get(managed_readonly_type),
         Type::Reference {
-            kind: Reference::Managed,
+            kind: Reference::Managed(Space::Local),
             access: Access::Readonly,
             ..
         }
@@ -892,7 +883,7 @@ fn test_construct_reference_and_pointer_types() {
     assert!(matches!(
         tree.get(managed_mutable_type),
         Type::Reference {
-            kind: Reference::Managed,
+            kind: Reference::Managed(Space::Local),
             access: Access::Mutable,
             ..
         }
@@ -917,14 +908,13 @@ fn test_construct_reference_and_pointer_types() {
 #[test]
 fn test_build_new_zeroed() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let ref_type = module.type_reference(
-        Reference::Managed,
+        Reference::Managed(Space::Local),
         Lifetime::empty(),
         i32_type,
         Access::Readonly,
-        Storage::Heap(Space::Local),
     );
 
     // build function with new.zeroed
@@ -932,7 +922,7 @@ fn test_build_new_zeroed() {
     let mut builder = module.function(header);
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
-    let allocated_value = builder.new_zeroed(i32_type, ref_type);
+    let allocated_value = builder.new_zeroed(i32_type, ref_type, Space::Local);
     builder.return_(Some(allocated_value));
     builder.seal_block(entry_block);
     builder.finish().unwrap();
@@ -943,7 +933,7 @@ fn test_build_new_zeroed() {
     let expected = "\
 function allocTest(): ref<int32, managed, readonly, local> {
 entry:
-    v0: ref<int32, managed, readonly, local> = new.zeroed int32
+    v0: ref<int32, managed, readonly, local> = new.zeroed int32, local
     return v0
 }";
     assert_eq!(output, expected);
@@ -953,15 +943,14 @@ entry:
 #[test]
 fn test_build_new_slice_zeroed() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let i64_type = module.type_int(64, true);
     let slice_type = module.type_slice(
-        Reference::Managed,
+        Reference::Managed(Space::Local),
         Lifetime::empty(),
         i32_type,
         Access::Mutable,
-        Storage::Heap(Space::Local),
     );
 
     // build function with new.slice.zeroed
@@ -973,7 +962,8 @@ fn test_build_new_slice_zeroed() {
     let entry_block = builder.block();
     builder.switch_to_block(entry_block);
     let length_value = builder.function_parameter(0);
-    let allocated_value = builder.new_slice_zeroed(i32_type, length_value, slice_type);
+    let allocated_value =
+        builder.new_slice_zeroed(i32_type, length_value, slice_type, Space::Local);
     builder.return_(Some(allocated_value));
     builder.seal_block(entry_block);
     builder.finish().unwrap();
@@ -984,7 +974,7 @@ fn test_build_new_slice_zeroed() {
     let expected = "\
 function allocArrayTest(v0: int64): slice<int32, managed, mutable, local> {
 entry(v0: int64):
-    v1: slice<int32, managed, mutable, local> = new.slice.zeroed int32, v0
+    v1: slice<int32, managed, mutable, local> = new.slice.zeroed int32, v0, local
     return v1
 }";
     assert_eq!(output, expected);
@@ -994,22 +984,20 @@ entry(v0: int64):
 #[test]
 fn test_build_slice_view() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let i64_type = module.type_int(64, true);
     let source_type = module.type_slice(
-        Reference::Managed,
+        Reference::Managed(Space::Local),
         Lifetime::empty(),
         i32_type,
         Access::Mutable,
-        Storage::Heap(Space::Local),
     );
     let slice_type = module.type_slice(
         Reference::Borrowed,
         Lifetime::bound(0),
         i32_type,
         Access::Mutable,
-        Storage::Heap(Space::Local),
     );
 
     // build function with slice view
@@ -1041,9 +1029,9 @@ fn test_build_slice_view() {
     let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-function sliceTest<'a>(v0: slice<int32, managed, mutable, local>, v1: int64, v2: int64): slice<int32, borrowed, 'a & local, mutable> {
+function sliceTest<'a>(v0: slice<int32, managed, mutable, local>, v1: int64, v2: int64): slice<int32, borrowed, 'a, mutable> {
 entry(v0: slice<int32, managed, mutable, local>, v1: int64, v2: int64):
-    v3: slice<int32, borrowed, 'a & local, mutable> = address (*v0)[v1; v2]
+    v3: slice<int32, borrowed, 'a, mutable> = address (*v0)[v1; v2]
     return v3
 }";
     assert_eq!(output, expected);
@@ -1052,10 +1040,8 @@ entry(v0: slice<int32, managed, mutable, local>, v1: int64, v2: int64):
 /// Intrinsic instructions via the builder.
 #[test]
 fn test_build_intrinsics() {
-    use crate::Intrinsic;
-
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let f64_type = module.type_float(FloatType::Float64);
 
     // build function with intrinsics
@@ -1095,7 +1081,7 @@ entry(v0: float64, v1: float64):
 #[test]
 fn test_build_void_intrinsic() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let void_type = module.type_void();
 
     // build function with void intrinsic
@@ -1129,14 +1115,14 @@ entry:
 #[test]
 fn test_build_struct_aggregate() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let f64_type = module.type_float(FloatType::Float64);
 
     // create a struct type {i32, f64}
     let value0 = module.field(None, i32_type);
     let value1 = module.field(None, f64_type);
-    let struct_type = module.type_struct(vec![value0, value1], Copy::Yes);
+    let struct_type = module.type_struct(vec![value0, value1]);
 
     // build function that constructs a struct
     let header = module
@@ -1170,10 +1156,10 @@ entry(v0: int32, v1: float64):
 #[test]
 fn test_build_tuple_aggregate() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
-    let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copy::Yes);
+    let tuple_type = module.type_tuple(vec![i32_type, bool_type]);
 
     // build function that constructs a tuple
     let header = module
@@ -1207,7 +1193,7 @@ entry(v0: int32, v1: boolean):
 #[test]
 fn test_build_array_aggregate() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let array_type = module.type_fixed_array(i32_type, 3);
 
@@ -1244,12 +1230,12 @@ entry:
 #[test]
 fn test_build_field_get_struct() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let f64_type = module.type_float(FloatType::Float64);
     let value0 = module.field(None, i32_type);
     let value1 = module.field(None, f64_type);
-    let struct_type = module.type_struct(vec![value0, value1], Copy::Yes);
+    let struct_type = module.type_struct(vec![value0, value1]);
 
     // build function that extracts the second field
     let header = module
@@ -1282,10 +1268,10 @@ entry(v0: { int32, float64 }):
 #[test]
 fn test_build_field_get_tuple() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
-    let tuple_type = module.type_tuple(vec![i32_type, bool_type], Copy::Yes);
+    let tuple_type = module.type_tuple(vec![i32_type, bool_type]);
 
     // build function that extracts the first element
     let header = module
@@ -1318,26 +1304,23 @@ entry(v0: (int32, boolean)):
 #[test]
 fn test_build_field_get_from_region_applied_type() {
     // define the referenced user type
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let int32 = module.type_int(32, true);
     let user_field_name = module.strings().intern("id");
     let user_field = module.field(Some(user_field_name), int32);
     let user_name = module.strings().intern("User");
     let user_declaration = module
         .tree_mut()
-        .reserve_type(Symbol::named(crate::TEST_MODULE, user_name));
-    let definition = module.tree_mut().intern_type(
-        Type::Struct {
-            fields: vec![user_field],
-        },
-        Copy::Yes,
-    );
+        .reserve_type(Symbol::named(TEST_MODULE, user_name));
+    let definition = module.tree_mut().intern_type(Type::Struct {
+        fields: vec![user_field],
+    });
     let declaration = module.tree_mut().get_mut(user_declaration);
     declaration.definition = Some(definition);
     declaration.name = Some(user_name);
     let user = module.tree_mut().intern_type(Type::Declaration {
         declaration: user_declaration,
-    }, Copy::No);
+    });
 
     // define a region-polymorphic aggregate borrowing the user
     let borrowed_user = module.type_reference(
@@ -1345,7 +1328,6 @@ fn test_build_field_get_from_region_applied_type() {
         Lifetime::new([Extent::Parameter(0)]),
         user,
         Access::Readonly,
-        Storage::Parameter(0),
     );
     let view_field_name = module.strings().intern("user");
     let view_field = module.field(Some(view_field_name), borrowed_user);
@@ -1359,35 +1341,28 @@ fn test_build_field_get_from_region_applied_type() {
     };
     let view_declaration = module
         .tree_mut()
-        .reserve_type(Symbol::named(crate::TEST_MODULE, view_name));
-    let definition = module.tree_mut().intern_type(
-        Type::Struct {
-            fields: vec![view_field],
-        },
-        Copy::Yes,
-    );
+        .reserve_type(Symbol::named(TEST_MODULE, view_name));
+    let definition = module.tree_mut().intern_type(Type::Struct {
+        fields: vec![view_field],
+    });
     let declaration = module.tree_mut().get_mut(view_declaration);
     declaration.definition = Some(definition);
     declaration.name = Some(view_name);
     declaration.generics = vec![region];
     let view = module.tree_mut().intern_type(Type::Declaration {
         declaration: view_declaration,
-    }, Copy::No);
+    });
 
     // project the field from one concrete region application
     let frame_view = module.tree_mut().intern_type(Type::Application {
         base: view,
-        arguments: vec![GenericArgument::Region {
-            lifetime: Lifetime::frame(),
-            storage: Storage::Frame,
-        }],
-    }, Copy::No);
+        arguments: vec![GenericArgument::Region(Lifetime::frame())],
+    });
     let frame_user = module.type_reference(
         Reference::Borrowed,
         Lifetime::frame(),
         user,
         Access::Readonly,
-        Storage::Frame,
     );
     let header = module
         .function_header("getFrame")
@@ -1406,19 +1381,17 @@ fn test_build_field_get_from_region_applied_type() {
     let (tree, strings) = module.finish_tree();
     let output = format_test_mir(&tree, &strings);
     let expected = "\
-@copy
 type User {
     id: int32;
 }
 
-@copy
 type View<'a> {
     user: ref<User, borrowed, 'a, readonly>;
 }
 
-function getFrame(v0: View<'frame & frame>): ref<User, borrowed, 'frame & frame, readonly> {
-entry(v0: View<'frame & frame>):
-    v1: ref<User, borrowed, 'frame & frame, readonly> = field.get v0, 0
+function getFrame(v0: View<'frame>): ref<User, borrowed, 'frame, readonly> {
+entry(v0: View<'frame>):
+    v1: ref<User, borrowed, 'frame, readonly> = field.get v0, 0
     return v1
 }";
     assert_eq!(output, expected);
@@ -1428,7 +1401,7 @@ entry(v0: View<'frame & frame>):
 #[test]
 fn test_build_element_get_array() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let i64_type = module.type_int(64, true);
     let array_type = module.type_fixed_array(i32_type, 3);
@@ -1462,7 +1435,7 @@ entry(v0: [int32; 3], v1: int64):
 
 /// SSA construction with variable pass-through intermediate block.
 ///
-/// Tests the case where:
+/// The blocks run:
 /// - b0: defines x, jumps to b1
 /// - b1 (loop header): uses x, branches to b2 or b4
 /// - b2 (body): updates x, jumps to b3
@@ -1473,7 +1446,7 @@ entry(v0: [int32; 3], v1: int64):
 #[test]
 fn test_ssa_passthrough_intermediate_block() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let i32_type = module.type_int(32, true);
     let bool_type = module.type_boolean();
 
@@ -1566,12 +1539,12 @@ b4:
 
 /// SSA construction with multiple variables needing phis at the same merge point.
 ///
-/// Tests that block parameter and argument ordering is correct when multiple
-/// variables need phis at the same block.
+/// Block parameters and arguments keep their order when several variables
+/// need a phi at the same block.
 #[test]
 fn test_ssa_multiple_phis_at_merge() {
     // setup
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
+    let mut module = ModuleBuilder::new(TEST_MODULE);
     let bool_type = module.type_boolean();
     let i32_type = module.type_int(32, true);
 
@@ -1650,93 +1623,6 @@ b3(v5: int32, v6: int32):
     assert_eq!(output, expected);
 }
 
-/// Preserve joined places when importing a specialized function into a different type table.
-#[test]
-fn test_import_specialized_function_places() {
-    // build a function whose parameter and arguments share one joined place
-    let mut module = ModuleBuilder::new(crate::TEST_MODULE);
-    let integer = module.type_int(32, true);
-    let void = module.type_void();
-    let space = module
-        .tree_mut()
-        .intern_space_join([Space::Local, Space::Shared]);
-    let other_space = module
-        .tree_mut()
-        .intern_space_join([Space::Local, Space::Constant]);
-    let storage = module.tree_mut().intern_storage_join([
-        Storage::Frame,
-        Storage::Heap(space),
-        Storage::Heap(other_space),
-        Storage::Static(Space::Constant),
-    ]);
-    let lifetime = Lifetime::new([Extent::Static]);
-    let borrowed = module.tree_mut().intern_type(Type::Reference {
-        kind: Reference::Borrowed,
-        lifetime: lifetime.clone(),
-        storage,
-        access: Access::Readonly,
-        pointee: integer,
-    }, Copy::Yes);
-    let header = module
-        .function_header("selected")
-        .arguments([
-            GenericArgument::Space(space),
-            GenericArgument::Region { lifetime, storage },
-        ])
-        .parameter(borrowed)
-        .result(void);
-    let function = module.declare_function(header);
-    let (source, strings) = module.finish_tree();
-
-    // occupy the source join's index with a different join before importing
-    let mut destination = Tree::new();
-    destination.intern_space_join([Space::Local, Space::Constant]);
-    destination.intern_storage_join([Storage::Frame, Storage::Static(Space::Local)]);
-    let mut declared = |_| None;
-    let imported =
-        Importer::new(&mut destination, &mut declared).import_function_header(&source, function);
-    let function = destination.insert(imported);
-
-    // require matching places in both the signature and the specialization arguments
-    assert_eq!(
-        format_test_mir(&destination, &strings),
-        "external function selected<local|shared, 'static & frame|heap(local|shared)|heap(local|constant)|constant>(ref<int32, borrowed, 'static & frame|heap(local|shared)|heap(local|constant)|constant, readonly>): void",
-    );
-
-    // trace every movable or reclaimable location after importing the joined borrow
-    let parameter = destination.get(function).parameters[0].ty;
-    assert_eq!(
-        source.type_fingerprint(borrowed),
-        destination.type_fingerprint(parameter)
-    );
-    let mut layouts = LayoutTable::new();
-    let layout = LayoutBuilder::new(&destination, &mut layouts, TargetLayout::default())
-        .layout_type(parameter)
-        .unwrap();
-    assert_eq!(
-        layouts.layout(layout).trace_map,
-        TraceMap::Fixed {
-            local_offsets: Box::new([0]),
-            shared_offsets: Box::new([0]),
-            frame_offsets: Box::new([0]),
-        }
-    );
-
-    // raw references preserve addressing without retaining storage or excluding null
-    let mut raw = destination.type_definition(parameter).clone();
-    let Type::Reference { kind, .. } = &mut raw else {
-        panic!("expected the imported reference");
-    };
-    *kind = Reference::Raw;
-    let raw = destination.intern_type(raw, Copy::Yes);
-    let raw_layout = LayoutBuilder::new(&destination, &mut layouts, TargetLayout::default())
-        .layout_type(raw)
-        .unwrap();
-    assert_eq!(layouts.layout(raw_layout).trace_map, TraceMap::Empty);
-    assert_eq!(layouts.layout(raw_layout).niche, None);
-    assert_eq!(layouts.layout(raw_layout).size, layouts.layout(layout).size);
-}
-
 /// Preserve identified representations and recursive applications across trees.
 #[test]
 fn test_import_recursive_declarations() {
@@ -1761,11 +1647,11 @@ type Grow<T> {
 
 type Grown = newtype<Grow<int32>>;
 
-type Borrowed = newtype<Grow<ref<int32, borrowed, 'static & local, readonly>>>;
+type Borrowed = newtype<Grow<ref<int32, borrowed, 'static, readonly>>>;
 
 type Empty<T> = newtype<int32>;
 
-type Retained = newtype<Empty<ref<int32, borrowed, 'static & local, readonly>>>;
+type Retained = newtype<Empty<ref<int32, borrowed, 'static, readonly>>>;
 
 type Wrap<T> {
     value: T;
@@ -1786,7 +1672,7 @@ type Indirect = newtype<Identity<Wrap<int32>>>;";
 
     // shift the destination's node ids and import every named declaration
     let mut destination = Tree::new();
-    destination.intern_type(Type::Boolean, Copy::Yes);
+    destination.intern_type(Type::Boolean);
     let mut declared = |_| None;
     let mut importer = Importer::new(&mut destination, &mut declared);
     for (_, declaration) in source_tree.iter_nodes::<TypeDeclaration>() {
@@ -1860,16 +1746,16 @@ type Choice = variant<uint1> { 0uint1 = int32; 1uint1 = boolean; };
 
 function project(
     v0: ptr<Opaque, readonly>,
-    v1: slice<Unused, borrowed, 'static, readonly, local>,
+    v1: slice<Unused, borrowed, 'static, readonly>,
     v2: ptr<Record, readonly>,
-    v3: slice<Element, borrowed, 'static, readonly, local>,
+    v3: slice<Element, borrowed, 'static, readonly>,
     v4: ptr<Choice, readonly>,
     v5: uint64
 ): void {
 entry:
     v6: ptr<int64, readonly> = address (*v2).1
-    v7: slice<Element, borrowed, 'static, readonly, local> = address (*v3)[v5; v5]
-    v8: ref<Element, borrowed, 'static, readonly, local> = address (*v3)[v5]
+    v7: slice<Element, borrowed, 'static, readonly> = address (*v3)[v5; v5]
+    v8: ref<Element, borrowed, 'static, readonly> = address (*v3)[v5]
     v9: uint1 = variant.tag.load (*v4)
     return
 }

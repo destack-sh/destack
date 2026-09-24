@@ -223,24 +223,18 @@ impl LinkTable {
             }
             Instruction::NewZeroed {
                 storage_type,
-                result_type,
+                space,
                 ..
             }
             | Instruction::NewUninit {
                 storage_type,
-                result_type,
+                space,
                 ..
-            } => Self::allocation_edge(*storage_type, *result_type, tree, drops),
-            Instruction::NewSliceZeroed {
-                element,
-                result_type,
-                ..
+            } => Self::destructor_edge(*storage_type, Storage::heap(*space), tree, drops),
+            Instruction::NewSliceZeroed { element, space, .. }
+            | Instruction::NewSliceUninit { element, space, .. } => {
+                Self::destructor_edge(*element, Storage::heap(*space), tree, drops)
             }
-            | Instruction::NewSliceUninit {
-                element,
-                result_type,
-                ..
-            } => Self::allocation_edge(*element, *result_type, tree, drops),
             _ => None,
         }
     }
@@ -251,44 +245,23 @@ impl LinkTable {
         tree: &Tree,
         drops: &DropTable,
     ) -> Option<LinkEdge> {
-        let (ty, success) = match terminator {
+        let (ty, space) = match terminator {
             Terminator::NewZeroedTry {
                 storage_type,
-                success,
+                space,
                 ..
             }
             | Terminator::NewUninitTry {
                 storage_type,
-                success,
+                space,
                 ..
-            } => (*storage_type, success),
-            Terminator::NewSliceZeroedTry {
-                element, success, ..
-            }
-            | Terminator::NewSliceUninitTry {
-                element, success, ..
-            } => (*element, success),
+            } => (*storage_type, *space),
+            Terminator::NewSliceZeroedTry { element, space, .. }
+            | Terminator::NewSliceUninitTry { element, space, .. } => (*element, *space),
             _ => return None,
         };
-        let result = tree
-            .get(success.block)
-            .parameters
-            .first()
-            .unwrap_or_else(|| unreachable!("fallible allocation success has no result"));
 
-        Self::allocation_edge(ty, result.ty, tree, drops)
-    }
-
-    /// Return the destructor reference selected by one managed allocation.
-    fn allocation_edge(
-        ty: TypeId,
-        result: TypeId,
-        tree: &Tree,
-        drops: &DropTable,
-    ) -> Option<LinkEdge> {
-        let storage = tree.get(tree.storage_type(result)).managed_storage()?;
-
-        Self::destructor_edge(ty, storage, tree, drops)
+        Self::destructor_edge(ty, Storage::heap(space), tree, drops)
     }
 
     /// Return one direct reference to a generated destructor.

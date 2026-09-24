@@ -1185,20 +1185,24 @@ impl Parser {
         match opcode.as_str() {
             "new.zeroed.try" => {
                 let storage_type = self.parse_type()?;
+                let space = self.parse_allocation_space()?;
                 let (success, failure) = self.parse_allocation_targets()?;
 
                 Ok(Terminator::NewZeroedTry {
                     storage_type,
+                    space,
                     success,
                     failure,
                 })
             }
             "new.uninit.try" => {
                 let storage_type = self.parse_type()?;
+                let space = self.parse_allocation_space()?;
                 let (success, failure) = self.parse_allocation_targets()?;
 
                 Ok(Terminator::NewUninitTry {
                     storage_type,
+                    space,
                     success,
                     failure,
                 })
@@ -1207,11 +1211,13 @@ impl Parser {
                 let element = self.parse_type()?;
                 self.eat_token(TokenType::Comma)?;
                 let length = self.parse_value()?;
+                let space = self.parse_allocation_space()?;
                 let (success, failure) = self.parse_allocation_targets()?;
 
                 Ok(Terminator::NewSliceZeroedTry {
                     element,
                     length,
+                    space,
                     success,
                     failure,
                 })
@@ -1220,11 +1226,13 @@ impl Parser {
                 let element = self.parse_type()?;
                 self.eat_token(TokenType::Comma)?;
                 let length = self.parse_value()?;
+                let space = self.parse_allocation_space()?;
                 let (success, failure) = self.parse_allocation_targets()?;
 
                 Ok(Terminator::NewSliceUninitTry {
                     element,
                     length,
+                    space,
                     success,
                     failure,
                 })

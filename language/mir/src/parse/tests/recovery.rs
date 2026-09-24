@@ -264,9 +264,9 @@ fn test_parse_rejects_type_aliases() {
 #[test]
 fn test_parse_restores_lifetime_scope_after_type_error() {
     let source = r#"
-type Broken<'L> = ref<int32, borrowed, 'Missing & local, mutable>
+type Broken<'L> = ref<int32, borrowed, 'Missing, mutable>
 
-type Later = ref<int32, borrowed, 'L & local, mutable>
+type Later = ref<int32, borrowed, 'L, mutable>
 
 function later(): void {
 b0:
@@ -434,7 +434,7 @@ fn test_parse_rejects_invalid_reference_qualifiers() {
             "invalid duplicate reference access",
         ),
         (
-            "type Bad = ref<int32, borrowed, '_, mutable, readonly, local>;",
+            "type Bad = ref<int32, borrowed, '_, mutable, readonly>;",
             "invalid duplicate reference access",
         ),
     ];

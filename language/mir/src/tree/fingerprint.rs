@@ -4,10 +4,10 @@ use destack_core::{StableHasher, StringId};
 use destack_source::ModuleId;
 
 use crate::{
-    Access, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Constant, Copy, Extent,
+    Access, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Constant, Extent,
     FieldId, FloatType, GenericArgument, GenericParameter, GenericParameterDomain, Lifetime,
     LifetimeParameter, Multiplicity, Reference, SignatureParameter, Space, Static, StaticField,
-    StaticId, StaticKey, Storage, Symbol, Tree, Type, TypeFingerprint, TypeId,
+    StaticId, StaticKey, Symbol, Tree, Type, TypeFingerprint, TypeId,
 };
 
 impl Tree {
@@ -144,10 +144,6 @@ impl TypeHasher {
                 self.hasher.write_u64(content.raw());
                 self.hash_string_maybe(*flags);
             }
-            Static::Space(space) => {
-                self.hasher.write_u8(16);
-                self.hash_space(*space, tree);
-            }
             Static::Type(ty) => {
                 self.hasher.write_u8(9);
                 self.hash_type(*ty, tree);
@@ -228,8 +224,6 @@ impl TypeHasher {
 
     /// Hash one type through structural or identified identity.
     fn hash_type(&mut self, id: TypeId, tree: &Tree) {
-        // a type's copy decision is part of its identity
-        self.hash_copy(tree.copy(id));
         match tree.get(id) {
             Type::Declaration { declaration } => {
                 self.hasher.write_u8(0xff);
@@ -257,27 +251,23 @@ impl TypeHasher {
                 kind,
                 lifetime,
                 constraint,
-                storage,
                 access,
             } => {
                 self.hasher.write_u8(12);
                 self.hash_reference_kind(*kind);
                 self.hash_lifetime(lifetime);
                 self.hash_type(*constraint, tree);
-                self.hash_storage(*storage, tree);
                 self.hash_access(*access);
             }
             Type::Reference {
                 kind,
                 lifetime,
-                storage,
                 access,
                 pointee,
             } => {
                 self.hasher.write_u8(13);
                 self.hash_reference_kind(*kind);
                 self.hash_lifetime(lifetime);
-                self.hash_storage(*storage, tree);
                 self.hash_access(*access);
                 self.hash_type(*pointee, tree);
             }
@@ -290,14 +280,12 @@ impl TypeHasher {
                 kind,
                 lifetime,
                 element,
-                storage,
                 access,
             } => {
                 self.hasher.write_u8(14);
                 self.hash_reference_kind(*kind);
                 self.hash_lifetime(lifetime);
                 self.hash_type(*element, tree);
-                self.hash_storage(*storage, tree);
                 self.hash_access(*access);
             }
             Type::Uninit { value } => {
@@ -363,7 +351,6 @@ impl TypeHasher {
                 multiplicity,
                 kind,
                 lifetime,
-                storage,
                 access,
             } => {
                 self.hasher.write_u8(26);
@@ -374,12 +361,21 @@ impl TypeHasher {
                 });
                 self.hash_reference_kind(*kind);
                 self.hash_lifetime(lifetime);
-                self.hash_storage(*storage, tree);
                 self.hash_access(*access);
             }
             Type::FunctionPointer { signature } => {
                 self.hasher.write_u8(27);
                 self.hash_type(*signature, tree);
+            }
+            Type::Witness {
+                receiver,
+                interface,
+                member,
+            } => {
+                self.hasher.write_u8(46);
+                self.hash_type(*receiver, tree);
+                self.hash_type(*interface, tree);
+                self.hasher.write_u64(member.raw());
             }
             Type::Application { base, arguments } => {
                 self.hasher.write_u8(30);
@@ -411,7 +407,6 @@ impl TypeHasher {
                     self.hasher.write_u32(*index);
                 }
             }
-            GenericParameterDomain::Space => self.hasher.write_u8(2),
             GenericParameterDomain::Access => self.hasher.write_u8(3),
             GenericParameterDomain::Value { ty } => {
                 self.hasher.write_u8(4);
@@ -427,10 +422,6 @@ impl TypeHasher {
                 self.hasher.write_u8(0);
                 self.hash_type(*ty, tree);
             }
-            GenericArgument::Space(space) => {
-                self.hasher.write_u8(1);
-                self.hash_space(*space, tree);
-            }
             GenericArgument::Access(access) => {
                 self.hasher.write_u8(2);
                 self.hash_access(*access);
@@ -439,10 +430,9 @@ impl TypeHasher {
                 self.hasher.write_u8(3);
                 self.hash_static(*value, tree);
             }
-            GenericArgument::Region { lifetime, storage } => {
+            GenericArgument::Region(lifetime) => {
                 self.hasher.write_u8(4);
                 self.hash_lifetime(lifetime);
-                self.hash_storage(*storage, tree);
             }
         }
     }
@@ -558,27 +548,11 @@ impl TypeHasher {
     }
 
     /// Hash one MIR space.
-    fn hash_space(&mut self, space: Space, tree: &Tree) {
+    fn hash_space(&mut self, space: Space) {
         match space {
             Space::Local => self.hasher.write_u8(0),
             Space::Shared => self.hasher.write_u8(1),
             Space::Constant => self.hasher.write_u8(2),
-            Space::Parameter(index) => {
-                self.hasher.write_u8(3);
-                self.hasher.write_u32(index);
-            }
-            Space::Of(ty) => {
-                self.hasher.write_u8(4);
-                self.hash_type(ty, tree);
-            }
-            Space::Join(id) => {
-                self.hasher.write_u8(5);
-                let spaces = tree.space_join(id).to_vec();
-                self.hasher.write_u32(spaces.len() as u32);
-                for space in spaces {
-                    self.hash_space(space, tree);
-                }
-            }
         }
     }
 
@@ -607,56 +581,17 @@ impl TypeHasher {
         }
     }
 
-    /// Hash the storage expression, preserving its places and structure across trees.
-    fn hash_storage(&mut self, storage: Storage, tree: &Tree) {
-        match storage {
-            Storage::Frame => self.hasher.write_u8(0),
-            Storage::Parameter(index) => {
-                self.hasher.write_u8(3);
-                self.hasher.write_u32(index);
-            }
-            Storage::Bound { bound, space } => {
-                self.hasher.write_u8(4);
-                self.hasher.write_u32(bound.depth);
-                self.hasher.write_u32(bound.index);
-                self.hash_space(space, tree);
-            }
-            Storage::Join(id) => {
-                self.hasher.write_u8(5);
-                self.hash_length(tree.storage_join(id).len());
-                for &storage in tree.storage_join(id) {
-                    self.hash_storage(storage, tree);
-                }
-            }
-            Storage::Heap(space) => {
-                self.hasher.write_u8(1);
-                self.hash_space(space, tree);
-            }
-            Storage::Static(space) => {
-                self.hasher.write_u8(2);
-                self.hash_space(space, tree);
-            }
-        }
-    }
-
     /// Hash one MIR reference kind.
     fn hash_reference_kind(&mut self, kind: Reference) {
-        let tag = match kind {
-            Reference::Managed => 0,
-            Reference::Unique => 1,
-            Reference::Borrowed => 2,
-            Reference::Raw => 3,
-        };
-        self.hasher.write_u8(tag);
-    }
-
-    /// Hash one MIR copy property.
-    fn hash_copy(&mut self, copy: Copy) {
-        let tag = match copy {
-            Copy::Yes => 0,
-            Copy::No => 1,
-        };
-        self.hasher.write_u8(tag);
+        match kind {
+            Reference::Managed(space) => {
+                self.hasher.write_u8(0);
+                self.hash_space(space);
+            }
+            Reference::Unique => self.hasher.write_u8(1),
+            Reference::Borrowed => self.hasher.write_u8(2),
+            Reference::Raw => self.hasher.write_u8(3),
+        }
     }
 
     /// Hash one concrete floating-point format.

@@ -4,8 +4,8 @@ use smallvec::{SmallVec, smallvec};
 
 use crate as mir;
 use crate::{
-    AliasTable, Analysis, ConstantTable, ControlTable, LayoutError, MemoryAccessOrder,
-    MemoryAddress, MemoryLocation, MemoryRegion, Mutation, NodeTable,
+    AliasTable, Analysis, ConstantTable, ControlTable, DefinitionTable, LayoutError,
+    MemoryAccessOrder, MemoryAddress, MemoryLocation, MemoryRegion, Mutation, NodeTable, is_copy,
 };
 
 /// Classified memory effects for the operations in one function.
@@ -25,6 +25,7 @@ impl MemoryEffectTable {
         function: mir::FunctionId,
         constants: &ConstantTable,
         control: &ControlTable,
+        definitions: &DefinitionTable,
         effects: &mir::EffectTable,
         tree: &mir::Tree,
     ) -> Self {
@@ -47,7 +48,7 @@ impl MemoryEffectTable {
         };
 
         // classify reachable operations using their explicit and derived effects
-        let mut builder = MemoryEffectBuilder::new(function, tree, constants, effects);
+        let mut builder = MemoryEffectBuilder::new(function, tree, constants, definitions, effects);
         for block_id in control.reachable_blocks() {
             let block = builder.tree.get(block_id).clone();
 
@@ -145,11 +146,10 @@ impl MemoryAccessEffect {
         &self,
         location: &MemoryLocation,
         alias: &AliasTable,
-        tree: &mir::Tree,
     ) -> Result<bool, LayoutError> {
         let region = MemoryRegion::Address {
             location: location.clone(),
-            spaces: location.spaces(tree),
+            spaces: location.spaces(),
         };
 
         self.clobbers_region(&region, alias)
@@ -160,11 +160,10 @@ impl MemoryAccessEffect {
         &self,
         location: &MemoryLocation,
         alias: &AliasTable,
-        tree: &mir::Tree,
     ) -> Result<bool, LayoutError> {
         let region = MemoryRegion::Address {
             location: location.clone(),
-            spaces: location.spaces(tree),
+            spaces: location.spaces(),
         };
 
         self.region.may_alias(&region, alias)
@@ -285,6 +284,8 @@ struct MemoryEffectBuilder<'a> {
     tree: &'a mir::Tree,
     /// Constants available for memory ranges.
     constants: &'a ConstantTable,
+    /// The definition of each SSA value.
+    definitions: &'a DefinitionTable,
 
     /// Explicit effect table.
     effect_table: &'a mir::EffectTable,
@@ -296,6 +297,7 @@ impl<'a> MemoryEffectBuilder<'a> {
         function: mir::FunctionId,
         tree: &'a mir::Tree,
         constants: &'a ConstantTable,
+        definitions: &'a DefinitionTable,
         effect_table: &'a mir::EffectTable,
     ) -> Self {
         // build collector state
@@ -303,6 +305,7 @@ impl<'a> MemoryEffectBuilder<'a> {
             function,
             tree,
             constants,
+            definitions,
             effect_table,
         }
     }
@@ -382,9 +385,10 @@ impl<'a> MemoryEffectBuilder<'a> {
                 place, result_type, ..
             } => {
                 // invalidate the source storage a non-Copy read moves out of
-                let operation = match self.tree.copy(*result_type) {
-                    mir::Copy::Yes => mir::MemoryOperation::Read,
-                    mir::Copy::No => mir::MemoryOperation::ReadWrite,
+                let generics = &self.tree.get(self.function).generics;
+                let operation = match is_copy(self.tree, *result_type, generics) {
+                    true => mir::MemoryOperation::Read,
+                    false => mir::MemoryOperation::ReadWrite,
                 };
                 let effect = self.place_effect(place, operation, MemoryAccessOrder::Plain);
 
@@ -558,23 +562,14 @@ impl<'a> MemoryEffectBuilder<'a> {
         let value_type = match place.ty(self.function, self.tree) {
             Some(mir::PlaceType::Value(ty)) => Some(ty),
             Some(mir::PlaceType::Referent(_)) => None,
-            None => {
-                let root = place.root_type(self.function, self.tree);
-                unreachable!(
-                    "memory operation has an invalid place {place:?} in {:?} root {:?}",
-                    self.tree.get(self.function).name,
-                    root.map(|root| self.tree.get(root))
-                )
-            }
+            None => unreachable!("memory operation has an invalid place {place:?}"),
         };
         let storage = place.storage(self.function, self.tree);
         let kind = place
             .reference_type(self.function, self.tree)
             .and_then(|ty| self.tree.type_definition(ty).reference_kind());
         let mut region = MemoryRegion::from_address(place.clone(), value_type, kind, storage);
-        region.set_spaces(storage.map_or(mir::StorageSet::ANY, |storage| {
-            storage.storage_set(self.tree)
-        }));
+        region.set_spaces(place.storage_set(self.function, self.tree));
 
         MemoryAccessEffect::new(region, operation, order)
     }
@@ -602,11 +597,19 @@ impl<'a> MemoryEffectBuilder<'a> {
 
     /// Resolve the memory spaces for an address-bearing value.
     fn address_storage_set(&mut self, address: mir::Value) -> mir::StorageSet {
-        let Some(storage) = self.reference_storage(address) else {
-            return mir::StorageSet::ANY;
-        };
+        // read the heap an allocation names at its site
+        if let Some(instruction) = self.definitions.instruction(address)
+            && let Some(space) = self.tree.get(instruction).allocation_space()
+        {
+            return space.space_set();
+        }
+        let ty = self.tree.get(self.function).expect_value_type(address);
+        let ty = self.tree.storage_type(ty);
 
-        storage.storage_set(self.tree)
+        self.tree
+            .type_definition(ty)
+            .reference_storage_set()
+            .unwrap_or(mir::StorageSet::ANY)
     }
 
     /// Return memory effects for one call instruction.
@@ -629,12 +632,12 @@ impl<'a> MemoryEffectBuilder<'a> {
     ) -> SmallVec<[MemoryAccessEffect; 2]> {
         // use callsite or callee tables for memory effects
         let call_entries = self.effect_table.call(callsite);
-        let mut memory_effects = call_entries
+        let memory_effects = call_entries
             .and_then(|tables| tables.memory.clone())
             .or_else(|| self.callee_memory_effects(direct_target));
 
         // treat missing tables as fully unknown
-        let Some(effects) = memory_effects.take() else {
+        let Some(effects) = memory_effects else {
             return smallvec![MemoryAccessEffect::new(
                 MemoryRegion::any_spaces(mir::StorageSet::ANY),
                 mir::MemoryOperation::ReadWrite,
@@ -918,16 +921,16 @@ mod tests {
 function test(): int32 {
     local l0: int32
     local l1: int32
-    local l2: ref<int32, borrowed, 'frame, mutable, frame>
+    local l2: ref<int32, borrowed, 'frame, mutable>
 
 entry:
     v0: int32 = 7
     store l0, v0
     store l1, v0
-    v1: ref<int32, borrowed, 'frame, mutable, frame> = address l0
+    v1: ref<int32, borrowed, 'frame, mutable> = address l0
     v2: int32 = load (*v1)
     store l2, v1
-    v3: ref<int32, borrowed, 'frame, mutable, frame> = load l2
+    v3: ref<int32, borrowed, 'frame, mutable> = load l2
     v4: int32 = load (*l2)
     store (*l2), v0
     return v4
@@ -977,7 +980,7 @@ entry:
             r#"
 function test(): void {
 entry:
-    v0: ref<int32, unique, mutable, local> = new.zeroed int32
+    v0: ref<int32, unique, mutable> = new.zeroed int32, local
     release v0
     return
 }
@@ -1015,8 +1018,8 @@ entry:
     fn test_read_copy_source_and_write_destination() {
         let program = TestModule::new(
             r#"
-function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>):
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'a, mutable>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'a, mutable>):
     v2: usize = 12
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     v3: int32 = intrinsic.memory.raw.compareBytes(v0, v1, v2)
@@ -1024,7 +1027,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a,
 }
 "#,
         );
-        let int32 = program.tree.intern_type(mir::Type::INT32, mir::Copy::Yes);
+        let int32 = program.tree.intern_type(mir::Type::INT32);
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
         let effects =
@@ -1048,9 +1051,9 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a,
                         MemorySize::Bytes(12),
                         Some(int32),
                         Some(mir::Reference::Borrowed),
-                        Some(mir::Storage::Heap(mir::Space::Local)),
+                        None,
                     ),
-                    spaces: mir::StorageSet::LOCAL,
+                    spaces: mir::StorageSet::ANY,
                 },
             });
             let actual = effects
@@ -1067,8 +1070,8 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a,
     fn test_preserve_volatile_accesses() {
         let test = TestModule::new(
             r#"
-function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>):
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'a, mutable>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'a, mutable>):
     v2: int32 = intrinsic.memory.ptr.readVolatile(v0)
     intrinsic.memory.ptr.writeVolatile(v1, v2)
     v3: int32 = load (*v0)
@@ -1076,7 +1079,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a,
 }
 "#,
         );
-        let int32 = test.tree.intern_type(mir::Type::INT32, mir::Copy::Yes);
+        let int32 = test.tree.intern_type(mir::Type::INT32);
 
         let function_id = test.first_function_id();
 
@@ -1085,10 +1088,9 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a,
         let volatile_load = test.tree.get(block).instructions[0];
         let volatile_store = test.tree.get(block).instructions[1];
 
-        let function = function_id;
         let mut analyses = test.function_analyses();
         let effects = analyses.memory_effect(function_id, &test.tree, &test.effects);
-        let plain_load = test.tree.get(test.tree.get(function).block(0)).instructions[2];
+        let plain_load = test.tree.get(block).instructions[2];
         for (instruction, address, reads, writes, order, size) in [
             (
                 volatile_load,
@@ -1126,9 +1128,9 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a,
                         size,
                         Some(int32),
                         Some(mir::Reference::Borrowed),
-                        Some(mir::Storage::Heap(mir::Space::Local)),
+                        None,
                     ),
-                    spaces: mir::StorageSet::LOCAL,
+                    spaces: mir::StorageSet::ANY,
                 },
             };
             let actual = effects
@@ -1145,8 +1147,8 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a,
     fn test_record_atomic_memory_effects() {
         let program = TestModule::new(
             r#"
-function test<'a>(v0: ref<int32, borrowed, 'a, readonly, frame>, v1: ref<uint64, unique, mutable, local>, v2: ref<int32, borrowed, 'a, mutable, shared>): void {
-entry(v0: ref<int32, borrowed, 'a, readonly, frame>, v1: ref<uint64, unique, mutable, local>, v2: ref<int32, borrowed, 'a, mutable, shared>):
+function test<'a>(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<uint64, unique, mutable>, v2: ref<int32, borrowed, 'a, mutable>): void {
+entry(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<uint64, unique, mutable>, v2: ref<int32, borrowed, 'a, mutable>):
     v3: int32 = atomic.load (*v0), acquire, scope(invocation)
     v4: uint64 = 23
     atomic.store (*v1), v4, release, scope(device)
@@ -1155,8 +1157,8 @@ entry(v0: ref<int32, borrowed, 'a, readonly, frame>, v1: ref<uint64, unique, mut
 }
 "#,
         );
-        let int32 = program.tree.intern_type(mir::Type::INT32, mir::Copy::Yes);
-        let uint64 = program.tree.intern_type(mir::Type::UINT64, mir::Copy::Yes);
+        let int32 = program.tree.intern_type(mir::Type::INT32);
+        let uint64 = program.tree.intern_type(mir::Type::UINT64);
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
         let effects =
@@ -1183,9 +1185,9 @@ entry(v0: ref<int32, borrowed, 'a, readonly, frame>, v1: ref<uint64, unique, mut
                             MemorySize::Type(int32),
                             Some(int32),
                             Some(mir::Reference::Borrowed),
-                            Some(mir::Storage::Frame),
+                            None,
                         ),
-                        spaces: mir::StorageSet::FRAME,
+                        spaces: mir::StorageSet::ANY,
                     },
                 },
             ),
@@ -1205,9 +1207,9 @@ entry(v0: ref<int32, borrowed, 'a, readonly, frame>, v1: ref<uint64, unique, mut
                             MemorySize::Type(uint64),
                             Some(uint64),
                             Some(mir::Reference::Unique),
-                            Some(mir::Storage::Heap(mir::Space::Local)),
+                            None,
                         ),
-                        spaces: mir::StorageSet::LOCAL,
+                        spaces: mir::StorageSet::LOCAL.union(mir::StorageSet::SHARED),
                     },
                 },
             ),
@@ -1227,9 +1229,9 @@ entry(v0: ref<int32, borrowed, 'a, readonly, frame>, v1: ref<uint64, unique, mut
                             MemorySize::Type(int32),
                             Some(int32),
                             Some(mir::Reference::Borrowed),
-                            Some(mir::Storage::Heap(mir::Space::Shared)),
+                            None,
                         ),
-                        spaces: mir::StorageSet::SHARED,
+                        spaces: mir::StorageSet::ANY,
                     },
                 },
             ),
@@ -1255,8 +1257,8 @@ entry(v0: ref<int32, borrowed, 'a, readonly, frame>, v1: ref<uint64, unique, mut
     fn test_record_compare_exchange_effects() {
         let program = TestModule::new(
             r#"
-function test<'a>(v0: ref<uint32, borrowed, 'a, mutable, shared>, v1: ref<uint32, borrowed, 'a, mutable, local>): void {
-entry(v0: ref<uint32, borrowed, 'a, mutable, shared>, v1: ref<uint32, borrowed, 'a, mutable, local>):
+function test<'a>(v0: ref<uint32, borrowed, 'a, mutable>, v1: ref<uint32, borrowed, 'a, mutable>): void {
+entry(v0: ref<uint32, borrowed, 'a, mutable>, v1: ref<uint32, borrowed, 'a, mutable>):
     v2: uint32 = 1
     v3: uint32 = 2
     v4: (uint32, boolean) = atomic.cas (*v0), v2, v3, acquireRelease, failure(acquire), scope(workgroup)
@@ -1265,7 +1267,7 @@ entry(v0: ref<uint32, borrowed, 'a, mutable, shared>, v1: ref<uint32, borrowed, 
 }
 "#,
         );
-        let uint32 = program.tree.intern_type(mir::Type::UINT32, mir::Copy::Yes);
+        let uint32 = program.tree.intern_type(mir::Type::UINT32);
         let function = program.entry_function_id();
         let mut analyses = program.function_analyses();
         let effects =
@@ -1275,23 +1277,20 @@ entry(v0: ref<uint32, borrowed, 'a, mutable, shared>, v1: ref<uint32, borrowed, 
             .get(program.tree.get(function).block(0))
             .instructions;
 
-        for (instruction, address, space, ordering, scope) in [
+        for (instruction, address, ordering, scope) in [
             (
                 2,
                 0,
-                mir::Space::Shared,
                 mir::MemoryOrdering::AcquireRelease,
                 mir::ExecutionScope::Workgroup,
             ),
             (
                 3,
                 1,
-                mir::Space::Local,
                 mir::MemoryOrdering::Acquire,
                 mir::ExecutionScope::System,
             ),
         ] {
-            let storage = mir::Storage::Heap(space);
             let expected = MemoryAccessEffect {
                 reads: true,
                 writes: true,
@@ -1303,9 +1302,9 @@ entry(v0: ref<uint32, borrowed, 'a, mutable, shared>, v1: ref<uint32, borrowed, 
                         MemorySize::Type(uint32),
                         Some(uint32),
                         Some(mir::Reference::Borrowed),
-                        Some(storage),
+                        None,
                     ),
-                    spaces: storage.storage_set(&program.tree),
+                    spaces: mir::StorageSet::ANY,
                 },
             };
             let actual = effects
@@ -1363,11 +1362,11 @@ entry:
     fn test_restrict_call_effects_to_declared_memory() {
         let mut test = TestModule::new(
             r#"
-external function imported<'a>(ref<int32, borrowed, 'a, mutable, local>): void
+external function imported<'a>(ref<int32, borrowed, 'a, mutable>): void
 
-function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>):
-    call imported(v0): <'a>(ref<int32, borrowed, 'a, mutable, local>) => void
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable>):
+    call imported(v0): <'a>(ref<int32, borrowed, 'a, mutable>) => void
     v1: int32 = 0
     return v1
 }
@@ -1465,12 +1464,11 @@ entry(v0: dynamic<Writer, managed, readonly, local>):
 }
 "#,
         );
-        let int32 = test.tree.intern_type(mir::Type::INT32, mir::Copy::Yes);
-        let float64 = test.tree.intern_type(mir::Type::FLOAT64, mir::Copy::Yes);
+        let int32 = test.tree.intern_type(mir::Type::INT32);
+        let float64 = test.tree.intern_type(mir::Type::FLOAT64);
 
         let function_id = test.entry_function_id();
-        let function = function_id;
-        let block = test.tree.get(function).block(0);
+        let block = test.tree.get(function_id).block(0);
         let mut analyses = test.function_analyses();
         let effects = analyses.memory_effect(function_id, &test.tree, &test.effects);
 
@@ -1488,7 +1486,7 @@ entry(v0: dynamic<Writer, managed, readonly, local>):
                         },
                         MemorySize::Type(ty),
                         Some(ty),
-                        Some(mir::Reference::Managed),
+                        Some(mir::Reference::Managed(mir::Space::Local)),
                         Some(mir::Storage::Heap(mir::Space::Local)),
                     ),
                     spaces: mir::StorageSet::LOCAL,

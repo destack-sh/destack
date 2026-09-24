@@ -2,8 +2,7 @@ use destack_core::StringId;
 
 use crate::build::FunctionBuilder;
 use crate::{
-    Copy,
-    Block, Global, Instruction, Local, LocalNodeId, Mutability, Place, Type, TypeId, Value,
+    Block, Global, Instruction, Local, LocalNodeId, Mutability, Place, Space, Type, TypeId, Value,
 };
 
 #[allow(clippy::too_many_arguments)]
@@ -95,16 +94,17 @@ impl<'a> FunctionBuilder<'a> {
 
     /// Create a linear uninitialized allocation token type.
     pub fn type_uninit(&mut self, value: TypeId) -> TypeId {
-        self.tree.intern_type(Type::Uninit { value }, Copy::No)
+        self.tree.intern_type(Type::Uninit { value })
     }
 
     /// Allocate zeroed heap storage.
-    pub fn new_zeroed(&mut self, storage_type: TypeId, result_type: TypeId) -> Value {
+    pub fn new_zeroed(&mut self, storage_type: TypeId, result_type: TypeId, space: Space) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewZeroed {
             destination,
             storage_type,
             result_type,
+            space,
         });
         self.define_value(destination, result_type);
         destination
@@ -128,6 +128,7 @@ impl<'a> FunctionBuilder<'a> {
         element: TypeId,
         length: Value,
         result_type: TypeId,
+        space: Space,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewSliceZeroed {
@@ -135,6 +136,7 @@ impl<'a> FunctionBuilder<'a> {
             element,
             length,
             result_type,
+            space,
         });
         self.define_value(destination, result_type);
         destination
@@ -146,6 +148,7 @@ impl<'a> FunctionBuilder<'a> {
         element: TypeId,
         length: Value,
         result_type: TypeId,
+        space: Space,
     ) -> Value {
         let destination = self.allocate_value();
         self.insert_instruction(Instruction::NewSliceUninit {
@@ -153,6 +156,7 @@ impl<'a> FunctionBuilder<'a> {
             element,
             length,
             result_type,
+            space,
         });
         self.define_value(destination, result_type);
         destination

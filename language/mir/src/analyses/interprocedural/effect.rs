@@ -3,7 +3,7 @@ use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
 use crate as mir;
-use crate::{Analysis, Mutation};
+use crate::{Analysis, Mutation, is_copy};
 
 /// Local effects and outgoing calls extracted from one function.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
@@ -64,6 +64,7 @@ impl EffectBody {
             function,
             effects,
             resolution,
+            definitions: mir::DefinitionTable::analyse(declaration, tree),
             memory: mir::MemoryEffect::none(),
             behavior: mir::FunctionBehavior::none(),
             has_return: false,
@@ -364,6 +365,8 @@ struct FunctionEffectBuilder<'a> {
     effects: &'a mir::EffectTable,
     /// Possible callees at each callsite.
     resolution: &'a mir::ResolutionTable,
+    /// The definition of each SSA value.
+    definitions: mir::DefinitionTable,
 
     /// Accumulated local memory accesses.
     memory: mir::MemoryEffect,
@@ -414,10 +417,13 @@ impl FunctionEffectBuilder<'_> {
                 self.behavior.panic = mir::PanicBehavior::MayPanic
             }
             mir::Terminator::Abort { .. } => self.behavior.must_preserve_execution = true,
-            mir::Terminator::NewZeroedTry { .. }
-            | mir::Terminator::NewUninitTry { .. }
-            | mir::Terminator::NewSliceZeroedTry { .. }
-            | mir::Terminator::NewSliceUninitTry { .. } => {
+            mir::Terminator::NewZeroedTry { space, .. }
+            | mir::Terminator::NewUninitTry { space, .. }
+            | mir::Terminator::NewSliceZeroedTry { space, .. }
+            | mir::Terminator::NewSliceUninitTry { space, .. } => {
+                self.memory = self
+                    .memory
+                    .union(&mir::MemoryEffect::write_only(space.space_set()));
                 self.behavior.allocates = true;
             }
             mir::Terminator::Error => unreachable!("recovered terminator reached effect analysis"),
@@ -438,9 +444,10 @@ impl FunctionEffectBuilder<'_> {
                 place, result_type, ..
             } => {
                 let storage = self.place_storage(place);
-                let memory = match self.tree.copy(*result_type) {
-                    mir::Copy::Yes => mir::MemoryEffect::read_only(storage),
-                    mir::Copy::No => mir::MemoryEffect::read_write(storage),
+                let generics = &self.tree.get(self.function).generics;
+                let memory = match is_copy(self.tree, *result_type, generics) {
+                    true => mir::MemoryEffect::read_only(storage),
+                    false => mir::MemoryEffect::read_write(storage),
                 };
 
                 mir::FunctionEffect::memory(memory)
@@ -467,11 +474,11 @@ impl FunctionEffectBuilder<'_> {
                 mir::FunctionEffect::memory(mir::MemoryEffect::barrier(access.storage))
             }
             mir::Instruction::BarrierWrite { .. } => mir::FunctionEffect::none(),
-            mir::Instruction::NewZeroed { result_type, .. }
-            | mir::Instruction::NewUninit { result_type, .. }
-            | mir::Instruction::NewSliceZeroed { result_type, .. }
-            | mir::Instruction::NewSliceUninit { result_type, .. } => mir::FunctionEffect {
-                memory: mir::MemoryEffect::write_only(self.type_storage(*result_type)),
+            mir::Instruction::NewZeroed { space, .. }
+            | mir::Instruction::NewUninit { space, .. }
+            | mir::Instruction::NewSliceZeroed { space, .. }
+            | mir::Instruction::NewSliceUninit { space, .. } => mir::FunctionEffect {
+                memory: mir::MemoryEffect::write_only(space.space_set()),
                 behavior: mir::FunctionBehavior::none().with_allocates(),
             },
             mir::Instruction::Release { value } => mir::FunctionEffect {
@@ -580,16 +587,16 @@ impl FunctionEffectBuilder<'_> {
             return mir::StorageSet::NONE;
         }
 
-        // native addresses and unresolved storage require conservative effects
-        place
-            .storage(self.function, self.tree)
-            .map_or(mir::StorageSet::ANY, |storage| {
-                storage.storage_set(self.tree)
-            })
+        place.storage_set(self.function, self.tree)
     }
 
-    /// Resolve the backing storage for one typed value.
+    /// Resolve the backing storage for one typed value, an allocation's from its site.
     fn value_storage(&mut self, value: mir::Value) -> mir::StorageSet {
+        if let Some(instruction) = self.definitions.instruction(value)
+            && let Some(space) = self.tree.get(instruction).allocation_space()
+        {
+            return space.space_set();
+        }
         let ty = self.tree.get(self.function).expect_value_type(value);
 
         self.type_storage(ty)
@@ -601,10 +608,8 @@ impl FunctionEffectBuilder<'_> {
 
         self.tree
             .get(ty)
-            .reference_storage()
-            .map_or(mir::StorageSet::ANY, |storage| {
-                storage.storage_set(self.tree)
-            })
+            .reference_storage_set()
+            .unwrap_or(mir::StorageSet::ANY)
     }
 
     /// Build a memory effect for an intrinsic.
@@ -705,7 +710,7 @@ entry:
             r#"
 function allocate(): void {
 entry:
-    v0: ref<int32, unique, mutable, local> = new.zeroed int32
+    v0: ref<int32, unique, mutable> = new.zeroed int32, local
     release v0
     return
 }
@@ -770,15 +775,15 @@ entry:
     fn test_propagate_direct_calls() {
         let program = TestModule::new(
             r#"
-function allocate(): ref<int32, unique, mutable, local> {
+function allocate(): ref<int32, unique, mutable> {
 entry:
-    v0: ref<int32, unique, mutable, local> = new.zeroed int32
+    v0: ref<int32, unique, mutable> = new.zeroed int32, local
     return v0
 }
 
-function root(): ref<int32, unique, mutable, local> {
+function root(): ref<int32, unique, mutable> {
 entry:
-    v0: ref<int32, unique, mutable, local> = call allocate(): () => ref<int32, unique, mutable, local>
+    v0: ref<int32, unique, mutable> = call allocate(): () => ref<int32, unique, mutable>
     return v0
 }
 "#,
@@ -803,15 +808,15 @@ entry:
     fn test_propagate_virtual_calls() {
         let mut program = TestModule::new(
             r#"
-function allocate(v0: int32): ref<int32, unique, mutable, local> {
+function allocate(v0: int32): ref<int32, unique, mutable> {
 entry(v0: int32):
-    v1: ref<int32, unique, mutable, local> = new.zeroed int32
+    v1: ref<int32, unique, mutable> = new.zeroed int32, local
     return v1
 }
 
-function root(v0: int32): ref<int32, unique, mutable, local> {
+function root(v0: int32): ref<int32, unique, mutable> {
 entry(v0: int32):
-    v1: ref<int32, unique, mutable, local> = call.virtual v0, int32, 0(v0): (int32) => ref<int32, unique, mutable, local>
+    v1: ref<int32, unique, mutable> = call.virtual v0, int32, 0(v0): (int32) => ref<int32, unique, mutable>
     return v1
 }
 "#,
@@ -1028,8 +1033,8 @@ entry:
     fn test_classify_memory_accesses() {
         let program = TestModule::new(
             r#"
-function read<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): int32 {
-entry(v0: ref<int32, borrowed, 'a, readonly, local>):
+function read<'a>(v0: ref<int32, borrowed, 'a, readonly>): int32 {
+entry(v0: ref<int32, borrowed, 'a, readonly>):
     v1: int32 = load (*v0)
     return v1
 
@@ -1039,14 +1044,14 @@ dead:
     return v2
 }
 
-function write<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: int32): void {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: int32):
+function write<'a>(v0: ref<int32, borrowed, 'a, mutable>, v1: int32): void {
+entry(v0: ref<int32, borrowed, 'a, mutable>, v1: int32):
     store (*v0), v1
     return
 }
 
-function synchronize<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): int32 {
-entry(v0: ref<int32, borrowed, 'a, readonly, local>):
+function synchronize<'a>(v0: ref<int32, borrowed, 'a, readonly>): int32 {
+entry(v0: ref<int32, borrowed, 'a, readonly>):
     v1: int32 = atomic.load (*v0), acquire, scope(device)
     return v1
 }
@@ -1069,15 +1074,15 @@ entry(v0: ref<int32, borrowed, 'a, readonly, local>):
             actual,
             [
                 mir::FunctionEffect {
-                    memory: mir::MemoryEffect::read_only(mir::StorageSet::LOCAL),
+                    memory: mir::MemoryEffect::read_only(mir::StorageSet::ANY),
                     behavior: mir::FunctionBehavior::none().with_will_return()
                 },
                 mir::FunctionEffect {
-                    memory: mir::MemoryEffect::write_only(mir::StorageSet::LOCAL),
+                    memory: mir::MemoryEffect::write_only(mir::StorageSet::ANY),
                     behavior: mir::FunctionBehavior::none().with_will_return()
                 },
                 mir::FunctionEffect {
-                    memory: mir::MemoryEffect::read_only(mir::StorageSet::LOCAL),
+                    memory: mir::MemoryEffect::read_only(mir::StorageSet::ANY),
                     behavior: atomic
                 },
             ]
