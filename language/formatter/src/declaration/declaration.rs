@@ -28,8 +28,7 @@ use crate::{DestackFormatContext, DestackFormatter, FormatNode};
 use destack_dir::{
     Asynchrony, Comment, Declaration, Declarator, ExportKind, Expression, ExtensionDeclaration,
     FunctionDeclaration, FunctionForm, GlobalDeclaration, Keyword, LetKind, LocalNodeId,
-    ModuleDeclaration, Mutability, Node, NodeType, PlaceModifier, TokenSpan, TypeDeclaration,
-    TypeExpression,
+    ModuleDeclaration, Mutability, Node, NodeType, TokenSpan, TypeDeclaration, TypeExpression,
 };
 use destack_fir::format::{
     FormatError, FormatLayout, FormatResult, Formatter as FirFormatter, GroupId, InstructionTape,
@@ -167,18 +166,6 @@ pub(crate) fn format_declaration_export_modifier<'ast>(
     Ok(())
 }
 
-/// Write one explicit placement prefix.
-pub(crate) fn write_place_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    place: Option<PlaceModifier>,
-) -> FormatResult<()> {
-    if let Some(place) = place {
-        write!(f, [place.keyword(), space()])?;
-    }
-
-    Ok(())
-}
-
 /// Capture one type declaration head for layout selection.
 fn capture_type_declaration_left<'ast>(
     f: &mut DestackFormatter<'ast, '_>,
@@ -190,7 +177,7 @@ fn capture_type_declaration_left<'ast>(
     // prefixes
     format_declaration_export_modifier(&mut formatter, node_id, declaration.export)?;
     write_keyword_prefix(&mut formatter, Keyword::Declare, declaration.is_ambient)?;
-    write_place_prefix(&mut formatter, declaration.place)?;
+    write_keyword_prefix(&mut formatter, Keyword::Shared, declaration.is_shared)?;
 
     // modifiers
     if declaration.is_nominal {
@@ -510,7 +497,7 @@ pub(crate) fn format_let_statement_expression<'ast>(
     kind: LetKind,
     export: Option<ExportKind>,
     is_ambient: bool,
-    place: Option<PlaceModifier>,
+    is_shared: bool,
     declarators: &[LocalNodeId<Declarator>],
 ) -> FormatResult<()> {
     let tree = f.context().tree;
@@ -557,7 +544,7 @@ pub(crate) fn format_let_statement_expression<'ast>(
             }
 
             write_keyword_prefix(f, Keyword::Declare, is_ambient)?;
-            write_place_prefix(f, place)?;
+            write_keyword_prefix(f, Keyword::Shared, is_shared)?;
 
             // binding keyword
             match kind {

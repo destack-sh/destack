@@ -124,12 +124,10 @@ fn test_format_type_prefix_operators() {
         r#"type Keys = keyof   Model
 type Query = typeof   value
 type Negative = ! !Flag
-type LocalBox = local   ^ User
 "#,
         r#"type Keys = keyof Model;
 type Query = typeof value;
 type Negative = !!Flag;
-type LocalBox = local ^User;
 "#,
         FileType::Destack
     );

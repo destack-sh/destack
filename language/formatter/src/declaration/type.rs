@@ -7,9 +7,10 @@ use crate::collection::member::format_block_of_members;
 use crate::context::{CapturedFormat, FormatNodeWithoutTrailingComments};
 use crate::declaration::declaration::{
     declaration_export_token, format_declaration_export_modifier, format_super_type_clause,
-    write_declaration_body_separator, write_member_block, write_place_prefix,
+    write_declaration_body_separator, write_member_block,
 };
 use crate::declaration::empty_block_with_infix_annotations;
+use crate::declaration::modifier::write_keyword_prefix;
 use crate::declaration::signature::{
     write_declaration_generic_parameters, write_declaration_where_clauses,
 };
@@ -306,7 +307,7 @@ pub(crate) fn format_struct_declaration<'ast>(
         if declaration.is_ambient {
             write!(f, [Keyword::Declare, space()])?;
         }
-        write_place_prefix(f, declaration.place)?;
+        write_keyword_prefix(f, Keyword::Shared, declaration.is_shared)?;
 
         // head
         write!(f, [Keyword::Struct, space(), declaration.name])?;
@@ -598,7 +599,7 @@ pub(crate) fn format_class_declaration<'ast>(
         if declaration.is_ambient {
             write!(f, [Keyword::Declare, space()])?;
         }
-        write_place_prefix(f, declaration.place)?;
+        write_keyword_prefix(f, Keyword::Shared, declaration.is_shared)?;
 
         if declaration.is_abstract {
             write!(f, [Keyword::Abstract, space()])?;
@@ -733,7 +734,7 @@ pub(crate) fn format_enum_declaration<'ast>(
         if declaration.is_ambient {
             write!(f, [Keyword::Declare, space()])?;
         }
-        write_place_prefix(f, declaration.place)?;
+        write_keyword_prefix(f, Keyword::Shared, declaration.is_shared)?;
 
         // head
         write!(f, [Keyword::Enum])?;
@@ -770,7 +771,7 @@ pub(crate) fn format_interface_declaration<'ast>(
             write!(f, [Keyword::Declare, space()])?;
         }
 
-        write_place_prefix(f, declaration.place)?;
+        write_keyword_prefix(f, Keyword::Shared, declaration.is_shared)?;
 
         if declaration.is_nominal {
             write!(f, [Keyword::Newtype, space()])?;

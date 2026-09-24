@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::conditional::ConditionalLayout;
 use crate::annotation::{
     FormatLeadingComments, FormatTrailingComments, format_node_with_trailing_comments,
@@ -69,8 +71,6 @@ fn type_needs_postfix_parentheses(
         | TypeExpression::Implements { .. }
         | TypeExpression::Mapped { .. }
         | TypeExpression::Readonly { .. }
-        | TypeExpression::Local { .. }
-        | TypeExpression::Shared { .. }
         | TypeExpression::KeyOf { .. }
         | TypeExpression::TypeOf { .. }
         | TypeExpression::Must { .. }
@@ -99,8 +99,6 @@ fn type_needs_index_object_parentheses(
         | TypeExpression::Extends { .. }
         | TypeExpression::Implements { .. }
         | TypeExpression::Readonly { .. }
-        | TypeExpression::Local { .. }
-        | TypeExpression::Shared { .. }
         | TypeExpression::KeyOf { .. }
         | TypeExpression::TypeOf { .. }
         | TypeExpression::Must { .. }
@@ -1737,8 +1735,6 @@ fn type_parent_requires_parentheses(
 
         // prefix type operators only group lower precedence operands
         TypeExpression::Readonly { target_type }
-        | TypeExpression::Local { target_type }
-        | TypeExpression::Shared { target_type }
         | TypeExpression::KeyOf { target_type }
         | TypeExpression::Not { target_type }
         | TypeExpression::OwnedOf { target_type, .. }
@@ -1962,8 +1958,6 @@ pub(crate) fn type_expression_needs_parentheses_in_parent(
             _ => type_parent_requires_parentheses(context, parent_id, parent_child_id),
         },
         TypeExpression::Readonly { .. }
-        | TypeExpression::Local { .. }
-        | TypeExpression::Shared { .. }
         | TypeExpression::KeyOf { .. }
         | TypeExpression::TypeOf { .. }
         | TypeExpression::Must { .. }
@@ -2639,7 +2633,7 @@ pub(crate) fn format_type_member_block_list<'ast>(
         let source_comments = f.context().source_comments();
         ignore_ranges_for_nodes(f.context(), members, source_comments)
     } else {
-        std::collections::HashMap::new()
+        HashMap::new()
     };
     let entries = FormatSeparatedIter::new(members.iter().copied(), ";")
         .with_trailing_separator(TrailingSeparator::Allowed);
@@ -2869,12 +2863,6 @@ fn write_type_expression_body_inner<'ast>(
         }
         TypeExpression::Readonly { target_type } => {
             write!(f, [Keyword::Readonly, space(), target_type])?;
-        }
-        TypeExpression::Local { target_type } => {
-            write!(f, [Keyword::Local, space(), target_type])?;
-        }
-        TypeExpression::Shared { target_type } => {
-            write!(f, [token("shared"), space(), target_type])?;
         }
         TypeExpression::KeyOf { target_type } => {
             write!(f, [Keyword::Keyof, space(), target_type])?;

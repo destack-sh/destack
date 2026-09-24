@@ -46,11 +46,8 @@ fn argument_range_is_inline(
 /// Return whether one type value needs the `type` keyword to stay in type space.
 fn type_value_needs_keyword(tree: &Tree, value: LocalNodeId<TypeExpression>) -> bool {
     match tree.get(value) {
-        // these prefix keywords enter type space without an explicit marker
-        TypeExpression::Readonly { .. }
-        | TypeExpression::Local { .. }
-        | TypeExpression::Shared { .. }
-        | TypeExpression::KeyOf { .. } => false,
+        // enter type space through the prefix keyword
+        TypeExpression::Readonly { .. } | TypeExpression::KeyOf { .. } => false,
         // relation operators promote their bare head into type space
         TypeExpression::Conditional { .. }
         | TypeExpression::Extends { .. }

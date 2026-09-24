@@ -37,31 +37,31 @@ fn test_format_recovered_type_member() {
     );
 }
 
-/// Placement and export modifiers format ahead of nominal declarations.
+/// Shared and export modifiers format ahead of nominal declarations.
 #[test]
-fn test_format_placed_nominal_declarations() {
+fn test_format_shared_nominal_declarations() {
     assert_format_program!(
-        r#"local class Promise<T>{}
-export default local class Deferred<T>{}
+        r#"class Promise<T>{}
+export default class Deferred<T>{}
 shared struct Channel<T>{}
-local newtype interface Awaitable<T> {}
+newtype interface Awaitable<T> {}
 shared enum Result { Ok; Error }
-local enum Mode { Read; Write }
-local newtype TaskId = uint64
+enum Mode { Read; Write }
+newtype TaskId = uint64
 "#,
-        r#"local class Promise<T> {}
-export default local class Deferred<T> {}
+        r#"class Promise<T> {}
+export default class Deferred<T> {}
 shared struct Channel<T> {}
-local newtype interface Awaitable<T> {}
+newtype interface Awaitable<T> {}
 shared enum Result {
     Ok,
     Error,
 }
-local enum Mode {
+enum Mode {
     Read,
     Write,
 }
-local newtype TaskId = uint64;
+newtype TaskId = uint64;
 "#,
         FileType::Destack,
     );

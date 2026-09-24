@@ -59,22 +59,6 @@ type Bound = T extends infer _ extends string ? true : false;
     );
 }
 
-/// Local placement types should format like ordinary type operators.
-#[test]
-fn test_format_local_type_operator() {
-    assert_format_program!(
-        r#"type LocalUser = local   User
-type MaybeLocal = local (User | undefined)
-type LocalBox = local ^User
-"#,
-        r#"type LocalUser = local User;
-type MaybeLocal = local (User | undefined);
-type LocalBox = local ^User;
-"#,
-        FileType::Destack
-    );
-}
-
 /// Conditional type alternate comments should stay on the `:` branch.
 #[test]
 fn test_format_type_conditional_alternate_line_comment() {
@@ -1449,7 +1433,7 @@ fn test_format_borrow_qualifiers() {
         r#"type A=&T
 type B=&readonly T
 type C=&exclusive T
-type D=&'a immutable shared T
+type D=&'a immutable T
 type E=&&exclusive T
 type F=&exclusive &readonly T
 const exclusive=source
@@ -1460,7 +1444,7 @@ class Buffer{read(&'a immutable this):void{}}
         r#"type A = &T;
 type B = &readonly T;
 type C = &exclusive T;
-type D = &'a immutable shared T;
+type D = &'a immutable T;
 type E = &&exclusive T;
 type F = &exclusive &readonly T;
 const exclusive = source;
