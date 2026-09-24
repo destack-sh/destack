@@ -44,6 +44,13 @@ pub enum RepositoryError {
     MissingModule { module: ModuleId },
     /// The requested package does not exist in the given revision.
     MissingPackage { package: PackageId },
+    /// One package names a dependency the revision holds no package for.
+    UnresolvedDependency {
+        /// The depending package.
+        package: PackageId,
+        /// The dependency name as declared.
+        name: String,
+    },
     /// The requested package has no file system path.
     MissingPackagePath { package: PackageId },
     /// One package root has no `destack.json` declaration.
@@ -169,6 +176,12 @@ impl fmt::Display for RepositoryError {
             }
             Self::MissingPackage { package } => {
                 write!(formatter, "missing repository package '{package}'")
+            }
+            Self::UnresolvedDependency { package, name } => {
+                write!(
+                    formatter,
+                    "package '{package}' names a dependency '{name}' the revision holds no package for"
+                )
             }
             Self::MissingPackagePath { package } => {
                 write!(formatter, "missing repository package path for '{package}'")

@@ -166,6 +166,13 @@ impl Repository {
                             *source != after_modules.dependency(module)
                         }
                         SourceDependency::Modules { .. } => *source != module_set,
+                        SourceDependency::PackageModules { package, .. } => {
+                            *source
+                                != SourceDependency::package_modules(
+                                    package,
+                                    after_modules.package_module_ids(package),
+                                )
+                        }
                         SourceDependency::ModulePath { file, .. } => {
                             changed_files.binary_search(&file).is_ok()
                         }

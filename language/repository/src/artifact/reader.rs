@@ -6,6 +6,7 @@ use destack_artifact::{
     Artifact, ArtifactDependency, ArtifactKey, ArtifactOutcome, ArtifactProjection,
     ArtifactProjectionDependency, ArtifactProjectionKey, ArtifactRequirement, ArtifactVersion,
 };
+use destack_source::PackageId;
 
 use crate::provider::{ProviderContext, ProviderError};
 use crate::repository::{Repository, Revision};
@@ -40,6 +41,16 @@ impl<'a> ArtifactReader<'a> {
             dependencies: None,
             context: None,
         }
+    }
+
+    /// Return one package with every package it depends on, the package first.
+    pub fn package_closure(&self, package: PackageId) -> Result<Vec<PackageId>, ProviderError> {
+        let closure = self
+            .repository
+            .package_closure(self.revision, package)
+            .map_err(|error| ProviderError::internal(error.to_string()))?;
+
+        Ok(closure)
     }
 
     /// Restrict provider reads to one frozen dependency set.

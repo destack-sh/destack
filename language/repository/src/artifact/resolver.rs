@@ -66,6 +66,10 @@ impl Repository {
             SourceDependency::Modules { fingerprint } => {
                 Ok(self.modules_fingerprint(revision)? == fingerprint)
             }
+            SourceDependency::PackageModules {
+                package,
+                fingerprint,
+            } => Ok(self.package_modules_fingerprint(revision, package)? == fingerprint),
             SourceDependency::ModulePath { file, .. } => {
                 let module = self.module_id_for_file(revision, file)?;
 

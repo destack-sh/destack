@@ -381,6 +381,43 @@ impl Repository {
         }
     }
 
+    /// Return one package with every package it depends on, transitively, the package first.
+    pub fn package_closure(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+    ) -> Result<Vec<PackageId>, RepositoryError> {
+        let mut closure = vec![package_id];
+        let mut index = 0;
+        while index < closure.len() {
+            let package =
+                self.package(revision, closure[index])?
+                    .ok_or(RepositoryError::MissingPackage {
+                        package: closure[index],
+                    })?;
+            let dependencies = package.dependencies.iter().chain(
+                package
+                    .conditional_dependencies
+                    .iter()
+                    .flat_map(|group| group.dependencies.iter()),
+            );
+            for (name, dependency) in dependencies {
+                let target = self
+                    .dependency_package(revision, &package, name, dependency)?
+                    .ok_or_else(|| RepositoryError::UnresolvedDependency {
+                        package: package.id,
+                        name: name.to_string(),
+                    })?;
+                if !closure.contains(&target.id) {
+                    closure.push(target.id);
+                }
+            }
+            index += 1;
+        }
+
+        Ok(closure)
+    }
+
     /// Return one display string for one package id.
     pub fn package_display(
         &self,

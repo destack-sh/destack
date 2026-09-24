@@ -458,6 +458,19 @@ impl Repository {
         Ok(module_ids)
     }
 
+    /// Return the module set fingerprint of one package in one revision.
+    pub fn package_modules_fingerprint(
+        &self,
+        revision: Revision,
+        package_id: PackageId,
+    ) -> Result<ModuleSetFingerprint, RepositoryError> {
+        let modules = self.module_index(revision)?;
+
+        Ok(ModuleSetFingerprint::new(
+            modules.package_module_ids(package_id),
+        ))
+    }
+
     /// Return the module ids visible for one package in one revision.
     pub fn package_module_ids(
         &self,
