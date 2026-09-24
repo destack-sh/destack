@@ -22,23 +22,18 @@ function build(): int32 {
         "main.ds",
         "test.main.read",
         r#"
-type test.main.Point {
-    x: int32;
+function test.main.read(v0: ref<{ x: int32 }, managed, mutable, local>): int32 {
+    local l0: ref<{ x: int32 }, managed, mutable, local>
+
+entry(v0: ref<{ x: int32 }, managed, mutable, local>):
+    store l0, v0
+    v1: ref<{ x: int32 }, managed, mutable, local> = load l0
+    v2: int32 = load (*v1).0
+    return v2
 }
 
-function test.main.read(v0: ref<test.main.Point, managed, mutable, local>): int32 {
-    local l0: ref<test.main.Point, managed, mutable, local>
-
-entry(v0: ref<test.main.Point, managed, mutable, local>):
-    local.set l0, v0
-    v1: ref<test.main.Point, managed, mutable, local> = local.get l0
-    v2: ref<int32, borrowed, 'managed, readonly, local> = field.project v1, 0
-    v3: int32 = load v2
-    return v3
-}
-
-/// @layout.struct name=test.main.Point size=4 align=4
-/// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
+/// @layout.struct name=type@1 size=4 align=4
+/// @layout.field owner=type@1 index=0 name=x offset=0 size=4 align=4
 "#,
     );
 
@@ -46,25 +41,21 @@ entry(v0: ref<test.main.Point, managed, mutable, local>):
         "main.ds",
         "test.main.build",
         r#"
-type test.main.Point {
-    x: int32;
-}
-
 function test.main.build(): int32 {
-    local l0: ref<test.main.Point, managed, mutable, local>
+    local l0: ref<{ x: int32 }, managed, mutable, local>
 
 entry:
     v0: int32 = 7
-    v1: test.main.Point = aggregate (v0)
-    v2: ref<test.main.Point, managed, mutable, local> = new.complete v1
-    local.set l0, v2
-    v3: ref<test.main.Point, managed, mutable, local> = local.get l0
-    v4: int32 = call test.main.read(v3): (ref<test.main.Point, managed, mutable, local>) => int32
+    v1: { x: int32 } = aggregate (v0)
+    v2: ref<{ x: int32 }, managed, mutable, local> = new.complete v1
+    store l0, v2
+    v3: ref<{ x: int32 }, managed, mutable, local> = load l0
+    v4: int32 = call test.main.read(v3): (ref<{ x: int32 }, managed, mutable, local>) => int32
     return v4
 }
 
-/// @layout.struct name=test.main.Point size=4 align=4
-/// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
+/// @layout.struct name=type@1 size=4 align=4
+/// @layout.field owner=type@1 index=0 name=x offset=0 size=4 align=4
 "#,
     );
 }
@@ -93,23 +84,14 @@ function build(): int32 {
         "main.ds",
         "test.main.pick",
         r#"
-type test.main.Selector {
-    depth: variant<uint1> { 0uint1 = void; 1uint1 = int32; };
-    nested: variant<uint1> { 0uint1 = void; 1uint1 = ref<test.main.Selector, managed, mutable, local>; };
-}
+function test.main.pick(v0: ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: variant<uint1> { 0uint1 = type@4; 1uint1 = void; } }, managed, mutable, local>): int32 {
+    local l0: ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: variant<uint1> { 0uint1 = type@4; 1uint1 = void; } }, managed, mutable, local>
 
-function test.main.pick(v0: ref<test.main.Selector, managed, mutable, local>): int32 {
-    local l0: ref<test.main.Selector, managed, mutable, local>
-
-entry(v0: ref<test.main.Selector, managed, mutable, local>):
-    local.set l0, v0
+entry(v0: ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: variant<uint1> { 0uint1 = type@4; 1uint1 = void; } }, managed, mutable, local>):
+    store l0, v0
     v1: int32 = 0
     return v1
 }
-
-/// @layout.struct name=test.main.Selector size=16 align=8
-/// @layout.field owner=test.main.Selector index=0 name=depth offset=8 size=8 align=4
-/// @layout.field owner=test.main.Selector index=1 name=nested offset=0 size=8 align=8
 "#,
     );
 
@@ -117,28 +99,28 @@ entry(v0: ref<test.main.Selector, managed, mutable, local>):
         "main.ds",
         "test.main.build",
         r#"
-type test.main.Selector {
-    depth: variant<uint1> { 0uint1 = void; 1uint1 = int32; };
-    nested: variant<uint1> { 0uint1 = void; 1uint1 = ref<test.main.Selector, managed, mutable, local>; };
-}
-
 function test.main.build(): int32 {
 entry:
     v0: int32 = 3
-    v1: variant<uint1> { 0uint1 = void; 1uint1 = ref<test.main.Selector, managed, mutable, local>; } = variant.new 0
-    v2: test.main.Selector = aggregate (v0, v1)
-    v3: ref<test.main.Selector, managed, mutable, local> = new.complete v2
-    v4: int32 = call test.main.pick(v3): (ref<test.main.Selector, managed, mutable, local>) => int32
-    return v4
+    v1: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = variant.new 0, v0
+    v2: variant<uint1> { 0uint1 = ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: type@5 }, managed, mutable, local>; 1uint1 = void; } = variant.new 1
+    v3: { depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: variant<uint1> { 0uint1 = ref<type@6, managed, mutable, local>; 1uint1 = void; } } = aggregate (v1, v2)
+    v4: ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: variant<uint1> { 0uint1 = type@4; 1uint1 = void; } }, managed, mutable, local> = new.complete v3
+    v5: int32 = call test.main.pick(v4): (ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: variant<uint1> { 0uint1 = type@4; 1uint1 = void; } }, managed, mutable, local>) => int32
+    return v5
 }
 
-/// @layout.struct name=test.main.Selector size=16 align=8
-/// @layout.field owner=test.main.Selector index=0 name=depth offset=8 size=8 align=4
-/// @layout.field owner=test.main.Selector index=1 name=nested offset=0 size=8 align=8
-/// @layout.variant name=type@7 size=8 align=8
-/// @layout.discriminant owner=type@7 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=1 niche_start=0
-/// @layout.case owner=type@7 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@7 index=1 discriminant=1 payload_offset=0
+/// @layout.variant name=type@3 size=8 align=4
+/// @layout.discriminant owner=type@3 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@3 index=0 discriminant=0 payload_offset=4
+/// @layout.case owner=type@3 index=1 discriminant=1 payload_offset=4
+/// @layout.variant name=type@5 size=8 align=8
+/// @layout.discriminant owner=type@5 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@5 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@5 index=1 discriminant=1 payload_offset=0
+/// @layout.struct name=type@6 size=16 align=8
+/// @layout.field owner=type@6 index=0 name=depth offset=8 size=8 align=4
+/// @layout.field owner=type@6 index=1 name=nested offset=0 size=8 align=8
 "#,
     );
 }
@@ -165,15 +147,13 @@ function test.main.build(): int32 {
 entry:
     v0: int32 = 7
     v1: { x: int32 } = aggregate (v0)
-    local.set l0, v1
-    v2: ref<{ x: int32 }, borrowed, 'frame, readonly, frame> = local.project l0
-    v3: ref<int32, borrowed, 'frame, readonly, frame> = field.project v2, 0
-    v4: int32 = load v3
-    return v4
+    store l0, v1
+    v2: int32 = load (l0).0
+    return v2
 }
 
-/// @layout.struct name=type@5 size=4 align=4
-/// @layout.field owner=type@5 index=0 name=x offset=0 size=4 align=4
+/// @layout.struct name=type@1 size=4 align=4
+/// @layout.field owner=type@1 index=0 name=x offset=0 size=4 align=4
 "#,
     );
 }
@@ -201,148 +181,116 @@ export function trace(name: &readonly string, fields?: Fields): void {
         "main.ds",
         "test.main.trace",
         r#"
+@nocopy
 @languageItem("string.String")
 type String;
 
-type test.main.Fields = dynamic<{  }, managed, mutable, local>;
+function test.main.trace<'a>(v0: ref<String, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }): void {
+    local l0: ref<String, borrowed, 'a, readonly>
+    local l1: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }
 
-type test.main.LogOptions<'a> {
-    fields: variant<uint1> { 0uint1 = test.main.Fields; 1uint1 = void; };
-    message: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'a, readonly>; };
-}
-
-function test.main.trace<'a>(v0: ref<String, borrowed, 'a, readonly, local>, v1: variant<uint1> { 0uint1 = test.main.Fields; 1uint1 = void; }): void {
-    local l0: ref<String, borrowed, 'a, readonly, local>
-    local l1: variant<uint1> { 0uint1 = test.main.Fields; 1uint1 = void; }
-
-entry(v0: ref<String, borrowed, 'a, readonly, local>, v1: variant<uint1> { 0uint1 = test.main.Fields; 1uint1 = void; }):
-    local.set l0, v0
-    local.set l1, v1
-    v2: ref<String, borrowed, 'a, readonly, local> = local.get l0
-    v3: variant<uint1> { 0uint1 = test.main.Fields; 1uint1 = void; } = local.get l1
-    v4: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'frame, readonly, local>; } = variant.new 0
-    v5: test.main.LogOptions<'frame & local> = aggregate (v3, v4)
-    v6: ref<test.main.LogOptions<'frame & local>, managed, mutable, local> = new.complete v5
-    v7: variant<uint1> { 0uint1 = ref<test.main.LogOptions<'frame & local>, managed, mutable, local>; 1uint1 = void; } = variant.new 0, v6
-    call test.main.log(v2, v7): <'a, 'b>(ref<String, borrowed, 'a, readonly, local>, variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = test.main.Fields; 1uint1 = void; }, message: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'b, readonly, local>; } }, managed, mutable, local>; 1uint1 = void; }) => void
+entry(v0: ref<String, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }):
+    store l0, v0
+    store l1, v1
+    v2: ref<String, borrowed, 'a, readonly> = load l0
+    v3: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; } = load l1
+    v4: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } = variant.new 1
+    v5: { fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } } = aggregate (v3, v4)
+    v6: ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local> = new.complete v5
+    v7: variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; } = variant.new 0, v6
+    call test.main.log(v2, v7): (ref<String, borrowed, 'a, readonly>, variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; }) => void
     return
 }
 
-/// @layout.variant name=type@13 size=16 align=8
-/// @layout.discriminant owner=type@13 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
-/// @layout.case owner=type@13 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@13 index=1 discriminant=1 payload_offset=0
-/// @layout.variant name=type@16 size=8 align=8
-/// @layout.discriminant owner=type@16 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=1 niche_start=0
-/// @layout.case owner=type@16 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@16 index=1 discriminant=1 payload_offset=0
-/// @layout.struct name=type@18 size=24 align=8
-/// @layout.field owner=type@18 index=0 name=fields offset=0 size=16 align=8
-/// @layout.field owner=type@18 index=1 name=message offset=16 size=8 align=8
-/// @layout.variant name=type@20 size=8 align=8
-/// @layout.discriminant owner=type@20 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
-/// @layout.case owner=type@20 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@20 index=1 discriminant=1 payload_offset=0
-/// @layout.struct name=test.main.LogOptions<'frame & local> size=24 align=8
-/// @layout.field owner=test.main.LogOptions<'frame & local> index=0 name=fields offset=0 size=16 align=8
-/// @layout.field owner=test.main.LogOptions<'frame & local> index=1 name=message offset=16 size=8 align=8
-/// @layout.variant name=type@46 size=8 align=8
-/// @layout.discriminant owner=type@46 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=1 niche_start=0
-/// @layout.case owner=type@46 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@46 index=1 discriminant=1 payload_offset=0
-/// @layout.variant name=type@54 size=8 align=8
-/// @layout.discriminant owner=type@54 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
-/// @layout.case owner=type@54 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@54 index=1 discriminant=1 payload_offset=0
+/// @layout.struct name=type@6 size=0 align=1
+/// @layout.variant name=type@10 size=16 align=8
+/// @layout.discriminant owner=type@10 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@10 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@10 index=1 discriminant=1 payload_offset=0
+/// @layout.variant name=type@18 size=8 align=8
+/// @layout.discriminant owner=type@18 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@18 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@18 index=1 discriminant=1 payload_offset=0
+/// @layout.struct name=type@19 size=24 align=8
+/// @layout.field owner=type@19 index=0 name=fields offset=0 size=16 align=8
+/// @layout.field owner=type@19 index=1 name=message offset=16 size=8 align=8
+/// @layout.variant name=type@21 size=8 align=8
+/// @layout.discriminant owner=type@21 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@21 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@21 index=1 discriminant=1 payload_offset=0
 "#,
     );
     session.assert_mir_function("main.ds", "test.main.log", r#"
+@nocopy
 @languageItem("string.String")
 type String;
 
-type test.main.Fields = dynamic<{  }, managed, mutable, local>;
+function test.main.log<'a, 'b>(v0: ref<String, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; }): void {
+    local l0: ref<String, borrowed, 'a, readonly>
+    local l1: variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; }
 
-function test.main.log<'a, 'b>(v0: ref<String, borrowed, 'a, readonly, local>, v1: variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = test.main.Fields; 1uint1 = void; }, message: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'b, readonly, local>; } }, managed, mutable, local>; 1uint1 = void; }): void {
-    local l0: ref<String, borrowed, 'a, readonly, local>
-    local l1: variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = test.main.Fields; 1uint1 = void; }, message: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'b, readonly, local>; } }, managed, mutable, local>; 1uint1 = void; }
-
-entry(v0: ref<String, borrowed, 'a, readonly, local>, v1: variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = test.main.Fields; 1uint1 = void; }, message: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'b, readonly, local>; } }, managed, mutable, local>; 1uint1 = void; }):
-    local.set l0, v0
-    local.set l1, v1
+entry(v0: ref<String, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; }):
+    store l0, v0
+    store l1, v1
     return
 }
 
-/// @layout.variant name=type@13 size=16 align=8
-/// @layout.discriminant owner=type@13 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
-/// @layout.case owner=type@13 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@13 index=1 discriminant=1 payload_offset=0
-/// @layout.variant name=type@16 size=8 align=8
-/// @layout.discriminant owner=type@16 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=1 niche_start=0
-/// @layout.case owner=type@16 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@16 index=1 discriminant=1 payload_offset=0
-/// @layout.struct name=type@18 size=24 align=8
-/// @layout.field owner=type@18 index=0 name=fields offset=0 size=16 align=8
-/// @layout.field owner=type@18 index=1 name=message offset=16 size=8 align=8
-/// @layout.variant name=type@20 size=8 align=8
-/// @layout.discriminant owner=type@20 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
-/// @layout.case owner=type@20 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@20 index=1 discriminant=1 payload_offset=0
+/// @layout.struct name=type@6 size=0 align=1
+/// @layout.variant name=type@10 size=16 align=8
+/// @layout.discriminant owner=type@10 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@10 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@10 index=1 discriminant=1 payload_offset=0
+/// @layout.variant name=type@12 size=8 align=8
+/// @layout.discriminant owner=type@12 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@12 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@12 index=1 discriminant=1 payload_offset=0
+/// @layout.struct name=type@13 size=24 align=8
+/// @layout.field owner=type@13 index=0 name=fields offset=0 size=16 align=8
+/// @layout.field owner=type@13 index=1 name=message offset=16 size=8 align=8
+/// @layout.variant name=type@15 size=8 align=8
+/// @layout.discriminant owner=type@15 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@15 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@15 index=1 discriminant=1 payload_offset=0
 "#);
 
     session.assert_mir_function("main.ds", "test.main.trace", r#"
+@nocopy
 @languageItem("string.String")
 type String;
 
-type test.main.Fields = dynamic<{  }, managed, mutable, local>;
+function test.main.trace<'a>(v0: ref<String, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }): void {
+    local l0: ref<String, borrowed, 'a, readonly>
+    local l1: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }
 
-type test.main.LogOptions<'a> {
-    fields: variant<uint1> { 0uint1 = test.main.Fields; 1uint1 = void; };
-    message: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'a, readonly>; };
-}
-
-function test.main.trace<'a>(v0: ref<String, borrowed, 'a, readonly, local>, v1: variant<uint1> { 0uint1 = test.main.Fields; 1uint1 = void; }): void {
-    local l0: ref<String, borrowed, 'a, readonly, local>
-    local l1: variant<uint1> { 0uint1 = test.main.Fields; 1uint1 = void; }
-
-entry(v0: ref<String, borrowed, 'a, readonly, local>, v1: variant<uint1> { 0uint1 = test.main.Fields; 1uint1 = void; }):
-    local.set l0, v0
-    local.set l1, v1
-    v2: ref<String, borrowed, 'a, readonly, local> = local.get l0
-    v3: variant<uint1> { 0uint1 = test.main.Fields; 1uint1 = void; } = local.get l1
-    v4: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'frame, readonly, local>; } = variant.new 0
-    v5: test.main.LogOptions<'frame & local> = aggregate (v3, v4)
-    v6: ref<test.main.LogOptions<'frame & local>, managed, mutable, local> = new.complete v5
-    v7: variant<uint1> { 0uint1 = ref<test.main.LogOptions<'frame & local>, managed, mutable, local>; 1uint1 = void; } = variant.new 0, v6
-    call test.main.log(v2, v7): <'a, 'b>(ref<String, borrowed, 'a, readonly, local>, variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = test.main.Fields; 1uint1 = void; }, message: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'b, readonly, local>; } }, managed, mutable, local>; 1uint1 = void; }) => void
+entry(v0: ref<String, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }):
+    store l0, v0
+    store l1, v1
+    v2: ref<String, borrowed, 'a, readonly> = load l0
+    v3: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; } = load l1
+    v4: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } = variant.new 1
+    v5: { fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } } = aggregate (v3, v4)
+    v6: ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local> = new.complete v5
+    v7: variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; } = variant.new 0, v6
+    call test.main.log(v2, v7): (ref<String, borrowed, 'a, readonly>, variant<uint1> { 0uint1 = ref<{ fields: variant<uint1> { 0uint1 = dynamic<{  }, managed, mutable, local>; 1uint1 = void; }, message: variant<uint1> { 0uint1 = ref<String, borrowed, 'frame, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; }) => void
     return
 }
 
-/// @layout.variant name=type@13 size=16 align=8
-/// @layout.discriminant owner=type@13 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
-/// @layout.case owner=type@13 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@13 index=1 discriminant=1 payload_offset=0
-/// @layout.variant name=type@16 size=8 align=8
-/// @layout.discriminant owner=type@16 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=1 niche_start=0
-/// @layout.case owner=type@16 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@16 index=1 discriminant=1 payload_offset=0
-/// @layout.struct name=type@18 size=24 align=8
-/// @layout.field owner=type@18 index=0 name=fields offset=0 size=16 align=8
-/// @layout.field owner=type@18 index=1 name=message offset=16 size=8 align=8
-/// @layout.variant name=type@20 size=8 align=8
-/// @layout.discriminant owner=type@20 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
-/// @layout.case owner=type@20 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@20 index=1 discriminant=1 payload_offset=0
-/// @layout.struct name=test.main.LogOptions<'frame & local> size=24 align=8
-/// @layout.field owner=test.main.LogOptions<'frame & local> index=0 name=fields offset=0 size=16 align=8
-/// @layout.field owner=test.main.LogOptions<'frame & local> index=1 name=message offset=16 size=8 align=8
-/// @layout.variant name=type@46 size=8 align=8
-/// @layout.discriminant owner=type@46 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=1 niche_start=0
-/// @layout.case owner=type@46 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@46 index=1 discriminant=1 payload_offset=0
-/// @layout.variant name=type@54 size=8 align=8
-/// @layout.discriminant owner=type@54 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
-/// @layout.case owner=type@54 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@54 index=1 discriminant=1 payload_offset=0
+/// @layout.struct name=type@6 size=0 align=1
+/// @layout.variant name=type@10 size=16 align=8
+/// @layout.discriminant owner=type@10 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@10 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@10 index=1 discriminant=1 payload_offset=0
+/// @layout.variant name=type@18 size=8 align=8
+/// @layout.discriminant owner=type@18 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@18 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@18 index=1 discriminant=1 payload_offset=0
+/// @layout.struct name=type@19 size=24 align=8
+/// @layout.field owner=type@19 index=0 name=fields offset=0 size=16 align=8
+/// @layout.field owner=type@19 index=1 name=message offset=16 size=8 align=8
+/// @layout.variant name=type@21 size=8 align=8
+/// @layout.discriminant owner=type@21 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@21 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@21 index=1 discriminant=1 payload_offset=0
 "#);
 }
 
@@ -354,9 +302,9 @@ type LogOptions<'a> = {
     message?: &'a readonly string | undefined;
 };
 
-struct LogEntry<'a> {
+struct LogEntry<'a, 'b> {
     logger: &'a readonly string;
-    message: &'a readonly string | undefined;
+    message: &'b readonly string | undefined;
 }
 
 function write(entry: &readonly LogEntry): void {}
@@ -383,66 +331,62 @@ class Logger {
         "main.ds",
         "test.main.Logger.log",
         r#"
-@languageItem("string.String")
-type String;
-
+@nocopy
 type test.main.Logger {
     name: ref<String, managed, mutable, local>;
 }
 
-@copy
-type test.main.LogEntry<'a> {
+@nocopy
+@languageItem("string.String")
+type String;
+
+type test.main.LogEntry<'a, 'b> {
     logger: ref<String, borrowed, 'a, readonly>;
-    message: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'a, readonly>; };
+    message: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; };
 }
 
-function test.main.Logger.log<'a, 'b>(v0: ref<test.main.Logger, borrowed, 'a, readonly, local>, v1: variant<uint1> { 0uint1 = void; 1uint1 = ref<{ message: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'b, readonly, local>; } }, managed, mutable, local>; }): void {
-    local l0: variant<uint1> { 0uint1 = void; 1uint1 = ref<{ message: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'b, readonly, local>; } }, managed, mutable, local>; }
-    local l1: ref<test.main.Logger, borrowed, 'a, readonly, local>
-    local l2: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'b, readonly, local>; }
-    local l3: test.main.LogEntry<'a | 'b & local>
+function test.main.Logger.log<'a, 'b>(v0: ref<test.main.Logger, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = ref<{ message: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; }): void {
+    local l0: variant<uint1> { 0uint1 = ref<{ message: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; }
+    local l1: ref<test.main.Logger, borrowed, 'a, readonly>
+    local l2: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; }
+    local l3: test.main.LogEntry<'a, 'b>
 
-entry(v0: ref<test.main.Logger, borrowed, 'a, readonly, local>, v1: variant<uint1> { 0uint1 = void; 1uint1 = ref<{ message: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'b, readonly, local>; } }, managed, mutable, local>; }):
-    local.set l0, v1
-    local.set l1, v0
-    v2: ref<test.main.Logger, borrowed, 'a, readonly, local> = local.get l1
-    v3: ref<ref<String, managed, readonly, local>, borrowed, 'a, readonly, local> = field.project v2, 0
-    v4: ref<String, managed, readonly, local> = load v3
-    v5: ref<String, borrowed, 'a, readonly, local> = cast.bit v4 -> ref<String, borrowed, 'a, readonly, local>
-    v6: variant<uint1> { 0uint1 = void; 1uint1 = ref<{ message: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'b, readonly, local>; } }, managed, mutable, local>; } = local.get l0
-    v7: ref<{ message: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'b, readonly, local>; } }, managed, mutable, local> = variant.payload v6, 1
-    v8: ref<variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'b, readonly, local>; }, borrowed, 'managed, readonly, local> = field.project v7, 0
-    v9: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'b, readonly, local>; } = load v8
-    local.set l2, v9
+entry(v0: ref<test.main.Logger, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = ref<{ message: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; } }, managed, mutable, local>; 1uint1 = void; }):
+    store l0, v1
+    store l1, v0
+    v2: ref<test.main.Logger, borrowed, 'a, readonly> = load l1
+    v3: ref<ref<String, managed, mutable, local>, borrowed, 'a, readonly> = address (*v2).0
+    v4: ref<String, managed, mutable, local> = load (*v3)
+    v5: ref<String, borrowed, 'a, readonly> = cast.bit v4 -> ref<String, borrowed, 'a, readonly>
+    v6: ref<{ message: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; } }, borrowed, 'managed, mutable> = address (*(l0 as 0))
+    v7: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; } = load (*v6).0
+    store l2, v7
     jump b1
 
 b1:
-    v10: variant<uint1> { 0uint1 = void; 1uint1 = ref<String, borrowed, 'b, readonly, local>; } = local.get l2
-    v11: test.main.LogEntry<'a | 'b & local> = aggregate (v5, v10)
-    local.set l3, v11
-    v12: ref<test.main.LogEntry<'a | 'b & local>, borrowed, 'frame, readonly, local> = local.address l3
-    call test.main.write(v12): <'a, 'b>(ref<test.main.LogEntry<'a & local>, borrowed, 'b, readonly, local>) => void
+    v8: variant<uint1> { 0uint1 = ref<String, borrowed, 'b, readonly>; 1uint1 = void; } = load l2
+    v9: test.main.LogEntry<'a, 'b> = aggregate (v5, v8)
+    store l3, v9
+    v10: ref<test.main.LogEntry<'a, 'b>, borrowed, 'frame, readonly> = address l3
+    call test.main.write(v10): (ref<test.main.LogEntry<'a, 'b>, borrowed, 'frame, readonly>) => void
     return
 }
 
 /// @layout.struct name=test.main.Logger size=8 align=8
 /// @layout.field owner=test.main.Logger index=0 name=name offset=0 size=8 align=8
-/// @layout.struct name=test.main.LogEntry<'a & local> size=16 align=8
-/// @layout.field owner=test.main.LogEntry<'a & local> index=0 name=logger offset=0 size=8 align=8
-/// @layout.field owner=test.main.LogEntry<'a & local> index=1 name=message offset=8 size=8 align=8
-/// @layout.variant name=type@31 size=8 align=8
-/// @layout.discriminant owner=type@31 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=1 niche_start=0
-/// @layout.case owner=type@31 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@31 index=1 discriminant=1 payload_offset=0
-/// @layout.struct name=type@33 size=8 align=8
-/// @layout.field owner=type@33 index=0 name=message offset=0 size=8 align=8
-/// @layout.variant name=type@35 size=8 align=8
-/// @layout.discriminant owner=type@35 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=1 niche_start=0
-/// @layout.case owner=type@35 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@35 index=1 discriminant=1 payload_offset=0
-/// @layout.struct name=test.main.LogEntry<'a | 'b & local> size=16 align=8
-/// @layout.field owner=test.main.LogEntry<'a | 'b & local> index=0 name=logger offset=0 size=8 align=8
-/// @layout.field owner=test.main.LogEntry<'a | 'b & local> index=1 name=message offset=8 size=8 align=8
+/// @layout.struct name=test.main.LogEntry<'a, 'b> size=16 align=8
+/// @layout.field owner=test.main.LogEntry<'a, 'b> index=0 name=logger offset=0 size=8 align=8
+/// @layout.field owner=test.main.LogEntry<'a, 'b> index=1 name=message offset=8 size=8 align=8
+/// @layout.variant name=type@21 size=8 align=8
+/// @layout.discriminant owner=type@21 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@21 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@21 index=1 discriminant=1 payload_offset=0
+/// @layout.struct name=type@22 size=8 align=8
+/// @layout.field owner=type@22 index=0 name=message offset=0 size=8 align=8
+/// @layout.variant name=type@24 size=8 align=8
+/// @layout.discriminant owner=type@24 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@24 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@24 index=1 discriminant=1 payload_offset=0
 "#,
     );
 }
@@ -469,40 +413,41 @@ class Counter {
     );
 
     session.assert_mir_function("main.ds", "test.main.Counter.constructor", r#"
+@nocopy
 type test.main.Counter {
     count: int32;
 }
 
-function test.main.Counter.constructor<'a>(v0: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, local>, v1: int32): void {
+constructor test.main.Counter.constructor(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32): void {
     local l0: int32
-    local l1: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, local>
-    local l2: function<<'a>() => int32, repeatable, managed, mutable, local>
+    local l1: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>
+    local l2: function<() => int32, repeatable, managed, mutable, local>
 
-entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, local>, v1: int32):
-    local.set l0, v1
-    local.set l1, v0
-    v2: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, local> = local.get l1
-    v3: int32 = local.get l0
-    v4: ref<uninit<int32>, borrowed, 'a, mutable, local> = field.project v2, 0
-    store v4, v3
-    v5: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, local> = local.get l1
+entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32):
+    store l0, v1
+    store l1, v0
+    v2: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable> = load l1
+    v3: int32 = load l0
+    store (*v2).0, v3
+    v4: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable> = load l1
+    v5: ref<test.main.Counter, borrowed, 'managed, mutable> = cast.bit v4 -> ref<test.main.Counter, borrowed, 'managed, mutable>
     v6: ref<test.main.Counter, managed, mutable, local> = cast.bit v5 -> ref<test.main.Counter, managed, mutable, local>
     call test.main.Counter.bump(v6): (ref<test.main.Counter, managed, mutable, local>) => void
-    v7: ref<uninit<test.main.Counter>, borrowed, 'a, mutable, local> = local.get l1
-    v8: ref<test.main.Counter, managed, mutable, local> = cast.bit v7 -> ref<test.main.Counter, managed, mutable, local>
-    v9: { ref<test.main.Counter, managed, mutable, local> } = aggregate (v8)
-    v10: ref<{ ref<test.main.Counter, managed, mutable, local> }, managed, mutable, local> = new.complete v9
-    v11: function<<'a>() => int32, repeatable, managed, mutable, local> = function.bind test.main.Counter.constructor.closure#0, v10
-    local.set l2, v11
-    v12: function<<'a>() => int32, repeatable, managed, mutable, local> = local.get l2
-    v13: function<<'a>() => int32, repeatable, borrowed, 'managed, readonly, local> = cast.bit v12 -> function<<'a>() => int32, repeatable, borrowed, 'managed, readonly, local>
-    v14: int32 = call.indirect v13(): <'a>() => int32
+    v7: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable> = load l1
+    v8: ref<test.main.Counter, borrowed, 'managed, mutable> = cast.bit v7 -> ref<test.main.Counter, borrowed, 'managed, mutable>
+    v9: { ref<test.main.Counter, borrowed, 'managed, mutable> } = aggregate (v8)
+    v10: ref<{ ref<test.main.Counter, borrowed, 'managed, mutable> }, managed, mutable, local> = new.complete v9
+    v11: function<() => int32, repeatable, managed, mutable, local> = function.bind test.main.Counter.constructor.closure#0, v10
+    store l2, v11
+    v12: function<() => int32, repeatable, managed, mutable, local> = load l2
+    v13: function<() => int32, repeatable, borrowed, 'managed, readonly> = cast.bit v12 -> function<() => int32, repeatable, borrowed, 'managed, readonly>
+    v14: int32 = call.indirect v13(): () => int32
     return
 }
 
 /// @layout.struct name=test.main.Counter size=4 align=4
 /// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
-/// @layout.struct name=type@29 size=8 align=8
-/// @layout.field owner=type@29 index=0 offset=0 size=8 align=8
+/// @layout.struct name=type@9 size=8 align=8
+/// @layout.field owner=type@9 index=0 offset=0 size=8 align=8
 "#);
 }

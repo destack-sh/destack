@@ -60,19 +60,19 @@ function read(value: &readonly User): int32 {
         "main.ds",
         "test.main.User.constructor",
         r#"
+@nocopy
 type test.main.User {
     id: int32;
 }
 
-function test.main.User.constructor<'a>(v0: ref<uninit<test.main.User>, borrowed, 'a, mutable, local>): void {
-    local l0: ref<uninit<test.main.User>, borrowed, 'a, mutable, local>
+constructor test.main.User.constructor<'a>(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>): void {
+    local l0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>
 
-entry(v0: ref<uninit<test.main.User>, borrowed, 'a, mutable, local>):
-    local.set l0, v0
-    v1: ref<uninit<test.main.User>, borrowed, 'a, mutable, local> = local.get l0
-    v2: int32 = 0
-    v3: ref<uninit<int32>, borrowed, 'a, mutable, local> = field.project v1, 0
-    store v3, v2
+entry(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>):
+    store l0, v0
+    v1: int32 = 0
+    v2: ref<uninit<test.main.User>, borrowed, 'a, exclusive> = address (*l0)
+    store (*v2).0, v1
     return
 }
 
@@ -85,17 +85,18 @@ entry(v0: ref<uninit<test.main.User>, borrowed, 'a, mutable, local>):
         "main.ds",
         "test.main.read",
         r#"
+@nocopy
 type test.main.User {
     id: int32;
 }
 
-function test.main.read<'a>(v0: ref<test.main.User, borrowed, 'a, readonly, local>): int32 {
-    local l0: ref<test.main.User, borrowed, 'a, readonly, local>
+function test.main.read<'a>(v0: ref<test.main.User, borrowed, 'a, readonly>): int32 {
+    local l0: ref<test.main.User, borrowed, 'a, readonly>
 
-entry(v0: ref<test.main.User, borrowed, 'a, readonly, local>):
-    local.set l0, v0
-    v1: ref<test.main.User, borrowed, 'a, readonly, local> = local.get l0
-    v2: int32 = call host.user.inspect(v1): <'a>(ref<test.main.User, borrowed, 'a, readonly, local>) => int32
+entry(v0: ref<test.main.User, borrowed, 'a, readonly>):
+    store l0, v0
+    v1: ref<test.main.User, borrowed, 'a, readonly> = load l0
+    v2: int32 = call host.user.inspect(v1): (ref<test.main.User, borrowed, 'a, readonly>) => int32
     return v2
 }
 
@@ -122,7 +123,7 @@ function test.main.greet(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }
     local l0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }
 
 entry(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }):
-    local.set l0, v0
+    store l0, v0
     return
 }
 

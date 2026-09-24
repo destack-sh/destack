@@ -21,8 +21,8 @@ function test.main.weigh(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
-    local.set l0, v0
-    v1: int32 = local.get l0
+    store l0, v0
+    v1: int32 = load l0
     v2: int32 = intrinsic.math.bits.populationCount(v1)
     return v2
 }
@@ -102,9 +102,9 @@ function test.main.pause(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
-    local.set l0, v0
+    store l0, v0
     breakpoint
-    v1: int32 = local.get l0
+    v1: int32 = load l0
     return v1
 }
 "#,
@@ -227,9 +227,9 @@ function test.main.clamp(v0: int32): int8 {
     local l0: int32
 
 entry(v0: int32):
-    local.set l0, v0
-    v1: int32 = local.get l0
-    v2: int8 = cast.saturate v1 -> int8
+    store l0, v0
+    v1: int32 = load l0
+    v2: int8 = cast.intToIntSaturating v1 -> int8
     return v2
 }
 "#,
@@ -329,11 +329,11 @@ function test.main.bump(v0: ptr<int32, mutable>): void {
     local l0: ptr<int32, mutable>
 
 entry(v0: ptr<int32, mutable>):
-    local.set l0, v0
-    v1: ptr<int32, mutable> = local.get l0
-    v2: ptr<int32, mutable> = local.get l0
-    v3: int32 = load v2
-    store v1, v3
+    store l0, v0
+    v1: ptr<int32, mutable> = load l0
+    v2: ptr<int32, mutable> = load l0
+    v3: int32 = load (*v2)
+    store (*v1), v3
     return
 }
 "#,
@@ -364,9 +364,9 @@ function test.main.mirror(v0: ptr<int32, mutable>): void {
     local l0: ptr<int32, mutable>
 
 entry(v0: ptr<int32, mutable>):
-    local.set l0, v0
-    v1: ptr<int32, mutable> = local.get l0
-    v2: ptr<int32, mutable> = local.get l0
+    store l0, v0
+    v1: ptr<int32, mutable> = load l0
+    v2: ptr<int32, mutable> = load l0
     v3: int32 = intrinsic.memory.ptr.readVolatile(v2)
     intrinsic.memory.ptr.writeVolatile(v1, v3)
     return
@@ -397,12 +397,12 @@ function test.main.exchange(v0: ptr<int32, mutable>, v1: int32): int32 {
     local l1: int32
 
 entry(v0: ptr<int32, mutable>, v1: int32):
-    local.set l0, v0
-    local.set l1, v1
-    v2: ptr<int32, mutable> = local.get l0
-    v3: int32 = local.get l1
-    v4: int32 = load v2
-    store v2, v3
+    store l0, v0
+    store l1, v1
+    v2: ptr<int32, mutable> = load l0
+    v3: int32 = load l1
+    v4: int32 = load (*v2)
+    store (*v2), v3
     return v4
 }
 "#,
@@ -431,14 +431,14 @@ function test.main.flip(v0: ptr<int32, mutable>, v1: ptr<int32, mutable>): void 
     local l1: ptr<int32, mutable>
 
 entry(v0: ptr<int32, mutable>, v1: ptr<int32, mutable>):
-    local.set l0, v0
-    local.set l1, v1
-    v2: ptr<int32, mutable> = local.get l0
-    v3: ptr<int32, mutable> = local.get l1
-    v4: int32 = load v2
-    v5: int32 = load v3
-    store v2, v5
-    store v3, v4
+    store l0, v0
+    store l1, v1
+    v2: ptr<int32, mutable> = load l0
+    v3: ptr<int32, mutable> = load l1
+    v4: int32 = load (*v2)
+    v5: int32 = load (*v3)
+    store (*v2), v5
+    store (*v3), v4
     return
 }
 "#,
@@ -466,9 +466,9 @@ function test.main.destroy(v0: ptr<int32, mutable>): void {
     local l0: ptr<int32, mutable>
 
 entry(v0: ptr<int32, mutable>):
-    local.set l0, v0
-    v1: ptr<int32, mutable> = local.get l0
-    v2: int32 = load v1
+    store l0, v0
+    v1: ptr<int32, mutable> = load l0
+    v2: int32 = load (*v1)
     drop v2
     return
 }
@@ -504,15 +504,24 @@ function measure(): usize {
         "main.ds",
         "test.main.measure",
         r#"
+type test.main.Pair {
+    low: int32;
+    high: int64;
+}
+
 function test.main.measure(): usize {
 entry:
-    v0: usize = 16
-    v1: usize = 8
+    v0: usize = size.of test.main.Pair
+    v1: usize = align.of test.main.Pair
     v2: usize = add v0, v1
-    v3: usize = 16
+    v3: usize = stride.of test.main.Pair
     v4: usize = add v2, v3
     return v4
 }
+
+/// @layout.struct name=test.main.Pair size=16 align=8
+/// @layout.field owner=test.main.Pair index=0 name=low offset=8 size=4 align=4
+/// @layout.field owner=test.main.Pair index=1 name=high offset=0 size=8 align=8
 "#,
     );
 }
@@ -534,13 +543,13 @@ function locate(value: &readonly int64): *int64 {
         "main.ds",
         "test.main.locate",
         r#"
-function test.main.locate<'a>(v0: ref<int64, borrowed, 'a, readonly, local>): ptr<int64, mutable> {
-    local l0: ref<int64, borrowed, 'a, readonly, local>
+function test.main.locate<'a>(v0: ref<int64, borrowed, 'a, readonly>): ptr<int64, mutable> {
+    local l0: ref<int64, borrowed, 'a, readonly>
 
-entry(v0: ref<int64, borrowed, 'a, readonly, local>):
-    local.set l0, v0
-    v1: ref<int64, borrowed, 'a, readonly, local> = local.get l0
-    v2: ptr<int64, mutable> = intrinsic.memory.raw.transmute(v1)
+entry(v0: ref<int64, borrowed, 'a, readonly>):
+    store l0, v0
+    v1: ref<int64, borrowed, 'a, readonly> = load l0
+    v2: ptr<int64, mutable> = cast.referenceToPointer v1 -> ptr<int64, mutable>
     return v2
 }
 "#,
@@ -566,7 +575,7 @@ function empty(): *int64 {
         r#"
 function test.main.empty(): ptr<int64, mutable> {
 entry:
-    v0: usize = 8
+    v0: ptr<int64, mutable> = align.of int64
     v1: ptr<int64, mutable> = intrinsic.memory.raw.transmute(v0)
     return v1
 }
@@ -599,17 +608,17 @@ function test.main.distance(v0: ptr<int32, mutable>, v1: ptr<int32, mutable>): i
     local l1: ptr<int32, mutable>
 
 entry(v0: ptr<int32, mutable>, v1: ptr<int32, mutable>):
-    local.set l0, v0
-    local.set l1, v1
-    v2: ptr<int32, mutable> = local.get l0
+    store l0, v0
+    store l1, v1
+    v2: ptr<int32, mutable> = load l0
     v3: int64 = 2
-    v4: int64 = 4
+    v4: int64 = stride.of int32
     v5: int64 = intrinsic.memory.raw.transmute(v2)
     v6: int64 = mul v3, v4
     v7: int64 = add v5, v6
     v8: ptr<int32, mutable> = intrinsic.memory.raw.transmute(v7)
-    v9: ptr<int32, mutable> = local.get l1
-    v10: int64 = 4
+    v9: ptr<int32, mutable> = load l1
+    v10: int64 = stride.of int32
     v11: int64 = intrinsic.memory.ptr.byteOffsetFrom(v8, v9)
     v12: int64 = div v11, v10
     return v12
@@ -681,8 +690,8 @@ function test.main.wrap(v0: int64): int64 {
     local l0: int64
 
 entry(v0: int64):
-    local.set l0, v0
-    v1: int64 = local.get l0
+    store l0, v0
+    v1: int64 = load l0
     v2: manual<int64> = intrinsic.memory.raw.transmute(v1)
     v3: int64 = intrinsic.memory.raw.transmute(v2)
     return v3
@@ -722,8 +731,10 @@ function scope(variable: Variable, value: int32): int32 {
     );
 
     session.assert_mir_function("main.ds", "test.main.scope", r#"
+@nocopy
 type test.main.Context { }
 
+@nocopy
 type test.main.Variable { }
 
 function test.main.scope(v0: ref<test.main.Variable, managed, mutable, local>, v1: int32): int32 {
@@ -734,33 +745,33 @@ function test.main.scope(v0: ref<test.main.Variable, managed, mutable, local>, v
     local l4: int32
 
 entry(v0: ref<test.main.Variable, managed, mutable, local>, v1: int32):
-    local.set l0, v0
-    local.set l1, v1
+    store l0, v0
+    store l1, v1
     v2: ref<test.main.Context, managed, mutable, local> = context.current
-    v3: ref<test.main.Variable, managed, mutable, local> = local.get l0
-    v4: int32 = local.get l1
+    v3: ref<test.main.Variable, managed, mutable, local> = load l0
+    v4: int32 = load l1
     v5: ref<test.main.Context, managed, mutable, local> = context.bind v2, v3, v4, { parent: ref<test.main.Context, managed, mutable, local>, variable: ref<test.main.Variable, managed, mutable, local>, value: int32 }
-    local.set l2, v5
-    v6: ref<test.main.Context, managed, mutable, local> = local.get l2
+    store l2, v5
+    v6: ref<test.main.Context, managed, mutable, local> = load l2
     v7: ref<test.main.Context, managed, mutable, local> = context.replace v6
-    local.set l3, v7
-    v8: ref<test.main.Context, managed, mutable, local> = local.get l2
-    v9: ref<test.main.Variable, managed, mutable, local> = local.get l0
-    v10: int32 = local.get l1
+    store l3, v7
+    v8: ref<test.main.Context, managed, mutable, local> = load l2
+    v9: ref<test.main.Variable, managed, mutable, local> = load l0
+    v10: int32 = load l1
     v11: int32 = context.get v8, v9, v10, { parent: ref<test.main.Context, managed, mutable, local>, variable: ref<test.main.Variable, managed, mutable, local>, value: int32 }
-    local.set l4, v11
-    v12: ref<test.main.Context, managed, mutable, local> = local.get l3
+    store l4, v11
+    v12: ref<test.main.Context, managed, mutable, local> = load l3
     v13: ref<test.main.Context, managed, mutable, local> = context.replace v12
-    v14: int32 = local.get l4
+    v14: int32 = load l4
     return v14
 }
 
 /// @layout.struct name=test.main.Context size=0 align=1
 /// @layout.struct name=test.main.Variable size=0 align=1
-/// @layout.struct name=type@20 size=24 align=8
-/// @layout.field owner=type@20 index=0 name=parent offset=0 size=8 align=8
-/// @layout.field owner=type@20 index=1 name=variable offset=8 size=8 align=8
-/// @layout.field owner=type@20 index=2 name=value offset=16 size=4 align=4
+/// @layout.struct name=type@6 size=24 align=8
+/// @layout.field owner=type@6 index=0 name=parent offset=0 size=8 align=8
+/// @layout.field owner=type@6 index=1 name=variable offset=8 size=8 align=8
+/// @layout.field owner=type@6 index=2 name=value offset=16 size=4 align=4
 "#);
 }
 
@@ -789,10 +800,10 @@ function test.main.observe(v0: float64): void {
     local l0: float64
 
 entry(v0: float64):
-    local.set l0, v0
+    store l0, v0
     profile.increment counter(0)
     profile.increment counter(0)
-    v1: float64 = local.get l0
+    v1: float64 = load l0
     profile.sample sampler(0), v1
     return
 }
@@ -803,22 +814,18 @@ entry(v0: float64):
         "main.ds",
         "test.main.@init",
         r#"
-@copy
 type literal.string.requests { }
 
-@copy
 type literal.string.latency { }
 
 export function test.main.@init(): void {
 entry:
     v0: literal.string.requests = zeroed
     v1: void = zeroed
-    v2: ref<void, borrowed, mutable, static> = global.project test.main.requests
-    store v2, v1
-    v3: literal.string.latency = zeroed
-    v4: void = zeroed
-    v5: ref<void, borrowed, mutable, static> = global.project test.main.latency
-    store v5, v4
+    store @test.main.requests, v1
+    v2: literal.string.latency = zeroed
+    v3: void = zeroed
+    store @test.main.latency, v3
     return
 }
 
@@ -844,16 +851,16 @@ function reserve(count: usize): ^[MaybeUninit<int32>] {
     );
 
     session.assert_mir_function("main.ds", "test.main.reserve", r#"
-function test.main.reserve(v0: usize): slice<uninit<int32>, unique, mutable, local> {
+function test.main.reserve(v0: usize): slice<uninit<int32>, unique, mutable> {
     local l0: usize
-    local l1: slice<uninit<int32>, unique, mutable, local>
+    local l1: slice<uninit<int32>, unique, mutable>
 
 entry(v0: usize):
-    local.set l0, v0
-    v1: usize = local.get l0
-    v2: slice<uninit<int32>, unique, mutable, local> = call Slice.uninit<int32>(v1): (usize) => slice<uninit<int32>, unique, mutable, local>
-    local.set l1, v2
-    v3: slice<uninit<int32>, unique, mutable, local> = local.get l1
+    store l0, v0
+    v1: usize = load l0
+    v2: slice<uninit<int32>, unique, mutable> = call Slice.uninit<int32>(v1): (usize) => slice<uninit<int32>, unique, mutable>
+    store l1, v2
+    v3: slice<uninit<int32>, unique, mutable> = load l1
     return v3
 }
 "#);
@@ -892,12 +899,10 @@ entry:
 export function test.main.@init(): void {
 entry:
     v0: int32 = call test.main.tick(): () => int32
-    v1: ref<int32, borrowed, mutable, static> = global.project test.main.first
-    store v1, v0
+    store @test.main.first, v0
+    v1: int32 = call test.main.tick(): () => int32
     v2: int32 = call test.main.tick(): () => int32
-    v3: int32 = call test.main.tick(): () => int32
-    v4: ref<int32, borrowed, mutable, static> = global.project test.main.second
-    store v4, v3
+    store @test.main.second, v2
     return
 }
 "#,
@@ -930,7 +935,6 @@ function marker(): Phantom<Point> {
     );
 
     session.assert_mir_function("main.ds", "test.main.wrap", r#"
-@copy
 type test.main.Point {
     x: int32;
 }
@@ -939,8 +943,8 @@ function test.main.wrap(v0: test.main.Point): manual<test.main.Point> {
     local l0: test.main.Point
 
 entry(v0: test.main.Point):
-    local.set l0, v0
-    v1: test.main.Point = local.get l0
+    store l0, v0
+    v1: test.main.Point = load l0
     v2: manual<test.main.Point> = call ManuallyDrop.new<test.main.Point>(v1): (test.main.Point) => manual<test.main.Point>
     return v2
 }
@@ -949,7 +953,6 @@ entry(v0: test.main.Point):
 /// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
 "#);
     session.assert_mir_function("main.ds", "test.main.unwrap", r#"
-@copy
 type test.main.Point {
     x: int32;
 }
@@ -958,8 +961,8 @@ function test.main.unwrap(v0: manual<test.main.Point>): test.main.Point {
     local l0: manual<test.main.Point>
 
 entry(v0: manual<test.main.Point>):
-    local.set l0, v0
-    v1: manual<test.main.Point> = local.get l0
+    store l0, v0
+    v1: manual<test.main.Point> = load l0
     v2: test.main.Point = call ManuallyDrop.intoInner<test.main.Point>(v1): (manual<test.main.Point>) => test.main.Point
     return v2
 }
@@ -1023,18 +1026,18 @@ function test.main.lanes(v0: int32, v1: uint32): int32 {
     local l3: vector<int32, 4>
 
 entry(v0: int32, v1: uint32):
-    local.set l0, v0
-    local.set l1, v1
-    v2: int32 = local.get l0
+    store l0, v0
+    store l1, v1
+    v2: int32 = load l0
     v3: vector<int32, 4> = vector.splat v2
-    local.set l2, v3
-    v4: vector<int32, 4> = local.get l2
-    v5: uint32 = local.get l1
-    v6: int32 = local.get l0
+    store l2, v3
+    v4: vector<int32, 4> = load l2
+    v5: uint32 = load l1
+    v6: int32 = load l0
     v7: vector<int32, 4> = vector.insert v4, v5, v6
-    local.set l3, v7
-    v8: vector<int32, 4> = local.get l3
-    v9: uint32 = local.get l1
+    store l3, v7
+    v8: vector<int32, 4> = load l3
+    v9: uint32 = load l1
     v10: int32 = vector.extract v8, v9
     return v10
 }
@@ -1047,12 +1050,12 @@ function test.main.pick(v0: vector<boolean, 4>, v1: vector<int32, 4>, v2: vector
     local l2: vector<int32, 4>
 
 entry(v0: vector<boolean, 4>, v1: vector<int32, 4>, v2: vector<int32, 4>):
-    local.set l0, v0
-    local.set l1, v1
-    local.set l2, v2
-    v3: vector<boolean, 4> = local.get l0
-    v4: vector<int32, 4> = local.get l1
-    v5: vector<int32, 4> = local.get l2
+    store l0, v0
+    store l1, v1
+    store l2, v2
+    v3: vector<boolean, 4> = load l0
+    v4: vector<int32, 4> = load l1
+    v5: vector<int32, 4> = load l2
     v6: vector<int32, 4> = vector.select v3, v4, v5
     return v6
 }
@@ -1065,8 +1068,8 @@ function test.main.widen(v0: vector<int32, 4>): vector<int64, 4> {
     local l0: vector<int32, 4>
 
 entry(v0: vector<int32, 4>):
-    local.set l0, v0
-    v1: vector<int32, 4> = local.get l0
+    store l0, v0
+    v1: vector<int32, 4> = load l0
     v2: vector<int64, 4> = vector.convert exact, v1
     return v2
 }
@@ -1081,10 +1084,10 @@ function test.main.below(v0: vector<int32, 4>, v1: vector<int32, 4>): vector<boo
     local l1: vector<int32, 4>
 
 entry(v0: vector<int32, 4>, v1: vector<int32, 4>):
-    local.set l0, v0
-    local.set l1, v1
-    v2: vector<int32, 4> = local.get l0
-    v3: vector<int32, 4> = local.get l1
+    store l0, v0
+    store l1, v1
+    v2: vector<int32, 4> = load l0
+    v3: vector<int32, 4> = load l1
     v4: vector<boolean, 4> = vector.compare lt, v2, v3
     return v4
 }
@@ -1098,11 +1101,58 @@ function test.main.total(v0: vector<int32, 4>): int32 {
     local l0: vector<int32, 4>
 
 entry(v0: vector<int32, 4>):
-    local.set l0, v0
-    v1: vector<int32, 4> = local.get l0
+    store l0, v0
+    v1: vector<int32, 4> = load l0
     v2: int32 = vector.reduce add, v1
     return v2
 }
+"#,
+    );
+}
+
+/// A const ordering parameter reaches the atomic instruction as its own slot.
+#[test]
+fn test_lower_a_const_ordering_parameter_into_an_atomic_load() {
+    let session = TestSession::single(
+        r#"
+import { MemoryOrdering, AtomicScope, MemoryScope, MemoryRegionSet, atomicLoad } from "destack:sync";
+
+function load<
+    const Order:
+        | MemoryOrdering.Relaxed
+        | MemoryOrdering.Acquire
+        | MemoryOrdering.SequentiallyConsistent = MemoryOrdering.SequentiallyConsistent,
+>(
+    ptr: *int32,
+    order?: Order,
+): int32 {
+    atomicLoad(ptr, Order, AtomicScope.Device, MemoryScope.Device, MemoryRegionSet.Any, false, false, false)
+}
+"#,
+    );
+
+    session.assert_mir_lowered(
+        "main.ds", r#"
+@languageItem("sync.MemoryOrdering")
+type MemoryOrdering = variant<uint8> { 0uint8 = void; 1uint8 = void; 2uint8 = void; 3uint8 = void; 4uint8 = void; };
+
+@nocopy
+@languageItem("memory.Clone")
+type Clone { }
+
+function test.main.load<const Order: MemoryOrdering>(v0: ptr<int32, mutable>, v1: variant<uint1> { 0uint1 = MemoryOrdering; 1uint1 = void; }): int32 {
+    local l0: ptr<int32, mutable>
+    local l1: variant<uint1> { 0uint1 = MemoryOrdering; 1uint1 = void; }
+
+entry(v0: ptr<int32, mutable>, v1: variant<uint1> { 0uint1 = MemoryOrdering; 1uint1 = void; }):
+    store l0, v0
+    store l1, v1
+    v2: ptr<int32, mutable> = load l0
+    v3: int32 = atomic.load (*v2), Order, scope(device)
+    return v3
+}
+
+/// @dispatch.shape constraint=type@8 function=clone function=cloneFrom
 "#,
     );
 }

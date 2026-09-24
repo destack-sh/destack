@@ -28,11 +28,11 @@ function main(): int32 {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-@copy
 type test.main.Point {
     x: int32;
 }
 
+@nocopy
 type test.main.Tagged { }
 
 constant test.main.Point.Tag: int32 = 7
@@ -40,10 +40,9 @@ constant test.main.Point.Tag: int32 = 7
 function test.main.main(): int32 {
 entry:
     v0: int32 = call test.main.tagOf<test.main.Point>(): () => int32
-    v1: ref<int32, borrowed, readonly, constant> = global.project test.main.Point.Tag
-    v2: int32 = load v1
-    v3: int32 = add v0, v2
-    return v3
+    v1: int32 = load @test.main.Point.Tag
+    v2: int32 = add v0, v1
+    return v2
 }
 
 function test.main.tagOf<T: test.main.Tagged>(): int32 {
@@ -56,15 +55,17 @@ shared function test.main.tagOf<test.main.Point>(): int32;
 
 /// @layout.struct name=test.main.Point size=4 align=4
 /// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
-/// @layout.struct name=test.main.Tagged size=0 align=1
+/// @layout.struct name=type@2 size=4 align=4
+/// @layout.field owner=type@2 index=0 name=x offset=0 size=4 align=4
 
-/// @dispatch.shape constraint=type@6
+/// @dispatch.shape constraint=type@3
 "#,
     );
     session.assert_mir_function(
         "main.ds",
         "test.main.tagOf",
         r#"
+@nocopy
 type test.main.Tagged { }
 
 function test.main.tagOf<T: test.main.Tagged>(): int32 {
@@ -72,8 +73,6 @@ entry:
     v0: int32 = witness T, test.main.Tagged, Tag
     return v0
 }
-
-/// @layout.struct name=test.main.Tagged size=0 align=1
 "#,
     );
     session.assert_mir_function(
@@ -83,10 +82,9 @@ entry:
 function test.main.main(): int32 {
 entry:
     v0: int32 = call test.main.tagOf<test.main.Point>(): () => int32
-    v1: ref<int32, borrowed, readonly, constant> = global.project test.main.Point.Tag
-    v2: int32 = load v1
-    v3: int32 = add v0, v2
-    return v3
+    v1: int32 = load @test.main.Point.Tag
+    v2: int32 = add v0, v1
+    return v2
 }
 "#,
     );

@@ -40,10 +40,10 @@ function test.main.identical<T: StrictEqual<T>>(v0: T, v1: T): boolean {
     local l1: T
 
 entry(v0: T, v1: T):
-    local.set l0, v0
-    local.set l1, v1
-    v2: T = local.get l0
-    v3: T = local.get l1
+    store l0, v0
+    store l1, v1
+    v2: T = load l0
+    v3: T = load l1
     v4: boolean = eq v2, v3
     return v4
 }
@@ -58,10 +58,10 @@ function test.main.widen<T: Copy>(v0: T, v1: T): T {
     local l1: T
 
 entry(v0: T, v1: T):
-    local.set l0, v0
-    local.set l1, v1
-    v2: T = local.get l0
-    v3: T = local.get l1
+    store l0, v0
+    store l1, v1
+    v2: T = load l0
+    v3: T = load l1
     v4: T = add v2, v3
     return v4
 }
@@ -76,10 +76,10 @@ function test.main.nearly<T: Float>(v0: T, v1: T): boolean {
     local l1: T
 
 entry(v0: T, v1: T):
-    local.set l0, v0
-    local.set l1, v1
-    v2: T = local.get l0
-    v3: T = local.get l1
+    store l0, v0
+    store l1, v1
+    v2: T = load l0
+    v3: T = load l1
     v4: boolean = eq v2, v3
     return v4
 }
@@ -89,6 +89,7 @@ entry(v0: T, v1: T):
         "main.ds",
         "test.main.origin",
         r#"
+@nocopy
 @languageItem("math.Zero")
 type Zero;
 
@@ -108,10 +109,10 @@ function test.main.scaled<T: Float>(v0: T, v1: T): T {
     local l1: T
 
 entry(v0: T, v1: T):
-    local.set l0, v0
-    local.set l1, v1
-    v2: T = local.get l0
-    v3: T = local.get l1
+    store l0, v0
+    store l1, v1
+    v2: T = load l0
+    v3: T = load l1
     v4: T = mul v2, v3
     return v4
 }

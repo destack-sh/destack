@@ -19,7 +19,6 @@ function diagonal(a: int32, b: int32): Point {
         "main.ds",
         "test.main.diagonal",
         r#"
-@copy
 type test.main.Point {
     x: int32;
     y: int32;
@@ -30,10 +29,10 @@ function test.main.diagonal(v0: int32, v1: int32): test.main.Point {
     local l1: int32
 
 entry(v0: int32, v1: int32):
-    local.set l0, v0
-    local.set l1, v1
-    v2: int32 = local.get l0
-    v3: int32 = local.get l1
+    store l0, v0
+    store l1, v1
+    v2: int32 = load l0
+    v3: int32 = load l1
     v4: test.main.Point = aggregate (v2, v3)
     return v4
 }
@@ -65,7 +64,6 @@ function sample(flag: boolean, weight: float64, count: int32): Sample {
         "main.ds",
         "test.main.sample",
         r#"
-@copy
 type test.main.Sample {
     flag: boolean;
     weight: float64;
@@ -78,12 +76,12 @@ function test.main.sample(v0: boolean, v1: float64, v2: int32): test.main.Sample
     local l2: int32
 
 entry(v0: boolean, v1: float64, v2: int32):
-    local.set l0, v0
-    local.set l1, v1
-    local.set l2, v2
-    v3: boolean = local.get l0
-    v4: float64 = local.get l1
-    v5: int32 = local.get l2
+    store l0, v0
+    store l1, v1
+    store l2, v2
+    v3: boolean = load l0
+    v4: float64 = load l1
+    v5: int32 = load l2
     v6: test.main.Sample = aggregate (v3, v4, v5)
     return v6
 }
@@ -118,8 +116,8 @@ function test.main.identity(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
-    local.set l0, v0
-    v1: int32 = local.get l0
+    store l0, v0
+    v1: int32 = load l0
     return v1
 }
 "#,

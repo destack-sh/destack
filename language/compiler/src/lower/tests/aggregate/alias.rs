@@ -20,16 +20,15 @@ function test(rule: &readonly Rule): int32 {
         "main.ds",
         "test.main.test",
         r#"
-@copy
 type test.main.Rule {
-    accept: test.main.Predicate;
+    accept: function<<'a>(ref<int32, borrowed, 'a, readonly>) => boolean, repeatable, managed, mutable, local>;
 }
 
-function test.main.test<'a>(v0: ref<test.main.Rule, borrowed, 'a, readonly, local>): int32 {
-    local l0: ref<test.main.Rule, borrowed, 'a, readonly, local>
+function test.main.test<'a>(v0: ref<test.main.Rule, borrowed, 'a, readonly>): int32 {
+    local l0: ref<test.main.Rule, borrowed, 'a, readonly>
 
-entry(v0: ref<test.main.Rule, borrowed, 'a, readonly, local>):
-    local.set l0, v0
+entry(v0: ref<test.main.Rule, borrowed, 'a, readonly>):
+    store l0, v0
     v1: int32 = 3
     return v1
 }
@@ -58,29 +57,22 @@ function total(options: Options): int32 {
         "main.ds",
         "test.main.total",
         r#"
-type test.main.Options {
-    overflow: int32;
-    offset: int32;
+function test.main.total(v0: ref<{ overflow: int32, offset: int32 }, managed, mutable, local>): int32 {
+    local l0: ref<{ overflow: int32, offset: int32 }, managed, mutable, local>
+
+entry(v0: ref<{ overflow: int32, offset: int32 }, managed, mutable, local>):
+    store l0, v0
+    v1: ref<{ overflow: int32, offset: int32 }, managed, mutable, local> = load l0
+    v2: int32 = load (*v1).0
+    v3: ref<{ overflow: int32, offset: int32 }, managed, mutable, local> = load l0
+    v4: int32 = load (*v3).1
+    v5: int32 = add v2, v4
+    return v5
 }
 
-function test.main.total(v0: ref<test.main.Options, managed, mutable, local>): int32 {
-    local l0: ref<test.main.Options, managed, mutable, local>
-
-entry(v0: ref<test.main.Options, managed, mutable, local>):
-    local.set l0, v0
-    v1: ref<test.main.Options, managed, mutable, local> = local.get l0
-    v2: ref<int32, borrowed, 'managed, readonly, local> = field.project v1, 0
-    v3: int32 = load v2
-    v4: ref<test.main.Options, managed, mutable, local> = local.get l0
-    v5: ref<int32, borrowed, 'managed, readonly, local> = field.project v4, 1
-    v6: int32 = load v5
-    v7: int32 = add v3, v6
-    return v7
-}
-
-/// @layout.struct name=test.main.Options size=8 align=4
-/// @layout.field owner=test.main.Options index=0 name=overflow offset=0 size=4 align=4
-/// @layout.field owner=test.main.Options index=1 name=offset offset=4 size=4 align=4
+/// @layout.struct name=type@1 size=8 align=4
+/// @layout.field owner=type@1 index=0 name=overflow offset=0 size=4 align=4
+/// @layout.field owner=type@1 index=1 name=offset offset=4 size=4 align=4
 "#,
     );
 }
@@ -101,14 +93,12 @@ function run(reaction: Reaction): void {
         "main.ds",
         "test.main.run",
         r#"
-type test.main.Reaction = function<(int32) => void, repeatable, managed, mutable, local>;
+function test.main.run(v0: function<(int32) => void, repeatable, managed, mutable, local>): void {
+    local l0: function<(int32) => void, repeatable, managed, mutable, local>
 
-function test.main.run(v0: test.main.Reaction): void {
-    local l0: test.main.Reaction
-
-entry(v0: test.main.Reaction):
-    local.set l0, v0
-    v1: test.main.Reaction = local.get l0
+entry(v0: function<(int32) => void, repeatable, managed, mutable, local>):
+    store l0, v0
+    v1: function<(int32) => void, repeatable, managed, mutable, local> = load l0
     v2: int32 = 1
     call.indirect v1(v2): (int32) => void
     return
@@ -140,24 +130,41 @@ function pick(options: Options): void {}
         "main.ds",
         "test.main.pick",
         r#"
-type test.main.Options {
-    digits: variant<uint2> { 0uint2 = void; 1uint2 = literal.integer.1; 2uint2 = literal.string.auto; 3uint2 = literal.integer.0; };
-    unit: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; };
-    zone: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; };
-}
+type literal.string.auto { }
 
-function test.main.pick(v0: ref<test.main.Options, managed, mutable, local>): void {
-    local l0: ref<test.main.Options, managed, mutable, local>
+type literal.integer.0 { }
 
-entry(v0: ref<test.main.Options, managed, mutable, local>):
-    local.set l0, v0
+type literal.integer.1 { }
+
+@nocopy
+@languageItem("string.String")
+type String;
+
+function test.main.pick(v0: ref<{ digits: variant<uint2> { 0uint2 = literal.string.auto; 1uint2 = literal.integer.0; 2uint2 = literal.integer.1; 3uint2 = void; }, unit: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }, zone: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>): void {
+    local l0: ref<{ digits: variant<uint2> { 0uint2 = literal.string.auto; 1uint2 = literal.integer.0; 2uint2 = literal.integer.1; 3uint2 = void; }, unit: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }, zone: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>
+
+entry(v0: ref<{ digits: variant<uint2> { 0uint2 = literal.string.auto; 1uint2 = literal.integer.0; 2uint2 = literal.integer.1; 3uint2 = void; }, unit: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }, zone: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>):
+    store l0, v0
     return
 }
 
-/// @layout.struct name=test.main.Options size=24 align=8
-/// @layout.field owner=test.main.Options index=0 name=digits offset=16 size=1 align=1
-/// @layout.field owner=test.main.Options index=1 name=unit offset=0 size=8 align=8
-/// @layout.field owner=test.main.Options index=2 name=zone offset=8 size=8 align=8
+/// @layout.struct name=literal.string.auto size=0 align=1
+/// @layout.struct name=literal.integer.0 size=0 align=1
+/// @layout.struct name=literal.integer.1 size=0 align=1
+/// @layout.variant name=type@7 size=1 align=1
+/// @layout.discriminant owner=type@7 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@7 index=0 discriminant=0 payload_offset=1
+/// @layout.case owner=type@7 index=1 discriminant=1 payload_offset=1
+/// @layout.case owner=type@7 index=2 discriminant=2 payload_offset=1
+/// @layout.case owner=type@7 index=3 discriminant=3 payload_offset=1
+/// @layout.variant name=type@14 size=8 align=8
+/// @layout.discriminant owner=type@14 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@14 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@14 index=1 discriminant=1 payload_offset=0
+/// @layout.struct name=type@15 size=24 align=8
+/// @layout.field owner=type@15 index=0 name=digits offset=16 size=1 align=1
+/// @layout.field owner=type@15 index=1 name=unit offset=0 size=8 align=8
+/// @layout.field owner=type@15 index=2 name=zone offset=8 size=8 align=8
 "#,
     );
 }
@@ -178,6 +185,7 @@ function render(options: Formatting & { zone?: string }): void {}
         "main.ds",
         "test.main.render",
         r#"
+@nocopy
 @languageItem("string.String")
 type String;
 
@@ -185,17 +193,17 @@ function test.main.render(v0: ref<{ style: variant<uint1> { 0uint1 = ref<String,
     local l0: ref<{ style: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }, zone: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>
 
 entry(v0: ref<{ style: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; }, zone: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>):
-    local.set l0, v0
+    store l0, v0
     return
 }
 
-/// @layout.variant name=type@8 size=8 align=8
-/// @layout.discriminant owner=type@8 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
-/// @layout.case owner=type@8 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@8 index=1 discriminant=1 payload_offset=0
-/// @layout.struct name=type@11 size=16 align=8
-/// @layout.field owner=type@11 index=0 name=style offset=0 size=8 align=8
-/// @layout.field owner=type@11 index=1 name=zone offset=8 size=8 align=8
+/// @layout.variant name=type@7 size=8 align=8
+/// @layout.discriminant owner=type@7 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@7 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@7 index=1 discriminant=1 payload_offset=0
+/// @layout.struct name=type@8 size=16 align=8
+/// @layout.field owner=type@8 index=0 name=style offset=0 size=8 align=8
+/// @layout.field owner=type@8 index=1 name=zone offset=8 size=8 align=8
 "#,
     );
 }
@@ -230,15 +238,30 @@ function read(input: Input): void {}
         "main.ds",
         "test.main.read",
         r#"
-type test.fields.Input;
+@nocopy
+@languageItem("string.String")
+type String;
 
-function test.main.read(v0: ref<test.fields.Input, managed, mutable, local>): void {
-    local l0: ref<test.fields.Input, managed, mutable, local>
+function test.main.read(v0: ref<{ year: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, month: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, offset: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>): void {
+    local l0: ref<{ year: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, month: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, offset: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>
 
-entry(v0: ref<test.fields.Input, managed, mutable, local>):
-    local.set l0, v0
+entry(v0: ref<{ year: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, month: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, offset: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>):
+    store l0, v0
     return
 }
+
+/// @layout.variant name=type@3 size=16 align=8
+/// @layout.discriminant owner=type@3 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@3 index=0 discriminant=0 payload_offset=8
+/// @layout.case owner=type@3 index=1 discriminant=1 payload_offset=8
+/// @layout.variant name=type@9 size=8 align=8
+/// @layout.discriminant owner=type@9 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@9 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@9 index=1 discriminant=1 payload_offset=0
+/// @layout.struct name=type@10 size=40 align=8
+/// @layout.field owner=type@10 index=0 name=year offset=0 size=16 align=8
+/// @layout.field owner=type@10 index=1 name=month offset=16 size=16 align=8
+/// @layout.field owner=type@10 index=2 name=offset offset=32 size=8 align=8
 "#,
     );
 }
@@ -273,24 +296,30 @@ function read(input: Input): void {}
         "main.ds",
         "test.main.read",
         r#"
-type test.main.Input {
-    year: variant<uint1> { 0uint1 = float64; 1uint1 = void; };
-    month: variant<uint1> { 0uint1 = float64; 1uint1 = void; };
-    offset: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; };
-}
+@nocopy
+@languageItem("string.String")
+type String;
 
-function test.main.read(v0: ref<test.main.Input, managed, mutable, local>): void {
-    local l0: ref<test.main.Input, managed, mutable, local>
+function test.main.read(v0: ref<{ year: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, month: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, offset: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>): void {
+    local l0: ref<{ year: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, month: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, offset: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>
 
-entry(v0: ref<test.main.Input, managed, mutable, local>):
-    local.set l0, v0
+entry(v0: ref<{ year: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, month: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, offset: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; } }, managed, mutable, local>):
+    store l0, v0
     return
 }
 
-/// @layout.struct name=test.main.Input size=40 align=8
-/// @layout.field owner=test.main.Input index=0 name=year offset=0 size=16 align=8
-/// @layout.field owner=test.main.Input index=1 name=month offset=16 size=16 align=8
-/// @layout.field owner=test.main.Input index=2 name=offset offset=32 size=8 align=8
+/// @layout.variant name=type@3 size=16 align=8
+/// @layout.discriminant owner=type@3 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@3 index=0 discriminant=0 payload_offset=8
+/// @layout.case owner=type@3 index=1 discriminant=1 payload_offset=8
+/// @layout.variant name=type@9 size=8 align=8
+/// @layout.discriminant owner=type@9 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=0 niche_start=0
+/// @layout.case owner=type@9 index=0 discriminant=0 payload_offset=0
+/// @layout.case owner=type@9 index=1 discriminant=1 payload_offset=0
+/// @layout.struct name=type@10 size=40 align=8
+/// @layout.field owner=type@10 index=0 name=year offset=0 size=16 align=8
+/// @layout.field owner=type@10 index=1 name=month offset=16 size=16 align=8
+/// @layout.field owner=type@10 index=2 name=offset offset=32 size=8 align=8
 "#,
     );
 }
@@ -299,9 +328,10 @@ entry(v0: ref<test.main.Input, managed, mutable, local>):
 fn test_lower_a_region_elided_alias_application() {
     let session = TestSession::single(
         r#"
-import { MaybeOwned } from "destack:memory";
+import { Cow } from "destack:memory";
+import { StringSlice } from "destack:string";
 
-function keep(value: MaybeOwned<string>): void {}
+function keep(value: Cow<StringSlice>): void {}
 "#,
     );
 
@@ -309,18 +339,21 @@ function keep(value: MaybeOwned<string>): void {}
         "main.ds",
         "test.main.keep",
         r#"
+@languageItem("string.StringSlice")
+type StringSlice;
+
+@languageItem("memory.Cow")
+type Cow<'a, T: ToOwned, P0>;
+
+@nocopy
 @languageItem("string.String")
 type String;
 
-@copy
-@languageItem("memory.Cow")
-type Cow<'a, T>;
+function test.main.keep<'a>(v0: Cow<'a, StringSlice, String>): void {
+    local l0: Cow<'a, StringSlice, String>
 
-function test.main.keep<'a>(v0: Cow<'a & local, ref<String, managed, mutable, local>>): void {
-    local l0: Cow<'a & local, ref<String, managed, mutable, local>>
-
-entry(v0: Cow<'a & local, ref<String, managed, mutable, local>>):
-    local.set l0, v0
+entry(v0: Cow<'a, StringSlice, String>):
+    store l0, v0
     return
 }
 "#,
@@ -332,9 +365,10 @@ fn test_lower_a_region_elided_alias_argument_of_a_newtype_application() {
     let session = TestSession::single(
         r#"
 import { Error, Result } from "destack:error";
-import { MaybeOwned } from "destack:memory";
+import { Cow } from "destack:memory";
+import { StringSlice } from "destack:string";
 
-declare function read(): Result<MaybeOwned<string>, Error>;
+declare function read(): Result<Cow<StringSlice>, Error>;
 
 function keep(): void {
     read();
@@ -346,23 +380,26 @@ function keep(): void {
         "main.ds",
         "test.main.keep",
         r#"
+@languageItem("string.StringSlice")
+type StringSlice;
+
+@nocopy
 @languageItem("string.String")
 type String;
 
-@copy
 @languageItem("memory.Cow")
-type Cow<'a, T>;
+type Cow<'a, T: ToOwned, P0>;
 
+@nocopy
 @languageItem("error.Error")
 type Error;
 
-@copy
 @languageItem("error.Result")
 type Result<T, E>;
 
 function test.main.keep(): void {
 entry:
-    v0: Result<Cow<'managed & local, ref<String, managed, mutable, local>>, dynamic<Error, managed, mutable, local>> = call test.main.read(): () => Result<Cow<'managed & local, ref<String, managed, mutable, local>>, dynamic<Error, managed, mutable, local>>
+    v0: Result<Cow<'managed, StringSlice, String>, dynamic<Error, managed, mutable, local>> = call test.main.read(): () => Result<Cow<'managed, StringSlice, String>, dynamic<Error, managed, mutable, local>>
     return
 }
 "#,

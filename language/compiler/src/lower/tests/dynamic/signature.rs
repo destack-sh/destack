@@ -14,28 +14,28 @@ export function pick(counts: Counts, key: string): int32 | undefined {
     );
 
     session.assert_mir_function("main.ds", "test.main.pick", r#"
-type test.main.Counts = dynamic<{  }, managed, mutable, local>;
-
+@nocopy
 @languageItem("string.String")
 type String;
 
-function test.main.pick(v0: test.main.Counts, v1: ref<String, managed, mutable, local>): variant<uint1> { 0uint1 = void; 1uint1 = int32; } {
-    local l0: test.main.Counts
+function test.main.pick(v0: dynamic<{  }, managed, mutable, local>, v1: ref<String, managed, mutable, local>): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
+    local l0: dynamic<{  }, managed, mutable, local>
     local l1: ref<String, managed, mutable, local>
 
-entry(v0: test.main.Counts, v1: ref<String, managed, mutable, local>):
-    local.set l0, v0
-    local.set l1, v1
-    v2: test.main.Counts = local.get l0
-    v3: ref<String, managed, mutable, local> = local.get l1
-    v4: variant<uint1> { 0uint1 = void; 1uint1 = int32; } = dynamic.find v2, v3
+entry(v0: dynamic<{  }, managed, mutable, local>, v1: ref<String, managed, mutable, local>):
+    store l0, v0
+    store l1, v1
+    v2: dynamic<{  }, managed, mutable, local> = load l0
+    v3: ref<String, managed, mutable, local> = load l1
+    v4: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = dynamic.find v2, v3
     return v4
 }
 
-/// @layout.variant name=type@13 size=8 align=4
-/// @layout.discriminant owner=type@13 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@13 index=0 discriminant=0 payload_offset=4
-/// @layout.case owner=type@13 index=1 discriminant=1 payload_offset=4
+/// @layout.struct name=type@0 size=0 align=1
+/// @layout.variant name=type@10 size=8 align=4
+/// @layout.discriminant owner=type@10 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@10 index=0 discriminant=0 payload_offset=4
+/// @layout.case owner=type@10 index=1 discriminant=1 payload_offset=4
 "#);
 }
 
@@ -53,27 +53,27 @@ export function pick(counts: Counts, key: string): int32 | undefined {
     );
 
     session.assert_mir_function("main.ds", "test.main.pick", r#"
-type test.main.Counts = dynamic<{  }, managed, mutable, local>;
-
+@nocopy
 @languageItem("string.String")
 type String;
 
-function test.main.pick(v0: test.main.Counts, v1: ref<String, managed, mutable, local>): variant<uint1> { 0uint1 = void; 1uint1 = int32; } {
-    local l0: test.main.Counts
+function test.main.pick(v0: dynamic<{  }, managed, mutable, local>, v1: ref<String, managed, mutable, local>): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
+    local l0: dynamic<{  }, managed, mutable, local>
     local l1: ref<String, managed, mutable, local>
 
-entry(v0: test.main.Counts, v1: ref<String, managed, mutable, local>):
-    local.set l0, v0
-    local.set l1, v1
-    v2: test.main.Counts = local.get l0
-    v3: ref<String, managed, mutable, local> = local.get l1
-    v4: variant<uint1> { 0uint1 = void; 1uint1 = int32; } = dynamic.find v2, v3
+entry(v0: dynamic<{  }, managed, mutable, local>, v1: ref<String, managed, mutable, local>):
+    store l0, v0
+    store l1, v1
+    v2: dynamic<{  }, managed, mutable, local> = load l0
+    v3: ref<String, managed, mutable, local> = load l1
+    v4: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = dynamic.find v2, v3
     return v4
 }
 
-/// @layout.variant name=type@13 size=8 align=4
-/// @layout.discriminant owner=type@13 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@13 index=0 discriminant=0 payload_offset=4
-/// @layout.case owner=type@13 index=1 discriminant=1 payload_offset=4
+/// @layout.struct name=type@0 size=0 align=1
+/// @layout.variant name=type@10 size=8 align=4
+/// @layout.discriminant owner=type@10 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@10 index=0 discriminant=0 payload_offset=4
+/// @layout.case owner=type@10 index=1 discriminant=1 payload_offset=4
 "#);
 }

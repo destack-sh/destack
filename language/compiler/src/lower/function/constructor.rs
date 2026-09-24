@@ -16,15 +16,19 @@ impl FunctionLowerer<'_, '_, '_> {
         construction: &dir::ConstructDecision,
     ) -> CompilerResult<mir::Value> {
         // identify the selected constructor and its applied class
-        let dir::ConstructTarget::Class { key, constructor } = &construction.target else {
+        let dir::ConstructTarget::Class {
+            key,
+            constructor,
+            arguments: bindings,
+        } = &construction.target
+        else {
             return Err(self.internal("a constructor function outside class construction"));
         };
-        let symbol = constructor.call_symbol().unwrap_or(key.symbol);
-        let arguments: Vec<_> = key
-            .arguments
-            .iter()
-            .map(|binding| binding.argument)
-            .collect();
+        let (symbol, bindings) = match constructor.call_symbol() {
+            Some(symbol) => (symbol, bindings),
+            None => (key.symbol, &key.arguments),
+        };
+        let arguments: Vec<_> = bindings.iter().map(|binding| binding.argument).collect();
 
         // capture the generic parameters used by the signature and construction
         let (signature, owner) = self.lower.signature(target)?;
@@ -44,7 +48,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .generic_instance_key(symbol, Some(construction.return_type), &arguments)?;
         let signature_type = self
             .lower
-            .type_lowerer(self.builder.tree_mut(), &scope)
+            .type_lowerer(self.builder.tree_mut(), &self.scope)
             .lower_bare_signature(&signature, owner, None, None)?;
 
         // identify the complete generated declaration, including its parameter domains
@@ -67,19 +71,28 @@ impl FunctionLowerer<'_, '_, '_> {
             tree,
         );
 
-        // apply the caller's arguments in the generated function's parameter order
+        // apply the construction's bindings in the generated function's parameter order,
+        //  a captured parameter bound at itself
         let mut arguments = vec![None; scope.count() as usize];
         for (parameter, index) in &scope.parameters {
-            let ty = self
-                .lower
-                .state(parameter.module_id)?
-                .generics
-                .get_parameter(parameter.local_id)
-                .ty;
+            let bound = bindings
+                .iter()
+                .find(|binding| binding.parameter == *parameter)
+                .map(|binding| binding.argument);
+            let ty = match bound {
+                Some(argument) => argument,
+                None => {
+                    self.lower
+                        .state(parameter.module_id)?
+                        .generics
+                        .get_parameter(parameter.local_id)
+                        .ty
+                }
+            };
             arguments[*index as usize] = Some(self.lower_generic_argument(ty)?);
         }
-        for (dependent, index) in &scope.dependents {
-            arguments[*index as usize] = Some(self.lower_generic_argument(*dependent)?);
+        for dependent in scope.dependents.values() {
+            arguments[dependent.index as usize] = Some(self.lower_generic_argument(dependent.ty)?);
         }
         let arguments = arguments
             .into_iter()
@@ -94,17 +107,9 @@ impl FunctionLowerer<'_, '_, '_> {
         let function = if let Some(function) = self.lower.constructors.get(&identity) {
             *function
         } else {
+            // lower the entry's signature under its own parameters
             let tree = self.builder.tree_mut();
-            let mir::Type::FunctionSignature {
-                parameters, result, ..
-            } = tree.get(signature_type)
-            else {
-                return Err(CompilerError::Internal {
-                    message: "a constructor function without a MIR signature".to_string(),
-                });
-            };
-            let parameters: Vec<_> = parameters.iter().map(|parameter| parameter.ty).collect();
-            let result = *result;
+            let (parameters, result) = self.lower.lower_signature(tree, target, &scope)?;
 
             // declare the entry with its referenced generic parameters
             let header =

@@ -17,20 +17,19 @@ newtype Reading = Dynamic<Meter>;
     session.assert_mir_lowered(
         "main.ds",
         r#"
-type test.main.Meter { }
-
-@copy
 type test.main.Reading = newtype<dynamic<test.main.Meter, managed, mutable, local>>;
 
-/// @layout.struct name=test.main.Meter size=0 align=1
+@nocopy
+type test.main.Meter { }
 
 /// @dispatch.shape constraint=type@1 function=read
 "#,
     );
 }
 
+/// Lower atomic storage transparently over its value.
 #[test]
-fn test_lower_atomic_storage_to_an_atomic_cell() {
+fn test_lower_atomic_storage_transparently_over_its_value() {
     let session = TestSession::single(
         r#"
 import { Atomic } from "destack:sync";
@@ -42,15 +41,33 @@ newtype Counter = Atomic<int32>;
     session.assert_mir_lowered(
         "main.ds",
         r#"
-@copy
-type test.main.Counter = newtype<atomic<int32>>;
+type test.main.Counter = newtype<Atomic<int32>>;
 
+type Atomic<T: AtomicSafe> {
+    storage: T;
+}
+
+@nocopy
+@languageItem("sync.AtomicSafe")
+type AtomicSafe extends Concrete, Copy, SharedSafe { }
+
+@nocopy
+@languageItem("memory.Concrete")
+type Concrete { }
+
+@nocopy
+@languageItem("memory.Copy")
+type Copy extends Clone { }
+
+@nocopy
 @languageItem("memory.Clone")
 type Clone { }
 
-/// @layout.struct name=Clone size=0 align=1
+@nocopy
+@languageItem("memory.SharedSafe")
+type SharedSafe { }
 
-/// @dispatch.shape constraint=type@4 function=clone function=cloneFrom
+/// @dispatch.shape constraint=type@9 function=clone function=cloneFrom
 "#,
     );
 }
@@ -68,7 +85,6 @@ newtype Slot = UnsafeCell<int32>;
     session.assert_mir_lowered(
         "main.ds",
         r#"
-@copy
 type test.main.Slot = newtype<int32>;
 "#,
     );
@@ -94,8 +110,8 @@ function test.main.accept(v0: typeId): typeId {
     local l0: typeId
 
 entry(v0: typeId):
-    local.set l0, v0
-    v1: typeId = local.get l0
+    store l0, v0
+    v1: typeId = load l0
     return v1
 }
 "#,

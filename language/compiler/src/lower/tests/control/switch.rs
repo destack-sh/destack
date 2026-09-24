@@ -32,39 +32,39 @@ function test.main.classify(v0: int32): int32 {
     local l1: int32
 
 entry(v0: int32):
-    local.set l0, v0
+    store l0, v0
     v1: int32 = 0
-    local.set l1, v1
-    v2: int32 = local.get l0
+    store l1, v1
+    v2: int32 = load l0
     switch v2, b5, 1 => b2, 2 => b3
 
 b1:
-    v11: int32 = local.get l1
+    v11: int32 = load l1
     return v11
 
 b2:
     breakpoint
     v3: int32 = 10
-    local.set l1, v3
+    store l1, v3
     jump b3
 
 b3:
-    v4: int32 = local.get l1
+    v4: int32 = load l1
     v5: int32 = 2
     v6: int32 = add v4, v5
-    local.set l1, v6
+    store l1, v6
     jump b4
 
 b4:
-    v7: int32 = local.get l1
+    v7: int32 = load l1
     v8: int32 = 3
     v9: int32 = add v7, v8
-    local.set l1, v9
+    store l1, v9
     jump b1
 
 b5:
     v10: int32 = 99
-    local.set l1, v10
+    store l1, v10
     jump b1
 }
 "#,
@@ -98,11 +98,11 @@ function test.main.select(v0: int32, v1: int32, v2: int32): int32 {
     local l2: int32
 
 entry(v0: int32, v1: int32, v2: int32):
-    local.set l0, v0
-    local.set l1, v1
-    local.set l2, v2
-    v3: int32 = local.get l0
-    v4: int32 = local.get l1
+    store l0, v0
+    store l1, v1
+    store l2, v2
+    v3: int32 = load l0
+    v4: int32 = load l1
     v5: boolean = eq v3, v4
     branch v5 => b2 | b5
 
@@ -122,7 +122,7 @@ b4:
     return v10
 
 b5:
-    v6: int32 = local.get l2
+    v6: int32 = load l2
     v7: boolean = eq v3, v6
     branch v7 => b4 | b6
 
@@ -154,15 +154,14 @@ function isTwo(value: Meters): boolean {
         "main.ds",
         "test.main.isTwo",
         r#"
-@copy
 type test.main.Meters = newtype<int32>;
 
 function test.main.isTwo(v0: test.main.Meters): boolean {
     local l0: test.main.Meters
 
 entry(v0: test.main.Meters):
-    local.set l0, v0
-    v1: test.main.Meters = local.get l0
+    store l0, v0
+    v1: test.main.Meters = load l0
     v2: int32 = field.get v1, 0
     v3: int32 = 2
     v4: test.main.Meters = aggregate (v3)
@@ -211,8 +210,8 @@ function test.main.isTwo(v0: int64): boolean {
     local l0: int64
 
 entry(v0: int64):
-    local.set l0, v0
-    v1: int64 = local.get l0
+    store l0, v0
+    v1: int64 = load l0
     v2: int64 = 2
     v3: boolean = eq v1, v2
     branch v3 => b2 | b4
@@ -257,24 +256,21 @@ function isReady(state: Ready | Pending): boolean {
         "main.ds",
         "test.main.isReady",
         r#"
-@copy
-type literal.boolean.true { }
-
-@copy
 type test.main.Ready = newtype<literal.boolean.true>;
 
-@copy
+type literal.boolean.true { }
+
 type test.main.Pending = newtype<literal.boolean.false>;
 
-function test.main.isReady(v0: variant<uint1> { 0uint1 = test.main.Pending; 1uint1 = test.main.Ready; }): boolean {
-    local l0: variant<uint1> { 0uint1 = test.main.Pending; 1uint1 = test.main.Ready; }
+function test.main.isReady(v0: variant<uint1> { 0uint1 = test.main.Ready; 1uint1 = test.main.Pending; }): boolean {
+    local l0: variant<uint1> { 0uint1 = test.main.Ready; 1uint1 = test.main.Pending; }
 
-entry(v0: variant<uint1> { 0uint1 = test.main.Pending; 1uint1 = test.main.Ready; }):
-    local.set l0, v0
-    v1: variant<uint1> { 0uint1 = test.main.Pending; 1uint1 = test.main.Ready; } = local.get l0
+entry(v0: variant<uint1> { 0uint1 = test.main.Ready; 1uint1 = test.main.Pending; }):
+    store l0, v0
+    v1: variant<uint1> { 0uint1 = test.main.Ready; 1uint1 = test.main.Pending; } = load l0
     v2: literal.boolean.true = zeroed
     v3: test.main.Ready = aggregate (v2)
-    v4: variant<uint1> { 0uint1 = test.main.Pending; 1uint1 = test.main.Ready; } = variant.new 1, v3
+    v4: variant<uint1> { 0uint1 = test.main.Ready; 1uint1 = test.main.Pending; } = variant.new 0, v3
     v5: uint1 = variant.tag v1
     v6: uint1 = variant.tag v4
     v7: boolean = eq v5, v6
@@ -296,10 +292,10 @@ b4:
 }
 
 /// @layout.struct name=literal.boolean.true size=0 align=1
-/// @layout.variant name=type@9 size=1 align=1
-/// @layout.discriminant owner=type@9 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
-/// @layout.case owner=type@9 index=0 discriminant=0 payload_offset=1
-/// @layout.case owner=type@9 index=1 discriminant=1 payload_offset=1
+/// @layout.variant name=type@8 size=1 align=1
+/// @layout.discriminant owner=type@8 kind=direct offset=0 byte_len=1 bit_offset=0 bit_len=8
+/// @layout.case owner=type@8 index=0 discriminant=0 payload_offset=1
+/// @layout.case owner=type@8 index=1 discriminant=1 payload_offset=1
 "#,
     );
 }

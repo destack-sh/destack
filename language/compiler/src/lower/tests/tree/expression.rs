@@ -41,12 +41,10 @@ function render(): Panel {
         "main.ds",
         "test.main.render",
         r#"
-@copy
 type test.main.Panel {
     width: int32;
 }
 
-@copy
 type test.main.Badge {
     label: int32;
 }
@@ -59,8 +57,8 @@ entry:
     v1: test.main.Badge = aggregate (v0)
     v2: (test.main.Badge) = aggregate (v1)
     v3: test.main.Panel = call test.main.Panel.TreeBuilder.fragment<(test.main.Badge)>(v2): ((test.main.Badge)) => test.main.Panel
-    local.set l0, v3
-    v4: test.main.Panel = local.get l0
+    store l0, v3
+    v4: test.main.Panel = load l0
     return v4
 }
 
@@ -68,8 +66,8 @@ entry:
 /// @layout.field owner=test.main.Panel index=0 name=width offset=0 size=4 align=4
 /// @layout.struct name=test.main.Badge size=4 align=4
 /// @layout.field owner=test.main.Badge index=0 name=label offset=0 size=4 align=4
-/// @layout.tuple name=type@59 size=4 align=4
-/// @layout.element owner=type@59 index=0 offset=0 size=4 align=4
+/// @layout.tuple name=type@28 size=4 align=4
+/// @layout.element owner=type@28 index=0 offset=0 size=4 align=4
 "#,
     );
 
@@ -77,12 +75,10 @@ entry:
         "main.ds",
         "test.main.Panel.TreeBuilder.fragment<(test.main.Badge)>",
         r#"
-@copy
 type test.main.Panel {
     width: int32;
 }
 
-@copy
 type test.main.Badge {
     label: int32;
 }
@@ -93,8 +89,8 @@ shared function test.main.Panel.TreeBuilder.fragment<(test.main.Badge)>(v0: (tes
 /// @layout.field owner=test.main.Panel index=0 name=width offset=0 size=4 align=4
 /// @layout.struct name=test.main.Badge size=4 align=4
 /// @layout.field owner=test.main.Badge index=0 name=label offset=0 size=4 align=4
-/// @layout.tuple name=type@59 size=4 align=4
-/// @layout.element owner=type@59 index=0 offset=0 size=4 align=4
+/// @layout.tuple name=type@28 size=4 align=4
+/// @layout.element owner=type@28 index=0 offset=0 size=4 align=4
 "#,
     );
 }

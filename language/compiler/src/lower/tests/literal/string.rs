@@ -15,12 +15,13 @@ function greet(): string {
         "main.ds",
         "test.main.greet",
         r#"
+@nocopy
 @languageItem("string.String")
 type String;
 
 function test.main.greet(): ref<String, managed, mutable, local> {
 entry:
-    v0: ref<String, managed, mutable, local> = global.address string.0
+    v0: ref<String, managed, mutable, local> = address @string.0
     return v0
 }
 "#,
@@ -43,6 +44,7 @@ function pair(): string {
         "main.ds",
         "test.main.pair",
         r#"
+@nocopy
 @languageItem("string.String")
 type String;
 
@@ -50,9 +52,9 @@ function test.main.pair(): ref<String, managed, mutable, local> {
     local l0: ref<String, managed, mutable, local>
 
 entry:
-    v0: ref<String, managed, mutable, local> = global.address string.0
-    local.set l0, v0
-    v1: ref<String, managed, mutable, local> = global.address string.0
+    v0: ref<String, managed, mutable, local> = address @string.0
+    store l0, v0
+    v1: ref<String, managed, mutable, local> = address @string.0
     return v1
 }
 "#,
@@ -63,7 +65,6 @@ entry:
 fn test_lower_an_interpolated_template_through_its_join() {
     let session = TestSession::single(
         r#"
-import { MaybeOwned } from "destack:memory";
 import { Display } from "destack:ops";
 
 struct Point {
@@ -71,8 +72,8 @@ struct Point {
 }
 
 extension of Point implements Display {
-    display(&readonly this): MaybeOwned<string> {
-        return MaybeOwned.borrowed("point");
+    display(&immutable this): ^string {
+        return "point";
     }
 }
 
@@ -83,26 +84,22 @@ function label(point: Point): string {
     );
 
     session.assert_mir_function("main.ds", "test.main.Point.Display.display", r#"
-@copy
 type test.main.Point {
     x: int32;
 }
 
+@nocopy
 @languageItem("string.String")
 type String;
 
-@copy
-@languageItem("memory.Cow")
-type Cow<'a, T>;
+function test.main.Point.Display.display<'a>(v0: ref<test.main.Point, borrowed, 'a, immutable>): String {
+    local l0: ref<test.main.Point, borrowed, 'a, immutable>
 
-function test.main.Point.Display.display<'a>(v0: ref<test.main.Point, borrowed, 'a, readonly, local>): Cow<'a & local, ref<String, managed, mutable, local>> {
-    local l0: ref<test.main.Point, borrowed, 'a, readonly, local>
-
-entry(v0: ref<test.main.Point, borrowed, 'a, readonly, local>):
-    local.set l0, v0
-    v1: ref<String, managed, mutable, local> = global.address string.0
-    v2: ref<String, borrowed, 'a, readonly, local> = cast.bit v1 -> ref<String, borrowed, 'a, readonly, local>
-    v3: Cow<'a & local, ref<String, managed, mutable, local>> = call Cow.borrowed<ref<String, managed, mutable, local>>(v2): <'a>(ref<ref<String, managed, mutable, local>, borrowed, 'a, readonly, local>) => Cow<'a & local, ref<String, managed, mutable, local>>
+entry(v0: ref<test.main.Point, borrowed, 'a, immutable>):
+    store l0, v0
+    v1: ref<String, managed, mutable, local> = address @string.0
+    v2: ref<String, borrowed, 'managed, immutable> = cast.bit v1 -> ref<String, borrowed, 'managed, immutable>
+    v3: String = call String.Clone.clone(v2): (ref<String, borrowed, 'managed, immutable>) => String
     return v3
 }
 
@@ -111,52 +108,77 @@ entry(v0: ref<test.main.Point, borrowed, 'a, readonly, local>):
 "#);
 
     session.assert_mir_function("main.ds", "test.main.label", r#"
-@copy
 type test.main.Point {
     x: int32;
 }
 
+@nocopy
 @languageItem("string.String")
 type String;
 
-@copy
-@languageItem("memory.Cow")
-type Cow<'a, T>;
-
 function test.main.label(v0: test.main.Point): ref<String, managed, mutable, local> {
     local l0: test.main.Point
-    local l1: test.main.Point, readonly
+    local l1: test.main.Point
     local l2: [ref<String, managed, mutable, local>; 2], readonly
-    local l3: [Cow<'l1 & local, ref<String, managed, mutable, local>>; 1], readonly
+    local l3: [ref<String, managed, mutable, local>; 1], readonly
 
 entry(v0: test.main.Point):
-    local.set l0, v0
-    v1: test.main.Point = local.get l0
-    local.set l1, v1
-    v2: ref<test.main.Point, borrowed, 'frame, readonly, local> = local.address l1
-    v3: Cow<'frame & local, ref<String, managed, mutable, local>> = call test.main.Point.Display.display(v2): <'a>(ref<test.main.Point, borrowed, 'a, readonly, local>) => Cow<'a & local, ref<String, managed, mutable, local>>
-    v4: ref<String, managed, mutable, local> = global.address string.1
-    v5: ref<String, managed, mutable, local> = global.address string.2
+    store l0, v0
+    v1: test.main.Point = load l0
+    store l1, v1
+    v2: ref<test.main.Point, borrowed, 'frame, immutable> = address l1
+    v3: String = call test.main.Point.Display.display(v2): (ref<test.main.Point, borrowed, 'frame, immutable>) => String
+    v4: ref<String, managed, mutable, local> = address @string.1
+    v5: ref<String, managed, mutable, local> = address @string.2
     v6: [ref<String, managed, mutable, local>; 2] = aggregate (v4, v5)
-    local.set l2, v6
-    v7: ref<[ref<String, managed, mutable, local>; 2], borrowed, 'frame, readonly, frame> = local.address l2
-    v8: uint64 = 0
-    v9: usize = 2
-    v10: slice<ref<String, managed, mutable, local>, borrowed, 'frame, readonly, frame> = slice.view v7, v8, v9
-    v11: slice<ref<String, managed, mutable, local>, borrowed, 'l0, readonly, local> = cast.bit v10 -> slice<ref<String, managed, mutable, local>, borrowed, 'l0, readonly, local>
-    v12: [Cow<'l1 & local, ref<String, managed, mutable, local>>; 1] = aggregate (v3)
-    local.set l3, v12
-    v13: ref<[Cow<'l1 & local, ref<String, managed, mutable, local>>; 1], borrowed, 'frame, readonly, frame> = local.address l3
-    v14: uint64 = 0
-    v15: usize = 1
-    v16: slice<Cow<'l1 & local, ref<String, managed, mutable, local>>, borrowed, 'frame, readonly, frame> = slice.view v13, v14, v15
-    v17: slice<Cow<'l1 & local, ref<String, managed, mutable, local>>, borrowed, 'l2, readonly, local> = cast.bit v16 -> slice<Cow<'l1 & local, ref<String, managed, mutable, local>>, borrowed, 'l2, readonly, local>
-    v18: String = call stringFromTemplate(v11, v17): <'a, 'b, 'c>(slice<ref<String, managed, mutable, local>, borrowed, 'a, readonly, local>, slice<Cow<'b & local, ref<String, managed, mutable, local>>, borrowed, 'c, readonly, local>) => String
-    v19: ref<String, managed, mutable, local> = new.complete v18
-    return v19
+    store l2, v6
+    v7: usize = 0
+    v8: usize = 2
+    v9: slice<ref<String, managed, mutable, local>, borrowed, 'frame, readonly> = address l2[v7; v8]
+    v10: slice<ref<String, managed, mutable, local>, borrowed, 'l0, readonly> = address (*v9)
+    v11: ref<String, managed, mutable, local> = new.complete v3
+    v12: [ref<String, managed, mutable, local>; 1] = aggregate (v11)
+    store l3, v12
+    v13: usize = 0
+    v14: usize = 1
+    v15: slice<ref<String, managed, mutable, local>, borrowed, 'frame, readonly> = address l3[v13; v14]
+    v16: slice<ref<String, managed, mutable, local>, borrowed, 'l1, readonly> = address (*v15)
+    v17: String = call stringFromTemplate(v10, v16): <'a, 'b>(slice<ref<String, managed, mutable, local>, borrowed, 'a, readonly>, slice<ref<String, managed, mutable, local>, borrowed, 'b, readonly>) => String
+    v18: ref<String, managed, mutable, local> = new.complete v17
+    return v18
 }
 
 /// @layout.struct name=test.main.Point size=4 align=4
 /// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
 "#);
+}
+
+/// A string literal under an owned expectation clones its constant into owned storage.
+#[test]
+fn test_lower_an_owned_string_literal_through_its_clone() {
+    let session = TestSession::single(
+        r#"
+function name(): ^string {
+    return "text";
+}
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.name",
+        r#"
+@nocopy
+@languageItem("string.String")
+type String;
+
+function test.main.name(): String {
+entry:
+    v0: ref<String, managed, mutable, local> = address @string.0
+    v1: ref<String, borrowed, 'managed, immutable> = cast.bit v0 -> ref<String, borrowed, 'managed, immutable>
+    v2: String = call String.Clone.clone(v1): (ref<String, borrowed, 'managed, immutable>) => String
+    return v2
+}
+"#,
+    );
 }

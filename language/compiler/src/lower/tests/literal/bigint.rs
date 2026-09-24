@@ -15,12 +15,13 @@ function big(): bigint {
         "main.ds",
         "test.main.big",
         r#"
+@nocopy
 @languageItem("math.BigInt")
 type BigInt;
 
 function test.main.big(): ref<BigInt, managed, mutable, local> {
 entry:
-    v0: ref<BigInt, managed, mutable, local> = global.address bigint.0
+    v0: ref<BigInt, managed, mutable, local> = address @bigint.0
     return v0
 }
 "#,

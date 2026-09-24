@@ -22,9 +22,9 @@ function test.main.double(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
-    local.set l0, v0
-    v1: int32 = local.get l0
-    v2: int32 = local.get l0
+    store l0, v0
+    v1: int32 = load l0
+    v2: int32 = load l0
     v3: int32 = add v1, v2
     return v3
 }
@@ -39,8 +39,8 @@ function test.main.quad(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
-    local.set l0, v0
-    v1: int32 = local.get l0
+    store l0, v0
+    v1: int32 = load l0
     v2: int32 = call test.main.double(v1): (int32) => int32
     v3: int32 = call test.main.double(v2): (int32) => int32
     return v3
@@ -81,9 +81,9 @@ function test.main.run(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
-    local.set l0, v0
+    store l0, v0
     call test.main.noop(): () => void
-    v1: int32 = local.get l0
+    v1: int32 = load l0
     return v1
 }
 "#,

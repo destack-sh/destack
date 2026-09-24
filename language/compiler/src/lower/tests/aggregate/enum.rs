@@ -22,15 +22,14 @@ function pick(flag: boolean): Mode {
         "main.ds",
         "test.main.pick",
         r#"
-@copy
 type test.main.Mode = variant<uint8> { 1uint8 = void; 2uint8 = void; };
 
 function test.main.pick(v0: boolean): test.main.Mode {
     local l0: boolean
 
 entry(v0: boolean):
-    local.set l0, v0
-    v1: boolean = local.get l0
+    store l0, v0
+    v1: boolean = load l0
     branch v1 => b1 | b2
 
 b1:
@@ -79,7 +78,6 @@ function fallback(mode: Mode): int32 {
         "main.ds",
         "test.main.describe",
         r#"
-@copy
 type test.main.Mode = variant<uint8> { 1uint8 = void; 2uint8 = void; };
 
 function test.main.describe(v0: test.main.Mode): int32 {
@@ -87,25 +85,25 @@ function test.main.describe(v0: test.main.Mode): int32 {
     local l1: int32
 
 entry(v0: test.main.Mode):
-    local.set l0, v0
-    v1: test.main.Mode = local.get l0
-    variant.switch v1, 0 => b1, 1 => b2, else b3
+    store l0, v0
+    v1: uint8 = variant.tag.load l0
+    switch v1, b3, 0 => b1, 1 => b2
 
 b1:
     v2: int32 = 10
-    local.set l1, v2
+    store l1, v2
     jump b4
 
 b2:
     v3: int32 = 20
-    local.set l1, v3
+    store l1, v3
     jump b4
 
 b3:
     unreachable
 
 b4:
-    v4: int32 = local.get l1
+    v4: int32 = load l1
     return v4
 }
 
@@ -120,7 +118,6 @@ b4:
         "main.ds",
         "test.main.fallback",
         r#"
-@copy
 type test.main.Mode = variant<uint8> { 1uint8 = void; 2uint8 = void; };
 
 function test.main.fallback(v0: test.main.Mode): int32 {
@@ -128,25 +125,25 @@ function test.main.fallback(v0: test.main.Mode): int32 {
     local l1: int32
 
 entry(v0: test.main.Mode):
-    local.set l0, v0
-    v1: test.main.Mode = local.get l0
-    variant.switch v1, 0 => b1, else b2
+    store l0, v0
+    v1: uint8 = variant.tag.load l0
+    switch v1, b2, 0 => b1
 
 b1:
     v2: int32 = 10
-    local.set l1, v2
+    store l1, v2
     jump b4
 
 b2:
     v3: int32 = 0
-    local.set l1, v3
+    store l1, v3
     jump b4
 
 b3:
     unreachable
 
 b4:
-    v4: int32 = local.get l1
+    v4: int32 = load l1
     return v4
 }
 

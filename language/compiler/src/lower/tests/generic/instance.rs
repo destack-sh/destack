@@ -29,17 +29,17 @@ function test.main.choose(v0: int32, v1: int32, v2: boolean): float64 {
     local l3: int32
 
 entry(v0: int32, v1: int32, v2: boolean):
-    local.set l0, v0
-    local.set l1, v1
-    local.set l2, v2
-    v3: int32 = local.get l0
-    v4: int32 = local.get l1
-    v5: boolean = local.get l2
+    store l0, v0
+    store l1, v1
+    store l2, v2
+    v3: int32 = load l0
+    v4: int32 = load l1
+    v5: boolean = load l2
     v6: int32 = call test.main.pick<int32>(v3, v4, v5): (int32, int32, boolean) => int32
-    local.set l3, v6
+    store l3, v6
     v7: float64 = 1.5
     v8: float64 = 2.5
-    v9: boolean = local.get l2
+    v9: boolean = load l2
     v10: float64 = call test.main.pick<float64>(v7, v8, v9): (float64, float64, boolean) => float64
     return v10
 }
@@ -97,8 +97,8 @@ function test.main.keep(v0: (int32, boolean)): (int32, boolean) {
     local l0: (int32, boolean)
 
 entry(v0: (int32, boolean)):
-    local.set l0, v0
-    v1: (int32, boolean) = local.get l0
+    store l0, v0
+    v1: (int32, boolean) = load l0
     v2: (int32, boolean) = call test.main.identity<(int32, boolean)>(v1): ((int32, boolean)) => (int32, boolean)
     return v2
 }
@@ -143,19 +143,17 @@ function readFloat(value: Box<float64>): float64 {
         "main.ds",
         "test.main.readInt",
         r#"
-@copy
 type test.main.Box<T> {
-    value: T;
+    value: ?T;
 }
 
 function test.main.readInt(v0: test.main.Box<int32>): int32 {
     local l0: test.main.Box<int32>
 
 entry(v0: test.main.Box<int32>):
-    local.set l0, v0
-    v1: test.main.Box<int32> = local.get l0
-    v2: int32 = field.get v1, 0
-    return v2
+    store l0, v0
+    v1: int32 = load (l0).0
+    return v1
 }
 
 /// @layout.struct name=test.main.Box<int32> size=4 align=4
@@ -167,19 +165,17 @@ entry(v0: test.main.Box<int32>):
         "main.ds",
         "test.main.readFloat",
         r#"
-@copy
 type test.main.Box<T> {
-    value: T;
+    value: ?T;
 }
 
 function test.main.readFloat(v0: test.main.Box<float64>): float64 {
     local l0: test.main.Box<float64>
 
 entry(v0: test.main.Box<float64>):
-    local.set l0, v0
-    v1: test.main.Box<float64> = local.get l0
-    v2: float64 = field.get v1, 0
-    return v2
+    store l0, v0
+    v1: float64 = load (l0).0
+    return v1
 }
 
 /// @layout.struct name=test.main.Box<float64> size=8 align=8
@@ -193,19 +189,28 @@ entry(v0: test.main.Box<float64>):
     let templates: Vec<_> = lowered
         .tree
         .iter_nodes::<destack_mir::TypeDeclaration>()
-        .filter(|(_, declaration)| strings.get(declaration.name) == "test.main.Box")
-        .map(|(_, declaration)| declaration.ty)
+        .filter(|(_, declaration)| {
+            declaration
+                .name
+                .is_some_and(|name| strings.get(name) == "test.main.Box")
+        })
+        .map(|(_, declaration)| {
+            lowered
+                .tree
+                .identified_type(declaration.symbol)
+                .expect("declaration has a type")
+        })
         .collect();
     let [template] = templates.as_slice() else {
         panic!("Box declares one template, found {}", templates.len());
     };
     let applications: destack_core::FxIndexSet<_> = lowered
         .tree
-        .iter_nodes::<destack_mir::Type>()
+        .types()
         .filter_map(|(id, ty)| match ty {
             destack_mir::Type::Application {
                 base, arguments, ..
-            } if *base == destack_mir::TypeId::from(*template) && !arguments.is_empty() => Some(id),
+            } if *base == *template && !arguments.is_empty() => Some(id),
             _ => None,
         })
         .collect();
@@ -241,10 +246,10 @@ function test.main.narrow(v0: boolean): float64 {
     local l0: boolean
 
 entry(v0: boolean):
-    local.set l0, v0
+    store l0, v0
     v1: float64 = 1
     v2: float64 = 2
-    v3: boolean = local.get l0
+    v3: boolean = load l0
     v4: float64 = call test.main.pick<float64>(v1, v2, v3): (float64, float64, boolean) => float64
     return v4
 }
@@ -259,10 +264,10 @@ function test.main.wide(v0: boolean): float64 {
     local l0: boolean
 
 entry(v0: boolean):
-    local.set l0, v0
+    store l0, v0
     v1: float64 = 30.5
     v2: float64 = 40.5
-    v3: boolean = local.get l0
+    v3: boolean = load l0
     v4: float64 = call test.main.pick<float64>(v1, v2, v3): (float64, float64, boolean) => float64
     return v4
 }
@@ -309,12 +314,12 @@ function test.main.settle(v0: int32, v1: int32, v2: boolean): int32 {
     local l2: boolean
 
 entry(v0: int32, v1: int32, v2: boolean):
-    local.set l0, v0
-    local.set l1, v1
-    local.set l2, v2
-    v3: int32 = local.get l0
-    v4: int32 = local.get l1
-    v5: boolean = local.get l2
+    store l0, v0
+    store l1, v1
+    store l2, v2
+    v3: int32 = load l0
+    v4: int32 = load l1
+    v5: boolean = load l2
     v6: int32 = call test.main.retry<int32>(v3, v4, v5): (int32, int32, boolean) => int32
     return v6
 }
@@ -366,12 +371,12 @@ function test.main.choose(v0: int32, v1: int32, v2: boolean): int32 {
     local l2: boolean
 
 entry(v0: int32, v1: int32, v2: boolean):
-    local.set l0, v0
-    local.set l1, v1
-    local.set l2, v2
-    v3: int32 = local.get l0
-    v4: int32 = local.get l1
-    v5: boolean = local.get l2
+    store l0, v0
+    store l1, v1
+    store l2, v2
+    v3: int32 = load l0
+    v4: int32 = load l1
+    v5: boolean = load l2
     v6: int32 = call test.lib.pick<int32>(v3, v4, v5): (int32, int32, boolean) => int32
     return v6
 }
@@ -387,18 +392,18 @@ function test.lib.pick<T>(v0: T, v1: T, v2: boolean): T {
     local l2: boolean
 
 entry(v0: T, v1: T, v2: boolean):
-    local.set l0, v0
-    local.set l1, v1
-    local.set l2, v2
-    v3: boolean = local.get l2
+    store l0, v0
+    store l1, v1
+    store l2, v2
+    v3: boolean = load l2
     branch v3 => b1 | b2
 
 b1:
-    v4: T = local.get l0
+    v4: T = load l0
     return v4
 
 b2:
-    v5: T = local.get l1
+    v5: T = load l1
     return v5
 }
 "#,
@@ -445,12 +450,12 @@ function test.main.settle(v0: int32, v1: int32, v2: boolean): int32 {
     local l2: boolean
 
 entry(v0: int32, v1: int32, v2: boolean):
-    local.set l0, v0
-    local.set l1, v1
-    local.set l2, v2
-    v3: int32 = local.get l0
-    v4: int32 = local.get l1
-    v5: boolean = local.get l2
+    store l0, v0
+    store l1, v1
+    store l2, v2
+    v3: int32 = load l0
+    v4: int32 = load l1
+    v5: boolean = load l2
     v6: int32 = call test.lib.retry<int32>(v3, v4, v5): (int32, int32, boolean) => int32
     return v6
 }
@@ -501,12 +506,12 @@ function app.main.choose(v0: int32, v1: int32, v2: boolean): int32 {
     local l2: boolean
 
 entry(v0: int32, v1: int32, v2: boolean):
-    local.set l0, v0
-    local.set l1, v1
-    local.set l2, v2
-    v3: int32 = local.get l0
-    v4: int32 = local.get l1
-    v5: boolean = local.get l2
+    store l0, v0
+    store l1, v1
+    store l2, v2
+    v3: int32 = load l0
+    v4: int32 = load l1
+    v5: boolean = load l2
     v6: int32 = call app.main.pick<int32>(v3, v4, v5): (int32, int32, boolean) => int32
     return v6
 }
@@ -517,18 +522,18 @@ function app.main.pick<T>(v0: T, v1: T, v2: boolean): T {
     local l2: boolean
 
 entry(v0: T, v1: T, v2: boolean):
-    local.set l0, v0
-    local.set l1, v1
-    local.set l2, v2
-    v3: boolean = local.get l2
+    store l0, v0
+    store l1, v1
+    store l2, v2
+    v3: boolean = load l2
     branch v3 => b1 | b2
 
 b1:
-    v4: T = local.get l0
+    v4: T = load l0
     return v4
 
 b2:
-    v5: T = local.get l1
+    v5: T = load l1
     return v5
 }
 
@@ -561,11 +566,11 @@ function test.main.apply(v0: function<(int32) => int32, repeatable, managed, mut
     local l1: int32
 
 entry(v0: function<(int32) => int32, repeatable, managed, mutable, local>, v1: int32):
-    local.set l0, v0
-    local.set l1, v1
-    v2: function<(int32) => int32, repeatable, managed, mutable, local> = local.get l0
-    v3: int32 = local.get l1
-    v4: function<(int32) => int32, repeatable, borrowed, 'managed, mutable, local> = cast.bit v2 -> function<(int32) => int32, repeatable, borrowed, 'managed, mutable, local>
+    store l0, v0
+    store l1, v1
+    v2: function<(int32) => int32, repeatable, managed, mutable, local> = load l0
+    v3: int32 = load l1
+    v4: function<(int32) => int32, repeatable, borrowed, 'managed, mutable> = cast.bit v2 -> function<(int32) => int32, repeatable, borrowed, 'managed, mutable>
     v5: int32 = call.indirect v4(v3): (int32) => int32
     return v5
 }
@@ -574,17 +579,12 @@ entry(v0: function<(int32) => int32, repeatable, managed, mutable, local>, v1: i
     session.assert_mir_function("main.ds", "test.main.run", r#"
 function test.main.run(): int32 {
 entry:
-    v0: variant<uint1> { 0uint1 = void; 1uint1 = ref<void, managed, mutable, local>; } = variant.new 0
+    v0: ptr<void, readonly> = null
     v1: function<(int32) => int32, repeatable, managed, mutable, local> = function.bind test.main.identity<int32>, v0
     v2: int32 = 7
     v3: int32 = call test.main.apply(v1, v2): (function<(int32) => int32, repeatable, managed, mutable, local>, int32) => int32
     return v3
 }
-
-/// @layout.variant name=type@25 size=8 align=8
-/// @layout.discriminant owner=type@25 kind=niche offset=0 byte_len=8 bit_offset=0 bit_len=64 untagged=1 niche_start=0
-/// @layout.case owner=type@25 index=0 discriminant=0 payload_offset=0
-/// @layout.case owner=type@25 index=1 discriminant=1 payload_offset=0
 "#);
 
     session.assert_mir_function(
@@ -614,7 +614,7 @@ export class Channel {
             r#"
 import { Channel } from "./lib";
 
-function notify(channel: &Channel): void {
+function notify(channel: Channel): void {
     channel.send<int32>(1);
 }
 "#,
@@ -622,22 +622,23 @@ function notify(channel: &Channel): void {
         .build();
 
     session.assert_mir_function("main.ds", "test.main.notify", r#"
+@nocopy
 type test.lib.Channel;
 
-function test.main.notify<'a>(v0: ref<test.lib.Channel, borrowed, 'a, mutable, local>): void {
-    local l0: ref<test.lib.Channel, borrowed, 'a, mutable, local>
+function test.main.notify(v0: ref<test.lib.Channel, managed, mutable, local>): void {
+    local l0: ref<test.lib.Channel, managed, mutable, local>
 
-entry(v0: ref<test.lib.Channel, borrowed, 'a, mutable, local>):
-    local.set l0, v0
-    v1: ref<test.lib.Channel, borrowed, 'a, mutable, local> = local.get l0
+entry(v0: ref<test.lib.Channel, managed, mutable, local>):
+    store l0, v0
+    v1: ref<test.lib.Channel, managed, mutable, local> = load l0
     v2: int32 = 1
-    v3: ref<test.lib.Channel, managed, mutable, local> = load v1
-    call test.lib.Channel.send<int32>(v3, v2): (ref<test.lib.Channel, managed, mutable, local>, int32) => void
+    call test.lib.Channel.send<int32>(v1, v2): (ref<test.lib.Channel, managed, mutable, local>, int32) => void
     return
 }
 "#);
 
     session.assert_mir_function("main.ds", "test.lib.Channel.send<int32>", r#"
+@nocopy
 type test.lib.Channel;
 
 shared function test.lib.Channel.send<int32>(v0: ref<test.lib.Channel, managed, mutable, local>, v1: int32): void;
@@ -668,7 +669,7 @@ export class Box<T> {
             r#"
 import { Box } from "./lib";
 
-function unwrap(box: &Box<int32>): int32 {
+function unwrap(box: Box<int32>): int32 {
     return box.read();
 }
 "#,
@@ -676,17 +677,17 @@ function unwrap(box: &Box<int32>): int32 {
         .build();
 
     session.assert_mir_function("main.ds", "test.main.unwrap", r#"
+@nocopy
 type test.lib.Box<T>;
 
-function test.main.unwrap<'a>(v0: ref<test.lib.Box<int32>, borrowed, 'a, mutable, local>): int32 {
-    local l0: ref<test.lib.Box<int32>, borrowed, 'a, mutable, local>
+function test.main.unwrap(v0: ref<test.lib.Box<int32>, managed, mutable, local>): int32 {
+    local l0: ref<test.lib.Box<int32>, managed, mutable, local>
 
-entry(v0: ref<test.lib.Box<int32>, borrowed, 'a, mutable, local>):
-    local.set l0, v0
-    v1: ref<test.lib.Box<int32>, borrowed, 'a, mutable, local> = local.get l0
-    v2: ref<test.lib.Box<int32>, managed, mutable, local> = load v1
-    v3: int32 = call test.lib.Box.read<int32>(v2): (ref<test.lib.Box<int32>, managed, mutable, local>) => int32
-    return v3
+entry(v0: ref<test.lib.Box<int32>, managed, mutable, local>):
+    store l0, v0
+    v1: ref<test.lib.Box<int32>, managed, mutable, local> = load l0
+    v2: int32 = call test.lib.Box.read<int32>(v1): (ref<test.lib.Box<int32>, managed, mutable, local>) => int32
+    return v2
 }
 "#);
 
@@ -694,6 +695,7 @@ entry(v0: ref<test.lib.Box<int32>, borrowed, 'a, mutable, local>):
         "main.ds",
         "test.lib.Box.read<int32>",
         r#"
+@nocopy
 type test.lib.Box<T>;
 
 shared function test.lib.Box.read<int32>(v0: ref<test.lib.Box<int32>, managed, mutable, local>): int32;
@@ -731,7 +733,7 @@ export class Tap<T> extends Source<T> {
             r#"
 import { Tap } from "./lib";
 
-function drain(tap: &Tap<int32>): int32 {
+function drain(tap: Tap<int32>): int32 {
     return tap.read();
 }
 "#,
@@ -739,23 +741,26 @@ function drain(tap: &Tap<int32>): int32 {
         .build();
 
     session.assert_mir_function("main.ds", "test.main.drain", r#"
+@nocopy
 type test.lib.Tap<T>;
 
+@nocopy
 type test.lib.Source<T>;
 
-function test.main.drain<'a>(v0: ref<test.lib.Tap<int32>, borrowed, 'a, mutable, local>): int32 {
-    local l0: ref<test.lib.Tap<int32>, borrowed, 'a, mutable, local>
+function test.main.drain(v0: ref<test.lib.Tap<int32>, managed, mutable, local>): int32 {
+    local l0: ref<test.lib.Tap<int32>, managed, mutable, local>
 
-entry(v0: ref<test.lib.Tap<int32>, borrowed, 'a, mutable, local>):
-    local.set l0, v0
-    v1: ref<test.lib.Tap<int32>, borrowed, 'a, mutable, local> = local.get l0
-    v2: ref<test.lib.Tap<int32>, managed, mutable, local> = load v1
+entry(v0: ref<test.lib.Tap<int32>, managed, mutable, local>):
+    store l0, v0
+    v1: ref<test.lib.Tap<int32>, managed, mutable, local> = load l0
+    v2: ref<test.lib.Source<int32>, managed, mutable, local> = cast.bit v1 -> ref<test.lib.Source<int32>, managed, mutable, local>
     v3: int32 = call test.lib.Source.read<int32>(v2): (ref<test.lib.Source<int32>, managed, mutable, local>) => int32
     return v3
 }
 "#);
 
     session.assert_mir_function("main.ds", "test.lib.Source.read<int32>", r#"
+@nocopy
 type test.lib.Source<T>;
 
 shared function test.lib.Source.read<int32>(v0: ref<test.lib.Source<int32>, managed, mutable, local>): int32;
@@ -797,20 +802,15 @@ function run(): int32 {
         .build();
 
     session.assert_mir_function("main.ds", "test.main.run", r#"
-@copy
-type test.lib.AId;
-
-@copy
 type test.lib.ARef;
 
-@copy
+type test.lib.AId;
+
 type test.lib.Pair<T>;
 
-@copy
-type test.lib.BId;
-
-@copy
 type test.lib.BRef;
+
+type test.lib.BId;
 
 function test.main.run(): int32 {
     local l0: test.lib.Pair<test.lib.ARef>
@@ -821,12 +821,12 @@ entry:
     v1: test.lib.AId = aggregate (v0)
     v2: test.lib.ARef = aggregate (v1)
     v3: test.lib.Pair<test.lib.ARef> = call test.lib.wrap<test.lib.ARef>(v2): (test.lib.ARef) => test.lib.Pair<test.lib.ARef>
-    local.set l0, v3
+    store l0, v3
     v4: int32 = 2
     v5: test.lib.BId = aggregate (v4)
     v6: test.lib.BRef = aggregate (v5)
     v7: test.lib.Pair<test.lib.BRef> = call test.lib.wrap<test.lib.BRef>(v6): (test.lib.BRef) => test.lib.Pair<test.lib.BRef>
-    local.set l1, v7
+    store l1, v7
     v8: int32 = 0
     return v8
 }
@@ -836,10 +836,8 @@ entry:
         "main.ds",
         "test.lib.wrap<test.lib.ARef>",
         r#"
-@copy
 type test.lib.ARef;
 
-@copy
 type test.lib.Pair<T>;
 
 shared function test.lib.wrap<test.lib.ARef>(v0: test.lib.ARef): test.lib.Pair<test.lib.ARef>;
@@ -850,10 +848,8 @@ shared function test.lib.wrap<test.lib.ARef>(v0: test.lib.ARef): test.lib.Pair<t
         "main.ds",
         "test.lib.wrap<test.lib.BRef>",
         r#"
-@copy
 type test.lib.Pair<T>;
 
-@copy
 type test.lib.BRef;
 
 shared function test.lib.wrap<test.lib.BRef>(v0: test.lib.BRef): test.lib.Pair<test.lib.BRef>;
@@ -893,30 +889,18 @@ function build(message: &readonly int32): Wrap<int32> {
         .build();
 
     session.assert_mir_function("main.ds", "test.main.build", r#"
-@copy
 type test.lib.Wrap<'a, T>;
 
-function test.main.build<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): test.lib.Wrap<'a & local, int32> {
-    local l0: ref<int32, borrowed, 'a, readonly, local>
+function test.main.build<'a>(v0: ref<int32, borrowed, 'a, readonly>): test.lib.Wrap<'a, int32> {
+    local l0: ref<int32, borrowed, 'a, readonly>
 
-entry(v0: ref<int32, borrowed, 'a, readonly, local>):
-    local.set l0, v0
-    v1: ref<int32, borrowed, 'a, readonly, local> = local.get l0
-    v2: test.lib.Wrap<'a & local, int32> = call test.lib.Wrap.make<int32>(v1): <'a>(ref<int32, borrowed, 'a, readonly, local>) => test.lib.Wrap<'a & local, int32>
+entry(v0: ref<int32, borrowed, 'a, readonly>):
+    store l0, v0
+    v1: ref<int32, borrowed, 'a, readonly> = load l0
+    v2: test.lib.Wrap<'a, int32> = call test.lib.Wrap.make<'a, int32>(v1): (ref<int32, borrowed, 'a, readonly>) => test.lib.Wrap<'a, int32>
     return v2
 }
 "#);
-
-    session.assert_mir_function(
-        "main.ds",
-        "test.lib.Wrap.make<int32>",
-        r#"
-@copy
-type test.lib.Wrap<'a, T>;
-
-shared function test.lib.Wrap.make<int32, 'a>(v0: ref<int32, borrowed, 'a, readonly, local>): test.lib.Wrap<'a & local, int32>;
-"#,
-    );
 }
 
 #[test]
@@ -943,7 +927,7 @@ interface Reader {
     read(): Task<Result<usize, IoError>>;
 }
 
-function take(reader: &Reader): void {
+function take(reader: Reader): void {
     let task = reader.read();
     const value = task.park();
 }
@@ -954,34 +938,33 @@ function take(reader: &Reader): void {
         "main.ds",
         "test.main.take",
         r#"
-@copy
+@nocopy
+type test.main.Reader { }
+
 @languageItem("error.IoError")
 type IoError;
 
-@copy
 @languageItem("error.Result")
 type Result<T, E>;
 
+@nocopy
 type test.main.Task<T> {
     value: T;
 }
 
-type test.main.Reader { }
-
-function test.main.take<'a>(v0: ref<test.main.Reader, borrowed, 'a, mutable, local>): void {
-    local l0: ref<test.main.Reader, borrowed, 'a, mutable, local>
+function test.main.take(v0: dynamic<test.main.Reader, managed, mutable, local>): void {
+    local l0: dynamic<test.main.Reader, managed, mutable, local>
     local l1: test.main.Task<Result<usize, IoError>>
     local l2: Result<usize, IoError>
 
-entry(v0: ref<test.main.Reader, borrowed, 'a, mutable, local>):
-    local.set l0, v0
-    v1: ref<test.main.Reader, borrowed, 'a, mutable, local> = local.get l0
-    v2: ref<test.main.Reader, managed, mutable, local> = load v1
-    v3: test.main.Task<Result<usize, IoError>> = call.dynamic v2, test.main.Reader, 0(): () => test.main.Task<Result<usize, IoError>>
-    local.set l1, v3
-    v4: ref<test.main.Task<Result<usize, IoError>>, borrowed, 'frame, mutable, local> = local.address l1
-    v5: Result<usize, IoError> = call test.main.Task.park<Result<usize, IoError>>(v4): <'a>(ref<test.main.Task<Result<usize, IoError>>, borrowed, 'a, mutable, local>) => Result<usize, IoError>
-    local.set l2, v5
+entry(v0: dynamic<test.main.Reader, managed, mutable, local>):
+    store l0, v0
+    v1: dynamic<test.main.Reader, managed, mutable, local> = load l0
+    v2: test.main.Task<Result<usize, IoError>> = call.dynamic v1, test.main.Reader, 0(): () => test.main.Task<Result<usize, IoError>>
+    store l1, v2
+    v3: ref<test.main.Task<Result<usize, IoError>>, borrowed, 'frame, mutable> = address l1
+    v4: Result<usize, IoError> = call test.main.Task.park<Result<usize, IoError>>(v3): (ref<test.main.Task<Result<usize, IoError>>, borrowed, 'frame, mutable>) => Result<usize, IoError>
+    store l2, v4
     return
 }
 
@@ -1014,18 +997,17 @@ struct Cell<T> {
         "main.ds",
         "test.main.Cell.index",
         r#"
-@copy
 type test.main.Cell<T> {
     value: T;
 }
 
-function test.main.Cell.index<T, access A, 'a>(v0: ref<test.main.Cell<T>, borrowed, 'a, A, local>): variant<uint1> { 0uint1 = void; 1uint1 = ref<T, borrowed, 'a, A, local>; } {
-    local l0: ref<test.main.Cell<T>, borrowed, 'a, A, local>
+function test.main.Cell.index<T, A: Access, 'a>(v0: ref<test.main.Cell<T>, borrowed, 'a, A>): variant<uint1> { 0uint1 = ref<?T, borrowed, 'a, A>; 1uint1 = void; } {
+    local l0: ref<test.main.Cell<T>, borrowed, 'a, A>
 
-entry(v0: ref<test.main.Cell<T>, borrowed, 'a, A, local>):
-    local.set l0, v0
-    v1: ref<test.main.Cell<T>, borrowed, 'a, A, local> = local.get l0
-    v2: variant<uint1> { 0uint1 = void; 1uint1 = ref<T, borrowed, 'a, A, local>; } = call test.main.Cell.get<T, A>(v1): <'a>(ref<test.main.Cell<T>, borrowed, 'a, A, local>) => variant<uint1> { 0uint1 = void; 1uint1 = ref<T, borrowed, 'a, A, local>; }
+entry(v0: ref<test.main.Cell<T>, borrowed, 'a, A>):
+    store l0, v0
+    v1: ref<test.main.Cell<T>, borrowed, 'a, A> = address (*l0)
+    v2: variant<uint1> { 0uint1 = ref<?T, borrowed, 'a, A>; 1uint1 = void; } = call test.main.Cell.get<T, A>(v1): (ref<test.main.Cell<T>, borrowed, 'a, A>) => variant<uint1> { 0uint1 = ref<?T, borrowed, 'a, A>; 1uint1 = void; }
     return v2
 }
 "#,
@@ -1056,18 +1038,17 @@ export extension<T, 'a, const A: Access> of Borrowed<Cell<T>, 'a, A> {
         "main.ds",
         "test.main.Cell.index",
         r#"
-@copy
 type test.main.Cell<T> {
     value: T;
 }
 
-function test.main.Cell.index<T, access A, 'a>(v0: ref<test.main.Cell<T>, borrowed, 'a, A, local>): variant<uint1> { 0uint1 = void; 1uint1 = ref<T, borrowed, 'a, A, local>; } {
-    local l0: ref<test.main.Cell<T>, borrowed, 'a, A, local>
+function test.main.Cell.index<T, A: Access, 'a>(v0: ref<test.main.Cell<T>, borrowed, 'a, A>): variant<uint1> { 0uint1 = ref<?T, borrowed, 'a, A>; 1uint1 = void; } {
+    local l0: ref<test.main.Cell<T>, borrowed, 'a, A>
 
-entry(v0: ref<test.main.Cell<T>, borrowed, 'a, A, local>):
-    local.set l0, v0
-    v1: ref<test.main.Cell<T>, borrowed, 'a, A, local> = local.get l0
-    v2: variant<uint1> { 0uint1 = void; 1uint1 = ref<T, borrowed, 'a, A, local>; } = call test.main.Cell.get<T, A>(v1): <'a>(ref<test.main.Cell<T>, borrowed, 'a, A, local>) => variant<uint1> { 0uint1 = void; 1uint1 = ref<T, borrowed, 'a, A, local>; }
+entry(v0: ref<test.main.Cell<T>, borrowed, 'a, A>):
+    store l0, v0
+    v1: ref<test.main.Cell<T>, borrowed, 'a, A> = address (*l0)
+    v2: variant<uint1> { 0uint1 = ref<?T, borrowed, 'a, A>; 1uint1 = void; } = call test.main.Cell.get<T, 'a, A>(v1): (ref<test.main.Cell<T>, borrowed, 'a, A>) => variant<uint1> { 0uint1 = ref<?T, borrowed, 'a, A>; 1uint1 = void; }
     return v2
 }
 "#,
@@ -1090,53 +1071,54 @@ export function twice<T: Integer>(value: &T): T {
     session.assert_mir_lowered(
         "main.ds",
         r#"
-@languageItem("memory.Concrete")
-type Concrete { }
-
-@languageItem("memory.Clone")
-type Clone { }
-
-@languageItem("memory.Copy")
-type Copy extends Clone { }
-
-@languageItem("math.IntegerDomain")
-type IntegerDomain { }
-
-@languageItem("math.Zero")
-type Zero { }
-
-@languageItem("math.One")
-type One { }
-
+@nocopy
 @languageItem("math.Integer")
 type Integer extends Concrete, Copy, IntegerDomain, Zero, One { }
 
-function test.main.twice<T: Integer, 'a>(v0: ref<T, borrowed, 'a, mutable, local>): T {
-    local l0: ref<T, borrowed, 'a, mutable, local>
+@nocopy
+@languageItem("memory.Concrete")
+type Concrete { }
+
+@nocopy
+@languageItem("memory.Copy")
+type Copy extends Clone { }
+
+@nocopy
+@languageItem("memory.Clone")
+type Clone { }
+
+@nocopy
+@languageItem("math.IntegerDomain")
+type IntegerDomain { }
+
+@nocopy
+@languageItem("math.Zero")
+type Zero { }
+
+@nocopy
+@languageItem("math.One")
+type One { }
+
+function test.main.twice<T: Integer, 'a>(v0: ref<?T, borrowed, 'a, mutable>): T {
+    local l0: ref<?T, borrowed, 'a, mutable>
     local l1: T
     local l2: T
 
-entry(v0: ref<T, borrowed, 'a, mutable, local>):
-    local.set l0, v0
-    v1: ref<T, borrowed, 'a, mutable, local> = local.get l0
-    v2: T = load v1
-    local.set l1, v2
-    v3: ref<T, borrowed, 'a, mutable, local> = local.get l0
-    v4: T = load v3
-    local.set l2, v4
-    v5: T = local.get l1
-    return v5
+entry(v0: ref<?T, borrowed, 'a, mutable>):
+    store l0, v0
+    v1: ref<?T, borrowed, 'a, mutable> = load l0
+    v2: ?T = load (*v1)
+    v3: T = new.complete v2
+    store l1, v3
+    v4: ref<?T, borrowed, 'a, mutable> = load l0
+    v5: ?T = load (*v4)
+    v6: T = new.complete v5
+    store l2, v6
+    v7: T = load l1
+    return v7
 }
 
-/// @layout.struct name=Concrete size=0 align=1
-/// @layout.struct name=Clone size=0 align=1
-/// @layout.struct name=Copy size=0 align=1
-/// @layout.struct name=IntegerDomain size=0 align=1
-/// @layout.struct name=Zero size=0 align=1
-/// @layout.struct name=One size=0 align=1
-/// @layout.struct name=Integer size=0 align=1
-
-/// @dispatch.shape constraint=type@2 function=clone function=cloneFrom function=zero function=one
+/// @dispatch.shape constraint=type@3 function=clone function=cloneFrom function=zero function=one
 "#,
     );
 }
@@ -1157,23 +1139,22 @@ newtype interface Dup {
         "main.ds",
         "test.main.Dup.dupFrom",
         r#"
+@nocopy
 type test.main.Dup { }
 
-function test.main.Dup.dupFrom<this: test.main.Dup, 'a, 'b>(v0: ref<this, borrowed, 'a, mutable, local>, v1: ref<this, borrowed, 'b, readonly, local>): void {
-    local l0: ref<this, borrowed, 'b, readonly, local>
-    local l1: ref<this, borrowed, 'a, mutable, local>
+function test.main.Dup.dupFrom<this: test.main.Dup, 'a, 'b>(v0: ref<?this, borrowed, 'a, mutable>, v1: ref<?this, borrowed, 'b, readonly>): void {
+    local l0: ref<?this, borrowed, 'b, readonly>
+    local l1: ref<?this, borrowed, 'a, mutable>
 
-entry(v0: ref<this, borrowed, 'a, mutable, local>, v1: ref<this, borrowed, 'b, readonly, local>):
-    local.set l0, v1
-    local.set l1, v0
-    v2: ref<this, borrowed, 'a, mutable, local> = local.get l1
-    v3: ref<this, borrowed, 'b, readonly, local> = local.get l0
-    v4: this = call.witness this, test.main.Dup, test.main.Dup.dup(v3): <'a>(ref<this, borrowed, 'a, readonly, local>) => this
-    store v2, v4
+entry(v0: ref<?this, borrowed, 'a, mutable>, v1: ref<?this, borrowed, 'b, readonly>):
+    store l0, v1
+    store l1, v0
+    v2: ref<?this, borrowed, 'a, mutable> = load l1
+    v3: ref<?this, borrowed, 'b, readonly> = load l0
+    v4: ?this = call.witness this, test.main.Dup, test.main.Dup.dup(v3): (ref<?this, borrowed, 'b, readonly>) => ?this
+    store (*v2), v4
     return
 }
-
-/// @layout.struct name=test.main.Dup size=0 align=1
 "#,
     );
 }
@@ -1189,11 +1170,11 @@ struct Cell<T> {
 }
 
 export extension<T> of Cell<T> {
-    index(&this): &T {
-        return &this.value;
+    index(&exclusive this): &exclusive T {
+        return &exclusive this.value;
     }
 
-    set(&this, value: T): void {
+    set(&exclusive this, value: T): void {
         replace(this.index(), value);
     }
 }
@@ -1203,24 +1184,23 @@ export extension<T> of Cell<T> {
         "main.ds",
         "test.main.Cell.set",
         r#"
-@copy
 type test.main.Cell<T> {
     value: T;
 }
 
-function test.main.Cell.set<T, 'a>(v0: ref<test.main.Cell<T>, borrowed, 'a, mutable, local>, v1: T): void {
+function test.main.Cell.set<T, 'a>(v0: ref<test.main.Cell<T>, borrowed, 'a, exclusive>, v1: T): void {
     local l0: T
-    local l1: ref<test.main.Cell<T>, borrowed, 'a, mutable, local>
+    local l1: ref<test.main.Cell<T>, borrowed, 'a, exclusive>
 
-entry(v0: ref<test.main.Cell<T>, borrowed, 'a, mutable, local>, v1: T):
-    local.set l0, v1
-    local.set l1, v0
-    v2: ref<test.main.Cell<T>, borrowed, 'a, mutable, local> = local.get l1
-    v3: ref<T, borrowed, 'a, mutable, local> = call test.main.Cell.index<T>(v2): <'a>(ref<test.main.Cell<T>, borrowed, 'a, mutable, local>) => ref<T, borrowed, 'a, mutable, local>
-    v4: ptr<T, mutable> = cast.bit v3 -> ptr<T, mutable>
-    v5: T = local.get l0
-    v6: T = load v4
-    store v4, v5
+entry(v0: ref<test.main.Cell<T>, borrowed, 'a, exclusive>, v1: T):
+    store l0, v1
+    store l1, v0
+    v2: ref<test.main.Cell<T>, borrowed, 'a, exclusive> = address (*l1)
+    v3: ref<?T, borrowed, 'a, exclusive> = call test.main.Cell.index<T>(v2): (ref<test.main.Cell<T>, borrowed, 'a, exclusive>) => ref<?T, borrowed, 'a, exclusive>
+    v4: ref<T, raw, exclusive> = cast.bit v3 -> ref<T, raw, exclusive>
+    v5: T = load l0
+    v6: T = load (*v4)
+    store (*v4), v5
     return
 }
 "#,
@@ -1250,18 +1230,102 @@ extension<T> of Slice<T> {
         "main.ds",
         "test.main.Slice.unsafeGet2",
         r#"
-function test.main.Slice.unsafeGet2<T: Copy, 'a>(v0: slice<T, borrowed, 'a, readonly, local>, v1: usize): T {
+function test.main.Slice.unsafeGet2<T: Copy, 'a>(v0: slice<T, borrowed, 'a, readonly>, v1: usize): T {
     local l0: usize
-    local l1: slice<T, borrowed, 'a, readonly, local>
+    local l1: slice<T, borrowed, 'a, readonly>
 
-entry(v0: slice<T, borrowed, 'a, readonly, local>, v1: usize):
-    local.set l0, v1
-    local.set l1, v0
-    v2: slice<T, borrowed, 'a, readonly, local> = local.get l1
-    v3: usize = local.get l0
-    v4: ref<T, borrowed, 'a, readonly, local> = element.address v2, v3
-    v5: T = load v4
-    return v5
+entry(v0: slice<T, borrowed, 'a, readonly>, v1: usize):
+    store l0, v1
+    store l1, v0
+    v2: slice<T, borrowed, 'a, readonly> = load l1
+    v3: usize = load l0
+    v4: T = load (*v2)[v3]
+    return v4
+}
+"#,
+    );
+}
+
+/// Complete a generic default into a static call argument.
+#[test]
+fn test_complete_a_generic_default_into_a_static_call_argument() {
+    let session = TestSession::single(
+        r#"
+struct Slot<T> {
+    value: T;
+}
+
+export extension<T> of Slot<T> {
+    static of(value: T): Slot<T> {
+        Slot { value }
+    }
+}
+
+function fill<T: Default>(): Slot<T> {
+    return Slot.of(T.default());
+}
+"#,
+    );
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.fill",
+        r#"
+type test.main.Slot<T> {
+    value: T;
+}
+
+@nocopy
+@languageItem("memory.Default")
+type Default;
+
+function test.main.fill<T: Default>(): test.main.Slot<T> {
+entry:
+    v0: ?T = call.witness T, Default, Default.default(): () => ?T
+    v1: T = new.complete v0
+    v2: test.main.Slot<T> = call test.main.Slot.of<T>(v1): (T) => test.main.Slot<T>
+    return v2
+}
+"#,
+    );
+}
+
+/// Compare a borrowed field with a borrowed parameter at an open type.
+#[test]
+fn test_compare_a_borrowed_field_with_a_borrowed_parameter_at_an_open_type() {
+    let session = TestSession::single(
+        r#"
+struct Holder<'a, T> {
+    value: Borrowed<T, 'a, "immutable">;
+}
+
+export extension<'a, T> of Holder<'a, T> {
+    same(this, other: &immutable T): boolean where T: StrictEqual<T> {
+        return *this.value === *other;
+    }
+}
+"#,
+    );
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.Holder.same",
+        r#"
+type test.main.Holder<'a, T> {
+    value: ref<?T, borrowed, 'a, immutable>;
+}
+
+function test.main.Holder.same<'a, T: StrictEqual<T>, 'a>(v0: test.main.Holder<'a, T>, v1: ref<?T, borrowed, 'a, immutable>): boolean {
+    local l0: ref<?T, borrowed, 'a, immutable>
+    local l1: test.main.Holder<'a, T>
+
+entry(v0: test.main.Holder<'a, T>, v1: ref<?T, borrowed, 'a, immutable>):
+    store l0, v1
+    store l1, v0
+    v2: ref<?T, borrowed, 'a, immutable> = load (l1).0
+    v3: ?T = load (*v2)
+    v4: ref<?T, borrowed, 'a, immutable> = load l0
+    v5: ?T = load (*v4)
+    v6: boolean = eq v3, v5
+    return v6
 }
 "#,
     );

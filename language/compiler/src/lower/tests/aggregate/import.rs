@@ -29,7 +29,6 @@ function stretch(by: int32): int32 {
         "main.ds",
         "test.main.stretch",
         r#"
-@copy
 type test.point.Point;
 
 function test.main.stretch(v0: int32): int32 {
@@ -37,17 +36,15 @@ function test.main.stretch(v0: int32): int32 {
     local l1: test.point.Point
 
 entry(v0: int32):
-    local.set l0, v0
-    v1: int32 = local.get l0
-    v2: int32 = local.get l0
+    store l0, v0
+    v1: int32 = load l0
+    v2: int32 = load l0
     v3: test.point.Point = aggregate (v1, v2)
-    local.set l1, v3
-    v4: test.point.Point = local.get l1
-    v5: int32 = field.get v4, 0
-    v6: test.point.Point = local.get l1
-    v7: int32 = field.get v6, 1
-    v8: int32 = add v5, v7
-    return v8
+    store l1, v3
+    v4: int32 = load (l1).0
+    v5: int32 = load (l1).1
+    v6: int32 = add v4, v5
+    return v6
 }
 "#,
     );

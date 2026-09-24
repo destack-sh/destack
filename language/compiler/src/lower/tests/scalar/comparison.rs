@@ -19,10 +19,10 @@ function test.main.less(v0: int32, v1: int32): boolean {
     local l1: int32
 
 entry(v0: int32, v1: int32):
-    local.set l0, v0
-    local.set l1, v1
-    v2: int32 = local.get l0
-    v3: int32 = local.get l1
+    store l0, v0
+    store l1, v1
+    v2: int32 = load l0
+    v3: int32 = load l1
     v4: boolean = lt v2, v3
     return v4
 }
@@ -49,10 +49,10 @@ function test.main.above(v0: uint32, v1: uint32): boolean {
     local l1: uint32
 
 entry(v0: uint32, v1: uint32):
-    local.set l0, v0
-    local.set l1, v1
-    v2: uint32 = local.get l0
-    v3: uint32 = local.get l1
+    store l0, v0
+    store l1, v1
+    v2: uint32 = load l0
+    v3: uint32 = load l1
     v4: boolean = gt v2, v3
     return v4
 }
@@ -79,10 +79,10 @@ function test.main.same(v0: int64, v1: int64): boolean {
     local l1: int64
 
 entry(v0: int64, v1: int64):
-    local.set l0, v0
-    local.set l1, v1
-    v2: int64 = local.get l0
-    v3: int64 = local.get l1
+    store l0, v0
+    store l1, v1
+    v2: int64 = load l0
+    v3: int64 = load l1
     v4: boolean = eq v2, v3
     return v4
 }

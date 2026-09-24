@@ -19,14 +19,14 @@ function test.main.scale(v0: float64, v1: float64): float64 {
     local l1: float64
 
 entry(v0: float64, v1: float64):
-    local.set l0, v0
-    local.set l1, v1
-    v2: float64 = local.get l0
-    v3: float64 = local.get l1
+    store l0, v0
+    store l1, v1
+    v2: float64 = load l0
+    v3: float64 = load l1
     v4: float64 = mul v2, v3
     v5: float64 = 1.5
     v6: float64 = add v4, v5
-    v7: float64 = local.get l1
+    v7: float64 = load l1
     v8: float64 = rem v6, v7
     return v8
 }
@@ -53,10 +53,10 @@ function test.main.hotter(v0: float32, v1: float32): boolean {
     local l1: float32
 
 entry(v0: float32, v1: float32):
-    local.set l0, v0
-    local.set l1, v1
-    v2: float32 = local.get l0
-    v3: float32 = local.get l1
+    store l0, v0
+    store l1, v1
+    v2: float32 = load l0
+    v3: float32 = load l1
     v4: boolean = gt v2, v3
     return v4
 }

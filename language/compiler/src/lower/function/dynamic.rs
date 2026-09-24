@@ -3,8 +3,8 @@ use destack_dir as dir;
 use destack_mir as mir;
 use destack_mir::substitute_type;
 
-use crate::lower::FunctionLowerer;
 use crate::lower::function::call::ReceiverUse;
+use crate::lower::{FunctionLowerer, GenericScope};
 use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -24,29 +24,11 @@ impl FunctionLowerer<'_, '_, '_> {
         // register the implementer pair behind this erasure for the dispatch tables
         let scope = self.scope.erased();
         self.lower
-            .declare_implementer(self.builder.tree_mut(), source, target, &scope)?;
+            .check_erasure(self.builder.tree_mut(), source, target, &scope)?;
 
-        // bind object types behind their managed reference representation
-        if let dir::Type::Object(_) = self.lower.ty(source)? {
-            let reference = self.lower_type(source)?;
-            let concrete = match self.builder.tree().get(reference) {
-                mir::Type::Reference { pointee, .. } => *pointee,
-                _ => {
-                    return Err(CompilerError::Internal {
-                        message: "an object class without a reference representation".to_string(),
-                    });
-                }
-            };
-
-            return Ok(self.builder.dynamic_bind(dynamic, value, concrete));
-        }
-
-        let concrete = match self.lower.ty(source)? {
-            // bind classes at their declared nominal storage
-            dir::Type::Application(_) => self.lower_nominal(source)?.storage,
-            // bind every other value at its lowered representation
-            _ => self.lower_type(source)?,
-        };
+        // bind the payload at its own lowered type, the key every implementer table shares
+        let concrete = self.lower_type(source)?;
+        let concrete = mir::erase_lifetimes(self.builder.tree_mut(), concrete);
 
         Ok(self.builder.dynamic_bind(dynamic, value, concrete))
     }
@@ -83,7 +65,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let receiver =
             self.lower_adjusted_receiver(receiver, &dispatch.receiver, false, ReceiverUse::Value)?;
 
-        self.lower_dynamic_slot_call(receiver, name, dispatch, &resolution.arguments)
+        self.lower_dynamic_slot_call(receiver, name, dispatch, resolution)
     }
 
     /// Call one constraint slot by name on an adjusted erased receiver value.
@@ -92,7 +74,7 @@ impl FunctionLowerer<'_, '_, '_> {
         receiver: mir::Value,
         name: StringId,
         dispatch: &dir::DynamicDispatch,
-        arguments: &[dir::ArgumentBinding],
+        call: &dir::Call,
     ) -> CompilerResult<Option<mir::Value>> {
         // select the constraint's declared slot and signature
         let constraint = self.lower_constraint(dispatch.constraint)?;
@@ -120,25 +102,126 @@ impl FunctionLowerer<'_, '_, '_> {
             });
         };
 
-        // call the selected slot at its signature under the interface's arguments
-        let signature = match applied.is_empty() {
-            true => signature,
-            false => substitute_type(self.builder.tree_mut(), signature, &applied),
-        };
-        let parameters = self.signature_parameters(mir::TypeId::from(signature))?;
-        let values = self.lower_call_arguments(arguments, &parameters, &[])?;
-        let result = self.builder.signature_result(mir::TypeId::from(signature));
+        // close the slot's signature at the interface's arguments and the member's parameters
+        let (arguments, chain) = self.dynamic_slot_arguments(receiver, &applied, call)?;
+        let signature = substitute_type(self.builder.tree_mut(), signature, &arguments);
+        let mut parameters = self.signature_parameters(signature)?;
+        let mut result = self.builder.signature_result(signature);
+        if let Some(chain) = &chain {
+            self.instantiate_signature(
+                &mut parameters,
+                &mut result,
+                chain,
+                &call.regions,
+                &[],
+                None,
+            )?;
+        }
+        let values = self.lower_call_arguments(&call.arguments, &parameters, &[])?;
 
         Ok(self.builder.call(
             mir::Callee::Dynamic {
                 receiver,
-                constraint: mir::TypeId::from(constraint),
+                constraint,
                 slot: mir::DispatchSlot(slot as u32),
             },
-            mir::TypeId::from(signature),
+            signature,
             values,
             result,
         ))
+    }
+
+    /// Return the scope the dispatching interface's shape indexes its slots under.
+    fn constraint_scope(&mut self, constraint: dir::GlobalTypeId) -> CompilerResult<GenericScope> {
+        let Some(symbol) = self.lower.nominal_symbol(constraint)? else {
+            return Err(self.internal("a dynamic dispatch through a non-nominal constraint"));
+        };
+
+        match self
+            .lower
+            .definition(symbol)?
+            .and_then(|definition| definition.template())
+        {
+            Some(template) => {
+                GenericScope::for_declaration(self.lower, template.into_global(symbol.module_id))
+            }
+            None => Ok(GenericScope::default()),
+        }
+    }
+
+    /// Return the arguments one dispatched slot closes at: interface, receiver, then member.
+    fn dynamic_slot_arguments(
+        &mut self,
+        receiver: mir::Value,
+        applied: &[mir::GenericArgument],
+        call: &dir::Call,
+    ) -> CompilerResult<(Vec<mir::GenericArgument>, Option<GenericScope>)> {
+        // a symbol-free slot closes at the interface's arguments alone
+        let dir::CallableTarget::Dynamic {
+            dispatch,
+            function: dir::DynamicFunction::Symbol(symbol),
+            generic_arguments,
+        } = &call.target
+        else {
+            return Ok((applied.to_vec(), None));
+        };
+
+        // place the interface's arguments first, its receiver bound to the erased receiver
+        let interface = self.constraint_scope(dispatch.constraint)?;
+        let chain = self
+            .lower
+            .dispatch_slot_scope(self.builder.tree(), &interface, *symbol)?;
+        let erased = self.value_representation(receiver)?;
+        let mut arguments = vec![None; chain.count() as usize];
+        for (index, argument) in applied.iter().enumerate() {
+            arguments[index] = Some(argument.clone());
+        }
+        if let Some(index) = chain.receiver {
+            arguments[index as usize] = Some(mir::GenericArgument::Type(erased));
+        }
+
+        // bind the member's own parameters at the call's generic arguments and regions
+        for binding in generic_arguments.iter().chain(call.regions.iter()) {
+            let Some(index) = chain.parameters.get(&binding.parameter) else {
+                continue;
+            };
+            let argument = &mut arguments[*index as usize];
+            if argument.is_none() {
+                *argument = Some(self.lower_generic_argument(binding.argument)?);
+            }
+        }
+
+        // close the member's dependents at the erased receiver
+        for dependent in chain.dependents.values() {
+            let tree = self.builder.tree_mut();
+            let mut types = self.lower.type_lowerer(tree, &self.scope);
+            types.this_type = Some(erased);
+            arguments[dependent.index as usize] = Some(types.lower_generic_argument(dependent.ty)?);
+        }
+
+        // require an argument at every index
+        let mut closed = Vec::with_capacity(arguments.len());
+        for (index, argument) in arguments.into_iter().enumerate() {
+            let Some(argument) = argument else {
+                let slot = chain
+                    .parameters
+                    .iter()
+                    .find(|(_, slot)| **slot == index as u32)
+                    .map(|(parameter, _)| self.lower.format_parameter_name(*parameter))
+                    .transpose()?
+                    .unwrap_or_else(|| format!("slot {index}"));
+
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "a dynamic call to '{}' without an argument for '{slot}'",
+                        self.lower.symbol_path(*symbol)?
+                    ),
+                });
+            };
+            closed.push(argument);
+        }
+
+        Ok((closed, Some(chain)))
     }
 
     /// Read one member through an erased receiver's dispatch table.
@@ -202,12 +285,12 @@ impl FunctionLowerer<'_, '_, '_> {
                 let value = self.builder.call(
                     mir::Callee::Dynamic {
                         receiver,
-                        constraint: mir::TypeId::from(constraint),
+                        constraint,
                         slot: mir::DispatchSlot(slot as u32),
                     },
-                    mir::TypeId::from(signature),
+                    signature,
                     Vec::new(),
-                    mir::TypeId::from(result_type),
+                    result_type,
                 );
 
                 value.ok_or_else(|| CompilerError::Internal {

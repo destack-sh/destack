@@ -22,19 +22,19 @@ function test.main.max(v0: int32, v1: int32): int32 {
     local l1: int32
 
 entry(v0: int32, v1: int32):
-    local.set l0, v0
-    local.set l1, v1
-    v2: int32 = local.get l0
-    v3: int32 = local.get l1
+    store l0, v0
+    store l1, v1
+    v2: int32 = load l0
+    v3: int32 = load l1
     v4: boolean = gt v2, v3
     branch v4 => b1 | b2
 
 b1:
-    v5: int32 = local.get l0
+    v5: int32 = load l0
     return v5
 
 b2:
-    v6: int32 = local.get l1
+    v6: int32 = load l1
     return v6
 }
 "#,
@@ -65,21 +65,21 @@ function test.main.pick(v0: boolean, v1: int32, v2: int32): int32 {
     local l2: int32
 
 entry(v0: boolean, v1: int32, v2: int32):
-    local.set l0, v0
-    local.set l1, v1
-    local.set l2, v2
-    v3: boolean = local.get l0
+    store l0, v0
+    store l1, v1
+    store l2, v2
+    v3: boolean = load l0
     branch v3 => b1 | b3
 
 b1:
-    v4: int32 = local.get l1
+    v4: int32 = load l1
     return v4
 
 b2:
     unreachable
 
 b3:
-    v5: int32 = local.get l2
+    v5: int32 = load l2
     return v5
 }
 "#,
@@ -106,25 +106,25 @@ function test.main.clamp(v0: float32, v1: float32): float32 {
     local l2: float32
 
 entry(v0: float32, v1: float32):
-    local.set l0, v0
-    local.set l1, v1
-    v2: float32 = local.get l0
-    v3: float32 = local.get l1
+    store l0, v0
+    store l1, v1
+    v2: float32 = load l0
+    v3: float32 = load l1
     v4: boolean = gt v2, v3
     branch v4 => b1 | b2
 
 b1:
-    v5: float32 = local.get l1
-    local.set l2, v5
+    v5: float32 = load l1
+    store l2, v5
     jump b3
 
 b2:
-    v6: float32 = local.get l0
-    local.set l2, v6
+    v6: float32 = load l0
+    store l2, v6
     jump b3
 
 b3:
-    v7: float32 = local.get l2
+    v7: float32 = load l2
     return v7
 }
 "#,
@@ -153,26 +153,26 @@ function test.main.clamp(v0: isize): isize {
     local l2: isize
 
 entry(v0: isize):
-    local.set l0, v0
-    v1: isize = local.get l0
+    store l0, v0
+    v1: isize = load l0
     v2: isize = 0
     v3: boolean = lt v1, v2
     branch v3 => b1 | b2
 
 b1:
     v4: isize = 0
-    local.set l1, v4
+    store l1, v4
     jump b3
 
 b2:
-    v5: isize = local.get l0
-    local.set l1, v5
+    v5: isize = load l0
+    store l1, v5
     jump b3
 
 b3:
-    v6: isize = local.get l1
-    local.set l2, v6
-    v7: isize = local.get l2
+    v6: isize = load l1
+    store l2, v6
+    v7: isize = load l2
     return v7
 }
 "#,
@@ -201,8 +201,8 @@ function test.main.checked(v0: isize): isize {
     local l2: isize
 
 entry(v0: isize):
-    local.set l0, v0
-    v1: isize = local.get l0
+    store l0, v0
+    v1: isize = load l0
     v2: isize = 0
     v3: boolean = lt v1, v2
     branch v3 => b1 | b2
@@ -212,14 +212,14 @@ b1:
     return v4
 
 b2:
-    v5: isize = local.get l0
-    local.set l1, v5
+    v5: isize = load l0
+    store l1, v5
     jump b3
 
 b3:
-    v6: isize = local.get l1
-    local.set l2, v6
-    v7: isize = local.get l2
+    v6: isize = load l1
+    store l2, v6
+    v7: isize = load l2
     return v7
 }
 "#,
@@ -248,8 +248,8 @@ function test.main.pick(v0: boolean): isize {
     local l2: never
 
 entry(v0: boolean):
-    local.set l0, v0
-    v1: boolean = local.get l0
+    store l0, v0
+    v1: boolean = load l0
     branch v1 => b1 | b2
 
 b1:
@@ -265,8 +265,8 @@ b3:
 
 b4:
     v4: never = uninit
-    local.set l2, v4
-    v5: never = local.get l2
+    store l2, v4
+    v5: never = load l2
     unreachable
 }
 "#,

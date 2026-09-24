@@ -18,15 +18,14 @@ function advance(current: char): char {
         "main.ds",
         "test.main.advance",
         r#"
-@copy
 type literal.character.z { }
 
 function test.main.advance(v0: uint32): uint32 {
     local l0: uint32
 
 entry(v0: uint32):
-    local.set l0, v0
-    v1: uint32 = local.get l0
+    store l0, v0
+    v1: uint32 = load l0
     v2: literal.character.z = zeroed
     v3: uint32 = 122
     v4: boolean = eq v1, v3
@@ -37,7 +36,7 @@ b1:
     return v5
 
 b2:
-    v6: uint32 = local.get l0
+    v6: uint32 = load l0
     return v6
 }
 

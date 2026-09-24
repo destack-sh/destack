@@ -19,12 +19,12 @@ function test.main.widen(v0: int32, v1: uint32): int64 {
     local l1: uint32
 
 entry(v0: int32, v1: uint32):
-    local.set l0, v0
-    local.set l1, v1
-    v2: int32 = local.get l0
-    v3: int64 = cast.extend.s v2 -> int64
-    v4: uint32 = local.get l1
-    v5: int64 = cast.extend.u v4 -> int64
+    store l0, v0
+    store l1, v1
+    v2: int32 = load l0
+    v3: int64 = cast.intToInt v2 -> int64
+    v4: uint32 = load l1
+    v5: int64 = cast.intToInt v4 -> int64
     v6: int64 = add v3, v5
     return v6
 }
@@ -53,9 +53,9 @@ function test.main.narrow(v0: int64): int8 {
     local l0: int64
 
 entry(v0: int64):
-    local.set l0, v0
-    v1: int64 = local.get l0
-    v2: int8 = cast.truncate v1 -> int8
+    store l0, v0
+    v1: int64 = load l0
+    v2: int8 = cast.intToInt v1 -> int8
     return v2
 }
 "#,
@@ -83,9 +83,9 @@ function test.main.reinterpret(v0: usize): isize {
     local l0: usize
 
 entry(v0: usize):
-    local.set l0, v0
-    v1: usize = local.get l0
-    v2: isize = cast.bit v1 -> isize
+    store l0, v0
+    v1: usize = load l0
+    v2: isize = cast.intToInt v1 -> isize
     return v2
 }
 "#,
@@ -111,12 +111,12 @@ function test.main.ratio(v0: uint32, v1: int32): float64 {
     local l1: int32
 
 entry(v0: uint32, v1: int32):
-    local.set l0, v0
-    local.set l1, v1
-    v2: uint32 = local.get l0
-    v3: float64 = cast.intToFloat.u v2 -> float64
-    v4: int32 = local.get l1
-    v5: float64 = cast.intToFloat.s v4 -> float64
+    store l0, v0
+    store l1, v1
+    v2: uint32 = load l0
+    v3: float64 = cast.intToFloat v2 -> float64
+    v4: int32 = load l1
+    v5: float64 = cast.intToFloat v4 -> float64
     v6: float64 = div v3, v5
     return v6
 }
@@ -145,9 +145,9 @@ function test.main.whole(v0: float64): int32 {
     local l0: float64
 
 entry(v0: float64):
-    local.set l0, v0
-    v1: float64 = local.get l0
-    v2: int32 = cast.floatToIntSaturating.s v1 -> int32
+    store l0, v0
+    v1: float64 = load l0
+    v2: int32 = cast.floatToIntSaturating v1 -> int32
     return v2
 }
 "#,
@@ -172,6 +172,71 @@ function test.main.big(): int64 {
 entry:
     v0: int64 = 1
     return v0
+}
+"#,
+    );
+}
+
+/// A truncating cast of a parameter operand keeps its intent for the specialization.
+#[test]
+fn test_keep_a_truncate_intent_over_a_parameter_operand() {
+    let session = TestSession::single(
+        r#"
+import { Integer } from "destack:math";
+
+@intrinsic("math.cast.int.truncate")
+declare function truncateInt<T: Integer, U: Integer>(value: T): U;
+
+function narrow<T: Integer>(value: T): int8 {
+    return truncateInt<T, int8>(value);
+}
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.narrow",
+        r#"
+function test.main.narrow<T: Integer>(v0: T): int8 {
+    local l0: T
+
+entry(v0: T):
+    store l0, v0
+    v1: T = load l0
+    v2: int8 = cast.intToInt v1 -> int8
+    return v2
+}
+"#,
+    );
+}
+
+/// A pointer cast through one newtype layer reinterprets the address in place.
+#[test]
+fn test_lower_a_pointer_newtype_cast_to_a_bitcast() {
+    let session = TestSession::single(
+        r#"
+newtype UserId = int32;
+
+function unwrap(id: *UserId): *int32 {
+    return id as *int32;
+}
+"#,
+    );
+
+    session.assert_mir_function(
+        "main.ds",
+        "test.main.unwrap",
+        r#"
+type test.main.UserId = newtype<int32>;
+
+function test.main.unwrap(v0: ptr<test.main.UserId, mutable>): ptr<int32, mutable> {
+    local l0: ptr<test.main.UserId, mutable>
+
+entry(v0: ptr<test.main.UserId, mutable>):
+    store l0, v0
+    v1: ptr<test.main.UserId, mutable> = load l0
+    v2: ptr<int32, mutable> = cast.bit v1 -> ptr<int32, mutable>
+    return v2
 }
 "#,
     );

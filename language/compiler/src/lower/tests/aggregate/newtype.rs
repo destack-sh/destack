@@ -16,15 +16,14 @@ function span(distance: Meters): Meters {
         "main.ds",
         "test.main.span",
         r#"
-@copy
 type test.main.Meters = newtype<int32>;
 
 function test.main.span(v0: test.main.Meters): test.main.Meters {
     local l0: test.main.Meters
 
 entry(v0: test.main.Meters):
-    local.set l0, v0
-    v1: test.main.Meters = local.get l0
+    store l0, v0
+    v1: test.main.Meters = load l0
     return v1
 }
 "#,
@@ -47,15 +46,14 @@ function total(base: int32): Meters {
         "main.ds",
         "test.main.total",
         r#"
-@copy
 type test.main.Meters = newtype<int32>;
 
 function test.main.total(v0: int32): test.main.Meters {
     local l0: int32
 
 entry(v0: int32):
-    local.set l0, v0
-    v1: int32 = local.get l0
+    store l0, v0
+    v1: int32 = load l0
     v2: test.main.Meters = aggregate (v1)
     return v2
 }
@@ -82,18 +80,16 @@ function organisation(user: UserId): OrganisationId {
         "main.ds",
         "test.main.organisation",
         r#"
-@copy
 type test.main.UserId = newtype<int32>;
 
-@copy
 type test.main.OrganisationId = newtype<int32>;
 
 function test.main.organisation(v0: test.main.UserId): test.main.OrganisationId {
     local l0: test.main.UserId
 
 entry(v0: test.main.UserId):
-    local.set l0, v0
-    v1: test.main.UserId = local.get l0
+    store l0, v0
+    v1: test.main.UserId = load l0
     v2: int32 = field.get v1, 0
     v3: test.main.OrganisationId = aggregate (v2)
     return v3

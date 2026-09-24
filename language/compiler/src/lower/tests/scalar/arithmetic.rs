@@ -19,10 +19,10 @@ function test.main.add(v0: int32, v1: int32): int32 {
     local l1: int32
 
 entry(v0: int32, v1: int32):
-    local.set l0, v0
-    local.set l1, v1
-    v2: int32 = local.get l0
-    v3: int32 = local.get l1
+    store l0, v0
+    store l1, v1
+    v2: int32 = load l0
+    v3: int32 = load l1
     v4: int32 = add v2, v3
     return v4
 }
@@ -49,17 +49,17 @@ function test.main.calc(v0: int32, v1: int32): int32 {
     local l1: int32
 
 entry(v0: int32, v1: int32):
-    local.set l0, v0
-    local.set l1, v1
-    v2: int32 = local.get l0
-    v3: int32 = local.get l1
+    store l0, v0
+    store l1, v1
+    v2: int32 = load l0
+    v3: int32 = load l1
     v4: int32 = mul v2, v3
-    v5: int32 = local.get l0
-    v6: int32 = local.get l1
+    v5: int32 = load l0
+    v6: int32 = load l1
     v7: int32 = rem v5, v6
     v8: int32 = add v4, v7
-    v9: int32 = local.get l1
-    v10: int32 = local.get l0
+    v9: int32 = load l1
+    v10: int32 = load l0
     v11: int32 = div v9, v10
     v12: int32 = sub v8, v11
     return v12
@@ -87,13 +87,13 @@ function test.main.split(v0: uint32, v1: uint32): uint32 {
     local l1: uint32
 
 entry(v0: uint32, v1: uint32):
-    local.set l0, v0
-    local.set l1, v1
-    v2: uint32 = local.get l0
-    v3: uint32 = local.get l1
+    store l0, v0
+    store l1, v1
+    v2: uint32 = load l0
+    v3: uint32 = load l1
     v4: uint32 = div v2, v3
-    v5: uint32 = local.get l0
-    v6: uint32 = local.get l1
+    v5: uint32 = load l0
+    v6: uint32 = load l1
     v7: uint32 = rem v5, v6
     v8: uint32 = add v4, v7
     return v8
@@ -120,8 +120,8 @@ function test.main.flip(v0: int32): int32 {
     local l0: int32
 
 entry(v0: int32):
-    local.set l0, v0
-    v1: int32 = local.get l0
+    store l0, v0
+    v1: int32 = load l0
     v2: int32 = negate v1
     return v2
 }

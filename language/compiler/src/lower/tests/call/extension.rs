@@ -26,24 +26,21 @@ function measure(): int32 {
         "main.ds",
         "test.main.Point.double",
         r#"
-@copy
 type test.main.Point {
     x: int32;
 }
 
-function test.main.Point.double<'a>(v0: ref<test.main.Point, borrowed, 'a, readonly, local>): int32 {
-    local l0: ref<test.main.Point, borrowed, 'a, readonly, local>
+function test.main.Point.double<'a>(v0: ref<test.main.Point, borrowed, 'a, readonly>): int32 {
+    local l0: ref<test.main.Point, borrowed, 'a, readonly>
 
-entry(v0: ref<test.main.Point, borrowed, 'a, readonly, local>):
-    local.set l0, v0
-    v1: ref<test.main.Point, borrowed, 'a, readonly, local> = local.get l0
-    v2: ref<int32, borrowed, 'a, readonly, local> = field.project v1, 0
-    v3: int32 = load v2
-    v4: ref<test.main.Point, borrowed, 'a, readonly, local> = local.get l0
-    v5: ref<int32, borrowed, 'a, readonly, local> = field.project v4, 0
-    v6: int32 = load v5
-    v7: int32 = add v3, v6
-    return v7
+entry(v0: ref<test.main.Point, borrowed, 'a, readonly>):
+    store l0, v0
+    v1: ref<test.main.Point, borrowed, 'a, readonly> = load l0
+    v2: int32 = load (*v1).0
+    v3: ref<test.main.Point, borrowed, 'a, readonly> = load l0
+    v4: int32 = load (*v3).0
+    v5: int32 = add v2, v4
+    return v5
 }
 
 /// @layout.struct name=test.main.Point size=4 align=4
@@ -52,7 +49,6 @@ entry(v0: ref<test.main.Point, borrowed, 'a, readonly, local>):
     );
 
     session.assert_mir_function("main.ds", "test.main.measure", r#"
-@copy
 type test.main.Point {
     x: int32;
 }
@@ -63,9 +59,9 @@ function test.main.measure(): int32 {
 entry:
     v0: int32 = 3
     v1: test.main.Point = aggregate (v0)
-    local.set l0, v1
-    v2: ref<test.main.Point, borrowed, 'frame, readonly, local> = local.address l0
-    v3: int32 = call test.main.Point.double(v2): <'a>(ref<test.main.Point, borrowed, 'a, readonly, local>) => int32
+    store l0, v1
+    v2: ref<test.main.Point, borrowed, 'frame, readonly> = address l0
+    v3: int32 = call test.main.Point.double(v2): (ref<test.main.Point, borrowed, 'frame, readonly>) => int32
     return v3
 }
 
@@ -99,7 +95,6 @@ function build(value: int32): Box<int32> {
         "main.ds",
         "test.main.build",
         r#"
-@copy
 type test.main.Box<T> {
     value: T;
 }
@@ -108,8 +103,8 @@ function test.main.build(v0: int32): test.main.Box<int32> {
     local l0: int32
 
 entry(v0: int32):
-    local.set l0, v0
-    v1: int32 = local.get l0
+    store l0, v0
+    v1: int32 = load l0
     v2: test.main.Box<int32> = call test.main.Box.of<int32>(v1): (int32) => test.main.Box<int32>
     return v2
 }
@@ -123,7 +118,6 @@ entry(v0: int32):
         "main.ds",
         "test.main.Box.of<int32>",
         r#"
-@copy
 type test.main.Box<T> {
     value: T;
 }
@@ -161,7 +155,6 @@ function build(): Box<int32> {
         "main.ds",
         "test.main.build",
         r#"
-@copy
 type test.main.Box<T> {
     value: T;
 }
@@ -182,7 +175,6 @@ entry:
         "main.ds",
         "test.main.Box.of<int32>",
         r#"
-@copy
 type test.main.Box<T> {
     value: T;
 }

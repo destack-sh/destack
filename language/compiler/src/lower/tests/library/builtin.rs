@@ -211,7 +211,6 @@ ok   memory/arc/arc.ds
 ok   memory/arc/index.ds
 ok   memory/arc/weak.ds
 ok   memory/arena/arena.ds
-ok   memory/arena/bump.ds
 ok   memory/arena/index.ds
 ok   memory/binding/advise.ds
 ok   memory/binding/index.ds
@@ -234,12 +233,10 @@ ok   memory/dynamic.ds
 ok   memory/error.ds
 ok   memory/index.ds
 ok   memory/init.ds
-ok   memory/lifetime.ds
-ok   memory/managed.ds
 ok   memory/owned.ds
 ok   memory/phantom.ds
 ok   memory/pin.ds
-ok   memory/place.ds
+ok   memory/pointer.ds
 ok   memory/raw.ds
 ok   memory/rc/index.ds
 ok   memory/rc/rc.ds
@@ -269,6 +266,7 @@ ok   ops/comparison.ds
 ok   ops/dereference.ds
 ok   ops/divide.ds
 ok   ops/equality.ds
+ok   ops/equate.ds
 ok   ops/format.ds
 ok   ops/hash.ds
 ok   ops/index.ds
@@ -363,7 +361,7 @@ ok   test/artifact.ds
 ok   test/body.ds
 ok   test/case.ds
 ok   test/context.ds
-FAIL test/expect.ds :: a 'null' literal outside its representation
+FAIL test/expect.ds :: error[unsupported-lower-construct]: unsupported construct: the 'error.catchUnwind' intrinsic
 ok   test/fixture.ds
 ok   test/hook.ds
 ok   test/id.ds

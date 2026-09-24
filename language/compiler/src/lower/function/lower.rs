@@ -36,8 +36,6 @@ pub(in crate::lower) struct FunctionLowerer<'lower, 'builder, 'module> {
     pub(in crate::lower) frames: FxIndexMap<dir::GlobalScopeId, mir::Value>,
     /// The receiver binding of the enclosing method, when one exists.
     pub(in crate::lower) this: Option<Binding>,
-    /// The lowered receiver of the intrinsic call being lowered, its argument 0.
-    pub(in crate::lower) intrinsic_receiver: Option<mir::Value>,
     /// The producer binding of the enclosing generator body, when one exists.
     pub(in crate::lower) producer: Option<Binding>,
     /// The capture environment a coroutine entry forwards to its body.
@@ -86,7 +84,7 @@ pub(in crate::lower) enum Binding {
         /// The field index within the frame.
         field: u32,
         /// The stored field type.
-        ty: mir::LocalNodeId<mir::Type>,
+        ty: mir::TypeId,
     },
 }
 
@@ -168,7 +166,6 @@ impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
             values: FxIndexMap::default(),
             frames: FxIndexMap::default(),
             this: None,
-            intrinsic_receiver: None,
             producer: None,
             captures: None,
             profile: mir::FunctionProfileTable::new(mir::FunctionHash::default()),
@@ -412,7 +409,7 @@ impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
     pub(in crate::lower) fn value_representation(
         &self,
         value: mir::Value,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         self.builder
             .value_type(value)
             .ok_or_else(|| CompilerError::Internal {
@@ -429,7 +426,10 @@ impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
             Some(value) => {
                 // leave a diverged value, its path ending before the return
                 let representation = self.value_representation(value)?;
-                if matches!(self.builder.tree().get(representation), mir::Type::Never) {
+                if matches!(
+                    self.builder.tree().type_definition(representation),
+                    mir::Type::Never
+                ) {
                     self.builder.unreachable();
 
                     return Ok(());
@@ -454,11 +454,42 @@ impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
             .lower_generic_argument(argument)
     }
 
+    /// Return the heap of one allocation: a managed result's space, else the receiver's space.
+    pub(in crate::lower) fn allocation_space(
+        &mut self,
+        result: mir::TypeId,
+    ) -> CompilerResult<mir::Space> {
+        let definition = self.builder.tree().type_definition(result);
+        if let Some(mir::Storage::Heap(space)) = definition.reference_storage() {
+            return Ok(space);
+        }
+
+        self.owned_space()
+    }
+
+    /// Return the declared space of the receiver's type, local outside placed type members.
+    fn owned_space(&mut self) -> CompilerResult<mir::Space> {
+        let Some(mut ty) = self.scope.this_parameter else {
+            return Ok(mir::Space::Local);
+        };
+
+        // peel the receiver's forms down to its nominal declaration
+        while let dir::Type::Form(form) = self.lower.ty(ty)? {
+            ty = form.value;
+        }
+        let Some(symbol) = self.lower.nominal_symbol(ty)? else {
+            return Ok(mir::Space::Local);
+        };
+        let space = self.lower.nominal_space(symbol)?;
+
+        Ok(space.map_or(mir::Space::Local, ModuleLowerer::mir_space))
+    }
+
     /// Return the representation of one type, lowering it at first read.
     pub(in crate::lower) fn lower_type(
         &mut self,
         id: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         self.memoized(
             id,
             |lower| &mut lower.representations,
@@ -475,7 +506,7 @@ impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
     pub(in crate::lower) fn lower_constraint(
         &mut self,
         id: dir::GlobalTypeId,
-    ) -> CompilerResult<mir::LocalNodeId<mir::Type>> {
+    ) -> CompilerResult<mir::TypeId> {
         self.memoized(
             id,
             |lower| &mut lower.constraints,
@@ -532,8 +563,7 @@ impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
         )
     }
 
-    /// Lower one key once for every body that reads it, a reported diagnostic cascading to
-    /// each later read.
+    /// Lower one key once for every body that reads it.
     fn memoized<T: Clone>(
         &mut self,
         key: dir::GlobalTypeId,
@@ -555,19 +585,17 @@ impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
         }
     }
 
-    /// Intern one reference type over a lowered pointee in one storage at one lifetime.
+    /// Intern one reference type over a lowered pointee at one lifetime.
     pub(in crate::lower) fn insert_reference(
         &mut self,
-        kind: mir::ReferenceKind,
+        kind: mir::Reference,
         lifetime: mir::Lifetime,
         access: mir::Access,
-        storage: mir::Storage,
-        pointee: mir::LocalNodeId<mir::Type>,
-    ) -> mir::LocalNodeId<mir::Type> {
+        pointee: mir::TypeId,
+    ) -> mir::TypeId {
         self.builder.tree_mut().intern_type(mir::Type::Reference {
             kind,
             lifetime,
-            storage,
             access,
             pointee,
         })
@@ -575,14 +603,6 @@ impl<'lower, 'builder, 'module> FunctionLowerer<'lower, 'builder, 'module> {
 }
 
 impl FunctionLowerer<'_, '_, '_> {
-    /// Return whether one representation copies inside this function's generics.
-    pub(in crate::lower) fn copies(&self, ty: mir::TypeId) -> bool {
-        let tree = self.builder.tree();
-        let function = tree.get(self.builder.function_id());
-
-        mir::Copy::decide(tree, ty, &function.generics).is_yes()
-    }
-
     /// Lower one expression to the value it produces.
     pub(in crate::lower) fn lower_expression_value(
         &mut self,
@@ -614,11 +634,9 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::Expression::Literal(literal) => self.lower_scalar_literal(expression, literal),
 
             // render and join an interpolated template
-            dir::Expression::TemplateExpression { value }
-                if matches!(value, dir::TemplateLiteral::InterpolatedString { .. }) =>
-            {
-                self.lower_template_expression(expression, &value)
-            }
+            dir::Expression::TemplateExpression {
+                value: dir::TemplateLiteral::InterpolatedString { chunks, arguments },
+            } => self.lower_template_expression(expression, &chunks, &arguments),
 
             // bind a closure declaration as a function value
             dir::Expression::Declaration(declaration) => {
@@ -706,9 +724,13 @@ impl FunctionLowerer<'_, '_, '_> {
                         ..
                     } => {
                         let reference = self.lower_value(right)?;
-                        let pointee = self.lower_type(self.node_type_id(expression)?)?;
+                        let ty = self.node_type_id(expression)?;
+                        let pointee = self.lower_type(ty)?;
 
-                        Ok(self.builder.load(reference, pointee))
+                        Ok(self.load_place(
+                            mir::Place::value(reference).with_projection(mir::Projection::Deref),
+                            pointee,
+                        ))
                     }
                     dir::OperatorApplication::Unary {
                         operator,
@@ -754,7 +776,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 None => Err(self.internal("a member write in value position")),
             },
 
-            // read a checked expression as its own value
+            // read a satisfies expression as its own value
             dir::Expression::Satisfies {
                 expression: inner, ..
             } => self.lower_value(inner),
@@ -796,7 +818,7 @@ impl FunctionLowerer<'_, '_, '_> {
                         message: "a this outside a method body".to_string(),
                     });
                 };
-                let value = self.read_binding(binding);
+                let value = self.read_binding(binding)?;
                 let value = self.constructed_this(expression, value)?;
 
                 self.lower_narrowing(expression, value)
@@ -809,7 +831,7 @@ impl FunctionLowerer<'_, '_, '_> {
                         message: "a super outside a method body".to_string(),
                     });
                 };
-                let value = self.read_binding(binding);
+                let value = self.read_binding(binding)?;
                 let base = self.lower_type(self.node_type_id(expression)?)?;
 
                 self.adopt(value, base)
@@ -828,7 +850,7 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::Expression::BorrowOf { right, .. } => {
                 let target = self.lower_type(self.node_type_id(expression)?)?;
 
-                self.lower_borrowed_place(right, target, mir::AddressKind::Borrow)
+                self.lower_borrowed_place(right, target)
             }
 
             // read a member
