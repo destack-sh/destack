@@ -1012,6 +1012,11 @@ impl DefinitionMember {
         matches!(self, Self::AssociatedType(_) | Self::AssociatedConst(_))
     }
 
+    /// Return whether this member is an associated type or const at one key.
+    pub fn is_associated_at(&self, key: StaticKey) -> bool {
+        self.is_associated() && self.key() == Some(key)
+    }
+
     /// Return the declaring member symbol.
     pub fn symbol(&self) -> Option<GlobalSymbolId> {
         match self {

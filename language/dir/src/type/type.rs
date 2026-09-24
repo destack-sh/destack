@@ -1030,13 +1030,13 @@ pub enum Lifetime {
 }
 
 impl Lifetime {
-    /// Return this lifetime's position in the meet order, shortest first.
-    pub const fn meet_rank(self) -> u8 {
-        match self {
-            Self::Frame => 0,
-            Self::Managed => 1,
-            Self::Bound(_) => 2,
-            Self::Static => 3,
+    /// Return one extent's rank in the meet order, an open extent ranking as bound.
+    pub const fn meet_rank(lifetime: Option<Lifetime>) -> u8 {
+        match lifetime {
+            Some(Self::Frame) => 0,
+            Some(Self::Managed) => 1,
+            Some(Self::Bound(_)) | None => 2,
+            Some(Self::Static) => 3,
         }
     }
 
