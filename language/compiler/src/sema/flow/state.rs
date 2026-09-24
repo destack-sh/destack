@@ -112,7 +112,7 @@ pub(in crate::sema) struct FlowCheckpoint {
     point: FlowPointId,
 }
 
-/// The flow data captured at one point, read by a body checked later.
+/// The flow captured at one point, read by a body checked later.
 /// NOTE #Performance: a deferred body copies the flow points built so far.
 #[derive(Debug, Clone)]
 pub(in crate::sema) struct FlowSnapshot {
@@ -133,12 +133,14 @@ pub(in crate::sema) struct FlowBranch {
     assigned: FxIndexSet<AssignedPlace>,
     /// Narrowings touched by this branch.
     narrowings: FxIndexMap<dir::AccessPath, SmallVec<[FlowPredicate; 2]>>,
+    /// Whether the branch never completes, ending in a return, a jump, or a `never` value.
+    diverges: bool,
 }
 
 impl FlowBranch {
-    /// Return whether this branch assigns one place.
+    /// Return whether this branch assigns one place, a diverging branch assigning every place.
     pub(in crate::sema) fn is_assigned(&self, place: AssignedPlace) -> bool {
-        self.assigned.contains(&place)
+        self.diverges || self.assigned.contains(&place)
     }
 }
 
@@ -180,6 +182,8 @@ enum FlowChange {
         /// The narrowings visible before the clear.
         previous: SmallVec<[FlowPredicate; 2]>,
     },
+    /// The path ends here.
+    Diverge,
 }
 
 /// One flow predicate recorded for a lexical access path.
@@ -196,7 +200,7 @@ pub(in crate::sema) enum FlowPredicate {
     Equality {
         /// The selected binary operator or switch case.
         operation: dir::GlobalNodeIdAny,
-        /// Whether equal values reach this branch.
+        /// Whether equal values flow into this branch.
         is_equal: bool,
     },
     /// The type predicate selected by one guard expression.
@@ -209,10 +213,7 @@ pub(in crate::sema) enum FlowPredicate {
 }
 
 impl FlowState {
-    /// Sync this walk's durable graph into one module flow table it owns.
-    ///
-    /// The body walk is the only writer of its module's flow store, so
-    /// walk-local point ids stay durable identity ids.
+    /// Sync this walk's durable graph into its module flow table.
     pub(in crate::sema) fn sync_to(&self, points: &mut Vec<FlowPoint>) {
         while points.len() < self.points.len() {
             points.push(self.points[points.len()].clone());
@@ -220,9 +221,6 @@ impl FlowState {
     }
 
     /// Restart the cursor context while keeping the durable point log.
-    ///
-    /// The next walk continues appending to the same log, so point ids
-    /// stay durable identity ids without any rebasing.
     pub(in crate::sema) fn reset_cursor(&mut self) {
         self.functions.clear();
         self.receivers.clear();
@@ -516,9 +514,7 @@ impl FlowState {
         function.captured_receiver = Some(receiver);
     }
 
-    /// Return the lexical receiver visible to the current function.
-    ///
-    /// The flag reports whether the current function binds it itself.
+    /// Return the lexical receiver visible to the current function and whether it binds it.
     pub(in crate::sema) fn lexical_receiver(&self) -> Option<(bool, ReceiverBinding)> {
         self.functions
             .iter()
@@ -606,6 +602,7 @@ impl FlowState {
         // collect flow state touched since the checkpoint
         let mut assigned = FxIndexSet::default();
         let mut narrowing_paths = FxIndexSet::default();
+        let mut diverges = false;
         for change in &self.changes[checkpoint.change_count..] {
             match change {
                 FlowChange::Assign { place, .. } => {
@@ -619,6 +616,7 @@ impl FlowState {
                 FlowChange::Clear { path, .. } => {
                     narrowing_paths.insert(path.as_ref().clone());
                 }
+                FlowChange::Diverge => diverges = true,
             }
         }
 
@@ -635,10 +633,16 @@ impl FlowState {
         FlowBranch {
             assigned,
             narrowings,
+            diverges,
         }
     }
 
-    /// Capture the flow data at the current point.
+    /// End the current path at a return, a jump, or a `never` value.
+    pub(in crate::sema) fn insert_diverge(&mut self) {
+        self.changes.push(FlowChange::Diverge);
+    }
+
+    /// Capture the flow at the current point.
     pub(in crate::sema) fn snapshot(&self) -> FlowSnapshot {
         FlowSnapshot {
             assigned: self.assigned.clone(),
@@ -696,6 +700,7 @@ impl FlowState {
                     // restore the cleared narrowing list
                     self.narrowings.insert(*path, previous);
                 }
+                FlowChange::Diverge => {}
             }
         }
 
@@ -730,6 +735,18 @@ impl FlowState {
         right: &FlowBranch,
     ) {
         self.restore(checkpoint);
+
+        // continue the other branch alone past a diverging one
+        match (left.diverges, right.diverges) {
+            (true, true) => {
+                self.insert_diverge();
+
+                return;
+            }
+            (true, false) => return self.restore_branch(checkpoint, right),
+            (false, true) => return self.restore_branch(checkpoint, left),
+            (false, false) => {}
+        }
 
         // keep places assigned by both branches
         for place in left.assigned.intersection(&right.assigned) {
@@ -793,7 +810,7 @@ impl FlowState {
 
     /// Clear one current narrowing list.
     fn clear_narrowings(&mut self, path: dir::AccessPath) {
-        // stop where the path carries no narrowing
+        // stop where the path has no narrowing
         let previous = self.narrowings.shift_remove(&path).unwrap_or_default();
         if previous.is_empty() {
             return;

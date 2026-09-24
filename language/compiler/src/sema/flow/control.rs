@@ -68,7 +68,7 @@ impl CheckState<'_> {
         // expose target to nested try propagation
         self.flow.push_try(TryTarget {
             node,
-            residuals: Vec::new(),
+            failures: Vec::new(),
         });
     }
 
@@ -76,14 +76,14 @@ impl CheckState<'_> {
     pub(in crate::sema) fn leave_try_target(&mut self) -> CompilerResult<dir::GlobalTypeId> {
         let target = self.flow.pop_try();
 
-        // the caught value is the union of the body's residuals
-        match target.residuals.as_slice() {
+        // the caught value is the union of the body's failures
+        match target.failures.as_slice() {
             [] => Ok(self.intern_type(dir::Type::Never)?),
-            [residual] => Ok(*residual),
-            residuals => {
-                let residuals = residuals.to_vec();
+            [failure] => Ok(*failure),
+            failures => {
+                let failures = failures.to_vec();
 
-                self.normalized_union_type(residuals)
+                self.normalized_union_type(failures)
             }
         }
     }
@@ -132,14 +132,14 @@ impl CheckState<'_> {
         self.flow.take_continue_branches()
     }
 
-    /// Collect one try residual into the current try target, when one is open.
-    pub(in crate::sema) fn collect_try_residual(
+    /// Collect the failure one try site propagates into the open try target.
+    pub(in crate::sema) fn collect_try_failure(
         &mut self,
-        residual: dir::GlobalTypeId,
+        failure: dir::GlobalTypeId,
     ) -> Option<dir::GlobalNodeId<dir::Expression>> {
         match self.flow.current_try_mut() {
             Some(target) => {
-                target.residuals.push(residual);
+                target.failures.push(failure);
 
                 Some(target.node)
             }

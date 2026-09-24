@@ -1,5 +1,6 @@
 use destack_dir as dir;
 
+use crate::CompilerResult;
 use crate::sema::{AssignedPlace, CheckState};
 
 impl CheckState<'_> {
@@ -8,7 +9,7 @@ impl CheckState<'_> {
         &self,
         id: dir::LocalNodeId<dir::Expression>,
     ) -> Option<dir::AccessPath> {
-        // build the path by the expression's own syntax
+        // build the path by matching the expression
         match self.module(self.module_id).view().get(id) {
             // value
             dir::Expression::Identifier { .. } => {
@@ -87,21 +88,31 @@ impl CheckState<'_> {
 
 impl CheckState<'_> {
     /// Return the receiver type place assignments write through.
-    pub(in crate::sema) fn assigned_receiver_type(&self) -> Option<dir::GlobalTypeId> {
+    pub(in crate::sema) fn assigned_receiver_type(
+        &self,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // take the lexical receiver inside the function that captured it
         let receiver = if let Some((true, receiver)) = self.flow.lexical_receiver() {
             receiver.receiver
         }
         // take the contextual receiver outside any function body
-        else if self.flow.current_function().is_none() {
-            self.flow.current_receiver()?
+        else if self.flow.current_function().is_none()
+            && let Some(receiver) = self.flow.current_receiver()
+        {
+            receiver
         }
         // leave writes without a receiver untracked
         else {
-            return None;
+            return Ok(None);
         };
 
-        Some(receiver.ty)
+        // name the object beneath the receiver's memory forms
+        let mut ty = receiver.ty;
+        while let dir::Type::Form(form) = self.ty(ty)? {
+            ty = form.value;
+        }
+
+        Ok(Some(ty))
     }
 
     /// Return whether one expression names the current function's receiver.
@@ -119,16 +130,17 @@ impl CheckState<'_> {
     pub(in crate::sema) fn assigned_place(
         &self,
         id: dir::LocalNodeId<dir::Expression>,
-    ) -> Option<AssignedPlace> {
-        // derive the place by the expression's own syntax
+    ) -> CompilerResult<Option<AssignedPlace>> {
+        // derive the place by matching the expression
         let expression = self.module(self.module_id).view().get(id).clone();
-        match expression {
+        let place = match expression {
             // x
             dir::Expression::Identifier { .. } => {
                 let node = id.into_global_any(self.module_id);
-                let reference = self.module(self.module_id).resolved.references.get(node)?;
-                let dir::Reference::Bound(symbols) = reference else {
-                    return None;
+                let Some(dir::Reference::Bound(symbols)) =
+                    self.module(self.module_id).resolved.references.get(node)
+                else {
+                    return Ok(None);
                 };
                 let symbols = self.present_symbols(symbols);
                 match symbols.as_slice() {
@@ -144,23 +156,24 @@ impl CheckState<'_> {
             } => {
                 // keep writes that go through the receiver instance
                 if !self.is_receiver_expression(left) {
-                    return None;
+                    return Ok(None);
                 }
 
                 // name the type the write lands on
-                let receiver = self.assigned_receiver_type()?;
-
-                Some(AssignedPlace::Member {
-                    receiver,
-                    key: dir::StaticKey::Name(name),
-                })
+                self.assigned_receiver_type()?
+                    .map(|receiver| AssignedPlace::Member {
+                        receiver,
+                        key: dir::StaticKey::Name(name),
+                    })
             }
             // (place as T), (place satisfies T)
             dir::Expression::As { expression, .. }
-            | dir::Expression::Satisfies { expression, .. } => self.assigned_place(expression),
+            | dir::Expression::Satisfies { expression, .. } => self.assigned_place(expression)?,
 
             // leave every other target untracked
             _ => None,
-        }
+        };
+
+        Ok(place)
     }
 }

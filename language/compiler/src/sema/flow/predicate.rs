@@ -157,7 +157,7 @@ impl CheckState<'_> {
         source: dir::GlobalTypeId,
         predicate: FlowPredicate,
     ) -> CompilerResult<Result<Option<dir::GlobalTypeId>, dir::TypeVariableId>> {
-        // narrow by the predicate's own form
+        // narrow by the form of the predicate
         match predicate {
             // narrow through the subset a pattern accepts
             FlowPredicate::Pattern {
@@ -335,7 +335,7 @@ impl CheckState<'_> {
             return Ok(Ok(narrowed));
         }
 
-        // keep the flow of paths outside the operand's reach
+        // keep the flow of paths the operand does not touch
         if !operand_path.starts_with(path) {
             return Ok(Ok(None));
         }
@@ -368,8 +368,8 @@ impl CheckState<'_> {
                 // step through a cast that widens the value it wraps
                 dir::Expression::As { expression, .. } => {
                     let widened = self.require_node_type(value.into_any())?;
-                    let inner = expression.into_global(value.module_id);
-                    let narrow = self.require_node_type(inner.into_any())?;
+                    let operand = expression.into_global(value.module_id);
+                    let narrow = self.require_node_type(operand.into_any())?;
 
                     // stop where the cast converts the value
                     if self.decide_relation(origin, Relation::Subtype, narrow, widened)?
@@ -378,7 +378,7 @@ impl CheckState<'_> {
                         break;
                     }
 
-                    value = inner;
+                    value = operand;
                 }
                 // step through an assertion, which keeps its written value
                 dir::Expression::Satisfies { expression, .. } => {
@@ -490,6 +490,15 @@ impl CheckState<'_> {
 
                     Ok(Some(ty))
                 }
+                // object destructures accept the union arm their literal tests select
+                dir::PatternDestructureResolution::Object(object) => {
+                    match object.adjustments.last() {
+                        Some(dir::ReceiverAdjustment::UnionPayload { ty, .. }) => {
+                            Ok(Some(self.form_chain(origin, *ty)?.base()))
+                        }
+                        _ => Ok(None),
+                    }
+                }
                 // tuple destructures accept the tuple of their fields' accepted subsets
                 dir::PatternDestructureResolution::Tuple(tuple) => {
                     let mut elements = SmallVec::<[dir::TypeElement; 4]>::new();
@@ -499,7 +508,7 @@ impl CheckState<'_> {
                             None => None,
                         };
 
-                        // widen a field without its own subset to its whole projected element
+                        // widen a field without a subset to its whole projected element
                         let ty = match accepted {
                             Some(ty) => ty,
                             None => field.projection.ty(),
@@ -513,12 +522,13 @@ impl CheckState<'_> {
             },
             dir::PatternDecision::Must(resolution) => Ok(Some(resolution.ty)),
             dir::PatternDecision::Bind(dir::PatternBindingResolution {
-                pattern: Some(inner),
+                pattern: Some(nested),
                 ..
             })
             | dir::PatternDecision::Default(dir::PatternDefaultResolution {
-                pattern: inner, ..
-            }) => self.pattern_node_predicate_target(origin, *inner),
+                pattern: nested,
+                ..
+            }) => self.pattern_node_predicate_target(origin, *nested),
             dir::PatternDecision::Or(or) => {
                 self.or_pattern_predicate_target(origin, pattern, &or.patterns)
             }
