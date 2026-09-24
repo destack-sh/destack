@@ -1,15 +1,9 @@
 import { defineAuditAction } from "@destack/audit";
-import { Package } from "@destack/package";
 import { schema, identifier } from "@destack/schema";
-import definition from "../../destack.json" with { type: "json" };
-import metadata from "../../package.json" with { type: "json" };
+import type {} from "@destack/package/import-meta";
 
 /** Package identifying all vault access and lifecycle actions. */
-export const vaultPackage = Package.parse({
-    id: definition.id,
-    name: metadata.name,
-    version: metadata.version,
-});
+export const vaultPackage = import.meta.destack.package;
 
 /** Affected space and immutable secret identity. */
 const secretTarget = schema.object({
@@ -23,8 +17,7 @@ const secretDetails = schema.object({
 
 /** Record secret.create actions. */
 export const secretCreate = defineAuditAction({
-    package: vaultPackage,
-    name: "secret.create",
+    name: "Secret.create",
     version: 1,
     targets: secretTarget,
     details: secretDetails,
@@ -32,8 +25,7 @@ export const secretCreate = defineAuditAction({
 
 /** Record secret.update actions. */
 export const secretUpdate = defineAuditAction({
-    package: vaultPackage,
-    name: "secret.update",
+    name: "Secret.update",
     version: 1,
     targets: secretTarget,
     details: secretDetails,
@@ -41,8 +33,7 @@ export const secretUpdate = defineAuditAction({
 
 /** Record secret.disable actions. */
 export const secretDisable = defineAuditAction({
-    package: vaultPackage,
-    name: "secret.disable",
+    name: "Secret.disable",
     version: 1,
     targets: secretTarget,
     details: secretDetails,
@@ -50,8 +41,7 @@ export const secretDisable = defineAuditAction({
 
 /** Record secret.enable actions. */
 export const secretEnable = defineAuditAction({
-    package: vaultPackage,
-    name: "secret.enable",
+    name: "Secret.enable",
     version: 1,
     targets: secretTarget,
     details: secretDetails,
@@ -59,8 +49,7 @@ export const secretEnable = defineAuditAction({
 
 /** Record secret.delete actions. */
 export const secretDelete = defineAuditAction({
-    package: vaultPackage,
-    name: "secret.delete",
+    name: "Secret.delete",
     version: 1,
     targets: secretTarget,
     details: secretDetails,
@@ -68,8 +57,7 @@ export const secretDelete = defineAuditAction({
 
 /** Record secret.restore actions. */
 export const secretRestore = defineAuditAction({
-    package: vaultPackage,
-    name: "secret.restore",
+    name: "Secret.restore",
     version: 1,
     targets: secretTarget,
     details: secretDetails,
@@ -77,8 +65,7 @@ export const secretRestore = defineAuditAction({
 
 /** Record secret.purge actions. */
 export const secretPurge = defineAuditAction({
-    package: vaultPackage,
-    name: "secret.purge",
+    name: "Secret.purge",
     version: 1,
     targets: secretTarget,
     details: secretDetails,
@@ -86,8 +73,7 @@ export const secretPurge = defineAuditAction({
 
 /** Record version.write actions. */
 export const versionWrite = defineAuditAction({
-    package: vaultPackage,
-    name: "version.write",
+    name: "Version.write",
     version: 1,
     targets: secretTarget,
     details: secretDetails,
@@ -95,8 +81,7 @@ export const versionWrite = defineAuditAction({
 
 /** Record version.read actions. */
 export const versionRead = defineAuditAction({
-    package: vaultPackage,
-    name: "version.read",
+    name: "Version.read",
     version: 1,
     targets: secretTarget,
     details: secretDetails,
@@ -104,8 +89,7 @@ export const versionRead = defineAuditAction({
 
 /** Record version.promote actions. */
 export const versionPromote = defineAuditAction({
-    package: vaultPackage,
-    name: "version.promote",
+    name: "Version.promote",
     version: 1,
     targets: secretTarget,
     details: secretDetails,
@@ -113,8 +97,7 @@ export const versionPromote = defineAuditAction({
 
 /** Record version.disable actions. */
 export const versionDisable = defineAuditAction({
-    package: vaultPackage,
-    name: "version.disable",
+    name: "Version.disable",
     version: 1,
     targets: secretTarget,
     details: secretDetails,
@@ -122,8 +105,7 @@ export const versionDisable = defineAuditAction({
 
 /** Record version.enable actions. */
 export const versionEnable = defineAuditAction({
-    package: vaultPackage,
-    name: "version.enable",
+    name: "Version.enable",
     version: 1,
     targets: secretTarget,
     details: secretDetails,
@@ -131,8 +113,7 @@ export const versionEnable = defineAuditAction({
 
 /** Record version.destroy actions. */
 export const versionDestroy = defineAuditAction({
-    package: vaultPackage,
-    name: "version.destroy",
+    name: "Version.destroy",
     version: 1,
     targets: secretTarget,
     details: secretDetails,
@@ -140,8 +121,7 @@ export const versionDestroy = defineAuditAction({
 
 /** Record version.rewrap actions. */
 export const versionRewrap = defineAuditAction({
-    package: vaultPackage,
-    name: "version.rewrap",
+    name: "Version.rewrap",
     version: 1,
     targets: secretTarget,
     details: secretDetails,
@@ -167,8 +147,7 @@ export const secretAction = {
 
 /** Root-key replacement for persisted retry records. */
 export const requestRewrap = defineAuditAction({
-    package: vaultPackage,
-    name: "request.rewrap",
+    name: "Request.rewrap",
     version: 1,
     targets: schema.object({
         space: schema.object({ type: schema.literal("space"), id: identifier("space") }),

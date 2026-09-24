@@ -8,9 +8,9 @@ import type { PackageId } from "@destack/package";
 /** Exact operation names derived from the public service router. */
 export type VaultOperation = {
     [
-        Domain in keyof typeof vaultService
-    ]: `${Domain}.${keyof (typeof vaultService)[Domain] & string}`;
-}[keyof typeof vaultService];
+        Domain in keyof typeof vaultService.router
+    ]: `${Domain}.${keyof (typeof vaultService.router)[Domain] & string}`;
+}[keyof typeof vaultService.router];
 
 /** Authenticated caller and durable audit recorder established by the receiving host. */
 export interface VaultContext {

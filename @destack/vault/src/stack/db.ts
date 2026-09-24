@@ -1,8 +1,8 @@
 import { table, text, identifier, integer, primaryKey, foreignKey } from "@destack/db";
-import { secretVersion } from "@destack/model/space";
+import { secretVersion } from "@destack/model/regional";
 import { defineRequestTable } from "@destack/service/database";
 import { defineDatabaseSchema } from "@destack/db";
-import { spaceSchema } from "@destack/model/space";
+import { regionalSchema } from "@destack/model/regional";
 import { auditOutboxSchema } from "@destack/audit/outbox";
 
 /** Encrypted values retained only by the managed vault implementation. */
@@ -21,6 +21,7 @@ export const vaultValue = table(
         ciphertext: text("ciphertext").notNull(),
         /** Value encryption nonce, encoded as base64. */
         nonce: text("nonce").notNull(),
+        // oxlint-disable-next-line destack/no-sludge -- envelope encryption term for the per-value key
         /** Protected data key, encoded as base64. */
         wrappedKey: text("wrapped_key").notNull(),
         /** Key protection nonce, encoded as base64. */
@@ -41,7 +42,7 @@ export const vaultRequest = defineRequestTable("vault_request");
 /** Managed secret storage sharing regional metadata and a transactional audit outbox. */
 export const vaultSchema = defineDatabaseSchema({
     name: "destack-vault",
-    dependencies: [spaceSchema, auditOutboxSchema],
+    dependencies: [regionalSchema, auditOutboxSchema],
     tables: { vaultValue, vaultRequest },
     migrations: new URL("./migration/", import.meta.url),
 });

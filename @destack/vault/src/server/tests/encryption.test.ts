@@ -2,7 +2,7 @@ import { writeVersion, readVersion } from "../../secret/version.ts";
 import { expect, test } from "@destack/test";
 import { createRequestId } from "@destack/service/request";
 import { eq } from "@destack/db";
-import { space } from "@destack/model/space";
+import { space } from "@destack/model/regional";
 import { connect } from "../../secret/client.ts";
 import { AuditOutbox } from "@destack/audit/outbox";
 import { AuditRecorder } from "@destack/audit";
@@ -122,7 +122,7 @@ test("recover persisted values and exact retries after reopening the database", 
                 caller: fixture.context.caller,
                 audit: new AuditRecorder(
                     {
-                        actor: { type: "user", id: fixture.userId },
+                        actor: { type: "user", authority: "global", id: fixture.userId },
                         delegation: [],
                         package: vaultPackage,
                         service: "vault",
@@ -161,7 +161,7 @@ test("withhold plaintext when audit persistence fails", async () => {
     // no plaintext result escapes when durable audit persistence fails
     const audit = new AuditRecorder(
         {
-            actor: { type: "user", id: fixture.userId },
+            actor: { type: "user", authority: "global", id: fixture.userId },
             delegation: [],
             package: vaultPackage,
             service: "vault",

@@ -5,7 +5,7 @@ import { createRequestId, REQUEST_LIFETIME_MS } from "@destack/service/request";
 import { IdempotencyStore } from "@destack/service/database";
 import { Caller } from "@destack/service/authentication";
 import { and, eq } from "@destack/db";
-import { secretVersion } from "@destack/model/space";
+import { secretVersion } from "@destack/model/regional";
 import { identifier } from "@destack/schema";
 import { v7 } from "uuid";
 import { ResourceContext } from "@destack/resource/context";
@@ -203,7 +203,7 @@ test("serialize competing writes and roll back failed audit recording", async ()
         const before = await client.secret.get(key);
         const audit = new AuditRecorder(
             {
-                actor: { type: "user", id: fixture.userId },
+                actor: { type: "user", authority: "global", id: fixture.userId },
                 delegation: [],
                 package: vaultPackage,
                 service: "vault",

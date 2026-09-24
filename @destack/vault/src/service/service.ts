@@ -1,9 +1,9 @@
+import { defineService } from "@destack/service";
 import { schema, identifier } from "@destack/schema";
 import { defineProcedure, Creation, Mutation } from "@destack/service/procedure";
-import { PackageId } from "@destack/package";
-import definition from "../../destack.json" with { type: "json" };
 import { Secret, SecretVersion, SecretValue } from "../secret/index.ts";
 import { PageRequest, page } from "@destack/service/page";
+import type {} from "@destack/package/import-meta";
 
 /** The space routing every vault request. */
 export const VaultScope = schema.object({ spaceId: identifier("space") });
@@ -20,7 +20,7 @@ const pagination = PageRequest.extend({
 const mutation = SecretKey.extend(Mutation.shape);
 
 /** Secret administration and explicit plaintext access. */
-export const vaultService = {
+export const vaultService = defineService("vault", {
     /** Provisioned vault metadata. */
     vault: {
         /** Inspect one vault resource. */
@@ -169,13 +169,13 @@ export const vaultService = {
             )
             .output(schema.number().int().nonnegative()),
     },
-};
+});
 
 /** Declare separately grantable, audited vault operations. */
 function procedure(type: string, name: string) {
     return defineProcedure({
         authentication: "identity",
-        permission: { packageId: PackageId.parse(definition.id), type, name },
+        permission: { packageId: import.meta.destack.package.id, type, name },
         audit: true,
     });
 }

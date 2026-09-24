@@ -25,5 +25,5 @@ export class BoundSecret {
 
 /** Connect to an authenticated local or regional vault endpoint. */
 export function connect(options: ClientOptions) {
-    return createClient(vaultService, options);
+    return createClient(vaultService.router, options);
 }

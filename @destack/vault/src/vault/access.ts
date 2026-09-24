@@ -9,7 +9,7 @@ import {
     installation,
     deploymentSecretBinding,
     secret,
-} from "@destack/model/space";
+} from "@destack/model/regional";
 import { ServiceError } from "@destack/service/error";
 import { vaultPackage } from "../audit/index.ts";
 import type { VaultAccess, VaultContext } from "./context.ts";

@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { Caller, TokenIssuer, TokenVerifier } from "@destack/service/authentication";
 import { createRequestId } from "@destack/service/request";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
-import { space, resource, vault, role, roleBinding, rolePermission } from "@destack/model/space";
+import { space, resource, vault, role, roleBinding, rolePermission } from "@destack/model/regional";
 import { AuditOutbox } from "@destack/audit/outbox";
 import { connect } from "../../secret/client.ts";
 import { vaultPackage } from "../../audit/index.ts";
@@ -108,7 +108,7 @@ test("authorize multiple spaces through one regional vault", async () => {
 
     // retain authoritative account ownership and correlate domain and procedure events
     const events = await new AuditOutbox(database).read(1000);
-    const changes = events.filter((event) => event.action.name === "secret.create");
+    const changes = events.filter((event) => event.action.name === "Secret.create");
     expect(changes.map((event) => event.context.package)).toEqual([vaultPackage, vaultPackage]);
     expect(
         changes.map((event) => ({
@@ -121,7 +121,7 @@ test("authorize multiple spaces through one regional vault", async () => {
         [first, second].map((tenant) => ({
             spaceId: tenant.spaceId,
             accountId: tenant.context.caller.authentication.memberships![0]!.accountId,
-            actor: { type: "user", id: tenant.userId },
+            actor: { type: "user", authority: "global", id: tenant.userId },
             details: {},
         })),
     );

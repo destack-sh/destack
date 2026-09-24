@@ -2,7 +2,7 @@ import { readVersion } from "../../secret/version.ts";
 import { expect, test } from "@destack/test";
 import { createRequestId } from "@destack/service/request";
 import { and, eq } from "@destack/db";
-import { secret } from "@destack/model/space";
+import { secret } from "@destack/model/regional";
 import { AuditOutbox } from "@destack/audit/outbox";
 import { VaultFixture } from "./fixture.ts";
 import { vaultValue } from "../../stack/index.ts";
@@ -171,19 +171,19 @@ test("manage secret versions and recover deleted secrets", async () => {
         const events = await new AuditOutbox(database).read(1000);
         const actions = events.filter((event) => event.action.package.id === vaultPackage.id);
         expect(actions.map((event) => event.action.name)).toEqual([
-            "secret.create",
-            "version.write",
-            "version.read",
-            "version.write",
-            "version.read",
-            "version.promote",
-            "version.read",
-            "secret.disable",
-            "secret.delete",
-            "secret.restore",
-            "secret.enable",
-            "version.read",
-            "version.destroy",
+            "Secret.create",
+            "Version.write",
+            "Version.read",
+            "Version.write",
+            "Version.read",
+            "Version.promote",
+            "Version.read",
+            "Secret.disable",
+            "Secret.delete",
+            "Secret.restore",
+            "Secret.enable",
+            "Version.read",
+            "Version.destroy",
         ]);
         const reads = events.filter((event) => event.action.name === versionRead.name);
         expect(reads.map((event) => event.details)).toEqual([

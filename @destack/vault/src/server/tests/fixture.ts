@@ -2,7 +2,7 @@ import * as turso from "@destack/db/turso";
 import * as postgres from "@destack/db/postgres";
 import { orderSchemas, sql, eq, and, type DatabaseConnection } from "@destack/db";
 import { migrate } from "@destack/db/migration";
-import { space, resource, vault, role, roleBinding, rolePermission } from "@destack/model/space";
+import { space, resource, vault, role, roleBinding, rolePermission } from "@destack/model/regional";
 import { vaultService } from "../../service/index.ts";
 import { identifier } from "@destack/schema";
 import { AuditRecorder } from "@destack/audit";
@@ -152,10 +152,10 @@ export class VaultFixture implements AsyncDisposable {
         },
         audience: PackageId = vaultPackage.id,
     ): Promise<Server> {
-        const server = await Server.start({
+        const server = Server.start({
             ...implementService(vault),
             audience,
-            spaceId: "space-00000000-0000-4000-8000-000000000001",
+            scope: "space-00000000-0000-4000-8000-000000000001",
             resources: new ResourceContext(),
             health: new Health("vault"),
             authenticate,
@@ -267,7 +267,7 @@ export class VaultFixture implements AsyncDisposable {
                 createdAt: now,
                 updatedAt: now,
             });
-            for (const [type, operations] of Object.entries(vaultService)) {
+            for (const [type, operations] of Object.entries(vaultService.router)) {
                 for (const name of Object.keys(operations)) {
                     await database.insert(rolePermission).values({
                         id: identifier("role-permission").parse(`role-permission-${v7()}`),
@@ -301,7 +301,7 @@ export class VaultFixture implements AsyncDisposable {
                 }),
                 audit: new AuditRecorder(
                     {
-                        actor: { type: "user", id: fixture.userId },
+                        actor: { type: "user", authority: "global", id: fixture.userId },
                         delegation: [],
                         package: vaultPackage,
                         service: "vault",

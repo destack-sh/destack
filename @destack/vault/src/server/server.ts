@@ -19,7 +19,7 @@ import { Vault } from "../vault/index.ts";
 import { ServiceError } from "@destack/service/error";
 import { vaultAudit } from "./context.ts";
 import { identifier } from "@destack/schema";
-import { space } from "@destack/model/space";
+import { space } from "@destack/model/regional";
 import { eq, sql } from "@destack/db";
 
 /** Space and object selectors shared by the vault procedures. */
@@ -33,6 +33,7 @@ const targetSchema = VaultScope.extend({
 /** Implement regional secret procedures and transaction-bound authorization. */
 export function implementService(vault: Vault): ServiceImplementation {
     return {
+        service: vaultService,
         router: createRouter(vault),
         target: async (call) => {
             const selected = targetSchema.safeParse(call.input);
@@ -71,7 +72,7 @@ export function implementService(vault: Vault): ServiceImplementation {
 
 /** Connect every procedure to transaction-bound storage operations. */
 function createRouter(vault: Vault) {
-    const implementation = implement(vaultService)
+    const implementation = implement(vaultService.router)
         .$context<ServiceContext>()
         .use(async ({ context, next }, input) => {
             // derive audit tenancy from persisted regional ownership

@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, gt, type DatabaseConnection } from "@destack/db";
-import { secret, secretVersion } from "@destack/model/space";
+import { secret, secretVersion } from "@destack/model/regional";
 import { schema } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { Page } from "@destack/service/page";
@@ -43,7 +43,7 @@ export async function writeVersion(
             .where(eq(secretVersion.secretId, row.id))
             .orderBy(desc(secretVersion.version))
             .get();
-        const version = (previous?.version ?? 0) + 1;
+        const version = previous ? previous.version + 1 : 1;
 
         // bound decoded bytes before encrypting the transport representation
         const value = SecretValue.parse(input.value);

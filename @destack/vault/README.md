@@ -46,33 +46,17 @@ const written = await client.version.write({
 import { LocalKeyring, EnvelopeEncryption } from "@destack/vault/encryption";
 import { implementService } from "@destack/vault/server";
 import { Vault } from "@destack/vault/vault";
-import { Server } from "@destack/service/server";
-import { Health } from "@destack/service/health";
-import { defineService } from "@destack/service";
-import { vaultService } from "@destack/vault/service";
+import { defineWorkload } from "@destack/service/workload";
 
-const keys = await LocalKeyring.import("2026-09", rootKeys);
-const vault = new Vault(database, new EnvelopeEncryption(keys), "eu");
-const server = await Server.start({
-    ...implementService(vault),
-    audience: receivingPackageId,
-    spaceId: regionalSystemSpaceId,
-    resources,
-    health: new Health("vault"),
-    authenticate, // verify the credential and return Caller
-    authorizeHost: authorizeInstallation,
-    drainTimeout: 10000,
-    dispose: () => database.close(),
+export const workload = defineWorkload({
+    name: "vault",
+    start: async (context) => {
+        const keys = await LocalKeyring.import("2026-09", rootKeys);
+        const vault = new Vault(database.get(context.resources), new EnvelopeEncryption(keys), "eu");
+
+        return { services: [implementService(vault)] };
+    },
 });
-
-export const service = defineService(
-    { name: "vault", version: 1, protocol: "http", handler: "fetch" },
-    vaultService,
-);
-
-export function fetch(request: Request): Promise<Response> {
-    return server.fetch(request);
-}
 
 // invoke with a separately authorized maintenance client
 await client.secret.purge({ spaceId, limit: 100 });

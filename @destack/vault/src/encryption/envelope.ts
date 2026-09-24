@@ -11,17 +11,20 @@ const ENCRYPTION_FORMAT = 1;
 export const SecretEnvelope = schema.object({
     /** Encoding and algorithm version. */
     format: schema.literal(ENCRYPTION_FORMAT),
+    // oxlint-disable-next-line destack/no-sludge -- envelope encryption term for the per-value key
     /** Root key version used to protect the data key. */
     keyId: schema.string().min(1),
     /** Base64 ciphertext including its authentication tag. */
     ciphertext: schema.base64(),
     /** Base64 value nonce. */
     nonce: schema.base64(),
+    // oxlint-disable-next-line destack/no-sludge -- envelope encryption term for the per-value key
     /** Base64 encrypted data key including its authentication tag. */
     wrappedKey: schema.base64(),
     /** Base64 key nonce. */
     keyNonce: schema.base64().optional(),
 });
+// oxlint-disable-next-line destack/no-sludge -- envelope encryption term for the per-value key
 /** Authenticated ciphertext and its protected data key. */
 export type SecretEnvelope = schema.Infer<typeof SecretEnvelope>;
 
@@ -54,6 +57,7 @@ export type EncryptionContext = {
       }
 );
 
+// oxlint-disable-next-line destack/no-sludge -- envelope encryption term for the per-value key
 /** Encrypt immutable secret values and rewrap their data keys. */
 export class EnvelopeEncryption {
     /** Trusted root-key implementation. */
@@ -70,17 +74,17 @@ export class EnvelopeEncryption {
         context: EncryptionContext,
     ): Promise<SecretEnvelope> {
         // authenticate the exact storage identity and format
-        const additionalData = encodeEncryptionContext(context);
+        const authenticated = encodeEncryptionContext(context);
         const raw = crypto.getRandomValues(new Uint8Array(32));
         try {
             const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["encrypt"]);
             const nonce = crypto.getRandomValues(new Uint8Array(12));
             const ciphertext = await crypto.subtle.encrypt(
-                { name: "AES-GCM", iv: nonce, additionalData },
+                { name: "AES-GCM", iv: nonce, additionalData: authenticated },
                 key,
                 value,
             );
-            const protectedKey = await this.keys.wrap(raw, additionalData);
+            const protectedKey = await this.keys.wrap(raw, authenticated);
 
             return {
                 format: ENCRYPTION_FORMAT,
@@ -101,12 +105,16 @@ export class EnvelopeEncryption {
         if (envelope.format !== ENCRYPTION_FORMAT) {
             throw new VaultError("DECRYPTION_FAILED", "unsupported secret encryption format");
         }
-        const additionalData = encodeEncryptionContext(context);
-        const raw = await this.keys.unwrap(envelope, additionalData);
+        const authenticated = encodeEncryptionContext(context);
+        const raw = await this.keys.unwrap(envelope, authenticated);
         try {
             const key = await crypto.subtle.importKey("raw", raw, "AES-GCM", false, ["decrypt"]);
             const plaintext = await crypto.subtle.decrypt(
-                { name: "AES-GCM", iv: Uint8Array.fromBase64(envelope.nonce), additionalData },
+                {
+                    name: "AES-GCM",
+                    iv: Uint8Array.fromBase64(envelope.nonce),
+                    additionalData: authenticated,
+                },
                 key,
                 Uint8Array.fromBase64(envelope.ciphertext),
             );
@@ -124,10 +132,10 @@ export class EnvelopeEncryption {
         if (envelope.format !== ENCRYPTION_FORMAT) {
             throw new VaultError("DECRYPTION_FAILED", "unsupported secret encryption format");
         }
-        const additionalData = encodeEncryptionContext(context);
-        const raw = await this.keys.unwrap(envelope, additionalData);
+        const authenticated = encodeEncryptionContext(context);
+        const raw = await this.keys.unwrap(envelope, authenticated);
         try {
-            const protectedKey = await this.keys.wrap(raw, additionalData);
+            const protectedKey = await this.keys.wrap(raw, authenticated);
 
             return { ...envelope, ...protectedKey, keyNonce: protectedKey.keyNonce };
         } finally {

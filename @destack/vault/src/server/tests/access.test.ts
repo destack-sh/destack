@@ -11,7 +11,7 @@ import {
     deployment,
     serviceAccount,
     deploymentSecretBinding,
-} from "@destack/model/space";
+} from "@destack/model/regional";
 import { identifier } from "@destack/schema";
 import { v7 } from "uuid";
 import { connect } from "../../secret/client.ts";
@@ -19,23 +19,15 @@ import { AuditOutbox } from "@destack/audit/outbox";
 import { VaultFixture } from "./fixture.ts";
 import { vaultPackage } from "../../audit/index.ts";
 
-/** Authorize standalone space secrets through an exact local user identity. */
-test("retain local vault access independently of global account membership", async () => {
+/** Authorize regional space secrets through an exact direct user grant. */
+test("authorize direct user grants independently of account membership", async () => {
     await using fixture = await VaultFixture.open();
-    const { database, client, context, spaceId } = fixture;
+    const { database, client, context } = fixture;
     const { key } = await fixture.createSecret();
-    const authority = identifier("host").parse(`host-${v7()}`);
+    const authority = "https://authority.test";
     const subject = { kind: "user" as const, authority, id: fixture.userId };
 
-    // use standalone administration and a direct grant without a global account
-    await database
-        .update(space)
-        .set({
-            accountId: null,
-            authorityRegionId: null,
-            authorityHostId: authority,
-        })
-        .where(eq(space.id, spaceId));
+    // grant the user access without requiring membership in the space's account
     await database
         .update(roleBinding)
         .set({
@@ -58,7 +50,7 @@ test("retain local vault access independently of global account membership", asy
     });
 
     // reject the same identifier authenticated by another authority
-    const otherSubject = { ...subject, authority: identifier("host").parse(`host-${v7()}`) };
+    const otherSubject = { ...subject, authority: "https://other-authority.test" };
     context.caller = new Caller({
         ...authentication,
         subject: otherSubject,
@@ -310,8 +302,12 @@ test("restrict workload reads to live deployment secret bindings", async () => {
         serviceAccountId,
         description: {
             entrypoint: ".",
+            export: "workload",
+            services: [],
+            schedules: [],
             resources: [],
             secrets: [{ packageId: vaultPackage.id, name: "credential" }],
+            connections: [],
             compute: {},
         },
         policies: { packages: [], network: [] },

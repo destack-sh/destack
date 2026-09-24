@@ -9,7 +9,7 @@ import {
     sql,
     type DatabaseConnection,
 } from "@destack/db";
-import { secret, secretVersion, vault } from "@destack/model/space";
+import { secret, secretVersion, vault } from "@destack/model/regional";
 import { identifier } from "@destack/schema";
 import { ServiceError } from "@destack/service/error";
 import { v7 } from "uuid";
@@ -277,6 +277,7 @@ export class Vault {
         input: { spaceId: Secret["spaceId"]; limit: number },
         context: VaultContext,
     ): Promise<number> {
+        // validate the batch limit
         const { limit, spaceId } = input;
         if (!Number.isInteger(limit) || limit < 1 || limit > 1000) {
             throw new ServiceError("BAD_REQUEST");
@@ -307,6 +308,7 @@ export class Vault {
         for (const selected of rows) {
             await this.database.transaction(
                 async (transaction) => {
+                    // reload the secret and lock its current revision if still due
                     const row = await this.load(
                         "secret.purge",
                         { spaceId: selected.spaceId, secretId: selected.id },
@@ -424,6 +426,7 @@ export class Vault {
         context: VaultContext,
         transaction: DatabaseConnection,
     ): Promise<SecretRow> {
+        // read the secret and authorize the operation on its vault
         const row = await transaction
             .select()
             .from(secret)
