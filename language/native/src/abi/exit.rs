@@ -1,7 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-use super::TrapCode;
-
 /// Native execution exit details.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -10,8 +8,6 @@ pub struct Exit {
     pub kind: ExitKind,
     /// Frame map associated with one non-completion exit.
     pub frame_map: u32,
-    /// Trap code associated with trap exits.
-    pub trap: TrapCode,
 }
 
 /// Native entry exit kind.
@@ -32,8 +28,6 @@ pub enum ExitKind {
     Stopped = 5,
     /// Execution deoptimized into bytecode state.
     Deoptimized = 6,
-    /// Execution trapped.
-    Trapped = 7,
 }
 
 #[allow(clippy::new_without_default)]
@@ -43,7 +37,6 @@ impl Exit {
         Self {
             kind: ExitKind::Completed,
             frame_map: 0,
-            trap: 0,
         }
     }
 

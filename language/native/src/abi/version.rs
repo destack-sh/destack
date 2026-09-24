@@ -1,2 +1,2 @@
 /// Current Destack native ABI version.
-pub const VERSION: u32 = 12;
+pub const VERSION: u32 = 13;

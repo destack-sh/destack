@@ -110,8 +110,7 @@ pub type Free = unsafe extern "C-unwind" fn(activation: *mut Activation, owner: 
 /// Record one managed reference write through the runtime.
 pub type WriteBarrier = unsafe extern "C-unwind" fn(
     activation: *mut Activation,
-    space: Space,
-    object: usize,
+    object: *const u8,
     offset: usize,
     byte_len: usize,
 );
@@ -178,8 +177,8 @@ pub type IsSubtype =
 pub enum UnwindAction {
     /// Run the local cleanup path.
     Cleanup = 0,
-    /// Retain live values without running cleanup.
-    Retain = 1,
+    /// Skip the local cleanup path and continue the unwind.
+    Skip = 1,
 }
 
 /// Increment one explicit profile counter.

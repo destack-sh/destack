@@ -16,6 +16,8 @@ pub struct Activation {
     pub dynamics: *const *const DynamicTable,
     /// The first byte in world memory.
     pub memory_base: *mut u8,
+    /// The lowest stack address a generated prologue may reach.
+    pub stack_limit: usize,
     /// Program constant bytes.
     pub constants: StaticSpace,
     /// Runtime-shared static bytes.
@@ -54,6 +56,7 @@ impl Activation {
         virtuals: *const *const VirtualTable,
         dynamics: *const *const DynamicTable,
         memory_base: *mut u8,
+        stack_limit: usize,
         constants: StaticSpace,
         shared_statics: StaticSpace,
         local_statics: StaticSpace,
@@ -68,6 +71,7 @@ impl Activation {
             virtuals,
             dynamics,
             memory_base,
+            stack_limit,
             constants,
             shared_statics,
             local_statics,
