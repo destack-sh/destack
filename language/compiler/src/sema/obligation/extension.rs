@@ -162,7 +162,7 @@ impl CheckState<'_> {
             .into_iter()
             .collect::<SmallVec<[_; 2]>>();
 
-        // collect the failures against the extension's own module
+        // collect the failures against the module of the extension
         let module = source.module_id;
         let mut failures = Vec::new();
 
@@ -197,7 +197,7 @@ impl CheckState<'_> {
             return Ok(check);
         }
 
-        // check the implemented pairs against the extension's own package
+        // check the implemented pairs against the package of the extension
         let package = module.package_id;
         match target {
             // reject headed implementation pairs outside both packages
@@ -263,7 +263,7 @@ impl CheckState<'_> {
         Ok(check)
     }
 
-    /// Return whether one blanket target's own constraint anchors an interface.
+    /// Return whether the constraint of one blanket target anchors an interface.
     fn is_blanket_interface_anchored(&mut self, target: dir::GlobalTypeId) -> CompilerResult<bool> {
         // read the constraint the blanket parameter declares
         let dir::Type::Parameter(parameter) = self.ty(target)? else {
@@ -341,22 +341,40 @@ impl CheckState<'_> {
             return Ok(());
         };
 
-        // walk constraint reachability from the target and conformance headers
+        // visit the parameters the headers constrain, then the ones their predicates refine
+        let predicates = self.template_predicates(Some(template))?;
         let mut constrained = FxIndexSet::default();
         let mut pending = SmallVec::<[dir::GlobalTypeId; 4]>::from_slice(interfaces);
         pending.push(target);
         while let Some(ty) = pending.pop() {
+            // visit each parameter once, following the constraint it declares
             for parameter in self.type_parameters(ty)? {
-                // visit each parameter once
-                if !constrained.insert(parameter) {
-                    continue;
+                if constrained.insert(parameter) {
+                    let binding = self.generic_parameter(parameter)?;
+                    pending.extend(binding.and_then(|binding| binding.constraint));
                 }
+            }
 
-                // follow the constraint this parameter declares
-                let constraint = self
-                    .generic_parameter(parameter)?
-                    .and_then(|binding| binding.constraint);
-                pending.extend(constraint);
+            // visit the refinements a predicate over visited parameters binds
+            if pending.is_empty() {
+                for predicate in &predicates {
+                    let left = self.type_parameters(predicate.left)?;
+                    let is_constrained = !left.is_empty()
+                        && left.iter().all(|parameter| constrained.contains(parameter));
+                    if !is_constrained {
+                        continue;
+                    }
+                    let (_, bindings) = self.refinements(predicate.right)?;
+                    for (_, value) in bindings {
+                        let is_open = self
+                            .type_parameters(value)?
+                            .iter()
+                            .any(|parameter| !constrained.contains(parameter));
+                        if is_open {
+                            pending.push(value);
+                        }
+                    }
+                }
             }
         }
 
@@ -461,14 +479,13 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
-        // prefer the own module's authored implementations over a foreign definition
+        // prefer this module's authored implementations over a foreign definition
         if let Some(module) = self.module_maybe(symbol.module_id)
             && let Some(declared) = &module.declared
             && let Some(definition) = declared.definitions.definition(symbol)
         {
             let interfaces = definition
                 .implementations()
-                .iter()
                 .map(|conformance| conformance.interface)
                 .collect();
 
@@ -485,7 +502,6 @@ impl CheckState<'_> {
         // read the interfaces the conformances name
         let interfaces = definition
             .implementations()
-            .iter()
             .map(|conformance| conformance.interface)
             .collect();
 
@@ -532,15 +548,9 @@ impl CheckState<'_> {
 
         // reject implementations some declared type satisfies together with this one
         for (other, interface_type) in candidates {
-            let Some(witness) = self.extension_implementations_overlap(
-                origin,
-                module,
-                symbol,
-                ty,
-                interface_type,
-                other,
-            )?
-            else {
+            let overlap =
+                self.extension_implementations_overlap(origin, symbol, ty, interface_type, other)?;
+            let Some(witness) = overlap else {
                 continue;
             };
 
@@ -550,7 +560,7 @@ impl CheckState<'_> {
                 source,
                 conflict: other,
                 interface: interface.symbol,
-                ty: witness,
+                witness,
             });
         }
 
@@ -605,7 +615,7 @@ impl CheckState<'_> {
         let mut failures = Vec::new();
 
         // collect the inherent members this extension declares
-        let requirements = self.requirement_keys(&extension.implements)?;
+        let requirements = self.requirement_keys(extension.implementations())?;
         let target_form = self
             .receiver_form(extension.target.r#type())?
             .unwrap_or(ReceiverForm::MANAGED);
@@ -669,11 +679,10 @@ impl CheckState<'_> {
 
             // read what the competitor declares
             let members = competitor.members.clone();
-            let implements = competitor.implements.clone();
+            let requirements = self.requirement_keys(competitor.implementations())?;
             let competitor_target = competitor.target.r#type();
 
             // report each declared member the competitor also declares inherently
-            let requirements = self.requirement_keys(&implements)?;
             let competitor_form = self
                 .receiver_form(competitor_target)?
                 .unwrap_or(ReceiverForm::MANAGED);
@@ -698,9 +707,9 @@ impl CheckState<'_> {
     }
 
     /// Collect the member keys the implemented interfaces require.
-    fn requirement_keys(
+    fn requirement_keys<'a>(
         &mut self,
-        implements: &[dir::NominalConformance],
+        implements: impl IntoIterator<Item = &'a dir::NominalConformance>,
     ) -> CompilerResult<FxIndexSet<dir::StaticKey>> {
         let mut keys = FxIndexSet::default();
         for conformance in implements {
@@ -782,18 +791,18 @@ impl CheckState<'_> {
 
                     Some(ReceiverForm {
                         ownership: dir::Ownership::Borrowed,
-                        access: self.written_access(borrow.access)?,
+                        access: self.access_set(borrow.access)?,
                     })
                 }
                 dir::Form::Owned => Some(ReceiverForm {
                     ownership: dir::Ownership::Owned,
-                    access: None,
+                    access: AccessSet::ALL,
                 }),
                 dir::Form::Raw => Some(ReceiverForm {
                     ownership: dir::Ownership::Raw,
-                    access: None,
+                    access: AccessSet::ALL,
                 }),
-                dir::Form::Managed { .. } | dir::Form::Readonly => Some(ReceiverForm::MANAGED),
+                dir::Form::Readonly => Some(ReceiverForm::MANAGED),
             },
             // written memory applications compare like the forms they name
             dir::Type::Application(instance) => {
@@ -801,16 +810,16 @@ impl CheckState<'_> {
                 match self.language_item(instance.symbol)? {
                     Some(dir::LanguageItem::Owned) => Some(ReceiverForm {
                         ownership: dir::Ownership::Owned,
-                        access: None,
+                        access: AccessSet::ALL,
                     }),
                     Some(dir::LanguageItem::Raw) => Some(ReceiverForm {
                         ownership: dir::Ownership::Raw,
-                        access: None,
+                        access: AccessSet::ALL,
                     }),
                     Some(dir::LanguageItem::Borrowed) => {
                         let access = match arguments.get(2) {
-                            Some(access) => self.written_access(*access)?,
-                            None => None,
+                            Some(access) => self.access_set(*access)?,
+                            None => AccessSet::ALL,
                         };
 
                         Some(ReceiverForm {
@@ -818,10 +827,8 @@ impl CheckState<'_> {
                             access,
                         })
                     }
-                    Some(dir::LanguageItem::Managed | dir::LanguageItem::Readonly) => {
-                        Some(ReceiverForm::MANAGED)
-                    }
-                    // read the form through placement and access applications
+                    Some(dir::LanguageItem::Readonly) => Some(ReceiverForm::MANAGED),
+                    // read the form through the access application
                     Some(dir::LanguageItem::WithAccess) => match arguments.first() {
                         Some(underlying) => self.receiver_form(*underlying)?,
                         None => None,
@@ -837,9 +844,117 @@ impl CheckState<'_> {
         Ok(form)
     }
 
-    /// Return the access one access type writes, open for an access parameter.
-    fn written_access(&mut self, access: dir::GlobalTypeId) -> CompilerResult<Option<dir::Access>> {
-        self.access_of(access)
+    /// Return the accesses one access term admits, every access while it stays open.
+    pub(in crate::sema) fn access_set(
+        &mut self,
+        access: dir::GlobalTypeId,
+    ) -> CompilerResult<AccessSet> {
+        let access = self.shallow_resolve(access)?;
+
+        Ok(match self.ty(access)? {
+            // admit the literal itself
+            dir::Type::Literal(dir::Literal::String(text)) => {
+                match dir::Access::from_text(self.strings().get(text)) {
+                    Some(access) => AccessSet::of(access),
+                    None => {
+                        return Err(CompilerError::Internal {
+                            message: format!(
+                                "an access literal outside the access set: {access:?}"
+                            ),
+                        });
+                    }
+                }
+            }
+            // admit what every bound on a parameter admits
+            dir::Type::Parameter(parameter) => {
+                let mut admitted = AccessSet::ALL;
+                for bound in self.declared_parameter_bounds(parameter)? {
+                    admitted = admitted.intersection(self.access_set(bound)?);
+                }
+
+                admitted
+            }
+            // admit every alternative of a union
+            dir::Type::Union(union) => {
+                let mut admitted = AccessSet::NONE;
+                for element in self.type_ids(access.module_id, union.elements)? {
+                    admitted = admitted.union(self.access_set(*element)?);
+                }
+
+                admitted
+            }
+            // admit either branch of a conditional
+            dir::Type::Operation(operation)
+                if let dir::TypeOperation::Conditional(conditional) =
+                    self.type_operation(access.module_id, operation)? =>
+            {
+                self.access_set(conditional.then_type)?
+                    .union(self.access_set(conditional.else_type)?)
+            }
+            // grant the empty access set at `never`
+            dir::Type::Never => AccessSet::NONE,
+            // read a named access domain through its alias
+            dir::Type::Reference(dir::TypeReference { symbol, .. })
+            | dir::Type::Application(dir::GenericApplication { symbol, .. })
+                if let symbol = self.resolve_symbol_alias(symbol)?
+                    && let Some(dir::Definition::TypeAlias(alias)) =
+                        self.definition(symbol)?.as_deref() =>
+            {
+                self.access_set(alias.value)?
+            }
+            // admit every access at an open or failed term
+            dir::Type::Variable(_) | dir::Type::Error => AccessSet::ALL,
+            // fail on every other head
+            _ => {
+                return Err(CompilerError::Internal {
+                    message: format!(
+                        "an access term outside the access domain: {}",
+                        self.format_type(access)
+                    ),
+                });
+            }
+        })
+    }
+}
+
+/// The set of access rungs one receiver admits.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(in crate::sema) struct AccessSet(u8);
+
+impl AccessSet {
+    /// No rung.
+    const NONE: Self = Self(0);
+    /// Every rung.
+    pub(in crate::sema) const ALL: Self = Self((1 << dir::Access::ALL.len()) - 1);
+
+    /// The set of one rung.
+    fn of(access: dir::Access) -> Self {
+        Self(1 << access as u8)
+    }
+
+    /// Join two sets.
+    fn union(self, other: Self) -> Self {
+        Self(self.0 | other.0)
+    }
+
+    /// Meet two sets.
+    fn intersection(self, other: Self) -> Self {
+        Self(self.0 & other.0)
+    }
+
+    /// Return whether two sets share a rung.
+    fn intersects(self, other: Self) -> bool {
+        self.0 & other.0 != 0
+    }
+
+    /// Return whether the set admits one rung.
+    pub(in crate::sema) fn contains(self, access: dir::Access) -> bool {
+        self.0 & (1 << access as u8) != 0
+    }
+
+    /// Return whether the set admits every rung.
+    pub(in crate::sema) fn is_all(self) -> bool {
+        self == Self::ALL
     }
 }
 
@@ -860,23 +975,25 @@ struct DeclaredMember {
 pub(in crate::sema) struct ReceiverForm {
     /// The receiver ownership.
     pub(in crate::sema) ownership: dir::Ownership,
-    /// The borrowed access, open for an access parameter.
-    pub(in crate::sema) access: Option<dir::Access>,
+    /// The borrowed accesses the receiver admits.
+    pub(in crate::sema) access: AccessSet,
 }
 
 impl ReceiverForm {
+    /// The owned value receiver.
+    pub(in crate::sema) const OWNED: Self = Self {
+        ownership: dir::Ownership::Owned,
+        access: AccessSet::ALL,
+    };
+
     /// The default managed receiver.
     pub(in crate::sema) const MANAGED: Self = Self {
         ownership: dir::Ownership::Managed,
-        access: None,
+        access: AccessSet::ALL,
     };
 
     /// Return whether two receiver forms share one common receiver.
     pub(in crate::sema) fn is_overlapping(self, other: Self) -> bool {
-        self.ownership == other.ownership
-            && match (self.access, other.access) {
-                (Some(left), Some(right)) => left == right,
-                _ => true,
-            }
+        self.ownership == other.ownership && self.access.intersects(other.access)
     }
 }

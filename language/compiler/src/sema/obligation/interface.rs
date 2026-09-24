@@ -37,7 +37,6 @@ impl CheckState<'_> {
         let members = definition.members();
         let implementations = definition
             .implementations()
-            .iter()
             .map(|conformance| (conformance.source, conformance.interface))
             .collect::<SmallVec<[_; 2]>>();
         if implementations.is_empty() {
@@ -101,7 +100,6 @@ impl CheckState<'_> {
             .map(|definition| {
                 definition
                     .implementations()
-                    .iter()
                     .map(|conformance| conformance.source)
                     .collect()
             })
@@ -222,8 +220,7 @@ impl CheckState<'_> {
             return Ok(ConformanceSelection::Missing);
         };
 
-        // read the members, signatures, and inherited interfaces it requires, and the
-        // instantiation a requirement's own generic bounds are read under
+        // read the requirements and the instantiation of their bounds
         let mut requirements = self.interface_requirements(interface, target)?;
         let assumed = match self.ty(interface)? {
             dir::Type::Application(instance) => {
@@ -256,7 +253,26 @@ impl CheckState<'_> {
 
         // match each named requirement against declared or inherent members
         let mut selected = Vec::new();
+        let (_, bindings) = self.refinements(interface)?;
         for requirement in &requirements.members {
+            // take a declared or refined associated member
+            if requirement.role == dir::MemberRole::Associated {
+                let declared = members
+                    .iter()
+                    .find(|member| member.is_associated_at(requirement.key))
+                    .and_then(dir::DefinitionMember::symbol);
+                let is_bound = bindings.iter().any(|(key, _)| *key == requirement.key);
+                if declared.is_none() && !is_bound && !requirement.has_default {
+                    return Ok(ConformanceSelection::Missing);
+                }
+                selected.push(dir::MemberConformance {
+                    member: declared.unwrap_or(requirement.symbol),
+                    requirement: requirement.symbol,
+                });
+
+                continue;
+            }
+
             let mut candidates =
                 SmallVec::<[(dir::GlobalSymbolId, Option<dir::GlobalTypeId>); 2]>::new();
             for member in members {
@@ -308,12 +324,18 @@ impl CheckState<'_> {
 
             // match typed requirements and accept abstract requirements by presence
             let member = if let Some(required) = requirement.ty {
+                // read the requirement through this implementation
                 let required = self.substitute_type(required, &substitution)?;
+                let required = self.instantiate_interface_type(required, interface, target)?;
+                let required = self.bind_projections(required, target, &bindings)?;
+
+                // select the first candidate relating to the requirement
                 let mut selected = None;
                 for (symbol, found) in candidates {
                     let Some(found) = found else {
                         continue;
                     };
+                    let found = self.bind_projections(found, target, &bindings)?;
 
                     // skip a candidate whose parameter list shape differs from the requirement
                     if !self.signature_shapes_match(found, required)? {
@@ -334,11 +356,12 @@ impl CheckState<'_> {
                         break;
                     }
                 }
-                let Some(member) = selected else {
-                    return Ok(ConformanceSelection::Missing);
-                };
-
-                member
+                match selected {
+                    Some(member) => member,
+                    // take the default over every unimplementing candidate
+                    None if requirement.has_default => requirement.symbol,
+                    None => return Ok(ConformanceSelection::Missing),
+                }
             } else {
                 let (member, _) = candidates.remove(0);
 
@@ -387,7 +410,7 @@ impl CheckState<'_> {
     }
 
     /// Collect the applications of one symbol with the given arguments.
-    fn plain_applications_of(
+    pub(in crate::sema) fn plain_applications_of(
         &self,
         ty: dir::GlobalTypeId,
         symbol: dir::GlobalSymbolId,
@@ -455,8 +478,8 @@ impl CheckState<'_> {
         };
 
         // keep the public members, a visible one declared beside its target
-        let mut kept = Vec::with_capacity(candidates.len());
-        for candidate in candidates {
+        let mut kept = Vec::with_capacity(candidates.candidates.len());
+        for candidate in candidates.candidates {
             let Some(declared) = candidate.declaration() else {
                 return Err(CompilerError::Internal {
                     message: "nominal implementation has a structural member".into(),
@@ -503,7 +526,7 @@ impl CheckState<'_> {
             return Ok(ObligationCheck::holds());
         }
 
-        // decide the interface's own conformance rule
+        // decide the conformance rule of the interface
         match self.decide_auto_interface(origin, ty, interface)? {
             Verdict::Holds => return Ok(ObligationCheck::holds()),
             // stall the obligation while an open variable leaves the rule undecided

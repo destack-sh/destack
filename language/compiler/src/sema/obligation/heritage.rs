@@ -114,27 +114,23 @@ impl CheckState<'_> {
         }
 
         // require one concrete space across the declaration and its heritage
-        let mut placement = self
+        let mut space_source = self
             .definition(symbol)?
             .as_deref()
             .and_then(dir::Definition::space)
             .map(|space| (source, symbol, space));
         for application in &closure.applications {
             let (_, instance) = self.nominal_application(application.ty)?;
-            let Some(space) = self
-                .definition(instance.symbol)?
-                .as_deref()
-                .and_then(dir::Definition::space)
-            else {
+            let Some(space) = self.nominal_space(instance.symbol)? else {
                 continue;
             };
-            match placement {
-                None => placement = Some((application.source, instance.symbol, space)),
+            match space_source {
+                None => space_source = Some((application.source, instance.symbol, space)),
                 Some((_, _, current)) if current == space => {}
-                Some((placement_source, placement_symbol, _)) => {
-                    let failure = ObligationFailure::ConflictingHeritagePlacement {
-                        source: placement_source,
-                        symbol: placement_symbol,
+                Some((first_source, first_symbol, _)) => {
+                    let failure = ObligationFailure::ConflictingHeritageSpace {
+                        source: first_source,
+                        symbol: first_symbol,
                         conflict_source: application.source,
                         conflict: instance.symbol,
                     };
@@ -162,7 +158,7 @@ impl CheckState<'_> {
         let extends = class.extends.clone();
         let extends_source = extends.as_ref().map(|heritage| heritage.source);
 
-        // collect own instance members relevant to heritage rules
+        // collect the declared instance members heritage rules check
         let members = class.members.clone();
         let mut own = Vec::new();
         for member in &members {
@@ -337,7 +333,7 @@ impl CheckState<'_> {
         })
     }
 
-    /// Return one declaration's own generic application.
+    /// Return one declaration's application over its declared parameters.
     pub(in crate::sema) fn declaration_instance(
         &mut self,
         symbol: dir::GlobalSymbolId,

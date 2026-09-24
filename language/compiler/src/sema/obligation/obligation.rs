@@ -44,6 +44,8 @@ pub(in crate::sema) enum Obligation {
     RangeElement(RangeElementObligation),
     /// A rest parameter must describe an argument sequence.
     RestParameter(RestParameterObligation),
+    /// A shared binding must store a type shared space holds.
+    SharedStorage(SharedStorageObligation),
 }
 
 impl Obligation {
@@ -57,6 +59,7 @@ impl Obligation {
             Self::WellFormedType(obligation) => obligation.source,
             Self::RangeElement(obligation) => obligation.source,
             Self::RestParameter(obligation) => obligation.source,
+            Self::SharedStorage(obligation) => obligation.source,
         }
     }
 
@@ -72,6 +75,7 @@ impl Obligation {
             Self::WellFormedType(obligation) => SmallVec::from_slice(&[obligation.ty]),
             Self::RangeElement(obligation) => SmallVec::from_slice(&[obligation.element]),
             Self::RestParameter(obligation) => SmallVec::from_slice(&[obligation.ty]),
+            Self::SharedStorage(obligation) => SmallVec::from_slice(&[obligation.ty]),
             Self::RuntimePredicate(_) => SmallVec::new(),
         }
     }
@@ -148,7 +152,7 @@ pub(in crate::sema) enum ObligationFailure {
         /// A representative uncovered value.
         missing: UncoveredValue,
     },
-    /// A range's written endpoints carry different types.
+    /// A range's written endpoints have different types.
     IncompatibleRangeEndpoints {
         /// The range expression.
         source: dir::GlobalNodeIdAny,
@@ -197,17 +201,6 @@ pub(in crate::sema) enum ObligationFailure {
         receiver: dir::GlobalTypeId,
         /// The supplied key type.
         key: dir::GlobalTypeId,
-    },
-    /// A written placement contradicts the placement its type already carries.
-    ConflictingPlacement {
-        /// The written type's source.
-        source: dir::GlobalNodeIdAny,
-        /// The outer written space.
-        written: dir::Space,
-        /// The space the type already carries.
-        declared: dir::Space,
-        /// The nominal declaring the space, when a declaration carries it.
-        declaration: Option<dir::GlobalSymbolId>,
     },
     /// A value cannot be assigned to an imported binding.
     CannotAssignImportedBinding {
@@ -328,10 +321,10 @@ pub(in crate::sema) enum ObligationFailure {
         conflict: dir::GlobalSymbolId,
         /// The implemented interface.
         interface: dir::GlobalSymbolId,
-        /// The implemented type.
-        ty: dir::GlobalTypeId,
+        /// The type both implementations cover, rendered while its open terms stay visible.
+        witness: String,
     },
-    /// Heritage reaches the same declaration with incompatible arguments.
+    /// Heritage names the same declaration with incompatible arguments.
     ConflictingHeritage {
         /// The conflicting heritage clause source.
         source: dir::GlobalNodeIdAny,
@@ -340,7 +333,7 @@ pub(in crate::sema) enum ObligationFailure {
         /// The repeated heritage target.
         target: dir::GlobalSymbolId,
     },
-    /// Heritage reaches its own declaration again.
+    /// Heritage names its own declaration again.
     CircularHeritage {
         /// The heritage clause exposing the cycle.
         source: dir::GlobalNodeIdAny,
@@ -348,14 +341,14 @@ pub(in crate::sema) enum ObligationFailure {
         symbol: dir::GlobalSymbolId,
     },
     /// Heritage declarations impose incompatible concrete spaces.
-    ConflictingHeritagePlacement {
-        /// The first placement requirement clause.
+    ConflictingHeritageSpace {
+        /// The first clause requiring a space.
         source: dir::GlobalNodeIdAny,
-        /// The declaration imposing the first placement.
+        /// The declaration requiring the first space.
         symbol: dir::GlobalSymbolId,
-        /// The conflicting placement requirement clause.
+        /// The clause requiring the conflicting space.
         conflict_source: dir::GlobalNodeIdAny,
-        /// The declaration imposing the conflicting placement.
+        /// The declaration requiring the conflicting space.
         conflict: dir::GlobalSymbolId,
     },
     /// Override modifier appears without an inherited member.
@@ -586,6 +579,19 @@ pub(in crate::sema) struct RestParameterObligation {
     pub(in crate::sema) ty: dir::GlobalTypeId,
 }
 
+/// Require the type of a shared binding to live in shared space.
+///
+/// ```ds
+/// shared const user: User = load();
+/// ```
+#[derive(Debug, Clone, PartialEq)]
+pub(in crate::sema) struct SharedStorageObligation {
+    /// The binding pattern.
+    pub(in crate::sema) source: dir::GlobalNodeIdAny,
+    /// The stored type.
+    pub(in crate::sema) ty: dir::GlobalTypeId,
+}
+
 /// Obliges a declaration to satisfy every declared interface.
 ///
 /// ```ds
@@ -699,6 +705,7 @@ impl CheckState<'_> {
             }
             Obligation::RangeElement(obligation) => self.check_range_element(obligation),
             Obligation::RestParameter(obligation) => self.check_rest_parameter(origin, obligation),
+            Obligation::SharedStorage(obligation) => self.check_shared_storage(origin, obligation),
         }
     }
 

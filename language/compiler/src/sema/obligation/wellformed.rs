@@ -14,42 +14,7 @@ impl CheckState<'_> {
         origin: Origin,
         obligation: &WellFormedTypeObligation,
     ) -> CompilerResult<ObligationCheck> {
-        // require nested written placements to agree with one another
-        if let Some((written, nested)) = self.conflicting_places(origin, obligation.ty)? {
-            let failure = ObligationFailure::ConflictingPlacement {
-                source: obligation.source,
-                written,
-                declared: nested,
-                declaration: None,
-            };
-
-            return Ok(ObligationCheck::fail(failure));
-        }
-
-        // require explicit placement to agree with an intrinsically placed nominal base
-        if let Some(written) = self.type_place(obligation.ty)? {
-            let value = self.strip_form(origin, obligation.ty)?;
-            let symbol = match self.ty(value)? {
-                dir::Type::Application(instance) => Some(instance.symbol),
-                _ => None,
-            };
-            let written = self.place_space(written)?;
-            if let (Some(symbol), Some(written)) = (symbol, written)
-                && let Some(declared) = self.nominal_space(symbol)?
-                && written != declared
-            {
-                let failure = ObligationFailure::ConflictingPlacement {
-                    source: obligation.source,
-                    written,
-                    declared,
-                    declaration: Some(symbol),
-                };
-
-                return Ok(ObligationCheck::fail(failure));
-            }
-        }
-
-        // require placed types to have a finite representation for their storage space
+        // require a finite representation for the type's storage space
         let representation = self.check_representation(origin, obligation.ty)?;
         if let ObligationCheck::Fails(_) = representation {
             return Ok(representation);

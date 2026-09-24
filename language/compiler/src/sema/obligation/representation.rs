@@ -4,7 +4,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::auto::DecisionKey;
-use crate::sema::{CheckState, ObligationCheck, ObligationFailure, Origin, Relation};
+use crate::sema::{
+    CheckState, ObligationCheck, ObligationFailure, Origin, Relation, SharedStorageObligation,
+};
 use crate::{CompilerError, CompilerResult};
 
 /// The representation interface being checked.
@@ -19,13 +21,9 @@ enum RepresentationCheck {
     Finite,
     /// Safe references reachable from shared storage must remain shared.
     Shared {
-        /// The containing value's concrete place.
-        place: dir::GlobalTypeId,
-        /// Report fields when checking their own declaration.
+        /// Report fields when checking their declaration.
         use_fields: bool,
     },
-    /// Values held across a suspension point must store no borrow.
-    Suspend,
 }
 
 /// One invalid representation found while walking stored children.
@@ -36,8 +34,6 @@ enum RepresentationFailure {
     Circular(dir::GlobalNodeIdAny),
     /// Shared storage keeps a safe local reference.
     LocalReference(dir::GlobalNodeIdAny),
-    /// Storage crossing a suspension keeps a borrow.
-    BorrowedStorage,
 }
 
 impl CheckState<'_> {
@@ -88,23 +84,20 @@ impl CheckState<'_> {
             _ => None,
         };
         if let Some(symbol) = symbol
-            && self.nominal_space(symbol)? == Some(dir::Space::Local)
+            && (self.nominal_space(symbol)? == Some(dir::Space::Local)
+                || self.declares_negative(symbol, dir::AutoInterface::SharedSafe)?)
         {
             return Ok(false);
         }
 
         // walk the stored representation for shared containment
         let source = self.origin_source(origin)?;
-        let place = self.place_literal(dir::Space::Shared)?;
         let mut visited = FxIndexSet::default();
         let failure = self.representation_failure(
             origin,
             ty,
             source,
-            RepresentationCheck::Shared {
-                place,
-                use_fields: false,
-            },
+            RepresentationCheck::Shared { use_fields: false },
             &mut visited,
         )?;
         if failure.is_none() {
@@ -114,32 +107,26 @@ impl CheckState<'_> {
         Ok(failure.is_none())
     }
 
-    /// Return whether values of one type may stay live across a suspension point.
-    pub(in crate::sema) fn is_suspend_safe(
+    /// Check one shared binding obligation: the stored type may live in shared space.
+    pub(in crate::sema) fn check_shared_storage(
         &mut self,
         origin: Origin,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<bool> {
-        // reuse the decision recorded by an earlier walk
-        if self.has_decided_representation(origin, ty, dir::AutoInterface::SuspendSafe)? {
-            return Ok(true);
+        obligation: &SharedStorageObligation,
+    ) -> CompilerResult<ObligationCheck> {
+        // wait for the binding type to solve
+        let stalls = self.collect_open_variables([obligation.ty])?;
+        if !stalls.is_empty() {
+            return Ok(ObligationCheck::Ambiguous(stalls));
         }
 
-        // walk the stored representation for borrow containment
-        let source = self.origin_source(origin)?;
-        let mut visited = FxIndexSet::default();
-        let failure = self.representation_failure(
-            origin,
-            ty,
-            source,
-            RepresentationCheck::Suspend,
-            &mut visited,
-        )?;
-        if failure.is_none() {
-            self.commit_representation(origin, ty, dir::AutoInterface::SuspendSafe)?;
+        match self.is_shared_safe(origin, obligation.ty)? {
+            true => Ok(ObligationCheck::holds()),
+            false => Ok(ObligationCheck::fail(
+                ObligationFailure::LocalReferenceInSharedStorage {
+                    source: obligation.source,
+                },
+            )),
         }
-
-        Ok(failure.is_none())
     }
 
     /// Check the finite and shared safety properties of one stored type.
@@ -171,19 +158,14 @@ impl CheckState<'_> {
         let failure = match failure {
             Some(failure) => Some(failure),
             None => {
-                let chain = self.form_chain(origin, ty)?;
-                let Some(place) = chain.place() else {
-                    self.commit_storage(origin, ty)?;
-
-                    return Ok(ObligationCheck::holds());
-                };
-                if self.place_space(place)? != Some(dir::Space::Shared) {
+                if self.type_space(ty)? != Some(dir::Space::Shared) {
                     self.commit_storage(origin, ty)?;
 
                     return Ok(ObligationCheck::holds());
                 }
+                let chain = self.form_chain(origin, ty)?;
                 let use_fields = match self.ty(chain.base())? {
-                    // require a declaration in our own module to name the source site
+                    // require a declaration in this module to name the source site
                     dir::Type::Application(instance)
                         if self.is_own_module(instance.symbol.module_id) =>
                     {
@@ -203,7 +185,7 @@ impl CheckState<'_> {
                     origin,
                     ty,
                     source,
-                    RepresentationCheck::Shared { place, use_fields },
+                    RepresentationCheck::Shared { use_fields },
                     &mut visited,
                 )?
             }
@@ -220,13 +202,8 @@ impl CheckState<'_> {
             Some(RepresentationFailure::LocalReference(source)) => {
                 ObligationFailure::LocalReferenceInSharedStorage { source }
             }
-            Some(RepresentationFailure::BorrowedStorage) => {
-                return Err(CompilerError::Internal {
-                    message: "representation validation entered a suspend marker check".into(),
-                });
-            }
             None => {
-                // prove storage outside the field's own declaration site
+                // prove storage outside the field's declaration site
                 if !is_declaration_site {
                     self.commit_storage(origin, ty)?;
                 }
@@ -304,6 +281,7 @@ impl CheckState<'_> {
         if flags.has_variable() {
             return Ok(None);
         }
+
         Ok(self
             .decision_scope(origin, &[ty])?
             .map(|assumes| DecisionKey {
@@ -322,34 +300,34 @@ impl CheckState<'_> {
         check: RepresentationCheck,
         visited: &mut FxIndexSet<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<RepresentationFailure>> {
-        // project the type into the place a shared check stores it
-        let check = match check {
-            RepresentationCheck::Concrete { interface } => {
-                RepresentationCheck::Concrete { interface }
+        // read the space a shared check stores the type in
+        if let RepresentationCheck::Shared { .. } = check {
+            let chain = self.form_chain(origin, ty)?;
+            let ownership = self.form_ownership(origin, &chain)?;
+
+            // skip raw pointers, they are an explicit unchecked escape
+            if ownership == Some(dir::Ownership::Raw) {
+                return Ok(None);
             }
-            RepresentationCheck::Finite => RepresentationCheck::Finite,
-            RepresentationCheck::Shared { place, use_fields } => {
-                ty = self.resolve_relative_place(origin, ty, place)?;
-                let chain = self.form_chain(origin, ty)?;
-                let place = chain.place().unwrap_or(place);
-                let ownership = self.form_ownership(origin, &chain)?;
 
-                // skip raw pointers, they are an explicit unchecked escape
-                if ownership == Some(dir::Ownership::Raw) {
-                    return Ok(None);
-                }
-                let is_local = self.place_space(place)? == Some(dir::Space::Local);
-                if is_local && self.form_is_reference(origin, &chain)? {
-                    return Ok(Some(RepresentationFailure::LocalReference(source)));
-                }
-                ty = chain.base();
+            // reject a reference into local storage
+            let space = match chain.region() {
+                Some(region) => match self.region_space(region)? {
+                    Some(space) => self.literal_space(space)?,
+                    None => None,
+                },
+                None => self.type_space(chain.base())?,
+            };
 
-                RepresentationCheck::Shared { place, use_fields }
+            // hold only references proven outside local space
+            let is_local = !matches!(space, Some(dir::Space::Shared | dir::Space::Constant));
+            if is_local && self.form_is_reference(origin, &chain)? {
+                return Ok(Some(RepresentationFailure::LocalReference(source)));
             }
-            RepresentationCheck::Suspend => RepresentationCheck::Suspend,
-        };
+            ty = chain.base();
+        }
 
-        // reuse the decisions recorded by the walks that ignore the place
+        // reuse the decisions the space-free walks recorded
         match check {
             RepresentationCheck::Concrete { .. } => {
                 if self.has_decided_representation(origin, ty, dir::AutoInterface::Concrete)? {
@@ -364,11 +342,6 @@ impl CheckState<'_> {
                 }
             }
             RepresentationCheck::Shared { .. } => {}
-            RepresentationCheck::Suspend => {
-                if self.has_decided_representation(origin, ty, dir::AutoInterface::SuspendSafe)? {
-                    return Ok(None);
-                }
-            }
         }
 
         // treat an open numeric variable like the scalar it settles to
@@ -382,7 +355,7 @@ impl CheckState<'_> {
             let failure = match check {
                 RepresentationCheck::Concrete { .. } => None,
                 RepresentationCheck::Finite => Some(RepresentationFailure::Circular(source)),
-                RepresentationCheck::Shared { .. } | RepresentationCheck::Suspend => None,
+                RepresentationCheck::Shared { .. } => None,
             };
 
             return Ok(failure);
@@ -402,9 +375,6 @@ impl CheckState<'_> {
                     self.commit_storage(origin, ty)?;
                 }
                 RepresentationCheck::Shared { .. } => {}
-                RepresentationCheck::Suspend => {
-                    self.commit_representation(origin, ty, dir::AutoInterface::SuspendSafe)?;
-                }
             }
         }
 
@@ -456,12 +426,8 @@ impl CheckState<'_> {
                 dir::Form::Owned | dir::Form::Readonly => {
                     SmallVec::from_slice(&[(form.value, source)])
                 }
-                // refuse a stored borrow held across a suspension
-                dir::Form::Borrowed(_) if matches!(check, RepresentationCheck::Suspend) => {
-                    return Ok(Some(RepresentationFailure::BorrowedStorage));
-                }
-                // accept managed storage and heap escaped borrows
-                dir::Form::Managed { .. } | dir::Form::Borrowed(_) | dir::Form::Raw => {
+                // accept managed storage and borrows into heap blocks
+                dir::Form::Borrowed(_) | dir::Form::Raw => {
                     return Ok(None);
                 }
             },

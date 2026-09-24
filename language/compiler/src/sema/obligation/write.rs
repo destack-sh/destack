@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
 use crate::sema::{
-    CheckState, ObligationCheck, ObligationFailure, Origin, WritableTargetObligation,
+    CheckState, ObligationCheck, ObligationFailure, Origin, StoreTarget, WritableTargetObligation,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -12,6 +12,8 @@ pub(in crate::sema) struct AssignmentSelection {
     pub(in crate::sema) read: Option<dir::ReadResolution>,
     /// The selected write.
     pub(in crate::sema) write: dir::WriteResolution,
+    /// Where the value is stored.
+    pub(in crate::sema) store: StoreTarget,
     /// The write validation mode.
     pub(in crate::sema) mode: WriteMode,
     /// The source node for diagnostics.
@@ -34,7 +36,7 @@ impl AssignmentSelection {
 pub(in crate::sema) enum WriteMode {
     /// The storage owner decides whether the write is legal.
     Direct,
-    /// The declaring constructor initializes one of its own fields.
+    /// The declaring constructor initializes one of its class's fields.
     Initialize {
         /// The declaration being initialized.
         owner: dir::GlobalSymbolId,
@@ -56,7 +58,7 @@ impl CheckState<'_> {
             return Ok(check);
         }
 
-        // commit direct mutation below a binding, rebinding counts as its own write
+        // commit direct mutation below a binding
         let mutates_direct_value = target.mode == WriteMode::Direct
             && !matches!(target.write, dir::WriteResolution::Binding { .. });
         if mutates_direct_value {
@@ -74,7 +76,7 @@ impl CheckState<'_> {
         target: &dir::WriteResolution,
         mode: WriteMode,
     ) -> CompilerResult<ObligationCheck> {
-        // check by the write target's own kind
+        // check by the kind of the write target
         match target {
             dir::WriteResolution::Binding { symbol, .. } => {
                 self.check_writable_binding(source, *symbol)
@@ -85,7 +87,7 @@ impl CheckState<'_> {
             dir::WriteResolution::Subscript(subscript) => {
                 self.check_writable_subscript(origin, source, subscript, mode)
             }
-            // write a dereferenced place through its own borrow
+            // write a dereferenced place through its borrow
             dir::WriteResolution::Dereference(_) => Ok(ObligationCheck::holds()),
         }
     }
@@ -132,7 +134,7 @@ impl CheckState<'_> {
         target: &dir::MemberTarget,
         mode: WriteMode,
     ) -> CompilerResult<ObligationCheck> {
-        // check by the member target's own kind
+        // check by the kind of the member target
         match target {
             // require a writable projection and a writable slot for a field write
             dir::MemberTarget::Field(field) => {
@@ -162,7 +164,7 @@ impl CheckState<'_> {
 
                 Ok(ObligationCheck::holds())
             }
-            // leave a setter call to its own write rules
+            // leave a setter call to the setter write rules
             dir::MemberTarget::Call(_) => Ok(ObligationCheck::holds()),
             // require a writable projection and writable fields for an index write
             dir::MemberTarget::Index(index) => {
@@ -263,7 +265,7 @@ impl CheckState<'_> {
         field: &dir::FieldResolution,
         mode: WriteMode,
     ) -> CompilerResult<ObligationCheck> {
-        // check by the field target's own kind
+        // check by the kind of the field target
         match field.target {
             dir::FieldTarget::Structural { owner, key } => {
                 self.check_writable_structural_field(source, field, owner, key)
@@ -333,7 +335,7 @@ impl CheckState<'_> {
         symbol: dir::GlobalSymbolId,
         mode: WriteMode,
     ) -> CompilerResult<ObligationCheck> {
-        // read the declaration that owns the written field
+        // read the declaration of the written field
         let bindings = self.binding_table(symbol.module_id)?;
         let owner = bindings
             .symbol_path(symbol.local_id)
@@ -356,7 +358,7 @@ impl CheckState<'_> {
                 message: format!("definition {owner:?} does not declare field {symbol:?}"),
             })?;
 
-        // reject a write to a readonly field outside its own initializer
+        // reject a write to a readonly field outside its initializer
         let is_initialization =
             matches!(mode, WriteMode::Initialize { owner: initialized } if initialized == owner);
         if declared.is_readonly && !is_initialization {
@@ -367,7 +369,7 @@ impl CheckState<'_> {
                 },
             ))
         }
-        // otherwise the declaration owns a writable field
+        // accept a writable field of the declaration
         else {
             Ok(ObligationCheck::holds())
         }
@@ -380,7 +382,7 @@ impl CheckState<'_> {
         source: dir::GlobalNodeIdAny,
         index: &dir::IndexResolution,
     ) -> CompilerResult<ObligationCheck> {
-        // write a structural index into the fields of its own receiver
+        // write a structural index into the fields of its receiver
         let receiver = self.normalize(origin, index.receiver.ty())?;
         let dir::Type::Object(shape) = self.ty(receiver)? else {
             return Err(CompilerError::Internal {
@@ -403,7 +405,7 @@ impl CheckState<'_> {
             });
         }
 
-        // require every field the key domain reaches to be writable
+        // require every field in the key domain to be writable
         let properties = self.object_properties(receiver.module_id, shape.properties)?;
         let mut is_readonly = false;
         for key in keys {
@@ -418,7 +420,7 @@ impl CheckState<'_> {
             is_readonly |= !property.access.is_writable();
         }
 
-        // reject the write when any reached field is readonly
+        // reject the write when any of those fields is readonly
         if is_readonly {
             let failure = ObligationFailure::CannotAssignReadonlyMember {
                 source,
