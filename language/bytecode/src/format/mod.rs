@@ -16,7 +16,6 @@ mod profile;
 mod reference;
 mod relocation;
 mod scalar;
-mod slice;
 mod r#type;
 mod value;
 mod vector;

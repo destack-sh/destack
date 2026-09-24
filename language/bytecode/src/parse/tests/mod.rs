@@ -13,7 +13,6 @@ mod new;
 mod object;
 mod reference;
 mod scalar;
-mod slice;
 mod source;
 mod trivia;
 mod value;

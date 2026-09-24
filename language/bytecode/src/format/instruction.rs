@@ -162,9 +162,6 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             | Opcode::CONTEXT_BIND
             | Opcode::CONTEXT_GET => self.format_context(opcode),
 
-            // slices
-            Opcode::SLICE_VIEW => self.format_slice(opcode),
-
             // dynamic values
             Opcode::DYNAMIC_BIND | Opcode::DYNAMIC_READ | Opcode::DYNAMIC_TYPE => {
                 self.format_dynamic(opcode)

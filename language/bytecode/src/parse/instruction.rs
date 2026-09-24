@@ -73,9 +73,8 @@ impl Parser<'_> {
             "memory" | "prefetch" => self.parse_memory_operation(name, token, function),
             "atomic" => self.parse_atomic_operation(name, token, function),
 
-            // function values, slices, and dynamic values
+            // function values and dynamic values
             "function" => self.parse_function_operation(name, token, function),
-            "slice" => self.parse_slice_operation(name, token, function),
             "dynamic" => self.parse_dynamic_operation(name, token, function),
 
             // execution contexts

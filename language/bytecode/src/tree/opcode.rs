@@ -315,13 +315,6 @@ opcodes! {
         operands: [ResultRange, Register, Register, RegisterSpan, Unsigned32],
     }
 
-    // slices
-    SLICE_VIEW = 0x0070 {
-        text: "slice.view",
-        signature: "(slice: slice, stride: uint32, start: uint64, length: uint64) => slice",
-        operands: [ResultRange, RegisterSpan, Unsigned32, Register, Register],
-    }
-
     // dynamic values
     DYNAMIC_BIND = 0x0078 {
         text: "dynamic.bind",

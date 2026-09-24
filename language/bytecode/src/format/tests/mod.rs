@@ -12,7 +12,6 @@ mod memory;
 mod new;
 mod reference;
 mod scalar;
-mod slice;
 mod value;
 mod vector;
 

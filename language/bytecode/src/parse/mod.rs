@@ -16,7 +16,6 @@ mod parser;
 mod profile;
 mod reference;
 mod scalar;
-mod slice;
 mod r#type;
 mod value;
 mod vector;
