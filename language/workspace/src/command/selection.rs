@@ -3,12 +3,12 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactKey, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported,
-    DirImported, DirParsed, DirResolved, DirView, EnvironmentBound, ModuleGraph,
+    DirImported, DirParsed, DirResolved, DirView,
 };
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
 use destack_pattern::{Matcher, ModuleContext, Pattern, PatternMatch, ProgramContext};
-use destack_repository::{ArtifactReader, Revision};
+use destack_repository::{ArtifactReader, ProviderError, Revision};
 use destack_source::{File, ModuleId, ProfileId};
 
 use super::{CommandContext, CommandError, CommandResult};
@@ -154,30 +154,15 @@ impl CommandContext<'_> {
         roots: &[ModuleId],
         revision: Revision,
     ) -> CommandResult<ProgramContext> {
-        let mut root_keys = roots
+        let root_keys = roots
             .iter()
             .map(|module| ArtifactKey::dir_checked(*module, profile))
             .collect::<Vec<_>>();
-        root_keys.push(ArtifactKey::module_graph(profile));
         self.provide(revision, &root_keys).await?;
 
-        // resolve the import closure from the roots and implicit globals
-        let modules = {
-            let artifacts = ArtifactReader::new(self.repository.as_ref(), revision);
-            let graph = artifacts
-                .read::<ModuleGraph>(profile)
-                .map_err(|error| error.to_string())?;
-            let global = artifacts
-                .read::<EnvironmentBound>(profile)
-                .map_err(|error| error.to_string())?;
-            let mut walk_roots = roots.to_vec();
-            walk_roots.extend(global.implicit_modules());
-
-            graph
-                .reachable(&walk_roots)
-                .into_iter()
-                .collect::<FxIndexSet<_>>()
-        };
+        // walk the imports of the roots
+        let (modules, _) = self.import_closure(revision, profile, roots).await?;
+        let modules = modules.into_iter().collect::<FxIndexSet<_>>();
 
         // provide every checked artifact consumed by ModuleContext
         let keys = modules
@@ -201,7 +186,7 @@ impl CommandContext<'_> {
             .into_iter()
             .map(|module| {
                 let key = (module, profile);
-                let read = |error: destack_repository::ProviderError| error.to_string();
+                let read = |error: ProviderError| error.to_string();
                 let view = DirView::checked(
                     artifacts.read::<DirParsed>(module).map_err(read)?,
                     artifacts.read::<DirBound>(key).map_err(read)?,

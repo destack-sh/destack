@@ -49,9 +49,9 @@ export enum DeliveryState {
     Delivered = 7,
 }
 
-/** Reborrow every field for one lifetime. */
-export type BorrowedFields<T, const L: Lifetime> = {
-    [K in keyof T]: Borrowed<T[K], L>;
+/** Reborrow every field in one region. */
+export type BorrowedFields<T, const R: Region> = {
+    [K in keyof T]: Borrowed<T[K], R>;
 };
 
 /** One fixed-width integer representation. */
@@ -166,7 +166,7 @@ export interface AsyncWriter {
             .collect::<Vec<_>>(),
         [
             "export interface AsyncWriter",
-            "export type BorrowedFields<T, const L: Lifetime> = {\n    [K in keyof T]: Borrowed<T[K], L>;\n}",
+            "export type BorrowedFields<T, const R: Region> = {\n    [K in keyof T]: Borrowed<T[K], R>;\n}",
             "export enum DeliveryState",
             "export type Representation = `int${1..=128}` | `uint${1..=128}`",
             "export function increment(value: int64): int64",

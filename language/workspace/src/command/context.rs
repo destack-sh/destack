@@ -3,11 +3,11 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::ArtifactKey;
+use destack_artifact::{ArtifactKey, EnvironmentBound, ModuleGraph};
 use destack_repository as repository;
 use destack_repository::{
-    DestackFile, Repository, Revision, RevisionPin, Target, TargetRoot, Trace, TraceLevel,
-    TraceSnapshot, TraceView, apply_manifest_overrides_to_json, parse_jsonc_text,
+    ArtifactReader, DestackFile, Repository, Revision, RevisionPin, Target, TargetRoot, Trace,
+    TraceLevel, TraceSnapshot, TraceView, apply_manifest_overrides_to_json, parse_jsonc_text,
 };
 use destack_session::{ArtifactPriority, Session, SessionEventHandler};
 use destack_source::{
@@ -154,6 +154,60 @@ impl<'a> CommandContext<'a> {
         self.trace.clone()
     }
 
+    /// Walk the imports of the roots and implicit globals and return the modules and read keys.
+    pub(super) async fn import_closure(
+        &self,
+        revision: Revision,
+        profile: ProfileId,
+        roots: &[ModuleId],
+    ) -> CommandResult<(Vec<ModuleId>, Vec<ArtifactKey>)> {
+        // add the implicit globals to the roots
+        let environment_key = ArtifactKey::environment_bound(profile);
+        self.provide(revision, &[environment_key]).await?;
+        let mut walk_roots = roots.to_vec();
+        walk_roots.extend(
+            ArtifactReader::new(self.repository.as_ref(), revision)
+                .read::<EnvironmentBound>(profile)
+                .map_err(|error| CommandError::internal(error.to_string()))?
+                .implicit_modules(),
+        );
+
+        // collect the packages each root sees
+        let mut packages = Vec::new();
+        for root in &walk_roots {
+            let closure = self
+                .repository
+                .package_closure(revision, root.package_id)
+                .map_err(|error| CommandError::internal(error.to_string()))?;
+            for package in closure {
+                if !packages.contains(&package) {
+                    packages.push(package);
+                }
+            }
+        }
+
+        // provide the module graph of each package
+        let mut keys = packages
+            .iter()
+            .map(|package| ArtifactKey::module_graph(*package, profile))
+            .collect::<Vec<_>>();
+        self.provide(revision, &keys).await?;
+        keys.push(environment_key);
+
+        // walk the import edges
+        let artifacts = ArtifactReader::new(self.repository.as_ref(), revision);
+        let graphs = packages
+            .iter()
+            .map(|package| artifacts.read::<ModuleGraph>((*package, profile)))
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|error| CommandError::internal(error.to_string()))?;
+        let modules = ModuleGraph::reachable_across(&graphs, &walk_roots).map_err(|module| {
+            CommandError::internal(format!("no module graph holds module '{module}'"))
+        })?;
+
+        Ok((modules, keys))
+    }
+
     /// Provide artifacts while recording into the command trace.
     pub(super) async fn provide(
         &self,
@@ -298,7 +352,7 @@ impl<'a> CommandContext<'a> {
         Ok(paths)
     }
 
-    /// Load one manifest JSON value from repository or filesystem source truth.
+    /// Load one manifest JSON value from the revision or from the file system.
     fn load_manifest_json(
         repository: &Repository,
         revision: Revision,
@@ -306,7 +360,7 @@ impl<'a> CommandContext<'a> {
     ) -> CommandResult<Value> {
         let file_id = repository.file_id(path);
 
-        // prefer revision backed source truth
+        // prefer the file the revision binds
         if let Some(file) = repository.file(revision, file_id).map_err(|error| {
             CommandError::internal(format!("failed to read {}: {error}", path.display()))
         })? {

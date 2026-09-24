@@ -1,10 +1,11 @@
 use std::path::PathBuf;
+use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, EnvironmentBound, IndexKind, ModuleGraph};
+use destack_artifact::{ArtifactKey, IndexKind};
 use destack_doc::{Generator, PackageReference};
-use destack_repository::{ArtifactReader, ExportKind, Package, TraceView};
+use destack_repository::{ConditionSet, ExportKind, Package, Revision, TraceView};
 use destack_serde::Reflect;
-use destack_source::ModuleId;
+use destack_source::{ModuleId, ProfileId};
 use serde::{Deserialize, Serialize};
 
 use super::common::{
@@ -134,30 +135,12 @@ impl CommandContext<'_> {
     /// Complete the checked import closure read while rendering package declarations.
     async fn complete_reference_artifacts(
         &self,
-        revision: destack_repository::Revision,
-        profile: destack_source::ProfileId,
+        revision: Revision,
+        profile: ProfileId,
         roots: &[ModuleId],
     ) -> CommandResult<(Vec<ModuleId>, Vec<ArtifactKey>)> {
-        let graph_keys = [
-            ArtifactKey::module_graph(profile),
-            ArtifactKey::environment_bound(profile),
-        ];
-        self.provide(revision, &graph_keys).await?;
-
-        // resolve the complete import closure from package roots and implicit globals
-        let modules = {
-            let artifacts = ArtifactReader::new(self.repository.as_ref(), revision);
-            let graph = artifacts
-                .read::<ModuleGraph>(profile)
-                .map_err(|error| CommandError::internal(error.to_string()))?;
-            let environment = artifacts
-                .read::<EnvironmentBound>(profile)
-                .map_err(|error| CommandError::internal(error.to_string()))?;
-            let mut walk_roots = roots.to_vec();
-            walk_roots.extend(environment.implicit_modules());
-
-            graph.reachable(&walk_roots)
-        };
+        // walk the imports of the package roots
+        let (modules, graph_keys) = self.import_closure(revision, profile, roots).await?;
 
         // retain every compiler phase composed while printing declarations
         let mut keys = modules
@@ -196,9 +179,9 @@ impl CommandContext<'_> {
     /// Return the single package selected for documentation.
     fn documented_package(
         &self,
-        revision: destack_repository::Revision,
+        revision: Revision,
         modules: &[ModuleId],
-    ) -> CommandResult<std::sync::Arc<Package>> {
+    ) -> CommandResult<Arc<Package>> {
         let first_module = modules
             .first()
             .copied()
@@ -232,9 +215,9 @@ impl CommandContext<'_> {
     /// Resolve active public module exports in manifest order.
     fn documented_modules(
         &self,
-        revision: destack_repository::Revision,
+        revision: Revision,
         package: &Package,
-        conditions: &destack_repository::ConditionSet,
+        conditions: &ConditionSet,
     ) -> CommandResult<Vec<(String, ModuleId)>> {
         let root = package.path.as_deref().ok_or_else(|| {
             CommandError::config("documented package must have a filesystem root")
