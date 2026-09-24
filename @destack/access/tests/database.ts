@@ -71,7 +71,11 @@ export async function openFixture() {
     try {
         await database.insert(item).values(rows);
         await store.grant(
-            { object: node.ref("personal", "b"), relation: "editor", subject: bob.subjects[0] },
+            {
+                object: node.reference("personal", "b"),
+                relation: "editor",
+                subject: bob.subjects[0],
+            },
             alice,
         );
 

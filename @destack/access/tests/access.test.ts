@@ -1,5 +1,5 @@
 import { expect, test } from "@destack/test";
-import { PackageId } from "@destack/package/package";
+import { PackageId } from "@destack/package";
 import { AccessError } from "../src/error/index.ts";
 import { openFixture } from "./database.ts";
 import { eq, type DatabaseConnection } from "@destack/db";
@@ -24,7 +24,7 @@ import {
 } from "../src/index.ts";
 import { AccessQuery, GrantStore } from "../src/database/index.ts";
 import { accessGrant, accessToken } from "../src/stack/index.ts";
-import { node, cell, entity, item, mappings, rows } from "./fixture.ts";
+import { node, cell, entity, item, mappings, module1, rows } from "./fixture.ts";
 
 /** Provide an isolated database with notes and an explicit editor grant. */
 const databaseTest = test.extend<{ fixture: Awaited<ReturnType<typeof openFixture>> }>({
@@ -61,7 +61,7 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
     await expect(
         store.grant(
             {
-                object: node.ref("personal", "b"),
+                object: node.reference("personal", "b"),
                 relation: "editor",
                 subject: alice.subjects[0],
             },
@@ -92,7 +92,7 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
     }));
     for (const [position, type] of [node, cell, entity].entries()) {
         const objects: AccessObject[] = rows.map((row) => ({
-            reference: type.ref(row.scope, row.id),
+            reference: type.reference(row.scope, row.id),
             attributes: {
                 row: row.row,
                 column: row.column,
@@ -101,7 +101,7 @@ databaseTest("authorize notes, ranges and world entities", async ({ fixture }) =
                 protected: row.protected,
             },
             subjects: { owner: [{ kind: "user", authority: "global", id: row.owner }] },
-            objects: { parent: row.parent === null ? [] : [type.ref(row.scope, row.parent)] },
+            objects: { parent: row.parent === null ? [] : [type.reference(row.scope, row.parent)] },
         }));
         const access = new Access(model, new AccessSnapshot(1, objects, grants));
         const context = contexts[position];
@@ -129,7 +129,7 @@ databaseTest("share notes through expiring and revocable credentials", async ({ 
     // exercise anonymous public access, bearer edit access, expiry and revocation
     await store.grant(
         {
-            object: node.ref("personal", "a"),
+            object: node.reference("personal", "a"),
             relation: "viewer",
             subject: { kind: "everyone" },
         },
@@ -143,7 +143,7 @@ databaseTest("share notes through expiring and revocable credentials", async ({ 
             .where(query.where(node.permission("read"), "personal", anonymous)),
     ).toEqual([{ id: "a" }]);
     const token = await store.createToken(
-        { object: node.ref("personal", "b"), relation: "subtree-editor", expiresAt: 2000 },
+        { object: node.reference("personal", "b"), relation: "subtree-editor", expiresAt: 2000 },
         alice,
     );
     const subject = await store.authenticateToken(token.secret, 1000);
@@ -164,13 +164,15 @@ databaseTest("share notes through expiring and revocable credentials", async ({ 
             .where(query.where(node.permission("edit"), "personal", { ...visitor, now: 2000 })),
     ).toEqual([]);
     // direct bearer relationships must enforce the same lifetime as bearer grants
-    const direct = defineObject({
-        packageId: PackageId.parse("package-01996ab0-0000-7000-8000-000000000001"),
-        name: "token",
-        attributes: {},
-        relations: { bearer: { kind: "subject", subjects: ["share-token"] } },
-        permissions: { read: relation("bearer") },
-    });
+    const direct = defineObject(
+        {
+            name: "token",
+            attributes: {},
+            relations: { bearer: { kind: "subject", subjects: ["share-token"] } },
+            permissions: { read: relation("bearer") },
+        },
+        module1,
+    );
     const directModel = new AccessModel([direct]);
     const directQuery = new AccessQuery(directModel, [
         {
@@ -191,7 +193,7 @@ databaseTest("share notes through expiring and revocable credentials", async ({ 
         }
         const current = { ...visitor, now: state === "expired" ? 2000 : 1000 };
         const tokens = await database.select().from(accessToken);
-        const reference = direct.ref("personal", token.id);
+        const reference = direct.reference("personal", token.id);
         const snapshot = new AccessSnapshot(
             state,
             [
@@ -236,7 +238,7 @@ databaseTest("share notes through expiring and revocable credentials", async ({ 
         throw new Error("audit unavailable");
     });
     await expect(
-        failing.createToken({ object: node.ref("personal", "a"), relation: "viewer" }, alice),
+        failing.createToken({ object: node.reference("personal", "a"), relation: "viewer" }, alice),
     ).rejects.toThrow("audit unavailable");
     expect((await database.select().from(accessToken)).length).toBe(1);
     expect(changes).toEqual(["grant", "grant", "create-token", "revoke-token"]);
@@ -247,7 +249,7 @@ databaseTest("constrain delegated access with mandatory policies", async ({ fixt
     // constrain an agent to the intersection of user rights, workload rights and delegation
     const actor: Subject = { kind: "service-account", authority: "personal", id: "assistant" };
     await store.grant(
-        { object: node.ref("personal", "b"), relation: "editor", subject: actor },
+        { object: node.reference("personal", "b"), relation: "editor", subject: actor },
         alice,
     );
     const delegated: AccessContext = {
@@ -402,7 +404,11 @@ databaseTest("update inherited permissions when notes move or disappear", async 
 
     // share the root and its descendants while retaining the direct grant on b
     await store.grant(
-        { object: node.ref("personal", "a"), relation: "subtree-editor", subject: bob.subjects[0] },
+        {
+            object: node.reference("personal", "a"),
+            relation: "subtree-editor",
+            subject: bob.subjects[0],
+        },
         alice,
     );
     await compareDecisions(database, model, node, bob, ["a", "b", "c"]);
@@ -423,7 +429,7 @@ databaseTest("update inherited permissions when notes move or disappear", async 
 /** Reject an authoritative view that returns another object's credential or changes mid-read. */
 test("reject inconsistent authorization views", () => {
     // provide an active bearer grant for one protected note
-    const reference = node.ref("personal", "note");
+    const reference = node.reference("personal", "note");
     const subject: Subject = { kind: "share-token", authority: "personal", id: "token" };
     const object: AccessObject = {
         reference,
@@ -482,7 +488,7 @@ test("reject inconsistent authorization views", () => {
 /** Reuse one evaluator while a resident application's authoritative world changes. */
 test("recheck live world state", () => {
     const object = {
-        reference: entity.ref("world", "door"),
+        reference: entity.reference("world", "door"),
         attributes: { team: 1, protected: 0 },
         subjects: {},
         objects: {},
@@ -548,7 +554,7 @@ async function compareDecisions(
     const persisted = await database.select().from(accessGrant);
     const tokens = await database.select().from(accessToken);
     const objects = rows.map((row): AccessObject => ({
-        reference: type.ref(row.scope, row.id),
+        reference: type.reference(row.scope, row.id),
         attributes: {
             row: row.row,
             column: row.column,
@@ -557,7 +563,7 @@ async function compareDecisions(
             protected: row.protected,
         },
         subjects: { owner: [{ kind: "user", authority: "global", id: row.owner }] },
-        objects: { parent: row.parent === null ? [] : [type.ref(row.scope, row.parent)] },
+        objects: { parent: row.parent === null ? [] : [type.reference(row.scope, row.parent)] },
     }));
     const grants = persisted.map((grant): Grant => ({
         ...grant,

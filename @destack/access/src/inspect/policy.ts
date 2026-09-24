@@ -1,7 +1,7 @@
 import { defineSchema, schema } from "@destack/schema";
-import { PackageId } from "@destack/package/package";
+import { PackageId } from "@destack/package";
 import { AccessName } from "../access/expression.ts";
-import { AccessExpressionDescription } from "./declaration.ts";
+import { AccessExpressionDescription } from "./object.ts";
 import type { AccessPolicy } from "../access/policy.ts";
 
 /** A mandatory condition applied to a package's named permissions. */

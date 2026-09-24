@@ -260,6 +260,7 @@ export class AccessQuery {
         const active = activeToken(grant.subjectId, grant.scope, context.now, aliases.next++);
 
         // correlate an active grant to the protected row and requested relation
+
         return sql`EXISTS (
             SELECT 1 FROM ${from(grant)}
             WHERE ${grant.packageId} = ${mapping.type.definition.packageId}

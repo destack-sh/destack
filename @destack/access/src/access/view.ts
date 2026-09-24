@@ -36,6 +36,7 @@ export class AccessSnapshot implements AccessView {
         grants: readonly Grant[],
         tokens: readonly ShareToken[] = [],
     ) {
+        // record the snapshot revision
         this.revision = revision;
 
         // freeze copied values so a caller cannot change the snapshot through a returned record

@@ -132,6 +132,7 @@ export class Access {
 
     /** Resolve an object from the supplied authoritative snapshot. */
     #object(reference: ObjectReference): AccessObject {
+        // read the object and reject a view that returns another object
         const object = this.view.object(reference);
         if (!object) {
             throw new AccessError("NOT_FOUND", `missing access object: ${objectKey(reference)}`);
@@ -301,6 +302,7 @@ export class Access {
 
     /** Require declared relationship records and reject cross-scope traversal. */
     #related(object: AccessObject, name: string): readonly ObjectReference[] {
+        // read the related references and require an object relation
         const references = object.objects[name];
         const relation = this.model.type(object.reference).definition.relations[name];
         if (!references || relation.kind !== "object") {

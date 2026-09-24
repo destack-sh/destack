@@ -14,97 +14,120 @@ import { defineDatabaseSchema, integer, table, text } from "@destack/db";
 import type { ObjectMapping } from "../src/database/index.ts";
 import { accessSchema } from "../src/stack/index.ts";
 import { defineTree } from "@destack/db/tree";
-import { PackageId } from "@destack/package/package";
+import { PackageId } from "@destack/package";
+
+/** Declare objects under a fixed test package. */
+export function testModule(number: number) {
+    const id = PackageId.parse(`package-01996ab0-0000-7000-8000-00000000000${number}`);
+
+    return { package: { id, name: `@example/package-${number}`, version: "2026.9.0" } };
+}
+/** The first test package. */
+export const module1 = testModule(1);
+/** The second test package. */
+export const module2 = testModule(2);
+/** The third test package. */
+export const module3 = testModule(3);
 
 /** Notes and nested nodes with direct and inherited sharing. */
-export const node = defineObject({
-    packageId: PackageId.parse("package-01996ab0-0000-7000-8000-000000000001"),
-    name: "node",
-    attributes: {},
-    relations: {
-        owner: { kind: "subject", subjects: ["user"] },
-        parent: { kind: "object", type: "node" },
-        viewer: {
-            kind: "grant",
-            subjects: ["user", "group", "share-token", "everyone"],
-            permission: "share",
+export const node = defineObject(
+    {
+        name: "node",
+        attributes: {},
+        relations: {
+            owner: { kind: "subject", subjects: ["user"] },
+            parent: { kind: "object", type: "node" },
+            viewer: {
+                kind: "grant",
+                subjects: ["user", "group", "share-token", "everyone"],
+                permission: "share",
+            },
+            editor: {
+                kind: "grant",
+                subjects: ["user", "group", "service-account", "share-token"],
+                permission: "share",
+            },
+            "subtree-editor": {
+                kind: "grant",
+                subjects: ["user", "share-token"],
+                permission: "share",
+            },
         },
-        editor: {
-            kind: "grant",
-            subjects: ["user", "group", "service-account", "share-token"],
-            permission: "share",
+        permissions: {
+            share: relation("owner"),
+            "edit-descendant": union(relation("owner"), relation("subtree-editor")),
+            edit: union(
+                relation("owner"),
+                relation("editor"),
+                relation("subtree-editor"),
+                through("parent", "edit-descendant", true),
+            ),
+            read: union(permission("edit"), relation("viewer")),
         },
-        "subtree-editor": { kind: "grant", subjects: ["user", "share-token"], permission: "share" },
     },
-    permissions: {
-        share: relation("owner"),
-        "edit-descendant": union(relation("owner"), relation("subtree-editor")),
-        edit: union(
-            relation("owner"),
-            relation("editor"),
-            relation("subtree-editor"),
-            through("parent", "edit-descendant", true),
-        ),
-        read: union(permission("edit"), relation("viewer")),
-    },
-});
+    module1,
+);
 
 /** Cells constrained by an agent's allowed row and column interval. */
-export const cell = defineObject({
-    packageId: PackageId.parse("package-01996ab0-0000-7000-8000-000000000002"),
-    name: "cell",
-    attributes: { row: "number", column: "number", locked: "number" },
-    relations: { owner: { kind: "subject", subjects: ["user"] } },
-    permissions: {
-        read: relation("owner"),
-        edit: intersection(
-            relation("owner"),
-            compare(
-                "gte",
-                attribute("object", "row", "number"),
-                attribute("context", "first-row", "number"),
+export const cell = defineObject(
+    {
+        name: "cell",
+        attributes: { row: "number", column: "number", locked: "number" },
+        relations: { owner: { kind: "subject", subjects: ["user"] } },
+        permissions: {
+            read: relation("owner"),
+            edit: intersection(
+                relation("owner"),
+                compare(
+                    "gte",
+                    attribute("object", "row", "number"),
+                    attribute("context", "first-row", "number"),
+                ),
+                compare(
+                    "lte",
+                    attribute("object", "row", "number"),
+                    attribute("context", "last-row", "number"),
+                ),
+                compare(
+                    "gte",
+                    attribute("object", "column", "number"),
+                    attribute("context", "first-column", "number"),
+                ),
+                compare(
+                    "lte",
+                    attribute("object", "column", "number"),
+                    attribute("context", "last-column", "number"),
+                ),
+                compare("eq", attribute("object", "locked", "number"), literal(0)),
             ),
-            compare(
-                "lte",
-                attribute("object", "row", "number"),
-                attribute("context", "last-row", "number"),
-            ),
-            compare(
-                "gte",
-                attribute("object", "column", "number"),
-                attribute("context", "first-column", "number"),
-            ),
-            compare(
-                "lte",
-                attribute("object", "column", "number"),
-                attribute("context", "last-column", "number"),
-            ),
-            compare("eq", attribute("object", "locked", "number"), literal(0)),
-        ),
+        },
     },
-});
+    module2,
+);
 
 /** World entities combine team membership with authoritative phase and protection. */
-export const entity = defineObject({
-    packageId: PackageId.parse("package-01996ab0-0000-7000-8000-000000000003"),
-    name: "entity",
-    attributes: { team: "number", protected: "number" },
-    relations: { owner: { kind: "subject", subjects: ["user"] } },
-    permissions: {
-        read: relation("owner"),
-        edit: exclusion(
-            intersection(
-                compare(
-                    "eq",
-                    attribute("object", "team", "number"),
-                    attribute("context", "team", "number"),
+export const entity = defineObject(
+    {
+        name: "entity",
+        attributes: { team: "number", protected: "number" },
+        relations: { owner: { kind: "subject", subjects: ["user"] } },
+        permissions: {
+            read: relation("owner"),
+            edit: exclusion(
+                intersection(
+                    compare(
+                        "eq",
+                        attribute("object", "team", "number"),
+                        attribute("context", "team", "number"),
+                    ),
+                    compare("eq", attribute("context", "phase", "string"), literal("edit")),
                 ),
-                compare("eq", attribute("context", "phase", "string"), literal("edit")),
+                compare("eq", attribute("object", "protected", "number"), literal(1)),
             ),
-            compare("eq", attribute("object", "protected", "number"), literal(1)),
-        ),
+        },
     },
-});
+    module3,
+);
 
 /** Real application records shared by the three compact integration examples. */
 export const item = table("example_item", {

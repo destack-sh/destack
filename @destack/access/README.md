@@ -57,7 +57,7 @@ const rows = await database
 const sharing = new GrantStore(database, query, recordGrantChange);
 await sharing.grant(
     {
-        object: note.ref(spaceId, noteId),
+        object: note.reference(spaceId, noteId),
         relation: "editor",
         subject: { kind: "user", authority: "global", id: recipientId },
     },
@@ -74,7 +74,7 @@ import { Access, AccessSnapshot } from "@destack/access";
 
 const snapshot = new AccessSnapshot(revision, objects, grants, tokens);
 const access = new Access(model, snapshot);
-access.require(note.permission("edit"), note.ref(spaceId, noteId), context);
+access.require(note.permission("edit"), note.reference(spaceId, noteId), context);
 
 // a resident application can supply AccessView directly
 // the host verifies identities, memberships, attributes, time and delegation records
@@ -83,9 +83,9 @@ access.require(note.permission("edit"), note.ref(spaceId, noteId), context);
 ## Inspection
 
 ```ts
-import { AccessDeclaration, AccessPolicyDescription } from "@destack/access/inspect";
+import { ObjectDescription, AccessPolicyDescription } from "@destack/access/inspect";
 
 const declarations = model.describe();
 const policies = model.policies;
-const decision = access.explain(note.permission("edit"), note.ref(spaceId, noteId), context);
+const decision = access.explain(note.permission("edit"), note.reference(spaceId, noteId), context);
 ```

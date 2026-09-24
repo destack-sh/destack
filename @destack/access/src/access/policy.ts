@@ -3,7 +3,7 @@ import type { PermissionReference } from "./object.ts";
 import type { AccessContext, Subject } from "./subject.ts";
 import { sameSubject } from "./subject.ts";
 import { AccessError } from "../error/index.ts";
-import type { PackageId } from "@destack/package/package";
+import type { PackageId } from "@destack/package";
 
 /** A mandatory condition or prohibition applied after the object's permission rule. */
 export interface AccessPolicy {

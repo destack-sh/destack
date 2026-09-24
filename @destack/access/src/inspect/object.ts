@@ -1,5 +1,6 @@
+import type { ObjectType } from "../access/object.ts";
 import { defineSchema, schema } from "@destack/schema";
-import { PackageId } from "@destack/package/package";
+import { PackageId } from "@destack/package";
 import { AccessName } from "../access/expression.ts";
 import { Attribute } from "../access/subject.ts";
 import type { AccessExpression, AccessOperand } from "../access/expression.ts";
@@ -43,7 +44,7 @@ export const AccessExpressionDescription: schema.Schema<AccessExpression> = sche
 );
 
 /** A package's inspectable object types, relationships, and permissions. */
-export const AccessDeclaration = defineSchema(
+export const ObjectDescription = defineSchema(
     schema.object({
         packageId: PackageId,
         name: AccessName,
@@ -78,3 +79,10 @@ export const AccessDeclaration = defineSchema(
         permissions: schema.record(AccessName, AccessExpressionDescription),
     }),
 );
+/** A package's inspectable object types, relationships, and permissions. */
+export type ObjectDescription = schema.Infer<typeof ObjectDescription>;
+
+/** Describe a declared object type for the package manifest. */
+export function describeObject(object: ObjectType): ObjectDescription {
+    return ObjectDescription.parse(object.definition);
+}

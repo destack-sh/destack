@@ -48,6 +48,7 @@ export class GrantStore {
     ): Promise<string> {
         return this.database.transaction(
             async (transaction) => {
+                // require permission to administer the relation
                 await this.#authorize(request.object, request.relation, context, transaction);
 
                 // persist and audit together so an audit failure rolls back the grant
@@ -85,6 +86,7 @@ export class GrantStore {
         // authorize before publishing either the token or its grant
         await this.database.transaction(
             async (transaction) => {
+                // require permission to administer the relation
                 await this.#authorize(request.object, request.relation, context, transaction);
 
                 // store only the credential digest and its lifetime

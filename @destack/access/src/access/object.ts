@@ -1,9 +1,9 @@
 import { defineSchema, schema } from "@destack/schema";
-import { PackageId } from "@destack/package/package";
+import { declaringModule, PackageId, type ModuleMetadata, type Package } from "@destack/package";
 import { AccessName, type AccessExpression } from "./expression.ts";
 import type { Attribute, Subject } from "./subject.ts";
 import { AccessError } from "../error/index.ts";
-import { AccessDeclaration } from "../inspect/declaration.ts";
+import { ObjectDescription } from "../inspect/object.ts";
 
 /** A protected object within an explicit authority and installation scope. */
 export const ObjectReference = defineSchema(
@@ -60,16 +60,23 @@ export interface ObjectDefinition {
 
 /** A declaration with typed references to its permissions and relations. */
 export class ObjectType<Definition extends ObjectDefinition = ObjectDefinition> {
+    /** The declaring package, supplied by the module transform. */
+    readonly package: Package;
+    /** The package-local object type name. */
+    readonly name: Definition["name"];
     /** The immutable serializable declaration. */
     readonly definition: Definition;
 
     /** Copy a declaration so later caller mutations cannot change access rules. */
-    constructor(definition: Definition) {
-        this.definition = freeze(AccessDeclaration.parse(definition) as Definition);
+    constructor(owner: Package, definition: Definition) {
+        // retain the declaring package and a frozen copy of the rules
+        this.package = owner;
+        this.name = definition.name;
+        this.definition = freeze(ObjectDescription.parse(definition) as Definition);
     }
 
     /** Identify an object without inferring its installation or authority. */
-    ref(scope: string, id: string): ObjectReference {
+    reference(scope: string, id: string): ObjectReference {
         return ObjectReference.parse({
             packageId: this.definition.packageId,
             type: this.definition.name,
@@ -115,10 +122,14 @@ export interface AccessObject {
 }
 
 /** Declare a protected type while retaining literal permission names. */
-export function defineObject<const Definition extends ObjectDefinition>(
+export function defineObject<const Definition extends Omit<ObjectDefinition, "packageId">>(
     definition: Definition,
-): ObjectType<Definition> {
-    return new ObjectType(definition);
+    module?: ModuleMetadata,
+): ObjectType<Definition & { packageId: PackageId }> {
+    // stamp the declaring package supplied by the module transform
+    const owner = declaringModule(module, "defineObject").package;
+
+    return new ObjectType(owner, { ...definition, packageId: owner.id });
 }
 
 /** Construct a collision-free reference key. */
