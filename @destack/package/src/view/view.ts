@@ -1,5 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
-import { Entrypoint, PackageId } from "../package/package.ts";
+import { Entrypoint, PackageId } from "../definition/package.ts";
 
 /** A named frontend that clients can open independently. */
 export const ViewDefinition = defineSchema(

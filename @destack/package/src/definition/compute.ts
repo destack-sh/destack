@@ -47,6 +47,7 @@ export function mergeCompute(
     defaults: ComputeDefinition = {},
     override: ComputeDefinition = {},
 ): ComputeDefinition {
+    // merge overrides over defaults field by field
     const compute: ComputeDefinition = {
         ...defaults,
         ...override,

@@ -21,6 +21,7 @@ export class PackageError extends Error {
     /** Stable failure code. */
     readonly code: PackageErrorCode;
 
+    /** Create a package error with its code, message and cause. */
     constructor(code: PackageErrorCode, message: string, options?: ErrorOptions) {
         super(message, options);
         this.name = "PackageError";

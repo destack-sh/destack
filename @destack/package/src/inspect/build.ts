@@ -1,5 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
-import { DependencyResolution } from "../package/dependency.ts";
+import { DependencyResolution } from "../definition/dependency.ts";
 import { PackagePath } from "../file/file.ts";
 import { Runtime } from "../runtime/index.ts";
 

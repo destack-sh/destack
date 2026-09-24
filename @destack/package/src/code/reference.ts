@@ -1,6 +1,6 @@
 import { defineSchema, schema } from "@destack/schema";
 import { PackagePath } from "../file/file.ts";
-import { DependencyPackage, Package } from "../package/package.ts";
+import { DependencyPackage, Package } from "../definition/package.ts";
 
 /** A symbol name qualified by its source module within a build. */
 export const SymbolLocation = defineSchema(

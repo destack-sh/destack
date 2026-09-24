@@ -6,7 +6,7 @@ import { PackageError } from "../error/index.ts";
 /** HTTP access supplied by the application, including authentication. */
 export interface PackageHttpOptions {
     /** Authenticated fetch implementation. */
-    fetch: typeof fetch;
+    fetch: (input: URL, init: RequestInit) => Promise<Response>;
     /** Cancel manifest and subsequent description requests. */
     signal?: AbortSignal;
 }

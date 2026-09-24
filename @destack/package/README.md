@@ -1,11 +1,11 @@
 Describe packages, source code, inspections, and built files.
 
 ```ts
-import { PackageDeclaration, PackageId } from "@destack/package";
+import { PackageDescription, PackageId } from "@destack/package";
 
 const id = PackageId.parse("package-01996ab0-0000-7000-8000-000000000001");
 
-const declaration: PackageDeclaration = {
+const declaration: PackageDescription = {
     package: { id, name: "@destack/schema", version: "2026.9.0" },
     definition: { id, language: "typescript", targets: ["browser", "server"] },
     exports: { ".": "./src/index.ts" },

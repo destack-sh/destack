@@ -25,7 +25,7 @@ export const PackageExport: schema.Schema<PackageExport> = schema.lazy(() =>
 );
 
 /** Package declarations combined from package.json and destack.json. */
-export const PackageDeclaration = defineSchema(
+export const PackageDescription = defineSchema(
     schema.object({
         /** The stable package ID, current name, and version. */
         package: Package,
@@ -53,4 +53,4 @@ export const PackageDeclaration = defineSchema(
 );
 
 /** Package declarations consumed by build and registry tooling. */
-export type PackageDeclaration = schema.Infer<typeof PackageDeclaration>;
+export type PackageDescription = schema.Infer<typeof PackageDescription>;

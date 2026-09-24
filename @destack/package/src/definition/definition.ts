@@ -4,7 +4,7 @@ import { Target } from "./target.ts";
 import { ComputeDefinition } from "./compute.ts";
 import { WorkloadDefinition } from "../workload/index.ts";
 import { Runtime } from "../runtime/index.ts";
-import { ResourceName } from "@destack/resource";
+import { DeclarationName } from "./package.ts";
 import { TemplateDefinition } from "../template/index.ts";
 import { PackageId } from "./package.ts";
 import { ViewDefinition } from "../view/index.ts";
@@ -19,9 +19,9 @@ export const PackageDefinition = defineSchema(
         /** Source generation settings for a registry template package. */
         template: TemplateDefinition.optional(),
         /** Named workloads deployed independently. */
-        workloads: schema.record(ResourceName, WorkloadDefinition).optional(),
+        workloads: schema.record(DeclarationName, WorkloadDefinition).optional(),
         /** Named frontends opened independently by clients. */
-        views: schema.record(ResourceName, ViewDefinition).optional(),
+        views: schema.record(DeclarationName, ViewDefinition).optional(),
         /** Supported targets inherited by package exports. */
         targets: schema.array(Target).min(1).optional(),
         /** Reviewed runtime compatibility shared by all exports. */

@@ -1,39 +1,19 @@
 import { defineSchema, schema } from "@destack/schema";
-import { ResourceName } from "@destack/resource";
-import { ComputeDefinition } from "../package/compute.ts";
-import { PackageId, Entrypoint } from "../package/package.ts";
-
-/** A declaration qualified by its source package. */
-export const DeclarationReference = defineSchema(
-    schema.object({
-        /** The immutable identity of the declaring package. */
-        packageId: PackageId,
-        /** The name assigned by the domain declaration. */
-        name: ResourceName,
-    }),
-);
-/** A declaration qualified by its source package. */
-export type DeclarationReference = schema.Infer<typeof DeclarationReference>;
+import { DeclarationName } from "../definition/package.ts";
+import { DeclarationReference } from "../declare/declaration.ts";
+import { ComputeDefinition } from "../definition/compute.ts";
+import { Entrypoint } from "../definition/package.ts";
 
 /** Code deployed and scaled together. */
 export const WorkloadDefinition = defineSchema(
     schema
         .object({
-            /** The exported module containing the workload handlers. */
+            /** The exported module providing start(context) and declared schedule callbacks. */
             entrypoint: Entrypoint,
             /** Named services collected from code. */
-            services: schema.array(ResourceName).optional(),
+            services: schema.array(DeclarationName).optional(),
             /** Named schedules delivered by the host scheduler. */
-            schedules: schema.array(ResourceName).optional(),
-            /** Instance startup and shutdown exports. */
-            lifecycle: schema
-                .object({
-                    /** Start background activity and resolve when ready. */
-                    start: schema.string().min(1).optional(),
-                    /** Drain background activity before stopping. */
-                    stop: schema.string().min(1).optional(),
-                })
-                .optional(),
+            schedules: schema.array(DeclarationName).optional(),
             /** Workload overrides of package compute defaults. */
             compute: ComputeDefinition.optional(),
         })

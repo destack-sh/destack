@@ -1,9 +1,9 @@
 import { defineSchema, schema } from "@destack/schema";
-import { DependencyName, DependencyRelease, Target } from "../package/index.ts";
+import { DependencyName, DependencyRelease, Target } from "../definition/index.ts";
 import { PackagePath } from "../file/index.ts";
 import { Runtime } from "../runtime/index.ts";
 import { WorkloadDescription } from "../workload/index.ts";
-import { ResourceName } from "@destack/resource";
+import { DeclarationName } from "../definition/package.ts";
 
 /** Compiled files and dependencies for one execution target. */
 export const PackageOutput = defineSchema(
@@ -15,9 +15,9 @@ export const PackageOutput = defineSchema(
         /** Whether this output is distributed for execution. */
         emit: schema.boolean(),
         /** The declared view compiled into this output. */
-        view: ResourceName.optional(),
+        view: DeclarationName.optional(),
         /** Validated workloads keyed by their declared names. */
-        workloads: schema.record(ResourceName, WorkloadDescription),
+        workloads: schema.record(DeclarationName, WorkloadDescription),
         /** Domain collection names and selected record indices. */
         descriptions: schema.record(schema.string(), schema.array(schema.number().int().min(0))),
         /** The output directory within the build. */

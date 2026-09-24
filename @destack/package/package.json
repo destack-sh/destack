@@ -9,24 +9,41 @@
         "./template": "./src/template/index.ts",
         "./error": "./src/error/index.ts",
         ".": "./src/index.ts",
-        "./package": "./src/package/index.ts",
+        "./package": "./src/package.ts",
         "./manifest": "./src/manifest/index.ts",
         "./code": "./src/code/index.ts",
         "./source": "./src/source/index.ts",
         "./inspect": "./src/inspect/index.ts",
         "./file": "./src/file/index.ts",
         "./import-meta": {
-            "types": "./src/package/import-meta.d.ts"
+            "types": "./src/definition/import-meta.d.ts"
         },
         "./workload": "./src/workload/index.ts",
         "./view": "./src/view/index.ts",
-        "./runtime": "./src/runtime/index.ts"
+        "./runtime": "./src/runtime/index.ts",
+        "./transform": "./src/transform/index.ts",
+        "./transform/vite": "./src/transform/vite.ts",
+        "./transform/bun": "./src/transform/bun.ts",
+        "./transform/preload": "./src/transform/preload.ts",
+        "./declare": "./src/declare/index.ts"
     },
     "scripts": {
         "check": "tsc --project tsconfig.json"
     },
     "dependencies": {
         "@destack/schema": "workspace:*",
-        "@destack/resource": "workspace:*"
+        "magic-string": "1.4.1",
+        "rolldown": "1.2.9"
+    },
+    "peerDependencies": {
+        "vite": "8.3.0"
+    },
+    "peerDependenciesMeta": {
+        "vite": {
+            "optional": true
+        }
+    },
+    "devDependencies": {
+        "vite": "8.3.0"
     }
 }

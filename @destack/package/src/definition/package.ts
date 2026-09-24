@@ -9,6 +9,11 @@ export const PackageId = identifier("package");
 /** The immutable identity retained across package renames and releases. */
 export type PackageId = schema.Infer<typeof PackageId>;
 
+/** A declaration name within a package. */
+export const DeclarationName = defineSchema(schema.string().regex(/^[a-z][a-z0-9-]*$(?![\s\S])/));
+/** A declaration name within a package. */
+export type DeclarationName = schema.Infer<typeof DeclarationName>;
+
 /** A scoped Destack package name. */
 export const PackageName = defineSchema(
     schema

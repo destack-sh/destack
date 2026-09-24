@@ -1,6 +1,6 @@
 import { schema } from "@destack/schema";
 import { verifyFile, type PackageFile } from "../file/file.ts";
-import { DependencyResolution } from "../package/dependency.ts";
+import { DependencyResolution } from "../definition/dependency.ts";
 import { SourceMapReference } from "../source/map.ts";
 import { ModuleDescription } from "../code/module.ts";
 import { PackageError } from "../error/index.ts";

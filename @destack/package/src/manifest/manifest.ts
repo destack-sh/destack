@@ -1,5 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
-import { Language, Package } from "../package/index.ts";
+import { Language, Package } from "../definition/index.ts";
 import { PackageFile, Digest } from "../file/file.ts";
 import { PackageOutput } from "./output.ts";
 
