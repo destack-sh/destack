@@ -1,10 +1,10 @@
 use std::io::Error as IoError;
-use std::mem::zeroed;
 use std::os::fd::RawFd;
 use std::ptr::{null_mut, write_bytes};
-use std::sync::OnceLock;
 
 use parking_lot::Mutex;
+
+use destack_signal::Fault;
 
 use crate::address::watch_page_write;
 pub(crate) use crate::core::{WriteWatchRegistration, WriteWatchTable};
@@ -20,8 +20,6 @@ const MAP_ANONYMOUS: libc::c_int = libc::MAP_ANON;
 const MAP_ANONYMOUS: libc::c_int = libc::MAP_ANONYMOUS;
 /// Private anonymous mapping flags for reserved address ranges.
 const MAP_PRIVATE_ANONYMOUS: libc::c_int = libc::MAP_PRIVATE | MAP_ANONYMOUS;
-/// The previously installed Unix memory fault handlers.
-static SIGNAL_HANDLERS: OnceLock<MemoryResult<SignalHandlers>> = OnceLock::new();
 
 /// One reserved virtual byte space.
 #[derive(Debug)]
@@ -96,21 +94,6 @@ struct PageFrameRange {
     /// The byte length.
     byte_len: u64,
 }
-
-/// The signal handlers replaced by the memory write handler.
-#[derive(Debug)]
-struct SignalHandlers {
-    /// The previous segmentation fault handler.
-    segmentation: libc::sigaction,
-    /// The previous bus fault handler.
-    bus: libc::sigaction,
-}
-
-// SAFETY: signal actions are immutable after installation
-unsafe impl Send for SignalHandlers {}
-
-// SAFETY: signal actions are immutable after installation
-unsafe impl Sync for SignalHandlers {}
 
 /// Create one page frame allocator from an owned descriptor.
 pub(crate) fn create_page_frame_allocator_from_fd(
@@ -356,10 +339,14 @@ pub(crate) fn register_write_watch(
 ) -> MemoryResult<WriteWatchRegistration> {
     let registration = WriteWatchTable::register(base, byte_len, context)?;
 
-    if let Err(error) = install_write_fault_handler() {
+    if let Err(error) = destack_signal::register(handle_write_watch) {
         WriteWatchTable::unregister(&registration);
 
-        return Err(error);
+        return Err(MemoryError::system(
+            MemoryOperation::InstallWriteWatch,
+            error.code,
+            None,
+        ));
     }
 
     Ok(registration)
@@ -701,98 +688,13 @@ fn last_system_error(operation: MemoryOperation, byte_len: Option<usize>) -> Mem
     MemoryError::system(operation, IoError::last_os_error().raw_os_error(), byte_len)
 }
 
-/// Install the write fault handler once.
-fn install_write_fault_handler() -> MemoryResult<()> {
-    let handlers = SIGNAL_HANDLERS.get_or_init(|| {
-        // install one process level handler for protected pages
-        // SAFETY: zeroed sigaction is filled before installation
-        let mut action = unsafe { zeroed::<libc::sigaction>() };
-        // SAFETY: zeroed storage is passed to sigaction as an out parameter
-        let mut segmentation = unsafe { zeroed::<libc::sigaction>() };
-        // SAFETY: zeroed storage is passed to sigaction as an out parameter
-        let mut bus = unsafe { zeroed::<libc::sigaction>() };
-        action.sa_flags = libc::SA_SIGINFO;
-        action.sa_sigaction = handle_write_watch as *const () as usize;
-
-        // SAFETY: action contains storage for one signal mask
-        if unsafe { libc::sigemptyset(&mut action.sa_mask) } != 0 {
-            return Err(last_system_error(MemoryOperation::InstallWriteWatch, None));
-        }
-
-        // SAFETY: action contains a valid SA_SIGINFO handler
-        if unsafe { libc::sigaction(libc::SIGSEGV, &action, &mut segmentation) } != 0 {
-            return Err(last_system_error(MemoryOperation::InstallWriteWatch, None));
-        }
-
-        // SAFETY: action contains a valid SA_SIGINFO handler
-        if unsafe { libc::sigaction(libc::SIGBUS, &action, &mut bus) } != 0 {
-            let error = last_system_error(MemoryOperation::InstallWriteWatch, None);
-
-            // SAFETY: segmentation was captured while installing SIGSEGV above
-            unsafe {
-                libc::sigaction(libc::SIGSEGV, &segmentation, null_mut());
-            }
-
-            return Err(error);
-        }
-
-        Ok(SignalHandlers { segmentation, bus })
-    });
-
-    handlers.as_ref().map(|_| ()).map_err(Clone::clone)
-}
-
-/// Restore the previous signal handler and raise the signal again.
-fn raise_unhandled_signal(signal: libc::c_int) {
-    let Some(Ok(handlers)) = SIGNAL_HANDLERS.get() else {
-        raise_default_signal(signal);
-
-        return;
+/// Resolve one write fault inside a registered memory space.
+fn handle_write_watch(fault: &mut Fault) -> bool {
+    let address = fault.address();
+    let Some(context) = WriteWatchTable::context(address) else {
+        return false;
     };
 
-    let previous = match signal {
-        libc::SIGSEGV => &handlers.segmentation,
-        libc::SIGBUS => &handlers.bus,
-        _ => {
-            raise_default_signal(signal);
-
-            return;
-        }
-    };
-
-    // SAFETY: previous was captured from sigaction during handler installation
-    unsafe {
-        libc::sigaction(signal, previous, null_mut());
-        libc::raise(signal);
-    }
-}
-
-/// Handle one watched page write.
-unsafe extern "C" fn handle_write_watch(
-    signal: libc::c_int,
-    signal_info: *mut libc::siginfo_t,
-    _context: *mut libc::c_void,
-) {
-    // SAFETY: SA_SIGINFO delivers a valid siginfo pointer for this handler
-    let address = unsafe { (*signal_info).si_addr() as usize };
-
-    // handle writes inside registered memory spaces
-    if let Some(context) = WriteWatchTable::context(address) {
-        // SAFETY: context comes from the write watch table registration
-        if unsafe { watch_page_write(context, address) } {
-            return;
-        }
-    }
-
-    // raise unrelated signals through the previous platform handler
-    raise_unhandled_signal(signal);
-}
-
-/// Restore the default signal handler and raise the signal again.
-fn raise_default_signal(signal: libc::c_int) {
-    // SAFETY: restoring the default handler before re raising delegates the fault
-    unsafe {
-        libc::signal(signal, libc::SIG_DFL);
-        libc::raise(signal);
-    }
+    // SAFETY: context comes from the write watch table registration
+    unsafe { watch_page_write(context, address) }
 }

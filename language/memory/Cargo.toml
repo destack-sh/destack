@@ -17,6 +17,7 @@ parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 
 [target.'cfg(unix)'.dependencies]
+destack_signal = { workspace = true }
 libc = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]
