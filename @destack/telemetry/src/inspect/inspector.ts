@@ -7,21 +7,21 @@ import { describeLog, type LogDescription } from "./log.ts";
 import { describeMetrics, type MetricCollectionDescription } from "./metric.ts";
 
 /** Deliver exported signals to an inspector and track outstanding deliveries. */
-export class Inspector<T> {
+export class Inspector<Value> {
     /** The application's signal consumer. */
-    private readonly receive: (value: T) => void | Promise<void>;
+    private readonly receive: (value: Value) => void | Promise<void>;
     /** Deliveries awaiting completion. */
     private readonly pending = new Set<Promise<void>>();
     /** Whether this exporter has stopped accepting signals. */
     private isClosed = false;
 
     /** Inspect signals without retaining their history. */
-    constructor(receive: (value: T) => void | Promise<void>) {
+    constructor(receive: (value: Value) => void | Promise<void>) {
         this.receive = receive;
     }
 
     /** Deliver signals and report consumer failures through the exporter callback. */
-    export(value: T, callback: (result: ExportResult) => void): void {
+    export(value: Value, callback: (result: ExportResult) => void): void {
         // reject exports after shutdown
         if (this.isClosed) {
             callback({ code: ExportResultCode.FAILED, error: new Error("Inspector is closed.") });

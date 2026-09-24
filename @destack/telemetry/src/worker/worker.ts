@@ -23,11 +23,11 @@ export interface ExecutionContext {
  * Resolve the operation after its instrumented work finishes.
  * Use Telemetry directly when a response stream or background task extends that work.
  */
-export async function withTelemetry<T>(
+export async function withTelemetry<Result>(
     options: TelemetryOptions,
-    operation: (telemetry: Telemetry) => T | Promise<T>,
+    operation: (telemetry: Telemetry) => Result | Promise<Result>,
     context: ExecutionContext,
-): Promise<T> {
+): Promise<Result> {
     const telemetry = new Telemetry(options);
 
     // keep exporters and credentials within their originating invocation

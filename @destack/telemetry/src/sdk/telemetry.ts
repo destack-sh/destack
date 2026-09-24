@@ -141,6 +141,7 @@ export class Telemetry {
             unregister();
         }
 
+        // stop every provider once
         this.shutdownPromise = complete([
             this.traces.shutdown(),
             this.metrics.shutdown(),

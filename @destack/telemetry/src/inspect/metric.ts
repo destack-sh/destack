@@ -39,7 +39,7 @@ const AggregationDescription = schema.object({
     valueType: schema.number().int(),
     temporality: schema.enum(["delta", "cumulative"]),
 });
-/** Histogram summary values. */
+/** The count, sum and bounds of a histogram. */
 const HistogramDescription = schema.object({
     count: schema.number().int(),
     sum: NumberDescription.optional(),

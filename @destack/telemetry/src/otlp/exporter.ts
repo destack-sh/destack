@@ -1,7 +1,5 @@
-/**
- * Export signals over standard OTLP HTTP with explicit URLs and headers.
- * Select browser package conditions for Web bundles, including Workers, to use fetch.
- */
+// export signals over standard OTLP HTTP with explicit URLs and headers
+//  select browser package conditions for Web bundles, including Workers, to use fetch
 export { OTLPTraceExporter } from "@opentelemetry/exporter-trace-otlp-http";
 export {
     AggregationTemporalityPreference,

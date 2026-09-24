@@ -23,6 +23,7 @@ export type SourceDescription = schema.Infer<typeof SourceDescription>;
 export function describeSource(
     attributes: Readonly<Record<string, unknown>>,
 ): SourceDescription | undefined {
+    // read the attribution attributes, absent when none is set
     const manifest = attributes[ATTR_DESTACK_BUILD_MANIFEST];
     const module = attributes[ATTR_DESTACK_CODE_MODULE];
     const name = attributes[ATTR_DESTACK_CODE_SYMBOL];
