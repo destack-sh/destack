@@ -6,6 +6,7 @@ import { credentials } from "../credential/index.ts";
 
 /** Check configuration or operate one explicit deployment. */
 export async function run(arguments_: string[]): Promise<void> {
+    // split the action from its deployment selection
     const [action, ...selection] = arguments_;
 
     // validate each root without opening remote state
@@ -17,7 +18,7 @@ export async function run(arguments_: string[]): Promise<void> {
         // format each source directory once
         invoke(
             ["fmt", ...(action === "check" ? ["-check"] : []), "-recursive", "src", "deployment"],
-            Deno.env.toObject(),
+            { ...process.env },
         );
         if (action === "format") {
             return;
@@ -36,7 +37,7 @@ export async function run(arguments_: string[]): Promise<void> {
             const deployment = new Deployment(selection);
             const directory = deployment.directory;
             const environment = {
-                ...Deno.env.toObject(),
+                ...process.env,
                 TF_DATA_DIR: resolve(ROOT, ".terraform", "check", deployment.name),
             };
             invoke(
@@ -65,7 +66,7 @@ export async function run(arguments_: string[]): Promise<void> {
     }
     const deployment = new Deployment(selection);
     const environment = {
-        ...Deno.env.toObject(),
+        ...process.env,
         ...(await credentials()),
         TF_DATA_DIR: deployment.cache,
     };
@@ -108,7 +109,8 @@ export async function run(arguments_: string[]): Promise<void> {
 }
 
 /** Execute OpenTofu and preserve command failures. */
-function invoke(arguments_: string[], environment: Record<string, string>): void {
+function invoke(arguments_: string[], environment: NodeJS.ProcessEnv): void {
+    // run OpenTofu in the stack root with inherited output
     const command = spawnSync("tofu", arguments_, {
         cwd: ROOT,
         stdio: "inherit",

@@ -84,6 +84,22 @@ import {
   id = "27c0d00fb3a27a4ccbf46a3cceab9301/destack-infrastructure/default"
 }
 
+# adopt the private release buckets created during signing setup
+import {
+  for_each = toset(["stable", "nightly"])
+  to       = cloudflare_r2_bucket.release[each.key]
+  id       = "27c0d00fb3a27a4ccbf46a3cceab9301/destack-releases-${each.key}/default"
+}
+
+import {
+  for_each = {
+    stable  = "d4bd193a60af41f2b977804a72c6e185"
+    nightly = "41b2441b048c49739daedc8c02cbc381"
+  }
+  to = cloudflare_workers_route.release[each.key]
+  id = "c294d5aa316a6f11a90b4f9ccbdfcad2/${each.value}"
+}
+
 import {
   to = cloudflare_dns_record.site
   id = "c294d5aa316a6f11a90b4f9ccbdfcad2/5c6afa58c3dbd04f2e4a6e1678b9577d"

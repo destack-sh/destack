@@ -18,6 +18,7 @@ export class Deployment {
 
     /** Select shared infrastructure or one environment and scope. */
     constructor(selection: string[]) {
+        // select the shared root, or one environment and scope
         const [environment, scope] = selection;
         if (selection.length === 1 && environment === "shared") {
             this.name = "shared";

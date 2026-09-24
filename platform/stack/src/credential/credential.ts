@@ -2,7 +2,8 @@ import { createHash } from "node:crypto";
 
 /** Resolve existing deployment credentials for Cloudflare and R2 state storage. */
 export async function credentials(): Promise<Record<string, string>> {
-    const token = Deno.env.get("CLOUDFLARE_COMPANY_API_TOKEN");
+    // require the company Cloudflare token
+    const token = process.env["CLOUDFLARE_COMPANY_API_TOKEN"];
     if (!token) {
         throw new Error("CLOUDFLARE_COMPANY_API_TOKEN is required");
     }
@@ -18,10 +19,13 @@ export async function credentials(): Promise<Record<string, string>> {
     if (!response.ok) {
         throw new Error(`Cloudflare token verification failed: ${response.status}.`);
     }
-    const verification = await response.json();
+    const verification = (await response.json()) as {
+        success: boolean;
+        result?: { status: string; id: string };
+    };
     if (
         !verification.success ||
-        verification.result.status !== "active" ||
+        verification.result?.status !== "active" ||
         typeof verification.result.id !== "string"
     ) {
         throw new Error("cloudflare deployment token is inactive or invalid");
