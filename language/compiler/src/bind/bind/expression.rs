@@ -34,7 +34,7 @@ impl Compiler {
             dir::Expression::Let {
                 export,
                 mutability,
-                place,
+                is_shared,
                 declarators,
                 ..
             } => {
@@ -43,7 +43,7 @@ impl Compiler {
                 let modifiers = BindingModifiers {
                     export: *export,
                     mutability: Some(*mutability),
-                    space: place.map(dir::PlaceModifier::space),
+                    is_shared: *is_shared,
                     kind: dir::SymbolKind::Variable,
                 };
                 self.bind_declarators(state, tree, declarators, modifiers);
@@ -59,7 +59,7 @@ impl Compiler {
                 let modifiers = BindingModifiers {
                     export: None,
                     mutability: Some(*mutability),
-                    space: None,
+                    is_shared: false,
                     kind: dir::SymbolKind::Variable,
                 };
                 self.bind_declarators(state, tree, &[*declarator], modifiers);
@@ -75,7 +75,7 @@ impl Compiler {
                 let modifiers = BindingModifiers {
                     export: *export,
                     mutability: Some(dir::Mutability::Immutable),
-                    space: None,
+                    is_shared: false,
                     kind: dir::SymbolKind::Variable,
                 };
                 self.bind_declarators(state, tree, declarators, modifiers);
@@ -259,7 +259,7 @@ impl Compiler {
                     let modifiers = BindingModifiers {
                         export: None,
                         mutability: Some(*mutability),
-                        space: None,
+                        is_shared: false,
                         kind: dir::SymbolKind::Variable,
                     };
                     self.bind_declarators(state, tree, &[*declarator], modifiers);
@@ -307,7 +307,7 @@ impl Compiler {
         let modifiers = BindingModifiers {
             export: None,
             mutability,
-            space: None,
+            is_shared: false,
             kind: dir::SymbolKind::Variable,
         };
         state.push_binding_modifiers(modifiers);
@@ -440,7 +440,7 @@ impl Compiler {
             state.push_binding_modifiers(BindingModifiers {
                 export: None,
                 mutability: Some(dir::Mutability::Mutable),
-                space: None,
+                is_shared: false,
                 kind: dir::SymbolKind::Variable,
             });
             state.visit_pattern(tree, pattern, pattern_node);
@@ -456,7 +456,7 @@ impl Compiler {
             let modifiers = BindingModifiers {
                 export: None,
                 mutability: Some(dir::Mutability::Mutable),
-                space: None,
+                is_shared: false,
                 kind: dir::SymbolKind::Variable,
             };
             let symbol_id = state.insert_binding_symbol(dir::StaticKey::Name(*name), modifiers);

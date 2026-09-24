@@ -16,8 +16,8 @@ pub(in crate::bind) struct BindingModifiers {
     pub(in crate::bind) export: Option<dir::ExportKind>,
     /// The mutability attached to introduced value symbols.
     pub(in crate::bind) mutability: Option<dir::Mutability>,
-    /// The explicit storage space attached to introduced value symbols.
-    pub(in crate::bind) space: Option<dir::Space>,
+    /// Whether introduced value symbols live in shared storage.
+    pub(in crate::bind) is_shared: bool,
     /// The symbol kind of introduced value symbols.
     pub(in crate::bind) kind: dir::SymbolKind,
 }
@@ -31,7 +31,7 @@ pub(in crate::bind) struct BindState<'a> {
 
     /// The lexical scope stack.
     pub(in crate::bind) scope_stack: Vec<dir::LocalScopeId>,
-    /// The conditional type scopes that own active `infer` binders.
+    /// The conditional type scopes that hold active `infer` binders.
     pub(in crate::bind) infer_scope_stack: Vec<dir::LocalScopeId>,
     /// The active binding modifier stack.
     binding_modifier_stack: Vec<BindingModifiers>,
@@ -212,7 +212,7 @@ impl<'a> BindState<'a> {
             .expect("bind infer scope stack underflow");
     }
 
-    /// Return the conditional type scope that owns active infer binders.
+    /// Return the conditional type scope that holds active `infer` binders.
     pub(in crate::bind) fn infer_scope(&self) -> Option<dir::LocalScopeId> {
         self.infer_scope_stack.last().copied()
     }
@@ -314,7 +314,7 @@ impl<'a> BindState<'a> {
         // retain source modifiers on the durable symbol
         let symbol = self.bindings.get_symbol_mut(symbol_id);
         symbol.binding_mutability = modifiers.mutability;
-        symbol.binding_space = modifiers.space;
+        symbol.is_shared = modifiers.is_shared;
 
         symbol_id
     }
@@ -379,7 +379,7 @@ impl<'a> BindState<'a> {
             dir::SymbolKind::Label,
             Some(dir::StaticKey::Name(name)),
             None,
-            dir::SymbolVisibility::Control,
+            dir::SymbolVisibility::Hidden,
         );
         self.declare_symbol(symbol_id, node_id);
     }

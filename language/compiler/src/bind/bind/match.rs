@@ -22,7 +22,7 @@ impl Compiler {
         state.push_binding_modifiers(BindingModifiers {
             export: None,
             mutability: Some(dir::Mutability::Immutable),
-            space: None,
+            is_shared: false,
             kind: dir::SymbolKind::Variable,
         });
         state.visit_pattern(tree, pattern, pattern_node);

@@ -233,7 +233,7 @@ impl Compiler {
         let modifiers = BindingModifiers {
             export: None,
             mutability: None,
-            space: None,
+            is_shared: false,
             kind: dir::SymbolKind::Parameter,
         };
         let symbol_id = state.insert_binding_symbol(key, modifiers);
@@ -252,7 +252,7 @@ impl Compiler {
         let modifiers = BindingModifiers {
             export: None,
             mutability: None,
-            space: None,
+            is_shared: false,
             kind: dir::SymbolKind::Parameter,
         };
         state.push_binding_modifiers(modifiers);
