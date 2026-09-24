@@ -33,7 +33,9 @@ impl Compiler {
             ArtifactKey::EnvironmentDeclared { profile } => {
                 self.collect_environment_declared(profile, context)
             }
-            ArtifactKey::ModuleGraph { profile } => self.collect_module_graph(profile, context),
+            ArtifactKey::ModuleGraph { package, profile } => {
+                self.collect_module_graph(package, profile, context)
+            }
             ArtifactKey::ProgramAnalysis { profile, target } => {
                 self.collect_program_analysis(profile, target, context)
             }
@@ -63,6 +65,9 @@ impl Compiler {
             }
             ArtifactKey::DirMaterialized { module, profile } => {
                 self.collect_dir_stage(module, profile, Pass::Materialize)
+            }
+            ArtifactKey::DirAnalyzed { module, profile } => {
+                self.collect_dir_stage(module, profile, Pass::Analyze)
             }
             ArtifactKey::MirDeclared {
                 module,
@@ -159,7 +164,9 @@ impl Compiler {
             ArtifactKey::EnvironmentDeclared { profile } => {
                 self.provide_environment_declared(profile, context)
             }
-            ArtifactKey::ModuleGraph { profile } => self.provide_module_graph(profile, context),
+            ArtifactKey::ModuleGraph { package, profile } => {
+                self.provide_module_graph(package, profile, context)
+            }
             ArtifactKey::ProgramAnalysis { profile, target } => {
                 self.provide_program_analysis(profile, target, context)
             }
@@ -189,6 +196,9 @@ impl Compiler {
             }
             ArtifactKey::DirMaterialized { module, profile } => {
                 self.provide_dir_stage(module, profile, context, Pass::Materialize)
+            }
+            ArtifactKey::DirAnalyzed { module, profile } => {
+                self.provide_dir_stage(module, profile, context, Pass::Analyze)
             }
             ArtifactKey::MirDeclared {
                 module,
