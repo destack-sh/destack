@@ -125,6 +125,9 @@ pub enum Space {
 }
 
 impl Space {
+    /// The spaces a heap allocation lives in.
+    pub const HEAPS: [Space; 2] = [Space::Local, Space::Shared];
+
     /// Return whether this is worker-local runtime storage.
     pub fn is_local(&self) -> bool {
         matches!(self, Space::Local)
