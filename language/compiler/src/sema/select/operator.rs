@@ -233,9 +233,7 @@ impl CheckState<'_> {
         let left_value = self.expression_value(left_site, left)?;
 
         // select the protocol at the operand's value, an owned operand at its default form
-        let protocol_operand = self
-            .default_form_of_owned(right_value)?
-            .unwrap_or(right_value);
+        let protocol_operand = self.owned_value(right_value)?.unwrap_or(right_value);
         let protocols = binary_operator_protocols(operator);
         let mut rejection = None;
         for protocol in protocols.iter() {
