@@ -13,7 +13,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Verdict> {
-        self.decide_guarded(
+        self.decide_recorded(
             origin,
             ty,
             dir::AutoInterface::DynamicSafe,
@@ -36,7 +36,7 @@ impl CheckState<'_> {
         match kind {
             // leave an open variable or canonical hole undecided
             dir::Type::Variable(_) => Ok(Verdict::Ambiguous),
-            // accept region terms outright, they carry no runtime values
+            // accept region terms, which have no runtime values
             dir::Type::Region(_) => Ok(Verdict::Holds),
             // look through the refinement to its base
             dir::Type::Refined(refined) => {

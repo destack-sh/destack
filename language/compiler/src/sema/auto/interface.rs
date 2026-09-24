@@ -36,7 +36,7 @@ impl CheckState<'_> {
             let (module, application) = self.nominal_application(target)?;
             let arguments = self.type_ids(module, application.arguments)?;
 
-            // read an elided argument as the receiver itself
+            // read the compared operand the application writes
             let other = match arguments {
                 [] => None,
                 [other] => Some(*other),
@@ -68,9 +68,17 @@ impl CheckState<'_> {
                     return Ok(Verdict::decided(is_equatable));
                 }
 
-                // a derived binary interface compares the receiver with itself
+                // compare the receiver with itself, an open operand waiting, a literal widened
+                if !self.collect_open_variables([other])?.is_empty() {
+                    return Ok(Verdict::Ambiguous);
+                }
+                let compared = match self.is_literal_shape(ty)? {
+                    true => self.widen_type(ty)?,
+                    false => ty,
+                };
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                let receiver = self.constrain_type(origin, cause, Relation::Equal, other, ty)?;
+                let receiver =
+                    self.constrain_type(origin, cause, Relation::Equal, other, compared)?;
                 if receiver != Verdict::Holds {
                     return Ok(receiver);
                 }
@@ -129,16 +137,15 @@ impl CheckState<'_> {
             return Ok(Verdict::decided(decision));
         }
 
-        // let a written derive list replace the auto set of its declaration
-        if interface.is_auto_derivable()
-            && let dir::Type::Application(instance) = self.ty(ty)?
-        {
-            let excluded = self
-                .definition(instance.symbol)?
-                .as_deref()
-                .and_then(dir::Definition::derives)
-                .is_some_and(|derives| !derives.contains(&interface));
-            if excluded {
+        // let a derive list or a negative implementation refuse the interface
+        if let dir::Type::Application(instance) = self.ty(ty)? {
+            let excluded = interface.is_auto_derivable()
+                && self
+                    .definition(instance.symbol)?
+                    .as_deref()
+                    .and_then(dir::Definition::derives)
+                    .is_some_and(|derives| !derives.contains(&interface));
+            if excluded || self.declares_negative(instance.symbol, interface)? {
                 if let Some(key) = key {
                     self.conformances.insert(key, false);
                 }
@@ -167,9 +174,6 @@ impl CheckState<'_> {
             dir::AutoInterface::Copy => self.decide_copy(origin, ty, &mut active),
             dir::AutoInterface::Drop => self.decide_drop(origin, ty, &mut active),
             dir::AutoInterface::SharedSafe => self.is_shared_safe(origin, ty).map(Verdict::decided),
-            dir::AutoInterface::SuspendSafe => {
-                self.is_suspend_safe(origin, ty).map(Verdict::decided)
-            }
             dir::AutoInterface::Concrete => self.is_concrete(origin, ty).map(Verdict::decided),
             dir::AutoInterface::StrictEqual => self
                 .has_strict_equal_conformance(origin, ty, ty)
@@ -195,7 +199,7 @@ impl CheckState<'_> {
                         .unwrap_or(false),
                 ))
             }
-            // leave defaults and serialization to written derives
+            // leave serialization to explicit derives
             dir::AutoInterface::Serialize | dir::AutoInterface::Deserialize => Ok(Verdict::Fails),
         }?;
 
@@ -207,6 +211,30 @@ impl CheckState<'_> {
         }
 
         Ok(verdict)
+    }
+
+    /// Return whether one nominal or one of its root extensions negatively implements an interface.
+    pub(in crate::sema) fn declares_negative(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        interface: dir::AutoInterface,
+    ) -> CompilerResult<bool> {
+        let item = dir::LanguageItem::from(interface);
+        for conformer in self.nominal_conformers(symbol)? {
+            let Some(definition) = self.definition(conformer)? else {
+                continue;
+            };
+            for negative in definition.negatives() {
+                let Some(negated) = self.ty(negative.interface)?.symbol() else {
+                    continue;
+                };
+                if self.language_item(negated)? == Some(item) {
+                    return Ok(true);
+                }
+            }
+        }
+
+        Ok(false)
     }
 
     /// Decide auto conformance for one generic type.

@@ -1,7 +1,7 @@
 use destack_dir as dir;
 
-use crate::sema::derive::{Component, ComponentCall, ComponentProjection, Composite, Derivation};
-use crate::sema::{CheckState, Origin, Value};
+use crate::sema::derive::{Component, ComponentProjection, Composite, Derivation};
+use crate::sema::{CheckState, Origin, ProtocolCall, Value};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -20,7 +20,7 @@ impl CheckState<'_> {
         // read through the memory forms to the value they hold
         if let dir::Type::Form(form) = kind {
             return match form.form {
-                dir::Form::Managed { .. } | dir::Form::Borrowed(_) | dir::Form::Raw => Ok(None),
+                dir::Form::Borrowed(_) | dir::Form::Raw => Ok(None),
                 dir::Form::Readonly | dir::Form::Owned => self.derived_family(origin, form.value),
             };
         }
@@ -100,7 +100,15 @@ impl CheckState<'_> {
     ) -> CompilerResult<Vec<Component>> {
         // read the place the components live at: the receiver's own region and space
         let place = match frame.this {
-            Some(this) => self.derived_this_place(origin, this)?,
+            Some(this) => Some(self.value_place(
+                origin,
+                Value {
+                    ty: this,
+                    node: None,
+                    place: None,
+                    is_fresh: false,
+                },
+            )?),
             None => None,
         };
         let mut selected = Vec::with_capacity(components.len());
@@ -108,35 +116,14 @@ impl CheckState<'_> {
             // skip the protocol call for a unit member
             let call = match self.is_unit_type(ty)? {
                 true => None,
-                false => {
-                    let Some(mut call) =
-                        self.derived_component_call(origin, ty, place, ty, interface, item)?
-                    else {
-                        selected.push(Component {
-                            read,
-                            ty,
-                            call: None,
-                        });
-
-                        continue;
-                    };
-
-                    // solve the regions the member's own this and parameters supply
-                    self.solve_derived_call_regions(frame, origin, &mut call.call)?;
-
-                    // borrow the component at the receiver's own region
-                    if let dir::CallableTarget::Symbol { function, .. } = &mut call.call.target
-                        && let Some(receiver) = &mut function.receiver
-                    {
-                        for adjustment in &mut receiver.adjustments {
-                            if let dir::ReceiverAdjustment::Borrow { ty: borrowed } = adjustment {
-                                *borrowed = self.borrowed_like(frame.this, ty)?;
-                            }
-                        }
-                    }
-
-                    Some(call)
-                }
+                false => Some(self.derived_component_call(
+                    origin,
+                    ty,
+                    place,
+                    interface,
+                    item,
+                    frame.parameters.first().map(|parameter| parameter.2),
+                )?),
             };
             selected.push(Component { read, ty, call });
         }
@@ -218,275 +205,73 @@ impl CheckState<'_> {
             return self.intern_type(dir::Type::Form(dir::FormType { form, value: ty }));
         }
 
-        // borrow every other value for the protocol to read
-        match self.frame_borrow_of(ty, dir::Access::Readonly)? {
+        // borrow every other value for the protocol to read through its storage
+        match self.frame_borrow_of(ty, dir::Access::Immutable)? {
             Some(borrowed) => Ok(borrowed),
             None => Ok(ty),
         }
     }
 
-    /// Select the protocol call one component runs over the value reading it.
+    /// Select the protocol call one component runs over itself.
     pub(super) fn derived_component_call(
         &mut self,
         origin: Origin,
-        value: dir::GlobalTypeId,
-        place: Option<dir::PlaceResolution>,
         component: dir::GlobalTypeId,
+        place: Option<dir::PlaceResolution>,
         interface: dir::AutoInterface,
         item: dir::LanguageMember,
-    ) -> CompilerResult<Option<ComponentCall>> {
-        // bind the peer the comparison takes and the state the hash writes
-        let (space, written, sources): (_, &[dir::GlobalTypeId], &[dir::ArgumentSource]) =
-            match interface {
-                dir::AutoInterface::Equal | dir::AutoInterface::PartialEqual => (
-                    dir::MemberSpace::Instance,
-                    &[component],
-                    &[dir::ArgumentSource::Supplied(0)],
-                ),
-                dir::AutoInterface::Hash => (
-                    dir::MemberSpace::Instance,
-                    &[],
-                    &[dir::ArgumentSource::Supplied(0)],
-                ),
-                dir::AutoInterface::Default => (dir::MemberSpace::Static, &[], &[]),
-                _ => (dir::MemberSpace::Instance, &[], &[]),
-            };
+        argument: Option<dir::GlobalTypeId>,
+    ) -> CompilerResult<ProtocolCall> {
+        // shape the protocol member by its interface: its space, type arguments, and argument
+        let (space, type_arguments, sources): (_, &[dir::GlobalTypeId], Vec<_>) = match interface {
+            dir::AutoInterface::Equal | dir::AutoInterface::PartialEqual => {
+                let mut sources = Vec::new();
+                if let Some(argument) = argument {
+                    let other = self.borrowed_like(Some(argument), component)?;
+                    sources.push(dir::ArgumentSource::Static(other));
+                }
 
-        // select the protocol member over the value the component reads, at the receiver's place
+                (dir::MemberSpace::Instance, &[component], sources)
+            }
+            dir::AutoInterface::Hash => (
+                dir::MemberSpace::Instance,
+                &[],
+                argument
+                    .map(dir::ArgumentSource::Static)
+                    .into_iter()
+                    .collect(),
+            ),
+            dir::AutoInterface::Default => (dir::MemberSpace::Static, &[], Vec::new()),
+            _ => (dir::MemberSpace::Instance, &[], Vec::new()),
+        };
+
+        // select the protocol member over the component, at the receiver's place
         let receiver = Value {
-            ty: value,
+            ty: component,
             node: None,
             place,
             is_fresh: false,
         };
         let selected = self.select_language_protocol_call(
-            origin, receiver, component, space, item.key, item.owner, written, written, sources,
+            origin,
+            receiver,
+            component,
+            space,
+            item.key,
+            item.owner,
+            type_arguments,
+            type_arguments,
+            &sources,
         )?;
         let Some((_, call)) = selected else {
             return Err(CompilerError::Internal {
-                message: format!("a derived component of {component:?} outside its protocol"),
+                message: format!(
+                    "a derived component of {} outside its protocol",
+                    self.format_type(component)
+                ),
             });
         };
 
-        // take the member and call a single resolution names
-        match (call.member, call.resolution) {
-            (dir::OperationResolution::One(member), dir::OperationResolution::One(call)) => {
-                Ok(Some(ComponentCall { member, call }))
-            }
-            // dispatch a union beneath the component per arm
-            _ => self.derived_whole_component_call(origin, value, component, item, space),
-        }
-    }
-
-    /// Solve every region one derived body's call leaves open: the callee's receiver region at
-    /// the member's own this region, each value parameter's region at the member's parameter
-    /// supplied at that position, the body reading its own arguments through them.
-    pub(super) fn solve_derived_call_regions(
-        &mut self,
-        frame: &Derivation,
-        origin: Origin,
-        call: &mut dir::Call,
-    ) -> CompilerResult<()> {
-        let dir::CallableTarget::Symbol { function, .. } = &call.target else {
-            return Ok(());
-        };
-        let symbol = function.key.symbol;
-        let declared = self.symbol_type(symbol)?;
-        let Some(head) = self.signature_head(declared)? else {
-            return Ok(());
-        };
-
-        // pair each region parameter of the callee with the extent the member supplies: its own
-        // this region, or the frame holding a this it takes by value
-        let mut supplied = Vec::new();
-        if let Some(this) = head.this_parameter
-            && let Some(parameter) = self.region_parameter_of(Origin::Symbol(symbol), this)?
-            && let Some(own) = frame.this
-        {
-            let extent = match self.form_chain(origin, own)?.region() {
-                Some(held) => self.region_extent(held)?,
-                None => self.lifetime_literal(dir::Lifetime::Frame)?,
-            };
-            supplied.push((parameter, extent));
-        }
-        let parameters = self
-            .signature_parameters(declared.module_id, head.parameters)?
-            .to_vec();
-        for (index, parameter) in parameters.iter().enumerate() {
-            if let Some(region) = self.region_parameter_of(Origin::Symbol(symbol), parameter.ty)?
-                && let Some((_, _, own)) = frame.parameters.get(index)
-                && let Some(held) = self.form_chain(origin, *own)?.region()
-            {
-                let extent = self.region_extent(held)?;
-                supplied.push((region, extent));
-            }
-        }
-
-        // solve each open region at the extent supplied for it
-        for binding in &mut call.regions {
-            let Some(variable) = self.root_variable(binding.argument)? else {
-                continue;
-            };
-            let Some((_, extent)) = supplied
-                .iter()
-                .find(|(parameter, _)| *parameter == binding.parameter)
-            else {
-                continue;
-            };
-            self.commit_solution(variable, *extent)?;
-            binding.argument = self.shallow_resolve(binding.argument)?;
-        }
-
-        Ok(())
-    }
-
-    /// Return the region parameter one declared borrow names as its extent.
-    fn region_parameter_of(
-        &mut self,
-        origin: Origin,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::GlobalGenericParameterId>> {
-        let Some(region) = self.form_chain(origin, ty)?.region() else {
-            return Ok(None);
-        };
-        let extent = self.region_extent(region)?;
-        Ok(match self.ty(extent)? {
-            dir::Type::Parameter(parameter) => Some(parameter),
-            _ => None,
-        })
-    }
-
-    /// Return the place one derived member's components live at, projected from its this.
-    fn derived_this_place(
-        &mut self,
-        origin: Origin,
-        this: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::PlaceResolution>> {
-        let chain = self.form_chain(origin, this)?;
-        let Some(region) = chain.region() else {
-            return Ok(None);
-        };
-        let (lifetime, placement) = match self.ty(region)? {
-            dir::Type::Region(pair) => (pair.extent, pair.space),
-            _ => {
-                let placement = match chain.place() {
-                    Some(place) => place,
-                    None => self.local_place()?,
-                };
-
-                (region, placement)
-            }
-        };
-        let access = match chain.is_readonly() {
-            true => dir::Access::Readonly,
-            false => dir::Access::Mutable,
-        };
-        let access = self.access_literal(access)?;
-
-        Ok(Some(dir::PlaceResolution {
-            placement,
-            lifetime,
-            access,
-        }))
-    }
-
-    /// Return the call of one component's own derived member.
-    fn derived_whole_component_call(
-        &mut self,
-        origin: Origin,
-        value: dir::GlobalTypeId,
-        component: dir::GlobalTypeId,
-        item: dir::LanguageMember,
-        space: dir::MemberSpace,
-    ) -> CompilerResult<Option<ComponentCall>> {
-        // find the requirement the interface declares under the member's key
-        let interface = self.language_symbol(item.owner)?;
-        let declared = self.definition(interface)?;
-        let Some(dir::Definition::Interface(definition)) = declared.as_deref() else {
-            return Err(CompilerError::Internal {
-                message: "a derived protocol outside an interface".to_owned(),
-            });
-        };
-        let requirement = definition.members.iter().find_map(|member| match member {
-            dir::DefinitionMember::Method(method) if member.key() == Some(item.key) => {
-                Some(method.symbol)
-            }
-            _ => None,
-        });
-        let Some(requirement) = requirement else {
-            return Err(CompilerError::Internal {
-                message: "a derived protocol without its requirement".to_owned(),
-            });
-        };
-
-        // synthesize the component's own member at its normal form, an alias read through
-        let component = self.normalize(origin, component)?;
-        let Origin::Node(source, _) = origin else {
-            return Err(CompilerError::Internal {
-                message: "a derived component outside a node origin".to_owned(),
-            });
-        };
-        let Some(synthesized) = self.build_derived_member(requirement, component, &[], source)?
-        else {
-            return Ok(None);
-        };
-
-        // call the member through a borrow of the component, typed by the caller afterwards
-        let key =
-            dir::InstanceKey::new(synthesized.symbol, Vec::new()).with_receiver(Some(component));
-        let Some((_, signature)) = self.callable_signature_type(origin, synthesized.callable)?
-        else {
-            return Err(CompilerError::Internal {
-                message: "a derived member without a signature".to_owned(),
-            });
-        };
-        let return_type = match signature.return_type {
-            Some(ty) => ty,
-            None => self.intern_type(dir::Type::Void)?,
-        };
-        let receiver = dir::AdjustedReceiver {
-            source: value,
-            adjustments: vec![dir::ReceiverAdjustment::Borrow { ty: value }],
-        };
-        let candidate = dir::MemberCandidate {
-            receiver: dir::MemberReceiver::Direct(receiver.clone()),
-            space,
-            owner: interface,
-            access_type: synthesized.callable,
-            callable_type: Some(synthesized.callable),
-            key: key.clone(),
-            regions: Vec::new(),
-        };
-        let member = dir::MemberAccess::new(
-            value,
-            dir::MemberTarget::Symbol(candidate),
-            synthesized.callable,
-        );
-        let arguments = synthesized
-            .parameters()
-            .enumerate()
-            .map(|(index, (_, ty))| dir::ArgumentBinding {
-                coercion: None,
-                parameter_type: ty,
-                argument_type: ty,
-                source: dir::ArgumentSource::Supplied(index as u32),
-            })
-            .collect();
-        let call = dir::Call {
-            regions: Vec::new(),
-            target: dir::CallableTarget::Symbol {
-                function: dir::FunctionTarget {
-                    receiver: Some(receiver),
-                    generic_scope: None,
-                    key,
-                },
-                dispatch: dir::FunctionDispatch::Direct,
-            },
-            callable_type: synthesized.callable,
-            arguments,
-            return_type,
-        };
-
-        Ok(Some(ComponentCall { member, call }))
+        Ok(call)
     }
 }

@@ -1,6 +1,6 @@
 use destack_dir as dir;
 
-use crate::sema::derive::{Component, ComponentCall, ComponentProjection, Composite, Derivation};
+use crate::sema::derive::{Component, ComponentProjection, Composite, Derivation};
 use crate::sema::{CheckState, Origin, Value};
 use crate::{CompilerError, CompilerResult};
 
@@ -164,26 +164,18 @@ impl CheckState<'_> {
             dir::LanguageItem::Cow,
             &[],
             &[],
-            &[dir::ArgumentSource::Supplied(0)],
+            &[dir::ArgumentSource::Static(string)],
         )?
         else {
             return Err(CompilerError::Internal {
                 message: "a formatting result without its owned constructor".to_owned(),
             });
         };
-        let (dir::OperationResolution::One(member), dir::OperationResolution::One(call)) =
-            (call.member, call.resolution)
-        else {
-            return Err(CompilerError::Internal {
-                message: "an owned constructor selected over a union".to_owned(),
-            });
-        };
 
         // call that constructor on the result type over the rendered text
-        let selected = ComponentCall { member, call };
         let receiver = self.build_type_value(frame, result)?;
 
-        self.build_call(frame, receiver, key, &selected, vec![(text, string)])
+        self.build_call(frame, receiver, key, &call, vec![text])
     }
 
     /// Return the declared name of one symbol, empty when anonymous.

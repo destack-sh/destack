@@ -1,4 +1,3 @@
-mod class;
 mod component;
 mod construct;
 mod dependent;
@@ -9,6 +8,4 @@ mod node;
 mod text;
 mod union;
 
-pub(in crate::sema) use member::{
-    Component, ComponentCall, ComponentProjection, Composite, Derivation,
-};
+pub(in crate::sema) use member::{Component, ComponentProjection, Composite, Derivation};

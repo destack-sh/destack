@@ -39,12 +39,7 @@ impl CheckState<'_> {
         // assemble the receiver from those values, a class owning the object its handle names
         let result = match shape {
             Composite::Class(_) => {
-                let object = match self.ty(frame.receiver)? {
-                    dir::Type::Form(form) if matches!(form.form, dir::Form::Managed { .. }) => {
-                        form.value
-                    }
-                    _ => frame.receiver,
-                };
+                let object = frame.receiver;
 
                 self.intern_type(dir::Type::Form(dir::FormType {
                     form: dir::Form::Owned,
@@ -166,6 +161,7 @@ impl CheckState<'_> {
                         dir::ConstructTarget::Newtype {
                             key,
                             backing: component.ty,
+                            arm: None,
                         },
                         vec![dir::ArgumentBinding {
                             coercion: None,

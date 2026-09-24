@@ -2,12 +2,12 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::CompilerResult;
 use crate::sema::{CheckState, Origin, Verdict};
+use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Decide one auto interface over a normalized head under the coinductive guard.
-    pub(in crate::sema) fn decide_guarded(
+    pub(in crate::sema) fn decide_recorded(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
@@ -19,10 +19,18 @@ impl CheckState<'_> {
             &mut SmallVec<[dir::GlobalTypeId; 8]>,
         ) -> CompilerResult<Verdict>,
     ) -> CompilerResult<Verdict> {
-        // unfold aliases, then use bounds declared by generic types
+        // answer a closed type of this module from its recorded verdict, as given or normalized
+        let unreduced = ty;
+        if unreduced.module_id == self.module_id
+            && let Some(holds) = self.module.representations_tail.auto(unreduced, interface)
+        {
+            return Ok(Verdict::decided(holds));
+        }
         let ty = self.normalize(origin, ty)?;
-        if let Some(decision) = self.decide_generic_auto_interface(origin, ty, interface)? {
-            return Ok(Verdict::decided(decision));
+        if ty.module_id == self.module_id
+            && let Some(holds) = self.module.representations_tail.auto(ty, interface)
+        {
+            return Ok(Verdict::decided(holds));
         }
 
         // close recursive structural types coinductively
@@ -31,11 +39,74 @@ impl CheckState<'_> {
         }
         active.push(ty);
 
-        // restore the active guard after this decision
-        let result = decide(self, ty, active);
+        // decide by the bounds a generic type declares, else by the components
+        let verdict = match self.decide_generic_auto_interface(origin, ty, interface)? {
+            Some(decision) => Verdict::decided(decision),
+            None => decide(self, ty, active)?,
+        };
         active.pop();
 
-        result
+        // record a refusal at any depth, a holding verdict only outside every enclosing decision
+        let is_recorded = match verdict {
+            Verdict::Fails => true,
+            Verdict::Holds => active.is_empty(),
+            Verdict::Ambiguous => false,
+        };
+        if is_recorded {
+            for recorded in [ty, unreduced] {
+                let flags = self.type_flags(recorded)?;
+                let is_closed = !flags.has_variable() && !flags.has_error() && !flags.has_this();
+                if recorded.module_id == self.module_id && is_closed {
+                    self.module.representations_tail.set_auto(
+                        recorded,
+                        interface,
+                        verdict == Verdict::Holds,
+                    );
+                }
+            }
+        }
+
+        Ok(verdict)
+    }
+
+    /// Return the payload of one transparent payload intrinsic, none for every other application.
+    pub(in crate::sema) fn transparent_payload(
+        &mut self,
+        module: ModuleId,
+        instance: &dir::GenericApplication,
+    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // require a transparent payload intrinsic
+        let item = self.language_item(instance.symbol)?;
+        if !matches!(
+            item,
+            Some(
+                dir::LanguageItem::UnsafeCell
+                    | dir::LanguageItem::ManuallyDrop
+                    | dir::LanguageItem::MaybeUninit
+                    | dir::LanguageItem::Wrapping
+                    | dir::LanguageItem::Pin
+            )
+        ) {
+            return Ok(None);
+        }
+
+        // read the payload argument
+        let arguments = self.type_ids(module, instance.arguments)?;
+        let Some(payload) = arguments.first().copied() else {
+            return Err(CompilerError::Internal {
+                message: format!("{item:?} applied without its payload argument"),
+            });
+        };
+
+        Ok(Some(payload))
+    }
+
+    /// Refuse one stuck head, an open one staying undecided.
+    pub(in crate::sema) fn stuck_verdict(&self, ty: dir::GlobalTypeId) -> CompilerResult<Verdict> {
+        Ok(match self.type_flags(ty)?.has_variable() {
+            true => Verdict::Ambiguous,
+            false => Verdict::Fails,
+        })
     }
 
     /// Decide one judgment over every component type, stopping at the first refusal.
@@ -104,6 +175,29 @@ impl CheckState<'_> {
 
             decide(state, applied)
         })
+    }
+
+    /// Collect the types one object declaration stores inline, with its base class.
+    pub(in crate::sema) fn stored_object_types(
+        &mut self,
+        definition: &dir::Definition,
+    ) -> CompilerResult<Option<SmallVec<[dir::GlobalTypeId; 8]>>> {
+        match definition {
+            dir::Definition::Struct(definition) => {
+                Ok(Some(self.stored_field_types(&definition.members)?))
+            }
+            dir::Definition::Class(definition) => {
+                let mut fields = self.stored_field_types(&definition.members)?;
+                fields.extend(definition.extends.iter().map(|heritage| heritage.ty));
+
+                Ok(Some(fields))
+            }
+            dir::Definition::TypeAlias(_)
+            | dir::Definition::Interface(_)
+            | dir::Definition::Enum(_)
+            | dir::Definition::Newtype(_)
+            | dir::Definition::Extension(_) => Ok(None),
+        }
     }
 
     /// Collect the stored field types one declaration holds, in declaration order.

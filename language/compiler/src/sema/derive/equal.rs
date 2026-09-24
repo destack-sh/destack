@@ -22,8 +22,7 @@ impl CheckState<'_> {
             let other = self.build_component_read(frame, peer, peer_type, component)?;
             let borrowed_type = self.borrowed_like(Some(peer_type), component.ty)?;
             let borrowed = self.build_borrow(frame, other, borrowed_type)?;
-            let equal =
-                self.build_component_call(frame, read, component, vec![(borrowed, borrowed_type)])?;
+            let equal = self.build_component_call(frame, read, component, vec![borrowed])?;
             joined = Some(match joined {
                 None => equal,
                 Some(left) => self.build_builtin_binary(

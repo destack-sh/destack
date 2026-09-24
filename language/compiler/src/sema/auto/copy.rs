@@ -1,57 +1,11 @@
-use destack_core::FxIndexSet;
 use destack_dir as dir;
 use destack_source::ModuleId;
 use smallvec::SmallVec;
 
-use crate::sema::{CheckState, Origin, Verdict};
+use crate::sema::{CheckState, Origin, Relation, Verdict};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
-    /// Record the copy verdict of each type this module writes, leaving open types undecided.
-    pub(in crate::sema) fn write_copies(&mut self, module: ModuleId) -> CompilerResult<()> {
-        let node_types = self
-            .module
-            .types
-            .node_types()
-            .chain(self.module.types_tail.node_types())
-            .filter(|(node, _)| node.module_id == module)
-            .collect::<Vec<_>>();
-        for (node, ty) in node_types {
-            let origin = self.anchored_origin(node)?;
-            let mut pending = vec![ty];
-            let mut visited = FxIndexSet::default();
-            while let Some(id) = pending.pop() {
-                if id.module_id != module || !visited.insert(id) {
-                    continue;
-                }
-                self.write_copy(origin, id)?;
-                let kind = self.ty(id)?;
-                self.for_each_type_child(id.module_id, &kind, |child| pending.push(child))?;
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Record whether the values of one type copy, an open or error type staying undecided.
-    fn write_copy(&mut self, origin: Origin, id: dir::GlobalTypeId) -> CompilerResult<()> {
-        if self.module.representations_tail.copies(id).is_some() {
-            return Ok(());
-        }
-        let flags = self.type_flags(id)?;
-        if flags.has_variable() || flags.has_error() || flags.has_this() {
-            return Ok(());
-        }
-        let copies = match self.decide_copy(origin, id, &mut SmallVec::new())? {
-            Verdict::Holds => true,
-            Verdict::Fails => false,
-            Verdict::Ambiguous => return Ok(()),
-        };
-        self.module.representations_tail.set_copies(id, copies);
-
-        Ok(())
-    }
-
     /// Decide whether one type duplicates implicitly without ownership.
     pub(in crate::sema) fn decide_copy(
         &mut self,
@@ -59,7 +13,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Verdict> {
-        self.decide_guarded(
+        self.decide_recorded(
             origin,
             ty,
             dir::AutoInterface::Copy,
@@ -81,14 +35,20 @@ impl CheckState<'_> {
         // decide explicit memory representations before their payload types
         if let dir::Type::Form(form) = kind {
             return match form.form {
-                dir::Form::Managed { .. } | dir::Form::Raw | dir::Form::Readonly => {
-                    Ok(Verdict::Holds)
-                }
+                dir::Form::Raw => Ok(Verdict::Holds),
+                dir::Form::Readonly => self.decide_copy(origin, form.value, active),
                 dir::Form::Owned => self.decide_owned_copy(origin, form.value, active),
+                // copy a borrow whose access proves shared, a closed access by its rung
                 dir::Form::Borrowed(borrow) => {
-                    let access = self.type_borrow(ty.module_id, borrow)?.access;
+                    let borrow = self.type_borrow(ty.module_id, borrow)?;
+                    match self.access_of(borrow.access)? {
+                        Some(access) => Ok(Verdict::decided(access != dir::Access::Exclusive)),
+                        None => {
+                            let shared = self.shared_accesses()?;
 
-                    Ok(Verdict::decided(self.is_readonly_access(access)?))
+                            self.decide_relation(origin, Relation::Subtype, borrow.access, shared)
+                        }
+                    }
                 }
             };
         }
@@ -124,7 +84,7 @@ impl CheckState<'_> {
         match kind {
             // leave an open variable or canonical hole undecided
             dir::Type::Variable(_) => Ok(Verdict::Ambiguous),
-            // accept region terms outright, they carry no runtime values
+            // accept region terms, which have no runtime values
             dir::Type::Region(_) => Ok(Verdict::Holds),
             // look through the refinement to its base
             dir::Type::Refined(refined) => {
@@ -144,16 +104,16 @@ impl CheckState<'_> {
             | dir::Type::Primitive(_)
             | dir::Type::Literal(_)
             | dir::Type::Range(_) => Ok(Verdict::Holds),
-            // copy callable values as their compact runtime handles
-            dir::Type::FunctionSignature(_) => Ok(Verdict::Holds),
+            // copy callable and erased values as their managed fat handles
+            dir::Type::FunctionSignature(_) | dir::Type::Dynamic(_) | dir::Type::Unknown => {
+                Ok(Verdict::Holds)
+            }
             // decide variants through their owning enum
             dir::Type::Variant(member) => self.decide_copy(origin, member.owner, active),
-            // refuse opaque and callable storage
-            dir::Type::Unknown
-            | dir::Type::Intrinsic
+            // refuse opaque storage
+            dir::Type::Intrinsic
             | dir::Type::Member(_)
             | dir::Type::Operation(_)
-            | dir::Type::Dynamic(_)
             | dir::Type::Function(_)
             | dir::Type::Reference(_) => Ok(Verdict::Fails),
             // memory parameters qualify storage and impose none of their own
@@ -164,7 +124,10 @@ impl CheckState<'_> {
             dir::Type::Parameter(_) => Ok(Verdict::Fails),
             // fail loudly on generic forms that survived substitution
             dir::Type::Erased(_) | dir::Type::This => Err(CompilerError::Internal {
-                message: format!("generic type {ty:?} reached structural copy"),
+                message: format!(
+                    "generic type {} reached structural copy",
+                    self.format_type(ty)
+                ),
             }),
             // fail loudly on memory forms decided before this point
             dir::Type::Form(_) => Err(CompilerError::Internal {
@@ -173,7 +136,7 @@ impl CheckState<'_> {
             // decide nominal storage through its declaration, a stuck head staying opaque
             dir::Type::Application(instance) => {
                 if self.is_stuck_head(origin, ty)? {
-                    return Ok(Verdict::Fails);
+                    return self.stuck_verdict(ty);
                 }
 
                 self.decide_copy_instance(origin, ty.module_id, instance, active)
@@ -255,14 +218,17 @@ impl CheckState<'_> {
 
         // decide owned payloads by their stored representation
         match kind {
-            // decide explicit memory representations through the representation rules
-            dir::Type::Form(_) => self.decide_copy(origin, ty, active),
+            // decide forms by representation and parameters by their bounds
+            dir::Type::Form(_)
+            | dir::Type::Parameter(_)
+            | dir::Type::Erased(_)
+            | dir::Type::This => self.decide_copy(origin, ty, active),
             // refuse representations whose descriptor uniquely owns indirect storage
             dir::Type::Dynamic(_) | dir::Type::Function(_) | dir::Type::Slice(_) => {
                 Ok(Verdict::Fails)
             }
             // decide inline nominal storage past its managed handle default
-            dir::Type::Application(_) if self.is_stuck_head(origin, ty)? => Ok(Verdict::Fails),
+            dir::Type::Application(_) if self.is_stuck_head(origin, ty)? => self.stuck_verdict(ty),
             dir::Type::Application(instance) => {
                 active.push(ty);
                 let result = self.decide_copy_instance(origin, ty.module_id, instance, active);
@@ -293,23 +259,9 @@ impl CheckState<'_> {
             return Ok(Verdict::Holds);
         }
 
-        // copy transparent payload intrinsics through their first type argument
-        if matches!(
-            item,
-            Some(
-                dir::LanguageItem::UnsafeCell
-                    | dir::LanguageItem::ManuallyDrop
-                    | dir::LanguageItem::MaybeUninit
-                    | dir::LanguageItem::Wrapping
-                    | dir::LanguageItem::Pin
-            )
-        ) {
-            let arguments = self.type_ids(instance_module, instance.arguments)?;
-            let Some(argument) = arguments.first().copied() else {
-                return Ok(Verdict::Fails);
-            };
-
-            return self.decide_copy(origin, argument, active);
+        // copy transparent payload intrinsics through their payload
+        if let Some(payload) = self.transparent_payload(instance_module, &instance)? {
+            return self.decide_copy(origin, payload, active);
         }
 
         // move an instance whose symbol declares no definition
@@ -368,8 +320,9 @@ impl CheckState<'_> {
     pub(in crate::sema) fn commit_copy_derivation(
         &mut self,
         symbol: dir::GlobalSymbolId,
+        is_value: bool,
     ) -> CompilerResult<()> {
-        let derives_copy = self.permits_copy(symbol)?;
+        let derives_copy = is_value && self.permits_copy(symbol)?;
         self.module_mut(symbol.module_id)
             .representations_tail
             .set_derives_copy(symbol, derives_copy);
@@ -379,10 +332,9 @@ impl CheckState<'_> {
 
     /// Return whether one declaration permits copying by structure.
     fn permits_copy(&mut self, symbol: dir::GlobalSymbolId) -> CompilerResult<bool> {
-        Ok(
-            !self.declares_drop(symbol)?
-                && !self.stores_raw_pointer_without_derived_copy(symbol)?,
-        )
+        Ok(!self.declares_drop(symbol)?
+            && !self.declares_negative(symbol, dir::AutoInterface::Copy)?
+            && !self.stores_raw_pointer_without_derived_copy(symbol)?)
     }
 
     /// Return whether one declaration stores a raw pointer outside a written Copy derive.

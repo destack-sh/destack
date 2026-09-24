@@ -45,14 +45,14 @@ impl CheckState<'_> {
         // decide memory forms before their payload types
         if let dir::Type::Form(form) = kind {
             return match form.form {
-                // clone views by duplicating the reference, a managed handle by its object
+                // clone a view by duplicating the reference
                 dir::Form::Readonly | dir::Form::Borrowed(_)
                     if interface == dir::AutoInterface::Clone =>
                 {
                     Ok(Verdict::Holds)
                 }
                 // refuse default and zero values for reference forms
-                dir::Form::Managed { .. } | dir::Form::Borrowed(_) | dir::Form::Owned
+                dir::Form::Borrowed(_) | dir::Form::Owned
                     if matches!(
                         interface,
                         dir::AutoInterface::Default | dir::AutoInterface::Zeroable
@@ -61,26 +61,23 @@ impl CheckState<'_> {
                     Ok(Verdict::Fails)
                 }
                 // unpin reference forms
-                dir::Form::Managed { .. } | dir::Form::Borrowed(_)
-                    if interface == dir::AutoInterface::Unpin =>
-                {
+                dir::Form::Borrowed(_) if interface == dir::AutoInterface::Unpin => {
                     Ok(Verdict::Holds)
                 }
                 // raw addresses compare, hash, print, and zero by identity, and refuse a default
                 dir::Form::Raw => Ok(Verdict::decided(interface != dir::AutoInterface::Default)),
                 // forward every other form to its payload
-                dir::Form::Managed { .. }
-                | dir::Form::Readonly
-                | dir::Form::Borrowed(_)
-                | dir::Form::Owned => self.decide_derivable(origin, form.value, interface),
+                dir::Form::Readonly | dir::Form::Borrowed(_) | dir::Form::Owned => {
+                    self.decide_derivable(origin, form.value, interface)
+                }
             };
         }
 
         // decide the remaining structural forms
         match kind {
-            // answer optimistically for an open variable
+            // leave an open variable undecided
             dir::Type::Variable(_) => Ok(Verdict::Ambiguous),
-            // accept region terms outright, they carry no runtime values
+            // accept region terms, which have no runtime values
             dir::Type::Region(_) => Ok(Verdict::Holds),
             // look through the refinement to its base
             dir::Type::Refined(refined) => {
@@ -233,23 +230,10 @@ impl CheckState<'_> {
                 [definition.backing],
                 interface,
             ),
-            // conform classes through managed identity and their stored fields
+            // conform classes through their stored fields and base
             dir::Definition::Class(definition) => {
-                // refuse default and zero values for managed objects
-                if matches!(
-                    interface,
-                    dir::AutoInterface::Default | dir::AutoInterface::Zeroable
-                ) {
+                if !interface.derives_over_class() {
                     return Ok(Verdict::Fails);
-                }
-
-                // equate, hash, and clone class instances by managed identity
-                let formats = matches!(
-                    interface,
-                    dir::AutoInterface::Debug | dir::AutoInterface::Display
-                );
-                if !formats {
-                    return Ok(Verdict::Holds);
                 }
 
                 // collect the stored field types

@@ -81,7 +81,7 @@ impl CheckState<'_> {
                 let borrowed_type = self.borrowed_like(Some(peer_type), member.ty)?;
                 let borrowed = self.build_borrow(frame, other, borrowed_type)?;
 
-                self.build_component_call(frame, this, member, vec![(borrowed, borrowed_type)])?
+                self.build_component_call(frame, this, member, vec![borrowed])?
             }
             None => self.build_literal(frame, dir::Literal::Boolean(true), boolean)?,
         };
@@ -92,9 +92,9 @@ impl CheckState<'_> {
         let unmatched = self.build_block(frame, Vec::new(), Some(unmatched), boolean)?;
         let peer = self.build_parameter(frame, 0)?;
         let test = self.build_is(frame, origin, peer, member.ty)?;
-        let inner = self.build_if(frame, test, matched, Some(unmatched), boolean)?;
+        let branch = self.build_if(frame, test, matched, Some(unmatched), boolean)?;
 
-        self.build_block(frame, Vec::new(), Some(inner), boolean)
+        self.build_block(frame, Vec::new(), Some(branch), boolean)
     }
 
     /// Build `index.hash(state); this.hash(state);` for one member.
@@ -107,7 +107,6 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::LocalNodeId<dir::Expression>> {
         // read the state parameter the hash writes into
         let void = self.intern_type(dir::Type::Void)?;
-        let (_, _, state_type) = frame.parameters[0];
 
         // write the member's position, then the value it holds
         let mut leading = Vec::with_capacity(2);
@@ -115,8 +114,7 @@ impl CheckState<'_> {
         if member.call.is_some() {
             let this = self.build_narrowed_this(frame, origin, member.ty)?;
             let state = self.build_parameter(frame, 0)?;
-            let hashed =
-                self.build_component_call(frame, this, member, vec![(state, state_type)])?;
+            let hashed = self.build_component_call(frame, this, member, vec![state])?;
             leading.push(hashed);
         }
 

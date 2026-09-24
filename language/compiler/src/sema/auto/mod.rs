@@ -1,3 +1,4 @@
+mod access;
 mod atomic;
 mod component;
 mod copy;

@@ -2,8 +2,8 @@ use destack_core::StringId;
 use destack_dir as dir;
 use destack_source::{ModuleId, Span};
 
-use crate::sema::CheckState;
-use crate::sema::derive::{Component, ComponentCall, ComponentProjection, Derivation};
+use crate::sema::derive::{Component, ComponentProjection, Derivation};
+use crate::sema::{CheckState, Origin, ProtocolCall};
 use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
@@ -18,10 +18,7 @@ impl CheckState<'_> {
         T: dir::Node,
         dir::Tree: dir::TreeStore<T>,
     {
-        self.module_mut(module)
-            .materialize_patch_mut()
-            .tree
-            .insert(node, span)
+        self.module_mut(module).patch.tree.insert(node, span)
     }
 
     /// Insert one synthesized expression at its type.
@@ -32,6 +29,9 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::LocalNodeId<dir::Expression>> {
         let node = self.build_node(frame.module, frame.span, expression);
+        self.module_mut(frame.module)
+            .bindings_tail
+            .bind_scope(node, frame.scope);
         self.commit_synthesized_type(node.into_global_any(frame.module), ty)?;
 
         Ok(node)
@@ -177,9 +177,9 @@ impl CheckState<'_> {
         frame: &mut Derivation,
         receiver: dir::LocalNodeId<dir::Expression>,
         component: &Component,
-        supplied: Vec<(dir::LocalNodeId<dir::Expression>, dir::GlobalTypeId)>,
+        supplied: Vec<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<dir::LocalNodeId<dir::Expression>> {
-        // skip the call for a unit component
+        // require the protocol call the component runs
         let Some(selected) = &component.call else {
             return Err(CompilerError::Internal {
                 message: "a unit component running its protocol".to_owned(),
@@ -195,11 +195,10 @@ impl CheckState<'_> {
         frame: &mut Derivation,
         receiver: dir::LocalNodeId<dir::Expression>,
         key: dir::StaticKey,
-        selected: &ComponentCall,
-        supplied: Vec<(dir::LocalNodeId<dir::Expression>, dir::GlobalTypeId)>,
+        selected: &ProtocolCall,
+        supplied: Vec<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<dir::LocalNodeId<dir::Expression>> {
         // read the member off the receiver
-        let mut call = selected.call.clone();
         let name = match key {
             dir::StaticKey::Name(name) => Some(name),
             dir::StaticKey::Index(_) => None,
@@ -211,26 +210,64 @@ impl CheckState<'_> {
                 name,
                 is_optional: false,
             },
-            call.callable_type,
+            selected.member.ty(),
         )?;
         self.commit_decision(
             callee.into_global_any(frame.module),
-            dir::Decision::Member(dir::OperationResolution::One(selected.member.clone())),
+            dir::Decision::Member(selected.member.clone()),
         )?;
 
-        // bind each supplied value at its parameter
+        // build the argument nodes once, shared by every selected union arm
         let mut arguments = Vec::with_capacity(supplied.len());
-        for (binding, (value, ty)) in call.arguments.iter_mut().zip(supplied) {
-            let argument = self.build_node(
+        let mut sources = Vec::with_capacity(supplied.len());
+        for value in supplied {
+            arguments.push(self.build_node(
                 frame.module,
                 frame.span,
                 dir::Argument::Positional { value },
-            );
-            binding.source = dir::ArgumentSource::Provided(argument.into_global_any(frame.module));
-            binding.argument_type = ty;
-            binding.parameter_type = ty;
-            arguments.push(argument);
+            ));
+            sources.push(dir::ArgumentSource::Provided(
+                value.into_global_any(frame.module),
+            ));
         }
+
+        // bind the generated arguments against each selected signature
+        let origin = Origin::Node(callee.into_global_any(frame.module), None);
+        let mut calls = Vec::with_capacity(selected.resolution.arms().len());
+        for selected in selected.resolution.arms() {
+            let Some((ty, signature)) =
+                self.callable_signature_type(origin, selected.callable_type)?
+            else {
+                return Err(CompilerError::Internal {
+                    message: "a selected derived call without a signature".to_owned(),
+                });
+            };
+            let parameters = self.signature_parameters(ty.module_id, signature.parameters)?;
+            let arguments = self
+                .bind_arguments(origin, parameters, &sources)?
+                .ok_or_else(|| CompilerError::Internal {
+                    message: "a selected derived signature has an invalid rest parameter"
+                        .to_owned(),
+                })?;
+            let call = dir::Call {
+                target: selected.target.clone(),
+                callable_type: selected.callable_type,
+                arguments,
+                return_type: selected.return_type,
+                regions: selected.regions.clone(),
+            };
+            frame.calls.push(call.clone());
+            calls.push(call);
+        }
+
+        // preserve the selected runtime arm order
+        let calls = match &selected.resolution {
+            dir::OperationResolution::One(_) => dir::OperationResolution::One(calls.remove(0)),
+            dir::OperationResolution::Union { ty, .. } => dir::OperationResolution::Union {
+                arms: calls,
+                ty: *ty,
+            },
+        };
 
         // call the member and record its selection
         let node = self.build_expression(
@@ -242,12 +279,11 @@ impl CheckState<'_> {
                 arguments,
                 is_optional: false,
             },
-            call.return_type,
+            selected.return_type,
         )?;
-        frame.calls.push(call.clone());
         self.commit_decision(
             node.into_global_any(frame.module),
-            dir::Decision::Call(dir::OperationResolution::One(call)),
+            dir::Decision::Call(calls),
         )?;
 
         Ok(node)
@@ -263,7 +299,7 @@ impl CheckState<'_> {
         self.build_expression(
             frame,
             dir::Expression::BorrowOf {
-                mutability: None,
+                access: None,
                 variance: None,
                 right,
             },

@@ -1,8 +1,8 @@
 use destack_dir as dir;
 
+use crate::CompilerResult;
 use crate::sema::derive::{Component, ComponentProjection, Derivation};
 use crate::sema::{CheckState, Origin};
-use crate::{CompilerError, CompilerResult};
 
 impl CheckState<'_> {
     /// Build `this.a.hash(state); this.b.hash(state);`.
@@ -18,13 +18,7 @@ impl CheckState<'_> {
             let this = self.build_this(frame)?;
             let read = self.build_component_read(frame, this, frame.receiver, component)?;
             let state = self.build_parameter(frame, 0)?;
-            let state_type = frame.parameters[0].2;
-            leading.push(self.build_component_call(
-                frame,
-                read,
-                component,
-                vec![(state, state_type)],
-            )?);
+            leading.push(self.build_component_call(frame, read, component, vec![state])?);
         }
 
         self.build_block(frame, leading, None, void)
@@ -43,20 +37,14 @@ impl CheckState<'_> {
         )))?;
         let (_, _, state_type) = frame.parameters[0];
         let item = dir::LanguageItem::Hash.member("hash");
-        let Some(mut call) = self.derived_component_call(
+        let call = self.derived_component_call(
             origin,
             position,
             None,
-            position,
             dir::AutoInterface::Hash,
             item,
-        )?
-        else {
-            return Err(CompilerError::Internal {
-                message: "a position hash without its member".to_owned(),
-            });
-        };
-        self.solve_derived_call_regions(frame, origin, &mut call.call)?;
+            Some(state_type),
+        )?;
 
         // run that hash over the position itself
         let tag = Component {
@@ -67,6 +55,6 @@ impl CheckState<'_> {
         let literal = self.build_literal(frame, dir::Literal::Integer(index as i64), position)?;
         let state = self.build_parameter(frame, 0)?;
 
-        self.build_component_call(frame, literal, &tag, vec![(state, state_type)])
+        self.build_component_call(frame, literal, &tag, vec![state])
     }
 }

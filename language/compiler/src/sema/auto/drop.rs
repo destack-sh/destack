@@ -1,5 +1,4 @@
 use destack_dir as dir;
-
 use smallvec::SmallVec;
 
 use crate::CompilerResult;
@@ -11,7 +10,7 @@ impl CheckState<'_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<bool> {
-        for conformer in self.drop_conformers(symbol)? {
+        for conformer in self.nominal_conformers(symbol)? {
             if self.drop_conformance(conformer)?.is_some() {
                 return Ok(true);
             }
@@ -32,7 +31,7 @@ impl CheckState<'_> {
 
         // select the member the first Drop conformance answers the requirement with
         let mut member = None;
-        for conformer in self.drop_conformers(symbol)? {
+        for conformer in self.nominal_conformers(symbol)? {
             let Some(conformance) = self.drop_conformance(conformer)? else {
                 continue;
             };
@@ -44,8 +43,8 @@ impl CheckState<'_> {
         Ok(member)
     }
 
-    /// Return the declarations whose conformances may drop one nominal.
-    fn drop_conformers(
+    /// Return the conformers of one nominal: itself and its root extensions.
+    pub(in crate::sema) fn nominal_conformers(
         &mut self,
         symbol: dir::GlobalSymbolId,
     ) -> CompilerResult<Vec<dir::GlobalSymbolId>> {
@@ -115,7 +114,7 @@ impl CheckState<'_> {
         ty: dir::GlobalTypeId,
         active: &mut SmallVec<[dir::GlobalTypeId; 8]>,
     ) -> CompilerResult<Verdict> {
-        self.decide_guarded(
+        self.decide_recorded(
             origin,
             ty,
             dir::AutoInterface::Drop,
@@ -135,10 +134,7 @@ impl CheckState<'_> {
         if let dir::Type::Form(form) = self.ty(ty)? {
             return match form.form {
                 dir::Form::Owned => self.decide_drop(origin, form.value, active),
-                dir::Form::Managed { .. }
-                | dir::Form::Borrowed(_)
-                | dir::Form::Raw
-                | dir::Form::Readonly => Ok(Verdict::Fails),
+                dir::Form::Borrowed(_) | dir::Form::Raw | dir::Form::Readonly => Ok(Verdict::Fails),
             };
         }
 
