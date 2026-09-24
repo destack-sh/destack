@@ -3,8 +3,8 @@ use destack_dir::MemberRole;
 
 use crate::sema::{
     ArgumentValue, CallableArgument, Cause, CauseKind, CheckState, DeclaredSource, FlowSite,
-    MemberCandidate, MemberLookup, NullishPart, Origin, Relation, Settle, SignatureMatch, Value,
-    ValueUse, VariableKind, is_optional_member, member_arms, member_kind, selected_candidates,
+    MemberArmGroup, MemberCandidate, MemberLookup, NullishPart, Origin, Relation, Settle,
+    SignatureMatch, SignatureRejection, Value, ValueUse, VariableKind,
 };
 use crate::{CheckError, CompilerError, CompilerResult};
 
@@ -27,15 +27,6 @@ impl CheckState<'_> {
         let rejected = split.map(|split| split.rejected);
         let target = split.map_or(target, |split| split.value);
 
-        // resolve an open target's shape variables before member lookup
-        if self.type_flags(target)?.has_variable() {
-            let mut variables = self.type_variables(target)?;
-            variables.retain(|variable| {
-                self.root_kind(*variable)
-                    .is_ok_and(|kind| kind == VariableKind::Type)
-            });
-            self.settle_variables(&variables, Settle::All)?;
-        }
         let target = self.shallow_resolve(target)?;
         let receiver = self.shallow_resolve(receiver)?;
         let settled = [receiver, self.shallow_resolve(written)?];
@@ -85,7 +76,7 @@ impl CheckState<'_> {
         }
 
         let subject = dir::MemberSubject::new(receiver, subject, space)
-            .with_scope(self.assuming_scope(origin)?);
+            .with_scope(self.origin_scope(origin)?);
 
         Ok(subject)
     }
@@ -285,8 +276,8 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // union the reads of every runtime arm
         let mut types = Vec::new();
-        for (_, group) in member_arms(lookup) {
-            let candidates = Self::read_candidates(&group);
+        for group in lookup.arms() {
+            let candidates = group.reads();
 
             // intersect what every surviving candidate reads
             let mut reads = Vec::with_capacity(candidates.len());
@@ -305,30 +296,15 @@ impl CheckState<'_> {
         self.normalized_union_type(types).map(Some)
     }
 
-    /// Keep the selected candidates one read joins: the first single-slot one, else every method.
-    fn read_candidates<'candidate>(
-        candidates: &[&'candidate MemberCandidate],
-    ) -> Vec<&'candidate MemberCandidate> {
-        let candidates = selected_candidates(candidates);
-        let single_slot = candidates
-            .iter()
-            .position(|candidate| candidate.role != MemberRole::Method);
-
-        // keep the single slot a field or accessor fills
-        match single_slot {
-            Some(first) => vec![candidates[first]],
-            None => candidates,
-        }
-    }
-
     /// Return the writable type accepted by one member lookup.
     pub(in crate::sema) fn member_write_type(
         &mut self,
         lookup: &MemberLookup,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let mut types = Vec::new();
-        for (_, group) in member_arms(lookup) {
-            let writable = selected_candidates(&group)
+        for group in lookup.arms() {
+            let writable = group
+                .selected()
                 .into_iter()
                 .filter_map(|candidate| candidate.access.write())
                 .collect::<Vec<_>>();
@@ -362,8 +338,8 @@ impl CheckState<'_> {
 
         // keep each selected declaration once
         let mut declarations = Vec::<dir::MemberDeclaration>::new();
-        for (_, group) in member_arms(lookup) {
-            for candidate in selected_candidates(&group) {
+        for group in lookup.arms() {
+            for candidate in group.selected() {
                 let Some(declared) = candidate.declaration() else {
                     continue;
                 };
@@ -386,9 +362,9 @@ impl CheckState<'_> {
 
         Ok(Some(dir::MemberBinding::new(
             key,
-            member_kind(lookup),
+            lookup.kind()?,
             access,
-            is_optional_member(lookup),
+            lookup.is_optional(),
             declarations,
         )))
     }
@@ -404,10 +380,10 @@ impl CheckState<'_> {
         // read every runtime arm, joining several as one union resolution
         let mut accesses = Vec::new();
         let mut types = Vec::new();
-        let arms = member_arms(lookup);
-        let is_union = arms.iter().any(|(arm, _)| arm.is_some());
-        for (arm, group) in arms {
-            let arm_receiver = match arm {
+        let arms = lookup.arms();
+        let is_union = arms.iter().any(|group| group.arm.is_some());
+        for group in arms {
+            let arm_receiver = match group.arm {
                 Some(arm) => Value {
                     ty: arm.receiver,
                     ..receiver
@@ -437,10 +413,10 @@ impl CheckState<'_> {
         origin: Origin,
         receiver: Value,
         key: dir::StaticKey,
-        candidates: &[&MemberCandidate],
+        group: &MemberArmGroup<'_>,
     ) -> CompilerResult<Option<dir::MemberAccess>> {
         // keep the candidates the selection precedence ranks first
-        let candidates = selected_candidates(candidates);
+        let candidates = group.selected();
         let [first, ..] = candidates.as_slice() else {
             return Ok(None);
         };
@@ -534,9 +510,9 @@ impl CheckState<'_> {
         receiver: Value,
         candidate: &MemberCandidate,
         arguments: &[CallableArgument],
-    ) -> CompilerResult<Option<dir::Call>> {
+    ) -> CompilerResult<Result<dir::Call, SignatureRejection>> {
         let Some(declared) = candidate.declaration() else {
-            return Ok(None);
+            return Ok(Err(SignatureRejection::Inapplicable));
         };
         let Some(callable) = candidate.callable else {
             return Err(CompilerError::Internal {
@@ -573,8 +549,12 @@ impl CheckState<'_> {
             arguments,
             None,
         )?;
-        let SignatureMatch::Selected(signature) = selected else {
-            return Ok(None);
+        let signature = match selected {
+            SignatureMatch::Selected(signature) => signature,
+            SignatureMatch::Invalid { rejection, .. } | SignatureMatch::Inapplicable(rejection) => {
+                return Ok(Err(rejection));
+            }
+            SignatureMatch::ReturnMismatch(_) => return Ok(Err(SignatureRejection::Inapplicable)),
         };
 
         // bind the sources and the receiver the signature selected
@@ -589,7 +569,7 @@ impl CheckState<'_> {
             bound,
         );
 
-        Ok(Some(call))
+        Ok(Ok(call))
     }
 
     /// Select one getter invocation from a readable member candidate.
@@ -599,7 +579,9 @@ impl CheckState<'_> {
         receiver: Value,
         candidate: &MemberCandidate,
     ) -> CompilerResult<Option<dir::Call>> {
-        self.select_member_call(origin, receiver, candidate, &[])
+        Ok(self
+            .select_member_call(origin, receiver, candidate, &[])?
+            .ok())
     }
 
     /// Select one setter invocation from a writable member candidate, passing the written value.
@@ -621,7 +603,9 @@ impl CheckState<'_> {
             is_spread: false,
         }];
 
-        self.select_member_call(origin, receiver, candidate, &arguments)
+        Ok(self
+            .select_member_call(origin, receiver, candidate, &arguments)?
+            .ok())
     }
 
     /// Select the member meaning of one member access node.
@@ -714,6 +698,7 @@ impl CheckState<'_> {
         let receiver = self.expression_value(receiver_site, receiver)?;
         let Some(resolution) = self.select_member_read(origin, receiver, key, lookup)? else {
             if lookup
+                .candidates
                 .iter()
                 .any(|candidate| candidate.role == MemberRole::Setter)
             {
@@ -747,14 +732,6 @@ impl CheckState<'_> {
         let ty = resolution.ty();
         let stored_key = resolution.stored_key();
 
-        // requalify stored reads at the receiver's storage placement
-        let ty = match stored_key {
-            Some(_) => {
-                let placement = self.value_place(origin, receiver)?.placement;
-                self.place_relative_type(origin, placement, ty)?
-            }
-            None => ty,
-        };
         self.commit_decision(node, dir::Decision::Member(resolution))?;
         if let Some(key) = stored_key {
             self.commit_projected_access(node, receiver_node, key)?;
@@ -796,10 +773,6 @@ impl CheckState<'_> {
     }
 
     /// Settle one observed numeric width at its family form.
-    ///
-    /// Member lookup enumerates the receiver's surface, which an open width
-    /// cannot offer; the family fallback joins beside the width's bounds like
-    /// any settled candidate.
     fn settle_observed_width(
         &mut self,
         site: FlowSite,
@@ -829,6 +802,16 @@ impl CheckState<'_> {
         site: FlowSite,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
+        // settle the shape variables its bounds decide, keeping every numeric width open
+        let ty = self.shallow_resolve(ty)?;
+        if self.type_flags(ty)?.has_variable() {
+            let mut variables = self.type_variables(ty)?;
+            variables.retain(|variable| {
+                self.root_kind(*variable)
+                    .is_ok_and(|kind| kind == VariableKind::Type)
+            });
+            self.settle_variables(&variables, Settle::All)?;
+        }
         let ty = self.shallow_resolve(ty)?;
         let Some(variable) = self.root_variable(ty)? else {
             return Ok(ty);

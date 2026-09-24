@@ -26,14 +26,11 @@ impl CheckState<'_> {
             for binding in bindings.iter() {
                 let candidates =
                     self.binding_member_candidates(origin, receiver, instance, binding, space)?;
-                table.insert(binding.key, candidates);
+                table.insert(binding.key, candidates.into());
             }
 
             return Ok(table);
         }
-
-        // substitute the receiver value once for every level
-        let receiver_value = self.strip_form(origin, receiver)?;
 
         // walk the declaration levels in preorder
         let mut table = FxIndexMap::<dir::StaticKey, MemberLookup>::default();
@@ -66,6 +63,7 @@ impl CheckState<'_> {
                 .collect::<SmallVec<[_; 2]>>();
 
             // build the level's candidates for each unclaimed key
+            let receiver_value = self.strip_form(origin, receiver)?;
             let substitution = level.substitution(self)?.with_receiver(receiver_value);
             for key in keys {
                 let members = self
@@ -86,7 +84,7 @@ impl CheckState<'_> {
                     key,
                 )?;
                 if !candidates.is_empty() {
-                    table.insert(key, candidates);
+                    table.insert(key, candidates.into());
                 }
             }
 
@@ -228,7 +226,6 @@ impl CheckState<'_> {
                 .chain(
                     definition
                         .implementations()
-                        .iter()
                         .map(|conformance| (conformance.interface, true)),
                 )
                 .collect::<SmallVec<[_; 2]>>();
@@ -318,14 +315,14 @@ impl CheckState<'_> {
             return Ok(table.get(&key).cloned().unwrap_or_default());
         };
         let Some(binding) = bindings.iter().find(|binding| binding.key == key) else {
-            return Ok(Vec::new());
+            return Ok(MemberLookup::default());
         };
 
         // substitute the binding through this instance and receiver
         let candidates =
             self.binding_member_candidates(origin, receiver, instance, binding, space)?;
 
-        Ok(candidates)
+        Ok(candidates.into())
     }
 
     /// Return one owner's canonical member bindings, memoized per run.
@@ -408,7 +405,7 @@ impl CheckState<'_> {
         binding: &dir::MemberBinding,
         space: dir::MemberSpace,
     ) -> CompilerResult<Vec<MemberCandidate>> {
-        // substitute the canonical types for this instance and receiver
+        // substitute the canonical types for this instance and the receiver's object
         let receiver_value = self.strip_form(origin, receiver)?;
         let substitution = instance.substitution(self)?.with_receiver(receiver_value);
         let generic_arguments =
@@ -449,7 +446,8 @@ impl CheckState<'_> {
             access.map_types(&mut |ty| {
                 self.projected_member_type(origin, Some(receiver), declaration.role, ty)
             })?;
-            // read a method as its own signature
+
+            // read a method as its own signature at the receiver
             let callable = match declaration.callable_type {
                 Some(callable) => Some(self.substitute_type(callable, &substitution)?),
                 None => None,

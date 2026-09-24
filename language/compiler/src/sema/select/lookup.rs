@@ -1,4 +1,3 @@
-use crate::sema::VariableKind;
 use destack_core::{FxIndexSet, NameMatch, find_best_match};
 use destack_dir as dir;
 use destack_dir::{MemberRole, TypeFold};
@@ -6,13 +5,25 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    ApparentInstance, CheckState, ExtensionHead, GenericParameterId, Origin, RelationCheck,
-    TypeSubstitution, Verdict,
+    ApparentInstance, CheckState, ExtensionHead, GenericParameterId, Origin, Relation,
+    RelationCheck, TypeSubstitution, Verdict,
 };
 use crate::{CompilerError, CompilerResult, diagnostic_suggestion_distance};
 
 /// Every member one lookup found on a receiver, empty when the receiver has none.
-pub(in crate::sema) type MemberLookup = Vec<MemberCandidate>;
+#[derive(Debug, Clone, Default)]
+pub(in crate::sema) struct MemberLookup {
+    /// The candidates in lookup order.
+    pub(in crate::sema) candidates: Vec<MemberCandidate>,
+}
+
+/// The candidates one runtime arm of a lookup reads through.
+pub(in crate::sema) struct MemberArmGroup<'lookup> {
+    /// The runtime arm, absent for the receiver itself.
+    pub(in crate::sema) arm: Option<MemberArm>,
+    /// The candidates found on that arm, arm-less ones included.
+    pub(in crate::sema) candidates: Vec<&'lookup MemberCandidate>,
+}
 
 /// One declaration member visible to member lookup.
 #[derive(Debug, Clone, Copy)]
@@ -39,8 +50,6 @@ pub(in crate::sema) struct DeclaredMember {
 
 impl DeclaredMember {
     /// Read one definition member, carrying the type its declaration writes.
-    ///
-    /// The written type stays unresolved until the member's target matches.
     pub(in crate::sema) fn from_definition(
         member: &dir::DefinitionMember,
     ) -> CompilerResult<Option<Self>> {
@@ -150,8 +159,9 @@ pub(in crate::sema) struct DeclaredSource {
     pub(in crate::sema) bounds: Vec<RelationCheck>,
     /// The declared target the winning candidate's receiver satisfies at its site.
     pub(in crate::sema) target: Option<RelationCheck>,
-    /// The erased owner parameters selecting sites reopen through `instantiate`.
-    pub(in crate::sema) site_parameters: SmallVec<[GenericParameterId; 2]>,
+    /// The erased owner parameters selecting sites reopen, each with its site default.
+    pub(in crate::sema) site_parameters:
+        SmallVec<[(GenericParameterId, Option<dir::GlobalTypeId>); 2]>,
 }
 
 impl DeclaredSource {
@@ -222,6 +232,18 @@ impl LookupReceiver {
         match self {
             Self::Direct(steps) => steps.insert(0, adjustment),
             Self::Dynamic { adjustments, .. } => adjustments.insert(0, adjustment),
+        }
+    }
+
+    /// Drop the leading adjustments.
+    fn strip(&mut self, count: usize) {
+        match self {
+            Self::Direct(steps)
+            | Self::Dynamic {
+                adjustments: steps, ..
+            } => {
+                steps.drain(..count);
+            }
         }
     }
 
@@ -352,11 +374,25 @@ impl MemberCandidate {
         let parameters = std::mem::take(&mut declared.site_parameters);
 
         // open one site variable per erased parameter
-        for parameter in parameters {
-            let variable = body.open_instantiation(origin, parameter, VariableKind::Type)?;
+        let mut opened =
+            SmallVec::<[(dir::TypeVariableId, dir::GlobalTypeId, dir::GlobalTypeId); 2]>::new();
+        for (parameter, _) in &parameters {
+            let variable = body.open_omitted_parameter(origin, *parameter)?;
             let fresh = body.variable_type(variable)?;
-            let from = body.intern_type(dir::Type::Erased(parameter))?;
+            let from = body.intern_type(dir::Type::Erased(*parameter))?;
             candidate.map_types(&mut |ty| body.replace_type(ty, from, fresh))?;
+            opened.push((variable, from, fresh));
+        }
+
+        // default each reopened parameter as its site declared, over the fresh siblings
+        for ((_, default), (variable, _, _)) in parameters.iter().zip(&opened) {
+            let Some(mut default) = *default else {
+                continue;
+            };
+            for (_, from, fresh) in &opened {
+                default = body.replace_type(default, *from, *fresh)?;
+            }
+            body.set_variable_default(*variable, default)?;
         }
 
         Ok(candidate)
@@ -513,134 +549,163 @@ impl MemberCandidate {
     pub(in crate::sema) fn prepend_adjustment(&mut self, adjustment: dir::ReceiverAdjustment) {
         self.receiver.prepend(adjustment);
     }
+
+    /// Drop the leading adjustments performed before member selection.
+    pub(in crate::sema) fn strip_adjustments(&mut self, count: usize) {
+        self.receiver.strip(count);
+    }
 }
 
-// TODO #Cleanup: compress select/lookup.rs and its top level functions
+impl MemberLookup {
+    /// Return whether the lookup found no member.
+    pub(in crate::sema) fn is_empty(&self) -> bool {
+        self.candidates.is_empty()
+    }
 
-/// Return the candidates lookup precedence ranks first.
-pub(in crate::sema) fn selected_candidates<'candidate>(
-    candidates: &[&'candidate MemberCandidate],
-) -> Vec<&'candidate MemberCandidate> {
-    let best = candidates
-        .iter()
-        .map(|candidate| candidate.precedence())
-        .min();
+    /// Group the candidates by the runtime arm they read through, arm-less ones joining every arm.
+    pub(in crate::sema) fn arms(&self) -> Vec<MemberArmGroup<'_>> {
+        let mut arms = Vec::<MemberArm>::new();
+        for candidate in &self.candidates {
+            if let Some(arm) = candidate.arm
+                && !arms.contains(&arm)
+            {
+                arms.push(arm);
+            }
+        }
+        if arms.is_empty() {
+            return vec![MemberArmGroup {
+                arm: None,
+                candidates: self.candidates.iter().collect(),
+            }];
+        }
 
-    // keep the candidates at the best precedence
-    candidates
-        .iter()
-        .copied()
-        .filter(|candidate| Some(candidate.precedence()) == best)
-        .collect()
-}
+        // group the candidates by the runtime arm they read
+        arms.into_iter()
+            .map(|arm| MemberArmGroup {
+                arm: Some(arm),
+                candidates: self
+                    .candidates
+                    .iter()
+                    .filter(|candidate| candidate.arm.is_none_or(|own| own == arm))
+                    .collect(),
+            })
+            .collect()
+    }
 
-/// Group candidates by the runtime arm they read through, arm-less ones joining every arm.
-pub(in crate::sema) fn member_arms(
-    candidates: &[MemberCandidate],
-) -> Vec<(Option<MemberArm>, Vec<&MemberCandidate>)> {
-    let mut arms = Vec::<MemberArm>::new();
-    for candidate in candidates {
-        if let Some(arm) = candidate.arm
-            && !arms.contains(&arm)
-        {
-            arms.push(arm);
+    /// Return the member kind the selected candidates share.
+    pub(in crate::sema) fn kind(&self) -> CompilerResult<dir::MemberKind> {
+        let mut kinds = Vec::new();
+        for group in self.arms() {
+            kinds.extend(group.selected().into_iter().map(|candidate| candidate.kind));
+        }
+        kinds.sort();
+        kinds.dedup();
+
+        // join the collected kinds
+        match kinds.as_slice() {
+            [] => Err(CompilerError::Internal {
+                message: "a member kind over a lookup without selected candidates".to_string(),
+            }),
+            [kind] => Ok(*kind),
+            _ => Ok(dir::MemberKind::Property),
         }
     }
-    if arms.is_empty() {
-        return vec![(None, candidates.iter().collect())];
+
+    /// Return whether some runtime arm may lack the member.
+    pub(in crate::sema) fn is_optional(&self) -> bool {
+        self.arms().iter().any(MemberArmGroup::is_optional)
     }
 
-    // group the candidates by the runtime arm they reach
-    arms.into_iter()
-        .map(|arm| {
-            let group = candidates
-                .iter()
-                .filter(|candidate| candidate.arm.is_none_or(|own| own == arm))
-                .collect();
-
-            (Some(arm), group)
-        })
-        .collect()
-}
-
-/// Return the member kind one lookup represents.
-pub(in crate::sema) fn member_kind(candidates: &[MemberCandidate]) -> dir::MemberKind {
-    let mut kinds = Vec::new();
-    for (_, group) in member_arms(candidates) {
-        kinds.extend(
-            selected_candidates(&group)
-                .into_iter()
-                .map(|candidate| candidate.kind),
-        );
+    /// Prepend one implicit adjustment to every candidate's receiver.
+    pub(in crate::sema) fn prepend_adjustment(&mut self, adjustment: &dir::ReceiverAdjustment) {
+        for candidate in &mut self.candidates {
+            candidate.prepend_adjustment(adjustment.clone());
+        }
     }
-    kinds.sort();
-    kinds.dedup();
 
-    // join the collected kinds
-    match kinds.as_slice() {
-        [] => dir::MemberKind::Field,
-        [kind] => *kind,
-        _ => dir::MemberKind::Property,
+    /// Select every candidate through one erased receiver.
+    pub(in crate::sema) fn select_dynamic(
+        &mut self,
+        constraint: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        for candidate in &mut self.candidates {
+            // read a compiler-defined field projection's union representation directly
+            if matches!(candidate.source, CandidateSource::Projection(_)) {
+                return Err(CompilerError::Internal {
+                    message: "compiler-defined field projection selected dynamic dispatch"
+                        .to_string(),
+                });
+            }
+            candidate.receiver = LookupReceiver::Dynamic {
+                adjustments: Vec::new(),
+                constraint,
+            };
+        }
+
+        Ok(())
     }
 }
 
-/// Return whether one lookup may produce an absent member.
-pub(in crate::sema) fn is_optional_member(candidates: &[MemberCandidate]) -> bool {
-    member_arms(candidates).into_iter().any(|(_, group)| {
-        let selected = selected_candidates(&group);
+impl From<Vec<MemberCandidate>> for MemberLookup {
+    fn from(candidates: Vec<MemberCandidate>) -> Self {
+        Self { candidates }
+    }
+}
+
+impl<'lookup> MemberArmGroup<'lookup> {
+    /// Return the candidates lookup precedence ranks first.
+    pub(in crate::sema) fn selected(&self) -> Vec<&'lookup MemberCandidate> {
+        let best = self
+            .candidates
+            .iter()
+            .map(|candidate| candidate.precedence())
+            .min();
+
+        // keep the candidates at the best precedence
+        self.candidates
+            .iter()
+            .copied()
+            .filter(|candidate| Some(candidate.precedence()) == best)
+            .collect()
+    }
+
+    /// Return the candidates one read joins, the first field or accessor else every method.
+    pub(in crate::sema) fn reads(&self) -> Vec<&'lookup MemberCandidate> {
+        let candidates = self.selected();
+        let first_field = candidates
+            .iter()
+            .position(|candidate| candidate.role != MemberRole::Method);
+
+        // keep the first field or accessor
+        match first_field {
+            Some(first) => vec![candidates[first]],
+            None => candidates,
+        }
+    }
+
+    /// Return whether every selected candidate of this arm is optional.
+    pub(in crate::sema) fn is_optional(&self) -> bool {
+        let selected = self.selected();
 
         !selected.is_empty() && selected.iter().all(|candidate| candidate.is_optional)
-    })
-}
-
-/// Return the required field type one lookup reads directly.
-pub(in crate::sema) fn direct_field_type(
-    candidates: &[&MemberCandidate],
-) -> Option<dir::GlobalTypeId> {
-    let selected = selected_candidates(candidates);
-    let [candidate] = selected.as_slice() else {
-        return None;
-    };
-    if candidate.role != MemberRole::Field
-        || candidate.is_optional
-        || matches!(candidate.source, CandidateSource::Projection(_))
-        || !matches!(candidate.receiver, LookupReceiver::Direct(_))
-    {
-        return None;
     }
 
-    candidate.access.read()
-}
-
-/// Prepend one implicit adjustment to every selected receiver.
-pub(in crate::sema) fn prepend_adjustment(
-    candidates: &mut [MemberCandidate],
-    adjustment: &dir::ReceiverAdjustment,
-) {
-    for candidate in candidates {
-        candidate.prepend_adjustment(adjustment.clone());
-    }
-}
-
-/// Select every found member through one erased receiver.
-pub(in crate::sema) fn select_dynamic(
-    candidates: &mut [MemberCandidate],
-    constraint: dir::GlobalTypeId,
-) -> CompilerResult<()> {
-    for candidate in candidates {
-        // read a compiler-defined field projection's union representation directly
-        if matches!(candidate.source, CandidateSource::Projection(_)) {
-            return Err(CompilerError::Internal {
-                message: "compiler-defined field projection selected dynamic dispatch".to_string(),
-            });
-        }
-        candidate.receiver = LookupReceiver::Dynamic {
-            adjustments: Vec::new(),
-            constraint,
+    /// Return the required field type this arm reads directly.
+    pub(in crate::sema) fn direct_field_type(&self) -> Option<dir::GlobalTypeId> {
+        let selected = self.selected();
+        let [candidate] = selected.as_slice() else {
+            return None;
         };
-    }
+        if candidate.role != MemberRole::Field
+            || candidate.is_optional
+            || matches!(candidate.source, CandidateSource::Projection(_))
+            || !matches!(candidate.receiver, LookupReceiver::Direct(_))
+        {
+            return None;
+        }
 
-    Ok(())
+        candidate.access.read()
+    }
 }
 
 /// One member lookup on the active recursion path.
@@ -773,8 +838,19 @@ impl CheckState<'_> {
         extensions: ExtensionFilter,
         active: &mut FxIndexSet<MemberLookupKey>,
     ) -> CompilerResult<MemberLookup> {
-        // read the declaration for static names through reference and application heads
+        // look the key up in the bounds a where clause grants this subject
         let root = self.shallow_resolve(subject)?;
+        let bounds = self.subject_predicate_bounds(origin, root)?;
+        if !bounds.is_empty() {
+            let lookup = self.lookup_bound_member(
+                origin, module, receiver, &bounds, space, key, extensions, active,
+            )?;
+            if !lookup.is_empty() {
+                return Ok(lookup);
+            }
+        }
+
+        // read the declaration for static names through reference and application heads
         if space == dir::MemberSpace::Static {
             let named = match self.ty(root)? {
                 dir::Type::Reference(reference) => Some((
@@ -817,7 +893,7 @@ impl CheckState<'_> {
             extensions,
         };
         if !active.insert(query) {
-            return Ok(Vec::new());
+            return Ok(MemberLookup::default());
         }
 
         // look the key up in the resolved subject, then leave the path
@@ -826,6 +902,35 @@ impl CheckState<'_> {
         );
         active.swap_remove(&query);
         lookup
+    }
+
+    /// Return the bounds the assumed where clauses grant one composite subject, like `&'a T`.
+    fn subject_predicate_bounds(
+        &mut self,
+        origin: Origin,
+        subject: dir::GlobalTypeId,
+    ) -> CompilerResult<SmallVec<[dir::GlobalTypeId; 2]>> {
+        let mut bounds = SmallVec::new();
+        if !self.type_flags(subject)?.has_parameter()
+            || matches!(self.ty(subject)?, dir::Type::Parameter(_))
+        {
+            return Ok(bounds);
+        }
+
+        // take the right side of each satisfies clause whose left side equals the subject
+        for predicate in self.assumed_predicates(origin)? {
+            if predicate.relation != dir::WhereRelation::Satisfies {
+                continue;
+            }
+            let left = self.shallow_resolve(predicate.left)?;
+            let is_subject = left == subject
+                || self.decide_relation(origin, Relation::Equal, left, subject)? == Verdict::Holds;
+            if is_subject {
+                bounds.push(predicate.right);
+            }
+        }
+
+        Ok(bounds)
     }
 
     /// Look one member up by the shape of one normalized subject type.
@@ -854,7 +959,8 @@ impl CheckState<'_> {
                         subject,
                         dir::PropertyAccess::Read(refined.value),
                         false,
-                    )]);
+                    )]
+                    .into());
                 }
 
                 self.lookup_subject_member(
@@ -908,12 +1014,12 @@ impl CheckState<'_> {
                     && self.is_erased_value(subject)?
                     && self.is_subject_receiver(origin, receiver, subject)?
                 {
-                    select_dynamic(&mut lookup, subject)?;
+                    lookup.select_dynamic(subject)?;
                 }
 
                 // newtypes dereference to their backing for missing members
                 if lookup.is_empty()
-                    && let Some(instance) = self.newtype_payload(origin, subject)?
+                    && let Some(instance) = self.decompose_newtype(origin, subject)?
                 {
                     let value = instance.backing;
                     let receiver = self.replace_form_value(origin, receiver, value)?;
@@ -923,7 +1029,7 @@ impl CheckState<'_> {
                     )?;
 
                     // keep the payload adjustment before deeper receiver steps
-                    prepend_adjustment(&mut lookup, &adjustment);
+                    lookup.prepend_adjustment(&adjustment);
 
                     return Ok(lookup);
                 }
@@ -945,7 +1051,7 @@ impl CheckState<'_> {
                         extensions,
                         active,
                     ),
-                    _ => Ok(Vec::new()),
+                    _ => Ok(MemberLookup::default()),
                 }
             }
 
@@ -994,7 +1100,7 @@ impl CheckState<'_> {
                     ExtensionFilter::Exclude,
                     active,
                 )?;
-                select_dynamic(&mut lookup, constraint)?;
+                lookup.select_dynamic(constraint)?;
 
                 // extensions remain direct calls over the erased receiver
                 if lookup.is_empty()
@@ -1024,7 +1130,7 @@ impl CheckState<'_> {
                     .copied()
                     .collect::<SmallVec<[_; 2]>>();
                 if properties.is_empty() {
-                    return Ok(Vec::new());
+                    return Ok(MemberLookup::default());
                 }
 
                 // project each declared operation through the receiver
@@ -1078,11 +1184,7 @@ impl CheckState<'_> {
                     }
                 };
 
-                Ok(vec![MemberCandidate::structural(
-                    subject,
-                    access,
-                    is_optional,
-                )])
+                Ok(vec![MemberCandidate::structural(subject, access, is_optional)].into())
             }
 
             // tuples expose their labeled elements, then their extension members
@@ -1123,7 +1225,8 @@ impl CheckState<'_> {
                     subject,
                     access,
                     element.is_optional,
-                )])
+                )]
+                .into())
             }
 
             // unions join member lookups across their elements, else derive over the whole union
@@ -1167,20 +1270,20 @@ impl CheckState<'_> {
                             self.project_carried_arm(origin, representation, arm)?
                         {
                             for adjustment in steps.into_iter().rev() {
-                                prepend_adjustment(&mut lookup, &adjustment);
+                                lookup.prepend_adjustment(&adjustment);
                             }
                             break;
                         }
                     }
 
-                    candidates.extend(lookup);
+                    candidates.extend(lookup.candidates);
                 }
 
-                Ok(candidates)
+                Ok(candidates.into())
             }
 
             // answer with an empty candidate list for every other subject shape
-            _ => Ok(Vec::new()),
+            _ => Ok(MemberLookup::default()),
         }
     }
 
@@ -1205,7 +1308,7 @@ impl CheckState<'_> {
             }
         }
 
-        Ok(Vec::new())
+        Ok(MemberLookup::default())
     }
 
     /// Look up one member through the receiver's apparent declaration instance.
@@ -1268,7 +1371,7 @@ impl CheckState<'_> {
         active: &mut FxIndexSet<MemberLookupKey>,
     ) -> CompilerResult<MemberLookup> {
         if space != dir::MemberSpace::Static {
-            return Ok(Vec::new());
+            return Ok(MemberLookup::default());
         }
 
         // read the declaration the reference names
@@ -1304,7 +1407,7 @@ impl CheckState<'_> {
             ExtensionFilter::Include => {
                 self.lookup_static_extension_member(origin, module, symbol, arguments, key)?
             }
-            ExtensionFilter::Exclude => Vec::new(),
+            ExtensionFilter::Exclude => MemberLookup::default(),
         };
 
         // search the declaration's own interfaces when no extension matched
@@ -1385,14 +1488,14 @@ impl CheckState<'_> {
                 active,
             )?;
             if lookup.is_empty() {
-                return Ok(Vec::new());
+                return Ok(MemberLookup::default());
             }
 
             let arm = MemberArm {
                 element: *element,
                 receiver: arm_receiver,
             };
-            for mut candidate in lookup {
+            for mut candidate in lookup.candidates {
                 candidate.arm.get_or_insert(arm);
                 candidates.push(candidate);
             }
@@ -1403,10 +1506,10 @@ impl CheckState<'_> {
             && let Some(projection) =
                 self.select_union_discriminant(origin, receiver, elements, key, &candidates)?
         {
-            return Ok(vec![MemberCandidate::projection(projection)]);
+            return Ok(vec![MemberCandidate::projection(projection)].into());
         }
 
-        Ok(candidates)
+        Ok(candidates.into())
     }
 
     /// Select a shared required field as one physical union discriminant.
@@ -1435,11 +1538,14 @@ impl CheckState<'_> {
         let mut cases = Vec::with_capacity(elements.len());
         let mut types = Vec::with_capacity(elements.len());
         for element in elements {
-            let arm = candidates
-                .iter()
-                .filter(|candidate| candidate.arm.is_some_and(|arm| arm.element == *element))
-                .collect::<Vec<_>>();
-            let Some(ty) = direct_field_type(&arm) else {
+            let arm = MemberArmGroup {
+                arm: None,
+                candidates: candidates
+                    .iter()
+                    .filter(|candidate| candidate.arm.is_some_and(|arm| arm.element == *element))
+                    .collect(),
+            };
+            let Some(ty) = arm.direct_field_type() else {
                 return Ok(None);
             };
             let base = self.strip_form(origin, ty)?;
@@ -1505,7 +1611,7 @@ impl CheckState<'_> {
         }
 
         // search extensions next: declared members shadow interface defaults
-        let mut lookup = Vec::new();
+        let mut lookup = MemberLookup::default();
         if extensions == ExtensionFilter::Include {
             lookup = self.lookup_extension_member(
                 origin,
@@ -1553,7 +1659,7 @@ impl CheckState<'_> {
                 continue;
             };
 
-            // pass the subject as the interface's receiver argument
+            // pass the receiver as the interface's receiver argument
             let arguments = match interface.has_receiver_argument() {
                 true => SmallVec::from_slice(&[subject]),
                 false => SmallVec::new(),
@@ -1573,7 +1679,7 @@ impl CheckState<'_> {
             }
         }
 
-        Ok(Vec::new())
+        Ok(MemberLookup::default())
     }
 
     /// Look up one associated member through its uniquely declaring interface.
@@ -1585,12 +1691,12 @@ impl CheckState<'_> {
         key: dir::StaticKey,
     ) -> CompilerResult<MemberLookup> {
         if space != dir::MemberSpace::Static {
-            return Ok(Vec::new());
+            return Ok(MemberLookup::default());
         }
 
         // require a qualifier for the projected key
         let Some(qualifier) = self.select_associated_qualifier(origin, receiver, key)? else {
-            return Ok(Vec::new());
+            return Ok(MemberLookup::default());
         };
 
         // search the interface application selected for this projection
@@ -1615,7 +1721,7 @@ impl CheckState<'_> {
     ) -> CompilerResult<MemberLookup> {
         // require the declaration's definition
         let Some(definition) = self.definition(instance.symbol)? else {
-            return Ok(Vec::new());
+            return Ok(MemberLookup::default());
         };
 
         // collect own members and heritage applications
@@ -1629,7 +1735,7 @@ impl CheckState<'_> {
             .map(|heritage| heritage.ty)
             .collect::<SmallVec<[_; 2]>>();
 
-        // substitute applied arguments and the receiver value beneath its forms
+        // substitute applied arguments and the receiver's object
         let receiver_value = self.strip_form(origin, receiver)?;
         let substitution = instance.substitution(self)?.with_receiver(receiver_value);
         let candidates = self.instance_member_candidates(
@@ -1641,7 +1747,7 @@ impl CheckState<'_> {
             key,
         )?;
         if !candidates.is_empty() {
-            return Ok(candidates);
+            return Ok(candidates.into());
         }
 
         // search substituted heritage applications
@@ -1661,7 +1767,7 @@ impl CheckState<'_> {
             }
         }
 
-        Ok(Vec::new())
+        Ok(MemberLookup::default())
     }
 
     /// Build the member candidates one instance declares for one key.
@@ -1727,7 +1833,7 @@ impl CheckState<'_> {
                 substitution = instantiated;
             }
 
-            // apply the arguments and read the member's operations
+            // apply the arguments and read the member's operations at the receiver
             let ty = self.substitute_type(ty, &substitution)?;
             let callable = member.callable_type(ty);
             let access = self.projected_member_access(origin, Some(receiver), &member, ty)?;
@@ -1824,7 +1930,7 @@ impl CheckState<'_> {
                         self.definition(instance.symbol)?.as_deref(),
                         Some(dir::Definition::Newtype(_))
                     )
-                    && let Some(payload) = self.newtype_payload(origin, subject)?
+                    && let Some(payload) = self.decompose_newtype(origin, subject)?
                 {
                     self.collect_subject_keys(
                         origin,
@@ -2033,7 +2139,6 @@ impl CheckState<'_> {
                 heritages.extend(
                     definition
                         .implementations()
-                        .iter()
                         .map(|conformance| conformance.interface),
                 );
 

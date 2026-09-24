@@ -5,7 +5,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     Cause, CauseKind, CheckFailure, CheckOutcome, CheckState, Expectation, FlowSite, Origin,
-    PlaceUse, ValueCheck, ValueUse, WalkState,
+    PlaceUse, StoreTarget, ValueCheck, ValueUse, WalkState,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -68,16 +68,13 @@ impl CheckState<'_> {
                     };
                     let key = name.into();
 
-                    // walk a method that inference reaches before its own walk
+                    // walk a method that inference needs before its declaration walk
                     if let Some(symbol) =
                         self.module(module).declaration_symbol(property.into_any())
                         && self.symbol_type_maybe(symbol)?.is_none()
                     {
                         let (parsed, expanded) = self.patched_inputs(module);
-                        let tree = dir::View::with_patches(
-                            &parsed.tree,
-                            std::slice::from_ref(&expanded.patch),
-                        );
+                        let tree = dir::View::new(&parsed.tree).patched(&expanded.patch);
                         let mut walk = WalkState::new(module, tree, self);
                         walk.walk_property(*property, &tree.get(*property).clone())?;
                         walk.flush_flows()?;
@@ -143,13 +140,20 @@ impl CheckState<'_> {
                                 }
                                 None => Cause::root(field_origin, CauseKind::Field { key }),
                             });
+                            let store = match field.is_optional {
+                                true => StoreTarget::Optional,
+                                false => StoreTarget::Exact,
+                            };
                             let field_check = self.check_node(
                                 source_site,
-                                Expectation::assignable(
-                                    field.access.store(),
-                                    field_cause,
-                                    ValueUse::Store,
-                                ),
+                                Expectation {
+                                    store,
+                                    ..Expectation::assignable(
+                                        field.access.store(),
+                                        field_cause,
+                                        ValueUse::Store,
+                                    )
+                                },
                             )?;
 
                             // fold in the mismatch the field site already reported
@@ -265,18 +269,13 @@ impl CheckState<'_> {
                     target,
                 })
             }
-            // object literals bind their managed merged shape
+            // object literals bind their merged shape
             None => {
-                let place = self.local_place()?;
-                let managed = self.intern_type(dir::Type::Form(dir::FormType {
-                    form: dir::Form::Managed { place },
-                    value: shape,
-                }))?;
-                self.commit_node_type(node.into_any(), managed)?;
+                self.commit_node_type(node.into_any(), shape)?;
                 Ok(ValueCheck {
-                    source: managed,
+                    source: shape,
                     outcome: check,
-                    target: managed,
+                    target: shape,
                 })
             }
         }
@@ -322,7 +321,7 @@ impl CheckState<'_> {
         // peel managed forms down to the value they hold
         let mut current = ty;
         while let dir::Type::Form(form) = self.ty(current)? {
-            if !matches!(form.form, dir::Form::Managed { .. }) {
+            if !matches!(form.form, dir::Form::Owned) {
                 break;
             }
             current = self.shallow_resolve(form.value)?;

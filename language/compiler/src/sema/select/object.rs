@@ -4,7 +4,7 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     CheckState, FlowPointId, FlowSite, MemberCandidate, MemberLookup, MemberRole, Origin, PlaceUse,
-    Value, member_arms,
+    Value,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -40,7 +40,9 @@ impl CheckState<'_> {
 
         // project fields off the scrutinee subset the pattern's literal tests accept
         let tests = self.object_pattern_tests(module, flow, scope, fields)?;
+        let source = scrutinee;
         let scrutinee = self.narrow_pattern_scrutinee(origin, scrutinee, &tests)?;
+        let adjustments = self.project_narrowed_receiver(origin, source, scrutinee)?;
 
         // reject a scrutinee that carries no keys
         if !self.is_keyed_type(origin, scrutinee)? {
@@ -59,6 +61,7 @@ impl CheckState<'_> {
             node,
             dir::PatternDecision::Destructure(Box::new(dir::PatternDestructureResolution::Object(
                 dir::PatternObjectDestructureResolution {
+                    adjustments,
                     fields,
                     rest: rest.map(Box::new),
                 },
@@ -269,7 +272,7 @@ impl CheckState<'_> {
                     if let Some(symbol) =
                         self.module(module).declaration_symbol((*field).into_any())
                     {
-                        let input = self.pattern_binding_type(symbol, projected_value)?;
+                        let input = projected_value;
 
                         self.commit_symbol_type(symbol, input)?;
                     }
@@ -614,17 +617,18 @@ impl CheckState<'_> {
         if lookup.is_empty() {
             return Ok(ObjectField::Missing);
         }
-        let arms = member_arms(&lookup);
-        let is_union = arms.iter().any(|(arm, _)| arm.is_some());
+        let arms = lookup.arms();
+        let is_union = arms.iter().any(|group| group.arm.is_some());
         let mut projections = Vec::with_capacity(arms.len());
         let mut types = Vec::with_capacity(arms.len());
-        for (arm, group) in arms {
-            let owner = arm.map_or(owner, |arm| arm.receiver);
-            let projection = match self.object_member_field(origin, owner, key, &group)? {
-                Ok(projection) => projection,
-                // project the key on each runtime arm
-                Err(field) => return Ok(field),
-            };
+        for group in arms {
+            let owner = group.arm.map_or(owner, |arm| arm.receiver);
+            let projection =
+                match self.object_member_field(origin, owner, key, &group.candidates)? {
+                    Ok(projection) => projection,
+                    // project the key on each runtime arm
+                    Err(field) => return Ok(field),
+                };
             types.push(projection.ty());
             projections.push(projection);
         }

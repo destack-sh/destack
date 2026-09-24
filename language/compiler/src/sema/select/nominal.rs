@@ -30,7 +30,7 @@ impl CheckState<'_> {
 
         // require a named type for the nominal pattern
         let head = self.construct_type(origin, module, ty, None)?;
-        let Some(instance) = self.newtype_payload(origin, head)? else {
+        let Some(instance) = self.decompose_newtype(origin, head)? else {
             return self.report_rejected_pattern(node, origin, head);
         };
 
@@ -156,37 +156,34 @@ impl CheckState<'_> {
             _ => return self.report_rejected_pattern(node, origin, head),
         };
 
-        // bind the pattern instantiation from the matched input, its fields binding through the
-        // input's borrow
+        // bind the pattern instantiation from the matched input, its fields through its borrow
         let input = self.require_node_type(node.into_any())?;
         let binding = self.pattern_binding_form(origin, input)?;
-        let input = self.strip_form(origin, input)?;
-        let mut matched = input;
-        if let Some(instance) = self.decompose_newtype(origin, input)? {
-            let backing = instance.backing;
-            matched = backing;
-        }
-        let arms: SmallVec<[dir::GlobalTypeId; 4]> = match self.ty(matched)? {
-            dir::Type::Union(union) => {
-                SmallVec::from_slice(self.type_ids(matched.module_id, union.elements)?)
-            }
-            _ => SmallVec::from_slice(&[matched]),
+        let (payload, _) = self.project_newtype_receiver(origin, input)?;
+        let arms: SmallVec<[dir::GlobalTypeId; 4]> = match self.union_arms(origin, payload)? {
+            Some(arms) => arms,
+            None => SmallVec::from_slice(&[payload]),
         };
 
         // equate the arm naming the written declaration with the written head
+        let mut adjustments = Vec::new();
+        let mut matched = head;
         for arm in arms {
-            if let dir::Type::Application(arm_instance) = self.ty(arm)?
+            let base = self.form_chain(origin, arm)?.base();
+            if let dir::Type::Application(arm_instance) = self.ty(base)?
                 && arm_instance.symbol == instance.symbol
             {
                 let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-                self.constrain_type(origin, cause, Relation::Equal, arm, head)?;
+                self.constrain_type(origin, cause, Relation::Equal, base, head)?;
+                adjustments = self.project_narrowed_receiver(origin, input, arm)?;
+                matched = arm;
                 break;
             }
         }
 
-        // project declared fields off the matched declaration
+        // project declared fields off the matched arm, in its own forms
         let (fields, rest) =
-            self.project_named_fields(node, origin, flow, scope, head, fields, binding)?;
+            self.project_named_fields(node, origin, flow, scope, matched, fields, binding)?;
         let arguments: SmallVec<[_; 8]> = self.type_ids(head.module_id, instance.arguments)?.into();
         let generic_arguments =
             self.symbol_generic_argument_bindings(instance.symbol, &arguments)?;
@@ -195,6 +192,7 @@ impl CheckState<'_> {
             dir::PatternDecision::Destructure(Box::new(
                 dir::PatternDestructureResolution::Nominal(
                     dir::PatternNominalDestructureResolution {
+                        adjustments,
                         key: dir::InstanceKey::new(instance.symbol, generic_arguments),
                         fields,
                         rest: rest.map(Box::new),
