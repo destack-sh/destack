@@ -11,7 +11,7 @@ use destack_artifact::MirInstantiated;
 impl TestProgram {
     /// Elaborate MIR and run the optimization pipeline.
     pub(in crate::elaborate::tests) fn optimize(&mut self) {
-        let mut state = VerifyState::new(&self.lowered);
+        let mut state = VerifyState::new(&self.lowered, &self.strings);
         state.verify();
 
         let errors = state.take_errors();

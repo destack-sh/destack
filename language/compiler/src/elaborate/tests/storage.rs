@@ -7,13 +7,13 @@ fn test_generate_destructors_for_reachable_storage() {
     let mut program = TestProgram::mir(
         r#"
 type Item {
-    value: ref<int32, unique, mutable, local>;
+    value: ref<int32, unique, mutable>;
 }
 
 function test(): void {
 entry:
-    v0: ref<Item, managed, mutable, local> = new.zeroed Item
-    v1: ref<Item, managed, mutable, shared> = new.zeroed Item
+    v0: ref<Item, managed, mutable, local> = new.zeroed Item, local
+    v1: ref<Item, managed, mutable, shared> = new.zeroed Item, shared
     return
 }
 "#,
@@ -43,14 +43,14 @@ fn test_generate_managed_allocation_destructor() {
     let mut program = TestProgram::mir(
         r#"
 type Item {
-    value: ref<int32, unique, mutable, local>;
+    value: ref<int32, unique, mutable>;
 }
 
-external function dropItem<'a>(ref<Item, borrowed, 'a, mutable, local>): void
+external function dropItem<'a>(ref<Item, borrowed, 'a, mutable>): void
 
 function test(): ref<Item, managed, mutable, local> {
 entry:
-    v0: ref<Item, managed, mutable, local> = new.zeroed Item
+    v0: ref<Item, managed, mutable, local> = new.zeroed Item, local
     return v0
 }
 "#,
@@ -61,23 +61,23 @@ entry:
     program.assert_optimized(
         r#"
 type Item {
-    value: ref<int32, unique, mutable, local>;
+    value: ref<int32, unique, mutable>;
 }
 
-external function dropItem<'a>(ref<Item, borrowed, 'a & local, mutable>): void
+external function dropItem<'a>(ref<Item, borrowed, 'a, mutable>): void
 
 function test(): ref<Item, managed, mutable, local> {
 entry:
-    v0: ref<Item, managed, mutable, local> = new.zeroed Item
+    v0: ref<Item, managed, mutable, local> = new.zeroed Item, local
     return v0
 }
 
-function drop.local<Item, 'a>(v0: ref<Item, borrowed, 'a & local, exclusive>): void {
-entry(v0: ref<Item, borrowed, 'a & local, exclusive>):
-    v1: ref<Item, borrowed, 'a & local, mutable> = address (*v0)
-    call dropItem(v1): <'a_1>(ref<Item, borrowed, 'a_1 & local, mutable>) => void
-    v2: ref<ref<int32, unique, mutable, local>, borrowed, 'a & local, exclusive> = address (*v0).0
-    v3: ref<int32, unique, mutable, local> = load (*v2)
+function drop.local<Item, 'a>(v0: ref<Item, borrowed, 'a, exclusive>): void {
+entry(v0: ref<Item, borrowed, 'a, exclusive>):
+    v1: ref<Item, borrowed, 'a, mutable> = address (*v0)
+    call dropItem(v1): <'a_1>(ref<Item, borrowed, 'a_1, mutable>) => void
+    v2: ref<ref<int32, unique, mutable>, borrowed, 'a, exclusive> = address (*v0).0
+    v3: ref<int32, unique, mutable> = load (*v2)
     release v3
     return
 }
@@ -90,14 +90,14 @@ fn test_generate_uninit_managed_allocation_destructor() {
     let mut program = TestProgram::mir(
         r#"
 type Item {
-    value: ref<int32, unique, mutable, local>;
+    value: ref<int32, unique, mutable>;
 }
 
-external function dropItem<'a>(ref<Item, borrowed, 'a, mutable, local>): void
+external function dropItem<'a>(ref<Item, borrowed, 'a, mutable>): void
 
 function test(): uninit<ref<Item, managed, mutable, local>> {
 entry:
-    v0: uninit<ref<Item, managed, mutable, local>> = new.uninit Item
+    v0: uninit<ref<Item, managed, mutable, local>> = new.uninit Item, local
     return v0
 }
 "#,
@@ -108,23 +108,23 @@ entry:
     program.assert_optimized(
         r#"
 type Item {
-    value: ref<int32, unique, mutable, local>;
+    value: ref<int32, unique, mutable>;
 }
 
-external function dropItem<'a>(ref<Item, borrowed, 'a & local, mutable>): void
+external function dropItem<'a>(ref<Item, borrowed, 'a, mutable>): void
 
 function test(): uninit<ref<Item, managed, mutable, local>> {
 entry:
-    v0: uninit<ref<Item, managed, mutable, local>> = new.uninit Item
+    v0: uninit<ref<Item, managed, mutable, local>> = new.uninit Item, local
     return v0
 }
 
-function drop.local<Item, 'a>(v0: ref<Item, borrowed, 'a & local, exclusive>): void {
-entry(v0: ref<Item, borrowed, 'a & local, exclusive>):
-    v1: ref<Item, borrowed, 'a & local, mutable> = address (*v0)
-    call dropItem(v1): <'a_1>(ref<Item, borrowed, 'a_1 & local, mutable>) => void
-    v2: ref<ref<int32, unique, mutable, local>, borrowed, 'a & local, exclusive> = address (*v0).0
-    v3: ref<int32, unique, mutable, local> = load (*v2)
+function drop.local<Item, 'a>(v0: ref<Item, borrowed, 'a, exclusive>): void {
+entry(v0: ref<Item, borrowed, 'a, exclusive>):
+    v1: ref<Item, borrowed, 'a, mutable> = address (*v0)
+    call dropItem(v1): <'a_1>(ref<Item, borrowed, 'a_1, mutable>) => void
+    v2: ref<ref<int32, unique, mutable>, borrowed, 'a, exclusive> = address (*v0).0
+    v3: ref<int32, unique, mutable> = load (*v2)
     release v3
     return
 }

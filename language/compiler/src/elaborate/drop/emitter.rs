@@ -41,6 +41,10 @@ impl<'a> DropEmitter<'a> {
     pub(in crate::elaborate) fn emit(mut self, action: DropAction) -> Vec<mir::Instruction> {
         // select the complete storage path recorded by ownership analysis
         let path = action.path();
+        let ty = self.paths.get(path).ty;
+        if matches!(action, DropAction::Drop(_)) && !self.destroys(ty) {
+            return self.instructions;
+        }
         let root = self.paths.root(path);
         let root_place = &self.paths.get(root).place;
         let mut place = self.paths.get(path).place.clone();
@@ -89,7 +93,6 @@ impl<'a> DropEmitter<'a> {
         };
 
         // destroy the value or release its emptied allocation
-        let ty = self.paths.get(path).ty;
         match action {
             DropAction::Drop(_) => self.emit_value(value, ty),
             DropAction::Release(_) => self.emit_storage_release(value, ty),
@@ -155,6 +158,9 @@ impl<'a> DropEmitter<'a> {
         let Some(mir::PlaceType::Value(ty)) = place.ty(self.function, self.tree) else {
             unreachable!("an overwritten place selects one value");
         };
+        if !self.destroys(ty) {
+            return self.instructions;
+        }
 
         // read the old value out of the overwritten storage and destroy it
         let value = self.allocate_value(ty);
@@ -168,17 +174,20 @@ impl<'a> DropEmitter<'a> {
         self.instructions
     }
 
+    /// Return whether destroying a value of one type emits an instruction.
+    fn destroys(&self, ty: mir::TypeId) -> bool {
+        self.tree.get(ty).is_unique_storage()
+            || self
+                .drops
+                .requires_destructor(ty, mir::Storage::Frame, self.tree)
+    }
+
     /// Emit destruction for one concrete SSA value.
     fn emit_value(&mut self, value: mir::Value, ty: mir::TypeId) {
         // return unique storage to the heap, which destroys its values
         if self.tree.get(ty).is_unique_storage() {
             self.instructions.push(mir::Instruction::Release { value });
-        }
-        // destroy an inline value through its frame destructor
-        else if self
-            .drops
-            .requires_destructor(ty, mir::Storage::Frame, self.tree)
-        {
+        } else {
             self.instructions.push(mir::Instruction::Drop { value });
         }
     }

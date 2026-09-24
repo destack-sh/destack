@@ -24,9 +24,8 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
         pointer: mir::Value,
         storage: mir::Storage,
     ) {
-        // run the user hook of the dropped storage's space before destroying owned children
-        let space = storage.space(self.builder.tree());
-        if let Some(hook) = self.drops.hook(ty, space) {
+        // run the user hook before destroying owned children
+        if let Some(hook) = self.drops.hook(ty) {
             self.call(pointer, hook);
         }
 
@@ -43,7 +42,7 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
                 // drop fields in reverse declaration order
                 for (index, field) in fields.iter().enumerate().rev() {
                     let field_ty = self.builder.tree().get(*field).ty;
-                    let field_pointer_type = self.intern_pointer(field_ty, storage);
+                    let field_pointer_type = self.intern_pointer(field_ty);
                     let field_pointer = self.builder.address(
                         mir::Place::value(pointer)
                             .with_projection(mir::Projection::Deref)
@@ -60,7 +59,7 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
             mir::Type::Tuple { elements, .. } => {
                 // drop elements in reverse declaration order
                 for (index, element) in elements.iter().enumerate().rev() {
-                    let element_pointer_type = self.intern_pointer(*element, storage);
+                    let element_pointer_type = self.intern_pointer(*element);
                     let element_pointer = self.builder.address(
                         mir::Place::value(pointer)
                             .with_projection(mir::Projection::Deref)
@@ -76,7 +75,7 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
             // type Handle = newtype<File>;
             mir::Type::Newtype { inner, .. } => {
                 // drop the transparent inner value
-                let inner_pointer_type = self.intern_pointer(inner, storage);
+                let inner_pointer_type = self.intern_pointer(inner);
                 let inner_pointer = self.builder.bitcast(pointer, inner_pointer_type);
 
                 self.drop_at(inner, inner_pointer, storage);
@@ -85,7 +84,7 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
             mir::Type::FixedArray {
                 element, length, ..
             } => {
-                let element_pointer_type = self.intern_pointer(element, storage);
+                let element_pointer_type = self.intern_pointer(element);
 
                 // drop elements from the last index to the first
                 let length = self
@@ -174,7 +173,7 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
 
             // drop matching payload
             self.builder.switch_to_block(case_block);
-            let payload_pointer_type = self.intern_pointer(case.ty, storage);
+            let payload_pointer_type = self.intern_pointer(case.ty);
             let payload_pointer = self.builder.address(
                 mir::Place::value(pointer)
                     .with_projection(mir::Projection::Deref)
@@ -252,7 +251,7 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
             let place = mir::Place::value(pointer).with_projection(mir::Projection::Deref);
             self.builder.address(place, parameter)
         };
-        let signature = self.builder.tree_mut().intern_type(signature, mir::Copy::Yes);
+        let signature = self.builder.tree_mut().intern_type(signature);
         let result = self.builder.signature_result(signature);
 
         self.builder.call(
@@ -267,16 +266,15 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
     }
 
     /// Intern one exclusive borrowed reference for generated destruction code.
-    fn intern_pointer(&mut self, pointee: mir::TypeId, storage: mir::Storage) -> mir::TypeId {
+    fn intern_pointer(&mut self, pointee: mir::TypeId) -> mir::TypeId {
         let reference = mir::Type::Reference {
             kind: mir::Reference::Borrowed,
             lifetime: mir::Lifetime::bound(0),
-            storage,
             access: mir::Access::Exclusive,
             pointee,
         };
 
-        self.builder.tree_mut().intern_type(reference, mir::Copy::Yes)
+        self.builder.tree_mut().intern_type(reference)
     }
 
     /// Return whether dropping a value of this type emits MIR.

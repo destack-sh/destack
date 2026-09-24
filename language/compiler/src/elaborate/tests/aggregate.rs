@@ -6,12 +6,12 @@ fn test_generate_struct_destructor() {
     let mut program = TestProgram::mir(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable, local>;
-    right: ref<int32, unique, mutable, local>;
+    left: ref<int32, unique, mutable>;
+    right: ref<int32, unique, mutable>;
 }
 
-function test(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>): void {
-entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>):
+function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
+entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
     v2: Pair = aggregate (v0, v1)
     return
 }
@@ -21,24 +21,24 @@ entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, lo
     program.assert_optimized(
         r#"
 type Pair {
-    left: ref<int32, unique, mutable, local>;
-    right: ref<int32, unique, mutable, local>;
+    left: ref<int32, unique, mutable>;
+    right: ref<int32, unique, mutable>;
 }
 
-function test(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>): void {
-entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, unique, mutable, local>):
+function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>): void {
+entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
     v2: Pair = aggregate (v0, v1)
     drop v2
     return
 }
 
-function drop.frame<Pair, 'a>(v0: ref<Pair, borrowed, 'a & frame, exclusive>): void {
-entry(v0: ref<Pair, borrowed, 'a & frame, exclusive>):
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'a & frame, exclusive> = address (*v0).1
-    v2: ref<int32, unique, mutable, local> = load (*v1)
+function drop.frame<Pair, 'a>(v0: ref<Pair, borrowed, 'a, exclusive>): void {
+entry(v0: ref<Pair, borrowed, 'a, exclusive>):
+    v1: ref<ref<int32, unique, mutable>, borrowed, 'a, exclusive> = address (*v0).1
+    v2: ref<int32, unique, mutable> = load (*v1)
     release v2
-    v3: ref<ref<int32, unique, mutable, local>, borrowed, 'a & frame, exclusive> = address (*v0).0
-    v4: ref<int32, unique, mutable, local> = load (*v3)
+    v3: ref<ref<int32, unique, mutable>, borrowed, 'a, exclusive> = address (*v0).0
+    v4: ref<int32, unique, mutable> = load (*v3)
     release v4
     return
 }
@@ -51,7 +51,6 @@ entry(v0: ref<Pair, borrowed, 'a & frame, exclusive>):
 fn test_skip_destructor_for_dynamic_field() {
     let mut program = TestProgram::mir(
         r#"
-@copy
 type Writer {
     write: fn() => uint32;
 }
@@ -70,7 +69,6 @@ entry(v0: dynamic<Writer, managed, mutable, local>):
 
     program.assert_optimized(
         r#"
-@copy
 type Writer {
     write: fn() => uint32;
 }
@@ -94,11 +92,11 @@ fn test_generate_struct_destructor_with_unique_slice_field() {
     let mut program = TestProgram::mir(
         r#"
 type Buffer {
-    items: slice<int32, unique, mutable, local>;
+    items: slice<int32, unique, mutable>;
 }
 
-function test(v0: slice<int32, unique, mutable, local>): void {
-entry(v0: slice<int32, unique, mutable, local>):
+function test(v0: slice<int32, unique, mutable>): void {
+entry(v0: slice<int32, unique, mutable>):
     v1: Buffer = aggregate (v0)
     return
 }
@@ -108,20 +106,20 @@ entry(v0: slice<int32, unique, mutable, local>):
     program.assert_optimized(
         r#"
 type Buffer {
-    items: slice<int32, unique, mutable, local>;
+    items: slice<int32, unique, mutable>;
 }
 
-function test(v0: slice<int32, unique, mutable, local>): void {
-entry(v0: slice<int32, unique, mutable, local>):
+function test(v0: slice<int32, unique, mutable>): void {
+entry(v0: slice<int32, unique, mutable>):
     v1: Buffer = aggregate (v0)
     drop v1
     return
 }
 
-function drop.frame<Buffer, 'a>(v0: ref<Buffer, borrowed, 'a & frame, exclusive>): void {
-entry(v0: ref<Buffer, borrowed, 'a & frame, exclusive>):
-    v1: ref<slice<int32, unique, mutable, local>, borrowed, 'a & frame, exclusive> = address (*v0).0
-    v2: slice<int32, unique, mutable, local> = load (*v1)
+function drop.frame<Buffer, 'a>(v0: ref<Buffer, borrowed, 'a, exclusive>): void {
+entry(v0: ref<Buffer, borrowed, 'a, exclusive>):
+    v1: ref<slice<int32, unique, mutable>, borrowed, 'a, exclusive> = address (*v0).0
+    v2: slice<int32, unique, mutable> = load (*v1)
     release v2
     return
 }

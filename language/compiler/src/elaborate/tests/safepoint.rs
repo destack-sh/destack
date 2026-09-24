@@ -48,14 +48,13 @@ b3:
 fn test_poll_and_hold_the_handle_at_a_loop_header_inside_a_managed_borrow() {
     let mut program = TestProgram::mir(
         r#"
-@copy
 type Box {
     value: int32;
 }
 
 function test(v0: ref<Box, managed, mutable, local>, v1: boolean): int32 {
 entry(v0: ref<Box, managed, mutable, local>, v1: boolean):
-    v2: ref<int32, borrowed, 'managed, readonly, local> = address (*v0).0
+    v2: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
     jump next
 
 next:
@@ -73,14 +72,13 @@ done:
 
     program.assert_optimized(
         r#"
-@copy
 type Box {
     value: int32;
 }
 
 function test(v0: ref<Box, managed, mutable, local>, v1: boolean): int32 {
 entry(v0: ref<Box, managed, mutable, local>, v1: boolean):
-    v2: ref<int32, borrowed, 'managed & local, readonly> = address (*v0).0
+    v2: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
     jump b1
 
 b1:
@@ -130,7 +128,6 @@ entry(v0: int32):
 fn test_hold_the_handle_of_a_managed_borrow_over_a_parking_call() {
     let mut program = TestProgram::mir(
         r#"
-@copy
 type Box {
     value: int32;
 }
@@ -140,7 +137,7 @@ external function park(): void
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'managed, readonly, local> = address (*v0).0
+    v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
     call park(): () => void
     v2: int32 = load (*v1)
     return v2
@@ -150,7 +147,6 @@ entry(v0: ref<Box, managed, mutable, local>):
 
     program.assert_optimized(
         r#"
-@copy
 type Box {
     value: int32;
 }
@@ -160,7 +156,7 @@ external function park(): void
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'managed & local, readonly> = address (*v0).0
+    v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
     call park(): () => void
     v2: int32 = load (*v1)
     return v2
@@ -174,7 +170,6 @@ entry(v0: ref<Box, managed, mutable, local>):
 fn test_hold_the_handle_of_a_managed_borrow_on_each_edge_out_of_a_parking_invoke() {
     let mut program = TestProgram::mir(
         r#"
-@copy
 type Box {
     value: int32;
 }
@@ -184,7 +179,7 @@ external function park(): int32
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'managed, readonly, local> = address (*v0).0
+    v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
     invoke park(): () => int32 => resume | cleanup
 
 resume(v2: int32):
@@ -199,7 +194,6 @@ cleanup:
 
     program.assert_optimized(
         r#"
-@copy
 type Box {
     value: int32;
 }
@@ -209,7 +203,7 @@ external function park(): int32
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'managed & local, readonly> = address (*v0).0
+    v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
     invoke park(): () => int32 => b1 | b2
 
 b1(v2: int32):
@@ -228,7 +222,6 @@ b2:
 fn test_hold_nothing_for_a_managed_borrow_dead_before_a_park() {
     let mut program = TestProgram::mir(
         r#"
-@copy
 type Box {
     value: int32;
 }
@@ -238,7 +231,7 @@ external function park(): void
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'managed, readonly, local> = address (*v0).0
+    v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
     v2: int32 = load (*v1)
     call park(): () => void
     return v2
@@ -248,7 +241,6 @@ entry(v0: ref<Box, managed, mutable, local>):
 
     program.assert_optimized(
         r#"
-@copy
 type Box {
     value: int32;
 }
@@ -258,7 +250,7 @@ external function park(): void
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'managed & local, readonly> = address (*v0).0
+    v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
     v2: int32 = load (*v1)
     call park(): () => void
     return v2
@@ -277,8 +269,8 @@ fn test_hold_nothing_for_a_borrowed_parameter_across_a_park() {
 @binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
 external function park(): void
 
-function test<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): int32 {
-entry(v0: ref<int32, borrowed, 'a, readonly, local>):
+function test<'a>(v0: ref<int32, borrowed, 'a, readonly>): int32 {
+entry(v0: ref<int32, borrowed, 'a, readonly>):
     call park(): () => void
     v1: int32 = load (*v0)
     return v1
@@ -291,8 +283,8 @@ entry(v0: ref<int32, borrowed, 'a, readonly, local>):
 @binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
 external function park(): void
 
-function test<'a>(v0: ref<int32, borrowed, 'a & local, readonly>): int32 {
-entry(v0: ref<int32, borrowed, 'a & local, readonly>):
+function test<'a>(v0: ref<int32, borrowed, 'a, readonly>): int32 {
+entry(v0: ref<int32, borrowed, 'a, readonly>):
     call park(): () => void
     v1: int32 = load (*v0)
     return v1

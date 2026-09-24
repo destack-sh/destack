@@ -4,20 +4,20 @@ use crate::tests::TestProgram;
 fn test_insert_drop_on_unconsumed_branch() {
     let mut program = TestProgram::mir(
         r#"
-function consume(v0: ref<int32, unique, mutable, local>): void {
-entry(v0: ref<int32, unique, mutable, local>):
+function consume(v0: ref<int32, unique, mutable>): void {
+entry(v0: ref<int32, unique, mutable>):
     return
 }
 
-function test(v0: ref<int32, unique, mutable, local>, v1: boolean): void {
-entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
+function test(v0: ref<int32, unique, mutable>, v1: boolean): void {
+entry(v0: ref<int32, unique, mutable>, v1: boolean):
     branch v1 => b1(v0) | b2(v0)
 
-b1(v2: ref<int32, unique, mutable, local>):
-    call consume(v2): (ref<int32, unique, mutable, local>) => void
+b1(v2: ref<int32, unique, mutable>):
+    call consume(v2): (ref<int32, unique, mutable>) => void
     return
 
-b2(v3: ref<int32, unique, mutable, local>):
+b2(v3: ref<int32, unique, mutable>):
     return
 }
 "#,
@@ -25,21 +25,21 @@ b2(v3: ref<int32, unique, mutable, local>):
 
     program.assert_optimized(
         r#"
-function consume(v0: ref<int32, unique, mutable, local>): void {
-entry(v0: ref<int32, unique, mutable, local>):
+function consume(v0: ref<int32, unique, mutable>): void {
+entry(v0: ref<int32, unique, mutable>):
     release v0
     return
 }
 
-function test(v0: ref<int32, unique, mutable, local>, v1: boolean): void {
-entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
+function test(v0: ref<int32, unique, mutable>, v1: boolean): void {
+entry(v0: ref<int32, unique, mutable>, v1: boolean):
     branch v1 => b1(v0) | b2(v0)
 
-b1(v2: ref<int32, unique, mutable, local>):
-    call consume(v2): (ref<int32, unique, mutable, local>) => void
+b1(v2: ref<int32, unique, mutable>):
+    call consume(v2): (ref<int32, unique, mutable>) => void
     return
 
-b2(v3: ref<int32, unique, mutable, local>):
+b2(v3: ref<int32, unique, mutable>):
     release v3
     return
 }
@@ -51,19 +51,19 @@ b2(v3: ref<int32, unique, mutable, local>):
 fn test_insert_drop_on_branch_path_without_owned_use() {
     let mut program = TestProgram::mir(
         r#"
-function consume(v0: ref<int32, unique, mutable, local>): void {
-entry(v0: ref<int32, unique, mutable, local>):
+function consume(v0: ref<int32, unique, mutable>): void {
+entry(v0: ref<int32, unique, mutable>):
     return
 }
 
 external function observe(): void
 
-function test(v0: ref<int32, unique, mutable, local>, v1: boolean): void {
-entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
+function test(v0: ref<int32, unique, mutable>, v1: boolean): void {
+entry(v0: ref<int32, unique, mutable>, v1: boolean):
     branch v1 => b1 | b2
 
 b1:
-    call consume(v0): (ref<int32, unique, mutable, local>) => void
+    call consume(v0): (ref<int32, unique, mutable>) => void
     return
 
 b2:
@@ -75,20 +75,20 @@ b2:
 
     program.assert_optimized(
         r#"
-function consume(v0: ref<int32, unique, mutable, local>): void {
-entry(v0: ref<int32, unique, mutable, local>):
+function consume(v0: ref<int32, unique, mutable>): void {
+entry(v0: ref<int32, unique, mutable>):
     release v0
     return
 }
 
 external function observe(): void
 
-function test(v0: ref<int32, unique, mutable, local>, v1: boolean): void {
-entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
+function test(v0: ref<int32, unique, mutable>, v1: boolean): void {
+entry(v0: ref<int32, unique, mutable>, v1: boolean):
     branch v1 => b1 | b2
 
 b1:
-    call consume(v0): (ref<int32, unique, mutable, local>) => void
+    call consume(v0): (ref<int32, unique, mutable>) => void
     return
 
 b2:
@@ -106,8 +106,8 @@ fn test_insert_drop_on_call_unwind_path() {
         r#"
 external function callee(): int32
 
-function test(v0: ref<int32, unique, mutable, local>): int32 {
-entry(v0: ref<int32, unique, mutable, local>):
+function test(v0: ref<int32, unique, mutable>): int32 {
+entry(v0: ref<int32, unique, mutable>):
     invoke callee(): () => int32 => b1 | cleanup
 
 b1(v1: int32):
@@ -123,8 +123,8 @@ cleanup:
         r#"
 external function callee(): int32
 
-function test(v0: ref<int32, unique, mutable, local>): int32 {
-entry(v0: ref<int32, unique, mutable, local>):
+function test(v0: ref<int32, unique, mutable>): int32 {
+entry(v0: ref<int32, unique, mutable>):
     release v0
     invoke callee(): () => int32 => b1 | b2
 
@@ -144,8 +144,8 @@ fn test_insert_drop_on_call_cleanup_when_value_remains_live() {
         r#"
 external function callee(): int32
 
-function test(v0: ref<int32, unique, mutable, local>): int32 {
-entry(v0: ref<int32, unique, mutable, local>):
+function test(v0: ref<int32, unique, mutable>): int32 {
+entry(v0: ref<int32, unique, mutable>):
     invoke callee(): () => int32 => b1 | cleanup
 
 b1(v1: int32):
@@ -162,8 +162,8 @@ cleanup:
         r#"
 external function callee(): int32
 
-function test(v0: ref<int32, unique, mutable, local>): int32 {
-entry(v0: ref<int32, unique, mutable, local>):
+function test(v0: ref<int32, unique, mutable>): int32 {
+entry(v0: ref<int32, unique, mutable>):
     invoke callee(): () => int32 => b1 | b2
 
 b1(v1: int32):

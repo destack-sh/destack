@@ -78,74 +78,45 @@ impl<'a> DestructorBuilder<'a> {
                     let allocation = match self.tree.get(*instruction) {
                         mir::Instruction::NewZeroed {
                             storage_type,
-                            result_type,
+                            space,
                             ..
                         }
                         | mir::Instruction::NewUninit {
                             storage_type,
-                            result_type,
+                            space,
                             ..
-                        } => Some((*storage_type, *result_type)),
-                        mir::Instruction::NewSliceZeroed {
-                            element,
-                            result_type,
-                            ..
+                        } => Some((*storage_type, *space)),
+                        mir::Instruction::NewSliceZeroed { element, space, .. }
+                        | mir::Instruction::NewSliceUninit { element, space, .. } => {
+                            Some((*element, *space))
                         }
-                        | mir::Instruction::NewSliceUninit {
-                            element,
-                            result_type,
-                            ..
-                        } => Some((*element, *result_type)),
                         _ => None,
                     };
-                    let Some((ty, result)) = allocation else {
-                        continue;
-                    };
-                    if let Some(storage) = self
-                        .tree
-                        .get(self.tree.storage_type(result))
-                        .managed_storage()
-                    {
-                        roots.push((ty, storage));
+                    if let Some((ty, space)) = allocation {
+                        roots.push((ty, mir::Storage::heap(space)));
                     }
                 }
 
-                // collect fallible allocation types from their success result
-                let terminator = self.tree.get(block.terminator);
-                let allocation = match terminator {
+                // collect fallible allocation types
+                let allocation = match self.tree.get(block.terminator) {
                     mir::Terminator::NewZeroedTry {
                         storage_type,
-                        success,
+                        space,
                         ..
                     }
                     | mir::Terminator::NewUninitTry {
                         storage_type,
-                        success,
+                        space,
                         ..
-                    } => Some((*storage_type, success)),
-                    mir::Terminator::NewSliceZeroedTry {
-                        element, success, ..
+                    } => Some((*storage_type, *space)),
+                    mir::Terminator::NewSliceZeroedTry { element, space, .. }
+                    | mir::Terminator::NewSliceUninitTry { element, space, .. } => {
+                        Some((*element, *space))
                     }
-                    | mir::Terminator::NewSliceUninitTry {
-                        element, success, ..
-                    } => Some((*element, success)),
                     _ => None,
                 };
-                let Some((ty, target)) = allocation else {
-                    continue;
-                };
-                let result = self
-                    .tree
-                    .get(target.block)
-                    .parameters
-                    .first()
-                    .unwrap_or_else(|| unreachable!("fallible allocation success has no result"));
-                if let Some(storage) = self
-                    .tree
-                    .get(self.tree.storage_type(result.ty))
-                    .managed_storage()
-                {
-                    roots.push((ty, storage));
+                if let Some((ty, space)) = allocation {
+                    roots.push((ty, mir::Storage::heap(space)));
                 }
             }
         }
@@ -153,15 +124,20 @@ impl<'a> DestructorBuilder<'a> {
 
     /// Build the destructor reached through one owning type.
     fn build_destructor(&mut self, ty: mir::TypeId, storage: mir::Storage) {
-        let (ty, storage) = match self.tree.get(ty) {
-            mir::Type::Reference {
-                kind: mir::Reference::Unique,
-                pointee,
-                storage,
-                ..
-            } => (*pointee, *storage),
-            _ => (ty, storage),
-        };
+        // build a unique pointee's destructor for each heap it may be released from
+        if let mir::Type::Reference {
+            kind: mir::Reference::Unique,
+            pointee,
+            ..
+        } = self.tree.get(ty)
+        {
+            let pointee = *pointee;
+            for space in mir::Space::HEAPS {
+                self.build_destructor(pointee, mir::Storage::heap(space));
+            }
+
+            return;
+        }
 
         // reuse an existing destructor
         if self.drops.destructor(ty, storage).is_some() {
@@ -188,9 +164,7 @@ impl<'a> DestructorBuilder<'a> {
         ty: mir::TypeId,
         storage: mir::Storage,
     ) -> mir::LocalNodeId<mir::Function> {
-        let Some(segment) = storage.segment() else {
-            unreachable!("destructors close every storage space");
-        };
+        let segment = storage.segment();
         let name = self.strings.intern(&format!("drop.{segment}"));
         let arguments = vec![mir::GenericArgument::Type(ty)];
         let symbol = mir::Symbol::named(self.module, name).instantiate(&arguments, self.tree);
@@ -200,11 +174,10 @@ impl<'a> DestructorBuilder<'a> {
         let pointer_type = mir::Type::Reference {
             kind: mir::Reference::Borrowed,
             lifetime: mir::Lifetime::bound(0),
-            storage,
             access: mir::Access::Exclusive,
             pointee: ty,
         };
-        let pointer = self.tree.intern_type(pointer_type, mir::Copy::Yes);
+        let pointer = self.tree.intern_type(pointer_type);
         let parameters = vec![mir::FunctionParameter::new(mir::Value::new(0), pointer)];
         let void = self.tree.void_type();
 
@@ -250,10 +223,11 @@ impl<'a> DestructorBuilder<'a> {
             mir::Type::Slice {
                 kind: mir::Reference::Unique,
                 element,
-                storage,
                 ..
             } => {
-                self.build_destructor(element, storage);
+                for space in mir::Space::HEAPS {
+                    self.build_destructor(element, mir::Storage::heap(space));
+                }
             }
             // type Result = variant<uint8> { 0uint8 = File; 1uint8 = void; };
             mir::Type::Variant { cases, .. } => {
