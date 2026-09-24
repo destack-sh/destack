@@ -1,7 +1,6 @@
-use std::slice;
 use std::sync::Arc;
 
-use destack_artifact::{DirExpanded, DirParsed, DirResolved, DirView};
+use destack_artifact::{DirResolved, DirView};
 use destack_core::StringPool;
 use destack_dir as dir;
 use destack_source::{ModuleId, SourceIndex};
@@ -9,10 +8,8 @@ use destack_source::{ModuleId, SourceIndex};
 /// DIR artifacts shared by module index builders.
 #[derive(Debug)]
 pub(crate) struct ModuleIndexContext<'a> {
-    /// The parsed module DIR.
-    parsed: Arc<DirParsed>,
-    /// The expanded module DIR.
-    expanded: Arc<DirExpanded>,
+    /// The stacked module DIR stages.
+    stages: DirView,
     /// The visible binding table.
     bindings: dir::BindingTable<'static>,
     /// The checked type table.
@@ -40,8 +37,6 @@ impl<'a> ModuleIndexContext<'a> {
     pub(crate) fn new(strings: &'a StringPool, module_id: ModuleId, view: DirView) -> Self {
         Self {
             module_id,
-            parsed: Arc::clone(&view.parsed),
-            expanded: Arc::clone(&view.expanded),
             bindings: view.bindings().clone(),
             types: view.types().clone(),
             decorators: view.decorators().clone(),
@@ -51,6 +46,7 @@ impl<'a> ModuleIndexContext<'a> {
             decisions: view.decisions().clone(),
             resolved: Arc::clone(view.resolved.as_ref().unwrap_or_else(|| unreachable!())),
             strings,
+            stages: view,
         }
     }
 
@@ -61,12 +57,12 @@ impl<'a> ModuleIndexContext<'a> {
 
     /// Return the visible expanded tree.
     pub(super) fn view(&self) -> dir::View<'_> {
-        dir::View::with_patches(&self.parsed.tree, slice::from_ref(&self.expanded.patch))
+        self.stages.tree()
     }
 
     /// Return the parsed source index.
     pub(super) fn source_index(&self) -> &SourceIndex {
-        &self.parsed.tree.source_index
+        &self.stages.parsed.tree.source_index
     }
 
     /// Return the visible binding table.

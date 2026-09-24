@@ -3,8 +3,9 @@ use std::sync::Arc;
 
 use destack_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactVersion,
-    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported,
-    DirParsed, DirResolved, DirView, IndexKind, ModuleIndex, ProgramIndex, SourceDependencyKey,
+    DirAnalyzed, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported,
+    DirImported, DirMaterialized, DirParsed, DirResolved, DirView, IndexKind, ModuleIndex,
+    ProgramIndex, SourceDependencyKey,
 };
 use destack_core::FxIndexMap;
 use destack_repository::{
@@ -88,6 +89,8 @@ impl Indexer {
             dependencies.require(ArtifactKey::dir_declared(module_id, profile_id));
             dependencies.require(ArtifactKey::dir_elaborated(module_id, profile_id));
             dependencies.require(ArtifactKey::dir_checked(module_id, profile_id));
+            dependencies.require(ArtifactKey::dir_materialized(module_id, profile_id));
+            dependencies.require(ArtifactKey::dir_analyzed(module_id, profile_id));
         }
 
         Ok(dependencies)
@@ -269,7 +272,7 @@ impl Indexer {
         module_id: ModuleId,
         profile_id: ProfileId,
     ) -> ProviderResult<ModuleIndexContext<'a>> {
-        let view = DirView::checked(
+        let view = DirView::analyzed(
             artifacts.read::<DirParsed>(module_id)?,
             artifacts.read::<DirBound>((module_id, profile_id))?,
             artifacts.read::<DirImported>((module_id, profile_id))?,
@@ -278,6 +281,8 @@ impl Indexer {
             artifacts.read::<DirDeclared>((module_id, profile_id))?,
             artifacts.read::<DirElaborated>((module_id, profile_id))?,
             artifacts.read::<DirChecked>((module_id, profile_id))?,
+            artifacts.read::<DirMaterialized>((module_id, profile_id))?,
+            artifacts.read::<DirAnalyzed>((module_id, profile_id))?,
         );
         let strings = self.repository().string_pool();
 

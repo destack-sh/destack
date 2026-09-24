@@ -324,6 +324,12 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
                 continue;
             }
 
+            // skip a generated node, which names no source occurrence
+            let source_id = self.module.view().get_source_any(source.local_id);
+            if self.module.source_index().try_get(source_id).is_none() {
+                continue;
+            }
+
             let dir::Reference::Bound(declarations) = reference else {
                 continue;
             };
@@ -582,7 +588,7 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
         let view = self.module.view();
         let source_id = view.get_source_any(source.local_id);
 
-        // generated nodes do not represent source reference occurrences
+        // skip a generated node, which names no source occurrence
         if self.module.source_index().try_get(source_id).is_none() {
             return Ok(());
         }
@@ -686,9 +692,21 @@ impl<'context, 'index> ReferenceIndexer<'context, 'index> {
     }
 
     /// Return the authored name span of one reference.
+    ///
+    /// An instantiation names what its left operand names.
     fn reference_span(&self, site: impl Into<dir::ReferenceSite>) -> ProviderResult<Span> {
         let site = site.into();
-        let source_id = self.module.view().get_source_any(site.node().local_id);
+        let view = self.module.view();
+        let mut node = site.node().local_id;
+
+        // cross explicit generic application wrappers down to the authored name
+        while let Ok(expression) = node.try_into_typed::<dir::Expression>()
+            && let dir::Expression::Instantiation { left, .. } = view.get(expression)
+        {
+            node = left.into_any();
+        }
+
+        let source_id = view.get_source_any(node);
 
         self.module
             .source_index()
