@@ -3,24 +3,26 @@ import { color, fontFamily } from "@destack/theme/tokens.stylex";
 import { For } from "@destack/view";
 import * as stylex from "@destack/style";
 
+/** One step of a content path. */
 export type Breadcrumb = {
-    /// The breadcrumb destination when it is navigable.
+    /** The breadcrumb destination when it is navigable. */
     href?: string;
 
-    /// The visible breadcrumb label.
+    /** The visible breadcrumb label. */
     label: string;
 };
 
-type BreadcrumbsProps = {
-    /// The ordered path from root to current page.
+/** Properties for a content path. */
+type BreadcrumbsProperties = {
+    /** The ordered path from root to current page. */
     items: readonly Breadcrumb[];
 };
 
-/// Render one compact navigable content path.
-export function Breadcrumbs(props: BreadcrumbsProps) {
+/** Render one compact navigable content path. */
+export function Breadcrumbs(properties: BreadcrumbsProperties) {
     return (
         <nav aria-label="Breadcrumb" {...stylex.attrs(styles.root)}>
-            <For each={props.items}>
+            <For each={properties.items}>
                 {(item, index) => (
                     <>
                         {index() > 0 && <span>/</span>}
@@ -38,6 +40,7 @@ export function Breadcrumbs(props: BreadcrumbsProps) {
     );
 }
 
+/** The breadcrumb styles. */
 const styles = stylex.create({
     current: {
         color: color.foreground,

@@ -4,25 +4,29 @@ import { onSettled } from "@destack/view";
 import { waveAt } from "../effect/water";
 import { Flotsam, strandedBottle } from "../home/flotsam";
 
-/// The depth of the water surface below the top of the shallows, in CSS pixels.
-const surface = 56;
+/** The depth of the waterline below the top of the shallows, in CSS pixels. */
+const waterline = 56;
 
-/// Float a lone bottle on a strip of flat water that rides the landing page's waves.
-export function Shallows(props: { style?: stylex.Styles }) {
+/** Float a lone bottle on a strip of flat water that rides the landing page's waves. */
+export function Shallows(properties: { style?: stylex.Styles }) {
+    // hold the host and the water paths
     let host!: HTMLDivElement;
     let water!: SVGPathElement;
     let crest!: SVGPathElement;
 
+    // draw the water every frame while the page shows
     onSettled(() => {
+        // hold the pending frame
         let frame = 0;
 
-        // trace the surface from the shared wave, then fill the water below it
+        // trace the waterline from the shared wave, then fill the water below it
         const draw = (now: number) => {
+            // trace the wave across the width in 8 pixel steps
             const width = host.clientWidth;
             const height = host.clientHeight;
             let line = "";
             for (let x = 0; x <= width + 8; x += 8) {
-                line += `${x === 0 ? "M" : "L"}${x} ${(surface + waveAt(x, now / 1000)).toFixed(2)}`;
+                line += `${x === 0 ? "M" : "L"}${x} ${(waterline + waveAt(x, now / 1000)).toFixed(2)}`;
             }
             crest.setAttribute("d", line);
             water.setAttribute("d", `${line}L${width + 8} ${height}L0 ${height}Z`);
@@ -32,7 +36,7 @@ export function Shallows(props: { style?: stylex.Styles }) {
             frame = requestAnimationFrame(loop);
         };
 
-        // animate the surface, or draw it once when motion is reduced
+        // animate the waterline, or draw it once when motion is reduced
         if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
             draw(0);
         } else {
@@ -43,11 +47,11 @@ export function Shallows(props: { style?: stylex.Styles }) {
     });
 
     return (
-        <div ref={host} aria-hidden="true" {...stylex.attrs(styles.shallows, props.style)}>
+        <div ref={host} aria-hidden="true" {...stylex.attrs(styles.shallows, properties.style)}>
             <Flotsam
                 isAdrift={true}
                 surfacedAt={0}
-                waterline={`${surface}px`}
+                waterline={`${waterline}px`}
                 pieces={[strandedBottle]}
             />
             <svg {...stylex.attrs(styles.water)}>
@@ -58,6 +62,7 @@ export function Shallows(props: { style?: stylex.Styles }) {
     );
 }
 
+/** The shallows styles. */
 const styles = stylex.create({
     shallows: {
         height: "7.5rem",

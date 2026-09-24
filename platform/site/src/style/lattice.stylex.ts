@@ -3,11 +3,12 @@ import * as stylex from "@destack/style";
 
 import { tokens } from "./tokens.stylex";
 
+/** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
 
-/// The twelve-column frame and the rules drawn between its cells.
+/** The twelve-column frame and the rules drawn between its cells. */
 export const lattice = stylex.create({
-    /// A full-width band on the shared columns, closed by the frame edges.
+    /** A full-width band on the shared columns, closed by the frame edges. */
     frame: {
         borderInlineColor: color.border,
         borderInlineStyle: "solid",
@@ -24,14 +25,14 @@ export const lattice = stylex.create({
         },
     },
 
-    /// A rule along the right edge of a cell.
+    /** A rule along the right edge of a cell. */
     ruleRight: {
         borderRightColor: color.border,
         borderRightStyle: "solid",
         borderRightWidth: tokens.hairline,
     },
 
-    /// A rule along the bottom edge of a cell or band.
+    /** A rule along the bottom edge of a cell or band. */
     ruleBottom: {
         borderBottomColor: color.border,
         borderBottomStyle: "solid",

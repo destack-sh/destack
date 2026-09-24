@@ -5,32 +5,33 @@ import * as stylex from "@destack/style";
 import { commandEvents } from "../command/command";
 import type { PageSource } from "../content/source";
 
-/// Properties for the page source controls.
-type SourceActionsProps = {
-    /// The shared page source commands.
+/** Properties for the page source controls. */
+type SourceActionsProperties = {
+    /** The shared page source commands. */
     commands: PageSourceCommands;
 };
 
-/// One portable source format.
+/** One portable source format. */
 type SourceKind = "md" | "txt";
 
-/// The source commands shared by responsive reader controls.
+/** The source commands shared by responsive reader controls. */
 export type PageSourceCommands = {
-    /// Copy one source format.
+    /** Copy one source format. */
     copy: (kind: SourceKind) => void;
 
-    /// The current page source files.
+    /** The current page source files. */
     source: PageSource;
 };
 
-/// Create source commands shared by responsive article controls.
+/** Create source commands shared by responsive article controls. */
 export function createPageSourceCommands(source: PageSource): PageSourceCommands {
+    // copy one source format to the clipboard
     const write = async (kind: SourceKind) => {
         // load the requested source format
         const route = kind === "md" ? source.markdownRoute : source.textRoute;
         const response = await fetch(route);
 
-        // surface unavailable generated sources
+        // fail on unavailable generated sources
         if (!response.ok) {
             throw new Error(`failed to load ${route}: ${response.status}`);
         }
@@ -39,6 +40,7 @@ export function createPageSourceCommands(source: PageSource): PageSourceCommands
         await navigator.clipboard.writeText(await response.text());
     };
 
+    // copy in the background, logging failures
     const copy = (kind: SourceKind) => {
         // report clipboard failures through the browser console
         void write(kind).catch((error: unknown) => {
@@ -46,16 +48,18 @@ export function createPageSourceCommands(source: PageSource): PageSourceCommands
         });
     };
 
+    // bind the palette copy commands while the page shows
     onSettled(() => {
         // bind command palette copy actions to this page
         const copyMarkdown = () => copy("md");
         const copyText = () => copy("txt");
 
+        // listen for the palette commands
         document.addEventListener(commandEvents.copyMarkdown, copyMarkdown);
         document.addEventListener(commandEvents.copyText, copyText);
 
-        // unbind page actions when the reader is replaced
         return () => {
+            // unbind page actions when the reader is replaced
             document.removeEventListener(commandEvents.copyMarkdown, copyMarkdown);
             document.removeEventListener(commandEvents.copyText, copyText);
         };
@@ -64,9 +68,9 @@ export function createPageSourceCommands(source: PageSource): PageSourceCommands
     return { copy, source };
 }
 
-/// Render source links shared by articles and documentation.
-export function SourceActions(props: SourceActionsProps) {
-    const commands = props.commands;
+/** Render source links shared by articles and documentation. */
+export function SourceActions(properties: SourceActionsProperties) {
+    const commands = properties.commands;
 
     return (
         <nav aria-label="Page formats" {...stylex.attrs(styles.controls)}>
@@ -101,6 +105,7 @@ export function SourceActions(props: SourceActionsProps) {
     );
 }
 
+/** The source action styles. */
 const styles = stylex.create({
     action: {
         color: color.foreground,

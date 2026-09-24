@@ -1,15 +1,15 @@
-/// The storage key that remembers whether sound is on.
+/** The storage key that remembers whether sound is on. */
 const storageKey = "destack-sound";
-/// The loudness of every sound together, from 0 to 1.
+/** The loudness of every sound together, from 0 to 1. */
 const volume = 0.4;
-/// The loudness of the sea under the stack today.
+/** The loudness of the sea under the stack today. */
 const seaLevel = 0.012;
-/// The loudness of the piano over the open stack.
+/** The loudness of the piano over the open stack. */
 const pianoLevel = 0.16;
-/// The seconds per beat: a slow, unhurried 72 beats a minute.
+/** The seconds per beat: a slow, unhurried 72 beats a minute. */
 const beat = 60 / 72;
 
-/// The piece's eight bars of chords, each as the notes its left hand breaks into eighths.
+/** The piece's eight bars of chords, each as the notes its left hand breaks into eighths. */
 const bars: readonly (readonly number[])[] = [
     [41, 48, 57, 64],
     [45, 52, 60, 67],
@@ -20,9 +20,9 @@ const bars: readonly (readonly number[])[] = [
     [38, 45, 53, 60],
     [46, 53, 57, 62],
 ];
-/// The order the left hand breaks each chord into eight eighths.
+/** The order the left hand breaks each chord into eight eighths. */
 const pattern = [0, 1, 2, 1, 3, 1, 2, 1];
-/// The melody over the eight bars, as notes and their beats; a note below zero is a rest.
+/** The melody over the eight bars, as notes and their beats; a note below zero is a rest. */
 const melody: readonly (readonly [number, number])[] = [
     [69, 1.5],
     [72, 0.5],
@@ -48,37 +48,38 @@ const melody: readonly (readonly [number, number])[] = [
     [65, 4],
 ];
 
-/// The one-off sounds the site plays.
+/** The one-off sounds the site plays. */
 export type Cue = "destack" | "restack" | "click" | "splash";
 
-/// The two moods of the figure: the sea under the stack today, and the piano over the open stack.
+/** The two moods of the figure: the sea under the stack today, and the piano over the open stack. */
 export type Mood = "today" | "destack";
 
-/// Play quiet synthesised sounds: a sea or a piano for the figure's mood, and short cues for what happens.
+/** Play quiet synthesised sounds: a sea or a piano for the figure's mood, and short cues for what happens. */
 export class Sound {
-    /// Whether sound is on.
+    /** Whether sound is on. */
     isOn: boolean;
-    /// The mood the background follows.
+    /** The mood the background follows. */
     mood: Mood;
-    /// The audio context, created on first use.
+    /** The audio context, created on first use. */
     context: AudioContext | undefined;
-    /// The gain every sound passes through.
+    /** The gain every sound passes through. */
     master: GainNode | undefined;
-    /// The gain of the sea.
+    /** The gain of the sea. */
     sea: GainNode | undefined;
-    /// The gain of the piano.
+    /** The gain of the piano. */
     piano: GainNode | undefined;
-    /// One second of brown noise that the sea and cues shape.
+    /** One second of brown noise that the sea and cues shape. */
     noise: AudioBuffer | undefined;
-    /// The pending piano note, if any.
+    /** The pending piano note, if any. */
     timer: ReturnType<typeof setTimeout> | undefined;
-    /// The next bar to play.
+    /** The next bar to play. */
     step: number;
-    /// The audio time the next bar starts.
+    /** The audio time the next bar starts. */
     next: number;
 
-    /// Create the sound, off until the reader turns it on.
+    /** Create the sound, off until the reader turns it on. */
     constructor() {
+        // start silent with no audio graph
         this.isOn = false;
         this.mood = "today";
         this.context = undefined;
@@ -91,7 +92,7 @@ export class Sound {
         this.next = 0;
     }
 
-    /// Restore the reader's choice from the last visit, and return it; the sound starts on their next interaction.
+    /** Restore the reader's choice from the last visit, and return it; the sound starts on their next interaction. */
     restore() {
         try {
             this.isOn = localStorage.getItem(storageKey) === "on";
@@ -107,8 +108,9 @@ export class Sound {
         return this.isOn;
     }
 
-    /// Turn sound on or off, remember the choice, and return it.
+    /** Turn sound on or off, remember the choice, and return it. */
     toggle() {
+        // flip and store the choice, then fade to it
         this.isOn = !this.isOn;
         try {
             localStorage.setItem(storageKey, this.isOn ? "on" : "off");
@@ -120,7 +122,7 @@ export class Sound {
         return this.isOn;
     }
 
-    /// Follow the figure's mood: the sea under the stack, or the piano over the open stack.
+    /** Follow the figure's mood: the sea under the stack, or the piano over the open stack. */
     follow(mood: Mood) {
         this.mood = mood;
         if (this.context) {
@@ -128,8 +130,9 @@ export class Sound {
         }
     }
 
-    /// Fade the master, the sea, and the piano to match the setting and the mood.
+    /** Fade the master, the sea, and the piano to match the setting and the mood. */
     fade() {
+        // wake the graph and fade each gain toward the setting and mood
         const context = this.wake();
         const now = context.currentTime;
         const isOpen = this.mood === "destack";
@@ -144,8 +147,9 @@ export class Sound {
         }
     }
 
-    /// Create the audio graph on first use, and resume it after the browser suspends it.
+    /** Create the audio graph on first use, and resume it after the browser suspends it. */
     wake() {
+        // resume the graph once it exists
         if (this.context) {
             void this.context.resume();
             return this.context;
@@ -201,6 +205,7 @@ export class Sound {
         felt.connect(master);
         felt.connect(room).connect(wet).connect(master);
 
+        // keep the graph for later cues
         this.context = context;
         this.master = master;
         this.sea = sea;
@@ -210,9 +215,13 @@ export class Sound {
         return context;
     }
 
-    /// Play the next bar of the piece and schedule the one after: arpeggios always,
-    /// the melody on every other pass, and a few high notes on the passes between.
+    /**
+     * Play the next bar of the piece and schedule the one after.
+     *
+     * Arpeggios play always, the melody on every other pass, and a few high notes on the passes between.
+     */
     playPiano() {
+        // pick the bar and the pass, and step to the next bar
         const context = this.context!;
         const bar = this.step % bars.length;
         const pass = Math.floor(this.step / bars.length);
@@ -248,8 +257,9 @@ export class Sound {
         );
     }
 
-    /// Strike one felt piano note at a time: a soft hammer, a warm body, and a long fading tail.
+    /** Strike one felt piano note at a time: a soft hammer, a warm body, and a long fading tail. */
     note(midi: number, level: number, start: number, length: number) {
+        // shape one note's level from a soft hammer to a long tail
         const context = this.context!;
         const frequency = 440 * 2 ** ((midi - 69) / 12);
         const gain = context.createGain();
@@ -273,7 +283,7 @@ export class Sound {
         }
     }
 
-    /// Pluck the next note of a rising arpeggio as each band of the open stack comes into view.
+    /** Pluck the next note of a rising arpeggio as each band of the open stack comes into view. */
     pluck(step: number) {
         if (!this.isOn) {
             return;
@@ -282,7 +292,7 @@ export class Sound {
         this.note([74, 78, 81, 86][step % 4], 0.22, context.currentTime + 0.02, 4);
     }
 
-    /// Play one cue, if sound is on.
+    /** Play one cue, if sound is on. */
     play(cue: Cue) {
         if (!this.isOn) {
             return;
@@ -321,8 +331,9 @@ export class Sound {
         }
     }
 
-    /// Rush water for a duration: a roar that swells and fades with the move, gurgling as it drains or fills.
+    /** Rush water for a duration: a roar that swells and fades with the move, gurgling as it drains or fills. */
     rush(start: number, duration: number, isDraining: boolean) {
+        // loop the noise for the rush
         const context = this.context!;
         const source = context.createBufferSource();
         source.buffer = this.noise!;
@@ -356,8 +367,9 @@ export class Sound {
         wobble.stop(start + duration);
     }
 
-    /// Lap a little water: a short, dull wash with a few tiny bubbles in it.
+    /** Lap a little water: a short, dull wash with a few tiny bubbles in it. */
     lap(start: number) {
+        // look up the audio context
         const context = this.context!;
 
         // wash softly through a fixed, muffled band
@@ -395,8 +407,9 @@ export class Sound {
         }
     }
 
-    /// Click like a well-made switch: a crisp press and a weighty thud, then a lighter release.
+    /** Click like a well-made switch: a crisp press and a weighty thud, then a lighter release. */
     click(start: number) {
+        // press and release the switch
         const context = this.context!;
         this.burst(start, 3400, 0.9);
         this.burst(start + 0.055, 4200, 0.45);
@@ -413,8 +426,9 @@ export class Sound {
         body.stop(start + 0.11);
     }
 
-    /// Crack a short burst of noise through a high band, at a level.
+    /** Crack a short burst of noise through a high band, at a level. */
     burst(start: number, frequency: number, level: number) {
+        // filter the noise into a short crack
         const context = this.context!;
         const source = context.createBufferSource();
         source.buffer = this.noise!;
@@ -430,15 +444,16 @@ export class Sound {
     }
 }
 
-/// The site's one sound.
+/** The site's one sound. */
 export const sound = new Sound();
 
-/// Build a soft, dark reverb tail of a given length in seconds from decaying noise.
+/** Build a soft, dark reverb tail of a given length in seconds from decaying noise. */
 function hall(context: AudioContext, seconds: number) {
+    // fill both sides with decaying noise
     const length = Math.floor(context.sampleRate * seconds);
     const buffer = context.createBuffer(2, length, context.sampleRate);
-    for (let channel = 0; channel < 2; channel++) {
-        const samples = buffer.getChannelData(channel);
+    for (let side = 0; side < 2; side++) {
+        const samples = buffer.getChannelData(side);
         let last = 0;
         for (let index = 0; index < length; index++) {
             last = last * 0.7 + (Math.random() * 2 - 1) * 0.3;

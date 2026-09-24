@@ -7,14 +7,14 @@ import { tokens } from "../style/tokens.stylex";
 import { SiteLink } from "./link";
 import { socialLinks } from "./navigation";
 
-/// The radius of the black hole in the footer, in CSS pixels.
+/** The radius of the black hole in the footer, in CSS pixels. */
 const holeRadius = 7;
 
-/// Close every page with a band of starry space around a black hole, holding the community links.
-export function Footer(props: { flow: number }) {
+/** Close every page with a band of starry space around a black hole, holding the community links. */
+export function Footer(properties: { flow?: number }) {
     return (
         <footer {...stylex.attrs(styles.root)}>
-            <Goo hole={holeRadius} flow={props.flow} style={styles.band}>
+            <Goo hole={holeRadius} flow={properties.flow} style={styles.band}>
                 <div {...stylex.attrs(lattice.frame, styles.bar)}>
                     <nav aria-label="Social navigation" {...stylex.attrs(styles.navigation)}>
                         {socialLinks.map(({ label, href, shortcut, icon }) => (
@@ -39,6 +39,7 @@ export function Footer(props: { flow: number }) {
     );
 }
 
+/** The footer styles. */
 const styles = stylex.create({
     root: {
         marginInline: "auto",

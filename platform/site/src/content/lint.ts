@@ -1,6 +1,6 @@
 import { escapeAttribute } from "./html.ts";
 
-/// Public rule attributes displayed in the reference header.
+/** Public rule attributes displayed in the reference header. */
 export type RuleMetadata = {
     category: string;
     level: "error" | "warning";
@@ -8,13 +8,13 @@ export type RuleMetadata = {
     scope: "module" | "program";
 };
 
-/// An upstream rule credited by the linter.
+/** An upstream rule credited by the linter. */
 export type RuleProvenance = { source: string; rule: string; url: string };
 
-/// The implementation's repository location.
+/** The implementation's repository location. */
 export type RuleSource = { path: string; line: number };
 
-/// Render the stable lint attributes.
+/** Render the stable lint attributes. */
 export function renderLintMetadata(rule: RuleMetadata): string {
     const labels = [
         ["Category", rule.category.charAt(0).toUpperCase() + rule.category.slice(1)],
@@ -28,12 +28,14 @@ export function renderLintMetadata(rule: RuleMetadata): string {
         .join("")}</dl>`;
 }
 
-/// Render upstream rules and implementation as named reference entries.
+/** Render upstream rules and implementation as named reference entries. */
 export function renderLintReferences(
     provenance: readonly RuleProvenance[],
     source: RuleSource,
 ): string {
     const route = `https://github.com/destack-sh/destack/blob/main/${source.path}#L${source.line}`;
+
+    // list provenance and source links to share one scale, alignment, and interaction
     const entries = [
         ...provenance.map((entry) => ({
             label: "Inspired by",
@@ -43,7 +45,6 @@ export function renderLintReferences(
         { label: "Source", title: `${source.path.split("/").at(-1)}:${source.line}`, href: route },
     ];
 
-    // provenance and source links share one scale, alignment, and interaction
     return `<dl class="reference-links">${entries
         .map(
             (entry) =>

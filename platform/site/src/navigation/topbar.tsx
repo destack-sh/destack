@@ -14,16 +14,19 @@ import { primaryLinks } from "./navigation";
 import { SoundToggle } from "./sound";
 import { ThemeToggle } from "./theme";
 
+/** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
 
-/// Render the global site navigation.
+/** Render the global site navigation. */
 export function TopBar() {
+    // hold the route and the mobile menu
     const location = useLocation();
     let menu: HTMLDialogElement | undefined;
     const [isMenuOpen, setIsMenuOpen] = createSignal(false);
 
     // dismiss mobile navigation when the desktop navigation becomes available
     onSettled(() => {
+        // close the menu once the desktop layout applies
         const desktop = window.matchMedia("(min-width: 768px)");
         const closeMenu = () => {
             if (desktop.matches) {
@@ -31,6 +34,7 @@ export function TopBar() {
             }
         };
         desktop.addEventListener("change", closeMenu);
+
         return () => desktop.removeEventListener("change", closeMenu);
     });
 
@@ -188,8 +192,10 @@ export function TopBar() {
     );
 }
 
+/** The hover colour of navigation links. */
 const hover = { color: color.primary };
 
+/** The top bar styles. */
 const styles = stylex.create({
     root: {
         backgroundColor: color.background,

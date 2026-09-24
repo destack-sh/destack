@@ -1,5 +1,6 @@
-/// Filter the complete server-rendered rule directory in place.
+/** Filter the complete server-rendered rule directory in place. */
 export function enhanceRuleCatalog(body: HTMLElement): () => void {
+    // find the catalog, or skip documents without one
     const catalog = body.querySelector<HTMLElement>(".lint-catalog");
     if (!catalog) {
         return () => {};
@@ -10,6 +11,7 @@ export function enhanceRuleCatalog(body: HTMLElement): () => void {
     const search = controls.querySelector<HTMLInputElement>("input")!;
     const filters = [...controls.querySelectorAll<HTMLSelectElement>("select")];
 
+    // find the rows and the toolbar, and enable the controls
     const rows = [...catalog.querySelectorAll<HTMLElement>("[data-rule]")];
     const count = catalog.querySelector<HTMLElement>(".lint-count")!;
     const empty = catalog.querySelector<HTMLElement>(".lint-empty")!;
@@ -23,6 +25,7 @@ export function enhanceRuleCatalog(body: HTMLElement): () => void {
 
     // combine words and facets while preserving unrelated URL state
     const update = (persist = true) => {
+        // hide each row that misses a term or a facet
         const terms = search.value.toLowerCase().trim().split(/\s+/).filter(Boolean);
         let visible = 0;
         for (const row of rows) {
@@ -55,15 +58,19 @@ export function enhanceRuleCatalog(body: HTMLElement): () => void {
         }
     };
     const restore = () => {
+        // restore the search and filters from the URL
         const parameters = new URLSearchParams(location.search);
+        // oxlint-disable-next-line destack/no-silent-fallback -- an absent parameter clears the search
         search.value = parameters.get("q") ?? "";
         for (const filter of filters) {
+            // oxlint-disable-next-line destack/no-silent-fallback -- an absent parameter clears the filter
             filter.value = parameters.get(filter.name) ?? "";
         }
         update(false);
     };
     const input = () => update();
     const clear = () => {
+        // clear the search and filters
         search.value = "";
         for (const filter of filters) {
             filter.value = "";
@@ -76,8 +83,8 @@ export function enhanceRuleCatalog(body: HTMLElement): () => void {
     reset.addEventListener("click", clear);
     window.addEventListener("popstate", restore);
 
-    // release handlers when leaving the document
     return () => {
+        // release handlers when leaving the document
         controls.removeEventListener("input", input);
         reset.removeEventListener("click", clear);
         window.removeEventListener("popstate", restore);

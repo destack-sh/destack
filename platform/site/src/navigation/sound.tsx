@@ -4,7 +4,7 @@ import * as stylex from "@destack/style";
 
 import { sound } from "../effect/sound";
 
-/// Turn the site's quiet sounds on or off, off until the reader chooses.
+/** Turn the site's quiet sounds on or off, off until the reader chooses. */
 export function SoundToggle() {
     const [isOn, setIsOn] = createSignal(false);
 
@@ -42,6 +42,7 @@ export function SoundToggle() {
     );
 }
 
+/** The sound toggle styles. */
 const styles = stylex.create({
     toggle: {
         alignItems: "center",

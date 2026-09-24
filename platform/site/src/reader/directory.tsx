@@ -4,13 +4,14 @@ import { type Accessor, createMemo, For, type JSX, Show } from "@destack/view";
 import { useSearchParams } from "@destack/view/router";
 
 import { type ContentEntry, renderContentList } from "../content/presentation";
-import { tokens } from "../style/tokens.stylex";
 import { PageHeader } from "./header";
 import { publicationStyles } from "./publication.stylex";
 
-/// Keep collection filters in the URL so Back restores the previous view.
+/** Keep collection filters in the URL so Back restores the previous view. */
 export function createDirectory(entries: Accessor<readonly ContentEntry[]>) {
+    // read the year filter from the URL and list the years on offer
     const [parameters, setParameters] = useSearchParams();
+    // oxlint-disable-next-line destack/no-silent-fallback -- no year parameter selects every year
     const year = () => String(parameters.year ?? "");
     const years = createMemo(() =>
         [...new Set(entries().flatMap((entry) => (entry.date ? [entry.date.slice(0, 4)] : [])))]
@@ -25,11 +26,13 @@ export function createDirectory(entries: Accessor<readonly ContentEntry[]>) {
 
     return { entries, year, years, filtered, setParameters };
 }
+
+/** The year filter state of a dated collection. */
 type Directory = ReturnType<typeof createDirectory>;
 
-/// Browse a dated collection by publication year.
-export function DirectoryArchive(props: { directory: Directory }) {
-    const directory = props.directory;
+/** Browse a dated collection by publication year. */
+export function DirectoryArchive(properties: { directory: Directory }) {
+    const directory = properties.directory;
 
     // count the entries published in one year
     const countIn = (year: string) =>
@@ -72,55 +75,59 @@ export function DirectoryArchive(props: { directory: Directory }) {
     );
 }
 
-/// Render a collection title above its content.
-export function DirectorySection(props: {
+/** Render a collection title above its content. */
+export function DirectorySection(properties: {
     title: string;
     description?: string;
     children: JSX.Element;
 }) {
     return (
         <section {...stylex.attrs(styles.section)}>
-            <PageHeader title={props.title} variant="chapter" description={props.description} />
-            {props.children}
+            <PageHeader
+                title={properties.title}
+                variant="chapter"
+                description={properties.description}
+            />
+            {properties.children}
         </section>
     );
 }
 
-/// Render collection controls and navigable entries.
-export function DirectoryContent(props: {
+/** Render collection controls and navigable entries. */
+export function DirectoryContent(properties: {
     title: string;
     description?: string;
     directory: Directory;
     children?: JSX.Element;
 }) {
     return (
-        <DirectorySection title={props.title} description={props.description}>
+        <DirectorySection title={properties.title} description={properties.description}>
             {/* offer the year filter inline when the sidebar archive is hidden */}
-            <Show when={props.directory.years().length > 1 || props.directory.year()}>
+            <Show when={properties.directory.years().length > 1 || properties.directory.year()}>
                 <select
                     aria-label="Archive year"
-                    value={props.directory.year()}
+                    value={properties.directory.year()}
                     onChange={(event) =>
-                        props.directory.setParameters({
+                        properties.directory.setParameters({
                             year: event.currentTarget.value || undefined,
                         })
                     }
                     {...stylex.attrs(styles.filter)}
                 >
                     <option value="">All time</option>
-                    <For each={props.directory.years()}>
+                    <For each={properties.directory.years()}>
                         {(year) => <option value={year}>{year}</option>}
                     </For>
                 </select>
             </Show>
-            {props.children}
-            <div innerHTML={renderContentList(props.directory.filtered())} />
-            <Show when={props.directory.filtered().length === 0}>
+            {properties.children}
+            <div innerHTML={renderContentList(properties.directory.filtered())} />
+            <Show when={properties.directory.filtered().length === 0}>
                 <p {...stylex.attrs(styles.empty)}>
                     No matching entries.{" "}
                     <button
                         type="button"
-                        onClick={() => props.directory.setParameters({ year: undefined })}
+                        onClick={() => properties.directory.setParameters({ year: undefined })}
                         {...stylex.attrs(styles.clear)}
                     >
                         Clear filters
@@ -131,6 +138,7 @@ export function DirectoryContent(props: {
     );
 }
 
+/** The directory styles. */
 const styles = stylex.create({
     section: {
         minWidth: 0,

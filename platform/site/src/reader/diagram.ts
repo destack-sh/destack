@@ -1,11 +1,11 @@
-/// Render Mermaid fences and follow the reader theme.
+/** Render Mermaid fences and follow the reader theme. */
 export function renderDiagrams(article: HTMLElement): () => void {
     // retain source for theme changes and failed renders
     const diagrams = Array.from(
         article.querySelectorAll<HTMLElement>("[data-mermaid]"),
         (element) => ({
             element,
-            source: element.textContent ?? "",
+            source: element.textContent!,
         }),
     );
     if (diagrams.length === 0) {
@@ -19,6 +19,7 @@ export function renderDiagrams(article: HTMLElement): () => void {
     const update = () => {
         pending = pending
             .then(async () => {
+                // load mermaid after the fonts, and stop once the reader is gone
                 const { default: mermaid } = await import("mermaid");
                 await document.fonts.ready;
                 if (isDisposed) {
@@ -130,7 +131,7 @@ export function renderDiagrams(article: HTMLElement): () => void {
     };
 }
 
-/// Convert computed CSS RGB colors to Mermaid's hexadecimal theme format.
+/** Convert computed CSS RGB colors to Mermaid's hexadecimal theme format. */
 function themeColor(value: string): string {
     const match = /^rgb\((\d+), (\d+), (\d+)\)$/.exec(value);
     if (!match) {
@@ -143,8 +144,9 @@ function themeColor(value: string): string {
         .join("")}`;
 }
 
-/// Display the rendering failure alongside the original source.
+/** Display the rendering failure alongside the original source. */
 function showError(element: HTMLElement, source: string, error: unknown) {
+    // log the failure and build the alert and the source listing
     console.error("Could not render diagram", error);
     const message = document.createElement("p");
     message.setAttribute("role", "alert");
@@ -153,5 +155,6 @@ function showError(element: HTMLElement, source: string, error: unknown) {
     listing.tabIndex = 0;
     listing.textContent = source;
 
+    // show the alert and the source in place of the diagram
     element.replaceChildren(message, listing);
 }

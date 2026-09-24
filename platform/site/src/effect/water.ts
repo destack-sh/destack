@@ -1,20 +1,20 @@
 import { Shader } from "./gl";
 
-/// The water colors for one theme, as RGB triples in 0..1.
+/** The water colors for one theme, as RGB triples in 0..1. */
 export type WaterPalette = {
-    /// The color at the bottom of the figure.
+    /** The color at the bottom of the figure. */
     deep: [number, number, number];
-    /// The color just below the surface.
+    /** The color just below the waterline. */
     shallow: [number, number, number];
-    /// The caustic and light ray color.
+    /** The caustic and light ray color. */
     caustic: [number, number, number];
-    /// The surface line color.
+    /** The waterline color. */
     foam: [number, number, number];
-    /// The outline ink.
+    /** The outline ink. */
     ink: [number, number, number];
 };
 
-/// The water palette on the night page.
+/** The water palette on the night page. */
 export const nightWater: WaterPalette = {
     deep: [0.03, 0.12, 0.16],
     shallow: [0.07, 0.28, 0.34],
@@ -23,7 +23,7 @@ export const nightWater: WaterPalette = {
     ink: [0.01, 0.03, 0.04],
 };
 
-/// The water palette on the paper page.
+/** The water palette on the paper page. */
 export const paperWater: WaterPalette = {
     deep: [0.1, 0.3, 0.38],
     shallow: [0.24, 0.56, 0.64],
@@ -32,23 +32,23 @@ export const paperWater: WaterPalette = {
     ink: [0.07, 0.19, 0.235],
 };
 
-/// Where the water drains, as a fraction of the page frame's width: straight down into the footer's black hole.
+/** Where the water drains, as a fraction of the page frame's width: straight down into the footer's black hole. */
 export const drainAt = 0.875;
 
-/// The milliseconds a full drain or fill takes.
+/** The milliseconds a full drain or fill takes. */
 export const travel = 2400;
 
-/// The most ripples the surface carries at once.
+/** The most ripples the waterline carries at once. */
 const rippleCapacity = 8;
-/// How fast ripples run outward along the surface, in CSS pixels per second.
+/** How fast ripples run outward along the waterline, in CSS pixels per second. */
 const rippleSpeed = 90;
-/// The seconds a ripple takes to die away.
+/** The seconds a ripple takes to die away. */
 const rippleLife = 3;
 
-/// Recent stirs of the surface: where across the water canvas, when in seconds, and how hard.
+/** Recent stirs of the waterline: where across the water canvas, when in seconds, and how hard. */
 const ripples: { x: number; at: number; strength: number }[] = [];
 
-/// Stir the surface at a position across the water canvas, sending ripples outward.
+/** Stir the waterline at a position across the water canvas, sending ripples outward. */
 export function stir(x: number, strength: number) {
     ripples.push({ x, at: performance.now() / 1000, strength });
     if (ripples.length > rippleCapacity) {
@@ -56,7 +56,7 @@ export function stir(x: number, strength: number) {
     }
 }
 
-/// The water fragment shader.
+/** The water fragment shader. */
 const fragmentSource = `
 precision mediump float;
 uniform vec2 resolution;
@@ -188,28 +188,28 @@ void main() {
 }
 `;
 
-/// Render stylised water below a surface that drains and fills over time.
+/** Render stylised water below a waterline that drains and fills over time. */
 export class Water {
-    /// The shader that draws the water.
+    /** The shader that draws the water. */
     shader: Shader;
-    /// The current palette.
+    /** The current palette. */
     palette: WaterPalette;
-    /// The surface position at the start of the current move, in CSS pixels.
+    /** The water level at the start of the current move, in CSS pixels. */
     from: number;
-    /// The surface position the current move ends at.
+    /** The water level the current move ends at. */
     to: number;
-    /// The start time of the current move in milliseconds.
+    /** The start time of the current move in milliseconds. */
     moved: number;
-    /// The animation start time in milliseconds.
+    /** The animation start time in milliseconds. */
     start: number;
-    /// Whether the water moves.
+    /** Whether the water moves. */
     isMoving: boolean;
-    /// Receive the surface position after every frame.
+    /** Receive the water level after every frame. */
     onLevel: (level: number) => void;
-    /// The searchlight centre and radius in canvas CSS pixels, with no radius when off.
+    /** The searchlight centre and radius in canvas CSS pixels, with no radius when off. */
     searchlight: { x: number; y: number; radius: number };
 
-    /// Create water on a canvas, or throw when WebGL is unavailable.
+    /** Create water on a canvas, or throw when WebGL is unavailable. */
     constructor(
         canvas: HTMLCanvasElement,
         palette: WaterPalette,
@@ -217,6 +217,7 @@ export class Water {
         isMoving: boolean,
         onLevel: (level: number) => void,
     ) {
+        // start the shader and rest the water at its level
         this.shader = new Shader(canvas, fragmentSource, 1.5, (now) => this.draw(now));
         this.palette = palette;
         this.from = level;
@@ -228,14 +229,15 @@ export class Water {
         this.searchlight = { x: 0, y: 0, radius: 0 };
     }
 
-    /// Shine the searchlight at a point in canvas CSS pixels, or switch it off with no radius.
+    /** Shine the searchlight at a point in canvas CSS pixels, or switch it off with no radius. */
     shine(x: number, y: number, radius: number) {
         this.searchlight = { x, y, radius };
         this.shader.request();
     }
 
-    /// Drain or fill toward a new surface position.
+    /** Drain or fill toward a new water level. */
     moveTo(level: number) {
+        // start a move from the current level
         const now = performance.now();
         this.from = this.levelAt(now);
         this.to = level;
@@ -243,32 +245,34 @@ export class Water {
         this.shader.request();
     }
 
-    /// Place the surface immediately, without animating.
+    /** Place the waterline immediately, without animating. */
     place(level: number) {
+        // rest the water at the level
         this.from = level;
         this.to = level;
         this.moved = -travel;
         this.shader.request();
     }
 
-    /// Swap the palette and redraw.
+    /** Swap the palette and redraw. */
     paint(palette: WaterPalette) {
         this.palette = palette;
         this.shader.request();
     }
 
-    /// Return the surface position at a time.
+    /** Return the water level at a time. */
     levelAt(now: number) {
         return this.from + (this.to - this.from) * ease(this.progressAt(now));
     }
 
-    /// Return how far the current move has come, from 0 to 1.
+    /** Return how far the current move has come, from 0 to 1. */
     progressAt(now: number) {
         return this.isMoving ? Math.min(1, (now - this.moved) / travel) : 1;
     }
 
-    /// Upload one frame, and return whether to keep going while any water shows or the surface moves.
+    /** Upload one frame, and return whether to keep going while any water shows or the waterline moves. */
     draw(now: number) {
+        // read the shader and its context
         const shader = this.shader;
         const context = shader.context;
 
@@ -298,21 +302,25 @@ export class Water {
         context.uniform4fv(shader.uniform("ripples"), packed);
         this.onLevel(level);
 
-        // keep animating while water shows or the surface still moves
+        // keep animating while water shows or the waterline still moves
         const isDrained = level >= shader.height && progress >= 1;
 
         return (this.isMoving && !isDrained) || progress < 1;
     }
 }
 
-/// Return how far the resting surface rises or falls at a position across the water canvas, in CSS pixels,
-/// matching the shader's waves.
+/**
+ * Return how far the resting waterline rises or falls at a position across the canvas, in CSS pixels.
+ *
+ * The waves match the shader's waves.
+ */
 export function waveAt(x: number, seconds: number) {
+    // sum three rolling waves
     const long = Math.sin(x * 0.017 + seconds * 1.1) * 1.8;
     const middle = Math.sin(x * 0.043 - seconds * 1.6) * 0.8;
     const short = Math.sin(x * 0.11 + seconds * 2.3) * 0.3;
 
-    // add the ripples running along the surface, exactly as the shader does
+    // add the ripples running along the waterline, exactly as the shader does
     let lift = 0;
     for (const ripple of ripples) {
         const age = seconds - ripple.at;
@@ -330,7 +338,7 @@ export function waveAt(x: number, seconds: number) {
     return long + middle + short + lift;
 }
 
-/// Ease in and out, slow at both ends.
-function ease(t: number) {
-    return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+/** Ease in and out, slow at both ends. */
+function ease(progress: number) {
+    return progress < 0.5 ? 4 * progress ** 3 : 1 - (-2 * progress + 2) ** 3 / 2;
 }

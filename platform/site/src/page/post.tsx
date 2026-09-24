@@ -1,20 +1,21 @@
 import { createMemo, Loading, Show } from "@destack/view";
 
-import { loadPost, type Post, postBySlug, posts } from "../generated/posts";
+import { loadPost, postBySlug, posts } from "../generated/posts";
 import { BlogArticle } from "../reader/blog";
 import { MissingPage } from "../site/missing";
 import { Seo } from "../site/seo";
 import { Shell } from "../site/shell";
 
-type PostPageProps = {
-    /// The requested post slug.
+/** Properties for a blog post page. */
+type PostPageProperties = {
+    /** The requested post slug. */
     slug: string;
 };
 
-/// Render one generated blog post.
-export function PostPage(props: PostPageProps) {
-    const post = () => postBySlug.get(props.slug);
-    const content = createMemo(() => loadPost(props.slug));
+/** Render one generated blog post. */
+export function PostPage(properties: PostPageProperties) {
+    const post = () => postBySlug.get(properties.slug);
+    const content = createMemo(() => loadPost(properties.slug));
 
     return (
         <Shell>
@@ -44,7 +45,7 @@ export function PostPage(props: PostPageProps) {
     );
 }
 
-/// Render an unknown blog route.
+/** Render an unknown blog route. */
 function MissingPost() {
     return (
         <MissingPage

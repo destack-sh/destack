@@ -699,7 +699,7 @@ function coverFor(html: string, assets: MarkdownContext["assets"]) {
     const asset = assets.find((asset) => asset.placeholder === src);
 
     return {
-        src: asset ? assetRouteFor(asset.path) : src,
+        source: asset ? assetRouteFor(asset.path) : src,
         alt: /\salt="([^"]*)"/.exec(image)?.[1] ?? "",
     };
 }
@@ -737,64 +737,65 @@ function renderPostModule(posts: ReturnType<typeof renderPosts>, index: Rendered
 
     return `import { loadContent, type RenderedContent } from "../content/load";
 
+/** One generated blog post record. */
 export type Post = {
-    /// The post author.
+    /** The post author. */
     author: string;
-    /// The static rendered HTML route.
+    /** The static rendered HTML route. */
     contentRoute: string;
-    /// The post's first figure image, shown on its directory entry.
-    cover: { src: string; alt: string } | null;
-    /// The publication date.
+    /** The post's first figure image, shown on its directory entry. */
+    cover: { source: string; alt: string } | null;
+    /** The publication date. */
     date: string;
-    /// The authored Markdown route.
+    /** The authored Markdown route. */
     markdownRoute: string;
-    /// The canonical browser route.
+    /** The canonical browser route. */
     route: string;
-    /// The canonical post slug.
+    /** The canonical post slug. */
     slug: string;
-    /// The post subtitle.
+    /** The post subtitle. */
     subtitle: string;
-    /// The rendered heading tree.
+    /** The rendered heading tree. */
     tableOfContents: readonly TableOfContentsEntry[];
-    /// The plain text route.
+    /** The plain text route. */
     textRoute: string;
-    /// The post title.
+    /** The post title. */
     title: string;
-    /// The approximate token count.
+    /** The approximate token count. */
     tokens: number;
 };
 
-/// One rendered post body.
+/** One rendered post body. */
 export type PostContent = RenderedContent;
 
-/// One rendered post heading.
+/** One rendered post heading. */
 export type TableOfContentsEntry = {
-    /// The heading depth.
+    /** The heading depth. */
     depth: number;
-    /// The heading fragment identifier.
+    /** The heading fragment identifier. */
     id: string;
-    /// The heading text.
+    /** The heading text. */
     text: string;
 };
 
-/// Portable formats for the blog directory.
+/** Portable formats for the blog directory. */
 export const blogIndex = ${JSON.stringify({
         markdownRoute: index.markdownRoute,
         textRoute: index.textRoute,
         tokens: index.tokens,
     })};
 
-/// The generated blog posts.
+/** The generated blog posts. */
 export const posts = [
 ${records}
 ] as const satisfies readonly Post[];
 
-/// Blog posts indexed by slug.
+/** Blog posts indexed by slug. */
 export const postBySlug: ReadonlyMap<string, Post> = new Map(
     posts.map((post): [string, Post] => [post.slug, post]),
 );
 
-/// Load one rendered post body by slug.
+/** Load one rendered post body by slug. */
 export async function loadPost(slug: string): Promise<PostContent | undefined> {
     const post = postBySlug.get(slug);
 
@@ -835,7 +836,7 @@ function renderRouteModule(
         ...references.map((reference) => reference.route),
     ];
 
-    return `/// The complete static browser route set.\nexport const prerenderRoutes = ${JSON.stringify(
+    return `/** The complete static browser route set. */\nexport const prerenderRoutes = ${JSON.stringify(
         routes,
         null,
         4,

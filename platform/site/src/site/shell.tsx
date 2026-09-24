@@ -6,19 +6,23 @@ import { Footer } from "../navigation/footer";
 import { KeyboardShortcuts } from "../navigation/shortcut";
 import { TopBar } from "../navigation/topbar";
 
-/// Render the persistent site frame around one page, with water flowing through the footer's black hole:
-/// 1 draining into it, -1 welling out of it, 0 still.
-export function Shell(props: { children: JSX.Element; flow?: number }) {
+/**
+ * Render the persistent site frame around one page.
+ *
+ * The flow runs water through the footer's black hole: 1 draining into it, -1 welling out of it, 0 still.
+ */
+export function Shell(properties: { children: JSX.Element; flow?: number }) {
     return (
         <div {...stylex.attrs(styles.root)}>
             <KeyboardShortcuts />
             <TopBar />
-            <main {...stylex.attrs(styles.main)}>{props.children}</main>
-            <Footer flow={props.flow ?? 0} />
+            <main {...stylex.attrs(styles.main)}>{properties.children}</main>
+            <Footer flow={properties.flow} />
         </div>
     );
 }
 
+/** The site frame styles. */
 const styles = stylex.create({
     root: {
         backgroundColor: color.background,

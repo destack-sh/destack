@@ -7,14 +7,16 @@ import { Install } from "../home/install";
 import { Seo } from "../site/seo";
 import { Shell } from "../site/shell";
 
-/// Render the public Destack homepage.
+/** Render the public Destack homepage. */
 export function HomePage() {
+    // hold the lit download, the black hole flow, and its settle timer
     const [isDestacked, setIsDestacked] = createSignal(false);
     const [flow, setFlow] = createSignal(0);
     let settle: ReturnType<typeof setTimeout> | undefined;
 
-    // light the download for good, and run the water through the black hole while the figure drains or fills
+    // run the water through the black hole while the figure drains or fills
     const change = (isOpen: boolean) => {
+        // light the download for good once open
         if (isOpen) {
             setIsDestacked(true);
         }

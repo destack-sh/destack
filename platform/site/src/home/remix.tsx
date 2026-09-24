@@ -7,14 +7,14 @@ import { tokens } from "../style/tokens.stylex";
 import { boardCells, boardInset, rowCells } from "./board";
 import { Card, type Entity, type Reveal } from "./card";
 
-/// The milliseconds each open scene holds before the next one begins.
+/** The milliseconds each open scene holds before the next one begins. */
 const sceneTime = 5200;
-/// The milliseconds from the water fully draining to the first scene change.
+/** The milliseconds from the water fully draining to the first scene change. */
 const firstSceneTime = 2400;
-/// The milliseconds cards take to travel between places.
+/** The milliseconds cards take to travel between places. */
 const moveTime = 1400;
 
-/// The humans, agents, and apps the scenes arrange.
+/** The humans, agents, and apps the scenes arrange. */
 const entities: Record<string, Entity> = {
     you: { label: "You", icon: "user", role: "Human" },
     colleague: { label: "Colleague", icon: "user", role: "Human" },
@@ -29,7 +29,7 @@ const entities: Record<string, Entity> = {
     planner: { label: "Planner", icon: "tasks", role: "Fork of Tasks" },
 };
 
-/// What each card shows under the searchlight today: every separate access a person needs, or ciphertext.
+/** What each card shows under the searchlight today: every separate access a person needs, or ciphertext. */
 const todayReveals: { [id: string]: Reveal | undefined } = {
     you: {
         kind: "fields",
@@ -69,7 +69,7 @@ const todayReveals: { [id: string]: Reveal | undefined } = {
     github: { kind: "cipher" },
 };
 
-/// What each card shows under the searchlight with Destack: one identity and its grants, or the app's source.
+/** What each card shows under the searchlight with Destack: one identity and its grants, or the app's source. */
 const openReveals: { [id: string]: Reveal | undefined } = {
     you: {
         kind: "fields",
@@ -157,24 +157,24 @@ const openReveals: { [id: string]: Reveal | undefined } = {
     },
 };
 
-/// Every card the scenes can show.
+/** Every card the scenes can show. */
 const ids = Object.keys(entities);
-/// The vendor apps, in the order of the icebergs they ride.
+/** The vendor apps, in the order of the icebergs they ride. */
 const vendors = ["notion", "slack", "github"];
-/// The open apps, which anyone can fork.
+/** The open apps, which anyone can fork. */
 const apps = ["pages", "chat", "tasks", "planner"];
 
-/// One arrangement of the top two layers.
+/** One arrangement of the top two layers. */
 type Scene = {
-    /// The cards on the upper row, left to right.
+    /** The cards on the upper row, left to right. */
     upper: readonly string[];
-    /// The cards on the lower row, left to right, and whether each is reshaped wide.
+    /** The cards on the lower row, left to right, and whether each is reshaped wide. */
     lower: readonly { id: string; isWide?: boolean }[];
-    /// Which upper card works with which lower card.
+    /** Which upper card works with which lower card. */
     links: readonly [string, string][];
 };
 
-/// The locked stack today: everyone signs in to separate vendor apps.
+/** The locked stack today: everyone signs in to separate vendor apps. */
 const today: Scene = {
     upper: ["you", "colleague", "friend", "agent"],
     lower: [{ id: "notion" }, { id: "slack" }, { id: "github" }],
@@ -186,7 +186,7 @@ const today: Scene = {
     ],
 };
 
-/// The open loop: everyone shares the apps, an app is remixed, then an agent moves into the apps.
+/** The open loop: everyone shares the apps, an app is remixed, then an agent moves into the apps. */
 const scenes: readonly Scene[] = [
     {
         upper: ["you", "colleague", "friend", "agent"],
@@ -224,72 +224,77 @@ const scenes: readonly Scene[] = [
     },
 ];
 
-/// The board's height in cells across the three figure rows the layer covers.
+/** The board's height in cells across the three figure rows the layer covers. */
 const layerRows = rowCells * 3;
 
-/// The placement of every card in the locked stack, and in each open scene.
+/** The placement of every card in the locked stack, and in each open scene. */
 const todayPlacements = arrange(today);
+/** The placement of every card in each open scene. */
 const scenePlacements = scenes.map(arrange);
 
-/// How a card moves into its placement.
+/** How a card moves into its placement. */
 type Step = "stay" | "enter" | "leave" | "park";
 
-/// One placed card: its row, its slot in whole board cells, and how it gets there.
+/** One placed card: its row, its span in whole board cells, and how it gets there. */
 type Placement = {
-    /// The row, upper or lower.
+    /** The row, upper or lower. */
     row: 0 | 1;
-    /// The slot's left edge in cells from the board's edge.
+    /** The span's left edge in cells from the board's edge. */
     left: number;
-    /// The slot's width in cells.
+    /** The span's width in cells. */
     width: number;
-    /// Whether the card shows on the board.
+    /** Whether the card shows on the board. */
     isShown: boolean;
-    /// How the card moves there: stays or travels on the board, enters or leaves across an edge, or parks off the board.
+    /** How the card moves there: stays or travels on the board, enters or leaves across an edge, or parks off the board. */
     step: Step;
-    /// The milliseconds the card waits before it moves.
+    /** The milliseconds the card waits before it moves. */
     delay: number;
 };
 
-/// One kind of cable, which sets its look.
+/** One kind of cable, which sets its look. */
 type Kind = "locked" | "link" | "chain" | "drop";
 
-/// A point in layer pixels.
+/** A point in layer pixels. */
 type Point = { x: number; y: number };
 
-/// A right-angled cable run: its two ends and where its middle segment crosses, down then across then down,
-/// or across then down then across.
+/**
+ * A right-angled cable run between two ends.
+ *
+ * The bend is where its middle segment crosses, down then across then down, or across then down then across.
+ */
 type Run = { from: Point; to: Point; bend: number };
 
-/// A card's edges and centre in layer pixels.
+/** A card's edges and centre in layer pixels. */
 type Box = { left: number; right: number; top: number; bottom: number; centre: number };
 
-/// One cable between two cards, its springy middle, and how visible it is.
+/** One cable between two cards, its springy middle, and how visible it is. */
 type Cable = {
-    /// The drawn cable.
+    /** The drawn cable. */
     path: SVGPathElement;
-    /// The plugs at both ends.
+    /** The plugs at both ends. */
     ends: SVGPathElement;
-    /// The straight-line middle on the previous frame, to feel how fast the ends move.
+    /** The straight-line middle on the previous frame, to feel how fast the ends move. */
     middle: Point | undefined;
-    /// How far the middle swings off the straight line.
+    /** How far the middle swings off the straight line. */
     offset: Point;
-    /// How fast the middle swings.
+    /** How fast the middle swings. */
     velocity: Point;
-    /// The visibility from 0 to 1.
+    /** The visibility from 0 to 1. */
     alpha: number;
-    /// The time the cable starts to fade in.
+    /** The time the cable starts to fade in. */
     showsAt: number;
-    /// How far the cable has settled onto the grid, from 0 following its cards to 1 resting in the holes.
+    /** How far the cable has settled onto the grid, from 0 following its cards to 1 resting in the holes. */
     settle: number;
 };
 
-/// Show the top two layers, locked today or freely rearranging with Destack, every card draggable.
-export function Remix(props: {
+/** Show the top two layers, locked today or freely rearranging with Destack, every card draggable. */
+export function Remix(properties: {
     isOpen: boolean;
     isLive: boolean;
     revealOf: (row: number) => number;
     onScene: (scene: number) => void;
 }) {
+    // hold the scene, the dragged card, and the elements to measure
     const [scene, setScene] = createSignal(0);
     const [drag, setDrag] = createSignal<{ id: string; x: number; y: number }>();
     let layer!: HTMLDivElement;
@@ -298,14 +303,17 @@ export function Remix(props: {
     const last = new Map<string, Placement>();
 
     // pick the scene on show: the locked stack today, the loop once open
-    const shown = () => (props.isOpen ? scenes[scene()] : today);
+    const shown = () => (properties.isOpen ? scenes[scene()] : today);
 
     // place every card of the scene: cards enter and leave across the nearest board edge, vendor apps sink in place
-    let wasLaidOpen = props.isOpen;
+    let wasLaidOpen = properties.isOpen;
     const layout = createMemo(() => {
-        const current = props.isOpen ? scenePlacements[scene()] : todayPlacements;
-        const isToggle = props.isOpen !== wasLaidOpen;
-        wasLaidOpen = props.isOpen;
+        // pick the placements and note whether the stack just opened or closed
+        const current = properties.isOpen ? scenePlacements[scene()] : todayPlacements;
+        const isToggle = properties.isOpen !== wasLaidOpen;
+        wasLaidOpen = properties.isOpen;
+
+        // step each card toward its placement, collecting the cards that enter and leave
         const entering: Placement[] = [];
         const leaving: Placement[] = [];
         for (const id of ids) {
@@ -354,15 +362,18 @@ export function Remix(props: {
 
     // follow a dragged card with the pointer, then let it spring home
     const grab = (id: string, event: PointerEvent) => {
+        // hold the pointer start and pick the card up
         const startX = event.clientX;
         const startY = event.clientY;
         event.preventDefault();
         sound.play("click");
         setDrag({ id, x: 0, y: 0 });
 
+        // follow the pointer until it lifts, then let go of the card
         const move = (moving: PointerEvent) =>
             setDrag({ id, x: moving.clientX - startX, y: moving.clientY - startY });
         const drop = () => {
+            // let go of the card and stop following the pointer
             setDrag(undefined);
             window.removeEventListener("pointermove", move);
             window.removeEventListener("pointerup", drop);
@@ -373,12 +384,14 @@ export function Remix(props: {
         window.addEventListener("pointercancel", drop);
     };
 
+    // trace the cables every frame once the cards are in the page
     onSettled(() => {
+        // hold the cables, the frame, the scene timing, and the motion state
         const isStill = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         const cables = new Map<string, Cable>();
         let frame: number | undefined;
         let nextScene: number | undefined;
-        let wasOpen = props.isOpen;
+        let wasOpen = properties.isOpen;
         let wasScene = scene();
         let changedAt = -Infinity;
         let delay = 0;
@@ -388,6 +401,7 @@ export function Remix(props: {
 
         // measure the boxes of the given cards within the layer, all before any cable is drawn
         const measure = (ids: Iterable<string>) => {
+            // measure each card against the layer bounds
             const bounds = layer.getBoundingClientRect();
             const boxes = new Map<string, Box>();
             for (const id of ids) {
@@ -403,6 +417,7 @@ export function Remix(props: {
                     });
                 }
             }
+
             return { bounds, boxes };
         };
 
@@ -427,11 +442,13 @@ export function Remix(props: {
                 };
                 cables.set(key, found);
             }
+
             return found;
         };
 
         // fade a cable in once its moment in the choreography comes
         const show = (found: Cable, fade: number, now: number) => {
+            // fade the cable in after the delay since the last change
             if (found.alpha === 0 && found.showsAt < changedAt) {
                 found.showsAt = changedAt + delay;
             }
@@ -446,6 +463,7 @@ export function Remix(props: {
 
         // push a cable's middle against the motion of its ends, spring it back, and return how far it swings
         const swing = (found: Cable, middle: Point) => {
+            // swing the middle against its ends' motion and damp it back
             const previous = found.middle ?? middle;
             found.middle = middle;
             const velocity = found.velocity;
@@ -456,11 +474,13 @@ export function Remix(props: {
             found.offset.x += velocity.x;
             found.offset.y += velocity.y;
             isStirring ||= Math.abs(velocity.x) + Math.abs(velocity.y) > 0.02;
+
             return found.offset;
         };
 
         // hang a locked cable between two cards as a taut curve that swings as they bob
         const hang = (key: string, from: Point, to: Point, now: number) => {
+            // draw the plugs and a curve bent by the swing
             const found = cable(key, "locked");
             show(found, 1, now);
             found.ends.setAttribute("d", `${plug(from)}${plug(to)}`);
@@ -484,6 +504,7 @@ export function Remix(props: {
             fade: number,
             now: number,
         ) => {
+            // start the cable and fade it in
             const found = cable(key, kind);
             show(found, fade, now);
 
@@ -494,16 +515,17 @@ export function Remix(props: {
                 found.settle = target;
             }
             isStirring ||= found.settle !== target;
-            const t = found.settle;
-            const mix = (a: number, b: number) => a + (b - a) * t;
+            const settle = found.settle;
+            const mix = (start: number, end: number) => start + (end - start) * settle;
             const from = { x: mix(free.from.x, grid.from.x), y: mix(free.from.y, grid.from.y) };
             const to = { x: mix(free.to.x, grid.to.x), y: mix(free.to.y, grid.to.y) };
 
             // swing the middle segment across its length while the cable is loose
             const offset = swing(found, { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 });
             const bend =
-                mix(free.bend, grid.bend) + (isAcross ? offset.x : offset.y) * 1.33 * (1 - t);
+                mix(free.bend, grid.bend) + (isAcross ? offset.x : offset.y) * 1.33 * (1 - settle);
 
+            // draw the plugs and the right-angled path
             found.ends.setAttribute("d", `${plug(from)}${plug(to)}`);
             found.path.setAttribute(
                 "d",
@@ -515,8 +537,9 @@ export function Remix(props: {
 
         // trace every cable from the cards' measured positions
         const trace = (now: number) => {
+            // measure the cards the scene links and reset the motion flag
             const current = shown();
-            const isOpen = props.isOpen;
+            const isOpen = properties.isOpen;
             const needed = new Set([
                 ...current.links.flat(),
                 ...current.lower.map((card) => card.id),
@@ -531,10 +554,11 @@ export function Remix(props: {
             // snap a position across to the middle of the hole column it falls in
             const hole = (x: number) => (Math.floor(x / cell) + 0.5) * cell;
 
-            // tell whether a card rests in its slot, neither held nor travelling
+            // tell whether a card rests in its place, neither held nor travelling
             const rests = (id: string, box: Box) => {
                 const place = places.get(id);
                 const top = cellRow * (place?.row === 0 ? 2 : 11);
+
                 return (
                     place !== undefined &&
                     drag()?.id !== id &&
@@ -546,6 +570,7 @@ export function Remix(props: {
             // link the upper cards to the lower cards they work with, along the two hole rows between them once open
             const kind = isOpen ? "link" : "locked";
             current.links.forEach(([upper, lower], index) => {
+                // find both cards of the link, skipping links whose cards are missing
                 const from = boxes.get(upper);
                 const to = boxes.get(lower);
                 if (!from || !to) {
@@ -575,9 +600,9 @@ export function Remix(props: {
                 );
             });
 
-            // once open, chain the lower cards along a hole row and drop each into the services below its slot
+            // once open, chain the lower cards along a hole row and drop each into the services below its place
             if (isOpen) {
-                const reveal = props.revealOf(2);
+                const reveal = properties.revealOf(2);
                 const floor = cellRow * 20;
                 const lower = current.lower.flatMap((card) => {
                     const found = boxes.get(card.id);
@@ -586,6 +611,7 @@ export function Remix(props: {
                         : [];
                 });
                 lower.forEach((card, index) => {
+                    // chain this card to the next one along the hole row
                     const next = lower[index + 1];
                     if (next) {
                         const key = `chain:${card.id}:${next.id}`;
@@ -608,6 +634,8 @@ export function Remix(props: {
                             now,
                         );
                     }
+
+                    // drop this card into the services below it
                     const key = `drop:${card.id}`;
                     kept.add(key);
                     const place = places.get(card.id);
@@ -649,36 +677,38 @@ export function Remix(props: {
 
         // time the cables to the choreography, and step the scenes once the water has drained
         const loop = (now: number) => {
-            if (props.isOpen !== wasOpen) {
+            // restart the cable timing when the stack opens, closes, or changes scene
+            if (properties.isOpen !== wasOpen) {
                 changedAt = now;
-                delay = props.isOpen ? 1100 : 3000;
-                wasOpen = props.isOpen;
+                delay = properties.isOpen ? 1100 : 3000;
+                wasOpen = properties.isOpen;
             } else if (scene() !== wasScene) {
                 changedAt = now;
                 delay = moveTime * 0.8;
             }
             wasScene = scene();
 
-            if (!props.isOpen) {
+            // reset the scenes while locked, and step them while open and live
+            if (!properties.isOpen) {
                 nextScene = undefined;
                 if (scene() !== 0) {
                     setScene(0);
-                    props.onScene(0);
+                    properties.onScene(0);
                 }
-            } else if (props.isLive && !isStill) {
+            } else if (properties.isLive && !isStill) {
                 nextScene ??= now + firstSceneTime;
                 if (drag()) {
                     nextScene = Math.max(nextScene, now + 1200);
                 } else if (now >= nextScene) {
                     const next = (scene() + 1) % scenes.length;
                     setScene(next);
-                    props.onScene(next);
+                    properties.onScene(next);
                     nextScene = now + sceneTime;
                 }
             }
 
             // trace only while something moves: bobbing ice, dancing users, travelling cards, a drag, or a swinging cable
-            const isBobbing = !props.isOpen && !isStill;
+            const isBobbing = !properties.isOpen && !isStill;
             const isBusy =
                 isBobbing || drag() || now - changedAt < 4500 || now < wakeUntil || isStirring;
             if (isVisible && isBusy) {
@@ -726,10 +756,12 @@ export function Remix(props: {
             {/* place each card on its row; cards travel between rows and can be dragged */}
             <For each={ids}>
                 {(id) => {
+                    // read the card's placement, drag offset, and kind
                     const placement = () => layout().get(id)!;
                     const held = () => (drag()?.id === id ? drag() : undefined);
                     const vendor = vendors.indexOf(id);
                     const isPerson = vendor < 0 && !apps.includes(id);
+
                     return (
                         <div
                             ref={(element) => cards.set(id, element)}
@@ -755,14 +787,14 @@ export function Remix(props: {
                                     stylex.attrs(
                                         styles.fill,
                                         isPerson && styles.dance,
-                                        isPerson && props.isOpen && styles.still,
+                                        isPerson && properties.isOpen && styles.still,
                                     ).class
                                 }
                             >
                                 <Card
                                     entity={entities[id]}
                                     kind={vendor >= 0 ? "vendor" : "plain"}
-                                    reveal={props.isOpen ? openReveals[id] : todayReveals[id]}
+                                    reveal={properties.isOpen ? openReveals[id] : todayReveals[id]}
                                     style={styles.fill}
                                 />
                             </div>
@@ -774,11 +806,14 @@ export function Remix(props: {
     );
 }
 
+/** The easing of a card travelling between places. */
 const easing = "cubic-bezier(0.6, 0, 0.2, 1)";
+/** The easing of a card springing back from a drag. */
 const spring = "cubic-bezier(0.3, 1.45, 0.5, 1)";
+/** The easing of a vendor app sinking with the ice. */
 const sink = "cubic-bezier(0.5, 0, 0.9, 0.6)";
 
-/// Return the left edge and width of a card's slot, as CSS lengths within the layer.
+/** Return the left edge and width of a card's span, as CSS lengths within the layer. */
 function span(place: Placement) {
     return {
         left: `calc(${tokens.cell} * ${place.left})`,
@@ -786,17 +821,18 @@ function span(place: Placement) {
     };
 }
 
-/// Return the centre of a card's slot in pixels, for a given cell width.
+/** Return the centre of a card's span in pixels, for a given cell width. */
 function centre(place: Placement, cell: number) {
     return (place.left + place.width / 2) * cell;
 }
 
-/// Return a card's inline motion: how it enters, leaves, and springs back from a drag.
+/** Return a card's inline motion: how it enters, leaves, and springs back from a drag. */
 function motion(
     isVendor: boolean,
     place: Placement,
     held: { x: number; y: number } | undefined,
 ): Record<string, string> {
+    // read the card's visibility and drag offset
     const isShown = place.isShown;
     const offset = held ? `${held.x}px ${held.y}px` : "0 0";
 
@@ -824,6 +860,7 @@ function motion(
 
     // travel cards across and off the board whole, and spring them back after a drag
     const move = `left ${moveTime}ms ${easing} ${place.delay}ms, top ${moveTime}ms ${easing} ${place.delay}ms, width ${moveTime}ms ${easing}`;
+
     return {
         translate: offset,
         transition:
@@ -832,17 +869,22 @@ function motion(
     };
 }
 
-/// Return a small square plug at a cable end, as path data.
+/** Return a small square plug at a cable end, as an SVG path. */
 function plug(point: Point) {
     return `M${point.x - 2} ${point.y - 2}h4v4h-4Z`;
 }
 
-/// Place every card a scene shows in whole board cells: rows of four with four-cell gaps, rows of three with five,
-/// and reshaped apps half as wide again.
+/**
+ * Place every card a scene shows in whole board cells.
+ *
+ * Rows of four get four-cell gaps, rows of three get five, and reshaped apps grow half as wide again.
+ */
 function arrange(scene: Scene): Map<string, Placement> {
+    // lay out both rows left to right
     const placed = new Map<string, Placement>();
     const rows = [scene.upper.map((id) => ({ id, isWide: false })), scene.lower];
     rows.forEach((cards, row) => {
+        // share the free cells among the row's cards by weight
         const gap = cards.length >= 4 ? 4 : 5;
         const free = boardCells - boardInset * 2 - gap * (cards.length - 1);
         const weights = cards.map((card) => (card.isWide ? 1.5 : 1));
@@ -850,6 +892,7 @@ function arrange(scene: Scene): Map<string, Placement> {
         let left = boardInset;
         let used = 0;
         cards.forEach((card, index) => {
+            // give the last card the cells left over
             const isLast = index === cards.length - 1;
             const width = isLast ? free - used : Math.round((free * weights[index]) / total);
             placed.set(card.id, {
@@ -868,20 +911,21 @@ function arrange(scene: Scene): Map<string, Placement> {
     return placed;
 }
 
-/// Return how far a placement sits from the board edge it enters and leaves by, in cells.
+/** Return how far a placement sits from the board edge it enters and leaves by, in cells. */
 function edgeDistance(place: Placement) {
     const middle = place.left + place.width / 2;
     return middle <= boardCells / 2 ? place.left : boardCells - place.left - place.width;
 }
 
-/// Return a placement moved just beyond the board edge nearest to it, hidden.
+/** Return a placement moved just beyond the board edge nearest to it, hidden. */
 function beyond(place: Placement): Placement {
     const middle = place.left + place.width / 2;
     const left = middle <= boardCells / 2 ? -place.width - 2 : boardCells + 2;
+
     return { ...place, left, isShown: false, delay: 0 };
 }
 
-/// Delay each card by its turn: the lowest key goes first, then one every 180 milliseconds after a start.
+/** Delay each card by its turn: the lowest key goes first, then one every 180 milliseconds after a start. */
 function stagger(places: Placement[], start: number, key: (place: Placement) => number) {
     const order = [...places].sort((first, second) => key(first) - key(second));
     order.forEach((place, turn) => {
@@ -889,8 +933,9 @@ function stagger(places: Placement[], start: number, key: (place: Placement) => 
     });
 }
 
-/// Return where a card next appears after an open scene, or in the locked stack.
+/** Return where a card next appears after an open scene, or in the locked stack. */
 function upcoming(id: string, from: number): Placement {
+    // search the scenes that follow in order
     for (let step = 1; step <= scenes.length; step++) {
         const placement = scenePlacements[(from + step) % scenes.length].get(id);
         if (placement) {
@@ -898,14 +943,17 @@ function upcoming(id: string, from: number): Placement {
         }
     }
 
+    // find the card in the locked stack
     const locked = todayPlacements.get(id);
     if (locked) {
         return locked;
     }
 
+    // fail when no scene shows the card
     throw new Error(`card ${id} never appears`);
 }
 
+/** The sway of the people cards dancing while locked. */
 const dance = stylex.keyframes({
     "0%, 100%": { transform: "translate(0, 0) rotate(0deg)" },
     "34%": {
@@ -926,6 +974,7 @@ const dance = stylex.keyframes({
     },
 });
 
+/** The cable strokes for each cable kind. */
 const cableKinds = stylex.create({
     locked: { stroke: color.mutedForeground },
     link: { stroke: color.primary, strokeDasharray: "3 4" },
@@ -933,6 +982,7 @@ const cableKinds = stylex.create({
     drop: { stroke: color.primary },
 });
 
+/** The plug fills for each cable kind. */
 const plugKinds = stylex.create({
     locked: { fill: color.mutedForeground },
     link: { fill: color.primary },
@@ -940,6 +990,7 @@ const plugKinds = stylex.create({
     drop: { fill: color.primary },
 });
 
+/** The remix layer styles. */
 const styles = stylex.create({
     layer: {
         clipPath: "inset(-100vh 0)",

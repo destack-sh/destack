@@ -3,11 +3,12 @@ import * as stylex from "@destack/style";
 import { Goo } from "../effect/goo";
 import { tokens } from "../style/tokens.stylex";
 
-/// The planet's centre and radius, in the plate's drawing units.
+/** The planet's centre, in the plate's drawing units. */
 const centre = { x: 480, y: 260 };
+/** The planet's radius, in the plate's drawing units. */
 const radius = 170;
 
-/// The ring's ellipse and inclination, in the same proportions as the mark.
+/** The ring's ellipse and inclination, in the same proportions as the mark. */
 const ring = {
     cx: String(centre.x),
     cy: String(centre.y),
@@ -16,17 +17,18 @@ const ring = {
     transform: `rotate(-22 ${centre.x} ${centre.y})`,
 };
 
-/// The ring's stroke, and the gap cut between it and the globe.
+/** The ring's stroke width. */
 const ringWidth = radius * 0.236;
+/** The gap cut between the ring and the globe. */
 const gapWidth = radius * 0.145;
 
-/// The dark side of the planet.
+/** The dark side of the planet. */
 const shadow = "#c64a17";
 
-/// Render the planet floating in a cell of quiet space, with a meteor passing by now and then.
-export function Plate(props: { style?: stylex.Styles }) {
+/** Render the planet floating in a cell of quiet space, with a meteor passing by now and then. */
+export function Plate(properties: { style?: stylex.Styles }) {
     return (
-        <Goo style={props.style}>
+        <Goo style={properties.style}>
             <svg aria-hidden="true" viewBox="80 40 800 440" {...stylex.attrs(styles.planet)}>
                 <Meteor />
                 <Planet />
@@ -35,7 +37,7 @@ export function Plate(props: { style?: stylex.Styles }) {
     );
 }
 
-/// Draw the mark's planet: an orange globe with a shadow side, and an orange ring cut free by a gap.
+/** Draw the mark's planet: an orange globe with a shadow side, and an orange ring cut free by a gap. */
 function Planet() {
     return (
         <>
@@ -87,7 +89,7 @@ function Planet() {
     );
 }
 
-/// Draw a meteor that streaks past the planet's upper left now and then.
+/** Draw a meteor that streaks past the planet's upper left now and then. */
 function Meteor() {
     return (
         <g {...stylex.attrs(styles.meteor)}>
@@ -112,6 +114,7 @@ function Meteor() {
     );
 }
 
+/** The meteor streaking past now and then. */
 const streak = stylex.keyframes({
     "0%": { opacity: 0, transform: "translate(-60px, 22px)" },
     "4%": { opacity: 1 },
@@ -119,6 +122,7 @@ const streak = stylex.keyframes({
     "100%": { opacity: 0, transform: "translate(120px, -44px)" },
 });
 
+/** The plate styles. */
 const styles = stylex.create({
     meteor: {
         animationDuration: "9s",

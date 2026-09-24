@@ -1,4 +1,4 @@
-/// The vertex stage shared by every full-surface shader.
+/** The vertex stage shared by every full-canvas shader. */
 const vertexSource = `
 attribute vec2 position;
 void main() {
@@ -6,43 +6,45 @@ void main() {
 }
 `;
 
-/// A fragment shader drawn over its whole canvas with premultiplied alpha, one animation frame at a time.
+/** A fragment shader drawn over its whole canvas with premultiplied alpha, one animation frame at a time. */
 export class Shader {
-    /// The drawing context.
+    /** The drawing context. */
     context: WebGLRenderingContext;
-    /// The compiled shader program.
+    /** The compiled shader program. */
     program: WebGLProgram;
-    /// The canvas being drawn.
+    /** The canvas being drawn. */
     canvas: HTMLCanvasElement;
-    /// The uniform locations by name.
+    /** The uniform locations by name. */
     uniforms: Map<string, WebGLUniformLocation | null>;
-    /// The displayed width in CSS pixels, tracked by `sizes`.
+    /** The displayed width in CSS pixels, tracked by `sizes`. */
     width: number;
-    /// The displayed height in CSS pixels.
+    /** The displayed height in CSS pixels. */
     height: number;
-    /// The most device pixels drawn per CSS pixel.
+    /** The most device pixels drawn per CSS pixel. */
     density: number;
-    /// The observer that tracks the displayed size.
+    /** The observer that tracks the displayed size. */
     sizes: ResizeObserver;
-    /// The pending animation frame, if any.
+    /** The pending animation frame, if any. */
     frame: number | undefined;
-    /// Whether the canvas is on screen.
+    /** Whether the canvas is on screen. */
     isVisible: boolean;
-    /// Upload the uniforms of one frame, and return whether to keep animating.
+    /** Upload the uniforms of one frame, and return whether to keep animating. */
     onDraw: (now: number) => boolean;
 
-    /// Compile a fragment shader for a canvas at a capped pixel density, or throw when WebGL is unavailable.
+    /** Compile a fragment shader for a canvas at a capped pixel density, or throw when WebGL is unavailable. */
     constructor(
         canvas: HTMLCanvasElement,
         fragmentSource: string,
         density: number,
         onDraw: (now: number) => boolean,
     ) {
+        // get the WebGL context
         const context = canvas.getContext("webgl", { premultipliedAlpha: true, alpha: true });
         if (context === null) {
             throw new Error("webgl is unavailable");
         }
 
+        // compile the program and track the displayed size
         this.canvas = canvas;
         this.context = context;
         this.program = createProgram(context, fragmentSource);
@@ -72,7 +74,7 @@ export class Shader {
         context.vertexAttribPointer(position, 2, context.FLOAT, false, 0, 0);
     }
 
-    /// Return the uniform location for a name, looking it up once.
+    /** Return the uniform location for a name, looking it up once. */
     uniform(name: string) {
         if (!this.uniforms.has(name)) {
             this.uniforms.set(name, this.context.getUniformLocation(this.program, name));
@@ -81,14 +83,14 @@ export class Shader {
         return this.uniforms.get(name) ?? null;
     }
 
-    /// Schedule the next frame once, while on screen.
+    /** Schedule the next frame once, while on screen. */
     request() {
         if (this.frame === undefined && this.isVisible) {
             this.frame = requestAnimationFrame((now) => this.render(now));
         }
     }
 
-    /// Pause while off screen, and pick up again once back.
+    /** Pause while off screen, and pick up again once back. */
     show(isVisible: boolean) {
         this.isVisible = isVisible;
         if (isVisible) {
@@ -98,7 +100,7 @@ export class Shader {
         }
     }
 
-    /// Cancel the pending frame.
+    /** Cancel the pending frame. */
     stop() {
         if (this.frame !== undefined) {
             cancelAnimationFrame(this.frame);
@@ -106,15 +108,16 @@ export class Shader {
         }
     }
 
-    /// Stop drawing and release the size observer and the drawing context.
+    /** Stop drawing and release the size observer and the drawing context. */
     dispose() {
         this.stop();
         this.sizes.disconnect();
         this.context.getExtension("WEBGL_lose_context")?.loseContext();
     }
 
-    /// Draw one frame with the uniforms `onDraw` uploads, and schedule the next while it keeps animating.
+    /** Draw one frame with the uniforms `onDraw` uploads, and schedule the next while it keeps animating. */
     render(now: number) {
+        // clear the pending frame
         this.frame = undefined;
         const context = this.context;
 
@@ -136,14 +139,16 @@ export class Shader {
         context.clear(context.COLOR_BUFFER_BIT);
         context.drawArrays(context.TRIANGLE_STRIP, 0, 4);
 
+        // keep animating while the draw asks for more
         if (isMoving) {
             this.request();
         }
     }
 }
 
-/// Compile and link a fragment shader with the shared vertex stage.
+/** Compile and link a fragment shader with the shared vertex stage. */
 function createProgram(context: WebGLRenderingContext, fragmentSource: string): WebGLProgram {
+    // create the empty program
     const program = context.createProgram();
 
     // compile both stages, failing loudly on driver errors

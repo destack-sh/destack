@@ -3,9 +3,10 @@ import * as stylex from "@destack/style";
 
 import { tokens } from "../style/tokens.stylex";
 
+/** The media query for narrow screens that stack the sidebar. */
 const narrow = "@media (width < 60rem)";
 
-/// Shared layout and navigation styles for articles, chapters, and directories.
+/** Shared layout and navigation styles for articles, chapters, and directories. */
 export const publicationStyles = stylex.create({
     layout: {
         flexGrow: 1,

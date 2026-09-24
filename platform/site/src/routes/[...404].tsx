@@ -1,6 +1,7 @@
 import { MissingPage } from "../site/missing";
 import { Shell } from "../site/shell";
 
+/** Render the missing page route. */
 export default function NotFound() {
     return (
         <Shell>

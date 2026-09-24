@@ -6,7 +6,8 @@ import { tokens } from "../../style/tokens.stylex";
 import { type Download, readDownloads, selectDownload } from "./catalog.ts";
 
 /** Render the desktop download cell and its platform choices, filled once lit or pressed, with a lit spot that follows the cursor. */
-export function DownloadCell(props: { isLit: boolean; style?: stylex.Styles }) {
+export function DownloadCell(properties: { isLit: boolean; style?: stylex.Styles }) {
+    // hold the pointer state, the loaded downloads, and the choice
     const [isPressed, setIsPressed] = createSignal(false);
     const [isHovered, setIsHovered] = createSignal(false);
     const [downloads, setDownloads] = createSignal<Download[]>([]);
@@ -40,14 +41,18 @@ export function DownloadCell(props: { isLit: boolean; style?: stylex.Styles }) {
             onPointerEnter={() => setIsHovered(true)}
             onPointerLeave={() => setIsHovered(false)}
             onPointerDown={() => setIsPressed(true)}
-            {...stylex.attrs(styles.root, (props.isLit || isPressed()) && styles.lit, props.style)}
+            {...stylex.attrs(
+                styles.root,
+                (properties.isLit || isPressed()) && styles.lit,
+                properties.style,
+            )}
         >
             {/* light a spot of the cell under the cursor until the whole cell is lit */}
             <span
                 aria-hidden="true"
                 {...stylex.attrs(
                     styles.halo,
-                    isHovered() && !(props.isLit || isPressed()) && styles.haloShown,
+                    isHovered() && !(properties.isLit || isPressed()) && styles.haloShown,
                 )}
             >
                 <span ref={spot} {...stylex.attrs(styles.spot)} />
@@ -144,19 +149,19 @@ export function DownloadCell(props: { isLit: boolean; style?: stylex.Styles }) {
 }
 
 /** Draw the logo of the operating system a download targets. */
-function SystemIcon(props: { target: Download["target"] | undefined }) {
+function SystemIcon(properties: { target: Download["target"] | undefined }) {
     // pick the vendor mark, or a plain download arrow when no platform is chosen
     const path = () => {
         // apple
-        if (props.target?.includes("apple")) {
+        if (properties.target?.includes("apple")) {
             return "M12.15 6.9c-.95 0-2.42-1.08-3.96-1.04-2.04.03-3.91 1.18-4.96 3.01-2.12 3.68-.55 9.1 1.52 12.09 1.01 1.45 2.21 3.09 3.79 3.04 1.52-.07 2.09-.99 3.94-.99 1.83 0 2.35.99 3.96.95 1.64-.03 2.68-1.48 3.68-2.95 1.16-1.69 1.64-3.33 1.66-3.42-.04-.01-3.18-1.22-3.22-4.86-.03-3.04 2.48-4.49 2.6-4.56-1.43-2.09-3.62-2.32-4.39-2.38-2-.16-3.68 1.09-4.61 1.09zM15.53 3.83c.84-1.01 1.4-2.43 1.25-3.83-1.21.05-2.66.8-3.53 1.82-.78.9-1.46 2.34-1.27 3.71 1.34.1 2.72-.69 3.56-1.7";
         }
         // windows
-        else if (props.target?.includes("windows")) {
+        else if (properties.target?.includes("windows")) {
             return "M0 3.45 9.75 2.1v9.45H0m10.95-9.6L24 0v11.4H10.95M0 12.6h9.75v9.45L0 20.7m10.95-8.1H24V24l-13.05-1.8";
         }
         // linux
-        else if (props.target?.includes("linux")) {
+        else if (properties.target?.includes("linux")) {
             return "M4 4.5h16v11H4Zm-2 14h20v1.5H2Z";
         }
         // no platform chosen yet: a plain download arrow

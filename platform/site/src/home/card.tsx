@@ -4,21 +4,22 @@ import { For } from "@destack/view";
 
 import { tokens } from "../style/tokens.stylex";
 
+/** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
 
-/// What a box shows under the searchlight.
+/** What a box shows under the searchlight. */
 export type Reveal =
-    /// An excerpt of one file.
+    /** An excerpt of one file. */
     | { kind: "code"; name: string; lines: readonly string[] }
-    /// Named fields and their values.
+    /** Named fields and their values. */
     | { kind: "fields"; rows: readonly (readonly [string, string])[] }
-    /// Ciphertext from a closed vendor.
+    /** Ciphertext from a closed vendor. */
     | { kind: "cipher" };
 
-/// The lines a searchlight column shows at once before it scrolls.
+/** The lines a searchlight column shows at once before it scrolls. */
 const visibleLines = 3;
 
-/// The ciphertext every closed box shows.
+/** The ciphertext every closed box shows. */
 const cipher = [
     "9f3a c17e 5b21 d4a0 88e1",
     "03bd e2f4 7a90 1c6e 4f28",
@@ -26,25 +27,25 @@ const cipher = [
     "6ae2 f105 3c9d 8b47 e0a6",
 ];
 
-/// The tokens a code line highlights: strings, line marks, keys, keywords and hashes, and punctuation.
+/** The tokens a code line highlights: strings, line marks, keys, keywords and hashes, and punctuation. */
 const tokenPattern =
     /(?<string>"[^"]*"|'[^']*')|(?<mark>^\s*(?:\$|#|@@|- \[[ x]\]|[-+](?= )))|(?<key>^\s*[\w/@.{}-]+(?=:))|(?<keyword>\b(?:export|function|const|return|import|from|create|table|primary|key|not|null|references|text|date|true|false)\b|\b[0-9a-f]{6}\b)|(?<punctuation>[{}()[\];,<>=:])/g;
 
-/// One highlighted run of a code line.
+/** One highlighted run of a code line. */
 type Token = { text: string; tone: keyof typeof tones };
 
-/// One entity in the stack figure.
+/** One entity in the stack figure. */
 export type Entity = {
-    /// The visible label.
+    /** The visible label. */
     label: string;
-    /// The local icon name under `/diagram`.
+    /** The local icon name under `/diagram`. */
     icon: string;
-    /// The short role printed above the label, such as agent or app.
+    /** The short role printed above the label, such as agent or app. */
     role: string;
 };
 
-/// Render an entity as a card with an icon chip and a label.
-export function Card(props: {
+/** Render an entity as a card with an icon chip and a label. */
+export function Card(properties: {
     entity: Entity;
     kind: "plain" | "vendor" | "locked";
     reveal?: Reveal;
@@ -55,9 +56,9 @@ export function Card(props: {
             class={
                 stylex.attrs(
                     styles.card,
-                    props.kind === "vendor" && styles.vendorCard,
-                    props.kind === "locked" && styles.lockedCard,
-                    props.style,
+                    properties.kind === "vendor" && styles.vendorCard,
+                    properties.kind === "locked" && styles.lockedCard,
+                    properties.style,
                 ).class
             }
         >
@@ -65,29 +66,29 @@ export function Card(props: {
                 class={
                     stylex.attrs(
                         styles.chip,
-                        props.kind === "vendor" && styles.vendorChip,
-                        props.kind === "locked" && styles.lockedChip,
+                        properties.kind === "vendor" && styles.vendorChip,
+                        properties.kind === "locked" && styles.lockedChip,
                     ).class
                 }
             >
                 <span
                     style={{
-                        "mask-image": `url(/diagram/${props.kind === "locked" ? "lock" : props.entity.icon}.svg)`,
+                        "mask-image": `url(/diagram/${properties.kind === "locked" ? "lock" : properties.entity.icon}.svg)`,
                     }}
                     {...stylex.attrs(styles.icon)}
                 />
             </span>
             <span {...stylex.attrs(styles.text)}>
-                <span {...stylex.attrs(styles.role)}>{props.entity.role}</span>
-                <span {...stylex.attrs(styles.label)}>{props.entity.label}</span>
+                <span {...stylex.attrs(styles.role)}>{properties.entity.role}</span>
+                <span {...stylex.attrs(styles.label)}>{properties.entity.label}</span>
             </span>
-            {props.reveal && <Reveals reveals={[props.reveal]} />}
+            {properties.reveal && <Reveals reveals={[properties.reveal]} />}
         </div>
     );
 }
 
-/// Render a layer shared by every app as one wide card listing what it holds.
-export function Band(props: {
+/** Render a layer shared by every app as one wide card listing what it holds. */
+export function Band(properties: {
     entity: Entity;
     items: readonly Entity[];
     active: number;
@@ -97,22 +98,22 @@ export function Band(props: {
         <div {...stylex.attrs(styles.card, styles.band)}>
             <span {...stylex.attrs(styles.chip)}>
                 <span
-                    style={{ "mask-image": `url(/diagram/${props.entity.icon}.svg)` }}
+                    style={{ "mask-image": `url(/diagram/${properties.entity.icon}.svg)` }}
                     {...stylex.attrs(styles.icon)}
                 />
             </span>
             <span {...stylex.attrs(styles.text)}>
-                <span {...stylex.attrs(styles.role)}>{props.entity.role}</span>
-                <span {...stylex.attrs(styles.label)}>{props.entity.label}</span>
+                <span {...stylex.attrs(styles.role)}>{properties.entity.role}</span>
+                <span {...stylex.attrs(styles.label)}>{properties.entity.label}</span>
             </span>
             <span {...stylex.attrs(styles.items)}>
-                <For each={props.items}>
+                <For each={properties.items}>
                     {(item, index) => (
                         <span
                             class={
                                 stylex.attrs(
                                     styles.item,
-                                    props.active === index() && styles.itemActive,
+                                    properties.active === index() && styles.itemActive,
                                 ).class
                             }
                         >
@@ -125,50 +126,51 @@ export function Band(props: {
                     )}
                 </For>
             </span>
-            <Reveals reveals={props.reveals} />
+            <Reveals reveals={properties.reveals} />
         </div>
     );
 }
 
-/// Render what a box holds in columns, shown only where the searchlight falls on it.
-function Reveals(props: { reveals: readonly Reveal[] }) {
+/** Render what a box holds in columns, shown only where the searchlight falls on it. */
+function Reveals(properties: { reveals: readonly Reveal[] }) {
     return (
         <span data-inside aria-hidden="true" class={stylex.attrs(styles.reveals).class}>
-            {props.reveals.map((reveal) => (
+            {properties.reveals.map((reveal) => (
                 <RevealColumn reveal={reveal} />
             ))}
         </span>
     );
 }
 
-/// Render one column of a reveal, scrolling on a loop when it holds more than fits.
-function RevealColumn(props: { reveal: Reveal }) {
-    const rows = revealRows(props.reveal);
+/** Render one column of a reveal, scrolling on a loop when it holds more than fits. */
+function RevealColumn(properties: { reveal: Reveal }) {
+    // scroll the rows on a loop when they overflow the card
+    const rows = revealRows(properties.reveal);
     const isScrolling = rows.length > visibleLines;
     const timing = { "animation-duration": `${rows.length * 1.8}s` };
 
     return (
         <span class={stylex.attrs(styles.column, !isScrolling && styles.columnStill).class}>
-            {props.reveal.kind === "code" && (
-                <span class={stylex.attrs(styles.name).class}>{props.reveal.name}</span>
+            {properties.reveal.kind === "code" && (
+                <span class={stylex.attrs(styles.name).class}>{properties.reveal.name}</span>
             )}
             <span
                 style={isScrolling ? timing : undefined}
                 class={
                     stylex.attrs(
-                        props.reveal.kind === "fields" ? styles.fieldTrack : styles.track,
+                        properties.reveal.kind === "fields" ? styles.fieldTrack : styles.track,
                         isScrolling && styles.trackScrolling,
                     ).class
                 }
             >
                 {rows}
-                {isScrolling && revealRows(props.reveal)}
+                {isScrolling && revealRows(properties.reveal)}
             </span>
         </span>
     );
 }
 
-/// Return the rendered rows of a reveal: highlighted code lines, field pairs, or ciphertext lines.
+/** Return the rendered rows of a reveal: highlighted code lines, field pairs, or ciphertext lines. */
 function revealRows(reveal: Reveal) {
     // highlight each code line
     if (reveal.kind === "code") {
@@ -199,8 +201,9 @@ function revealRows(reveal: Reveal) {
     }
 }
 
-/// Split a code line into highlighted tokens and the plain text between them.
+/** Split a code line into highlighted tokens and the plain text between them. */
 function highlight(line: string): Token[] {
+    // split the line at each token match
     const tokens: Token[] = [];
     let end = 0;
     for (const match of line.matchAll(tokenPattern)) {
@@ -220,8 +223,8 @@ function highlight(line: string): Token[] {
     return tokens;
 }
 
-/// Render a strip of duct tape with torn ends and a scrawled label.
-export function DuctTape(props: { label: string; gap: number; style?: stylex.Styles }) {
+/** Render a strip of duct tape with torn ends and a scrawled label. */
+export function DuctTape(properties: { label: string; gap: number; style?: stylex.Styles }) {
     const outline =
         "M4 3 L2 6 L5 9 L1 12 L4 15 L1 18 L4 21 L3 23 L68 23 L70 20 L67 17 L71 14 L68 11 L71 8 L68 5 L70 3 Z";
 
@@ -229,8 +232,8 @@ export function DuctTape(props: { label: string; gap: number; style?: stylex.Sty
         <svg
             aria-hidden="true"
             viewBox="0 0 72 26"
-            data-tape={props.gap}
-            {...stylex.attrs(styles.tape, props.style)}
+            data-tape={properties.gap}
+            {...stylex.attrs(styles.tape, properties.style)}
         >
             <path d={outline} {...stylex.attrs(styles.tapeStrip)} />
             <path d="M7 7 H65" {...stylex.attrs(styles.tapeShine)} />
@@ -241,17 +244,19 @@ export function DuctTape(props: { label: string; gap: number; style?: stylex.Sty
                 dominant-baseline="central"
                 {...stylex.attrs(styles.tapeText)}
             >
-                {props.label}
+                {properties.label}
             </text>
         </svg>
     );
 }
 
+/** The loop that scrolls an overflowing reveal. */
 const scroll = stylex.keyframes({
     from: { transform: "translateY(0)" },
     to: { transform: "translateY(-50%)" },
 });
 
+/** The colours of each highlighted token tone. */
 const tones = stylex.create({
     plain: {},
     string: { color: "#b9d98f" },
@@ -262,13 +267,14 @@ const tones = stylex.create({
     cipher: { color: "#6f8f99", letterSpacing: "0.12em" },
 });
 
-/// The tones of the access verdicts a field can show.
+/** The tones of the access verdicts a field can show. */
 const fieldTones: { [field: string]: stylex.Styles | undefined } = {
     ALLOWED: stylex.create({ tone: { color: "#8fd694" } }).tone,
     BLOCKED: stylex.create({ tone: { color: "#ff6b5b" } }).tone,
     ASKS: tones.keyword,
 };
 
+/** The card styles. */
 const styles = stylex.create({
     card: {
         alignItems: "center",

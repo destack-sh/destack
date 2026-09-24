@@ -5,15 +5,16 @@ import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { Plate } from "./plate";
 
+/** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
 
-/// The promise's width in ems, so its size can be set to span the wordmark exactly.
+/** The promise's width in ems, so its size can be set to span the wordmark exactly. */
 const promiseMeasure = 23.66;
 
-/// The wordmark's syllables, set apart by a dictionary dot.
+/** The wordmark's syllables, set apart by a dictionary dot. */
 const syllables = ["DE", "STACK"];
 
-/// Introduce Destack as a poster: the wordmark and promise on the left, the plate on the right.
+/** Introduce Destack as a poster: the wordmark and promise on the left, the plate on the right. */
 export function Hero() {
     return (
         <section {...stylex.attrs(lattice.frame, lattice.ruleBottom, styles.hero)}>
@@ -55,6 +56,7 @@ export function Hero() {
     );
 }
 
+/** The hero styles. */
 const styles = stylex.create({
     hero: {
         gridTemplateRows: `calc(${tokens.row} * 1.7) calc(${tokens.row} * 1.3)`,

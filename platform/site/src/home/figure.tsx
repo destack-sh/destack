@@ -13,21 +13,23 @@ import { boardCells, columnCentres, columnLefts, columnWidth, rowCells } from ".
 import { Flotsam } from "./flotsam";
 import { Remix } from "./remix";
 
+/** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
+/** The media query for readers who prefer reduced motion. */
 const still = "@media (prefers-reduced-motion: reduce)";
 
-/// The rows above the waterline today.
+/** The rows above the waterline today. */
 const dryRows = 2;
-/// How close to the surface the pointer stirs it, in CSS pixels.
-const stirReach = 50;
-/// How far the pointer moves along the surface between ripples, in CSS pixels.
+/** How close to the waterline the pointer stirs the water, in CSS pixels. */
+const stirRange = 50;
+/** How far the pointer moves along the water between ripples, in CSS pixels. */
 const stirStep = 26;
-/// The share of a vendor card's height that sinks below the surface, so it barely floats.
+/** The share of a vendor card's height that sinks below the waterline, so it barely floats. */
 const cardDraft = 0.1;
-/// The switch's name for the stack today, set in crooked letters.
+/** The switch's name for the stack today, set in crooked letters. */
 const stacked = "\u201cThe Stack\u201d";
 
-/// How far each letter of the stack's name leans, in degrees, and sags, in pixels.
+/** How far each letter of the stack's name leans, in degrees, and sags, in pixels. */
 const crooked = [
     [-8, 1],
     [-7, 1],
@@ -42,31 +44,31 @@ const crooked = [
     [7, -1],
 ];
 
-/// The milliseconds of calm on the water before things start to drift past.
+/** The milliseconds of calm on the water before things start to drift past. */
 const adriftDelay = 20000;
 
-/// The milliseconds the shattered ice waits before it clumps back together as the water returns.
+/** The milliseconds the shattered ice waits before it clumps back together as the water returns. */
 const reformDelay = 1100;
 
-/// A point in drawing pixels.
+/** A point in drawing pixels. */
 type Point = { x: number; y: number };
 
-/// The two configurations the figure compares.
+/** The two configurations the figure compares. */
 type Stack = "today" | "destack";
 
-/// One layer of the stack in both configurations.
+/** One layer of the stack in both configurations. */
 type Layer = {
-    /// The layer name.
+    /** The layer name. */
     name: string;
-    /// What you do with the layer, verb first.
+    /** What you do with the layer, verb first. */
     claim: Record<Stack, string>;
-    /// What kind of thing the layer is made of.
+    /** What kind of thing the layer is made of. */
     topic: Record<Stack, string>;
-    /// What the layer is made of.
+    /** What the layer is made of. */
     detail: Record<Stack, string>;
 };
 
-/// The six layers, from the users of the stack down to where it runs.
+/** The six layers, from the users of the stack down to where it runs. */
 const layers: readonly Layer[] = [
     {
         name: "Users",
@@ -106,7 +108,7 @@ const layers: readonly Layer[] = [
     },
 ];
 
-/// The layers each vendor keeps under water, one per submerged row.
+/** The layers each vendor keeps under water, one per submerged row. */
 const locked: readonly Entity[] = [
     { label: "Rate-limited API", icon: "services", role: "Theirs" },
     { label: "CSV export", icon: "storage", role: "Theirs" },
@@ -114,7 +116,7 @@ const locked: readonly Entity[] = [
     { label: "us-east-1 only", icon: "cloud", role: "Theirs" },
 ];
 
-/// The layers every Destack app shares, one per band row, with what each holds and shows inside.
+/** The layers every Destack app shares, one per band row, with what each holds and shows inside. */
 const shared: readonly {
     entity: Entity;
     items: readonly Entity[];
@@ -253,7 +255,7 @@ const shared: readonly {
     },
 ];
 
-/// The hosts a space can run on.
+/** The hosts a space can run on. */
 const hosts: readonly { entity: Entity; reveal: Reveal }[] = [
     {
         entity: { label: "Your laptop", icon: "computer", role: "Host" },
@@ -286,28 +288,29 @@ const hosts: readonly { entity: Entity; reveal: Reveal }[] = [
     },
 ];
 
-/// The length of a strip of duct tape, in pixels.
+/** The length of a strip of duct tape, in pixels. */
 const tapeLength = 72;
-/// How far each end of a strip of duct tape grips into its card, in pixels.
+/** How far each end of a strip of duct tape grips into its card, in pixels. */
 const tapeGrip = 13;
-/// How far below each card's middle the two ends of each strip are stuck, in pixels.
+/** How far below each card's middle the two ends of each strip are stuck, in pixels. */
 const tapeDrops = [
     [-5, 3],
     [4, -4],
 ];
 
-/// The entry each shared layer lights up in each remix scene: services, data, source.
+/** The entry each shared layer lights up in each remix scene: services, storage, and source. */
 const traffic: readonly (readonly number[])[] = [
     [0, 0, 0],
     [1, 1, 1],
     [3, 3, 2],
 ];
 
-/// The connectors taped between the vendor apps.
+/** The connectors taped between the vendor apps. */
 const tapes = ["APIs", "MCPs"];
 
-/// Compare apps today, as icebergs, with the open Destack stack revealed by draining the water.
-export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
+/** Compare apps today, as icebergs, with the open Destack stack revealed by draining the water. */
+export function StackFigure(properties: { onChange: (isOpen: boolean) => void }) {
+    // hold the chosen stack, the scene, the canvases, and the effect timers
     const [stack, setStack] = createSignal<Stack>("today");
     const [isPainted, setIsPainted] = createSignal(false);
     const [scene, setScene] = createSignal(0);
@@ -340,6 +343,7 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
     // keep the drawing's place within the water canvas, measured only when the layout changes
     const frame = { offset: 0, width: 0, height: 0, depth: 0 };
     const measure = () => {
+        // read the drawing's offset and size within the water canvas
         const bounds = drawing.getBoundingClientRect();
         frame.offset = bounds.top - canvas.getBoundingClientRect().top;
         frame.width = bounds.width;
@@ -355,6 +359,7 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
 
     // reveal each row by how far the waterline has passed it
     const follow = (level: number) => {
+        // light the rows the waterline has passed
         setIsPainted(true);
         light.waterline = level;
         const { offset, height } = frame;
@@ -375,16 +380,17 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
     // aim the searchlight at the pointer
     let stirredAt: number | undefined;
     const aim = (event: PointerEvent) => {
+        // aim the light at the pointer, and turn it off over controls
         const bounds = figure.getBoundingClientRect();
         light.target = { x: event.clientX - bounds.left, y: event.clientY - bounds.top };
         const isControl = (event.target as Element).closest("button, a") !== null;
         light.isOn = event.pointerType === "mouse" && event.buttons === 0 && !isControl;
 
-        // stir the surface when skimming it, harder the closer the pointer
-        const reach = Math.abs(light.target.y - light.waterline);
-        if (!isOpen() && reach < stirReach) {
+        // stir the water when skimming it, harder the closer the pointer
+        const distance = Math.abs(light.target.y - light.waterline);
+        if (!isOpen() && distance < stirRange) {
             if (stirredAt === undefined || Math.abs(light.target.x - stirredAt) > stirStep) {
-                stir(light.target.x, 4 * (1 - reach / stirReach));
+                stir(light.target.x, 4 * (1 - distance / stirRange));
                 stirredAt = light.target.x;
             }
         } else {
@@ -399,8 +405,9 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
 
     // select a configuration, keep the reader's choice, and move the water
     const select = (next: Stack) => {
+        // store the choice and tell the page
         setStack(next);
-        props.onChange(next === "destack");
+        properties.onChange(next === "destack");
 
         // toss the flotsam back up as the water refills, or clear it away
         clearTimeout(calm);
@@ -463,7 +470,9 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
         }
     };
 
+    // start the ice, water, and searchlight once the figure is in the page
     onSettled(() => {
+        // read the motion preference and set the flotsam adrift
         const isStill = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         drift();
         const scheme = window.matchMedia("(prefers-color-scheme: dark)");
@@ -472,6 +481,7 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
         const palette = () => {
             const theme = document.documentElement.dataset.theme;
             const isDark = theme === "dark" || (theme === undefined && scheme.matches);
+
             return isDark ? nightWater : paperWater;
         };
 
@@ -481,25 +491,28 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
             drawing.getBoundingClientRect().left - canvas.getBoundingClientRect().left;
         let riders: { element: HTMLElement; berg: number; lift: number }[] | undefined;
 
-        // return the bottom of a card's resting slot, ignoring drag and float offsets
+        // return the bottom of a card's resting place, ignoring drag and float offsets
         const restingBottom = (element: HTMLElement) => {
             let bottom = element.offsetHeight;
             for (let node: HTMLElement | null = element; node && node !== drawing;) {
                 bottom += node.offsetTop;
                 node = node.offsetParent as HTMLElement | null;
             }
+
             return bottom;
         };
         let strips: SVGElement[] | undefined;
 
         // stick a tape to where its cards actually are, then span, turn, and stretch it
         const stick = (tape: SVGElement, gap: number, centres: Point[], tilts: number[]) => {
+            // find each tape end on its tilted card
             const cell = frame.width / boardCells;
             const middle = (frame.height / (rowCells * layers.length)) * rowCells * 1.5;
             const half = (cell * columnWidth) / 2 - tapeGrip;
             const anchor = (berg: number, side: number, drop: number) => {
                 const angle = (tilts[berg] * Math.PI) / 180;
                 const x = side * half;
+
                 return {
                     x: centres[berg].x + x * Math.cos(angle) - drop * Math.sin(angle),
                     y: centres[berg].y + x * Math.sin(angle) + drop * Math.cos(angle),
@@ -518,6 +531,7 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
         try {
             const centres = columnCentres.map((centre) => centre / boardCells);
             ice = new Ice(iceCanvas, centres, !isStill, () => {
+                // collect the floating vendor cards once
                 riders ??= [...figure.querySelectorAll<HTMLElement>("[data-bob]")].map(
                     (element) => ({ element, berg: Number(element.dataset.bob), lift: 0 }),
                 );
@@ -564,7 +578,7 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
             console.error("water rendering failed", error);
         }
 
-        // repaint on theme changes and keep the ice and surface on the waterline through resizes
+        // repaint on theme changes and keep the ice and water on the waterline through resizes
         const repaint = () => water?.paint(palette());
         const themes = new MutationObserver(repaint);
         themes.observe(document.documentElement, { attributeFilter: ["data-theme"] });
@@ -580,6 +594,7 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
         let beam: number | undefined;
         let isLooking = false;
         const shine = () => {
+            // schedule the next frame, and rest while the light is out
             beam = requestAnimationFrame(shine);
             if (!light.isOn && light.radius === 0) {
                 return;
@@ -610,6 +625,7 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
             const radius = light.radius < 0.5 ? 0 : light.radius;
             light.radius = radius;
 
+            // move and size the lens, and light each box under it
             lens.style.opacity = radius > 0 ? "1" : "0";
             if (radius > 0 !== isLooking) {
                 isLooking = radius > 0;
@@ -631,6 +647,7 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
 
         // pause the ice, water, and searchlight while the figure is off screen
         const sight = new IntersectionObserver(([entry]) => {
+            // show or hide the effects, and restart the searchlight on screen
             ice?.shader.show(entry.isIntersecting);
             water?.shader.show(entry.isIntersecting);
             if (beam !== undefined) {
@@ -644,6 +661,7 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
         sight.observe(figure);
 
         return () => {
+            // stop the observers, timers, and frames
             sight.disconnect();
             themes.disconnect();
             resize.disconnect();
@@ -902,57 +920,57 @@ export function StackFigure(props: { onChange: (isOpen: boolean) => void }) {
     );
 }
 
-/// Draw one wire down a column of grid cells, from a row for a length in cells, as its row drains.
-function Wire(props: { column: number; top: number; length: number; reveal: number }) {
+/** Draw one wire down a column of grid cells, from a row for a length in cells, as its row drains. */
+function Wire(properties: { column: number; top: number; length: number; reveal: number }) {
     return (
         <span
             style={{
-                "--column": String(props.column),
-                "--top": String(props.top),
-                "--length": String(props.length),
-                opacity: `var(--reveal-${props.reveal})`,
+                "--column": String(properties.column),
+                "--top": String(properties.top),
+                "--length": String(properties.length),
+                opacity: `var(--reveal-${properties.reveal})`,
             }}
             {...stylex.attrs(styles.wire)}
         />
     );
 }
 
-/// Crossfade a row's text from today to Destack as the water leaves the row.
-function Swap(props: {
+/** Crossfade a row's text from today to Destack as the water leaves the row. */
+function Swap(properties: {
     row: number;
     isOpen: boolean;
     today: string;
     destack: string;
     style?: stylex.Styles;
 }) {
-    const isSurface = props.row < dryRows;
-    const reveal = `var(--reveal-${props.row})`;
+    const isDry = properties.row < dryRows;
+    const reveal = `var(--reveal-${properties.row})`;
 
     return (
-        <span {...stylex.attrs(styles.swap, props.style)}>
+        <span {...stylex.attrs(styles.swap, properties.style)}>
             <span
-                style={isSurface ? undefined : { opacity: `clamp(0, 1 - ${reveal} * 2, 1)` }}
+                style={isDry ? undefined : { opacity: `clamp(0, 1 - ${reveal} * 2, 1)` }}
                 {...stylex.attrs(
                     styles.swapText,
-                    isSurface && (props.isOpen ? styles.swapOut : styles.swapReturn),
+                    isDry && (properties.isOpen ? styles.swapOut : styles.swapReturn),
                 )}
             >
-                {props.today}
+                {properties.today}
             </span>
             <span
-                style={isSurface ? undefined : { opacity: `clamp(0, ${reveal} * 2 - 1, 1)` }}
+                style={isDry ? undefined : { opacity: `clamp(0, ${reveal} * 2 - 1, 1)` }}
                 {...stylex.attrs(
                     styles.swapText,
-                    isSurface && (props.isOpen ? styles.swapIn : styles.swapLeave),
+                    isDry && (properties.isOpen ? styles.swapIn : styles.swapLeave),
                 )}
             >
-                {props.destack}
+                {properties.destack}
             </span>
         </span>
     );
 }
 
-/// Return a layer number colour that lights up orange as the water leaves its row.
+/** Return a layer number colour that lights up orange as the water leaves its row. */
 function numberOnWater(row: number): JSX.CSSProperties {
     if (row < dryRows) {
         return {};
@@ -963,21 +981,26 @@ function numberOnWater(row: number): JSX.CSSProperties {
     };
 }
 
+/** The easing of the figure transitions. */
 const easing = "cubic-bezier(0.6, 0, 0.2, 1)";
 
+/** The easing of the switch knob, which overshoots and springs back. */
 const spring = "cubic-bezier(0.3, 1.3, 0.5, 1)";
 
+/** The nudge that hints at the stack switch. */
 const nudge = stylex.keyframes({
     "0%, 84%, 100%": { transform: "translateX(0)" },
     "90%": { transform: "translateX(0.25rem)" },
     "95%": { transform: "translateX(0.0625rem)" },
 });
 
+/** The wobble of the crooked stack name letters. */
 const wobble = stylex.keyframes({
     from: { transform: "rotate(-2deg) translateY(-0.5px)" },
     to: { transform: "rotate(2deg) translateY(0.5px)" },
 });
 
+/** The figure styles. */
 const styles = stylex.create({
     figure: {
         gridTemplateRows: `repeat(6, ${tokens.stage})`,

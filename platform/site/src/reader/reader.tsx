@@ -11,55 +11,57 @@ import { playVideo } from "./media";
 import { renderDiagrams } from "./diagram";
 import { publicationStyles } from "./publication.stylex";
 
-/// Properties for the shared reading frame.
-type ReaderProps = {
-    /// The rendered article.
+/** Properties for the shared reading frame. */
+type ReaderProperties = {
+    /** The rendered article. */
     children: JSX.Element;
 
-    /// The publication treatment applied to the reader.
+    /** The publication treatment applied to the reader. */
     publication: "journal" | "manual";
 
-    /// The collection navigation shown beside the article.
+    /** The collection navigation shown beside the article. */
     navigation: () => JSX.Element;
 
-    /// The current location rendered in the article toolbar.
+    /** The current location rendered in the article toolbar. */
     location: () => JSX.Element;
 
-    /// The portable source files for the current page.
+    /** The portable source files for the current page. */
     source: PageSource;
 
-    /// The approximate token count shown for authored pages.
+    /** The approximate token count shown for authored pages. */
     tokenCount?: number;
 
-    /// The adjacent page links shown below the article.
+    /** The adjacent page links shown below the article. */
     pagination?: () => JSX.Element;
 };
 
-/// Properties for one responsive reader toolbar.
-type ReaderToolbarProps = {
-    /// The current location rendered in the article toolbar.
+/** Properties for one responsive reader toolbar. */
+type ReaderToolbarProperties = {
+    /** The current location rendered in the article toolbar. */
     location: () => JSX.Element;
 
-    /// The collection navigation shown beside the article.
+    /** The collection navigation shown beside the article. */
     navigation: () => JSX.Element;
 
-    /// The shared page source commands.
+    /** The shared page source commands. */
     sourceCommands: PageSourceCommands;
 
-    /// The approximate token count shown for authored pages.
+    /** The approximate token count shown for authored pages. */
     tokenCount?: number;
 };
 
-/// Render the common blog and documentation reading frame.
-export function Reader(props: ReaderProps) {
+/** Render the common blog and documentation reading frame. */
+export function Reader(properties: ReaderProperties) {
+    // hold the article and its source commands
     let article!: HTMLElement;
-    const sourceCommands = createPageSourceCommands(props.source);
+    const sourceCommands = createPageSourceCommands(properties.source);
 
     // render diagrams after the article mounts
     onSettled(() => renderDiagrams(article));
 
     // align direct links after responsive layout and webfonts settle
     onSettled(() => {
+        // scroll to the heading the URL names
         const scrollToHeading = () => {
             const identifier = decodeURIComponent(window.location.hash.slice(1));
             if (identifier === "") {
@@ -72,11 +74,12 @@ export function Reader(props: ReaderProps) {
             window.requestAnimationFrame(scrollToHeading);
         };
 
+        // scroll once the fonts load and on each hash change
         void document.fonts.ready.then(scrollAfterLayout);
         window.addEventListener("hashchange", scrollAfterLayout);
 
-        // detach the route listener with the reader
         return () => {
+            // detach the route listener with the reader
             window.removeEventListener("hashchange", scrollAfterLayout);
         };
     });
@@ -84,36 +87,38 @@ export function Reader(props: ReaderProps) {
     return (
         <div
             {...stylex.attrs(lattice.frame, lattice.ruleBottom, publicationStyles.layout)}
-            data-publication={props.publication}
+            data-publication={properties.publication}
         >
             <aside {...stylex.attrs(lattice.ruleRight, publicationStyles.sidebar)}>
-                <div {...stylex.attrs(publicationStyles.sidebarContent)}>{props.navigation()}</div>
+                <div {...stylex.attrs(publicationStyles.sidebarContent)}>
+                    {properties.navigation()}
+                </div>
             </aside>
 
             <article
                 ref={article}
                 {...stylex.attrs(publicationStyles.article)}
-                data-markdown-route={props.source.markdownRoute}
+                data-markdown-route={properties.source.markdownRoute}
                 data-page-source
-                data-text-route={props.source.textRoute}
+                data-text-route={properties.source.textRoute}
                 onClick={playVideo}
             >
                 <ReaderToolbar
-                    location={props.location}
-                    navigation={props.navigation}
+                    location={properties.location}
+                    navigation={properties.navigation}
                     sourceCommands={sourceCommands}
-                    tokenCount={props.tokenCount}
+                    tokenCount={properties.tokenCount}
                 />
 
-                <div {...stylex.attrs(publicationStyles.body)}>{props.children}</div>
-                {props.pagination?.()}
+                <div {...stylex.attrs(publicationStyles.body)}>{properties.children}</div>
+                {properties.pagination?.()}
             </article>
         </div>
     );
 }
 
-/// Render one toolbar at its responsive DOM position.
-function ReaderToolbar(props: ReaderToolbarProps) {
+/** Render one toolbar at its responsive DOM position. */
+function ReaderToolbar(properties: ReaderToolbarProperties) {
     return (
         <header {...stylex.attrs(styles.toolbar)}>
             <details
@@ -153,29 +158,29 @@ function ReaderToolbar(props: ReaderToolbarProps) {
                         }
                     }}
                 >
-                    {props.navigation()}
+                    {properties.navigation()}
                 </div>
             </details>
 
-            <div {...stylex.attrs(styles.location)}>{props.location()}</div>
+            <div {...stylex.attrs(styles.location)}>{properties.location()}</div>
             <div {...stylex.attrs(styles.toolbarTools)}>
-                {props.tokenCount !== undefined && (
+                {properties.tokenCount !== undefined && (
                     <>
                         <span {...stylex.attrs(styles.statistic)} title="Estimated reading time">
-                            {formatReadTime(props.tokenCount)}
+                            {formatReadTime(properties.tokenCount)}
                         </span>
                         <span {...stylex.attrs(styles.statistic, styles.tokenCount)}>
-                            {formatTokenCount(props.tokenCount)}
+                            {formatTokenCount(properties.tokenCount)}
                         </span>
                     </>
                 )}
-                <SourceActions commands={props.sourceCommands} />
+                <SourceActions commands={properties.sourceCommands} />
             </div>
         </header>
     );
 }
 
-/// Format an approximate token count for the compact article toolbar.
+/** Format an approximate token count for the compact article toolbar. */
 function formatTokenCount(tokenCount: number) {
     // keep exact counts legible for short pages
     if (tokenCount < 1_000) {
@@ -188,10 +193,12 @@ function formatTokenCount(tokenCount: number) {
     return `${thousands}k tokens`;
 }
 
+/** The media query for narrow screens that stack the sidebar. */
 const narrow = "@media (width < 60rem)";
+/** The media query for compact screens that hide the toolbar labels. */
 const compact = "@media (width < 52rem)";
 
-/// Shared reader styles.
+/** Shared reader styles. */
 const styles = stylex.create({
     location: {
         minWidth: 0,

@@ -5,54 +5,55 @@ import { sound } from "../effect/sound";
 import { stir, waveAt } from "../effect/water";
 import { tokens } from "../style/tokens.stylex";
 
-/// The slowest and fastest drift, in CSS pixels per second.
+/** The slowest drift, in CSS pixels per second. */
 const slowest = 9;
+/** The fastest drift, in CSS pixels per second. */
 const fastest = 17;
-/// The longest calm before a piece drifts in again, in seconds.
+/** The longest calm before a piece drifts in again, in seconds. */
 const longestCalm = 30;
-/// The chance each second that a piece on the water splashes.
+/** The chance each second that a piece on the water splashes. */
 const splashChance = 0.12;
-/// The least room between two pieces on the water, as a share of its width, so at most two show at once.
+/** The least room between two pieces on the water, as a share of its width, so at most two show at once. */
 const leastGap = 0.6;
-/// The length of the wire between a piece and its tag, in CSS pixels.
+/** The length of the wire between a piece and its tag, in CSS pixels. */
 const wireLength = 44;
-/// The stretch at either edge of the water over which pieces and tags fade, in CSS pixels.
+/** The stretch at either edge of the water over which pieces and tags fade, in CSS pixels. */
 const edgeFade = 70;
-/// The pull of gravity on a thrown piece, in CSS pixels per second squared.
+/** The pull of gravity on a thrown piece, in CSS pixels per second squared. */
 const gravity = 1400;
-/// The fastest a piece can be thrown, in CSS pixels per second.
+/** The fastest a piece can be thrown, in CSS pixels per second. */
 const fastestThrow = 900;
-/// The seconds a sinking piece takes to go under.
+/** The seconds a sinking piece takes to go under. */
 const sinkTime = 1.4;
-/// The seconds a sunk piece's tag drifts alone before the piece returns.
+/** The seconds a sunk piece's tag drifts alone before the piece returns. */
 const strandTime = 4;
-/// The steepest a floating tag tilts, in degrees, so it stays readable.
+/** The steepest a floating tag tilts, in degrees, so it stays readable. */
 const steepestTag = 6;
 
-/// One piece of flotsam: its drawing, how it sits in the water, where its tag hangs, and the tags it wears.
+/** One piece of flotsam: its drawing, how it sits in the water, where its tag hangs, and the tags it wears. */
 type Piece = {
-    /// The drawing, in CSS pixels.
+    /** The drawing, in CSS pixels. */
     art: () => JSX.Element;
-    /// The drawing's width in CSS pixels.
+    /** The drawing's width in CSS pixels. */
     width: number;
-    /// The drawing's height in CSS pixels.
+    /** The drawing's height in CSS pixels. */
     height: number;
-    /// How deep the drawing sits below the surface, in CSS pixels.
+    /** How deep the drawing sits below the waterline, in CSS pixels. */
     draft: number;
-    /// The point the tag's string is tied to, in the drawing's CSS pixels.
-    tie: readonly [number, number];
-    /// The short tags it cycles through, one per pass across the water.
+    /** The point the tag's string is tied to, in the drawing's CSS pixels. */
+    hitch: readonly [number, number];
+    /** The short tags it cycles through, one per pass across the water. */
     tags: readonly string[];
 };
 
-/// The flotsam of vendor software.
+/** The flotsam of vendor software. */
 const vendorFlotsam: readonly Piece[] = [
     {
         art: Unicorn,
         width: 72,
         height: 56,
         draft: 14,
-        tie: [5, 32],
+        hitch: [5, 32],
         tags: [
             "To the spoons",
             "Sunsetting in 30 days",
@@ -67,7 +68,7 @@ const vendorFlotsam: readonly Piece[] = [
         width: 46,
         height: 32,
         draft: 12,
-        tie: [4, 22],
+        hitch: [4, 22],
         tags: [
             "Updated pricing",
             "Usage-based (surprise)",
@@ -83,7 +84,7 @@ const vendorFlotsam: readonly Piece[] = [
         width: 30,
         height: 44,
         draft: 14,
-        tie: [6, 30],
+        hitch: [6, 30],
         tags: [
             "Now deprecated",
             "Rate limited, try later",
@@ -100,7 +101,7 @@ const vendorFlotsam: readonly Piece[] = [
         width: 46,
         height: 40,
         draft: 12,
-        tie: [5, 24],
+        hitch: [5, 24],
         tags: [
             "We value your feedback",
             "Closed as won't fix",
@@ -115,7 +116,7 @@ const vendorFlotsam: readonly Piece[] = [
         width: 46,
         height: 38,
         draft: 20,
-        tie: [4, 24],
+        hitch: [4, 24],
         tags: [
             "Export ready in 3 days",
             "CSV export only",
@@ -130,7 +131,7 @@ const vendorFlotsam: readonly Piece[] = [
         width: 52,
         height: 22,
         draft: 9,
-        tie: [3, 12],
+        hitch: [3, 12],
         tags: [
             "We've updated our terms",
             "Action required",
@@ -141,56 +142,59 @@ const vendorFlotsam: readonly Piece[] = [
     },
 ];
 
-/// One piece's drift across the water.
+/** One piece's drift across the water. */
 type Drift = {
-    /// Where the piece is across the water, in CSS pixels.
+    /** Where the piece is across the water, in CSS pixels. */
     x: number;
-    /// How fast the current carries it, in CSS pixels per second.
+    /** How fast the current carries it, in CSS pixels per second. */
     pace: number;
-    /// How fast it actually moves across, easing back to the current's pace after a throw.
+    /** How fast it actually moves across, easing back to the current's pace after a throw. */
     speed: number;
-    /// How high it is thrown above the surface, in CSS pixels.
+    /** How high it is thrown above the water, in CSS pixels. */
     lift: number;
-    /// How fast it rises, in CSS pixels per second, falling back under gravity.
+    /** How fast it rises, in CSS pixels per second, falling back under gravity. */
     climb: number;
-    /// The seconds since it started to sink, when sinking.
+    /** The seconds since it started to sink, when sinking. */
     sunk: number | undefined;
-    /// Where it was grabbed, relative to its top left, while held.
+    /** Where it was grabbed, relative to its top left, while held. */
     grab: { x: number; y: number } | undefined;
-    /// The tag it wears on this pass.
+    /** The tag it wears on this pass. */
     tag: number;
-    /// How far it still has to bob up after being tossed onto the water, from 1 to 0.
+    /** How far it still has to bob up after being tossed onto the water, from 1 to 0. */
     rise: number;
-    /// Where its tag's grommet floats across the water, in CSS pixels, once placed.
+    /** Where its tag's grommet floats across the water, in CSS pixels, once placed. */
     tagX: number | undefined;
-    /// How fast its tag drifts relative to the water, in CSS pixels per second.
+    /** How fast its tag drifts relative to the water, in CSS pixels per second. */
     tagSpeed: number;
 };
 
-/// The lone bottle that drifts past a missing page.
+/** The lone bottle that drifts past a missing page. */
 export const strandedBottle: Piece = {
     art: Bottle,
     width: 52,
     height: 22,
     draft: 9,
-    tie: [3, 12],
+    hitch: [3, 12],
     tags: ["This page was sunset"],
 };
 
-/// Float flotsam along the waterline, the vendor software by default.
-export function Flotsam(props: {
+/** Float flotsam along the waterline, the vendor software by default. */
+export function Flotsam(properties: {
     isAdrift: boolean;
     surfacedAt: number;
     waterline: string;
     pieces?: readonly Piece[];
 }) {
-    const pieces = props.pieces ?? vendorFlotsam;
+    // pick the pieces and hold their elements
+    const pieces = properties.pieces ?? vendorFlotsam;
     let water!: HTMLDivElement;
     const elements: HTMLDivElement[] = [];
     const tags: HTMLSpanElement[] = [];
     const wires: SVGPathElement[] = [];
 
+    // float the pieces once the water is in the page
     onSettled(() => {
+        // hold the frame and the time of the last one
         let frame: number | undefined;
         let last = performance.now();
 
@@ -301,7 +305,7 @@ export function Flotsam(props: {
         const bubble = (x: number) => {
             for (let index = 0; index < 6; index++) {
                 const element = document.createElement("span");
-                element.className = stylex.attrs(styles.bubble).class ?? "";
+                element.className = stylex.attrs(styles.bubble).class!;
                 const size = 3 + Math.random() * 4;
                 element.style.cssText = `left:${(x + (Math.random() - 0.5) * 24).toFixed(1)}px;top:${(20 + Math.random() * 20).toFixed(1)}px;width:${size.toFixed(1)}px;height:${size.toFixed(1)}px;animation-delay:${(index * 0.15).toFixed(2)}s`;
                 water.append(element);
@@ -315,10 +319,11 @@ export function Flotsam(props: {
             pieces.map((piece) => {
                 const drift = launch(piece, behind);
                 behind -= width() * leastGap + Math.random() * longestCalm * fastest;
+
                 return drift;
             });
         let drifts = scatter();
-        let surfaced = props.surfacedAt;
+        let surfaced = properties.surfacedAt;
         drifts.forEach((drift, index) => {
             tags[index].textContent = pieces[index].tags[drift.tag];
         });
@@ -329,16 +334,17 @@ export function Flotsam(props: {
 
         // drift each piece along, riding and tilting with the waves, and send it round again with a new tag
         const loop = (now: number) => {
+            // schedule the next frame and measure the time since the last
             frame = requestAnimationFrame(loop);
             const elapsed = Math.min(0.1, (now - last) / 1000);
             last = now;
-            if (!props.isAdrift) {
+            if (!properties.isAdrift) {
                 return;
             }
 
             // toss the pieces back up onto the refilled water, spread across it
-            if (props.surfacedAt !== surfaced) {
-                surfaced = props.surfacedAt;
+            if (properties.surfacedAt !== surfaced) {
+                surfaced = properties.surfacedAt;
                 behind = width() * (0.35 + Math.random() * 0.4);
                 drifts = scatter();
                 drifts.forEach((drift, index) => {
@@ -348,8 +354,10 @@ export function Flotsam(props: {
                 sound.play("splash");
             }
 
+            // move each piece, its tag, and its wire
             const seconds = now / 1000;
             pieces.forEach((piece, index) => {
+                // look up the piece's drift
                 const drift = drifts[index];
 
                 // keep clear of the piece ahead by matching its pace when closing in
@@ -362,7 +370,7 @@ export function Flotsam(props: {
                     drift.pace = Math.min(drift.pace, nearest.pace);
                 }
 
-                // carry the piece: held, flying, sinking, or drifting with the current
+                // move the piece: held, flying, sinking, or drifting with the current
                 if (drift.grab) {
                     const next = pointer.x - drift.grab.x;
                     drift.speed = (next - drift.x) / Math.max(elapsed, 0.001);
@@ -431,23 +439,26 @@ export function Flotsam(props: {
                 elements[index].style.transform =
                     `translate(${x.toFixed(1)}px, ${y.toFixed(1)}px) rotate(${lean.toFixed(4)}rad)`;
 
-                // find the tie on the leaning piece, turning about its bottom middle
+                // find the hitch on the leaning piece, turning about its bottom middle
                 const pivot = { x: middle, y: y + piece.height };
-                const arm = { x: x + piece.tie[0] - pivot.x, y: y + piece.tie[1] - pivot.y };
-                const tie = {
+                const arm = { x: x + piece.hitch[0] - pivot.x, y: y + piece.hitch[1] - pivot.y };
+                const hitch = {
                     x: pivot.x + arm.x * Math.cos(lean) - arm.y * Math.sin(lean),
                     y: pivot.y + arm.x * Math.sin(lean) + arm.y * Math.cos(lean),
                 };
 
-                // tow the floating tag behind the tie, springing toward a wandering spot and settling
+                // tow the floating tag behind the hitch, springing toward a wandering spot and settling
                 const tag = tags[index];
                 const tether = drifts[index];
-                const goal = tie.x - wireLength * 0.6 + Math.sin(seconds * 0.7 + index * 2.1) * 6;
+                const goal = hitch.x - wireLength * 0.6 + Math.sin(seconds * 0.7 + index * 2.1) * 6;
                 tether.tagX ??= goal;
                 if (sinking === undefined) {
                     tether.tagSpeed += ((goal - tether.tagX) * 7 - tether.tagSpeed * 2.6) * elapsed;
                     tether.tagX += tether.tagSpeed * elapsed;
-                    tether.tagX = Math.max(tie.x - wireLength, Math.min(tie.x - 4, tether.tagX));
+                    tether.tagX = Math.max(
+                        hitch.x - wireLength,
+                        Math.min(hitch.x - 4, tether.tagX),
+                    );
                 } else {
                     tether.tagSpeed +=
                         (tether.pace * 0.7 - tether.tagSpeed) * Math.min(1, elapsed * 2);
@@ -458,7 +469,7 @@ export function Flotsam(props: {
                 const tagWidth = tag.offsetWidth;
                 const tagHeight = tag.offsetHeight;
                 const left = tether.tagX + 5 - tagWidth;
-                const surface = waveAt(left + tagWidth / 2, seconds);
+                const waterTop = waveAt(left + tagWidth / 2, seconds);
                 const tilt = Math.max(
                     -steepestTag,
                     Math.min(
@@ -473,7 +484,7 @@ export function Flotsam(props: {
                 );
                 const dip =
                     sinking === undefined ? 0 : 16 * Math.sin(Math.min(1, sinking / 1.1) * Math.PI);
-                const top = surface - tagHeight + 3 + tether.rise * 48 + dip;
+                const top = waterTop - tagHeight + 3 + tether.rise * 48 + dip;
 
                 // fade the piece, its tag, and the wire in and out at the edges of the water
                 const pieceFade = fade(x, x + piece.width);
@@ -488,13 +499,13 @@ export function Flotsam(props: {
                 wires[index].style.opacity = String(Math.min(pieceFade, tagFade) * sinkFade);
                 tag.style.transform = `translate(${left.toFixed(1)}px, ${top.toFixed(1)}px) rotate(${tilt.toFixed(2)}deg)`;
 
-                // run the wire from the tie to the tag's grommet, sagging while slack
+                // run the wire from the hitch to the tag's grommet, sagging while slack
                 const hole = { x: tether.tagX, y: top + tagHeight / 2 };
-                const span = Math.hypot(hole.x - tie.x, hole.y - tie.y);
+                const span = Math.hypot(hole.x - hitch.x, hole.y - hitch.y);
                 const sag = Math.max(0, wireLength - span) * 0.5 + 1.5;
                 wires[index].setAttribute(
                     "d",
-                    `M${tie.x.toFixed(1)} ${tie.y.toFixed(1)}Q${((tie.x + hole.x) / 2).toFixed(1)} ${((tie.y + hole.y) / 2 + sag).toFixed(1)} ${hole.x.toFixed(1)} ${hole.y.toFixed(1)}`,
+                    `M${hitch.x.toFixed(1)} ${hitch.y.toFixed(1)}Q${((hitch.x + hole.x) / 2).toFixed(1)} ${((hitch.y + hole.y) / 2 + sag).toFixed(1)} ${hole.x.toFixed(1)} ${hole.y.toFixed(1)}`,
                 );
             });
         };
@@ -511,8 +522,8 @@ export function Flotsam(props: {
         <div
             ref={water}
             aria-hidden="true"
-            style={{ top: props.waterline }}
-            {...stylex.attrs(styles.water, props.isAdrift && styles.adrift)}
+            style={{ top: properties.waterline }}
+            {...stylex.attrs(styles.water, properties.isAdrift && styles.adrift)}
         >
             {pieces.map((piece, index) => (
                 <div
@@ -550,7 +561,7 @@ export function Flotsam(props: {
     );
 }
 
-/// Draw a patched pool unicorn, deflating, its head drooping.
+/** Draw a patched pool unicorn, deflating, its head drooping. */
 function Unicorn() {
     return (
         <svg width="72" height="56" viewBox="0 0 72 56" {...stylex.attrs(styles.art)}>
@@ -582,7 +593,7 @@ function Unicorn() {
     );
 }
 
-/// Draw a credit card floating on its edge.
+/** Draw a credit card floating on its edge. */
 function Card() {
     return (
         <svg width="46" height="32" viewBox="0 0 46 32" {...stylex.attrs(styles.art)}>
@@ -606,7 +617,7 @@ function Card() {
     );
 }
 
-/// Draw a padlocked treasure chest, barely afloat.
+/** Draw a padlocked treasure chest, barely afloat. */
 function Chest() {
     return (
         <svg width="46" height="38" viewBox="0 0 46 38" {...stylex.attrs(styles.art)}>
@@ -630,7 +641,7 @@ function Chest() {
     );
 }
 
-/// Draw a corked bottle with a rolled-up message inside.
+/** Draw a corked bottle with a rolled-up message inside. */
 function Bottle() {
     return (
         <svg width="52" height="22" viewBox="0 0 52 22" {...stylex.attrs(styles.art)}>
@@ -653,7 +664,7 @@ function Bottle() {
     );
 }
 
-/// Draw a red and white warning buoy with a lamp on top.
+/** Draw a red and white warning buoy with a lamp on top. */
 function Buoy() {
     return (
         <svg width="30" height="44" viewBox="0 0 30 44" {...stylex.attrs(styles.art)}>
@@ -666,7 +677,7 @@ function Buoy() {
     );
 }
 
-/// Draw a yellow rubber duck.
+/** Draw a yellow rubber duck. */
 function Duck() {
     return (
         <svg width="46" height="40" viewBox="0 0 46 40" {...stylex.attrs(styles.art)}>
@@ -682,12 +693,14 @@ function Duck() {
     );
 }
 
+/** The rise of a bubble from a sinking piece. */
 const rise = stylex.keyframes({
     "0%": { opacity: 0, transform: "translateY(0)" },
     "20%": { opacity: 0.9 },
     "100%": { opacity: 0, transform: "translateY(-44px)" },
 });
 
+/** The flotsam styles. */
 const styles = stylex.create({
     water: {
         clipPath: "inset(-100vh 0 -100vh 0)",

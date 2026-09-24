@@ -7,10 +7,11 @@ import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { DownloadCell } from "./download/download";
 
+/** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
 
-/// Offer the install command, the desktop download, and agent setup on one row; light the download once destacked.
-export function Install(props: { isLit: boolean }) {
+/** Offer the install command, the desktop download, and agent setup on one row; light the download once destacked. */
+export function Install(properties: { isLit: boolean }) {
     const [isCopied, setIsCopied] = createSignal(false);
 
     // copy the install command and acknowledge it briefly
@@ -22,7 +23,7 @@ export function Install(props: { isLit: boolean }) {
 
     return (
         <section {...stylex.attrs(lattice.frame, lattice.ruleBottom, styles.install)}>
-            <DownloadCell isLit={props.isLit} style={[lattice.ruleRight, styles.download]} />
+            <DownloadCell isLit={properties.isLit} style={[lattice.ruleRight, styles.download]} />
             <div {...stylex.attrs(lattice.ruleRight, styles.command)}>
                 <code {...stylex.attrs(styles.code)}>
                     <span {...stylex.attrs(styles.prompt)}>$</span> {installCommand}
@@ -64,6 +65,7 @@ export function Install(props: { isLit: boolean }) {
     );
 }
 
+/** The install section styles. */
 const styles = stylex.create({
     install: {
         height: tokens.row,

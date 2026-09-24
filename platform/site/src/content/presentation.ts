@@ -1,18 +1,19 @@
 import { escapeAttribute } from "./html.ts";
 
-/// One navigable item, shared by generated indexes, archives, and references.
+/** One navigable item, shared by generated indexes, archives, and references. */
 export type ContentEntry = {
     title: string;
     href: string;
+    // oxlint-disable-next-line destack/no-sludge -- summary is the entry field in the generated content JSON
     summary?: string;
     meta?: string;
     date?: string;
     external?: boolean;
     code?: boolean;
-    image?: { src: string; alt: string } | null;
+    image?: { source: string; alt: string } | null;
 };
 
-/// Display publication dates consistently without shifting calendar days by time zone.
+/** Display publication dates consistently without shifting calendar days by time zone. */
 export function formatDate(date: string): string {
     return new Intl.DateTimeFormat("en-GB", {
         day: "numeric",
@@ -22,14 +23,15 @@ export function formatDate(date: string): string {
     }).format(new Date(date));
 }
 
-/// Render the same semantic entry structure in generated and interactive pages.
+/** Render the same semantic entry structure in generated and interactive pages. */
 export function renderContentList(entries: readonly ContentEntry[]): string {
     return `<ul class="content-list">${entries
         .map((entry) => {
+            // mark external links to open in a new tab
             const relation = entry.external ? ' target="_blank" rel="noopener noreferrer"' : "";
             // omit placeholder descriptions that repeat the link title
             const isRepeatedTitle = entry.summary?.replace(/\.$/, "") === entry.title;
-            const summary =
+            const description =
                 entry.summary && !isRepeatedTitle
                     ? `<span class="content-entry-summary">${escapeAttribute(entry.summary)}</span>`
                     : "";
@@ -42,7 +44,7 @@ export function renderContentList(entries: readonly ContentEntry[]): string {
                   : "";
             const titleTag = entry.code ? "code" : "span";
             const image = entry.image
-                ? `<img class="content-entry-image" src="${escapeAttribute(entry.image.src)}" alt="${escapeAttribute(
+                ? `<img class="content-entry-image" src="${escapeAttribute(entry.image.source)}" alt="${escapeAttribute(
                       entry.image.alt,
                   )}" loading="lazy">`
                 : "";
@@ -54,12 +56,12 @@ export function renderContentList(entries: readonly ContentEntry[]): string {
                 entry.href,
             )}"${relation}>${image}<${titleTag} class="content-entry-title">${escapeAttribute(
                 entry.title,
-            )}</${titleTag}>${meta}${arrow}${summary}</a></li>`;
+            )}</${titleTag}>${meta}${arrow}${description}</a></li>`;
         })
         .join("")}</ul>`;
 }
 
-/// Estimate reading time at roughly 300 tokens (200 words) per minute.
+/** Estimate reading time at roughly 300 tokens (200 words) per minute. */
 export function formatReadTime(tokenCount: number) {
     const minutes = Math.max(1, Math.ceil(tokenCount / 300));
 

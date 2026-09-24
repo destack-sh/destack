@@ -1,6 +1,6 @@
 import { onSettled } from "@destack/view";
 
-/// Activate visible mnemonic controls through Alt plus their highlighted key.
+/** Activate visible mnemonic controls through Alt plus their highlighted key. */
 export function KeyboardShortcuts() {
     onSettled(() => {
         const activate = (event: KeyboardEvent) => {
@@ -23,10 +23,12 @@ export function KeyboardShortcuts() {
                 return;
             }
 
+            // ignore held keys
             if (event.repeat) {
                 return;
             }
 
+            // find the visible control bound to the key
             const controls = document.querySelectorAll<HTMLElement>("[data-shortcut]");
             const control = [...controls].find(
                 (candidate) => candidate.dataset.shortcut?.toLowerCase() === shortcut,
@@ -35,20 +37,23 @@ export function KeyboardShortcuts() {
                 return;
             }
 
+            // press the control
             event.preventDefault();
             control.focus();
             control.click();
         };
 
         document.addEventListener("keydown", activate);
+
         return () => document.removeEventListener("keydown", activate);
     });
 
     return null;
 }
 
-/// Move focus through every visible interactive control in document order.
+/** Move focus through every visible interactive control in document order. */
 function moveFocus(direction: 1 | -1) {
+    // collect the visible controls in the open dialog or the page
     const scope = document.querySelector("dialog[open]") ?? document;
     const candidates = scope.querySelectorAll<HTMLElement>(
         "a[href], button:not([disabled]), input:not([disabled]), [tabindex]:not([tabindex='-1'])",
@@ -66,7 +71,7 @@ function moveFocus(direction: 1 | -1) {
     controls[index].scrollIntoView({ block: "nearest" });
 }
 
-/// Normalize physical letter and number keys across keyboard layouts and Option modifiers.
+/** Normalize physical letter and number keys across keyboard layouts and Option modifiers. */
 function shortcutFor(event: KeyboardEvent) {
     // preserve mnemonics when Option changes the produced character on macOS
     if (event.code.startsWith("Key")) {
@@ -81,7 +86,7 @@ function shortcutFor(event: KeyboardEvent) {
     return event.key.toLowerCase();
 }
 
-/// Return whether a shortcut originated inside an editable control.
+/** Return whether a shortcut originated inside an editable control. */
 function isEditable(target: EventTarget | null) {
     return (
         target instanceof HTMLInputElement ||

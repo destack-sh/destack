@@ -1,41 +1,44 @@
 import { Link, Meta, Title } from "@destack/view/document";
 
-/// The canonical public site origin.
+/** The canonical public site origin. */
 const siteUrl = "https://destack.sh";
 
-/// The site name used in metadata titles.
+/** The site name used in metadata titles. */
 const siteTitle = "Destack";
 
-/// The default search and social description.
+/** The default search and social description. */
 const siteDescription =
     "Destack is a universal software engine: one language, one toolchain, and one runtime for libraries, services, and apps, compiled to native and the web.";
 
-type SeoProps = {
-    /// The page summary used by search and social previews.
+/** Properties for page metadata. */
+type SeoProperties = {
+    /** The page description used by search and social previews. */
     description?: string;
 
-    /// The public Markdown representation of this page.
+    /** The public Markdown representation of this page. */
     markdownRoute?: string;
 
-    /// The canonical site path.
+    /** The canonical site path. */
     path?: string;
 
-    /// The public plain-text representation of this page.
+    /** The public plain-text representation of this page. */
     textRoute?: string;
 
-    /// The page title without the site suffix.
+    /** The page title without the site suffix. */
     title?: string;
 
-    /// The Open Graph page type.
+    /** The Open Graph page type. */
     type?: "article" | "website";
 };
 
-/// Render canonical, search, and social metadata for one page.
-export function Seo(props: SeoProps) {
-    const title = () => (props.title == undefined ? siteTitle : `${props.title} | ${siteTitle}`);
-    const description = () => props.description ?? siteDescription;
-    const type = () => props.type ?? "website";
-    const url = () => `${siteUrl}${props.path ?? "/"}`;
+/** Render canonical, search, and social metadata for one page. */
+export function Seo(properties: SeoProperties) {
+    // resolve each metadata field, falling back to the site defaults
+    const title = () =>
+        properties.title == undefined ? siteTitle : `${properties.title} | ${siteTitle}`;
+    const description = () => properties.description ?? siteDescription;
+    const type = () => properties.type ?? "website";
+    const url = () => `${siteUrl}${properties.path ?? "/"}`;
 
     return (
         <>
@@ -52,15 +55,19 @@ export function Seo(props: SeoProps) {
             <Meta name="twitter:image" content={`${siteUrl}/og.png`} />
             <Meta name="twitter:title" content={title()} />
             <Link rel="canonical" href={url()} />
-            {props.markdownRoute != undefined && (
+            {properties.markdownRoute != undefined && (
                 <Link
                     rel="alternate"
                     type="text/markdown"
-                    href={`${siteUrl}${props.markdownRoute}`}
+                    href={`${siteUrl}${properties.markdownRoute}`}
                 />
             )}
-            {props.textRoute != undefined && (
-                <Link rel="alternate" type="text/plain" href={`${siteUrl}${props.textRoute}`} />
+            {properties.textRoute != undefined && (
+                <Link
+                    rel="alternate"
+                    type="text/plain"
+                    href={`${siteUrl}${properties.textRoute}`}
+                />
             )}
         </>
     );

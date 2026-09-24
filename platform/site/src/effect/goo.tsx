@@ -5,13 +5,14 @@ import { tokens } from "../style/tokens.stylex";
 import { Shader } from "./gl";
 import { drainAt } from "./water";
 
-/// The distance the goo may spill past its cell, in CSS pixels.
+/** The distance the goo may spill past its cell, in CSS pixels. */
 const spill = 8;
-/// The milliseconds the shader takes to fade in over the still stars.
+/** The milliseconds the shader takes to fade in over the still stars. */
 const fadeTime = 500;
 
-/// A still tile of stars that shows before the shader paints, seeded so server and browser agree.
+/** A still tile of stars that shows before the shader paints, seeded so server and browser agree. */
 const stillStars = (() => {
+    // draw a dozen stars from a fixed seed
     let seed = 11;
     const random = () => {
         seed = (seed * 16807) % 2147483647;
@@ -27,10 +28,11 @@ const stillStars = (() => {
         stars += `<circle cx='${x}' cy='${y}' r='${radius}' fill='#f1eadb' fill-opacity='${alpha}'/>`;
     }
     const tile = `<svg xmlns='http://www.w3.org/2000/svg' width='240' height='120'>${stars}</svg>`;
+
     return `url("data:image/svg+xml,${encodeURIComponent(tile)}")`;
 })();
 
-/// The goo fragment shader.
+/** The goo fragment shader. */
 const fragmentSource = `
 precision mediump float;
 uniform vec2 resolution;
@@ -183,11 +185,12 @@ void main() {
 }
 `;
 
-/// The pointer anywhere on the page in client coordinates, shared by every goo.
+/** The pointer anywhere on the page in client pixels, shared by every goo. */
 const pagePointer = { x: 0, y: 0, isKnown: false };
+/** Whether the page pointer listener is installed. */
 let isTrackingPagePointer = false;
 
-/// Start following the pointer across the whole page, once for every goo.
+/** Start following the pointer across the whole page, once for every goo. */
 function trackPagePointer() {
     if (isTrackingPagePointer) {
         return;
@@ -204,40 +207,40 @@ function trackPagePointer() {
     );
 }
 
-/// A heavy goo window onto a quiet, dreamy sky that reaches toward the pointer.
+/** A heavy goo window onto a quiet, dreamy sky that reaches toward the pointer. */
 class Starfield {
-    /// The shader that draws the goo.
+    /** The shader that draws the goo. */
     shader: Shader;
-    /// The pointer position the goo follows, in canvas CSS pixels.
+    /** The pointer position the goo follows, in canvas CSS pixels. */
     target: { x: number; y: number };
-    /// The smoothed pointer position.
+    /** The smoothed pointer position. */
     pointer: { x: number; y: number };
-    /// The smoothed swell strength from 0 to 1, fading with the pointer's distance outside.
+    /** The smoothed swell strength from 0 to 1, fading with the pointer's distance outside. */
     pull: number;
-    /// The smoothed meteor shower strength from 0 to 1, while the pointer is over the goo.
+    /** The smoothed meteor shower strength from 0 to 1, while the pointer is over the goo. */
     shower: number;
-    /// Whether the pointer is over the goo.
+    /** Whether the pointer is over the goo. */
     isHovered: boolean;
-    /// Whether the goo moves at all.
+    /** Whether the goo moves at all. */
     isMoving: boolean;
-    /// Whether the first frame has been drawn.
+    /** Whether the first frame has been drawn. */
     isPainted: boolean;
-    /// The animation start time in milliseconds.
+    /** The animation start time in milliseconds. */
     start: number;
-    /// Receive the first drawn frame.
+    /** Receive the first drawn frame. */
     onPaint: () => void;
-    /// The black hole's radius in CSS pixels, below the water's drain, or zero for none.
+    /** The black hole's radius in CSS pixels, below the water's drain, or zero for none. */
     hole: number;
-    /// Which way water flows through the black hole: 1 draining into it, -1 welling out of it, 0 still.
+    /** Which way water flows through the black hole: 1 draining into it, -1 welling out of it, 0 still. */
     flow: () => number;
-    /// The smoothed glow of the disk from 0 to 1.
+    /** The smoothed glow of the disk from 0 to 1. */
     glow: number;
-    /// The flow on the previous frame.
+    /** The flow on the previous frame. */
     lastFlow: number;
-    /// The flare as the last of the water goes in, from 1 fading to 0.
+    /** The flare as the last of the water goes in, from 1 fading to 0. */
     flare: number;
 
-    /// Create goo on a canvas, or throw when WebGL is unavailable.
+    /** Create goo on a canvas, or throw when WebGL is unavailable. */
     constructor(
         canvas: HTMLCanvasElement,
         isMoving: boolean,
@@ -245,6 +248,7 @@ class Starfield {
         flow: () => number,
         onPaint: () => void,
     ) {
+        // start the shader and rest the goo until the pointer comes
         this.shader = new Shader(canvas, fragmentSource, 1.5, (now) => this.draw(now));
         this.target = { x: 0, y: 0 };
         this.pointer = { x: 0, y: 0 };
@@ -262,14 +266,15 @@ class Starfield {
         this.flare = 0;
     }
 
-    /// Note whether the pointer is over the goo.
+    /** Note whether the pointer is over the goo. */
     hover(isHovered: boolean) {
         this.isHovered = isHovered;
         this.shader.request();
     }
 
-    /// Upload one frame, and return whether to keep going while the goo moves.
+    /** Upload one frame, and return whether to keep going while the goo moves. */
     draw(now: number) {
+        // read the shader and its context
         const shader = this.shader;
         const context = shader.context;
 
@@ -281,13 +286,13 @@ class Starfield {
         this.pointer.x += (this.target.x - this.pointer.x) * 0.06;
         this.pointer.y += (this.target.y - this.pointer.y) * 0.06;
 
-        // reach toward a pointer close outside, fully once it is over the goo
+        // swell toward a pointer close outside, fully once it is over the goo
         const outside = Math.hypot(
             Math.max(0, -this.target.x, this.target.x - bounds.width),
             Math.max(0, -this.target.y, this.target.y - bounds.height),
         );
-        const reach = this.isHovered ? 1 : pagePointer.isKnown ? Math.exp(-outside / 60) * 0.8 : 0;
-        this.pull += (reach - this.pull) * 0.04;
+        const swell = this.isHovered ? 1 : pagePointer.isKnown ? Math.exp(-outside / 60) * 0.8 : 0;
+        this.pull += (swell - this.pull) * 0.04;
         this.shower += ((this.isHovered ? 1 : 0) - this.shower) * 0.04;
 
         // place the sky by page position, far stars shifting less than near ones
@@ -341,13 +346,14 @@ class Starfield {
     }
 }
 
-/// Fill a lattice cell with goo that spills slightly past its edges, with content on top.
-export function Goo(props: {
+/** Fill a lattice cell with goo that spills slightly past its edges, with content on top. */
+export function Goo(properties: {
     children?: JSX.Element;
     hole?: number;
     flow?: number;
     style?: stylex.Styles;
 }) {
+    // hold the paint state and the elements
     const [isPainted, setIsPainted] = createSignal(false);
     const [isCovered, setIsCovered] = createSignal(false);
     let host!: HTMLDivElement;
@@ -355,14 +361,17 @@ export function Goo(props: {
 
     // run the goo only while it is on screen, and release it with the page
     onSettled(() => {
+        // start the starfield, or keep the still stars when WebGL is unavailable
         const isStill = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         let field: Starfield;
         try {
             field = new Starfield(
                 canvas,
                 !isStill,
-                props.hole ?? 0,
-                () => props.flow ?? 0,
+                // oxlint-disable-next-line destack/no-silent-fallback -- no hole radius means no black hole
+                properties.hole ?? 0,
+                // oxlint-disable-next-line destack/no-silent-fallback -- no flow means still water
+                () => properties.flow ?? 0,
                 () => {
                     setIsPainted(true);
                     setTimeout(() => setIsCovered(true), fadeTime);
@@ -385,6 +394,7 @@ export function Goo(props: {
         view.observe(host);
 
         return () => {
+            // stop observing and release the shader
             view.disconnect();
             host.removeEventListener("pointerenter", enter);
             host.removeEventListener("pointerleave", leave);
@@ -396,18 +406,19 @@ export function Goo(props: {
         <div
             ref={host}
             style={isCovered() ? undefined : { "background-image": stillStars }}
-            {...stylex.attrs(styles.host, props.style)}
+            {...stylex.attrs(styles.host, properties.style)}
         >
             <canvas
                 ref={canvas}
                 aria-hidden="true"
                 {...stylex.attrs(styles.canvas, isPainted() && styles.canvasPainted)}
             />
-            <div {...stylex.attrs(styles.content)}>{props.children}</div>
+            <div {...stylex.attrs(styles.content)}>{properties.children}</div>
         </div>
     );
 }
 
+/** The goo styles. */
 const styles = stylex.create({
     host: {
         backgroundColor: tokens.space,

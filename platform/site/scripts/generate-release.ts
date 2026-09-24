@@ -29,7 +29,7 @@ if (!["experimental", "alpha", "beta", "stable"].includes(stability)) {
 const release = { version, stability };
 const generatedSource = await formatSource(
     generatedFile,
-    `/// The current Destack release.\n` +
+    `/** The current Destack release. */\n` +
         `export const release = ${JSON.stringify(release)} as const;\n`,
 );
 const publicSource = `${JSON.stringify(release)}\n`;

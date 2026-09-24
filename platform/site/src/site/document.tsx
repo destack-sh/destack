@@ -27,7 +27,7 @@ Object.assign(theme.style, {
 });
 
 /** Render the shared HTML document. */
-export default function Document(props: ParentProps) {
+export default function Document(properties: ParentProps) {
     return (
         <html lang="en" {...theme}>
             <head>
@@ -68,7 +68,7 @@ export default function Document(props: ParentProps) {
                 <HydrationScript />
             </head>
             <body>
-                <div id="app">{props.children}</div>
+                <div id="app">{properties.children}</div>
             </body>
         </html>
     );

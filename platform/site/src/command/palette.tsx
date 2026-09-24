@@ -8,7 +8,7 @@ import {
     commandEvents,
     type CommandMatch,
     commandsFor,
-    highlightParts,
+    highlightSegments,
     matchCommands,
     type SearchScope,
     searchScopes,
@@ -19,11 +19,12 @@ import type { PageFormats } from "../content/source";
 import { isExternalLink } from "../navigation/link";
 import { tokens } from "../style/tokens.stylex";
 
-/// The maximum number of visible command results.
+/** The maximum number of visible command results. */
 const resultLimit = 8;
 
-/// Render site-wide search and keyboard navigation.
+/** Render site-wide search and keyboard navigation. */
 export function CommandPalette() {
+    // hold the dialog, the loaded entries, and the query state
     let dialog: HTMLDialogElement | undefined;
     let input: HTMLInputElement | undefined;
     const [entries, setEntries] = createSignal<readonly SearchEntry[]>([]);
@@ -38,20 +39,25 @@ export function CommandPalette() {
 
     // open the palette from anywhere outside an editable control
     onSettled(() => {
+        // open on the command shortcut, or a slash outside editable controls
         const handleKey = (event: KeyboardEvent) => {
+            // match the shortcut, and ignore other keys
             const isCommand = (event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "k";
             const isSlash = event.key === "/" && !isEditable(event.target);
             if (!isCommand && !isSlash) {
                 return;
             }
 
+            // open the palette instead of typing the key
             event.preventDefault();
             void openPalette();
         };
         const handleOpen = () => void openPalette();
 
+        // listen for the shortcut and for open events
         document.addEventListener("keydown", handleKey);
         document.addEventListener(commandEvents.open, handleOpen);
+
         return () => {
             document.removeEventListener("keydown", handleKey);
             document.removeEventListener(commandEvents.open, handleOpen);
@@ -82,6 +88,7 @@ export function CommandPalette() {
         }
     };
 
+    // close the palette and run the chosen command
     const choose = (command: Command) => {
         dialog?.close();
 
@@ -96,6 +103,7 @@ export function CommandPalette() {
         }
     };
 
+    // close, move, or choose with the keyboard
     const handleInputKey = (event: KeyboardEvent) => {
         if (event.key === "Escape") {
             event.preventDefault();
@@ -117,6 +125,7 @@ export function CommandPalette() {
         }
     };
 
+    // select a result and scroll it into view
     const moveSelection = (index: number) => {
         setSelected(index);
         queueMicrotask(() => {
@@ -376,13 +385,15 @@ export function CommandPalette() {
     );
 }
 
-/// Read the current page formats advertised by the reader toolbar.
+/** Read the current page formats advertised by the reader toolbar. */
 function currentPageSource(): PageFormats | undefined {
+    // find the advertised page source, or none on pages without one
     const element = document.querySelector<HTMLElement>("[data-page-source]");
     if (element == undefined) {
         return undefined;
     }
 
+    // fail when the advertised routes are incomplete
     const markdownRoute = element.dataset.markdownRoute;
     const textRoute = element.dataset.textRoute;
     if (markdownRoute == undefined || textRoute == undefined) {
@@ -392,26 +403,31 @@ function currentPageSource(): PageFormats | undefined {
     return { markdownRoute, textRoute };
 }
 
-type HighlightProps = {
-    /// The search match defining highlighted terms.
+/** Properties for a highlighted result text. */
+type HighlightProperties = {
+    /** The search match defining highlighted terms. */
     match: CommandMatch;
 
-    /// The visible text to segment.
+    /** The visible text to segment. */
     text: string;
 };
 
-/// Render case-preserving query highlights.
-function Highlight(props: HighlightProps) {
+/** Render case-preserving query highlights. */
+function Highlight(properties: HighlightProperties) {
     return (
-        <For each={highlightParts(props.text, props.match.terms)}>
-            {(part) =>
-                part.isMatch ? <mark {...stylex.attrs(styles.mark)}>{part.text}</mark> : part.text
+        <For each={highlightSegments(properties.text, properties.match.terms)}>
+            {(segment) =>
+                segment.isMatch ? (
+                    <mark {...stylex.attrs(styles.mark)}>{segment.text}</mark>
+                ) : (
+                    segment.text
+                )
             }
         </For>
     );
 }
 
-/// Return whether the keyboard event originated in editable content.
+/** Return whether the keyboard event originated in editable content. */
 function isEditable(target: EventTarget | null) {
     return (
         target instanceof HTMLInputElement ||
@@ -420,6 +436,7 @@ function isEditable(target: EventTarget | null) {
     );
 }
 
+/** The command palette styles. */
 const styles = stylex.create({
     close: {
         backgroundColor: "transparent",

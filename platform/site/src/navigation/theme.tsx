@@ -2,12 +2,14 @@ import { color } from "@destack/theme/tokens.stylex";
 import { createSignal, onSettled, Show } from "@destack/view";
 import * as stylex from "@destack/style";
 
-/// Switch between light and dark themes, starting with the system preference.
+/** Switch between light and dark themes, starting with the system preference. */
 export function ThemeToggle() {
+    // hold the current theme
     const [isDark, setIsDark] = createSignal(false);
 
     // follow system changes until the reader selects a theme
     onSettled(() => {
+        // read the theme, and follow the system preference
         const preference = window.matchMedia("(prefers-color-scheme: dark)");
         const update = () => {
             const theme = document.documentElement.dataset.theme;
@@ -15,11 +17,13 @@ export function ThemeToggle() {
         };
         update();
         preference.addEventListener("change", update);
+
         return () => preference.removeEventListener("change", update);
     });
 
     // apply the choice immediately and retain it for the next visit
     const toggle = () => {
+        // set the theme on the page and store it
         const theme = isDark() ? "light" : "dark";
         document.documentElement.dataset.theme = theme;
         document.documentElement.dataset.destackTheme = theme;
@@ -63,6 +67,7 @@ export function ThemeToggle() {
     );
 }
 
+/** The theme toggle styles. */
 const styles = stylex.create({
     toggle: {
         alignItems: "center",

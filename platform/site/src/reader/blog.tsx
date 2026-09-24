@@ -11,46 +11,46 @@ import { type ContentsEntry, ContentsTree, trackActiveHeading } from "./contents
 import { PageHeader } from "./header";
 import { formatDate } from "../content/presentation";
 
-/// Properties for one rendered blog article.
-type BlogArticleProps = {
-    /// The rendered post body.
+/** Properties for one rendered blog article. */
+type BlogArticleProperties = {
+    /** The rendered post body. */
     content: PostContent;
 
-    /// The current post.
+    /** The current post. */
     post: Post;
 
-    /// Every post in reverse chronological order.
+    /** Every post in reverse chronological order. */
     posts: readonly Post[];
 };
 
-/// Render a blog post and its navigation.
-export function BlogArticle(props: BlogArticleProps) {
-    const activeHeading = trackActiveHeading(props.post.tableOfContents);
+/** Render a blog post and its navigation. */
+export function BlogArticle(properties: BlogArticleProperties) {
+    const activeHeading = trackActiveHeading(properties.post.tableOfContents);
 
     return (
         <Reader
             location={() => <Breadcrumbs items={[{ href: "/blog/", label: "Blog" }]} />}
             navigation={() => (
                 <BlogNavigation
-                    contents={props.post.tableOfContents}
+                    contents={properties.post.tableOfContents}
                     activeHeading={activeHeading}
                 />
             )}
-            pagination={() => <PostNavigation post={props.post} posts={props.posts} />}
+            pagination={() => <PostNavigation post={properties.post} posts={properties.posts} />}
             publication="journal"
-            source={props.post}
-            tokenCount={props.post.tokens}
+            source={properties.post}
+            tokenCount={properties.post.tokens}
         >
-            <BlogArticleHeader post={props.post} />
-            <div class="markdown" innerHTML={props.content.html} />
+            <BlogArticleHeader post={properties.post} />
+            <div class="markdown" innerHTML={properties.content.html} />
         </Reader>
     );
 }
 
-/// Render the article outline as the reading navigation.
-function BlogNavigation(props: {
+/** Render the article outline as the reading navigation. */
+function BlogNavigation(properties: {
     contents: readonly ContentsEntry[];
-    activeHeading: Accessor<string>;
+    activeHeading: Accessor<string | undefined>;
 }) {
     return (
         <nav aria-label="Article contents">
@@ -60,45 +60,49 @@ function BlogNavigation(props: {
                 </a>
             </div>
             <div {...stylex.attrs(publicationStyles.collectionList)}>
-                <ContentsTree entries={props.contents} activeId={props.activeHeading} />
+                <ContentsTree entries={properties.contents} activeId={properties.activeHeading} />
             </div>
         </nav>
     );
 }
 
-/// Properties for the blog article heading.
-type BlogArticleHeaderProps = {
-    /// The current post.
+/** Properties for the blog article heading. */
+type BlogArticleHeaderProperties = {
+    /** The current post. */
     post: Post;
 };
 
-/// Render the post title and subtitle.
-function BlogArticleHeader(props: BlogArticleHeaderProps) {
+/** Render the post title and subtitle. */
+function BlogArticleHeader(properties: BlogArticleHeaderProperties) {
     return (
-        <PageHeader title={props.post.title} variant="article" description={props.post.subtitle}>
+        <PageHeader
+            title={properties.post.title}
+            variant="article"
+            description={properties.post.subtitle}
+        >
             <div {...stylex.attrs(styles.metadata)}>
-                <span>{props.post.author}</span>
-                <time datetime={props.post.date}>{formatDate(props.post.date)}</time>
+                <span>{properties.post.author}</span>
+                <time datetime={properties.post.date}>{formatDate(properties.post.date)}</time>
             </div>
         </PageHeader>
     );
 }
 
-/// Properties for the adjacent post navigation.
-type PostNavigationProps = {
-    /// The current post.
+/** Properties for the adjacent post navigation. */
+type PostNavigationProperties = {
+    /** The current post. */
     post: Post;
 
-    /// Every post in reverse chronological order.
+    /** Every post in reverse chronological order. */
     posts: readonly Post[];
 };
 
-/// Render adjacent posts when they exist.
-function PostNavigation(props: PostNavigationProps) {
+/** Render adjacent posts when they exist. */
+function PostNavigation(properties: PostNavigationProperties) {
     // resolve neighbors from the canonical post order
-    const index = () => props.posts.findIndex((post) => post.slug === props.post.slug);
-    const newer = () => props.posts[index() - 1];
-    const older = () => props.posts[index() + 1];
+    const index = () => properties.posts.findIndex((post) => post.slug === properties.post.slug);
+    const newer = () => properties.posts[index() - 1];
+    const older = () => properties.posts[index() + 1];
 
     return (
         <Show when={newer() || older()}>
@@ -115,27 +119,27 @@ function PostNavigation(props: PostNavigationProps) {
     );
 }
 
-/// Properties for one adjacent post link.
-type PostNavigationLinkProps = {
-    /// The adjacent post direction.
+/** Properties for one adjacent post link. */
+type PostNavigationLinkProperties = {
+    /** The adjacent post direction. */
     direction: "newer" | "older";
 
-    /// The adjacent post.
+    /** The adjacent post. */
     post: Post;
 };
 
-/// Render one adjacent post link.
-function PostNavigationLink(props: PostNavigationLinkProps) {
-    const isNewer = props.direction === "newer";
+/** Render one adjacent post link. */
+function PostNavigationLink(properties: PostNavigationLinkProperties) {
+    const isNewer = properties.direction === "newer";
 
     return (
-        <a {...stylex.attrs(publicationStyles.paginationLink)} href={props.post.route}>
-            {isNewer ? `← ${props.post.title}` : `${props.post.title} →`}
+        <a {...stylex.attrs(publicationStyles.paginationLink)} href={properties.post.route}>
+            {isNewer ? `← ${properties.post.title}` : `${properties.post.title} →`}
         </a>
     );
 }
 
-/// Journal article styles.
+/** Journal article styles. */
 const styles = stylex.create({
     metadata: {
         color: color.mutedForeground,

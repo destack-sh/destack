@@ -7,7 +7,7 @@ import { Reader } from "../reader/reader";
 import { Seo } from "../site/seo";
 import { Shell } from "../site/shell";
 
-/// Browse articles with the shared collection layout.
+/** Browse articles with the shared collection layout. */
 export function BlogPage() {
     const entries = posts.map((post) => ({
         title: post.title,

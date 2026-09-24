@@ -1,9 +1,9 @@
 import { Shader } from "./gl";
 
-/// The milliseconds the ice takes to shatter or reassemble.
+/** The milliseconds the ice takes to shatter or reassemble. */
 const breakTime = 1200;
 
-/// The ice fragment shader.
+/** The ice fragment shader. */
 const fragmentSource = `
 precision mediump float;
 uniform vec2 resolution;
@@ -218,38 +218,39 @@ void main() {
 }
 `;
 
-/// Render faceted icebergs centred on three columns, floating at a waterline, able to shatter.
+/** Render faceted icebergs centred on three columns, floating at a waterline, able to shatter. */
 export class Ice {
-    /// The shader that draws the ice.
+    /** The shader that draws the ice. */
     shader: Shader;
-    /// The waterline in canvas CSS pixels.
+    /** The waterline in canvas CSS pixels. */
     waterline: number;
-    /// The submerged depth of each berg in CSS pixels, fixed at its resting waterline.
+    /** The submerged depth of each berg in CSS pixels, fixed at its resting waterline. */
     bulk: number;
-    /// The shatter progress at the start of the current break, from 0 whole to 1 gone.
+    /** The shatter progress at the start of the current break, from 0 whole to 1 gone. */
     from: number;
-    /// The shatter progress the current break ends at.
+    /** The shatter progress the current break ends at. */
     to: number;
-    /// The start time of the current break in milliseconds.
+    /** The start time of the current break in milliseconds. */
     broke: number;
-    /// Whether the ice moves.
+    /** Whether the ice moves. */
     isMoving: boolean;
-    /// The animation start time in milliseconds.
+    /** The animation start time in milliseconds. */
     start: number;
-    /// The drawing's left edge within the water canvas, so both share one set of waves.
+    /** The drawing's left edge within the water canvas, so both share one set of waves. */
     offset: number;
-    /// The centre of each berg as a fraction of the canvas width.
+    /** The centre of each berg as a fraction of the canvas width. */
     centres: readonly number[];
-    /// Run after every drawn frame, so things floating beside the ice move in step with it.
+    /** Run after every drawn frame, so things floating beside the ice move in step with it. */
     onFrame: () => void;
 
-    /// Create ice on a canvas, or throw when WebGL is unavailable.
+    /** Create ice on a canvas, or throw when WebGL is unavailable. */
     constructor(
         canvas: HTMLCanvasElement,
         centres: readonly number[],
         isMoving: boolean,
         onFrame: () => void,
     ) {
+        // start the shader and rest the ice whole
         this.shader = new Shader(canvas, fragmentSource, 1.5, (now) => this.draw(now));
         this.waterline = 0;
         this.bulk = 0;
@@ -263,16 +264,18 @@ export class Ice {
         this.centres = centres;
     }
 
-    /// Float the ice at a waterline with a submerged depth, at an offset within the water canvas, and redraw.
+    /** Float the ice at a waterline with a submerged depth, at an offset within the water canvas, and redraw. */
     place(waterline: number, bulk: number, offset: number) {
+        // store the placement and redraw
         this.waterline = waterline;
         this.bulk = bulk;
         this.offset = offset;
         this.shader.request();
     }
 
-    /// Shatter the ice, or reassemble it, after a delay in milliseconds.
+    /** Shatter the ice, or reassemble it, after a delay in milliseconds. */
     breakTo(shatter: number, delay: number) {
+        // start a break from the current shatter
         const now = performance.now();
         this.from = this.shatterAt(now);
         this.to = shatter;
@@ -280,15 +283,17 @@ export class Ice {
         this.shader.request();
     }
 
-    /// Return the shatter progress at a time, easing out as the shards slow or settle.
+    /** Return the shatter progress at a time, easing out as the shards slow or settle. */
     shatterAt(now: number) {
         const progress = Math.max(0, Math.min(1, (now - this.broke) / breakTime));
         const eased = 1 - (1 - progress) ** 2;
+
         return this.from + (this.to - this.from) * eased;
     }
 
-    /// Upload one frame, and return whether to keep going while the ice bobs or breaks.
+    /** Upload one frame, and return whether to keep going while the ice bobs or breaks. */
     draw(now: number) {
+        // read the shader and its context
         const shader = this.shader;
         const context = shader.context;
 

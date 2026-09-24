@@ -22,6 +22,7 @@ export interface Download {
 
 /** Read and validate the public download catalog. */
 export async function readDownloads(): Promise<Download[]> {
+    // fetch the catalog and reject a failed response
     const response = await fetch("https://download.destack.sh/downloads.json");
     if (!response.ok) {
         throw new Error(`Download catalog returned ${response.status}.`);
@@ -30,6 +31,7 @@ export async function readDownloads(): Promise<Download[]> {
 
     // validate addresses before placing links in the page
     const downloads = Object.entries(catalog.downloads).map(([target, value]) => {
+        // check each entry's target, address, and version
         const { url, version } = value as { url: string; version: string };
         if (
             !(target in platforms) ||
@@ -61,7 +63,9 @@ export async function readDownloads(): Promise<Download[]> {
     }
 
     // offer one Mac download when the universal installer is published
-    return downloads.some((download) => download.target === "universal-apple-darwin")
+    const isUniversal = downloads.some((download) => download.target === "universal-apple-darwin");
+
+    return isUniversal
         ? downloads.filter(
               (download) =>
                   !["aarch64-apple-darwin", "x86_64-apple-darwin"].includes(download.target),

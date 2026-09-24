@@ -2,28 +2,31 @@ import { color } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
 import { type JSX, Show } from "@destack/view";
 
-/// Render a page title, its optional description, and any metadata below it.
-export function PageHeader(props: {
-    /// The page title.
+/** Render a page title, its optional description, and any metadata below it. */
+export function PageHeader(properties: {
+    /** The page title. */
     title: string;
-    /// The page kind; articles leave more room below their opening.
+    /** The page kind; articles leave more room below their opening. */
     variant: "article" | "chapter" | "reference";
-    /// The optional lead below the title.
+    /** The optional lead below the title. */
     description?: string;
-    /// The optional metadata row.
+    /** The optional metadata row. */
     children?: JSX.Element;
 }) {
     return (
-        <header {...stylex.attrs(styles.header, props.variant === "article" && styles.article)}>
-            <h1 {...stylex.attrs(styles.title)}>{props.title}</h1>
-            <Show when={props.description}>
-                <p {...stylex.attrs(styles.description)}>{props.description}</p>
+        <header
+            {...stylex.attrs(styles.header, properties.variant === "article" && styles.article)}
+        >
+            <h1 {...stylex.attrs(styles.title)}>{properties.title}</h1>
+            <Show when={properties.description}>
+                <p {...stylex.attrs(styles.description)}>{properties.description}</p>
             </Show>
-            {props.children}
+            {properties.children}
         </header>
     );
 }
 
+/** The page header styles. */
 const styles = stylex.create({
     header: {
         display: "grid",

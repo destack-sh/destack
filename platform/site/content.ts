@@ -1,12 +1,12 @@
-/// A published collection and its sources.
+/** A published collection and its sources. */
 export type Collection = {
-    /// The visible collection name.
+    /** The visible collection name. */
     title: string;
-    /// Whether this collection appears in navigation and discovery.
+    /** Whether this collection appears in navigation and discovery. */
     isListed?: boolean;
-    /// The canonical collection root.
+    /** The canonical collection root. */
     route: string;
-    /// The repository directories published in this collection.
+    /** The repository directories published in this collection. */
     sources: readonly {
         directory: string;
         readme?: boolean;
@@ -15,7 +15,7 @@ export type Collection = {
     }[];
 };
 
-/// The collections published by the site.
+/** The collections published by the site. */
 export const collections: readonly Collection[] = [
     {
         title: "Documentation",
@@ -65,7 +65,7 @@ export const collections: readonly Collection[] = [
     },
 ];
 
-/// Find the most specific collection containing a route.
+/** Find the most specific collection containing a route. */
 export function collectionAt(route: string): Collection | undefined {
     let match: Collection | undefined;
 

@@ -6,15 +6,15 @@ import { MissingPage } from "../site/missing";
 import { Seo } from "../site/seo";
 import { Shell } from "../site/shell";
 
-/// Properties for one documentation page.
-type DocumentPageProps = {
-    /// The canonical document route.
+/** Properties for one documentation page. */
+type DocumentPageProperties = {
+    /** The canonical document route. */
     route: string;
 };
 
-/// Render an authored chapter or generated reference.
-export function DocumentPage(props: DocumentPageProps) {
-    const item = createMemo(() => loadDocument(props.route));
+/** Render an authored chapter or generated reference. */
+export function DocumentPage(properties: DocumentPageProperties) {
+    const item = createMemo(() => loadDocument(properties.route));
 
     return (
         <Shell>

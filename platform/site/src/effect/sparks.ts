@@ -1,39 +1,40 @@
-/// The most particles alive at once.
+/** The most particles alive at once. */
 const capacity = 400;
-/// The pull of gravity on a spark, in CSS pixels per second squared.
+/** The pull of gravity on a spark, in CSS pixels per second squared. */
 const gravity = 260;
 
-/// Draw light particles on a canvas: sparks that burst and fall, and motes that swirl down into a drain.
+/** Draw light particles on a canvas: sparks that burst and fall, and motes that swirl down into a drain. */
 export class Sparks {
-    /// The canvas the particles are drawn on.
+    /** The canvas the particles are drawn on. */
     canvas: HTMLCanvasElement;
-    /// The drawing context.
+    /** The drawing context. */
     context: CanvasRenderingContext2D;
-    /// The particles' positions across, in CSS pixels.
+    /** The particles' positions across, in CSS pixels. */
     x: Float32Array;
-    /// The particles' positions down, in CSS pixels.
+    /** The particles' positions down, in CSS pixels. */
     y: Float32Array;
-    /// The particles' speeds across, in CSS pixels per second.
+    /** The particles' speeds across, in CSS pixels per second. */
     speedX: Float32Array;
-    /// The particles' speeds down, in CSS pixels per second.
+    /** The particles' speeds down, in CSS pixels per second. */
     speedY: Float32Array;
-    /// The particles' remaining lives, in seconds.
+    /** The particles' remaining lives, in seconds. */
     life: Float32Array;
-    /// The particles' full lives, in seconds.
+    /** The particles' full lives, in seconds. */
     span: Float32Array;
-    /// Whether each particle swirls toward the drain instead of falling.
+    /** Whether each particle swirls toward the drain instead of falling. */
     isMote: Uint8Array;
-    /// The number of particles alive.
+    /** The number of particles alive. */
     count: number;
-    /// The drain the motes swirl into, in CSS pixels.
+    /** The drain the motes swirl into, in CSS pixels. */
     drain: { x: number; y: number };
-    /// The pending animation frame, if any.
+    /** The pending animation frame, if any. */
     frame: number | undefined;
-    /// The time of the last frame in milliseconds.
+    /** The time of the last frame in milliseconds. */
     last: number;
 
-    /// Create the particles on a canvas.
+    /** Create the particles on a canvas. */
     constructor(canvas: HTMLCanvasElement) {
+        // take the 2D context and allocate the particle columns
         this.canvas = canvas;
         this.context = canvas.getContext("2d")!;
         this.x = new Float32Array(capacity);
@@ -49,7 +50,7 @@ export class Sparks {
         this.last = 0;
     }
 
-    /// Burst a spray of sparks from a point, flung up and out.
+    /** Burst a spray of sparks from a point, flung up and out. */
     burst(x: number, y: number, count: number) {
         for (let index = 0; index < count; index++) {
             const angle = -Math.PI / 2 + (Math.random() - 0.5) * 2.4;
@@ -66,7 +67,7 @@ export class Sparks {
         this.request();
     }
 
-    /// Scatter motes along a line that then swirl down into the drain.
+    /** Scatter motes along a line that then swirl down into the drain. */
     swirl(fromX: number, toX: number, y: number, count: number) {
         for (let index = 0; index < count; index++) {
             const x = fromX + Math.random() * (toX - fromX);
@@ -75,8 +76,9 @@ export class Sparks {
         this.request();
     }
 
-    /// Add one particle, replacing the oldest when full.
+    /** Add one particle, replacing the oldest when full. */
     add(x: number, y: number, speedX: number, speedY: number, life: number, isMote: boolean) {
+        // take a free index, or a random one when full
         const index = this.count < capacity ? this.count++ : Math.floor(Math.random() * capacity);
         this.x[index] = x;
         this.y[index] = y;
@@ -87,7 +89,7 @@ export class Sparks {
         this.isMote[index] = isMote ? 1 : 0;
     }
 
-    /// Schedule the next frame once.
+    /** Schedule the next frame once. */
     request() {
         if (this.frame === undefined) {
             this.last = performance.now();
@@ -95,7 +97,7 @@ export class Sparks {
         }
     }
 
-    /// Stop drawing.
+    /** Stop drawing. */
     stop() {
         if (this.frame !== undefined) {
             cancelAnimationFrame(this.frame);
@@ -103,8 +105,9 @@ export class Sparks {
         }
     }
 
-    /// Move and draw every particle, and keep going while any are alive.
+    /** Move and draw every particle, and keep going while any are alive. */
     draw(now: number) {
+        // clear the pending frame and measure the time since the last
         this.frame = undefined;
         const elapsed = Math.min(0.05, (now - this.last) / 1000);
         this.last = now;
@@ -174,6 +177,7 @@ export class Sparks {
         }
         this.count = alive;
 
+        // keep drawing while any particle lives
         if (alive > 0) {
             this.request();
         }

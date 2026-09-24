@@ -11,17 +11,18 @@ import "./rules.css";
 import { PageHeader } from "./header";
 import { createDirectory, DirectoryContent, DirectorySection } from "./directory";
 
-/// Properties for one rendered manual chapter.
-type DocumentArticleProps = {
-    /// The rendered document body.
+/** Properties for one rendered manual chapter. */
+type DocumentArticleProperties = {
+    /** The rendered document body. */
     content: DocumentContent;
 
-    /// The current document.
+    /** The current document. */
     document: Document;
 };
 
-/// Render a document with its collection navigation.
-export function DocumentArticle(props: DocumentArticleProps) {
+/** Render a document with its collection navigation. */
+export function DocumentArticle(properties: DocumentArticleProperties) {
+    // hold the rendered body for the rule catalog controls
     let body: HTMLDivElement | undefined;
 
     // activate controls only after the complete static directory is mounted
@@ -31,84 +32,90 @@ export function DocumentArticle(props: DocumentArticleProps) {
         }
     });
 
-    const tokenCount = props.document.kind === "chapter" ? props.document.tokens : undefined;
+    // count the tokens of a chapter
+    const tokenCount =
+        properties.document.kind === "chapter" ? properties.document.tokens : undefined;
 
     return (
         <Reader
-            location={() => <DocumentLocation document={props.document} />}
-            navigation={() => <DocumentNavigation current={props.document} />}
-            pagination={() => <DocumentPagination current={props.document} />}
+            location={() => <DocumentLocation document={properties.document} />}
+            navigation={() => <DocumentNavigation current={properties.document} />}
+            pagination={() => <DocumentPagination current={properties.document} />}
             publication="manual"
-            source={props.document}
+            source={properties.document}
             tokenCount={tokenCount}
         >
             <Switch>
-                <Match when={props.document.entries}>
+                <Match when={properties.document.entries}>
                     {(entries) => (
                         <DocumentDirectory
-                            document={props.document}
+                            document={properties.document}
                             entries={entries()}
-                            html={props.content.html}
+                            html={properties.content.html}
                         />
                     )}
                 </Match>
-                <Match when={props.document.kind === "catalog"}>
-                    <DirectorySection title={props.document.title}>
-                        <div ref={body} class="markdown" innerHTML={props.content.html} />
+                <Match when={properties.document.kind === "catalog"}>
+                    <DirectorySection title={properties.document.title}>
+                        <div ref={body} class="markdown" innerHTML={properties.content.html} />
                     </DirectorySection>
                 </Match>
                 <Match when={true}>
                     <PageHeader
-                        title={props.document.title}
-                        variant={props.document.kind === "chapter" ? "chapter" : "reference"}
-                        description={props.document.lead}
+                        title={properties.document.title}
+                        variant={properties.document.kind === "chapter" ? "chapter" : "reference"}
+                        description={properties.document.lead}
                     />
-                    <div ref={body} class="markdown" innerHTML={props.content.html} />
+                    <div ref={body} class="markdown" innerHTML={properties.content.html} />
                 </Match>
             </Switch>
         </Reader>
     );
 }
 
-/// Render an index document: its intro above its filterable entries.
-function DocumentDirectory(props: {
+/** Render an index document: its intro above its filterable entries. */
+function DocumentDirectory(properties: {
     document: Document;
     entries: NonNullable<Document["entries"]>;
     html: string;
 }) {
-    const directory = createDirectory(() => props.entries);
+    const directory = createDirectory(() => properties.entries);
 
     return (
         <DirectoryContent
-            title={props.document.title}
-            description={props.document.lead}
+            title={properties.document.title}
+            description={properties.document.lead}
             directory={directory}
         >
             <div class="directory-intro">
-                <div class="markdown" innerHTML={props.html} />
+                <div class="markdown" innerHTML={properties.html} />
             </div>
         </DirectoryContent>
     );
 }
 
-/// Properties for the manual chapter navigation.
-type DocumentNavigationProps = {
-    /// The current document.
+/** Properties for the manual chapter navigation. */
+type DocumentNavigationProperties = {
+    /** The current document. */
     current: Document;
 };
 
-/// Render the collection pages independently of the current article outline.
-function DocumentNavigation(props: DocumentNavigationProps) {
-    const navigation = () => props.current.navigation;
-    // reference items highlight their containing page without changing the page list
+/** Render the collection pages independently of the current article outline. */
+function DocumentNavigation(properties: DocumentNavigationProperties) {
+    // read the navigation of the current document
+    const navigation = () => properties.current.navigation;
+
+    // highlight the containing page of a reference item without changing the page list
     const activeRoute = () =>
-        [props.current, ...navigation().ancestors.toReversed()].find((page) =>
+        [properties.current, ...navigation().ancestors.toReversed()].find((page) =>
             navigation().entries.some((entry) => entry.route === page.route),
         )?.route;
 
+    // link back to the page above the navigation root
     const parent = () => {
         const ancestors = navigation().ancestors;
         const rootIndex = ancestors.findIndex((entry) => entry.route === navigation().root.route);
+
         return ancestors[rootIndex < 0 ? ancestors.length - 1 : rootIndex - 1];
     };
 
@@ -150,16 +157,16 @@ function DocumentNavigation(props: DocumentNavigationProps) {
     );
 }
 
-/// Return the indentation of one generated navigation entry.
+/** Return the indentation of one generated navigation entry. */
 function documentIndent(depth: number) {
     return [styles.depth0, styles.depth1, styles.depth2, styles.depth3][Math.min(depth, 3)];
 }
 
-/// Render the generated document ancestors.
-function DocumentLocation(props: { document: Document }) {
+/** Render the generated document ancestors. */
+function DocumentLocation(properties: { document: Document }) {
     return (
         <Breadcrumbs
-            items={props.document.navigation.ancestors.map((link) => ({
+            items={properties.document.navigation.ancestors.map((link) => ({
                 href: link.route,
                 label: link.title,
             }))}
@@ -167,13 +174,13 @@ function DocumentLocation(props: { document: Document }) {
     );
 }
 
-/// Render the generated adjacent chapter links.
-function DocumentPagination(props: { current: Document }) {
-    const previous = () => props.current.navigation.previous;
-    const next = () => props.current.navigation.next;
+/** Render the generated adjacent chapter links. */
+function DocumentPagination(properties: { current: Document }) {
+    const previous = () => properties.current.navigation.previous;
+    const next = () => properties.current.navigation.next;
 
     return (
-        <Show when={props.current.kind !== "catalog" && (previous() || next())}>
+        <Show when={properties.current.kind !== "catalog" && (previous() || next())}>
             <nav aria-label="Chapter pagination" {...stylex.attrs(publicationStyles.pagination)}>
                 <Show when={previous()}>
                     {(link) => (
@@ -194,7 +201,7 @@ function DocumentPagination(props: { current: Document }) {
     );
 }
 
-/// Manual navigation styles.
+/** Manual navigation styles. */
 const styles = stylex.create({
     depth0: { paddingLeft: 0 },
     depth1: { paddingLeft: "1rem" },

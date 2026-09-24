@@ -2,16 +2,20 @@ import * as stylex from "@destack/style";
 
 import { tokens } from "../style/tokens.stylex";
 
-/// The ring's ellipse and inclination, shared by every rendering of the mark.
+/** The ring's ellipse and inclination, shared by every rendering of the mark. */
 const ring = { cx: "16", cy: "16", rx: "15.2", ry: "4.2", transform: "rotate(-22 16 16)" };
 
-/// The dark side of the planet.
+/** The dark side of the planet. */
 const shadow = "#c64a17";
 
-/// Render the Destack planet mark: an orange globe with a shadow side, and an orange ring cut free by a gap.
-export function Mark(props: { style?: stylex.Styles }) {
+/** Render the Destack planet mark: an orange globe with a shadow side, and an orange ring cut free by a gap. */
+export function Mark(properties: { style?: stylex.Styles }) {
     return (
-        <svg aria-hidden="true" viewBox="0 0 32 32" {...stylex.attrs(styles.mark, props.style)}>
+        <svg
+            aria-hidden="true"
+            viewBox="0 0 32 32"
+            {...stylex.attrs(styles.mark, properties.style)}
+        >
             <defs>
                 <clipPath id="mark-front">
                     <path d="M-8 16H40V40H-8Z" transform={ring.transform} />
@@ -48,6 +52,7 @@ export function Mark(props: { style?: stylex.Styles }) {
     );
 }
 
+/** The mark styles. */
 const styles = stylex.create({
     mark: {
         display: "block",

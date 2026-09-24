@@ -2,21 +2,21 @@ import type { ContentEntry } from "./presentation.ts";
 import { loadContent, type RenderedContent } from "./load.ts";
 import { loadAsset } from "./asset.ts";
 
-/// One published documentation page.
+/** One published documentation page. */
 export type Document = {
-    /// Immediate collection entries.
+    /** Immediate collection entries. */
     entries?: readonly ContentEntry[];
-    /// The static rendered HTML route.
+    /** The static rendered HTML route. */
     contentRoute: string;
-    /// The concise chapter description.
+    /** The concise chapter description. */
     description: string;
-    /// The optional introductory sentence.
+    /** The optional introductory sentence. */
     lead?: string;
-    /// The authored Markdown route.
+    /** The authored Markdown route. */
     markdownRoute: string;
-    /// The document category.
+    /** The document category. */
     kind: "chapter" | "module" | "symbol" | "rule" | "catalog";
-    /// The generated chapter links.
+    /** The generated chapter links. */
     navigation: {
         root: DocumentLink;
         ancestors: readonly DocumentLink[];
@@ -24,49 +24,49 @@ export type Document = {
         previous?: DocumentLink;
         next?: DocumentLink;
     };
-    /// The canonical browser route.
+    /** The canonical browser route. */
     route: string;
-    /// The rendered heading tree.
+    /** The rendered heading tree. */
     tableOfContents: readonly TableOfContentsEntry[];
-    /// The plain text route.
+    /** The plain text route. */
     textRoute: string;
-    /// The chapter title.
+    /** The chapter title. */
     title: string;
-    /// The approximate token count.
+    /** The approximate token count. */
     tokens: number;
 };
 
-/// A published document destination.
+/** A published document destination. */
 export type DocumentLink = {
-    /// The visible title.
+    /** The visible title. */
     title: string;
-    /// The canonical route.
+    /** The canonical route. */
     route: string;
 };
 
-/// One rendered document body.
+/** One rendered document body. */
 export type DocumentContent = RenderedContent;
 
-/// One rendered document heading.
+/** One rendered document heading. */
 export type TableOfContentsEntry = {
-    /// The heading depth.
+    /** The heading depth. */
     depth: number;
-    /// The heading fragment identifier.
+    /** The heading fragment identifier. */
     id: string;
-    /// The heading text.
+    /** The heading text. */
     text: string;
 };
 
-/// One document and its rendered body.
+/** One document and its rendered body. */
 export type LoadedDocument = {
-    /// The generated documentation metadata.
+    /** The generated documentation metadata. */
     document: Document;
 
-    /// The rendered item body.
+    /** The rendered item body. */
     content: DocumentContent;
 };
 
-/// Load one published document and its rendered body.
+/** Load one published document and its rendered body. */
 export async function loadDocument(route: string): Promise<LoadedDocument | undefined> {
     if (!route.startsWith("/docs/") || route.includes("..")) {
         return undefined;
@@ -84,14 +84,16 @@ export async function loadDocument(route: string): Promise<LoadedDocument | unde
     return { content, document };
 }
 
-/// Load and validate one document metadata record.
+/** Load and validate one document metadata record. */
 async function loadDocumentMetadata(route: string): Promise<Document | undefined> {
+    // load the metadata, or none for a missing route
     const text = await loadAsset(route);
     if (text === undefined) {
         return undefined;
     }
     const value: unknown = JSON.parse(text);
 
+    // reject metadata of the wrong shape
     if (!isDocument(value)) {
         throw new Error(`invalid document metadata: ${route}`);
     }
@@ -99,12 +101,13 @@ async function loadDocumentMetadata(route: string): Promise<Document | undefined
     return value;
 }
 
-/// Return whether one value is complete generated document metadata.
+/** Return whether one value is complete generated document metadata. */
 function isDocument(value: unknown): value is Document {
     if (typeof value !== "object" || value == null) {
         return false;
     }
     const document = value as Record<string, unknown>;
+
     return (
         typeof document.contentRoute === "string" &&
         typeof document.description === "string" &&

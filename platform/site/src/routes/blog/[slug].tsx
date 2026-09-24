@@ -2,8 +2,9 @@ import { useParams } from "@destack/view/router";
 
 import { PostPage } from "../../page/post";
 
+/** Render the blog post route. */
 export default function BlogPost() {
-    const params = useParams();
+    const parameters = useParams();
 
-    return <PostPage slug={params.slug ?? ""} />;
+    return <PostPage slug={parameters.slug!} />;
 }

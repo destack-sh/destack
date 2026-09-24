@@ -1,6 +1,6 @@
 import { escapeAttribute } from "./html.ts";
 
-/// Captions and accessible labels for a highlighted code listing.
+/** Captions and accessible labels for a highlighted code listing. */
 export type ListingOptions = {
     title?: string;
     href?: string;
@@ -8,7 +8,7 @@ export type ListingOptions = {
     label?: string;
 };
 
-/// Render highlighted code with shared captions, line numbers, and scrolling.
+/** Render highlighted code with shared captions, line numbers, and scrolling. */
 export function renderListing(
     highlighted: string,
     { title, href, detail, label = "Code" }: ListingOptions = {},
@@ -33,7 +33,7 @@ export function renderListing(
     )}"><code class="markdown-code-lines" data-publication-lines>${rows}</code></pre></figure>`;
 }
 
-/// Render a diagram with the shared listing frame and caption.
+/** Render a diagram with the shared listing frame and caption. */
 export function renderDiagram(
     source: string,
     { title, label = "Diagram" }: ListingOptions = {},
@@ -45,8 +45,9 @@ export function renderDiagram(
     )}"><pre><code>${escapeAttribute(source)}</code></pre></div></figure>`;
 }
 
-/// Render an authored caption or linked source location.
+/** Render an authored caption or linked source location. */
 function renderListingCaption({ title, href, detail }: ListingOptions): string {
+    // escape the caption title and link it to its source
     const name = title == undefined ? "" : escapeAttribute(title);
     const heading =
         href == undefined

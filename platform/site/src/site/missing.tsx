@@ -8,37 +8,38 @@ import { tokens } from "../style/tokens.stylex";
 import { Seo } from "./seo";
 import { Shallows } from "./shallows";
 
-type MissingPageProps = {
-    /// The destination offered after the missing route.
+/** Properties for a missing page notice. */
+type MissingPageProperties = {
+    /** The destination offered after the missing route. */
     backHref: string;
 
-    /// The visible recovery link.
+    /** The visible recovery link. */
     backLabel: string;
 
-    /// The metadata description.
+    /** The metadata description. */
     description: string;
 
-    /// The compact missing-resource label.
+    /** The compact missing-resource label. */
     label: string;
 
-    /// The visible page title.
+    /** The visible page title. */
     title: string;
 };
 
-/// Render a consistent not-found response inside the site shell.
-export function MissingPage(props: MissingPageProps) {
+/** Render a consistent not-found response inside the site shell. */
+export function MissingPage(properties: MissingPageProperties) {
     httpStatus(404);
 
     return (
         <>
-            <Seo title="404" description={props.description} />
+            <Seo title="404" description={properties.description} />
 
             <section {...stylex.attrs(lattice.frame, lattice.ruleBottom, styles.page)}>
-                <p {...stylex.attrs(lattice.ruleRight, styles.label)}>{props.label}</p>
+                <p {...stylex.attrs(lattice.ruleRight, styles.label)}>{properties.label}</p>
                 <div {...stylex.attrs(styles.message)}>
-                    <h1 {...stylex.attrs(styles.title)}>{props.title}</h1>
-                    <a {...stylex.attrs(styles.action)} href={props.backHref}>
-                        ← {props.backLabel}
+                    <h1 {...stylex.attrs(styles.title)}>{properties.title}</h1>
+                    <a {...stylex.attrs(styles.action)} href={properties.backHref}>
+                        ← {properties.backLabel}
                     </a>
                 </div>
                 <Shallows style={styles.shallows} />
@@ -47,8 +48,10 @@ export function MissingPage(props: MissingPageProps) {
     );
 }
 
+/** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
 
+/** The missing page styles. */
 const styles = stylex.create({
     page: {
         flexGrow: 1,

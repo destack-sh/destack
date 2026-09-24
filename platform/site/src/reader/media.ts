@@ -1,4 +1,4 @@
-/// Replace an activated video preview with its embedded player.
+/** Replace an activated video preview with its embedded player. */
 export function playVideo(event: MouseEvent) {
     // preserve ordinary navigation through modified clicks
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
