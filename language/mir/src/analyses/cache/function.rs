@@ -292,8 +292,14 @@ impl FunctionCache {
         // classify operations using the current constants and effect tables
         let constants = self.constant(function, tree);
         let control = self.control(function, tree);
+        let definitions = self.definition(function, tree);
         let result = Arc::new(MemoryEffectTable::analyse(
-            function, &constants, &control, effects, tree,
+            function,
+            &constants,
+            &control,
+            &definitions,
+            effects,
+            tree,
         ));
         self.memory_effect = Some(result.clone());
 
@@ -525,8 +531,8 @@ mod tests {
     fn test_refresh_changed_memory_accesses() {
         let mut program = TestModule::new(
             r#"
-function test<'a>(v0: ref<int32, borrowed, 'a & local, readonly>): int32 {
-entry(v0: ref<int32, borrowed, 'a & local, readonly>):
+function test<'a>(v0: ref<int32, borrowed, 'a, readonly>): int32 {
+entry(v0: ref<int32, borrowed, 'a, readonly>):
     v1: int32 = atomic.load (*v0), acquire, scope(device)
     return v1
 }

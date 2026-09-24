@@ -444,7 +444,7 @@ entry:
     v0: int32 = 7
     store l0, v0
     store l1, v0
-    v1: ref<int32, borrowed, 'frame, mutable, frame> = address l0
+    v1: ref<int32, borrowed, 'frame, mutable> = address l0
     v2: int32 = load (*v1)
     return v2
 }
@@ -483,8 +483,8 @@ entry:
     fn test_merge_branch_stores() {
         let program = TestModule::new(
             r#"
-function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean):
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable>, v1: boolean): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable>, v1: boolean):
     branch v1 => left | right
 
 left:
@@ -672,8 +672,8 @@ exit:
     fn test_merge_entry_backedge() {
         let program = TestModule::new(
             r#"
-function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: boolean):
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable>, v1: boolean): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable>, v1: boolean):
     v2: int32 = load (*v0)
     store (*v0), v2
     branch v1 => entry(v0, v1) | exit
@@ -719,8 +719,8 @@ exit:
     fn test_link_copy_definition_to_comparison_use() {
         let program = TestModule::new(
             r#"
-function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>):
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'a, mutable>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'a, mutable>):
     v2: usize = 4
     intrinsic.memory.raw.copyBytes(v0, v1, v2)
     v3: int32 = intrinsic.memory.raw.compareBytes(v0, v1, v2)
@@ -753,8 +753,8 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a,
     fn test_stop_clobber_search_at_fences_and_acquire_loads() {
         let program = TestModule::new(
             r#"
-function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, readonly, shared>): int32 {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, readonly, shared>):
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'a, readonly>): int32 {
+entry(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'a, readonly>):
     atomic.fence sequentiallyConsistent, scope(device), storage(shared)
     v2: int32 = atomic.load (*v1), acquire, scope(device)
     v3: int32 = load (*v0)
@@ -801,18 +801,18 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a,
     fn test_preserve_loop_address_changes() {
         let program = TestModule::new(
             r#"
-function test<'a>(v0: slice<int32, borrowed, 'a, mutable, local>, v1: boolean): int32 {
-entry(v0: slice<int32, borrowed, 'a, mutable, local>, v1: boolean):
+function test<'a>(v0: slice<int32, borrowed, 'a, mutable>, v1: boolean): int32 {
+entry(v0: slice<int32, borrowed, 'a, mutable>, v1: boolean):
     v2: usize = 0
     v3: usize = 1
     v4: usize = 8
     v5: int32 = 7
-    v6: slice<int32, borrowed, 'a, mutable, local> = address (*v0)[v3; v4]
+    v6: slice<int32, borrowed, 'a, mutable> = address (*v0)[v3; v4]
     jump loop(v2)
 
 loop(v7: usize):
-    v8: ref<int32, borrowed, 'a, mutable, local> = address (*v0)[v7]
-    v9: ref<int32, borrowed, 'a, mutable, local> = address (*v6)[v7]
+    v8: ref<int32, borrowed, 'a, mutable> = address (*v0)[v7]
+    v9: ref<int32, borrowed, 'a, mutable> = address (*v6)[v7]
     store (*v8), v5
     v10: int32 = load (*v9)
     v11: usize = add v7, v3

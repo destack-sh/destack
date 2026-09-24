@@ -68,9 +68,7 @@ impl AliasTable {
                     continue;
                 }
                 let ty = tree.get(tree.get(function).expect_value_type(offset.index));
-                let Some((width, is_signed)) =
-                    ty.int_info_with_pointer_width(target.pointer_bits())
-                else {
+                let Some((width, is_signed)) = ty.integer(target.pointer_bits()) else {
                     continue;
                 };
                 let bits = KnownBits::analyse(
@@ -724,8 +722,8 @@ function test(): int32 {
     local l1: int32
 
 entry:
-    v0: ref<int32, borrowed, 'frame, mutable, frame> = address l0
-    v1: ref<int32, borrowed, 'frame, mutable, frame> = address l1
+    v0: ref<int32, borrowed, 'frame, mutable> = address l0
+    v1: ref<int32, borrowed, 'frame, mutable> = address l1
     v2: int32 = 0
     return v2
 }
@@ -755,7 +753,7 @@ function test(): void {
     local l0: int64
 
 entry:
-    v0: ref<int64, borrowed, 'frame, mutable, frame> = address l0
+    v0: ref<int64, borrowed, 'frame, mutable> = address l0
     return
 }
 "#,
@@ -795,8 +793,8 @@ entry:
     fn test_allow_aliasing_between_borrowed_parameters() {
         let program = TestModule::new(
             r#"
-function test<'a>(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>): void {
-entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a, mutable, local>):
+function test<'a>(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'a, mutable>): void {
+entry(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'a, mutable>):
     return
 }
 "#,
@@ -820,16 +818,16 @@ entry(v0: ref<int32, borrowed, 'a, mutable, local>, v1: ref<int32, borrowed, 'a,
     fn test_allow_aliasing_between_reloaded_references() {
         let program = TestModule::new(
             r#"
-function test<'a>(v0: boolean, v1: ref<int32, borrowed, 'a, mutable, local>, v2: ref<int32, borrowed, 'a, mutable, local>): void {
-    local l0: ref<int32, borrowed, 'a, mutable, local>
-    local l1: ref<int32, borrowed, 'a, mutable, local>
+function test<'a>(v0: boolean, v1: ref<int32, borrowed, 'a, mutable>, v2: ref<int32, borrowed, 'a, mutable>): void {
+    local l0: ref<int32, borrowed, 'a, mutable>
+    local l1: ref<int32, borrowed, 'a, mutable>
 
-entry(v0: boolean, v1: ref<int32, borrowed, 'a, mutable, local>, v2: ref<int32, borrowed, 'a, mutable, local>):
-    v3: ref<int32, borrowed, 'a, mutable, local> = select v0, v1, v2
+entry(v0: boolean, v1: ref<int32, borrowed, 'a, mutable>, v2: ref<int32, borrowed, 'a, mutable>):
+    v3: ref<int32, borrowed, 'a, mutable> = select v0, v1, v2
     store l0, v3
     store l1, v3
-    v4: ref<int32, borrowed, 'a, mutable, local> = load l0
-    v5: ref<int32, borrowed, 'a, mutable, local> = load l1
+    v4: ref<int32, borrowed, 'a, mutable> = load l0
+    v5: ref<int32, borrowed, 'a, mutable> = load l1
     return
 }
 "#,
@@ -858,8 +856,8 @@ function test(): void {
     local l1: int32
 
 entry:
-    v0: ref<int32, borrowed, 'frame, mutable, frame> = address l0
-    v1: ref<int32, borrowed, 'frame, mutable, frame> = address l1
+    v0: ref<int32, borrowed, 'frame, mutable> = address l0
+    v1: ref<int32, borrowed, 'frame, mutable> = address l1
     v2: ptr<int32, mutable> = cast.bit v0 -> ptr<int32, mutable>
     v3: usize = cast.pointerToInt v0 -> usize
     v4: uint8 = cast.intToInt v3 -> uint8
@@ -901,10 +899,10 @@ type Pair {
     second: int32;
 }
 
-function test<'a>(v0: ref<Pair, borrowed, 'a, mutable, local>): void {
-entry(v0: ref<Pair, borrowed, 'a, mutable, local>):
-    v1: ref<int32, borrowed, 'a, mutable, local> = address (*v0).0
-    v2: ref<int32, borrowed, 'a, mutable, local> = address (*v0).1
+function test<'a>(v0: ref<Pair, borrowed, 'a, mutable>): void {
+entry(v0: ref<Pair, borrowed, 'a, mutable>):
+    v1: ref<int32, borrowed, 'a, mutable> = address (*v0).0
+    v2: ref<int32, borrowed, 'a, mutable> = address (*v0).1
     v3: int32 = load (*v0).0
     v4: int32 = load (*v0).1
     return
@@ -958,8 +956,8 @@ entry(v0: ref<Pair, borrowed, 'a, mutable, local>):
             r#"
 type Choice = variant<uint1> { 0uint1 = int32; 1uint1 = uint32; };
 
-function test<'a>(v0: ref<Choice, borrowed, 'a, mutable, local>): void {
-entry(v0: ref<Choice, borrowed, 'a, mutable, local>):
+function test<'a>(v0: ref<Choice, borrowed, 'a, mutable>): void {
+entry(v0: ref<Choice, borrowed, 'a, mutable>):
     v1: ptr<int32, mutable> = address ((*v0) as 0)
     v2: ptr<uint32, mutable> = address ((*v0) as 1)
     return
@@ -988,12 +986,12 @@ entry(v0: ref<Choice, borrowed, 'a, mutable, local>):
     fn test_distinguish_adjacent_and_overlapping_elements() {
         let program = TestModule::new(
             r#"
-function test<'a>(v0: ref<[int32; 4], borrowed, 'a, mutable, local>): void {
-entry(v0: ref<[int32; 4], borrowed, 'a, mutable, local>):
+function test<'a>(v0: ref<[int32; 4], borrowed, 'a, mutable>): void {
+entry(v0: ref<[int32; 4], borrowed, 'a, mutable>):
     v1: usize = 0
     v2: usize = 1
-    v3: ref<int32, borrowed, 'a, mutable, local> = address (*v0)[v1]
-    v4: ref<int32, borrowed, 'a, mutable, local> = address (*v0)[v2]
+    v3: ref<int32, borrowed, 'a, mutable> = address (*v0)[v1]
+    v4: ref<int32, borrowed, 'a, mutable> = address (*v0)[v2]
     return
 }
 "#,
@@ -1058,12 +1056,12 @@ join(v4: ptr<int32, mutable>):
     fn test_detect_allocations_that_change_between_iterations() {
         let program = TestModule::new(
             r#"
-function test(v0: ref<int32, unique, mutable, local>, v1: boolean): void {
-entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
+function test(v0: ref<int32, unique, mutable>, v1: boolean): void {
+entry(v0: ref<int32, unique, mutable>, v1: boolean):
     jump loop(v0)
 
-loop(v2: ref<int32, unique, mutable, local>):
-    v3: ref<int32, unique, mutable, local> = new.zeroed int32
+loop(v2: ref<int32, unique, mutable>):
+    v3: ref<int32, unique, mutable> = new.zeroed int32, local
     branch v1 => loop(v3) | exit
 
 exit:
@@ -1124,9 +1122,9 @@ entry(v0: ptr<Pair, mutable>):
     fn test_track_entry_backedge_addresses() {
         let program = TestModule::new(
             r#"
-function test(v0: ref<int32, unique, mutable, local>, v1: ref<int32, borrowed, 'static, readonly, local>, v2: boolean): void {
-entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, borrowed, 'static, readonly, local>, v2: boolean):
-    v3: ref<int32, unique, mutable, local> = new.zeroed int32
+function test(v0: ref<int32, unique, mutable>, v1: ref<int32, borrowed, 'static, readonly>, v2: boolean): void {
+entry(v0: ref<int32, unique, mutable>, v1: ref<int32, borrowed, 'static, readonly>, v2: boolean):
+    v3: ref<int32, unique, mutable> = new.zeroed int32, local
     branch v2 => entry(v3, v1, v2) | done
 
 done:
@@ -1164,12 +1162,12 @@ function test(v0: boolean, v1: boolean): void {
     local l1: int32
 
 entry(v0: boolean, v1: boolean):
-    v2: ref<int32, borrowed, 'frame, mutable, frame> = address l0
-    v3: ref<int32, borrowed, 'frame, mutable, frame> = address l1
-    v4: ref<int32, borrowed, 'frame, mutable, frame> = select v0, v2, v3
-    v5: ref<int32, borrowed, 'frame, mutable, frame> = select v0, v3, v2
-    v6: ref<int32, borrowed, 'frame, mutable, frame> = select v0, v2, v3
-    v7: ref<int32, borrowed, 'frame, mutable, frame> = select v1, v2, v3
+    v2: ref<int32, borrowed, 'frame, mutable> = address l0
+    v3: ref<int32, borrowed, 'frame, mutable> = address l1
+    v4: ref<int32, borrowed, 'frame, mutable> = select v0, v2, v3
+    v5: ref<int32, borrowed, 'frame, mutable> = select v0, v3, v2
+    v6: ref<int32, borrowed, 'frame, mutable> = select v0, v2, v3
+    v7: ref<int32, borrowed, 'frame, mutable> = select v1, v2, v3
     return
 }
 "#,
@@ -1209,11 +1207,11 @@ function test(v0: boolean): void {
     local l1: int64
 
 entry(v0: boolean):
-    v1: ref<int64, borrowed, 'frame, mutable, frame> = address l0
-    v2: ref<int64, borrowed, 'frame, mutable, frame> = address l1
+    v1: ref<int64, borrowed, 'frame, mutable> = address l0
+    v2: ref<int64, borrowed, 'frame, mutable> = address l1
     jump loop(v1, v2)
 
-loop(v3: ref<int64, borrowed, 'frame, mutable, frame>, v4: ref<int64, borrowed, 'frame, mutable, frame>):
+loop(v3: ref<int64, borrowed, 'frame, mutable>, v4: ref<int64, borrowed, 'frame, mutable>):
     branch v0 => loop(v4, v3) | done
 
 done:
@@ -1224,14 +1222,14 @@ function overlap(v0: boolean): void {
     local l0: [int32; 3]
 
 entry(v0: boolean):
-    v1: ref<[int32; 3], borrowed, 'frame, mutable, frame> = address l0
+    v1: ref<[int32; 3], borrowed, 'frame, mutable> = address l0
     v2: int64 = 0
     v3: int64 = 1
-    v4: ref<int32, borrowed, 'frame, mutable, frame> = address (*v1)[v2]
-    v5: ref<int32, borrowed, 'frame, mutable, frame> = address (*v1)[v3]
+    v4: ref<int32, borrowed, 'frame, mutable> = address (*v1)[v2]
+    v5: ref<int32, borrowed, 'frame, mutable> = address (*v1)[v3]
     jump loop(v4, v5)
 
-loop(v6: ref<int32, borrowed, 'frame, mutable, frame>, v7: ref<int32, borrowed, 'frame, mutable, frame>):
+loop(v6: ref<int32, borrowed, 'frame, mutable>, v7: ref<int32, borrowed, 'frame, mutable>):
     branch v0 => loop(v7, v6) | done
 
 done:
@@ -1315,18 +1313,18 @@ entry(v0: ptr<ptr<Pair, mutable>, mutable>):
     fn test_separate_bounded_indices_and_allow_wrapping_overlap() {
         let program = TestModule::new(
             r#"
-function test<'a>(v0: ref<[int32; 256], borrowed, 'a, mutable, local>, v1: uint8): void {
-entry(v0: ref<[int32; 256], borrowed, 'a, mutable, local>, v1: uint8):
+function test<'a>(v0: ref<[int32; 256], borrowed, 'a, mutable>, v1: uint8): void {
+entry(v0: ref<[int32; 256], borrowed, 'a, mutable>, v1: uint8):
     v2: uint8 = 63
     v3: uint8 = 1
     v4: uint8 = and v1, v2
     v5: uint8 = add v4, v3
-    v6: ref<int32, borrowed, 'a, mutable, local> = address (*v0)[v4]
-    v7: ref<int32, borrowed, 'a, mutable, local> = address (*v0)[v5]
+    v6: ref<int32, borrowed, 'a, mutable> = address (*v0)[v4]
+    v7: ref<int32, borrowed, 'a, mutable> = address (*v0)[v5]
     v8: uint8 = add v1, v3
-    v9: ref<int32, borrowed, 'a, mutable, local> = address (*v0)[v8]
+    v9: ref<int32, borrowed, 'a, mutable> = address (*v0)[v8]
     v10: uint8 = intrinsic.math.arithmetic.unchecked.add(v4, v3)
-    v11: ref<int32, borrowed, 'a, mutable, local> = address (*v0)[v10]
+    v11: ref<int32, borrowed, 'a, mutable> = address (*v0)[v10]
     return
 }
 "#,
@@ -1368,13 +1366,13 @@ type Pair {
     second: int32;
 }
 
-function test<'a>(v0: ref<[Pair; 16], borrowed, 'a, mutable, local>, v1: uint64, v2: uint64): void {
-entry(v0: ref<[Pair; 16], borrowed, 'a, mutable, local>, v1: uint64, v2: uint64):
-    v3: ref<Pair, borrowed, 'a, mutable, local> = address (*v0)[v1]
-    v4: ref<Pair, borrowed, 'a, mutable, local> = address (*v0)[v2]
-    v5: ref<int32, borrowed, 'a, mutable, local> = address (*v3).0
-    v6: ref<int32, borrowed, 'a, mutable, local> = address (*v4).1
-    v7: ref<int32, borrowed, 'a, mutable, local> = address (*v4).0
+function test<'a>(v0: ref<[Pair; 16], borrowed, 'a, mutable>, v1: uint64, v2: uint64): void {
+entry(v0: ref<[Pair; 16], borrowed, 'a, mutable>, v1: uint64, v2: uint64):
+    v3: ref<Pair, borrowed, 'a, mutable> = address (*v0)[v1]
+    v4: ref<Pair, borrowed, 'a, mutable> = address (*v0)[v2]
+    v5: ref<int32, borrowed, 'a, mutable> = address (*v3).0
+    v6: ref<int32, borrowed, 'a, mutable> = address (*v4).1
+    v7: ref<int32, borrowed, 'a, mutable> = address (*v4).0
     return
 }
 "#,
@@ -1444,8 +1442,8 @@ entry(v0: ptr<[uint8; 1], mutable>):
     fn test_separate_index_intervals_and_cancel_equivalent_scaling() {
         let program = TestModule::new(
             r#"
-function test<'a>(v0: ref<[int32; 256], borrowed, 'a, mutable, local>, v1: uint8): void {
-entry(v0: ref<[int32; 256], borrowed, 'a, mutable, local>, v1: uint8):
+function test<'a>(v0: ref<[int32; 256], borrowed, 'a, mutable>, v1: uint8): void {
+entry(v0: ref<[int32; 256], borrowed, 'a, mutable>, v1: uint8):
     v2: uint8 = 15
     v3: uint8 = 16
     v4: uint8 = 2
@@ -1454,12 +1452,12 @@ entry(v0: ref<[int32; 256], borrowed, 'a, mutable, local>, v1: uint8):
     v7: uint8 = or v6, v3
     v8: uint8 = mul v6, v4
     v9: uint8 = shl v6, v5
-    v10: ref<int32, borrowed, 'a, mutable, local> = address (*v0)[v6]
-    v11: ref<int32, borrowed, 'a, mutable, local> = address (*v0)[v7]
-    v12: ref<int32, borrowed, 'a, mutable, local> = address (*v0)[v8]
-    v13: ref<int32, borrowed, 'a, mutable, local> = address (*v0)[v9]
+    v10: ref<int32, borrowed, 'a, mutable> = address (*v0)[v6]
+    v11: ref<int32, borrowed, 'a, mutable> = address (*v0)[v7]
+    v12: ref<int32, borrowed, 'a, mutable> = address (*v0)[v8]
+    v13: ref<int32, borrowed, 'a, mutable> = address (*v0)[v9]
     v14: uint8 = 0
-    v15: ref<int32, borrowed, 'a, mutable, local> = address (*v0)[v14]
+    v15: ref<int32, borrowed, 'a, mutable> = address (*v0)[v14]
     return
 }
 "#,

@@ -223,6 +223,18 @@ pub enum ExecutionScope {
 }
 
 impl ExecutionScope {
+    /// Return the scope at one position of the language enum's declaration order.
+    pub fn from_ordinal(ordinal: u32) -> Option<Self> {
+        Some(match ordinal {
+            0 => ExecutionScope::Invocation,
+            1 => ExecutionScope::Subgroup,
+            2 => ExecutionScope::Workgroup,
+            3 => ExecutionScope::Device,
+            7 => ExecutionScope::System,
+            _ => return None,
+        })
+    }
+
     /// Return the canonical text name.
     pub fn to_str(self) -> &'static str {
         match self {

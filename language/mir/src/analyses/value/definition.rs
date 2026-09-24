@@ -294,7 +294,7 @@ entry(v0: int32):
             r#"
 function test(v0: int64, v1: int32): int32 {
 entry(v0: int64, v1: int32):
-    new.slice.uninit.try int32, v0 => b1(v1) | b2(v1)
+    new.slice.uninit.try int32, v0, local => b1(v1) | b2(v1)
 
 b1(v2: uninit<slice<int32, managed, mutable, local>>, v3: int32):
     return v3

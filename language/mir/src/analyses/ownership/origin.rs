@@ -2,12 +2,12 @@ use destack_core::FxIndexSet;
 use smallvec::SmallVec;
 
 use crate::{
-    type_lifetime, type_contains_borrowed_refs, type_borrowed_paths, type_origin_paths, 
     Access, Analysis, Block, BlockTarget, BorrowedPath, Call, ControlTable, DataflowTable, Edge,
     Extent, ForwardTransfer, FunctionId, Instruction, Intrinsic, Lattice, Lifetime,
     LifetimeParameter, Loan, LoanId, LoanTable, LocalId, LocalNodeId, LocalNodeIdAny, Mutation,
-    Path, Place, PlaceOrigin, PlaceTable, Projection, Reference, Substitution, Successor,
-    Terminator, Tree, Type, TypeId, Value,
+    Path, Place, PlaceOrigin, PlaceTable, Projection, Reference, Storage, Substitution, Successor,
+    Terminator, Tree, Type, TypeId, Value, type_borrowed_paths, type_contains_borrowed_refs,
+    type_lifetime, type_origin_paths,
 };
 
 /// Borrow origin across one MIR function.
@@ -265,8 +265,7 @@ impl<'a> OriginContext<'a> {
         let (lifetimes, parameter_types, result) = self.call_signature(signature);
 
         // collect the regions the result names
-        let mut result_lifetimes = type_borrowed_paths(self
-            .tree, result)
+        let mut result_lifetimes = type_borrowed_paths(self.tree, result)
             .into_iter()
             .map(|borrowed| borrowed.lifetime)
             .collect::<Vec<_>>();
@@ -333,9 +332,7 @@ impl<'a> OriginContext<'a> {
         }
 
         // resolve the lifetime of the returned borrow
-        let lifetime = type_lifetime(self
-            .tree, result)
-            .filter(|lifetime| !lifetime.is_empty());
+        let lifetime = type_lifetime(self.tree, result).filter(|lifetime| !lifetime.is_empty());
         let Some(lifetime) = lifetime else {
             return Vec::new();
         };
@@ -355,11 +352,20 @@ impl<'a> OriginContext<'a> {
     ) -> Origin {
         let mut origin = Origin::none();
 
+        // read bound regions in the caller's binder once the signature instantiated its own
+        let function = self.tree.get(self.function);
+        let is_instantiated = lifetimes.is_empty();
+        let lifetimes = match is_instantiated {
+            true => function.lifetimes.as_slice(),
+            false => lifetimes,
+        };
+
         // map the storage extents directly
         for term in &lifetime.extents {
             match term {
                 Extent::Static => origin = origin.merge(&Origin::one(Extent::Static)),
                 Extent::Managed => origin = origin.merge(&Origin::one(Extent::Managed)),
+                Extent::Bound(_) if is_instantiated => origin = origin.merge(&Origin::one(*term)),
                 Extent::Frame | Extent::Bound(_) | Extent::Parameter(_) => {}
             }
         }
@@ -569,6 +575,7 @@ impl OriginBuilder<'_> {
                     destination,
                     [],
                     issued_at,
+                    self.places,
                 );
 
                 (destination, loan)
@@ -612,7 +619,7 @@ impl OriginBuilder<'_> {
                     let ty = Substitution::resolve(ty, self.tree);
                     self.tree.get(ty).reference_kind()
                 },
-                Some(Reference::Managed | Reference::Unique)
+                Some(Reference::Managed(_) | Reference::Unique)
             ) =>
             {
                 (
@@ -641,6 +648,7 @@ impl OriginBuilder<'_> {
             representation,
             [],
             instruction_id.into_any(),
+            self.places,
         );
 
         Some((representation, loan))
@@ -728,7 +736,7 @@ impl Origin {
     /// Derive a reference path's origin from its lifetime or implicit managed storage.
     fn from_path(borrowed: &BorrowedPath) -> Self {
         match borrowed.kind {
-            Reference::Managed if borrowed.lifetime.is_empty() => Self::one(Extent::Managed),
+            Reference::Managed(_) if borrowed.lifetime.is_empty() => Self::one(Extent::Managed),
             _ => Self::from_lifetime(&borrowed.lifetime),
         }
     }
@@ -744,7 +752,7 @@ impl Origin {
     /// Create origin for one reference-like type.
     fn from_reference(ty: &Type) -> Self {
         match ty.reference_kind() {
-            Some(Reference::Managed) => Self::from_managed(ty),
+            Some(Reference::Managed(_)) => Self::from_managed(ty),
             Some(Reference::Borrowed) => ty
                 .reference_lifetime()
                 .filter(|lifetime| !lifetime.is_empty())
@@ -1064,7 +1072,7 @@ impl OriginState {
         let ty = cx.tree.storage_type(ty);
         let ty = cx.tree.get(ty).clone();
         match ty.reference_kind() {
-            Some(Reference::Managed | Reference::Borrowed) => Origin::from_reference(&ty),
+            Some(Reference::Managed(_) | Reference::Borrowed) => Origin::from_reference(&ty),
             Some(Reference::Unique) => Origin::one(Extent::Frame),
             Some(Reference::Raw) | None => Origin::none(),
         }
@@ -1475,8 +1483,7 @@ impl OriginState {
             // null references and constants outlive every frame
             Instruction::Const { destination, .. } => {
                 let ty = cx.tree.get(cx.function).expect_value_type(*destination);
-                let bindings = type_origin_paths(cx
-                    .tree, ty)
+                let bindings = type_origin_paths(cx.tree, ty)
                     .into_iter()
                     .map(|borrowed| (borrowed.path, Origin::one(Extent::Static)))
                     .collect();
@@ -1504,8 +1511,7 @@ impl OriginState {
             } => {
                 let ty = cx.tree.get(cx.function).expect_value_type(*destination);
                 let built = Path::root().with_projection(Projection::Variant { case: *case });
-                let absent = type_origin_paths(cx
-                    .tree, ty)
+                let absent = type_origin_paths(cx.tree, ty)
                     .into_iter()
                     .filter(|borrowed| borrowed.path.strip_prefix(&built).is_none())
                     .map(|borrowed| (borrowed.path, Origin::one(Extent::Static)))
@@ -1555,9 +1561,9 @@ impl OriginState {
         let ty = cx.tree.get(cx.function).expect_value_type(value);
         let paths = type_origin_paths(cx.tree, ty);
         for (path, origin) in bindings.iter_mut() {
-            let is_handle = paths
-                .iter()
-                .any(|borrowed| &borrowed.path == path && borrowed.kind == Reference::Managed);
+            let is_handle = paths.iter().any(|borrowed| {
+                &borrowed.path == path && matches!(borrowed.kind, Reference::Managed(_))
+            });
             if !is_handle {
                 continue;
             }
@@ -1609,7 +1615,7 @@ impl OriginState {
 
         // handle each reference kind
         match ty.reference_kind() {
-            Some(Reference::Managed) => Origin::from_managed(&ty),
+            Some(Reference::Managed(_)) => Origin::from_managed(&ty),
             Some(Reference::Unique) => Origin::one(Extent::Frame),
             Some(Reference::Borrowed | Reference::Raw) | None => Origin::none(),
         }
@@ -1631,7 +1637,7 @@ impl OriginState {
         let ty = cx.tree.storage_type(ty);
         let ty = cx.tree.get(ty).clone();
         match ty.reference_kind() {
-            Some(Reference::Managed | Reference::Borrowed) => self
+            Some(Reference::Managed(_) | Reference::Borrowed) => self
                 .get_at(value, &Path::root())
                 .cloned()
                 .unwrap_or_else(|| Origin::from_reference(&ty)),
@@ -1650,7 +1656,7 @@ impl OriginState {
 
                 matches!(
                     ty.reference_kind(),
-                    Some(Reference::Managed | Reference::Borrowed)
+                    Some(Reference::Managed(_) | Reference::Borrowed)
                 )
             }
             (PlaceOrigin::Local(_), _) => false,
@@ -1661,7 +1667,7 @@ impl OriginState {
                     let ty = Substitution::resolve(ty, cx.tree);
                     cx.tree.get(ty).reference_kind()
                 },
-                Some(Reference::Managed | Reference::Borrowed)
+                Some(Reference::Managed(_) | Reference::Borrowed)
             ),
         }
     }
@@ -1707,13 +1713,10 @@ impl OriginState {
                         (*element, *access, false)
                     }
                     // bound the borrows an opaque object stores by its storage's extent
-                    Type::Dynamic {
-                        access, storage, ..
-                    }
-                    | Type::Function {
-                        access, storage, ..
-                    } => {
-                        if let Some(lifetime) = storage.stored_lifetime(cx.tree)
+                    definition @ (Type::Dynamic { access, .. } | Type::Function { access, .. }) => {
+                        if let Some(lifetime) = definition
+                            .reference_storage()
+                            .and_then(Storage::stored_lifetime)
                             && access.can_write()
                         {
                             let origin = cx.map_lifetime(
@@ -1838,18 +1841,18 @@ mod tests {
         let program = TestModule::new(
             r#"
 type Pair<'a> {
-    owner: ref<int32, unique, mutable, local>;
-    borrow: ref<int32, borrowed, 'a, readonly, local>;
+    owner: ref<int32, unique, mutable>;
+    borrow: ref<int32, borrowed, 'a, readonly>;
 }
 
 type Named<'a> = newtype<Pair<'a>>;
 
-function test<'a>(v0: ref<int32, unique, mutable, local>, v1: ref<int32, borrowed, 'a, readonly, local>): void {
-entry(v0: ref<int32, unique, mutable, local>, v1: ref<int32, borrowed, 'a, readonly, local>):
-    v2: Pair<'a & local> = aggregate (v0, v1)
-    v3: Named<'a & local> = aggregate (v2)
-    v4: Pair<'a & local> = field.get v3, 0
-    v5: ref<int32, borrowed, 'a & local, readonly> = field.get v4, 1
+function test<'a>(v0: ref<int32, unique, mutable>, v1: ref<int32, borrowed, 'a, readonly>): void {
+entry(v0: ref<int32, unique, mutable>, v1: ref<int32, borrowed, 'a, readonly>):
+    v2: Pair<'a> = aggregate (v0, v1)
+    v3: Named<'a> = aggregate (v2)
+    v4: Pair<'a> = field.get v3, 0
+    v5: ref<int32, borrowed, 'a, readonly> = field.get v4, 1
     jump done
 
 done:
@@ -1915,15 +1918,15 @@ done:
     fn test_retain_borrows_read_from_argument_storage() {
         let program = TestModule::new(
             r#"
-external function save<'a, 'b, 'c>(ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, readonly, local>, ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'c, mutable, local>): void
+external function save<'a, 'b, 'c>(ref<ref<int32, borrowed, 'a, readonly>, borrowed, 'b, readonly>, ref<ref<int32, borrowed, 'a, readonly>, borrowed, 'c, mutable>): void
 
-function test<'a, 'b>(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>, v2: ref<int32, borrowed, 'a, readonly, local>): void {
-    local l0: ref<int32, borrowed, 'a, readonly, local>
+function test<'a, 'b>(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<ref<int32, borrowed, 'a, readonly>, borrowed, 'b, mutable>, v2: ref<int32, borrowed, 'a, readonly>): void {
+    local l0: ref<int32, borrowed, 'a, readonly>
 
-entry(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>, v2: ref<int32, borrowed, 'a, readonly, local>):
+entry(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<ref<int32, borrowed, 'a, readonly>, borrowed, 'b, mutable>, v2: ref<int32, borrowed, 'a, readonly>):
     store l0, v0
-    v3: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'frame, readonly, frame> = address l0
-    call save(v3, v1): <'x, 'y, 'z>(ref<ref<int32, borrowed, 'x, readonly, local>, borrowed, 'y, readonly, local>, ref<ref<int32, borrowed, 'x, readonly, local>, borrowed, 'z, mutable, local>) => void
+    v3: ref<ref<int32, borrowed, 'a, readonly>, borrowed, 'frame, readonly> = address l0
+    call save(v3, v1): <'x, 'y, 'z>(ref<ref<int32, borrowed, 'x, readonly>, borrowed, 'y, readonly>, ref<ref<int32, borrowed, 'x, readonly>, borrowed, 'z, mutable>) => void
     jump done
 
 done:
@@ -1951,11 +1954,11 @@ done:
     fn test_retain_invoke_writes_on_normal_and_unwind_edges() {
         let program = TestModule::new(
             r#"
-external function save<'a, 'b>(ref<int32, borrowed, 'a, readonly, local>, ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>): void
+external function save<'a, 'b>(ref<int32, borrowed, 'a, readonly>, ref<ref<int32, borrowed, 'a, readonly>, borrowed, 'b, mutable>): void
 
-function test<'a, 'b>(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>): void {
-entry(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>):
-    invoke save(v0, v1): <'a, 'b>(ref<int32, borrowed, 'a, readonly, local>, ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>) => void => normal | unwind
+function test<'a, 'b>(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<ref<int32, borrowed, 'a, readonly>, borrowed, 'b, mutable>): void {
+entry(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<ref<int32, borrowed, 'a, readonly>, borrowed, 'b, mutable>):
+    invoke save(v0, v1): <'a, 'b>(ref<int32, borrowed, 'a, readonly>, ref<ref<int32, borrowed, 'a, readonly>, borrowed, 'b, mutable>) => void => normal | unwind
 
 normal:
     return
@@ -1989,9 +1992,9 @@ unwind:
     fn test_retain_indirect_call_writes() {
         let program = TestModule::new(
             r#"
-function test<'a, 'b>(v0: fn(ref<int32, borrowed, 'a, readonly, local>, ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>) => void, v1: ref<int32, borrowed, 'a, readonly, local>, v2: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>): void {
-entry(v0: fn(ref<int32, borrowed, 'a, readonly, local>, ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>) => void, v1: ref<int32, borrowed, 'a, readonly, local>, v2: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>):
-    call.indirect v0(v1, v2): <'x, 'y>(ref<int32, borrowed, 'x, readonly, local>, ref<ref<int32, borrowed, 'x, readonly, local>, borrowed, 'y, mutable, local>) => void
+function test<'a, 'b>(v0: fn(ref<int32, borrowed, 'a, readonly>, ref<ref<int32, borrowed, 'a, readonly>, borrowed, 'b, mutable>) => void, v1: ref<int32, borrowed, 'a, readonly>, v2: ref<ref<int32, borrowed, 'a, readonly>, borrowed, 'b, mutable>): void {
+entry(v0: fn(ref<int32, borrowed, 'a, readonly>, ref<ref<int32, borrowed, 'a, readonly>, borrowed, 'b, mutable>) => void, v1: ref<int32, borrowed, 'a, readonly>, v2: ref<ref<int32, borrowed, 'a, readonly>, borrowed, 'b, mutable>):
+    call.indirect v0(v1, v2): <'x, 'y>(ref<int32, borrowed, 'x, readonly>, ref<ref<int32, borrowed, 'x, readonly>, borrowed, 'y, mutable>) => void
     jump done
 
 done:
@@ -2019,11 +2022,11 @@ done:
     fn test_retain_writes_through_borrowed_slice() {
         let program = TestModule::new(
             r#"
-external function save<'a, 'b>(ref<int32, borrowed, 'a, readonly, local>, slice<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>): void
+external function save<'a, 'b>(ref<int32, borrowed, 'a, readonly>, slice<ref<int32, borrowed, 'a, readonly>, borrowed, 'b, mutable>): void
 
-function test<'a, 'b>(v0: ref<int32, borrowed, 'a, readonly, local>, v1: slice<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>): void {
-entry(v0: ref<int32, borrowed, 'a, readonly, local>, v1: slice<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>):
-    call save(v0, v1): <'a, 'b>(ref<int32, borrowed, 'a, readonly, local>, slice<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>) => void
+function test<'a, 'b>(v0: ref<int32, borrowed, 'a, readonly>, v1: slice<ref<int32, borrowed, 'a, readonly>, borrowed, 'b, mutable>): void {
+entry(v0: ref<int32, borrowed, 'a, readonly>, v1: slice<ref<int32, borrowed, 'a, readonly>, borrowed, 'b, mutable>):
+    call save(v0, v1): <'a, 'b>(ref<int32, borrowed, 'a, readonly>, slice<ref<int32, borrowed, 'a, readonly>, borrowed, 'b, mutable>) => void
     jump done
 
 done:
@@ -2052,14 +2055,14 @@ done:
         let program = TestModule::new(
             r#"
 type Target<'a, 'b> {
-    value: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'b, mutable, local>;
+    value: ref<ref<int32, borrowed, 'a, readonly>, borrowed, 'b, mutable>;
 }
 
-external function save<'a, 'b>(ref<int32, borrowed, 'a, readonly, local>, Target<'a & local, 'b & local>): void
+external function save<'a, 'b>(ref<int32, borrowed, 'a, readonly>, Target<'a, 'b>): void
 
-function test<'a, 'b>(v0: ref<int32, borrowed, 'a, readonly, local>, v1: Target<'a & local, 'b & local>): void {
-entry(v0: ref<int32, borrowed, 'a, readonly, local>, v1: Target<'a & local, 'b & local>):
-    call save(v0, v1): <'a, 'b>(ref<int32, borrowed, 'a, readonly, local>, Target<'a & local, 'b & local>) => void
+function test<'a, 'b>(v0: ref<int32, borrowed, 'a, readonly>, v1: Target<'a, 'b>): void {
+entry(v0: ref<int32, borrowed, 'a, readonly>, v1: Target<'a, 'b>):
+    call save(v0, v1): <'a, 'b>(ref<int32, borrowed, 'a, readonly>, Target<'a, 'b>) => void
     jump done
 
 done:
@@ -2087,11 +2090,11 @@ done:
     fn test_merge_borrow_arguments() {
         let program = TestModule::new(
             r#"
-function test<'a>(v0: boolean, v1: ref<int32, borrowed, 'a, readonly, local>, v2: ref<int32, borrowed, 'a, readonly, local>): ref<int32, borrowed, 'a, readonly, local> {
-entry(v0: boolean, v1: ref<int32, borrowed, 'a, readonly, local>, v2: ref<int32, borrowed, 'a, readonly, local>):
+function test<'a>(v0: boolean, v1: ref<int32, borrowed, 'a, readonly>, v2: ref<int32, borrowed, 'a, readonly>): ref<int32, borrowed, 'a, readonly> {
+entry(v0: boolean, v1: ref<int32, borrowed, 'a, readonly>, v2: ref<int32, borrowed, 'a, readonly>):
     branch v0 => join(v1) | join(v2)
 
-join(v3: ref<int32, borrowed, 'a, readonly, local>):
+join(v3: ref<int32, borrowed, 'a, readonly>):
     return v3
 }
 "#,
@@ -2120,11 +2123,11 @@ join(v3: ref<int32, borrowed, 'a, readonly, local>):
     fn test_merge_entry_backedge_borrows() {
         let program = TestModule::new(
             r#"
-function test<'a>(v0: boolean, v1: ref<int32, borrowed, 'a, readonly, local>, v2: ref<int32, borrowed, 'a, readonly, local>): ref<int32, borrowed, 'a, readonly, local> {
-entry(v0: boolean, v1: ref<int32, borrowed, 'a, readonly, local>, v2: ref<int32, borrowed, 'a, readonly, local>):
+function test<'a>(v0: boolean, v1: ref<int32, borrowed, 'a, readonly>, v2: ref<int32, borrowed, 'a, readonly>): ref<int32, borrowed, 'a, readonly> {
+entry(v0: boolean, v1: ref<int32, borrowed, 'a, readonly>, v2: ref<int32, borrowed, 'a, readonly>):
     branch v0 => entry(v0, v2, v1) | done(v1)
 
-done(v3: ref<int32, borrowed, 'a, readonly, local>):
+done(v3: ref<int32, borrowed, 'a, readonly>):
     return v3
 }
 "#,
@@ -2172,7 +2175,7 @@ type Box {
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'frame, mutable, local> = address (*v0).0
+    v1: ref<int32, borrowed, 'frame, mutable> = address (*v0).0
     v2: int32 = 7
     store (*v1), v2
     jump done
@@ -2202,13 +2205,13 @@ done:
     fn test_reborrow_invoke_arguments() {
         let program = TestModule::new(
             r#"
-external function select<'a>(ref<int32, borrowed, 'a, readonly, local>, ref<int32, borrowed, 'a, readonly, local>): ref<int32, borrowed, 'a, readonly, local>
+external function select<'a>(ref<int32, borrowed, 'a, readonly>, ref<int32, borrowed, 'a, readonly>): ref<int32, borrowed, 'a, readonly>
 
-function test<'a>(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<int32, borrowed, 'a, readonly, local>): void {
-entry(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<int32, borrowed, 'a, readonly, local>):
-    invoke select(v0, v1): <'a>(ref<int32, borrowed, 'a, readonly, local>, ref<int32, borrowed, 'a, readonly, local>) => ref<int32, borrowed, 'a, readonly, local> => normal | unwind
+function test<'a>(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<int32, borrowed, 'a, readonly>): void {
+entry(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<int32, borrowed, 'a, readonly>):
+    invoke select(v0, v1): <'a>(ref<int32, borrowed, 'a, readonly>, ref<int32, borrowed, 'a, readonly>) => ref<int32, borrowed, 'a, readonly> => normal | unwind
 
-normal(v2: ref<int32, borrowed, 'a, readonly, local>):
+normal(v2: ref<int32, borrowed, 'a, readonly>):
     v3: int32 = load (*v2)
     return
 

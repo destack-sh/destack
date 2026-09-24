@@ -1,10 +1,28 @@
 use destack_core::{FxIndexMap, FxIndexSet};
+use smallvec::SmallVec;
 
 use crate::{
-    Access, Analysis, Block, CastOperator, Constant, ConstantTable, ControlTable, FunctionId,
-    Instruction, Intrinsic, LocalId, LocalNodeId, Mutation, Place, PlaceOrigin, PlaceType,
-    Projection, Reference, Storage, Substitution, Tree, Type, Value,
+    Analysis, Block, CastOperator, Constant, ConstantTable, ControlTable, FunctionId, Instruction,
+    Intrinsic, LocalId, LocalNodeId, LocalNodeIdAny, Mutation, Place, PlaceOrigin, PlaceType,
+    Projection, Storage, StorageSet, Substitution, Tree, Type, Value,
 };
+
+/// How one place may alias others, by the root of its storage.
+#[derive(Debug, Clone, Copy)]
+enum AliasClass<'tree> {
+    /// A local whose address is never taken.
+    Private,
+    /// A local some reference may address.
+    Frame,
+    /// A global's own storage.
+    Static,
+    /// A value's own storage, before any reference is followed.
+    Value,
+    /// Storage behind one reference parameter, with the parameter's reference type.
+    Parameter(&'tree Type),
+    /// Storage behind any other reference.
+    Referent,
+}
 
 /// Canonical places for one MIR function.
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
@@ -13,6 +31,10 @@ pub struct PlaceTable {
     values: Vec<Place>,
     /// The values naming a fresh allocation, reached through no other root until stored.
     fresh: FxIndexSet<Value>,
+    /// The position of the first instruction storing, aggregating, or passing each fresh allocation.
+    escapes: FxIndexMap<Value, u32>,
+    /// The position of each instruction and terminator in block order.
+    order: FxIndexMap<LocalNodeIdAny, u32>,
     /// The locals whose address some instruction takes.
     exposed: FxIndexSet<LocalId>,
 }
@@ -32,6 +54,19 @@ impl Place {
         }
     }
 
+    /// Return the storage regions this place may occupy, a dereference reading them from its reference type.
+    pub fn storage_set(&self, function: FunctionId, tree: &Tree) -> StorageSet {
+        if self.path.projections.contains(&Projection::Deref) {
+            return self
+                .reference_type(function, tree)
+                .and_then(|reference| tree.type_definition(reference).reference_storage_set())
+                .unwrap_or(StorageSet::ANY);
+        }
+
+        self.storage(function, tree)
+            .map_or(StorageSet::ANY, Storage::storage_set)
+    }
+
     /// Return whether two structural places may overlap.
     pub fn may_overlap(
         &self,
@@ -41,103 +76,94 @@ impl Place {
         function: FunctionId,
         tree: &Tree,
     ) -> bool {
-        // compare inline projections after the common prefix
-        if self.origin == other.origin {
-            let common = self
-                .path
-                .projections
-                .iter()
-                .zip(&other.path.projections)
-                .take_while(|(left, right)| left == right)
-                .count();
-            let left = &self.path.projections[common..];
-            let right = &other.path.projections[common..];
-            if !left.contains(&Projection::Deref) && !right.contains(&Projection::Deref) {
-                return match (left.first(), right.first()) {
-                    (Some(left), Some(right)) => {
-                        !Self::projections_are_disjoint(left, right, constants)
-                    }
-                    _ => true,
-                };
+        // compare one root's projections past their common prefix, before any reference
+        if let Some(overlaps) = self.inline_overlap(other, constants) {
+            return overlaps;
+        }
+
+        // decide the rest by the alias class of each place
+        let classes = (
+            self.alias_class(places, function, tree),
+            other.alias_class(places, function, tree),
+        );
+        match classes {
+            // a value's storage and an unexposed local sit behind no reference
+            (AliasClass::Value | AliasClass::Private, _)
+            | (_, AliasClass::Value | AliasClass::Private) => false,
+            // two frame or static roots are distinct storage
+            (AliasClass::Frame | AliasClass::Static, AliasClass::Frame | AliasClass::Static) => {
+                false
             }
-        }
-
-        // a local whose address is never taken is reached through no reference
-        let is_frame_storage = |place: &Self| {
-            matches!(place.origin, PlaceOrigin::Local(_))
-                && !place.path.projections.contains(&Projection::Deref)
-        };
-        let is_private_local = |place: &Self| {
-            matches!(place.origin, PlaceOrigin::Local(local) if !places.is_exposed(local))
-                && !place.path.projections.contains(&Projection::Deref)
-        };
-        let dereferences = |place: &Self| place.path.projections.contains(&Projection::Deref);
-        if (is_private_local(self) && dereferences(other))
-            || (is_private_local(other) && dereferences(self))
-        {
-            return false;
-        }
-
-        // a caller-provided reference never reaches this frame's own locals
-        let is_parameter_pointee = |place: &Self| {
-            matches!(place.origin, PlaceOrigin::Value(value)
-                if tree.get(function).parameters.iter().any(|parameter| parameter.value == value))
-                && place.path.projections.first() == Some(&Projection::Deref)
-        };
-        if (is_frame_storage(self) && is_parameter_pointee(other))
-            || (is_frame_storage(other) && is_parameter_pointee(self))
-        {
-            return false;
-        }
-
-        // the pointees of two reference parameters alias only when both references admit an alias
-        let parameter_reference = |place: &Self| {
-            let PlaceOrigin::Value(value) = place.origin else {
-                return None;
-            };
-            if place.path.projections.first() != Some(&Projection::Deref) {
-                return None;
+            // a caller's reference addresses storage outside this frame's locals
+            (AliasClass::Frame, AliasClass::Parameter(_))
+            | (AliasClass::Parameter(_), AliasClass::Frame) => false,
+            // two parameters alias only when both references admit an alias
+            (AliasClass::Parameter(left), AliasClass::Parameter(right))
+                if self.origin != other.origin
+                    && (left.is_unaliased_reference() || right.is_unaliased_reference()) =>
+            {
+                false
             }
-            let parameter = tree
+            // every other pair overlaps where both storages may
+            _ => self
+                .storage(function, tree)
+                .zip(other.storage(function, tree))
+                .is_none_or(|(left, right)| left.storage_set().may_alias(right.storage_set())),
+        }
+    }
+
+    /// Return whether two places of one root overlap by their projections, none past a reference.
+    fn inline_overlap(&self, other: &Self, constants: &ConstantTable) -> Option<bool> {
+        if self.origin != other.origin {
+            return None;
+        }
+        let common = self
+            .path
+            .projections
+            .iter()
+            .zip(&other.path.projections)
+            .take_while(|(left, right)| left == right)
+            .count();
+        let left = &self.path.projections[common..];
+        let right = &other.path.projections[common..];
+        if left.contains(&Projection::Deref) || right.contains(&Projection::Deref) {
+            return None;
+        }
+
+        Some(match (left.first(), right.first()) {
+            (Some(left), Some(right)) => !Self::projections_are_disjoint(left, right, constants),
+            _ => true,
+        })
+    }
+
+    /// Return the alias class of one place, by its root and whether it follows a reference.
+    fn alias_class<'tree>(
+        &self,
+        places: &PlaceTable,
+        function: FunctionId,
+        tree: &'tree Tree,
+    ) -> AliasClass<'tree> {
+        let dereferences = self.path.projections.contains(&Projection::Deref);
+        let parameter = match self.origin {
+            PlaceOrigin::Value(value) => tree
                 .get(function)
                 .parameters
                 .iter()
-                .find(|parameter| parameter.value == value)?;
-
-            Some(tree.type_definition(tree.storage_type(parameter.ty)))
+                .find(|parameter| parameter.value == value),
+            _ => None,
         };
-        let is_unaliased = |reference: &Type| {
-            reference.reference_kind() == Some(Reference::Unique)
-                || matches!(
-                    reference.reference_access(),
-                    Some(Access::Exclusive | Access::Immutable)
-                )
-        };
-        if self.origin != other.origin
-            && let (Some(left), Some(right)) =
-                (parameter_reference(self), parameter_reference(other))
-            && (is_unaliased(left) || is_unaliased(right))
-        {
-            return false;
+        match (self.origin, dereferences) {
+            (PlaceOrigin::Local(local), false) if !places.is_exposed(local) => AliasClass::Private,
+            (PlaceOrigin::Local(_), false) => AliasClass::Frame,
+            (PlaceOrigin::Global(_), false) => AliasClass::Static,
+            (PlaceOrigin::Value(_), false) => AliasClass::Value,
+            _ => match parameter {
+                Some(parameter) if self.path.projections.first() == Some(&Projection::Deref) => {
+                    AliasClass::Parameter(tree.type_definition(tree.storage_type(parameter.ty)))
+                }
+                _ => AliasClass::Referent,
+            },
         }
-
-        // separate root values until a reference is followed
-        let is_value_storage = |place: &Self| {
-            matches!(place.origin, PlaceOrigin::Value(_))
-                && !place.path.projections.contains(&Projection::Deref)
-        };
-        if is_value_storage(self) || is_value_storage(other) {
-            return false;
-        }
-        if !self.path.projections.contains(&Projection::Deref)
-            && !other.path.projections.contains(&Projection::Deref)
-        {
-            return false;
-        }
-
-        self.storage(function, tree)
-            .zip(other.storage(function, tree))
-            .is_none_or(|(left, right)| left.storage_set(tree).may_alias(right.storage_set(tree)))
     }
 
     /// Iterate inline variants whose cases this place selects.
@@ -354,15 +380,16 @@ impl PlaceTable {
                             && forwarded.contains(local) =>
                         {
                             // project through the reference this local holds
-                            let mut place = match held.get(local) {
-                                Some(Resolution::Known(place)) => place.clone(),
-                                _ => Place::local(*local).with_projection(Projection::Deref),
+                            let resolution = match held.get(local) {
+                                Some(Resolution::Known(place)) => {
+                                    Self::projected(place.clone(), &path.projections[1..])
+                                }
+                                Some(Resolution::Opaque) => Self::projected(
+                                    Place::local(*local).with_projection(Projection::Deref),
+                                    &path.projections[1..],
+                                ),
+                                Some(Resolution::Unknown) | None => Resolution::Unknown,
                             };
-                            place
-                                .path
-                                .projections
-                                .extend_from_slice(&path.projections[1..]);
-                            let resolution = Resolution::Known(place);
                             is_changed |= Self::set(&mut resolutions, *destination, resolution);
                         }
                         Instruction::Load {
@@ -405,6 +432,9 @@ impl PlaceTable {
             }
         }
 
+        // position every instruction, recording where each fresh allocation first escapes a place root
+        let (order, escapes) = Self::escapes(&fresh, function, tree);
+
         // preserve an opaque root for unresolved or conflicting values
         let values = resolutions
             .into_iter()
@@ -420,6 +450,8 @@ impl PlaceTable {
         Self {
             values,
             fresh,
+            escapes,
+            order,
             exposed,
         }
     }
@@ -441,9 +473,69 @@ impl PlaceTable {
         }
     }
 
-    /// Return whether one value names a fresh allocation.
-    pub fn is_fresh(&self, value: Value) -> bool {
+    /// Position every instruction and terminator, recording where each fresh allocation first escapes a place root or a bit cast.
+    fn escapes(
+        fresh: &FxIndexSet<Value>,
+        function: FunctionId,
+        tree: &Tree,
+    ) -> (FxIndexMap<LocalNodeIdAny, u32>, FxIndexMap<Value, u32>) {
+        let mut order = FxIndexMap::default();
+        let mut escapes = FxIndexMap::default();
+        let mut record =
+            |order: &mut FxIndexMap<LocalNodeIdAny, u32>, node, values: SmallVec<[Value; 8]>| {
+                let position = order.len() as u32;
+                order.insert(node, position);
+                for value in values {
+                    if fresh.contains(&value) {
+                        escapes.entry(value).or_insert(position);
+                    }
+                }
+            };
+        for &block_id in tree.get(function).blocks() {
+            let block = tree.get(block_id);
+            for &instruction_id in &block.instructions {
+                let instruction = tree.get(instruction_id);
+                let roots: SmallVec<[Value; 4]> = match instruction {
+                    Instruction::Load { place, .. }
+                    | Instruction::Address { place, .. }
+                    | Instruction::Store { place, .. }
+                    | Instruction::AtomicLoad { place, .. }
+                    | Instruction::AtomicStore { place, .. }
+                    | Instruction::AtomicRmw { place, .. }
+                    | Instruction::AtomicCompareExchange { place, .. } => place.uses(),
+                    Instruction::Cast {
+                        operator: CastOperator::Bitcast,
+                        argument,
+                        ..
+                    } => SmallVec::from_slice(&[*argument]),
+                    _ => SmallVec::new(),
+                };
+                let escaping = instruction
+                    .reads(tree)
+                    .into_iter()
+                    .filter(|value| !roots.contains(value))
+                    .collect();
+                record(&mut order, instruction_id.into_any(), escaping);
+            }
+            let terminator = tree.get(block.terminator);
+            record(
+                &mut order,
+                block.terminator.into_any(),
+                terminator.uses(tree),
+            );
+        }
+
+        (order, escapes)
+    }
+
+    /// Return whether one value names a fresh allocation reached through no other root at one instruction.
+    pub fn is_fresh_at(&self, value: Value, at: LocalNodeIdAny) -> bool {
         self.fresh.contains(&value)
+            && match (self.escapes.get(&value), self.order.get(&at)) {
+                (Some(escape), Some(position)) => position < escape,
+                (Some(_), None) => false,
+                (None, _) => true,
+            }
     }
 
     /// Return whether some instruction takes one local's address.
@@ -474,6 +566,13 @@ impl PlaceTable {
             }
             _ => place.clone(),
         }
+    }
+
+    /// Extend one known place by further projections.
+    fn projected(mut place: Place, projections: &[Projection]) -> Resolution {
+        place.path.projections.extend_from_slice(projections);
+
+        Resolution::Known(place)
     }
 
     /// Resolve one instruction destination.
@@ -700,7 +799,6 @@ impl Resolution {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Space;
     use crate::analyses::tests::TestModule;
 
     /// Preserve agreeing references through selections and block arguments.
@@ -708,12 +806,12 @@ mod tests {
     fn test_preserve_common_storage_through_merges() {
         let program = TestModule::new(
             r#"
-function test(v0: boolean, v1: ref<int32, borrowed, 'static, readonly, local>): ref<int32, borrowed, 'static, readonly, local> {
-entry(v0: boolean, v1: ref<int32, borrowed, 'static, readonly, local>):
-    v2: ref<int32, borrowed, 'static, readonly, local> = select v0, v1, v1
+function test(v0: boolean, v1: ref<int32, borrowed, 'static, readonly>): ref<int32, borrowed, 'static, readonly> {
+entry(v0: boolean, v1: ref<int32, borrowed, 'static, readonly>):
+    v2: ref<int32, borrowed, 'static, readonly> = select v0, v1, v1
     branch v0 => join(v1) | join(v2)
 
-join(v3: ref<int32, borrowed, 'static, readonly, local>):
+join(v3: ref<int32, borrowed, 'static, readonly>):
     return v3
 }
 "#,
@@ -735,11 +833,11 @@ join(v3: ref<int32, borrowed, 'static, readonly, local>):
     fn test_retain_value_origins_for_distinct_incoming_storage() {
         let program = TestModule::new(
             r#"
-function test(v0: boolean, v1: ref<int32, unique, mutable, local>, v2: ref<int32, unique, mutable, local>): ref<int32, unique, mutable, local> {
-entry(v0: boolean, v1: ref<int32, unique, mutable, local>, v2: ref<int32, unique, mutable, local>):
+function test(v0: boolean, v1: ref<int32, unique, mutable>, v2: ref<int32, unique, mutable>): ref<int32, unique, mutable> {
+entry(v0: boolean, v1: ref<int32, unique, mutable>, v2: ref<int32, unique, mutable>):
     branch v0 => join(v1) | join(v2)
 
-join(v3: ref<int32, unique, mutable, local>):
+join(v3: ref<int32, unique, mutable>):
     return v3
 }
 "#,
@@ -762,11 +860,11 @@ type Object {
     values: [int32; 4];
 }
 
-function test<'a>(v0: ref<Object, borrowed, 'a, mutable, local>, v1: uint64, v2: uint64): void {
-entry(v0: ref<Object, borrowed, 'a, mutable, local>, v1: uint64, v2: uint64):
-    v3: ref<[int32; 4], borrowed, 'a, mutable, local> = address (*v0).0
-    v4: ref<int32, borrowed, 'a, mutable, local> = address (*v3)[v1]
-    v5: slice<int32, borrowed, 'a, mutable, local> = address (*v3)[v1; v2]
+function test<'a>(v0: ref<Object, borrowed, 'a, mutable>, v1: uint64, v2: uint64): void {
+entry(v0: ref<Object, borrowed, 'a, mutable>, v1: uint64, v2: uint64):
+    v3: ref<[int32; 4], borrowed, 'a, mutable> = address (*v0).0
+    v4: ref<int32, borrowed, 'a, mutable> = address (*v3)[v1]
+    v5: slice<int32, borrowed, 'a, mutable> = address (*v3)[v1; v2]
     return
 }
 "#,
@@ -797,23 +895,23 @@ entry(v0: ref<Object, borrowed, 'a, mutable, local>, v1: uint64, v2: uint64):
     fn test_forward_local_references() {
         let program = TestModule::new(
             r#"
-function test<'a>(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<int32, borrowed, 'a, readonly, local>): void {
-    local l0: ref<int32, borrowed, 'a, readonly, local>
-    local l1: ref<int32, borrowed, 'a, readonly, local>
+function test<'a>(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<int32, borrowed, 'a, readonly>): void {
+    local l0: ref<int32, borrowed, 'a, readonly>
+    local l1: ref<int32, borrowed, 'a, readonly>
 
-entry(v0: ref<int32, borrowed, 'a, readonly, local>, v1: ref<int32, borrowed, 'a, readonly, local>):
+entry(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<int32, borrowed, 'a, readonly>):
     store l0, v0
     store l1, v0
-    v2: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'frame, mutable, frame> = address l1
+    v2: ref<ref<int32, borrowed, 'a, readonly>, borrowed, 'frame, mutable> = address l1
     store (*v2), v1
     jump done
 
 done:
-    v3: ref<int32, borrowed, 'a, readonly, local> = load l0
-    v4: ref<int32, borrowed, 'a, readonly, local> = load l1
+    v3: ref<int32, borrowed, 'a, readonly> = load l0
+    v4: ref<int32, borrowed, 'a, readonly> = load l1
     v5: usize = cast.bit v3 -> usize
-    v6: ref<int32, borrowed, 'a, readonly, local> = intrinsic.memory.raw.transmute(v5)
-    v7: ref<int32, borrowed, 'a, readonly, local> = intrinsic.space.cast(v6)
+    v6: ref<int32, borrowed, 'a, readonly> = intrinsic.memory.raw.transmute(v5)
+    v7: ref<int32, borrowed, 'a, readonly> = intrinsic.space.cast(v6)
     return
 }
 "#,
@@ -839,13 +937,13 @@ done:
     fn test_separate_elements_with_distinct_constant_indices() {
         let program = TestModule::new(
             r#"
-function test<'a>(v0: ref<[int32; 4], borrowed, 'a, mutable, local>): void {
-entry(v0: ref<[int32; 4], borrowed, 'a, mutable, local>):
+function test<'a>(v0: ref<[int32; 4], borrowed, 'a, mutable>): void {
+entry(v0: ref<[int32; 4], borrowed, 'a, mutable>):
     v1: uint64 = 0
     v2: uint64 = 1
     v3: uint64 = add v1, v2
-    v4: ref<int32, borrowed, 'a, mutable, local> = address (*v0)[v1]
-    v5: ref<int32, borrowed, 'a, mutable, local> = address (*v0)[v3]
+    v4: ref<int32, borrowed, 'a, mutable> = address (*v0)[v1]
+    v5: ref<int32, borrowed, 'a, mutable> = address (*v0)[v3]
     return
 }
 "#,
@@ -871,10 +969,10 @@ entry(v0: ref<[int32; 4], borrowed, 'a, mutable, local>):
     fn test_resolve_merged_reference_storage() {
         let program = TestModule::new(
             r#"
-function test(v0: boolean, v1: ref<int32, borrowed, 'static, readonly, shared>, v2: ref<int32, borrowed, 'static, readonly, shared>): void {
-    local l0: ref<int32, borrowed, 'static, readonly, shared>
+function test(v0: boolean, v1: ref<int32, borrowed, 'static, readonly>, v2: ref<int32, borrowed, 'static, readonly>): void {
+    local l0: ref<int32, borrowed, 'static, readonly>
 
-entry(v0: boolean, v1: ref<int32, borrowed, 'static, readonly, shared>, v2: ref<int32, borrowed, 'static, readonly, shared>):
+entry(v0: boolean, v1: ref<int32, borrowed, 'static, readonly>, v2: ref<int32, borrowed, 'static, readonly>):
     branch v0 => left | right
 
 left:
@@ -886,7 +984,7 @@ right:
     jump join
 
 join:
-    v3: ref<int32, borrowed, 'static, readonly, shared> = load l0
+    v3: ref<int32, borrowed, 'static, readonly> = load l0
     return
 }
 "#,
@@ -904,7 +1002,7 @@ join:
         );
         assert_eq!(
             reference.storage(program.entry_function_id(), &program.tree),
-            Some(Storage::Heap(Space::Shared))
+            None
         );
 
         // distinguish frame descriptors from their possibly aliased heap referents

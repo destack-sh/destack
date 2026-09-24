@@ -2,7 +2,8 @@ use destack_core::BitSet;
 use smallvec::SmallVec;
 
 use crate::{
-    Access, ConstantTable, FunctionId, LocalNodeIdAny, Path, Place, PlaceTable, Tree, Value,
+    Access, ConstantTable, FunctionId, LocalNodeIdAny, Path, Place, PlaceOrigin, PlaceTable, Tree,
+    Value,
 };
 
 /// Dense identity of one borrow loan.
@@ -40,6 +41,8 @@ pub struct Loan {
     parents: SmallVec<[LoanId; 2]>,
     /// The operation that issued the loan.
     pub issued_at: LocalNodeIdAny,
+    /// Whether the loan roots at a fresh allocation, reached through no other root when issued.
+    is_fresh: bool,
 }
 
 /// Storage borrowed by one loan.
@@ -234,13 +237,20 @@ impl Loan {
         representation: Value,
         parents: impl IntoIterator<Item = LoanId>,
         issued_at: LocalNodeIdAny,
+        places: &PlaceTable,
     ) -> Self {
+        let is_fresh = match place.origin {
+            PlaceOrigin::Value(value) => places.is_fresh_at(value, issued_at),
+            _ => false,
+        };
+
         Self {
             target: LoanTarget::Place { place, source },
             access,
             representation,
             parents: parents.into_iter().collect(),
             issued_at,
+            is_fresh,
         }
     }
 
@@ -257,6 +267,7 @@ impl Loan {
             representation: value,
             parents: SmallVec::new(),
             issued_at,
+            is_fresh: false,
         }
     }
 
@@ -296,6 +307,12 @@ impl Loan {
         tree: &Tree,
     ) -> bool {
         match (&self.target, &other.target) {
+            // address a fresh allocation through loans rooted at it alone
+            (LoanTarget::Place { place: left, .. }, LoanTarget::Place { place: right, .. })
+                if (self.is_fresh || other.is_fresh) && left.origin != right.origin =>
+            {
+                false
+            }
             // preserve access guarantees and the validity of selected cases
             (LoanTarget::Place { place: left, .. }, LoanTarget::Place { place: right, .. }) => {
                 (self.access.conflicts(other.access)
@@ -332,6 +349,9 @@ impl Loan {
         match &self.target {
             LoanTarget::Place {
                 place: borrowed, ..
+            } if self.is_fresh && borrowed.origin != place.origin => false,
+            LoanTarget::Place {
+                place: borrowed, ..
             } => may_overlap(borrowed, place),
             LoanTarget::Parameter { .. } => false,
         }
@@ -359,15 +379,15 @@ entry:
     v1: Pair = aggregate (v0, v0)
     v2: Box = aggregate (v1)
     store l0, v2
-    v3: ref<Box, borrowed, 'frame, exclusive, frame> = address l0
-    v4: ref<Pair, borrowed, 'frame, exclusive, frame> = address (*v3).0
-    v5: ref<int32, borrowed, 'frame, exclusive, frame> = address (*v4).0
-    v6: ref<int32, borrowed, 'frame, exclusive, frame> = address (*v4).1
-    v7: ref<int32, borrowed, 'frame, exclusive, frame> = address (*v4).0
-    v8: ref<int32, borrowed, 'frame, readonly, frame> = address (*v4).0
-    v9: ref<int32, borrowed, 'frame, readonly, frame> = address (*v4).0
-    v10: ref<int32, borrowed, 'frame, mutable, frame> = address (*v4).0
-    v11: ref<int32, borrowed, 'frame, immutable, frame> = address (*v4).0
+    v3: ref<Box, borrowed, 'frame, exclusive> = address l0
+    v4: ref<Pair, borrowed, 'frame, exclusive> = address (*v3).0
+    v5: ref<int32, borrowed, 'frame, exclusive> = address (*v4).0
+    v6: ref<int32, borrowed, 'frame, exclusive> = address (*v4).1
+    v7: ref<int32, borrowed, 'frame, exclusive> = address (*v4).0
+    v8: ref<int32, borrowed, 'frame, readonly> = address (*v4).0
+    v9: ref<int32, borrowed, 'frame, readonly> = address (*v4).0
+    v10: ref<int32, borrowed, 'frame, mutable> = address (*v4).0
+    v11: ref<int32, borrowed, 'frame, immutable> = address (*v4).0
     return
 }
 "#,
@@ -463,11 +483,11 @@ entry(v0: boolean):
     v2: Pair = aggregate (v1, v1)
     store l0, v2
     store l1, v2
-    v3: ref<Pair, borrowed, 'frame, exclusive, frame> = address l0
-    v4: ref<Pair, borrowed, 'frame, exclusive, frame> = address l1
-    v5: ref<Pair, borrowed, 'frame, exclusive, frame> = select v0, v3, v4
-    v6: ref<int32, borrowed, 'frame, exclusive, frame> = address (*v5).0
-    v7: ref<int32, borrowed, 'frame, exclusive, frame> = address (*v5).0
+    v3: ref<Pair, borrowed, 'frame, exclusive> = address l0
+    v4: ref<Pair, borrowed, 'frame, exclusive> = address l1
+    v5: ref<Pair, borrowed, 'frame, exclusive> = select v0, v3, v4
+    v6: ref<int32, borrowed, 'frame, exclusive> = address (*v5).0
+    v7: ref<int32, borrowed, 'frame, exclusive> = address (*v5).0
     return
 }
 "#,
@@ -511,15 +531,15 @@ function test(v0: Packet, v1: Single): void {
 entry(v0: Packet, v1: Single):
     store l0, v0
     store l1, v1
-    v2: ref<Packet, borrowed, 'frame, mutable, frame> = address l0
-    v3: ref<int32, borrowed, 'frame, readonly, frame> = address (l0 as 1).0
-    v4: ref<int32, borrowed, 'frame, mutable, frame> = address (l0 as 1).0
-    v5: ref<ref<int32, managed, mutable, local>, borrowed, 'frame, readonly, frame> = address (l0 as 1).1
-    v6: ref<int32, borrowed, 'frame, readonly, local> = address (*(l0 as 1).1)
-    v7: ref<Single, borrowed, 'frame, mutable, frame> = address l1
-    v8: ref<int32, borrowed, 'frame, readonly, frame> = address (l1 as 0)
-    v9: ref<Inner, borrowed, 'frame, mutable, frame> = address (l0 as 1).2
-    v10: ref<int32, borrowed, 'frame, readonly, frame> = address ((l0 as 1).2 as 1)
+    v2: ref<Packet, borrowed, 'frame, mutable> = address l0
+    v3: ref<int32, borrowed, 'frame, readonly> = address (l0 as 1).0
+    v4: ref<int32, borrowed, 'frame, mutable> = address (l0 as 1).0
+    v5: ref<ref<int32, managed, mutable, local>, borrowed, 'frame, readonly> = address (l0 as 1).1
+    v6: ref<int32, borrowed, 'frame, readonly> = address (*(l0 as 1).1)
+    v7: ref<Single, borrowed, 'frame, mutable> = address l1
+    v8: ref<int32, borrowed, 'frame, readonly> = address (l1 as 0)
+    v9: ref<Inner, borrowed, 'frame, mutable> = address (l0 as 1).2
+    v10: ref<int32, borrowed, 'frame, readonly> = address ((l0 as 1).2 as 1)
     return
 }
 "#,
@@ -573,7 +593,7 @@ entry(v0: Packet, v1: Single):
     fn test_allow_reborrows_through_cyclic_ancestry() {
         let program = TestModule::new(
             r#"
-external function identity<'a>(ref<int32, borrowed, 'a, exclusive, frame>): ref<int32, borrowed, 'a, exclusive, frame>
+external function identity<'a>(ref<int32, borrowed, 'a, exclusive>): ref<int32, borrowed, 'a, exclusive>
 
 function test(v0: boolean): void {
     local l0: int32
@@ -581,11 +601,11 @@ function test(v0: boolean): void {
 entry(v0: boolean):
     v1: int32 = 7
     store l0, v1
-    v2: ref<int32, borrowed, 'frame, exclusive, frame> = address l0
+    v2: ref<int32, borrowed, 'frame, exclusive> = address l0
     jump loop(v2)
 
-loop(v3: ref<int32, borrowed, 'frame, exclusive, frame>):
-    v4: ref<int32, borrowed, 'frame, exclusive, frame> = call identity(v3): <'frame>(ref<int32, borrowed, 'frame, exclusive, frame>) => ref<int32, borrowed, 'frame, exclusive, frame>
+loop(v3: ref<int32, borrowed, 'frame, exclusive>):
+    v4: ref<int32, borrowed, 'frame, exclusive> = call identity(v3): <'frame>(ref<int32, borrowed, 'frame, exclusive>) => ref<int32, borrowed, 'frame, exclusive>
     branch v0 => loop(v4) | exit
 
 exit:

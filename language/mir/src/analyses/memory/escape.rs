@@ -1352,17 +1352,17 @@ mod tests {
     fn test_return_fallible_allocations() {
         let program = TestModule::new(
             r#"
-function test(v0: boolean): uninit<ref<int32, unique, mutable, local>> {
+function test(v0: boolean): uninit<ref<int32, unique, mutable>> {
 entry(v0: boolean):
     branch v0 => left | right
 
 left:
-    new.uninit.try int32 => join | failure
+    new.uninit.try int32, local => join | failure
 
 right:
-    new.uninit.try int32 => join | failure
+    new.uninit.try int32, local => join | failure
 
-join(v1: uninit<ref<int32, unique, mutable, local>>):
+join(v1: uninit<ref<int32, unique, mutable>>):
     return v1
 
 failure:
@@ -1396,18 +1396,18 @@ failure:
         let program = TestModule::new(
             r#"
 function test(v0: boolean): int32 {
-    local l0: ref<int32, unique, mutable, local>
+    local l0: ref<int32, unique, mutable>
 
 entry(v0: boolean):
-    v1: ref<int32, unique, mutable, local> = new.zeroed int32
+    v1: ref<int32, unique, mutable> = new.zeroed int32, local
     v5: int32 = 7
     store (*v1), v5
     store l0, v1
     jump loop
 
 loop:
-    v2: ref<int32, unique, mutable, local> = load l0
-    v3: ref<int32, unique, mutable, local> = new.zeroed int32
+    v2: ref<int32, unique, mutable> = load l0
+    v3: ref<int32, unique, mutable> = new.zeroed int32, local
     v4: int32 = load (*v2)
     store (*v3), v5
     store l0, v3
@@ -1443,7 +1443,7 @@ entry(v0: boolean):
     jump loop
 
 loop:
-    v1: ref<int32, unique, mutable, local> = new.zeroed int32
+    v1: ref<int32, unique, mutable> = new.zeroed int32, local
     branch v0 => loop | exit
 
 exit:
@@ -1468,18 +1468,18 @@ exit:
         let program = TestModule::new(
             r#"
 function test(v0: boolean): int32 {
-    local l0: ref<int32, unique, mutable, local>
+    local l0: ref<int32, unique, mutable>
 
 entry(v0: boolean):
-    v1: ref<int32, unique, mutable, local> = new.zeroed int32
+    v1: ref<int32, unique, mutable> = new.zeroed int32, local
     v7: int32 = 7
     store (*v1), v7
     store l0, v1
     branch v0 => left | right
 
 left:
-    v2: ref<int32, unique, mutable, local> = load l0
-    v3: ref<int32, unique, mutable, local> = new.zeroed int32
+    v2: ref<int32, unique, mutable> = load l0
+    v3: ref<int32, unique, mutable> = new.zeroed int32, local
     v4: int32 = load (*v2)
     store (*v3), v4
     store l0, v3
@@ -1489,7 +1489,7 @@ right:
     branch v0 => left | exit
 
 exit:
-    v5: ref<int32, unique, mutable, local> = load l0
+    v5: ref<int32, unique, mutable> = load l0
     v6: int32 = load (*v5)
     return v6
 }
@@ -1522,7 +1522,7 @@ entry(v0: boolean):
     branch v0 => left | right(v1)
 
 left:
-    v2: ref<int32, unique, mutable, local> = new.zeroed int32
+    v2: ref<int32, unique, mutable> = new.zeroed int32, local
     v3: int32 = load (*v2)
     jump right(v3)
 
@@ -1551,14 +1551,14 @@ exit:
     fn test_return_through_local_storage() {
         let program = TestModule::new(
             r#"
-function test(): ref<int32, unique, mutable, local> {
-    local l0: ref<int32, unique, mutable, local>
+function test(): ref<int32, unique, mutable> {
+    local l0: ref<int32, unique, mutable>
 
 entry:
-    v0: ref<int32, unique, mutable, local> = new.zeroed int32
-    v1: ref<ref<int32, unique, mutable, local>, borrowed, 'frame, mutable, frame> = address l0
+    v0: ref<int32, unique, mutable> = new.zeroed int32, local
+    v1: ref<ref<int32, unique, mutable>, borrowed, 'frame, mutable> = address l0
     store (*v1), v0
-    v2: ref<int32, unique, mutable, local> = load (*v1)
+    v2: ref<int32, unique, mutable> = load (*v1)
     return v2
 }
 "#,
@@ -1583,9 +1583,9 @@ entry:
     fn test_return_loaded_parameter() {
         let program = TestModule::new(
             r#"
-function test(v0: ref<ref<int32, borrowed, 'static, readonly, local>, borrowed, 'static, readonly, local>): ref<int32, borrowed, 'static, readonly, local> {
-entry(v0: ref<ref<int32, borrowed, 'static, readonly, local>, borrowed, 'static, readonly, local>):
-    v1: ref<int32, borrowed, 'static, readonly, local> = load (*v0)
+function test(v0: ref<ref<int32, borrowed, 'static, readonly>, borrowed, 'static, readonly>): ref<int32, borrowed, 'static, readonly> {
+entry(v0: ref<ref<int32, borrowed, 'static, readonly>, borrowed, 'static, readonly>):
+    v1: ref<int32, borrowed, 'static, readonly> = load (*v0)
     return v1
 }
 "#,
@@ -1620,9 +1620,9 @@ entry(v0: ref<ref<int32, borrowed, 'static, readonly, local>, borrowed, 'static,
     fn test_distinguish_owned_parameter_contents() {
         let program = TestModule::new(
             r#"
-function test(v0: ref<ref<int32, borrowed, 'static, readonly, local>, unique, readonly, local>): void {
-entry(v0: ref<ref<int32, borrowed, 'static, readonly, local>, unique, readonly, local>):
-    v1: ref<int32, borrowed, 'static, readonly, local> = load (*v0)
+function test(v0: ref<ref<int32, borrowed, 'static, readonly>, unique, readonly>): void {
+entry(v0: ref<ref<int32, borrowed, 'static, readonly>, unique, readonly>):
+    v1: ref<int32, borrowed, 'static, readonly> = load (*v0)
     return
 }
 "#,
@@ -1647,9 +1647,9 @@ entry(v0: ref<ref<int32, borrowed, 'static, readonly, local>, unique, readonly, 
     fn test_store_through_parameter() {
         let program = TestModule::new(
             r#"
-function test(v0: ref<ref<int32, unique, mutable, local>, borrowed, 'static, mutable, local>): void {
-entry(v0: ref<ref<int32, unique, mutable, local>, borrowed, 'static, mutable, local>):
-    v1: ref<int32, unique, mutable, local> = new.zeroed int32
+function test(v0: ref<ref<int32, unique, mutable>, borrowed, 'static, mutable>): void {
+entry(v0: ref<ref<int32, unique, mutable>, borrowed, 'static, mutable>):
+    v1: ref<int32, unique, mutable> = new.zeroed int32, local
     store (*v0), v1
     return
 }
@@ -1678,7 +1678,7 @@ entry(v0: ref<ref<int32, unique, mutable, local>, borrowed, 'static, mutable, lo
             r#"
 function test(): usize {
 entry:
-    v0: ref<int32, unique, mutable, local> = new.zeroed int32
+    v0: ref<int32, unique, mutable> = new.zeroed int32, local
     v1: usize = cast.pointerToInt v0 -> usize
     v2: vector<usize, 2> = vector.splat v1
     v3: usize = 0
@@ -1709,7 +1709,7 @@ entry:
             r#"
 function test(): usize {
 entry:
-    v0: ref<int32, unique, mutable, local> = new.zeroed int32
+    v0: ref<int32, unique, mutable> = new.zeroed int32, local
     v1: usize = cast.pointerToInt v0 -> usize
     v2: usize = intrinsic.math.bits.byteSwap(v1)
     v3: usize = intrinsic.math.bits.byteSwap(v2)
@@ -1738,13 +1738,13 @@ entry:
     fn test_return_merged_allocations() {
         let program = TestModule::new(
             r#"
-function test(v0: boolean): ref<int32, unique, mutable, local> {
+function test(v0: boolean): ref<int32, unique, mutable> {
 entry(v0: boolean):
-    v1: ref<int32, unique, mutable, local> = new.zeroed int32
-    v2: ref<int32, unique, mutable, local> = new.zeroed int32
+    v1: ref<int32, unique, mutable> = new.zeroed int32, local
+    v2: ref<int32, unique, mutable> = new.zeroed int32, local
     branch v0 => join(v1) | join(v2)
 
-join(v3: ref<int32, unique, mutable, local>):
+join(v3: ref<int32, unique, mutable>):
     return v3
 }
 "#,
@@ -1775,15 +1775,15 @@ join(v3: ref<int32, unique, mutable, local>):
     fn test_preserve_uncaptured_call_arguments() {
         let program = TestModule::new(
             r#"
-function sink(v0: ref<int32, unique, mutable, local>): void {
-entry(v0: ref<int32, unique, mutable, local>):
+function sink(v0: ref<int32, unique, mutable>): void {
+entry(v0: ref<int32, unique, mutable>):
     return
 }
 
 function test(): void {
 entry:
-    v0: ref<int32, unique, mutable, local> = new.zeroed int32
-    call sink(v0): (ref<int32, unique, mutable, local>) => void
+    v0: ref<int32, unique, mutable> = new.zeroed int32, local
+    call sink(v0): (ref<int32, unique, mutable>) => void
     return
 }
 "#,
@@ -1805,15 +1805,15 @@ entry:
     fn test_discard_returned_argument() {
         let program = TestModule::new(
             r#"
-function identity(v0: ref<int32, unique, mutable, local>): ref<int32, unique, mutable, local> {
-entry(v0: ref<int32, unique, mutable, local>):
+function identity(v0: ref<int32, unique, mutable>): ref<int32, unique, mutable> {
+entry(v0: ref<int32, unique, mutable>):
     return v0
 }
 
 function test(): void {
 entry:
-    v0: ref<int32, unique, mutable, local> = new.zeroed int32
-    v1: ref<int32, unique, mutable, local> = call identity(v0): (ref<int32, unique, mutable, local>) => ref<int32, unique, mutable, local>
+    v0: ref<int32, unique, mutable> = new.zeroed int32, local
+    v1: ref<int32, unique, mutable> = call identity(v0): (ref<int32, unique, mutable>) => ref<int32, unique, mutable>
     return
 }
 "#,
@@ -1848,21 +1848,21 @@ entry:
     fn test_return_through_recursive_calls() {
         let program = TestModule::new(
             r#"
-function first(v0: ref<int32, unique, mutable, local>, v1: boolean): ref<int32, unique, mutable, local> {
-entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
+function first(v0: ref<int32, unique, mutable>, v1: boolean): ref<int32, unique, mutable> {
+entry(v0: ref<int32, unique, mutable>, v1: boolean):
     branch v1 => done | recurse
 
 recurse:
-    v2: ref<int32, unique, mutable, local> = call second(v0, v1): (ref<int32, unique, mutable, local>, boolean) => ref<int32, unique, mutable, local>
+    v2: ref<int32, unique, mutable> = call second(v0, v1): (ref<int32, unique, mutable>, boolean) => ref<int32, unique, mutable>
     return v2
 
 done:
     return v0
 }
 
-function second(v0: ref<int32, unique, mutable, local>, v1: boolean): ref<int32, unique, mutable, local> {
-entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
-    v2: ref<int32, unique, mutable, local> = call first(v0, v1): (ref<int32, unique, mutable, local>, boolean) => ref<int32, unique, mutable, local>
+function second(v0: ref<int32, unique, mutable>, v1: boolean): ref<int32, unique, mutable> {
+entry(v0: ref<int32, unique, mutable>, v1: boolean):
+    v2: ref<int32, unique, mutable> = call first(v0, v1): (ref<int32, unique, mutable>, boolean) => ref<int32, unique, mutable>
     return v2
 }
 "#,
@@ -1894,18 +1894,18 @@ entry(v0: ref<int32, unique, mutable, local>, v1: boolean):
     fn test_return_closure_environment() {
         let program = TestModule::new(
             r#"
-@environment(ref<int32, unique, mutable, local>)
-function captured(): ref<int32, unique, mutable, local> {
+@environment(ref<int32, unique, mutable>)
+function captured(): ref<int32, unique, mutable> {
 entry:
-    v0: ref<int32, unique, mutable, local> = function.environment.current
+    v0: ref<int32, unique, mutable> = function.environment.current
     return v0
 }
 
-function test(): ref<int32, unique, mutable, local> {
+function test(): ref<int32, unique, mutable> {
 entry:
-    v0: ref<int32, unique, mutable, local> = new.zeroed int32
-    v1: function<() => ref<int32, unique, mutable, local>, once, unique, mutable, local> = function.bind captured, v0
-    v2: ref<int32, unique, mutable, local> = call.indirect v1(): () => ref<int32, unique, mutable, local>
+    v0: ref<int32, unique, mutable> = new.zeroed int32, local
+    v1: function<() => ref<int32, unique, mutable>, once, unique, mutable> = function.bind captured, v0
+    v2: ref<int32, unique, mutable> = call.indirect v1(): () => ref<int32, unique, mutable>
     return v2
 }
 "#,
@@ -1946,21 +1946,21 @@ entry:
     fn test_propagate_external_pointer_effects() {
         let program = TestModule::new(
             r#"
-external function retain(ref<int32, unique, mutable, local>): void
-external function fetch(): ref<int32, unique, mutable, local>
-external function borrow(): ref<int32, borrowed, 'static, readonly, local>
+external function retain(ref<int32, unique, mutable>): void
+external function fetch(): ref<int32, unique, mutable>
+external function borrow(): ref<int32, borrowed, 'static, readonly>
 
-function test(): ref<int32, unique, mutable, local> {
+function test(): ref<int32, unique, mutable> {
 entry:
-    v0: ref<int32, unique, mutable, local> = new.zeroed int32
-    call retain(v0): (ref<int32, unique, mutable, local>) => void
-    v1: ref<int32, unique, mutable, local> = call fetch(): () => ref<int32, unique, mutable, local>
+    v0: ref<int32, unique, mutable> = new.zeroed int32, local
+    call retain(v0): (ref<int32, unique, mutable>) => void
+    v1: ref<int32, unique, mutable> = call fetch(): () => ref<int32, unique, mutable>
     return v1
 }
 
-function receive(): ref<int32, borrowed, 'static, readonly, local> {
+function receive(): ref<int32, borrowed, 'static, readonly> {
 entry:
-    v0: ref<int32, borrowed, 'static, readonly, local> = call borrow(): () => ref<int32, borrowed, 'static, readonly, local>
+    v0: ref<int32, borrowed, 'static, readonly> = call borrow(): () => ref<int32, borrowed, 'static, readonly>
     return v0
 }
 "#,

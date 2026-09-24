@@ -5,13 +5,14 @@ use crate::{
     TypeId,
 };
 
-    /// Return the extents one type stores across its regions.
+/// Return the extents one type stores across its regions.
 pub fn type_lifetime(tree: &Tree, ty: TypeId) -> Option<Lifetime> {
     let mut visited = FxIndexSet::default();
 
     type_lifetime_inner(tree, ty, &mut visited)
 }
-    /// Return the explicit lifetime carried by a type.
+
+/// Return the explicit lifetime carried by a type.
 fn type_lifetime_inner(
     tree: &Tree,
     ty: TypeId,
@@ -30,7 +31,7 @@ fn type_lifetime_inner(
         Type::Application { arguments, .. } => {
             let lifetimes = arguments.iter().filter_map(|argument| match argument {
                 GenericArgument::Type(ty) => type_lifetime_inner(tree, *ty, visited),
-                GenericArgument::Region { lifetime, .. } => Some(lifetime.clone()),
+                GenericArgument::Region(lifetime) => Some(lifetime.clone()),
                 _ => None,
             });
 
@@ -131,13 +132,15 @@ fn type_lifetime_inner(
 
     lifetime
 }
-    /// Return whether a type may contain borrowed references.
+
+/// Return whether a type may contain borrowed references.
 pub fn type_contains_borrowed_refs(tree: &Tree, ty: TypeId) -> bool {
     let mut visited = FxIndexSet::default();
 
     type_contains_borrowed_refs_inner(tree, ty, &mut visited)
 }
-    /// Return whether a type path contains borrowed references.
+
+/// Return whether a type path contains borrowed references.
 fn type_contains_borrowed_refs_inner(
     tree: &Tree,
     ty: TypeId,
@@ -160,15 +163,11 @@ fn type_contains_borrowed_refs_inner(
 
     // inspect nominal arguments without expanding recursive definitions
     let contains = match ty {
-        Type::Application { arguments, .. } => {
-            arguments.iter().any(|argument| match argument {
-                GenericArgument::Type(ty) => {
-                    type_contains_borrowed_refs_inner(tree, *ty, visited)
-                }
-                GenericArgument::Region { .. } => true,
-                _ => false,
-            })
-        }
+        Type::Application { arguments, .. } => arguments.iter().any(|argument| match argument {
+            GenericArgument::Type(ty) => type_contains_borrowed_refs_inner(tree, *ty, visited),
+            GenericArgument::Region(_) => true,
+            _ => false,
+        }),
         Type::Struct { fields, .. } => fields.iter().any(|field| {
             let field = tree.get(*field);
             type_contains_borrowed_refs_inner(tree, field.ty, visited)
@@ -204,15 +203,18 @@ fn type_contains_borrowed_refs_inner(
 
     contains
 }
-    /// Return borrowed reference-like paths carried by one type.
+
+/// Return borrowed reference-like paths carried by one type.
 pub fn type_borrowed_paths(tree: &Tree, ty: TypeId) -> Vec<BorrowedPath> {
     collect_borrowed_paths(tree, ty, false)
 }
-    /// Return borrowed paths used for origin tracking.
+
+/// Return borrowed paths used for origin tracking.
 pub fn type_origin_paths(tree: &Tree, ty: TypeId) -> Vec<BorrowedPath> {
     collect_borrowed_paths(tree, ty, true)
 }
-    /// Return borrowed reference-like paths carried by one type.
+
+/// Return borrowed reference-like paths carried by one type.
 fn collect_borrowed_paths(tree: &Tree, ty: TypeId, is_tracking: bool) -> Vec<BorrowedPath> {
     let mut borrowed_paths = Vec::new();
 
@@ -220,7 +222,8 @@ fn collect_borrowed_paths(tree: &Tree, ty: TypeId, is_tracking: bool) -> Vec<Bor
 
     borrowed_paths
 }
-    /// Collect borrowed paths carried by one type into an output vector.
+
+/// Collect borrowed paths carried by one type into an output vector.
 fn collect_type_borrowed_paths(
     tree: &Tree,
     ty: TypeId,
@@ -261,7 +264,7 @@ fn collect_type_borrowed_paths(
             // track managed handles and empty borrows only for origin
             let is_included = match kind {
                 Reference::Borrowed => is_tracking || !lifetime.is_empty(),
-                Reference::Managed => is_tracking,
+                Reference::Managed(_) => is_tracking,
                 Reference::Unique | Reference::Raw => false,
             };
             if is_included {

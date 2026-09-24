@@ -753,8 +753,7 @@ pub fn constant_matches_type(
         (ConstantType::Null | ConstantType::Undefined, mir::Type::Parameter { .. }) => true,
         (ConstantType::Boolean, mir::Type::Boolean) => true,
         (ConstantType::Int { width, signed }, ty) => {
-            let Some((ty_width, ty_signed)) = ty.int_info_with_pointer_width(pointer_width_bits)
-            else {
+            let Some((ty_width, ty_signed)) = ty.integer(pointer_width_bits) else {
                 return false;
             };
             width == ty_width && signed == ty_signed
@@ -892,7 +891,7 @@ pub fn constant_zero_like(template: &mir::Constant) -> mir::Constant {
 /// Build a zero constant for a scalar type.
 pub fn constant_zero_for_type(ty: &mir::Type, pointer_width_bits: u16) -> Option<mir::Constant> {
     // handle integer types
-    let Some((width, signed)) = ty.int_info_with_pointer_width(pointer_width_bits) else {
+    let Some((width, signed)) = ty.integer(pointer_width_bits) else {
         // handle non integer scalar types
         return match ty {
             mir::Type::Float(float_type) => Some(mir::Constant::Float {
@@ -2112,8 +2111,7 @@ pub fn fold_cast(
                     format: *format,
                 }),
                 _ => {
-                    let (target_width, is_signed) =
-                        target.int_info_with_pointer_width(pointer_width_bits)?;
+                    let (target_width, is_signed) = target.integer(pointer_width_bits)?;
 
                     (target_width == width).then(|| encode_int_constant(bits, width, is_signed))
                 }
@@ -2122,8 +2120,7 @@ pub fn fold_cast(
         // extend by source signedness, then retain the destination bits
         mir::CastOperator::IntToInt | mir::CastOperator::IntToIntSaturating => {
             let (bits, width, is_signed) = decode_int_constant(&value)?;
-            let (target_width, target_signed) =
-                target.int_info_with_pointer_width(pointer_width_bits)?;
+            let (target_width, target_signed) = target.integer(pointer_width_bits)?;
             let is_negative = is_signed && signed_from_bits(bits, width) < 0;
             let converted = if operator == mir::CastOperator::IntToInt {
                 if is_signed {
@@ -2156,7 +2153,7 @@ pub fn fold_cast(
                 return None;
             };
             let value = float_from_bits(format.format(), bits).trunc();
-            let (width, is_signed) = target.int_info_with_pointer_width(pointer_width_bits)?;
+            let (width, is_signed) = target.integer(pointer_width_bits)?;
             let upper = 2.0_f64.powi(i32::from(width) - i32::from(is_signed));
             let lower = if is_signed { -upper } else { 0.0 };
             if operator == mir::CastOperator::FloatToInt
@@ -2335,7 +2332,7 @@ global flag: boolean = true
 
 function test(): boolean {
 entry:
-    v0: ref<boolean, borrowed, 'static, mutable, local> = address @flag
+    v0: ref<boolean, borrowed, 'static, mutable> = address @flag
     v1: boolean = load (*v0)
     return v1
 }
@@ -2420,7 +2417,7 @@ join(v3: boolean, v4: boolean):
 function test(v0: int64): boolean {
 entry(v0: int64):
     v1: boolean = true
-    new.slice.uninit.try int32, v0 => b1(v1) | b2
+    new.slice.uninit.try int32, v0, local => b1(v1) | b2
 
 b1(v2: uninit<slice<int32, managed, mutable, local>>, v3: boolean):
     return v3

@@ -34,7 +34,7 @@ impl Value {
     ) -> bool {
         // recognize unsigned integers and inspect the sign bit of signed integers
         let ty = tree.get(function.expect_value_type(self));
-        let Some((width, is_signed)) = ty.int_info_with_pointer_width(target.pointer_bits()) else {
+        let Some((width, is_signed)) = ty.integer(target.pointer_bits()) else {
             return matches!(ty, Type::Boolean | Type::Character);
         };
         if !is_signed {
@@ -838,10 +838,7 @@ impl<'a> ValueQuery<'a> {
                 let source = tree.get(function.expect_value_type(*argument));
                 let target = tree.get(*to_type);
                 let pointer_bits = self.target.pointer_bits();
-                let widths = (
-                    source.int_info_with_pointer_width(pointer_bits),
-                    target.int_info_with_pointer_width(pointer_bits),
-                );
+                let widths = (source.integer(pointer_bits), target.integer(pointer_bits));
 
                 matches!(widths, (Some((source, _)), Some((target, _))) if target >= source)
                     && self.nonzero(*argument, depth + 1)
@@ -885,7 +882,7 @@ impl<'a> ValueQuery<'a> {
                     bits.zero & 1 != 0
                 } else {
                     let ty = tree.get(function.expect_value_type(value));
-                    ty.int_info_with_pointer_width(self.target.pointer_bits())
+                    ty.integer(self.target.pointer_bits())
                         .is_some_and(|(width, _)| bits.zero & (1 << (width - 1)) != 0)
                 }
             }
@@ -906,7 +903,7 @@ impl<'a> ValueQuery<'a> {
         let (width, is_signed) = match ty {
             Type::Boolean => (1, false),
             Type::Character => (32, false),
-            _ => match ty.int_info_with_pointer_width(self.target.pointer_bits()) {
+            _ => match ty.integer(self.target.pointer_bits()) {
                 Some(integer) => integer,
                 None => return KnownBits::default(),
             },
@@ -984,7 +981,7 @@ impl<'a> ValueQuery<'a> {
                 let (width, is_signed) = match ty {
                     Type::Boolean => (1, false),
                     Type::Character => (32, false),
-                    _ => match ty.int_info_with_pointer_width(self.target.pointer_bits()) {
+                    _ => match ty.integer(self.target.pointer_bits()) {
                         Some(integer) => integer,
                         None => return KnownBits::default(),
                     },
@@ -999,7 +996,7 @@ impl<'a> ValueQuery<'a> {
             } => {
                 let bits = self.bits(*argument, depth + 1);
                 let source = tree.get(function.expect_value_type(*argument));
-                let source_integer = source.int_info_with_pointer_width(target.pointer_bits());
+                let source_integer = source.integer(target.pointer_bits());
                 match (operator, source_integer) {
                     (CastOperator::Bitcast, Some(_)) => bits,
                     (CastOperator::IntToInt, Some((source_width, _))) if source_width >= width => {
@@ -1086,7 +1083,7 @@ impl<'a> ValueQuery<'a> {
                 // use the operand integer width for intrinsic transfers
                 let integer = arguments.first().and_then(|value| {
                     tree.get(function.expect_value_type(*value))
-                        .int_info_with_pointer_width(target.pointer_bits())
+                        .integer(target.pointer_bits())
                 });
                 let (width, is_signed) = integer.unwrap_or((width, is_signed));
 
