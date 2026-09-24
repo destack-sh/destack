@@ -9,7 +9,6 @@ import { noIndexLogic } from "./no-index-logic.ts";
 import { noInlineConfiguration } from "./no-inline-config.ts";
 import { noManifestImport } from "./no-manifest-import.ts";
 import { noPartialAssertions } from "./no-partial-assertions.ts";
-import { noSilentFallback } from "./no-silent-fallback.ts";
 import { paddingBeforeReturn } from "./padding-before-return.ts";
 import { preventAbbreviations } from "./prevent-abbreviations.ts";
 import { requireBlockComment } from "./require-block-comment.ts";
@@ -39,7 +38,6 @@ export const rules: Record<string, Rule> = {
     "no-inline-config": noInlineConfiguration,
     "no-manifest-import": noManifestImport,
     "no-partial-assertions": noPartialAssertions,
-    "no-silent-fallback": noSilentFallback,
     "padding-before-return": paddingBeforeReturn,
     "prevent-abbreviations": preventAbbreviations,
     "require-block-comment": requireBlockComment,

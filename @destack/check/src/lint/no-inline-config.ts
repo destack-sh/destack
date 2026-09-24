@@ -5,7 +5,6 @@ import { CheckError } from "../error/index.ts";
 const DISABLEABLE = [
     "destack/prevent-abbreviations",
     "destack/boolean-prefix",
-    "destack/no-silent-fallback",
 ];
 
 /** A file or next-line exception for judgment rules with a stated reason. */

@@ -11,7 +11,6 @@ import { publicationStyles } from "./publication.stylex";
 export function createDirectory(entries: Accessor<readonly ContentEntry[]>) {
     // read the year filter from the URL and list the years on offer
     const [parameters, setParameters] = useSearchParams();
-    // oxlint-disable-next-line destack/no-silent-fallback -- no year parameter selects every year
     const year = () => String(parameters.year ?? "");
     const years = createMemo(() =>
         [...new Set(entries().flatMap((entry) => (entry.date ? [entry.date.slice(0, 4)] : [])))]

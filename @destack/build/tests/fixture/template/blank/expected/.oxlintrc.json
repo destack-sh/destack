@@ -50,7 +50,6 @@
         "destack/no-inline-config": "error",
         "destack/no-manifest-import": "error",
         "destack/no-partial-assertions": "error",
-        "destack/no-silent-fallback": "error",
         "destack/padding-before-return": "error",
         "destack/prevent-abbreviations": "error",
         "destack/require-block-comment": "error",

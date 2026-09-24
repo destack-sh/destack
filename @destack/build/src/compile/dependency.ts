@@ -419,7 +419,6 @@ export function describeCompilation(
         if (!location) {
             throw new BuildError("BUILD_FAILED", `Missing parsed module: ${id}`);
         }
-        // oxlint-disable-next-line destack/no-silent-fallback -- the empty package name sorts project modules first
         names.set(id, JSON.stringify([location.kind, location.package ?? "", location.path]));
     }
     modules.sort((left, right) => {

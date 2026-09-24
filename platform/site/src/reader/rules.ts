@@ -60,10 +60,8 @@ export function enhanceRuleCatalog(body: HTMLElement): () => void {
     const restore = () => {
         // restore the search and filters from the URL
         const parameters = new URLSearchParams(location.search);
-        // oxlint-disable-next-line destack/no-silent-fallback -- an absent parameter clears the search
         search.value = parameters.get("q") ?? "";
         for (const filter of filters) {
-            // oxlint-disable-next-line destack/no-silent-fallback -- an absent parameter clears the filter
             filter.value = parameters.get(filter.name) ?? "";
         }
         update(false);

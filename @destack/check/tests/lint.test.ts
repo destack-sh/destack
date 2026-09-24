@@ -155,19 +155,6 @@ tester.run("no-import-alias", rules["no-import-alias"], {
     ],
 });
 
-tester.run("no-silent-fallback", rules["no-silent-fallback"], {
-    valid: [
-        "const notes = input ?? [];",
-        "try {\n    a();\n} catch (error) {\n    throw new Error('read', { cause: error });\n}",
-    ],
-    invalid: [
-        { code: "const count = input ?? 0;", errors: [{ messageId: "sentinel" }] },
-        { code: "const title = input || '';", errors: [{ messageId: "sentinel" }] },
-        { code: "const index = input ?? -1;", errors: [{ messageId: "sentinel" }] },
-        { code: "try {\n    a();\n} catch {\n    b();\n}", errors: [{ messageId: "swallow" }] },
-    ],
-});
-
 tester.run("no-partial-assertions", rules["no-partial-assertions"], {
     valid: [
         { code: "expect(title).toBe('note');", filename: "/package/tests/note.test.ts" },
