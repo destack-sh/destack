@@ -9,13 +9,16 @@ use crate::{
     NodeType, Origin, Patch, Path, Tree, TreeStore,
 };
 
-/// A borrowed DIR tree with ordered structural patches.
+/// The most patches one view layers over its tree.
+const MAX_PATCHES: usize = 2;
+
+/// A borrowed DIR tree with the patches layered over it.
 #[derive(Debug, Clone, Copy)]
 pub struct View<'a> {
     /// The base tree.
     tree: &'a Tree,
-    /// Ordered structural patch slice.
-    patches: &'a [Patch],
+    /// The patches over the tree, lowest first, unused entries empty.
+    patches: [Option<&'a Patch>; MAX_PATCHES],
 }
 
 /// One visible node and the tree node containing its value.
@@ -32,12 +35,20 @@ struct VisibleNode<'a> {
 impl<'a> View<'a> {
     /// Create an unpatched view over one tree.
     pub fn new(tree: &'a Tree) -> Self {
-        Self { tree, patches: &[] }
+        Self {
+            tree,
+            patches: [None; MAX_PATCHES],
+        }
     }
 
-    /// Create a view over one tree and ordered patches.
-    pub fn with_patches(tree: &'a Tree, patches: &'a [Patch]) -> Self {
-        Self { tree, patches }
+    /// Layer one more patch over this view.
+    pub fn patched(mut self, patch: &'a Patch) -> Self {
+        let Some(entry) = self.patches.iter_mut().find(|entry| entry.is_none()) else {
+            panic!("a DIR view holds at most {MAX_PATCHES} patches");
+        };
+        *entry = Some(patch);
+
+        self
     }
 
     /// Return the base tree.
@@ -59,7 +70,7 @@ impl<'a> View<'a> {
     /// Return the ordered patches.
     #[inline]
     pub fn patches(&self) -> impl DoubleEndedIterator<Item = &'a Patch> + '_ {
-        self.patches.iter()
+        self.patches.iter().flatten().copied()
     }
 
     /// Return whether one node is visible in this view.

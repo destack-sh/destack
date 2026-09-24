@@ -6,7 +6,7 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    CastOrigin, GenericArgumentBinding, GlobalNodeIdAny, GlobalTypeId, InstanceKeyVisit,
+    Call, CastOrigin, GenericArgumentBinding, GlobalNodeIdAny, GlobalTypeId, InstanceKeyVisit,
     SegmentView, Type, TypeFold,
 };
 
@@ -168,6 +168,13 @@ pub enum CoercionAdjustment {
         /// The representation type after this adjustment.
         target: GlobalTypeId,
     },
+    /// Own one fresh managed literal by cloning it, like `"text"` into `^string`.
+    Clone {
+        /// The owned type after this adjustment.
+        target: GlobalTypeId,
+        /// The selected clone call over the literal.
+        call: Box<Call>,
+    },
     /// Materialize one generic callable reference at its selected concrete instance.
     Instantiate {
         /// The concrete callable type after this adjustment.
@@ -241,6 +248,7 @@ impl CoercionAdjustment {
             | Self::Newtype { target }
             | Self::Materialize { target }
             | Self::Tuple { target }
+            | Self::Clone { target, .. }
             | Self::Manage { target }
             | Self::Representation { target }
             | Self::Instantiate { target, .. } => *target,
@@ -259,6 +267,7 @@ impl CoercionAdjustment {
             Self::Materialize { .. } => "materialize",
             Self::Tuple { .. } => "tuple",
             Self::Manage { .. } => "manage",
+            Self::Clone { .. } => "clone",
             Self::Representation { .. } => "representation",
             Self::Instantiate { .. } => "instantiate",
         }

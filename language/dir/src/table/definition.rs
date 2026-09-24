@@ -357,7 +357,10 @@ impl Definition {
                     .count()
                     == 1
             }
-            (Self::Enum(_), RepresentationKind::Destack | RepresentationKind::C) => true,
+            (Self::Enum(_), RepresentationKind::Destack) => true,
+            (Self::Enum(definition), RepresentationKind::C) => {
+                matches!(definition.backing, EnumBackingType::Integer(_))
+            }
             (
                 Self::Newtype(_),
                 RepresentationKind::Destack

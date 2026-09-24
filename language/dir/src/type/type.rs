@@ -139,6 +139,49 @@ impl From<&Literal> for Type {
 }
 
 impl Type {
+    /// Return the class of this head for storage decisions.
+    pub fn head(&self) -> TypeHead {
+        match self {
+            Self::Variable(_) => TypeHead::Open,
+            Self::Parameter(_) | Self::Erased(_) | Self::This => TypeHead::Rigid,
+            Self::Form(_) => TypeHead::Form,
+            Self::Union(_) | Self::Intersection(_) => TypeHead::Composite,
+            Self::Unknown | Self::Dynamic(_) | Self::Operation(_) => TypeHead::Erased,
+            Self::Literal(_) => TypeHead::Literal,
+            Self::Error => TypeHead::Error,
+            Self::Never
+            | Self::Void
+            | Self::Null
+            | Self::Undefined
+            | Self::Static(_)
+            | Self::Intrinsic
+            | Self::FunctionSignature(_) => TypeHead::Empty,
+            Self::Object(_)
+            | Self::Primitive(_)
+            | Self::Key(_)
+            | Self::Reference(_)
+            | Self::Application(_)
+            | Self::Member(_)
+            | Self::Refined(_)
+            | Self::Variant(_)
+            | Self::Region(_)
+            | Self::FixedArray(_)
+            | Self::Range(_)
+            | Self::Slice(_)
+            | Self::Tuple(_)
+            | Self::Function(_)
+            | Self::FunctionPointer(_) => TypeHead::Value,
+        }
+    }
+
+    /// Return whether an owned value stores into this head by its object.
+    pub fn takes_object(&self) -> bool {
+        matches!(
+            self.head(),
+            TypeHead::Rigid | TypeHead::Literal | TypeHead::Value | TypeHead::Empty
+        )
+    }
+
     /// Return whether an alias of this type declares a representation of its own.
     pub fn is_structural(&self) -> bool {
         matches!(
@@ -223,19 +266,9 @@ impl Type {
         )
     }
 
-    /// Return whether runtime values of this type can carry memory placement.
-    pub fn is_placeable(&self) -> bool {
-        !matches!(
-            self,
-            Self::Error
-                | Self::Never
-                | Self::Void
-                | Self::Null
-                | Self::Undefined
-                | Self::Static(_)
-                | Self::Intrinsic
-                | Self::FunctionSignature(_)
-        )
+    /// Return whether values of this type exist at run time.
+    pub fn has_runtime_value(&self) -> bool {
+        !matches!(self.head(), TypeHead::Empty | TypeHead::Error)
     }
 
     /// Return whether this type can change shape after solving or substitution.
@@ -350,8 +383,6 @@ impl Type {
     }
 
     /// Return the symbolic leaf kind contributed by this type alone.
-    ///
-    /// A stored type joins this bit with every child type's flags.
     pub fn own_flags(&self) -> TypeFlags {
         match self {
             // symbolic leaves, one bit each
@@ -394,9 +425,6 @@ impl Type {
     }
 
     /// Collect every module id this entry mentions directly.
-    ///
-    /// List and pool contents live in the segment and are scanned there.
-    /// This visits the ids embedded in the entry itself.
     pub fn referenced_modules(&self, collect: &mut impl FnMut(ModuleId)) {
         // collect the module of every embedded id
         match self {
@@ -474,6 +502,40 @@ impl Type {
             Self::Application(instance) => Some(instance.symbol),
             _ => None,
         }
+    }
+
+    /// Return whether this type groups in parentheses at one position.
+    pub fn needs_parentheses<E>(
+        &self,
+        operand: TypeOperand,
+        operation: impl FnOnce(TypeOperationId) -> Result<TypeOperation, E>,
+        receiver: impl FnOnce(GlobalTypeId) -> Result<Option<ReceiverMode>, E>,
+    ) -> Result<bool, E> {
+        Ok(match self {
+            Type::Region(_) | Type::Union(_) => matches!(
+                operand,
+                TypeOperand::Prefix
+                    | TypeOperand::Postfix
+                    | TypeOperand::Intersection
+                    | TypeOperand::Relation
+                    | TypeOperand::StaticBinary
+            ),
+            Type::Intersection(_) | Type::Range(_) => matches!(
+                operand,
+                TypeOperand::Prefix
+                    | TypeOperand::Postfix
+                    | TypeOperand::Relation
+                    | TypeOperand::StaticBinary
+            ),
+            Type::FunctionSignature(_) => true,
+            // a function value prints as its signature under the elided receiver
+            Type::Function(function) => {
+                receiver(function.receiver)?.is_some_and(ReceiverMode::is_elided)
+            }
+            Type::Form(_) => matches!(operand, TypeOperand::Postfix),
+            Type::Operation(id) => operation(*id)?.needs_parentheses(operand),
+            _ => false,
+        })
     }
 }
 
@@ -757,14 +819,11 @@ impl TypeListId {
 }
 
 /// Access to borrowed storage.
-#[derive(Default, 
-    Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
-)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Access {
     /// Read access while aliases may write.
     Readonly,
     /// Read and write access while aliases may access the storage, the written default.
-    #[default]
     Mutable,
     /// Read access that excludes conflicting writes.
     Immutable,
@@ -781,14 +840,53 @@ impl Access {
         Self::Exclusive,
     ];
 
+    /// The access a borrow takes without a modifier, like `&T`.
+    pub const BARE: Self = Self::Mutable;
+
     /// Parse one canonical access name.
     pub fn from_text(value: &str) -> Option<Self> {
         Self::ALL.into_iter().find(|access| access.text() == value)
     }
 
+    /// Return the access writing and excluding as given.
+    pub const fn of(writes: bool, excludes: bool) -> Self {
+        match (writes, excludes) {
+            (false, false) => Self::Readonly,
+            (true, false) => Self::Mutable,
+            (false, true) => Self::Immutable,
+            (true, true) => Self::Exclusive,
+        }
+    }
+
+    /// Return whether this access writes.
+    pub const fn writes(self) -> bool {
+        matches!(self, Self::Mutable | Self::Exclusive)
+    }
+
+    /// Return whether this access excludes conflicting accesses.
+    pub const fn excludes(self) -> bool {
+        matches!(self, Self::Immutable | Self::Exclusive)
+    }
+
+    /// Return the weakest access granting both.
+    pub const fn join(self, other: Self) -> Self {
+        Self::of(
+            self.writes() || other.writes(),
+            self.excludes() || other.excludes(),
+        )
+    }
+
+    /// Return the strongest access both grant.
+    pub const fn meet(self, other: Self) -> Self {
+        Self::of(
+            self.writes() && other.writes(),
+            self.excludes() && other.excludes(),
+        )
+    }
+
     /// Return whether this access grants the requested access.
     pub fn grants(self, requested: Self) -> bool {
-        self == requested || self == Self::Exclusive || requested == Self::Readonly
+        self.join(requested) == self
     }
 
     /// Return the canonical text of this access.
@@ -800,6 +898,93 @@ impl Access {
             Self::Exclusive => "exclusive",
         }
     }
+
+    /// Return the modifier this access prints after `&`, nothing for the bare default.
+    pub const fn modifier(self) -> &'static str {
+        match self {
+            Self::Mutable => "",
+            Self::Readonly => "readonly ",
+            Self::Immutable => "immutable ",
+            Self::Exclusive => "exclusive ",
+        }
+    }
+}
+
+/// One position a type prints in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeOperand {
+    /// A prefix type operator operand.
+    Prefix,
+    /// A postfix type operator or member receiver.
+    Postfix,
+    /// One union member.
+    Union,
+    /// One intersection member.
+    Intersection,
+    /// One relational type operand.
+    Relation,
+    /// One static binary operation operand.
+    StaticBinary,
+}
+
+impl TypeOperation {
+    /// Return whether this operation groups in parentheses at one position.
+    pub fn needs_parentheses(&self, operand: TypeOperand) -> bool {
+        match self {
+            TypeOperation::Conditional(_) | TypeOperation::StaticBinary(_) => true,
+            TypeOperation::Mapped(_) => matches!(operand, TypeOperand::Prefix),
+            TypeOperation::Infer(infer) if infer.constraint.is_some() => {
+                !matches!(operand, TypeOperand::Relation | TypeOperand::StaticBinary)
+            }
+            TypeOperation::KeyOf(_) | TypeOperation::TypeOf(_) | TypeOperation::StaticUnary(_) => {
+                matches!(operand, TypeOperand::Postfix)
+            }
+            _ => false,
+        }
+    }
+}
+
+/// The class of one type head for storage decisions.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TypeHead {
+    /// An inference variable.
+    Open,
+    /// A rigid parameter, an erased parameter, or the receiver, its ownership decided by bounds.
+    Rigid,
+    /// An explicit memory form over a value.
+    Form,
+    /// A union or an intersection.
+    Composite,
+    /// An erased or unevaluated head.
+    Erased,
+    /// A literal value.
+    Literal,
+    /// A head naming one value type.
+    Value,
+    /// A head with no run-time value.
+    Empty,
+    /// The error type.
+    Error,
+}
+
+/// One borrow's region term as it prints.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BorrowRegion {
+    /// An unsolved or erased region, printed as nothing.
+    Elided,
+    /// A closed lifetime.
+    Lifetime(Lifetime),
+    /// A region parameter by its printed name, a lifetime keeping its tick as its name.
+    Parameter(String),
+}
+
+/// One borrow's access term as it prints.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BorrowAccess {
+    /// A settled rung.
+    Rung(Access),
+    /// An access parameter, by its printed name.
+    Parameter(String),
 }
 
 /// Normalized storage space value.
@@ -845,6 +1030,16 @@ pub enum Lifetime {
 }
 
 impl Lifetime {
+    /// Return this lifetime's position in the meet order, shortest first.
+    pub const fn meet_rank(self) -> u8 {
+        match self {
+            Self::Frame => 0,
+            Self::Managed => 1,
+            Self::Bound(_) => 2,
+            Self::Static => 3,
+        }
+    }
+
     /// Return the canonical text of this lifetime.
     pub fn text(self) -> Cow<'static, str> {
         match self {
@@ -1011,16 +1206,9 @@ impl Ownership {
 /// Canonical memory or access form constructor.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum Form {
-    /// Automatically managed runtime value with its referent place,
-    /// the unqualified `User` or the qualified `shared User`.
-    Managed {
-        /// The solved concrete or ambient referent place singleton.
-        place: GlobalTypeId,
-    },
     /// Owned value, like `^User`.
     Owned,
-    /// Borrowed value, like `&User`, `&readonly User`, or `&User`,
-    /// with its lifetime, access, and referent place interned in the segment.
+    /// Borrowed value, like `&User` or `&readonly User`, with its region and access.
     Borrowed(BorrowFormId),
     /// Raw pointer value, like `*User`.
     Raw,
@@ -1037,7 +1225,6 @@ impl Form {
     /// Return the language item constructing this form.
     pub fn language_item(self) -> LanguageItem {
         match self {
-            Self::Managed { .. } => LanguageItem::Managed,
             Self::Owned => LanguageItem::Owned,
             Self::Borrowed(_) => LanguageItem::Borrowed,
             Self::Raw => LanguageItem::Raw,
@@ -1045,27 +1232,9 @@ impl Form {
         }
     }
 
-    /// Return whether one receiver form adjusts to a declared target form.
-    pub fn adjusts_to(self, target: Form) -> bool {
-        match (self, target) {
-            // family-default targets accept every receiver
-            (_, Form::Managed { .. }) => true,
-            // owned targets consume, only owned receivers match them
-            (Form::Owned, Form::Owned) => true,
-            (_, Form::Owned) => false,
-            // borrow targets accept reborrowable receivers
-            (Form::Owned | Form::Managed { .. }, Form::Borrowed(_)) => true,
-            (Form::Borrowed(_), Form::Borrowed(_)) => true,
-            // raw pointers match only raw targets
-            (Form::Raw, Form::Raw) => true,
-            _ => false,
-        }
-    }
-
     /// Return this form's ownership constructor, when it carries one.
     pub fn ownership(self) -> Option<Ownership> {
         match self {
-            Self::Managed { .. } => Some(Ownership::Managed),
             Self::Owned => Some(Ownership::Owned),
             Self::Borrowed(_) => Some(Ownership::Borrowed),
             Self::Raw => Some(Ownership::Raw),
@@ -1123,6 +1292,8 @@ pub enum TypeOperation {
     NoInfer(UnaryType),
     /// Awaited value type, like `Awaited<Promise<T>>`.
     Awaited(UnaryType),
+    /// Space one value type stores in, like the `shared` a shared class declares.
+    SpaceOf(UnaryType),
     /// Try success projection like `value?` continuing evaluation.
     TryOutput {
         /// The tried value type.
@@ -1185,7 +1356,10 @@ impl TypeOperation {
             }
             Self::TypeOf(_) => {}
             Self::Instantiation(application) => collect(application.target.module_id),
-            Self::KeyOf(unary) | Self::NoInfer(unary) | Self::Awaited(unary) => {
+            Self::KeyOf(unary)
+            | Self::NoInfer(unary)
+            | Self::Awaited(unary)
+            | Self::SpaceOf(unary) => {
                 collect(unary.target.module_id);
             }
             Self::TryOutput { value } => collect(value.module_id),
@@ -1267,7 +1441,7 @@ impl StringMapping {
     fn recase(text: &str, upper: bool) -> String {
         let mut characters = text.chars();
 
-        // read the escape each character names
+        // recase the first character and keep the rest
         match characters.next() {
             Some(first) if upper => first.to_uppercase().collect::<String>() + characters.as_str(),
             Some(first) => first.to_lowercase().collect::<String>() + characters.as_str(),
@@ -1528,9 +1702,6 @@ impl StaticBinaryOperator {
     }
 
     /// Return whether this operator yields a boolean result.
-    ///
-    /// Comparisons and logical operators yield booleans; arithmetic,
-    /// shift, and bitwise operators stay within their operand type.
     pub fn yields_boolean(self) -> bool {
         matches!(
             self,
@@ -2292,9 +2463,6 @@ pub struct ObjectType {
 
 impl ObjectType {
     /// Return whether this object type declares call, construct, or index signatures.
-    ///
-    /// An index signature counts, since it makes the object type a keyed view over concrete
-    /// objects, and mapped reduction produces one for `Record<K, V>`.
     pub fn declares_signatures(&self) -> bool {
         !self.call_signatures.is_empty()
             || !self.construct_signatures.is_empty()
@@ -2604,8 +2772,72 @@ pub struct IntersectionType {
     pub elements: TypeListId,
 }
 
-// lock the hot table shapes: one cache line per type, packed forms
+// keep the hot table shapes packed
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::<Type>() <= 96);
 #[cfg(target_pointer_width = "64")]
 const _: () = assert!(std::mem::size_of::<Form>() <= 32);
+
+/// Read the region and access terms of one borrow through a type reader.
+pub fn read_borrow<E>(
+    borrow: &BorrowForm,
+    mut head: impl FnMut(GlobalTypeId) -> Result<Type, E>,
+    mut text: impl FnMut(StringId) -> String,
+    mut parameter: impl FnMut(GlobalGenericParameterId) -> Result<String, E>,
+) -> Result<(Option<BorrowRegion>, Option<BorrowAccess>), E> {
+    // read the extent of a region pair
+    let extent = match head(borrow.region)? {
+        Type::Region(pair) => pair.extent,
+        _ => borrow.region,
+    };
+
+    // read the region term: a closed lifetime, a parameter, else elided
+    let region = match head(extent)? {
+        Type::Error => None,
+        Type::Literal(Literal::String(literal)) => {
+            Lifetime::parse(&text(literal)).map(BorrowRegion::Lifetime)
+        }
+        Type::Parameter(id) | Type::Erased(id) => Some(BorrowRegion::Parameter(parameter(id)?)),
+        _ => Some(BorrowRegion::Elided),
+    };
+
+    // read the access term: a rung or an access parameter
+    let access = match head(borrow.access)? {
+        Type::Literal(Literal::String(literal)) => {
+            Access::from_text(&text(literal)).map(BorrowAccess::Rung)
+        }
+        Type::Parameter(id) | Type::Erased(id) => Some(BorrowAccess::Parameter(parameter(id)?)),
+        _ => None,
+    };
+
+    Ok((region, access))
+}
+
+/// Print one borrow as a reference, none when a term needs the `Borrowed` application.
+pub fn borrow_text(
+    region: Option<&BorrowRegion>,
+    access: Option<&BorrowAccess>,
+    value: &str,
+) -> Option<String> {
+    // print the region as a tick prefix
+    let region = match region? {
+        BorrowRegion::Elided => String::new(),
+        BorrowRegion::Lifetime(lifetime) => format!("'{} ", lifetime.text()),
+        // a lifetime parameter keeps its tick as its name, a region parameter keeps the application
+        BorrowRegion::Parameter(name)
+            if name
+                .rsplit('.')
+                .next()
+                .is_some_and(|last| last.starts_with('\'')) =>
+        {
+            format!("{name} ")
+        }
+        BorrowRegion::Parameter(_) => return None,
+    };
+
+    // print the access as a modifier, a parameter through WithAccess
+    match access? {
+        BorrowAccess::Rung(access) => Some(format!("&{region}{}{value}", access.modifier())),
+        BorrowAccess::Parameter(name) => Some(format!("WithAccess<&{region}{value}, {name}>")),
+    }
+}

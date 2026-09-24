@@ -6,8 +6,9 @@ use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    DefinitionMember, FunctionRole, GlobalGenericTemplateId, GlobalNodeIdAny, GlobalSymbolId,
-    GlobalTypeId, NameResolution, PropertyAccess, SegmentView, StaticKey, TypeFold, TypeListId,
+    ClassConstructorDefinition, DefinitionMember, FunctionRole, GlobalGenericTemplateId,
+    GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, NameResolution, PropertyAccess, SegmentView,
+    StaticKey, TypeFold, TypeListId,
 };
 
 /// Cumulative member bindings for one DIR module.
@@ -109,6 +110,17 @@ impl<'a> MemberTable<'a> {
             .find_map(|segment| segment.newtype_constructors(symbol))
     }
 
+    /// Return the construct candidates derived for one class.
+    pub fn class_constructors(
+        &self,
+        symbol: GlobalSymbolId,
+    ) -> Option<&[ClassConstructorDefinition]> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.class_constructors(symbol))
+    }
+
     /// Iterate member implementation edges.
     pub fn member_implementations(&self) -> impl Iterator<Item = ImplementationEdge> + '_ {
         self.member_conformances()
@@ -192,6 +204,8 @@ pub struct MemberSegment {
     conformances: IndexMap<GlobalNodeIdAny, Vec<MemberConformance>>,
     /// The constructable backing alternatives derived per newtype, in selection order.
     newtype_constructors: IndexMap<GlobalSymbolId, Vec<NewtypeConstructor>>,
+    /// The construct candidates derived per class, declared, forwarded, or default.
+    class_constructors: IndexMap<GlobalSymbolId, Vec<ClassConstructorDefinition>>,
 }
 
 /// One member satisfying an interface requirement.
@@ -231,6 +245,7 @@ impl MemberSegment {
             memberships: IndexMap::default(),
             conformances: IndexMap::default(),
             newtype_constructors: IndexMap::default(),
+            class_constructors: IndexMap::default(),
         }
     }
 
@@ -246,6 +261,23 @@ impl MemberSegment {
     /// Return the constructable backing alternatives derived for one newtype.
     pub fn newtype_constructors(&self, symbol: GlobalSymbolId) -> Option<&[NewtypeConstructor]> {
         self.newtype_constructors.get(&symbol).map(Vec::as_slice)
+    }
+
+    /// Set the construct candidates derived for one class.
+    pub fn set_class_constructors(
+        &mut self,
+        symbol: GlobalSymbolId,
+        constructors: Vec<ClassConstructorDefinition>,
+    ) {
+        self.class_constructors.insert(symbol, constructors);
+    }
+
+    /// Return the construct candidates derived for one class.
+    pub fn class_constructors(
+        &self,
+        symbol: GlobalSymbolId,
+    ) -> Option<&[ClassConstructorDefinition]> {
+        self.class_constructors.get(&symbol).map(Vec::as_slice)
     }
 
     /// Set the members selected to satisfy one `implements` clause.
@@ -332,7 +364,12 @@ impl MemberSegment {
 
     /// Return whether this segment has no member bindings.
     pub fn is_empty(&self) -> bool {
-        self.subjects.is_empty() && self.bindings.is_empty() && self.memberships.is_empty()
+        self.subjects.is_empty()
+            && self.bindings.is_empty()
+            && self.memberships.is_empty()
+            && self.conformances.is_empty()
+            && self.newtype_constructors.is_empty()
+            && self.class_constructors.is_empty()
     }
 }
 

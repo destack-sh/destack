@@ -5,7 +5,7 @@ use destack_serde::Reflect;
 use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 
-use crate::{GlobalSymbolId, GlobalTypeId, SegmentView, Space};
+use crate::{AutoInterface, GlobalSymbolId, GlobalTypeId, Ownership, SegmentView, Space};
 
 /// Cumulative layout policies for one DIR module.
 #[derive(Debug, Clone)]
@@ -44,12 +44,25 @@ impl<'a> RepresentationTable<'a> {
             .find_map(|segment| segment.derives_copy(symbol))
     }
 
-    /// Return whether values of one visited type copy.
-    pub fn copies(&self, ty: GlobalTypeId) -> Option<bool> {
+    /// Return the recorded verdict of one auto interface on one closed type.
+    pub fn auto(&self, ty: GlobalTypeId, interface: AutoInterface) -> Option<bool> {
         self.segments
             .iter()
             .rev()
-            .find_map(|segment| segment.copies(ty))
+            .find_map(|segment| segment.auto(ty, interface))
+    }
+
+    /// Return whether values of one closed type copy.
+    pub fn copies(&self, ty: GlobalTypeId) -> Option<bool> {
+        self.auto(ty, AutoInterface::Copy)
+    }
+
+    /// Return the recorded ownership one type's head defaults to.
+    pub fn ownership(&self, ty: GlobalTypeId) -> Option<DefaultOwnership> {
+        self.segments
+            .iter()
+            .rev()
+            .find_map(|segment| segment.ownership(ty))
     }
 
     /// Return the space one nominal declaration's instances live in.
@@ -68,6 +81,24 @@ impl<'a> RepresentationTable<'a> {
     }
 }
 
+/// The ownership one type's head defaults to.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]
+pub enum DefaultOwnership {
+    /// An open head whose ownership its bounds decide.
+    Open,
+    /// A head defaulting to one ownership.
+    Decided(Ownership),
+}
+
+impl From<Option<Ownership>> for DefaultOwnership {
+    fn from(ownership: Option<Ownership>) -> Self {
+        match ownership {
+            Some(ownership) => Self::Decided(ownership),
+            None => Self::Open,
+        }
+    }
+}
+
 /// The layout policies the check pass commits for one module's nominal declarations.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct RepresentationSegment {
@@ -75,9 +106,11 @@ pub struct RepresentationSegment {
     pub module_id: ModuleId,
     /// Whether each nominal declaration derives Copy, holding when its stored values do.
     copy_derivations: IndexMap<GlobalSymbolId, bool>,
-    /// Whether values of each visited type copy.
-    copies: IndexMap<GlobalTypeId, bool>,
-    /// The space each placed nominal declaration's instances live in.
+    /// The verdict of each auto interface decided on a closed type.
+    auto: IndexMap<(GlobalTypeId, AutoInterface), bool>,
+    /// The ownership each type's head defaults to.
+    ownerships: IndexMap<GlobalTypeId, DefaultOwnership>,
+    /// The space each nominal declaration's instances live in.
     spaces: IndexMap<GlobalSymbolId, Space>,
     /// The classes whose constructors let `this` escape.
     this_escapes: IndexSet<GlobalSymbolId>,
@@ -89,7 +122,8 @@ impl RepresentationSegment {
         Self {
             module_id,
             copy_derivations: IndexMap::default(),
-            copies: IndexMap::default(),
+            auto: IndexMap::default(),
+            ownerships: IndexMap::default(),
             spaces: IndexMap::default(),
             this_escapes: IndexSet::default(),
         }
@@ -105,14 +139,24 @@ impl RepresentationSegment {
         self.copy_derivations.get(&symbol).copied()
     }
 
-    /// Set whether values of one visited type copy.
-    pub fn set_copies(&mut self, ty: GlobalTypeId, copies: bool) {
-        self.copies.insert(ty, copies);
+    /// Record the verdict of one auto interface on one closed type.
+    pub fn set_auto(&mut self, ty: GlobalTypeId, interface: AutoInterface, holds: bool) {
+        self.auto.insert((ty, interface), holds);
     }
 
-    /// Return whether values of one visited type copy.
-    pub fn copies(&self, ty: GlobalTypeId) -> Option<bool> {
-        self.copies.get(&ty).copied()
+    /// Return the recorded verdict of one auto interface on one closed type.
+    pub fn auto(&self, ty: GlobalTypeId, interface: AutoInterface) -> Option<bool> {
+        self.auto.get(&(ty, interface)).copied()
+    }
+
+    /// Record the ownership one type's head defaults to.
+    pub fn set_ownership(&mut self, ty: GlobalTypeId, ownership: DefaultOwnership) {
+        self.ownerships.insert(ty, ownership);
+    }
+
+    /// Return the recorded ownership one type's head defaults to.
+    pub fn ownership(&self, ty: GlobalTypeId) -> Option<DefaultOwnership> {
+        self.ownerships.get(&ty).copied()
     }
 
     /// Set the space one nominal declaration's instances live in.
@@ -138,7 +182,8 @@ impl RepresentationSegment {
     /// Return whether the segment commits no policy.
     pub fn is_empty(&self) -> bool {
         self.copy_derivations.is_empty()
-            && self.copies.is_empty()
+            && self.auto.is_empty()
+            && self.ownerships.is_empty()
             && self.spaces.is_empty()
             && self.this_escapes.is_empty()
     }

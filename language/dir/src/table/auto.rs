@@ -264,6 +264,11 @@ impl AutoInterface {
         Self::ALL.into_iter()
     }
 
+    /// Return whether a class may derive this interface.
+    pub fn derives_over_class(self) -> bool {
+        !matches!(self, Self::Default | Self::Zeroable)
+    }
+
     /// Return whether a written derive decorator may name this interface.
     pub fn is_derivable(self) -> bool {
         self.is_auto_derivable()

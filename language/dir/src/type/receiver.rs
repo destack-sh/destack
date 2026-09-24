@@ -170,6 +170,7 @@ pub struct DynamicDispatch {
 /// box.value            // Dereference, when `Box<T>` exposes members of `T`
 /// userId.length        // NewtypePayload, when the backing string exposes `length`
 /// shape.radius         // UnionPayload, after narrowing selects one union arm
+/// circle.area()        // Upcast, when `Circle` inherits `area` from `Shape`
 /// ```
 #[derive(
     Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit,
@@ -198,6 +199,11 @@ pub enum ReceiverAdjustment {
         /// The adjusted receiver type.
         ty: GlobalTypeId,
     },
+    /// Reinterpret the receiver at the base class declaring the member.
+    Upcast {
+        /// The adjusted receiver type.
+        ty: GlobalTypeId,
+    },
 }
 
 impl ReceiverAdjustment {
@@ -206,7 +212,8 @@ impl ReceiverAdjustment {
         match self {
             Self::Borrow { ty }
             | Self::NewtypePayload { ty, .. }
-            | Self::UnionPayload { ty, .. } => *ty,
+            | Self::UnionPayload { ty, .. }
+            | Self::Upcast { ty } => *ty,
             Self::Dereference(dereference) => dereference.ty,
         }
     }

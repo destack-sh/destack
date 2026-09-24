@@ -43,6 +43,14 @@ impl<T> OperationResolution<T> {
         }
     }
 
+    /// Return the selected operations in runtime arm order, mutably.
+    pub fn arms_mut(&mut self) -> &mut [T] {
+        match self {
+            Self::One(operation) => slice::from_mut(operation),
+            Self::Union { arms, .. } => arms,
+        }
+    }
+
     /// Return the first selected operation.
     pub fn first(&self) -> &T {
         self.arms().first().expect("resolution has no arms")
@@ -1516,6 +1524,8 @@ pub enum ConstructTarget {
         key: InstanceKey,
         /// The selected instantiated backing alternative.
         backing: GlobalTypeId,
+        /// The backing union arm the construction enters, none for the whole backing.
+        arm: Option<u32>,
     },
 }
 
