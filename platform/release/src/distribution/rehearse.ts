@@ -1,3 +1,4 @@
+import { ReleaseIdentity } from "./identity.ts";
 import { Updater, Release } from "@destack/update";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -66,6 +67,7 @@ async function rehearse(): Promise<void> {
             repository: new URL(server.url),
             root: JSON.stringify(root.toJSON()),
             target: release.target,
+            applicationIdentifier: new ReleaseIdentity(release.channel).applicationIdentifier,
             application: process.platform === "darwin" ? join(directory, "Destack.app") : undefined,
         };
 

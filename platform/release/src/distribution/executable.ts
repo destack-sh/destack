@@ -3,6 +3,7 @@ import { dirname, join, relative } from "node:path";
 import type { Target } from "@destack/update/release";
 import { nativePlugin } from "./native.ts";
 import { modulePlugin } from "./module.ts";
+import { ReleaseIdentity } from "./identity.ts";
 
 /** Sources, assets and target selected for one standalone executable. */
 export interface ExecutableOptions {
@@ -48,6 +49,8 @@ export async function buildExecutable(options: ExecutableOptions): Promise<void>
             banner: options.identity
                 ? `import { homedir as destackHome } from "node:os"; import { join as destackPath } from "node:path";
                 process.env.DESTACK_RELEASE_CHANNEL = ${JSON.stringify(options.identity)};
+                process.env.DESTACK_APPLICATION_IDENTIFIER = ${JSON.stringify(new ReleaseIdentity(options.identity).applicationIdentifier)};
+                process.env.DESTACK_APPLICATION_TITLE = ${JSON.stringify(new ReleaseIdentity(options.identity).title)};
                 process.env.DESTACK_DIRECTORY ??= destackPath(destackHome(), ${JSON.stringify(options.identity === "stable" ? ".destack" : `.destack-${options.identity}`)});`
                 : undefined,
             plugins: [

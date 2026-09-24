@@ -4,21 +4,21 @@ import { tmpdir } from "node:os";
 import { fileURLToPath } from "node:url";
 import { run } from "../distribution/command.ts";
 import { version } from "../distribution/index.ts";
-import { Release } from "@destack/update/release";
+import { ReleaseIdentity } from "../distribution/identity.ts";
 
 /** Package the complete Windows application in a per-user Setup executable. */
 export async function buildWindowsInstaller(isPreparation = false): Promise<string> {
     if (process.platform !== "win32") {
         throw new Error("build the Windows installer on Windows");
     }
-    // select one compiled Windows payload and its matching stable or nightly identity
+    // select one compiled Windows payload and its application identity
     const target = "x86_64-pc-windows-msvc";
-    const release = new Release(version, target);
     const root = fileURLToPath(new URL("../../../../", import.meta.url));
     const directory = join(root, "dist", version);
     const staging = await mkdtemp(join(tmpdir(), "destack-nsis-"));
-    const title = release.channel === "stable" ? "Destack" : "Destack Nightly";
-    const identity = release.channel === "stable" ? "destack" : "destack-nightly";
+    const selection = new ReleaseIdentity(process.env.DESTACK_RELEASE_CHANNEL ?? "dev");
+    const title = selection.title;
+    const identity = `destack${selection.suffix}`;
     const uninstaller = join(directory, target, "uninstaller");
     const output = isPreparation
         ? join(uninstaller, "prepare.exe")

@@ -1,3 +1,4 @@
+import { ReleaseIdentity } from "./identity.ts";
 import { Updater, Release } from "@destack/update";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -25,6 +26,9 @@ async function verifyInstallation(): Promise<void> {
                 repository: configuration.url,
                 root: JSON.stringify((await configuration.root()).toJSON()),
                 target,
+                applicationIdentifier: new ReleaseIdentity(
+                    process.env.DESTACK_RELEASE_CHANNEL ?? "dev",
+                ).applicationIdentifier,
                 application:
                     process.platform === "darwin" ? join(directory, "bootstrap.app") : undefined,
             });

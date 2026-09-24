@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { version } from "../distribution/index.ts";
 import { MacSigning } from "../signing/apple.ts";
 import { run } from "../distribution/command.ts";
+import { ReleaseIdentity } from "../distribution/identity.ts";
 
 /** Build a universal application in a drag-to-Applications disk image. */
 export async function buildMacInstaller(): Promise<string> {
@@ -15,7 +16,7 @@ export async function buildMacInstaller(): Promise<string> {
     const output = join(root, "dist", version);
     const staging = await mkdtemp(join(tmpdir(), "destack-macos-"));
     const image = join(staging, "image");
-    const title = process.env.DESTACK_RELEASE_CHANNEL === "nightly" ? "Destack Nightly" : "Destack";
+    const title = new ReleaseIdentity(process.env.DESTACK_RELEASE_CHANNEL ?? "dev").title;
     const application = join(image, `${title}.app`);
     const signing = new MacSigning();
     try {

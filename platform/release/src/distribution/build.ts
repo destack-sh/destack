@@ -2,10 +2,12 @@ import { cp, mkdir, mkdtemp, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Release, type Target } from "@destack/update/release";
+import { ReleaseIdentity } from "./identity.ts";
 import workspace from "../../../../package.json" with { type: "json" };
 import solidPlugin from "@opentui/solid/bun-plugin";
 import { buildExecutable } from "./index.ts";
 import { run } from "./command.ts";
+import { configureApplication } from "./application.ts";
 import { MacSigning } from "../signing/apple.ts";
 import { version } from "./index.ts";
 
@@ -31,9 +33,7 @@ async function build(): Promise<void> {
     const release = new Release(version, process.argv[2] ?? Release.target());
     const target = release.target;
     const identity = process.env.DESTACK_RELEASE_CHANNEL ?? "dev";
-    if (identity !== "stable" && identity !== "nightly" && identity !== "dev") {
-        throw new Error("select stable, nightly or dev application identity");
-    }
+    const selection = new ReleaseIdentity(identity);
     const isMac = target.includes("apple");
     const isWindows = target.includes("windows");
     if (isMac !== (process.platform === "darwin") || isWindows !== (process.platform === "win32")) {
@@ -72,7 +72,7 @@ async function build(): Promise<void> {
             target,
             runtime: TARGETS[target],
             version,
-            identity,
+            identity: selection.channel,
             plugins: outfile === cli ? [solidPlugin] : [],
         });
     }
@@ -81,41 +81,11 @@ async function build(): Promise<void> {
     const native = join(ROOT, "@destack/desktop/native");
     const nativeOutput = join(ROOT, "dist/.native");
     const tauri = join(ROOT, "@destack/desktop/node_modules/@tauri-apps/cli/tauri.js");
-    // derive the native application identity and artwork from the selected distribution
-    const suffix = identity === "stable" ? "" : `-${identity}`;
-    const title =
-        identity === "stable"
-            ? "Destack"
-            : identity === "nightly"
-              ? "Destack Nightly"
-              : "Destack Dev";
+    // share native identity and icon generation with interactive development
+    const suffix = selection.suffix;
+    const title = selection.title;
     const icons = join(directory, "icons");
-    await mkdir(icons);
-    let artwork = join(ROOT, `platform/brand/icon/icon${suffix}.svg`);
-    if (isMac) {
-        await run(
-            "swift",
-            [
-                "-module-cache-path",
-                join(staging, "swift"),
-                "platform/release/src/icon/macos.swift",
-                `platform/brand/icon/icon${suffix}.png`,
-                join(icons, "source.png"),
-            ],
-            ROOT,
-        );
-
-        artwork = join(icons, "source.png");
-    }
-    await run(process.execPath, ["run", tauri, "icon", artwork, "--output", icons], native);
-
-    // pass generated configuration without modifying native source files
-    const configuration = JSON.stringify({
-        productName: title,
-        version,
-        identifier: `sh.destack.desktop${identity === "stable" ? "" : `.${identity}`}`,
-        bundle: { icon: [join(icons, "icon.png"), join(icons, isMac ? "icon.icns" : "icon.ico")] },
-    });
+    const configuration = await configureApplication(ROOT, directory, selection, version);
     const arguments_ = ["run", tauri, "build", "--target", target, "--config", configuration];
     if (!isMac) {
         arguments_.push("--no-bundle");
