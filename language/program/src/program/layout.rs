@@ -5,7 +5,7 @@ use destack_core::{
     EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
     StringId,
 };
-use destack_mir::{Access, Discriminant, FloatType, Reference, TraceId, VariantEncoding};
+use destack_mir::{Access, Discriminant, FloatType, Reference, Space, TraceId, VariantEncoding};
 use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 
@@ -461,10 +461,12 @@ impl ReferenceLayout {
     /// Create one reference layout.
     pub fn new(pointee: TypeId, kind: Reference, access: Access) -> Self {
         let kind = match kind {
-            Reference::Managed => 1,
+            Reference::Managed(Space::Local) => 1,
             Reference::Unique => 2,
             Reference::Borrowed => 3,
             Reference::Raw => 4,
+            Reference::Managed(Space::Shared) => 5,
+            Reference::Managed(Space::Constant) => 6,
         };
         let access = match access {
             Access::Readonly => 0,
@@ -487,10 +489,12 @@ impl ReferenceLayout {
     /// Return the reference kind.
     pub fn kind(self) -> Option<Reference> {
         match self.bits & Self::KIND_MASK {
-            1 => Some(Reference::Managed),
+            1 => Some(Reference::Managed(Space::Local)),
             2 => Some(Reference::Unique),
             3 => Some(Reference::Borrowed),
             4 => Some(Reference::Raw),
+            5 => Some(Reference::Managed(Space::Shared)),
+            6 => Some(Reference::Managed(Space::Constant)),
             _ => None,
         }
     }
