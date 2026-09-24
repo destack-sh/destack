@@ -59,16 +59,13 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // borrow the producer at the receiver representation the yield method declares
         let arguments = self.lower_call_arguments(&call.arguments, parameters, &[])?;
-        let receiver = match producer {
-            Binding::Local(local) => {
-                self.builder
-                    .local_addr(local, target, mir::AddressKind::Borrow)
-            }
-            Binding::Captured { frame, field, .. } => {
-                self.builder
-                    .field_addr(frame, field, target, mir::AddressKind::Borrow)
-            }
+        let place = match producer {
+            Binding::Local(local) => mir::Place::local(local),
+            Binding::Captured { frame, field, .. } => mir::Place::value(frame)
+                .with_projection(mir::Projection::Deref)
+                .with_projection(mir::Projection::Field { index: field }),
         };
+        let receiver = self.builder.address(place, target);
 
         // call the producer with the yielded value
         let mut values = vec![receiver];
@@ -85,8 +82,9 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::LanguageItem::GeneratorNext,
             dir::LanguageItem::GeneratorReturn,
         )?;
-        let next = self.case(call.return_type, next_member)?;
-        let finish = self.case(call.return_type, return_member)?;
+        let members = self.lower.union_members(call.return_type)?;
+        let next = self.case(&members, next_member)?;
+        let finish = self.case(&members, return_member)?;
 
         // hold the resumed value in a local when the yield produces one
         let resumed = self.node_type_id(expression)?;
@@ -119,11 +117,6 @@ impl FunctionLowerer<'_, '_, '_> {
         self.builder.switch_to_block(next_block);
         let sent = self.request_value(request, next, next_member)?;
         if let Some(slot) = slot {
-            let members = self
-                .lower
-                .union_members_maybe(resumed)?
-                .unwrap_or_else(|| vec![resumed]);
-            let sent = self.narrow(sent, &members, resumed)?;
             self.builder.local_set(slot, sent);
         }
         self.builder.jump(exit);
@@ -134,7 +127,7 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(slot.map(|slot| self.builder.local_get(slot)))
     }
 
-    /// Read the value field one request case carries.
+    /// Read the value field of one request case.
     fn request_value(
         &mut self,
         request: mir::Value,

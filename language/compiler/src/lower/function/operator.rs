@@ -29,11 +29,11 @@ impl FunctionLowerer<'_, '_, '_> {
             .lower
             .language_item_symbol(dir::LanguageItem::Ordering)?;
         let mut selected = None;
-        for member in members {
-            if let dir::Type::Application(application) = self.lower.ty(member)?
+        for member in &members {
+            if let dir::Type::Application(application) = self.lower.ty(*member)?
                 && application.symbol == ordering
             {
-                selected = Some(member);
+                selected = Some(*member);
             }
         }
         let Some(member) = selected else {
@@ -41,7 +41,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a partial comparison without an ordering case".to_string(),
             });
         };
-        let position = self.case(return_type, member)? as usize;
+        let position = self.case(&members, member)? as usize;
         let boolean = self.builder.tree().boolean_type();
         let result = self.builder.local(boolean, mir::Mutability::Immutable);
         let present = self.builder.block();
@@ -109,7 +109,8 @@ impl FunctionLowerer<'_, '_, '_> {
         };
         let index = self.lower.variant_position(application.symbol, index)?;
         let representation = self.lower_type(ordering)?;
-        let mir::Type::Variant { cases, .. } = self.builder.tree().get(representation).clone()
+        let mir::Type::Variant { cases, .. } =
+            self.builder.tree().type_definition(representation).clone()
         else {
             return Err(CompilerError::Internal {
                 message: "an ordering outside a variant representation".to_string(),
@@ -193,7 +194,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // narrow variant representations through their undefined case
         if matches!(
-            self.builder.tree().get(representation),
+            self.builder.tree().type_definition(representation),
             mir::Type::Variant { .. }
         ) {
             let value = self.lower_value(left)?;
@@ -212,7 +213,7 @@ impl FunctionLowerer<'_, '_, '_> {
         self.adopt(value, result)
     }
 
-    /// Lower one coalesce fallback, terminating instead of joining for never arms.
+    /// Lower one coalesce fallback, a never arm ending its block without a value.
     fn lower_coalesce_fallback(
         &mut self,
         right: dir::LocalNodeId<dir::Expression>,
@@ -333,7 +334,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Build the constant one at a value representation.
     pub(in crate::lower) fn one_value(
         &mut self,
-        representation: mir::LocalNodeId<mir::Type>,
+        representation: mir::TypeId,
     ) -> CompilerResult<mir::Value> {
         self.lower_constant(dir::Literal::Integer(1), representation)
     }
@@ -405,7 +406,7 @@ pub(in crate::lower) enum LoweredOperand {
     /// One value its type holds alone: null, undefined, or a literal.
     Singleton {
         /// The zero-sized type.
-        ty: mir::LocalNodeId<mir::Type>,
+        ty: mir::TypeId,
         /// The literal the type holds, absent for an empty nominal.
         literal: Option<dir::Literal>,
     },
@@ -548,9 +549,12 @@ impl FunctionLowerer<'_, '_, '_> {
         }
         let representation = self.operand_representation(expression)?;
         let variant = self.lower_type(representation)?;
-        let is_variant = matches!(self.builder.tree().get(variant), mir::Type::Variant { .. });
+        let is_variant = matches!(
+            self.builder.tree().type_definition(variant),
+            mir::Type::Variant { .. }
+        );
 
-        Ok(is_variant && !self.copies(mir::TypeId::from(variant)))
+        Ok(is_variant)
     }
 
     /// Lower one nullish test reading the case tag at the operand's place.
@@ -562,8 +566,8 @@ impl FunctionLowerer<'_, '_, '_> {
         let representation = self.operand_representation(expression)?;
         let variant = self.lower_type(representation)?;
         let place = self.receiver_place(expression)?;
-        let address = self.place_address(&place, mir::Access::Readonly)?;
-        let tag = self.builder.variant_tag_load(address, variant);
+        let place = place.lower(self)?;
+        let tag = self.builder.variant_tag_load(place, variant);
         let singleton = match nullish {
             dir::Type::Null => self
                 .lower
@@ -645,7 +649,8 @@ impl FunctionLowerer<'_, '_, '_> {
         let Some(arm) = arm else {
             return Ok(self.builder.bconst(false));
         };
-        let index = self.case(union, arm)?;
+        let members = self.lower.union_members(union)?;
+        let index = self.case(&members, arm)?;
 
         // compare the tag with a constant of its exact integer representation
         let tag_type = self.value_representation(tag)?;
@@ -662,7 +667,7 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(equal)
     }
 
-    /// Return the type carrying one operand after reading through a view.
+    /// Return the type of one operand after reading through a view.
     pub(in crate::lower) fn operand_representation(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
@@ -726,11 +731,12 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // read inline values through their indirect representations
         if let Some(layer) = self.lower.indirection(representation, &self.scope)?
-            && !self.lower.indirection(layer.stored, &self.scope)?.is_some()
+            && self.lower.indirection(layer.stored, &self.scope)?.is_none()
         {
             representation = layer.stored;
             let pointee = self.lower_type(representation)?;
-            value = self.builder.load(value, pointee);
+            let place = mir::Place::value(value).with_projection(mir::Projection::Deref);
+            value = self.load_place(place, pointee);
         }
 
         self.classify_equality_operand(representation, operand.scalar_families.as_ref(), value)
@@ -770,7 +776,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
             return Ok(LoweredOperand::Singleton { ty, literal });
         }
-        let ty = self.builder.tree().get(ty);
+        let ty = self.builder.tree().type_definition(ty);
 
         // preserve aggregate representations even when every case shares scalar behavior
         if matches!(ty, mir::Type::Variant { .. }) {
@@ -871,6 +877,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 },
                 LoweredOperand::Scalar { value, domain },
             ) => ((value, Some(domain)), literal, false),
+            // materialize the literal at a parameter operand's instance representation
             (
                 LoweredOperand::Polymorphic(value),
                 LoweredOperand::Singleton {
@@ -1011,12 +1018,17 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // find the case stored at the member's representation
         let leaf_type = self.value_representation(leaf_value)?;
-        let leaf_type = self.builder.tree().represented(leaf_type);
+        let leaf_type = mir::Substitution::resolve(leaf_type, self.builder.tree_mut());
         let mut selected = None;
-        for member in self.lower.union_members(representation)? {
+        for (index, member) in self
+            .lower
+            .union_members(representation)?
+            .into_iter()
+            .enumerate()
+        {
             let case = self.lower_type(member)?;
-            if self.builder.tree().represented(case) == leaf_type {
-                selected = Some((self.case(representation, member)?, member));
+            if mir::Substitution::resolve(case, self.builder.tree_mut()) == leaf_type {
+                selected = Some((index as u32, member));
                 break;
             }
         }
@@ -1049,20 +1061,6 @@ impl FunctionLowerer<'_, '_, '_> {
         Ok(self.builder.local_get(result))
     }
 
-    /// Return the members of one union in case order.
-    fn members_by_case(
-        &mut self,
-        union: dir::GlobalTypeId,
-    ) -> CompilerResult<Vec<dir::GlobalTypeId>> {
-        let mut members = Vec::new();
-        for member in self.lower.union_members(union)? {
-            members.push((self.case(union, member)?, member));
-        }
-        members.sort_by_key(|(case, _)| *case);
-
-        Ok(members.into_iter().map(|(_, member)| member).collect())
-    }
-
     /// Lower equality between two values of one indexed variant representation.
     fn lower_variant_equality(
         &mut self,
@@ -1071,15 +1069,6 @@ impl FunctionLowerer<'_, '_, '_> {
         right_representation: dir::GlobalTypeId,
         right: mir::Value,
     ) -> CompilerResult<mir::Value> {
-        // pair the members of both variants by the case each stores at
-        let left_members = self.members_by_case(left_representation)?;
-        let right_members = self.members_by_case(right_representation)?;
-        if left_members.len() != right_members.len() {
-            return Err(CompilerError::Internal {
-                message: "equality variants with different case counts".to_string(),
-            });
-        }
-
         // compare the shared discriminant once
         let left_tag = self.builder.variant_tag(left);
         let right_tag = self.builder.variant_tag(right);
@@ -1087,14 +1076,41 @@ impl FunctionLowerer<'_, '_, '_> {
             .builder
             .binary(mir::BinaryOperator::Equal, left_tag, right_tag);
 
-        // answer with the discriminant alone for payload-free variants
-        let mut is_payload_free = true;
-        for member in left_members.iter().chain(&right_members) {
-            let representation = self.lower_type(*member)?;
-            is_payload_free &= self.is_singleton_representation(representation);
-        }
-        if is_payload_free {
+        // answer with the discriminant alone when neither variant has a payload
+        let representation = self.value_representation(left)?;
+        let representation = self.resolved_type(representation);
+        let mir::Type::Variant { cases, .. } =
+            self.builder.tree().type_definition(representation).clone()
+        else {
+            return Err(self.internal("equality operands outside a variant representation"));
+        };
+        let right_value = self.value_representation(right)?;
+        let right_value = self.resolved_type(right_value);
+        let mir::Type::Variant {
+            cases: right_cases, ..
+        } = self.builder.tree().type_definition(right_value).clone()
+        else {
+            return Err(self.internal("equality operands outside a variant representation"));
+        };
+        if cases
+            .iter()
+            .chain(&right_cases)
+            .all(|case| self.is_singleton_representation(case.ty))
+        {
             return Ok(same_case);
+        }
+
+        // pair the members of both variants by the case each stores at
+        let (Some(left_members), Some(right_members)) = (
+            self.lower.union_members_maybe(left_representation)?,
+            self.lower.union_members_maybe(right_representation)?,
+        ) else {
+            return Err(self.unsupported("equality over an enum with payloads"));
+        };
+        if left_members.len() != right_members.len() {
+            return Err(CompilerError::Internal {
+                message: "equality variants with different case counts".to_string(),
+            });
         }
 
         // reject different cases before projecting either payload
@@ -1281,25 +1297,25 @@ impl FunctionLowerer<'_, '_, '_> {
     fn lower_case_tag_test(
         &mut self,
         tag: mir::Value,
-        variant: mir::LocalNodeId<mir::Type>,
-        payload: mir::LocalNodeId<mir::Type>,
+        variant: mir::TypeId,
+        payload: mir::TypeId,
     ) -> CompilerResult<mir::Value> {
         // select the case holding the payload
         let variant = self.resolved_type(variant);
-        let Some(case) = self.builder.tree().payload_case(variant, payload) else {
-            return Err(CompilerError::Internal {
-                message: "a case test outside the variant's cases".to_string(),
-            });
-        };
-        let mir::Type::Variant { cases, .. } = self.builder.tree().get(variant).clone() else {
+        let mir::Type::Variant { cases, .. } = self.builder.tree().type_definition(variant).clone()
+        else {
             return Err(CompilerError::Internal {
                 message: "a case test outside a variant".to_string(),
             });
         };
 
+        let Some(case) = cases.iter().find(|case| case.ty == payload) else {
+            return Err(self.internal("a case test outside the variant's cases"));
+        };
+
         // compare the tag with the case's discriminant
         let tag_type = self.value_representation(tag)?;
-        let discriminant = cases[case as usize].discriminant.clone();
+        let discriminant = case.discriminant.clone();
         let expected = self.builder.constant(discriminant, tag_type);
 
         Ok(self
@@ -1310,7 +1326,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Materialize the null one address value compares with, the singleton being null.
     fn lower_null_address(
         &mut self,
-        singleton: mir::LocalNodeId<mir::Type>,
+        singleton: mir::TypeId,
         address: mir::Value,
     ) -> CompilerResult<mir::Value> {
         let null = self

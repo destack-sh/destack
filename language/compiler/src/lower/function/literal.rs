@@ -3,6 +3,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
+use crate::lower::function::operand::Operand;
 use crate::{CompilerError, CompilerResult};
 
 impl FunctionLowerer<'_, '_, '_> {
@@ -30,31 +31,27 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn lower_constant(
         &mut self,
         literal: dir::Literal,
-        representation: mir::LocalNodeId<mir::Type>,
+        representation: mir::TypeId,
     ) -> CompilerResult<mir::Value> {
         if self.is_singleton_representation(representation) {
             return Ok(self.builder.constant(mir::Constant::Zeroed, representation));
         }
 
         // a singleton literal at a variant lives in the case holding its type
-        let stored = self
-            .builder
-            .tree()
-            .storage_type(mir::TypeId::from(representation));
-        if matches!(self.builder.tree().get(stored), mir::Type::Variant { .. })
-            && let Some(singleton) = self.singleton_representation(&literal)
+        let stored = self.builder.tree_mut().storage_type(representation);
+        if let Some(singleton) = self.singleton_representation(&literal)
+            && let mir::Type::Variant { .. } = self.builder.tree().type_definition(stored)
         {
-            let Some(case) = self.builder.tree().payload_case(stored, singleton) else {
-                return Err(CompilerError::Internal {
-                    message: "a singleton literal outside the variant's cases".to_string(),
-                });
-            };
+            let case = self.variant_case(stored, singleton)?;
 
             return Ok(self.builder.variant_new(representation, case, None));
         }
 
         // lower the literal at its representation
-        match (literal, self.builder.tree().get(representation).clone()) {
+        match (
+            literal,
+            self.builder.tree().type_definition(representation).clone(),
+        ) {
             // pick the single boolean representation
             (dir::Literal::Boolean(value), _) => Ok(self.builder.bconst(value)),
             // materialize integers at their selected width and sign
@@ -82,6 +79,14 @@ impl FunctionLowerer<'_, '_, '_> {
             (dir::Literal::Character(value), mir::Type::Int { width, is_signed }) => Ok(self
                 .builder
                 .iconst(i128::from(value as u32), width, is_signed)),
+
+            // leave a nullish literal at a parameter representation to its instance
+            (dir::Literal::Null, mir::Type::Parameter { .. }) => {
+                Ok(self.builder.constant(mir::Constant::Null, representation))
+            }
+            (dir::Literal::Undefined, mir::Type::Parameter { .. }) => Ok(self
+                .builder
+                .constant(mir::Constant::Undefined, representation)),
 
             // read string and bigint literals from their declared constant objects
             (dir::Literal::String(string), _) => self.lower_string_literal(string),
@@ -114,9 +119,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let global = *global;
                 let value = *value;
 
-                Ok(self
-                    .builder
-                    .global_addr(global, value, mir::AddressKind::Borrow))
+                Ok(self.builder.address(mir::Place::global(global), value))
             }
             Some(Err(diagnostic)) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
             None => Err(CompilerError::Internal {
@@ -139,9 +142,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let global = *global;
                 let value = *value;
 
-                Ok(self
-                    .builder
-                    .global_addr(global, value, mir::AddressKind::Borrow))
+                Ok(self.builder.address(mir::Place::global(global), value))
             }
             Some(Err(diagnostic)) => Err(CompilerError::Diagnostic(Box::new(diagnostic.clone()))),
             None => Err(CompilerError::Internal {
@@ -151,10 +152,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the representation of one singleton literal, absent for a scalar literal.
-    fn singleton_representation(
-        &mut self,
-        literal: &dir::Literal,
-    ) -> Option<mir::LocalNodeId<mir::Type>> {
+    fn singleton_representation(&mut self, literal: &dir::Literal) -> Option<mir::TypeId> {
         match literal {
             dir::Literal::Undefined => Some(self.builder.tree_mut().intern_type(mir::Type::Void)),
             dir::Literal::Null => Some(self.lower.singleton_type(self.builder.tree_mut(), literal)),
@@ -164,16 +162,18 @@ impl FunctionLowerer<'_, '_, '_> {
 
     /// Return whether one representation holds a single value and no bytes, through newtypes.
     pub(in crate::lower) fn is_singleton_representation(
-        &self,
-        representation: mir::LocalNodeId<mir::Type>,
+        &mut self,
+        representation: mir::TypeId,
     ) -> bool {
-        let tree = self.builder.tree();
-        let mut representation = tree.represented(representation);
+        let tree = self.builder.tree_mut();
+        let mut representation = mir::Substitution::resolve(representation, tree);
         loop {
             match tree.get(representation) {
                 mir::Type::Void | mir::Type::Null => return true,
                 mir::Type::Struct { fields, .. } => return fields.is_empty(),
-                mir::Type::Newtype { inner, .. } => representation = tree.represented(*inner),
+                mir::Type::Newtype { inner, .. } => {
+                    representation = mir::Substitution::resolve(*inner, tree)
+                }
                 _ => return false,
             }
         }
@@ -183,13 +183,9 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn lower_template_expression(
         &mut self,
         expression: dir::LocalNodeId<dir::Expression>,
-        value: &dir::TemplateLiteral,
+        chunks: &[dir::TemplateChunk],
+        arguments: &[dir::LocalNodeId<dir::Argument>],
     ) -> CompilerResult<mir::Value> {
-        // a template without interpolations is its own constant text
-        let dir::TemplateLiteral::InterpolatedString { chunks, arguments } = value else {
-            return self.lower_scalar_literal(expression, dir::Literal::Undefined);
-        };
-
         // read the calls this template renders and joins through
         let node = expression.into_global_any(self.source);
         let Some(decision) = self
@@ -205,7 +201,6 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // render each interpolation in source order
-        let arguments = arguments.clone();
         if arguments.len() != decision.spans.len() {
             return Err(CompilerError::Internal {
                 message: "an interpolated template recording a call for every span".to_string(),
@@ -214,7 +209,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let mut spans = Vec::with_capacity(arguments.len());
         for (argument, call) in arguments.iter().zip(&decision.spans) {
             let value = self.lower_argument(argument.into_global_any(self.source))?;
-            let Some(rendered) = self.lower_value_target_call(value, call)? else {
+            let Some(rendered) = self.lower_target_call(Operand::Value(value), call)? else {
                 return Err(CompilerError::Internal {
                     message: "a template span producing no text".to_string(),
                 });
@@ -265,14 +260,10 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn slot_frame_slice(
         &mut self,
         values: Vec<mir::Value>,
-        slot: mir::LocalNodeId<mir::Type>,
+        slot: mir::TypeId,
     ) -> CompilerResult<mir::Value> {
-        let mir::Type::Slice { element, .. } = *self.builder.tree().get(slot) else {
-            return Err(CompilerError::Internal {
-                message: "a template join slot outside slice storage".to_string(),
-            });
-        };
-        let view = self.frame_slice(element, values)?;
+        let view = self.temporary_slice(slot)?;
+        let view = self.frame_slice(values, view)?;
 
         self.adopt(view, slot)
     }

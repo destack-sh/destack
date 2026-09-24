@@ -105,6 +105,7 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn downcast_place(
         &mut self,
         place: Place,
+        union: dir::GlobalTypeId,
         member: dir::GlobalTypeId,
     ) -> CompilerResult<Place> {
         let mut projected = self.through_newtypes(place.clone())?;
@@ -112,9 +113,11 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(place);
         }
         let payload = self.lower_type(member)?;
+        let members = self.lower.union_members(union)?;
+        let case = self.case(&members, member)?;
         projected
             .path
-            .push(PlaceProjection::Downcast { ty: payload });
+            .push(PlaceProjection::Downcast { case, ty: payload });
 
         Ok(projected)
     }
@@ -122,8 +125,9 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Project one place through the newtype layers wrapping its variant.
     fn through_newtypes(&mut self, mut place: Place) -> CompilerResult<Place> {
         loop {
-            let ty = self.resolved_type(self.place_type(&place)?);
-            let mir::Type::Newtype { inner, .. } = *self.builder.tree().get(ty) else {
+            let ty = self.place_type(&place)?;
+            let ty = self.resolved_type(ty);
+            let mir::Type::Newtype { inner, .. } = *self.builder.tree().type_definition(ty) else {
                 return Ok(place);
             };
             place.path.push(PlaceProjection::Field {
@@ -134,14 +138,19 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the variant one place holds, when it holds one.
-    fn place_variant(
+    pub(in crate::lower) fn place_variant(
         &mut self,
         place: &Place,
-    ) -> CompilerResult<Option<mir::LocalNodeId<mir::Type>>> {
+    ) -> CompilerResult<Option<mir::TypeId>> {
         let ty = self.place_type(place)?;
-        let ty = self.builder.tree().storage_type(mir::TypeId::from(ty));
+        let ty = self.resolved_type(ty);
+        let ty = self.builder.tree_mut().storage_type(ty);
 
-        Ok(matches!(self.builder.tree().get(ty), mir::Type::Variant { .. }).then_some(ty))
+        Ok(matches!(
+            self.builder.tree().type_definition(ty),
+            mir::Type::Variant { .. }
+        )
+        .then_some(ty))
     }
 
     /// Switch on the case one variant place holds.
@@ -151,21 +160,13 @@ impl FunctionLowerer<'_, '_, '_> {
         default: Option<mir::LocalNodeId<mir::Block>>,
         targets: Vec<(u32, mir::LocalNodeId<mir::Block>)>,
     ) -> CompilerResult<()> {
-        if let PlaceRoot::Local(local) = place.root
-            && self.copies_local(local)
-        {
-            let value = self.read_place(place)?;
-            self.builder.variant_switch(value, default, targets);
-
-            return Ok(());
-        }
         let Some(variant) = self.place_variant(place)? else {
             return Err(CompilerError::Internal {
                 message: "a case switch over a place without a variant".to_string(),
             });
         };
-        let address = self.place_address(place, mir::Access::Readonly)?;
-        let tag = self.builder.variant_tag_load(address, variant);
+        let place = place.lower(self)?;
+        let tag = self.builder.variant_tag_load(place, variant);
         let default = match default {
             Some(default) => default,
             None => {
@@ -198,24 +199,6 @@ impl FunctionLowerer<'_, '_, '_> {
         self.switch_place(place, Some(fail), vec![(case, pass)])
     }
 
-    /// Project the payload of one case out of a variant place.
-    fn downcast(&mut self, place: &Place, case: u32) -> CompilerResult<Place> {
-        let Some(variant) = self.place_variant(place)? else {
-            return Err(CompilerError::Internal {
-                message: "a payload projection over a place without a variant".to_string(),
-            });
-        };
-        let Some(payload) = self.builder.tree().case_payload(variant, case) else {
-            return Err(CompilerError::Internal {
-                message: "a payload projection outside the variant's cases".to_string(),
-            });
-        };
-        let mut place = place.clone();
-        place.path.push(PlaceProjection::Downcast { ty: payload });
-
-        Ok(place)
-    }
-
     /// Lower one match to a variant switch over source-order candidate chains.
     fn lower_match_arms(
         &mut self,
@@ -225,7 +208,6 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<bool> {
         // address the scrutinee once, dispatching a newtype on its wrapped payload
         let matched = self.scrutinee_place(value)?;
-        let scrutinee = self.node_type_id(value)?;
         let dispatch = self.through_newtypes(matched.clone())?;
 
         // parse each arm into a source-order candidate
@@ -248,7 +230,7 @@ impl FunctionLowerer<'_, '_, '_> {
 
             // resolve the case and the block the candidate takes
             let decision = self.pattern_decision(pattern)?;
-            let case = self.match_arm_case(scrutinee, &decision)?;
+            let case = self.match_arm_case(&decision)?;
             let block = self.builder.block();
             candidates.push(Candidate {
                 pattern,
@@ -301,8 +283,7 @@ impl FunctionLowerer<'_, '_, '_> {
         for (position, candidate) in candidates.iter().enumerate() {
             self.builder.switch_to_block(candidate.block);
 
-            // continue a failed test at the next candidate accepting the dispatched case,
-            //  a caseless candidate re-dispatching over the remaining acceptors
+            // continue a failed test at the next candidate accepting the dispatched case
             let fail = match candidate.case {
                 Some(_) => candidates[position + 1..]
                     .iter()
@@ -311,24 +292,17 @@ impl FunctionLowerer<'_, '_, '_> {
                 None => self.match_continuation(&dispatch, &candidates, position, exhaust)?,
             };
 
-            // project the case payload for a destructured variant arm
-            let destructures = matches!(candidate.decision, dir::PatternDecision::Destructure(_));
-            let input = match candidate.case {
-                Some(index) if destructures => self.downcast(&dispatch, index)?,
-                _ => matched.clone(),
-            };
-
             // test the fields beneath a dispatched case
             if candidate.case.is_some() {
-                self.lower_pattern_field_tests(&candidate.decision, &input, fail)?;
+                self.lower_pattern_field_tests(&candidate.decision, &matched, fail)?;
             }
             // otherwise test every refutable leg of the pattern
             else {
-                self.lower_pattern_tests(candidate.pattern, &input, fail)?;
+                self.lower_pattern_tests(candidate.pattern, &matched, fail)?;
             }
 
             // bind the accepted pattern before its guard and body
-            self.lower_pattern_bindings(candidate.pattern, &input)?;
+            self.lower_pattern_bindings(candidate.pattern, &matched)?;
 
             // test the guard over its bindings
             if let Some(guard) = &candidate.guard {
@@ -527,21 +501,26 @@ impl FunctionLowerer<'_, '_, '_> {
             return Ok(());
         };
 
-        // collect each nested field by destructure form
-        let fields = match &**resolution {
-            dir::PatternDestructureResolution::Nominal(nominal) => nominal.fields.clone(),
-            dir::PatternDestructureResolution::Object(object) => object.fields.clone(),
-            dir::PatternDestructureResolution::Tuple(tuple) => tuple.fields.clone(),
+        // collect each nested field by destructure form, projecting the destructured arm
+        let (adjustments, fields) = match &**resolution {
+            dir::PatternDestructureResolution::Nominal(nominal) => {
+                (nominal.adjustments.as_slice(), &nominal.fields)
+            }
+            dir::PatternDestructureResolution::Object(object) => {
+                (object.adjustments.as_slice(), &object.fields)
+            }
+            dir::PatternDestructureResolution::Tuple(tuple) => (&[][..], &tuple.fields),
             dir::PatternDestructureResolution::Sequence(_) => return Ok(()),
         };
+        let place = self.project_place_adjustments(place.clone(), adjustments)?;
 
         // project each nested field once for its tests
-        for field in &fields {
+        for field in fields {
             let Some(nested) = field.pattern else {
                 continue;
             };
             let nested = self.pattern_node(nested)?;
-            let projected = self.lower_pattern_projection(&field.projection, place)?;
+            let projected = self.lower_pattern_projection(&field.projection, &place)?;
             self.lower_pattern_tests(nested, &projected, fail)?;
         }
 
@@ -738,11 +717,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 dir::Literal::Undefined => self.builder.tree_mut().intern_type(mir::Type::Void),
                 literal => self.lower.singleton_type(self.builder.tree_mut(), &literal),
             };
-            let Some(case) = self.builder.tree().payload_case(variant, singleton) else {
-                return Err(CompilerError::Internal {
-                    message: "a singleton literal test outside the variant's cases".to_string(),
-                });
-            };
+            let case = self.variant_case(variant, singleton)?;
             let accepted = self.builder.block();
             self.branch_place_case(input, case, accepted, fail)?;
             self.builder.switch_to_block(accepted);
@@ -942,11 +917,7 @@ impl FunctionLowerer<'_, '_, '_> {
     }
 
     /// Return the case index selected by one match arm's pattern.
-    fn match_arm_case(
-        &mut self,
-        scrutinee: dir::GlobalTypeId,
-        decision: &dir::PatternDecision,
-    ) -> CompilerResult<Option<u32>> {
+    fn match_arm_case(&mut self, decision: &dir::PatternDecision) -> CompilerResult<Option<u32>> {
         match decision {
             // take the default arm for wildcards and bare bindings
             dir::PatternDecision::Ignore => Ok(None),
@@ -963,15 +934,29 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(Some(index))
             }
 
-            // select the union case the destructured nominal narrows
-            dir::PatternDecision::Destructure(resolution) => match &**resolution {
-                dir::PatternDestructureResolution::Nominal(nominal) => {
-                    Ok(Some(self.union_member_case(scrutinee, nominal.key.symbol)?))
-                }
+            // select the union case the destructure projects the scrutinee onto
+            dir::PatternDecision::Destructure(resolution) => {
+                let adjustments = match &**resolution {
+                    dir::PatternDestructureResolution::Nominal(nominal) => &nominal.adjustments,
+                    dir::PatternDestructureResolution::Object(object) => &object.adjustments,
+                    // run every other destructure form as a tested candidate
+                    _ => return Ok(None),
+                };
+                let case = adjustments.iter().find_map(|adjustment| match adjustment {
+                    dir::ReceiverAdjustment::UnionPayload { union, arm, .. } => {
+                        Some((*union, *arm))
+                    }
+                    _ => None,
+                });
+                match case {
+                    Some((union, arm)) => {
+                        let members = self.lower.union_members(union)?;
 
-                // run every other destructure form as a tested candidate
-                _ => Ok(None),
-            },
+                        Ok(Some(self.case(&members, arm)?))
+                    }
+                    None => Ok(None),
+                }
+            }
 
             // run every other pattern as a tested chain candidate
             dir::PatternDecision::Test(_)
@@ -981,31 +966,6 @@ impl FunctionLowerer<'_, '_, '_> {
             | dir::PatternDecision::Default(_)
             | dir::PatternDecision::Bind(_) => Ok(None),
         }
-    }
-
-    /// Return the union case position of the member one nominal narrows.
-    fn union_member_case(
-        &mut self,
-        scrutinee: dir::GlobalTypeId,
-        symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<u32> {
-        // find the member declaring the narrowed nominal, the scrutinee read through its forms
-        let scrutinee = match self.lower.indirection(scrutinee, &self.scope)? {
-            Some(layer) => layer.stored,
-            None => self.lower.stored(scrutinee)?,
-        };
-        for member in self.lower.union_members(scrutinee)? {
-            let base = self.lower.stored(member)?;
-            if let dir::Type::Application(instance) = self.lower.ty(base)?
-                && instance.symbol == symbol
-            {
-                return self.case(scrutinee, member);
-            }
-        }
-
-        Err(CompilerError::Internal {
-            message: "a destructured nominal outside the matched union".to_string(),
-        })
     }
 
     /// Return whether one pattern introduces a binding anywhere beneath it.

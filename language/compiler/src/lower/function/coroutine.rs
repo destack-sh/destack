@@ -38,7 +38,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     message: "a coroutine receiver slot without a receiver binding".to_string(),
                 });
             };
-            values.push(self.read_binding(binding));
+            values.push(self.read_binding(binding)?);
         }
 
         // add each parameter the extracted body reads
@@ -48,7 +48,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     message: "a coroutine parameter without a home".to_string(),
                 });
             };
-            values.push(self.read_binding(binding));
+            values.push(self.read_binding(binding)?);
         }
 
         // build the environment the extracted body unpacks
@@ -98,11 +98,13 @@ impl FunctionLowerer<'_, '_, '_> {
         symbol: dir::GlobalSymbolId,
         parameters: &[dir::LocalSymbolId],
     ) -> CompilerResult<()> {
-        // take the environment the entry built, freeing its allocation
+        // take the environment the entry built and release its allocation
         let (pointee, reference) = self.coroutine_environment_types(symbol, parameters)?;
         let environment = self.builder.function_environment_current(reference);
-        let taken = self.builder.load(environment, pointee);
-        self.builder.release(environment);
+        let place = mir::Place::value(environment).with_projection(mir::Projection::Deref);
+        let taken = self.load_place(place, pointee);
+
+        self.release_emptied(environment, reference);
 
         // unpack the captures the enclosing function packed
         let mut index = 0;
@@ -135,7 +137,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &mut self,
         symbol: dir::GlobalSymbolId,
         parameters: &[dir::LocalSymbolId],
-    ) -> CompilerResult<(mir::LocalNodeId<mir::Type>, mir::LocalNodeId<mir::Type>)> {
+    ) -> CompilerResult<(mir::TypeId, mir::TypeId)> {
         // list the capture, receiver, and parameter types the environment holds
         let mut slots = Vec::with_capacity(parameters.len() + 2);
         slots.extend(self.capture_environment_type(symbol)?);
@@ -145,14 +147,14 @@ impl FunctionLowerer<'_, '_, '_> {
             slots.push(self.lower_type(declared)?);
         }
 
-        Ok(self.environment_reference_types(&slots, mir::ReferenceKind::Unique))
+        Ok(self.environment_reference_types(&slots, mir::Reference::Unique))
     }
 
     /// Return the lowered receiver representation the coroutine's signature declares.
     fn coroutine_receiver_type(
         &mut self,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<mir::LocalNodeId<mir::Type>>> {
+    ) -> CompilerResult<Option<mir::TypeId>> {
         let declared = self.lower.symbol_type(symbol)?;
         let (signature, owner) = self.lower.signature(declared)?;
         let this = self.lower.types(owner)?.signature(signature).this_parameter;

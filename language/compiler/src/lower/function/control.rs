@@ -167,7 +167,7 @@ impl FunctionLowerer<'_, '_, '_> {
         label: Option<StringId>,
         value: Option<dir::LocalNodeId<dir::Expression>>,
     ) -> CompilerResult<bool> {
-        // write the carried value into the destination its target reads
+        // write the jump's value into the destination its target reads
         if let Some(value) = value {
             let Some(destination) = self.break_frame(label)?.destination.clone() else {
                 return Err(CompilerError::Internal {
@@ -243,12 +243,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     ReceiverUse::Value,
                 )?;
 
-                self.lower_dynamic_symbol_call(
-                    receiver,
-                    dispatch,
-                    *symbol,
-                    &decision.iterator.arguments,
-                )?
+                self.lower_dynamic_symbol_call(receiver, dispatch, *symbol, &decision.iterator)?
             }
             _ => {
                 return Err(self.unsupported("a virtual iterator call"));
@@ -334,8 +329,9 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::LanguageItem::IteratorYield,
             dir::LanguageItem::IteratorReturn,
         )?;
-        let yielded = self.case(result_type, yield_member)?;
-        let finished = self.case(result_type, return_member)?;
+        let members = self.lower.union_members(result_type)?;
+        let yielded = self.case(&members, yield_member)?;
+        let finished = self.case(&members, return_member)?;
 
         // advance in the header, dispatching each result on its case
         let header = self.builder.block();
@@ -347,11 +343,7 @@ impl FunctionLowerer<'_, '_, '_> {
             // borrow the homed iterator at the declared receiver slot
             dir::CallableTarget::Symbol { function, .. } => {
                 let mut next_function = self.resolve_callee(&function.key)?;
-                self.instantiate_symbol_callee(
-                    &mut next_function,
-                    function.key.symbol,
-                    &decision.next,
-                )?;
+                self.instantiate_symbol_callee(&mut next_function, &function.key, &decision.next)?;
                 let parameters = next_function.parameters.clone();
                 let Some((&receiver_slot, _)) = parameters.split_first() else {
                     return Err(CompilerError::Internal {
@@ -359,8 +351,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     });
                 };
                 let place = self.binding_home(home)?;
-                let receiver =
-                    self.borrow_place(&place, receiver_slot, mir::AddressKind::Borrow)?;
+                let receiver = self.borrow_place(&place, receiver_slot)?;
 
                 self.call(&next_function, vec![receiver])
             }
@@ -370,16 +361,11 @@ impl FunctionLowerer<'_, '_, '_> {
                 function: dir::DynamicFunction::Symbol(symbol),
                 ..
             } => {
-                let receiver = self.read_binding(home);
+                let receiver = self.read_binding(home)?;
                 let receiver =
                     self.lower_receiver_adjustments(receiver, &dispatch.receiver.adjustments)?;
 
-                self.lower_dynamic_symbol_call(
-                    receiver,
-                    dispatch,
-                    *symbol,
-                    &decision.next.arguments,
-                )?
+                self.lower_dynamic_symbol_call(receiver, dispatch, *symbol, &decision.next)?
             }
             _ => {
                 return Err(self.unsupported("a virtual iterator advance"));
@@ -520,7 +506,7 @@ impl FunctionLowerer<'_, '_, '_> {
         &self,
         label: Option<StringId>,
     ) -> CompilerResult<(mir::LocalNodeId<mir::Block>, usize)> {
-        // take the innermost loop frame carrying the label
+        // take the innermost loop frame with the label
         let frame = self.controls.iter().rev().find(|frame| {
             frame.continue_target.is_some()
                 && match label {

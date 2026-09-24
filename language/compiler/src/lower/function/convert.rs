@@ -54,6 +54,15 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(Operand::Value(value))
             }
+            // own a fresh literal through the clone call the selection recorded
+            dir::CoercionAdjustment::Clone { call, .. } => {
+                let value = self.as_value(operand, source)?;
+                let owned = self
+                    .lower_target_call(Operand::Value(value), call)?
+                    .ok_or_else(|| self.internal("a clone coercion without its value"))?;
+
+                Ok(Operand::Value(owned))
+            }
             // bind a callable declaration at the representation it converts to
             dir::CoercionAdjustment::Representation { target }
             | dir::CoercionAdjustment::Manage { target }
@@ -67,15 +76,11 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::CoercionAdjustment::Borrow { target } => {
                 let target = self.lower_type(*target)?;
                 let value = match operand {
-                    Operand::Value(value)
-                        if self.lower.indirection(source, &self.scope)?.is_some() =>
-                    {
-                        self.builder.cast(mir::CastOperator::Bitcast, value, target)
-                    }
+                    Operand::Place(place) => self.borrow_place(&place, target)?,
                     operand => {
-                        let place = self.as_place(operand, source)?;
+                        let value = self.as_value(operand, source)?;
 
-                        self.borrow_place(&place, target, mir::AddressKind::Borrow)?
+                        self.borrow_value(value, target)?
                     }
                 };
 
@@ -85,8 +90,9 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::CoercionAdjustment::Read { target } => {
                 let value = self.as_value(operand, source)?;
                 let target = self.lower_type(*target)?;
+                let place = mir::Place::value(value).with_projection(mir::Projection::Deref);
 
-                Ok(Operand::Value(self.builder.load(value, target)))
+                Ok(Operand::Value(self.load_place(place, target)))
             }
             // cast between scalar representations
             dir::CoercionAdjustment::Scalar { target } => {
@@ -103,12 +109,15 @@ impl FunctionLowerer<'_, '_, '_> {
 
                 Ok(Operand::Value(self.builder.cast(operator, value, target)))
             }
-            // wrap a backing value in its newtype, or unwrap it to the backing
+            // wrap or unwrap a newtype layer, reinterpreting a pointer in place
             dir::CoercionAdjustment::Newtype { target } => {
                 let value = self.as_value(operand, source)?;
                 let target = self.lower_type(*target)?;
-                let represented = self.builder.tree().represented(target);
+                let represented = mir::Substitution::resolve(target, self.builder.tree_mut());
                 let value = match self.builder.tree().get(represented) {
+                    mir::Type::Pointer { .. } | mir::Type::Reference { .. } => {
+                        self.builder.cast(mir::CastOperator::Bitcast, value, target)
+                    }
                     mir::Type::Newtype { .. } => self.builder.aggregate(target, vec![value]),
                     _ => self.builder.field_get(value, 0),
                 };
@@ -146,7 +155,8 @@ impl FunctionLowerer<'_, '_, '_> {
                 };
                 let node = expression.into_global_any(self.source);
                 let symbol = self.lower.resolved_symbol(node)?;
-                let value = self.lower_instantiated_value(symbol, *target, arguments)?;
+                let value =
+                    self.lower_instantiated_value(expression, symbol, *target, arguments)?;
 
                 Ok(Operand::Value(value))
             }
@@ -160,22 +170,29 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn adopt(
         &mut self,
         value: mir::Value,
-        target: mir::LocalNodeId<mir::Type>,
+        target: mir::TypeId,
     ) -> CompilerResult<mir::Value> {
         let received = self.value_representation(value)?;
+        let resolved_received = self.resolved_type(received);
+        let resolved_target = self.resolved_type(target);
         let tree = self.builder.tree();
-        if tree.same_representation(mir::TypeId::from(received), mir::TypeId::from(target)) {
+        if resolved_received == resolved_target {
             return Ok(value);
         }
-        let is_received_reference = tree
-            .get(self.resolved_type(received))
-            .is_reference_representation();
-        let is_target_reference = tree
-            .get(self.resolved_type(target))
-            .is_reference_representation();
+        let is_received_reference = tree.get(resolved_received).is_reference_representation();
+        let is_target_reference = tree.get(resolved_target).is_reference_representation();
+        let is_open_target = matches!(
+            tree.get(resolved_target),
+            mir::Type::Parameter {
+                referent: false,
+                ..
+            }
+        );
         match (is_received_reference, is_target_reference) {
-            (true, true) => Ok(self.builder.cast(mir::CastOperator::Bitcast, value, target)),
+            (true, true) => self.reborrow_or_reinterpret(value, target),
+            // complete a held value into a managed allocation, or into an open form at instantiation
             (false, true) => Ok(self.builder.new_complete(value, target)),
+            (false, false) if is_open_target => Ok(self.builder.new_complete(value, target)),
             _ => Err(CompilerError::Internal {
                 message: format!(
                     "a representation coercion from {:?} to {:?} outside reference storage in '{}'",
@@ -224,11 +241,11 @@ impl FunctionLowerer<'_, '_, '_> {
         };
 
         // an untagged union holds the value itself, a constant materializing at it
-        let stored = self
-            .builder
-            .tree()
-            .storage_type(mir::TypeId::from(representation));
-        if !matches!(self.builder.tree().get(stored), mir::Type::Variant { .. }) {
+        let stored = self.builder.tree_mut().storage_type(representation);
+        if !matches!(
+            self.builder.tree().type_definition(stored),
+            mir::Type::Variant { .. }
+        ) {
             return match operand {
                 Operand::Constant(Constant::Literal(literal)) => {
                     self.lower_constant(literal, representation)
@@ -241,7 +258,8 @@ impl FunctionLowerer<'_, '_, '_> {
             };
         }
         let value = self.as_value(operand, source)?;
-        let case = self.case(target, source)?;
+        let members = self.lower.union_members(target)?;
+        let case = self.case(&members, source)?;
         let payload = self.case_has_payload(source)?.then_some(value);
 
         Ok(self.builder.variant_new(representation, case, payload))
@@ -265,7 +283,10 @@ impl FunctionLowerer<'_, '_, '_> {
         let received = self.value_representation(value)?;
 
         // an untagged source converts through its one shared case
-        if !matches!(self.builder.tree().get(received), mir::Type::Variant { .. }) {
+        if !matches!(
+            self.builder.tree().type_definition(received),
+            mir::Type::Variant { .. }
+        ) {
             let Some(first) = cases.first() else {
                 return Err(CompilerError::Internal {
                     message: "a union conversion without cases".to_string(),
@@ -279,9 +300,10 @@ impl FunctionLowerer<'_, '_, '_> {
         // dispatch on the source case and rebuild each member under its target case
         let destination = self.builder.local(representation, mir::Mutability::Mutable);
         let exit = self.builder.block();
+        let source_members = self.lower.union_members(source)?;
         let mut targets = Vec::with_capacity(members.len());
         for member in members {
-            targets.push((self.case(source, *member)?, self.builder.block()));
+            targets.push((self.case(&source_members, *member)?, self.builder.block()));
         }
         self.builder.variant_switch(value, None, targets.clone());
         for ((member, case), (position, block)) in members.iter().zip(cases).zip(targets) {
@@ -306,19 +328,28 @@ impl FunctionLowerer<'_, '_, '_> {
         expression: dir::LocalNodeId<dir::Expression>,
         value: mir::Value,
     ) -> CompilerResult<mir::Value> {
-        let node = expression.into_global_any(self.source);
-        let Some(narrowing) = self
-            .lower
-            .state(self.source)?
-            .decisions
-            .narrowing(node)
-            .cloned()
-        else {
+        let Some(narrowing) = self.representation_narrowing(expression)? else {
             return Ok(value);
         };
         let target = self.node_type_id(expression)?;
 
-        self.narrow(value, &narrowing.arms, target)
+        self.narrow(value, narrowing.union, &narrowing.arms, target)
+    }
+
+    /// Return the narrowing one read converts through.
+    pub(in crate::lower) fn representation_narrowing(
+        &mut self,
+        expression: dir::LocalNodeId<dir::Expression>,
+    ) -> CompilerResult<Option<dir::Narrowing>> {
+        let node = expression.into_global_any(self.source);
+        let Some(narrowing) = self.source().decisions.narrowing(node).cloned() else {
+            return Ok(None);
+        };
+        let target = self.node_type_id(expression)?;
+        let union = self.lower_type(narrowing.union)?;
+        let narrowed = self.lower_type(target)?;
+
+        Ok((union != narrowed).then_some(narrowing))
     }
 
     /// Convert one operand through the adjustments one coercion case records.
@@ -341,68 +372,62 @@ impl FunctionLowerer<'_, '_, '_> {
     pub(in crate::lower) fn narrow(
         &mut self,
         value: mir::Value,
+        union: dir::GlobalTypeId,
         live: &[dir::GlobalTypeId],
         target: dir::GlobalTypeId,
     ) -> CompilerResult<mir::Value> {
-        // lower the canonical members recorded by sema
-        let mut payloads = Vec::with_capacity(live.len());
-        for member in live {
-            payloads.push(self.lower_type(*member)?);
-        }
-        let narrowed = match live {
-            [_] => payloads[0],
-            _ => self.lower_type(target)?,
-        };
-
-        // retain the value when narrowing preserves its representation
-        let representation = self.value_representation(value)?;
-        if representation == narrowed {
+        if union == target {
             return Ok(value);
         }
 
+        // lower the recorded live members
+        let members = self.lower.union_members(union)?;
+        let narrowed = match live {
+            [member] => self.lower_type(*member)?,
+            _ => self.lower_type(target)?,
+        };
+        let representation = self.value_representation(value)?;
+
         // address the one live payload behind a referenced variant
+        let resolved = self.resolved_type(representation);
         if let mir::Type::Reference {
             kind,
-            storage,
             access,
             pointee,
             ..
-        } = *self.builder.tree().get(self.resolved_type(representation))
-            && matches!(
-                self.builder.tree().get(self.resolved_type(pointee)),
-                mir::Type::Variant { .. }
-            )
+        } = *self.builder.tree().get(resolved)
+            && let pointee = self.resolved_type(pointee)
+            && matches!(self.builder.tree().get(pointee), mir::Type::Variant { .. })
         {
-            let [payload] = payloads.as_slice() else {
+            let [member] = live else {
                 return Err(self.unsupported("narrowing a referenced union to several members"));
             };
-            let case = self.payload_case(pointee, *payload)?;
+            let case = self.case(&members, *member)?;
             let lifetime = self.reborrow_lifetime(value);
-            let result = self.insert_reference(kind, lifetime, access, storage, *payload);
+            let result = self.insert_reference(kind, lifetime, access, narrowed);
 
-            return Ok(self.builder.variant_payload_addr(
-                value,
-                case,
-                result,
-                mir::AddressKind::Borrow,
-            ));
+            let place = mir::Place::value(value)
+                .with_projection(mir::Projection::Deref)
+                .with_projection(mir::Projection::Variant { case });
+
+            return Ok(self.builder.address(place, result));
         }
 
         // keep a value outside a variant as it is
-        let variant = self
-            .builder
-            .tree()
-            .storage_type(mir::TypeId::from(representation));
-        if !matches!(self.builder.tree().get(variant), mir::Type::Variant { .. }) {
+        let variant = self.builder.tree_mut().storage_type(representation);
+        if !matches!(
+            self.builder.tree().type_definition(variant),
+            mir::Type::Variant { .. }
+        ) {
             return Ok(value);
         }
 
         // read the single live payload as the value
-        if let [payload] = payloads.as_slice() {
-            let case = self.payload_case(variant, *payload)?;
+        if let [member] = live {
+            let case = self.case(&members, *member)?;
 
-            return Ok(match self.is_singleton_representation(*payload) {
-                true => self.builder.constant(mir::Constant::Zeroed, *payload),
+            return Ok(match self.is_singleton_representation(narrowed) {
+                true => self.builder.constant(mir::Constant::Zeroed, narrowed),
                 false => self.builder.variant_payload(value, case),
             });
         }
@@ -411,25 +436,26 @@ impl FunctionLowerer<'_, '_, '_> {
         let destination = self.builder.local(narrowed, mir::Mutability::Mutable);
         let exit = self.builder.block();
         let trap = self.builder.block();
-        let mut targets = Vec::with_capacity(payloads.len());
-        for payload in &payloads {
-            targets.push((self.payload_case(variant, *payload)?, self.builder.block()));
+        let mut targets = Vec::with_capacity(live.len());
+        for member in live {
+            targets.push((self.case(&members, *member)?, self.builder.block()));
         }
         self.builder
             .variant_switch(value, Some(trap), targets.clone());
         self.builder.switch_to_block(trap);
         self.builder.panic(None);
-        for ((member, payload), (case, block)) in live.iter().zip(&payloads).zip(targets) {
+        let target_members = self.lower.union_members(target)?;
+        for (member, (case, block)) in live.iter().zip(targets) {
             self.builder.switch_to_block(block);
 
             // emit the member at the target union's variant or scalar representation
             let projected = match self.builder.tree().get(narrowed) {
                 mir::Type::Variant { .. } => {
-                    let projected = match self.is_singleton_representation(*payload) {
-                        true => None,
-                        false => Some(self.builder.variant_payload(value, case)),
+                    let projected = match self.case_has_payload(*member)? {
+                        true => Some(self.builder.variant_payload(value, case)),
+                        false => None,
                     };
-                    let narrowed_case = self.payload_case(narrowed, *payload)?;
+                    let narrowed_case = self.case(&target_members, *member)?;
 
                     self.builder.variant_new(narrowed, narrowed_case, projected)
                 }
@@ -445,36 +471,6 @@ impl FunctionLowerer<'_, '_, '_> {
         self.builder.switch_to_block(exit);
 
         Ok(self.builder.local_get(destination))
-    }
-
-    /// Return the case of one variant holding a payload, lifetimes aside.
-    pub(in crate::lower) fn payload_case(
-        &self,
-        variant: mir::LocalNodeId<mir::Type>,
-        payload: mir::LocalNodeId<mir::Type>,
-    ) -> CompilerResult<u32> {
-        let tree = self.builder.tree();
-        let variant = tree.storage_type(mir::TypeId::from(variant));
-        let mir::Type::Variant { cases, .. } = tree.get(variant) else {
-            return Err(CompilerError::Internal {
-                message: "a payload case outside a variant".to_string(),
-            });
-        };
-        let payload = mir::TypeId::from(payload);
-        cases
-            .iter()
-            .position(|case| tree.same_representation(case.payload(tree), payload))
-            .map(|case| case as u32)
-            .ok_or_else(|| CompilerError::Internal {
-                message: format!(
-                    "a payload {:?} outside the variant's cases {:?}",
-                    tree.get(payload),
-                    cases
-                        .iter()
-                        .map(|case| tree.get(case.payload(tree)))
-                        .collect::<Vec<_>>()
-                ),
-            })
     }
 
     /// Return whether one union member stores bytes.

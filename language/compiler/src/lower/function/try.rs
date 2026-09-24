@@ -39,7 +39,7 @@ impl FunctionLowerer<'_, '_, '_> {
             .union_members_maybe(narrowed)?
             .unwrap_or_else(|| vec![narrowed]);
 
-        self.narrow(value, &members, narrowed)
+        self.narrow(value, self.node_type_id(left)?, &members, narrowed)
     }
 
     /// Lower one propagating try projection, continuing with the output its operand holds.
@@ -73,7 +73,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 .union_members_maybe(narrowed)?
                 .unwrap_or_else(|| vec![narrowed]);
 
-            return self.narrow(value, &members, narrowed);
+            return self.narrow(value, self.node_type_id(left)?, &members, narrowed);
         }
 
         // split a try implementor through its recorded branch, transferring the residual
@@ -204,7 +204,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 message: "a try branch without its recorded call".to_string(),
             });
         };
-        let Some(flow) = self.lower_value_target_call(value, &branch)? else {
+        let Some(flow) = self.lower_target_call(Operand::Value(value), &branch)? else {
             return Err(CompilerError::Internal {
                 message: "a try branch producing no control flow".to_string(),
             });
@@ -216,8 +216,9 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::LanguageItem::Break,
             dir::LanguageItem::Continue,
         )?;
-        let break_case = self.case(control, breaking)?;
-        let continue_case = self.case(control, continuing)?;
+        let members = self.lower.union_members(control)?;
+        let break_case = self.case(&members, breaking)?;
+        let continue_case = self.case(&members, continuing)?;
 
         // hand the residual the breaking case holds to the caller
         let break_block = self.builder.block();

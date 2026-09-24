@@ -16,25 +16,43 @@ pub(in crate::lower) struct UnionDispatch {
 
 impl FunctionLowerer<'_, '_, '_> {
     /// Return the void case of one variant representation: the absent case it stores.
-    pub(in crate::lower) fn absent_case(
-        &mut self,
-        representation: mir::LocalNodeId<mir::Type>,
-    ) -> Option<u32> {
+    pub(in crate::lower) fn absent_case(&mut self, representation: mir::TypeId) -> Option<u32> {
         let void = self.builder.tree_mut().intern_type(mir::Type::Void);
 
-        self.builder.tree().payload_case(representation, void)
+        let mir::Type::Variant { cases, .. } = self.builder.tree().type_definition(representation)
+        else {
+            return None;
+        };
+
+        cases
+            .iter()
+            .position(|case| case.ty == void)
+            .map(|index| index as u32)
+    }
+
+    /// Return the case of one variant representation that stores one type.
+    pub(in crate::lower) fn variant_case(
+        &self,
+        variant: mir::TypeId,
+        ty: mir::TypeId,
+    ) -> CompilerResult<u32> {
+        let mir::Type::Variant { cases, .. } = self.builder.tree().type_definition(variant) else {
+            return Err(self.internal("a variant case outside a variant type"));
+        };
+        let Some(case) = cases.iter().position(|case| case.ty == ty) else {
+            return Err(self.internal("a variant case outside the variant's cases"));
+        };
+
+        Ok(case as u32)
     }
 
     /// Return the null and undefined cases of one variant representation, in case order.
-    pub(in crate::lower) fn nullish_cases(
-        &mut self,
-        representation: mir::LocalNodeId<mir::Type>,
-    ) -> Vec<u32> {
+    pub(in crate::lower) fn nullish_cases(&mut self, representation: mir::TypeId) -> Vec<u32> {
         let null = self
             .lower
             .singleton_type(self.builder.tree_mut(), &dir::Literal::Null);
         let tree = self.builder.tree();
-        let mir::Type::Variant { cases, .. } = tree.get(representation) else {
+        let mir::Type::Variant { cases, .. } = tree.type_definition(representation) else {
             return Vec::new();
         };
 
@@ -49,23 +67,24 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Return the undefined value one nullish representation stores, when it stores one.
     pub(in crate::lower) fn absent_value(
         &mut self,
-        representation: mir::LocalNodeId<mir::Type>,
+        representation: mir::TypeId,
     ) -> Option<mir::Value> {
         let case = self.absent_case(representation)?;
 
         Some(self.builder.variant_new(representation, case, None))
     }
 
-    /// Return the case of one union's variant holding one member, identified by its type.
+    /// Return the case index of one member among its union's members.
     pub(in crate::lower) fn case(
-        &mut self,
-        union: dir::GlobalTypeId,
+        &self,
+        members: &[dir::GlobalTypeId],
         member: dir::GlobalTypeId,
     ) -> CompilerResult<u32> {
-        let variant = self.lower_type(union)?;
-        let payload = self.lower_type(member)?;
-
-        self.payload_case(variant, payload)
+        members
+            .iter()
+            .position(|candidate| *candidate == member)
+            .map(|index| index as u32)
+            .ok_or_else(|| self.internal("a selected arm outside its union"))
     }
 
     /// Read one value through the newtype layers wrapping its variant.
@@ -75,9 +94,9 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<mir::Value> {
         // read the sole field of each newtype layer in turn
         loop {
-            let tree = self.builder.tree();
-            let ty = tree.represented(self.value_representation(value)?);
-            if !matches!(tree.get(ty), mir::Type::Newtype { .. }) {
+            let ty = self.value_representation(value)?;
+            let ty = mir::Substitution::resolve(ty, self.builder.tree_mut());
+            if !matches!(self.builder.tree().get(ty), mir::Type::Newtype { .. }) {
                 break;
             }
             value = self.builder.field_get(value, 0);
@@ -94,10 +113,7 @@ impl FunctionLowerer<'_, '_, '_> {
     ) -> CompilerResult<u32> {
         // read the struct storage the type lowers to
         let representation = self.lower_type(ty)?;
-        let storage = self
-            .builder
-            .tree()
-            .storage_type(mir::TypeId::from(representation));
+        let storage = self.builder.tree_mut().storage_type(representation);
         let mir::Type::Struct { fields, .. } = self.builder.tree().get(storage).clone() else {
             return Err(CompilerError::Internal {
                 message: "a language member outside struct storage".to_string(),
@@ -203,12 +219,13 @@ impl FunctionLowerer<'_, '_, '_> {
         prefix: usize,
         union: dir::GlobalTypeId,
     ) -> CompilerResult<Vec<(u32, mir::LocalNodeId<mir::Block>)>> {
+        let members = self.lower.union_members(union)?;
         let mut targets = Vec::with_capacity(chains.len());
         for chain in chains {
             let dir::ReceiverAdjustment::UnionPayload { arm: case, .. } = chain[prefix] else {
-                unreachable!("every chain is checked for its dispatch step");
+                unreachable!("an arm chain without a dispatch step at its prefix");
             };
-            let position = self.case(union, case)?;
+            let position = self.case(&members, case)?;
             targets.push((position, self.builder.block()));
         }
 
@@ -240,7 +257,7 @@ impl FunctionLowerer<'_, '_, '_> {
         operand: &dir::PredicateOperand,
         condition: &dir::PredicateCondition,
     ) -> CompilerResult<Option<u32>> {
-        // only a direct operand over a variant names a case
+        // read a direct operand down to the union it names a case of
         let dir::PredicateOperand::Direct(operand) = operand else {
             return Ok(None);
         };
@@ -248,29 +265,30 @@ impl FunctionLowerer<'_, '_, '_> {
             Some(layer) => layer.stored,
             None => self.lower.stored(*operand)?,
         };
-        let representation = self.lower_type(operand)?;
-        let variant = self
-            .builder
-            .tree()
-            .storage_type(mir::TypeId::from(representation));
-
-        // find the case holding the payload the condition names
-        let payload = match condition {
-            dir::PredicateCondition::Type(target) | dir::PredicateCondition::Subtype(target) => {
-                mir::TypeId::from(self.lower_type(*target)?)
-            }
-            dir::PredicateCondition::Primitive(primitive) => {
-                let ty = dir::Type::Primitive(*primitive);
-                let representation = self
-                    .lower
-                    .type_lowerer(self.builder.tree_mut(), &self.scope)
-                    .lower_value_representation(&ty)?;
-
-                mir::TypeId::from(representation)
-            }
-            _ => return Ok(None),
+        let Some(members) = self.lower.union_members_maybe(operand)? else {
+            return Ok(None);
         };
 
-        Ok(self.builder.tree().payload_case(variant, payload))
+        match condition {
+            // select the member the condition names
+            dir::PredicateCondition::Type(target) | dir::PredicateCondition::Subtype(target) => {
+                let index = members.iter().position(|member| member == target);
+
+                Ok(index.map(|index| index as u32))
+            }
+            // select the member of the tested primitive type
+            dir::PredicateCondition::Primitive(primitive) => {
+                let primitive = dir::Type::Primitive(*primitive);
+                for (index, member) in members.iter().enumerate() {
+                    if self.lower.ty(*member)? == primitive {
+                        return Ok(Some(index as u32));
+                    }
+                }
+
+                Ok(None)
+            }
+            // select no case under any other condition
+            _ => Ok(None),
+        }
     }
 }

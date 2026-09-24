@@ -2,6 +2,7 @@ use destack_dir as dir;
 use destack_mir as mir;
 
 use crate::lower::FunctionLowerer;
+use crate::lower::function::operand::Operand;
 use crate::lower::function::place::{Place, PlaceProjection, PlaceRoot};
 use crate::{CompilerError, CompilerResult};
 
@@ -19,7 +20,7 @@ impl FunctionLowerer<'_, '_, '_> {
             // bind the whole value, then match any nested pattern over it
             dir::PatternDecision::Bind(binding) => {
                 if let Some(symbol) = binding.symbol {
-                    let value = self.read_pattern_binding(symbol, place)?;
+                    let value = self.read_place(place)?;
                     self.bind_symbol(symbol, value)?;
                 }
 
@@ -31,29 +32,36 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(())
             }
 
-            // project each declared field out of the destructured place
+            // project each declared field out of the destructured arm
             dir::PatternDecision::Destructure(resolution) => {
-                let (fields, rest) = match &*resolution {
-                    dir::PatternDestructureResolution::Nominal(nominal) => {
-                        (&nominal.fields, nominal.rest.as_deref())
+                let (adjustments, fields, rest) = match &*resolution {
+                    dir::PatternDestructureResolution::Nominal(nominal) => (
+                        nominal.adjustments.as_slice(),
+                        &nominal.fields,
+                        nominal.rest.as_deref(),
+                    ),
+                    dir::PatternDestructureResolution::Object(object) => (
+                        object.adjustments.as_slice(),
+                        &object.fields,
+                        object.rest.as_deref(),
+                    ),
+                    dir::PatternDestructureResolution::Tuple(tuple) => {
+                        (&[][..], &tuple.fields, None)
                     }
-                    dir::PatternDestructureResolution::Object(object) => {
-                        (&object.fields, object.rest.as_deref())
-                    }
-                    dir::PatternDestructureResolution::Tuple(tuple) => (&tuple.fields, None),
                     dir::PatternDestructureResolution::Sequence(sequence) => {
-                        (&sequence.fields, sequence.rest.as_deref())
+                        (&[][..], &sequence.fields, sequence.rest.as_deref())
                     }
                 };
+                let place = self.project_place_adjustments(place.clone(), adjustments)?;
 
                 // bind each named field
                 for field in fields {
-                    self.lower_destructured_field(field, place)?;
+                    self.lower_destructured_field(field, &place)?;
                 }
 
                 // bind the trailing rest field
                 if let Some(rest) = rest {
-                    self.lower_destructured_field(rest, place)?;
+                    self.lower_destructured_field(rest, &place)?;
                 }
 
                 Ok(())
@@ -118,7 +126,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     message: "a missing symbol for one destructured field".to_string(),
                 });
             };
-            let value = self.read_pattern_binding(symbol, &projected)?;
+            let value = self.read_place(&projected)?;
 
             return self.bind_symbol(symbol, value);
         };
@@ -127,32 +135,6 @@ impl FunctionLowerer<'_, '_, '_> {
         let nested = self.pattern_node(nested)?;
 
         self.lower_pattern_bindings(nested, &projected)
-    }
-
-    /// Read one binding's value from its place, a binding declared as a borrow of the place's
-    /// value borrowing it.
-    fn read_pattern_binding(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        place: &Place,
-    ) -> CompilerResult<mir::Value> {
-        let declared = self.lower.symbol_type(symbol)?;
-        let declared = self.lower_type(declared)?;
-        let held = self.place_type(place)?;
-        let borrows = matches!(
-            self.builder.tree().get(declared),
-            mir::Type::Reference {
-                kind: mir::ReferenceKind::Borrowed,
-                ..
-            }
-        ) && !self
-            .builder
-            .tree()
-            .same_representation(mir::TypeId::from(held), mir::TypeId::from(declared));
-        match borrows {
-            true => self.borrow_place(place, declared, mir::AddressKind::Borrow),
-            false => self.read_place(place),
-        }
     }
 
     /// Project one pattern input place through its selected projection.
@@ -172,8 +154,9 @@ impl FunctionLowerer<'_, '_, '_> {
             // select the single newtype payload
             dir::Projection::NewtypePayload { .. } => {
                 let ty = self.place_type(place)?;
-                let ty = self.builder.tree().represented(ty);
-                let mir::Type::Newtype { inner, .. } = *self.builder.tree().get(ty) else {
+                let ty = mir::Substitution::resolve(ty, self.builder.tree_mut());
+                let mir::Type::Newtype { inner, .. } = *self.builder.tree().type_definition(ty)
+                else {
                     return Err(CompilerError::Internal {
                         message: "a newtype projection over a place without a newtype".to_string(),
                     });
@@ -195,13 +178,20 @@ impl FunctionLowerer<'_, '_, '_> {
                 Ok(Place::local(self.home(absent)))
             }
 
+            // materialize the recorded borrow
+            dir::Projection::Borrow { ty, .. } => {
+                let target = self.lower_type(*ty)?;
+                let value = self.borrow_place(place, target)?;
+
+                Ok(Place::local(self.home(value)))
+            }
+
             // duplicated and moved inputs keep the place they name
             dir::Projection::Copy { .. } | dir::Projection::Move { .. } => Ok(place.clone()),
 
             // read through the selected sequence call
             dir::Projection::Call(call) => {
-                let value = self.read_place(place)?;
-                let read = self.lower_value_target_call(value, call)?;
+                let read = self.lower_target_call(Operand::Place(place.clone()), call)?;
                 let read = read.ok_or_else(|| CompilerError::Internal {
                     message: "a void result from a projection call".to_string(),
                 })?;
@@ -212,8 +202,7 @@ impl FunctionLowerer<'_, '_, '_> {
             // read through the selected subscript
             dir::Projection::Subscript(subscript) => match &subscript.target {
                 dir::SubscriptTarget::Call(call) => {
-                    let value = self.read_place(place)?;
-                    let read = self.lower_value_target_call(value, call)?;
+                    let read = self.lower_target_call(Operand::Place(place.clone()), call)?;
                     let read = read.ok_or_else(|| CompilerError::Internal {
                         message: "a void result from a subscript projection".to_string(),
                     })?;
@@ -224,11 +213,16 @@ impl FunctionLowerer<'_, '_, '_> {
                     if read.missing.is_some() {
                         return Err(self.internal("an Index read with a missing result"));
                     }
-                    let value = self.read_place(place)?;
-                    let address = self.lower_value_target_call(value, &read.call)?;
+                    let address =
+                        self.lower_target_call(Operand::Place(place.clone()), &read.call)?;
                     let address = address.ok_or_else(|| CompilerError::Internal {
                         message: "a void result from an Index projection".to_string(),
                     })?;
+
+                    // home a value read like any projected value
+                    if read.dereference.is_none() {
+                        return Ok(Place::local(self.home(address)));
+                    }
                     let received = self.value_representation(address)?;
                     let Some(access) = self.rooted_access(received) else {
                         return Err(CompilerError::Internal {
@@ -249,14 +243,12 @@ impl FunctionLowerer<'_, '_, '_> {
                 }
             },
 
-            // keep the place a view strip dereferences
-            dir::Projection::Dereference(dereference) if self.is_view_strip(dereference)? => {
-                Ok(place.clone())
-            }
-
-            // address the pointee behind a dereferenced input
-            dir::Projection::Dereference(_) => {
-                let value = self.read_place(place)?;
+            // keep the place a view dereferences, address the pointee behind every other input
+            dir::Projection::Dereference(dereference) => {
+                if self.dereference_is_view(dereference)? {
+                    return Ok(place.clone());
+                }
+                let value = self.place_reborrow(place)?;
                 let received = self.value_representation(value)?;
                 let Some(access) = self.rooted_access(received) else {
                     return Err(CompilerError::Internal {
@@ -284,13 +276,11 @@ impl FunctionLowerer<'_, '_, '_> {
         let index = self.member_field_index(field)?;
         let ty = self.lower_type(field.ty)?;
 
-        // select the union member the field resolves against before projecting into it
-        let receiver = field.receiver.ty();
-        let member = match self.lower.indirection(receiver, &self.scope)? {
-            Some(layer) => layer.stored,
-            None => self.lower.stored(receiver)?,
+        // apply the receiver adjustments selected for the field
+        let dir::MemberReceiver::Direct(receiver) = &field.receiver else {
+            return Err(self.unsupported("a field pattern through dynamic dispatch"));
         };
-        let place = self.downcast_place(place.clone(), member)?;
+        let place = self.project_place_adjustments(place.clone(), &receiver.adjustments)?;
         let mut place = self.through_handle(place)?;
         place.path.push(PlaceProjection::Field { field: index, ty });
 
@@ -305,7 +295,7 @@ impl FunctionLowerer<'_, '_, '_> {
         source: dir::GlobalTypeId,
         default: dir::GlobalNodeIdAny,
     ) -> CompilerResult<Place> {
-        // read the representation the nested pattern was checked at and the default expression
+        // read the nested pattern's representation and the default expression
         let target = self.node_type_id(nested)?;
         let default = default
             .local_id
@@ -349,7 +339,10 @@ impl FunctionLowerer<'_, '_, '_> {
         let exact = self.lower_type(target)?;
         let representation = self.value_representation(value)?;
         let absent = self.absent_case(representation);
-        let is_void = matches!(self.builder.tree().get(representation), mir::Type::Void);
+        let is_void = matches!(
+            self.builder.tree().type_definition(representation),
+            mir::Type::Void
+        );
         if representation == exact && absent.is_none() && !is_void {
             return Ok(value);
         }
@@ -370,7 +363,7 @@ impl FunctionLowerer<'_, '_, '_> {
         let absent_block = self.builder.block();
         let join = self.builder.block();
 
-        match self.builder.tree().get(representation).clone() {
+        match self.builder.tree().type_definition(representation).clone() {
             // split an optional variant on its undefined case
             mir::Type::Variant { .. } => {
                 let Some(absent) = absent else {
@@ -386,7 +379,7 @@ impl FunctionLowerer<'_, '_, '_> {
                     vec![(absent, absent_block)],
                 );
 
-                // project the checked source members that remain when undefined is absent
+                // project the source members that remain when undefined is absent
                 self.builder.switch_to_block(present_block);
                 let value = if representation == exact {
                     value
@@ -398,7 +391,7 @@ impl FunctionLowerer<'_, '_, '_> {
                         }
                     }
 
-                    self.narrow(value, &present, target)?
+                    self.narrow(value, source, &present, target)?
                 };
                 self.builder.local_set(slot, value);
                 self.builder.jump(join);
