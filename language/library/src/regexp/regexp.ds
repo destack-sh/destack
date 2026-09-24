@@ -62,7 +62,7 @@ export class RegExp {
     lastIndex: number = 0;
 
     /// Escape text so it can be used as a literal regular expression pattern.
-    static escape(text: string): ^string {
+    static escape(text: &readonly string): ^string {
         todo("RegExp.escape")
     }
 
@@ -122,17 +122,17 @@ export class RegExp {
     }
 
     /// Execute the pattern against `input`.
-    exec(&this, input: string): RegExpMatch | null {
+    exec(&this, input: &readonly string): RegExpMatch | null {
         todo("RegExp.exec")
     }
 
     /// Return whether the pattern matches `input`.
-    test(&this, input: string): boolean {
+    test(&this, input: &readonly string): boolean {
         todo("RegExp.test")
     }
 
     /// Return this regular expression as source text.
-    toString(&readonly this): string {
+    toString(&readonly this): ^string {
         todo("RegExp.toString")
     }
 }

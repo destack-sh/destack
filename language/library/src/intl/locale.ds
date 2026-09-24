@@ -72,7 +72,10 @@ export struct WeekInfo {
 @languageItem("intl.Locale")
 export class Locale {
     /// Create a locale.
-    static create(tag: string | Locale, options?: LocaleOptions): Result<Locale, IntlError> {
+    static create(
+        tag: &readonly string | Locale,
+        options?: &readonly LocaleOptions,
+    ): Result<Locale, IntlError> {
         todo("Locale.create")
     }
 
@@ -82,7 +85,7 @@ export class Locale {
     }
 
     /// The locale identifier without extensions.
-    get baseName(&readonly this): string {
+    get baseName(&readonly this): ^string {
         todo("Locale.baseName")
     }
 
@@ -112,7 +115,7 @@ export class Locale {
     }
 
     /// The primary language subtag.
-    get language(&readonly this): string {
+    get language(&readonly this): ^string {
         todo("Locale.language")
     }
 
@@ -187,7 +190,7 @@ export class Locale {
     }
 
     /// Return the canonical locale identifier.
-    toString(&readonly this): string {
+    toString(&readonly this): ^string {
         todo("Locale.toString")
     }
 }

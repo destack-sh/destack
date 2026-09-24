@@ -62,12 +62,18 @@ export class PlainDate implements ToLocaleString {
     }
 
     /// Create a plain date.
-    static from(item: PlainDateLike, options?: OverflowOptions): Result<PlainDate, TimeError> {
+    static from(
+        item: &readonly PlainDateLike,
+        options?: &readonly OverflowOptions,
+    ): Result<PlainDate, TimeError> {
         todo("PlainDate.from")
     }
 
     /// Compare two plain dates.
-    static compare(one: PlainDateLike, two: PlainDateLike): Result<ComparisonResult, TimeError> {
+    static compare(
+        one: &readonly PlainDateLike,
+        two: &readonly PlainDateLike,
+    ): Result<ComparisonResult, TimeError> {
         todo("PlainDate.compare")
     }
 
@@ -97,7 +103,7 @@ export class PlainDate implements ToLocaleString {
     }
 
     /// Calendar month code.
-    get monthCode(&readonly this): string {
+    get monthCode(&readonly this): ^string {
         todo("PlainDate.monthCode")
     }
 
@@ -107,7 +113,7 @@ export class PlainDate implements ToLocaleString {
     }
 
     /// Calendar identifier.
-    get calendarId(&readonly this): string {
+    get calendarId(&readonly this): ^string {
         todo("PlainDate.calendarId")
     }
 
@@ -157,20 +163,20 @@ export class PlainDate implements ToLocaleString {
     }
 
     /// Return true when this date equals `other`.
-    equals(&readonly this, other: PlainDate): boolean {
+    equals(&readonly this, other: &readonly PlainDate): boolean {
         todo("PlainDate.equalsPlainDate")
     }
 
     /// Convert `other` and return whether it equals this date.
-    equals(&readonly this, other: PlainDateLike): Result<boolean, TimeError> {
+    equals(&readonly this, other: &readonly PlainDateLike): Result<boolean, TimeError> {
         todo("PlainDate.equals")
     }
 
     /// Return this date with updated fields.
     with(
         &readonly this,
-        dateLike: PlainDateFields,
-        options?: OverflowOptions,
+        dateLike: &readonly PlainDateFields,
+        options?: &readonly OverflowOptions,
     ): Result<PlainDate, TimeError> {
         todo("PlainDate.with")
     }
@@ -183,8 +189,8 @@ export class PlainDate implements ToLocaleString {
     /// Add a duration.
     add(
         &readonly this,
-        durationLike: DurationLike,
-        options?: OverflowOptions,
+        durationLike: &readonly DurationLike,
+        options?: &readonly OverflowOptions,
     ): Result<PlainDate, TimeError> {
         todo("PlainDate.add")
     }
@@ -192,8 +198,8 @@ export class PlainDate implements ToLocaleString {
     /// Subtract a duration.
     subtract(
         &readonly this,
-        durationLike: DurationLike,
-        options?: OverflowOptions,
+        durationLike: &readonly DurationLike,
+        options?: &readonly OverflowOptions,
     ): Result<PlainDate, TimeError> {
         todo("PlainDate.subtract")
     }
@@ -201,8 +207,8 @@ export class PlainDate implements ToLocaleString {
     /// Return the duration until `other`.
     until(
         &readonly this,
-        other: PlainDateLike,
-        options?: DifferenceOptions<"year" | "month" | "week" | "day">,
+        other: &readonly PlainDateLike,
+        options?: &readonly DifferenceOptions<"year" | "month" | "week" | "day">,
     ): Result<Duration, TimeError> {
         todo("PlainDate.until")
     }
@@ -210,14 +216,17 @@ export class PlainDate implements ToLocaleString {
     /// Return the duration since `other`.
     since(
         &readonly this,
-        other: PlainDateLike,
-        options?: DifferenceOptions<"year" | "month" | "week" | "day">,
+        other: &readonly PlainDateLike,
+        options?: &readonly DifferenceOptions<"year" | "month" | "week" | "day">,
     ): Result<Duration, TimeError> {
         todo("PlainDate.since")
     }
 
     /// Combine this date with a time.
-    toPlainDateTime(&readonly this, time?: PlainTimeLike): Result<PlainDateTime, TimeError> {
+    toPlainDateTime(
+        &readonly this,
+        time?: &readonly PlainTimeLike,
+    ): Result<PlainDateTime, TimeError> {
         todo("PlainDate.toPlainDateTime")
     }
 
@@ -240,36 +249,36 @@ export class PlainDate implements ToLocaleString {
     }
 
     /// Return a locale-aware string.
-    toLocaleString(&readonly this): string {
+    toLocaleString(&readonly this): ^string {
         todo("PlainDate.toLocaleStringDefault")
     }
 
     /// Return a locale-aware string with explicit locales.
-    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError> {
+    toLocaleString(&readonly this, locales: &readonly Locales): Result<string, IntlError> {
         todo("PlainDate.toLocaleStringLocales")
     }
 
     /// Return a locale-aware string with explicit options.
     toLocaleString(
         &readonly this,
-        locales?: Locales,
-        options?: DateTimeFormatOptions,
+        locales?: &readonly Locales,
+        options?: &readonly DateTimeFormatOptions,
     ): Result<string, IntlError> {
         todo("PlainDate.toLocaleString")
     }
 
     /// Return a JSON string.
-    toJSON(&readonly this): string {
+    toJSON(&readonly this): ^string {
         todo("PlainDate.toJSON")
     }
 
     /// Return an ISO string.
-    toString(&readonly this): string {
+    toString(&readonly this): ^string {
         todo("PlainDate.toString")
     }
 
     /// Return an ISO string with explicit calendar options.
-    toString(&readonly this, options: PlainDateToStringOptions): string {
+    toString(&readonly this, options: &readonly PlainDateToStringOptions): ^string {
         todo("PlainDate.toString")
     }
 

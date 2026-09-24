@@ -200,7 +200,7 @@ export extension of Path implements Clone, Default, Hash {
     }
 
     /// Encode Unicode text as a path for the current platform.
-    static fromString(value: string): ^Path {
+    static fromString(value: &readonly string): ^Path {
         todo("Path.fromString")
     }
 
@@ -230,9 +230,7 @@ export extension of Path implements Clone, Default, Hash {
     }
 }
 
-export extension<const A: Access> of Path
-    implements As<PathSlice, A>, Borrow<PathSlice, A>
-{
+export extension<const A: Access> of Path implements As<PathSlice, A>, Borrow<PathSlice, A> {
     /// Borrow this owned path as a path slice.
     as<const R: Region>(this: Borrowed<this, R, A>): Borrowed<PathSlice, R, A> {
         todo("Path.as")
@@ -266,7 +264,7 @@ export extension of PathBuilder implements Default, Hash {
     }
 
     /// Create a path builder from Unicode text.
-    static fromString(value: string): ^PathBuilder {
+    static fromString(value: &readonly string): ^PathBuilder {
         todo("PathBuilder.fromString")
     }
 
@@ -356,9 +354,7 @@ export extension of PathBuilder implements Default, Hash {
     }
 }
 
-export extension<const A: Access> of PathBuilder
-    implements As<PathSlice, A>, Borrow<PathSlice, A>
-{
+export extension<const A: Access> of PathBuilder implements As<PathSlice, A>, Borrow<PathSlice, A> {
     /// Borrow the current path.
     as<const R: Region>(this: Borrowed<this, R, A>): Borrowed<PathSlice, R, A> {
         todo("PathBuilder.as")
@@ -553,7 +549,7 @@ export extension<'a> of PathAncestors<'a> implements Iterator<&'a readonly PathS
 
 export extension of StripPrefixError implements Error {
     /// Format this error for users.
-    display(&immutable this): string {
+    display(&immutable this): ^string {
         todo("StripPrefixError.display")
     }
 }

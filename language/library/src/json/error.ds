@@ -38,7 +38,7 @@ export struct JsonError {
 
 export extension of JsonError implements Error {
     /// Format this error for users.
-    display(&immutable this): string {
-        this.message
+    display(&immutable this): ^string {
+        this.message.clone()
     }
 }

@@ -29,12 +29,15 @@ export class Instant implements ToLocaleString {
     }
 
     /// Create an instant from another instant or string.
-    static from(item: InstantLike): Result<Instant, TimeError> {
+    static from(item: &readonly InstantLike): Result<Instant, TimeError> {
         todo("Instant.from")
     }
 
     /// Compare two instants.
-    static compare(one: InstantLike, two: InstantLike): Result<ComparisonResult, TimeError> {
+    static compare(
+        one: &readonly InstantLike,
+        two: &readonly InstantLike,
+    ): Result<ComparisonResult, TimeError> {
         todo("Instant.compare")
     }
 
@@ -54,30 +57,30 @@ export class Instant implements ToLocaleString {
     }
 
     /// Return true when this instant equals `other`.
-    equals(&readonly this, other: Instant): boolean {
+    equals(&readonly this, other: &readonly Instant): boolean {
         todo("Instant.equalsInstant")
     }
 
     /// Parse `other` and return whether it equals this instant.
-    equals(&readonly this, other: InstantLike): Result<boolean, TimeError> {
+    equals(&readonly this, other: &readonly InstantLike): Result<boolean, TimeError> {
         todo("Instant.equals")
     }
 
     /// Add a time duration.
-    add(&readonly this, durationLike: DurationLike): Result<Instant, TimeError> {
+    add(&readonly this, durationLike: &readonly DurationLike): Result<Instant, TimeError> {
         todo("Instant.add")
     }
 
     /// Subtract a time duration.
-    subtract(&readonly this, durationLike: DurationLike): Result<Instant, TimeError> {
+    subtract(&readonly this, durationLike: &readonly DurationLike): Result<Instant, TimeError> {
         todo("Instant.subtract")
     }
 
     /// Return the duration until `other`.
     until(
         &readonly this,
-        other: InstantLike,
-        options?: DifferenceOptions<
+        other: &readonly InstantLike,
+        options?: &readonly DifferenceOptions<
             "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
         >,
     ): Result<Duration, TimeError> {
@@ -87,8 +90,8 @@ export class Instant implements ToLocaleString {
     /// Return the duration since `other`.
     since(
         &readonly this,
-        other: InstantLike,
-        options?: DifferenceOptions<
+        other: &readonly InstantLike,
+        options?: &readonly DifferenceOptions<
             "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
         >,
     ): Result<Duration, TimeError> {
@@ -98,7 +101,7 @@ export class Instant implements ToLocaleString {
     /// Round this instant.
     round(
         &readonly this,
-        roundTo: RoundTo<
+        roundTo: &readonly RoundTo<
             "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
         >,
     ): Result<Instant, TimeError> {
@@ -111,36 +114,36 @@ export class Instant implements ToLocaleString {
     }
 
     /// Return a locale-aware string.
-    toLocaleString(&readonly this): string {
+    toLocaleString(&readonly this): ^string {
         todo("Instant.toLocaleStringDefault")
     }
 
     /// Return a locale-aware string with explicit locales.
-    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError> {
+    toLocaleString(&readonly this, locales: &readonly Locales): Result<string, IntlError> {
         todo("Instant.toLocaleStringLocales")
     }
 
     /// Return a locale-aware string with explicit options.
     toLocaleString(
         &readonly this,
-        locales?: Locales,
-        options?: DateTimeFormatOptions,
+        locales?: &readonly Locales,
+        options?: &readonly DateTimeFormatOptions,
     ): Result<string, IntlError> {
         todo("Instant.toLocaleString")
     }
 
     /// Return a JSON string.
-    toJSON(&readonly this): string {
+    toJSON(&readonly this): ^string {
         todo("Instant.toJSON")
     }
 
     /// Return an ISO string.
-    toString(&readonly this): string {
+    toString(&readonly this): ^string {
         todo("Instant.toString")
     }
 
     /// Return an ISO string with explicit rendering options.
-    toString(&readonly this, options: InstantToStringOptions): Result<string, TimeError> {
+    toString(&readonly this, options: &readonly InstantToStringOptions): Result<string, TimeError> {
         todo("Instant.toString")
     }
 

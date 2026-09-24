@@ -1,4 +1,5 @@
-import { todo } from "destack:error";
+import { Result, todo } from "destack:error";
+import { IntlError, Locales, NumberFormatOptions, ToLocaleString } from "destack:intl";
 import { Clone, Concrete, Copy } from "destack:memory";
 import { DefaultEqual, Equal, Hash, Hasher, PartialEqual } from "destack:ops";
 import { sizeOf } from "destack:reflect";
@@ -19,8 +20,47 @@ export type Unsigned<T: Integer> = intrinsic;
 
 /// Methods shared by every builtin integer type.
 export extension<T: Integer> of T
-    implements Clone, PartialEqual<T>, Equal<T>, Hash, DefaultEqual<T>
+    implements Clone, PartialEqual<T>, Equal<T>, Hash, DefaultEqual<T>, ToLocaleString
 {
+    /// Return this number as a string.
+    toString(this, radix?: number): ^string {
+        todo("Number.toString")
+    }
+
+    /// Return this number in fixed-point notation.
+    toFixed(this, fractionDigits?: number): ^string {
+        todo("Number.toFixed")
+    }
+
+    /// Return this number in exponential notation.
+    toExponential(this, fractionDigits?: number): ^string {
+        todo("Number.toExponential")
+    }
+
+    /// Return this number with the requested precision.
+    toPrecision(this, precision?: number): ^string {
+        todo("Number.toPrecision")
+    }
+
+    /// Return this number as a locale-aware string.
+    toLocaleString(this): ^string {
+        todo("Number.toLocaleStringDefault")
+    }
+
+    /// Return this number as a locale-aware string with explicit locales.
+    toLocaleString(this, locales: &readonly Locales): Result<string, IntlError> {
+        todo("Number.toLocaleStringLocales")
+    }
+
+    /// Return this number as a locale-aware string with explicit options.
+    toLocaleString(
+        this,
+        locales?: &readonly Locales,
+        options?: &readonly NumberFormatOptions,
+    ): Result<string, IntlError> {
+        todo("Number.toLocaleString")
+    }
+
     /// Return a copy of this value.
     clone(&immutable this): ^this {
         *this

@@ -48,12 +48,18 @@ export class PlainTime implements ToLocaleString {
     }
 
     /// Create a plain time.
-    static from(item: PlainTimeLike, options?: OverflowOptions): Result<PlainTime, TimeError> {
+    static from(
+        item: &readonly PlainTimeLike,
+        options?: &readonly OverflowOptions,
+    ): Result<PlainTime, TimeError> {
         todo("PlainTime.from")
     }
 
     /// Compare two plain times.
-    static compare(one: PlainTimeLike, two: PlainTimeLike): Result<ComparisonResult, TimeError> {
+    static compare(
+        one: &readonly PlainTimeLike,
+        two: &readonly PlainTimeLike,
+    ): Result<ComparisonResult, TimeError> {
         todo("PlainTime.compare")
     }
 
@@ -93,39 +99,39 @@ export class PlainTime implements ToLocaleString {
     }
 
     /// Return true when this time equals `other`.
-    equals(&readonly this, other: PlainTime): boolean {
+    equals(&readonly this, other: &readonly PlainTime): boolean {
         todo("PlainTime.equalsPlainTime")
     }
 
     /// Convert `other` and return whether it equals this time.
-    equals(&readonly this, other: PlainTimeLike): Result<boolean, TimeError> {
+    equals(&readonly this, other: &readonly PlainTimeLike): Result<boolean, TimeError> {
         todo("PlainTime.equals")
     }
 
     /// Return this time with updated fields.
     with(
         &readonly this,
-        timeLike: PlainTime | PlainTimeFields,
-        options?: OverflowOptions,
+        timeLike: &readonly PlainTime | PlainTimeFields,
+        options?: &readonly OverflowOptions,
     ): Result<PlainTime, TimeError> {
         todo("PlainTime.with")
     }
 
     /// Add a duration.
-    add(&readonly this, durationLike: DurationLike): Result<PlainTime, TimeError> {
+    add(&readonly this, durationLike: &readonly DurationLike): Result<PlainTime, TimeError> {
         todo("PlainTime.add")
     }
 
     /// Subtract a duration.
-    subtract(&readonly this, durationLike: DurationLike): Result<PlainTime, TimeError> {
+    subtract(&readonly this, durationLike: &readonly DurationLike): Result<PlainTime, TimeError> {
         todo("PlainTime.subtract")
     }
 
     /// Return the duration until `other`.
     until(
         &readonly this,
-        other: PlainTimeLike,
-        options?: DifferenceOptions<
+        other: &readonly PlainTimeLike,
+        options?: &readonly DifferenceOptions<
             "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
         >,
     ): Result<Duration, TimeError> {
@@ -135,8 +141,8 @@ export class PlainTime implements ToLocaleString {
     /// Return the duration since `other`.
     since(
         &readonly this,
-        other: PlainTimeLike,
-        options?: DifferenceOptions<
+        other: &readonly PlainTimeLike,
+        options?: &readonly DifferenceOptions<
             "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
         >,
     ): Result<Duration, TimeError> {
@@ -146,7 +152,7 @@ export class PlainTime implements ToLocaleString {
     /// Round this time.
     round(
         &readonly this,
-        roundTo: RoundTo<
+        roundTo: &readonly RoundTo<
             "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
         >,
     ): Result<PlainTime, TimeError> {
@@ -154,36 +160,36 @@ export class PlainTime implements ToLocaleString {
     }
 
     /// Return a locale-aware string.
-    toLocaleString(&readonly this): string {
+    toLocaleString(&readonly this): ^string {
         todo("PlainTime.toLocaleStringDefault")
     }
 
     /// Return a locale-aware string with explicit locales.
-    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError> {
+    toLocaleString(&readonly this, locales: &readonly Locales): Result<string, IntlError> {
         todo("PlainTime.toLocaleStringLocales")
     }
 
     /// Return a locale-aware string with explicit options.
     toLocaleString(
         &readonly this,
-        locales?: Locales,
-        options?: DateTimeFormatOptions,
+        locales?: &readonly Locales,
+        options?: &readonly DateTimeFormatOptions,
     ): Result<string, IntlError> {
         todo("PlainTime.toLocaleString")
     }
 
     /// Return a JSON string.
-    toJSON(&readonly this): string {
+    toJSON(&readonly this): ^string {
         todo("PlainTime.toJSON")
     }
 
     /// Return an ISO string.
-    toString(&readonly this): string {
+    toString(&readonly this): ^string {
         todo("PlainTime.toString")
     }
 
     /// Return an ISO string with explicit precision options.
-    toString(&readonly this, options: TimeToStringOptions): string {
+    toString(&readonly this, options: &readonly TimeToStringOptions): ^string {
         todo("PlainTime.toString")
     }
 

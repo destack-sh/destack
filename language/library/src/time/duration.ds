@@ -62,15 +62,15 @@ export class Duration implements ToLocaleString {
     }
 
     /// Create a duration from another duration, fields, or a string.
-    static from(item: DurationLike): Result<Duration, TimeError> {
+    static from(item: &readonly DurationLike): Result<Duration, TimeError> {
         todo("Duration.from")
     }
 
     /// Compare two durations.
     static compare(
-        one: DurationLike,
-        two: DurationLike,
-        options?: DurationRelativeToOptions,
+        one: &readonly DurationLike,
+        two: &readonly DurationLike,
+        options?: &readonly DurationRelativeToOptions,
     ): Result<ComparisonResult, TimeError> {
         todo("Duration.compare")
     }
@@ -151,22 +151,25 @@ export class Duration implements ToLocaleString {
     }
 
     /// Return a duration with updated fields.
-    with(&readonly this, durationLike: Duration | DurationFields): Result<Duration, TimeError> {
+    with(
+        &readonly this,
+        durationLike: &readonly Duration | DurationFields,
+    ): Result<Duration, TimeError> {
         todo("Duration.with")
     }
 
     /// Add another duration.
-    add(&readonly this, other: DurationLike): Result<Duration, TimeError> {
+    add(&readonly this, other: &readonly DurationLike): Result<Duration, TimeError> {
         todo("Duration.add")
     }
 
     /// Subtract another duration.
-    subtract(&readonly this, other: DurationLike): Result<Duration, TimeError> {
+    subtract(&readonly this, other: &readonly DurationLike): Result<Duration, TimeError> {
         todo("Duration.subtract")
     }
 
     /// Round this duration.
-    round(&readonly this, roundTo: DurationRoundTo): Result<Duration, TimeError> {
+    round(&readonly this, roundTo: &readonly DurationRoundTo): Result<Duration, TimeError> {
         todo("Duration.round")
     }
 
@@ -176,41 +179,41 @@ export class Duration implements ToLocaleString {
     }
 
     /// Return this duration totalled in one unit, relative to a date when the unit needs one.
-    total(&readonly this, totalOf: DurationTotalOf): Result<number, TimeError> {
+    total(&readonly this, totalOf: &readonly DurationTotalOf): Result<number, TimeError> {
         todo("Duration.total")
     }
 
     /// Return a locale-aware string.
-    toLocaleString(&readonly this): string {
+    toLocaleString(&readonly this): ^string {
         todo("Duration.toLocaleStringDefault")
     }
 
     /// Return a locale-aware string with explicit locales.
-    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError> {
+    toLocaleString(&readonly this, locales: &readonly Locales): Result<string, IntlError> {
         todo("Duration.toLocaleStringLocales")
     }
 
     /// Return a locale-aware string with explicit options.
     toLocaleString(
         &readonly this,
-        locales?: Locales,
-        options?: DurationFormatOptions,
+        locales?: &readonly Locales,
+        options?: &readonly DurationFormatOptions,
     ): Result<string, IntlError> {
         todo("Duration.toLocaleString")
     }
 
     /// Return a JSON string.
-    toJSON(&readonly this): string {
+    toJSON(&readonly this): ^string {
         todo("Duration.toJSON")
     }
 
     /// Return an ISO string.
-    toString(&readonly this): string {
+    toString(&readonly this): ^string {
         todo("Duration.toString")
     }
 
     /// Return an ISO string with explicit precision options.
-    toString(&readonly this, options: DurationToStringOptions): string {
+    toString(&readonly this, options: &readonly DurationToStringOptions): ^string {
         todo("Duration.toString")
     }
 

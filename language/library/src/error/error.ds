@@ -4,7 +4,7 @@ import { Dynamic } from "destack:memory";
 @languageItem("error.Error")
 export newtype interface Error {
     /// Format this error for users.
-    display(this: &immutable this): string;
+    display(this: &immutable this): ^string;
 
     /// Return the underlying cause.
     source(&readonly this): readonly Dynamic<Error> | undefined {
@@ -24,8 +24,8 @@ export newtype RangeError = {
 
 export extension of RangeError implements Error {
     /// Format this error for users.
-    display(this: &immutable this): string {
-        this.message
+    display(this: &immutable this): ^string {
+        this.message.clone()
     }
 }
 
@@ -41,7 +41,7 @@ export newtype TypeError = {
 
 export extension of TypeError implements Error {
     /// Format this error for users.
-    display(this: &immutable this): string {
-        this.message
+    display(this: &immutable this): ^string {
+        this.message.clone()
     }
 }

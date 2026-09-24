@@ -315,10 +315,7 @@ export extension<T, 'a, const A: "immutable" | "exclusive"> of Borrowed<Array<T>
     }
 
     /// Map borrowed elements into a new array.
-    map<U>(
-        this,
-        map: (value: Borrowed<T, 'a, "immutable">, index: isize) => U,
-    ): ^Array<U> {
+    map<U>(this, map: (value: Borrowed<T, 'a, "immutable">, index: isize) => U): ^Array<U> {
         todo("Array.map")
     }
 
@@ -615,10 +612,7 @@ export extension<T> of Array<T> implements Default, IndexSet<isize, T>, Extend<T
     }
 
     /// Remove elements accepted by `predicate` and return them.
-    extractIf(
-        &this,
-        predicate: (value: &immutable T, index: isize) => boolean,
-    ): Iterator<T> {
+    extractIf(&this, predicate: (value: &immutable T, index: isize) => boolean): Iterator<T> {
         todo("Array.extractIf")
     }
 
@@ -654,7 +648,7 @@ export extension<T> of Array<T> implements Default, IndexSet<isize, T>, Extend<T
     }
 
     /// Join the displayed elements with `separator`.
-    join<const A: "readonly" | "immutable">(this: WithAccess<&this, A>, separator?: string): string
+    join<const A: "readonly" | "immutable">(this: WithAccess<&this, A>, separator?: &readonly string): ^string
         where T: Display, A: "immutable" | ((T,) extends (Copy,) ? "readonly" : never) {
         todo("Array.join")
     }

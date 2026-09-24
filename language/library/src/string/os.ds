@@ -137,7 +137,7 @@ export extension of OsString implements Clone, Default, Hash {
     }
 
     /// Encode Unicode text for the current platform.
-    static fromString(value: string): ^OsString {
+    static fromString(value: &readonly string): ^OsString {
         todo("OsString.fromString")
     }
 
@@ -246,7 +246,7 @@ export extension of OsStringBuilder implements Default, Hash {
     }
 
     /// Create a native string builder from Unicode text.
-    static fromString(value: string): ^OsStringBuilder {
+    static fromString(value: &readonly string): ^OsStringBuilder {
         todo("OsStringBuilder.fromString")
     }
 
@@ -301,7 +301,7 @@ export extension of OsStringBuilder implements Default, Hash {
     }
 
     /// Append Unicode text.
-    append(&this, value: string): void {
+    append(&this, value: &readonly string): void {
         todo("OsStringBuilder.append");
     }
 
@@ -417,14 +417,14 @@ export extension<Q: Borrow<OsStringSlice>> of OsString
 
 export extension of OsStringDecodeError implements Error {
     /// Format this error for users.
-    display(&immutable this): string {
+    display(&immutable this): ^string {
         todo("OsStringDecodeError.display")
     }
 }
 
 export extension of OsStringIntoStringError implements Error {
     /// Format this error for users.
-    display(&immutable this): string {
+    display(&immutable this): ^string {
         todo("OsStringIntoStringError.display")
     }
 }

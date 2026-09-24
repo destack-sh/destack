@@ -81,16 +81,16 @@ export class PlainDateTime implements ToLocaleString {
 
     /// Create a plain date-time.
     static from(
-        item: PlainDateTimeLike,
-        options?: OverflowOptions,
+        item: &readonly PlainDateTimeLike,
+        options?: &readonly OverflowOptions,
     ): Result<PlainDateTime, TimeError> {
         todo("PlainDateTime.from")
     }
 
     /// Compare two plain date-times.
     static compare(
-        one: PlainDateTimeLike,
-        two: PlainDateTimeLike,
+        one: &readonly PlainDateTimeLike,
+        two: &readonly PlainDateTimeLike,
     ): Result<ComparisonResult, TimeError> {
         todo("PlainDateTime.compare")
     }
@@ -121,7 +121,7 @@ export class PlainDateTime implements ToLocaleString {
     }
 
     /// Calendar month code.
-    get monthCode(&readonly this): string {
+    get monthCode(&readonly this): ^string {
         todo("PlainDateTime.monthCode")
     }
 
@@ -161,7 +161,7 @@ export class PlainDateTime implements ToLocaleString {
     }
 
     /// Calendar identifier.
-    get calendarId(&readonly this): string {
+    get calendarId(&readonly this): ^string {
         todo("PlainDateTime.calendarId")
     }
 
@@ -211,26 +211,29 @@ export class PlainDateTime implements ToLocaleString {
     }
 
     /// Return true when this date-time equals `other`.
-    equals(&readonly this, other: PlainDateTime): boolean {
+    equals(&readonly this, other: &readonly PlainDateTime): boolean {
         todo("PlainDateTime.equalsPlainDateTime")
     }
 
     /// Convert `other` and return whether it equals this date-time.
-    equals(&readonly this, other: PlainDateTimeLike): Result<boolean, TimeError> {
+    equals(&readonly this, other: &readonly PlainDateTimeLike): Result<boolean, TimeError> {
         todo("PlainDateTime.equals")
     }
 
     /// Return this date-time with updated fields.
     with(
         &readonly this,
-        dateTimeLike: PlainDateTimeFields,
-        options?: OverflowOptions,
+        dateTimeLike: &readonly PlainDateTimeFields,
+        options?: &readonly OverflowOptions,
     ): Result<PlainDateTime, TimeError> {
         todo("PlainDateTime.with")
     }
 
     /// Return this date-time with another time.
-    withPlainTime(&readonly this, time?: PlainTimeLike): Result<PlainDateTime, TimeError> {
+    withPlainTime(
+        &readonly this,
+        time?: &readonly PlainTimeLike,
+    ): Result<PlainDateTime, TimeError> {
         todo("PlainDateTime.withPlainTime")
     }
 
@@ -242,8 +245,8 @@ export class PlainDateTime implements ToLocaleString {
     /// Add a duration.
     add(
         &readonly this,
-        durationLike: DurationLike,
-        options?: OverflowOptions,
+        durationLike: &readonly DurationLike,
+        options?: &readonly OverflowOptions,
     ): Result<PlainDateTime, TimeError> {
         todo("PlainDateTime.add")
     }
@@ -251,8 +254,8 @@ export class PlainDateTime implements ToLocaleString {
     /// Subtract a duration.
     subtract(
         &readonly this,
-        durationLike: DurationLike,
-        options?: OverflowOptions,
+        durationLike: &readonly DurationLike,
+        options?: &readonly OverflowOptions,
     ): Result<PlainDateTime, TimeError> {
         todo("PlainDateTime.subtract")
     }
@@ -260,8 +263,8 @@ export class PlainDateTime implements ToLocaleString {
     /// Return the duration until `other`.
     until(
         &readonly this,
-        other: PlainDateTimeLike,
-        options?: DifferenceOptions<
+        other: &readonly PlainDateTimeLike,
+        options?: &readonly DifferenceOptions<
             | "year"
             | "month"
             | "week"
@@ -280,8 +283,8 @@ export class PlainDateTime implements ToLocaleString {
     /// Return the duration since `other`.
     since(
         &readonly this,
-        other: PlainDateTimeLike,
-        options?: DifferenceOptions<
+        other: &readonly PlainDateTimeLike,
+        options?: &readonly DifferenceOptions<
             | "year"
             | "month"
             | "week"
@@ -300,7 +303,7 @@ export class PlainDateTime implements ToLocaleString {
     /// Round this date-time.
     round(
         &readonly this,
-        roundTo: RoundTo<
+        roundTo: &readonly RoundTo<
             "day" | "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
         >,
     ): Result<PlainDateTime, TimeError> {
@@ -311,7 +314,7 @@ export class PlainDateTime implements ToLocaleString {
     toZonedDateTime(
         &readonly this,
         timeZone: TimeZoneLike,
-        options?: DisambiguationOptions,
+        options?: &readonly DisambiguationOptions,
     ): Result<ZonedDateTime, TimeError> {
         todo("PlainDateTime.toZonedDateTime")
     }
@@ -327,36 +330,36 @@ export class PlainDateTime implements ToLocaleString {
     }
 
     /// Return a locale-aware string.
-    toLocaleString(&readonly this): string {
+    toLocaleString(&readonly this): ^string {
         todo("PlainDateTime.toLocaleStringDefault")
     }
 
     /// Return a locale-aware string with explicit locales.
-    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError> {
+    toLocaleString(&readonly this, locales: &readonly Locales): Result<string, IntlError> {
         todo("PlainDateTime.toLocaleStringLocales")
     }
 
     /// Return a locale-aware string with explicit options.
     toLocaleString(
         &readonly this,
-        locales?: Locales,
-        options?: DateTimeFormatOptions,
+        locales?: &readonly Locales,
+        options?: &readonly DateTimeFormatOptions,
     ): Result<string, IntlError> {
         todo("PlainDateTime.toLocaleString")
     }
 
     /// Return a JSON string.
-    toJSON(&readonly this): string {
+    toJSON(&readonly this): ^string {
         todo("PlainDateTime.toJSON")
     }
 
     /// Return an ISO string.
-    toString(&readonly this): string {
+    toString(&readonly this): ^string {
         todo("PlainDateTime.toString")
     }
 
     /// Return an ISO string with explicit rendering options.
-    toString(&readonly this, options: PlainDateTimeToStringOptions): string {
+    toString(&readonly this, options: &readonly PlainDateTimeToStringOptions): ^string {
         todo("PlainDateTime.toString")
     }
 

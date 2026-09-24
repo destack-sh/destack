@@ -6,7 +6,7 @@ export newtype IntlError = RangeError | TypeError;
 
 export extension of IntlError implements Error {
     /// Format this error for users.
-    display(this: &immutable this): string {
-        this.message
+    display(this: &immutable this): ^string {
+        this.message.clone()
     }
 }

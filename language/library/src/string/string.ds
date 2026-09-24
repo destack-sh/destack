@@ -3,7 +3,7 @@ import { As, Borrow, From } from "destack:convert";
 import { Result, todo } from "destack:error";
 import { CollatorOptions, IntlError, Locales } from "destack:intl";
 import { Iterator } from "destack:iter";
-import { Borrowed, Default, Region, WithAccess } from "destack:memory";
+import { Borrowed, Clone, Default, Region, WithAccess } from "destack:memory";
 
 import { Add, DefaultEqual, Equal, Hash, Hasher, Ordering, PartialEqual } from "destack:ops";
 import { RegExp, RegExpMatch } from "destack:regexp";
@@ -71,6 +71,7 @@ export extension of String implements Default {
 
 export extension of string
     implements
+        Clone,
         Add<string>,
         PartialEqual<string>,
         Equal<string>,
@@ -78,6 +79,11 @@ export extension of string
         Equal<StringSlice>,
         Hash
 {
+    /// Copy this string into owned storage.
+    clone(this: &immutable this): ^this {
+        this.as().toOwned()
+    }
+
     /// The concatenated string type.
     type Output = ^string;
 
@@ -145,8 +151,8 @@ export extension of string
     localeCompare(
         &readonly this,
         other: &readonly string,
-        locales?: Locales,
-        options?: CollatorOptions,
+        locales?: &readonly Locales,
+        options?: &readonly CollatorOptions,
     ): Result<Ordering, IntlError> {
         todo("String.localeCompare")
     }
@@ -235,7 +241,7 @@ export extension of string
     }
 
     /// Convert to lowercase using explicit locale rules.
-    toLocaleLowerCase(&readonly this, locales?: Locales): Result<^string, IntlError> {
+    toLocaleLowerCase(&readonly this, locales?: &readonly Locales): Result<^string, IntlError> {
         todo("String.toLocaleLowerCase")
     }
 
@@ -250,7 +256,7 @@ export extension of string
     }
 
     /// Convert to uppercase using explicit locale rules.
-    toLocaleUpperCase(&readonly this, locales?: Locales): Result<^string, IntlError> {
+    toLocaleUpperCase(&readonly this, locales?: &readonly Locales): Result<^string, IntlError> {
         todo("String.toLocaleUpperCase")
     }
 
@@ -349,9 +355,7 @@ export extension of ^string implements From<&readonly StringSlice>, From<^String
     }
 }
 
-export extension<const A: Access> of String
-    implements As<StringSlice, A>, Borrow<StringSlice, A>
-{
+export extension<const A: Access> of String implements As<StringSlice, A>, Borrow<StringSlice, A> {
     /// Borrow this string as a string slice.
     as<const R: Region>(this: Borrowed<this, R, A>): Borrowed<StringSlice, R, A> {
         todo("String.as")

@@ -251,16 +251,16 @@ export class DurationFormat {
 
     /// Create a duration formatter.
     static create(
-        locales?: Locales,
-        options?: DurationFormatOptions,
+        locales?: &readonly Locales,
+        options?: &readonly DurationFormatOptions,
     ): Result<DurationFormat, IntlError> {
         todo("DurationFormat.create")
     }
 
     /// Return the supported requested locales.
     static supportedLocalesOf(
-        locales: Locales,
-        options?: SupportedLocalesOptions,
+        locales: &readonly Locales,
+        options?: &readonly SupportedLocalesOptions,
     ): Result<^string[], IntlError> {
         todo("DurationFormat.supportedLocalesOf")
     }
@@ -271,7 +271,7 @@ export class DurationFormat {
     }
 
     /// Format a validated Temporal duration.
-    format(&readonly this, duration: &readonly Duration): string {
+    format(&readonly this, duration: &readonly Duration): ^string {
         todo("DurationFormat.formatDuration")
     }
 

@@ -32,7 +32,7 @@ export extension of Report {
 
 export extension of Report implements Error {
     /// Format this report for users.
-    display(&immutable this): string {
+    display(&immutable this): ^string {
         todo("Report.display")
     }
 

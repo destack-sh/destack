@@ -47,12 +47,12 @@ export extension of BigInt {
     }
 
     /// Convert `value` to a bigint.
-    static from(value: string | number | bigint): bigint {
+    static from(value: &readonly string | number | bigint): bigint {
         todo("BigInt.from")
     }
 
     /// Parse a bigint from `text`.
-    static parse(text: string, radix?: number): bigint {
+    static parse(text: &readonly string, radix?: number): bigint {
         todo("BigInt.parse")
     }
 
@@ -130,25 +130,25 @@ export extension of bigint
     }
 
     /// Return this integer as a string.
-    toString(&readonly this, radix?: number): string {
+    toString(&readonly this, radix?: number): ^string {
         todo("BigInt.toString")
     }
 
     /// Return this integer as a locale-aware string.
-    toLocaleString(&readonly this): string {
+    toLocaleString(&readonly this): ^string {
         todo("BigInt.toLocaleStringDefault")
     }
 
     /// Return this integer as a locale-aware string with explicit locales.
-    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError> {
+    toLocaleString(&readonly this, locales: &readonly Locales): Result<string, IntlError> {
         todo("BigInt.toLocaleStringLocales")
     }
 
     /// Return this integer as a locale-aware string with explicit options.
     toLocaleString(
         &readonly this,
-        locales?: Locales,
-        options?: NumberFormatOptions,
+        locales?: &readonly Locales,
+        options?: &readonly NumberFormatOptions,
     ): Result<string, IntlError> {
         todo("BigInt.toLocaleString")
     }
@@ -159,10 +159,7 @@ export extension of bigint
     }
 
     /// Compare partially with `other`.
-    partialCompare(
-        this: &immutable this,
-        other: &immutable bigint,
-    ): Ordering | null {
+    partialCompare(this: &immutable this, other: &immutable bigint): Ordering | null {
         this.compare(other)
     }
 

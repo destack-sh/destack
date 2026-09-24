@@ -45,16 +45,16 @@ export class PlainYearMonth implements ToLocaleString {
 
     /// Create a plain year-month.
     static from(
-        item: PlainYearMonthLike,
-        options?: OverflowOptions,
+        item: &readonly PlainYearMonthLike,
+        options?: &readonly OverflowOptions,
     ): Result<PlainYearMonth, TimeError> {
         todo("PlainYearMonth.from")
     }
 
     /// Compare two plain year-months.
     static compare(
-        one: PlainYearMonthLike,
-        two: PlainYearMonthLike,
+        one: &readonly PlainYearMonthLike,
+        two: &readonly PlainYearMonthLike,
     ): Result<ComparisonResult, TimeError> {
         todo("PlainYearMonth.compare")
     }
@@ -85,12 +85,12 @@ export class PlainYearMonth implements ToLocaleString {
     }
 
     /// Calendar month code.
-    get monthCode(&readonly this): string {
+    get monthCode(&readonly this): ^string {
         todo("PlainYearMonth.monthCode")
     }
 
     /// Calendar identifier.
-    get calendarId(&readonly this): string {
+    get calendarId(&readonly this): ^string {
         todo("PlainYearMonth.calendarId")
     }
 
@@ -115,20 +115,20 @@ export class PlainYearMonth implements ToLocaleString {
     }
 
     /// Return true when this year-month equals `other`.
-    equals(&readonly this, other: PlainYearMonth): boolean {
+    equals(&readonly this, other: &readonly PlainYearMonth): boolean {
         todo("PlainYearMonth.equalsPlainYearMonth")
     }
 
     /// Convert `other` and return whether it equals this year-month.
-    equals(&readonly this, other: PlainYearMonthLike): Result<boolean, TimeError> {
+    equals(&readonly this, other: &readonly PlainYearMonthLike): Result<boolean, TimeError> {
         todo("PlainYearMonth.equals")
     }
 
     /// Return this year-month with updated fields.
     with(
         &readonly this,
-        yearMonthLike: PlainYearMonthFields,
-        options?: OverflowOptions,
+        yearMonthLike: &readonly PlainYearMonthFields,
+        options?: &readonly OverflowOptions,
     ): Result<PlainYearMonth, TimeError> {
         todo("PlainYearMonth.with")
     }
@@ -136,8 +136,8 @@ export class PlainYearMonth implements ToLocaleString {
     /// Add a duration.
     add(
         &readonly this,
-        durationLike: DurationLike,
-        options?: OverflowOptions,
+        durationLike: &readonly DurationLike,
+        options?: &readonly OverflowOptions,
     ): Result<PlainYearMonth, TimeError> {
         todo("PlainYearMonth.add")
     }
@@ -145,8 +145,8 @@ export class PlainYearMonth implements ToLocaleString {
     /// Subtract a duration.
     subtract(
         &readonly this,
-        durationLike: DurationLike,
-        options?: OverflowOptions,
+        durationLike: &readonly DurationLike,
+        options?: &readonly OverflowOptions,
     ): Result<PlainYearMonth, TimeError> {
         todo("PlainYearMonth.subtract")
     }
@@ -154,8 +154,8 @@ export class PlainYearMonth implements ToLocaleString {
     /// Return the duration until `other`.
     until(
         &readonly this,
-        other: PlainYearMonthLike,
-        options?: DifferenceOptions<"year" | "month">,
+        other: &readonly PlainYearMonthLike,
+        options?: &readonly DifferenceOptions<"year" | "month">,
     ): Result<Duration, TimeError> {
         todo("PlainYearMonth.until")
     }
@@ -163,48 +163,48 @@ export class PlainYearMonth implements ToLocaleString {
     /// Return the duration since `other`.
     since(
         &readonly this,
-        other: PlainYearMonthLike,
-        options?: DifferenceOptions<"year" | "month">,
+        other: &readonly PlainYearMonthLike,
+        options?: &readonly DifferenceOptions<"year" | "month">,
     ): Result<Duration, TimeError> {
         todo("PlainYearMonth.since")
     }
 
     /// Convert this year-month into a plain date.
-    toPlainDate(&readonly this, day: { day: number }): Result<PlainDate, TimeError> {
+    toPlainDate(&readonly this, day: &readonly { day: number }): Result<PlainDate, TimeError> {
         todo("PlainYearMonth.toPlainDate")
     }
 
     /// Return a locale-aware string.
-    toLocaleString(&readonly this): string {
+    toLocaleString(&readonly this): ^string {
         todo("PlainYearMonth.toLocaleStringDefault")
     }
 
     /// Return a locale-aware string with explicit locales.
-    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError> {
+    toLocaleString(&readonly this, locales: &readonly Locales): Result<string, IntlError> {
         todo("PlainYearMonth.toLocaleStringLocales")
     }
 
     /// Return a locale-aware string with explicit options.
     toLocaleString(
         &readonly this,
-        locales?: Locales,
-        options?: DateTimeFormatOptions,
+        locales?: &readonly Locales,
+        options?: &readonly DateTimeFormatOptions,
     ): Result<string, IntlError> {
         todo("PlainYearMonth.toLocaleString")
     }
 
     /// Return a JSON string.
-    toJSON(&readonly this): string {
+    toJSON(&readonly this): ^string {
         todo("PlainYearMonth.toJSON")
     }
 
     /// Return an ISO string.
-    toString(&readonly this): string {
+    toString(&readonly this): ^string {
         todo("PlainYearMonth.toString")
     }
 
     /// Return an ISO string with explicit calendar options.
-    toString(&readonly this, options: PlainDateToStringOptions): string {
+    toString(&readonly this, options: &readonly PlainDateToStringOptions): ^string {
         todo("PlainYearMonth.toString")
     }
 

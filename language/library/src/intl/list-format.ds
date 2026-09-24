@@ -52,14 +52,17 @@ export class ListFormat {
     }
 
     /// Create a list formatter.
-    static create(locales?: Locales, options?: ListFormatOptions): Result<ListFormat, IntlError> {
+    static create(
+        locales?: &readonly Locales,
+        options?: &readonly ListFormatOptions,
+    ): Result<ListFormat, IntlError> {
         todo("ListFormat.create")
     }
 
     /// Return the supported requested locales.
     static supportedLocalesOf(
-        locales: Locales,
-        options?: SupportedLocalesOptions,
+        locales: &readonly Locales,
+        options?: &readonly SupportedLocalesOptions,
     ): Result<^string[], IntlError> {
         todo("ListFormat.supportedLocalesOf")
     }
@@ -70,7 +73,7 @@ export class ListFormat {
     }
 
     /// Format a list of strings.
-    format(&readonly this, list: Iterable<string>): string {
+    format(&readonly this, list: Iterable<string>): ^string {
         todo("ListFormat.format")
     }
 

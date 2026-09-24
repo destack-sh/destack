@@ -48,11 +48,13 @@ export newtype AllocationError =
 
 export extension of AllocationError implements Error {
     /// Format this error for users.
-    display(&immutable this): string {
+    display(&immutable this): ^string {
         match (this) {
-            AllocationOutOfMemory { message } => message ?? "out of memory"
-            AllocationCapacityOverflow { message } => message ?? "allocation capacity overflow"
-            AllocationUnsupported { message } => message ?? "allocation unsupported"
+            AllocationOutOfMemory { message } => (message ?? "out of memory").clone()
+            AllocationCapacityOverflow { message } => (
+                message ?? "allocation capacity overflow"
+            ).clone()
+            AllocationUnsupported { message } => (message ?? "allocation unsupported").clone()
         }
     }
 }

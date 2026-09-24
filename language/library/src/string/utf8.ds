@@ -16,13 +16,13 @@ export struct Utf8DecodeError {
 
 export extension of Utf8DecodeError implements Error {
     /// Format this error for users.
-    display(&immutable this): string {
-        this.message
+    display(&immutable this): ^string {
+        this.message.clone()
     }
 }
 
 /// Encode text as UTF-8 bytes.
-export function encodeUtf8(text: string): Bytes {
+export function encodeUtf8(text: &readonly string): Bytes {
     todo("string.encodeUtf8")
 }
 

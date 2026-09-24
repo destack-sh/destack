@@ -60,8 +60,8 @@ export class PlainMonthDay implements ToLocaleString {
 
     /// Create a plain month-day.
     static from(
-        item: PlainMonthDayLike,
-        options?: OverflowOptions,
+        item: &readonly PlainMonthDayLike,
+        options?: &readonly OverflowOptions,
     ): Result<PlainMonthDay, TimeError> {
         todo("PlainMonthDay.from")
     }
@@ -72,7 +72,7 @@ export class PlainMonthDay implements ToLocaleString {
     }
 
     /// Calendar month code.
-    get monthCode(&readonly this): string {
+    get monthCode(&readonly this): ^string {
         todo("PlainMonthDay.monthCode")
     }
 
@@ -82,25 +82,25 @@ export class PlainMonthDay implements ToLocaleString {
     }
 
     /// Calendar identifier.
-    get calendarId(&readonly this): string {
+    get calendarId(&readonly this): ^string {
         todo("PlainMonthDay.calendarId")
     }
 
     /// Return true when this month-day equals `other`.
-    equals(&readonly this, other: PlainMonthDay): boolean {
+    equals(&readonly this, other: &readonly PlainMonthDay): boolean {
         todo("PlainMonthDay.equalsPlainMonthDay")
     }
 
     /// Convert `other` and return whether it equals this month-day.
-    equals(&readonly this, other: PlainMonthDayLike): Result<boolean, TimeError> {
+    equals(&readonly this, other: &readonly PlainMonthDayLike): Result<boolean, TimeError> {
         todo("PlainMonthDay.equals")
     }
 
     /// Return this month-day with updated fields.
     with(
         &readonly this,
-        monthDayLike: PlainMonthDayFields,
-        options?: OverflowOptions,
+        monthDayLike: &readonly PlainMonthDayFields,
+        options?: &readonly OverflowOptions,
     ): Result<PlainMonthDay, TimeError> {
         todo("PlainMonthDay.with")
     }
@@ -108,42 +108,42 @@ export class PlainMonthDay implements ToLocaleString {
     /// Convert this month-day into a plain date.
     toPlainDate(
         &readonly this,
-        options: PlainMonthDayToPlainDateOptions,
+        options: &readonly PlainMonthDayToPlainDateOptions,
     ): Result<PlainDate, TimeError> {
         todo("PlainMonthDay.toPlainDate")
     }
 
     /// Return a locale-aware string.
-    toLocaleString(&readonly this): string {
+    toLocaleString(&readonly this): ^string {
         todo("PlainMonthDay.toLocaleStringDefault")
     }
 
     /// Return a locale-aware string with explicit locales.
-    toLocaleString(&readonly this, locales: Locales): Result<string, IntlError> {
+    toLocaleString(&readonly this, locales: &readonly Locales): Result<string, IntlError> {
         todo("PlainMonthDay.toLocaleStringLocales")
     }
 
     /// Return a locale-aware string with explicit options.
     toLocaleString(
         &readonly this,
-        locales?: Locales,
-        options?: DateTimeFormatOptions,
+        locales?: &readonly Locales,
+        options?: &readonly DateTimeFormatOptions,
     ): Result<string, IntlError> {
         todo("PlainMonthDay.toLocaleString")
     }
 
     /// Return a JSON string.
-    toJSON(&readonly this): string {
+    toJSON(&readonly this): ^string {
         todo("PlainMonthDay.toJSON")
     }
 
     /// Return an ISO string.
-    toString(&readonly this): string {
+    toString(&readonly this): ^string {
         todo("PlainMonthDay.toString")
     }
 
     /// Return an ISO string with explicit calendar options.
-    toString(&readonly this, options: PlainDateToStringOptions): string {
+    toString(&readonly this, options: &readonly PlainDateToStringOptions): ^string {
         todo("PlainMonthDay.toString")
     }
 

@@ -129,7 +129,7 @@ export extension of CString implements Clone, Default, Hash {
     }
 
     /// Encode text as a C string.
-    static fromString(value: string): Result<^CString, InteriorNulError> {
+    static fromString(value: &readonly string): Result<^CString, InteriorNulError> {
         todo("CString.fromString")
     }
 
@@ -310,28 +310,28 @@ export extension<Q: Borrow<CStringSlice>> of CString
 
 export extension of InteriorNulError implements Error {
     /// Format this error for users.
-    display(&immutable this): string {
+    display(&immutable this): ^string {
         todo("InteriorNulError.display")
     }
 }
 
 export extension of MissingNulError implements Error {
     /// Format this error for users.
-    display(&immutable this): string {
+    display(&immutable this): ^string {
         todo("MissingNulError.display")
     }
 }
 
 export extension of CStringError implements Error {
     /// Format this error for users.
-    display(&immutable this): string {
+    display(&immutable this): ^string {
         todo("CStringError.display")
     }
 }
 
 export extension of CStringIntoStringError implements Error {
     /// Format this error for users.
-    display(&immutable this): string {
+    display(&immutable this): ^string {
         todo("CStringIntoStringError.display")
     }
 }
