@@ -2,7 +2,7 @@ use destack_dir as dir;
 use destack_source::ModuleId;
 
 use crate::CompilerResult;
-use crate::sema::{CheckState, FlowPointId, Origin, Protocol, Value};
+use crate::sema::{CheckState, FlowPointId, Origin, Protocol, SignatureRejection, Value};
 
 impl CheckState<'_> {
     /// Select one sequence pattern.
@@ -337,7 +337,7 @@ impl CheckState<'_> {
         let start_type = self.static_usize_type(node, start)?;
         let key = self.static_name("rest");
         let sources = [dir::ArgumentSource::Static(start_type)];
-        let Some(call) = self.select_protocol_call(
+        let call = self.select_protocol_call(
             origin,
             Value {
                 ty: receiver,
@@ -350,12 +350,22 @@ impl CheckState<'_> {
             key,
             sequence,
             &sources,
-        )?
-        else {
-            return Ok(None);
-        };
+        )?;
+        match call {
+            Ok(call) => Ok(Some(call.resolution)),
+            // report a sequence without a rest method as unsupported
+            Err(SignatureRejection::Inapplicable) => {
+                self.report_sequence_rest_unsupported(node);
 
-        Ok(Some(call.resolution))
+                Ok(None)
+            }
+            // report the rejection of a selected rest method
+            Err(rejection) => {
+                self.report_signature_rejection(origin, rejection)?;
+
+                Ok(None)
+            }
+        }
     }
 
     /// Return the rest start position of one sequence assignment pattern.

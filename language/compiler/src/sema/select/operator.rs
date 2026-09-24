@@ -3,9 +3,10 @@ use std::iter;
 use destack_dir as dir;
 
 use crate::sema::{
-    Cause, CauseKind, CheckState, Expectation, FlowSite, InferMode, Obligation,
-    OperatorExpressionResult, Origin, PlaceUse, ProtocolCall, Relation, RelationCheck, ValueUse,
-    VariableKind, WritableTargetObligation, binary_operator_protocols, unary_operator_protocols,
+    Cause, CauseId, CauseKind, CheckOutcome, CheckState, Expectation, FailedCheck, FlowSite,
+    InferMode, Obligation, OperatorExpressionResult, Origin, PlaceUse, ProtocolCall, Relation,
+    RelationCheck, SignatureRejection, StoreTarget, Value, ValueUse, VariableKind,
+    WritableTargetObligation, binary_operator_protocols, unary_operator_protocols,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -23,7 +24,6 @@ pub(in crate::sema) enum OperatorOperands<'a> {
     Place,
 }
 
-#[allow(clippy::too_many_arguments)]
 impl CheckState<'_> {
     /// Select one binary operation from known operand types.
     pub(in crate::sema) fn select_binary_operation(
@@ -35,6 +35,7 @@ impl CheckState<'_> {
         left_source: dir::GlobalNodeIdAny,
         right_source: dir::GlobalNodeIdAny,
         writeback: Option<dir::GlobalTypeId>,
+        expectation: Option<Expectation>,
     ) -> CompilerResult<()> {
         let node = site.node;
         let origin = site.origin();
@@ -103,6 +104,7 @@ impl CheckState<'_> {
                         origin,
                         operator.text().to_string(),
                         &[left, right],
+                        None,
                     );
                 }
 
@@ -113,7 +115,10 @@ impl CheckState<'_> {
                 }
 
                 // select the exact accepted type of each compared value
-                let sources = [(left_source, left_value), (right_source, right_value)];
+                let sources = [
+                    (left_source, left_value, left),
+                    (right_source, right_value, right),
+                ];
                 let operands = self.select_strict_equality_operands(origin, &sources)?;
                 let [left_operand, right]: [dir::BuiltinOperand; 2] =
                     operands.try_into().map_err(|_| CompilerError::Internal {
@@ -158,27 +163,35 @@ impl CheckState<'_> {
             dir::BinaryOperator::And | dir::BinaryOperator::Or => {
                 Some((self.normalized_union_type([left, right])?, left, right))
             }
-            // try-coalesce opens the representation and joins the alternate
+            // type `??` at the expected type, else as the output joined with the fallback
             dir::BinaryOperator::Coalesce => {
                 let output = self
                     .reduce_operation_type(origin, dir::TypeOperation::TryOutput { value: left })?;
-                let result = self.normalized_union_type([output, right])?;
+                let result = match expectation.and_then(Expectation::contextual_target) {
+                    Some(target) => {
+                        let left_site = self.visit_site(left_source)?;
+                        let cause = self
+                            .intern_cause(Cause::root(left_site.origin(), CauseKind::Expression));
+                        let present = Value {
+                            ty: output,
+                            node: None,
+                            place: None,
+                            is_fresh: false,
+                        };
+                        self.check_coalesce_operand(left_site, cause, present, target)?;
+
+                        target
+                    }
+                    None => self.normalized_union_type([output, right])?,
+                };
 
                 // record the fallback's conversion into the joined result
                 if result != right {
                     let right_site = self.visit_site(right_source)?;
-                    let right_value = self.expression_value(right_site, right)?;
                     let cause =
                         self.intern_cause(Cause::root(right_site.origin(), CauseKind::Expression));
-                    self.convert_value(
-                        right_site,
-                        cause,
-                        Relation::Storable,
-                        right_value,
-                        result,
-                        ValueUse::Output,
-                        InferMode::Regular,
-                    )?;
+                    let right_value = self.expression_value(right_site, right)?;
+                    self.check_coalesce_operand(right_site, cause, right_value, result)?;
                 }
 
                 Some((result, left, right))
@@ -219,17 +232,19 @@ impl CheckState<'_> {
         let left_site = self.visit_site(left_source)?;
         let left_value = self.expression_value(left_site, left)?;
 
-        // the operand selects the protocol at its value, an owned one at its family-default form
+        // select the protocol at the operand's value, an owned operand at its default form
         let protocol_operand = self
-            .family_default_of_owned(right_value)?
+            .default_form_of_owned(right_value)?
             .unwrap_or(right_value);
         let protocols = binary_operator_protocols(operator);
+        let mut rejection = None;
         for protocol in protocols.iter() {
             let key = protocol.method.key(self.strings());
             let protocol_type = self.operator_protocol(origin, protocol, &[protocol_operand])?;
             let argument_sources = [dir::ArgumentSource::Provided(right_source)];
 
-            let Some(call) = self.select_protocol_call(
+            // keep the first specific rejection of a selected method
+            let call = match self.select_protocol_call(
                 origin,
                 left_value,
                 left,
@@ -237,9 +252,15 @@ impl CheckState<'_> {
                 key,
                 &protocol_type,
                 &argument_sources,
-            )?
-            else {
-                continue;
+            )? {
+                Ok(call) => call,
+                Err(rejected) => {
+                    if rejection.is_none() && rejected != SignatureRejection::Inapplicable {
+                        rejection = Some(rejected);
+                    }
+
+                    continue;
+                }
             };
 
             return self.commit_operator_call(
@@ -252,7 +273,44 @@ impl CheckState<'_> {
             );
         }
 
-        self.report_rejected_operator(node, origin, operator.text().to_string(), &[left, right])
+        self.report_rejected_operator(
+            node,
+            origin,
+            operator.text().to_string(),
+            &[left, right],
+            rejection,
+        )
+    }
+
+    /// Check one coalesce operand's type against the joined result, leaving it unconverted.
+    fn check_coalesce_operand(
+        &mut self,
+        site: FlowSite,
+        cause: CauseId,
+        value: Value,
+        target: dir::GlobalTypeId,
+    ) -> CompilerResult<()> {
+        let conversion = self.convert_value(
+            site,
+            cause,
+            Relation::Storable,
+            value,
+            target,
+            ValueUse::Output,
+            InferMode::Regular,
+        )?;
+        if let CheckOutcome::Fails(failure) = conversion.outcome {
+            self.push_failure(FailedCheck {
+                cause,
+                relation: Relation::Storable,
+                use_: Some(ValueUse::Output),
+                source: conversion.source,
+                target: conversion.target,
+                failure,
+            })?;
+        }
+
+        Ok(())
     }
 
     /// Check and lower both operands as builtin values, committing the result.
@@ -357,6 +415,7 @@ impl CheckState<'_> {
                     case_site.origin(),
                     dir::BinaryOperator::EqualStrict.text().to_string(),
                     &[scrutinee, *ty],
+                    None,
                 )?;
                 continue;
             }
@@ -369,11 +428,11 @@ impl CheckState<'_> {
 
         // select the exact accepted type of the scrutinee and every admitted case
         let mut sources = Vec::with_capacity(selected.len() + 1);
-        sources.push((value_source, scrutinee_value));
+        sources.push((value_source, scrutinee_value, scrutinee));
         sources.extend(
             selected
                 .iter()
-                .map(|(_, selector, _, value)| (*selector, *value)),
+                .map(|(_, selector, ty, value)| (*selector, *value, *ty)),
         );
         let operands = self.select_strict_equality_operands(origin, &sources)?;
         let Some((scrutinee_operand, selector_operands)) = operands.split_first() else {
@@ -489,6 +548,7 @@ impl CheckState<'_> {
                 origin,
                 operator.text().to_string(),
                 &[operand],
+                None,
             );
         }
 
@@ -545,6 +605,7 @@ impl CheckState<'_> {
                     origin,
                     operator.text().to_string(),
                     &[operand],
+                    None,
                 );
             };
             let result = selection.ty();
@@ -557,10 +618,13 @@ impl CheckState<'_> {
         // dispatch through the operator protocol interfaces
         let operand_value = self.expression_value(operand_site, operand)?;
         let protocols = unary_operator_protocols(operator, access);
+        let mut rejection = None;
         for protocol in protocols {
             let key = protocol.method.key(self.strings());
             let protocol_type = self.operator_protocol(origin, &protocol, &[])?;
-            let Some(call) = self.select_protocol_call(
+
+            // keep the first specific rejection of a selected method
+            let call = match self.select_protocol_call(
                 origin,
                 operand_value,
                 operand,
@@ -568,9 +632,15 @@ impl CheckState<'_> {
                 key,
                 &protocol_type,
                 &[],
-            )?
-            else {
-                continue;
+            )? {
+                Ok(call) => call,
+                Err(rejected) => {
+                    if rejection.is_none() && rejected != SignatureRejection::Inapplicable {
+                        rejection = Some(rejected);
+                    }
+
+                    continue;
+                }
             };
             let result = self.operator_expression_type(
                 origin,
@@ -615,7 +685,13 @@ impl CheckState<'_> {
             return self.commit_operator(origin, node, resolution, result, None);
         }
 
-        self.report_rejected_operator(node, origin, operator.text().to_string(), &[operand])
+        self.report_rejected_operator(
+            node,
+            origin,
+            operator.text().to_string(),
+            &[operand],
+            rejection,
+        )
     }
 
     /// Return whether one operand is only builtin numerics.
@@ -644,9 +720,9 @@ impl CheckState<'_> {
     fn select_strict_equality_operands(
         &mut self,
         origin: Origin,
-        sources: &[(dir::GlobalNodeIdAny, dir::GlobalTypeId)],
+        sources: &[(dir::GlobalNodeIdAny, dir::GlobalTypeId, dir::GlobalTypeId)],
     ) -> CompilerResult<Vec<dir::BuiltinOperand>> {
-        let operands = sources.iter().map(|(_, ty)| *ty).collect::<Vec<_>>();
+        let operands = sources.iter().map(|(_, ty, _)| *ty).collect::<Vec<_>>();
         let Some((first, rest)) = operands.split_first() else {
             return Err(CompilerError::Internal {
                 message: "strict equality requires at least one operand".to_string(),
@@ -687,20 +763,36 @@ impl CheckState<'_> {
         // require every other operand to agree exactly
         else {
             let mut is_equal = true;
+            let first_value = self.strip_form(origin, *first)?;
             for operand in rest {
-                is_equal &= self
+                let is_equal_operand = self
                     .decide_relation(origin, Relation::Equal, *first, *operand)?
                     .holds();
+                if !is_equal_operand
+                    && self.type_flags(first_value)?.has_parameter()
+                    && self.strip_form(origin, *operand)? == first_value
+                {
+                    self.report_invalid_strict_equality(origin, *first, *operand)?;
+                }
+                is_equal &= is_equal_operand;
             }
 
             is_equal.then_some(*first)
         };
 
-        // check each operand at the exact type the operation takes
+        // check each operand at the type the operation takes
         let mut selected = Vec::with_capacity(sources.len());
-        for (source, source_type) in sources {
+        for (source, source_type, handle) in sources {
             let target = common.unwrap_or(*source_type);
-            self.check_builtin_operand(*source, *source_type, target)?;
+            let is_handle = matches!(
+                self.ty(*source_type)?.head(),
+                dir::TypeHead::Value | dir::TypeHead::Empty
+            ) && self.ownership(*source_type)? == Some(dir::Ownership::Managed);
+            let checked = match is_handle {
+                true => *handle,
+                false => *source_type,
+            };
+            self.check_builtin_operand(*source, checked, target)?;
             selected.push(self.builtin_operand(origin, *source, target)?);
         }
 
@@ -863,6 +955,7 @@ impl CheckState<'_> {
             cause,
             use_: ValueUse::Operand,
             mode: InferMode::Regular,
+            store: StoreTarget::Exact,
         };
         self.check_value(operand_site, source_type, expectation)?;
 
@@ -1200,10 +1293,10 @@ impl CheckState<'_> {
         operator: dir::UnaryOperator,
         dereference: dir::Dereference,
     ) -> CompilerResult<dir::OperatorApplication> {
-        // build the application each dereference target names
-        let application = match dereference.target {
-            // direct pointer forms use the compiler-defined operator
-            dir::DereferenceTarget::Direct => {
+        // build the application the dereference names
+        let application = match dereference.protocol {
+            // built-in dereferences use the compiler-defined operator
+            None => {
                 let operand = self.builtin_operand(origin, source, dereference.receiver)?;
 
                 dir::OperatorApplication::Unary {
@@ -1215,7 +1308,7 @@ impl CheckState<'_> {
             }
 
             // protocol-backed values keep the selected method call
-            dir::DereferenceTarget::Call(call) => dir::OperatorApplication::Unary {
+            Some(call) => dir::OperatorApplication::Unary {
                 operator,
                 target: dir::OperatorTarget::Call(call),
                 ty: dereference.ty,
@@ -1263,6 +1356,7 @@ impl CheckState<'_> {
             cause,
             use_: ValueUse::Store,
             mode: InferMode::Regular,
+            store: StoreTarget::Exact,
         };
         self.check_value(site, source, expectation)?;
 
@@ -1276,6 +1370,7 @@ impl CheckState<'_> {
         origin: Origin,
         operator: String,
         operands: &[dir::GlobalTypeId],
+        rejection: Option<SignatureRejection>,
     ) -> CompilerResult<()> {
         // poison an operand that already reported an error
         if self.has_error_operand(operands)? {
@@ -1283,7 +1378,20 @@ impl CheckState<'_> {
 
             return Ok(());
         }
-        self.report_no_matching_operator(origin, operator, OperatorOperands::Types(operands))?;
+
+        // report the selected method's rejection, else the missing operator
+        match rejection {
+            Some(rejection) => {
+                self.report_signature_rejection(origin, rejection)?;
+            }
+            None => {
+                self.report_no_matching_operator(
+                    origin,
+                    operator,
+                    OperatorOperands::Types(operands),
+                )?;
+            }
+        }
         self.commit_decision(node, dir::Decision::Rejected)?;
         self.commit_error_node(node)?;
 

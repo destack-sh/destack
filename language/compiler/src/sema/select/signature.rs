@@ -7,8 +7,8 @@ use smallvec::SmallVec;
 use crate::sema::infer::InferMode;
 use crate::sema::{
     CandidateOutcome, Cause, CauseId, CauseKind, CheckFailure, CheckOutcome, CheckState,
-    Expectation, Origin, REPORTED_REJECTIONS, Relation, RelationCheck, Settle, TypeSubstitution,
-    Value, ValueConversion, ValueUse, Verdict,
+    Expectation, Origin, REPORTED_REJECTIONS, Relation, RelationCheck, Settle, StoreTarget,
+    TypeSubstitution, Value, ValueConversion, ValueUse, Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -121,8 +121,8 @@ impl SignatureMatch {
 pub(in crate::sema) enum ArgumentValue {
     /// One checked type, driving classification and conversion into its parameter.
     Typed(dir::GlobalTypeId),
-    /// One composite literal, checked during selection; a mismatch rejects the candidate.
-    Composite,
+    /// One contextually typed value, checked against each candidate's parameter.
+    Contextual,
     /// One written value, checked only after selection; never rejects a candidate.
     Deferred,
 }
@@ -259,7 +259,6 @@ impl SignatureRejection {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 impl CheckState<'_> {
     /// Select one callable candidate and constrain the invocation against it.
     pub(in crate::sema) fn select_callable<'candidate, C>(
@@ -510,13 +509,9 @@ impl CheckState<'_> {
         origin: Origin,
         parameter: dir::FunctionParameterType,
         substitution: &TypeSubstitution,
-        receiver: Option<dir::GlobalTypeId>,
     ) -> CompilerResult<Option<ParameterSelection>> {
-        // substitute the complete declared parameter type
+        // substitute the declared type
         let parameter_type = self.substitute_type(parameter.ty, substitution)?;
-
-        // resolve relative member parameters at the receiver's place
-        let parameter_type = self.receiver_relative_type(origin, receiver, parameter_type)?;
         let parameter_type = self.shallow_resolve(parameter_type)?;
 
         // keep the collection type on a rest parameter and take its element per source
@@ -591,16 +586,10 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let reduced = self.deeply_resolve(origin, rest)?;
 
-        // read the element through the collection's form, a placed one in the collection's place
+        // read the element through the collection's form
         if let dir::Type::Form(form) = self.ty(reduced)? {
             let Some(element) = self.rest_element_type(origin, form.value)? else {
                 return Ok(None);
-            };
-            let element = match form.form {
-                dir::Form::Managed { place } => {
-                    self.resolve_relative_place(origin, element, place)?
-                }
-                _ => element,
             };
 
             return Ok(Some(element));
@@ -762,12 +751,12 @@ impl CheckState<'_> {
             return Ok(SignatureMatch::Inapplicable(rejection));
         }
 
-        // bind this to the receiver value beneath its forms before evaluating generic defaults
+        // bind this to the receiver's object before evaluating generic defaults
         let substitution = match receiver {
             Some(receiver) => {
-                let value = self.strip_form(origin, receiver.ty)?;
+                let object = self.strip_form(origin, receiver.ty)?;
 
-                TypeSubstitution::default().with_receiver(value)
+                TypeSubstitution::default().with_receiver(object)
             }
             None => TypeSubstitution::default(),
         };
@@ -789,19 +778,78 @@ impl CheckState<'_> {
         };
 
         // bind the owner parameters member lookup left open
-        if let Some(owner) = owner
-            && let Some(template) = self.symbol_template(owner)?
+        let mut owner = owner;
+        if let Some(owner_symbol) = owner
+            && let Some(template) = self.symbol_template(owner_symbol)?
         {
+            // read the parameters the owner and its own template declare
             let mut parameters = self.generic_template_parameters(template)?;
             parameters.extend(self.owner_template_parameters(template)?);
-            let opened = self.instantiate_parameters(origin, &parameters, &[], substitution)?;
-            let Some(opened) = opened else {
-                return Ok(SignatureMatch::Inapplicable(
-                    SignatureRejection::Inapplicable,
-                ));
-            };
+            let is_nominal = !matches!(
+                self.definition(owner_symbol)?.as_deref(),
+                Some(dir::Definition::Extension(_) | dir::Definition::Interface(_))
+            );
 
-            substitution = opened;
+            // split a nominal owner's parameters by the ones this signature names
+            if is_nominal {
+                let named: SmallVec<[dir::GlobalTypeId; 8]> = signature_parameters
+                    .iter()
+                    .map(|parameter| parameter.ty)
+                    .chain(function.return_type)
+                    .chain(function.this_parameter)
+                    .collect();
+                let mut open = SmallVec::<[_; 4]>::new();
+                let mut unnamed = SmallVec::<[_; 4]>::new();
+                for parameter in parameters {
+                    if substitution.argument(parameter).is_some() {
+                        continue;
+                    }
+                    let parameter_type = self.generic_parameter_type(parameter)?;
+                    let mut is_named = false;
+                    for ty in &named {
+                        if self.type_mentions(*ty, parameter_type)? {
+                            is_named = true;
+                            break;
+                        }
+                    }
+                    match is_named {
+                        true => open.push(parameter),
+                        false => unnamed.push(parameter),
+                    }
+                }
+
+                // drop an owner none of this signature's parameters name
+                if open.is_empty() && !unnamed.is_empty() {
+                    owner = None;
+                }
+
+                // bind each unnamed parameter to its default, else infer it at the call
+                if !open.is_empty() {
+                    for parameter in unnamed {
+                        match self.require_generic_parameter(parameter)?.default {
+                            Some(default) => {
+                                let argument = self.substitute_type(default, &substitution)?;
+                                substitution.bind(parameter, argument)?;
+                            }
+                            None => open.push(parameter),
+                        }
+                    }
+                }
+
+                parameters = open;
+            }
+
+            // open the owner parameters this signature still names
+            if owner.is_some() {
+                let opened = self.instantiate_parameters(origin, &parameters, &[], substitution)?;
+                let Some(opened) = opened else {
+                    return Ok(SignatureMatch::Inapplicable(
+                        SignatureRejection::Inapplicable,
+                    ));
+                };
+
+                substitution = opened;
+            }
         }
 
         // point this at the applied extension target for bare type receivers
@@ -851,7 +899,6 @@ impl CheckState<'_> {
             function,
             function_return,
             &substitution,
-            receiver.map(|receiver| receiver.ty),
             receiver_adjustments,
             arguments,
         )?;
@@ -913,37 +960,6 @@ impl CheckState<'_> {
             }
         }
 
-        // apply the contextual result type before contextualizing arguments
-        if let (Some(return_type), Some(expectation)) = (function_return, expectation) {
-            let return_type = self.substitute_type(return_type, substitution)?;
-            let return_type = self.receiver_relative_type(
-                origin,
-                receiver.map(|receiver| receiver.ty),
-                return_type,
-            )?;
-            let source = self.origin_source(origin)?;
-            let site = self.visit_site(source)?;
-            let converted = self.convert_value(
-                site,
-                expectation.cause,
-                expectation.relation,
-                Value {
-                    ty: return_type,
-                    node: None,
-                    place: None,
-                    is_fresh: false,
-                },
-                expectation.target,
-                expectation.use_,
-                expectation.mode,
-            )?;
-
-            // record a failed expectation as a return mismatch
-            if matches!(converted.outcome, CheckOutcome::Fails(_)) {
-                is_return_mismatch = true;
-            }
-        }
-
         // spread a substituted tuple rest into positional parameters
         let signature_parameters =
             self.spread_tuple_rest_parameters(origin, signature_parameters, substitution)?;
@@ -959,13 +975,7 @@ impl CheckState<'_> {
         // require every parameter to describe a valid argument type
         let mut selected = SmallVec::<[_; 4]>::new();
         for parameter in signature_parameters.iter() {
-            let Some(parameter) = self.select_parameter(
-                origin,
-                *parameter,
-                substitution,
-                receiver.map(|receiver| receiver.ty),
-            )?
-            else {
+            let Some(parameter) = self.select_parameter(origin, *parameter, substitution)? else {
                 return Ok(None);
             };
             selected.push(parameter);
@@ -1048,6 +1058,34 @@ impl CheckState<'_> {
             }
         }
 
+        // convert the declared result to the contextual result type ahead of the arguments
+        if let (Some(return_type), Some(expectation)) = (function_return, expectation)
+            && expectation.contextual_target().is_some()
+        {
+            let return_type = self.substitute_type(return_type, substitution)?;
+            let source = self.origin_source(origin)?;
+            let site = self.visit_site(source)?;
+            let converted = self.convert_value(
+                site,
+                expectation.cause,
+                expectation.relation,
+                Value {
+                    ty: return_type,
+                    node: None,
+                    place: None,
+                    is_fresh: false,
+                },
+                expectation.target,
+                expectation.use_,
+                expectation.mode,
+            )?;
+
+            // record a failed expectation as a return mismatch
+            if matches!(converted.outcome, CheckOutcome::Fails(_)) {
+                is_return_mismatch = true;
+            }
+        }
+
         // match every argument in order, refusing the candidate on the first rejection
         for entry in argument_parameters {
             if let Some(rejection) =
@@ -1109,31 +1147,15 @@ impl CheckState<'_> {
             Err(failure) => return Ok(Some(failure)),
         }
 
-        // resolve staged const parameters as their arguments settle
+        // resolve the staged const parameters this argument binds
+        let bound = self.type_variables(parameter_type)?;
         for variable in const_variables {
-            if self.infer.variable(*variable)?.state.is_open() {
+            if bound.contains(variable) && self.infer.variable(*variable)?.state.is_open() {
                 self.settle_variables(&[*variable], Settle::All)?;
             }
         }
 
         Ok(None)
-    }
-
-    /// Settle one relative member type in the receiver's concrete place.
-    fn receiver_relative_type(
-        &mut self,
-        origin: Origin,
-        receiver: Option<dir::GlobalTypeId>,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let Some(receiver) = receiver else {
-            return Ok(ty);
-        };
-        let Some(place) = self.receiver_projected_place(receiver)? else {
-            return Ok(ty);
-        };
-
-        self.place_relative_type(origin, place, ty)
     }
 
     /// Build the selected payload for one instantiated signature.
@@ -1144,16 +1166,14 @@ impl CheckState<'_> {
         function: &dir::FunctionSignatureType,
         function_return: Option<dir::GlobalTypeId>,
         substitution: &TypeSubstitution,
-        receiver: Option<dir::GlobalTypeId>,
         receiver_adjustments: Option<Vec<dir::ReceiverAdjustment>>,
         sources: &[CallableArgument],
     ) -> CompilerResult<SignatureSelection> {
-        // resolve the substituted return type
+        // substitute the declared result type
         let return_type = match function_return {
             Some(return_type) => self.substitute_type(return_type, substitution)?,
             None => self.intern_type(dir::Type::Void)?,
         };
-        let return_type = self.receiver_relative_type(origin, receiver, return_type)?;
 
         // select each parameter and erase the barriers inference left behind
         let declared = self.signature_parameters(signature_module, function.parameters)?;
@@ -1161,7 +1181,7 @@ impl CheckState<'_> {
         let mut parameters = SmallVec::<[_; 4]>::new();
         for &parameter in declared.iter() {
             let parameter = self
-                .select_parameter(origin, parameter, substitution, receiver)?
+                .select_parameter(origin, parameter, substitution)?
                 .ok_or_else(|| CompilerError::Internal {
                     message: "a selected signature has an invalid rest parameter".to_string(),
                 })?;
@@ -1234,10 +1254,15 @@ impl CheckState<'_> {
             return Ok(Ok(None));
         }
 
-        // check a composite's values against the parameter, recording its own conversions
+        // check a contextually typed value against the parameter, a spread as the array it builds
         let ArgumentValue::Typed(ty) = argument.value else {
             let parameter_type = if argument.is_spread {
-                self.array_type(parameter_type)?
+                let array = self.array_type(parameter_type)?;
+
+                self.intern_type(dir::Type::Form(dir::FormType {
+                    form: dir::Form::Owned,
+                    value: array,
+                }))?
             } else {
                 parameter_type
             };
@@ -1249,6 +1274,7 @@ impl CheckState<'_> {
                     cause,
                     use_: argument.use_,
                     mode,
+                    store: StoreTarget::Exact,
                 },
             )?;
             if let CheckOutcome::Fails(failure) = check.outcome {
