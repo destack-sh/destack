@@ -93,6 +93,11 @@ impl SharedHeapImage {
 }
 
 impl SharedHeap {
+    /// Return whether one address lies in this heap's storage.
+    pub fn contains(&self, reference: SharedHeapReference) -> bool {
+        self.storage.resolve_extent(reference).is_some()
+    }
+
     /// Return the memory map backing this shared heap.
     pub fn memory(&self) -> &Arc<MemoryMap> {
         &self.storage.memory

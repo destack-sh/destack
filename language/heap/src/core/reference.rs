@@ -1,8 +1,8 @@
 use destack_mir::{TraceId, TraceMap};
 
 use crate::{
-    Bitmap, HeapError, HeapReference, HeapRepresentationError, HeapResult, RootSlot,
-    SharedHeapReference, TraceView, TraceVisitor,
+    Bitmap, HeapError, HeapReference, HeapRepresentationError, HeapResult, ReferenceOffsets,
+    RootSlot, SharedHeapReference, TraceView, TraceVisitor,
 };
 
 /// Native reference field width.
@@ -101,11 +101,7 @@ pub(crate) trait ReferenceClass: Sized {
     const BYTE_LEN: usize;
 
     /// Return the offsets for this reference class.
-    fn offsets<'a>(
-        local_offsets: &'a [u32],
-        shared_offsets: &'a [u32],
-        frame_offsets: &'a [u32],
-    ) -> &'a [u32];
+    fn offsets(offsets: ReferenceOffsets<'_>) -> &[u32];
 
     /// Decode one reference from native bits.
     fn from_bits(bits: usize) -> Self;
@@ -121,12 +117,8 @@ pub(crate) trait ReferenceClass: Sized {
 impl ReferenceClass for HeapReference {
     const BYTE_LEN: usize = HeapReference::BYTE_LEN;
 
-    fn offsets<'a>(
-        local_offsets: &'a [u32],
-        _shared_offsets: &'a [u32],
-        _frame_offsets: &'a [u32],
-    ) -> &'a [u32] {
-        local_offsets
+    fn offsets(offsets: ReferenceOffsets<'_>) -> &[u32] {
+        offsets.local
     }
 
     fn from_bits(bits: usize) -> Self {
@@ -146,12 +138,8 @@ impl ReferenceClass for HeapReference {
 impl ReferenceClass for SharedHeapReference {
     const BYTE_LEN: usize = SharedHeapReference::BYTE_LEN;
 
-    fn offsets<'a>(
-        _local_offsets: &'a [u32],
-        shared_offsets: &'a [u32],
-        _frame_offsets: &'a [u32],
-    ) -> &'a [u32] {
-        shared_offsets
+    fn offsets(offsets: ReferenceOffsets<'_>) -> &[u32] {
+        offsets.shared
     }
 
     fn from_bits(bits: usize) -> Self {
@@ -165,6 +153,15 @@ impl ReferenceClass for SharedHeapReference {
     fn overlaps(trace_map: &TraceMap, range: ReferenceRange) -> bool {
         overlaps_reference_range::<Self>(trace_map, range)
     }
+}
+
+/// The class of one address word a frame value holds.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum FrameWord {
+    /// An address inside a frame.
+    Frame,
+    /// A borrow whose target storage is classified by address.
+    Borrow,
 }
 
 /// Heap reference edge encoded in object or frame bytes.
@@ -214,8 +211,15 @@ fn walk_reference_offset_union<R: ReferenceClass>(
             local_offsets,
             shared_offsets,
             frame_offsets,
+            borrow_offsets,
         } => {
-            for offset in R::offsets(local_offsets, shared_offsets, frame_offsets) {
+            let offsets = ReferenceOffsets {
+                local: local_offsets,
+                shared: shared_offsets,
+                frame: frame_offsets,
+                borrow: borrow_offsets,
+            };
+            for offset in R::offsets(offsets) {
                 let offset = base_offset + *offset as usize;
                 if range.overlaps(offset, R::BYTE_LEN) && !visit(offset) {
                     return false;
@@ -339,6 +343,7 @@ fn direct_trace_map(
         local_offsets: local_offsets.into_boxed_slice(),
         shared_offsets: shared_offsets.into_boxed_slice(),
         frame_offsets: Vec::new().into_boxed_slice(),
+        borrow_offsets: Vec::new().into_boxed_slice(),
     }
 }
 
@@ -490,12 +495,12 @@ pub fn visit_heap_root_slots(
 }
 
 impl TraceView<'_> {
-    /// Visit mutable frame address slots encoded in one value.
+    /// Visit mutable frame address slots encoded in one value, borrows classified by the caller.
     pub fn visit_frame_address_slots(
         self,
         trace: TraceId,
         bytes: &mut [u8],
-        visit: &mut dyn FnMut(&mut [u8]) -> HeapResult<()>,
+        visit: &mut dyn FnMut(&mut [u8], FrameWord) -> HeapResult<()>,
     ) -> HeapResult<()> {
         let mut walker = FrameAddressSlotWalker { bytes, visit };
 
@@ -587,14 +592,15 @@ fn walk_trace_map<W: TraceVisitor>(
             local_offsets,
             shared_offsets,
             frame_offsets,
+            borrow_offsets,
         } => {
-            walker.fixed(
-                local_offsets,
-                shared_offsets,
-                frame_offsets,
-                base_offset,
-                range,
-            )?;
+            let offsets = ReferenceOffsets {
+                local: local_offsets,
+                shared: shared_offsets,
+                frame: frame_offsets,
+                borrow: borrow_offsets,
+            };
+            walker.fixed(offsets, base_offset, range)?;
         }
         TraceMap::Nested { byte_offset, map } => {
             let byte_offset = base_offset + *byte_offset as usize;
@@ -674,14 +680,12 @@ struct MemoryReferenceVisitWalker<'a, R: ReferenceClass> {
 impl<R: ReferenceClass> TraceVisitor for MemoryReferenceVisitWalker<'_, R> {
     fn fixed(
         &mut self,
-        local_offsets: &[u32],
-        shared_offsets: &[u32],
-        frame_offsets: &[u32],
+        offsets: ReferenceOffsets<'_>,
         base_offset: usize,
         range: ReferenceRange,
     ) -> HeapResult<()> {
         walk_direct_offsets(
-            R::offsets(local_offsets, shared_offsets, frame_offsets),
+            R::offsets(offsets),
             base_offset,
             range,
             R::BYTE_LEN,
@@ -715,14 +719,12 @@ struct ByteReferenceVisitWalker<'a, R: ReferenceClass> {
 impl<R: ReferenceClass> TraceVisitor for ByteReferenceVisitWalker<'_, R> {
     fn fixed(
         &mut self,
-        local_offsets: &[u32],
-        shared_offsets: &[u32],
-        frame_offsets: &[u32],
+        offsets: ReferenceOffsets<'_>,
         base_offset: usize,
         range: ReferenceRange,
     ) -> HeapResult<()> {
         walk_direct_offsets(
-            R::offsets(local_offsets, shared_offsets, frame_offsets),
+            R::offsets(offsets),
             base_offset,
             range,
             R::BYTE_LEN,
@@ -754,14 +756,12 @@ struct ByteEdgeWalker<'a> {
 impl TraceVisitor for ByteEdgeWalker<'_> {
     fn fixed(
         &mut self,
-        local_offsets: &[u32],
-        shared_offsets: &[u32],
-        _frame_offsets: &[u32],
+        offsets: ReferenceOffsets<'_>,
         base_offset: usize,
         range: ReferenceRange,
     ) -> HeapResult<()> {
         walk_direct_offsets(
-            local_offsets,
+            offsets.local,
             base_offset,
             range,
             HeapReference::BYTE_LEN,
@@ -773,7 +773,7 @@ impl TraceVisitor for ByteEdgeWalker<'_> {
         )?;
 
         walk_direct_offsets(
-            shared_offsets,
+            offsets.shared,
             base_offset,
             range,
             SharedHeapReference::BYTE_LEN,
@@ -807,27 +807,37 @@ struct FrameAddressSlotWalker<'a> {
     /// The byte window to mutate.
     bytes: &'a mut [u8],
     /// The frame address slot visitor.
-    visit: &'a mut dyn FnMut(&mut [u8]) -> HeapResult<()>,
+    visit: &'a mut dyn FnMut(&mut [u8], FrameWord) -> HeapResult<()>,
 }
 
 impl TraceVisitor for FrameAddressSlotWalker<'_> {
     fn fixed(
         &mut self,
-        _local_offsets: &[u32],
-        _shared_offsets: &[u32],
-        frame_offsets: &[u32],
+        offsets: ReferenceOffsets<'_>,
         base_offset: usize,
         range: ReferenceRange,
     ) -> HeapResult<()> {
         walk_direct_offsets(
-            frame_offsets,
+            offsets.frame,
             base_offset,
             range,
             REFERENCE_BYTES,
             |offset| {
                 let slot = reference_bytes_mut(self.bytes, 0, offset, REFERENCE_BYTES)?;
 
-                (self.visit)(slot)
+                (self.visit)(slot, FrameWord::Frame)
+            },
+        )?;
+
+        walk_direct_offsets(
+            offsets.borrow,
+            base_offset,
+            range,
+            REFERENCE_BYTES,
+            |offset| {
+                let slot = reference_bytes_mut(self.bytes, 0, offset, REFERENCE_BYTES)?;
+
+                (self.visit)(slot, FrameWord::Borrow)
             },
         )
     }
@@ -842,14 +852,12 @@ impl TraceVisitor for FrameAddressSlotWalker<'_> {
 impl TraceVisitor for ByteSlotWalker<'_> {
     fn fixed(
         &mut self,
-        local_offsets: &[u32],
-        shared_offsets: &[u32],
-        _frame_offsets: &[u32],
+        offsets: ReferenceOffsets<'_>,
         base_offset: usize,
         range: ReferenceRange,
     ) -> HeapResult<()> {
         walk_direct_offsets(
-            local_offsets,
+            offsets.local,
             base_offset,
             range,
             HeapReference::BYTE_LEN,
@@ -862,7 +870,7 @@ impl TraceVisitor for ByteSlotWalker<'_> {
         )?;
 
         walk_direct_offsets(
-            shared_offsets,
+            offsets.shared,
             base_offset,
             range,
             SharedHeapReference::BYTE_LEN,
@@ -875,6 +883,18 @@ impl TraceVisitor for ByteSlotWalker<'_> {
                 )?;
 
                 (self.visit)(RootSlot::SharedHeapBytes(slot))
+            },
+        )?;
+
+        walk_direct_offsets(
+            offsets.borrow,
+            base_offset,
+            range,
+            REFERENCE_BYTES,
+            |offset| {
+                let slot = reference_bytes_mut(self.bytes, self.start, offset, REFERENCE_BYTES)?;
+
+                (self.visit)(RootSlot::BorrowBytes(slot))
             },
         )
     }
@@ -1010,6 +1030,7 @@ mod tests {
                     local_offsets: vec![0].into_boxed_slice(),
                     shared_offsets: Vec::new().into_boxed_slice(),
                     frame_offsets: Vec::new().into_boxed_slice(),
+                    borrow_offsets: Vec::new().into_boxed_slice(),
                 },
             }]
             .into_boxed_slice(),
@@ -1055,6 +1076,7 @@ mod tests {
                         local_offsets: vec![0].into_boxed_slice(),
                         shared_offsets: Box::default(),
                         frame_offsets: Box::default(),
+                        borrow_offsets: Box::default(),
                     },
                 },
             ]
@@ -1086,6 +1108,7 @@ mod tests {
             local_offsets: Vec::new().into_boxed_slice(),
             shared_offsets: vec![0].into_boxed_slice(),
             frame_offsets: Vec::new().into_boxed_slice(),
+            borrow_offsets: Vec::new().into_boxed_slice(),
         };
         let mut references = Vec::new();
 

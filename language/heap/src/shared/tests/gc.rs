@@ -5,7 +5,7 @@ use destack_mir::{TraceMap, TraceTable};
 
 use crate::{
     AllocationCache, AllocationShape, DEFAULT_GC_MINIMUM_WORK_BYTES, DropId, DropReference,
-    GcAdvance, GcCollector, GcOptions, GcPhase, HeapAllocationError, HeapError, Payload, Release,
+    GcAdvance, GcCollector, GcOptions, GcPhase, HeapAllocationError, HeapError, Payload,
     SharedHeap, SharedHeapLimits, SharedHeapOptions, SharedHeapReference, SharedMarkWorker,
     SizeClassTable, TestLayout, shared_trace_map, test_layout, test_layouts,
 };
@@ -115,11 +115,13 @@ fn test_reserve_shared_zeroed_misses_different_trace_class() {
         local_offsets: Box::new([0]),
         shared_offsets: Box::new([]),
         frame_offsets: Box::new([]),
+        borrow_offsets: Box::default(),
     };
     let second_map = TraceMap::Fixed {
         local_offsets: Box::new([]),
         shared_offsets: Box::new([0]),
         frame_offsets: Box::new([]),
+        borrow_offsets: Box::default(),
     };
     let mut trace_table = TraceTable::new();
     let first_trace_id = trace_table.insert(first_map.clone());

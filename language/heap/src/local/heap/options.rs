@@ -133,6 +133,7 @@ mod tests {
             local_offsets: vec![0, 8].into(),
             shared_offsets: vec![].into(),
             frame_offsets: vec![].into(),
+            borrow_offsets: vec![].into(),
         };
         let shape = AllocationShape::new(16, 8, None, trace_map);
 

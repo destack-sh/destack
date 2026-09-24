@@ -299,6 +299,7 @@ fn local_record_trace_map() -> TraceMap {
         local_offsets: Box::new([0]),
         shared_offsets: Box::new([]),
         frame_offsets: Box::new([]),
+        borrow_offsets: Box::default(),
     }
 }
 
@@ -308,6 +309,7 @@ fn shared_record_trace_map() -> TraceMap {
         local_offsets: Box::new([]),
         shared_offsets: Box::new([0]),
         frame_offsets: Box::new([]),
+        borrow_offsets: Box::default(),
     }
 }
 

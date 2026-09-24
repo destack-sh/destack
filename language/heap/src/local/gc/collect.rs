@@ -264,13 +264,20 @@ impl HeapStorage {
     where
         E: From<HeapError>,
     {
-        // enqueue every reference the roots hold
-        roots(&mut |slot: RootSlot<'_>| {
-            let Some(reference) = slot.load_heap_reference()? else {
-                return Ok(());
-            };
-
-            self.enqueue_reference(reference)
+        // enqueue the worker references and the borrows into this heap
+        roots(&mut |slot: RootSlot<'_>| match slot {
+            RootSlot::HeapReference(reference) => self.enqueue_reference(*reference),
+            RootSlot::HeapBytes(bytes) => {
+                self.enqueue_reference(HeapReference::read_from_bytes(bytes)?)
+            }
+            RootSlot::BorrowBytes(bytes) => {
+                let reference = HeapReference::read_from_bytes(bytes)?;
+                match self.resolve_extent(reference) {
+                    Some(extent) => self.enqueue_extent(reference, extent),
+                    None => Ok(()),
+                }
+            }
+            RootSlot::SharedHeapBytes(_) => Ok(()),
         })?;
 
         Ok(())
@@ -767,10 +774,17 @@ impl HeapStorage {
             return Ok(());
         }
 
-        // mark the referenced block before queueing scan work, an interior address by its block
+        // resolve the block an interior address lies in
         let Some(extent) = self.resolve_extent(reference) else {
             return Err(HeapError::invalid_heap_reference(reference));
         };
+
+        self.enqueue_extent(reference, extent)
+    }
+
+    /// Queue the block one resolved address lies in after marking it.
+    fn enqueue_extent(&mut self, reference: HeapReference, extent: HeapExtent) -> HeapResult<()> {
+        // mark the referenced block before queueing scan work
         let reference = HeapReference::new(reference.offset() - extent.byte_offset);
 
         // queue scan work for freshly marked blocks

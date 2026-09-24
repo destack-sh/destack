@@ -2,13 +2,17 @@ use crate::local::gc::Phase;
 use crate::local::storage::{HeapPlace, HeapStorage};
 use crate::{
     AllocationShape, DEFAULT_GC_MINIMUM_WORK_BYTES, DropId, DropReference, GcAdvance, GcCollector,
-    GcOptions, GcPhase, Heap, HeapError, HeapOptions, HeapReference, HeapResult, Payload, Release,
-    RootSlot, SharedHeapReference, SizeClassTable, TestLayout, local_trace_map, shared_trace_map,
-    test_layout, test_layouts, visit_heap_references,
+    GcOptions, GcPhase, Heap, HeapError, HeapOptions, HeapReference, HeapResult, Payload,
+    ReferenceRange, Release, RootSlot, SharedHeapReference, SizeClassTable, TestLayout,
+    local_trace_map, shared_trace_map, test_layout, test_layouts, visit_heap_references,
+    visit_heap_root_slots,
 };
-use destack_mir::{TraceMap, TraceTable};
+use destack_mir::{Lifetime, Reference, TraceMap, TraceTable};
 
-use super::{TestHeapPlan, TestTraceTable, read_mapped_bytes, test_heap, test_storage, trace_view};
+use super::{
+    TestHeapPlan, TestTraceTable, read_mapped_bytes, test_heap, test_memory, test_storage,
+    trace_view,
+};
 
 /// Build one heap whose pacer triggers immediately in step-driven tests.
 fn pacing_heap(layouts: &[(usize, TraceMap)]) -> (Heap, Vec<TestLayout>) {
@@ -1019,4 +1023,54 @@ fn test_reserve_slot_shares_a_span_across_noscan_trace_ids() {
     }
 
     assert_eq!(heap.small.spans.len(), 1);
+}
+
+/// Keep an object that a borrow root points into.
+#[test]
+fn test_collect_full_keeps_an_object_reached_by_an_interior_borrow() {
+    let options = tiny_heap_options();
+    let layout = test_layout(16, TraceMap::empty());
+    let mut heap = test_storage(&options);
+    let object = heap.test_allocate(layout.block(), Payload::Zeroed);
+
+    // root one generic borrow at the object's second word
+    let mut frame = (object.offset() + 8).to_le_bytes();
+    let borrow = TraceMap::reference(Reference::Borrowed, &Lifetime::bound(0));
+    let stats = heap
+        .collect_full(
+            &mut |visit| visit_heap_root_slots(&borrow, 0, &mut frame, ReferenceRange::All, visit),
+            trace_view(),
+            &mut |_| Ok(()),
+        )
+        .expect("full collection should succeed");
+
+    assert_eq!(stats.freed_allocations, 0);
+    assert!(heap.is_live(object));
+}
+
+/// Skip a borrow root that addresses memory outside the heap.
+#[test]
+fn test_collect_full_skips_a_borrow_root_outside_the_heap() {
+    let options = tiny_heap_options();
+    let memory = test_memory(options.page_size_bytes);
+    let mut heap = HeapStorage::new(memory.clone(), &options).expect("heap should build");
+    let layout = test_layout(16, TraceMap::empty());
+    let unreachable = heap.test_allocate(layout.block(), Payload::Zeroed);
+
+    // root one generic borrow into frame storage beside the heap
+    let frame_range = memory
+        .allocate(64, 8)
+        .expect("frame storage should allocate");
+    let mut frame = frame_range.offset.to_le_bytes();
+    let borrow = TraceMap::reference(Reference::Borrowed, &Lifetime::bound(0));
+    let stats = heap
+        .collect_full(
+            &mut |visit| visit_heap_root_slots(&borrow, 0, &mut frame, ReferenceRange::All, visit),
+            trace_view(),
+            &mut |_| Ok(()),
+        )
+        .expect("full collection should skip the frame borrow");
+
+    assert_eq!(stats.freed_allocations, 1);
+    assert!(!heap.is_live(unreachable));
 }

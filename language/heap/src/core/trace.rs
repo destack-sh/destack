@@ -89,6 +89,7 @@ impl TraceTable {
             fixed.local_offsets.fits(view.offsets.len())
                 && fixed.shared_offsets.fits(view.offsets.len())
                 && fixed.frame_offsets.fits(view.offsets.len())
+                && fixed.borrow_offsets.fits(view.offsets.len())
         });
         if !fixed_fit {
             return false;
@@ -183,6 +184,7 @@ impl TraceView<'_> {
                     local_offsets: fixed.local_offsets.slice(self.offsets).into(),
                     shared_offsets: fixed.shared_offsets.slice(self.offsets).into(),
                     frame_offsets: fixed.frame_offsets.slice(self.offsets).into(),
+                    borrow_offsets: fixed.borrow_offsets.slice(self.offsets).into(),
                 })
             }
             TRACE_NESTED => {
@@ -274,13 +276,13 @@ impl TraceView<'_> {
             TRACE_FIXED => {
                 let fixed = self.fixed(entry)?;
 
-                walker.fixed(
-                    fixed.local_offsets.slice(self.offsets),
-                    fixed.shared_offsets.slice(self.offsets),
-                    fixed.frame_offsets.slice(self.offsets),
-                    base_offset,
-                    range,
-                )?;
+                let offsets = ReferenceOffsets {
+                    local: fixed.local_offsets.slice(self.offsets),
+                    shared: fixed.shared_offsets.slice(self.offsets),
+                    frame: fixed.frame_offsets.slice(self.offsets),
+                    borrow: fixed.borrow_offsets.slice(self.offsets),
+                };
+                walker.fixed(offsets, base_offset, range)?;
             }
             TRACE_NESTED => {
                 let nested = self.nested(entry)?;
@@ -424,13 +426,11 @@ struct ReferencePresence<R> {
 impl<R: ReferenceClass> TraceVisitor for ReferencePresence<R> {
     fn fixed(
         &mut self,
-        local_offsets: &[u32],
-        shared_offsets: &[u32],
-        frame_offsets: &[u32],
+        offsets: ReferenceOffsets<'_>,
         base_offset: usize,
         range: ReferenceRange,
     ) -> HeapResult<()> {
-        self.is_present |= R::offsets(local_offsets, shared_offsets, frame_offsets)
+        self.is_present |= R::offsets(offsets)
             .iter()
             .any(|offset| range.overlaps(base_offset + *offset as usize, R::BYTE_LEN));
 
@@ -442,14 +442,25 @@ impl<R: ReferenceClass> TraceVisitor for ReferencePresence<R> {
     }
 }
 
+/// The reference offset lists of one fixed trace map.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ReferenceOffsets<'a> {
+    /// Local heap reference offsets.
+    pub(crate) local: &'a [u32],
+    /// Shared heap reference offsets.
+    pub(crate) shared: &'a [u32],
+    /// Frame address offsets.
+    pub(crate) frame: &'a [u32],
+    /// Borrow offsets classified by address.
+    pub(crate) borrow: &'a [u32],
+}
+
 /// Consumer for compact trace walking.
 pub(crate) trait TraceVisitor {
     /// Walk one fixed trace map at the given byte offset.
     fn fixed(
         &mut self,
-        local_offsets: &[u32],
-        shared_offsets: &[u32],
-        frame_offsets: &[u32],
+        offsets: ReferenceOffsets<'_>,
         base_offset: usize,
         range: ReferenceRange,
     ) -> HeapResult<()>;
@@ -531,6 +542,8 @@ struct FixedTrace {
     shared_offsets: EntryRange<u32>,
     /// Frame reference byte offsets.
     frame_offsets: EntryRange<u32>,
+    /// Borrow byte offsets classified by address.
+    borrow_offsets: EntryRange<u32>,
 }
 
 /// One nested trace entry.
@@ -695,11 +708,13 @@ impl TraceTableBuilder {
                 local_offsets,
                 shared_offsets,
                 frame_offsets,
+                borrow_offsets,
             } => {
                 let fixed = FixedTrace {
                     local_offsets: self.offsets.append(local_offsets.iter().copied()),
                     shared_offsets: self.offsets.append(shared_offsets.iter().copied()),
                     frame_offsets: self.offsets.append(frame_offsets.iter().copied()),
+                    borrow_offsets: self.offsets.append(borrow_offsets.iter().copied()),
                 };
                 let index = self.fixed.len() as u32;
                 self.fixed.push(fixed);

@@ -17,6 +17,7 @@ fn test_allocate_heap_preserves_dynamic_trace_map() {
             local_offsets: vec![0].into_boxed_slice(),
             shared_offsets: vec![].into_boxed_slice(),
             frame_offsets: vec![].into_boxed_slice(),
+            borrow_offsets: vec![].into(),
         }),
     };
     let shape = AllocationShape::new(16, 8, None, trace_map.clone());
@@ -129,6 +130,7 @@ fn test_allocate_heap_routes_variant_trace_map_to_large() {
                 local_offsets: vec![0].into_boxed_slice(),
                 shared_offsets: Box::default(),
                 frame_offsets: Box::default(),
+                borrow_offsets: Box::default(),
             },
         }]
         .into_boxed_slice(),
