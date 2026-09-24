@@ -6,7 +6,7 @@ import { Task } from "./task.ds";
 
 /// Asynchronous mutual exclusion lock.
 @languageItem("async.AsyncMutex")
-export local class AsyncMutex<T> {
+export class AsyncMutex<T> {
     /// The protected value.
     private value: T;
 
@@ -44,7 +44,7 @@ export extension<T: Default> of AsyncMutex<T> implements Default {
 }
 
 /// Active async mutex guard.
-export local struct AsyncMutexGuard<'a, T> {
+export struct AsyncMutexGuard<'a, T> implements !SharedSafe {
     /// The locked mutex.
     private mutex: &'a readonly AsyncMutex<T>;
 }

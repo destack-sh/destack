@@ -13,7 +13,7 @@ import { Weak } from "./weak.ds";
 
 /// Reference-counted heap block for one worker.
 @languageItem("memory.rc.RcInner")
-export local struct RcInner<T> {
+export struct RcInner<T> implements !SharedSafe {
     /// The strong reference count.
     private strong: usize;
 
@@ -29,7 +29,7 @@ export extension<T> of Rc<T> implements Unpin {}
 
 /// Local reference-counted ownership.
 @languageItem("memory.rc.Rc")
-export local struct Rc<T> {
+export struct Rc<T> implements !SharedSafe {
     /// The reference-counted allocation.
     private inner: *RcInner<Owned<T>>;
 }
@@ -98,7 +98,7 @@ export extension<T> of Rc<T> implements Clone, Dereference, As<T>, Borrow<T>, !C
     }
 
     /// Clone this strong handle.
-    clone(this: &immutable this): Rc<T> {
+    clone(this: &immutable this): ^this {
         todo("Rc.clone")
     }
 

@@ -2,7 +2,7 @@ import { Copy, Dispose } from "destack:memory";
 
 /// Shared cancellation request.
 @languageItem("async.AbortSignal")
-export local newtype interface AbortSignal {
+export newtype interface AbortSignal {
     /// Return whether cancellation was requested.
     get aborted(): boolean;
 
@@ -15,7 +15,7 @@ export local newtype interface AbortSignal {
 
 /// Controller that aborts one signal.
 @languageItem("async.AbortController")
-export local class AbortController {
+export class AbortController {
     /// The controlled state.
     private readonly state: AbortState;
 
@@ -36,7 +36,7 @@ export local class AbortController {
 }
 
 /// Active abort listener registration.
-export local struct AbortSubscription implements Dispose, !Copy {
+export struct AbortSubscription implements Dispose, !Copy, !SharedSafe {
     /// The registered state when still active.
     private readonly state: AbortState | undefined;
 
@@ -52,7 +52,7 @@ export local struct AbortSubscription implements Dispose, !Copy {
 }
 
 /// Mutable state retained by one controller and its signal.
-local class AbortState implements AbortSignal {
+class AbortState implements AbortSignal {
     /// Whether cancellation was requested.
     private isAborted: boolean;
 
@@ -164,7 +164,7 @@ local class AbortState implements AbortSignal {
 }
 
 /// One abort listener in registration order.
-local class AbortListener {
+class AbortListener {
     /// The listener function.
     run: (reason: unknown | undefined) => void;
 

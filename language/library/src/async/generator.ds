@@ -16,7 +16,7 @@ export type GeneratorRequest<R, N> = GeneratorNext<N> | GeneratorReturn<R>;
 
 /// Continue the producer with one sent value.
 @languageItem("async.GeneratorNext")
-export local struct GeneratorNext<N> {
+export struct GeneratorNext<N> implements !SharedSafe {
     /// The request tag.
     kind: "next";
 
@@ -26,7 +26,7 @@ export local struct GeneratorNext<N> {
 
 /// Run the producer's return path with one completion value.
 @languageItem("async.GeneratorReturn")
-export local struct GeneratorReturn<R> {
+export struct GeneratorReturn<R> implements !SharedSafe {
     /// The request tag.
     kind: "return";
 
@@ -36,7 +36,7 @@ export local struct GeneratorReturn<R> {
 
 /// Generator object.
 @languageItem("async.Generator")
-export local class Generator<Y, R = void, N = void> {
+export class Generator<Y, R = void, N = void> {
     /// Shared producer state.
     private readonly state: GeneratorState<Y, R, N>;
 
@@ -91,7 +91,7 @@ export extension<Y, R, N> of Generator<Y, R, N> implements Iterator<Y> {
 }
 
 /// Step operations available to one lowered generator body.
-export local struct GeneratorProducer<Y, R, N> {
+export struct GeneratorProducer<Y, R, N> implements !SharedSafe {
     /// Shared producer state.
     private readonly state: GeneratorState<Y, R, N>;
 
@@ -106,7 +106,7 @@ export local struct GeneratorProducer<Y, R, N> {
 }
 
 /// Shared state between one synchronous generator and its producer.
-local class GeneratorState<Y, R, N> {
+class GeneratorState<Y, R, N> {
     /// Current generator phase.
     private readonly phase: Cell<GeneratorPhase<Y, R, N>>;
 
@@ -228,7 +228,7 @@ local class GeneratorState<Y, R, N> {
 
 /// Async generator object.
 @languageItem("async.AsyncGenerator")
-export local class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
+export class AsyncGenerator<Y: Copy, R: Copy = void, N = void> {
     /// Shared producer state.
     private readonly state: AsyncGeneratorState<Y, R, N>;
 
@@ -283,7 +283,7 @@ export extension<Y: Copy, R: Copy, N> of AsyncGenerator<Y, R, N> implements Asyn
 }
 
 /// Step operations available to one lowered async generator body.
-export local struct AsyncGeneratorProducer<Y: Copy, R: Copy, N> {
+export struct AsyncGeneratorProducer<Y: Copy, R: Copy, N> implements !SharedSafe {
     /// Shared producer state.
     private readonly state: AsyncGeneratorState<Y, R, N>;
 
@@ -298,7 +298,7 @@ export local struct AsyncGeneratorProducer<Y: Copy, R: Copy, N> {
 }
 
 /// Shared state between one async generator and its producer.
-local class AsyncGeneratorState<Y: Copy, R: Copy, N> {
+class AsyncGeneratorState<Y: Copy, R: Copy, N> {
     /// Current generator phase.
     private readonly phase: Cell<AsyncGeneratorPhase>;
 
@@ -452,7 +452,7 @@ local class AsyncGeneratorState<Y: Copy, R: Copy, N> {
 }
 
 /// One queued async generator request.
-local class AsyncGeneratorRequest<Y: Copy, R: Copy, N> {
+class AsyncGeneratorRequest<Y: Copy, R: Copy, N> {
     /// Requested producer operation.
     private readonly operation: Cell<GeneratorRequest<R, N> | undefined>;
 
@@ -484,7 +484,7 @@ local class AsyncGeneratorRequest<Y: Copy, R: Copy, N> {
 }
 
 /// One synchronous generator execution phase.
-local type GeneratorPhase<Y, R, N> =
+type GeneratorPhase<Y, R, N> =
     | GeneratorStart
     | GeneratorSuspended
     | GeneratorRequested<R, N>
@@ -495,19 +495,19 @@ local type GeneratorPhase<Y, R, N> =
     | GeneratorMoving;
 
 /// Producer has not started.
-local struct GeneratorStart {
+struct GeneratorStart implements !SharedSafe {
     /// The phase tag.
     kind: "start";
 }
 
 /// Producer is suspended after yielding.
-local struct GeneratorSuspended {
+struct GeneratorSuspended implements !SharedSafe {
     /// The phase tag.
     kind: "suspended";
 }
 
 /// Consumer request awaiting producer execution.
-local struct GeneratorRequested<R, N> {
+struct GeneratorRequested<R, N> implements !SharedSafe {
     /// The phase tag.
     kind: "requested";
 
@@ -516,13 +516,13 @@ local struct GeneratorRequested<R, N> {
 }
 
 /// Producer is executing.
-local struct GeneratorRunning {
+struct GeneratorRunning implements !SharedSafe {
     /// The phase tag.
     kind: "running";
 }
 
 /// Producer yielded one value.
-local struct GeneratorYielded<Y> {
+struct GeneratorYielded<Y> implements !SharedSafe {
     /// The phase tag.
     kind: "yielded";
 
@@ -531,7 +531,7 @@ local struct GeneratorYielded<Y> {
 }
 
 /// Producer returned one value.
-local struct GeneratorReturned<R> {
+struct GeneratorReturned<R> implements !SharedSafe {
     /// The phase tag.
     kind: "returned";
 
@@ -540,19 +540,19 @@ local struct GeneratorReturned<R> {
 }
 
 /// Producer has completed.
-local struct GeneratorExhausted {
+struct GeneratorExhausted implements !SharedSafe {
     /// The phase tag.
     kind: "exhausted";
 }
 
 /// Generator phase is being moved through its cell.
-local struct GeneratorMoving {
+struct GeneratorMoving implements !SharedSafe {
     /// The phase tag.
     kind: "moving";
 }
 
 /// One async generator execution phase.
-local enum AsyncGeneratorPhase {
+enum AsyncGeneratorPhase {
     /// Producer has not started.
     Start,
 

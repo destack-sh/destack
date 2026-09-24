@@ -78,14 +78,14 @@ export extension TaskResult<T, E> of Task<Result<T, E>> implements FromResidual<
     }
 
     /// Run a side effect on success and keep the original result.
-    async tap(this, f: (value: &immutable local T) => void): Task<Result<T, E>> {
+    async tap(this, f: (value: &immutable T) => void): Task<Result<T, E>> {
         const result = await this;
 
         result.tap(f)
     }
 
     /// Run a side effect on failure and keep the original result.
-    async tapErr(this, f: (error: &immutable local E) => void): Task<Result<T, E>> {
+    async tapErr(this, f: (error: &immutable E) => void): Task<Result<T, E>> {
         const result = await this;
 
         result.tapErr(f)

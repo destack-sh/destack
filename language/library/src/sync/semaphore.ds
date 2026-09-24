@@ -46,7 +46,7 @@ export shared class Semaphore {
 }
 
 /// Active semaphore permit.
-export local struct SemaphorePermit {
+export struct SemaphorePermit implements !SharedSafe {
     /// The semaphore that issued this permit.
     private semaphore: Semaphore;
 

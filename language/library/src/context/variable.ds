@@ -5,7 +5,7 @@ import { bindContext, currentContext, getContextValue } from "./context.ds";
 
 /// One dynamically scoped execution value.
 @languageItem("context.ContextVar")
-export local class ContextVar<T: Copy> {
+export class ContextVar<T: Copy> {
     /// Diagnostic name.
     readonly name: string;
 

@@ -5,7 +5,7 @@ import { ContextVar } from "./variable.ds";
 
 /// One immutable dynamically scoped execution context.
 @languageItem("context.Context")
-export local class Context {
+export class Context {
     /// Prevent direct construction.
     private constructor() {
         // construction is intentionally unavailable

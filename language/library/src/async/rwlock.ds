@@ -6,7 +6,7 @@ import { Task } from "./task.ds";
 
 /// Asynchronous reader-writer lock.
 @languageItem("async.AsyncRwLock")
-export local class AsyncRwLock<T> {
+export class AsyncRwLock<T> {
     /// The protected value.
     private value: T;
 
@@ -54,7 +54,7 @@ export extension<T: Default> of AsyncRwLock<T> implements Default {
 }
 
 /// Active async readonly lock guard.
-export local struct AsyncRwLockReadGuard<'a, T> {
+export struct AsyncRwLockReadGuard<'a, T> implements !SharedSafe {
     /// The locked value.
     private lock: &'a readonly AsyncRwLock<T>;
 }
@@ -82,7 +82,7 @@ export extension<'a, T> of AsyncRwLockReadGuard<'a, T>
 }
 
 /// Active async exclusive lock guard.
-export local struct AsyncRwLockWriteGuard<'a, T> {
+export struct AsyncRwLockWriteGuard<'a, T> implements !SharedSafe {
     /// The locked value.
     private lock: &'a readonly AsyncRwLock<T>;
 }

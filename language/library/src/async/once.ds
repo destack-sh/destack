@@ -6,7 +6,7 @@ import { Task } from "./task.ds";
 
 /// One-time async execution state.
 @languageItem("async.AsyncOnce")
-export local class AsyncOnce {
+export class AsyncOnce {
     /// Run `body` once.
     call(body: () => Promise<void>): Promise<void> {
         todo("AsyncOnce.call")
@@ -20,7 +20,7 @@ export local class AsyncOnce {
 
 /// One-time async initialized cell.
 @languageItem("async.AsyncOnceCell")
-export local class AsyncOnceCell<T> {
+export class AsyncOnceCell<T> {
     /// The stored value.
     private value: MaybeUninit<T> = MaybeUninit.uninit();
 

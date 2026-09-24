@@ -5,7 +5,7 @@ import { Fiber } from "./fiber.ds";
 import { Poll, Pollable, Ready } from "./poll.ds";
 
 /// Sending and receiving ends of one open channel.
-export local struct ChannelEnds<T> {
+export struct ChannelEnds<T> implements !SharedSafe {
     /// The producer end.
     sender: ChannelSender<T>;
 
@@ -14,7 +14,7 @@ export local struct ChannelEnds<T> {
 }
 
 /// Shareable sending end of one channel.
-export local class ChannelSender<T> {
+export class ChannelSender<T> {
     /// Shared channel state.
     private readonly state: ChannelState<T>;
 
@@ -30,7 +30,7 @@ export local class ChannelSender<T> {
 }
 
 /// Owned receiving end of one channel, polled for the next value.
-export local struct ChannelReceiver<T> implements !Copy {
+export struct ChannelReceiver<T> implements !Copy, !SharedSafe {
     /// Shared channel state.
     private state: ChannelState<T>;
 }
@@ -58,7 +58,7 @@ export function channel<T>(): ChannelEnds<T> {
 }
 
 /// Shared queue and waiter state between the channel ends.
-local class ChannelState<T> {
+class ChannelState<T> {
     /// The queued values in send order.
     private readonly values: Cell<Deque<Ready<T>>>;
 

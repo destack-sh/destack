@@ -7,7 +7,7 @@ import { Promise } from "./promise.ds";
 
 /// Single-consumer asynchronous result.
 @languageItem("async.Task")
-export local struct Task<T> implements Awaitable<T>, Dispose, !Copy {
+export struct Task<T> implements Awaitable<T>, Dispose, !Copy, !SharedSafe {
     /// Shared task state.
     private readonly state: TaskState<T>;
 
@@ -65,7 +65,7 @@ export local struct Task<T> implements Awaitable<T>, Dispose, !Copy {
 }
 
 /// Producer retained by one lowered async body.
-local struct TaskProducer<T> implements Dispose, !Copy {
+struct TaskProducer<T> implements Dispose, !Copy, !SharedSafe {
     /// Shared task state.
     private readonly state: TaskState<T>;
 
@@ -88,7 +88,7 @@ local struct TaskProducer<T> implements Dispose, !Copy {
 }
 
 /// Task and producer returned to lowered async entry code.
-local struct TaskStart<T> {
+struct TaskStart<T> implements !SharedSafe {
     /// The consumer returned by the async function.
     task: Task<T>;
 
@@ -97,7 +97,7 @@ local struct TaskStart<T> {
 }
 
 /// Shared state between one task and its producer.
-local class TaskState<T> {
+class TaskState<T> {
     /// Current task phase.
     private readonly phase: Cell<TaskPhase<T>>;
 
@@ -226,10 +226,10 @@ local class TaskState<T> {
 }
 
 /// One task's settlement phase.
-local type TaskPhase<T> = TaskPending | TaskDone<T> | TaskCancelled | TaskTaken;
+type TaskPhase<T> = TaskPending | TaskDone<T> | TaskCancelled | TaskTaken;
 
 /// Task awaiting producer completion.
-local struct TaskPending {
+struct TaskPending implements !SharedSafe {
     /// The phase tag.
     kind: "pending";
 
@@ -244,7 +244,7 @@ local struct TaskPending {
 }
 
 /// Task holding an unconsumed result.
-local struct TaskDone<T> {
+struct TaskDone<T> implements !SharedSafe {
     /// The phase tag.
     kind: "done";
 
@@ -253,13 +253,13 @@ local struct TaskDone<T> {
 }
 
 /// Task whose producer completed through cancellation.
-local struct TaskCancelled {
+struct TaskCancelled implements !SharedSafe {
     /// The phase tag.
     kind: "cancelled";
 }
 
 /// Task whose result was consumed or is being updated.
-local struct TaskTaken {
+struct TaskTaken implements !SharedSafe {
     /// The phase tag.
     kind: "taken";
 }
@@ -269,7 +269,7 @@ local struct TaskTaken {
 /// Asynchronous disposal waits for every child before it completes.
 /// Cancellation requests are delivered cooperatively at cancellable asynchronous operations.
 @languageItem("async.TaskScope")
-export local struct TaskScope implements AsyncDispose, !Copy {
+export struct TaskScope implements AsyncDispose, !Copy, !SharedSafe {
     /// Opaque task scope identity.
     private handle: uint64;
 

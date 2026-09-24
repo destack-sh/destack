@@ -9,7 +9,7 @@ export function channel<T>(): (Sender<T>, Receiver<T>) {
 }
 
 /// Create a shared blocking one-shot channel.
-export function sharedChannel<T: SharedSafe>(): (Sender<shared T>, Receiver<shared T>) {
+export function sharedChannel<T: SharedSafe>(): (Sender<T>, Receiver<T>) {
     todo("oneshot.sharedChannel")
 }
 
@@ -19,9 +19,6 @@ export function asyncChannel<T>(): (AsyncSender<T>, AsyncReceiver<T>) {
 }
 
 /// Create a shared suspending one-shot channel.
-export function sharedAsyncChannel<T: SharedSafe>(): (
-    AsyncSender<shared T>,
-    AsyncReceiver<shared T>,
-) {
+export function sharedAsyncChannel<T: SharedSafe>(): (AsyncSender<T>, AsyncReceiver<T>) {
     todo("oneshot.sharedAsyncChannel")
 }

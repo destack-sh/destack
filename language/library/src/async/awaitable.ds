@@ -1,6 +1,6 @@
 /// Value whose result can suspend the current fiber.
 @languageItem("async.Awaitable")
-export local newtype interface Awaitable<T> {
+export newtype interface Awaitable<T> {
     /// Park the current fiber until `value` produces its result.
     static park(value: this): T;
 }

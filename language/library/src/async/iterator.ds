@@ -5,7 +5,7 @@ import { Promise } from "./promise.ds";
 
 /// Protocol for asynchronously producing values.
 @languageItem("async.AsyncIterator")
-export local newtype interface AsyncIterator<T: Copy> {
+export newtype interface AsyncIterator<T: Copy> {
     /// The completion value produced when the sequence ends.
     type Return: Copy = void;
 
@@ -15,7 +15,7 @@ export local newtype interface AsyncIterator<T: Copy> {
 
 /// Value that can produce an async iterator.
 @languageItem("async.AsyncIterable")
-export local newtype interface AsyncIterable<T: Copy> {
+export newtype interface AsyncIterable<T: Copy> {
     /// The asynchronous iterator produced by this value.
     type Iterator: AsyncIterator<T> = AsyncIterator<T>;
 

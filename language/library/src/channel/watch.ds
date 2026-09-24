@@ -6,7 +6,7 @@ import { Dereference } from "destack:ops";
 import { ReceiveError, SendError } from "./channel.ds";
 
 /// Stable readonly snapshot of one watched value.
-export local class WatchRef<T> implements Dereference<"readonly"> {
+export class WatchRef<T> implements Dereference<"readonly"> {
     /// The pointee type.
     type Target = T;
 
@@ -70,8 +70,6 @@ export function channel<T>(value: T): (WatchSender<T>, WatchReceiver<T>) {
 }
 
 /// Create a shared watch channel.
-export function sharedChannel<T: SharedSafe>(
-    value: T,
-): (WatchSender<shared T>, WatchReceiver<shared T>) {
+export function sharedChannel<T: SharedSafe>(value: T): (WatchSender<T>, WatchReceiver<T>) {
     todo("watch.sharedChannel")
 }

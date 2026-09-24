@@ -19,7 +19,7 @@ export shared class Condvar {
     waitWhile<'a, T>(
         &readonly this,
         guard: MutexGuard<'a, T>,
-        condition: (value: &immutable shared T) => boolean,
+        condition: (value: &immutable T) => boolean,
     ): MutexGuard<'a, T> {
         todo("Condvar.waitWhile")
     }

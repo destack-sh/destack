@@ -5,7 +5,7 @@ import { Promise } from "./promise.ds";
 
 /// Asynchronous notification primitive.
 @languageItem("async.Notify")
-export local class Notify {
+export class Notify {
     /// The notification generation.
     private state: Atomic<uint64>;
 

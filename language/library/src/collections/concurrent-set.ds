@@ -1,21 +1,13 @@
 import { From } from "destack:convert";
 import { todo } from "destack:error";
 import { Extend, FromIterator, Iterable, Iterator } from "destack:iter";
-import {
-    Access,
-    Borrowed,
-    Copy,
-    Default,
-    Dispose,
-    Region,
-    SharedSafe,
-} from "destack:memory";
+import { Access, Borrowed, Copy, Default, Dispose, Region, SharedSafe } from "destack:memory";
 import { Dereference, Equality, Equate } from "destack:ops";
 
 import { ConcurrentMap, ConcurrentMapRead } from "./concurrent-map.ds";
 
 /// Read guard for one concurrent set value.
-export local struct ConcurrentSetRead<'a, T, E = Equality<T>> {
+export struct ConcurrentSetRead<'a, T, E = Equality<T>> implements !SharedSafe {
     /// The backing map read guard.
     private guard: ConcurrentMapRead<'a, T, void, E>;
 }
@@ -42,13 +34,13 @@ export extension<'a, T, E> of ConcurrentSetRead<'a, T, E>
     implements Dispose, !Copy, Dereference<"readonly">
 {
     /// The pointee type.
-    type Target = shared T;
+    type Target = T;
 
     /// The access supplied by the pointer.
     const OutputAccess: Access = "immutable";
 
     /// Borrow the stored value.
-    get value(&readonly this): &immutable shared T {
+    get value(&readonly this): &immutable T {
         todo("ConcurrentSetRead.value")
     }
 
@@ -142,20 +134,14 @@ export extension<T, E: SharedSafe> of ConcurrentSet<T, E>
     }
 
     /// Call `body` with readonly access to one stored value.
-    with<Q, R>(
-        &readonly this,
-        value: Q,
-        body: (value: &immutable shared T) => R,
-    ): R | undefined where E: Equate<T, Q>, Q: Copy {
+    with<Q, R>(&readonly this, value: Q, body: (value: &immutable T) => R): R | undefined
+        where E: Equate<T, Q>, Q: Copy {
         todo("ConcurrentSet.with")
     }
 
     /// Look up a borrowed value using the stored comparer.
-    with<Q, R>(
-        &readonly this,
-        value: &immutable Q,
-        body: (value: &immutable shared T) => R,
-    ): R | undefined where E: Equate<T, Q> {
+    with<Q, R>(&readonly this, value: &immutable Q, body: (value: &immutable T) => R): R | undefined
+        where E: Equate<T, Q> {
         todo("ConcurrentSet.with")
     }
 
@@ -170,15 +156,12 @@ export extension<T, E: SharedSafe> of ConcurrentSet<T, E>
     }
 
     /// Retain only values accepted by `predicate`.
-    retain(&readonly this, predicate: (value: &immutable shared T) => boolean): void {
+    retain(&readonly this, predicate: (value: &immutable T) => boolean): void {
         todo("ConcurrentSet.retain");
     }
 
     /// Remove values accepted by `predicate` and return them.
-    extractIf(
-        &readonly this,
-        predicate: (value: &immutable shared T) => boolean,
-    ): Iterator<T> {
+    extractIf(&readonly this, predicate: (value: &immutable T) => boolean): Iterator<T> {
         todo("ConcurrentSet.extractIf")
     }
 

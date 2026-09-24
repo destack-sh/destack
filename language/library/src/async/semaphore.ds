@@ -6,7 +6,7 @@ import { Task } from "./task.ds";
 
 /// Asynchronous counting semaphore.
 @languageItem("async.AsyncSemaphore")
-export local class AsyncSemaphore {
+export class AsyncSemaphore {
     /// The available permit count.
     private state: Atomic<isize>;
 
@@ -47,7 +47,7 @@ export local class AsyncSemaphore {
 }
 
 /// Active async semaphore permit.
-export local struct AsyncSemaphorePermit {
+export struct AsyncSemaphorePermit implements !SharedSafe {
     /// The semaphore that issued this permit.
     private semaphore: AsyncSemaphore;
 

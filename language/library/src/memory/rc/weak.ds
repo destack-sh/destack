@@ -7,14 +7,14 @@ import { Rc, RcInner } from "./rc.ds";
 
 /// Weak local reference-counted handle.
 @languageItem("memory.rc.Weak")
-export local struct Weak<T> {
+export struct Weak<T> implements !SharedSafe {
     /// The reference-counted allocation.
     private inner: *RcInner<Owned<T>> | undefined;
 }
 
 export extension<T> of Weak<T> implements Clone, !Copy, Drop {
     /// Clone this weak handle.
-    clone(this: &immutable this): Weak<T> {
+    clone(this: &immutable this): ^this {
         todo("Weak.clone")
     }
 

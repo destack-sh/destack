@@ -29,7 +29,7 @@ export shared class Mutex<T> {
     }
 
     /// Borrow the protected value without locking.
-    getExclusive(&exclusive this): &exclusive shared T {
+    getExclusive(&exclusive this): &exclusive T {
         todo("Mutex.getExclusive")
     }
 
@@ -47,14 +47,14 @@ export extension<T: Default> of Mutex<T> implements Default {
 }
 
 /// Active mutex lock guard.
-export local struct MutexGuard<'a, T> {
+export struct MutexGuard<'a, T> implements !SharedSafe {
     /// The locked mutex.
     private mutex: &'a readonly Mutex<T>;
 }
 
 export extension<'a, T> of MutexGuard<'a, T> implements Dispose, !Copy, Dereference<"exclusive"> {
     /// The pointee type.
-    type Target = shared T;
+    type Target = T;
 
     /// Unlock this guard.
     dispose(this): void {
@@ -71,7 +71,7 @@ export extension<'a, T> of MutexGuard<'a, T> implements Dispose, !Copy, Derefere
 
 export extension<'a, T> of MutexGuard<'a, T> implements Dereference<"readonly"> {
     /// The pointee type.
-    type Target = shared T;
+    type Target = T;
 
     /// The access supplied by the pointer.
     const OutputAccess: Access = "immutable";

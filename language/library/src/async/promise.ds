@@ -8,7 +8,7 @@ import { queueMicrotask } from "./task.ds";
 
 /// Value produced by asynchronous execution.
 @languageItem("async.Promise")
-export local class Promise<T: Copy> implements Awaitable<T> {
+export class Promise<T: Copy> implements Awaitable<T> {
     /// The current settlement state.
     private state: PromiseState<T>;
 
@@ -239,7 +239,7 @@ export local class Promise<T: Copy> implements Awaitable<T> {
 
 /// Promise with its resolving function.
 @languageItem("async.PromiseResolvers")
-export local struct PromiseResolvers<T: Copy> {
+export struct PromiseResolvers<T: Copy> implements !SharedSafe {
     /// The created promise.
     promise: Promise<T>;
 
@@ -251,7 +251,7 @@ export local struct PromiseResolvers<T: Copy> {
 type PromiseState<T: Copy> = PromisePending<T> | PromiseFulfilled<T> | PromiseForwarded<T>;
 
 /// Pending promise state.
-local struct PromisePending<T: Copy> {
+struct PromisePending<T: Copy> implements !SharedSafe {
     /// The state tag.
     kind: "pending";
 
@@ -263,7 +263,7 @@ local struct PromisePending<T: Copy> {
 }
 
 /// Fulfilled promise state.
-local struct PromiseFulfilled<T: Copy> {
+struct PromiseFulfilled<T: Copy> implements !SharedSafe {
     /// The state tag.
     kind: "fulfilled";
 
@@ -272,7 +272,7 @@ local struct PromiseFulfilled<T: Copy> {
 }
 
 /// Promise state forwarded to existing fulfilled storage.
-local struct PromiseForwarded<T: Copy> {
+struct PromiseForwarded<T: Copy> implements !SharedSafe {
     /// The state tag.
     kind: "forwarded";
 
@@ -284,7 +284,7 @@ local struct PromiseForwarded<T: Copy> {
 type PromiseWaiter<T: Copy> = PromiseAwaiter<T> | PromiseReaction<T>;
 
 /// One execution awaiting promise settlement.
-local class PromiseAwaiter<T: Copy> {
+class PromiseAwaiter<T: Copy> {
     /// The waiter tag.
     kind: "await";
 
@@ -303,7 +303,7 @@ local class PromiseAwaiter<T: Copy> {
 }
 
 /// One callback reacting to promise settlement.
-local class PromiseReaction<T: Copy> {
+class PromiseReaction<T: Copy> {
     /// The waiter tag.
     kind: "reaction";
 

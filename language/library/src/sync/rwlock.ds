@@ -39,7 +39,7 @@ export shared class RwLock<T> {
     }
 
     /// Borrow the protected value without locking.
-    getExclusive(&exclusive this): &exclusive shared T {
+    getExclusive(&exclusive this): &exclusive T {
         todo("RwLock.getExclusive")
     }
 
@@ -57,7 +57,7 @@ export extension<T: Default> of RwLock<T> implements Default {
 }
 
 /// Active readonly lock guard.
-export local struct RwLockReadGuard<'a, T> {
+export struct RwLockReadGuard<'a, T> implements !SharedSafe {
     /// The locked value.
     private lock: &'a readonly RwLock<T>;
 }
@@ -66,7 +66,7 @@ export extension<'a, T> of RwLockReadGuard<'a, T>
     implements Dispose, !Copy, Dereference<"readonly">
 {
     /// The pointee type.
-    type Target = shared T;
+    type Target = T;
 
     /// The access supplied by the pointer.
     const OutputAccess: Access = "immutable";
@@ -85,7 +85,7 @@ export extension<'a, T> of RwLockReadGuard<'a, T>
 }
 
 /// Active exclusive lock guard.
-export local struct RwLockWriteGuard<'a, T> {
+export struct RwLockWriteGuard<'a, T> implements !SharedSafe {
     /// The locked value.
     private lock: &'a readonly RwLock<T>;
 }
@@ -94,7 +94,7 @@ export extension<'a, T> of RwLockWriteGuard<'a, T>
     implements Dispose, !Copy, Dereference<"exclusive">
 {
     /// The pointee type.
-    type Target = shared T;
+    type Target = T;
 
     /// Release this guard.
     dispose(this): void {
@@ -116,7 +116,7 @@ export extension<'a, T> of RwLockWriteGuard<'a, T>
 
 export extension<'a, T> of RwLockWriteGuard<'a, T> implements Dereference<"readonly"> {
     /// The pointee type.
-    type Target = shared T;
+    type Target = T;
 
     /// The access supplied by the pointer.
     const OutputAccess: Access = "immutable";

@@ -2,7 +2,7 @@ import { todo } from "destack:error";
 import { Dispose } from "destack:memory";
 
 /// One signal owner and its retained children.
-export local class Owner implements Dispose {
+export class Owner implements Dispose {
     /// Prevent direct construction.
     private constructor() {}
 

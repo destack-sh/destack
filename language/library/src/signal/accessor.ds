@@ -4,7 +4,7 @@ import { Access, Borrowed, Copy, Region } from "destack:memory";
 import { Dereference } from "destack:ops";
 
 /// Stable readonly access to one observed signal value.
-export local class SignalRef<T> implements Dereference<"readonly"> {
+export class SignalRef<T> implements Dereference<"readonly"> {
     /// The pointee type.
     type Target = T;
 
@@ -49,7 +49,7 @@ export type PollingAccessor<out T> = {
 };
 
 /// Capability for reevaluating one signal source.
-export local newtype interface Refreshable {
+export newtype interface Refreshable {
     /// Reevaluate this source.
     static refresh(source: &readonly this): void;
 }

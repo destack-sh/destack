@@ -2,7 +2,7 @@ import { Copy } from "destack:memory";
 
 /// Cooperative execution on the current Worker.
 @languageItem("async.Fiber")
-export local struct Fiber implements Copy {
+export struct Fiber implements Copy, !SharedSafe {
     /// Opaque fiber identity.
     private readonly handle: uint64;
 

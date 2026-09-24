@@ -35,11 +35,9 @@ export struct Arc<T> {
     private inner: *ArcInner<Owned<T>>;
 }
 
-export extension<T> of Arc<T>
-    implements Clone, Dereference, As<shared T>, Borrow<shared T>, !Copy, Drop
-{
+export extension<T> of Arc<T> implements Clone, Dereference, As<T>, Borrow<T>, !Copy, Drop {
     /// The pointee type.
-    type Target = shared T;
+    type Target = T;
 
     /// The access supplied by the pointer.
     const OutputAccess: Access = "immutable";
@@ -101,7 +99,7 @@ export extension<T> of Arc<T>
     }
 
     /// Clone this strong handle.
-    clone(this: &immutable this): Arc<T> {
+    clone(this: &immutable this): ^this {
         todo("Arc.clone")
     }
 
@@ -156,12 +154,12 @@ export extension<T> of Arc<T>
     }
 
     /// Borrow the value exclusively when no other strong or weak handle exists.
-    getExclusive(&exclusive this): &exclusive shared T | undefined {
+    getExclusive(&exclusive this): &exclusive T | undefined {
         todo("Arc.getExclusive")
     }
 
     /// Borrow the value exclusively, cloning or detaching weak handles when needed.
-    makeExclusive(&exclusive this): &exclusive shared T where ^T: Clone {
+    makeExclusive(&exclusive this): &exclusive T where ^T: Clone {
         todo("Arc.makeExclusive")
     }
 
@@ -173,12 +171,12 @@ export extension<T> of Arc<T>
     }
 
     /// Borrow the referenced value.
-    as(&readonly this): &readonly shared T {
+    as(&readonly this): &readonly T {
         this.dereference()
     }
 
     /// Borrow the referenced value.
-    borrow(&readonly this): &readonly shared T {
+    borrow(&readonly this): &readonly T {
         this.dereference()
     }
 }

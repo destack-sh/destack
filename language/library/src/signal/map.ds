@@ -43,15 +43,15 @@ export type RepeatOptions<Output, From = Accessor<usize | undefined>> = {
 };
 
 /// Reactive item argument selected for copyable and affine values.
-local type MapItem<Item> = (Item,) extends (Copy,) ? Item : SignalRef<Item>;
+type MapItem<Item> = (Item,) extends (Copy,) ? Item : SignalRef<Item>;
 
 /// Ready or polling list accessor accepted by array mapping.
-local type ListAccessor<Item> =
+type ListAccessor<Item> =
     | Accessor<Maybe<readonly Item[]>>
     | PollingAccessor<Maybe<readonly Item[]>>;
 
 /// Item exposed by one ready or polling list accessor.
-local type ListItem<List> =
+type ListItem<List> =
     List extends Accessor<Maybe<readonly (infer Item)[]>>
         ? Item
         : List extends PollingAccessor<Maybe<readonly (infer Item)[]>>
@@ -59,23 +59,21 @@ local type ListItem<List> =
           : never;
 
 /// Ready or polling count accessor accepted by repetition.
-local type CountAccessor = Accessor<usize> | PollingAccessor<usize>;
+type CountAccessor = Accessor<usize> | PollingAccessor<usize>;
 
 /// Ready or polling offset accessor accepted by repetition.
-local type FromAccessor = Accessor<usize | undefined> | PollingAccessor<usize | undefined>;
+type FromAccessor = Accessor<usize | undefined> | PollingAccessor<usize | undefined>;
 
 /// Whether one accessor may be pending.
-local type AccessorMayPend<Read> = Read extends PollingAccessor<unknown> ? true : false;
+type AccessorMayPend<Read> = Read extends PollingAccessor<unknown> ? true : false;
 
 /// Array accessor selected from its input and mapped output.
-local type MapArrayAccessor<List, Output> = true extends
-    | AccessorMayPend<List>
-    | DerivationMayPend<Output>
+type MapArrayAccessor<List, Output> = true extends AccessorMayPend<List> | DerivationMayPend<Output>
     ? PollingSourceAccessor<DerivationValue<Output>[]>
     : SourceAccessor<DerivationValue<Output>[]>;
 
 /// Array accessor selected from its count, offset, and mapped output.
-local type RepeatAccessor<Count, From, Output> = true extends
+type RepeatAccessor<Count, From, Output> = true extends
     | AccessorMayPend<Count>
     | AccessorMayPend<From>
     | DerivationMayPend<Output>

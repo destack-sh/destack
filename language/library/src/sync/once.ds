@@ -30,7 +30,7 @@ export shared class OnceCell<T> {
     private value: MaybeUninit<T> = MaybeUninit.uninit();
 
     /// Get the initialized value.
-    get<'a>(&'a readonly this): &'a immutable shared T | undefined {
+    get<'a>(&'a readonly this): &'a immutable T | undefined {
         todo("OnceCell.get")
     }
 
@@ -40,7 +40,7 @@ export shared class OnceCell<T> {
     }
 
     /// Get the value or initialize it.
-    getOrInit<'a>(&'a readonly this, init: () => T): &'a immutable shared T {
+    getOrInit<'a>(&'a readonly this, init: () => T): &'a immutable T {
         todo("OnceCell.getOrInit")
     }
 
