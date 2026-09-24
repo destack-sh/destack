@@ -18,6 +18,7 @@ export class TransactionState {
 
     /** Run a callback and settle its queries before returning to the native transaction. */
     async execute<Value>(operation: () => Promise<Value>): Promise<Value> {
+        // reject work after the callback finishes
         this.assertActive();
 
         // drain work even when application code exits with an error
@@ -38,6 +39,7 @@ export class TransactionState {
             throw error;
         }
 
+        // settle pending queries
         await this.finish();
 
         return result;
@@ -53,6 +55,7 @@ export class TransactionState {
 
     /** Track submitted work until it settles, including work the callback did not await. */
     run<Value>(operation: () => PromiseLike<Value>, rollback = true): Promise<Value> {
+        // reject work after the callback finishes
         this.assertActive();
 
         // start the query before the callback can close its submission period
@@ -80,6 +83,7 @@ export class TransactionState {
 
     /** Drain submitted queries before allowing commit or rollback. */
     async finish(): Promise<void> {
+        // close submissions and wait for pending queries
         this.close();
         await Promise.all(this.#pending);
 

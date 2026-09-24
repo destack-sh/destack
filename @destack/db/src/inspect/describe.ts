@@ -29,8 +29,8 @@ export function describeTable(table: Table, dialect: Dialect): TableDescription 
             autoIncrement: false,
             hasDefault:
                 column.definition.default !== undefined ||
-                column.definition.defaultFn !== undefined ||
-                column.definition.onUpdateFn !== undefined ||
+                column.definition.runtimeDefault !== undefined ||
+                column.definition.runtimeUpdate !== undefined ||
                 column.definition.generated !== undefined,
             default:
                 column.definition.default === undefined
@@ -41,8 +41,8 @@ export function describeTable(table: Table, dialect: Dialect): TableDescription 
                               : column.definition.encode(column.definition.default, dialect),
                           dialect,
                       ),
-            hasRuntimeDefault: column.definition.defaultFn !== undefined,
-            hasRuntimeUpdate: column.definition.onUpdateFn !== undefined,
+            hasRuntimeDefault: column.definition.runtimeDefault !== undefined,
+            hasRuntimeUpdate: column.definition.runtimeUpdate !== undefined,
             generated: column.definition.generated
                 ? {
                       mode: column.definition.generated.mode,
@@ -132,6 +132,7 @@ function expression(value: unknown, dialect: Dialect): string {
         }
     }
 
+    // render the default as inline SQL
     const expression = value instanceof SQL ? value : sql`${value}`;
 
     return compileExpression(expression, dialect).toQuery({

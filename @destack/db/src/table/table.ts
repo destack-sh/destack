@@ -149,7 +149,9 @@ export function table<Name extends string, Builders extends ColumnBuilders>(
         const definition = builder.definition;
         if (
             definition.generated &&
-            (definition.default !== undefined || definition.defaultFn || definition.onUpdateFn)
+            (definition.default !== undefined ||
+                definition.runtimeDefault ||
+                definition.runtimeUpdate)
         ) {
             throw new TypeError(`Generated SQL column cannot define defaults: ${definition.name}.`);
         }

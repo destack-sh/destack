@@ -1,11 +1,6 @@
+import type * as drizzle from "drizzle-orm";
 import { assertNever } from "../error/error.ts";
-import {
-    type Column as DrizzleColumn,
-    getTableColumns,
-    Param,
-    SQL,
-    type SQLChunk,
-} from "drizzle-orm";
+import { getTableColumns, Param, SQL, type SQLChunk } from "drizzle-orm";
 import * as sqlite from "drizzle-orm/sqlite-core";
 import * as postgres from "drizzle-orm/pg-core";
 import { describeColumnSchema } from "../inspect/table.ts";
@@ -24,7 +19,7 @@ export abstract class SchemaCompiler<Driver extends Dialect = Dialect> {
     /** Physical tables indexed by their declared SQL names. */
     readonly tables = new Map<string, sqlite.SQLiteTable | postgres.PgTable>();
     /** Physical columns indexed by their logical declarations. */
-    readonly columns = new WeakMap<Column, DrizzleColumn>();
+    readonly columns = new WeakMap<Column, drizzle.Column>();
     /** Physical tables indexed by exact logical declaration. */
     readonly declarations = new WeakMap<Table, sqlite.SQLiteTable | postgres.PgTable>();
 
@@ -69,11 +64,11 @@ export abstract class SchemaCompiler<Driver extends Dialect = Dialect> {
                 this.table(definition.table),
             ]),
         );
-        const helpers = relation.createRelationsHelper(tables);
+        const relationBuilders = relation.createRelationsHelper(tables);
         const columns = new Map<Column, relation.RelationsBuilderColumn<string>>();
         for (const [name, definition] of Object.entries(definitions)) {
             for (const [property, column] of Object.entries(definition.table[TABLE].columns)) {
-                columns.set(column, helpers[name][property]);
+                columns.set(column, relationBuilders[name][property]);
             }
         }
 
@@ -86,8 +81,12 @@ export abstract class SchemaCompiler<Driver extends Dialect = Dialect> {
                 const to = bindRelationColumns(reference.to, columns);
                 declarations[name][property] =
                     reference.cardinality === "one"
-                        ? helpers.one[reference.target]({ from, to, optional: reference.optional })
-                        : helpers.many[reference.target]({ from, to });
+                        ? relationBuilders.one[reference.target]({
+                              from,
+                              to,
+                              optional: reference.optional,
+                          })
+                        : relationBuilders.many[reference.target]({ from, to });
             }
         }
 
@@ -112,7 +111,7 @@ export abstract class SchemaCompiler<Driver extends Dialect = Dialect> {
     }
 
     /** Find the physical column belonging to a logical declaration. */
-    column(column: Column): DrizzleColumn {
+    column(column: Column): drizzle.Column {
         const physical = this.columns.get(column);
         if (!physical) {
             throw new TypeError(
@@ -125,6 +124,7 @@ export abstract class SchemaCompiler<Driver extends Dialect = Dialect> {
 
     /** Find the physical table belonging to a declaration. */
     table<Definition extends Table>(declaration: Definition): NativeTable<Driver, Definition> {
+        // find the compiled table or its source alias
         let physical = this.declarations.get(declaration);
         const source = declaration[TABLE].source;
 
@@ -193,19 +193,21 @@ function bindRelationColumns(
     ];
 }
 
+/** The Drizzle configuration of a custom column. */
+type CustomColumnConfiguration = {
+    // oxlint-disable-next-line destack/no-sludge -- Drizzle configuration key
+    dataType: "custom";
+    // oxlint-disable-next-line destack/no-sludge -- Drizzle configuration key
+    data: unknown;
+    // oxlint-disable-next-line destack/prevent-abbreviations -- Drizzle configuration key
+    driverParam: unknown;
+};
+
 /** Apply shared column constraints through Drizzle's column builder API. */
 export function applyColumn(
     builder:
-        | sqlite.SQLiteCustomColumnBuilder<{
-              dataType: "custom";
-              data: unknown;
-              driverParam: unknown;
-          }>
-        | postgres.PgCustomColumnBuilder<{
-              dataType: "custom";
-              data: unknown;
-              driverParam: unknown;
-          }>,
+        | sqlite.SQLiteCustomColumnBuilder<CustomColumnConfiguration>
+        | postgres.PgCustomColumnBuilder<CustomColumnConfiguration>,
     column: Column,
     dialect: Dialect,
 ): void {
@@ -229,20 +231,20 @@ export function applyColumn(
     }
 
     // select dialect SQL each time an application default is evaluated
-    const defaultFn = definition.defaultFn;
-    if (defaultFn) {
+    const runtimeDefault = definition.runtimeDefault;
+    if (runtimeDefault) {
         builder.$defaultFn(() => {
-            const value = defaultFn();
+            const value = runtimeDefault();
 
             return value instanceof SQL ? compileExpression(value, dialect) : value;
         });
     }
 
     // select dialect SQL each time an application update value is evaluated
-    const onUpdateFn = definition.onUpdateFn;
-    if (onUpdateFn) {
+    const runtimeUpdate = definition.runtimeUpdate;
+    if (runtimeUpdate) {
         builder.$onUpdateFn(() => {
-            const value = onUpdateFn();
+            const value = runtimeUpdate();
 
             return value instanceof SQL ? compileExpression(value, dialect) : value;
         });

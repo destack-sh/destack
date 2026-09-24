@@ -25,6 +25,7 @@ export class Database<
         schema: DatabaseSchema<Record<string, Table>, Relations> | readonly Table[],
         options: Omit<DrizzlePgConfig<EmptyRelations>, "relations"> = {},
     ) {
+        // order the schema tables before compiling them
         const definition = Array.isArray(schema)
             ? undefined
             : (schema as DatabaseSchema<Record<string, Table>, Relations>);

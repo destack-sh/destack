@@ -22,6 +22,7 @@ export async function inspectMigrations(
         return [];
     }
 
+    // read the applied migrations in order
     const records = await database.execute(sql`
         SELECT name, checksum, applied_at AS "appliedAt"
         FROM ${history.table} ORDER BY id

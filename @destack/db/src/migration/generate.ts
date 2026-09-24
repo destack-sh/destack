@@ -101,7 +101,7 @@ export async function generateMigrations(request: MigrationGeneration) {
                 );
             }
 
-            // retain the historical tree descriptions in the committed data migration
+            // retain the historical tree descriptions in the committed TypeScript migration
             if (trees.rebuild.length > 0) {
                 const source = [
                     'import type { DatabaseConnection } from "@destack/db";',
@@ -128,6 +128,7 @@ export async function generateMigrations(request: MigrationGeneration) {
         throw error;
     }
 
+    // remove the temporary directory
     await rm(directory, { recursive: true });
 
     return result;
@@ -135,6 +136,7 @@ export async function generateMigrations(request: MigrationGeneration) {
 
 /** Read the tree definitions committed with the latest migration. */
 async function readTrees(directory: string): Promise<TreeDescription[]> {
+    // list the migration directories, none before the first migration
     let entries;
     try {
         entries = await readdir(directory, { withFileTypes: true });

@@ -28,6 +28,7 @@ export const lte: Comparison = drizzle.lte;
 export function and(first: SQLWrapper, ...rest: (SQLWrapper | undefined)[]): SQL;
 /** Combine optional predicates when at least one is present. */
 export function and(...conditions: (SQLWrapper | undefined)[]): SQL | undefined;
+/** Combine the present predicates with AND. */
 export function and(...conditions: (SQLWrapper | undefined)[]): SQL | undefined {
     return drizzle.and(...conditions);
 }
@@ -36,6 +37,7 @@ export function and(...conditions: (SQLWrapper | undefined)[]): SQL | undefined 
 export function or(first: SQLWrapper, ...rest: (SQLWrapper | undefined)[]): SQL;
 /** Combine optional predicates when at least one is present. */
 export function or(...conditions: (SQLWrapper | undefined)[]): SQL | undefined;
+/** Combine the present predicates with OR. */
 export function or(...conditions: (SQLWrapper | undefined)[]): SQL | undefined {
     return drizzle.or(...conditions);
 }

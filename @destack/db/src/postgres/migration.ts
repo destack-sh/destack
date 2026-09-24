@@ -13,6 +13,7 @@ export async function applyMigrations(
     name: string,
     database: DatabaseConnection,
 ): Promise<void> {
+    // select the history table for this schema
     const history = new MigrationHistory(migrations, name);
 
     // serialize schema creation before the history table exists

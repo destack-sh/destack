@@ -28,6 +28,7 @@ export class Database<
         schema: DatabaseSchema<Record<string, Table>, Relations> | readonly Table[],
         options: Omit<DrizzleSQLiteConfig<EmptyRelations>, "relations"> = {},
     ) {
+        // order the schema tables before compiling them
         const definition = Array.isArray(schema)
             ? undefined
             : (schema as DatabaseSchema<Record<string, Table>, Relations>);
@@ -68,6 +69,7 @@ export class Connection<
 
     /** Connect native query builders to the physical database. */
     constructor(client: Client, options: DrizzleSQLiteConfig<Relations> = {}) {
+        // open a session over the relations and client
         const relations = options.relations ?? ({} as Relations);
         const session = new ConnectionSession<RunResult<Client>, Relations>(
             client as ConnectionClient<RunResult<Client>>,

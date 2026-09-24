@@ -1,7 +1,9 @@
 import { assertNever } from "../error/error.ts";
 import { type Query, SQL, type SQLWrapper, Subquery, WithSubquery } from "drizzle-orm";
-import type { SelectedFields as SQLiteSelection, SQLiteTable } from "drizzle-orm/sqlite-core";
-import type { PgTable, SelectedFields as PostgresSelection } from "drizzle-orm/pg-core";
+import type { SQLiteTable } from "drizzle-orm/sqlite-core";
+import type * as sqlite from "drizzle-orm/sqlite-core";
+import type { PgTable } from "drizzle-orm/pg-core";
+import type * as postgres from "drizzle-orm/pg-core";
 import { type Select, TABLE, type Table } from "../table/table.ts";
 import { Column } from "../table/column.ts";
 import { type DatabaseDriver } from "../database/driver.ts";
@@ -63,6 +65,7 @@ export class SelectQuery<
         automatic: Automatic = false as Automatic,
         withList: readonly WithSubquery[] = [],
     ) {
+        // retain the query definition
         this.withList = withList;
         this.automatic = automatic;
         this.connection = connection;
@@ -80,6 +83,7 @@ export class SelectQuery<
     }
 
     /** Include matching rows from another table. */
+    /* oxlint-disable-next-line destack/no-sludge -- SQL join kind */
     innerJoin<Joined extends QuerySource>(
         table: Joined,
         on: SQL,
@@ -287,6 +291,7 @@ export class SelectQuery<
 
     /** Build a native query while retaining its result decoder. */
     private compile(maximum?: number): NativeSelect {
+        // reject use after the enclosing transaction finishes
         this.connection.transaction?.assertActive();
 
         // materialize table aliases before translating selected columns
@@ -304,7 +309,7 @@ export class SelectQuery<
         let query: NativeSelect;
         if (this.connection.native.dialect === "sqlite") {
             const database = this.connection.native.database.with(...this.withList);
-            const selection = fields as SQLiteSelection;
+            const selection = fields as sqlite.SelectedFields;
             query = (this.distinct
                 ? database.selectDistinct(selection)
                 : database.select(selection)
@@ -313,7 +318,7 @@ export class SelectQuery<
                 .$dynamic() as unknown as NativeSelect;
         } else if (this.connection.native.dialect === "postgresql") {
             const database = this.connection.native.database.with(...this.withList);
-            const selection = fields as PostgresSelection;
+            const selection = fields as postgres.SelectedFields;
             query = (this.distinct
                 ? database.selectDistinct(selection)
                 : database.select(selection)
@@ -410,6 +415,7 @@ export class SelectBuilder<Fields extends Selection | undefined = undefined> {
         distinct = false,
         withList: readonly WithSubquery[] = [],
     ) {
+        // retain the query definition
         this.withList = withList;
         this.connection = connection;
         this.schema = schema;
@@ -521,6 +527,7 @@ interface NativeSelect extends PromiseLike<unknown[]>, SQLWrapper {
     /** Read selected fields and their native decoders. */
     getSelectedFields(): Selection;
     /** Join matching rows. */
+    // oxlint-disable-next-line destack/no-sludge -- SQL join kind
     innerJoin(table: SQLiteTable | PgTable | Subquery, on?: SQL): NativeSelect;
     /** Join matching or null rows. */
     leftJoin(table: SQLiteTable | PgTable | Subquery, on?: SQL): NativeSelect;

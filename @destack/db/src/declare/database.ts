@@ -1,4 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
+import { declaringModule, type ModuleMetadata } from "@destack/package";
 import { defineResourceSchema, Resource } from "@destack/resource";
 import type { ResourceContext } from "@destack/resource/context";
 import { Dialect } from "../dialect/dialect.ts";
@@ -19,12 +20,12 @@ export const DatabaseSpec = defineSchema(
 export type DatabaseSpec = schema.Infer<typeof DatabaseSpec>;
 
 /** A named database dependency. */
-export const DatabaseDeclaration = defineResourceSchema("database", 1, DatabaseSpec);
+export const DatabaseDescription = defineResourceSchema("database", 1, DatabaseSpec);
 /** A named database dependency. */
-export type DatabaseDeclaration = schema.Infer<typeof DatabaseDeclaration>;
+export type DatabaseDescription = schema.Infer<typeof DatabaseDescription>;
 
 /** An inert database declaration with invocation-scoped connection access. */
-export class Database extends Resource<DatabaseConnection, DatabaseDeclaration> {
+export class Database extends Resource<DatabaseConnection, DatabaseDescription> {
     /** Retrieve the authorized connection with source-inferred schema queries. */
     override get<Relations extends Record<string, TableRelations> = {}>(
         context: ResourceContext,
@@ -47,9 +48,11 @@ export class Database extends Resource<DatabaseConnection, DatabaseDeclaration> 
 
 /** Declare a database dependency. */
 export function defineDatabase(
-    declaration: Omit<DatabaseDeclaration, "kind" | "version">,
+    declaration: Omit<DatabaseDescription, "kind" | "version">,
+    module?: ModuleMetadata,
 ): Database {
-    const description = DatabaseDeclaration.parse({ ...declaration, kind: "database", version: 1 });
+    const owner = declaringModule(module, "defineDatabase").package;
+    const description = DatabaseDescription.parse({ ...declaration, kind: "database", version: 1 });
 
-    return new Database(description);
+    return new Database(owner, description);
 }

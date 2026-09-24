@@ -24,6 +24,7 @@ export abstract class Session<Result, Relations extends AnyRelations> extends SQ
 
     /** Retain the query client and compiler options. */
     constructor(client: QueryClient<Result>, options: DrizzleSQLiteConfig<Relations>) {
+        // configure the dialect, client and logger
         super(new SQLiteDialect({ useJitMappers: options.jit ?? false }), "async");
         this.client = client;
         this.options = options;
@@ -35,11 +36,13 @@ export abstract class Session<Result, Relations extends AnyRelations> extends SQ
     prepareQuery(
         ...arguments_: Parameters<SQLiteAsyncSession<"async", Result, Relations>["prepareQuery"]>
     ) {
+        // read the query arguments
         const [query, mode, prepare, method, mapper, metadata, cache] = arguments_;
         const client = this.client;
         let statement: Promise<Statement<Result>> | undefined;
 
         // retain prepared statements only when requested by the query builder
+
         return new SQLiteAsyncPreparedQuery<
             SQLiteAsyncPreparedQueryConfig & { type: "async"; run: Result }
         >(
@@ -51,6 +54,7 @@ export abstract class Session<Result, Relations extends AnyRelations> extends SQ
                         return client.run(query.sql, ...parameters);
                     }
                     statement ??= client.prepare(query.sql);
+
                     return (await statement).run(...parameters);
                 },
                 all: async (parameters) => {
@@ -58,6 +62,7 @@ export abstract class Session<Result, Relations extends AnyRelations> extends SQ
                         return client.all(query.sql, ...parameters);
                     }
                     statement ??= client.prepare(query.sql);
+
                     return (await statement)
                         .safeIntegers(mode === "arrays")
                         .raw(mode === "arrays")
@@ -68,6 +73,7 @@ export abstract class Session<Result, Relations extends AnyRelations> extends SQ
                         return client.get(query.sql, ...parameters);
                     }
                     statement ??= client.prepare(query.sql);
+
                     return (await statement)
                         .safeIntegers(mode === "arrays")
                         .raw(mode === "arrays")

@@ -34,6 +34,7 @@ export class Index {
         columns: readonly (Column | SQL)[] = [],
         predicate?: SQL,
     ) {
+        // retain the index definition
         this.name = name;
         this.unique = unique;
         this.columns = columns;
@@ -104,6 +105,7 @@ export class ForeignKey {
         },
         actions: ReferenceActions = {},
     ) {
+        // retain the reference columns and actions
         this.name = definition.name;
         this.columns = definition.columns;
         this.foreignColumns = definition.foreignColumns;

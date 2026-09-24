@@ -122,6 +122,7 @@ function relation(
     cardinality: "one" | "many",
     columns: RelationColumns,
 ): Relation {
+    // normalize both sides to matching nonempty column lists
     const from = Array.isArray(columns.from) ? columns.from : [columns.from as Column];
     const to = Array.isArray(columns.to) ? columns.to : [columns.to as Column];
     if (from.length === 0 || from.length !== to.length) {

@@ -6,7 +6,7 @@ export interface Migration {
     readonly checksum: string;
     /** SQL statements in execution order. */
     readonly statements: readonly string[];
-    /** Apply committed data transformations after SQL, inside the migration transaction. */
+    /** Apply committed row transformations after SQL, inside the migration transaction. */
     readonly apply?: (database: DatabaseConnection) => Promise<void>;
 }
 import type { DatabaseConnection } from "../database/connection.ts";

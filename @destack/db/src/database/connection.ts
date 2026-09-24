@@ -36,6 +36,7 @@ export class DatabaseConnection<
         declarations: SchemaCompiler<Driver>,
         relations: Relations = {} as Relations,
     ) {
+        // retain the connection, schema and bound relations
         this.state = connection.state;
         this.connection = connection;
         this.schema = declarations;
@@ -47,6 +48,7 @@ export class DatabaseConnection<
     bind<BoundRelations extends Record<string, TableRelations>>(
         definition: DatabaseSchema<Record<string, Table>, BoundRelations>,
     ): DatabaseConnection<Driver, BoundRelations> {
+        // reject use after the enclosing transaction finishes
         this.connection.transaction?.assertActive();
 
         // require each bound table to belong to the prepared physical schema
@@ -157,6 +159,7 @@ export class DatabaseConnection<
         operation: (transaction: DatabaseConnection<Dialect, Relations>) => Promise<Value>,
         options: TransactionOptions = {},
     ): Promise<Value> {
+        // reject use after the enclosing transaction finishes
         this.connection.transaction?.assertActive();
 
         // propagate cancellation from both the caller and an enclosing transaction

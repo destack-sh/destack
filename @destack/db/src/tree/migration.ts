@@ -14,7 +14,7 @@ export class TreeMigration {
     readonly trees: readonly TreeDescription[];
     /** Whether the declared trees differ from the previous migration. */
     readonly changed: boolean;
-    /** Historical descriptions requiring a generated data backfill. */
+    /** Historical descriptions requiring a generated row backfill. */
     readonly rebuild: readonly TreeDescription[];
 
     /** Plan tree changes around the SQL produced by Drizzle. */
@@ -86,6 +86,7 @@ export function treeMigration(tree: Tree, dialect: Dialect): readonly string[] {
     const cycle = `EXISTS (SELECT 1 FROM ${closure} WHERE scope = OLD.${scope} AND ancestor = OLD.${id} AND descendant = NEW.${parent})`;
     const children = `EXISTS (SELECT 1 FROM ${source} WHERE ${scope} = OLD.${scope} AND ${parent} = OLD.${id})`;
 
+    // emit SQLite triggers
     if (dialect === "sqlite") {
         return [
             ...prepare,

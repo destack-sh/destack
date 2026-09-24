@@ -170,6 +170,7 @@ export class Tree {
                     assertNever(children);
                 }
 
+                // delete the node
                 await transaction.execute(sql`DELETE FROM ${sql.identifier(tree.table)}
                 WHERE ${sql.identifier(tree.scope)} = ${scope} AND ${sql.identifier(tree.id)} = ${id}`);
             },

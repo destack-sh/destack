@@ -1,12 +1,13 @@
 import { assertNever } from "../error/error.ts";
 import { type SQL, sql, type SQLWrapper } from "drizzle-orm";
 import * as schema from "@destack/schema/validate";
-import { defineSchema, identifier as identifierSchema } from "@destack/schema";
+import { defineSchema } from "@destack/schema";
+import * as schemas from "@destack/schema";
 import type { Dialect } from "../dialect/dialect.ts";
 
 /** A prefixed UUIDv7 application identifier. */
 export type Identifier<Prefix extends string> = schema.Output<
-    ReturnType<typeof identifierSchema<Prefix>>
+    ReturnType<typeof schemas.identifier<Prefix>>
 >;
 
 /** A logical SQL column and its application value. */
@@ -89,13 +90,15 @@ export class ColumnBuilder<
     }
 
     /** Supply an application default when an insert omits the column. */
+    /* oxlint-disable-next-line destack/prevent-abbreviations -- mirrors the Drizzle column builder method */
     $defaultFn(value: () => Value | SQL): ColumnBuilder<Value, Required, true, Generated> {
-        return new ColumnBuilder({ ...this.definition, defaultFn: value });
+        return new ColumnBuilder({ ...this.definition, runtimeDefault: value });
     }
 
     /** Supply an application value when an update omits the column. */
+    /* oxlint-disable-next-line destack/prevent-abbreviations -- mirrors the Drizzle column builder method */
     $onUpdateFn(value: () => Value | SQL): ColumnBuilder<Value, Required, true, Generated> {
-        return new ColumnBuilder({ ...this.definition, onUpdateFn: value });
+        return new ColumnBuilder({ ...this.definition, runtimeUpdate: value });
     }
 
     /** Declare the table's primary key. */
@@ -163,9 +166,9 @@ export interface ColumnDefinition<Value = unknown> {
     /** The database default. */
     readonly default?: Value | SQL;
     /** The default evaluated by an insert. */
-    readonly defaultFn?: () => Value | SQL;
+    readonly runtimeDefault?: () => Value | SQL;
     /** The default evaluated by an update. */
-    readonly onUpdateFn?: () => Value | SQL;
+    readonly runtimeUpdate?: () => Value | SQL;
     /** The stored generated expression, evaluated after table declaration. */
     readonly generated?: {
         /** The SQL calculation, evaluated after table declaration. */
@@ -322,7 +325,7 @@ export function json<Validator extends schema.Schema>(
 
 /** Define a prefixed UUIDv7 identifier. */
 export function identifier<const Prefix extends string>(name: string, prefix: Prefix) {
-    const validator = identifierSchema(prefix);
+    const validator = schemas.identifier(prefix);
 
     return new ColumnBuilder({
         name,

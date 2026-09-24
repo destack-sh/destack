@@ -116,7 +116,8 @@ await database.transaction(async (transaction) => {
 await database.close();
 ```
 
-Cancellation prevents commit and waits for submitted queries before rollback. Closing waits for
+Cancellation prevents commit and waits for submitted queries before rollback.
+Closing waits for
 submitted portable queries and transactions, then closes the client once.
 
 ## Schemas

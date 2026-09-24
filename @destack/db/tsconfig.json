@@ -1,20 +1,8 @@
 {
     "extends": "../../tsconfig.json",
-    "compilerOptions": { "types": ["node"], "lib": ["ESNext", "DOM", "DOM.Iterable"] },
-    "files": [
-        "src/index.ts",
-        "src/declare/index.ts",
-        "src/inspect/index.ts",
-        "src/turso/schema.ts",
-        "src/turso/inspect/index.ts",
-        "src/postgres/index.ts",
-        "src/postgres/schema.ts",
-        "src/postgres/inspect/index.ts",
-        "src/migration/index.ts",
-        "src/migration/generate.ts",
-        "src/tree/index.ts",
-        "src/tree/tests/tree.test.ts",
-        "src/turso/index.ts",
-        "src/turso/serverless/index.ts"
-    ]
+    "compilerOptions": {
+        "types": ["node"],
+        "lib": ["ESNext", "DOM", "DOM.Iterable"]
+    },
+    "include": ["src"]
 }

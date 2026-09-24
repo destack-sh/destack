@@ -1,4 +1,5 @@
-import { Column as DrizzleColumn, SQL } from "drizzle-orm";
+import { SQL } from "drizzle-orm";
+import * as drizzle from "drizzle-orm";
 import { Column } from "../table/column.ts";
 import { type Select, TABLE, Table } from "../table/table.ts";
 import type { SchemaCompiler } from "../dialect/compiler.ts";
@@ -9,7 +10,7 @@ export declare const SOURCE: unique symbol;
 /** Fields selected from tables, expressions, or nested groups. */
 export interface Selection {
     /** A selected field or nested group. */
-    readonly [property: string]: Column | DrizzleColumn | SQL | SQL.Aliased | Table | Selection;
+    readonly [property: string]: Column | drizzle.Column | SQL | SQL.Aliased | Table | Selection;
 }
 
 /** The application record produced by a selection. */
@@ -25,7 +26,7 @@ export type SelectionResult<Fields extends Selection, NullableTables extends str
             : Required extends true
               ? Value
               : Value | null
-        : Fields[Property] extends DrizzleColumn
+        : Fields[Property] extends drizzle.Column
           ? Fields[Property]["_"]["data"]
           : Fields[Property] extends SQL<infer Value> | SQL.Aliased<infer Value>
             ? Fields[Property] extends { readonly [SOURCE]: infer Name }
@@ -69,7 +70,7 @@ type NullableSelection<
 /** A selection translated to Drizzle fields. */
 export interface NativeSelection {
     /** A physical column, SQL expression, or nested group. */
-    [property: string]: DrizzleColumn | SQL | SQL.Aliased | NativeSelection;
+    [property: string]: drizzle.Column | SQL | SQL.Aliased | NativeSelection;
 }
 
 /** Translate selected declarations while retaining property names and nesting. */
@@ -80,7 +81,7 @@ export function selectFields(fields: Selection, schema: SchemaCompiler): NativeS
     for (const [property, field] of Object.entries(fields)) {
         if (field instanceof Column) {
             selection[property] = schema.column(field);
-        } else if (field instanceof DrizzleColumn) {
+        } else if (field instanceof drizzle.Column) {
             selection[property] = field;
         } else if (field instanceof SQL) {
             selection[property] = schema.expression(field);

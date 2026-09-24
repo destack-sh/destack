@@ -1,14 +1,8 @@
 import { type Placeholder, type Query, SQL } from "drizzle-orm";
-import type {
-    SelectedFieldsFlat as SQLiteSelection,
-    SQLiteColumn,
-    SQLiteTable,
-} from "drizzle-orm/sqlite-core";
-import type {
-    PgColumn,
-    PgTable,
-    SelectedFieldsFlat as PostgresSelection,
-} from "drizzle-orm/pg-core";
+import type { SQLiteColumn, SQLiteTable } from "drizzle-orm/sqlite-core";
+import type * as sqlite from "drizzle-orm/sqlite-core";
+import type { PgColumn, PgTable } from "drizzle-orm/pg-core";
+import type * as postgres from "drizzle-orm/pg-core";
 import { type DatabaseDriver } from "../database/driver.ts";
 import type { SchemaCompiler } from "../dialect/compiler.ts";
 import type { Column } from "../table/column.ts";
@@ -72,6 +66,7 @@ export class MutationQuery<
         table: Definition,
         operation: Operation,
     ) {
+        // retain the connection, schema, table and operation
         this.connection = connection;
         this.schema = schema;
         this.table = table;
@@ -167,20 +162,21 @@ export class MutationQuery<
     /** Compile a reusable mutation with named placeholder values. */
     prepare(): PreparedQuery<Result> {
         const query = this.compile().prepare();
-        const returnsRows = this.fields !== undefined;
+        const hasReturning = this.fields !== undefined;
 
         return {
             execute: async (parameters) => {
                 this.connection.transaction?.assertActive();
                 const result = await this.connection.run(() => query.execute(parameters));
 
-                return (returnsRows ? result : undefined) as Result;
+                return (hasReturning ? result : undefined) as Result;
             },
         };
     }
 
     /** Build the native mutation with its parameter encoders and result decoder. */
     private compile() {
+        // reject use after the enclosing transaction finishes
         this.connection.transaction?.assertActive();
 
         // translate expressions while retaining column encoders on the native table
@@ -220,19 +216,19 @@ export class MutationQuery<
                     });
                 }
                 if (fields) {
-                    return query.returning(fields as SQLiteSelection);
+                    return query.returning(fields as sqlite.SelectedFieldsFlat);
                 }
                 return query;
             } else if (this.operation === "update") {
                 const query = database.update(table).set(values(this.changes)).where(predicate);
                 if (fields) {
-                    return query.returning(fields as SQLiteSelection);
+                    return query.returning(fields as sqlite.SelectedFieldsFlat);
                 }
                 return query;
             } else if (this.operation === "delete") {
                 const query = database.delete(table).where(predicate);
                 if (fields) {
-                    return query.returning(fields as SQLiteSelection);
+                    return query.returning(fields as sqlite.SelectedFieldsFlat);
                 }
                 return query;
             } else {
@@ -264,19 +260,19 @@ export class MutationQuery<
                     });
                 }
                 if (fields) {
-                    return query.returning(fields as PostgresSelection);
+                    return query.returning(fields as postgres.SelectedFieldsFlat);
                 }
                 return query;
             } else if (this.operation === "update") {
                 const query = database.update(table).set(values(this.changes)).where(predicate);
                 if (fields) {
-                    return query.returning(fields as PostgresSelection);
+                    return query.returning(fields as postgres.SelectedFieldsFlat);
                 }
                 return query;
             } else if (this.operation === "delete") {
                 const query = database.delete(table).where(predicate);
                 if (fields) {
-                    return query.returning(fields as PostgresSelection);
+                    return query.returning(fields as postgres.SelectedFieldsFlat);
                 }
                 return query;
             } else {

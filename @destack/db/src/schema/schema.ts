@@ -1,4 +1,4 @@
-import { ResourceName } from "@destack/resource";
+import { DeclarationName } from "@destack/package";
 import type { Table } from "../table/table.ts";
 import type { TableRelations } from "./relation.ts";
 import type { Tree } from "../tree/tree.ts";
@@ -33,6 +33,7 @@ export function defineDatabaseSchema<
 
 /** Order schema dependencies before their consumers and reject conflicting histories. */
 export function orderSchemas(schemas: readonly DatabaseSchema[]): DatabaseSchema[] {
+    // track ordered, visited and in-progress schemas
     const ordered: DatabaseSchema[] = [];
     const visited = new Map<string, DatabaseSchema>();
     const active = new Set<DatabaseSchema>();
@@ -53,7 +54,7 @@ function visitSchema(
     ordered: DatabaseSchema[],
 ): void {
     // validate history identity when assembling schemas for generation or preparation
-    ResourceName.parse(schema.name);
+    DeclarationName.parse(schema.name);
     if (active.has(schema)) {
         throw new DatabaseError(
             "INVALID_MIGRATION",

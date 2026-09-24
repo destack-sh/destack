@@ -44,8 +44,8 @@ function createSchema(table: Table, operation: "select" | "insert" | "update") {
             (operation === "insert" &&
                 (definition.nullable ||
                     definition.default !== undefined ||
-                    definition.defaultFn !== undefined ||
-                    definition.onUpdateFn !== undefined))
+                    definition.runtimeDefault !== undefined ||
+                    definition.runtimeUpdate !== undefined))
         ) {
             validator = validator.optional();
         }
