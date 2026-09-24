@@ -27,11 +27,16 @@ impl CheckState<'_> {
                 }
             }
 
-            // read the referent's places from its own type
+            // read the owned object behind the pointer
+            let owned = self.intern_type(dir::Type::Form(dir::FormType {
+                form: dir::Form::Owned,
+                value: form.value,
+            }))?;
+            let ty = self.reduce_redundant_forms(origin, owned)?;
             let dereference = dir::Dereference {
                 receiver: input.ty,
-                target: dir::DereferenceTarget::Direct,
-                ty: form.value,
+                protocol: None,
+                ty,
             };
 
             return Ok(Some(dir::OperationResolution::One(dereference)));
@@ -68,7 +73,7 @@ impl CheckState<'_> {
         for operator_protocol in unary_operator_protocols(dir::UnaryOperator::Dereference, access) {
             let key = operator_protocol.method.key(self.strings());
             let protocol = self.operator_protocol(origin, &operator_protocol, &[])?;
-            let Some(call) = self.select_protocol_call(
+            let Ok(call) = self.select_protocol_call(
                 origin,
                 input,
                 input.ty,
@@ -93,7 +98,7 @@ impl CheckState<'_> {
             };
             let dereference = dir::Dereference {
                 receiver: input.ty,
-                target: dir::DereferenceTarget::Call(Box::new(call)),
+                protocol: Some(Box::new(call)),
                 ty,
             };
 
@@ -101,6 +106,17 @@ impl CheckState<'_> {
         }
 
         Ok(None)
+    }
+
+    /// Return whether one dereference reads through an explicit form.
+    pub(in crate::sema) fn is_form_dereference(
+        &self,
+        dereference: &dir::Dereference,
+    ) -> CompilerResult<bool> {
+        Ok(matches!(
+            self.ty(self.shallow_resolve(dereference.receiver)?)?,
+            dir::Type::Form(form) if matches!(form.form, dir::Form::Readonly | dir::Form::Owned)
+        ))
     }
 
     /// Select one borrow pattern projection.
@@ -111,25 +127,19 @@ impl CheckState<'_> {
         scope: Option<dir::GlobalGenericTemplateId>,
         input: dir::GlobalTypeId,
         pattern: dir::LocalNodeId<dir::Pattern>,
-        mutability: Option<dir::Mutability>,
+        access: Option<dir::Access>,
     ) -> CompilerResult<()> {
         let module = node.module_id;
-        let access = mutability
-            .map(dir::Mutability::access)
-            .unwrap_or(dir::Access::Mutable);
+        let access = access.unwrap_or(dir::Access::BARE);
         let access_type = self.access_literal(access)?;
         let lifetime = self.lifetime_literal(dir::Lifetime::Frame)?;
 
-        // borrow through a managed handle at the handle's place
-        let (place, value) = match self.ty(input)? {
-            dir::Type::Form(form) if let dir::Form::Managed { place } = form.form => {
-                (place, form.value)
-            }
-            _ => (self.local_place()?, input),
-        };
+        // borrow in the space the object stores in
+        let origin = Origin::Node(node.into_any(), scope);
+        let place = self.space_term(origin, input)?;
         let region = self.intern_region(lifetime, place)?;
         let form = self.intern_borrow(region, access_type)?;
-        let projected = self.intern_type(dir::Type::Form(dir::FormType { form, value }))?;
+        let projected = self.intern_type(dir::Type::Form(dir::FormType { form, value: input }))?;
 
         // check the wrapped pattern against the borrowed value
         self.check_pattern_projection(flow, scope, projected, pattern.into_global_any(module))?;

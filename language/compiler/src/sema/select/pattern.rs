@@ -4,7 +4,8 @@ use smallvec::SmallVec;
 
 use crate::sema::{
     AssignmentSelection, Cause, CauseKind, CheckState, Expectation, FlowPointId, FlowSite,
-    InferMode, Obligation, Origin, PlaceUse, Relation, ValueUse, WritableTargetObligation,
+    InferMode, Obligation, Origin, PlaceUse, Relation, StoreTarget, ValueUse,
+    WritableTargetObligation,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -109,7 +110,8 @@ impl CheckState<'_> {
                     },
                     PlaceUse::Read,
                 )?;
-                let input = self.defaulted_pattern_type(input, default)?;
+                let origin = Origin::Node(value_node, scope);
+                let input = self.defaulted_pattern_type(origin, input, default)?;
 
                 // flow the defaulted input into the nested target
                 self.check_pattern_projection(flow, scope, input, pattern.into_global_any(module))?;
@@ -170,6 +172,10 @@ impl CheckState<'_> {
         self.commit_decision(source, dir::Decision::Assignment(Box::new(resolution)))?;
         self.commit_access_use(source, dir::BindingUse::WRITE);
         self.commit_node_type(source, source_type)?;
+
+        // commit the pattern's place
+        let site = self.visit_site(source)?;
+        self.commit_expression_place(site, source_type)?;
 
         // require the written place to be writable
         let scope = self.origin_scope(origin)?;
@@ -256,7 +262,7 @@ impl CheckState<'_> {
             dir::Pattern::Default { pattern, value } => {
                 let (pattern, value) = (*pattern, *value);
 
-                // transcribe the written input while declaring, infer the default while checking
+                // read the annotated input while declaring, infer the default while checking
                 let input = if self.is_declaring() {
                     input
                 } else {
@@ -270,7 +276,9 @@ impl CheckState<'_> {
                         PlaceUse::Read,
                     )?;
 
-                    self.defaulted_pattern_type(input, default)?
+                    let origin = Origin::Node(value_node, scope);
+
+                    self.defaulted_pattern_type(origin, input, default)?
                 };
 
                 // flow the defaulted input into the nested pattern
@@ -286,8 +294,8 @@ impl CheckState<'_> {
             }
 
             // &pattern
-            dir::Pattern::BorrowOf { mutability, right } => {
-                self.select_borrow_pattern(node, flow, scope, input, *right, *mutability)
+            dir::Pattern::BorrowOf { access, right } => {
+                self.select_borrow_pattern(node, flow, scope, input, *right, *access)
             }
             // ^pattern
             dir::Pattern::MoveOf { mutability, right } => {
@@ -377,19 +385,18 @@ impl CheckState<'_> {
                 message: format!("binding pattern {node:?} has no symbol"),
             })?;
 
-        // take the bound type, or bind the captured input to the symbol
+        // store the captured input in the binding's handle
         let binding = self.symbol_type_maybe(symbol)?;
         let input = if binding == Some(input) {
             input
         } else {
-            let input = self.pattern_binding_type(symbol, input)?;
+            let cause = self.intern_cause(Cause::root(
+                origin,
+                CauseKind::Pattern {
+                    pattern: node.into_any(),
+                },
+            ));
             if let Some(binding) = binding {
-                let cause = self.intern_cause(Cause::root(
-                    origin,
-                    CauseKind::Pattern {
-                        pattern: node.into_any(),
-                    },
-                ));
                 self.relate(origin, cause, Relation::Equal, input, binding)?;
             } else {
                 self.commit_binding_type(symbol, input)?;
@@ -607,19 +614,8 @@ impl CheckState<'_> {
 
         Ok(())
     }
-}
 
-impl CheckState<'_> {
-    /// Return the type bound by one pattern binding.
-    pub(in crate::sema) fn pattern_binding_type(
-        &mut self,
-        symbol: dir::GlobalSymbolId,
-        input: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        self.place_binding_type(symbol, input)
-    }
-
-    /// Return the borrow form a destructured input reaches its fields through.
+    /// Return the borrow form a destructured input reads its fields through.
     pub(in crate::sema) fn pattern_binding_form(
         &mut self,
         origin: Origin,
@@ -635,8 +631,7 @@ impl CheckState<'_> {
         Ok(borrowed)
     }
 
-    /// Return one projected field type bound through the binding form of its input, a copying
-    /// field read out as its own value like every read through a borrow.
+    /// Return one projected field type bound through the binding form of its input.
     pub(in crate::sema) fn bound_through(
         &mut self,
         origin: Origin,
@@ -790,8 +785,8 @@ impl CheckState<'_> {
         &mut self,
         module: ModuleId,
         field: dir::LocalNodeId<dir::PatternField>,
-        // read the key and nested pattern each field form names
     ) -> CompilerResult<Option<(dir::StaticKey, Option<dir::LocalNodeId<dir::Pattern>>)>> {
+        // read the key and nested pattern each field form names
         let field = self.module(module).view().get(field).clone();
         let key = match field {
             dir::PatternField::Named { name, pattern, .. } => Some((name.into(), pattern)),
@@ -831,6 +826,7 @@ impl CheckState<'_> {
             )),
             use_: ValueUse::Store,
             mode: InferMode::Regular,
+            store: StoreTarget::Exact,
         };
         self.attempt_node(site, PlaceUse::Read, Some(expectation))?;
 
@@ -840,6 +836,7 @@ impl CheckState<'_> {
     /// Return the type produced by one defaulted pattern.
     pub(in crate::sema) fn defaulted_pattern_type(
         &mut self,
+        origin: Origin,
         input: dir::GlobalTypeId,
         default: dir::GlobalTypeId,
     ) -> CompilerResult<dir::GlobalTypeId> {
@@ -870,7 +867,7 @@ impl CheckState<'_> {
         // add the default only when it can actually run
         if has_undefined {
             let default = match kept.is_empty() {
-                true => self.widen_type(default)?,
+                true => self.widen_fresh(origin, default)?,
                 false => default,
             };
             kept.push(default);

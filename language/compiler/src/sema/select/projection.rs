@@ -4,8 +4,9 @@ use destack_source::ModuleId;
 use smallvec::SmallVec;
 
 use crate::sema::{
-    CandidateOutcome, CheckState, DeclaredMember, ExtensionMatch, MemberCandidate, MemberLookup,
-    OpenBounds, Origin, TypeSubstitution, UnboundParameters, Verdict, member_arms,
+    CandidateOutcome, CheckState, DeclaredMember, ExtensionMatch, ImplementedInterface,
+    MemberCandidate, MemberLookup, OpenBounds, Origin, TypeSubstitution, UnboundParameters,
+    Verdict,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -45,7 +46,7 @@ impl CheckState<'_> {
         };
 
         // resolve the field in the receiver's place
-        let ty = self.project_member_place(origin, receiver, ty)?;
+        let ty = self.normalize(origin, ty)?;
 
         // readonly receivers project deep readonly views onto stored fields
         if !self.is_readonly_receiver_projection(receiver)? {
@@ -107,21 +108,20 @@ impl CheckState<'_> {
         origin: Origin,
         member: &dir::MemberType,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        // read the written refinement bindings of a qualified projection once
+        // read the annotated refinement bindings of a qualified projection once
         let refinement = match member.qualifier {
             Some(qualifier) => Some(self.refinements(qualifier)?),
             None => None,
         };
 
-        // bind the projection from written refinements
+        // bind the projection from annotated refinements
         if let Some((_, bindings)) = &refinement
             && let Some((_, value)) = bindings.iter().find(|(key, _)| *key == member.key)
         {
             return Ok(Some(*value));
         }
 
-        // a rigid owner reduces through the refinements its bounds write, staying a projection
-        // otherwise
+        // reduce a rigid owner through the refinements its bounds write
         if self.is_rigid_projection_owner(member.owner)? {
             for bound in self.rigid_owner_bounds(origin, member.owner)? {
                 let (_, bindings) = self.refinements(bound)?;
@@ -200,8 +200,9 @@ impl CheckState<'_> {
             return self.project_declared_associated_member(origin, member, members, &substitution);
         }
 
-        // enumerate candidate extensions by receiver family
-        let apparent = self.intern_apparent_type(owner)?;
+        // enumerate candidate extensions by the default ownership of the object beneath the owner
+        let object = self.strip_form(origin, owner)?;
+        let apparent = self.intern_apparent_type(object)?;
         let extensions =
             self.implementations_over(origin, module, Some(apparent), interface.symbol)?;
         for (extension_symbol, _) in extensions {
@@ -217,8 +218,7 @@ impl CheckState<'_> {
             // read the extension target, interfaces, and members
             let target_type = extension.target.r#type();
             let interfaces = extension
-                .implements
-                .iter()
+                .implementations()
                 .map(|conformance| conformance.interface)
                 .collect::<SmallVec<[_; 2]>>();
             let members = extension.members.clone();
@@ -247,8 +247,11 @@ impl CheckState<'_> {
                 })
             })?;
 
-            if !matches!(verdict, Verdict::Holds) {
-                continue;
+            // leave the projection open while an undecided candidate may still provide it
+            match verdict {
+                Verdict::Holds => {}
+                Verdict::Ambiguous => return Ok(None),
+                Verdict::Fails => continue,
             }
 
             // rerun the match to commit its substitution
@@ -277,13 +280,12 @@ impl CheckState<'_> {
             return self.project_qualified_default(origin, member, qualifier);
         }
 
-        // match the owner's own declared implementations
-        if let Some((application_module, application)) = self.nominal_application_maybe(owner)?
+        // match the declared implementations of the object beneath the owner
+        if let Some((application_module, application)) = self.nominal_application_maybe(object)?
             && let Some(definition) = self.definition(application.symbol)?
         {
             let interfaces = definition
                 .implementations()
-                .iter()
                 .map(|conformance| conformance.interface)
                 .collect::<SmallVec<[_; 2]>>();
             let members = definition.members();
@@ -298,8 +300,9 @@ impl CheckState<'_> {
                     &mut substitution,
                     &interfaces,
                     &interface,
+                    true,
                 )?;
-                if matched.is_some() {
+                if matches!(matched, ImplementedInterface::Matched(_)) {
                     // project the owner's own declared value, falling back to the interface default
                     let projected = self.project_declared_associated_member(
                         origin,
@@ -327,7 +330,12 @@ impl CheckState<'_> {
         member: &dir::MemberType,
         scope: dir::GlobalSymbolId,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
+        // stay symbolic while the scope is still declaring, and fail loudly after
         let Some(definition) = self.definition(scope)? else {
+            if self.is_declaring() {
+                return Ok(None);
+            }
+
             return Err(CompilerError::Internal {
                 message: format!("associated type scope {scope:?} has no definition"),
             });
@@ -338,31 +346,86 @@ impl CheckState<'_> {
             dir::Definition::Extension(extension) => {
                 let template = self.symbol_template(scope)?;
                 let target = extension.target.r#type();
-                let owner = self.strip_form(origin, member.owner)?;
-                let matched = self.match_extension_subject(
-                    origin,
-                    owner,
-                    owner,
-                    template,
-                    target,
-                    UnboundParameters::Open,
-                )?;
+
+                // read the scope's own receiver at its rigid parameters
+                let given_owner = self.shallow_resolve(member.owner)?;
+                let mut matched = (given_owner == target)
+                    .then(|| TypeSubstitution::default().with_receiver(member.owner));
+
+                // match the owner as given, then its payload beneath any form
+                let stripped = self.strip_form(origin, member.owner)?;
+                for owner in [given_owner, stripped] {
+                    if matched.is_some() {
+                        break;
+                    }
+
+                    matched = self
+                        .match_extension_subject(
+                            origin,
+                            owner,
+                            owner,
+                            template,
+                            target,
+                            UnboundParameters::Open,
+                        )?
+                        .map(|matched| matched.with_receiver(owner));
+                    if matched.is_some() {
+                        break;
+                    }
+                }
                 let Some(matched) = matched else {
                     return Ok(None);
                 };
 
-                matched.with_receiver(owner)
+                matched
             }
             _ => TypeSubstitution::default().with_receiver(member.owner),
         };
 
-        // project the scope's own members against the written owner
+        // project the scope's members against the given owner
         let members = definition.members();
+        if let Some(projected) =
+            self.project_declared_associated_member(origin, member, members, &substitution)?
+        {
+            return Ok(Some(projected));
+        }
 
-        self.project_declared_associated_member(origin, member, members, &substitution)
+        // fall back to the default the scope's implemented interface declares
+        let implements = definition
+            .implementations()
+            .map(|conformance| conformance.interface)
+            .collect::<SmallVec<[_; 2]>>();
+        for interface in implements {
+            if !self.declares_associated_member(interface, member.key)? {
+                continue;
+            }
+            let qualifier = self.substitute_type(interface, &substitution)?;
+
+            return self.project_qualified_default(origin, member, qualifier);
+        }
+
+        Ok(None)
     }
 
-    /// Project one associated type declared by a selected scope.
+    /// Return the value one associated member holds: a type's type or a const's static value.
+    pub(in crate::sema) fn associated_member_value(
+        &mut self,
+        member: &dir::DefinitionMember,
+    ) -> CompilerResult<Option<(dir::GlobalSymbolId, dir::GlobalTypeId)>> {
+        let value = match member {
+            dir::DefinitionMember::AssociatedType(associated) => {
+                associated.value.map(|value| (associated.symbol, value))
+            }
+            dir::DefinitionMember::AssociatedConst(associated) => self
+                .static_value(associated.symbol)?
+                .map(|value| (associated.symbol, value)),
+            _ => None,
+        };
+
+        Ok(value)
+    }
+
+    /// Project one associated member declared by a selected scope.
     fn project_declared_associated_member(
         &mut self,
         origin: Origin,
@@ -371,19 +434,20 @@ impl CheckState<'_> {
         substitution: &TypeSubstitution,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // select the scope's declared value for this key
-        let declared = members.iter().find_map(|declared| match declared {
-            dir::DefinitionMember::AssociatedType(associated) if associated.key == member.key => {
-                associated.value.map(|value| (associated, value))
+        let mut declared = None;
+        for candidate in members {
+            if candidate.is_associated_at(member.key) {
+                declared = self.associated_member_value(candidate)?;
+                break;
             }
-            _ => None,
-        });
+        }
 
         // apply the implementation's arguments to the declared value
-        if let Some((declared, value)) = declared {
+        if let Some((symbol, value)) = declared {
             let value = self.project_associated_value(
                 origin.module(),
                 member,
-                declared.symbol,
+                symbol,
                 value,
                 substitution,
             )?;
@@ -425,8 +489,8 @@ impl CheckState<'_> {
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         // project every runtime arm as one candidate each, and join the arms
         let mut types = Vec::new();
-        for (_, group) in member_arms(&lookup) {
-            let [candidate] = group.as_slice() else {
+        for group in lookup.arms() {
+            let [candidate] = group.candidates.as_slice() else {
                 return Ok(None);
             };
             let Some(ty) = self.project_member_candidate(module, member, candidate)? else {
@@ -456,7 +520,7 @@ impl CheckState<'_> {
 
         // project associated values through their applied arguments
         if declared.value_type.is_some() {
-            let written =
+            let value =
                 self.static_value(declared.symbol)?
                     .ok_or_else(|| CompilerError::Internal {
                         message: format!(
@@ -468,15 +532,15 @@ impl CheckState<'_> {
                 bindings: declared.generic_arguments.iter().copied().collect(),
                 receiver: Some(member.owner),
             };
-            let written = self.project_associated_value(
+            let value = self.project_associated_value(
                 module,
                 member,
                 declared.symbol,
-                written,
+                value,
                 &substitution,
             )?;
 
-            return Ok(Some(written));
+            return Ok(Some(value));
         }
 
         // static values project as their own singleton
@@ -512,23 +576,18 @@ impl CheckState<'_> {
         };
 
         // select the declared interface default
-        let associated = match self.definition(interface.symbol)?.as_deref() {
-            Some(dir::Definition::Interface(definition)) => {
-                definition
-                    .members
-                    .iter()
-                    .find_map(|declared| match declared {
-                        dir::DefinitionMember::AssociatedType(associated)
-                            if associated.key == member.key =>
-                        {
-                            associated.value.map(|value| (associated.symbol, value))
-                        }
-                        _ => None,
-                    })
-            }
+        let declared = match self.definition(interface.symbol)?.as_deref() {
+            Some(dir::Definition::Interface(definition)) => definition
+                .members
+                .iter()
+                .find(|declared| declared.is_associated_at(member.key))
+                .cloned(),
             _ => None,
         };
-        let Some((symbol, value)) = associated else {
+        let Some(declared) = declared else {
+            return Ok(None);
+        };
+        let Some((symbol, value)) = self.associated_member_value(&declared)? else {
             return Ok(None);
         };
 
@@ -557,11 +616,18 @@ impl CheckState<'_> {
             *argument = self.substitute_type(*argument, owner_substitution)?;
         }
 
-        // extend the owner substitution with the member's own parameters
-        let bindings = self.symbol_generic_argument_bindings(symbol, &arguments)?;
+        // extend the owner substitution with the member's own parameters, lifetimes included
         let mut substitution = owner_substitution.clone();
-        for binding in bindings {
-            substitution.bind(binding.parameter, binding.argument)?;
+        if !arguments.is_empty()
+            && let Some(template) = self.symbol_template(symbol)?
+        {
+            let parameters = self.generic_template_parameters(template)?;
+            for binding in self
+                .parameter_substitution(&parameters, &arguments)?
+                .bindings
+            {
+                substitution.bind(binding.parameter, binding.argument)?;
+            }
         }
 
         self.substitute_type(value, &substitution)
@@ -578,8 +644,7 @@ impl CheckState<'_> {
         Ok(is_rigid)
     }
 
-    /// Return the bounds one rigid projection owner assumes: a parameter's declared and
-    /// assumed bounds, this's assumed bounds.
+    /// Return the bounds one rigid projection owner assumes.
     fn rigid_owner_bounds(
         &mut self,
         origin: Origin,
@@ -604,7 +669,7 @@ impl CheckState<'_> {
         let owner = self.shallow_resolve(owner)?;
 
         // an interface application qualifies its own associated projections
-        if self.has_associated_type(owner, key)? {
+        if self.declares_associated_member(owner, key)? {
             return Ok(Some(owner));
         }
 
@@ -643,7 +708,7 @@ impl CheckState<'_> {
         // keep only interfaces declaring this associated member, one application per interface
         let mut qualifier: Option<dir::GlobalTypeId> = None;
         for interface in interfaces {
-            let declares = self.has_associated_type(interface, key)?;
+            let declares = self.declares_associated_member(interface, key)?;
             let same = match qualifier {
                 Some(selected) => self.ty(selected)?.symbol() == self.ty(interface)?.symbol(),
                 None => false,
@@ -664,7 +729,7 @@ impl CheckState<'_> {
     }
 
     /// Return whether one applied interface declares an associated member under one key.
-    pub(in crate::sema) fn has_associated_type(
+    pub(in crate::sema) fn declares_associated_member(
         &mut self,
         interface: dir::GlobalTypeId,
         key: dir::StaticKey,
@@ -677,14 +742,11 @@ impl CheckState<'_> {
             return Ok(false);
         };
 
-        // read whether the interface declares that associated type
-        let declares = definition.members.iter().any(|member| {
-            matches!(
-                member,
-                dir::DefinitionMember::AssociatedType(associated)
-                    if associated.key == key
-            )
-        });
+        // read whether the interface declares that associated member
+        let declares = definition
+            .members
+            .iter()
+            .any(|member| member.is_associated_at(key));
 
         Ok(declares)
     }
@@ -696,7 +758,34 @@ impl CheckState<'_> {
         member: &dir::MemberType,
     ) -> CompilerResult<Option<dir::GlobalTypeId>> {
         let owner = self.strip_form(origin, member.owner)?;
+
+        // read the declaring interface's own bound for a qualified projection
+        if let Some(qualifier) = member.qualifier
+            && let Some(constraint) = self.associated_member_constraint(qualifier, member.key)?
+        {
+            let receiver = self.shallow_resolve(member.owner)?;
+            let constraint = self.instantiate_interface_type(constraint, qualifier, receiver)?;
+
+            return Ok(Some(constraint));
+        }
+
+        // read the where clauses declared exactly on an owner outside a parameter
         let dir::Type::Parameter(parameter) = self.ty(owner)? else {
+            let given_owner = self.shallow_resolve(member.owner)?;
+            let owner_head = self.ty(given_owner)?;
+            let bounds = self.assumed_bounds(origin, |ty| *ty == owner_head)?;
+            for bound in bounds {
+                let Some(constraint) = self.associated_member_constraint(bound, member.key)? else {
+                    continue;
+                };
+
+                return Ok(Some(self.instantiate_interface_type(
+                    constraint,
+                    bound,
+                    given_owner,
+                )?));
+            }
+
             return Ok(None);
         };
 
@@ -736,76 +825,17 @@ impl CheckState<'_> {
         Ok(None)
     }
 
-    /// Return one field type projected through the receiver placement.
-    fn project_member_place(
-        &mut self,
-        origin: Origin,
-        receiver: dir::GlobalTypeId,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        let Some(place) = self.receiver_projected_place(receiver)? else {
-            return Ok(ty);
-        };
-
-        let ty = self.place_relative_type(origin, place, ty)?;
-
-        self.normalize(origin, ty)
-    }
-
-    /// Settle one relative member type in a projected receiver place.
-    pub(in crate::sema) fn place_relative_type(
-        &mut self,
-        origin: Origin,
-        place: dir::GlobalTypeId,
-        ty: dir::GlobalTypeId,
-    ) -> CompilerResult<dir::GlobalTypeId> {
-        // bare members of local receivers stay bare
-        if self.place_space(place)? == Some(dir::Space::Local) {
-            return Ok(ty);
-        }
-
-        self.resolve_relative_place(origin, ty, place)
-    }
-
-    /// Return the place projected by one receiver type.
-    pub(in crate::sema) fn receiver_projected_place(
-        &mut self,
-        receiver: dir::GlobalTypeId,
-    ) -> CompilerResult<Option<dir::GlobalTypeId>> {
-        let mut current = receiver;
-        loop {
-            // read through each layer's solution before matching its head
-            current = self.shallow_resolve(current)?;
-            let dir::Type::Form(form) = self.ty(current)? else {
-                // bare nominal instances live in their declared or inherited space
-                if let dir::Type::Application(instance) = self.ty(current)?
-                    && let Some(space) = self.nominal_space(instance.symbol)?
-                {
-                    let place = self.place_literal(space)?;
-
-                    return Ok(Some(place));
-                }
-
-                return Ok(None);
-            };
-
-            match form.form {
-                dir::Form::Managed { place } => return Ok(Some(place)),
-                dir::Form::Borrowed(_)
-                | dir::Form::Owned
-                | dir::Form::Readonly
-                | dir::Form::Raw => current = form.value,
-            }
-        }
-    }
-
     /// Return whether one projected value keeps a readonly view.
     fn is_readonly_type_projection(
         &mut self,
         origin: Origin,
         ty: dir::GlobalTypeId,
     ) -> CompilerResult<bool> {
-        // keep readonly access over every safe reference type
+        // end the view at a managed handle, a borrow keeping the readonly cap
+        let chain = self.form_chain(origin, ty)?;
+        if self.form_ownership(origin, &chain)? == Some(dir::Ownership::Managed) {
+            return Ok(false);
+        }
         if self.type_is_reference(origin, ty)? {
             return Ok(true);
         }

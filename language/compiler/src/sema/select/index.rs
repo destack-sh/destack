@@ -283,7 +283,6 @@ impl SubscriptSelection {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 impl CheckState<'_> {
     /// Decide one receiver against a structural index signature.
     pub(in crate::sema) fn decide_subscript_index_signature(
@@ -293,28 +292,32 @@ impl CheckState<'_> {
         receiver: dir::GlobalTypeId,
         signature: &dir::TypeIndexSignature,
     ) -> CompilerResult<Verdict> {
-        // decide the read side of the signature
-        let read = self.decide_subscript_read_signature(
-            origin,
-            relation,
-            receiver,
-            signature.key_type,
-            signature.value_type,
-        )?;
+        // decide the read side of the signature over scratch variables
+        let (read, _) = self.decide(|state| {
+            state.decide_subscript_read_signature(
+                origin,
+                relation,
+                receiver,
+                signature.key_type,
+                signature.value_type,
+            )
+        })?;
 
         // return the read verdict alone for a failed read or a readonly signature
         if read == Verdict::Fails || signature.is_readonly {
             return Ok(read);
         }
 
-        // decide the write side of the signature
-        let write = self.decide_subscript_write_signature(
-            origin,
-            relation,
-            receiver,
-            signature.key_type,
-            signature.value_type,
-        )?;
+        // decide the write side of the signature the same way
+        let (write, _) = self.decide(|state| {
+            state.decide_subscript_write_signature(
+                origin,
+                relation,
+                receiver,
+                signature.key_type,
+                signature.value_type,
+            )
+        })?;
 
         Ok(read.and(write))
     }
@@ -343,7 +346,7 @@ impl CheckState<'_> {
 
         // infer the written index operand
         let Some(index) = index else {
-            return self.report_rejected_operator(node, origin, "[]".to_string(), &[target]);
+            return self.report_rejected_operator(node, origin, "[]".to_string(), &[target], None);
         };
         let index_node = index.into_global_any(module);
         let index_key = self.module(module).view().get(index).static_key();
@@ -365,7 +368,7 @@ impl CheckState<'_> {
         };
 
         // select the subscript operation for both operands
-        let Some(selection) = self.select_subscript(
+        let selection = self.select_subscript(
             origin,
             module,
             use_,
@@ -374,13 +377,14 @@ impl CheckState<'_> {
             space,
             index_node,
             index,
-        )?
-        else {
+        )?;
+        let Some(selection) = selection else {
             return self.report_rejected_operator(
                 node,
                 origin,
                 "[]".to_string(),
                 &[receiver_type, index],
+                None,
             );
         };
 
@@ -391,6 +395,7 @@ impl CheckState<'_> {
                 origin,
                 "[]".to_string(),
                 &[receiver_type, index],
+                None,
             );
         }
 
@@ -622,7 +627,7 @@ impl CheckState<'_> {
         let structural = signature.signature;
         let read = match use_ {
             PlaceUse::Read | PlaceUse::Update => {
-                let read_type = self.index_signature_read_type(structural.value_type)?;
+                let read_type = self.optional_type(structural.value_type)?;
                 let call = self.dynamic_index_call(
                     receiver,
                     constraint,
@@ -941,7 +946,7 @@ impl CheckState<'_> {
                     key_type: signature.key_type,
                     target: dir::IndexTarget::Signature(position),
                 });
-                let read_type = self.index_signature_read_type(signature.value_type)?;
+                let read_type = self.optional_type(signature.value_type)?;
                 let write_type = signature.value_type;
                 let resolution = dir::MemberAccess::new(receiver, target, read_type);
 
@@ -1177,13 +1182,6 @@ impl CheckState<'_> {
             }
         }
 
-        // require the borrow the read dereferences
-        let Some((borrow, output)) = borrowed else {
-            return Err(CompilerError::Internal {
-                message: "selected Index.index call does not return a borrow".into(),
-            });
-        };
-
         // union the declared missing cases
         let missing = match missing.as_slice() {
             [] => None,
@@ -1191,19 +1189,36 @@ impl CheckState<'_> {
             _ => Some(self.normalized_union_type(missing)?),
         };
 
+        // read the value directly from a call returning no borrow
+        let Some((borrow, output)) = borrowed else {
+            let ty = call.return_type;
+            let target = dir::SubscriptTarget::Index(dir::IndexProjection {
+                call,
+                dereference: None,
+                missing: None,
+            });
+
+            return Ok(dir::Subscript { target, ty });
+        };
+
         // read through the borrow and widen the result with the missing cases
+        if !matches!(self.ty(borrow)?, dir::Type::Form(_)) {
+            return Err(CompilerError::Internal {
+                message: "selected Index.index call returns a borrow outside a form".into(),
+            });
+        }
         let dereference = dir::Dereference {
             receiver: borrow,
-            target: dir::DereferenceTarget::Direct,
+            protocol: None,
             ty: output,
         };
         let ty = match missing {
             Some(missing) => self.normalized_union_type([output, missing])?,
             None => output,
         };
-        let target = dir::SubscriptTarget::Index(dir::IndexRead {
+        let target = dir::SubscriptTarget::Index(dir::IndexProjection {
             call,
-            dereference,
+            dereference: Some(dereference),
             missing,
         });
 
@@ -1307,7 +1322,7 @@ impl CheckState<'_> {
         let method = SubscriptProtocol::Index;
         let sources = [dir::ArgumentSource::Static(key_type)];
         let key = method.key(self.strings());
-        let read_type = self.index_signature_read_type(value_type)?;
+        let read_type = self.optional_type(value_type)?;
         let Some((_protocol, call)) = self.select_language_protocol_call(
             origin,
             Value {
@@ -1320,7 +1335,7 @@ impl CheckState<'_> {
             dir::MemberSpace::Instance,
             key,
             method.item(),
-            &[key_type],
+            &[],
             &[],
             &sources,
         )?
@@ -1344,8 +1359,9 @@ impl CheckState<'_> {
             [single] => *single,
             _ => self.normalized_union_type(types)?,
         };
+        let verdict = self.decide_relation(origin, relation, read, read_type)?;
 
-        self.decide_relation(origin, relation, read, read_type)
+        Ok(verdict)
     }
 
     /// Decide whether `IndexSet<I>` accepts values compatible with one signature.
@@ -1398,8 +1414,9 @@ impl CheckState<'_> {
             [single] => *single,
             _ => self.normalized_intersection_type(value_types)?,
         };
+        let verdict = self.decide_relation(origin, relation, value_type, input)?;
 
-        self.decide_relation(origin, relation, value_type, input)
+        Ok(verdict)
     }
 }
 

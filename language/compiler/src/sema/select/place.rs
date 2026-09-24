@@ -4,8 +4,8 @@ use smallvec::smallvec;
 
 use crate::sema::{
     AssignmentSelection, CandidateSource, Cause, CauseKind, Check, CheckState, FlowSite,
-    MemberCandidate, MemberLookup, MemberRole, Origin, PlaceCheck, PlaceUse, Relation, Value,
-    WriteMode, member_arms,
+    MemberCandidate, MemberLookup, MemberRole, Origin, PlaceCheck, PlaceUse, Relation, StoreTarget,
+    Value, Verdict, WriteMode,
 };
 use crate::{CompilerError, CompilerResult};
 
@@ -15,6 +15,8 @@ pub(in crate::sema) struct MemberAssignmentSelection {
     pub(in crate::sema) read: Option<dir::MemberDecision>,
     /// The selected member write.
     write: dir::MemberDecision,
+    /// Where the value is stored.
+    store: StoreTarget,
 }
 
 impl MemberAssignmentSelection {
@@ -83,15 +85,10 @@ impl CheckState<'_> {
             dir::Expression::Identifier { .. } => self.binding_place(site, ty)?,
             dir::Expression::This | dir::Expression::Super => Some(self.this_place(site, ty)?),
             dir::Expression::Member { left, .. } => {
-                let resolution = self
-                    .decisions(expression.module_id)
-                    .member_decision(site.node)
-                    .cloned();
-                match resolution {
-                    Some(resolution) if resolution.is_stored() => {
-                        Some(self.project_expression_place(site, left, ty)?)
-                    }
-                    Some(_) => None,
+                // read a member without a decision as a namespace binding
+                match self.is_stored_access(site.node) {
+                    Some(true) => Some(self.project_expression_place(site, left, ty)?),
+                    Some(false) => None,
                     None if self.reference_symbol(site.node)?.is_some() => {
                         self.binding_place(site, ty)?
                     }
@@ -102,18 +99,9 @@ impl CheckState<'_> {
                 left,
                 index: Some(_),
                 ..
-            } => {
-                let resolution = self
-                    .decisions(expression.module_id)
-                    .subscript_decision(site.node)
-                    .cloned();
-                match resolution {
-                    Some(resolution) if resolution.is_stored() => {
-                        Some(self.project_expression_place(site, left, ty)?)
-                    }
-                    Some(_) | None => None,
-                }
-            }
+            } => (self.is_stored_access(site.node) == Some(true))
+                .then(|| self.project_expression_place(site, left, ty))
+                .transpose()?,
             dir::Expression::Unary {
                 operator: dir::UnaryOperator::Dereference,
                 right,
@@ -122,6 +110,35 @@ impl CheckState<'_> {
         };
 
         Ok(place)
+    }
+
+    /// Return the space one binding's direct value lives in, local unless declared.
+    pub(in crate::sema) fn binding_space(
+        &self,
+        symbol: dir::GlobalSymbolId,
+    ) -> CompilerResult<dir::Space> {
+        let bindings = self.binding_table(symbol.module_id)?;
+        let binding = bindings.get_symbol(symbol.local_id);
+
+        Ok(match binding.is_shared {
+            true => dir::Space::Shared,
+            false => dir::Space::Local,
+        })
+    }
+
+    /// Return whether the member or subscript decision at one node stores its target.
+    fn is_stored_access(&self, node: dir::GlobalNodeIdAny) -> Option<bool> {
+        // read the stored flag off a member, subscript, or assignment decision
+        match self.decisions(node.module_id).decision(node)? {
+            dir::Decision::Member(decision) => Some(decision.is_stored()),
+            dir::Decision::Subscript(decision) => Some(decision.is_stored()),
+            dir::Decision::Assignment(assignment) => match &assignment.write {
+                dir::WriteResolution::Member(decision) => Some(decision.is_stored()),
+                dir::WriteResolution::Subscript(decision) => Some(decision.is_stored()),
+                _ => Some(false),
+            },
+            _ => None,
+        }
     }
 
     /// Return one lexical binding place.
@@ -144,56 +161,29 @@ impl CheckState<'_> {
         let binding = bindings.get_symbol(symbol.local_id);
         let is_static = binding.scope.id == bindings.module_scope().id;
         let is_immutable = binding.binding_mutability == Some(dir::Mutability::Immutable);
-        let binding_space = binding.binding_space;
         let lifetime = if is_static {
             dir::Lifetime::Static
         } else {
             dir::Lifetime::Frame
         };
+        let direct_space = self.binding_space(symbol)?;
 
-        // freeze a const's direct value in constant storage
-        let direct_space = binding_space.unwrap_or(if is_static && is_immutable {
-            dir::Space::Constant
-        } else {
-            dir::Space::Local
-        });
-
-        // defer the place terms while the slot stays open
+        // defer the access term while the slot stays open
         if let Some(root) = self.root_variable(ty)? {
             let origin = site.origin();
             let direct =
                 self.direct_binding_place(site, ty, direct_space, lifetime, is_immutable)?;
-            let placement = self.open_memory_type(origin, dir::MemoryParameter::Place)?;
             let access = self.open_memory_type(origin, dir::MemoryParameter::Access)?;
             let check = self.queue_check_stalled(Check::Place(PlaceCheck { site, ty }), &[root])?;
-            for (term, default) in [(placement, direct.placement), (access, direct.access)] {
-                let variable =
-                    self.root_variable(term)?
-                        .ok_or_else(|| CompilerError::Internal {
-                            message: "a deferred place selection left an open term".to_string(),
-                        })?;
-                self.set_variable_default(variable, default)?;
-                self.fulfill.binders.insert(variable, check);
-            }
+            let variable = self
+                .root_variable(access)?
+                .ok_or_else(|| CompilerError::Internal {
+                    message: "a deferred place selection left an open term".to_string(),
+                })?;
+            self.set_variable_default(variable, direct.access)?;
+            self.fulfill.binders.insert(variable, check);
 
-            return Ok(Some(dir::PlaceResolution {
-                placement,
-                lifetime: direct.lifetime,
-                access,
-            }));
-        }
-
-        // keep an aliasing handle's referent access, its storage living while reachable
-        if self.type_is_aliased(site.origin(), ty)? {
-            let space = binding_space.unwrap_or(dir::Space::Local);
-
-            return Ok(Some(self.root_place(
-                site.origin(),
-                site.node.module_id,
-                ty,
-                space,
-                dir::Lifetime::Managed,
-            )?));
+            return Ok(Some(dir::PlaceResolution { access, ..direct }));
         }
 
         Ok(Some(self.direct_binding_place(
@@ -236,15 +226,16 @@ impl CheckState<'_> {
             return Ok(());
         };
 
-        // equate each deferred term with its selected term
+        // equate the deferred access with the selected access
         let origin = site.origin();
         let cause = self.intern_cause(Cause::root(origin, CauseKind::Expression));
-        for (deferred, selected) in [
-            (deferred.placement, selected.placement),
-            (deferred.access, selected.access),
-        ] {
-            self.constrain_type(origin, cause, Relation::Equal, deferred, selected)?;
-        }
+        self.constrain_type(
+            origin,
+            cause,
+            Relation::Equal,
+            deferred.access,
+            selected.access,
+        )?;
 
         Ok(())
     }
@@ -258,9 +249,9 @@ impl CheckState<'_> {
         lifetime: dir::Lifetime,
         is_immutable: bool,
     ) -> CompilerResult<dir::PlaceResolution> {
-        let place = self.root_place(site.origin(), site.node.module_id, ty, space, lifetime)?;
+        let place = self.root_place(site.origin(), ty, space, lifetime)?;
         let access = if is_immutable {
-            self.access_literal(dir::Access::Readonly)?
+            self.access_literal(dir::Access::Immutable)?
         } else {
             place.access
         };
@@ -277,9 +268,14 @@ impl CheckState<'_> {
         let origin = site.origin();
         let chain = self.form_chain(origin, ty)?;
 
-        // root a concrete place in its own space, a bare receiver in its declared space
-        let space = match chain.place() {
-            Some(place) => self.place_space(place)?,
+        // read the place a borrowed receiver's region names
+        let placement = match chain.region() {
+            Some(region) => self.region_space(region)?,
+            None => None,
+        };
+        let placement = match placement {
+            Some(place) => place,
+            // root another receiver at its declared space, local for every frame value
             None => {
                 let symbol = match self.ty(chain.base())? {
                     dir::Type::Application(instance) => Some(instance.symbol),
@@ -289,40 +285,42 @@ impl CheckState<'_> {
                     Some(symbol) => self.nominal_space(symbol)?,
                     None => None,
                 };
+                let space = declared_space.unwrap_or(dir::Space::Local);
 
-                Some(declared_space.unwrap_or(dir::Space::Local))
+                return self.root_place(origin, ty, space, dir::Lifetime::Frame);
             }
         };
-        if let Some(space) = space {
-            return self.root_place(origin, site.node.module_id, ty, space, dir::Lifetime::Frame);
-        }
+        let place = match self.literal_space(placement)? {
+            Some(space) => self.root_place(origin, ty, space, dir::Lifetime::Frame)?,
+            None => {
+                // retain exclusive access to the direct receiver storage
+                let lifetime = self.lifetime_literal(dir::Lifetime::Frame)?;
+                let access = self.access_literal(dir::Access::Exclusive)?;
+                let place = dir::PlaceResolution {
+                    placement,
+                    lifetime,
+                    access,
+                };
 
-        // parametric places stay mutable until an instantiation grants more
-        let placement = chain.place().expect("a spaceless chain carries a place");
-        let lifetime = self.lifetime_literal(dir::Lifetime::Frame)?;
-        let access = self.access_literal(dir::Access::Mutable)?;
-        let place = dir::PlaceResolution {
-            placement,
-            lifetime,
-            access,
+                self.project_place(origin, ty, ty, place)?
+            }
         };
 
-        self.project_place(origin, ty, ty, place)
+        Ok(place)
     }
 
     /// Return one root storage place.
     pub(in crate::sema) fn root_place(
         &mut self,
         origin: Origin,
-        _module: ModuleId,
         ty: dir::GlobalTypeId,
         space: dir::Space,
         lifetime: dir::Lifetime,
     ) -> CompilerResult<dir::PlaceResolution> {
-        let placement = self.place_literal(space)?;
+        let placement = self.space_literal(space)?;
         let lifetime = self.lifetime_literal(lifetime)?;
 
-        let access = self.access_literal(dir::Access::Mutable)?;
+        let access = self.access_literal(dir::Access::Exclusive)?;
         let place = dir::PlaceResolution {
             placement,
             lifetime,
@@ -343,13 +341,7 @@ impl CheckState<'_> {
         }
 
         // root the place at the value's own storage
-        self.root_place(
-            origin,
-            origin.module(),
-            value.ty,
-            dir::Space::Local,
-            dir::Lifetime::Frame,
-        )
+        self.root_place(origin, value.ty, dir::Space::Local, dir::Lifetime::Frame)
     }
 
     /// Project one child expression place from its receiver.
@@ -371,23 +363,26 @@ impl CheckState<'_> {
             None => {
                 let is_static = self.member_receiver_space(receiver_site.node, receiver_type)?
                     == dir::MemberSpace::Static;
-                let is_aliased = self.type_is_aliased(receiver_site.origin(), receiver_type)?;
                 let lifetime = if is_static {
                     dir::Lifetime::Static
-                } else if is_aliased {
-                    dir::Lifetime::Managed
                 } else {
                     dir::Lifetime::Frame
                 };
 
                 self.root_place(
                     receiver_site.origin(),
-                    receiver_site.node.module_id,
                     receiver_type,
                     dir::Space::Local,
                     lifetime,
                 )?
             }
+        };
+
+        // place a member of a managed receiver in the object the handle names
+        let receiver_place = if self.is_managed_value(receiver_site.origin(), receiver_type)? {
+            self.project_managed_object(receiver_site.origin(), receiver_type, receiver_place)?
+        } else {
+            receiver_place
         };
         let place = self.project_place(site.origin(), receiver_type, ty, receiver_place)?;
 
@@ -404,25 +399,19 @@ impl CheckState<'_> {
     ) -> CompilerResult<dir::PlaceResolution> {
         let chain = self.form_chain(origin, qualifier)?;
 
-        // project explicit placement
-        if let Some(placement) = chain.place() {
-            place.placement = placement;
-
-            // shared storage grants exclusivity only through unique ownership
-            let is_owned = matches!(
-                chain.ownership_form().map(|form| form.form),
-                Some(dir::Form::Owned)
-            );
-            if self.place_space(placement)? == Some(dir::Space::Shared) && !is_owned {
-                place.access = self.access_literal(dir::Access::Mutable)?;
-            }
+        // read the space the handle's object declares
+        let is_handle = chain.ownership_form().is_none();
+        let declared = match is_handle {
+            true => self.type_space(chain.base())?,
+            false => None,
+        };
+        if let Some(space) = declared {
+            place.placement = self.space_literal(space)?;
         }
 
-        // place a managed layer's referent in managed storage, alive while reachable
-        if let Some(form) = chain.ownership_form()
-            && matches!(form.form, dir::Form::Managed { .. })
-        {
-            place.lifetime = self.lifetime_literal(dir::Lifetime::Managed)?;
+        // read shared storage through a handle readonly
+        if declared == Some(dir::Space::Shared) {
+            place.access = self.access_literal(dir::Access::Readonly)?;
         }
 
         // project borrow lifetime, access, and referent place across the indirection
@@ -430,20 +419,23 @@ impl CheckState<'_> {
             && let dir::Form::Borrowed(borrow) = form.form
         {
             let borrow = self.type_borrow(qualifier.module_id, borrow)?;
-            place.access = borrow.access;
+            place.access = self.intersect_access(origin, place.access, borrow.access)?;
             let region = self.shallow_resolve(borrow.region)?;
             match self.ty(region)? {
                 dir::Type::Region(pair) => {
                     place.lifetime = pair.extent;
-                    place.placement = pair.space;
+                    place.placement = self.normalize(origin, pair.space)?;
                 }
-                // an opaque region carries its extent and space as one term
+                // a rigid or literal region is its own extent and space
                 _ => {
                     place.lifetime = borrow.region;
                     place.placement = borrow.region;
                 }
             }
-        } else if chain.is_readonly() {
+        }
+
+        // preserve an explicit readonly qualifier over every ownership form
+        if chain.is_readonly() {
             place.access = self.access_literal(dir::Access::Readonly)?;
         }
 
@@ -453,6 +445,132 @@ impl CheckState<'_> {
         }
 
         Ok(place)
+    }
+
+    /// Resolve the place one borrow lends, a strong rung granted where the referent admits it.
+    pub(in crate::sema) fn borrowed_place(
+        &mut self,
+        origin: Origin,
+        value: Value,
+        requested: Option<dir::Access>,
+        borrows_value: bool,
+    ) -> CompilerResult<dir::PlaceResolution> {
+        // borrow the value itself, else the object behind its managed handle
+        let mut place = match borrows_value {
+            true => self.value_place(origin, value)?,
+            false => self.object_place(origin, value)?,
+        };
+
+        // grant a strong rung over aliasable storage where the stored type admits it
+        let granted = self.access_of(place.access)?;
+        if let Some(rung @ (dir::Access::Immutable | dir::Access::Exclusive)) = requested
+            && matches!(
+                (granted, rung),
+                (Some(dir::Access::Mutable), _)
+                    | (Some(dir::Access::Readonly), dir::Access::Immutable)
+            )
+        {
+            let stored = match value.node {
+                Some(node) => self
+                    .decisions(node.module_id)
+                    .narrowing(node)
+                    .map(|narrowing| narrowing.union),
+                None => None,
+            };
+            let target = self.form_chain(origin, stored.unwrap_or(value.ty))?.base();
+            if self.decide_aliased_access(origin, target, rung)? == Verdict::Holds {
+                place.access = self.access_literal(rung)?;
+            }
+        }
+
+        Ok(place)
+    }
+
+    /// Project the place of the object one managed handle names.
+    pub(in crate::sema) fn project_managed_object(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+        mut place: dir::PlaceResolution,
+    ) -> CompilerResult<dir::PlaceResolution> {
+        let chain = self.form_chain(origin, ty)?;
+        place.placement = match self.type_space(chain.base())? {
+            Some(space) => self.space_literal(space)?,
+            None => place.placement,
+        };
+        place.lifetime = self.lifetime_literal(dir::Lifetime::Managed)?;
+        place.access = self.access_literal(match chain.is_readonly() {
+            true => dir::Access::Readonly,
+            false => dir::Access::Mutable,
+        })?;
+
+        Ok(place)
+    }
+
+    /// Return the place one value's object lives at: behind a managed handle, else its storage.
+    pub(in crate::sema) fn object_place(
+        &mut self,
+        origin: Origin,
+        value: Value,
+    ) -> CompilerResult<dir::PlaceResolution> {
+        let slot = self.value_place(origin, value)?;
+        match self.is_managed_value(origin, value.ty)? {
+            true => self.project_managed_object(origin, value.ty, slot),
+            false => Ok(slot),
+        }
+    }
+
+    /// Return whether one value is read through a managed handle.
+    pub(in crate::sema) fn is_managed_value(
+        &mut self,
+        origin: Origin,
+        ty: dir::GlobalTypeId,
+    ) -> CompilerResult<bool> {
+        let chain = self.form_chain(origin, ty)?;
+
+        Ok(self.form_ownership(origin, &chain)? == Some(dir::Ownership::Managed))
+    }
+
+    /// Return the strongest access permitted by both access terms.
+    fn intersect_access(
+        &mut self,
+        origin: Origin,
+        left: dir::GlobalTypeId,
+        right: dir::GlobalTypeId,
+    ) -> CompilerResult<dir::GlobalTypeId> {
+        // answer one term meeting itself or exclusive directly
+        let exclusive = self.access_literal(dir::Access::Exclusive)?;
+        if left == right || right == exclusive {
+            return Ok(left);
+        }
+        if left == exclusive {
+            return Ok(right);
+        }
+
+        // meet two closed rungs on the access lattice
+        if let (Some(left), Some(right)) = (self.access_of(left)?, self.access_of(right)?) {
+            return self.access_literal(left.meet(right));
+        }
+
+        // meet an open term symbolically: equal rungs, the other side of exclusive, else readonly
+        let readonly = self.access_literal(dir::Access::Readonly)?;
+        let mut access = readonly;
+        for (left, right, then_type) in [
+            (left, right, left),
+            (right, exclusive, left),
+            (left, exclusive, right),
+        ] {
+            access =
+                self.intern_operation(dir::TypeOperation::Conditional(dir::ConditionalType {
+                    left,
+                    right,
+                    then_type,
+                    else_type: access,
+                    is_distributive: true,
+                }))?;
+        }
+
+        self.normalize(origin, access)
     }
 
     /// Commit one expression's selected place.
@@ -533,7 +651,8 @@ impl CheckState<'_> {
                 }
 
                 // keep a place projected through a readonly view readonly for writes
-                let receiver = self.readonly_write_receiver(use_, receiver, receiver_place)?;
+                let receiver =
+                    self.readonly_write_receiver(origin, use_, receiver, receiver_place)?;
                 let receiver_value = Value {
                     ty: receiver,
                     ..receiver_value
@@ -566,10 +685,11 @@ impl CheckState<'_> {
                     return Ok(None);
                 };
                 let stored_key = selection.write.stored_key();
+                let store = selection.store;
                 let read = selection.read.map(dir::ReadResolution::Member);
                 let write = dir::WriteResolution::Member(selection.write);
 
-                let target = Self::assignment_target(read, write, source, initializes);
+                let target = Self::assignment_target(read, write, store, source, initializes);
 
                 // commit the stored member path
                 if let Some(key) = stored_key {
@@ -592,7 +712,8 @@ impl CheckState<'_> {
                 let receiver_place = self.value_place(receiver_site.origin(), receiver_value)?;
 
                 // keep a place projected through a readonly view readonly for writes
-                let receiver = self.readonly_write_receiver(use_, receiver, receiver_place)?;
+                let receiver =
+                    self.readonly_write_receiver(origin, use_, receiver, receiver_place)?;
                 let receiver_value = Value {
                     ty: receiver,
                     ..receiver_value
@@ -633,6 +754,7 @@ impl CheckState<'_> {
                             origin,
                             "[]".to_string(),
                             &[receiver_type, index],
+                            None,
                         )?;
 
                         return Ok(None);
@@ -643,7 +765,8 @@ impl CheckState<'_> {
                     return Ok(None);
                 };
 
-                let target = Self::assignment_target(read, write, source, initializes);
+                let target =
+                    Self::assignment_target(read, write, StoreTarget::Exact, source, initializes);
 
                 // commit the stored subscript path
                 if is_stored_write && let Some(key) = index_key {
@@ -700,6 +823,7 @@ impl CheckState<'_> {
                 Ok(Some(AssignmentSelection {
                     read,
                     write,
+                    store: StoreTarget::Exact,
                     mode: WriteMode::Direct,
                     source,
                 }))
@@ -720,12 +844,14 @@ impl CheckState<'_> {
         lookup: MemberLookup,
     ) -> CompilerResult<Option<MemberAssignmentSelection>> {
         // select one exact place for every runtime arm
-        let arms = member_arms(&lookup);
-        let is_union = arms.iter().any(|(arm, _)| arm.is_some());
+        let arms = lookup.arms();
+        let is_union = arms.iter().any(|group| group.arm.is_some());
         let mut reads = Vec::with_capacity(arms.len());
         let mut writes = Vec::with_capacity(arms.len());
-        for (arm, group) in arms {
-            let arm_receiver = match arm {
+        let mut is_optional = false;
+        for group in arms {
+            is_optional |= group.is_optional();
+            let arm_receiver = match group.arm {
                 Some(arm) => Value {
                     ty: arm.receiver,
                     ..receiver
@@ -733,7 +859,7 @@ impl CheckState<'_> {
                 None => receiver,
             };
             let Some((read, write)) =
-                self.select_arm_write(origin, arm_receiver, key, use_, &group)?
+                self.select_arm_write(origin, arm_receiver, key, use_, &group.candidates)?
             else {
                 return Ok(None);
             };
@@ -743,10 +869,22 @@ impl CheckState<'_> {
 
         // place one arm directly; accept what every write accepts and read their union for several
         if !is_union && writes.len() == 1 {
+            let write = writes.remove(0);
+            let store = match is_optional {
+                true => StoreTarget::Optional,
+                false => StoreTarget::Exact,
+            };
+
             return Ok(Some(MemberAssignmentSelection {
                 read: reads.pop().map(dir::OperationResolution::One),
-                write: dir::OperationResolution::One(writes.remove(0)),
+                write: dir::OperationResolution::One(write),
+                store,
             }));
+        }
+        if is_optional {
+            return Err(CompilerError::Internal {
+                message: "an optional member written through several union arms".to_string(),
+            });
         }
         let write_types = writes.iter().map(|write| write.ty).collect::<Vec<_>>();
         let write = dir::OperationResolution::Union {
@@ -761,7 +899,11 @@ impl CheckState<'_> {
             Some(dir::OperationResolution::Union { arms: reads, ty })
         };
 
-        Ok(Some(MemberAssignmentSelection { read, write }))
+        Ok(Some(MemberAssignmentSelection {
+            read,
+            write,
+            store: StoreTarget::Exact,
+        }))
     }
 
     /// Select the read and write accesses one runtime arm's candidates expose for a write.
@@ -855,7 +997,8 @@ impl CheckState<'_> {
                 && let Some(this) = self
                     .signature_head(callable)?
                     .and_then(|signature| signature.this_parameter)
-                && let Some(dir::ReceiverMode::Borrowed(access)) = self.this_parameter_mode(this)?
+                && let Some(dir::ReceiverMode::Borrowed { access, .. }) =
+                    self.this_parameter_mode(this)?
             {
                 requested = access;
             }
@@ -910,6 +1053,7 @@ impl CheckState<'_> {
     fn assignment_target(
         read: Option<dir::ReadResolution>,
         write: dir::WriteResolution,
+        store: StoreTarget,
         source: dir::GlobalNodeIdAny,
         initializes: Option<dir::GlobalSymbolId>,
     ) -> AssignmentSelection {
@@ -921,6 +1065,7 @@ impl CheckState<'_> {
         AssignmentSelection {
             read,
             write,
+            store,
             mode,
             source,
         }
@@ -938,14 +1083,24 @@ impl CheckState<'_> {
         }
     }
 
-    /// Return one write receiver, keeping the readonly view its place projects through.
+    /// Return one write receiver, an owned value viewed readonly where its place grants no write.
     fn readonly_write_receiver(
         &mut self,
+        origin: Origin,
         use_: PlaceUse,
         receiver: dir::GlobalTypeId,
         place: dir::PlaceResolution,
     ) -> CompilerResult<dir::GlobalTypeId> {
-        if use_ == PlaceUse::Read || !self.is_readonly_access(place.access)? {
+        // read through a readonly place, an immutable one holding an owned value in its own storage
+        let is_viewed = match (use_, self.access_of(place.access)?) {
+            (PlaceUse::Read, _) => false,
+            (_, Some(dir::Access::Readonly)) => true,
+            (_, Some(dir::Access::Immutable)) => {
+                self.default_ownership(origin, receiver)? == Some(dir::Ownership::Owned)
+            }
+            _ => false,
+        };
+        if !is_viewed {
             return Ok(receiver);
         }
 
@@ -1009,6 +1164,7 @@ impl CheckState<'_> {
                 Ok(Some(AssignmentSelection {
                     read,
                     write,
+                    store: StoreTarget::Exact,
                     mode: WriteMode::Direct,
                     source,
                 }))
