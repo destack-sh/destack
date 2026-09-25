@@ -1371,4 +1371,58 @@ for more information about an error, run `destack explain invalidation-of-borrow
     );
 }
 
+/// A borrow issued in a loop after the allocation escaped on the previous iteration conflicts with writes through the stored handle.
+#[test]
+fn test_reject_a_write_through_a_stored_handle_under_a_borrow_after_a_loop_escape() {
+    let mut program = TestProgram::mir(
+        r#"
+type Box {
+    value: int32;
+}
+
+function test(v0: boolean): int32 {
+    local l0: ref<Box, managed, mutable, local>
+
+entry(v0: boolean):
+    v1: ref<Box, managed, mutable, local> = new.zeroed Box, local
+    v2: ref<Box, managed, mutable, local> = new.zeroed Box, local
+    store l0, v2
+    jump body
+
+body:
+    v3: ref<int32, borrowed, 'frame, immutable> = address (*v1).0
+    v4: ref<Box, managed, mutable, local> = load l0
+    v5: int32 = 1
+    store (*v4).0, v5
+    v6: int32 = load (*v3)
+    store l0, v1
+    branch v0 => body | done
+
+done:
+    return v6
+}
+"#,
+    );
+
+    program.assert_verify_errors(
+        r#"
+error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
+  ──▶ <test.dsm>:19:5
+   │
+14 │
+15 │ body:
+16 │     v3: ref<int32, borrowed, 'frame, immutable> = address (*v1).0
+   │     ------------------------------------------------------------- borrow starts here
+17 │     v4: ref<Box, managed, mutable, local> = load l0
+18 │     v5: int32 = 1
+19 │     store (*v4).0, v5
+   │     ^^^^^^^^^^^^^^^^^
+20 │     v6: int32 = load (*v3)
+21 │     store l0, v1
+   │
+
+for more information about an error, run `destack explain invalidation-of-borrowed-place`
+"#,
+    );
+}
 

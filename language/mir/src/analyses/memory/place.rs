@@ -1,10 +1,11 @@
-use destack_core::{FxIndexMap, FxIndexSet};
+use destack_core::{BitSet, FxIndexMap, FxIndexSet};
 use smallvec::SmallVec;
 
 use crate::{
-    Analysis, Block, CastOperator, Constant, ConstantTable, ControlTable, FunctionId, Instruction,
-    Intrinsic, LocalId, LocalNodeId, LocalNodeIdAny, Mutability, Mutation, Place, PlaceOrigin,
-    PlaceType, Projection, Storage, StorageSet, Substitution, Tree, Type, Value, is_copy,
+    Analysis, Block, CastOperator, Constant, ConstantTable, ControlTable, DataflowTable,
+    ForwardTransfer, FunctionId, Instruction, Intrinsic, Lattice, LocalId, LocalNodeId,
+    LocalNodeIdAny, Mutability, Mutation, Place, PlaceOrigin, PlaceType, Projection, Storage,
+    StorageSet, Substitution, Tree, Type, Value, is_copy,
 };
 
 /// How one place may alias others, by the root of its storage.
@@ -25,18 +26,36 @@ enum AliasClass<'tree> {
 }
 
 /// Canonical places for one MIR function.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct PlaceTable {
     /// The canonical place for each SSA value.
     values: Vec<Place>,
-    /// The values naming a fresh allocation, addressed through no other root until stored.
-    fresh: FxIndexSet<Value>,
-    /// The position of the first instruction storing, aggregating, or passing each fresh allocation.
-    escapes: FxIndexMap<Value, u32>,
-    /// The position of each instruction and terminator in block order.
-    order: FxIndexMap<LocalNodeIdAny, u32>,
+    /// The fresh allocations, addressed through no other root until they escape.
+    fresh: FxIndexMap<Value, Allocation>,
+    /// The position of each instruction and terminator.
+    order: FxIndexMap<LocalNodeIdAny, Position>,
+    /// The fresh allocations, by index, that may have escaped at each block entry.
+    escaped: DataflowTable<BitSet>,
     /// The locals whose address some instruction takes.
     exposed: FxIndexSet<LocalId>,
+}
+
+/// One fresh allocation: where it is defined and where it escapes.
+#[derive(Debug, Clone)]
+struct Allocation {
+    /// The position of the instruction defining the allocation.
+    definition: Position,
+    /// The positions of the instructions storing, aggregating, or passing the allocation.
+    escapes: SmallVec<[Position; 2]>,
+}
+
+/// The position of one operation: its block and its index there, the terminator last.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+struct Position {
+    /// The block holding the operation.
+    block: LocalNodeId<Block>,
+    /// The index of the operation in its block.
+    index: u32,
 }
 
 impl Place {
@@ -510,8 +529,11 @@ impl PlaceTable {
             }
         }
 
-        // position every instruction, recording where each fresh allocation first escapes a place root
-        let (order, escapes) = Self::escapes(&fresh, function, tree);
+        // position every operation and record where each fresh allocation is defined and escapes
+        let (order, fresh) = Self::escapes(&fresh, function, tree);
+
+        // solve which fresh allocations may have escaped at each block entry
+        let escaped = Self::escaped(&fresh, function, graph, tree);
 
         // preserve an opaque root for unresolved or conflicting values
         let values = resolutions
@@ -528,8 +550,8 @@ impl PlaceTable {
         Self {
             values,
             fresh,
-            escapes,
             order,
+            escaped,
             exposed,
         }
     }
@@ -551,59 +573,134 @@ impl PlaceTable {
         }
     }
 
-    /// Position every instruction and terminator, recording where each fresh allocation first escapes a place root or a bit cast.
+    /// Position every operation, recording where each fresh allocation is defined and where it escapes a place root or a bit cast.
     fn escapes(
         fresh: &FxIndexSet<Value>,
         function: FunctionId,
         tree: &Tree,
-    ) -> (FxIndexMap<LocalNodeIdAny, u32>, FxIndexMap<Value, u32>) {
+    ) -> (
+        FxIndexMap<LocalNodeIdAny, Position>,
+        FxIndexMap<Value, Allocation>,
+    ) {
         let mut order = FxIndexMap::default();
-        let mut escapes = FxIndexMap::default();
-        let mut record =
-            |order: &mut FxIndexMap<LocalNodeIdAny, u32>, node, values: SmallVec<[Value; 8]>| {
-                let position = order.len() as u32;
-                order.insert(node, position);
-                for value in values {
-                    if fresh.contains(&value) {
-                        escapes.entry(value).or_insert(position);
-                    }
+        let mut definitions = FxIndexMap::default();
+        let mut escapes: FxIndexMap<Value, SmallVec<[Position; 2]>> = FxIndexMap::default();
+        let mut record = |position: Position, values: SmallVec<[Value; 8]>| {
+            for value in values {
+                if fresh.contains(&value) {
+                    escapes.entry(value).or_default().push(position);
                 }
-            };
+            }
+        };
         for &block_id in tree.get(function).blocks() {
             let block = tree.get(block_id);
-            for &instruction_id in &block.instructions {
+            let position = |index: usize| Position {
+                block: block_id,
+                index: index as u32,
+            };
+
+            // position each instruction, recording fresh definitions and escapes
+            for (index, &instruction_id) in block.instructions.iter().enumerate() {
                 let instruction = tree.get(instruction_id);
-                let roots: SmallVec<[Value; 4]> = match instruction {
-                    Instruction::Load { place, .. }
-                    | Instruction::Address { place, .. }
-                    | Instruction::Store { place, .. }
-                    | Instruction::AtomicLoad { place, .. }
-                    | Instruction::AtomicStore { place, .. }
-                    | Instruction::AtomicRmw { place, .. }
-                    | Instruction::AtomicCompareExchange { place, .. } => place.uses(),
-                    Instruction::Cast {
-                        operator: CastOperator::Bitcast,
-                        argument,
-                        ..
-                    } => SmallVec::from_slice(&[*argument]),
-                    _ => SmallVec::new(),
-                };
-                let escaping = instruction
-                    .reads(tree)
-                    .into_iter()
-                    .filter(|value| !roots.contains(value))
-                    .collect();
-                record(&mut order, instruction_id.into_any(), escaping);
+                order.insert(instruction_id.into_any(), position(index));
+                if let Some(destination) = instruction.destination()
+                    && fresh.contains(&destination)
+                {
+                    definitions.insert(destination, position(index));
+                }
+                record(position(index), Self::escaping(instruction, tree));
             }
-            let terminator = tree.get(block.terminator);
-            record(
-                &mut order,
-                block.terminator.into_any(),
-                terminator.uses(tree),
-            );
+
+            // position the terminator, which escapes every value it passes
+            let index = block.instructions.len();
+            order.insert(block.terminator.into_any(), position(index));
+            record(position(index), tree.get(block.terminator).uses(tree));
         }
 
-        (order, escapes)
+        // pair each fresh allocation with its definition
+        let allocations = definitions
+            .into_iter()
+            .map(|(value, definition)| {
+                let allocation = Allocation {
+                    definition,
+                    escapes: escapes.swap_remove(&value).unwrap_or_default(),
+                };
+
+                (value, allocation)
+            })
+            .collect();
+
+        (order, allocations)
+    }
+
+    /// Return the values one instruction reads outside a place root or a bit cast.
+    fn escaping(instruction: &Instruction, tree: &Tree) -> SmallVec<[Value; 8]> {
+        let roots: SmallVec<[Value; 4]> = match instruction {
+            Instruction::Load { place, .. }
+            | Instruction::Address { place, .. }
+            | Instruction::Store { place, .. }
+            | Instruction::AtomicLoad { place, .. }
+            | Instruction::AtomicStore { place, .. }
+            | Instruction::AtomicRmw { place, .. }
+            | Instruction::AtomicCompareExchange { place, .. } => place.uses(),
+            Instruction::Cast {
+                operator: CastOperator::Bitcast,
+                argument,
+                ..
+            } => SmallVec::from_slice(&[*argument]),
+            _ => SmallVec::new(),
+        };
+
+        instruction
+            .reads(tree)
+            .into_iter()
+            .filter(|value| !roots.contains(value))
+            .collect()
+    }
+
+    /// Solve which fresh allocations may have escaped at each block entry.
+    fn escaped(
+        fresh: &FxIndexMap<Value, Allocation>,
+        function: FunctionId,
+        graph: &ControlTable,
+        tree: &Tree,
+    ) -> DataflowTable<BitSet> {
+        // collect each block's definitions and escapes by fresh index
+        let mut transfers: FxIndexMap<LocalNodeId<Block>, (BitSet, BitSet)> = FxIndexMap::default();
+        let empty = || (BitSet::new(fresh.len()), BitSet::new(fresh.len()));
+        for (index, allocation) in fresh.values().enumerate() {
+            let definition = allocation.definition.block;
+            transfers
+                .entry(definition)
+                .or_insert_with(empty)
+                .0
+                .insert(index);
+            for escape in &allocation.escapes {
+                transfers
+                    .entry(escape.block)
+                    .or_insert_with(empty)
+                    .1
+                    .insert(index);
+            }
+        }
+
+        // restart each allocation defined in a block, then add its escapes there
+        DataflowTable::forward(
+            function,
+            tree,
+            graph,
+            BitSet::new(fresh.len()),
+            |transfer, mut escaped, _| {
+                if let ForwardTransfer::Block(block) = transfer
+                    && let Some((definitions, escapes)) = transfers.get(&block)
+                {
+                    escaped.subtract(definitions);
+                    escaped.union_with(escapes);
+                }
+
+                escaped
+            },
+        )
     }
 
     /// Return whether one place roots at a fresh allocation no other root addresses at one operation.
@@ -611,13 +708,23 @@ impl PlaceTable {
         let PlaceOrigin::Value(value) = place.origin else {
             return false;
         };
+        let Some((index, _, allocation)) = self.fresh.get_full(&value) else {
+            return false;
+        };
+        let Some(&Position { block, index: at }) = self.order.get(&at) else {
+            return allocation.escapes.is_empty();
+        };
 
-        self.fresh.contains(&value)
-            && match (self.escapes.get(&value), self.order.get(&at)) {
-                (Some(escape), Some(position)) => position < escape,
-                (Some(_), None) => false,
-                (None, _) => true,
-            }
+        // escape in the block before the operation, or at entry unless defined in the block before it
+        let is_before = |position: &Position| position.block == block && position.index < at;
+        let is_escaped = allocation.escapes.iter().any(is_before)
+            || (!is_before(&allocation.definition)
+                && self
+                    .escaped
+                    .entry(block)
+                    .is_some_and(|escaped| escaped.contains(index)));
+
+        !is_escaped
     }
 
     /// Return whether some instruction takes one local's address.
@@ -846,6 +953,16 @@ impl PlaceTable {
         resolutions[index] = resolution;
 
         true
+    }
+}
+
+impl Lattice for BitSet {
+    /// Merge the fresh allocations that may have escaped along either edge.
+    fn meet(&self, other: &Self) -> Self {
+        let mut escaped = self.clone();
+        escaped.union_with(other);
+
+        escaped
     }
 }
 
