@@ -1,26 +1,17 @@
 import { createSignal, For, onSettled, Show } from "@destack/view";
 import * as stylex from "@destack/style";
-import { color, fontFamily } from "@destack/theme/tokens.stylex";
+import { fontFamily } from "@destack/theme/tokens.stylex";
 
 import { tokens } from "../../style/tokens.stylex";
 import { type Download, readDownloads, selectDownload } from "./catalog.ts";
 
-/** Render the desktop download cell and its platform choices, filled once lit or pressed, with a lit spot that follows the cursor. */
-export function DownloadCell(properties: { isLit: boolean; style?: stylex.Styles }) {
-    // hold the pointer state, the loaded downloads, and the choice
-    const [isPressed, setIsPressed] = createSignal(false);
-    const [isHovered, setIsHovered] = createSignal(false);
+/** Render the desktop download cell and its platform choices. */
+export function DownloadCell(properties: { style?: stylex.Styles }) {
+    // hold the loaded downloads and the choice
     const [downloads, setDownloads] = createSignal<Download[]>([]);
     const [selected, setSelected] = createSignal<Download>();
     const [error, setError] = createSignal<string>();
     let choices!: HTMLDetailsElement;
-    let spot!: HTMLSpanElement;
-
-    // follow the cursor with the spot
-    const aim = (event: PointerEvent) => {
-        const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
-        spot.style.translate = `${event.clientX - bounds.left}px ${event.clientY - bounds.top}px`;
-    };
 
     // load platform choices without delaying the rest of the landing page
     onSettled(() => {
@@ -36,27 +27,7 @@ export function DownloadCell(properties: { isLit: boolean; style?: stylex.Styles
     });
 
     return (
-        <div
-            onPointerMove={aim}
-            onPointerEnter={() => setIsHovered(true)}
-            onPointerLeave={() => setIsHovered(false)}
-            onPointerDown={() => setIsPressed(true)}
-            {...stylex.attrs(
-                styles.root,
-                (properties.isLit || isPressed()) && styles.lit,
-                properties.style,
-            )}
-        >
-            {/* light a spot of the cell under the cursor until the whole cell is lit */}
-            <span
-                aria-hidden="true"
-                {...stylex.attrs(
-                    styles.halo,
-                    isHovered() && !(properties.isLit || isPressed()) && styles.haloShown,
-                )}
-            >
-                <span ref={spot} {...stylex.attrs(styles.spot)} />
-            </span>
+        <div {...stylex.attrs(styles.root, properties.style)}>
             <Show
                 when={selected()}
                 fallback={
@@ -180,35 +151,9 @@ function SystemIcon(properties: { target: Download["target"] | undefined }) {
 /** Download cell and platform menu styles. */
 const styles = stylex.create({
     root: {
-        color: color.foreground,
-        display: "flex",
-        position: "relative",
-        transition: "background-color 300ms ease, color 300ms ease",
-    },
-    lit: {
         backgroundColor: tokens.signal,
         color: tokens.signalInk,
-    },
-    halo: {
-        inset: 0,
-        opacity: 0,
-        overflow: "hidden",
-        pointerEvents: "none",
-        position: "absolute",
-        transition: "opacity 200ms ease",
-    },
-    haloShown: {
-        opacity: 1,
-    },
-
-    spot: {
-        backgroundColor: tokens.signal,
-        borderRadius: "50%",
-        height: "4rem",
-        left: "-2rem",
-        position: "absolute",
-        top: "-2rem",
-        width: "4rem",
+        display: "flex",
     },
 
     action: {
@@ -220,12 +165,12 @@ const styles = stylex.create({
         display: "flex",
         flexGrow: 1,
         fontFamily: fontFamily.default,
-        fontSize: "1rem",
+        fontSize: "0.9375rem",
         fontWeight: 600,
-        gap: "0.625rem",
+        gap: "0.5rem",
         justifyContent: "center",
         paddingInlineEnd: 0,
-        paddingInlineStart: "2.5rem",
+        paddingInlineStart: "1.75rem",
         position: "relative",
         zIndex: 1,
     },
@@ -245,48 +190,49 @@ const styles = stylex.create({
         display: "flex",
         justifyContent: "center",
         listStyle: "none",
-        width: "2.5rem",
+        width: "1.75rem",
         "::marker": { content: "''" },
         ":hover": { backgroundColor: "#ffffff26" },
     },
     menu: {
-        backgroundColor: color.background,
-        borderColor: color.border,
+        backgroundColor: tokens.cream,
+        borderColor: tokens.signalInk,
         borderStyle: "solid",
-        borderWidth: tokens.hairline,
-        color: color.foreground,
-        left: "-1px",
+        borderWidth: "2px",
+        boxShadow: `4px 4px 0 ${tokens.signal}`,
+        color: tokens.signalInk,
+        left: 0,
         position: "absolute",
-        right: "-1px",
-        top: "100%",
-        zIndex: 10,
+        right: 0,
+        top: "calc(100% + 0.75rem)",
+        zIndex: 30,
     },
     option: {
         alignItems: "center",
-        borderBottomColor: color.border,
+        borderBottomColor: tokens.signalInk,
         borderBottomStyle: "solid",
-        borderBottomWidth: tokens.hairline,
+        borderBottomWidth: "1.5px",
         color: "inherit",
         display: "flex",
-        fontSize: "0.9375rem",
-        fontWeight: 500,
-        gap: "0.625rem",
-        paddingBlock: "0.75rem",
-        paddingInline: tokens.inset,
-        ":hover": { color: color.primary },
+        fontSize: "1rem",
+        fontWeight: 600,
+        gap: "0.75rem",
+        paddingBlock: "0.875rem",
+        paddingInline: "1rem",
+        ":hover": { backgroundColor: tokens.signal },
     },
     guide: {
         borderBottomWidth: 0,
-        color: color.mutedForeground,
+        color: `color-mix(in srgb, ${tokens.signalInk} 65%, transparent)`,
     },
     version: {
-        color: color.mutedForeground,
+        color: `color-mix(in srgb, ${tokens.signalInk} 65%, transparent)`,
         fontFamily: tokens.monoFont,
         fontSize: "0.75rem",
         marginLeft: "auto",
     },
     message: {
-        color: color.mutedForeground,
+        color: `color-mix(in srgb, ${tokens.signalInk} 65%, transparent)`,
         display: "block",
         fontSize: "0.875rem",
         paddingBlock: "0.75rem",

@@ -8,11 +8,11 @@ export const tokens = stylex.defineConsts({
     column: "var(--site-column)",
     /** The height of the header, footer, and toolbar rows. */
     bar: "var(--site-bar)",
-    /** The homepage row height, sized so four rows, six stage rows, and two bars fill the window. */
+    /** The homepage row height, sized so three hero rows, six stage rows, and two bars fill the window. */
     row: "var(--site-row)",
     /** The taller row height of the homepage stack figure. */
     stage: "var(--site-stage)",
-    /** The breadboard hole pitch across: the stack figure's drawing is 88 cells wide. */
+    /** The breadboard hole pitch across: the stack figure's drawing is 88 cells over eight columns. */
     cell: "var(--site-cell)",
     /** The breadboard hole pitch down: nine cells to a stage row. */
     cellRow: "var(--site-cell-row)",
@@ -20,12 +20,14 @@ export const tokens = stylex.defineConsts({
     inset: "var(--site-inset)",
     /** The lattice rule width. */
     hairline: "1px",
+    /** The lattice rule color, blended toward faint cream while the universe fills the site. */
+    rule: "var(--site-rule)",
     /** The bright fill used for primary actions in both themes. */
     signal: "#ff792e",
     /** The ink drawn on signal fills. */
     signalInk: "#12313c",
     /** The deep space field behind illustrations in both themes. */
-    space: "#0d2233",
+    space: "#081723",
     /** The cream drawn on space and night fields in both themes. */
     cream: "#f1eadb",
     /** The night field behind code and reveals in both themes. */

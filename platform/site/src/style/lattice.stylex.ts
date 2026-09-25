@@ -1,4 +1,3 @@
-import { color } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
 
 import { tokens } from "./tokens.stylex";
@@ -10,7 +9,7 @@ const mobile = "@media (max-width: 767px)";
 export const lattice = stylex.create({
     /** A full-width band on the shared columns, closed by the frame edges. */
     frame: {
-        borderInlineColor: color.border,
+        borderInlineColor: tokens.rule,
         borderInlineStyle: "solid",
         borderInlineWidth: tokens.hairline,
         display: "grid",
@@ -27,14 +26,14 @@ export const lattice = stylex.create({
 
     /** A rule along the right edge of a cell. */
     ruleRight: {
-        borderRightColor: color.border,
+        borderRightColor: tokens.rule,
         borderRightStyle: "solid",
         borderRightWidth: tokens.hairline,
     },
 
     /** A rule along the bottom edge of a cell or band. */
     ruleBottom: {
-        borderBottomColor: color.border,
+        borderBottomColor: tokens.rule,
         borderBottomStyle: "solid",
         borderBottomWidth: tokens.hairline,
     },

@@ -30,6 +30,10 @@ export class Shader {
     isVisible: boolean;
     /** Upload the uniforms of one frame, and return whether to keep animating. */
     onDraw: (now: number) => boolean;
+    /** The fewest milliseconds between drawn frames: 0 draws every frame. */
+    pace: number;
+    /** When the last frame was drawn, in milliseconds. */
+    drawnAt: number;
 
     /** Compile a fragment shader for a canvas at a capped pixel density, or throw when WebGL is unavailable. */
     constructor(
@@ -60,6 +64,8 @@ export class Shader {
         this.frame = undefined;
         this.isVisible = true;
         this.onDraw = onDraw;
+        this.pace = 0;
+        this.drawnAt = -Infinity;
 
         // cover the canvas with one quad
         const buffer = context.createBuffer();
@@ -117,9 +123,14 @@ export class Shader {
 
     /** Draw one frame with the uniforms `onDraw` uploads, and schedule the next while it keeps animating. */
     render(now: number) {
-        // clear the pending frame
+        // clear the pending frame, and skip this one when the draw asks for a slower pace
         this.frame = undefined;
         const context = this.context;
+        if (now - this.drawnAt < this.pace - 2) {
+            this.request();
+            return;
+        }
+        this.drawnAt = now;
 
         // match the backing store to the displayed size
         const scale = Math.min(window.devicePixelRatio, this.density);
@@ -178,4 +189,27 @@ function createProgram(context: WebGLRenderingContext, fragmentSource: string): 
     context.blendFunc(context.ONE, context.ONE_MINUS_SRC_ALPHA);
 
     return program;
+}
+
+/** Return whether the page is drawn dark, by its chosen theme or else the system's. */
+export function isDarkPage() {
+    const theme = document.documentElement.dataset.theme;
+
+    return (
+        theme === "dark" ||
+        (theme === undefined && window.matchMedia("(prefers-color-scheme: dark)").matches)
+    );
+}
+
+/** The page's scroll offset in CSS pixels, kept up to date by scroll events, so frame loops never ask the page for it and force a layout. */
+export const pageScroll = { x: 0, y: 0 };
+
+// follow the page's scroll once for every frame loop
+if (typeof window !== "undefined") {
+    const track = () => {
+        pageScroll.x = window.scrollX;
+        pageScroll.y = window.scrollY;
+    };
+    track();
+    window.addEventListener("scroll", track, { passive: true });
 }

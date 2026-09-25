@@ -1,4 +1,5 @@
 import * as stylex from "@destack/style";
+import type { JSX } from "@destack/view";
 
 import { Goo } from "../effect/goo";
 import { tokens } from "../style/tokens.stylex";
@@ -8,13 +9,18 @@ const centre = { x: 480, y: 260 };
 /** The planet's radius, in the plate's drawing units. */
 const radius = 170;
 
-/** The ring's ellipse and inclination, in the same proportions as the mark. */
+/** The ring's reach across and down, in planet radii, in the same proportions as the mark. */
+const ringReach = { across: 1.382, down: 0.382 };
+/** The ring's inclination, in degrees. */
+const ringTilt = -22;
+
+/** The ring's ellipse and inclination. */
 const ring = {
     cx: String(centre.x),
     cy: String(centre.y),
-    rx: String(radius * 1.382),
-    ry: String(radius * 0.382),
-    transform: `rotate(-22 ${centre.x} ${centre.y})`,
+    rx: String(radius * ringReach.across),
+    ry: String(radius * ringReach.down),
+    transform: `rotate(${ringTilt} ${centre.x} ${centre.y})`,
 };
 
 /** The ring's stroke width. */
@@ -25,14 +31,55 @@ const gapWidth = radius * 0.145;
 /** The dark side of the planet. */
 const shadow = "#c64a17";
 
-/** Render the planet floating in a cell of quiet space, with a meteor passing by now and then. */
-export function Plate(properties: { style?: stylex.Styles }) {
+/** The plate's planet and ring as drawn on screen, in client pixels, with the ring's inclination in radians. */
+export type Orbit = {
+    /** The planet's centre across. */
+    x: number;
+    /** The planet's centre down. */
+    y: number;
+    /** The planet's radius. */
+    radius: number;
+    /** The ring's reach across. */
+    across: number;
+    /** The ring's reach down. */
+    down: number;
+    /** The ring's inclination. */
+    tilt: number;
+};
+
+/** Return the plate's planet and ring as drawn on screen, or nothing when the page shows no plate. */
+export function orbitOf(): Orbit | undefined {
+    // find the globe and its place on screen
+    const globe = document.querySelector<SVGCircleElement>("[data-planet]");
+    const matrix = globe?.getScreenCTM();
+    if (!matrix) {
+        return undefined;
+    }
+
+    // map the planet's centre and sizes from drawing units to client pixels
+    const scale = Math.hypot(matrix.a, matrix.b);
+
+    return {
+        x: matrix.a * centre.x + matrix.c * centre.y + matrix.e,
+        y: matrix.b * centre.x + matrix.d * centre.y + matrix.f,
+        radius: radius * scale,
+        across: radius * ringReach.across * scale,
+        down: radius * ringReach.down * scale,
+        tilt: (ringTilt * Math.PI) / 180,
+    };
+}
+
+/** Render the planet floating in a cell of quiet space, with a meteor passing by now and then, and the children at its foot. */
+export function Plate(properties: { children?: JSX.Element; style?: stylex.Styles }) {
     return (
         <Goo style={properties.style}>
-            <svg aria-hidden="true" viewBox="80 40 800 440" {...stylex.attrs(styles.planet)}>
-                <Meteor />
-                <Planet />
-            </svg>
+            <div {...stylex.attrs(styles.stack)}>
+                <svg aria-hidden="true" viewBox="80 40 800 440" {...stylex.attrs(styles.planet)}>
+                    <Meteor />
+                    <Planet />
+                </svg>
+                {properties.children}
+            </div>
         </Goo>
     );
 }
@@ -71,7 +118,7 @@ function Planet() {
             {/* draw the back of the ring, then the globe with its shadow side, cut by the gap in front */}
             <ellipse {...ring} fill="none" stroke={tokens.signal} stroke-width={ringWidth} />
             <g mask="url(#plate-gap)">
-                <circle cx={centre.x} cy={centre.y} r={radius} fill={tokens.signal} />
+                <circle data-planet cx={centre.x} cy={centre.y} r={radius} fill={tokens.signal} />
                 <circle
                     cx={centre.x + radius * 0.42}
                     cy={centre.y + radius * 0.42}
@@ -132,9 +179,15 @@ const styles = stylex.create({
         opacity: 0,
         "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
     },
+    stack: {
+        display: "flex",
+        flexDirection: "column",
+        height: "100%",
+    },
     planet: {
         display: "block",
-        height: "100%",
+        flexGrow: 1,
+        minHeight: 0,
         padding: "3%",
         pointerEvents: "none",
         width: "100%",

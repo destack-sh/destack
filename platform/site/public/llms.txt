@@ -1,3 +1,3 @@
 # Destack
 
-> Destack is a universal software engine: one language, one toolchain, one runtime, integrated set of services, and apps.
+> Destack unifies all your apps and agents with one open stack.

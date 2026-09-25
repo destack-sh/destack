@@ -1,0 +1,14 @@
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="20"
+  height="20"
+  viewBox="0 0 20 20"
+  fill="none"
+  stroke="currentColor"
+  stroke-width="1.5"
+  stroke-linecap="square"
+  stroke-linejoin="miter"
+>
+  <path d="M3 3h6v6H3zM11 3h6v6h-6zM3 11h6v6H3z" />
+  <path d="M11 14h6M14 11v6" />
+</svg>

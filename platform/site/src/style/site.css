@@ -21,11 +21,12 @@
         --site-column: calc(var(--site-width) / 12);
         --site-bar: 64px;
         --site-row: clamp(52px, calc((100svh - var(--site-bar) * 2 - 3px) / 12.4), 96px);
-        --site-stage: calc(var(--site-row) * 1.4);
-        --site-cell: calc(var(--site-column) / 11);
+        --site-stage: calc(var(--site-row) * 9.4 / 6);
+        --site-cell: calc(var(--site-column) * 8 / 88);
         --site-cell-row: calc(var(--site-stage) / 9);
         --site-inset: 24px;
         --site-water: light-dark(#2b6f82, #0a2e3a);
+        --site-rule: var(--destack-color-border);
         color-scheme: light dark;
         --publication-page: var(--destack-color-background);
         --publication-page-muted: var(--destack-color-muted);
@@ -58,7 +59,7 @@
             --site-column: calc(100vw / 4);
             --site-bar: 56px;
             --site-row: 72px;
-            --site-stage: 72px;
+            --site-stage: 116px;
             --site-cell: calc(100vw / 88);
             --site-inset: 20px;
         }
@@ -140,18 +141,7 @@
     min-width: 0;
 }
 
-.markdown
-    > :is(
-        hr,
-        .markdown-code,
-        .markdown-diagram,
-        .markdown-table,
-        .lint-rule,
-        .lint-catalog,
-        .reference-catalog,
-        .document-section,
-        .reference-item
-    ),
+.markdown > :is(hr, .markdown-code, .markdown-diagram, .markdown-table, .document-section),
 .markdown > p:has(> img:only-child) {
     grid-column: wide;
 }
@@ -830,195 +820,9 @@
     margin-top: 0;
 }
 
-/* generated standard library reference */
-
-.reference-catalog dl {
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    margin: 0 0 2rem;
-    border: var(--publication-hairline) solid var(--publication-line);
-}
-
-.reference-catalog dl > div {
-    display: grid;
-    gap: 0.25rem;
-    padding: 0.75rem;
-    border-right: var(--publication-hairline) solid var(--publication-line);
-}
-
-.reference-catalog dl > div:last-child {
-    border-right: 0;
-}
-
-.reference-catalog dt {
-    color: var(--publication-ink);
-    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
-    font-size: var(--size-label);
-    letter-spacing: 0.02em;
-}
-
-.reference-catalog dd {
-    margin: 0;
-    font-family: "IBM Plex Sans Variable", Helvetica, Arial, sans-serif;
-}
-
-.document-section,
-.reference-item {
+.document-section {
     display: grid;
     gap: 1.25rem;
-}
-
-.reference-group {
-    display: grid;
-    gap: 0;
-    scroll-margin-top: 5rem;
-}
-
-.reference-member-section > h2 {
-    margin-top: 0;
-    padding-bottom: 0.5rem;
-}
-
-.markdown .reference-item-list {
-    display: grid;
-    gap: 0;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
-
-.markdown .reference-item-list li {
-    padding: 0;
-    border-bottom: var(--publication-hairline) solid var(--publication-line);
-}
-
-.reference-item-list li > :is(a, div) {
-    text-decoration: none;
-    color: var(--publication-ink);
-    align-items: baseline;
-    display: grid;
-    gap: var(--content-gap);
-    grid-template-columns: minmax(0, 1fr);
-    padding: var(--content-inset) calc(var(--content-row-inset) + 2rem) var(--content-inset) 0;
-    position: relative;
-}
-
-.reference-item-list code,
-.reference-item-list span {
-    overflow-wrap: anywhere;
-}
-
-.reference-item-list a:hover {
-    color: var(--publication-accent);
-}
-
-.markdown .reference-item-list code {
-    background: transparent;
-    padding: 0;
-}
-
-.reference-item-list .reference-summary {
-    color: var(--publication-ink);
-    max-width: 72ch;
-    font-size: var(--content-summary-size);
-    line-height: 1.5;
-}
-
-.reference-item-list .reference-name {
-    font-size: var(--content-code-size);
-    line-height: 1.5;
-}
-.reference-item-list a::after {
-    content: "→";
-    position: absolute;
-    top: var(--content-inset);
-    right: var(--content-row-inset);
-    color: var(--publication-soft);
-    line-height: 1.5;
-}
-
-.reference-declaration {
-    display: grid;
-}
-
-.reference-item
-    > :not([data-publication-listing], .reference-declaration, .reference-member-section) {
-    max-width: var(--width-prose);
-    width: 100%;
-    margin-inline: 0;
-}
-
-.reference-member-section {
-    display: grid;
-    gap: 0;
-}
-
-.reference-members {
-    border-block: var(--publication-hairline) solid var(--publication-line);
-}
-.markdown .reference-item-list {
-    border-block: var(--publication-hairline) solid var(--publication-line);
-}
-
-.reference-members {
-    display: grid;
-    margin: 0;
-}
-
-.reference-members > div {
-    align-items: baseline;
-    border-bottom: var(--publication-hairline) solid var(--publication-line);
-    display: grid;
-    column-gap: 2rem;
-    grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr);
-    padding: var(--content-inset) 0;
-}
-
-.reference-members > div:last-child,
-.markdown .reference-item-list > li:last-child {
-    border-bottom: 0;
-}
-
-.reference-members dt {
-    grid-column: 1;
-}
-
-.reference-members dd {
-    grid-column: 2;
-}
-
-.reference-members dt,
-.reference-members dd,
-.reference-members p {
-    margin: 0;
-    min-width: 0;
-}
-
-.reference-members dt code {
-    background: transparent;
-    display: block;
-    font-size: var(--content-code-size);
-    line-height: 1.5;
-    overflow-wrap: anywhere;
-    padding: 0;
-}
-
-.reference-item a[data-reference],
-.reference-members a[data-reference] {
-    color: inherit;
-    text-decoration: none;
-}
-
-.reference-item a[data-reference]:hover,
-.reference-members a[data-reference]:hover {
-    color: var(--publication-accent);
-    text-decoration: underline;
-    text-decoration-color: var(--publication-accent);
-    text-underline-offset: 0.2em;
-}
-
-.reference-members dd {
-    line-height: 1.5rem;
 }
 
 @media (max-width: 767px) {
@@ -1063,72 +867,6 @@
         font-size: var(--size-label);
         font-weight: 600;
     }
-
-    .reference-catalog dl {
-        grid-template-columns: 1fr;
-    }
-
-    .reference-catalog dl > div {
-        border-right: 0;
-    }
-
-    .reference-members > div {
-        grid-template-columns: 1fr;
-        gap: var(--content-gap);
-    }
-
-    .reference-members dt,
-    .reference-members dd {
-        grid-column: 1;
-        padding-left: 0;
-    }
-}
-
-/* generated syntax spans */
-:is(.markdown-code, [data-publication-listing], .reference-members, .reference-item-list)
-    :is(.hljs-keyword, [data-k="keyword"]) {
-    color: var(--publication-accent);
-}
-
-:is(.markdown-code, [data-publication-listing], .reference-members, .reference-item-list)
-    :is(.hljs-built_in, .hljs-title.class_, [data-k="type"]) {
-    color: var(--publication-syntax-type);
-}
-
-:is(.markdown-code, [data-publication-listing], .reference-members, .reference-item-list)
-    :is(.hljs-title.function_, .hljs-function > .hljs-title, [data-k="function"]) {
-    color: var(--publication-syntax-function);
-    font-weight: 600;
-}
-
-:is(.markdown-code, [data-publication-listing], .reference-members, .reference-item-list)
-    :is(.hljs-attr, .hljs-property, [data-k="property"]) {
-    color: var(--publication-syntax-property);
-}
-
-:is(.markdown-code, [data-publication-listing], .reference-members, .reference-item-list)
-    :is(.hljs-literal, .hljs-number, [data-k="literal"]) {
-    color: var(--publication-syntax-literal);
-}
-
-:is(.markdown-code, [data-publication-listing], .reference-members, .reference-item-list)
-    :is(.hljs-string, [data-k="string"]) {
-    color: var(--publication-syntax-string);
-}
-
-:is(.markdown-code, [data-publication-listing], .reference-members, .reference-item-list)
-    :is(.hljs-section, .hljs-symbol, .hljs-variable, [data-k="name"]) {
-    color: var(--publication-ink);
-}
-
-:is(.markdown-code, [data-publication-listing], .reference-members, .reference-item-list)
-    :is(.hljs-comment, .hljs-meta, [data-k="comment"]) {
-    color: var(--publication-soft);
-}
-
-:is(.markdown-code, [data-publication-listing], .reference-members, .reference-item-list)
-    :is(.hljs-params, [data-k="punct"]) {
-    color: var(--publication-syntax-punctuation);
 }
 
 @media (width < 60rem) {
@@ -1156,7 +894,34 @@
     }
 }
 
-/* Let section spacing come from its parent instead of stacking heading margins. */
-.markdown :is(.document-section, .reference-group, .reference-item) > :is(h2, h3):first-child {
-    margin-top: 0;
+/* redraw text in its own section's scheme, easing it as the universe turns each section dark */
+@layer reset {
+    [data-universe]:not([data-universe="parts"]),
+    [data-universe="parts"] > :not([data-universe="parts"]) {
+        color: var(--destack-color-foreground);
+        transition: color 600ms ease;
+    }
+}
+
+/* let the goo field show through its cells once it has painted */
+:root[data-field="painted"] [data-goo-backdrop] {
+    opacity: 0;
+}
+
+:root[data-field="painted"] [data-goo-field] {
+    opacity: 1;
+}
+
+/* paint a card's inside only while the searchlight touches it */
+[data-inside]:not([data-lit]) {
+    display: none;
+}
+
+/* fade the tile and words of a shared item the scene does not use, but never what the searchlight shows inside it */
+[data-item]:not([data-live]) > :not([data-inside]) {
+    filter: grayscale(1);
+    opacity: 0.45;
+    transition:
+        filter 500ms ease,
+        opacity 500ms ease;
 }

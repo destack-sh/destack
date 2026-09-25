@@ -4,29 +4,62 @@ import { createMemo, createSignal, For, onSettled } from "@destack/view";
 
 import { sound } from "../effect/sound";
 import { tokens } from "../style/tokens.stylex";
-import { boardCells, boardInset, rowCells } from "./board";
+import {
+    boardCells,
+    boardInset,
+    columnLefts,
+    columnWidth,
+    quarterCentres,
+    rowCells,
+} from "./board";
 import { Card, type Entity, type Reveal } from "./card";
 
 /** The milliseconds each open scene holds before the next one begins. */
 const sceneTime = 5200;
 /** The milliseconds from the water fully draining to the first scene change. */
 const firstSceneTime = 2400;
+/** The milliseconds between neighbouring cards turning over, left to right. */
+const flipStagger = 150;
+/** The milliseconds after the stack opens before its apps turn into view, once the silos have gone down the drain. */
+const openFlipAt = 1500;
+/** The milliseconds a card's ink takes to fade out before it hands over its box, or to fade in after it takes one. */
+const inkFade = 320;
+/** The milliseconds a card takes to turn over and show the card replacing it. */
+const flipTime = 1200;
 /** The milliseconds cards take to travel between places. */
 const moveTime = 1400;
 
 /** The humans, agents, and apps the scenes arrange. */
 const entities: Record<string, Entity> = {
-    you: { label: "You", icon: "user", role: "Human" },
-    colleague: { label: "Colleague", icon: "user", role: "Human" },
-    friend: { label: "Friend", icon: "user", role: "Human" },
-    agent: { label: "Agent", icon: "agent", role: "Agent" },
-    notion: { label: "Notion", icon: "notion", role: "$10/seat/mo" },
-    slack: { label: "Slack", icon: "slack", role: "$8.75/seat/mo" },
-    github: { label: "GitHub", icon: "github", role: "$4/seat/mo" },
-    pages: { label: "Pages", icon: "pages", role: "App" },
-    chat: { label: "Chat", icon: "chat", role: "App" },
-    tasks: { label: "Tasks", icon: "tasks", role: "App" },
-    planner: { label: "Planner", icon: "tasks", role: "Fork of Tasks" },
+    you: { label: "You", icon: "user", role: "Human", tint: "#2f7d8c" },
+    colleague: { label: "Colleague", icon: "user", role: "Human", tint: "#a0485f" },
+    friend: { label: "Friend", icon: "user", role: "Human", tint: "#5b7f2e" },
+    agent: { label: "Agent", icon: "agent", role: "Agent", tint: "#6b5ca5" },
+    client: { label: "Client", icon: "user", role: "Guest", tint: "#8a6d3b" },
+    partner: { label: "Partner", icon: "user", role: "Family", tint: "#b0567f" },
+    chatgpt: { label: "ChatGPT", icon: "openai", role: "Agent", tint: "#10a37f" },
+    claude: { label: "Claude", icon: "claude", role: "Agent", tint: "#d97757" },
+    notion: {
+        label: "Notion",
+        icon: "notion",
+        role: "$10/seat/mo",
+        tint: "#ffffff",
+        glyph: "#191919",
+    },
+    slack: { label: "Slack", icon: "slack", role: "$8.75/seat/mo", tint: "#4a154b" },
+    github: { label: "GitHub", icon: "github", role: "$4/seat/mo", tint: "#24292f" },
+    linear: { label: "Linear", icon: "linear", role: "$8/seat/mo", tint: "#5e6ad2" },
+    figma: { label: "Figma", icon: "figma", role: "$16/seat/mo", tint: "#f24e1e" },
+    vibe: { label: "Your planner", icon: "tasks", role: "Homemade", tint: "#b8862b" },
+    pages: { label: "Pages", icon: "pages", role: "App", tint: "#3d6fb0" },
+    chat: { label: "Chat", icon: "chat", role: "App", tint: "#4f8a5b" },
+    tasks: { label: "Tasks", icon: "tasks", role: "App", tint: "#b8862b" },
+    planner: { label: "Planner", icon: "tasks", role: "Fork of Tasks", tint: "#b8862b" },
+    standup: { label: "Standup", icon: "chat", role: "Chat + Tasks", tint: "#4f8a5b" },
+    wiki: { label: "Wiki", icon: "pages", role: "Pages + Chat", tint: "#3d6fb0" },
+    calendar: { label: "Calendar", icon: "calendar", role: "From a template", tint: "#c64a17" },
+    journal: { label: "Journal", icon: "pages", role: "Fork of Pages", tint: "#3d6fb0" },
+    inbox: { label: "Inbox", icon: "mail", role: "App", tint: "#4f8a5b" },
 };
 
 /** What each card shows under the searchlight today: every separate access a person needs, or ciphertext. */
@@ -34,17 +67,16 @@ const todayReveals: { [id: string]: Reveal | undefined } = {
     you: {
         kind: "fields",
         rows: [
-            ["Notion", "login + 2FA"],
+            ["Notion", "2FA code"],
             ["Slack", "magic link"],
-            ["GitHub", "SSO + 2FA"],
-            ["billing", "3 plans"],
+            ["GitHub", "SSO"],
         ],
     },
     colleague: {
         kind: "fields",
         rows: [
             ["Notion", "seat pending"],
-            ["Slack", "guest, 1 channel"],
+            ["Slack", "guest"],
             ["GitHub", "no seat"],
         ],
     },
@@ -56,17 +88,59 @@ const todayReveals: { [id: string]: Reveal | undefined } = {
             ["GitHub", "no access"],
         ],
     },
+    client: {
+        kind: "fields",
+        rows: [
+            ["Notion", "guest invite"],
+            ["Slack", "shared channel"],
+            ["GitHub", "no access"],
+        ],
+    },
+    partner: {
+        kind: "fields",
+        rows: [
+            ["Notion", "no seat"],
+            ["Slack", "no access"],
+            ["GitHub", "no access"],
+        ],
+    },
     agent: {
         kind: "fields",
         rows: [
-            ["BLOCKED", "Notion API"],
-            ["BLOCKED", "Slack history"],
-            ["ALLOWED", "GitHub MCP"],
+            ["Notion API", "403"],
+            ["Slack history", "paid tier"],
+            ["GitHub MCP", "allowed"],
+        ],
+    },
+    chatgpt: {
+        kind: "fields",
+        rows: [
+            ["Notion", "connector"],
+            ["Slack", "read only"],
+            ["GitHub", "no access"],
+        ],
+    },
+    claude: {
+        kind: "fields",
+        rows: [
+            ["Notion", "MCP token"],
+            ["Slack", "no access"],
+            ["GitHub", "MCP token"],
         ],
     },
     notion: { kind: "cipher" },
     slack: { kind: "cipher" },
     github: { kind: "cipher" },
+    linear: { kind: "cipher" },
+    figma: { kind: "cipher" },
+    vibe: {
+        kind: "fields",
+        rows: [
+            ["Supabase", "$25/mo"],
+            ["Vercel", "$20/mo"],
+            ["Clerk", "$25/mo"],
+        ],
+    },
 };
 
 /** What each card shows under the searchlight with Destack: one identity and its grants, or the app's source. */
@@ -74,166 +148,523 @@ const openReveals: { [id: string]: Reveal | undefined } = {
     you: {
         kind: "fields",
         rows: [
-            ["passkey", "one"],
-            ["every app", "owner"],
+            ["account", "one"],
+            ["apps", "owner"],
+            ["agents", "2 granted"],
         ],
     },
     colleague: {
         kind: "fields",
         rows: [
-            ["passkey", "one"],
-            ["pages", "edit"],
-            ["chat", "post"],
+            ["account", "one"],
+            ["tasks", "edit"],
+            ["pages", "comment"],
         ],
     },
     friend: {
         kind: "fields",
         rows: [
-            ["account", "none needed"],
-            ["one page", "comment"],
+            ["account", "one"],
+            ["pages", "view"],
+            ["chat", "post"],
+        ],
+    },
+    client: {
+        kind: "fields",
+        rows: [
+            ["account", "guest"],
+            ["calendar", "book"],
+            ["the rest", "hidden"],
+        ],
+    },
+    partner: {
+        kind: "fields",
+        rows: [
+            ["account", "one"],
+            ["calendar", "edit"],
+            ["journal", "read"],
         ],
     },
     agent: {
         kind: "fields",
         rows: [
-            ["ALLOWED", "tasks: edit"],
-            ["ALLOWED", "pages: read"],
-            ["ASKS", "to send"],
+            ["tasks", "triage"],
+            ["pages", "read"],
+            ["send", "asks first"],
+        ],
+    },
+    claude: {
+        kind: "fields",
+        rows: [
+            ["inbox", "triage"],
+            ["wiki", "read"],
+            ["send", "asks first"],
+        ],
+    },
+    chatgpt: {
+        kind: "fields",
+        rows: [
+            ["tasks", "plan"],
+            ["inbox", "read"],
+            ["delete", "asks first"],
         ],
     },
     pages: {
         kind: "code",
         name: "pages.tsx",
-        lines: [
-            "function Pages() {",
-            "  const all = usePages();",
-            "  return (",
-            "    <For each={all()}>",
-            "      {PageRow}",
-            "    </For>",
-            "  );",
-            "}",
-        ],
+        lines: ["export function Pages() {", "  return <List of={pages} />;", "}"],
     },
     chat: {
         kind: "code",
         name: "chat.tsx",
-        lines: [
-            "function Chat() {",
-            "  const said = useChat();",
-            "  return (",
-            "    <For each={said()}>",
-            "      {Message}",
-            "    </For>",
-            "  );",
-            "}",
-        ],
+        lines: ["export function Chat() {", "  return <Thread of={messages} />;", "}"],
     },
-
     tasks: {
         kind: "code",
-        name: "tasks.ts",
-        lines: [
-            "async function add() {",
-            "  await tasks.create({",
-            '    title: "Ship v2",',
-            "    due: nextWeek(),",
-            "  });",
-            "}",
-        ],
+        name: "tasks.tsx",
+        lines: ["export function Tasks() {", "  return <List of={tasks} />;", "}"],
+    },
+    standup: {
+        kind: "code",
+        name: "standup.tsx",
+        lines: ["<Split>", "  <Chat /> <Tasks due={today} />", "</Split>"],
     },
     planner: {
         kind: "code",
-        name: "planner.tsx",
-        lines: [
-            "function Planner() {",
-            "  return (",
-            "    <Week>",
-            "      <Tasks />",
-            "    </Week>",
-            "  );",
-            "}",
-        ],
+        name: "planner.diff",
+        lines: ["fork of @you/tasks", "- <List of={tasks} />", "+ <Week of={tasks} />"],
+    },
+    wiki: { kind: "code", name: "wiki.tsx", lines: ["<Pages>", "  <Chat thread />", "</Pages>"] },
+    calendar: {
+        kind: "code",
+        name: "destack new",
+        lines: ["$ destack new calendar", "from @destack/calendar", "ready in 2s"],
+    },
+    journal: {
+        kind: "code",
+        name: "journal.diff",
+        lines: ["fork of @you/pages", "- <List of={pages} />", "+ <Days of={pages} />"],
+    },
+    inbox: {
+        kind: "code",
+        name: "inbox.tsx",
+        lines: ["export function Inbox() {", "  return <Thread of={mail} />;", "}"],
     },
 };
 
 /** Every card the scenes can show. */
 const ids = Object.keys(entities);
-/** The vendor apps, in the order of the icebergs they ride. */
-const vendors = ["notion", "slack", "github"];
+/** The silos each iceberg carries in turn, from the left berg to the right. */
+export const slotApps: readonly (readonly string[])[] = [
+    ["notion", "linear"],
+    ["slack", "figma"],
+    ["github", "vibe"],
+];
+/** The iceberg each silo rides. */
+const slots = new Map(slotApps.flatMap((apps, slot) => apps.map((id) => [id, slot] as const)));
+/** The silos, which ride the icebergs today. */
+const vendors = [...slots.keys()];
+/** The milliseconds a silo takes to bob up after the one it replaces starts to sink. */
+const swapDelay = 1000;
+/** The milliseconds a silo waits to land on the reformed ice after the water returns. */
+const landingDelay = 2700;
 /** The open apps, which anyone can fork. */
-const apps = ["pages", "chat", "tasks", "planner"];
+const apps = [
+    "pages",
+    "chat",
+    "tasks",
+    "planner",
+    "standup",
+    "wiki",
+    "calendar",
+    "journal",
+    "inbox",
+];
 
 /** One arrangement of the top two layers. */
 type Scene = {
     /** The cards on the upper row, left to right. */
     upper: readonly string[];
-    /** The cards on the lower row, left to right, and whether each is reshaped wide. */
-    lower: readonly { id: string; isWide?: boolean }[];
+    /** The cards on the lower row, left to right, and how many of the three columns each spans. */
+    lower: readonly { id: string; span: number }[];
     /** Which upper card works with which lower card. */
     links: readonly [string, string][];
 };
 
-/** The locked stack today: everyone signs in to separate vendor apps. */
-const today: Scene = {
-    upper: ["you", "colleague", "friend", "agent"],
-    lower: [{ id: "notion" }, { id: "slack" }, { id: "github" }],
-    links: [
-        ["you", "notion"],
-        ["colleague", "slack"],
-        ["friend", "notion"],
-        ["agent", "github"],
-    ],
-};
-
-/** The open loop: everyone shares the apps, an app is remixed, then an agent moves into the apps. */
-const scenes: readonly Scene[] = [
+/** The locked stack today, one change per step: a silo swaps on its iceberg or someone new signs in, and the logins reshuffle. */
+export const todayScenes: readonly Scene[] = [
     {
         upper: ["you", "colleague", "friend", "agent"],
-        lower: [{ id: "pages" }, { id: "chat" }, { id: "tasks" }],
+        lower: [
+            { id: "notion", span: 1 },
+            { id: "slack", span: 1 },
+            { id: "github", span: 1 },
+        ],
         links: [
-            ["you", "pages"],
-            ["you", "chat"],
-            ["colleague", "chat"],
-            ["colleague", "tasks"],
-            ["friend", "pages"],
-            ["agent", "tasks"],
-            ["agent", "pages"],
+            ["you", "notion"],
+            ["colleague", "slack"],
+            ["friend", "notion"],
+            ["agent", "github"],
         ],
     },
     {
         upper: ["you", "colleague", "friend", "agent"],
-        lower: [{ id: "pages" }, { id: "chat" }, { id: "planner", isWide: true }],
+        lower: [
+            { id: "notion", span: 1 },
+            { id: "slack", span: 1 },
+            { id: "vibe", span: 1 },
+        ],
         links: [
-            ["you", "pages"],
-            ["colleague", "planner"],
-            ["friend", "pages"],
-            ["friend", "chat"],
-            ["agent", "planner"],
+            ["you", "vibe"],
+            ["colleague", "slack"],
+            ["friend", "notion"],
+            ["agent", "slack"],
         ],
     },
     {
-        upper: ["you", "colleague", "chat", "friend"],
-        lower: [{ id: "pages" }, { id: "agent" }, { id: "planner", isWide: true }],
+        upper: ["you", "colleague", "friend", "chatgpt"],
+        lower: [
+            { id: "notion", span: 1 },
+            { id: "slack", span: 1 },
+            { id: "vibe", span: 1 },
+        ],
         links: [
-            ["you", "pages"],
-            ["colleague", "agent"],
-            ["chat", "agent"],
-            ["friend", "planner"],
+            ["you", "notion"],
+            ["colleague", "slack"],
+            ["friend", "slack"],
+            ["chatgpt", "vibe"],
+        ],
+    },
+    {
+        upper: ["you", "colleague", "friend", "chatgpt"],
+        lower: [
+            { id: "linear", span: 1 },
+            { id: "slack", span: 1 },
+            { id: "vibe", span: 1 },
+        ],
+        links: [
+            ["you", "linear"],
+            ["colleague", "linear"],
+            ["friend", "slack"],
+            ["chatgpt", "slack"],
+        ],
+    },
+    {
+        upper: ["you", "colleague", "client", "chatgpt"],
+        lower: [
+            { id: "linear", span: 1 },
+            { id: "slack", span: 1 },
+            { id: "vibe", span: 1 },
+        ],
+        links: [
+            ["you", "vibe"],
+            ["colleague", "linear"],
+            ["client", "slack"],
+            ["chatgpt", "linear"],
+        ],
+    },
+    {
+        upper: ["you", "colleague", "client", "chatgpt"],
+        lower: [
+            { id: "linear", span: 1 },
+            { id: "figma", span: 1 },
+            { id: "vibe", span: 1 },
+        ],
+        links: [
+            ["you", "figma"],
+            ["colleague", "linear"],
+            ["client", "figma"],
+            ["chatgpt", "vibe"],
+        ],
+    },
+    {
+        upper: ["you", "colleague", "client", "claude"],
+        lower: [
+            { id: "linear", span: 1 },
+            { id: "figma", span: 1 },
+            { id: "vibe", span: 1 },
+        ],
+        links: [
+            ["you", "linear"],
+            ["colleague", "figma"],
+            ["client", "figma"],
+            ["claude", "vibe"],
+        ],
+    },
+    {
+        upper: ["you", "colleague", "client", "claude"],
+        lower: [
+            { id: "linear", span: 1 },
+            { id: "figma", span: 1 },
+            { id: "github", span: 1 },
+        ],
+        links: [
+            ["you", "github"],
+            ["colleague", "figma"],
+            ["client", "linear"],
+            ["claude", "github"],
+        ],
+    },
+    {
+        upper: ["you", "colleague", "friend", "claude"],
+        lower: [
+            { id: "linear", span: 1 },
+            { id: "figma", span: 1 },
+            { id: "github", span: 1 },
+        ],
+        links: [
+            ["you", "figma"],
+            ["colleague", "github"],
+            ["friend", "linear"],
+            ["claude", "figma"],
+        ],
+    },
+    {
+        upper: ["you", "colleague", "friend", "claude"],
+        lower: [
+            { id: "notion", span: 1 },
+            { id: "figma", span: 1 },
+            { id: "github", span: 1 },
+        ],
+        links: [
+            ["you", "notion"],
+            ["colleague", "figma"],
+            ["friend", "notion"],
+            ["claude", "github"],
+        ],
+    },
+    {
+        upper: ["you", "colleague", "friend", "agent"],
+        lower: [
+            { id: "notion", span: 1 },
+            { id: "figma", span: 1 },
+            { id: "github", span: 1 },
+        ],
+        links: [
+            ["you", "github"],
+            ["colleague", "notion"],
+            ["friend", "figma"],
+            ["agent", "notion"],
+        ],
+    },
+    {
+        upper: ["you", "colleague", "friend", "agent"],
+        lower: [
+            { id: "notion", span: 1 },
+            { id: "slack", span: 1 },
+            { id: "github", span: 1 },
+        ],
+        links: [
+            ["you", "slack"],
+            ["colleague", "github"],
+            ["friend", "notion"],
+            ["agent", "slack"],
         ],
     },
 ];
 
+/** The open loop: everyone shares the apps, and one change at a time merges, splits, forks, or adds an app, or someone joins. */
+export const scenes: readonly Scene[] = [
+    {
+        upper: ["you", "colleague", "friend", "agent"],
+        lower: [
+            { id: "pages", span: 1 },
+            { id: "chat", span: 1 },
+            { id: "tasks", span: 1 },
+        ],
+        links: [
+            ["you", "pages"],
+            ["you", "tasks"],
+            ["colleague", "chat"],
+            ["colleague", "tasks"],
+            ["friend", "pages"],
+            ["agent", "tasks"],
+        ],
+    },
+    {
+        upper: ["you", "colleague", "friend", "agent"],
+        lower: [
+            { id: "pages", span: 1 },
+            { id: "standup", span: 2 },
+        ],
+        links: [
+            ["you", "standup"],
+            ["colleague", "standup"],
+            ["friend", "pages"],
+            ["agent", "standup"],
+        ],
+    },
+    {
+        upper: ["you", "colleague", "friend", "claude"],
+        lower: [
+            { id: "pages", span: 1 },
+            { id: "chat", span: 1 },
+            { id: "planner", span: 1 },
+        ],
+        links: [
+            ["you", "planner"],
+            ["colleague", "chat"],
+            ["friend", "pages"],
+            ["claude", "planner"],
+        ],
+    },
+    {
+        upper: ["you", "colleague", "friend", "claude"],
+        lower: [
+            { id: "wiki", span: 2 },
+            { id: "planner", span: 1 },
+        ],
+        links: [
+            ["you", "wiki"],
+            ["colleague", "wiki"],
+            ["friend", "wiki"],
+            ["claude", "planner"],
+        ],
+    },
+    {
+        upper: ["you", "colleague", "client", "claude"],
+        lower: [
+            { id: "wiki", span: 2 },
+            { id: "calendar", span: 1 },
+        ],
+        links: [
+            ["you", "calendar"],
+            ["colleague", "wiki"],
+            ["client", "calendar"],
+            ["claude", "wiki"],
+        ],
+    },
+    {
+        upper: ["you", "partner", "client", "claude"],
+        lower: [
+            { id: "journal", span: 1 },
+            { id: "inbox", span: 1 },
+            { id: "calendar", span: 1 },
+        ],
+        links: [
+            ["you", "journal"],
+            ["you", "inbox"],
+            ["partner", "calendar"],
+            ["client", "inbox"],
+            ["claude", "inbox"],
+        ],
+    },
+    {
+        upper: ["you", "partner", "client", "chatgpt"],
+        lower: [
+            { id: "journal", span: 1 },
+            { id: "inbox", span: 1 },
+            { id: "tasks", span: 1 },
+        ],
+        links: [
+            ["you", "tasks"],
+            ["partner", "tasks"],
+            ["client", "inbox"],
+            ["chatgpt", "tasks"],
+        ],
+    },
+    {
+        upper: ["you", "colleague", "client", "chatgpt"],
+        lower: [
+            { id: "pages", span: 1 },
+            { id: "inbox", span: 1 },
+            { id: "tasks", span: 1 },
+        ],
+        links: [
+            ["you", "inbox"],
+            ["colleague", "pages"],
+            ["client", "pages"],
+            ["chatgpt", "inbox"],
+        ],
+    },
+    {
+        upper: ["you", "colleague", "friend", "chatgpt"],
+        lower: [
+            { id: "pages", span: 1 },
+            { id: "chat", span: 1 },
+            { id: "tasks", span: 1 },
+        ],
+        links: [
+            ["you", "pages"],
+            ["colleague", "chat"],
+            ["friend", "chat"],
+            ["chatgpt", "tasks"],
+        ],
+    },
+];
+
+/** The services each open app calls, each with the store that service keeps the app's state in, by label. */
+export const appUses: Readonly<Record<string, readonly (readonly [string, string])[]>> = {
+    pages: [
+        ["Access", "DB"],
+        ["Search", "Bucket"],
+    ],
+    journal: [
+        ["Access", "DB"],
+        ["Search", "Bucket"],
+    ],
+    wiki: [
+        ["Access", "DB"],
+        ["Search", "Bucket"],
+    ],
+    chat: [
+        ["Access", "DB"],
+        ["AI", "Vault"],
+    ],
+    standup: [
+        ["Access", "DB"],
+        ["AI", "Vault"],
+    ],
+    tasks: [
+        ["Access", "DB"],
+        ["Settings", "DB"],
+    ],
+    calendar: [
+        ["Access", "DB"],
+        ["Settings", "DB"],
+    ],
+    planner: [
+        ["Access", "DB"],
+        ["AI", "Vault"],
+    ],
+    inbox: [
+        ["Access", "DB"],
+        ["Search", "DB"],
+        ["AI", "Vault"],
+    ],
+};
+
+/** The source step each open scene shows at work, by its label. */
+export const sceneSources = [
+    "Registry",
+    "Build",
+    "Repository",
+    "Build",
+    "Templates",
+    "Repository",
+    "Registry",
+    "Build",
+    "Registry",
+];
+
+/** How far the user row sits below the middle of its figure row, in CSS pixels, to leave room for the switch on the seam above it. */
+const userDrop = 8;
+
+/** The hole row the hosts' tops sit on, counted from the layer's top. */
+const hostTop = 47;
+/** The hole row the cables from the build run across to the hosts. */
+const hostBus = 44.5;
+
 /** The board's height in cells across the three figure rows the layer covers. */
 const layerRows = rowCells * 3;
 
-/** The placement of every card in the locked stack, and in each open scene. */
-const todayPlacements = arrange(today);
+/** The placement of every card in each scene of the locked stack. */
+const todayPlacements = todayScenes.map(arrange);
 /** The placement of every card in each open scene. */
 const scenePlacements = scenes.map(arrange);
 
 /** How a card moves into its placement. */
-type Step = "stay" | "enter" | "leave" | "park";
+type Step = "stay" | "enter" | "leave" | "park" | "fuse" | "flip" | "drain";
 
 /** One placed card: its row, its span in whole board cells, and how it gets there. */
 type Placement = {
@@ -245,10 +676,14 @@ type Placement = {
     width: number;
     /** Whether the card shows on the board. */
     isShown: boolean;
-    /** How the card moves there: stays or travels on the board, enters or leaves across an edge, or parks off the board. */
+    /** How the card moves there: stays or travels on the board, enters or leaves across an edge, fuses into the cards replacing it, or parks out of sight. */
     step: Step;
     /** The milliseconds the card waits before it moves. */
     delay: number;
+    /** Whether the card shows or hides at the end of its move rather than at its start. */
+    isLate: boolean;
+    /** How far the card is turned about its horizontal axis, in degrees: flipped away while it swaps places with another card in its slot. */
+    turn?: number;
 };
 
 /** One kind of cable, which sets its look. */
@@ -290,6 +725,7 @@ type Cable = {
 /** Show the top two layers, locked today or freely rearranging with Destack, every card draggable. */
 export function Remix(properties: {
     isOpen: boolean;
+    today: number;
     isLive: boolean;
     revealOf: (row: number) => number;
     onScene: (scene: number) => void;
@@ -303,51 +739,135 @@ export function Remix(properties: {
     const last = new Map<string, Placement>();
 
     // pick the scene on show: the locked stack today, the loop once open
-    const shown = () => (properties.isOpen ? scenes[scene()] : today);
+    const shown = () => (properties.isOpen ? scenes[scene()] : todayScenes[properties.today]);
 
     // place every card of the scene: cards enter and leave across the nearest board edge, vendor apps sink in place
     let wasLaidOpen = properties.isOpen;
     const layout = createMemo(() => {
         // pick the placements and note whether the stack just opened or closed
-        const current = properties.isOpen ? scenePlacements[scene()] : todayPlacements;
+        const current = properties.isOpen
+            ? scenePlacements[scene()]
+            : todayPlacements[properties.today];
         const isToggle = properties.isOpen !== wasLaidOpen;
         wasLaidOpen = properties.isOpen;
 
-        // step each card toward its placement, collecting the cards that enter and leave
+        // step each card toward its placement, collecting the cards that enter and leave across an edge, and those that morph
+        const before = new Map(last);
         const entering: Placement[] = [];
         const leaving: Placement[] = [];
+        const morphAt = isToggle ? 700 : 0;
         for (const id of ids) {
             const placement = current.get(id);
             const previous = last.get(id);
             const isVendor = vendors.includes(id);
 
-            // keep or move a card that shows
+            // keep or move a card that shows, growing it out of the cards it replaces, and taking over only at the end of a merge
             if (placement) {
                 const isEntering = previous !== undefined && !previous.isShown && !isVendor;
-                const next: Placement = { ...placement, step: isEntering ? "enter" : "stay" };
+                const isGrowing = isEntering && isOnBoard(previous);
+                const isFlipping = isGrowing && previous.turn !== undefined;
+                const next: Placement = {
+                    ...placement,
+                    step: isFlipping ? "flip" : isEntering ? "enter" : "stay",
+                    delay: isVendor
+                        ? vendorDelay(previous, isToggle)
+                        : isFlipping
+                          ? (isToggle ? openFlipAt : 0) + flipStagger * slotOf(placement)
+                          : isGrowing
+                            ? morphAt
+                            : 0,
+                    isLate: isGrowing && sourcesOf(placement, before, current) > 1,
+                };
                 last.set(id, next);
-                if (isEntering) {
+                if (isEntering && !isGrowing) {
                     entering.push(next);
                 }
             }
-            // sink a vendor app where it stands
+            // sink a vendor app where it stands, or swirl it down the drain with the water when the stack opens
             else if (isVendor) {
                 last.set(id, {
-                    ...(previous ?? todayPlacements.get(id)!),
+                    ...(previous ?? lockedPlacement(id)),
                     isShown: false,
-                    step: "stay",
+                    step: isToggle ? "drain" : "stay",
                     delay: 0,
+                    isLate: false,
                 });
             }
-            // send a card that showed off across its nearest edge
+            // fuse a card that showed into the cards replacing it, or send it off across its nearest edge
             else if (previous?.isShown) {
-                const next: Placement = { ...beyond(previous), step: "leave" };
-                last.set(id, next);
-                leaving.push(next);
+                const successors = [...current]
+                    .filter(
+                        ([other, place]) =>
+                            !before.get(other)?.isShown && overlaps(place, previous),
+                    )
+                    .map(([, place]) => place);
+                // flap every open card away on its hinge as the stack closes, before the water comes back
+                if (isToggle && !properties.isOpen) {
+                    last.set(id, {
+                        ...previous,
+                        isShown: false,
+                        step: "flip",
+                        delay: flipStagger * slotOf(previous) + previous.row * flipStagger * 2,
+                        isLate: false,
+                        turn: 90,
+                    });
+                    continue;
+                }
+
+                // turn a card over to show the one card that takes its slot
+                if (
+                    successors.length === 1 &&
+                    sourcesOf(successors[0], before, current) === 1 &&
+                    sameSlot(successors[0], previous)
+                ) {
+                    last.set(id, {
+                        ...previous,
+                        isShown: false,
+                        step: "flip",
+                        delay: flipStagger * slotOf(previous),
+                        isLate: false,
+                        turn: 90,
+                    });
+                } else if (successors.length) {
+                    const isMerging =
+                        successors.length === 1 && sourcesOf(successors[0], before, current) > 1;
+                    last.set(id, {
+                        ...cover(successors),
+                        step: "fuse",
+                        delay: morphAt,
+                        isLate: isMerging,
+                    });
+                } else {
+                    const next: Placement = { ...beyond(previous), step: "leave", isLate: true };
+                    last.set(id, next);
+                    leaving.push(next);
+                }
             }
-            // park a hidden card beyond the edge nearest where it next appears
+            // leave a card that is turning away alone until it is gone
+            else if (previous?.step === "flip" && previous.turn !== undefined) {
+                continue;
+            }
+            // park a hidden card on the cards it replaces when it next appears, or beyond the edge nearest where it appears
             else {
-                last.set(id, { ...beyond(upcoming(id, scene())), step: "park" });
+                const next = upcoming(id, scene());
+                const following = properties.isOpen
+                    ? scenePlacements[(scene() + 1) % scenes.length]
+                    : scenePlacements[0];
+                const origins = following.has(id)
+                    ? [...current]
+                          .filter(
+                              ([other, place]) => !following.has(other) && overlaps(place, next),
+                          )
+                          .map(([, place]) => place)
+                    : [];
+                const isSwapping = origins.length === 1 && sameSlot(origins[0], next);
+                last.set(id, {
+                    ...(isSwapping ? next : origins.length ? cover(origins) : beyond(next)),
+                    isShown: false,
+                    step: "park",
+                    isLate: false,
+                    turn: isSwapping ? -90 : undefined,
+                });
             }
         }
 
@@ -393,6 +913,7 @@ export function Remix(properties: {
         let nextScene: number | undefined;
         let wasOpen = properties.isOpen;
         let wasScene = scene();
+        let wasToday = properties.today;
         let changedAt = -Infinity;
         let delay = 0;
         let wakeUntil = 0;
@@ -567,9 +1088,12 @@ export function Remix(properties: {
                 );
             };
 
-            // link the upper cards to the lower cards they work with, along the two hole rows between them once open
+            // run every cable across a gap along its middle, so each gap carries one tidy bus
+            const middle = (top: number, bottom: number) => (top + bottom) / 2;
+
+            // link the upper cards to the lower cards they work with: once open, each person runs straight down, across on their own lane, and down into the app
             const kind = isOpen ? "link" : "locked";
-            current.links.forEach(([upper, lower], index) => {
+            current.links.forEach(([upper, lower]) => {
                 // find both cards of the link, skipping links whose cards are missing
                 const from = boxes.get(upper);
                 const to = boxes.get(lower);
@@ -584,14 +1108,18 @@ export function Remix(properties: {
                     hang(key, start, end, now);
                     return;
                 }
+                const bend = middle(from.bottom, to.top);
                 run(
                     key,
                     kind,
-                    { from: start, to: end, bend: (start.y + end.y) / 2 },
+                    { from: start, to: end, bend },
                     {
                         from: { x: hole(from.centre), y: from.bottom },
-                        to: { x: hole(to.centre), y: to.top },
-                        bend: cellRow * (8.5 + (index % 2)),
+                        to: {
+                            x: hole(to.centre),
+                            y: to.top,
+                        },
+                        bend,
                     },
                     rests(upper, from) && rests(lower, to),
                     false,
@@ -600,10 +1128,40 @@ export function Remix(properties: {
                 );
             });
 
-            // once open, chain the lower cards along a hole row and drop each into the services below its place
+            // once open, chain the lower cards along a hole row, drop each into the service it calls, and link each service to its store
             if (isOpen) {
                 const reveal = properties.revealOf(2);
-                const floor = cellRow * 20;
+                const stored = properties.revealOf(3);
+                const item = (label: string) => {
+                    const found = layer.parentElement
+                        ?.querySelector(`[data-item="${label}"]`)
+                        ?.getBoundingClientRect();
+
+                    return found
+                        ? {
+                              left: found.left - bounds.left,
+                              width: found.width,
+                              centre: (found.left + found.right) / 2 - bounds.left,
+                              top: found.top - bounds.top,
+                              bottom: found.bottom - bounds.top,
+                          }
+                        : undefined;
+                };
+
+                // list the calls into the services and the links down to the stores
+                const calls = current.lower.flatMap((card) =>
+                    [...new Set(appUses[card.id].map(([service]) => service))].map((service) => ({
+                        id: card.id,
+                        service,
+                    })),
+                );
+                const links = [
+                    ...new Map(
+                        current.lower
+                            .flatMap((card) => appUses[card.id])
+                            .map(([service, store]) => [`${service}:${store}`, { service, store }]),
+                    ).values(),
+                ];
                 const lower = current.lower.flatMap((card) => {
                     const found = boxes.get(card.id);
                     return found
@@ -635,27 +1193,70 @@ export function Remix(properties: {
                         );
                     }
 
-                    // drop this card into the services below it
-                    const key = `drop:${card.id}`;
-                    kept.add(key);
-                    const place = places.get(card.id);
-                    const anchor = { x: hole(place ? centre(place, cell) : card.centre), y: floor };
-                    const start = { x: card.centre, y: card.bottom };
-                    run(
-                        key,
-                        "drop",
-                        { from: start, to: anchor, bend: (start.y + anchor.y) / 2 },
-                        {
-                            from: { x: anchor.x, y: card.bottom },
-                            to: anchor,
-                            bend: (card.bottom + anchor.y) / 2,
-                        },
-                        card.isResting,
-                        false,
-                        reveal,
-                        now,
-                    );
+                    // drop this card into every service it calls, spread along both edges, turning lower for later services
+                    const own = calls.filter((call) => call.id === card.id);
+                    own.forEach((call) => {
+                        // find the service cell, or skip a service its band does not show
+                        const service = item(call.service);
+                        if (!service) {
+                            return;
+                        }
+                        const key = `drop:${card.id}:${call.service}`;
+                        kept.add(key);
+                        const place = places.get(card.id);
+                        const anchor = {
+                            x: hole(service.centre),
+                            y: service.top,
+                        };
+                        const x = hole(place ? centre(place, cell) : card.centre);
+                        const bend = middle(card.bottom, anchor.y);
+                        run(
+                            key,
+                            "drop",
+                            { from: { x: card.centre, y: card.bottom }, to: anchor, bend },
+                            { from: { x, y: card.bottom }, to: anchor, bend },
+                            card.isResting,
+                            false,
+                            reveal,
+                            now,
+                        );
+                    });
                 });
+
+                // link each service the scene calls down to each store it keeps the scene's state in
+                for (const link of links) {
+                    const service = item(link.service);
+                    const store = item(link.store);
+                    if (!service || !store) {
+                        continue;
+                    }
+                    const key = `store:${link.service}:${link.store}`;
+                    kept.add(key);
+                    const from = { x: hole(service.centre), y: service.bottom };
+                    const to = {
+                        x: hole(store.centre),
+                        y: store.top,
+                    };
+                    const bend = middle(service.bottom, store.top);
+                    const path = { from, to, bend };
+                    run(key, "drop", path, path, true, false, stored, now);
+                }
+
+                // feed every host from the build
+                const build = item("Build");
+                if (build) {
+                    quarterCentres.forEach((column, index) => {
+                        // run down from the build, across the bus, and down into this host
+                        const key = `host:${index}`;
+                        kept.add(key);
+                        const path = {
+                            from: { x: build.centre, y: build.bottom },
+                            to: { x: hole(cell * column), y: cellRow * hostTop },
+                            bend: cellRow * hostBus,
+                        };
+                        run(key, "drop", path, path, true, false, properties.revealOf(5), now);
+                    });
+                }
             }
 
             // fade out cables the scene no longer uses, and remove them once gone
@@ -682,11 +1283,12 @@ export function Remix(properties: {
                 changedAt = now;
                 delay = properties.isOpen ? 1100 : 3000;
                 wasOpen = properties.isOpen;
-            } else if (scene() !== wasScene) {
+            } else if (scene() !== wasScene || properties.today !== wasToday) {
                 changedAt = now;
                 delay = moveTime * 0.8;
             }
             wasScene = scene();
+            wasToday = properties.today;
 
             // reset the scenes while locked, and step them while open and live
             if (!properties.isOpen) {
@@ -759,8 +1361,9 @@ export function Remix(properties: {
                     // read the card's placement, drag offset, and kind
                     const placement = () => layout().get(id)!;
                     const held = () => (drag()?.id === id ? drag() : undefined);
-                    const vendor = vendors.indexOf(id);
-                    const isPerson = vendor < 0 && !apps.includes(id);
+                    const slot = slots.get(id);
+                    const isVendor = slot !== undefined;
+                    const isPerson = !isVendor && !apps.includes(id);
 
                     return (
                         <div
@@ -768,8 +1371,11 @@ export function Remix(properties: {
                             onPointerDown={(event) => grab(id, event)}
                             style={{
                                 ...span(placement()),
-                                top: placement().row === 0 ? "calc(100% / 6)" : "50%",
-                                ...motion(vendor >= 0, placement(), held()),
+                                top:
+                                    placement().row === 0
+                                        ? `calc(100% / 6 + ${userDrop}px)`
+                                        : "50%",
+                                ...motion(isVendor, placement(), held()),
                             }}
                             class={stylex.attrs(styles.card, held() && styles.held).class}
                         >
@@ -777,12 +1383,11 @@ export function Remix(properties: {
                                 style={{
                                     "--toward": id === "you" || id === "friend" ? "1" : "-1",
                                     "animation-delay": `${-ids.indexOf(id) * 0.9}s`,
-                                    transform:
-                                        vendor >= 0
-                                            ? "translateY(var(--lift, 0px)) rotate(var(--tilt, 0deg))"
-                                            : undefined,
+                                    transform: isVendor
+                                        ? "translate(var(--sway, 0px), var(--lift, 0px)) rotate(var(--tilt, 0deg))"
+                                        : undefined,
                                 }}
-                                data-bob={vendor >= 0 ? String(vendor) : undefined}
+                                data-bob={isVendor ? String(slot) : undefined}
                                 class={
                                     stylex.attrs(
                                         styles.fill,
@@ -793,7 +1398,7 @@ export function Remix(properties: {
                             >
                                 <Card
                                     entity={entities[id]}
-                                    kind={vendor >= 0 ? "vendor" : "plain"}
+                                    kind={isVendor ? "vendor" : "plain"}
                                     reveal={properties.isOpen ? openReveals[id] : todayReveals[id]}
                                     style={styles.fill}
                                 />
@@ -810,6 +1415,12 @@ export function Remix(properties: {
 const easing = "cubic-bezier(0.6, 0, 0.2, 1)";
 /** The easing of a card springing back from a drag. */
 const spring = "cubic-bezier(0.3, 1.45, 0.5, 1)";
+/** The milliseconds a silo takes to swirl down the drain as the stack opens. */
+const drainTime = 1900;
+/** How far below the silo row the drain lies, in hole rows: down through the figure to the footer. */
+const drainDrop = 52;
+/** How far a silo sinks below its berg before it is gone, deep enough for the water to hide it. */
+const sinkDepth = "8rem";
 /** The easing of a vendor app sinking with the ice. */
 const sink = "cubic-bezier(0.5, 0, 0.9, 0.6)";
 
@@ -836,7 +1447,7 @@ function motion(
     const isShown = place.isShown;
     const offset = held ? `${held.x}px ${held.y}px` : "0 0";
 
-    // sink vendor apps with the shattering ice, then land them on the reformed ice
+    // sink a silo under the water and fade it as it goes deep, and raise the next one out of it onto its berg
     if (isVendor) {
         return isShown
             ? {
@@ -846,22 +1457,64 @@ function motion(
                   scale: "1",
                   transition: held
                       ? "none"
-                      : `opacity 400ms ${easing} 2700ms, scale 450ms ${spring} 2700ms, translate 700ms ${spring}, rotate 0ms linear 2700ms`,
+                      : `opacity 500ms ease ${place.delay}ms, translate 1100ms ${spring} ${place.delay}ms, rotate 1100ms ${spring} ${place.delay}ms, scale 900ms ${spring} ${place.delay}ms`,
               }
-            : {
-                  opacity: "0",
-                  translate: "0 2.5rem",
-                  rotate: "8deg",
-                  scale: "1.12",
-                  "pointer-events": "none",
-                  transition: `opacity 550ms ${sink} 150ms, translate 800ms ${sink} 150ms, rotate 800ms ${sink} 150ms, scale 0ms linear 1000ms`,
-              };
+            : place.step === "drain"
+              ? {
+                    opacity: "0",
+                    translate: `calc(${tokens.cell} * ${boardCells / 2 - place.left - place.width / 2}) calc(${tokens.cellRow} * ${drainDrop})`,
+                    rotate: `${place.left < boardCells / 3 ? 220 : -220}deg`,
+                    scale: "0.08",
+                    "pointer-events": "none",
+                    transition: `translate ${drainTime}ms cubic-bezier(0.55, 0, 0.8, 0.4), rotate ${drainTime}ms cubic-bezier(0.4, 0, 0.9, 0.6), scale ${drainTime}ms cubic-bezier(0.7, 0, 0.9, 0.5), opacity 500ms ease ${drainTime - 500}ms`,
+                }
+              : {
+                    opacity: "0",
+                    translate: `0 ${sinkDepth}`,
+                    rotate: "5deg",
+                    scale: "1",
+                    "pointer-events": "none",
+                    transition: `translate 1300ms ${sink}, rotate 1300ms ${sink}, opacity 700ms ease 500ms`,
+                };
     }
 
-    // travel cards across and off the board whole, and spring them back after a drag
-    const move = `left ${moveTime}ms ${easing} ${place.delay}ms, top ${moveTime}ms ${easing} ${place.delay}ms, width ${moveTime}ms ${easing}`;
+    // turn a card over in its slot: the old one turns away, and the new one turns into view from behind it
+    if (place.step === "flip" || place.turn !== undefined) {
+        const half = flipTime / 2;
+        const at = place.delay + (isShown ? half : 0);
+        return {
+            "--ink": "1",
+            "--ink-time": "0ms",
+            opacity: isShown ? "1" : "0",
+            rotate: `x ${isShown ? 0 : (place.turn ?? 90)}deg`,
+            "transform-origin": "50% 0",
+            translate: offset,
+            "z-index": isShown ? "2" : "1",
+            transition:
+                place.step === "park"
+                    ? "none"
+                    : `rotate ${half}ms ${isShown ? "cubic-bezier(0.2, 0.7, 0.3, 1.2)" : "cubic-bezier(0.6, 0, 0.9, 0.5)"} ${at}ms, opacity 0ms linear ${place.delay + half}ms`,
+            ...(isShown ? {} : { "pointer-events": "none" }),
+        };
+    }
+
+    // travel cards whole or morph them into each other: a card going away fades its ink out, then hands its box over to the card
+    //  taking its place, whose ink fades in, so the boxes never blink
+    const swap = place.isLate ? place.delay + moveTime : place.delay + inkFade;
+    const move = `left ${moveTime}ms ${easing} ${place.delay}ms, top ${moveTime}ms ${easing} ${place.delay}ms, width ${moveTime}ms ${easing} ${place.delay}ms, opacity 0ms linear ${place.step === "stay" ? 0 : swap}ms`;
+    const ink = isShown
+        ? {
+              "--ink": "1",
+              "--ink-time": `${inkFade}ms`,
+              "--ink-delay": `${place.step === "stay" ? 0 : place.isLate ? swap : place.delay + moveTime * 0.3}ms`,
+          }
+        : { "--ink": "0", "--ink-time": `${inkFade}ms`, "--ink-delay": `${swap - inkFade}ms` };
 
     return {
+        ...ink,
+        rotate: "x 0deg",
+        opacity: isShown ? "1" : "0",
+        "z-index": isShown ? "2" : "1",
         translate: offset,
         transition:
             place.step === "park" ? "none" : held ? move : `${move}, translate 700ms ${spring}`,
@@ -877,38 +1530,127 @@ function plug(point: Point) {
 /**
  * Place every card a scene shows in whole board cells.
  *
- * Rows of four get four-cell gaps, rows of three get five, and reshaped apps grow half as wide again.
+ * The upper row shares the board evenly with four-cell gaps; the lower row snaps to the three board columns.
  */
 function arrange(scene: Scene): Map<string, Placement> {
-    // lay out both rows left to right
+    // share the upper row evenly between its cards
     const placed = new Map<string, Placement>();
-    const rows = [scene.upper.map((id) => ({ id, isWide: false })), scene.lower];
-    rows.forEach((cards, row) => {
-        // share the free cells among the row's cards by weight
-        const gap = cards.length >= 4 ? 4 : 5;
-        const free = boardCells - boardInset * 2 - gap * (cards.length - 1);
-        const weights = cards.map((card) => (card.isWide ? 1.5 : 1));
-        const total = weights.reduce((sum, weight) => sum + weight, 0);
-        let left = boardInset;
-        let used = 0;
-        cards.forEach((card, index) => {
-            // give the last card the cells left over
-            const isLast = index === cards.length - 1;
-            const width = isLast ? free - used : Math.round((free * weights[index]) / total);
-            placed.set(card.id, {
-                row: row === 0 ? 0 : 1,
-                left,
-                width,
-                isShown: true,
-                step: "stay",
-                delay: 0,
-            });
-            left += width + gap;
-            used += width;
+    const gap = 3;
+    const width =
+        (boardCells - boardInset * 2 - gap * (scene.upper.length - 1)) / scene.upper.length;
+    scene.upper.forEach((id, index) => {
+        const left = boardInset + index * (width + gap);
+        placed.set(id, {
+            row: 0,
+            left,
+            width,
+            isShown: true,
+            step: "stay",
+            delay: 0,
+            isLate: false,
         });
     });
 
+    // lay the lower row's cards across the columns they span
+    let column = 0;
+    for (const card of scene.lower) {
+        const left = columnLefts[column];
+        const end = columnLefts[column + card.span - 1] + columnWidth;
+        placed.set(card.id, {
+            row: 1,
+            left,
+            width: end - left,
+            isShown: true,
+            step: "stay",
+            delay: 0,
+            isLate: false,
+        });
+        column += card.span;
+    }
+
     return placed;
+}
+
+/** Return how long a silo waits to show: landing on the reformed ice after the water returns, bobbing up in a swap, or staying put. */
+function vendorDelay(previous: Placement | undefined, isToggle: boolean) {
+    // land after the ice reforms
+    if (isToggle) {
+        return landingDelay;
+    }
+    // bob up after the silo it replaces starts to sink
+    else if (!previous?.isShown) {
+        return swapDelay;
+    }
+    // stay where it floats
+    else {
+        return 0;
+    }
+}
+
+/** Return a silo's place on its iceberg, from the first scene of the locked stack that shows it. */
+function lockedPlacement(id: string): Placement {
+    // find the first locked scene with the silo
+    const placement = todayPlacements.find((placements) => placements.has(id))?.get(id);
+    if (!placement) {
+        throw new Error(`silo ${id} never rides an iceberg`);
+    }
+
+    return placement;
+}
+
+/** Return how many cards that showed before and are gone now a placement replaces. */
+function sourcesOf(
+    place: Placement,
+    before: ReadonlyMap<string, Placement>,
+    current: ReadonlyMap<string, Placement>,
+) {
+    return [...before].filter(
+        ([id, previous]) => previous.isShown && !current.has(id) && overlaps(previous, place),
+    ).length;
+}
+
+/** Return which third of the board a placement starts in, from 0 at the left to 3 at the right. */
+function slotOf(place: Placement) {
+    return Math.round((place.left / boardCells) * 4);
+}
+
+/** Return whether two placements take the same slot: the same row, edge, and width. */
+function sameSlot(first: Placement, second: Placement) {
+    return (
+        first.row === second.row &&
+        Math.abs(first.left - second.left) < 0.5 &&
+        Math.abs(first.width - second.width) < 0.5
+    );
+}
+
+/** Return whether two placements on the same row overlap. */
+function overlaps(first: Placement, second: Placement) {
+    return (
+        first.row === second.row &&
+        first.left < second.left + second.width &&
+        second.left < first.left + first.width
+    );
+}
+
+/** Return a hidden placement covering all the given placements on their row. */
+function cover(places: Placement[]): Placement {
+    const left = Math.min(...places.map((place) => place.left));
+    const right = Math.max(...places.map((place) => place.left + place.width));
+
+    return {
+        row: places[0].row,
+        left,
+        width: right - left,
+        isShown: false,
+        step: "stay",
+        delay: 0,
+        isLate: false,
+    };
+}
+
+/** Return whether a placement lies on the board rather than beyond an edge. */
+function isOnBoard(place: Placement) {
+    return place.left >= 0 && place.left + place.width <= boardCells;
 }
 
 /** Return how far a placement sits from the board edge it enters and leaves by, in cells. */
@@ -944,7 +1686,7 @@ function upcoming(id: string, from: number): Placement {
     }
 
     // find the card in the locked stack
-    const locked = todayPlacements.get(id);
+    const locked = todayPlacements[0].get(id);
     if (locked) {
         return locked;
     }
@@ -956,28 +1698,16 @@ function upcoming(id: string, from: number): Placement {
 /** The sway of the people cards dancing while locked. */
 const dance = stylex.keyframes({
     "0%, 100%": { transform: "translate(0, 0) rotate(0deg)" },
-    "34%": {
+    "50%": {
         transform:
-            "translate(calc(var(--toward) * 7px * var(--sway)), calc(-2px * var(--sway))) rotate(calc(var(--toward) * 2deg * var(--sway)))",
-    },
-    "40%": {
-        transform:
-            "translate(calc(var(--toward) * 4px * var(--sway)), calc(1px * var(--sway))) rotate(calc(var(--toward) * -3deg * var(--sway)))",
-    },
-    "48%": {
-        transform:
-            "translate(calc(var(--toward) * 6px * var(--sway)), 0) rotate(calc(var(--toward) * 1deg * var(--sway)))",
-    },
-    "72%": {
-        transform:
-            "translate(calc(var(--toward) * -3px * var(--sway)), calc(-1px * var(--sway))) rotate(calc(var(--toward) * -1.5deg * var(--sway)))",
+            "translate(calc(var(--toward) * 2px * var(--sway)), calc(-1.5px * var(--sway))) rotate(calc(var(--toward) * 0.6deg * var(--sway)))",
     },
 });
 
 /** The cable strokes for each cable kind. */
 const cableKinds = stylex.create({
     locked: { stroke: color.mutedForeground },
-    link: { stroke: color.primary, strokeDasharray: "3 4" },
+    link: { stroke: color.primary },
     chain: { stroke: color.primary },
     drop: { stroke: color.primary },
 });
@@ -994,6 +1724,7 @@ const plugKinds = stylex.create({
 const styles = stylex.create({
     layer: {
         clipPath: "inset(-100vh 0)",
+        perspective: "900px",
         left: 0,
         pointerEvents: "none",
         position: "absolute",
@@ -1007,6 +1738,7 @@ const styles = stylex.create({
         pointerEvents: "none",
         position: "absolute",
         width: "100%",
+        "@media (max-width: 767px)": { display: "none" },
     },
     cable: {
         fill: "none",
@@ -1027,7 +1759,7 @@ const styles = stylex.create({
         zIndex: 2,
     },
     dance: {
-        animationDuration: "3.6s",
+        animationDuration: "6.5s",
         animationIterationCount: "infinite",
         animationName: dance,
         animationTimingFunction: "ease-in-out",

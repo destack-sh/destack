@@ -1,6 +1,8 @@
 import { fontFamily } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
+import { createSignal } from "@destack/view";
 
+import { installCommand } from "../content/site";
 import { Goo } from "../effect/goo";
 import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
@@ -10,12 +12,16 @@ import { socialLinks } from "./navigation";
 /** The radius of the black hole in the footer, in CSS pixels. */
 const holeRadius = 7;
 
-/** Close every page with a band of starry space around a black hole, holding the community links. */
-export function Footer(properties: { flow?: number }) {
+/** The media query for phone-width screens. */
+const mobile = "@media (max-width: 767px)";
+
+/** Close every page with a band of starry space around a black hole, holding the install command and the community links. */
+export function Footer() {
     return (
         <footer {...stylex.attrs(styles.root)}>
-            <Goo hole={holeRadius} flow={properties.flow} style={styles.band}>
+            <Goo hole={holeRadius} style={styles.band}>
                 <div {...stylex.attrs(lattice.frame, styles.bar)}>
+                    <InstallCommand />
                     <nav aria-label="Social navigation" {...stylex.attrs(styles.navigation)}>
                         {socialLinks.map(({ label, href, shortcut, icon }) => (
                             <SiteLink
@@ -39,6 +45,54 @@ export function Footer(properties: { flow?: number }) {
     );
 }
 
+/** Show the install command in a line of terminal, with a button that copies it. */
+function InstallCommand() {
+    const [isCopied, setIsCopied] = createSignal(false);
+
+    // copy the install command and acknowledge it briefly
+    const copy = async () => {
+        await navigator.clipboard.writeText(installCommand);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 1600);
+    };
+
+    return (
+        <div {...stylex.attrs(styles.command)}>
+            <code {...stylex.attrs(styles.code)}>
+                <span {...stylex.attrs(styles.prompt)}>$</span> {installCommand}
+            </code>
+            <button
+                type="button"
+                aria-label="Copy install command"
+                title={isCopied() ? "Copied" : "Copy"}
+                onClick={() => void copy()}
+                {...stylex.attrs(styles.copy)}
+            >
+                <svg
+                    aria-hidden="true"
+                    width="15"
+                    height="15"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.75"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                >
+                    {isCopied() ? (
+                        <path d="M20 6 9 17l-5-5" />
+                    ) : (
+                        <>
+                            <rect x="8" y="8" width="13" height="13" rx="1" />
+                            <path d="M4 16V4a1 1 0 0 1 1-1h11" />
+                        </>
+                    )}
+                </svg>
+            </button>
+        </div>
+    );
+}
+
 /** The footer styles. */
 const styles = stylex.create({
     root: {
@@ -56,13 +110,44 @@ const styles = stylex.create({
         fontFamily: fontFamily.default,
         height: "100%",
     },
+    command: {
+        alignItems: "center",
+        display: "flex",
+        gap: "0.75rem",
+        gridColumn: "1 / span 4",
+        gridRow: 1,
+        minWidth: 0,
+        paddingInline: tokens.inset,
+        [mobile]: { display: "none" },
+    },
+    code: {
+        fontFamily: tokens.monoFont,
+        fontSize: "0.75rem",
+        fontWeight: 600,
+        whiteSpace: "nowrap",
+    },
+    prompt: {
+        color: tokens.signal,
+    },
+    copy: {
+        backgroundColor: "transparent",
+        borderWidth: 0,
+        color: "rgb(241 234 219 / 60%)",
+        cursor: "pointer",
+        display: "flex",
+        flexShrink: 0,
+        padding: 0,
+        ":hover": { color: tokens.signal },
+    },
     navigation: {
         alignItems: "center",
         display: "flex",
         gap: "0.5rem",
-        gridColumn: "1 / -1",
-        justifyContent: "center",
+        gridColumn: "9 / span 4",
+        gridRow: 1,
+        justifyContent: "flex-end",
         paddingInline: "0.75rem",
+        [mobile]: { gridColumn: "1 / -1" },
     },
     link: {
         alignItems: "center",

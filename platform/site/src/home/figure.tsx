@@ -1,49 +1,57 @@
-import { color } from "@destack/theme/tokens.stylex";
+import { color, fontFamily } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
 import { createMemo, createSignal, For, type JSX, onSettled } from "@destack/view";
 
-import { Ice } from "../effect/ice";
+import { Debris } from "../effect/debris";
+import { isDarkPage } from "../effect/gl";
+import { charge } from "../effect/goo";
+import { type Bob, Ice } from "../effect/ice";
 import { sound } from "../effect/sound";
 import { Sparks } from "../effect/sparks";
-import { drainAt, nightWater, paperWater, stir, travel, Water, waveAt } from "../effect/water";
+import {
+    drainAt,
+    nightWater,
+    paperWater,
+    stir,
+    travel,
+    Water,
+    waterSpill,
+    waveAt,
+} from "../effect/water";
 import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { Band, Card, DuctTape, type Entity, type Reveal } from "./card";
-import { boardCells, columnCentres, columnLefts, columnWidth, rowCells } from "./board";
+import {
+    boardCells,
+    columnCentres,
+    columnLefts,
+    columnWidth,
+    quarterLefts,
+    quarterWidth,
+    rowCells,
+} from "./board";
 import { Flotsam } from "./flotsam";
-import { Remix } from "./remix";
+import { orbitOf } from "./plate";
+import { appUses, Remix, sceneSources, scenes, slotApps, todayScenes } from "./remix";
 
 /** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
 /** The media query for readers who prefer reduced motion. */
 const still = "@media (prefers-reduced-motion: reduce)";
 
+/** The switch's name for the stack today, in scare quotes. */
+const stackName = "\u201cStack\u201d";
+/** How far each letter of the stack's name sits off the line, in pixels. */
+const jumble = [0.5, -0.5, 1, -0.25, 0.5, -1, 0.25];
+
 /** The rows above the waterline today. */
 const dryRows = 2;
 /** How close to the waterline the pointer stirs the water, in CSS pixels. */
-const stirRange = 50;
+const stirRange = 90;
 /** How far the pointer moves along the water between ripples, in CSS pixels. */
-const stirStep = 26;
+const stirStep = 18;
 /** The share of a vendor card's height that sinks below the waterline, so it barely floats. */
 const cardDraft = 0.1;
-/** The switch's name for the stack today, set in crooked letters. */
-const stacked = "\u201cThe Stack\u201d";
-
-/** How far each letter of the stack's name leans, in degrees, and sags, in pixels. */
-const crooked = [
-    [-8, 1],
-    [-7, 1],
-    [5, -1],
-    [-3, 2],
-    [0, 0],
-    [8, 0],
-    [-6, -2],
-    [4, 1],
-    [-5, -1],
-    [6, 0],
-    [7, -1],
-];
-
 /** The milliseconds of calm on the water before things start to drift past. */
 const adriftDelay = 20000;
 
@@ -62,8 +70,6 @@ type Layer = {
     name: string;
     /** What you do with the layer, verb first. */
     claim: Record<Stack, string>;
-    /** What kind of thing the layer is made of. */
-    topic: Record<Stack, string>;
     /** What the layer is made of. */
     detail: Record<Stack, string>;
 };
@@ -73,183 +79,236 @@ const layers: readonly Layer[] = [
     {
         name: "Users",
         claim: { today: "Beg for entry", destack: "Bring everyone" },
-        topic: { today: "", destack: "" },
-        detail: { today: "", destack: "" },
+        detail: { today: "Their accounts", destack: "One account, Every agent" },
     },
     {
         name: "Apps",
         claim: { today: "Duct-tape silos", destack: "Remix software" },
-        topic: { today: "Siloed apps", destack: "Open standards" },
-        detail: { today: "Vertical icebergs", destack: "TS, HTML, CSS" },
+        detail: { today: "Closed apps", destack: "TS, HTML, CSS" },
     },
     {
         name: "Services",
         claim: { today: "Await roadmaps", destack: "Standardise logic" },
-        topic: { today: "Hidden logic", destack: "Open protocols" },
         detail: { today: "Private APIs", destack: "HTTP, OpenAPI" },
     },
     {
         name: "Data",
         claim: { today: "Rent your data", destack: "Own your data" },
-        topic: { today: "Locked data", destack: "Standard formats" },
-        detail: { today: "Proprietary formats", destack: "SQL, JSON, MD" },
+        detail: { today: "Vendor formats", destack: "SQL, JSON, MD, S3" },
     },
     {
         name: "Source",
         claim: { today: "Trust blindly", destack: "Fork the code" },
-        topic: { today: "No access", destack: "Conventional tools" },
         detail: { today: "Closed source", destack: "Git, npm" },
     },
     {
         name: "Hosts",
         claim: { today: "Pay double markup", destack: "Run everywhere" },
-        topic: { today: "Vendor lock-in", destack: "Simple deployment" },
-        detail: { today: "Their cloud", destack: "Node, Worker" },
+        detail: { today: "Their cloud", destack: "Node, Docker, Workers" },
     },
 ];
+
+/** The icons of the layers each silo keeps under water, from services down to hosts. */
+const sunkIcons = ["services", "storage", "source", "cloud"];
 
 /** The layers each vendor keeps under water, one per submerged row. */
-const locked: readonly Entity[] = [
-    { label: "Rate-limited API", icon: "services", role: "Theirs" },
-    { label: "CSV export", icon: "storage", role: "Theirs" },
-    { label: "Not available", icon: "source", role: "Theirs" },
-    { label: "us-east-1 only", icon: "cloud", role: "Theirs" },
-];
+const locked: Readonly<Record<string, readonly Entity[]>> = {
+    notion: sunk("Theirs", ["Rate-limited API", "CSV export", "Not available", "us-east-1 only"]),
+    linear: sunk("Theirs", ["API quotas", "CSV export", "Closed source", "Their cloud"]),
+    slack: sunk("Theirs", ["Paid API tier", "Limited history", "Closed source", "Their cloud"]),
+    figma: sunk("Theirs", ["Plugin sandbox", "Proprietary files", "Closed source", "Their cloud"]),
+    github: sunk("Theirs", ["API quotas", "Repos only", "Closed platform", "Their cloud"]),
+    vibe: sunk("Rented", ["Supabase edge", "Supabase DB", "Private repo", "Vercel only"]),
+};
 
-/** The layers every Destack app shares, one per band row, with what each holds and shows inside. */
+/** The milliseconds each silo rides its iceberg before the next swap. */
+const swapTime = 6500;
+
+/** The layers every Destack app shares, one per band row, with the packages each holds and what each shows inside. */
 const shared: readonly {
     entity: Entity;
-    items: readonly Entity[];
-    reveals: readonly Reveal[];
+    items: readonly (Entity & { reveal: Reveal })[];
 }[] = [
     {
-        entity: { label: "Services", icon: "services", role: "Standard backend" },
+        entity: { label: "Services", icon: "services", role: "Shared logic", tint: "#6b5ca5" },
         items: [
-            { label: "Auth", icon: "auth", role: "Service" },
-            { label: "Sync", icon: "sync", role: "Service" },
-            { label: "Search", icon: "search", role: "Service" },
-            { label: "AI", icon: "ai", role: "Service" },
-            { label: "Notify", icon: "notify", role: "Service" },
-        ],
-        reveals: [
             {
-                kind: "code",
-                name: "openapi.yaml",
-                lines: [
-                    "/auth/session:",
-                    "  post:",
-                    "    summary: Sign in",
-                    "    security: passkey",
-                    "    200: Session",
-                ],
+                label: "Access",
+                tint: "#a0485f",
+                icon: "auth",
+                role: "Roles",
+                reveal: {
+                    kind: "fields",
+                    rows: [
+                        ["client", "calendar"],
+                        ["claude", "inbox"],
+                        ["friend", "pages"],
+                    ],
+                },
             },
             {
-                kind: "code",
-                name: "openapi.yaml",
-                lines: [
-                    "/tasks:",
-                    "  get:",
-                    "    summary: List",
-                    "    query: due, owner",
-                    "    200: Task[]",
-                ],
+                label: "Settings",
+                tint: "#6d7f86",
+                icon: "settings",
+                role: "JSON",
+                reveal: {
+                    kind: "fields",
+                    rows: [
+                        ["week", "monday"],
+                        ["theme", "night"],
+                        ["digest", "8:00"],
+                    ],
+                },
             },
             {
-                kind: "code",
-                name: "openapi.yaml",
-                lines: [
-                    "/ai/complete:",
-                    "  post:",
-                    "    summary: Run model",
-                    "    body: Prompt",
-                    "    200: Completion",
-                ],
+                label: "Search",
+                tint: "#3d6fb0",
+                icon: "search",
+                role: "Full text",
+                reveal: {
+                    kind: "fields",
+                    rows: [
+                        ["plan.md", "2 hits"],
+                        ["t_0931", "1 hit"],
+                        ["#team", "4 hits"],
+                    ],
+                },
+            },
+            {
+                label: "AI",
+                tint: "#6b5ca5",
+                icon: "ai",
+                role: "Models",
+                reveal: {
+                    kind: "fields",
+                    rows: [
+                        ["model", "claude"],
+                        ["tools", "tasks"],
+                        ["send", "asks first"],
+                    ],
+                },
             },
         ],
     },
     {
-        entity: { label: "Data", icon: "storage", role: "Central storage" },
+        entity: { label: "Data", icon: "storage", role: "Your data", tint: "#2f7d8c" },
         items: [
-            { label: "SQLite", icon: "table", role: "Storage" },
-            { label: "Postgres", icon: "storage", role: "Storage" },
-            { label: "Files", icon: "file", role: "Storage" },
-            { label: "Vectors", icon: "vector", role: "Storage" },
-        ],
-        reveals: [
             {
-                kind: "code",
-                name: "tasks.sql",
-                lines: [
-                    "create table tasks (",
-                    "  id text primary key,",
-                    "  title text,",
-                    "  due date,",
-                    "  owner text",
-                    ");",
-                ],
+                label: "DB",
+                tint: "#2f7d8c",
+                icon: "storage",
+                role: "SQL",
+                reveal: {
+                    kind: "fields",
+                    rows: [
+                        ["tasks", "1,204 rows"],
+                        ["pages", "318 rows"],
+                        ["events", "96 rows"],
+                    ],
+                },
             },
             {
-                kind: "code",
-                name: "plan.md",
-                lines: [
-                    "# Launch plan",
-                    "- [x] Book the venue",
-                    "- [ ] Send invites",
-                    "- [ ] Ship v2",
-                ],
+                label: "Bucket",
+                tint: "#b8862b",
+                icon: "bucket",
+                role: "S3",
+                reveal: {
+                    kind: "fields",
+                    rows: [
+                        ["plan.md", "2 KB"],
+                        ["cover.png", "48 KB"],
+                        ["notes.md", "1 KB"],
+                    ],
+                },
             },
             {
-                kind: "code",
-                name: "t_0931.json",
-                lines: [
-                    "{",
-                    '  "id": "t_0931",',
-                    '  "title": "Ship v2",',
-                    '  "due": "2026-10-01"',
-                    "}",
-                ],
+                label: "Vault",
+                tint: "#12313c",
+                icon: "vault",
+                role: "Secrets",
+                reveal: {
+                    kind: "fields",
+                    rows: [
+                        ["MAIL_TOKEN", "\u2022\u2022\u2022\u2022"],
+                        ["MODEL_KEY", "\u2022\u2022\u2022\u2022"],
+                        ["STRIPE_KEY", "\u2022\u2022\u2022\u2022"],
+                    ],
+                },
+            },
+            {
+                label: "Audit",
+                tint: "#5b7f2e",
+                icon: "audit",
+                role: "Change log",
+                reveal: {
+                    kind: "fields",
+                    rows: [
+                        ["09:41", "you"],
+                        ["09:42", "claude"],
+                        ["09:44", "client"],
+                    ],
+                },
             },
         ],
     },
     {
-        entity: { label: "Source", icon: "source", role: "Universal packages" },
+        entity: { label: "Source", icon: "source", role: "Your code", tint: "#c64a17" },
         items: [
-            { label: "@you/stack", icon: "package", role: "Package" },
-            { label: "@you/planner", icon: "fork", role: "Fork" },
-            { label: "@friend/recipes-v3", icon: "fork", role: "Fork" },
-        ],
-        reveals: [
             {
-                kind: "code",
-                name: "git log",
-                lines: [
-                    "3f9a2c group by week",
-                    "e02d4f fork tasks",
-                    "a81e07 sum a column",
-                    "9d44b1 add due dates",
-                    "c4f1d8 dark theme",
-                ],
+                label: "Repository",
+                tint: "#c64a17",
+                icon: "source",
+                role: "Git",
+                reveal: {
+                    kind: "fields",
+                    rows: [
+                        ["3f9a2c", "week view"],
+                        ["e02d4f", "fork tasks"],
+                        ["9d44b1", "due dates"],
+                    ],
+                },
             },
             {
-                kind: "code",
-                name: "package.json",
-                lines: [
-                    "{",
-                    '  "version": "1.0.0",',
-                    '  "forkOf": "tasks",',
-                    '  "license": "MIT"',
-                    "}",
-                ],
+                label: "Registry",
+                tint: "#a0485f",
+                icon: "registry",
+                role: "npm",
+                reveal: {
+                    kind: "fields",
+                    rows: [
+                        ["@you/planner", "1.2"],
+                        ["@you/journal", "0.4"],
+                        ["@friend/recipes", "2.0"],
+                    ],
+                },
             },
             {
-                kind: "code",
-                name: "planner.diff",
-                lines: [
-                    "@@ planner.tsx",
-                    "- <List of={tasks} />",
-                    "+ <Week of={tasks} />",
-                    "+ <Grid days={7} />",
-                ],
+                label: "Build",
+                tint: "#4f8a5b",
+                icon: "build",
+                role: "Node",
+                reveal: {
+                    kind: "fields",
+                    rows: [
+                        ["bundle", "38 KB"],
+                        ["types", "ok"],
+                        ["done", "0.4s"],
+                    ],
+                },
+            },
+            {
+                label: "Templates",
+                tint: "#3d6fb0",
+                icon: "template",
+                role: "Starters",
+                reveal: {
+                    kind: "fields",
+                    rows: [
+                        ["calendar", "crm"],
+                        ["journal", "recipes"],
+                        ["inbox", "wiki"],
+                    ],
+                },
             },
         ],
     },
@@ -258,32 +317,55 @@ const shared: readonly {
 /** The hosts a space can run on. */
 const hosts: readonly { entity: Entity; reveal: Reveal }[] = [
     {
-        entity: { label: "Your laptop", icon: "computer", role: "Host" },
+        entity: {
+            label: "Your laptop",
+            icon: "computer",
+            role: "You run, we tunnel",
+            tint: "#3d6fb0",
+        },
         reveal: {
             kind: "code",
             name: "terminal",
-            lines: ["$ destack dev", "ready on :3000", "synced with your server", "works offline"],
+            lines: ["$ destack dev", "ready on :3000", "tunnel  you.destack.sh"],
         },
     },
     {
-        entity: { label: "Your server", icon: "hosts", role: "Host" },
+        entity: {
+            label: "Your server",
+            icon: "hosts",
+            role: "You run, we tunnel",
+            tint: "#4f8a5b",
+        },
         reveal: {
             kind: "code",
-            name: "terminal",
-            lines: [
-                "$ docker compose up",
-                "destack  running",
-                "backups  nightly",
-                "uptime   41 days",
-            ],
+            name: "destack new",
+            lines: ["$ docker compose up", "destack  running", "backups  nightly"],
         },
     },
     {
-        entity: { label: "Your cloud", icon: "cloud", role: "Host" },
+        entity: {
+            label: "Your cloud",
+            icon: "cloud",
+            role: "You run everything",
+            tint: "#6b5ca5",
+        },
         reveal: {
             kind: "code",
             name: "terminal",
-            lines: ["$ destack deploy", "workers  3 regions", "scales   to zero", "tls      ready"],
+            lines: ["$ destack deploy --to aws", "region   eu-central-1", "billing  yours"],
+        },
+    },
+    {
+        entity: {
+            label: "Our cloud",
+            icon: "cloud",
+            role: "We run everything",
+            tint: "#c64a17",
+        },
+        reveal: {
+            kind: "code",
+            name: "terminal",
+            lines: ["$ destack deploy", "regions  3", "backups  hourly"],
         },
     },
 ];
@@ -298,15 +380,17 @@ const tapeDrops = [
     [4, -4],
 ];
 
-/** The entry each shared layer lights up in each remix scene: services, storage, and source. */
-const traffic: readonly (readonly number[])[] = [
-    [0, 0, 0],
-    [1, 1, 1],
-    [3, 3, 2],
-];
-
 /** The connectors taped between the vendor apps. */
 const tapes = ["APIs", "MCPs"];
+
+/** How many shards break off each berg and rise into the planet's ring. */
+const shardsPerBerg = 16;
+
+/** The seconds a berg takes to follow the water most of the way, so it moves like a heavy body. */
+const bergInertia = 0.9;
+
+/** How far the bergs slide to and fro, in CSS pixels. */
+const swayRange = 3;
 
 /** Compare apps today, as icebergs, with the open Destack stack revealed by draining the water. */
 export function StackFigure(properties: { onChange: (isOpen: boolean) => void }) {
@@ -316,6 +400,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     const [scene, setScene] = createSignal(0);
     const [isLive, setIsLive] = createSignal(false);
     const [isAdrift, setIsAdrift] = createSignal(false);
+    const [today, setToday] = createSignal(0);
     const [surfacedAt, setSurfacedAt] = createSignal(0);
     const isOpen = createMemo(() => stack() === "destack");
     let figure!: HTMLElement;
@@ -328,6 +413,12 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     let sparkCanvas!: HTMLCanvasElement;
     let swirling: ReturnType<typeof setInterval> | undefined;
     let ice: Ice | undefined;
+    let debris: Debris | undefined;
+    let toggle!: HTMLButtonElement;
+    let pointer!: SVGPathElement;
+    let stackWord!: HTMLSpanElement;
+    let destackWord!: HTMLSpanElement;
+    let debrisCanvas!: HTMLCanvasElement;
     let settle: ReturnType<typeof setTimeout> | undefined;
     let calm: ReturnType<typeof setTimeout> | undefined;
 
@@ -341,15 +432,20 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     const light = { target: { x: 0, y: 0 }, x: 0, y: 0, radius: 0, isOn: false, waterline: 0 };
 
     // keep the drawing's place within the water canvas, measured only when the layout changes
-    const frame = { offset: 0, width: 0, height: 0, depth: 0 };
+    const frame = { offset: 0, shift: 0, width: 0, height: 0, depth: 0 };
     const measure = () => {
         // read the drawing's offset and size within the water canvas
         const bounds = drawing.getBoundingClientRect();
-        frame.offset = bounds.top - canvas.getBoundingClientRect().top;
+        const origin = canvas.getBoundingClientRect();
+        frame.offset = bounds.top - origin.top;
+        frame.shift = bounds.left - origin.left;
         frame.width = bounds.width;
         frame.height = bounds.height;
         frame.depth = canvas.clientHeight;
     };
+
+    // charge the goo while the switch promises Destack
+    const prime = (isPrimed: boolean) => charge(isPrimed && !isOpen());
 
     // return the waterline of a configuration in canvas pixels
     const waterlineOf = (next: Stack) =>
@@ -390,7 +486,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         const distance = Math.abs(light.target.y - light.waterline);
         if (!isOpen() && distance < stirRange) {
             if (stirredAt === undefined || Math.abs(light.target.x - stirredAt) > stirStep) {
-                stir(light.target.x, 4 * (1 - distance / stirRange));
+                stir(light.target.x + waterSpill, 7 * (1 - distance / stirRange));
                 stirredAt = light.target.x;
             }
         } else {
@@ -403,11 +499,38 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         light.isOn = false;
     };
 
+    // pick points across the ice above and just below the waterline, in page pixels, where shards break off
+    const shardOrigins = () => {
+        // read the drawing and the bergs' size
+        const bounds = drawing.getBoundingClientRect();
+        const third = frame.width / 3;
+        const waterline = (frame.height * dryRows) / layers.length;
+        const peak = Math.min(third * 0.42, waterline * 0.62);
+
+        // scatter shards over each berg's ridge, a few from just under the water
+        return columnCentres.flatMap((centre) =>
+            Array.from({ length: shardsPerBerg }, () => {
+                const isSunk = Math.random() < 0.25;
+                const depth = isSunk ? -Math.random() * 50 : Math.random() * peak * 0.85;
+
+                return {
+                    x:
+                        bounds.left +
+                        window.scrollX +
+                        (frame.width / boardCells) * centre +
+                        (Math.random() - 0.5) * third * 0.7,
+                    y: bounds.top + window.scrollY + waterline - depth,
+                };
+            }),
+        );
+    };
+
     // select a configuration, keep the reader's choice, and move the water
     const select = (next: Stack) => {
         // store the choice and tell the page
         setStack(next);
         properties.onChange(next === "destack");
+        prime(false);
 
         // toss the flotsam back up as the water refills, or clear it away
         clearTimeout(calm);
@@ -425,7 +548,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         clearInterval(swirling);
         if (next === "destack" && sparks) {
             const bounds = drawing.getBoundingClientRect();
-            const origin = canvas.getBoundingClientRect();
+            const origin = sparkCanvas.getBoundingClientRect();
             const y = frame.offset + (frame.height * dryRows) / layers.length;
             for (const centre of columnCentres) {
                 sparks.burst(
@@ -441,7 +564,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 }
                 sparks!.swirl(
                     canvas.clientWidth * 0.3,
-                    canvas.clientWidth,
+                    canvas.clientWidth - waterSpill * 2,
                     light.waterline + 10,
                     2,
                 );
@@ -451,6 +574,13 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         // sound the change, and switch the background from sea to piano or back
         sound.play(next === "destack" ? "destack" : "restack");
         sound.follow(next);
+
+        // send shards off the ice up into the planet's ring, or bring them home to the reforming ice
+        if (next === "destack") {
+            debris?.rise(shardOrigins());
+        } else {
+            debris?.fall();
+        }
 
         // shatter the ice as the water drains, or clump it together just before it returns
         ice?.breakTo(next === "destack" ? 1 : 0, next === "destack" ? 0 : reformDelay);
@@ -472,24 +602,90 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
 
     // start the ice, water, and searchlight once the figure is in the page
     onSettled(() => {
+        // fit the switch's bar to each word once the poster face has loaded
+        const fitBar = () => {
+            toggle.style.setProperty("--stack-width", `${stackWord.offsetWidth}px`);
+            toggle.style.setProperty("--destack-width", `${destackWord.offsetWidth}px`);
+        };
+        fitBar();
+
+        // draw the arrow from the promise's verb down to the switch, wherever the layout puts them
+        const aimArrow = () => {
+            // find the verb, or leave the arrow out on pages without it
+            const word = document.querySelector<HTMLElement>('[data-word="unify"]');
+            if (!word) {
+                return;
+            }
+
+            // run from under the word, bend down, and come in level with the switch
+            const origin = figure.getBoundingClientRect();
+            const from = word.getBoundingClientRect();
+            const to = toggle.getBoundingClientRect();
+            const start = {
+                x: (from.left + from.right) / 2 - origin.left,
+                y: from.bottom + 6 - origin.top,
+            };
+            const end = { x: to.left - 12 - origin.left, y: (to.top + to.bottom) / 2 - origin.top };
+            pointer.setAttribute(
+                "d",
+                `M${start.x} ${start.y} C${start.x} ${end.y} ${start.x + (end.x - start.x) * 0.4} ${end.y} ${end.x} ${end.y} M${end.x - 9} ${end.y - 6} L${end.x} ${end.y} L${end.x - 9} ${end.y + 6}`,
+            );
+        };
+        void document.fonts.ready.then(() => {
+            fitBar();
+            aimArrow();
+        });
+        window.addEventListener("resize", aimArrow);
+
         // read the motion preference and set the flotsam adrift
         const isStill = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
         drift();
         const scheme = window.matchMedia("(prefers-color-scheme: dark)");
 
-        // pick the water palette for the page theme
-        const palette = () => {
-            const theme = document.documentElement.dataset.theme;
-            const isDark = theme === "dark" || (theme === undefined && scheme.matches);
+        // swap one silo at a time while the stack is locked
+        const swapping = isStill
+            ? undefined
+            : setInterval(() => {
+                  if (!isOpen()) {
+                      setToday((today() + 1) % todayScenes.length);
+                  }
+              }, swapTime);
 
-            return isDark ? nightWater : paperWater;
-        };
+        // pick the water palette for the page theme
+        const palette = () => (isDarkPage() ? nightWater : paperWater);
 
         // start the ice and water, or leave the figure dry when the browser has no WebGL
         const waterline = () => (frame.height * dryRows) / layers.length;
-        const shift = () =>
-            drawing.getBoundingClientRect().left - canvas.getBoundingClientRect().left;
-        let riders: { element: HTMLElement; berg: number; lift: number }[] | undefined;
+        const masses = columnCentres.map(() => ({ lift: 0, sway: 0, tilt: 0, at: 0 }));
+        let riders:
+            | { element: HTMLElement; berg: number; lift: number; rest: number; height: number }[]
+            | undefined;
+        let sunk: { element: HTMLElement; berg: number; depth: number }[] | undefined;
+
+        // float a heavy berg on the waves: heave and lean a little with the water under it, and slide slowly to and fro
+        const bobOf = (berg: number, seconds: number): Bob => {
+            // read the waves under the berg's centre
+            const x = frame.shift + (frame.width / boardCells) * columnCentres[berg];
+            const heave = Math.sin(seconds * 0.45 + berg * 2.1) * 1.5;
+            const slope = waveAt(x + 60, seconds) - waveAt(x - 60, seconds);
+            const target = {
+                lift: waveAt(x, seconds) * 0.6 + heave,
+                sway: Math.sin(seconds * 0.25 + berg * 2.4) * swayRange,
+                tilt:
+                    ((Math.atan2(slope, 120) * 180) / Math.PI) * 0.5 +
+                    Math.sin(seconds * 0.3 + berg * 1.4) * 0.7,
+            };
+
+            // ease the heavy berg toward what the water asks of it
+            const state = masses[berg];
+            const step = state.at === 0 ? 1 : 1 - Math.exp(-(seconds - state.at) / bergInertia);
+            state.at = seconds;
+            state.lift += (target.lift - state.lift) * step;
+            state.sway += (target.sway - state.sway) * step;
+            state.tilt += (target.tilt - state.tilt) * step;
+
+            return { lift: state.lift, sway: state.sway, tilt: state.tilt };
+        };
 
         // return the bottom of a card's resting place, ignoring drag and float offsets
         const restingBottom = (element: HTMLElement) => {
@@ -502,6 +698,8 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             return bottom;
         };
         let strips: SVGElement[] | undefined;
+        const tapeCentres: Point[] = columnCentres.map(() => ({ x: 0, y: 0 }));
+        const tapeTilts: number[] = columnCentres.map(() => 0);
 
         // stick a tape to where its cards actually are, then span, turn, and stretch it
         const stick = (tape: SVGElement, gap: number, centres: Point[], tilts: number[]) => {
@@ -530,48 +728,77 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         measure();
         try {
             const centres = columnCentres.map((centre) => centre / boardCells);
-            ice = new Ice(iceCanvas, centres, !isStill, () => {
-                // collect the floating vendor cards once
+            ice = new Ice(iceCanvas, centres, !isStill, bobOf, () => {
+                // collect the cards riding the bergs and the cards sunk inside them, once
                 riders ??= [...figure.querySelectorAll<HTMLElement>("[data-bob]")].map(
-                    (element) => ({ element, berg: Number(element.dataset.bob), lift: 0 }),
+                    (element) => ({
+                        element,
+                        berg: Number(element.dataset.bob),
+                        lift: 0,
+                        rest: restingBottom(element),
+                        height: element.offsetHeight,
+                    }),
                 );
-
-                // float each vendor card low above its berg, heaving and leaning with the waves
-                const seconds = performance.now() / 1000;
+                sunk ??= [...figure.querySelectorAll<HTMLElement>("[data-sunk]")].map(
+                    (element) => ({
+                        element,
+                        berg: Number(element.dataset.sunk),
+                        depth: Number(element.dataset.depth),
+                    }),
+                );
+                const bobs = ice!.bobs;
                 const cell = frame.width / boardCells;
-                const bounds = drawing.getBoundingClientRect();
-                const centres: Point[] = [];
-                const tilts: number[] = [];
-                for (const rider of riders) {
-                    const x = shift() + cell * columnCentres[rider.berg];
-                    const rest = restingBottom(rider.element);
-                    const sink = waterline() - rest + rider.element.offsetHeight * cardDraft;
-                    const heave = Math.sin(seconds * 0.9 + rider.berg * 2.1) * 2;
-                    const slope = waveAt(x + 30, seconds) - waveAt(x - 30, seconds);
-                    rider.lift = sink + waveAt(x, seconds) + heave;
-                    tilts[rider.berg] =
-                        (Math.atan2(slope, 60) * 180) / Math.PI +
-                        Math.sin(seconds * 0.6 + rider.berg * 1.4) * 1.2;
-                    rider.element.style.setProperty("--lift", `${rider.lift.toFixed(2)}px`);
-                    rider.element.style.setProperty("--tilt", `${tilts[rider.berg].toFixed(2)}deg`);
 
-                    // find where the card actually is, dragged or floating, for its tapes
-                    const box = rider.element.getBoundingClientRect();
-                    centres[rider.berg] = {
-                        x: (box.left + box.right) / 2 - bounds.left,
-                        y: (box.top + box.bottom) / 2 - bounds.top,
+                // float each vendor card low above its berg, moving with it
+                for (const rider of riders) {
+                    // move the rider with its berg
+                    const bob = bobs[rider.berg];
+                    const sink = waterline() - rider.rest + rider.height * cardDraft;
+                    rider.lift = sink + bob.lift;
+                    tapeTilts[rider.berg] = bob.tilt;
+                    rider.element.style.setProperty("--lift", `${rider.lift.toFixed(2)}px`);
+                    rider.element.style.setProperty("--sway", `${bob.sway.toFixed(2)}px`);
+                    rider.element.style.setProperty("--tilt", `${bob.tilt.toFixed(2)}deg`);
+
+                    // work out where the showing silo floats, dragged or not, for its tapes, without reading the layout
+                    const card = rider.element.parentElement;
+                    if (!card || card.style.opacity === "0") {
+                        continue;
+                    }
+                    const [dragX = 0, dragY = 0] = card.style.translate
+                        .split(" ")
+                        .map((part) => Number.parseFloat(part));
+                    tapeCentres[rider.berg] = {
+                        x: cell * columnCentres[rider.berg] + bob.sway + dragX,
+                        y: rider.rest - rider.height + rider.lift + dragY,
                     };
                 }
                 strips ??= [...figure.querySelectorAll<SVGElement>("[data-tape]")];
                 for (const tape of strips) {
-                    stick(tape, Number(tape.dataset.tape), centres, tilts);
+                    stick(tape, Number(tape.dataset.tape), tapeCentres, tapeTilts);
+                }
+
+                // swing each sunk card around its berg's pivot on the waterline
+                const row = frame.height / layers.length;
+                for (const card of sunk) {
+                    const bob = bobs[card.berg];
+                    const angle = (bob.tilt * Math.PI) / 180;
+                    const depth = row * (card.depth + 0.5);
+                    const x = bob.sway - depth * Math.sin(angle);
+                    const y = bob.lift + depth * Math.cos(angle) - depth;
+                    card.element.style.translate = `${x.toFixed(2)}px ${y.toFixed(2)}px`;
+                    card.element.style.rotate = `${bob.tilt.toFixed(2)}deg`;
                 }
             });
-            ice.place(waterline(), frame.height - waterline(), shift());
+            ice.place(waterline(), frame.height - waterline(), frame.shift);
             water = new Water(canvas, palette(), waterlineOf(stack()), !isStill, follow);
             if (!isStill) {
+                debris = new Debris(debrisCanvas, orbitOf);
                 sparks = new Sparks(sparkCanvas);
-                sparks.drain = { x: canvas.clientWidth * drainAt, y: canvas.clientHeight + 30 };
+                sparks.drain = {
+                    x: canvas.clientWidth * drainAt - waterSpill,
+                    y: canvas.clientHeight + 30,
+                };
             }
             water.shader.request();
         } catch (error) {
@@ -584,15 +811,16 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         themes.observe(document.documentElement, { attributeFilter: ["data-theme"] });
         scheme.addEventListener("change", repaint);
         const resize = new ResizeObserver(() => {
+            // measure the drawing again, forget the riders' resting places, and float everything anew
             measure();
-            ice?.place(waterline(), frame.height - waterline(), shift());
+            riders = undefined;
+            ice?.place(waterline(), frame.height - waterline(), frame.shift);
             water?.place(waterlineOf(stack()));
         });
         resize.observe(drawing);
 
         // swing the searchlight after the pointer and show inside the boxes it falls on
         let beam: number | undefined;
-        let isLooking = false;
         const shine = () => {
             // schedule the next frame, and rest while the light is out
             beam = requestAnimationFrame(shine);
@@ -603,7 +831,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             // measure the boxes with an inside, and light up only under water or over a visible box
             const bounds = figure.getBoundingClientRect();
             const boxes = [...figure.querySelectorAll<HTMLElement>("[data-inside]")];
-            const places = boxes.map((box) => box.getBoundingClientRect());
+            const places = boxes.map((box) => box.parentElement!.getBoundingClientRect());
             const pointer = { x: light.target.x + bounds.left, y: light.target.y + bounds.top };
             const isOverBox = places.some(
                 (place, index) =>
@@ -611,7 +839,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                     pointer.x <= place.right &&
                     pointer.y >= place.top &&
                     pointer.y <= place.bottom &&
-                    boxes[index].checkVisibility({ opacityProperty: true }),
+                    boxes[index].parentElement!.checkVisibility({ opacityProperty: true }),
             );
             const isUnderWater = !isOpen() && light.target.y > light.waterline;
             const goal = light.isOn && (isOverBox || isUnderWater) ? (isOpen() ? 72 : 96) : 0;
@@ -627,21 +855,28 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
 
             // move and size the lens, and light each box under it
             lens.style.opacity = radius > 0 ? "1" : "0";
-            if (radius > 0 !== isLooking) {
-                isLooking = radius > 0;
-                figure.style.setProperty("--looking", isLooking ? "running" : "paused");
-            }
             lens.style.translate = `${light.x - radius}px ${light.y - radius}px`;
             lens.style.width = `${radius * 2}px`;
             lens.style.height = `${radius * 2}px`;
-            water?.shine(light.x, light.y, radius);
+            water?.shine(light.x + waterSpill, light.y, radius);
             boxes.forEach((box, index) => {
-                box.style.setProperty(
-                    "--lens-x",
-                    `${light.x + bounds.left - places[index].left}px`,
+                // show only the insides the lens touches, and leave the rest out of the page's painting
+                const place = places[index];
+                const x = light.x + bounds.left;
+                const y = light.y + bounds.top;
+                const gap = Math.hypot(
+                    Math.max(place.left - x, 0, x - place.right),
+                    Math.max(place.top - y, 0, y - place.bottom),
                 );
-                box.style.setProperty("--lens-y", `${light.y + bounds.top - places[index].top}px`);
-                box.style.setProperty("--lens-radius", `${radius}px`);
+                const isLit = radius > 0 && gap < radius;
+                if (isLit !== box.hasAttribute("data-lit")) {
+                    box.toggleAttribute("data-lit", isLit);
+                }
+                if (isLit) {
+                    box.style.setProperty("--lens-x", `${x - place.left}px`);
+                    box.style.setProperty("--lens-y", `${y - place.top}px`);
+                    box.style.setProperty("--lens-radius", `${radius}px`);
+                }
             });
         };
 
@@ -669,7 +904,9 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             clearTimeout(settle);
             clearTimeout(calm);
             clearInterval(swirling);
+            clearInterval(swapping);
             sparks?.stop();
+            debris?.stop();
             if (beam !== undefined) {
                 cancelAnimationFrame(beam);
             }
@@ -684,15 +921,28 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             aria-label="Apps today compared with Destack"
             onPointerMove={aim}
             onPointerLeave={leave}
-            style={{ "--reveal-2": "0", "--reveal-3": "0", "--reveal-4": "0", "--reveal-5": "0" }}
+            style={{
+                "--reveal-2": "0",
+                "--reveal-3": "0",
+                "--reveal-4": "0",
+                "--reveal-5": "0",
+                "--card-shadow": isOpen() ? "#ff792e" : "#12313c",
+                "--card-marks": isOpen() ? "1" : "0",
+            }}
             {...stylex.attrs(lattice.frame, lattice.ruleBottom, styles.figure)}
         >
             {/* say what each layer lets you do, verb first */}
             <For each={layers}>
                 {(layer, index) => (
                     <div
-                        style={{ "--row": String(index() + 1) }}
-                        {...stylex.attrs(lattice.ruleRight, styles.claim)}
+                        data-universe
+                        style={{
+                            "--row": String(index() + 1),
+                            ...(index() < dryRows
+                                ? {}
+                                : { opacity: `calc(0.75 + 0.25 * var(--reveal-${index()}))` }),
+                        }}
+                        {...stylex.attrs(styles.claim)}
                     >
                         <span
                             style={numberOnWater(index())}
@@ -703,13 +953,24 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                         >
                             0{index() + 1} {layer.name}
                         </span>
-                        <Swap
-                            row={index()}
-                            isOpen={isOpen()}
-                            today={layer.claim.today}
-                            destack={layer.claim.destack}
-                            style={styles.claimText}
-                        />
+                        {/* set the verb and the things the layer is made of on one baseline */}
+                        <span {...stylex.attrs(styles.claimLine)}>
+                            <Swap
+                                row={index()}
+                                isOpen={isOpen()}
+                                today={layer.claim.today}
+                                destack={layer.claim.destack}
+                                style={styles.claimText}
+                            />
+                            <Swap
+                                row={index()}
+                                isOpen={isOpen()}
+                                today={layer.detail.today}
+                                destack={layer.detail.destack}
+                                isPlated
+                                style={styles.detailText}
+                            />
+                        </span>
                     </div>
                 )}
             </For>
@@ -729,32 +990,39 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                     {...stylex.attrs(styles.ice, !isPainted() && styles.unpainted)}
                 />
 
-                {/* join the shared layers with one wire down the middle, then fan out to the hosts */}
-                <Wire column={43.5} top={25} length={4} reveal={3} />
-                <Wire column={43.5} top={34} length={4} reveal={4} />
-                <Wire column={43.5} top={43} length={1.5} reveal={5} />
-                <span style={{ opacity: "var(--reveal-5)" }} {...stylex.attrs(styles.fanBar)} />
-                {columnLefts.map((left) => (
-                    <Wire column={left + 10.5} top={44.5} length={2.5} reveal={5} />
-                ))}
-
                 {/* place every entity on its row and column */}
-                {columnLefts.map((left) =>
-                    locked.map((entity, index) => (
+                {/* sink each silo's hidden layers inside its berg, showing only the silo that rides it now */}
+                {columnLefts.map((left, berg) =>
+                    [0, 1, 2, 3].map((index) => (
                         <div
+                            data-sunk={String(berg)}
+                            data-depth={String(index)}
                             style={{
                                 left: `calc(${tokens.cell} * ${left})`,
+                                width: `calc(${tokens.cell} * ${columnWidth})`,
                                 top: `calc(${tokens.cellRow} * ${(dryRows + index) * 9 + 4.5})`,
                                 opacity: `calc(1 - var(--reveal-${dryRows + index}))`,
                             }}
-                            {...stylex.attrs(styles.column)}
+                            {...stylex.attrs(styles.column, styles.sunkSlot)}
                         >
-                            <Card
-                                entity={entity}
-                                kind="locked"
-                                reveal={{ kind: "cipher" }}
-                                style={styles.fill}
-                            />
+                            {slotApps[berg].map((id) => (
+                                <div
+                                    class={
+                                        stylex.attrs(
+                                            styles.sunkCard,
+                                            todayScenes[today()].lower[berg].id !== id &&
+                                                styles.sunkAway,
+                                        ).class
+                                    }
+                                >
+                                    <Card
+                                        entity={locked[id][index]}
+                                        kind="locked"
+                                        reveal={{ kind: "cipher" }}
+                                        style={styles.fill}
+                                    />
+                                </div>
+                            ))}
                         </div>
                     )),
                 )}
@@ -762,11 +1030,8 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                     <DuctTape
                         label={tape}
                         gap={index}
-                        style={[
-                            styles.tape,
-                            index === 1 && styles.tapeRight,
-                            isOpen() ? styles.tapeGone : styles.tapeBack,
-                        ]}
+                        left={`calc(${tokens.cell} * ${(columnCentres[index] + columnCentres[index + 1]) / 2})`}
+                        style={[styles.tape, isOpen() ? styles.tapeGone : styles.tapeBack]}
                     />
                 ))}
                 {shared.map((entity, index) => (
@@ -774,21 +1039,22 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                         style={{
                             "--row": String(dryRows + index + 1),
                             "--cascade": `${820 + index * 220}ms`,
-                            "clip-path": `inset(-2px calc((1 - var(--reveal-${dryRows + index})) * 50%))`,
+                            "--band-reveal": `var(--reveal-${dryRows + index})`,
+                            ...growOutOfPlates(`var(--reveal-${dryRows + index})`),
                         }}
                         {...stylex.attrs(styles.band)}
                     >
                         <Band
                             entity={entity.entity}
                             items={entity.items}
-                            reveals={entity.reveals}
-                            active={isLive() ? traffic[scene()][index] : -1}
+                            active={isLive() ? activeOf(scene())[index] : []}
                         />
                     </div>
                 ))}
                 {/* move users, agents, and apps around freely over the layers below */}
                 <Remix
                     isOpen={isOpen()}
+                    today={today()}
                     isLive={isLive()}
                     revealOf={(row) => reveals[row]}
                     onScene={setScene}
@@ -797,8 +1063,9 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 {hosts.map((host, index) => (
                     <div
                         style={{
-                            left: `calc(${tokens.cell} * ${columnLefts[index]})`,
+                            left: `calc(${tokens.cell} * ${quarterLefts[index]})`,
                             top: `calc(${tokens.cellRow} * 49.5)`,
+                            width: `calc(${tokens.cell} * ${quarterWidth})`,
                             opacity: "var(--reveal-5)",
                             translate: "0 calc((1 - var(--reveal-5)) * 40%)",
                         }}
@@ -814,86 +1081,61 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 ))}
             </div>
 
-            {/* switch between today and Destack in the top right cell */}
+            {/* point from the promise's verb to the switch */}
+            <svg aria-hidden="true" {...stylex.attrs(styles.arrow)}>
+                <path ref={pointer} {...stylex.attrs(styles.arrowLine)} />
+            </svg>
+
+            {/* switch between today and Destack on a key hung across the seam above the drawing */}
             <button
+                data-universe
                 type="button"
                 role="switch"
                 aria-label="Destack"
                 aria-checked={isOpen() ? "true" : "false"}
                 onClick={() => select(isOpen() ? "today" : "destack")}
-                {...stylex.attrs(styles.switch, isOpen() && styles.switchOn)}
+                onPointerEnter={() => prime(true)}
+                onPointerLeave={() => prime(false)}
+                ref={toggle}
+                {...stylex.attrs(styles.switch)}
             >
-                <span aria-hidden="true" {...stylex.attrs(styles.switchName)}>
-                    <span {...stylex.attrs(styles.stacked)}>
-                        {[...stacked].map((letter, index) => (
-                            <span
-                                style={{
-                                    "--lean": `${crooked[index][0]}deg`,
-                                    "--sag": `${crooked[index][1]}px`,
-                                    "transition-delay": `${index * 35}ms`,
-                                    "animation-delay": `${-index * 0.41}s`,
-                                }}
-                                class={
-                                    stylex.attrs(styles.wobbly, isOpen() && styles.tumbled).class
-                                }
-                            >
-                                {letter}
-                            </span>
-                        ))}
-                    </span>
-                    <span {...stylex.attrs(styles.destacked, !isOpen() && styles.sunk)}>
-                        DESTACK
-                    </span>
-                </span>
+                {/* slide a bar under the chosen word, nudging toward Destack until it gets there */}
                 <span
                     aria-hidden="true"
-                    {...stylex.attrs(styles.track, isOpen() ? styles.trackOn : styles.trackOff)}
+                    {...stylex.attrs(styles.knob, isOpen() ? styles.knobOn : styles.knobNudge)}
                 >
-                    <span
-                        {...stylex.attrs(styles.knob, isOpen() ? styles.knobOn : styles.knobNudge)}
-                    />
+                    {/* draw a crooked line under the stack, and a straight one under Destack */}
+                    <svg
+                        viewBox="0 0 100 8"
+                        preserveAspectRatio="none"
+                        {...stylex.attrs(styles.scrawl, isOpen() && styles.scrawlGone)}
+                    >
+                        <path d="M1 4.5 C 20 2.5, 35 6, 55 4.5 S 85 3, 99 5" />
+                    </svg>
+                    <span {...stylex.attrs(styles.rule, isOpen() && styles.ruleShown)} />
                 </span>
                 <span
+                    ref={stackWord}
                     aria-hidden="true"
-                    {...stylex.attrs(styles.prompt, isOpen() && styles.hidden)}
+                    {...stylex.attrs(styles.key, styles.keyStack, !isOpen() && styles.keyOn)}
                 >
-                    Destack it
+                    {[...stackName].map((letter, index) => (
+                        <span
+                            style={{ translate: `0 ${jumble[index % jumble.length]}px` }}
+                            {...stylex.attrs(styles.jumbled)}
+                        >
+                            {letter}
+                        </span>
+                    ))}
                 </span>
-                <svg
+                <span
+                    ref={destackWord}
                     aria-hidden="true"
-                    viewBox="0 0 90 56"
-                    {...stylex.attrs(styles.swoosh, isOpen() && styles.hidden)}
+                    {...stylex.attrs(styles.key, styles.keyDestack, isOpen() && styles.keyOn)}
                 >
-                    <path
-                        d="M10 45 C 34 48, 52 38, 54 20"
-                        {...stylex.attrs(styles.swooshOutline)}
-                    />
-                    <path d="M10 45 C 34 48, 52 38, 54 20" {...stylex.attrs(styles.swooshShaft)} />
-                    <path d="M54 7 L45 22 L63 22 Z" {...stylex.attrs(styles.swooshHead)} />
-                </svg>
+                    Destack
+                </span>
             </button>
-
-            {/* name what each layer is made of */}
-            <For each={layers.slice(1)}>
-                {(layer, index) => (
-                    <div style={{ "--row": String(index() + 2) }} {...stylex.attrs(styles.detail)}>
-                        <Swap
-                            row={index() + 1}
-                            isOpen={isOpen()}
-                            today={`0${index() + 2} ${layer.topic.today}`}
-                            destack={`0${index() + 2} ${layer.topic.destack}`}
-                            style={styles.number}
-                        />
-                        <Swap
-                            row={index() + 1}
-                            isOpen={isOpen()}
-                            today={layer.detail.today}
-                            destack={layer.detail.destack}
-                            style={styles.detailText}
-                        />
-                    </div>
-                )}
-            </For>
 
             {/* stand in for the water until the shader paints its first frame */}
             <div
@@ -903,8 +1145,16 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             <canvas
                 ref={canvas}
                 aria-hidden="true"
+                style={{
+                    height: `calc(100% + ${waterSpill}px)`,
+                    left: `-${waterSpill}px`,
+                    width: `calc(100% + ${waterSpill * 2}px)`,
+                }}
                 {...stylex.attrs(styles.water, !isPainted() && styles.unpainted)}
             />
+
+            {/* carry shards of ice between the bergs and the planet's ring, over the whole page */}
+            <canvas ref={debrisCanvas} aria-hidden="true" {...stylex.attrs(styles.debris)} />
 
             {/* glow sparks and motes over the water */}
             <canvas ref={sparkCanvas} aria-hidden="true" {...stylex.attrs(styles.sparks)} />
@@ -920,19 +1170,41 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
     );
 }
 
-/** Draw one wire down a column of grid cells, from a row for a length in cells, as its row drains. */
-function Wire(properties: { column: number; top: number; length: number; reveal: number }) {
-    return (
-        <span
-            style={{
-                "--column": String(properties.column),
-                "--top": String(properties.top),
-                "--length": String(properties.length),
-                opacity: `var(--reveal-${properties.reveal})`,
-            }}
-            {...stylex.attrs(styles.wire)}
-        />
-    );
+/** Return the items each shared layer lights up in an open scene: the services its apps call, their stores, and its source step. */
+function activeOf(scene: number): readonly (readonly string[])[] {
+    // follow each app of the scene to its service and on to its store
+    const uses = scenes[scene].lower.flatMap((card) => appUses[card.id]);
+    const services = uses.map(([service]) => service);
+    const stores = uses.map(([, store]) => store);
+
+    return [services, stores, [sceneSources[scene], "Build"]];
+}
+
+/** Return the mask that grows a shared band out of the three plates sunk in its row: three windows over the plates that widen until they meet. */
+function growOutOfPlates(reveal: string): JSX.CSSProperties {
+    // widen each window from its plate's span to its third of the board, overlapping a little so no seam shows
+    const third = boardCells / 3;
+    const windows = columnLefts.map((left, index) => {
+        const end = index * third - 0.2;
+        return {
+            left: `calc(${tokens.cell} * (${left} + (${end - left}) * ${reveal}))`,
+            width: `calc(${tokens.cell} * (${columnWidth} + (${third + 0.4 - columnWidth}) * ${reveal}))`,
+        };
+    });
+    const layer = "linear-gradient(#000, #000)";
+
+    return {
+        opacity: `clamp(0, ${reveal} * 2.5 - 0.25, 1)`,
+        "mask-image": windows.map(() => layer).join(", "),
+        "mask-position": windows.map((window) => `${window.left} 0`).join(", "),
+        "mask-repeat": "no-repeat",
+        "mask-size": windows.map((window) => `${window.width} 100%`).join(", "),
+    };
+}
+
+/** Return the four layers a silo keeps under water, each labelled with who holds it. */
+function sunk(role: string, labels: readonly string[]): Entity[] {
+    return labels.map((label, index) => ({ label, icon: sunkIcons[index], role }));
 }
 
 /** Crossfade a row's text from today to Destack as the water leaves the row. */
@@ -941,30 +1213,52 @@ function Swap(properties: {
     isOpen: boolean;
     today: string;
     destack: string;
+    isPlated?: boolean;
     style?: stylex.Styles;
 }) {
+    // tell whether the row stays dry, and read how far the water has left it
     const isDry = properties.row < dryRows;
+
+    // set a thing as one dashed plate today, and as one plate per standard once open
+    const plated = (text: string, isOpen: boolean) =>
+        properties.isPlated ? (
+            <span {...stylex.attrs(styles.plates)}>
+                {(isOpen ? text.split(", ") : [text]).map((part) => (
+                    <span {...stylex.attrs(styles.plate, !isOpen && styles.plateClosed)}>
+                        {part}
+                    </span>
+                ))}
+            </span>
+        ) : (
+            text
+        );
     const reveal = `var(--reveal-${properties.row})`;
 
     return (
         <span {...stylex.attrs(styles.swap, properties.style)}>
             <span
-                style={isDry ? undefined : { opacity: `clamp(0, 1 - ${reveal} * 2, 1)` }}
+                style={{
+                    ...(isDry ? {} : { opacity: `clamp(0, 1 - ${reveal} * 2, 1)` }),
+                    "pointer-events": properties.isOpen ? "none" : "auto",
+                }}
                 {...stylex.attrs(
                     styles.swapText,
                     isDry && (properties.isOpen ? styles.swapOut : styles.swapReturn),
                 )}
             >
-                {properties.today}
+                {plated(properties.today, false)}
             </span>
             <span
-                style={isDry ? undefined : { opacity: `clamp(0, ${reveal} * 2 - 1, 1)` }}
+                style={{
+                    ...(isDry ? {} : { opacity: `clamp(0, ${reveal} * 2 - 1, 1)` }),
+                    "pointer-events": properties.isOpen ? "auto" : "none",
+                }}
                 {...stylex.attrs(
                     styles.swapText,
                     isDry && (properties.isOpen ? styles.swapIn : styles.swapLeave),
                 )}
             >
-                {properties.destack}
+                {plated(properties.destack, true)}
             </span>
         </span>
     );
@@ -977,27 +1271,19 @@ function numberOnWater(row: number): JSX.CSSProperties {
     }
 
     return {
-        color: `color-mix(in srgb, var(--destack-color-primary) calc(var(--reveal-${row}) * 100%), var(--destack-color-mutedForeground))`,
+        color: `color-mix(in srgb, var(--destack-color-primary) calc(var(--reveal-${row}) * 100%), var(--destack-color-foreground))`,
     };
 }
 
 /** The easing of the figure transitions. */
 const easing = "cubic-bezier(0.6, 0, 0.2, 1)";
 
-/** The easing of the switch knob, which overshoots and springs back. */
-const spring = "cubic-bezier(0.3, 1.3, 0.5, 1)";
-
-/** The nudge that hints at the stack switch. */
+/** The nudge of the switch's knob toward Destack, hinting that it wants to be switched. */
 const nudge = stylex.keyframes({
-    "0%, 84%, 100%": { transform: "translateX(0)" },
-    "90%": { transform: "translateX(0.25rem)" },
-    "95%": { transform: "translateX(0.0625rem)" },
-});
-
-/** The wobble of the crooked stack name letters. */
-const wobble = stylex.keyframes({
-    from: { transform: "rotate(-2deg) translateY(-0.5px)" },
-    to: { transform: "rotate(2deg) translateY(0.5px)" },
+    "0%, 80%, 100%": { translate: "0 0" },
+    "86%": { translate: "18% 0" },
+    "91%": { translate: "4% 0" },
+    "95%": { translate: "9% 0" },
 });
 
 /** The figure styles. */
@@ -1012,13 +1298,21 @@ const styles = stylex.create({
         display: "flex",
         flexDirection: "column",
         gap: "0.25rem",
-        gridColumn: "1 / span 2",
+        gridColumn: "9 / span 4",
         gridRow: "var(--row)",
         justifyContent: "center",
-        paddingInline: "1rem",
+        paddingInline: tokens.inset,
         position: "relative",
-        zIndex: 0,
+        zIndex: 3,
         [mobile]: { display: "none" },
+    },
+    claimLine: {
+        alignItems: "baseline",
+        columnGap: "1rem",
+        display: "flex",
+        flexWrap: "wrap",
+        justifyContent: "space-between",
+        rowGap: "0.375rem",
     },
     number: {
         color: color.mutedForeground,
@@ -1060,10 +1354,11 @@ const styles = stylex.create({
         fontSize: "1rem",
         fontWeight: 600,
         lineHeight: "1.375rem",
+        whiteSpace: "nowrap",
     },
     drawing: {
         display: "grid",
-        gridColumn: "3 / span 8",
+        gridColumn: "1 / span 8",
         gridRow: "1 / span 6",
         gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
         gridTemplateRows: "repeat(6, minmax(0, 1fr))",
@@ -1080,52 +1375,38 @@ const styles = stylex.create({
     fill: {
         width: "100%",
     },
+    sunkCard: {
+        gridArea: "1 / 1",
+        transition: `translate 900ms ${easing} 400ms`,
+        width: "100%",
+        [still]: { transition: "none" },
+    },
+    sunkSlot: {
+        overflow: "clip",
+    },
+    sunkAway: {
+        transitionDelay: "0ms",
+        translate: "0 110%",
+    },
     band: {
         alignItems: "center",
         display: "grid",
         gridColumn: "1 / -1",
         gridRow: "var(--row)",
-        paddingInline: `calc(${tokens.cell} * 6)`,
+        paddingInline: `calc(${tokens.cell} * 3)`,
         position: "relative",
         zIndex: 1,
     },
 
-    hidden: {
-        opacity: 0,
-        pointerEvents: "none",
-    },
-    wire: {
-        backgroundColor: color.primary,
-        height: `calc(${tokens.cellRow} * var(--length))`,
-        left: `calc(${tokens.cell} * var(--column) - 0.5px)`,
-        position: "absolute",
-        top: `calc(${tokens.cellRow} * var(--top))`,
-        width: "1px",
-        zIndex: 0,
-    },
-    fanBar: {
-        backgroundColor: color.primary,
-        height: "1px",
-        left: `calc(${tokens.cell} * 16.5)`,
-        position: "absolute",
-        top: `calc(${tokens.cellRow} * 44.5)`,
-        width: `calc(${tokens.cell} * 54)`,
-        zIndex: 0,
-    },
     column: {
-        display: "flex",
+        display: "grid",
         position: "absolute",
         transform: "translateY(-50%)",
-        width: `calc(${tokens.cell} * 22)`,
         zIndex: 1,
     },
     tape: {
-        left: `calc(${tokens.cell} * 30.5)`,
         top: `calc(${tokens.cellRow} * 13.5)`,
         [mobile]: { display: "none" },
-    },
-    tapeRight: {
-        left: `calc(${tokens.cell} * 57.5)`,
     },
     ice: {
         height: "100%",
@@ -1137,131 +1418,117 @@ const styles = stylex.create({
         zIndex: 0,
         [still]: { transition: "none" },
     },
-    switchOn: {
-        backgroundColor: tokens.signal,
-        color: tokens.signalInk,
-    },
-    trackOff: {
-        ":hover": { color: color.primary },
-    },
-    stacked: {
-        color: color.foreground,
-        display: "flex",
-        fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", cursive',
-        fontSize: "1rem",
-        whiteSpace: "pre",
-        fontWeight: 700,
-        gridArea: "1 / 1",
-        letterSpacing: "0.02em",
-    },
-    wobbly: {
-        animationDirection: "alternate",
-        animationDuration: "1.6s",
-        animationIterationCount: "infinite",
-        animationName: wobble,
-        animationTimingFunction: "ease-in-out",
-        display: "inline-block",
-        rotate: "var(--lean)",
-        transition: `opacity 300ms ${easing}, translate 420ms ${easing}, rotate 420ms ${easing}`,
-        translate: "0 var(--sag)",
-        [still]: { animationName: "none", transition: "none" },
-    },
-    tumbled: {
-        animationName: "none",
-        opacity: 0,
-        rotate: "calc(var(--lean) * 5)",
-        translate: "0 0.9em",
-    },
-    destacked: {
-        fontFamily: tokens.posterFont,
-        fontSize: "1.125rem",
-        gridArea: "1 / 1",
-        letterSpacing: "0.04em",
-        transition: `opacity 360ms ${easing} 180ms, translate 480ms ${easing} 180ms`,
-        [still]: { transition: "none" },
-    },
-    sunk: {
-        opacity: 0,
-        transitionDelay: "0ms",
-        translate: "0 -0.6em",
-    },
-    prompt: {
-        backgroundColor: tokens.signal,
-        borderColor: tokens.signalInk,
-        borderStyle: "solid",
-        borderWidth: "1.5px",
-        bottom: "-0.875rem",
-        color: tokens.signalInk,
-        fontFamily: tokens.monoFont,
-        fontSize: "0.75rem",
-        fontWeight: 700,
-        letterSpacing: "0.1em",
-        lineHeight: 1,
-        padding: "0.375rem 0.5rem",
-        position: "absolute",
-        right: "calc(0.25rem + 80px)",
-        textTransform: "uppercase",
-        transform: "rotate(-2deg)",
-        transition: `opacity 300ms ${easing}`,
-        whiteSpace: "nowrap",
-        zIndex: 3,
-        [mobile]: { bottom: "auto", right: "5.5rem", top: "calc(50% - 0.75rem)" },
-    },
-    swoosh: {
-        bottom: "-0.875rem",
-        height: "56px",
+    arrow: {
+        height: "100%",
+        inset: 0,
         overflow: "visible",
         pointerEvents: "none",
         position: "absolute",
-        right: "0.25rem",
-        transition: `opacity 300ms ${easing}`,
-        width: "90px",
-        zIndex: 3,
+        width: "100%",
+        zIndex: 6,
         [mobile]: { display: "none" },
     },
-    swooshOutline: {
-        fill: "none",
-        stroke: tokens.signalInk,
-        strokeLinecap: "round",
-        strokeWidth: 7.5,
-    },
-    swooshShaft: {
+    arrowLine: {
         fill: "none",
         stroke: tokens.signal,
         strokeLinecap: "round",
-        strokeWidth: 4.5,
-    },
-    swooshHead: {
-        fill: tokens.signal,
-        stroke: tokens.signalInk,
         strokeLinejoin: "round",
-        strokeWidth: 1.5,
+        strokeWidth: 3,
     },
-    switchName: {
-        display: "grid",
-        whiteSpace: "nowrap",
-    },
-    track: {
-        borderColor: "currentColor",
+    switch: {
+        backgroundColor: "var(--destack-color-background)",
+        borderColor: tokens.rule,
         borderStyle: "solid",
-        borderWidth: "1.5px",
-        display: "block",
-        height: "1.625rem",
-        position: "relative",
-        width: "3rem",
+        borderWidth: tokens.hairline,
+        color: color.foreground,
+        columnGap: "1.5rem",
+        cursor: "pointer",
+        display: "grid",
+        gridTemplateColumns: "auto auto",
+        left: `calc(${tokens.column} * 4)`,
+        paddingBlock: "0.5rem 0.375rem",
+        paddingInline: "1.25rem",
+        position: "absolute",
+        top: 0,
+        translate: "-50% -38%",
+        zIndex: 6,
+        [mobile]: {
+            gridColumn: "1 / -1",
+            justifySelf: "center",
+            left: "auto",
+            marginBlock: "0.75rem",
+            order: -2,
+            position: "relative",
+            translate: "none",
+        },
     },
-    trackOn: {
-        borderColor: tokens.signalInk,
+    key: {
+        fontFamily: tokens.posterFont,
+        fontSize: "0.9375rem",
+        letterSpacing: "0.1em",
+        lineHeight: 1,
+        opacity: 0.4,
+        paddingBottom: "0.4375rem",
+        textTransform: "uppercase",
+        transition: `opacity 300ms ${easing}`,
+    },
+    keyDestack: {
+        fontFamily: fontFamily.default,
+        fontSize: "0.9375rem",
+        fontWeight: 800,
+        letterSpacing: "0.08em",
+    },
+    keyStack: {
+        fontFamily: '"Comic Sans MS", "Chalkboard SE", "Comic Neue", cursive',
+        fontSize: "1rem",
+        fontWeight: 700,
+        letterSpacing: "0.02em",
+        textTransform: "none",
+    },
+    jumbled: {
+        display: "inline-block",
+    },
+    keyOn: {
+        opacity: 1,
     },
     knob: {
-        backgroundColor: "currentColor",
-        height: "1rem",
-        left: "0.1875rem",
+        bottom: "0.125rem",
+        color: color.foreground,
+        height: "0.5rem",
+        left: "1.25rem",
         position: "absolute",
-        top: "0.1875rem",
-        transition: `transform 520ms ${spring}, background-color 300ms ${easing}`,
-        width: "1rem",
+        transition: `translate 600ms cubic-bezier(0.5, 0, 0.15, 1.15), width 600ms cubic-bezier(0.5, 0, 0.15, 1.15), color 400ms ${easing}`,
+        width: "var(--stack-width)",
         [still]: { transition: "none" },
+    },
+    scrawl: {
+        fill: "none",
+        height: "100%",
+        inset: 0,
+        overflow: "visible",
+        position: "absolute",
+        stroke: "currentColor",
+        strokeLinecap: "round",
+        strokeWidth: 2,
+        transition: `opacity 250ms ${easing}`,
+        vectorEffect: "non-scaling-stroke",
+        width: "100%",
+    },
+    scrawlGone: {
+        opacity: 0,
+    },
+    rule: {
+        backgroundColor: "currentColor",
+        height: "2px",
+        left: 0,
+        opacity: 0,
+        position: "absolute",
+        right: 0,
+        top: "calc(50% - 1px)",
+        transition: `opacity 250ms ${easing} 350ms`,
+    },
+    ruleShown: {
+        opacity: 1,
     },
     knobNudge: {
         animationDuration: "4.5s",
@@ -1270,37 +1537,38 @@ const styles = stylex.create({
         [still]: { animationName: "none" },
     },
     knobOn: {
-        transform: "translateX(1.375rem)",
+        color: tokens.signal,
+        translate: "calc(var(--stack-width) + 1.5rem) 0",
+        width: "var(--destack-width)",
     },
-    switch: {
-        alignItems: "center",
+    plates: {
+        display: "flex",
+        gap: "0.375rem",
+        justifyContent: "flex-end",
+    },
+    plate: {
+        backgroundColor: tokens.cream,
+        borderColor: tokens.signalInk,
+        borderStyle: "solid",
+        borderWidth: "1.5px",
+        boxShadow: `2px 2px 0 var(--card-shadow, ${tokens.signalInk})`,
+        color: tokens.signalInk,
+        fontSize: "0.75rem",
+        lineHeight: 1,
+        paddingBlock: "0.3125rem",
+        paddingInline: "0.4375rem",
+        whiteSpace: "nowrap",
+    },
+    plateClosed: {
         backgroundColor: "transparent",
-        borderWidth: 0,
-        color: color.foreground,
-        cursor: "pointer",
-        display: "flex",
-        gridColumn: "11 / span 2",
-        gridRow: 1,
-        justifyContent: "space-between",
-        paddingInline: "1rem",
-        position: "relative",
-        transition: `background-color 300ms ${easing}, color 300ms ${easing}`,
-        zIndex: 2,
-        [mobile]: { gridColumn: "1 / -1", gridRow: "auto", minHeight: tokens.bar, order: -2 },
-    },
-    detail: {
-        display: "flex",
-        flexDirection: "column",
-        gap: "0.25rem",
-        gridColumn: "11 / span 2",
-        gridRow: "var(--row)",
-        justifyContent: "center",
-        paddingInline: "1rem",
-        position: "relative",
-        zIndex: 0,
-        [mobile]: { display: "none" },
+        cursor: "not-allowed",
+        borderColor: "currentColor",
+        borderStyle: "dashed",
+        boxShadow: "none",
+        color: "inherit",
     },
     detailText: {
+        marginLeft: "auto",
         color: color.foreground,
         fontFamily: tokens.monoFont,
         fontSize: "0.8125rem",
@@ -1358,6 +1626,14 @@ const styles = stylex.create({
     tapeBack: {
         transition: `opacity 400ms ${easing} 2100ms`,
     },
+    debris: {
+        height: "100%",
+        inset: 0,
+        pointerEvents: "none",
+        position: "fixed",
+        width: "100%",
+        zIndex: 5,
+    },
     sparks: {
         height: "100%",
         inset: 0,
@@ -1367,12 +1643,10 @@ const styles = stylex.create({
         zIndex: 3,
     },
     water: {
-        height: "100%",
-        inset: 0,
         pointerEvents: "none",
         position: "absolute",
+        top: 0,
         transition: `opacity 400ms ${easing}`,
-        width: "100%",
         zIndex: 2,
     },
 });

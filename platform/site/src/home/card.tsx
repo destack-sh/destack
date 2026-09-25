@@ -1,4 +1,4 @@
-import { color, fontFamily } from "@destack/theme/tokens.stylex";
+import { fontFamily } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
 import { For } from "@destack/view";
 
@@ -6,6 +6,17 @@ import { tokens } from "../style/tokens.stylex";
 
 /** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
+
+/** The orange corner marks around a card on the open stack: two strokes at each corner. */
+const cornerMarks = ["0 0", "100% 0", "0 100%", "100% 100%"]
+    .flatMap((corner) => [
+        `linear-gradient(#ff792e, #ff792e) ${corner} / 9px 1.5px`,
+        `linear-gradient(#ff792e, #ff792e) ${corner} / 1.5px 9px`,
+    ])
+    .join(", ");
+
+/** How far a shared item has risen into its band, from 0 to 1: after the band opens past its middle, one item after another. */
+const itemEntry = "var(--band-reveal, 1) * 4 - 1.6 - var(--item, 0) * 0.45";
 
 /** What a box shows under the searchlight. */
 export type Reveal =
@@ -16,16 +27,8 @@ export type Reveal =
     /** Ciphertext from a closed vendor. */
     | { kind: "cipher" };
 
-/** The lines a searchlight column shows at once before it scrolls. */
-const visibleLines = 3;
-
 /** The ciphertext every closed box shows. */
-const cipher = [
-    "9f3a c17e 5b21 d4a0 88e1",
-    "03bd e2f4 7a90 1c6e 4f28",
-    "b7d1 56c0 e93a 2f8b 0d74",
-    "6ae2 f105 3c9d 8b47 e0a6",
-];
+const cipher = ["9f3a c17e 5b21 d4a0 88e1", "03bd e2f4 7a90 1c6e 4f28", "b7d1 56c0 e93a 2f8b 0d74"];
 
 /** The tokens a code line highlights: strings, line marks, keys, keywords and hashes, and punctuation. */
 const tokenPattern =
@@ -42,6 +45,10 @@ export type Entity = {
     icon: string;
     /** The short role printed above the label, such as agent or app. */
     role: string;
+    /** The icon tile's colour, or ink by default. */
+    tint?: string;
+    /** The icon's colour on its tile, or cream by default. */
+    glyph?: string;
 };
 
 /** Render an entity as a card with an icon chip and a label. */
@@ -62,22 +69,7 @@ export function Card(properties: {
                 ).class
             }
         >
-            <span
-                class={
-                    stylex.attrs(
-                        styles.chip,
-                        properties.kind === "vendor" && styles.vendorChip,
-                        properties.kind === "locked" && styles.lockedChip,
-                    ).class
-                }
-            >
-                <span
-                    style={{
-                        "mask-image": `url(/diagram/${properties.kind === "locked" ? "lock" : properties.entity.icon}.svg)`,
-                    }}
-                    {...stylex.attrs(styles.icon)}
-                />
-            </span>
+            <Tile entity={properties.entity} isLocked={properties.kind === "locked"} />
             <span {...stylex.attrs(styles.text)}>
                 <span {...stylex.attrs(styles.role)}>{properties.entity.role}</span>
                 <span {...stylex.attrs(styles.label)}>{properties.entity.label}</span>
@@ -87,22 +79,40 @@ export function Card(properties: {
     );
 }
 
+/** Render an entity's icon on a rounded tile in its own colour, or as an outlined lock when locked away. */
+function Tile(properties: { entity: Entity; isLocked?: boolean }) {
+    return (
+        <span
+            style={
+                properties.isLocked
+                    ? undefined
+                    : {
+                          "background-color": properties.entity.tint ?? tokens.signalInk,
+                          color: properties.entity.glyph ?? tokens.cream,
+                      }
+            }
+            class={stylex.attrs(styles.chip, properties.isLocked && styles.lockedChip).class}
+        >
+            <span
+                style={{
+                    "mask-image": `url(/diagram/${properties.isLocked ? "lock" : properties.entity.icon}.svg)`,
+                }}
+                {...stylex.attrs(styles.icon)}
+            />
+        </span>
+    );
+}
+
 /** Render a layer shared by every app as one wide card listing what it holds. */
 export function Band(properties: {
     entity: Entity;
-    items: readonly Entity[];
-    active: number;
-    reveals: readonly Reveal[];
+    items: readonly (Entity & { reveal: Reveal })[];
+    active: readonly string[];
 }) {
     return (
         <div {...stylex.attrs(styles.card, styles.band)}>
-            <span {...stylex.attrs(styles.chip)}>
-                <span
-                    style={{ "mask-image": `url(/diagram/${properties.entity.icon}.svg)` }}
-                    {...stylex.attrs(styles.icon)}
-                />
-            </span>
-            <span {...stylex.attrs(styles.text)}>
+            <Tile entity={properties.entity} />
+            <span {...stylex.attrs(styles.text, styles.bandText)}>
                 <span {...stylex.attrs(styles.role)}>{properties.entity.role}</span>
                 <span {...stylex.attrs(styles.label)}>{properties.entity.label}</span>
             </span>
@@ -110,23 +120,26 @@ export function Band(properties: {
                 <For each={properties.items}>
                     {(item, index) => (
                         <span
+                            style={{ "--item": String(index()) }}
+                            data-item={item.label}
+                            data-live={properties.active.includes(item.label) ? "" : undefined}
                             class={
                                 stylex.attrs(
                                     styles.item,
-                                    properties.active === index() && styles.itemActive,
+                                    properties.active.includes(item.label) && styles.itemActive,
                                 ).class
                             }
                         >
-                            <span
-                                style={{ "mask-image": `url(/diagram/${item.icon}.svg)` }}
-                                {...stylex.attrs(styles.itemIcon)}
-                            />
-                            {item.label}
+                            <Tile entity={item} />
+                            <span {...stylex.attrs(styles.text)}>
+                                <span {...stylex.attrs(styles.role)}>{item.role}</span>
+                                <span {...stylex.attrs(styles.label)}>{item.label}</span>
+                            </span>
+                            <Reveals reveals={[item.reveal]} />
                         </span>
                     )}
                 </For>
             </span>
-            <Reveals reveals={properties.reveals} />
         </div>
     );
 }
@@ -142,29 +155,21 @@ function Reveals(properties: { reveals: readonly Reveal[] }) {
     );
 }
 
-/** Render one column of a reveal, scrolling on a loop when it holds more than fits. */
+/** Render one column of a reveal: a file name for code, then its three lines. */
 function RevealColumn(properties: { reveal: Reveal }) {
-    // scroll the rows on a loop when they overflow the card
-    const rows = revealRows(properties.reveal);
-    const isScrolling = rows.length > visibleLines;
-    const timing = { "animation-duration": `${rows.length * 1.8}s` };
-
     return (
-        <span class={stylex.attrs(styles.column, !isScrolling && styles.columnStill).class}>
+        <span class={stylex.attrs(styles.column, styles.columnStill).class}>
             {properties.reveal.kind === "code" && (
                 <span class={stylex.attrs(styles.name).class}>{properties.reveal.name}</span>
             )}
             <span
-                style={isScrolling ? timing : undefined}
                 class={
                     stylex.attrs(
                         properties.reveal.kind === "fields" ? styles.fieldTrack : styles.track,
-                        isScrolling && styles.trackScrolling,
                     ).class
                 }
             >
-                {rows}
-                {isScrolling && revealRows(properties.reveal)}
+                {revealRows(properties.reveal)}
             </span>
         </span>
     );
@@ -224,7 +229,12 @@ function highlight(line: string): Token[] {
 }
 
 /** Render a strip of duct tape with torn ends and a scrawled label. */
-export function DuctTape(properties: { label: string; gap: number; style?: stylex.Styles }) {
+export function DuctTape(properties: {
+    label: string;
+    gap: number;
+    left: string;
+    style?: stylex.Styles;
+}) {
     const outline =
         "M4 3 L2 6 L5 9 L1 12 L4 15 L1 18 L4 21 L3 23 L68 23 L70 20 L67 17 L71 14 L68 11 L71 8 L68 5 L70 3 Z";
 
@@ -233,6 +243,7 @@ export function DuctTape(properties: { label: string; gap: number; style?: style
             aria-hidden="true"
             viewBox="0 0 72 26"
             data-tape={properties.gap}
+            style={{ left: properties.left }}
             {...stylex.attrs(styles.tape, properties.style)}
         >
             <path d={outline} {...stylex.attrs(styles.tapeStrip)} />
@@ -249,12 +260,6 @@ export function DuctTape(properties: { label: string; gap: number; style?: style
         </svg>
     );
 }
-
-/** The loop that scrolls an overflowing reveal. */
-const scroll = stylex.keyframes({
-    from: { transform: "translateY(0)" },
-    to: { transform: "translateY(-50%)" },
-});
 
 /** The colours of each highlighted token tone. */
 const tones = stylex.create({
@@ -278,21 +283,33 @@ const fieldTones: { [field: string]: stylex.Styles | undefined } = {
 const styles = stylex.create({
     card: {
         alignItems: "center",
-        backgroundColor: color.background,
-        borderColor: "color-mix(in srgb, currentColor 55%, transparent)",
+        backgroundColor: tokens.cream,
+        borderColor: tokens.signalInk,
         borderRadius: "0",
         borderStyle: "solid",
-        borderWidth: "1px",
-        color: color.foreground,
+        borderWidth: "2px",
+        boxShadow: `4px 4px 0 var(--card-shadow, ${tokens.signalInk})`,
+        color: tokens.signalInk,
         display: "flex",
         fontFamily: fontFamily.default,
-        gap: "0.75rem",
+        gap: "0.5rem",
         height: `calc(${tokens.cellRow} * 5)`,
-        paddingInline: "0.875rem 1rem",
+        paddingInline: "0.375rem 0.625rem",
         position: "relative",
+        transition: "box-shadow 600ms ease",
         whiteSpace: "nowrap",
         width: "max-content",
         zIndex: 1,
+        "::before": {
+            backgroundImage: cornerMarks,
+            backgroundRepeat: "no-repeat",
+            content: "''",
+            inset: "-7px",
+            opacity: "var(--card-marks, 0)",
+            pointerEvents: "none",
+            position: "absolute",
+            transition: "opacity 600ms ease",
+        },
         [mobile]: {
             flexDirection: "column",
             gap: "0.25rem",
@@ -304,80 +321,92 @@ const styles = stylex.create({
         },
     },
     vendorCard: {
-        backgroundColor: "#ffffff",
         color: tokens.signalInk,
     },
     lockedCard: {
-        backgroundColor: "rgb(255 255 255 / 30%)",
-        borderColor: `color-mix(in srgb, ${tokens.signalInk} 40%, transparent)`,
-        borderStyle: "dashed",
+        backgroundColor: `color-mix(in srgb, ${tokens.cream} 18%, transparent)`,
+        borderColor: `color-mix(in srgb, ${tokens.signalInk} 70%, transparent)`,
+        borderWidth: "1.5px",
+        boxShadow: "none",
         color: tokens.signalInk,
+        cursor: "not-allowed",
+        opacity: 0.8,
     },
     band: {
-        borderColor: "color-mix(in srgb, currentColor 55%, transparent)",
+        boxShadow: "none",
         height: `calc(${tokens.cellRow} * 5)`,
         width: "100%",
-        paddingInline: "0.875rem",
+        paddingBlock: 0,
+        paddingInlineEnd: 0,
         [mobile]: { flexDirection: "row", height: "2.75rem", paddingBlock: 0 },
     },
+    bandText: {
+        flexShrink: 0,
+        width: "8.25rem",
+    },
     items: {
-        display: "flex",
-        gap: "0.375rem",
-        marginLeft: "auto",
+        alignSelf: "stretch",
+        display: "grid",
+        flexGrow: 1,
+        gridAutoColumns: "minmax(0, 1fr)",
+        gridAutoFlow: "column",
+        marginLeft: "0.75rem",
         [mobile]: { display: "none" },
     },
     item: {
+        position: "relative",
         alignItems: "center",
-        borderColor: "color-mix(in srgb, currentColor 30%, transparent)",
-        borderStyle: "solid",
-        borderWidth: "1px",
-        color: color.foreground,
+        borderLeftColor: tokens.signalInk,
+        borderLeftStyle: "solid",
+        borderLeftWidth: "2px",
+        boxShadow: `inset 0 0 0 ${tokens.signal}`,
+        color: tokens.signalInk,
         display: "flex",
-        fontSize: "0.8125rem",
-        fontWeight: 500,
-        gap: "0.375rem",
-        paddingBlock: "0.25rem",
-        paddingInline: "0.4375rem 0.5625rem",
-        transition: "color 700ms ease, border-color 700ms ease",
+        fontSize: "0.75rem",
+        fontWeight: 600,
+        gap: "0.5rem",
+        minWidth: 0,
+        paddingInline: "0.75rem",
+        transition: "box-shadow 500ms ease, opacity 500ms ease, filter 500ms ease",
         transitionDelay: "var(--cascade, 0ms)",
+        opacity: `clamp(0, ${itemEntry}, 1)`,
+        translate: `0 calc((1 - clamp(0, ${itemEntry}, 1)) * 0.75rem)`,
         whiteSpace: "nowrap",
     },
-    itemIcon: {
-        backgroundColor: "currentColor",
-        flexShrink: 0,
-        height: "1rem",
-        maskPosition: "center",
-        maskRepeat: "no-repeat",
-        maskSize: "contain",
-        width: "1rem",
-    },
     itemActive: {
-        borderColor: tokens.signal,
-        color: tokens.signal,
+        boxShadow: `inset 0 -5px 0 ${tokens.signal}`,
     },
     chip: {
+        opacity: "var(--ink, 1)",
+        transition: "opacity var(--ink-time, 0ms) ease var(--ink-delay, 0ms)",
         alignItems: "center",
+        borderRadius: "6px",
+        boxShadow: `inset 0 0 0 1.5px color-mix(in srgb, ${tokens.signalInk} 22%, transparent)`,
         display: "flex",
         flexShrink: 0,
-        height: "1.5rem",
+        height: "1.625rem",
         justifyContent: "center",
-        width: "1.5rem",
-    },
-    vendorChip: {
-        color: tokens.signalInk,
+        width: "1.625rem",
     },
     lockedChip: {
-        opacity: 0.8,
+        backgroundColor: "transparent",
+        borderColor: "currentColor",
+        borderStyle: "solid",
+        borderWidth: "1.5px",
+        color: tokens.signalInk,
     },
     icon: {
         backgroundColor: "currentColor",
-        height: "1.5rem",
+        height: "1.125rem",
         maskPosition: "center",
         maskRepeat: "no-repeat",
         maskSize: "contain",
-        width: "1.5rem",
+        width: "1.125rem",
     },
+
     text: {
+        opacity: "var(--ink, 1)",
+        transition: "opacity var(--ink-time, 0ms) ease var(--ink-delay, 0ms)",
         display: "flex",
         flexDirection: "column",
         gap: "0.0625rem",
@@ -386,15 +415,15 @@ const styles = stylex.create({
     },
     role: {
         fontFamily: tokens.monoFont,
-        fontSize: "0.6875rem",
+        fontSize: "0.625rem",
         fontWeight: 500,
-        letterSpacing: "0.1em",
+        letterSpacing: "0.06em",
         opacity: 0.78,
         textTransform: "uppercase",
     },
     label: {
         fontSize: "0.875rem",
-        fontWeight: 600,
+        fontWeight: 700,
         [mobile]: { fontSize: "0.6875rem" },
     },
     reveals: {
@@ -445,13 +474,6 @@ const styles = stylex.create({
         columnGap: "0.5rem",
         display: "grid",
         gridTemplateColumns: "max-content 1fr",
-    },
-    trackScrolling: {
-        animationIterationCount: "infinite",
-        animationName: scroll,
-        animationPlayState: "var(--looking, paused)",
-        animationTimingFunction: "linear",
-        "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
     },
     line: {
         minHeight: "0.8125rem",

@@ -3,6 +3,8 @@ import * as stylex from "@destack/style";
 
 import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
+import { stillStars } from "../effect/goo";
+import { Install } from "./install";
 import { Plate } from "./plate";
 
 /** The media query for phone-width screens. */
@@ -11,50 +13,77 @@ const mobile = "@media (max-width: 767px)";
 /** The promise's width in ems, so its size can be set to span the wordmark exactly. */
 const promiseMeasure = 23.66;
 
+/** The promise, word by word, so each word can turn with the universe on its own. */
+const promise = "to unify all your apps and agents with one open stack".split(" ");
+
 /** The wordmark's syllables, set apart by a dictionary dot. */
 const syllables = ["DE", "STACK"];
 
-/** Introduce Destack as a poster: the wordmark and promise on the left, the plate on the right. */
+/** Introduce Destack as a poster: the wordmark and promise on the left, the plate with the download on the right. */
 export function Hero() {
     return (
         <section {...stylex.attrs(lattice.frame, lattice.ruleBottom, styles.hero)}>
             {/* spread the wordmark across its cell, letter by letter */}
             <h1
+                data-universe="parts"
                 aria-label="Destack"
                 {...stylex.attrs(lattice.ruleRight, lattice.ruleBottom, styles.wordmark)}
             >
                 {/* hang the dictionary dot on the end of the first syllable */}
                 {[...syllables[0]].map((letter, index) => (
                     <span aria-hidden="true">
-                        <span {...stylex.attrs(styles.letter)}>{letter}</span>
+                        <span
+                            style={{ "background-image": stillStars }}
+                            {...stylex.attrs(styles.letter)}
+                        >
+                            {letter}
+                        </span>
                         {index === syllables[0].length - 1 && (
                             <span {...stylex.attrs(styles.dot)} />
                         )}
                     </span>
                 ))}
                 {[...syllables[1]].map((letter) => (
-                    <span aria-hidden="true" {...stylex.attrs(styles.letter)}>
+                    <span
+                        aria-hidden="true"
+                        style={{ "background-image": stillStars }}
+                        {...stylex.attrs(styles.letter)}
+                    >
                         {letter}
                     </span>
                 ))}
             </h1>
 
             {/* define the word, then make the promise */}
-            <div {...stylex.attrs(lattice.ruleRight, styles.promise)}>
+            <div data-universe {...stylex.attrs(lattice.ruleRight, styles.promise)}>
                 <span {...stylex.attrs(styles.kicker)}>
                     <b {...stylex.attrs(styles.headword)}>de·stack</b>
                     <span {...stylex.attrs(styles.pronunciation)}>/diːˈstak/</span>
                     <i {...stylex.attrs(styles.partOfSpeech)}>verb</i>
                 </span>
-                <p {...stylex.attrs(styles.line)}>
-                    <span {...stylex.attrs(styles.to)}>to</span> unify all your apps and agents with{" "}
-                    <span {...stylex.attrs(styles.one)}>one</span> open stack
+                <p data-universe="parts" {...stylex.attrs(styles.line)}>
+                    {promise.map((word, index) => (
+                        <>
+                            {index > 0 && " "}
+                            <span data-word={word} {...stylex.attrs(word === "one" && styles.one)}>
+                                {word}
+                            </span>
+                        </>
+                    ))}
                 </p>
             </div>
-            <Plate style={styles.plate} />
+            <Plate style={styles.plate}>
+                <Install />
+            </Plate>
         </section>
     );
 }
+
+/** The slow drift of the starry space inside the wordmark's letters. */
+const drift = stylex.keyframes({
+    from: { backgroundPosition: "0 0" },
+    to: { backgroundPosition: "240px 120px" },
+});
 
 /** The hero styles. */
 const styles = stylex.create({
@@ -93,6 +122,7 @@ const styles = stylex.create({
         gridColumn: "1 / span 8",
         gridRow: 2,
         justifyContent: "center",
+        paddingBottom: "0.5rem",
         paddingInline: tokens.inset,
         [mobile]: {
             borderBottomColor: color.border,
@@ -105,8 +135,19 @@ const styles = stylex.create({
         },
     },
     letter: {
+        animationDuration: "90s",
+        animationIterationCount: "infinite",
+        animationName: drift,
+        animationTimingFunction: "linear",
+        backgroundAttachment: "fixed",
+        backgroundClip: "text",
+        backgroundColor: tokens.space,
+        color: "transparent",
         display: "inline-block",
         transform: "scaleX(1.2)",
+        WebkitBackgroundClip: "text",
+        WebkitTextStroke: `1.5px ${tokens.cream}`,
+        "@media (prefers-reduced-motion: reduce)": { animationName: "none" },
     },
     dot: {
         backgroundColor: tokens.signal,
@@ -145,9 +186,6 @@ const styles = stylex.create({
         whiteSpace: "nowrap",
         [mobile]: { fontSize: "clamp(1.125rem, 6vw, 1.75rem)", whiteSpace: "normal" },
     },
-    to: {
-        color: color.mutedForeground,
-    },
     one: {
         textDecorationColor: tokens.signal,
         textDecorationLine: "underline",
@@ -157,6 +195,6 @@ const styles = stylex.create({
     plate: {
         gridColumn: "9 / span 4",
         gridRow: "1 / span 2",
-        [mobile]: { aspectRatio: "3 / 2", gridColumn: "1 / -1", gridRow: "auto" },
+        [mobile]: { aspectRatio: "16 / 11", gridColumn: "1 / -1", gridRow: "auto" },
     },
 });

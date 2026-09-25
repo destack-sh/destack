@@ -3,6 +3,9 @@ import { Shader } from "./gl";
 /** The milliseconds the ice takes to shatter or reassemble. */
 const breakTime = 1200;
 
+/** How one berg floats at a moment: its rise below the waterline and slide across in CSS pixels, and its lean clockwise in degrees. */
+export type Bob = { lift: number; sway: number; tilt: number };
+
 /** The ice fragment shader. */
 const fragmentSource = `
 precision mediump float;
@@ -15,6 +18,7 @@ uniform float column;
 uniform float bulk;
 uniform float shatter;
 uniform vec3 bobs;
+uniform vec3 sways;
 uniform vec3 tilts;
 uniform float offset;
 
@@ -137,9 +141,9 @@ vec2 flight(vec2 shard, float index) {
 float surfaceAt(float x) {
     float figureX = x + offset;
     return waterline
-        + sin(figureX * 0.017 + time * 1.1) * 1.8
-        + sin(figureX * 0.043 - time * 1.6) * 0.8
-        + sin(figureX * 0.11 + time * 2.3) * 0.3;
+        + sin(figureX * 0.017 + time * 0.7) * 1.8
+        + sin(figureX * 0.043 - time * 1.0) * 0.8
+        + sin(figureX * 0.11 + time * 1.4) * 0.3;
 }
 
 // the outline ink
@@ -162,8 +166,9 @@ void main() {
         float index = float(i);
         float x = i == 0 ? centres.x : (i == 1 ? centres.y : centres.z);
         float lift = i == 0 ? bobs.x : (i == 1 ? bobs.y : bobs.z);
+        float sway = i == 0 ? sways.x : (i == 1 ? sways.y : sways.z);
         float tilt = i == 0 ? tilts.x : (i == 1 ? tilts.y : tilts.z);
-        vec2 p = frag - vec2(x, waterline + lift);
+        vec2 p = frag - vec2(x + sway, waterline + lift);
         p = mat2(cos(tilt), sin(tilt), -sin(tilt), cos(tilt)) * p;
 
         // skip pixels far outside this berg and its flying shards
@@ -206,7 +211,7 @@ void main() {
                     float crease = (1.0 - smoothstep(0.0, 0.04, cell.z)) * step(origin.y, 0.0) * 0.08;
                     vec3 color = mix(shade(origin, shard, origin.y < 0.0), ink, mix(crease, crack * 0.6, apart));
                     color = mix(color, ink, smoothstep(-1.6, -0.8, d) * 0.6);
-                    float alpha = 1.0 - smoothstep(0.55, 1.0, shatter);
+                    float alpha = 1.0 - smoothstep(0.08, 0.4, shatter);
                     gl_FragColor = vec4(color * alpha, alpha);
                     return;
                 }
@@ -234,12 +239,14 @@ export class Ice {
     broke: number;
     /** Whether the ice moves. */
     isMoving: boolean;
-    /** The animation start time in milliseconds. */
-    start: number;
     /** The drawing's left edge within the water canvas, so both share one set of waves. */
     offset: number;
     /** The centre of each berg as a fraction of the canvas width. */
     centres: readonly number[];
+    /** Return how a berg floats at a time in seconds, shared with everything riding on it. */
+    bobOf: (berg: number, seconds: number) => Bob;
+    /** How each berg floats in the current frame. */
+    bobs: Bob[];
     /** Run after every drawn frame, so things floating beside the ice move in step with it. */
     onFrame: () => void;
 
@@ -248,17 +255,19 @@ export class Ice {
         canvas: HTMLCanvasElement,
         centres: readonly number[],
         isMoving: boolean,
+        bobOf: (berg: number, seconds: number) => Bob,
         onFrame: () => void,
     ) {
         // start the shader and rest the ice whole
-        this.shader = new Shader(canvas, fragmentSource, 1.5, (now) => this.draw(now));
+        this.shader = new Shader(canvas, fragmentSource, 1, (now) => this.draw(now));
         this.waterline = 0;
         this.bulk = 0;
         this.from = 0;
         this.to = 0;
         this.broke = -breakTime;
         this.isMoving = isMoving;
-        this.start = performance.now();
+        this.bobOf = bobOf;
+        this.bobs = centres.map(() => ({ lift: 0, sway: 0, tilt: 0 }));
         this.onFrame = onFrame;
         this.offset = 0;
         this.centres = centres;
@@ -302,10 +311,12 @@ export class Ice {
         const column = width / 3;
         const shatter = this.shatterAt(now);
 
-        // bob and sway each berg on its own slow rhythm
-        const seconds = this.isMoving ? (now - this.start) / 1000 : 0;
-        const lifts = [0, 1, 2].map((index) => Math.sin(seconds * 0.9 + index * 2.1) * 4);
-        const tilts = [0, 1, 2].map((index) => Math.sin(seconds * 0.6 + index * 1.4) * 1.6);
+        // float each berg as one body with everything riding on it, or hold it still
+        const seconds = now / 1000;
+        this.bobs = this.centres.map((_, index) =>
+            this.isMoving ? this.bobOf(index, seconds) : { lift: 0, sway: 0, tilt: 0 },
+        );
+        const [first, second, third] = this.bobs;
         context.uniform1f(shader.uniform("time"), this.isMoving ? now / 1000 : 0);
         context.uniform1f(shader.uniform("offset"), this.offset);
         context.uniform1f(shader.uniform("waterline"), this.waterline);
@@ -314,12 +325,13 @@ export class Ice {
         context.uniform1f(shader.uniform("column"), column);
         context.uniform1f(shader.uniform("bulk"), this.bulk);
         context.uniform1f(shader.uniform("shatter"), Math.min(shatter, 0.999));
-        context.uniform3f(shader.uniform("bobs"), lifts[0], lifts[1], lifts[2]);
+        context.uniform3f(shader.uniform("bobs"), first.lift, second.lift, third.lift);
+        context.uniform3f(shader.uniform("sways"), first.sway, second.sway, third.sway);
         context.uniform3f(
             shader.uniform("tilts"),
-            (tilts[0] * Math.PI) / 180,
-            (tilts[1] * Math.PI) / 180,
-            (tilts[2] * Math.PI) / 180,
+            (-first.tilt * Math.PI) / 180,
+            (-second.tilt * Math.PI) / 180,
+            (-third.tilt * Math.PI) / 180,
         );
         this.onFrame();
 

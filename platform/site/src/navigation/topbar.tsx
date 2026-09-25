@@ -58,7 +58,11 @@ export function TopBar() {
                 </Goo>
 
                 {/* give each destination one two-column cell */}
-                <nav aria-label="Primary navigation" {...stylex.attrs(styles.navigation)}>
+                <nav
+                    data-universe="parts"
+                    aria-label="Primary navigation"
+                    {...stylex.attrs(styles.navigation)}
+                >
                     {primaryLinks.map(({ label, href, shortcut }) => (
                         <SiteLink
                             href={href}
@@ -75,8 +79,8 @@ export function TopBar() {
                     ))}
                 </nav>
 
-                {/* keep search, theme, sound, and the account together above the plate */}
-                <div {...stylex.attrs(styles.tools)}>
+                {/* keep search, theme, and sound together above the download */}
+                <div data-universe {...stylex.attrs(styles.tools)}>
                     <CommandPalette />
                     <ThemeToggle />
                     <SoundToggle />
@@ -106,12 +110,13 @@ export function TopBar() {
                             <path d="M4 6h16M4 12h16M4 18h16" />
                         </svg>
                     </button>
-
-                    {/* TODO #Incomplete: open the shared Destack account sign in once accounts are live */}
-                    <button type="button" disabled {...stylex.attrs(styles.account)}>
-                        Sign in
-                    </button>
                 </div>
+
+                {/* give the account its own cell at the right edge, above the agent setup */}
+                {/* TODO #Incomplete: open the shared Destack account sign in once accounts are live */}
+                <button type="button" disabled {...stylex.attrs(styles.account)}>
+                    Sign in
+                </button>
             </div>
             <Portal>
                 <dialog
@@ -198,7 +203,6 @@ const hover = { color: color.primary };
 /** The top bar styles. */
 const styles = stylex.create({
     root: {
-        backgroundColor: color.background,
         color: color.foreground,
     },
     bar: {
@@ -207,7 +211,7 @@ const styles = stylex.create({
         height: tokens.bar,
     },
     brandCell: {
-        gridColumn: "span 3",
+        gridColumn: "span 2",
         [mobile]: { gridColumn: "span 2" },
     },
     brand: {
@@ -245,19 +249,24 @@ const styles = stylex.create({
     tools: {
         alignItems: "center",
         display: "flex",
-        gridColumn: "span 3",
+        gridColumn: "9 / span 2",
+        justifyContent: "center",
         paddingInline: "0.75rem",
         [mobile]: { gridColumn: "span 2", justifyContent: "flex-end", paddingInline: "0.25rem" },
     },
     account: {
         backgroundColor: "transparent",
-        borderWidth: 0,
+        borderBottomWidth: 0,
+        borderLeftColor: tokens.rule,
+        borderLeftStyle: "solid",
+        borderLeftWidth: tokens.hairline,
+        borderRightWidth: 0,
+        borderTopWidth: 0,
         color: color.mutedForeground,
         cursor: "not-allowed",
         fontFamily: fontFamily.default,
         fontSize: "var(--size-navigation)",
-        marginLeft: "auto",
-        paddingInline: "0.75rem",
+        gridColumn: "11 / span 2",
         [mobile]: { display: "none" },
     },
     menuButton: {

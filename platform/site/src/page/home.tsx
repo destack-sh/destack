@@ -3,37 +3,29 @@ import { createSignal } from "@destack/view";
 import { travel } from "../effect/water";
 import { StackFigure } from "../home/figure";
 import { Hero } from "../home/hero";
-import { Install } from "../home/install";
 import { Seo } from "../site/seo";
 import { Shell } from "../site/shell";
 
 /** Render the public Destack homepage. */
 export function HomePage() {
-    // hold the lit download, the black hole flow, and its settle timer
-    const [isDestacked, setIsDestacked] = createSignal(false);
+    // hold the open stack, the black hole flow, and its settle timer
+    const [isOpen, setIsOpen] = createSignal(false);
     const [flow, setFlow] = createSignal(0);
     let settle: ReturnType<typeof setTimeout> | undefined;
 
     // run the water through the black hole while the figure drains or fills
     const change = (isOpen: boolean) => {
-        // light the download for good once open
-        if (isOpen) {
-            setIsDestacked(true);
-        }
+        // open or close the universe with the stack
+        setIsOpen(isOpen);
         clearTimeout(settle);
         setFlow(isOpen ? 1 : -1);
         settle = setTimeout(() => setFlow(0), travel);
     };
 
     return (
-        <Shell flow={flow()}>
-            <Seo
-                description={
-                    "Personal software platform. Software you can actually own, without giving up the modern web and the cloud."
-                }
-            />
+        <Shell flow={flow()} universe={isOpen()}>
+            <Seo />
             <Hero />
-            <Install isLit={isDestacked()} />
             <StackFigure onChange={change} />
         </Shell>
     );

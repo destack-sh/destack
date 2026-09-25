@@ -1,14 +1,12 @@
 import { Link, Meta, Title } from "@destack/view/document";
 
+import { tagline } from "../content/site";
+
 /** The canonical public site origin. */
 const siteUrl = "https://destack.sh";
 
 /** The site name used in metadata titles. */
 const siteTitle = "Destack";
-
-/** The default search and social description. */
-const siteDescription =
-    "Destack is a universal software engine: one language, one toolchain, and one runtime for libraries, services, and apps, compiled to native and the web.";
 
 /** Properties for page metadata. */
 type SeoProperties = {
@@ -36,7 +34,7 @@ export function Seo(properties: SeoProperties) {
     // resolve each metadata field, falling back to the site defaults
     const title = () =>
         properties.title == undefined ? siteTitle : `${properties.title} | ${siteTitle}`;
-    const description = () => properties.description ?? siteDescription;
+    const description = () => properties.description ?? tagline;
     const type = () => properties.type ?? "website";
     const url = () => `${siteUrl}${properties.path ?? "/"}`;
 

@@ -5,6 +5,11 @@ import { sound } from "../effect/sound";
 import { stir, waveAt } from "../effect/water";
 import { tokens } from "../style/tokens.stylex";
 
+/** How far in from each edge of the water the surface starts to dip away, in CSS pixels. */
+const edgeReach = 110;
+/** How deep the surface dips at the very edges of the water, deep enough to hide the largest piece, in CSS pixels. */
+const edgeDive = 90;
+
 /** The slowest drift, in CSS pixels per second. */
 const slowest = 9;
 /** The fastest drift, in CSS pixels per second. */
@@ -17,8 +22,6 @@ const splashChance = 0.12;
 const leastGap = 0.6;
 /** The length of the wire between a piece and its tag, in CSS pixels. */
 const wireLength = 44;
-/** The stretch at either edge of the water over which pieces and tags fade, in CSS pixels. */
-const edgeFade = 70;
 /** The pull of gravity on a thrown piece, in CSS pixels per second squared. */
 const gravity = 1400;
 /** The fastest a piece can be thrown, in CSS pixels per second. */
@@ -328,9 +331,13 @@ export function Flotsam(properties: {
             tags[index].textContent = pieces[index].tags[drift.tag];
         });
 
-        // return how visible something spanning across the water is, fading out before it meets either edge
-        const fade = (start: number, end: number) =>
-            Math.max(0, Math.min(1, (width() - end) / edgeFade, start / edgeFade));
+        // sink a piece and its tag together as the piece nears either edge, so it rises out of the water drifting in and dives under drifting out
+        const diveAt = (x: number) => {
+            const edge = Math.min(x, width() - x);
+            const near = Math.max(0, 1 - edge / edgeReach);
+
+            return edgeDive * near * near;
+        };
 
         // drift each piece along, riding and tilting with the waves, and send it round again with a new tag
         const loop = (now: number) => {
@@ -425,7 +432,9 @@ export function Flotsam(properties: {
                     const floatTop = rise - piece.height + piece.draft;
                     drifts[index].lift = Math.max(0, floatTop - (pointer.y - grip.y));
                 }
+                const dive = diveAt(middle);
                 const y =
+                    dive +
                     rise -
                     piece.height +
                     piece.draft +
@@ -484,19 +493,17 @@ export function Flotsam(properties: {
                 );
                 const dip =
                     sinking === undefined ? 0 : 16 * Math.sin(Math.min(1, sinking / 1.1) * Math.PI);
-                const top = waterTop - tagHeight + 3 + tether.rise * 48 + dip;
+                const top = dive + waterTop - tagHeight + 3 + tether.rise * 48 + dip;
 
-                // fade the piece, its tag, and the wire in and out at the edges of the water
-                const pieceFade = fade(x, x + piece.width);
-                const tagFade = fade(left, left + tagWidth);
+                // fade the piece, its tag, and the wire only as they sink, and let the water's edges clip them as they drift in and out
                 const sinkFade = sinking === undefined ? 1 : Math.max(0, 1 - sinking / sinkTime);
                 const strandFade =
                     sinking === undefined
                         ? 1
                         : Math.max(0, Math.min(1, (sinkTime + strandTime - sinking) / 1.2));
-                elements[index].style.opacity = String(pieceFade * sinkFade);
-                tag.style.opacity = String(tagFade * strandFade);
-                wires[index].style.opacity = String(Math.min(pieceFade, tagFade) * sinkFade);
+                elements[index].style.opacity = String(sinkFade);
+                tag.style.opacity = String(strandFade);
+                wires[index].style.opacity = String(sinkFade);
                 tag.style.transform = `translate(${left.toFixed(1)}px, ${top.toFixed(1)}px) rotate(${tilt.toFixed(2)}deg)`;
 
                 // run the wire from the hitch to the tag's grommet, sagging while slack
