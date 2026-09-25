@@ -77,13 +77,43 @@ export function TopBar() {
                             {label}
                         </SiteLink>
                     ))}
+
+                    {/* TODO #Incomplete: open the shared Destack account sign in once accounts are live */}
+                    <button
+                        type="button"
+                        disabled
+                        {...stylex.attrs(lattice.ruleRight, styles.account)}
+                    >
+                        Sign in
+                    </button>
                 </nav>
 
-                {/* keep search, theme, and sound together above the download */}
+                {/* keep search, theme, sound, and the account together on the right edge */}
                 <div data-universe {...stylex.attrs(styles.tools)}>
                     <CommandPalette />
                     <ThemeToggle />
                     <SoundToggle />
+                    <button
+                        type="button"
+                        disabled
+                        aria-label="Sign in"
+                        title="Sign in"
+                        {...stylex.attrs(styles.accountIcon)}
+                    >
+                        <svg
+                            aria-hidden="true"
+                            width="20"
+                            height="20"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.75"
+                            stroke-linecap="round"
+                        >
+                            <circle cx="12" cy="8" r="3.5" />
+                            <path d="M5 20c1-4 4-6 7-6s6 2 7 6" />
+                        </svg>
+                    </button>
                     <button
                         aria-label="Menu"
                         title="Menu"
@@ -111,12 +141,6 @@ export function TopBar() {
                         </svg>
                     </button>
                 </div>
-
-                {/* give the account its own cell at the right edge, above the agent setup */}
-                {/* TODO #Incomplete: open the shared Destack account sign in once accounts are live */}
-                <button type="button" disabled {...stylex.attrs(styles.account)}>
-                    Sign in
-                </button>
             </div>
             <Portal>
                 <dialog
@@ -249,25 +273,30 @@ const styles = stylex.create({
     tools: {
         alignItems: "center",
         display: "flex",
-        gridColumn: "9 / span 2",
-        justifyContent: "center",
+        gridColumn: "9 / span 4",
+        justifyContent: "flex-end",
         paddingInline: "0.75rem",
         [mobile]: { gridColumn: "span 2", justifyContent: "flex-end", paddingInline: "0.25rem" },
     },
     account: {
         backgroundColor: "transparent",
-        borderBottomWidth: 0,
-        borderLeftColor: tokens.rule,
-        borderLeftStyle: "solid",
-        borderLeftWidth: tokens.hairline,
-        borderRightWidth: 0,
-        borderTopWidth: 0,
+        borderWidth: 0,
         color: color.mutedForeground,
         cursor: "not-allowed",
         fontFamily: fontFamily.default,
         fontSize: "var(--size-navigation)",
-        gridColumn: "11 / span 2",
-        [mobile]: { display: "none" },
+    },
+    accountIcon: {
+        alignItems: "center",
+        backgroundColor: "transparent",
+        borderWidth: 0,
+        color: color.mutedForeground,
+        cursor: "not-allowed",
+        display: "inline-flex",
+        height: "2.75rem",
+        justifyContent: "center",
+        padding: 0,
+        width: "2.75rem",
     },
     menuButton: {
         alignItems: "center",
