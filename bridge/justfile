@@ -90,7 +90,7 @@ publish-vscode dry="--dry-run" prerelease="":
             exit 1; \
         fi; \
         prerelease="{{prerelease}}"; \
-        stability="$(node -p 'JSON.parse(require("node:fs").readFileSync("../dev/release/config.json", "utf8")).stability')"; \
+        stability="$(node -p 'JSON.parse(require("node:fs").readFileSync("../platform/release/config.json", "utf8")).stability')"; \
         if [ -z "${prerelease}" ] && [ "${stability}" != "stable" ]; then \
             prerelease="--pre-release"; \
         fi; \
