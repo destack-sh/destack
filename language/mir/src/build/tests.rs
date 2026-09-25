@@ -3,11 +3,12 @@ use destack_core::StringPool;
 use crate::build::ModuleBuilder;
 use crate::parse::{ParseOptions, Parser, test_file};
 use crate::{
-    Access, BinaryOperator, Callee, ExecutionScope, Extent, FenceAccess, FloatType, FormatOptions,
-    Formatter, GenericArgument, GenericParameter, GenericParameterDomain, Importer, Intrinsic,
-    LayoutBuilder, LayoutTable, Lifetime, MemoryOrdering, Multiplicity, Mutability, Place,
-    Projection, Reference, Space, StorageSet, Substitution, Symbol, TEST_MODULE, TargetLayout,
-    Tree, Type, TypeDeclaration, type_borrowed_paths, type_contains_borrowed_refs, type_lifetime,
+    Access, AddressKind, AddressStep, BinaryOperator, Callee, Descriptor, ExecutionScope, Extent,
+    FenceAccess, FloatType, FormatOptions, Formatter, Function, GenericArgument, GenericParameter,
+    GenericParameterDomain, Importer, Instruction, Intrinsic, LayoutBuilder, LayoutError,
+    LayoutTable, Lifetime, MemoryOrdering, Multiplicity, Mutability, Place, Projection, Reference,
+    Space, StorageSet, Substitution, Symbol, TEST_MODULE, TargetLayout, Tree, Type,
+    TypeDeclaration, Value, type_borrowed_paths, type_contains_borrowed_refs, type_lifetime,
 };
 
 /// Format one test MIR tree.
@@ -1731,6 +1732,126 @@ type Indirect = newtype<Identity<Wrap<int32>>>;";
             .unwrap();
         assert_eq!(layouts.layout(layout).size, size);
     }
+}
+
+/// Resolve each place projection into the address step its layout selects.
+#[test]
+fn test_resolve_address_steps() {
+    let file = test_file(
+        r#"
+type Meters = newtype<int64>;
+type Record { first: int32; second: int64; }
+type Choice = variant<uint1> { 0uint1 = int32; 1uint1 = int64; };
+
+function project(
+    v0: ref<Record, borrowed, 'static, readonly>,
+    v1: ptr<Meters, readonly>,
+    v2: slice<Record, borrowed, 'static, readonly>,
+    v3: ref<ref<Choice, borrowed, 'static, readonly>, borrowed, 'static, readonly>,
+    v4: function<() => void, repeatable, borrowed, 'static, readonly>,
+    v5: uint64
+): void {
+entry:
+    v6: int32 = load (*v0).0
+    v7: int64 = load (*v1).0
+    v8: int32 = load (*v2)[v5].0
+    v9: slice<Record, borrowed, 'static, readonly> = address (*v2)[v5; v5]
+    v10: int64 = load ((*(*v3)) as 1)
+    v11: function<() => void, repeatable, borrowed, 'static, readonly> = address (*v4)
+    return
+}
+"#,
+    );
+    let (tree, _) = Parser::parse(&file, ParseOptions::default())
+        .unwrap()
+        .finish()
+        .unwrap();
+    let mut layouts = LayoutTable::new();
+    LayoutBuilder::new(&tree, &mut layouts, TargetLayout::default())
+        .layout_reachable_types()
+        .unwrap();
+    let (function_id, function) = tree.iter_nodes::<Function>().next().unwrap();
+    let descriptor = |value: u32| {
+        let ty = function.value_type(Value(value)).unwrap();
+
+        Descriptor::new(ty, &tree, &layouts).unwrap()
+    };
+
+    // resolve the steps of every memory place in instruction order, int64 fields laid out first
+    let steps: Vec<_> = tree
+        .iter_nodes::<Instruction>()
+        .filter_map(|(_, instruction)| instruction.place())
+        .map(|place| {
+            layouts
+                .address_steps(place, function_id, &tree)
+                .unwrap()
+                .to_vec()
+        })
+        .collect();
+    let choice = function.value_type(Value(3)).unwrap();
+    let choice = tree.storage_type(choice);
+    let Type::Reference {
+        pointee: choice, ..
+    } = tree.type_definition(choice)
+    else {
+        unreachable!("v3 is a reference")
+    };
+    let choice = Descriptor::new(*choice, &tree, &layouts).unwrap();
+    assert_eq!(
+        steps,
+        [
+            vec![AddressStep::Follow(descriptor(0)), AddressStep::Offset(8)],
+            vec![AddressStep::Follow(descriptor(1)), AddressStep::Offset(0)],
+            vec![
+                AddressStep::Follow(descriptor(2)),
+                AddressStep::Index {
+                    index: Value(5),
+                    stride: 16,
+                    length: None,
+                },
+                AddressStep::Offset(8),
+            ],
+            vec![
+                AddressStep::Follow(descriptor(2)),
+                AddressStep::Index {
+                    index: Value(5),
+                    stride: 16,
+                    length: Some(Value(5)),
+                },
+            ],
+            vec![
+                AddressStep::Follow(descriptor(3)),
+                AddressStep::Follow(choice),
+                AddressStep::Offset(8),
+            ],
+            vec![AddressStep::Follow(descriptor(4))],
+        ]
+    );
+
+    // locate the address word of each descriptor form
+    assert_eq!(
+        [descriptor(1), descriptor(2), descriptor(4)].map(|descriptor| (
+            descriptor.kind,
+            descriptor.address,
+            descriptor.metadata
+        )),
+        [
+            (AddressKind::Pointer, 0, None),
+            (AddressKind::Reference, 0, Some(8)),
+            (AddressKind::Reference, 8, Some(0)),
+        ]
+    );
+
+    // reject the abstract elements of a slice
+    let place = Place::value(Value(2))
+        .with_projection(Projection::Deref)
+        .with_projection(Projection::Elements);
+    assert_eq!(
+        layouts.address_steps(&place, function_id, &tree),
+        Err(LayoutError::Unsupported {
+            construct: format!("the memory place {place:?}"),
+        })
+    );
 }
 
 /// Lay out projected storage while leaving unused and opaque pointees unlaid out.

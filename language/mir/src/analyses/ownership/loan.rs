@@ -2,7 +2,7 @@ use destack_core::BitSet;
 use smallvec::SmallVec;
 
 use crate::{
-    Access, ConstantTable, FunctionId, LocalNodeIdAny, Path, Place, PlaceOrigin, PlaceTable, Tree,
+    Access, ConstantTable, FunctionId, LocalNodeIdAny, Path, Place, PlaceTable, StorageSet, Tree,
     Value,
 };
 
@@ -41,8 +41,17 @@ pub struct Loan {
     parents: SmallVec<[LoanId; 2]>,
     /// The operation that issued the loan.
     pub issued_at: LocalNodeIdAny,
-    /// Whether the loan roots at a fresh allocation, reached through no other root when issued.
+    /// Whether the loan roots at a fresh allocation, addressed through no other root when issued.
     is_fresh: bool,
+}
+
+/// The storage one access touches.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum AccessTarget {
+    /// One precise place.
+    Place(Place),
+    /// Any storage of some spaces an unrelated operation may access.
+    Spaces(StorageSet),
 }
 
 /// Storage borrowed by one loan.
@@ -228,6 +237,7 @@ impl LoanTable {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 impl Loan {
     /// Create a loan over one concrete MIR place.
     pub fn new(
@@ -239,10 +249,7 @@ impl Loan {
         issued_at: LocalNodeIdAny,
         places: &PlaceTable,
     ) -> Self {
-        let is_fresh = match place.origin {
-            PlaceOrigin::Value(value) => places.is_fresh_at(value, issued_at),
-            _ => false,
-        };
+        let is_fresh = places.is_fresh_at(&place, issued_at);
 
         Self {
             target: LoanTarget::Place { place, source },
@@ -297,7 +304,15 @@ impl Loan {
         self.access.can_write()
     }
 
-    /// Return whether these loans exclude one another or permit invalidating a selected case.
+    /// Return whether this loan roots at a fresh allocation and one place roots elsewhere.
+    pub fn isolates(&self, place: &Place) -> bool {
+        self.is_fresh
+            && self
+                .place()
+                .is_some_and(|borrowed| borrowed.origin != place.origin)
+    }
+
+    /// Return whether these loans exclude one another, or one may retag or release the other.
     pub fn conflicts(
         &self,
         other: &Self,
@@ -307,22 +322,25 @@ impl Loan {
         tree: &Tree,
     ) -> bool {
         match (&self.target, &other.target) {
-            // address a fresh allocation through loans rooted at it alone
-            (LoanTarget::Place { place: left, .. }, LoanTarget::Place { place: right, .. })
-                if (self.is_fresh || other.is_fresh) && left.origin != right.origin =>
-            {
-                false
-            }
-            // preserve access guarantees and the validity of selected cases
+            // preserve access guarantees and the validity of selected cases both ways
             (LoanTarget::Place { place: left, .. }, LoanTarget::Place { place: right, .. }) => {
-                (self.access.conflicts(other.access)
-                    && left.may_overlap(right, constants, places, function, tree))
-                    || (self.writes()
-                        && left.may_replace_case(right, constants, places, function, tree))
-                    || (other.writes()
-                        && right.may_replace_case(left, constants, places, function, tree))
-                    || (self.writes() && left.may_replace_owner(right, function, tree))
-                    || (other.writes() && right.may_replace_owner(left, function, tree))
+                self.forbids_place(
+                    right,
+                    other.access,
+                    other.is_fresh,
+                    constants,
+                    places,
+                    function,
+                    tree,
+                ) || other.forbids_place(
+                    left,
+                    self.access,
+                    self.is_fresh,
+                    constants,
+                    places,
+                    function,
+                    tree,
+                )
             }
             // compare incoming loans by their parameter and structural path
             (
@@ -344,15 +362,84 @@ impl Loan {
         }
     }
 
+    /// Return whether one access to a target at one operation breaks this loan's guarantee.
+    ///
+    /// An access to some spaces breaks only a loan the caller knows those spaces expose.
+    pub fn forbids(
+        &self,
+        target: &AccessTarget,
+        access: Access,
+        at: LocalNodeIdAny,
+        constants: &ConstantTable,
+        places: &PlaceTable,
+        function: FunctionId,
+        tree: &Tree,
+    ) -> bool {
+        match target {
+            // violate the loan's access, or retag or release its place
+            AccessTarget::Place(place) => {
+                let is_fresh = places.is_fresh_at(place, at);
+
+                self.forbids_place(place, access, is_fresh, constants, places, function, tree)
+            }
+            // violate the loan's access in these spaces, or retag or release its place
+            AccessTarget::Spaces(spaces) => {
+                let Some(borrowed) = self.place() else {
+                    return false;
+                };
+                let representation = tree.get(function).expect_value_type(self.representation);
+                let loan_spaces = tree
+                    .type_definition(tree.storage_type(representation))
+                    .reference_storage_set()
+                    .unwrap_or(StorageSet::ANY);
+                let may_change = access.can_write()
+                    && !borrowed.is_constant(tree)
+                    && (borrowed.is_retaggable(function, tree)
+                        || borrowed.is_releasable(function, tree));
+
+                !spaces.is_disjoint(loan_spaces) && (self.access.conflicts(access) || may_change)
+            }
+        }
+    }
+
+    /// Return whether one access to a place breaks this loan's guarantee.
+    fn forbids_place(
+        &self,
+        place: &Place,
+        access: Access,
+        is_fresh: bool,
+        constants: &ConstantTable,
+        places: &PlaceTable,
+        function: FunctionId,
+        tree: &Tree,
+    ) -> bool {
+        let Some(borrowed) = self.place() else {
+            return false;
+        };
+
+        // address a fresh allocation through loans rooted at it alone
+        let is_writing = access.can_write();
+        let is_isolated = (self.is_fresh || is_fresh) && borrowed.origin != place.origin;
+        if is_isolated || !(is_writing || self.access.conflicts(access)) {
+            return false;
+        }
+
+        // compare the access, then what the write may retag or release
+        let is_overlapping = place.may_overlap(borrowed, constants, places, function, tree);
+        let may_change = is_writing
+            && !borrowed.is_constant(tree)
+            && (place.may_replace_case(borrowed, constants, places, function, tree)
+                || place.may_release(borrowed, is_overlapping, constants, places, function, tree));
+
+        (is_overlapping && self.access.conflicts(access)) || may_change
+    }
+
     /// Return whether this loan blocks one concrete place change.
     fn blocks(&self, place: &Place, may_overlap: &mut impl FnMut(&Place, &Place) -> bool) -> bool {
         match &self.target {
             LoanTarget::Place {
                 place: borrowed, ..
-            } if self.is_fresh && borrowed.origin != place.origin => false,
-            LoanTarget::Place {
-                place: borrowed, ..
-            } => may_overlap(borrowed, place),
+            } => !self.isolates(place) && may_overlap(borrowed, place),
             LoanTarget::Parameter { .. } => false,
         }
     }

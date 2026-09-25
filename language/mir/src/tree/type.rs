@@ -756,6 +756,38 @@ impl Type {
         matches!(self.reference_kind(), Some(Reference::Managed(_)))
     }
 
+    /// Return whether this reference addresses storage the heap retains: a handle or a managed borrow.
+    pub fn is_retained_reference(&self) -> bool {
+        match self.reference_kind() {
+            Some(Reference::Managed(_)) => true,
+            Some(Reference::Borrowed) => {
+                self.reference_lifetime().is_some_and(Lifetime::is_managed)
+            }
+            _ => false,
+        }
+    }
+
+    /// Return whether this handle or borrow may address storage the heap retains.
+    pub fn may_be_retained_reference(&self) -> bool {
+        match self.reference_kind() {
+            Some(Reference::Managed(_)) => true,
+            Some(Reference::Borrowed) => self
+                .reference_lifetime()
+                .is_some_and(Lifetime::includes_managed),
+            _ => false,
+        }
+    }
+
+    /// Return the reference kind one dereference follows, a pointer being raw.
+    pub fn dereference_kind(&self) -> Reference {
+        if self.is_pointer() {
+            Reference::Raw
+        } else {
+            self.reference_kind()
+                .unwrap_or_else(|| unreachable!("a dereference requires a reference"))
+        }
+    }
+
     /// Return whether this type is a borrowed reference.
     pub fn is_borrowed_reference(&self) -> bool {
         matches!(self.reference_kind(), Some(Reference::Borrowed))

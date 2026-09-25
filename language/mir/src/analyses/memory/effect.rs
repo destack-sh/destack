@@ -5,7 +5,7 @@ use smallvec::{SmallVec, smallvec};
 use crate as mir;
 use crate::{
     AliasTable, Analysis, ConstantTable, ControlTable, DefinitionTable, LayoutError,
-    MemoryAccessOrder, MemoryAddress, MemoryLocation, MemoryRegion, Mutation, NodeTable, is_copy,
+    MemoryAccessOrder, MemoryAddress, MemoryLocation, MemoryRegion, Mutation, NodeTable,
 };
 
 /// Classified memory effects for the operations in one function.
@@ -381,19 +381,6 @@ impl<'a> MemoryEffectBuilder<'a> {
             | mir::Instruction::ProfileIncrement { .. }
             | mir::Instruction::ProfileSample { .. }
             | mir::Instruction::Breakpoint => SmallVec::new(),
-            mir::Instruction::Load {
-                place, result_type, ..
-            } => {
-                // invalidate the source storage a non-Copy read moves out of
-                let generics = &self.tree.get(self.function).generics;
-                let operation = match is_copy(self.tree, *result_type, generics) {
-                    true => mir::MemoryOperation::Read,
-                    false => mir::MemoryOperation::ReadWrite,
-                };
-                let effect = self.place_effect(place, operation, MemoryAccessOrder::Plain);
-
-                smallvec![effect]
-            }
             mir::Instruction::VariantTagLoad { place, .. } => {
                 let effect =
                     self.place_effect(place, mir::MemoryOperation::Read, MemoryAccessOrder::Plain);
@@ -425,48 +412,12 @@ impl<'a> MemoryEffectBuilder<'a> {
                     MemoryAccessOrder::Plain
                 )]
             }
-            mir::Instruction::Store { place, .. } => {
-                let effect =
-                    self.place_effect(place, mir::MemoryOperation::Write, MemoryAccessOrder::Plain);
-
-                smallvec![effect]
-            }
-            mir::Instruction::AtomicLoad { place, access, .. } => {
-                let effect = self.place_effect(
-                    place,
-                    mir::MemoryOperation::Read,
-                    MemoryAccessOrder::Atomic(*access),
-                );
-
-                smallvec![effect]
-            }
-            mir::Instruction::AtomicStore { place, access, .. } => {
-                let effect = self.place_effect(
-                    place,
-                    mir::MemoryOperation::Write,
-                    MemoryAccessOrder::Atomic(*access),
-                );
-
-                smallvec![effect]
-            }
-            mir::Instruction::AtomicCompareExchange { place, access, .. } => {
-                let effect = self.place_effect(
-                    place,
-                    mir::MemoryOperation::ReadWrite,
-                    MemoryAccessOrder::Atomic(access.success),
-                );
-
-                smallvec![effect]
-            }
-            mir::Instruction::AtomicRmw { place, access, .. } => {
-                let effect = self.place_effect(
-                    place,
-                    mir::MemoryOperation::ReadWrite,
-                    MemoryAccessOrder::Atomic(*access),
-                );
-
-                smallvec![effect]
-            }
+            mir::Instruction::Load { .. }
+            | mir::Instruction::Store { .. }
+            | mir::Instruction::AtomicLoad { .. }
+            | mir::Instruction::AtomicStore { .. }
+            | mir::Instruction::AtomicCompareExchange { .. }
+            | mir::Instruction::AtomicRmw { .. } => self.place_access_effects(instruction),
             mir::Instruction::AtomicFence { access } => {
                 smallvec![MemoryAccessEffect::barrier(*access)]
             }
@@ -543,6 +494,28 @@ impl<'a> MemoryEffectBuilder<'a> {
             | mir::Terminator::Abort { .. }
             | mir::Terminator::Unreachable => SmallVec::new(),
         }
+    }
+
+    /// Build the memory effect of the place one load, store, or atomic operation accesses.
+    fn place_access_effects(
+        &mut self,
+        instruction: &mir::Instruction,
+    ) -> SmallVec<[MemoryAccessEffect; 2]> {
+        let order = match instruction {
+            mir::Instruction::AtomicLoad { access, .. }
+            | mir::Instruction::AtomicStore { access, .. }
+            | mir::Instruction::AtomicRmw { access, .. } => MemoryAccessOrder::Atomic(*access),
+            mir::Instruction::AtomicCompareExchange { access, .. } => {
+                MemoryAccessOrder::Atomic(access.success)
+            }
+            _ => MemoryAccessOrder::Plain,
+        };
+
+        instruction
+            .place_access(self.function, self.tree)
+            .map(|(place, operation)| self.place_effect(place, operation, order))
+            .into_iter()
+            .collect()
     }
 
     /// Build a memory effect over explicitly selected storage.

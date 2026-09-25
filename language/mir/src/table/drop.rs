@@ -67,8 +67,8 @@ impl DropTable {
         self.children_require_destructor(ty, storage, tree, &mut FxIndexSet::default())
     }
 
-    /// Return whether releasing one unique allocation destroys values before freeing its storage.
-    pub fn release_destroys(&self, ty: TypeId, tree: &Tree) -> bool {
+    /// Return whether releasing one unique allocation destroys values, none for other types.
+    pub fn release_destroys(&self, ty: TypeId, tree: &Tree) -> Option<bool> {
         // read the answer in one heap, the same in every heap
         let storage = Storage::Heap(Space::Local);
         match tree.type_definition(tree.storage_type(ty)) {
@@ -76,14 +76,14 @@ impl DropTable {
                 kind: Reference::Unique,
                 pointee,
                 ..
-            } => self.requires_destructor(*pointee, storage, tree),
+            } => Some(self.requires_destructor(*pointee, storage, tree)),
             Type::Slice {
                 kind: Reference::Unique,
                 element,
                 ..
-            } => self.requires_destructor(*element, storage, tree),
-            Type::Dynamic { .. } | Type::Function { .. } => true,
-            _ => unreachable!("a released value outside a unique reference"),
+            } => Some(self.requires_destructor(*element, storage, tree)),
+            Type::Dynamic { .. } | Type::Function { .. } => Some(true),
+            _ => None,
         }
     }
 

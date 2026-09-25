@@ -3,8 +3,8 @@ use smallvec::SmallVec;
 
 use crate::{
     Analysis, Block, CastOperator, Constant, ConstantTable, ControlTable, FunctionId, Instruction,
-    Intrinsic, LocalId, LocalNodeId, LocalNodeIdAny, Mutation, Place, PlaceOrigin, PlaceType,
-    Projection, Storage, StorageSet, Substitution, Tree, Type, Value,
+    Intrinsic, LocalId, LocalNodeId, LocalNodeIdAny, Mutability, Mutation, Place, PlaceOrigin,
+    PlaceType, Projection, Storage, StorageSet, Substitution, Tree, Type, Value, is_copy,
 };
 
 /// How one place may alias others, by the root of its storage.
@@ -29,7 +29,7 @@ enum AliasClass<'tree> {
 pub struct PlaceTable {
     /// The canonical place for each SSA value.
     values: Vec<Place>,
-    /// The values naming a fresh allocation, reached through no other root until stored.
+    /// The values naming a fresh allocation, addressed through no other root until stored.
     fresh: FxIndexSet<Value>,
     /// The position of the first instruction storing, aggregating, or passing each fresh allocation.
     escapes: FxIndexMap<Value, u32>,
@@ -185,26 +185,95 @@ impl Place {
             })
     }
 
-    /// Return whether a write to this place replaces the unique owner one borrow reaches through.
-    pub fn may_replace_owner(&self, borrowed: &Self, function: FunctionId, tree: &Tree) -> bool {
-        // require the borrow to dereference the written place
-        if self.origin != borrowed.origin {
-            return false;
-        }
-        let written = self.path.projections.as_slice();
-        let Some(rest) = borrowed.path.projections.strip_prefix(written) else {
-            return false;
-        };
-        if rest.first() != Some(&Projection::Deref) {
+    /// Return whether a write to this place may release unique storage below the borrowed place.
+    pub fn may_release(
+        &self,
+        borrowed: &Self,
+        is_overlapping: bool,
+        constants: &ConstantTable,
+        places: &PlaceTable,
+        function: FunctionId,
+        tree: &Tree,
+    ) -> bool {
+        // release nothing below a handle, whose storage the heap retains
+        if self.is_retained(function, tree) || borrowed.is_retained(function, tree) {
             return false;
         }
 
-        // require the written place to hold unique storage
+        // release the overlapped storage when both places may hold owned storage
+        if is_overlapping && self.may_own(function, tree) && borrowed.may_own(function, tree) {
+            return true;
+        }
+
+        // release the unique storage behind a pointer this write overwrites on the loan's path
+        borrowed
+            .dereferences(function, tree)
+            .any(|(length, reference)| {
+                reference.is_unique_storage()
+                    && self.overwrites(&borrowed.prefix(length), constants, places, function, tree)
+            })
+    }
+
+    /// Return whether some write may release unique storage below this place.
+    pub fn is_releasable(&self, function: FunctionId, tree: &Tree) -> bool {
+        !self.is_retained(function, tree)
+            && (self.may_own(function, tree)
+                || self
+                    .dereferences(function, tree)
+                    .any(|(_, reference)| reference.is_unique_storage()))
+    }
+
+    /// Return whether some write may change a case this place selects.
+    pub fn is_retaggable(&self, function: FunctionId, tree: &Tree) -> bool {
+        self.variants()
+            .any(|variant| variant.has_several_cases(function, tree))
+    }
+
+    /// Return whether the heap retains this place's storage, below a handle or a managed borrow.
+    pub fn is_retained(&self, function: FunctionId, tree: &Tree) -> bool {
+        self.dereferences(function, tree)
+            .any(|(_, reference)| reference.is_retained_reference())
+    }
+
+    /// Return whether the heap may retain this place's storage, below a handle or a managed borrow.
+    pub fn may_be_retained(&self, function: FunctionId, tree: &Tree) -> bool {
+        self.dereferences(function, tree)
+            .any(|(_, reference)| reference.may_be_retained_reference())
+    }
+
+    /// Return whether this place selects an immutable global's own storage, which no write changes.
+    pub fn is_constant(&self, tree: &Tree) -> bool {
+        match self.origin {
+            PlaceOrigin::Global(global) => {
+                !self.path.projections.contains(&Projection::Deref)
+                    && tree.get(global).mutability == Mutability::Immutable
+            }
+            PlaceOrigin::Local(_) | PlaceOrigin::Value(_) => false,
+        }
+    }
+
+    /// Return whether the value this place selects may own storage, anything but Copy.
+    pub fn may_own(&self, function: FunctionId, tree: &Tree) -> bool {
+        let generics = &tree.get(function).generics;
         match self.ty(function, tree) {
-            Some(PlaceType::Value(ty)) => tree
-                .get(Substitution::resolve(ty, tree))
-                .is_unique_storage(),
-            _ => false,
+            Some(PlaceType::Value(ty) | PlaceType::Referent(ty)) => !is_copy(tree, ty, generics),
+            None => unreachable!("a borrowed place has no type"),
+        }
+    }
+
+    /// Return whether a write to this place may overwrite the value of another place.
+    fn overwrites(
+        &self,
+        other: &Self,
+        constants: &ConstantTable,
+        places: &PlaceTable,
+        function: FunctionId,
+        tree: &Tree,
+    ) -> bool {
+        if self.origin == other.origin {
+            self.contains(other)
+        } else {
+            self.may_overlap(other, constants, places, function, tree)
         }
     }
 
@@ -230,22 +299,29 @@ impl Place {
             }
 
             // omit variants whose case cannot change
-            let Some(PlaceType::Value(mut ty)) = variant.ty(function, tree) else {
-                unreachable!("a variant projection requires a value");
-            };
-            loop {
-                ty = Substitution::resolve(ty, tree);
-                match tree.get(ty) {
-                    Type::Uninit { value } | Type::ManuallyDrop { value } => ty = *value,
-                    _ => break,
-                }
-            }
-            let Type::Variant { cases, .. } = tree.get(ty) else {
-                unreachable!("a variant projection requires a variant");
-            };
-
-            cases.len() > 1 && self.may_overlap(&variant, constants, places, function, tree)
+            variant.has_several_cases(function, tree)
+                && self.may_overlap(&variant, constants, places, function, tree)
         })
+    }
+
+    /// Return whether this place holds an inline variant of several cases.
+    fn has_several_cases(&self, function: FunctionId, tree: &Tree) -> bool {
+        // read the variant through its storage modifiers
+        let Some(PlaceType::Value(mut ty)) = self.ty(function, tree) else {
+            unreachable!("a variant projection requires a value");
+        };
+        loop {
+            ty = Substitution::resolve(ty, tree);
+            match tree.get(ty) {
+                Type::Uninit { value } | Type::ManuallyDrop { value } => ty = *value,
+                _ => break,
+            }
+        }
+        let Type::Variant { cases, .. } = tree.get(ty) else {
+            unreachable!("a variant projection requires a variant");
+        };
+
+        cases.len() > 1
     }
 
     /// Return whether two projections are proven disjoint.
@@ -528,8 +604,12 @@ impl PlaceTable {
         (order, escapes)
     }
 
-    /// Return whether one value names a fresh allocation reached through no other root at one instruction.
-    pub fn is_fresh_at(&self, value: Value, at: LocalNodeIdAny) -> bool {
+    /// Return whether one place roots at a fresh allocation no other root addresses at one operation.
+    pub fn is_fresh_at(&self, place: &Place, at: LocalNodeIdAny) -> bool {
+        let PlaceOrigin::Value(value) = place.origin else {
+            return false;
+        };
+
         self.fresh.contains(&value)
             && match (self.escapes.get(&value), self.order.get(&at)) {
                 (Some(escape), Some(position)) => position < escape,

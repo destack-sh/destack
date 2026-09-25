@@ -1,4 +1,5 @@
 mod access;
+mod address;
 mod dispatch;
 mod drop;
 mod effect;
@@ -10,6 +11,7 @@ mod trace;
 mod witness;
 
 pub use access::*;
+pub use address::*;
 pub use dispatch::*;
 pub use drop::*;
 pub use effect::*;

@@ -89,6 +89,57 @@ impl Place {
             .try_fold(root, |ty, projection| ty.project(projection, tree))
     }
 
+    /// Return the place selected by the first projections of this one.
+    pub fn prefix(&self, length: usize) -> Self {
+        Self {
+            origin: self.origin,
+            path: Path {
+                projections: self.path.projections[..length].to_vec(),
+            },
+        }
+    }
+
+    /// Iterate the length and type of each prefix this place projects from, typing each once.
+    pub fn prefix_types(
+        &self,
+        function: FunctionId,
+        tree: &Tree,
+    ) -> impl Iterator<Item = (usize, PlaceType)> {
+        let root = self
+            .root_type(function, tree)
+            .unwrap_or_else(|| unreachable!("a place has no root type"));
+
+        // yield each prefix type before projecting it further
+        self.path.projections.iter().enumerate().scan(
+            PlaceType::Value(root),
+            move |ty, (length, projection)| {
+                let prefix = *ty;
+                *ty = ty.project(projection, tree).unwrap_or_else(|| {
+                    unreachable!("a place projects {projection:?} out of {prefix:?}")
+                });
+
+                Some((length, prefix))
+            },
+        )
+    }
+
+    /// Iterate the prefix length and reference type of each dereference this place follows.
+    pub fn dereferences<'t>(
+        &self,
+        function: FunctionId,
+        tree: &'t Tree,
+    ) -> impl Iterator<Item = (usize, &'t Type)> {
+        self.prefix_types(function, tree)
+            .filter(|(length, _)| self.path.projections[*length] == Projection::Deref)
+            .map(move |(length, ty)| {
+                let PlaceType::Value(reference) = ty else {
+                    unreachable!("a place dereferences a non-value");
+                };
+
+                (length, tree.type_definition(tree.storage_type(reference)))
+            })
+    }
+
     /// Return the last reference type traversed by this place.
     pub fn reference_type(&self, function: FunctionId, tree: &Tree) -> Option<TypeId> {
         let mut ty = PlaceType::Value(self.root_type(function, tree)?);
@@ -186,6 +237,13 @@ impl PlaceType {
                 _ => None,
             },
             Self::Value(ty) => {
+                // dereference a newtype through the reference it wraps
+                if *projection == Projection::Deref
+                    && matches!(tree.type_definition(ty), Type::Newtype { .. })
+                {
+                    return Self::Value(tree.storage_type(ty)).project(projection, tree);
+                }
+
                 // read the declared representation and retain its applied arguments
                 let (ty, arguments) = match tree.get(ty) {
                     Type::Application { base, arguments } => (*base, arguments.clone()),

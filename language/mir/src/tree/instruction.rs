@@ -8,8 +8,8 @@ use smallvec::{SmallVec, smallvec};
 use crate::{
     AtomicAccess, AtomicRmwOperator, BinaryOperator, Call, CallDispatch, CompareExchangeAccess,
     Constant, ConvertMode, CounterId, DispatchSlot, FenceAccess, FunctionId, GenericArgument,
-    IndexSlice, Intrinsic, MemoryOrdering, Node, NodeType, Place, SamplerId, Space, Tree, TypeId,
-    UnaryOperator, Value, ValueSlice, VectorReduceOperator,
+    IndexSlice, Intrinsic, MemoryOperation, MemoryOrdering, Node, NodeType, Place, SamplerId,
+    Space, Tree, TypeId, UnaryOperator, Value, ValueSlice, VectorReduceOperator, is_copy,
 };
 
 /// One MIR instruction.
@@ -765,6 +765,39 @@ impl Instruction {
         }
     }
 
+    /// Return the place one load, store, or atomic operation accesses and how it accesses it.
+    ///
+    /// A load of a value that is not Copy moves it out, which also writes its place.
+    pub fn place_access(
+        &self,
+        function: FunctionId,
+        tree: &Tree,
+    ) -> Option<(&Place, MemoryOperation)> {
+        match self {
+            // copy a Copy value out, else move it out
+            Self::Load {
+                place, result_type, ..
+            } => {
+                let generics = &tree.get(function).generics;
+                let operation = if is_copy(tree, *result_type, generics) {
+                    MemoryOperation::Read
+                } else {
+                    MemoryOperation::ReadWrite
+                };
+
+                Some((place, operation))
+            }
+            Self::AtomicLoad { place, .. } => Some((place, MemoryOperation::Read)),
+            Self::Store { place, .. } | Self::AtomicStore { place, .. } => {
+                Some((place, MemoryOperation::Write))
+            }
+            Self::AtomicCompareExchange { place, .. } | Self::AtomicRmw { place, .. } => {
+                Some((place, MemoryOperation::ReadWrite))
+            }
+            _ => None,
+        }
+    }
+
     /// Return the heap one allocating instruction names.
     pub fn allocation_space(&self) -> Option<Space> {
         match self {
@@ -1159,6 +1192,34 @@ impl CastOperator {
             Self::PointerToReference => "cast.pointerToReference",
             Self::PointerToInt => "cast.pointerToInt",
             Self::IntToPointer => "cast.intToPointer",
+        }
+    }
+}
+
+/// One integer width conversion.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntegerConversion {
+    /// Keep the bits of an equal width.
+    Identity,
+    /// Keep the low bits of a narrower width.
+    Truncate,
+    /// Widen by repeating the sign bit.
+    SignExtend,
+    /// Widen with zero bits.
+    ZeroExtend,
+}
+
+impl IntegerConversion {
+    /// Select the conversion between two integer widths by source signedness.
+    pub const fn new(source_bits: u32, target_bits: u32, is_signed: bool) -> Self {
+        if source_bits > target_bits {
+            Self::Truncate
+        } else if source_bits < target_bits && is_signed {
+            Self::SignExtend
+        } else if source_bits < target_bits {
+            Self::ZeroExtend
+        } else {
+            Self::Identity
         }
     }
 }

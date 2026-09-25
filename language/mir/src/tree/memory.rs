@@ -132,6 +132,14 @@ impl MemoryOrdering {
         })
     }
 
+    /// Return this ordering when closed, or the index of the template parameter it names.
+    pub const fn closed(self) -> Result<Self, u32> {
+        match self {
+            MemoryOrdering::Parameter(parameter) => Err(parameter),
+            ordering => Ok(ordering),
+        }
+    }
+
     /// Return the canonical MIR text for a closed ordering.
     pub const fn label(self) -> Option<&'static str> {
         Some(match self {
@@ -338,7 +346,7 @@ impl CompareExchangeAccess {
         Self::with_success(AtomicAccess::ordered(ordering))
     }
 
-    /// Return the failure ordering, or the index of its unresolved parameter.
+    /// Return the closed failure ordering, or the index of its unresolved parameter.
     pub fn failure_ordering(self) -> Result<MemoryOrdering, u32> {
         let ordering = match self.failure_ordering {
             Some(ordering) => ordering,
@@ -349,10 +357,7 @@ impl CompareExchangeAccess {
             },
         };
 
-        match ordering {
-            MemoryOrdering::Parameter(parameter) => Err(parameter),
-            ordering => Ok(ordering),
-        }
+        ordering.closed()
     }
 }
 
