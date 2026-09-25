@@ -135,7 +135,9 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                     Opcode::ADDRESS_ADD_IMMEDIATE
                     | Opcode::ADDRESS_ADD
                     | Opcode::ADDRESS_ADD_SCALED
-                    | Opcode::ADDRESS_DIFF => self.execute_address_arithmetic(instruction)?,
+                    | Opcode::ADDRESS_DIFF
+                    | Opcode::ADDRESS_POINTER
+                    | Opcode::ADDRESS_REFERENCE => self.execute_address_arithmetic(instruction)?,
                     Opcode::CAST_POINTER_TO_INT | Opcode::CAST_INT_TO_POINTER => {
                         let Some((operation, source, target)) = opcode.cast_operation() else {
                             unreachable!("pointer cast opcodes carry one exact conversion");

@@ -105,6 +105,29 @@ function f0 {
     );
 }
 
+/// Rebase a static reference to a native pointer, write through it, and rebase it back.
+#[test]
+fn test_execute_reference_pointer_rebase() {
+    let mut machine = TestMachine::parse(
+        r#"
+function f0 {
+    global.address r1, g0
+    address.pointer r2, r1
+    store.uint32 pointer r2, r0
+    load.uint32 r3, r1
+    address.reference r5, r2
+    address.diff r4, r5, r1
+    return r3:r4
+}
+"#,
+        TestProgram::words().local_global(),
+    );
+
+    let value = machine.complete(0, &[Word::uint32(0x1122_3344)]);
+
+    assert_eq!(value, vec![Word::uint32(0x1122_3344), Word::int64(0)]);
+}
+
 /// Execute atomic read-modify-write and load against linked static storage.
 #[test]
 fn test_execute_atomics() {

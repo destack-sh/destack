@@ -943,6 +943,31 @@ block0(v0: i64, v1: i64, v2: i64):
     );
 }
 
+/// Rebase a world reference to a native pointer and back.
+#[test]
+fn test_emit_reference_pointer_rebase() {
+    let program = TestProgram::mir(
+        r#"
+export function rebase<'a>(v0: ref<int32, borrowed, 'a, mutable>): ref<int32, borrowed, 'a, mutable> {
+entry(v0: ref<int32, borrowed, 'a, mutable>):
+    v1: ptr<int32, mutable> = cast.referenceToPointer v0 -> ptr<int32, mutable>
+    v2: ref<int32, borrowed, 'a, mutable> = cast.pointerToReference v1 -> ref<int32, borrowed, 'a, mutable>
+    return v2
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function rebase {
+    address.pointer r1, r0
+    address.reference r0, r1
+    return r0
+}
+"#,
+    );
+}
+
 /// Access process memory through pointers without rebasing them on the world.
 #[test]
 fn test_emit_pointer_dereference() {

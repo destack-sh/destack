@@ -238,6 +238,16 @@ opcodes! {
         signature: "(address: address, origin: address) => int64",
         operands: [Result, Register, Register],
     }
+    ADDRESS_POINTER = 0x0036 {
+        text: "address.pointer",
+        signature: "(reference: reference) => pointer",
+        operands: [Result, Register],
+    }
+    ADDRESS_REFERENCE = 0x0037 {
+        text: "address.reference",
+        signature: "(pointer: pointer) => reference",
+        operands: [Result, Register],
+    }
 
     // memory
     LOAD = 0x0050 {

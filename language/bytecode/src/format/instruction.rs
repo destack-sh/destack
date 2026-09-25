@@ -151,7 +151,9 @@ impl<'code, 'state, 'buffer> InstructionFormatter<'code, 'state, 'buffer> {
             Opcode::ADDRESS_ADD_IMMEDIATE
             | Opcode::ADDRESS_ADD
             | Opcode::ADDRESS_ADD_SCALED
-            | Opcode::ADDRESS_DIFF => self.format_address_arithmetic(opcode),
+            | Opcode::ADDRESS_DIFF
+            | Opcode::ADDRESS_POINTER
+            | Opcode::ADDRESS_REFERENCE => self.format_address_arithmetic(opcode),
 
             // function values
             Opcode::FUNCTION_ADDRESS | Opcode::FUNCTION_BIND => self.format_function_value(opcode),

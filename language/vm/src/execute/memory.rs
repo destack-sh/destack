@@ -39,7 +39,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
         Ok(())
     }
 
-    /// Execute one reference or native pointer arithmetic operation.
+    /// Execute one reference or native pointer arithmetic operation, or a rebase between them.
     pub(crate) fn execute_address_arithmetic(
         &mut self,
         instruction: Instruction<'_>,
@@ -70,6 +70,12 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
                 let origin = operands.register()?;
 
                 left.wrapping_sub(self.read(origin.0).bits())
+            }
+            Opcode::ADDRESS_POINTER => {
+                left.wrapping_add(self.activation.memory.base_address() as u64)
+            }
+            Opcode::ADDRESS_REFERENCE => {
+                left.wrapping_sub(self.activation.memory.base_address() as u64)
             }
             _ => unreachable!("address dispatch selects one arithmetic opcode"),
         };

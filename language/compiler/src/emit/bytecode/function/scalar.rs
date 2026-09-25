@@ -498,14 +498,33 @@ impl<'a> FunctionEmitter<'a> {
             }
             mir::CastOperator::IntToFloat => bytecode::CastOperation::IntToFloat,
             mir::CastOperator::FloatToFloat => bytecode::CastOperation::FloatConvert,
-            mir::CastOperator::ReferenceToPointer | mir::CastOperator::PointerToReference => {
-                return Err(self.internal("bytecode has no native pointer conversion opcode"));
+            mir::CastOperator::ReferenceToPointer => {
+                let opcode = bytecode::Opcode::ADDRESS_POINTER;
+                return self.emit_rebase(destination, argument, opcode);
+            }
+            mir::CastOperator::PointerToReference => {
+                let opcode = bytecode::Opcode::ADDRESS_REFERENCE;
+                return self.emit_rebase(destination, argument, opcode);
             }
             mir::CastOperator::PointerToInt => bytecode::CastOperation::PointerToInt,
             mir::CastOperator::IntToPointer => bytecode::CastOperation::IntToPointer,
         };
         let opcode = bytecode::Opcode::cast(operation, source, target)
             .ok_or_else(|| self.internal("unsupported scalar cast"))?;
+        let mut instruction = bytecode::InstructionBuilder::new(opcode);
+        instruction.register(self.word(argument)?);
+        let destination = self.register(destination)?;
+
+        self.encode(instruction, &[destination])
+    }
+
+    /// Emit one rebase between a world reference and a native pointer.
+    fn emit_rebase(
+        &mut self,
+        destination: mir::Value,
+        argument: mir::Value,
+        opcode: bytecode::Opcode,
+    ) -> Result<(), EmitError> {
         let mut instruction = bytecode::InstructionBuilder::new(opcode);
         instruction.register(self.word(argument)?);
         let destination = self.register(destination)?;

@@ -22,6 +22,8 @@ impl InstructionFormatter<'_, '_, '_> {
             Opcode::ADDRESS_ADD => self.format_address_add(),
             Opcode::ADDRESS_ADD_SCALED => self.format_address_add_scaled(),
             Opcode::ADDRESS_DIFF => self.format_address_diff(),
+            Opcode::ADDRESS_POINTER => self.format_address_rebase("address.pointer"),
+            Opcode::ADDRESS_REFERENCE => self.format_address_rebase("address.reference"),
             _ => Err(FormatError::SyntaxError {
                 message: "invalid address arithmetic opcode",
             }),
@@ -93,6 +95,18 @@ impl InstructionFormatter<'_, '_, '_> {
         self.write_comma()?;
         self.write_register(address)?;
         self.write_comma()
+    }
+
+    /// Format one rebase between a world reference and a native pointer.
+    fn format_address_rebase(&mut self, name: &str) -> FormatResult<()> {
+        let result = self.register_id()?;
+        let address = self.register_id()?;
+
+        // write the rebased address
+        self.write_opcode(name)?;
+        self.write_register(result)?;
+        self.write_comma()?;
+        self.write_register(address)
     }
 
     /// Format one signed byte offset between two addresses.

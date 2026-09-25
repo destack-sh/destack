@@ -41,6 +41,8 @@ impl Parser<'_> {
 
                 self.parse_address_diff(&results, function)
             }
+            "address.pointer" => self.parse_address_rebase(Opcode::ADDRESS_POINTER, function),
+            "address.reference" => self.parse_address_rebase(Opcode::ADDRESS_REFERENCE, function),
             _ => Err(ParseError::new("unknown address operation", token.span)),
         }
     }
@@ -120,6 +122,20 @@ impl Parser<'_> {
         }
 
         function.emit(instruction, results, self.empty_span())
+    }
+
+    /// Parse one rebase between a world reference and a native pointer.
+    fn parse_address_rebase(
+        &mut self,
+        opcode: Opcode,
+        function: &mut FunctionParser,
+    ) -> ParseResult<()> {
+        let results = self.parse_definitions(opcode)?;
+        let address = self.parse_register()?;
+        let mut instruction = InstructionBuilder::new(opcode);
+        instruction.register(address);
+
+        function.emit(instruction, &results, self.empty_span())
     }
 
     /// Parse one signed byte offset between two addresses.

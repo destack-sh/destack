@@ -41,3 +41,27 @@ function f0 {
         ]
     );
 }
+
+/// Parse rebases between world references and native pointers.
+#[test]
+fn test_parse_address_rebases() {
+    let (_, opcodes) = TestParser::new(
+        r#"
+function f0 {
+    address.pointer r1, r0
+    address.reference r2, r1
+    return r2
+}
+"#,
+    )
+    .parse_opcodes(FunctionId(0));
+
+    assert_eq!(
+        opcodes,
+        vec![
+            Opcode::ADDRESS_POINTER,
+            Opcode::ADDRESS_REFERENCE,
+            Opcode::RETURN,
+        ]
+    );
+}
