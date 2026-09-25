@@ -136,10 +136,6 @@ export const assets: Record<string, () => Promise<string>> = {
         ),
     "/_content/docs/setup/index.json": () =>
         import("../../public/_content/docs/setup/index.json?raw").then((module) => module.default),
-    "/_content/html/0089d5ed0bb898c50fce88819d4e40c98a8ca3153d326409b3d945565237c8a0.html": () =>
-        import("../../public/_content/html/0089d5ed0bb898c50fce88819d4e40c98a8ca3153d326409b3d945565237c8a0.html?raw").then(
-            (module) => module.default,
-        ),
     "/_content/html/036f09ab33b0f5a560eeb07fdc5f76eef8828358f71afcddb0cadb31e223fad4.html": () =>
         import("../../public/_content/html/036f09ab33b0f5a560eeb07fdc5f76eef8828358f71afcddb0cadb31e223fad4.html?raw").then(
             (module) => module.default,
@@ -164,16 +160,16 @@ export const assets: Record<string, () => Promise<string>> = {
         import("../../public/_content/html/19dbfb5e2d89d9531355e0614164231de5526b6a24f8117bf99a68fa4c7cd3a0.html?raw").then(
             (module) => module.default,
         ),
+    "/_content/html/1a1f54b48064e262bd93c7787861109986076b9f7b45668a4bf16f07295d6341.html": () =>
+        import("../../public/_content/html/1a1f54b48064e262bd93c7787861109986076b9f7b45668a4bf16f07295d6341.html?raw").then(
+            (module) => module.default,
+        ),
     "/_content/html/1c11b7717be6c23d03a1b50115d45cace050ca5a94c4f707537700009e6b1ae5.html": () =>
         import("../../public/_content/html/1c11b7717be6c23d03a1b50115d45cace050ca5a94c4f707537700009e6b1ae5.html?raw").then(
             (module) => module.default,
         ),
     "/_content/html/1d1fbd4a0605e24f954fc688516aea9a45e486eea72280993801cca4b3351157.html": () =>
         import("../../public/_content/html/1d1fbd4a0605e24f954fc688516aea9a45e486eea72280993801cca4b3351157.html?raw").then(
-            (module) => module.default,
-        ),
-    "/_content/html/2628376b7618883a924c89ac8ae464c42073d1f2d9d03d1845a3f94df6ec913b.html": () =>
-        import("../../public/_content/html/2628376b7618883a924c89ac8ae464c42073d1f2d9d03d1845a3f94df6ec913b.html?raw").then(
             (module) => module.default,
         ),
     "/_content/html/2d488adb1cdc422a21afb7426bed2c7f817b7823eebb00601b4819e611528525.html": () =>
@@ -184,12 +180,12 @@ export const assets: Record<string, () => Promise<string>> = {
         import("../../public/_content/html/383b42f360f0cbbe7663d3be57f7e09ae435a7b99b2e7fdec4481d887c8b4150.html?raw").then(
             (module) => module.default,
         ),
-    "/_content/html/39981b3b9c60d059608783dacc9023f53cf123dc3e764a41d202a7ccbfe57a8c.html": () =>
-        import("../../public/_content/html/39981b3b9c60d059608783dacc9023f53cf123dc3e764a41d202a7ccbfe57a8c.html?raw").then(
-            (module) => module.default,
-        ),
     "/_content/html/42db6385093295b194406c42e13fbdc90666a3566b4d95bcff71302b01a2af96.html": () =>
         import("../../public/_content/html/42db6385093295b194406c42e13fbdc90666a3566b4d95bcff71302b01a2af96.html?raw").then(
+            (module) => module.default,
+        ),
+    "/_content/html/43fdd83b1ebc6df6c7326ba19bf0a311d72ff1fb249bbf55a47d60aad04f49e9.html": () =>
+        import("../../public/_content/html/43fdd83b1ebc6df6c7326ba19bf0a311d72ff1fb249bbf55a47d60aad04f49e9.html?raw").then(
             (module) => module.default,
         ),
     "/_content/html/4978439ffda1d01769dfe1740ed78df8ff9c1fac465ed8fb8f2f546715f2d461.html": () =>
@@ -200,16 +196,24 @@ export const assets: Record<string, () => Promise<string>> = {
         import("../../public/_content/html/5138f3ddeb3badf1bdeeb45013218959642f3a1cae58513afbc229676e1aad76.html?raw").then(
             (module) => module.default,
         ),
+    "/_content/html/53db905b9ae361091378e99a2f2a032776779f884d5de09b746f5b2976674335.html": () =>
+        import("../../public/_content/html/53db905b9ae361091378e99a2f2a032776779f884d5de09b746f5b2976674335.html?raw").then(
+            (module) => module.default,
+        ),
     "/_content/html/57351aa407aad9044f3e7944332fa78a81d11d2a0f7bd587b90d6bb2cf1e241a.html": () =>
         import("../../public/_content/html/57351aa407aad9044f3e7944332fa78a81d11d2a0f7bd587b90d6bb2cf1e241a.html?raw").then(
             (module) => module.default,
         ),
-    "/_content/html/60137b893857b0b1c506b9bf619fe82f3bb91de8f271c293887ce5e0b0fce1b2.html": () =>
-        import("../../public/_content/html/60137b893857b0b1c506b9bf619fe82f3bb91de8f271c293887ce5e0b0fce1b2.html?raw").then(
+    "/_content/html/5c96278082f0c0e922e0d7a7838109296f4c5f92a0bf233130075aa22899ebec.html": () =>
+        import("../../public/_content/html/5c96278082f0c0e922e0d7a7838109296f4c5f92a0bf233130075aa22899ebec.html?raw").then(
             (module) => module.default,
         ),
-    "/_content/html/6759320b9eb40b954ffc47be228d669fa684c82bce8f261f0a715998f408c22c.html": () =>
-        import("../../public/_content/html/6759320b9eb40b954ffc47be228d669fa684c82bce8f261f0a715998f408c22c.html?raw").then(
+    "/_content/html/5cac92950e581a7a943fd56a290456ab9b5506192446e2aed86791e0448fcbc1.html": () =>
+        import("../../public/_content/html/5cac92950e581a7a943fd56a290456ab9b5506192446e2aed86791e0448fcbc1.html?raw").then(
+            (module) => module.default,
+        ),
+    "/_content/html/60137b893857b0b1c506b9bf619fe82f3bb91de8f271c293887ce5e0b0fce1b2.html": () =>
+        import("../../public/_content/html/60137b893857b0b1c506b9bf619fe82f3bb91de8f271c293887ce5e0b0fce1b2.html?raw").then(
             (module) => module.default,
         ),
     "/_content/html/6c6f87cdcab7d9cd79ded5c4f4bb0e6c420d25e9ffbce0daada490c889befc83.html": () =>
@@ -272,16 +276,12 @@ export const assets: Record<string, () => Promise<string>> = {
         import("../../public/_content/html/d7c313b28e13ca7df144674bd1aed120d5402efea4eafe2ff431df88e4685377.html?raw").then(
             (module) => module.default,
         ),
-    "/_content/html/ecb7fcffd1c9d0da9bf7bf2bded8a4e33f089b639e9cdd848a43d425cebc8f69.html": () =>
-        import("../../public/_content/html/ecb7fcffd1c9d0da9bf7bf2bded8a4e33f089b639e9cdd848a43d425cebc8f69.html?raw").then(
+    "/_content/html/e9e8780e3d09f5b5feb49d745d417da3d90fe46bda3cbaba70c082c67a980daf.html": () =>
+        import("../../public/_content/html/e9e8780e3d09f5b5feb49d745d417da3d90fe46bda3cbaba70c082c67a980daf.html?raw").then(
             (module) => module.default,
         ),
     "/_content/html/f34147302baac5aa6ece51aa9da62e223dcea8c77e8874e8d06aa9505842438a.html": () =>
         import("../../public/_content/html/f34147302baac5aa6ece51aa9da62e223dcea8c77e8874e8d06aa9505842438a.html?raw").then(
-            (module) => module.default,
-        ),
-    "/_content/html/ff968447beb580f5d51c56916e1c416cf90e3fa2def6c6dc0e94beb80fecad5d.html": () =>
-        import("../../public/_content/html/ff968447beb580f5d51c56916e1c416cf90e3fa2def6c6dc0e94beb80fecad5d.html?raw").then(
             (module) => module.default,
         ),
 };

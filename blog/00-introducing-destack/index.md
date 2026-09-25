@@ -46,7 +46,8 @@ With the current stack, this is just not a serious option, so instead we have "c
 [The Tower of Babel, 1563](https://bruegel.at/en/the-tower-of-babel/) — Pieter Bruegel the Elder, Kunsthistorisches Museum, Vienna.
 :::
 
-Sadly, "connectors" are a hack. Integrations shouldn't exist at all.
+Sadly, "connectors" are a hack.
+Integrations shouldn't exist at all.
 Of course, we need interfaces, just not _these_ interfaces - we're bolting two icebergs together with duct tape at the top.
 Better connectors patch the symptom; there is a much more fundamental architecture issue, and that it is impossible to correct unless we reconsider the entire stack.
 
@@ -138,14 +139,16 @@ If software is going to run _everything_, faster than anyone can verify, how do 
 
 Software should be open, hackable, rexmiable - and fast.
 Software you can actually own, _without_ giving up on the benefits of modern stacks and the "cloud".
-How? How do we get there, from here?
+How?
+How do we get there, from here?
 Even if we could magically replace the stack, replace with what?
 
 And besides, where to even begin with a "brand new stack"?
 It can't be too different, or nobody - humans nor agents - would know how to use it.
 Paradoxically, this is not the time to figure out an "ideal second system" _from scratch_; whatever follows must trace the shapes we already have.
 
-Fortunately, the web is pretty great. TypeScript is also pretty great.
+Fortunately, the web is pretty great.
+TypeScript is also pretty great.
 Everybody knows the web, everybody knows TypeScript, and web standards evolved over decades.
 Oh, and the internet is also the largest application platform ever.
 It's not _perfect_, sure, but what is?
@@ -180,6 +183,7 @@ Or any combination.
 
 <!-- TODO: demo #2 -->
 
-Destack launches today. You can try it here:
+Destack launches today.
+You can try it here:
 
 <!-- TODO: CTA? -->
