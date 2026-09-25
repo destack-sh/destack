@@ -472,14 +472,14 @@ impl FunctionLowerer<'_, '_, '_> {
                     if !is_intrinsic {
                         let held = self.place_type(&place)?;
                         let held = mir::Substitution::resolve(held, self.builder.tree_mut());
-                        let mir::Type::Newtype { inner, .. } =
+                        let mir::Type::Newtype { value, .. } =
                             *self.builder.tree().type_definition(held)
                         else {
                             return Err(self.internal("a newtype payload over a non-newtype place"));
                         };
                         place.path.push(PlaceProjection::Field {
                             field: 0,
-                            ty: inner,
+                            ty: value,
                         });
                     }
                 }

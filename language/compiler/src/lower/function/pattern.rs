@@ -155,7 +155,7 @@ impl FunctionLowerer<'_, '_, '_> {
             dir::Projection::NewtypePayload { .. } => {
                 let ty = self.place_type(place)?;
                 let ty = mir::Substitution::resolve(ty, self.builder.tree_mut());
-                let mir::Type::Newtype { inner, .. } = *self.builder.tree().type_definition(ty)
+                let mir::Type::Newtype { value, .. } = *self.builder.tree().type_definition(ty)
                 else {
                     return Err(CompilerError::Internal {
                         message: "a newtype projection over a place without a newtype".to_string(),
@@ -164,7 +164,7 @@ impl FunctionLowerer<'_, '_, '_> {
                 let mut place = place.clone();
                 place.path.push(PlaceProjection::Field {
                     field: 0,
-                    ty: inner,
+                    ty: value,
                 });
 
                 Ok(place)

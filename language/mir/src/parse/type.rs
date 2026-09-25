@@ -596,10 +596,10 @@ impl Parser {
     fn parse_newtype_type(&mut self) -> ParseResult<Type> {
         self.bump();
         self.eat_token(TokenType::LessThan)?;
-        let (inner, _) = self.parse_type_use_part()?;
+        let (value, _) = self.parse_type_use_part()?;
         self.eat_token(TokenType::GreaterThan)?;
 
-        Ok(Type::Newtype { inner })
+        Ok(Type::Newtype { value })
     }
 
     /// Parse a tuple or function signature type.

@@ -157,12 +157,12 @@ impl TypeLowerer<'_, '_> {
         }
 
         // wrap the backing type transparently
-        let inner = if self.lower.newtype_is_referent(symbol)? {
+        let value = if self.lower.newtype_is_referent(symbol)? {
             self.lower_pointee(definition.backing)?
         } else {
             self.lower(definition.backing)?
         };
-        let definition = self.tree.intern_type(mir::Type::Newtype { inner });
+        let definition = self.tree.intern_type(mir::Type::Newtype { value });
         self.tree.get_mut(declaration).definition = Some(definition);
 
         Ok(Vec::new())

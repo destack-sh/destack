@@ -171,8 +171,8 @@ impl FunctionLowerer<'_, '_, '_> {
             match tree.get(representation) {
                 mir::Type::Void | mir::Type::Null => return true,
                 mir::Type::Struct { fields, .. } => return fields.is_empty(),
-                mir::Type::Newtype { inner, .. } => {
-                    representation = mir::Substitution::resolve(*inner, tree)
+                mir::Type::Newtype { value, .. } => {
+                    representation = mir::Substitution::resolve(*value, tree)
                 }
                 _ => return false,
             }

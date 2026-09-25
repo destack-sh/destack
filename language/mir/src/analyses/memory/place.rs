@@ -206,11 +206,13 @@ impl Place {
         }
 
         // release the unique storage behind a pointer this write overwrites on the loan's path
+        let mut pointer = Place::new(borrowed.origin);
         borrowed
             .dereferences(function, tree)
-            .any(|(length, reference)| {
-                reference.is_unique_storage()
-                    && self.overwrites(&borrowed.prefix(length), constants, places, function, tree)
+            .filter(|(_, reference)| reference.is_unique_storage())
+            .any(|(length, _)| {
+                pointer.extend_to(borrowed, length);
+                self.overwrites(&pointer, constants, places, function, tree)
             })
     }
 

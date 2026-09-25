@@ -708,7 +708,7 @@ impl AliasResult {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Substitution;
+    use crate::{LayoutBuilder, Substitution};
 
     use crate::analyses::tests::TestModule;
 
@@ -949,6 +949,38 @@ entry(v0: ref<Pair, borrowed, 'a, mutable>):
         }
     }
 
+    /// Address a newtype's backing value at the newtype's own storage.
+    #[test]
+    fn test_match_a_newtype_value_with_its_newtype() {
+        let program = TestModule::new(
+            r#"
+type Meters = newtype<int64>;
+
+function test<'a>(v0: ref<Meters, borrowed, 'a, mutable>): void {
+entry(v0: ref<Meters, borrowed, 'a, mutable>):
+    v1: ref<int64, borrowed, 'a, mutable> = address (*v0).0
+    v2: ref<Meters, borrowed, 'a, mutable> = address (*v0)
+    return
+}
+"#,
+        );
+        let mut analyses = program.function_analyses();
+        let alias = analyses
+            .alias(
+                program.entry_function_id(),
+                program.layouts.clone(),
+                &program.tree,
+            )
+            .unwrap();
+        let value = MemoryLocation::with_size(Value::new(1), 8);
+        let newtype = MemoryLocation::with_size(Value::new(2), 8);
+
+        assert_eq!(
+            alias.alias(&value, &newtype).unwrap(),
+            AliasResult::MustAlias
+        );
+    }
+
     /// Preserve overlap between alternative variant payloads stored at the same offset.
     #[test]
     fn test_match_variant_payloads_at_the_same_offset() {
@@ -1099,17 +1131,24 @@ entry(v0: ptr<Pair, mutable>):
 }
 "#,
         );
-        let ty = program
+        let pointer = program
             .tree
             .get(program.entry_function_id())
             .expect_value_type(Value(0));
-        let ty = Substitution::resolve(ty, &program.tree);
-        let ty = program.tree.get(ty).pointee_type().unwrap();
+        let pointer = Substitution::resolve(pointer, &program.tree);
+        let ty = program.tree.get(pointer).pointee_type().unwrap();
+        let ty = program.tree.storage_type(ty);
+
+        // lay out the pointer alone, leaving its pointee unlaid
+        let mut layouts = LayoutTable::new();
+        LayoutBuilder::new(&program.tree, &mut layouts, TargetLayout::default())
+            .layout_type(pointer)
+            .unwrap();
         let mut analyses = program.function_analyses();
         let error = analyses
             .alias(
                 program.entry_function_id(),
-                Arc::new(LayoutTable::new()),
+                Arc::new(layouts),
                 &program.tree,
             )
             .unwrap_err();

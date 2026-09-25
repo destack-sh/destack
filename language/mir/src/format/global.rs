@@ -146,7 +146,7 @@ fn data_init_element_type<'a>(
         Type::Struct { fields, .. } => fields
             .get(index)
             .map(|field| f.context().tree.get(*field).ty),
-        Type::Newtype { inner, .. } => data_init_element_type(Some(*inner), index, f),
+        Type::Newtype { value, .. } => data_init_element_type(Some(*value), index, f),
         _ => None,
     }
 }

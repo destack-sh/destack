@@ -376,7 +376,7 @@ impl MoveTable {
                     )
                 })
                 .collect(),
-            Type::Newtype { inner, .. } => vec![(Projection::Field { index: 0 }, *inner)],
+            Type::Newtype { value, .. } => vec![(Projection::Field { index: 0 }, *value)],
             // expand the allocation a unique reference owns
             Type::Reference {
                 kind: Reference::Unique,

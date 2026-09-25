@@ -151,9 +151,9 @@ impl TypeLowerer<'_, '_> {
                         message: "Pin instantiated without its pointer".to_string(),
                     });
                 };
-                let inner = self.lower(*pointer)?;
+                let value = self.lower(*pointer)?;
 
-                Ok(self.tree.intern_type(mir::Type::Newtype { inner }))
+                Ok(self.tree.intern_type(mir::Type::Newtype { value }))
             }
             // lay lanes of one element out at a closed lane count
             Some(dir::LanguageItem::Vector) => {

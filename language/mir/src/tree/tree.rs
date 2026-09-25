@@ -173,8 +173,9 @@ impl Tree {
         loop {
             ty = Substitution::resolve(ty, self);
             match self.get(ty) {
-                Type::Uninit { value } | Type::ManuallyDrop { value } => ty = *value,
-                Type::Newtype { inner, .. } => ty = *inner,
+                Type::Uninit { value } | Type::ManuallyDrop { value } | Type::Newtype { value } => {
+                    ty = *value
+                }
                 _ => return ty,
             }
         }

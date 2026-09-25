@@ -312,9 +312,9 @@ impl TypeHasher {
                     self.hash_field(*field, tree);
                 }
             }
-            Type::Newtype { inner } => {
+            Type::Newtype { value } => {
                 self.hasher.write_u8(20);
-                self.hash_type(*inner, tree);
+                self.hash_type(*value, tree);
             }
             Type::Variant {
                 discriminant,

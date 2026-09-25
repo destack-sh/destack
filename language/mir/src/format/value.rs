@@ -261,8 +261,8 @@ pub(super) fn format_constant_for_type<'a>(
 /// Return the storage type used to format one typed constant.
 fn constant_storage_type<'a>(ty: TypeId, f: &mut Writer<'a, '_>) -> TypeId {
     let expected = f.context().tree.type_definition(ty);
-    if let Type::Newtype { inner, .. } = expected {
-        *inner
+    if let Type::Newtype { value, .. } = expected {
+        *value
     } else {
         ty
     }

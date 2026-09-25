@@ -208,8 +208,8 @@ impl<'a> DestructorBuilder<'a> {
                 }
             }
             // type Handle = newtype<File>;
-            mir::Type::Newtype { inner, .. } => {
-                self.build_destructor(inner, storage);
+            mir::Type::Newtype { value, .. } => {
+                self.build_destructor(value, storage);
             }
             // type Buffer = [File; 4];
             mir::Type::FixedArray {

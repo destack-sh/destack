@@ -91,8 +91,7 @@ fn type_lifetime_inner(
             ))
             .filter(|lifetime| !lifetime.is_empty())
         }
-        Type::Newtype { inner, .. } => type_lifetime_inner(tree, *inner, visited),
-        Type::Uninit { value } | Type::ManuallyDrop { value } => {
+        Type::Newtype { value } | Type::Uninit { value } | Type::ManuallyDrop { value } => {
             type_lifetime_inner(tree, *value, visited)
         }
         Type::Variant {
@@ -172,8 +171,7 @@ fn type_contains_borrowed_refs_inner(
             let field = tree.get(*field);
             type_contains_borrowed_refs_inner(tree, field.ty, visited)
         }),
-        Type::Newtype { inner, .. } => type_contains_borrowed_refs_inner(tree, *inner, visited),
-        Type::Uninit { value } | Type::ManuallyDrop { value } => {
+        Type::Newtype { value } | Type::Uninit { value } | Type::ManuallyDrop { value } => {
             type_contains_borrowed_refs_inner(tree, *value, visited)
         }
         Type::Variant {
@@ -298,14 +296,14 @@ fn collect_type_borrowed_paths(
             }
         }
         // select the stored field of a newtype
-        Type::Newtype { inner, .. } => {
+        Type::Newtype { value, .. } => {
             let path = path.with_projection(Projection::Field { index: 0 });
 
-            collect_type_borrowed_paths(tree, *inner, is_tracking, path, borrowed_paths);
+            collect_type_borrowed_paths(tree, *value, is_tracking, path, borrowed_paths);
         }
         // preserve paths through initialization and destruction modifiers
-        Type::Uninit { value: inner } | Type::ManuallyDrop { value: inner } => {
-            collect_type_borrowed_paths(tree, *inner, is_tracking, path, borrowed_paths);
+        Type::Uninit { value } | Type::ManuallyDrop { value } => {
+            collect_type_borrowed_paths(tree, *value, is_tracking, path, borrowed_paths);
         }
         // descend into each possible storage shape
         Type::Variant { cases, .. } => {

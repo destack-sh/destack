@@ -1713,10 +1713,10 @@ type Indirect = newtype<Identity<Wrap<int32>>>;";
                 .is_some_and(|id| strings.get(id) == "Handle")
         })
         .unwrap();
-    let Type::Newtype { inner, .. } = *destination.get(handle.definition.unwrap()) else {
+    let Type::Newtype { value, .. } = *destination.get(handle.definition.unwrap()) else {
         panic!("expected the declared newtype");
     };
-    assert_eq!(Substitution::resolve(inner, &destination), inner);
+    assert_eq!(Substitution::resolve(value, &destination), value);
 
     // lay out the finite values while keeping recursive reference targets symbolic
     let mut layouts = LayoutTable::new();

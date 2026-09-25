@@ -1538,8 +1538,8 @@ fn constant_tree_from_scalar(
     let ty = tree.get(ty);
 
     // resolve the underlying newtype
-    if let mir::Type::Newtype { inner, .. } = ty {
-        return constant_tree_from_scalar(constant, *inner, tree);
+    if let mir::Type::Newtype { value, .. } = ty {
+        return constant_tree_from_scalar(constant, *value, tree);
     }
 
     // accept scalar types only
@@ -1595,8 +1595,8 @@ fn constant_tree_from_zero(
             bits: 0,
             format: *float_type,
         }),
-        mir::Type::Newtype { inner, .. } => {
-            constant_tree_from_zero(*inner, tree, max_aggregate_elements, pointer_width_bits)
+        mir::Type::Newtype { value, .. } => {
+            constant_tree_from_zero(*value, tree, max_aggregate_elements, pointer_width_bits)
         }
         mir::Type::FixedArray {
             element, length, ..

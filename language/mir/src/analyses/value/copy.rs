@@ -70,7 +70,7 @@ fn decide_copy(
         Type::Struct { fields } => fields
             .iter()
             .all(|field| decide_copy(tree, tree.get(*field).ty, generics, active)),
-        Type::Newtype { inner } => decide_copy(tree, *inner, generics, active),
+        Type::Newtype { value } => decide_copy(tree, *value, generics, active),
         Type::Variant { cases, .. } => cases
             .iter()
             .all(|case| decide_copy(tree, case.ty, generics, active)),

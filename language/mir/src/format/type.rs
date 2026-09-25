@@ -429,9 +429,9 @@ pub(super) fn format_type_expanded<'a>(
             }
             write!(f, [space(), token("}")])
         }
-        Type::Newtype { inner } => {
+        Type::Newtype { value } => {
             write!(f, [token("newtype"), token("<")])?;
-            format_type_id(*inner, f)?;
+            format_type_id(*value, f)?;
             write!(f, [token(">")])
         }
         Type::Variant {

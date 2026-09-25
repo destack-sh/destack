@@ -445,8 +445,8 @@ impl ModuleLowerer<'_> {
         // read the closure's lowered signature as the extracted body's own
         let representation = self.type_lowerer(tree, scope).lower(closure)?;
         let mut callable = representation;
-        while let mir::Type::Newtype { inner, .. } = tree.get(callable) {
-            callable = *inner;
+        while let mir::Type::Newtype { value, .. } = tree.get(callable) {
+            callable = *value;
         }
         let mir::Type::Function { signature, .. } = tree.get(callable) else {
             return Err(CompilerError::Internal {

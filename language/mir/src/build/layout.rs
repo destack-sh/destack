@@ -497,15 +497,15 @@ impl<'tree> LayoutBuilder<'tree> {
                 })
             }
 
-            // newtypes store transparently as their inner type
-            Type::Newtype { inner, .. } => {
-                let backing = self.layout_type(inner)?;
+            // newtypes store transparently as their value type
+            Type::Newtype { value, .. } => {
+                let backing = self.layout_type(value)?;
                 let layout = self.layouts.layout(backing);
                 let trace_map = layout.trace_map.clone();
 
                 Ok(Layout {
                     shape: LayoutShape::Newtype(NewtypeLayout {
-                        backing_type: inner,
+                        backing_type: value,
                         backing_layout: backing,
                     }),
                     representation: layout.representation,

@@ -1179,14 +1179,14 @@ impl FunctionLowerer<'_, '_, '_> {
                 dir::ReceiverAdjustment::NewtypePayload { ty, .. } => {
                     let target = self.lower_type(*ty)?;
                     let stored = self.stored_projection(value, |definition| match definition {
-                        mir::Type::Newtype { inner, .. } => Some(*inner),
+                        mir::Type::Newtype { value, .. } => Some(*value),
                         _ => None,
                     })?;
                     match stored {
-                        Some((inner, access)) => {
+                        Some((stored, access)) => {
                             let projection = mir::Projection::Field { index: 0 };
 
-                            self.stored_payload(value, projection, inner, access, target)?
+                            self.stored_payload(value, projection, stored, access, target)?
                         }
                         None => self.builder.field_get(value, 0),
                     }

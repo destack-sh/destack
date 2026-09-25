@@ -472,7 +472,7 @@ pub enum Type {
     /// Nominal newtype over one wrapped type.
     Newtype {
         /// The wrapped type.
-        inner: TypeId,
+        value: TypeId,
     },
     /// Sum value with one logical discriminant and case payloads.
     Variant {
@@ -661,7 +661,7 @@ impl Type {
                 fields.get(index as usize).map(|field| tree.get(*field).ty)
             }
             Type::Tuple { elements, .. } => elements.get(index as usize).copied(),
-            Type::Newtype { inner, .. } if index == 0 => Some(*inner),
+            Type::Newtype { value, .. } if index == 0 => Some(*value),
             _ => None,
         }
     }
@@ -724,11 +724,8 @@ impl Type {
                 Self::byte_width(pointer_width_bits)
             }
             Type::Float(format) => Self::byte_width(format.width()),
-            Type::Uninit { value } | Type::ManuallyDrop { value } => tree
+            Type::Uninit { value } | Type::ManuallyDrop { value } | Type::Newtype { value } => tree
                 .type_definition(*value)
-                .byte_size(tree, pointer_width_bits),
-            Type::Newtype { inner, .. } => tree
-                .type_definition(*inner)
                 .byte_size(tree, pointer_width_bits),
             Type::FixedArray {
                 element, length, ..
@@ -1169,8 +1166,8 @@ impl Type {
                     *element = map(*element);
                 }
             }
-            Type::Newtype { inner, .. } => {
-                *inner = map(*inner);
+            Type::Newtype { value, .. } => {
+                *value = map(*value);
             }
             Type::Variant {
                 discriminant,

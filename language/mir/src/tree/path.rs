@@ -89,14 +89,10 @@ impl Place {
             .try_fold(root, |ty, projection| ty.project(projection, tree))
     }
 
-    /// Return the place selected by the first projections of this one.
-    pub fn prefix(&self, length: usize) -> Self {
-        Self {
-            origin: self.origin,
-            path: Path {
-                projections: self.path.projections[..length].to_vec(),
-            },
-        }
+    /// Extend this prefix of another place with its projections up to the given length.
+    pub fn extend_to(&mut self, place: &Self, length: usize) {
+        let projections = &place.path.projections[self.path.projections.len()..length];
+        self.path.projections.extend_from_slice(projections);
     }
 
     /// Iterate the length and type of each prefix this place projects from, typing each once.

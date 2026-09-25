@@ -148,8 +148,8 @@ impl DropTable {
             Type::Tuple { elements, .. } => elements
                 .iter()
                 .any(|element| self.child_requires_destructor(*element, storage, tree, seen)),
-            Type::Newtype { inner, .. } => {
-                self.child_requires_destructor(*inner, storage, tree, seen)
+            Type::Newtype { value, .. } => {
+                self.child_requires_destructor(*value, storage, tree, seen)
             }
             Type::FixedArray {
                 element, length, ..

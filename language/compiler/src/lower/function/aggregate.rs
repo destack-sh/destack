@@ -420,8 +420,8 @@ impl FunctionLowerer<'_, '_, '_> {
 
         // detect singleton newtypes storing no runtime value
         let is_payload_void = match self.builder.tree().type_definition(ty) {
-            mir::Type::Newtype { inner, .. } => {
-                matches!(self.builder.tree().get(*inner), mir::Type::Void)
+            mir::Type::Newtype { value, .. } => {
+                matches!(self.builder.tree().get(*value), mir::Type::Void)
             }
             _ => false,
         };
@@ -436,14 +436,14 @@ impl FunctionLowerer<'_, '_, '_> {
         let value = match (&resolution.target, self.builder.tree().type_definition(ty)) {
             (
                 dir::ConstructTarget::Newtype { arm: Some(arm), .. },
-                mir::Type::Newtype { inner, .. },
+                mir::Type::Newtype { value: variant, .. },
             ) => {
-                let inner = *inner;
+                let variant = *variant;
                 let payload = self
                     .case_has_payload(binding.argument_type)?
                     .then_some(value);
 
-                self.builder.variant_new(inner, *arm, payload)
+                self.builder.variant_new(variant, *arm, payload)
             }
             (dir::ConstructTarget::Newtype { arm: Some(_), .. }, _) => {
                 return Err(self.internal("a newtype arm outside a newtype representation"));

@@ -73,12 +73,12 @@ impl<'a, 'b> DestructorBody<'a, 'b> {
                 }
             }
             // type Handle = newtype<File>;
-            mir::Type::Newtype { inner, .. } => {
-                // drop the transparent inner value
-                let inner_pointer_type = self.intern_pointer(inner);
-                let inner_pointer = self.builder.bitcast(pointer, inner_pointer_type);
+            mir::Type::Newtype { value, .. } => {
+                // drop the transparent value
+                let value_pointer_type = self.intern_pointer(value);
+                let value_pointer = self.builder.bitcast(pointer, value_pointer_type);
 
-                self.drop_at(inner, inner_pointer, storage);
+                self.drop_at(value, value_pointer, storage);
             }
             // type Buffer = [File; 4];
             mir::Type::FixedArray {

@@ -325,8 +325,8 @@ pub fn walk_type<V: NodeVisitor + ?Sized>(visitor: &mut V, tree: &Tree, ty: &Typ
                 visitor.visit_field(tree, *field_id, field);
             }
         }
-        Type::Newtype { inner, .. } => {
-            walk_type_id(visitor, tree, inner);
+        Type::Newtype { value, .. } => {
+            walk_type_id(visitor, tree, value);
         }
         Type::Variant {
             discriminant,

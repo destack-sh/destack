@@ -127,12 +127,12 @@ impl FunctionLowerer<'_, '_, '_> {
         loop {
             let ty = self.place_type(&place)?;
             let ty = self.resolved_type(ty);
-            let mir::Type::Newtype { inner, .. } = *self.builder.tree().type_definition(ty) else {
+            let mir::Type::Newtype { value, .. } = *self.builder.tree().type_definition(ty) else {
                 return Ok(place);
             };
             place.path.push(PlaceProjection::Field {
                 field: 0,
-                ty: inner,
+                ty: value,
             });
         }
     }
