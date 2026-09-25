@@ -4,8 +4,8 @@ use smallvec::SmallVec;
 use crate::{
     Analysis, Block, CastOperator, Constant, ConstantTable, ControlTable, DataflowTable,
     ForwardTransfer, FunctionId, Instruction, Intrinsic, Lattice, LocalId, LocalNodeId,
-    LocalNodeIdAny, Mutability, Mutation, Place, PlaceOrigin, PlaceType, Projection, Storage,
-    StorageSet, Substitution, Tree, Type, Value, is_copy,
+    LocalNodeIdAny, Mutability, Mutation, Place, PlaceOrigin, PlaceType, Projection, Reference,
+    Storage, StorageSet, Substitution, Tree, Type, Value, is_copy,
 };
 
 /// How one place may alias others, by the root of its storage.
@@ -21,6 +21,8 @@ enum AliasClass<'tree> {
     Value,
     /// Storage behind one reference parameter, with the parameter's reference type.
     Parameter(&'tree Type),
+    /// A heap object behind a handle.
+    Object,
     /// Storage behind any other reference.
     Referent,
 }
@@ -113,6 +115,9 @@ impl Place {
             (AliasClass::Frame | AliasClass::Static, AliasClass::Frame | AliasClass::Static) => {
                 false
             }
+            // a handle addresses a heap object, never a frame or static root
+            (AliasClass::Frame | AliasClass::Static, AliasClass::Object)
+            | (AliasClass::Object, AliasClass::Frame | AliasClass::Static) => false,
             // a caller's reference addresses storage outside this frame's locals
             (AliasClass::Frame, AliasClass::Parameter(_))
             | (AliasClass::Parameter(_), AliasClass::Frame) => false,
@@ -179,6 +184,17 @@ impl Place {
             _ => match parameter {
                 Some(parameter) if self.path.projections.first() == Some(&Projection::Deref) => {
                     AliasClass::Parameter(tree.type_definition(tree.storage_type(parameter.ty)))
+                }
+                _ if self
+                    .reference_type(function, tree)
+                    .is_some_and(|reference| {
+                        matches!(
+                            tree.type_definition(reference).reference_kind(),
+                            Some(Reference::Managed(_))
+                        )
+                    }) =>
+                {
+                    AliasClass::Object
                 }
                 _ => AliasClass::Referent,
             },

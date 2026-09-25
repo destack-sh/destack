@@ -1426,3 +1426,50 @@ for more information about an error, run `destack explain invalidation-of-borrow
     );
 }
 
+/// A write through a handle stored in a global invalidates a borrow issued while its allocation was fresh.
+#[test]
+fn test_reject_a_write_through_a_global_handle_under_a_borrow_of_an_escaped_allocation() {
+    let mut program = TestProgram::mir(
+        r#"
+type Box {
+    value: int32;
+}
+
+global slot: ref<Box, managed, mutable, local> = zeroinit
+
+function test(): int32 {
+entry:
+    v0: ref<Box, managed, mutable, local> = new.zeroed Box, local
+    v1: ref<int32, borrowed, 'frame, immutable> = address (*v0).0
+    store @slot, v0
+    v2: int32 = 1
+    v3: ref<Box, managed, mutable, local> = load @slot
+    store (*v3).0, v2
+    v4: int32 = load (*v1)
+    return v4
+}
+"#,
+    );
+
+    program.assert_verify_errors(
+        r#"
+error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
+  ──▶ <test.dsm>:15:5
+   │
+ 9 │ entry:
+10 │     v0: ref<Box, managed, mutable, local> = new.zeroed Box, local
+11 │     v1: ref<int32, borrowed, 'frame, immutable> = address (*v0).0
+   │     ------------------------------------------------------------- borrow starts here
+12 │     store @slot, v0
+13 │     v2: int32 = 1
+14 │     v3: ref<Box, managed, mutable, local> = load @slot
+15 │     store (*v3).0, v2
+   │     ^^^^^^^^^^^^^^^^^
+16 │     v4: int32 = load (*v1)
+17 │     return v4
+   │
+
+for more information about an error, run `destack explain invalidation-of-borrowed-place`
+"#,
+    );
+}
