@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use destack_artifact::{
     DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported,
-    DirParsed, DirResolved, DirView, IndexKind, ModuleIndex,
+    DirMaterialized, DirParsed, DirResolved, DirView, IndexKind, ModuleIndex,
 };
 use destack_dir as dir;
 use destack_repository::{ArtifactReader, Module, ProfileId, ProviderError, Repository, Revision};
@@ -19,10 +19,8 @@ pub struct DirModule<'a> {
     pub id: ModuleId,
     /// The contributing source files in parsed order.
     pub files: &'a [Arc<File>],
-    /// The parsed DIR artifact.
-    pub parsed: &'a DirParsed,
-    /// The expanded DIR artifact.
-    pub expanded: &'a DirExpanded,
+    /// The stacked stages through materialization.
+    pub stages: &'a DirView,
     /// The resolved import and source-reference artifact.
     pub resolved: &'a DirResolved,
     /// The resolved export artifact.
@@ -70,10 +68,8 @@ pub(super) struct DirModuleStorage {
     pub(super) id: ModuleId,
     /// The contributing source files in parsed order.
     files: Box<[Arc<File>]>,
-    /// The parsed DIR artifact.
-    parsed: Arc<DirParsed>,
-    /// The expanded DIR artifact.
-    expanded: Arc<DirExpanded>,
+    /// The stacked stages through materialization.
+    stages: DirView,
     /// The resolved import and source-reference artifact.
     resolved: Arc<DirResolved>,
     /// The resolved export artifact.
@@ -123,8 +119,7 @@ impl<'a> DirModule<'a> {
             dir,
             id: storage.id,
             files: &storage.files,
-            parsed: &storage.parsed,
-            expanded: &storage.expanded,
+            stages: &storage.stages,
             resolved: &storage.resolved,
             exported: &storage.exported,
             bindings: &storage.bindings,
@@ -167,7 +162,7 @@ impl<'a> DirModule<'a> {
     /// Return whether one node sits under a statically absent gate.
     pub fn is_statically_absent(&self, node: dir::LocalNodeIdAny) -> bool {
         // climb the tree, checking each decorated ancestor's committed presence
-        let tree = &self.parsed.tree;
+        let tree = &self.stages.parsed.tree;
         let mut current = Some(node);
         while let Some(decorated) = current {
             if self.statics.presence(decorated) == Some(dir::StaticPresence::Absent) {
@@ -273,20 +268,19 @@ impl DirModuleStorage {
 
         // read the DIR artifacts, the stages stacked once
         let reader = artifacts;
-        let view = DirView::checked(
+        let resolved = reader.read::<DirResolved>((module_id, profile))?;
+        let view = DirView::materialized(
             reader.read::<DirParsed>(module_id)?,
             reader.read::<DirBound>((module_id, profile))?,
             reader.read::<DirImported>((module_id, profile))?,
             reader.read::<DirExpanded>((module_id, profile))?,
-            reader.read::<DirResolved>((module_id, profile))?,
+            resolved.clone(),
             reader.read::<DirDeclared>((module_id, profile))?,
             reader.read::<DirElaborated>((module_id, profile))?,
             reader.read::<DirChecked>((module_id, profile))?,
+            reader.read::<DirMaterialized>((module_id, profile))?,
         );
-        let parsed = Arc::clone(&view.parsed);
-        let bound = Arc::clone(&view.bound);
-        let resolved = Arc::clone(view.resolved.as_ref().unwrap_or_else(|| unreachable!()));
-        let expanded = Arc::clone(&view.expanded);
+        let parsed = &view.parsed;
         let exported = artifacts.read::<DirExported>((module_id, profile))?;
 
         // load each index explicitly requested by an active lint
@@ -349,15 +343,14 @@ impl DirModuleStorage {
         let coercions = view.coercions().clone();
         let captures = view.captures().clone();
         let flows = view.flows().clone();
-        let roots = expanded.roots.clone();
-        let module_node = bound.module_node;
-        let namespace_scope = bound.namespace_scope;
+        let roots = view.expanded.roots.clone();
+        let module_node = view.bound.module_node;
+        let namespace_scope = view.bound.namespace_scope;
 
         Ok(Self {
             id: module_id,
             files: files.into_boxed_slice(),
-            parsed,
-            expanded,
+            stages: view,
             resolved,
             exported,
             bindings,

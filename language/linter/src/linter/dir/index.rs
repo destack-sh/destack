@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use destack_artifact::{
-    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported, DirParsed,
-    DirResolved, DirView, EnvironmentBound, IndexKind,
+    DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported, DirMaterialized,
+    DirParsed, DirResolved, DirView, EnvironmentBound, IndexKind,
 };
 use destack_core::{FxIndexMap, FxIndexSet};
 use destack_dir as dir;
@@ -191,7 +191,6 @@ impl<'a> Dir<'a> {
                 right_kind,
             ) => Ok(left_kind == right_kind),
             // NOTE #Incomplete: cross-module structural heads compare unequal
-            //  until their payload ids canonicalize
             _ => Ok(false),
         }
     }
@@ -278,7 +277,7 @@ impl<'a> Dir<'a> {
         Ok(true)
     }
 
-    /// Strip placement forms from one type id.
+    /// Strip memory forms from one type id.
     pub fn strip_form(
         &self,
         mut type_id: dir::GlobalTypeId,
@@ -404,25 +403,25 @@ impl<'a> Dir<'a> {
         Ok(false)
     }
 
-    /// Return the access represented by one memory type.
+    /// Return the access one memory type names, none for an access parameter.
     pub(super) fn memory_access(
         &self,
         type_id: dir::GlobalTypeId,
-    ) -> Result<dir::Access, ProviderError> {
+    ) -> Result<Option<dir::Access>, ProviderError> {
         let ty = self.get_type(type_id)?;
         let access = match ty {
             dir::Type::Literal(dir::Literal::String(value)) => {
-                dir::Access::from_text(self.strings.get(value))
+                dir::Access::from_text(self.strings.get(value)).map(Some)
             }
+            dir::Type::Parameter(_) => Some(None),
             _ => None,
         };
-        let Some(access) = access else {
-            return Err(ProviderError::internal(format!(
-                "memory access {type_id:?} has non-access type {ty:?}"
-            )));
-        };
 
-        Ok(access)
+        access.ok_or_else(|| {
+            ProviderError::internal(format!(
+                "memory access {type_id:?} has non-access type {ty:?}"
+            ))
+        })
     }
 
     /// Return whether one type is a nominal enum.
@@ -474,11 +473,13 @@ impl<'a> Dir<'a> {
         })
     }
 
-    /// Return the access carried by one borrowed type.
+    /// Return the access of one borrowed type, none for other types.
+    ///
+    /// The inner access is none for a borrow of an access parameter.
     pub(crate) fn borrow_access(
         &self,
         type_id: dir::GlobalTypeId,
-    ) -> Result<Option<dir::Access>, ProviderError> {
+    ) -> Result<Option<Option<dir::Access>>, ProviderError> {
         let Some(borrow) = self.borrow_form(type_id)? else {
             return Ok(None);
         };
@@ -826,7 +827,7 @@ impl Dir<'_> {
         let reader = &self.artifacts;
         let profile = self.profile;
 
-        Ok(DirView::checked(
+        Ok(DirView::materialized(
             reader.read::<DirParsed>(module_id)?,
             reader.read::<DirBound>((module_id, profile))?,
             reader.read::<DirImported>((module_id, profile))?,
@@ -835,6 +836,7 @@ impl Dir<'_> {
             reader.read::<DirDeclared>((module_id, profile))?,
             reader.read::<DirElaborated>((module_id, profile))?,
             reader.read::<DirChecked>((module_id, profile))?,
+            reader.read::<DirMaterialized>((module_id, profile))?,
         ))
     }
 }

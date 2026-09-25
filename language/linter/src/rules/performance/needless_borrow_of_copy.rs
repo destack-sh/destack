@@ -56,7 +56,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         else {
             continue;
         };
-        let access = access.unwrap_or(dir::Access::Mutable);
+        let access = access.unwrap_or(dir::Access::BARE);
         if access != dir::Access::Readonly {
             continue;
         }

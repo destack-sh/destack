@@ -35,6 +35,7 @@ impl Linter {
         // require controls for every selected module lint
         dependencies.require(ArtifactKey::dir_declared(module, profile));
         dependencies.require(ArtifactKey::dir_checked(module, profile));
+        dependencies.require(ArtifactKey::dir_materialized(module, profile));
 
         // require the DIR of this module and of every module its resolutions name
         if lints.has_modules() {
@@ -43,10 +44,11 @@ impl Linter {
                 dependencies.require(ArtifactKey::module_index(module, profile, kind));
             }
 
-            // read this module's edges out of the module graph
-            let graph_key = ArtifactKey::module_graph(profile);
-            dependencies
-                .require_projection(graph_key, ArtifactProjectionKey::ModuleGraphEdges(module));
+            // read this module's edges out of its package's module graph
+            dependencies.require_projection(
+                ArtifactKey::module_graph(module.package_id, profile),
+                ArtifactProjectionKey::ModuleGraphEdges(module),
+            );
             let artifacts = self.artifact_reader(context);
             let reachable = match LintProgram::load_modules(profile, &[module], &artifacts) {
                 Ok(modules) => modules,
@@ -61,7 +63,7 @@ impl Linter {
             // require the edges and the DIR of every reached module
             for reached in reachable.iter().copied() {
                 dependencies.require_projection(
-                    graph_key,
+                    ArtifactKey::module_graph(reached.package_id, profile),
                     ArtifactProjectionKey::ModuleGraphEdges(reached),
                 );
             }

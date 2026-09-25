@@ -168,9 +168,14 @@ fn receiver_form(
     let form = match module.dir.default_ownership(type_id)? {
         Some(dir::Ownership::Owned) => ReceiverForm::Value,
         Some(dir::Ownership::Borrowed) => match module.dir.borrow_access(type_id)? {
-            Some(dir::Access::Readonly | dir::Access::Immutable) => ReceiverForm::Readonly,
-            Some(dir::Access::Mutable | dir::Access::Exclusive) => ReceiverForm::Mutable,
-            None => ReceiverForm::Borrowed,
+            Some(Some(dir::Access::Readonly | dir::Access::Immutable)) => ReceiverForm::Readonly,
+            Some(Some(dir::Access::Mutable | dir::Access::Exclusive)) => ReceiverForm::Mutable,
+            Some(None) => ReceiverForm::Borrowed,
+            None => {
+                return Err(ProviderError::internal(format!(
+                    "borrowed receiver {type_id:?} has no borrow form"
+                )));
+            }
         },
         Some(dir::Ownership::Managed | dir::Ownership::Raw) | None => return Ok(None),
     };

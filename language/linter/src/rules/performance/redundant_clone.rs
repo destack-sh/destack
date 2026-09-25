@@ -75,9 +75,7 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
                     function
                         .value_type(receiver)
                         .and_then(|ty| tree.get(ty).pointee_type())
-                        .is_some_and(|pointee| {
-                            mir::Copy::decide(pointee, function_id, tree).is_yes()
-                        })
+                        .is_some_and(|pointee| mir::is_copy(tree, pointee, &function.generics))
                 });
                 if let Some(receiver) = receiver
                     && !is_copy
@@ -121,8 +119,8 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
 
                 // advance origin and liveness together
                 let instruction = tree.get(instruction_id);
-                let mut cx = mir::OriginContext::new(function_id, tree, &places, loans);
-                state.advance(&mut cx, instruction_id);
+                let cx = mir::OriginContext::new(function_id, tree, &places, loans);
+                state.advance(&cx, instruction_id);
                 live.advance(instruction, tree);
             }
         }

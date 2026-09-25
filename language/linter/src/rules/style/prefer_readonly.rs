@@ -491,7 +491,7 @@ import { ContextVar } from "destack:context";
 import { Dynamic, DynamicSafe } from "destack:memory";
 
 /// One dynamically scoped binding family.
-export local class Binding<T: DynamicSafe> extends ContextVar<Dynamic<T>> {
+export class Binding<T: DynamicSafe> extends ContextVar<Dynamic<T>> {
     /// Create one binding family resolved through the seeded context.
     constructor(name: string) {
         super(name);

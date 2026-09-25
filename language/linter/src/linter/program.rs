@@ -79,18 +79,33 @@ impl LintProgram {
         roots: &[ModuleId],
         artifacts: &ArtifactReader<'_>,
     ) -> Result<Vec<ModuleId>, ProviderError> {
-        artifacts.project::<ModuleGraph, _, _>(profile, |graph| {
-            // select reachable modules and track every root and visited edge list
-            let modules = graph.reachable(roots);
-            let projections = roots
-                .iter()
-                .chain(&modules)
-                .copied()
-                .map(ArtifactProjectionKey::ModuleGraphEdges)
-                .collect::<FxIndexSet<_>>();
+        let mut visited = FxIndexSet::default();
+        let mut pending = roots.to_vec();
 
-            (modules, projections)
-        })
+        // walk import edges through the graph of each module's package, tracking every edge list
+        while let Some(module) = pending.pop() {
+            if !visited.insert(module) {
+                continue;
+            }
+
+            let edges =
+                artifacts.project::<ModuleGraph, _, _>((module.package_id, profile), |graph| {
+                    (
+                        graph.edges(module),
+                        [ArtifactProjectionKey::ModuleGraphEdges(module)],
+                    )
+                })?;
+            let edges = edges.ok_or_else(|| {
+                ProviderError::internal(format!("no module graph holds module '{module}'"))
+            })?;
+            pending.extend(edges.iter().copied());
+        }
+
+        // order the reached modules for a stable dependency set
+        let mut modules = visited.into_iter().collect::<Vec<_>>();
+        modules.sort_unstable();
+
+        Ok(modules)
     }
 
     /// Return whether the target package owns one module.
@@ -135,10 +150,11 @@ impl Linter {
         }
 
         // read the root edges before walking the reachable graph
-        let graph_key = ArtifactKey::module_graph(profile);
         for root in roots.iter().copied() {
-            dependencies
-                .require_projection(graph_key, ArtifactProjectionKey::ModuleGraphEdges(root));
+            dependencies.require_projection(
+                ArtifactKey::module_graph(root.package_id, profile),
+                ArtifactProjectionKey::ModuleGraphEdges(root),
+            );
         }
         let artifacts = self.artifact_reader(context);
         let program_modules = match LintProgram::load_modules(profile, &roots, &artifacts) {
@@ -153,8 +169,10 @@ impl Linter {
 
         // project the program's import closure from the target roots
         for module in program_modules.iter().copied() {
-            dependencies
-                .require_projection(graph_key, ArtifactProjectionKey::ModuleGraphEdges(module));
+            dependencies.require_projection(
+                ArtifactKey::module_graph(module.package_id, profile),
+                ArtifactProjectionKey::ModuleGraphEdges(module),
+            );
         }
         let mut required = program_modules.iter().copied().collect::<FxIndexSet<_>>();
 
@@ -168,6 +186,7 @@ impl Linter {
             if repository_module.is_code() {
                 dependencies.require(ArtifactKey::dir_declared(module, profile));
                 dependencies.require(ArtifactKey::dir_checked(module, profile));
+                dependencies.require(ArtifactKey::dir_materialized(module, profile));
             }
         }
 
@@ -184,11 +203,19 @@ impl Linter {
             graph_roots.dedup();
 
             // project modules introduced by compiler globals
-            let modules = LintProgram::load_modules(profile, &graph_roots, &artifacts)?;
+            let modules = match LintProgram::load_modules(profile, &graph_roots, &artifacts) {
+                Ok(modules) => modules,
+                Err(ProviderError::Blocked { .. }) => {
+                    dependencies.mark_partial();
+
+                    return Ok(dependencies);
+                }
+                Err(error) => return Err(error),
+            };
             for module in modules.iter().copied() {
                 if required.insert(module) {
                     dependencies.require_projection(
-                        graph_key,
+                        ArtifactKey::module_graph(module.package_id, profile),
                         ArtifactProjectionKey::ModuleGraphEdges(module),
                     );
                 }

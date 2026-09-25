@@ -156,9 +156,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             continue;
         }
 
-        // require removal to preserve the result type
-        if module.node_type_id(expression.into_any())?
-            != module.node_type_id(identity.value.into_any())?
+        // require removal to preserve the result type at its use
+        if module.adjusted_type_id(expression.into_any())?
+            != module.adjusted_type_id(identity.value.into_any())?
         {
             continue;
         }

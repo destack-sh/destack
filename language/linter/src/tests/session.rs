@@ -698,15 +698,8 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, RevisionPin) {
         let session = Session::new(repository.clone(), executor())
             .expect("library warmup session should start");
 
-        // resolve the builtin library profile
-        let package = repository.embedded_builtin();
-        let library_target = TargetId::new(package.package_id(), TARGET_NAME);
-        let library_profile = repository
-            .profile_for_target(revision, library_target)
-            .expect("builtin library profile should resolve")
-            .id();
-
         // resolve the workspace profile used by lint fixtures
+        let package = repository.embedded_builtin();
         let module = repository
             .module_id_for_path(revision, WARMUP_PATH.as_ref())
             .expect("warmup module should resolve")
@@ -722,18 +715,13 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, RevisionPin) {
             .expect("lint fixture profile should resolve")
             .id();
 
-        // check builtin modules under both profiles once
+        // materialize every builtin module under the workspace profile once
         let keys = package
             .module_ids()
-            .flat_map(|module| {
-                [
-                    ArtifactKey::dir_checked(module, library_profile),
-                    ArtifactKey::dir_checked(module, workspace_profile),
-                ]
-            })
+            .map(|module| ArtifactKey::dir_materialized(module, workspace_profile))
             .collect::<Vec<_>>();
         let run = session.provide(revision, &keys, ArtifactPriority::Foreground);
-        block_on(run.wait()).expect("builtin library warmup should check");
+        block_on(run.wait()).expect("builtin library warmup should materialize");
 
         // remove the temporary module from the fixture base
         let base = repository

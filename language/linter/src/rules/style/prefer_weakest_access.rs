@@ -68,7 +68,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
         else {
             continue;
         };
-        let declared_access = access.unwrap_or(dir::Access::Mutable);
+        let declared_access = access.unwrap_or(dir::Access::BARE);
         if declared_access != dir::Access::Mutable {
             continue;
         }

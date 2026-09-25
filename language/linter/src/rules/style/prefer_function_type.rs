@@ -266,8 +266,6 @@ fn function_type_needs_parentheses(
             dir::TypeExpression::Array { element } => *element == child,
             dir::TypeExpression::Index { left, .. } => *left == child,
             dir::TypeExpression::Readonly { target_type }
-            | dir::TypeExpression::Local { target_type }
-            | dir::TypeExpression::Shared { target_type }
             | dir::TypeExpression::KeyOf { target_type }
             | dir::TypeExpression::Must { target_type }
             | dir::TypeExpression::Not { target_type }

@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::slice;
 
 use destack_artifact::DiagnosticAnchor;
 use destack_dir as dir;
@@ -8,10 +7,13 @@ use destack_source::{File, FileId, NodeSpanBoundary, NodeSpanRegion, NodeSpanTyp
 
 use super::DirModule;
 
+/// The body kept where a removed statement leaves a required block.
+const EMPTY_BODY: &str = "{ /* intentionally empty */ }";
+
 impl DirModule<'_> {
     /// Return the token with exactly this source span.
     pub(crate) fn token(&self, span: Span) -> Result<dir::Token, ProviderError> {
-        let parsed = self.parsed.file(span.file).ok_or_else(|| {
+        let parsed = self.stages.parsed.file(span.file).ok_or_else(|| {
             ProviderError::internal(format!(
                 "source file {:?} is absent from parsed lint module {:?}",
                 span.file, self.id
@@ -120,7 +122,7 @@ impl DirModule<'_> {
         extent: Span,
         retained: &[Span],
     ) -> Result<bool, ProviderError> {
-        let parsed_file = self.parsed.file(extent.file).ok_or_else(|| {
+        let parsed_file = self.stages.parsed.file(extent.file).ok_or_else(|| {
             ProviderError::internal(format!(
                 "source file {:?} is absent from parsed lint module {:?}",
                 extent.file, self.id
@@ -279,13 +281,12 @@ impl DirModule<'_> {
                     })?;
 
                     // switch cases permit an empty statement list
-                    (owner.ty != dir::NodeType::SwitchCase)
-                        .then_some("{ /* intentionally empty */ }")
+                    (owner.ty != dir::NodeType::SwitchCase).then_some(EMPTY_BODY)
                 }
             }
             // preserve required expression bodies
             Some(parent) if matches!(parent.ty, dir::NodeType::MatchArm | dir::NodeType::Catch) => {
-                Some("{ /* intentionally empty */ }")
+                Some(EMPTY_BODY)
             }
             // preserve a directly authored finally body
             Some(parent) if parent.ty == dir::NodeType::Expression => {
@@ -304,7 +305,7 @@ impl DirModule<'_> {
                     )));
                 }
 
-                Some("{ /* intentionally empty */ }")
+                Some(EMPTY_BODY)
             }
             Some(parent) => {
                 return Err(ProviderError::internal(format!(
@@ -332,7 +333,7 @@ impl DirModule<'_> {
 
     /// Return the DIR tree.
     pub fn view(&self) -> dir::View<'_> {
-        dir::View::with_patches(&self.parsed.tree, slice::from_ref(&self.expanded.patch))
+        self.stages.tree()
     }
 
     /// Return one source file.

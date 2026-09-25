@@ -97,7 +97,7 @@ fn template_fix(
     expression: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<FilePatch>, ProviderError> {
     let span = module.source_extent(expression.into_any())?;
-    let parsed = module.parsed.file(span.file).ok_or_else(|| {
+    let parsed = module.stages.parsed.file(span.file).ok_or_else(|| {
         ProviderError::internal(format!(
             "template source file {:?} is absent from lint module {:?}",
             span.file, module.id

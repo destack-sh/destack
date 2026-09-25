@@ -102,7 +102,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
     // compare each contributing file with its parsed literal spans
     for file in module.files {
-        let parsed = module.parsed.file(file.id).ok_or_else(|| {
+        let parsed = module.stages.parsed.file(file.id).ok_or_else(|| {
             ProviderError::internal(format!(
                 "source file {:?} is absent from parsed lint module {:?}",
                 file.id, module.id

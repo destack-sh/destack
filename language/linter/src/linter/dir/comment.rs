@@ -137,7 +137,7 @@ impl<'a> CommentBlock<'a> {
         let mut blocks = Vec::new();
 
         // group every physical file independently
-        for (parsed, file) in module.parsed.files.iter().zip(module.files) {
+        for (parsed, file) in module.stages.parsed.files.iter().zip(module.files) {
             if parsed.file_id != file.id {
                 return Err(ProviderError::internal(format!(
                     "parsed comment file {:?} does not match source file {:?}",

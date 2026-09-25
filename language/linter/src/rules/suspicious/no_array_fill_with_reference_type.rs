@@ -19,7 +19,7 @@ class Cell {
 }
 
 function cells(): Cell[] {
-    const values = [new Cell(), new Cell(), new Cell()];
+    let values = [new Cell(), new Cell(), new Cell()];
     values.fill(new Cell());
     return values;
 }
@@ -103,7 +103,7 @@ class Cell {
 }
 
 function cells(value: Cell): Cell[] {
-    const values = [new Cell(), new Cell(), new Cell()];
+    let values = [new Cell(), new Cell(), new Cell()];
     values.fill(value);
     return values;
 }
@@ -116,88 +116,12 @@ warning[no-array-fill-with-reference-type]: Array.fill repeats one managed refer
  ──▶ main.ds:7:17
   │
 5 │ function cells(value: Cell): Cell[] {
-6 │     const values = [new Cell(), new Cell(), new Cell()];
+6 │     let values = [new Cell(), new Cell(), new Cell()];
 7 │     values.fill(value);
   │                 ^^^^^
 8 │     return values;
 9 │ }
   │
-
- = help: construct one value per element
-"#,
-        );
-    }
-
-    /// Report filling an Array with a managed handle to a struct.
-    #[test]
-    fn test_reports_managed_struct_handle() {
-        let session = TestSession::dir(
-            &NO_ARRAY_FILL_WITH_REFERENCE_TYPE,
-            r#"
-import { Managed } from "destack:memory";
-
-struct Point {
-    x: int32;
-}
-
-function points(value: Managed<Point, "local">): Managed<Point, "local">[] {
-    const values = [value, value, value];
-    values.fill(value);
-    return values;
-}
-"#,
-        );
-
-        session.assert_diagnostics(
-            r#"
-warning[no-array-fill-with-reference-type]: Array.fill repeats one managed reference
-  ──▶ main.ds:9:17
-   │
- 7 │ function points(value: Managed<Point, "local">): Managed<Point, "local">[] {
- 8 │     const values = [value, value, value];
- 9 │     values.fill(value);
-   │                 ^^^^^
-10 │     return values;
-11 │ }
-   │
-
- = help: construct one value per element
-"#,
-        );
-    }
-
-    /// Report filling an Array with a managed box of an owned class value.
-    #[test]
-    fn test_reports_managed_owned_box() {
-        let session = TestSession::dir(
-            &NO_ARRAY_FILL_WITH_REFERENCE_TYPE,
-            r#"
-import { Managed, Owned } from "destack:memory";
-
-class Cell {
-    value: int32 = 0;
-}
-
-function cells(value: Managed<Owned<Cell>, "local">): Managed<Owned<Cell>, "local">[] {
-    const values = [value, value, value];
-    values.fill(value);
-    return values;
-}
-"#,
-        );
-
-        session.assert_diagnostics(
-            r#"
-warning[no-array-fill-with-reference-type]: Array.fill repeats one managed reference
-  ──▶ main.ds:9:17
-   │
- 7 │ function cells(value: Managed<Owned<Cell>, "local">): Managed<Owned<Cell>, "local">[] {
- 8 │     const values = [value, value, value];
- 9 │     values.fill(value);
-   │                 ^^^^^
-10 │     return values;
-11 │ }
-   │
 
  = help: construct one value per element
 "#,
@@ -211,7 +135,7 @@ warning[no-array-fill-with-reference-type]: Array.fill repeats one managed refer
             &NO_ARRAY_FILL_WITH_REFERENCE_TYPE,
             r#"
 function zeros(): int32[] {
-    const values = [1, 2, 3];
+    let values = [1, 2, 3];
     values.fill(0);
     return values;
 }
@@ -228,7 +152,7 @@ function zeros(): int32[] {
             &NO_ARRAY_FILL_WITH_REFERENCE_TYPE,
             r#"
 function labels(value: string): string[] {
-    const values = ["left", "middle", "right"];
+    let values = ["left", "middle", "right"];
     values.fill(value);
     return values;
 }
@@ -249,7 +173,7 @@ function identity(value: int32): int32 {
 }
 
 function operations(): ((value: int32) => int32)[] {
-    const values = [identity, identity, identity];
+    let values = [identity, identity, identity];
     values.fill(identity);
     return values;
 }
@@ -270,7 +194,7 @@ class Cell {
 }
 
 function cells(value: readonly Cell): (readonly Cell)[] {
-    const values = [value, value, value];
+    let values = [value, value, value];
     values.fill(value);
     return values;
 }

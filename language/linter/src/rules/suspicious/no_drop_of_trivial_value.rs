@@ -66,7 +66,7 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
                 if matches!(
                     tree.get(ty),
                     mir::Type::Reference {
-                        kind: mir::Reference::Managed,
+                        kind: mir::Reference::Managed(_),
                         ..
                     }
                 ) {
@@ -153,8 +153,8 @@ warning[no-drop-of-trivial-value]: value requires no destruction
     fn test_reports_borrowed_reference() {
         let session = TestSession::mir(
             &NO_DROP_OF_TRIVIAL_VALUE,
-            r#"function discard<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): void {
-entry(v0: ref<int32, borrowed, 'a, readonly, local>):
+            r#"function discard<'a>(v0: ref<int32, borrowed, 'a, readonly>): void {
+entry(v0: ref<int32, borrowed, 'a, readonly>):
     drop v0
     return
 }
@@ -166,8 +166,8 @@ entry(v0: ref<int32, borrowed, 'a, readonly, local>):
 warning[no-drop-of-trivial-value]: value requires no destruction
  ──▶ main.mir:3:5
   │
-1 │ function discard<'a>(v0: ref<int32, borrowed, 'a, readonly, local>): void {
-2 │ entry(v0: ref<int32, borrowed, 'a, readonly, local>):
+1 │ function discard<'a>(v0: ref<int32, borrowed, 'a, readonly>): void {
+2 │ entry(v0: ref<int32, borrowed, 'a, readonly>):
 3 │     drop v0
   │     ^^^^^^^
 4 │     return

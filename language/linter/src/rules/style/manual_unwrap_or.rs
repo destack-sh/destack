@@ -608,6 +608,24 @@ function value(result: &readonly Result<int32, int32>): int32 {
         session.assert_no_diagnostics();
     }
 
+    /// Preserve fallback selection from a Result borrowed at an access parameter.
+    #[test]
+    fn test_accepts_result_borrowed_at_an_access_parameter() {
+        let session = TestSession::dir(
+            &MANUAL_UNWRAP_OR,
+            r#"
+function value<'a, const A: Access>(result: Borrowed<Result<int32, int32>, 'a, A>): int32 {
+    return match (result) {
+        Ok { value } => value
+        Err { error: _ } => 0
+    };
+}
+"#,
+        );
+
+        session.assert_no_diagnostics();
+    }
+
     /// Preserve a match that widens both Result branches.
     #[test]
     fn test_accepts_widened_result() {

@@ -148,7 +148,7 @@ fn has_safety_comment(
         })?;
     let first = module.source_extent(first.into_any())?;
     let file = module.file(first.file)?;
-    let parsed = module.parsed.file(first.file).ok_or_else(|| {
+    let parsed = module.stages.parsed.file(first.file).ok_or_else(|| {
         ProviderError::internal(format!(
             "source file {:?} is absent from parsed lint module {:?}",
             first.file, module.id

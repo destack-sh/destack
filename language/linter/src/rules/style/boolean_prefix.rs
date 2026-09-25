@@ -285,12 +285,12 @@ import { Panic } from "destack:error";
 newtype WorkerExit =
     | { kind: "completed" }
     | { kind: "terminated" }
-    | { kind: "panicked"; panic: shared readonly Panic };
+    | { kind: "panicked"; panic: readonly Panic };
 
 /// Worker request failure.
 newtype WorkerError =
     | { kind: "terminated" }
-    | { kind: "panicked"; panic: shared readonly Panic };
+    | { kind: "panicked"; panic: readonly Panic };
 "#,
         );
 

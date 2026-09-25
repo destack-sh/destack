@@ -162,7 +162,7 @@ impl IndexLoop {
         let ownership = module.dir.default_ownership(target_type)?;
         let has_unique_target = ownership == Some(dir::Ownership::Owned)
             || ownership == Some(dir::Ownership::Borrowed)
-                && module.dir.borrow_access(target_type)? == Some(dir::Access::Exclusive);
+                && module.dir.borrow_access(target_type)? == Some(Some(dir::Access::Exclusive));
 
         Ok(has_unique_target)
     }

@@ -93,11 +93,8 @@ impl DirModule<'_> {
                     || occurrence.uses.contains(dir::BindingUse::EXCLUSIVE)
                     || occurrence.uses.contains(dir::BindingUse::CAPTURE))
         });
-        if has_incompatible_use {
-            return Ok(false);
-        }
 
-        Ok(true)
+        Ok(!has_incompatible_use)
     }
 
     /// Return the strongest access granted through one place.
@@ -109,9 +106,10 @@ impl DirModule<'_> {
             .decisions
             .place_resolution(expression.into_global_any(self.id));
 
-        place
-            .map(|place| self.dir.memory_access(place.access))
-            .transpose()
+        match place {
+            Some(place) => self.dir.memory_access(place.access),
+            None => Ok(None),
+        }
     }
 
     /// Return the place beneath one explicit dereference.
@@ -221,11 +219,6 @@ impl DirModule<'_> {
         let writes = uses.may_mutate() || uses.contains(dir::BindingUse::MUTABLE);
         let excludes = uses.contains(dir::BindingUse::EXCLUSIVE);
 
-        match (writes, excludes) {
-            (false, false) => dir::Access::Readonly,
-            (true, false) => dir::Access::Mutable,
-            (false, true) => dir::Access::Immutable,
-            (true, true) => dir::Access::Exclusive,
-        }
+        dir::Access::of(writes, excludes)
     }
 }

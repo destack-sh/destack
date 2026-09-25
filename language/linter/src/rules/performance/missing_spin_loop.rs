@@ -271,8 +271,8 @@ mod tests {
     fn test_reports_atomic_load_polling_loop() {
         let session = TestSession::mir(
             &MISSING_SPIN_LOOP,
-            r#"function wait<'a>(v0: ref<boolean, borrowed, 'a, mutable, shared>): void {
-entry(v0: ref<boolean, borrowed, 'a, mutable, shared>):
+            r#"function wait<'a>(v0: ref<boolean, borrowed, 'a, mutable>): void {
+entry(v0: ref<boolean, borrowed, 'a, mutable>):
     jump poll
 
 poll:
@@ -308,8 +308,8 @@ warning[missing-spin-loop]: atomic busy-wait loop has no processor hint
     fn test_accepts_atomic_load_polling_loop_with_spin_hint() {
         let session = TestSession::mir(
             &MISSING_SPIN_LOOP,
-            r#"function wait<'a>(v0: ref<boolean, borrowed, 'a, mutable, shared>): void {
-entry(v0: ref<boolean, borrowed, 'a, mutable, shared>):
+            r#"function wait<'a>(v0: ref<boolean, borrowed, 'a, mutable>): void {
+entry(v0: ref<boolean, borrowed, 'a, mutable>):
     jump poll
 
 poll:
@@ -331,8 +331,8 @@ done:
     fn test_ignores_atomic_loop_with_observable_work() {
         let session = TestSession::mir(
             &MISSING_SPIN_LOOP,
-            r#"function wait<'a>(v0: ref<boolean, borrowed, 'a, mutable, shared>): void {
-entry(v0: ref<boolean, borrowed, 'a, mutable, shared>):
+            r#"function wait<'a>(v0: ref<boolean, borrowed, 'a, mutable>): void {
+entry(v0: ref<boolean, borrowed, 'a, mutable>):
     jump poll
 
 poll:
@@ -354,8 +354,8 @@ done:
     fn test_reports_atomic_compare_exchange_loop() {
         let session = TestSession::mir(
             &MISSING_SPIN_LOOP,
-            r#"function wait<'a>(v0: ref<uint32, borrowed, 'a, mutable, shared>): void {
-entry(v0: ref<uint32, borrowed, 'a, mutable, shared>):
+            r#"function wait<'a>(v0: ref<uint32, borrowed, 'a, mutable>): void {
+entry(v0: ref<uint32, borrowed, 'a, mutable>):
     v1: uint32 = 0
     v2: uint32 = 1
     jump poll(v1, v2)
@@ -394,8 +394,8 @@ warning[missing-spin-loop]: atomic busy-wait loop has no processor hint
     fn test_accepts_nested_polling_loop_with_spin_hint() {
         let session = TestSession::mir(
             &MISSING_SPIN_LOOP,
-            r#"function wait<'a>(v0: ref<boolean, borrowed, 'a, mutable, shared>): void {
-entry(v0: ref<boolean, borrowed, 'a, mutable, shared>):
+            r#"function wait<'a>(v0: ref<boolean, borrowed, 'a, mutable>): void {
+entry(v0: ref<boolean, borrowed, 'a, mutable>):
     jump outer
 
 outer:
@@ -421,8 +421,8 @@ done:
     fn test_reports_negated_atomic_condition() {
         let session = TestSession::mir(
             &MISSING_SPIN_LOOP,
-            r#"function wait<'a>(v0: ref<boolean, borrowed, 'a, mutable, shared>): void {
-entry(v0: ref<boolean, borrowed, 'a, mutable, shared>):
+            r#"function wait<'a>(v0: ref<boolean, borrowed, 'a, mutable>): void {
+entry(v0: ref<boolean, borrowed, 'a, mutable>):
     jump poll
 
 poll:
@@ -459,8 +459,8 @@ warning[missing-spin-loop]: atomic busy-wait loop has no processor hint
     fn test_reports_atomic_condition_through_block_parameter() {
         let session = TestSession::mir(
             &MISSING_SPIN_LOOP,
-            r#"function wait<'a>(v0: ref<boolean, borrowed, 'a, mutable, shared>): void {
-entry(v0: ref<boolean, borrowed, 'a, mutable, shared>):
+            r#"function wait<'a>(v0: ref<boolean, borrowed, 'a, mutable>): void {
+entry(v0: ref<boolean, borrowed, 'a, mutable>):
     jump poll
 
 poll:
@@ -499,8 +499,8 @@ warning[missing-spin-loop]: atomic busy-wait loop has no processor hint
     fn test_ignores_unrelated_atomic_load() {
         let session = TestSession::mir(
             &MISSING_SPIN_LOOP,
-            r#"function wait<'a>(v0: ref<boolean, borrowed, 'a, mutable, shared>, v1: boolean): void {
-entry(v0: ref<boolean, borrowed, 'a, mutable, shared>, v1: boolean):
+            r#"function wait<'a>(v0: ref<boolean, borrowed, 'a, mutable>, v1: boolean): void {
+entry(v0: ref<boolean, borrowed, 'a, mutable>, v1: boolean):
     jump poll
 
 poll:
@@ -521,8 +521,8 @@ done:
     fn test_reports_retry_path_without_spin_hint() {
         let session = TestSession::mir(
             &MISSING_SPIN_LOOP,
-            r#"function wait<'a>(v0: ref<boolean, borrowed, 'a, mutable, shared>, v1: boolean): void {
-entry(v0: ref<boolean, borrowed, 'a, mutable, shared>, v1: boolean):
+            r#"function wait<'a>(v0: ref<boolean, borrowed, 'a, mutable>, v1: boolean): void {
+entry(v0: ref<boolean, borrowed, 'a, mutable>, v1: boolean):
     jump poll
 
 poll:
@@ -568,8 +568,8 @@ warning[missing-spin-loop]: atomic busy-wait loop has no processor hint
     fn test_accepts_spin_hint_before_retry_paths_diverge() {
         let session = TestSession::mir(
             &MISSING_SPIN_LOOP,
-            r#"function wait<'a>(v0: ref<boolean, borrowed, 'a, mutable, shared>, v1: boolean): void {
-entry(v0: ref<boolean, borrowed, 'a, mutable, shared>, v1: boolean):
+            r#"function wait<'a>(v0: ref<boolean, borrowed, 'a, mutable>, v1: boolean): void {
+entry(v0: ref<boolean, borrowed, 'a, mutable>, v1: boolean):
     jump poll
 
 poll:
