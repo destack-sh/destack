@@ -1,15 +1,13 @@
 import { color } from "@destack/theme/tokens.stylex";
-import { For, Match, onSettled, Show, Switch } from "@destack/view";
+import { For, Match, Show, Switch } from "@destack/view";
 import * as stylex from "@destack/style";
 
 import { type Document, type DocumentContent } from "../content/document";
 import { Breadcrumbs } from "./breadcrumbs";
 import { publicationStyles } from "./publication.stylex";
 import { Reader } from "./reader";
-import { enhanceRuleCatalog } from "./rules";
-import "./rules.css";
 import { PageHeader } from "./header";
-import { createDirectory, DirectoryContent, DirectorySection } from "./directory";
+import { createDirectory, DirectoryContent } from "./directory";
 
 /** Properties for one rendered manual chapter. */
 type DocumentArticleProperties = {
@@ -22,16 +20,6 @@ type DocumentArticleProperties = {
 
 /** Render a document with its collection navigation. */
 export function DocumentArticle(properties: DocumentArticleProperties) {
-    // hold the rendered body for the rule catalog controls
-    let body: HTMLDivElement | undefined;
-
-    // activate controls only after the complete static directory is mounted
-    onSettled(() => {
-        if (body) {
-            return enhanceRuleCatalog(body);
-        }
-    });
-
     // count the tokens of a chapter
     const tokenCount =
         properties.document.kind === "chapter" ? properties.document.tokens : undefined;
@@ -55,18 +43,13 @@ export function DocumentArticle(properties: DocumentArticleProperties) {
                         />
                     )}
                 </Match>
-                <Match when={properties.document.kind === "catalog"}>
-                    <DirectorySection title={properties.document.title}>
-                        <div ref={body} class="markdown" innerHTML={properties.content.html} />
-                    </DirectorySection>
-                </Match>
                 <Match when={true}>
                     <PageHeader
                         title={properties.document.title}
-                        variant={properties.document.kind === "chapter" ? "chapter" : "reference"}
+                        variant="chapter"
                         description={properties.document.lead}
                     />
-                    <div ref={body} class="markdown" innerHTML={properties.content.html} />
+                    <div class="markdown" innerHTML={properties.content.html} />
                 </Match>
             </Switch>
         </Reader>
@@ -105,12 +88,6 @@ function DocumentNavigation(properties: DocumentNavigationProperties) {
     // read the navigation of the current document
     const navigation = () => properties.current.navigation;
 
-    // highlight the containing page of a reference item without changing the page list
-    const activeRoute = () =>
-        [properties.current, ...navigation().ancestors.toReversed()].find((page) =>
-            navigation().entries.some((entry) => entry.route === page.route),
-        )?.route;
-
     // link back to the page above the navigation root
     const parent = () => {
         const ancestors = navigation().ancestors;
@@ -143,7 +120,8 @@ function DocumentNavigation(properties: DocumentNavigationProperties) {
                                     documentIndent(entry.depth),
                                     entry.depth === 0 && styles.section,
                                     entry.depth === 0 && index() > 0 && styles.sectionGap,
-                                    entry.route === activeRoute() && publicationStyles.active,
+                                    entry.route === properties.current.route &&
+                                        publicationStyles.active,
                                 )}
                                 href={entry.route}
                             >

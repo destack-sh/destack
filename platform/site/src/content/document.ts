@@ -15,7 +15,7 @@ export type Document = {
     /** The authored Markdown route. */
     markdownRoute: string;
     /** The document category. */
-    kind: "chapter" | "module" | "symbol" | "rule" | "catalog";
+    kind: "chapter" | "catalog";
     /** The generated chapter links. */
     navigation: {
         root: DocumentLink;
@@ -113,7 +113,7 @@ function isDocument(value: unknown): value is Document {
         typeof document.description === "string" &&
         (document.lead == undefined || typeof document.lead === "string") &&
         typeof document.markdownRoute === "string" &&
-        ["chapter", "module", "symbol", "rule", "catalog"].includes(String(document.kind)) &&
+        (document.kind === "chapter" || document.kind === "catalog") &&
         typeof document.navigation === "object" &&
         document.navigation != null &&
         typeof document.route === "string" &&

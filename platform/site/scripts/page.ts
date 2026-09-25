@@ -8,10 +8,6 @@ export type NavigationPage = {
     route: string;
     title: string;
     kind?: string;
-    /// A warning inherited by descendant pages.
-    warning?: string;
-    parentRoute?: string;
-    moduleRoute?: string;
     parent?: NavigationPage;
     ancestors?: NavigationPage[];
     collection?: Collection;
@@ -31,11 +27,9 @@ export type RenderedPage = NavigationPage & {
     tableOfContents: ReturnType<typeof headingsFor>;
     searchSections: ReturnType<typeof searchSectionsFor>;
     searchText: string;
-    searchKind?: string;
-    searchContext?: string;
 };
 
-/// A documentation page, including generated package and rule references.
+/// An authored documentation page.
 export type DocumentationPage = RenderedPage & {
     description: string;
     lead?: string;

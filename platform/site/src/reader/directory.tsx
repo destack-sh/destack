@@ -75,7 +75,7 @@ export function DirectoryArchive(properties: { directory: Directory }) {
 }
 
 /** Render a collection title above its content. */
-export function DirectorySection(properties: {
+function DirectorySection(properties: {
     title: string;
     description?: string;
     children: JSX.Element;

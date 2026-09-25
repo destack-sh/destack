@@ -1,14 +1,11 @@
 import { escapeAttribute } from "./html.ts";
 
-/** One navigable item, shared by generated indexes, archives, and references. */
+/** One navigable item, shared by generated indexes and archives. */
 export type ContentEntry = {
     title: string;
     href: string;
     summary?: string;
-    meta?: string;
     date?: string;
-    external?: boolean;
-    code?: boolean;
     image?: { source: string; alt: string } | null;
 };
 
@@ -26,8 +23,6 @@ export function formatDate(date: string): string {
 export function renderContentList(entries: readonly ContentEntry[]): string {
     return `<ul class="content-list">${entries
         .map((entry) => {
-            // mark external links to open in a new tab
-            const relation = entry.external ? ' target="_blank" rel="noopener noreferrer"' : "";
             // omit placeholder descriptions that repeat the link title
             const isRepeatedTitle = entry.summary?.replace(/\.$/, "") === entry.title;
             const description =
@@ -36,12 +31,9 @@ export function renderContentList(entries: readonly ContentEntry[]): string {
                     : "";
             const meta = entry.date
                 ? `<time class="content-entry-meta" datetime="${escapeAttribute(entry.date)}">${escapeAttribute(
-                      entry.meta ?? formatDate(entry.date),
+                      formatDate(entry.date),
                   )}</time>`
-                : entry.meta
-                  ? `<span class="content-entry-meta">${escapeAttribute(entry.meta)}</span>`
-                  : "";
-            const titleTag = entry.code ? "code" : "span";
+                : "";
             const image = entry.image
                 ? `<img class="content-entry-image" src="${escapeAttribute(entry.image.source)}" alt="${escapeAttribute(
                       entry.image.alt,
@@ -49,13 +41,11 @@ export function renderContentList(entries: readonly ContentEntry[]): string {
                 : "";
             const arrow = `<svg class="content-arrow" aria-hidden="true" viewBox="0 0 24 24" fill="none"><path d="M5 12h14m-6-6 6 6-6 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
-            return `<li><a class="content-entry"${entry.date ? ' data-dated="true"' : ""}${
-                entry.external ? ' data-external="true"' : ""
-            } href="${escapeAttribute(
+            return `<li><a class="content-entry"${entry.date ? ' data-dated="true"' : ""} href="${escapeAttribute(
                 entry.href,
-            )}"${relation}>${image}<${titleTag} class="content-entry-title">${escapeAttribute(
+            )}">${image}<span class="content-entry-title">${escapeAttribute(
                 entry.title,
-            )}</${titleTag}>${meta}${arrow}${description}</a></li>`;
+            )}</span>${meta}${arrow}${description}</a></li>`;
         })
         .join("")}</ul>`;
 }

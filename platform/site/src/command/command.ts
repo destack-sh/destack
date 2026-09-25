@@ -6,9 +6,7 @@ import { navigationLinks } from "../navigation/navigation";
 /** The collections available in site search. */
 export const searchScopes = [
     "All",
-    ...collections
-        .filter((collection) => collection.isListed !== false)
-        .map((collection) => collection.title),
+    ...collections.map((collection) => collection.title),
     "Commands",
 ];
 
@@ -280,13 +278,7 @@ function scoreCommand(command: Command, terms: readonly string[]) {
             return -1;
         }
 
-        // treat the final module segment as its local name
-        const isExact =
-            label === term ||
-            (command.kind === "module" &&
-                (label.endsWith(`:${term}`) || label.endsWith(`/${term}`)));
-
-        if (isExact) {
+        if (label === term) {
             score += 1000;
         } else if (label.startsWith(term)) {
             score += 500;
@@ -310,14 +302,8 @@ function rankFor(kind: Command["kind"]) {
             return 1600;
         case "page":
             return 1200;
-        case "rule":
-            return 1100;
         case "section":
             return 800;
-        case "module":
-            return 900;
-        case "symbol":
-            return 0;
     }
 }
 

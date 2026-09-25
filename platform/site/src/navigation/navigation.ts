@@ -18,8 +18,6 @@ export type NavigationLink = {
 export const primaryLinks: readonly NavigationLink[] = [
     { href: "/docs/", label: "Documentation", shortcut: "d" },
     { href: "/blog/", label: "Blog", shortcut: "b" },
-    // TODO #Incomplete: point at the package browser once the registry discovery API exists
-    { href: "/docs/template/", label: "Registry", shortcut: "r" },
 ];
 
 /** The external Destack community destinations. */

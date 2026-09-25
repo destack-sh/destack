@@ -11,6 +11,10 @@ description: Install Destack.
 curl -fsSL https://destack.sh/install | sh
 ```
 
+## Ask your agent
+
+TODO: Add instructions for asking your agent to install and configure Destack.
+
 ## Version
 
 ```sh
@@ -22,5 +26,3 @@ destack version
 ```sh
 destack update
 ```
-
-[Write your first program](/docs/language/setup/) or [choose a template](/docs/template/).

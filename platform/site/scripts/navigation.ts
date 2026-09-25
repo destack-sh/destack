@@ -1,16 +1,14 @@
 import type { NavigationPage } from "./page.ts";
 import { collectionAt } from "../content.ts";
 
-/// Generate chapter navigation and reference ancestry.
-export function buildNavigation(documents: NavigationPage[], references: NavigationPage[]) {
-    const pages = [...documents, ...references];
-    const byRoute = new Map(pages.map((page) => [page.route, page]));
+/// Generate chapter navigation and ancestry.
+export function buildNavigation(documents: NavigationPage[]) {
+    const byRoute = new Map(documents.map((page) => [page.route, page]));
     const chapters = documents.filter((page) => page.kind === "chapter");
 
-    // resolve each parent from published routes, including symbol module parents
-    for (const page of pages) {
-        const parentRoute = page.parentRoute ?? page.moduleRoute ??
-            page.route.replace(/[^/]+\/$/, "");
+    // resolve each parent from published routes
+    for (const page of documents) {
+        const parentRoute = page.route.replace(/[^/]+\/$/, "");
         const parent = page.route === "/docs/" ? undefined : byRoute.get(parentRoute);
         if (page.route !== "/docs/" && parent == undefined) {
             throw new Error(`missing parent ${parentRoute} for ${page.route}`);
@@ -22,7 +20,7 @@ export function buildNavigation(documents: NavigationPage[], references: Navigat
     }
 
     // resolve ancestry once before selecting navigation entries
-    for (const page of pages) {
+    for (const page of documents) {
         page.ancestors = [];
         let parent = page.parent;
         while (parent != undefined) {
@@ -46,16 +44,13 @@ export function buildNavigation(documents: NavigationPage[], references: Navigat
     }
 
     // expand every document beneath the active section
-    for (const page of pages) {
+    for (const page of documents) {
         const collection = page.collection!;
         const root = byRoute.get(collection.route)!;
         const chain = [...page.ancestors!, page];
         const section = chain[chain.indexOf(root) + 1];
         const visible: NavigationPage[] = [];
         function visit(document: NavigationPage) {
-            if (document.collection?.isListed === false && document.collection !== collection) {
-                return;
-            }
             visible.push(document);
             if (document === section || document.ancestors!.includes(section)) {
                 for (const child of children.get(document) ?? []) visit(child);

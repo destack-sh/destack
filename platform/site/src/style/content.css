@@ -117,18 +117,6 @@
     outline-offset: -3px;
 }
 
-.content-tag {
-    display: inline-block;
-    padding: 0.125rem 0.375rem;
-    border: 0;
-    border-radius: 3px;
-    background: var(--publication-page-muted);
-    color: var(--publication-soft);
-    font-size: var(--content-metadata-size);
-    line-height: 1.5;
-    white-space: nowrap;
-}
-
 @media (max-width: 600px) {
     :root {
         --content-inset: 1.25rem;
@@ -139,10 +127,6 @@
     .markdown a.content-entry {
         column-gap: 0.75rem;
     }
-}
-
-.content-entry[data-external] .content-arrow {
-    transform: rotate(-45deg);
 }
 
 /* Publication dates belong to the entry copy rather than a distant column. */
@@ -174,10 +158,6 @@
     grid-row: 2;
 }
 
-.content-entry:has(> .content-entry-image):not([data-dated]) > .content-entry-meta {
-    grid-row: 2;
-}
-
 .content-entry:has(> .content-entry-image) > .content-entry-summary {
     grid-row: 3;
 }
@@ -190,46 +170,10 @@
     max-width: 72ch;
 }
 
-/* Inventory links and navigation rows share the same interaction feedback. */
-
-.reference-item-list a:is(:hover, :focus-visible) {
-    color: var(--publication-accent);
-}
-
-.reference-item-list a:focus-visible {
-    outline: 2px solid var(--publication-accent);
-    outline-offset: -3px;
-}
-
-/* Code identities use the same navigation rows, with technical typography. */
-
-.markdown code.content-entry-title {
-    padding: 0;
-    background: none;
-    color: inherit;
-    font:
-        500 var(--content-code-size)/1.5 "IBM Plex Mono",
-        monospace;
-    overflow-wrap: anywhere;
-}
-
-/* Reference and manual headings share the sans-serif page hierarchy. */
+/* Manual headings share the sans-serif page hierarchy. */
 
 [data-publication="manual"] .markdown :is(h1, h2, h3) {
     font-family: "IBM Plex Sans Variable", sans-serif;
-}
-
-.reference-item-list a:is(:hover, :focus-visible) code {
-    text-decoration: underline;
-    text-underline-offset: 0.2em;
-}
-
-/* Give mobile page identity and metadata room without loosening the navigation. */
-
-@media (max-width: 767px) {
-    .lint-metadata {
-        margin-bottom: 0.5rem;
-    }
 }
 
 /* keep manual listings compact */

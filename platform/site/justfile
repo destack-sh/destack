@@ -24,11 +24,6 @@ format-check:
 generate:
     bun run generate
 
-# generate reference
-generate-reference:
-    bun run scripts/generate-release.ts
-    bun run scripts/generate-content.ts --reference
-
 # generate check
 generate-check:
     bun run scripts/generate-release.ts --check

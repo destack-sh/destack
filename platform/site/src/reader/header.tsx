@@ -7,7 +7,7 @@ export function PageHeader(properties: {
     /** The page title. */
     title: string;
     /** The page kind; articles leave more room below their opening. */
-    variant: "article" | "chapter" | "reference";
+    variant: "article" | "chapter";
     /** The optional lead below the title. */
     description?: string;
     /** The optional metadata row. */

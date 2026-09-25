@@ -27,13 +27,6 @@ import {
 } from "./markdown.ts";
 import { plainTextFor, searchTextFor, tokenEstimateFor } from "./text.ts";
 import { writePageSources } from "./sources.ts";
-import {
-    moduleCatalogRoute,
-    parseReadme,
-    readLibraryReference,
-    renderPackageDocuments,
-} from "./reference.ts";
-import { readLintReference, renderLintDocuments, ruleCatalogRoute } from "./lint.ts";
 import { withLock } from "./lock.ts";
 
 const repositoryDirectory = resolve(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -59,82 +52,31 @@ const generatedPostFile = join(generatedDirectory, "posts.ts");
 const generatedRouteFile = join(generatedDirectory, "prerender-routes.ts");
 const generatedAssetFile = join(generatedDirectory, "assets.ts");
 const isCheck = process.argv.includes("--check");
-const hasReference = process.argv.includes("--reference");
 const documentPathPattern = /^(?:[a-z0-9]+(?:-[a-z0-9]+)*\/)*[a-z0-9]+(?:-[a-z0-9]+)*\.md$/;
 const documentSegmentPattern = /^(\d{2})-([a-z0-9]+(?:-[a-z0-9]+)*)$/;
-
-// refresh compiler references when explicitly requested
-if (hasReference) {
-    await import("./generate-reference.ts");
-}
 
 mkdirSync(generatedDirectory, { recursive: true });
 await withLock(join(generatedDirectory, ".content-lock"), async () => {
     const documentSources = readDocumentSources();
-    const renderedDocuments = renderDocuments(documentSources);
-    let documents = renderedDocuments;
-    const references: DocumentationPage[] = [];
-    const modules = new Set<string>();
-
-    // include compiler references only when explicitly requested
-    if (hasReference) {
-        const libraryReference = readLibraryReference();
-        const libraryIndex = renderedDocuments.find(
-            (document) => document.route === moduleCatalogRoute,
-        );
-        if (libraryIndex == undefined) {
-            throw new Error("missing standard library documentation index");
-        }
-        const library = renderPackageDocuments(libraryReference, libraryIndex, {
-            directory: join(repositoryDirectory, "language/library"),
-            referenceFile: join(siteDirectory, ".generated/library-reference.json"),
-            sourceUrl: "https://github.com/destack-sh/destack/blob/main/language/library/",
-        });
-        const lintIndex = renderedDocuments.find((document) => document.route === ruleCatalogRoute);
-        if (lintIndex == undefined) {
-            throw new Error("missing lint rule documentation index");
-        }
-        const lintReference = readLintReference();
-        const lint = renderLintDocuments(lintReference, lintIndex);
-        documents = [
-            ...renderedDocuments.filter(
-                (document) => document !== libraryIndex && document !== lintIndex,
-            ),
-            ...library.documents,
-            ...lint.documents,
-        ];
-        references.push(...library.items, ...lint.items);
-        for (const page of library.documents) {
-            if (page.route !== libraryIndex.route) modules.add(page.route);
-        }
-    }
-
-    documents.sort(
-        (left, right) => left.order - right.order || left.route.localeCompare(right.route),
-    );
+    const documents = renderDocuments(documentSources);
     const postSources = readPostSources();
     const posts = renderPosts(postSources);
     const blogIndex = renderBlogIndex(posts);
-    // resolve navigation once for authored chapters and generated references
-    for (const page of [...documents, ...references]) {
-        page.kind = page.searchKind ?? (modules.has(page.route) ? "module" : "chapter");
-    }
-    buildNavigation(documents, references);
+    buildNavigation(documents);
     appendChapterContents(documents);
-    applyWarnings([...documents, ...references]);
-    const pages = [...documents, ...references, ...posts, blogIndex];
-    const searchEntries = searchEntriesFor(posts, documents, references);
+    const pages = [...documents, ...posts, blogIndex];
+    const searchEntries = searchEntriesFor(posts, documents);
     if (!isCheck) {
         await writePageSources(pages, publicDirectory);
         writePageContent(pages);
         removeObsoletePages(pages);
         writeGeneratedFile(publicSearchFile, `${JSON.stringify(searchEntries)}\n`);
     }
-    generateDocumentMetadata([...documents, ...references]);
+    generateDocumentMetadata(documents);
     const postSource = await formatSource(generatedPostFile, renderPostModule(posts, blogIndex));
     const routeSource = await formatSource(
         generatedRouteFile,
-        renderRouteModule(posts, documents, references),
+        renderRouteModule(posts, documents),
     );
     const assetSource = await formatSource(generatedAssetFile, renderAssetModule(pages));
 
@@ -177,51 +119,15 @@ function renderAssetModule(pages: RenderedPage[]): string {
     ].join("\n");
 }
 
-/// Add the nearest inherited warning to HTML and portable page formats.
-function applyWarnings(pages: DocumentationPage[]) {
-    for (const page of pages) {
-        const warning = [page, ...(page.ancestors ?? []).toReversed()].find(
-            (ancestor) => ancestor.warning !== undefined,
-        )?.warning;
-        if (warning === undefined) continue;
-
-        // reuse GitHub alert rendering and keep the notice immediately below the title
-        const markdown = `> [!WARNING]\n${warning
-            .split("\n")
-            .map((line) => `> ${line}`)
-            .join("\n")}\n`;
-        const html = renderMarkdown(markdown, { assets: [], route: page.route });
-        page.html = /<h1\b[^>]*>[\s\S]*?<\/h1>/.test(page.html)
-            ? page.html.replace(/<h1\b[^>]*>[\s\S]*?<\/h1>/, (title) => `${title}\n${html}`)
-            : html + page.html;
-        page.markdown = page.markdown.replace(
-            /^(# [^\n]+)(?:\n|$)/m,
-            (_match, title) => `${title}\n\n${markdown}\n`,
-        );
-        page.tokens = tokenEstimateFor(plainTextFor(page.markdown));
-    }
-}
-
 /// Append immediate child chapters to each authored index.
 function appendChapterContents(documents: DocumentationPage[]) {
-    const chapters = documents.filter((page) => page.kind === "chapter");
-
-    // preserve the resolved navigation order and specialized catalogs
-    for (const chapter of chapters) {
-        if (
-            (chapter.path !== "index.md" && !chapter.path.endsWith("/index.md")) ||
-            chapter.route === moduleCatalogRoute ||
-            chapter.route === ruleCatalogRoute
-        ) {
+    // preserve the resolved navigation order
+    for (const chapter of documents) {
+        if (chapter.path !== "index.md" && !chapter.path.endsWith("/index.md")) {
             continue;
         }
 
-        const children = documents.filter(
-            (page) =>
-                (page.kind === "chapter" || page.kind === "catalog") &&
-                page.parent === chapter &&
-                (page.collection?.isListed !== false || page.collection === chapter.collection),
-        );
+        const children = documents.filter((page) => page.parent === chapter);
         if (children.length === 0) {
             continue;
         }
@@ -391,17 +297,11 @@ function readDocumentSources() {
             }
 
             // map files into the documentation tree
-            const files = collection.readme
-                ? [join(collection.directory, "README.md")]
-                : markdownFiles(collection.directory);
-            return files.map((file) => {
+            return markdownFiles(collection.directory).map((file) => {
                 const source = readFileSync(file, "utf8");
-                const { markdown, metadata } = collection.readme
-                    ? parseReadme(source, file)
-                    : parseFrontmatter(source, file);
+                const { markdown, metadata } = parseFrontmatter(source, file);
                 requireString(metadata, "title", file);
                 requireString(metadata, "description", file);
-                if (metadata.warning !== undefined) requireString(metadata, "warning", file);
 
                 // reject frontmatter ordering
                 if (Object.hasOwn(metadata, "order")) {
@@ -409,24 +309,19 @@ function readDocumentSources() {
                 }
 
                 const sourcePath = relative(collection.directory, file).replaceAll("\\", "/");
-                const { hierarchy, path: publicPath } = parseDocumentPath(
-                    collection.readme ? "index.md" : sourcePath,
-                    file,
-                );
+                const { hierarchy, path: publicPath } = parseDocumentPath(sourcePath, file);
                 const path =
                     collection.path === "" ? publicPath : `${collection.path}/${publicPath}`;
                 const route = documentRoute(path);
                 const headings = headingsFor(markdown);
 
                 return {
-                    isPackage: collection.readme === true,
-                    warning: metadata.warning as string | undefined,
                     description: metadata.description,
                     directory: collection.directory,
                     file,
                     headings,
                     hierarchy: [...collection.hierarchy, ...hierarchy],
-                    lead: collection.readme ? undefined : metadata.description,
+                    lead: metadata.description,
                     markdownRoute: `/${join("docs", path).replaceAll("\\", "/")}`,
                     markdown,
                     path,
@@ -591,7 +486,8 @@ function renderDocuments(sources: ReturnType<typeof readDocumentSources>): Docum
         return {
             ...source,
             assets: context.assets,
-            html: source.isPackage ? "" : renderMarkdown(source.markdown, context),
+            html: renderMarkdown(source.markdown, context),
+            kind: "chapter",
             searchSections: searchSectionsFor(source.markdown),
             searchText: searchTextFor(source.markdown),
             tableOfContents: source.headings.filter((heading) => heading.depth > 1),
@@ -823,17 +719,12 @@ function renderPostRecord(post: ReturnType<typeof renderPosts>[number]) {
 }
 
 /// Generate the complete prerender route list.
-function renderRouteModule(
-    posts: RenderedPage[],
-    documents: DocumentationPage[],
-    references: DocumentationPage[],
-) {
+function renderRouteModule(posts: RenderedPage[], documents: DocumentationPage[]) {
     const routes = [
         "/",
         "/blog/",
         ...posts.map((post) => post.route),
         ...documents.map((document) => document.route),
-        ...references.map((reference) => reference.route),
     ];
 
     return `/** The complete static browser route set. */\nexport const prerenderRoutes = ${JSON.stringify(
@@ -844,37 +735,31 @@ function renderRouteModule(
 }
 
 /// Return the complete full-text search index.
-function searchEntriesFor(
-    posts: ReturnType<typeof renderPosts>,
-    documents: DocumentationPage[],
-    references: DocumentationPage[],
-) {
+function searchEntriesFor(posts: ReturnType<typeof renderPosts>, documents: DocumentationPage[]) {
     return [
-        ...documents
-            .filter((document) => document.collection?.isListed !== false)
-            .flatMap((document) => [
-                {
-                    context:
-                        document.path === "index.md"
-                            ? "docs"
-                            : document.path.split("/").slice(0, -1).join(" / "),
-                    kind: document.kind === "module" ? "module" : "page",
-                    route: document.route,
-                    text: `${document.description} ${
-                        document.searchSections.find((section) => section.depth === 1)?.text ?? ""
-                    }`,
-                    title: document.title,
-                },
-                ...document.searchSections
-                    .filter((section) => section.depth > 1)
-                    .map((section) => ({
-                        context: document.title,
-                        kind: "section",
-                        route: `${document.route}#${section.id}`,
-                        text: section.text,
-                        title: section.title,
-                    })),
-            ]),
+        ...documents.flatMap((document) => [
+            {
+                context:
+                    document.path === "index.md"
+                        ? "docs"
+                        : document.path.split("/").slice(0, -1).join(" / "),
+                kind: "page",
+                route: document.route,
+                text: `${document.description} ${
+                    document.searchSections.find((section) => section.depth === 1)?.text ?? ""
+                }`,
+                title: document.title,
+            },
+            ...document.searchSections
+                .filter((section) => section.depth > 1)
+                .map((section) => ({
+                    context: document.title,
+                    kind: "section",
+                    route: `${document.route}#${section.id}`,
+                    text: section.text,
+                    title: section.title,
+                })),
+        ]),
         ...posts.flatMap((post) => [
             {
                 context: `blog / ${post.date}`,
@@ -893,15 +778,6 @@ function searchEntriesFor(
                     title: section.title,
                 })),
         ]),
-        ...references
-            .filter((reference) => reference.collection?.isListed !== false)
-            .map((reference) => ({
-                context: reference.searchContext,
-                kind: reference.searchKind,
-                route: reference.route,
-                text: reference.searchSections[0].text,
-                title: reference.title,
-            })),
     ];
 }
 

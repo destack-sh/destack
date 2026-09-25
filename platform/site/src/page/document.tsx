@@ -12,7 +12,7 @@ type DocumentPageProperties = {
     route: string;
 };
 
-/** Render an authored chapter or generated reference. */
+/** Render an authored chapter or index. */
 export function DocumentPage(properties: DocumentPageProperties) {
     const item = createMemo(() => loadDocument(properties.route));
 

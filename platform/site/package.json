@@ -10,7 +10,7 @@
         "check": "bun run typecheck && bun run test && bun run build",
         "dev": "bun run generate && bun run build/main.ts dev",
         "format": "echo \"No site formatter defined\"",
-        "test": "bun run scripts/test-highlighting.ts && bun run scripts/test-reference.ts && bun run scripts/test-listing.ts && bun run scripts/test-rules.ts && bun run scripts/test-presentation.ts",
+        "test": "bun run scripts/test-highlighting.ts && bun run scripts/test-listing.ts && bun run scripts/test-presentation.ts",
         "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p build/tsconfig.json --noEmit",
         "generate": "bun run scripts/sync-assets.ts && bun run scripts/generate-release.ts && bun run scripts/generate-content.ts"
     },
@@ -30,7 +30,6 @@
         "@destack/check": "workspace:*",
         "wrangler": "4.134.0",
         "highlight.js": "11.11.1",
-        "tree-sitter-cli": "0.26.12",
         "@destack/build": "workspace:*",
         "vite": "8.3.0"
     }
