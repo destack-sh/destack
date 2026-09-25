@@ -21,6 +21,7 @@ tspp_serde = { workspace = true }
 tspp_source = { workspace = true }
 
 # general
+pulldown-cmark = { workspace = true }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 

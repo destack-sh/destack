@@ -1,9 +1,11 @@
 mod error;
+mod example;
 mod generate;
 mod model;
 mod print;
 
 pub use error::*;
+pub use example::*;
 pub use generate::*;
 pub use model::*;
 
