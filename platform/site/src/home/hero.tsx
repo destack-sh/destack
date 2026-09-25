@@ -7,6 +7,10 @@ import { stillStars } from "../effect/goo";
 import { Install } from "./install";
 import { Plate } from "./plate";
 
+/** The media query for screens narrower than the desktop frame. */
+const narrow = "@media (max-width: 1099px)";
+/** The media query for tablet-width screens. */
+const tablet = "@media (min-width: 768px) and (max-width: 1099px)";
 /** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
 
@@ -89,7 +93,7 @@ const drift = stylex.keyframes({
 const styles = stylex.create({
     hero: {
         gridTemplateRows: `calc(${tokens.row} * 1.7) calc(${tokens.row} * 1.3)`,
-        [mobile]: { gridTemplateRows: "none" },
+        [narrow]: { gridTemplateRows: "none" },
     },
     wordmark: {
         alignItems: "center",
@@ -106,13 +110,19 @@ const styles = stylex.create({
         paddingBlock: 0,
         paddingInline: tokens.inset,
         paddingTop: "0.12em",
-        [mobile]: {
+        [narrow]: {
             borderRightWidth: 0,
-            fontSize: "min(13vw, 5.5rem)",
             gridColumn: "1 / -1",
             gridRow: "auto",
-            paddingBlock: "2.5rem 1.5rem",
             whiteSpace: "nowrap",
+        },
+        [tablet]: {
+            fontSize: `min(calc(${tokens.siteWidth} * 0.15), 7.5rem)`,
+            paddingBlock: "2rem 1rem",
+        },
+        [mobile]: {
+            fontSize: "min(13vw, 5.5rem)",
+            paddingBlock: "2.5rem 1.5rem",
         },
     },
     promise: {
@@ -122,9 +132,9 @@ const styles = stylex.create({
         gridColumn: "1 / span 8",
         gridRow: 2,
         justifyContent: "center",
-        paddingBottom: "0.5rem",
+        paddingBottom: "1.125rem",
         paddingInline: tokens.inset,
-        [mobile]: {
+        [narrow]: {
             borderBottomColor: color.border,
             borderBottomStyle: "solid",
             borderBottomWidth: tokens.hairline,
@@ -184,6 +194,9 @@ const styles = stylex.create({
         lineHeight: 1.2,
         margin: 0,
         whiteSpace: "nowrap",
+        [tablet]: {
+            fontSize: `calc((${tokens.siteWidth} - ${tokens.inset} * 2) / ${promiseMeasure})`,
+        },
         [mobile]: { fontSize: "clamp(1.125rem, 6vw, 1.75rem)", whiteSpace: "normal" },
     },
     one: {
@@ -195,6 +208,8 @@ const styles = stylex.create({
     plate: {
         gridColumn: "9 / span 4",
         gridRow: "1 / span 2",
-        [mobile]: { aspectRatio: "16 / 11", gridColumn: "1 / -1", gridRow: "auto" },
+        [narrow]: { gridColumn: "1 / -1", gridRow: "auto" },
+        [tablet]: { height: "9rem" },
+        [mobile]: { aspectRatio: "16 / 11" },
     },
 });

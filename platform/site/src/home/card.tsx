@@ -4,6 +4,10 @@ import { For } from "@destack/view";
 
 import { tokens } from "../style/tokens.stylex";
 
+/** The height of a card: five hole rows, kept between a readable least and a most, so taller rows gain room around the cards. */
+const cardHeight = `clamp(2.75rem, calc(${tokens.cellRow} * 5), 4rem)`;
+/** The media query for tablet-width screens. */
+const tablet = "@media (min-width: 768px) and (max-width: 1099px)";
 /** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
 
@@ -132,7 +136,9 @@ export function Band(properties: {
                         >
                             <Tile entity={item} />
                             <span {...stylex.attrs(styles.text)}>
-                                <span {...stylex.attrs(styles.role)}>{item.role}</span>
+                                <span {...stylex.attrs(styles.role, styles.itemRole)}>
+                                    {item.role}
+                                </span>
                                 <span {...stylex.attrs(styles.label)}>{item.label}</span>
                             </span>
                             <Reveals reveals={[item.reveal]} />
@@ -293,7 +299,7 @@ const styles = stylex.create({
         display: "flex",
         fontFamily: fontFamily.default,
         gap: "0.5rem",
-        height: `calc(${tokens.cellRow} * 5)`,
+        height: cardHeight,
         paddingInline: "0.375rem 0.625rem",
         position: "relative",
         transition: "box-shadow 600ms ease",
@@ -310,6 +316,7 @@ const styles = stylex.create({
             position: "absolute",
             transition: "opacity 600ms ease",
         },
+        [tablet]: { height: "3.25rem" },
         [mobile]: {
             flexDirection: "column",
             gap: "0.25rem",
@@ -317,6 +324,8 @@ const styles = stylex.create({
             justifyContent: "center",
             paddingBlock: "0.375rem",
             paddingInline: "0.25rem",
+            textAlign: "center",
+            whiteSpace: "normal",
             width: "100%",
         },
     },
@@ -334,15 +343,28 @@ const styles = stylex.create({
     },
     band: {
         boxShadow: "none",
-        height: `calc(${tokens.cellRow} * 5)`,
+        height: cardHeight,
         width: "100%",
         paddingBlock: 0,
         paddingInlineEnd: 0,
-        [mobile]: { flexDirection: "row", height: "2.75rem", paddingBlock: 0 },
+        [tablet]: { height: "3.25rem" },
+        [mobile]: {
+            alignItems: "stretch",
+            columnGap: 0,
+            display: "grid",
+            gridTemplateColumns: "22% minmax(0, 1fr)",
+            gridTemplateRows: "auto auto",
+            height: "auto",
+            justifyItems: "center",
+            paddingBlock: 0,
+            paddingInline: 0,
+            rowGap: "0.25rem",
+        },
     },
     bandText: {
         flexShrink: 0,
         width: "8.25rem",
+        [mobile]: { gridColumn: 1, gridRow: 2, paddingBottom: "0.375rem", width: "auto" },
     },
     items: {
         alignSelf: "stretch",
@@ -351,7 +373,7 @@ const styles = stylex.create({
         gridAutoColumns: "minmax(0, 1fr)",
         gridAutoFlow: "column",
         marginLeft: "0.75rem",
-        [mobile]: { display: "none" },
+        [mobile]: { gridColumn: 2, gridRow: "1 / span 2", justifySelf: "stretch", marginLeft: 0 },
     },
     item: {
         position: "relative",
@@ -372,6 +394,16 @@ const styles = stylex.create({
         opacity: `clamp(0, ${itemEntry}, 1)`,
         translate: `0 calc((1 - clamp(0, ${itemEntry}, 1)) * 0.75rem)`,
         whiteSpace: "nowrap",
+        [mobile]: {
+            flexDirection: "column",
+            gap: "0.25rem",
+            justifyContent: "center",
+            paddingBlock: "0.375rem",
+            paddingInline: "0.125rem",
+        },
+    },
+    itemRole: {
+        [mobile]: { display: "none" },
     },
     itemActive: {
         boxShadow: `inset 0 -5px 0 ${tokens.signal}`,
@@ -387,6 +419,7 @@ const styles = stylex.create({
         height: "1.625rem",
         justifyContent: "center",
         width: "1.625rem",
+        [mobile]: { gridColumn: 1, gridRow: 1, marginTop: "0.375rem" },
     },
     lockedChip: {
         backgroundColor: "transparent",
@@ -420,6 +453,7 @@ const styles = stylex.create({
         letterSpacing: "0.06em",
         opacity: 0.78,
         textTransform: "uppercase",
+        [mobile]: { fontSize: "0.5625rem", letterSpacing: "0.02em" },
     },
     label: {
         fontSize: "0.875rem",

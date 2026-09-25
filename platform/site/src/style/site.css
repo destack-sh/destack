@@ -20,7 +20,11 @@
         --site-width: min(1200px, calc(100vw - 48px));
         --site-column: calc(var(--site-width) / 12);
         --site-bar: 64px;
-        --site-row: clamp(52px, calc((100svh - var(--site-bar) * 2 - 3px) / 12.4), 96px);
+        --site-row: clamp(
+            max(48px, calc(var(--site-column) * 0.5)),
+            calc((100svh - var(--site-bar) * 2 - 3px) / 12.4),
+            calc(var(--site-column) * 0.95)
+        );
         --site-stage: calc(var(--site-row) * 9.4 / 6);
         --site-cell: calc(var(--site-column) * 8 / 88);
         --site-cell-row: calc(var(--site-stage) / 9);
@@ -52,6 +56,14 @@
         --width-prose: 100%;
     }
 
+    /* span the stack figure across the whole frame below the desktop width */
+    @media (max-width: 1099px) {
+        :root {
+            --site-cell: calc(var(--site-width) / 88);
+            --site-stage: clamp(136px, calc(var(--site-cell) * 16), 164px);
+        }
+    }
+
     /* switch the lattice to four full-width columns on phones */
     @media (max-width: 767px) {
         :root {
@@ -59,9 +71,15 @@
             --site-column: calc(100vw / 4);
             --site-bar: 56px;
             --site-row: 72px;
-            --site-stage: 116px;
-            --site-cell: calc(100vw / 88);
+            --site-stage: 150px;
             --site-inset: 20px;
+        }
+    }
+
+    /* give the smallest phones taller rows, since their narrow tiles wrap onto more lines */
+    @media (max-width: 399px) {
+        :root {
+            --site-stage: 168px;
         }
     }
 

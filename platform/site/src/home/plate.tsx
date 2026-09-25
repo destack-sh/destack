@@ -4,6 +4,9 @@ import type { JSX } from "@destack/view";
 import { Goo } from "../effect/goo";
 import { tokens } from "../style/tokens.stylex";
 
+/** The media query for tablet-width screens, where the plate lies flat beside its children. */
+const tablet = "@media (min-width: 768px) and (max-width: 1099px)";
+
 /** The planet's centre, in the plate's drawing units. */
 const centre = { x: 480, y: 260 };
 /** The planet's radius, in the plate's drawing units. */
@@ -183,11 +186,13 @@ const styles = stylex.create({
         display: "flex",
         flexDirection: "column",
         height: "100%",
+        [tablet]: { alignItems: "center", flexDirection: "row" },
     },
     planet: {
         display: "block",
         flexGrow: 1,
         minHeight: 0,
+        [tablet]: { flexGrow: 0, height: "100%", width: "40%" },
         padding: "3%",
         pointerEvents: "none",
         width: "100%",

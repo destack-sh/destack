@@ -4,6 +4,8 @@ import * as stylex from "@destack/style";
 import { tokens } from "../style/tokens.stylex";
 import { DownloadCell } from "./download/download";
 
+/** The media query for tablet-width screens. */
+const tablet = "@media (min-width: 768px) and (max-width: 1099px)";
 /** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
 
@@ -30,6 +32,7 @@ const styles = stylex.create({
         height: "2.75rem",
         marginBlockEnd: "0.875rem",
         marginInline: "0.875rem",
+        [tablet]: { flexGrow: 1, marginBlockEnd: 0 },
         [mobile]: { height: "3rem" },
     },
     download: {
@@ -53,6 +56,8 @@ const styles = stylex.create({
         gap: "0.5rem",
         justifyContent: "center",
         paddingInline: "0.75rem",
+        whiteSpace: "nowrap",
         ":hover": { backgroundColor: "#ffffff" },
+        [mobile]: { fontSize: "0.875rem", gap: "0.375rem", paddingInline: "0.5rem" },
     },
 });

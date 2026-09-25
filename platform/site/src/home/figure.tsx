@@ -34,8 +34,12 @@ import { Flotsam } from "./flotsam";
 import { orbitOf } from "./plate";
 import { appUses, Remix, sceneSources, scenes, slotApps, todayScenes } from "./remix";
 
+/** The media query for screens narrower than the desktop frame, where the drawing spans the whole frame. */
+const narrow = "@media (max-width: 1099px)";
 /** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
+/** The height of the track the switch sits in above the drawing on narrow screens. */
+const switchTrack = "4rem";
 /** The media query for readers who prefer reduced motion. */
 const still = "@media (prefers-reduced-motion: reduce)";
 
@@ -964,6 +968,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                         data-universe
                         style={{
                             "--row": String(index() + 1),
+                            "--track": String(index() + 2),
                             ...(index() < dryRows
                                 ? {}
                                 : { opacity: `calc(0.75 + 0.25 * var(--reveal-${index()}))` }),
@@ -1002,11 +1007,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             </For>
 
             {/* drift flotsam along the waterline, in front of the cards and under the water, once it has been calm a while */}
-            <Flotsam
-                isAdrift={isAdrift()}
-                surfacedAt={surfacedAt()}
-                waterline={`calc(${tokens.stage} * ${dryRows})`}
-            />
+            <Flotsam isAdrift={isAdrift()} surfacedAt={surfacedAt()} waterline="var(--waterline)" />
 
             {/* draw both configurations in the six middle columns */}
             <div ref={drawing} {...stylex.attrs(lattice.ruleRight, styles.drawing)}>
@@ -1315,10 +1316,15 @@ const nudge = stylex.keyframes({
 /** The figure styles. */
 const styles = stylex.create({
     figure: {
+        "--waterline": `calc(${tokens.stage} * ${dryRows})`,
+        flexGrow: 1,
         gridTemplateRows: `repeat(6, ${tokens.stage})`,
         margin: 0,
         position: "relative",
-        [mobile]: { gridTemplateRows: "none" },
+        [narrow]: {
+            "--waterline": `calc(${switchTrack} + ${tokens.stage} * ${dryRows})`,
+            gridTemplateRows: `${switchTrack} repeat(6, ${tokens.stage})`,
+        },
     },
     claim: {
         display: "flex",
@@ -1330,7 +1336,16 @@ const styles = stylex.create({
         paddingInline: tokens.inset,
         position: "relative",
         zIndex: 3,
-        [mobile]: { display: "none" },
+        [narrow]: {
+            alignItems: "baseline",
+            alignSelf: "start",
+            columnGap: "1rem",
+            flexDirection: "row",
+            gridColumn: "1 / -1",
+            gridRow: "var(--track)",
+            paddingTop: "0.625rem",
+        },
+        [mobile]: { columnGap: "0.625rem", paddingInline: "0.75rem" },
     },
     claimLine: {
         alignItems: "baseline",
@@ -1339,6 +1354,7 @@ const styles = stylex.create({
         flexWrap: "wrap",
         justifyContent: "space-between",
         rowGap: "0.375rem",
+        [narrow]: { flexGrow: 1 },
     },
     number: {
         color: color.mutedForeground,
@@ -1348,6 +1364,7 @@ const styles = stylex.create({
         lineHeight: "1rem",
         textTransform: "uppercase",
         transition: `color 300ms ${easing}`,
+        whiteSpace: "nowrap",
     },
     numberLit: {
         color: color.primary,
@@ -1390,12 +1407,10 @@ const styles = stylex.create({
         gridTemplateRows: "repeat(6, minmax(0, 1fr))",
         minWidth: 0,
         position: "relative",
-        [mobile]: {
+        [narrow]: {
             borderRightWidth: 0,
             gridColumn: "1 / -1",
-            gridRow: "auto",
-            gridTemplateRows: `repeat(6, ${tokens.stage})`,
-            order: -1,
+            gridRow: "2 / span 6",
         },
     },
     fill: {
@@ -1452,7 +1467,7 @@ const styles = stylex.create({
         position: "absolute",
         width: "100%",
         zIndex: 6,
-        [mobile]: { display: "none" },
+        [narrow]: { display: "none" },
     },
     arrowLine: {
         fill: "none",
@@ -1478,12 +1493,12 @@ const styles = stylex.create({
         top: 0,
         translate: "-50% -38%",
         zIndex: 6,
-        [mobile]: {
+        [narrow]: {
+            alignSelf: "center",
             gridColumn: "1 / -1",
+            gridRow: 1,
             justifySelf: "center",
             left: "auto",
-            marginBlock: "0.75rem",
-            order: -2,
             position: "relative",
             translate: "none",
         },
@@ -1602,6 +1617,7 @@ const styles = stylex.create({
         letterSpacing: "0.02em",
         lineHeight: "1.375rem",
         translate: "0 0.125rem",
+        [mobile]: { display: "none" },
     },
     pool: {
         backgroundColor: "var(--site-water)",
@@ -1615,10 +1631,9 @@ const styles = stylex.create({
         pointerEvents: "none",
         position: "absolute",
         right: 0,
-        top: `calc(100% * ${dryRows} / ${layers.length} - 1px)`,
+        top: "calc(var(--waterline) - 1px)",
         transition: `opacity 400ms ${easing}`,
         zIndex: 2,
-        [mobile]: { display: "none" },
     },
     poolGone: {
         opacity: 0,

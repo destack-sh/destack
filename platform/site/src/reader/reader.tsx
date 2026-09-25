@@ -166,7 +166,10 @@ function ReaderToolbar(properties: ReaderToolbarProperties) {
             <div {...stylex.attrs(styles.toolbarTools)}>
                 {properties.tokenCount !== undefined && (
                     <>
-                        <span {...stylex.attrs(styles.statistic)} title="Estimated reading time">
+                        <span
+                            {...stylex.attrs(styles.statistic, styles.readTime)}
+                            title="Estimated reading time"
+                        >
                             {formatReadTime(properties.tokenCount)}
                         </span>
                         <span {...stylex.attrs(styles.statistic, styles.tokenCount)}>
@@ -197,6 +200,8 @@ function formatTokenCount(tokenCount: number) {
 const narrow = "@media (width < 60rem)";
 /** The media query for compact screens that hide the toolbar labels. */
 const compact = "@media (width < 52rem)";
+/** The media query for the smallest phones, which keep only the location and the source actions. */
+const tiny = "@media (width < 24rem)";
 
 /** Shared reader styles. */
 const styles = stylex.create({
@@ -274,6 +279,11 @@ const styles = stylex.create({
     },
     tokenCount: {
         [compact]: {
+            display: "none",
+        },
+    },
+    readTime: {
+        [tiny]: {
             display: "none",
         },
     },

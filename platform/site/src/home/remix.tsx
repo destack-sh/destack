@@ -920,6 +920,7 @@ export function Remix(properties: {
         let wakeUntil = 0;
         let isStirring = false;
         let isVisible = true;
+        const narrowScreen = window.matchMedia("(max-width: 1099px)");
 
         // measure the boxes of the given cards within the layer, all before any cable is drawn
         const measure = (ids: Iterable<string>) => {
@@ -1089,8 +1090,9 @@ export function Remix(properties: {
                 );
             };
 
-            // run every cable across a gap along its middle, so each gap carries one tidy bus
-            const middle = (top: number, bottom: number) => (top + bottom) / 2;
+            // run every cable across a gap along one tidy bus: its middle, or above the row captions on narrow screens
+            const share = narrowScreen.matches ? captionedBus : 0.5;
+            const middle = (top: number, bottom: number) => top + (bottom - top) * share;
 
             // link the upper cards to the lower cards they work with: once open, each person runs straight down, across on their own lane, and down into the app
             const kind = isOpen ? "link" : "locked";
@@ -1413,6 +1415,8 @@ export function Remix(properties: {
     );
 }
 
+/** How far down a gap the cable bus runs on narrow screens, as a share of the gap, clear of the row captions below it. */
+const captionedBus = 0.3;
 /** The easing of a card travelling between places. */
 const easing = "cubic-bezier(0.6, 0, 0.2, 1)";
 /** The easing of a card springing back from a drag. */
@@ -1773,7 +1777,6 @@ const styles = stylex.create({
         pointerEvents: "none",
         position: "absolute",
         width: "100%",
-        "@media (max-width: 767px)": { display: "none" },
     },
     cable: {
         fill: "none",
