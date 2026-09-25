@@ -41,8 +41,6 @@ pub struct Loan {
     parents: SmallVec<[LoanId; 2]>,
     /// The operation that issued the loan.
     pub issued_at: LocalNodeIdAny,
-    /// Whether the loan roots at a fresh allocation, addressed through no other root when issued.
-    is_fresh: bool,
 }
 
 /// The storage one access touches.
@@ -181,7 +179,7 @@ impl LoanTable {
         active.iter().copied().find(|&current| {
             let current_loan = self.get(current);
             !parents.contains(current.index())
-                && current_loan.conflicts(loan, constants, places, function, tree)
+                && current_loan.conflicts(loan, loan.issued_at, constants, places, function, tree)
         })
     }
 
@@ -216,17 +214,19 @@ impl LoanTable {
         self.get_mut(loan).parents = parents.into_iter().collect();
     }
 
-    /// Return the loan blocking a place change.
+    /// Return the loan blocking a place change at one operation.
     pub fn blocking_change(
         &self,
         place: &Place,
+        at: LocalNodeIdAny,
         active: &[LoanId],
+        places: &PlaceTable,
         mut may_overlap: impl FnMut(&Place, &Place) -> bool,
     ) -> Option<LoanId> {
         active
             .iter()
             .copied()
-            .find(|loan| self.get(*loan).blocks(place, &mut may_overlap))
+            .find(|loan| self.get(*loan).blocks(place, at, places, &mut may_overlap))
     }
 
     /// Return one mutable loan by identity.
@@ -247,17 +247,13 @@ impl Loan {
         representation: Value,
         parents: impl IntoIterator<Item = LoanId>,
         issued_at: LocalNodeIdAny,
-        places: &PlaceTable,
     ) -> Self {
-        let is_fresh = places.is_fresh_at(&place, issued_at);
-
         Self {
             target: LoanTarget::Place { place, source },
             access,
             representation,
             parents: parents.into_iter().collect(),
             issued_at,
-            is_fresh,
         }
     }
 
@@ -274,7 +270,6 @@ impl Loan {
             representation: value,
             parents: SmallVec::new(),
             issued_at,
-            is_fresh: false,
         }
     }
 
@@ -304,18 +299,21 @@ impl Loan {
         self.access.can_write()
     }
 
-    /// Return whether this loan roots at a fresh allocation and one place roots elsewhere.
-    pub fn isolates(&self, place: &Place) -> bool {
-        self.is_fresh
-            && self
-                .place()
-                .is_some_and(|borrowed| borrowed.origin != place.origin)
+    /// Return whether this loan and one place root apart at one operation, one at a fresh allocation.
+    ///
+    /// A fresh allocation has no alias yet, so no other root addresses its storage.
+    pub fn isolates(&self, place: &Place, at: LocalNodeIdAny, places: &PlaceTable) -> bool {
+        self.place().is_some_and(|borrowed| {
+            borrowed.origin != place.origin
+                && (places.is_fresh_at(borrowed, at) || places.is_fresh_at(place, at))
+        })
     }
 
-    /// Return whether these loans exclude one another, or one may retag or release the other.
+    /// Return whether these loans exclude one another at one operation, or one may retag or release the other.
     pub fn conflicts(
         &self,
         other: &Self,
+        at: LocalNodeIdAny,
         constants: &ConstantTable,
         places: &PlaceTable,
         function: FunctionId,
@@ -324,23 +322,8 @@ impl Loan {
         match (&self.target, &other.target) {
             // preserve access guarantees and the validity of selected cases both ways
             (LoanTarget::Place { place: left, .. }, LoanTarget::Place { place: right, .. }) => {
-                self.forbids_place(
-                    right,
-                    other.access,
-                    other.is_fresh,
-                    constants,
-                    places,
-                    function,
-                    tree,
-                ) || other.forbids_place(
-                    left,
-                    self.access,
-                    self.is_fresh,
-                    constants,
-                    places,
-                    function,
-                    tree,
-                )
+                self.forbids_place(right, other.access, at, constants, places, function, tree)
+                    || other.forbids_place(left, self.access, at, constants, places, function, tree)
             }
             // compare incoming loans by their parameter and structural path
             (
@@ -378,9 +361,7 @@ impl Loan {
         match target {
             // violate the loan's access, or retag or release its place
             AccessTarget::Place(place) => {
-                let is_fresh = places.is_fresh_at(place, at);
-
-                self.forbids_place(place, access, is_fresh, constants, places, function, tree)
+                self.forbids_place(place, access, at, constants, places, function, tree)
             }
             // violate the loan's access in these spaces, or retag or release its place
             AccessTarget::Spaces(spaces) => {
@@ -402,12 +383,12 @@ impl Loan {
         }
     }
 
-    /// Return whether one access to a place breaks this loan's guarantee.
+    /// Return whether one access to a place at one operation breaks this loan's guarantee.
     fn forbids_place(
         &self,
         place: &Place,
         access: Access,
-        is_fresh: bool,
+        at: LocalNodeIdAny,
         constants: &ConstantTable,
         places: &PlaceTable,
         function: FunctionId,
@@ -419,8 +400,7 @@ impl Loan {
 
         // address a fresh allocation through loans rooted at it alone
         let is_writing = access.can_write();
-        let is_isolated = (self.is_fresh || is_fresh) && borrowed.origin != place.origin;
-        if is_isolated || !(is_writing || self.access.conflicts(access)) {
+        if self.isolates(place, at, places) || !(is_writing || self.access.conflicts(access)) {
             return false;
         }
 
@@ -434,12 +414,18 @@ impl Loan {
         (is_overlapping && self.access.conflicts(access)) || may_change
     }
 
-    /// Return whether this loan blocks one concrete place change.
-    fn blocks(&self, place: &Place, may_overlap: &mut impl FnMut(&Place, &Place) -> bool) -> bool {
+    /// Return whether this loan blocks one concrete place change at one operation.
+    fn blocks(
+        &self,
+        place: &Place,
+        at: LocalNodeIdAny,
+        places: &PlaceTable,
+        may_overlap: &mut impl FnMut(&Place, &Place) -> bool,
+    ) -> bool {
         match &self.target {
             LoanTarget::Place {
                 place: borrowed, ..
-            } => !self.isolates(place) && may_overlap(borrowed, place),
+            } => !self.isolates(place, at, places) && may_overlap(borrowed, place),
             LoanTarget::Parameter { .. } => false,
         }
     }

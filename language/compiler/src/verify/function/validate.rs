@@ -1,6 +1,6 @@
 use destack_mir::{
-    Call, FunctionId, Instruction, Multiplicity, Place, PlaceType, Reference, Space, Substitution,
-    Terminator, Tree, Type, TypeId, Value, is_copy,
+    BlockId, BlockTarget, Call, FunctionId, Instruction, Multiplicity, Place, PlaceType, Reference,
+    Space, Substitution, Successor, Terminator, Tree, Type, TypeId, Value, is_copy,
 };
 use smallvec::{SmallVec, smallvec};
 
@@ -18,7 +18,7 @@ impl VerifyState<'_> {
             for &instruction_id in &block.instructions {
                 self.validate_instruction(function_id, tree.get(instruction_id));
             }
-            self.validate_terminator(function_id, tree.get(block.terminator));
+            self.validate_terminator(function_id, block_id, tree.get(block.terminator));
         }
 
         self.invalid_mir.len() == violations
@@ -44,7 +44,8 @@ impl VerifyState<'_> {
         match stored_values(tree, function_id, instruction) {
             Ok(stored) => {
                 for (value, destination) in stored {
-                    self.validate_value(function_id, value, destination, "store");
+                    let actual = function.expect_value_type(value);
+                    self.validate_fill(function_id, actual, destination, "store");
                 }
             }
             Err(message) => self.reject_mir(function_id, message.to_string()),
@@ -151,17 +152,75 @@ impl VerifyState<'_> {
         }
     }
 
-    /// Validate the call arguments and returned value of one terminator.
-    fn validate_terminator(&mut self, function_id: FunctionId, terminator: &Terminator) {
+    /// Validate the call arguments, returned value, and edge values of one terminator.
+    fn validate_terminator(
+        &mut self,
+        function_id: FunctionId,
+        block_id: BlockId,
+        terminator: &Terminator,
+    ) {
+        let tree = self.tree;
         match terminator {
             Terminator::Invoke { call, .. } | Terminator::TailCall { call } => {
                 self.validate_call(function_id, call);
             }
             Terminator::Return { value: Some(value) } => {
-                let return_type = self.tree.get(function_id).return_type;
-                self.validate_value(function_id, *value, return_type, "return");
+                let function = tree.get(function_id);
+                let actual = function.expect_value_type(*value);
+                self.validate_fill(function_id, actual, function.return_type, "return");
             }
             _ => {}
+        }
+
+        // pass each edge's values at its target block's parameter types
+        for (edge, target) in terminator.targets(tree, block_id) {
+            self.validate_edge(function_id, terminator, edge.successor, target);
+        }
+    }
+
+    /// Validate the values one edge produces and passes against its target block's parameters.
+    ///
+    /// A normal invoke edge of a non-void call produces the call result as the first parameter.
+    /// A fallible allocation's success edge produces the allocation as the first parameter.
+    /// Every other edge produces nothing, and the explicit arguments fill the remaining parameters.
+    fn validate_edge(
+        &mut self,
+        function_id: FunctionId,
+        terminator: &Terminator,
+        successor: Successor,
+        target: &BlockTarget,
+    ) {
+        let tree = self.tree;
+        let function = tree.get(function_id);
+        let parameters = &tree.get(target.block).parameters;
+        let produced = terminator.target_result_count(tree, successor);
+
+        // fill the call result or hold an allocation of the named heap
+        match (terminator, &parameters[..produced]) {
+            (Terminator::Invoke { call, .. }, [result]) => {
+                let Some((_, _, actual)) = tree.get(call.signature).function_signature_parts()
+                else {
+                    unreachable!("an invoke producing a result has a function signature");
+                };
+                self.validate_fill(function_id, actual, result.ty, "call result");
+            }
+            (
+                Terminator::NewZeroedTry { space, .. }
+                | Terminator::NewUninitTry { space, .. }
+                | Terminator::NewSliceZeroedTry { space, .. }
+                | Terminator::NewSliceUninitTry { space, .. },
+                [allocation],
+            ) => self.validate_allocation(function_id, allocation.ty, *space),
+            _ => {}
+        }
+
+        // fill each remaining parameter with its explicit argument
+        let Some(explicit) = terminator.target_parameters(tree, successor, target) else {
+            unreachable!("an analysed block target has an invalid argument count");
+        };
+        for (parameter, argument) in explicit.iter().zip(target.arguments(tree)) {
+            let actual = function.expect_value_type(*argument);
+            self.validate_fill(function_id, actual, parameter.ty, "block argument");
         }
     }
 
@@ -189,19 +248,19 @@ impl VerifyState<'_> {
         }
 
         for (parameter, argument) in parameters.iter().zip(arguments) {
-            self.validate_value(function_id, *argument, parameter.ty, "call argument");
+            let actual = tree.get(function_id).expect_value_type(*argument);
+            self.validate_fill(function_id, actual, parameter.ty, "call argument");
         }
     }
 
-    /// Validate one value against the type of the destination it fills.
-    fn validate_value(
+    /// Validate one value type against the type of the destination it fills.
+    fn validate_fill(
         &mut self,
         function_id: FunctionId,
-        value: Value,
+        actual: TypeId,
         destination: TypeId,
         role: &str,
     ) {
-        let actual = self.tree.get(function_id).expect_value_type(value);
         if !fills(self.tree, destination, actual, true) {
             let expected = self.format_type(function_id, destination);
             let actual = self.format_type(function_id, actual);
@@ -306,7 +365,7 @@ pub(super) fn stored_values(
                         }
                         Type::Tuple { elements, .. } => elements.get(index).copied(),
                         Type::FixedArray { element, .. } => Some(*element),
-                        Type::Newtype { inner, .. } if index == 0 => Some(*inner),
+                        Type::Newtype { value, .. } if index == 0 => Some(*value),
                         _ => None,
                     };
 

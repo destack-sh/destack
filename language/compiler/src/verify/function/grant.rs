@@ -35,11 +35,11 @@ impl FunctionChecker<'_, '_> {
                 anchor: self.anchor(anchor),
             })
         }
-        // require exclusion when aliases could replace an enclosing case
+        // require an immutable grant on every enclosing variant, which fixes its case
         else if access.is_some()
             && place
                 .variants()
-                .any(|variant| !self.excludes_case_change(&variant, anchor))
+                .any(|variant| !self.place_grants(&variant, Access::Immutable, anchor))
         {
             Some(VerifyError::BorrowOfAliasableVariant {
                 anchor: self.anchor(anchor),
@@ -89,21 +89,6 @@ impl FunctionChecker<'_, '_> {
                 }
             },
         )
-    }
-
-    /// Return whether a borrow of one variant's payload excludes every alias that could change its case.
-    fn excludes_case_change(&self, variant: &Place, anchor: LocalNodeIdAny) -> bool {
-        // require immutable access and no handle since the last unchecked indirection
-        let is_behind_handle = variant.dereferences(self.function_id, self.tree).fold(
-            false,
-            |is_behind_handle, (_, reference)| match reference.dereference_kind() {
-                Reference::Raw => false,
-                Reference::Managed(_) => true,
-                Reference::Unique | Reference::Borrowed => is_behind_handle,
-            },
-        );
-
-        !is_behind_handle && self.place_grants(variant, Access::Immutable, anchor)
     }
 
     /// Return whether one handle grants the requested access to its object.
@@ -164,8 +149,7 @@ impl FunctionChecker<'_, '_> {
             Type::FixedArray { element, .. } | Type::Vector { element, .. } => {
                 self.holds_inline_variant(*element, visited)
             }
-            Type::Newtype { inner } => self.holds_inline_variant(*inner, visited),
-            Type::Uninit { value } | Type::ManuallyDrop { value } => {
+            Type::Newtype { value } | Type::Uninit { value } | Type::ManuallyDrop { value } => {
                 self.holds_inline_variant(*value, visited)
             }
             Type::Reference {
@@ -204,8 +188,9 @@ impl FunctionChecker<'_, '_> {
             Type::FixedArray { element, .. } | Type::Vector { element, .. } => {
                 self.components_copy(*element, visited)
             }
-            Type::Newtype { inner } => self.components_copy(*inner, visited),
-            Type::ManuallyDrop { value } => self.components_copy(*value, visited),
+            Type::Newtype { value } | Type::ManuallyDrop { value } => {
+                self.components_copy(*value, visited)
+            }
             _ => is_copy(self.tree, ty, &self.function.generics),
         }
     }

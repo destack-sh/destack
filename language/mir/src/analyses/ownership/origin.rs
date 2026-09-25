@@ -575,7 +575,6 @@ impl OriginBuilder<'_> {
                     destination,
                     [],
                     issued_at,
-                    self.places,
                 );
 
                 (destination, loan)
@@ -648,7 +647,6 @@ impl OriginBuilder<'_> {
             representation,
             [],
             instruction_id.into_any(),
-            self.places,
         );
 
         Some((representation, loan))

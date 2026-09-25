@@ -925,6 +925,72 @@ for more information about an error, run `destack explain borrow-of-aliasable-va
     );
 }
 
+/// A fresh handle has no alias, so it grants a borrow of a variant payload in its object.
+#[test]
+fn test_allow_a_payload_borrow_through_a_fresh_handle() {
+    let mut program = TestProgram::mir(
+        r#"
+type Either = variant<uint1> { 0uint1 = int32; 1uint1 = int64; };
+
+type Box {
+    value: Either;
+}
+
+function test(): int32 {
+entry:
+    v0: ref<Box, managed, mutable, local> = new.zeroed Box, local
+    v1: ref<int32, borrowed, 'frame, readonly> = address (((*v0).0) as 0)
+    v2: int32 = load (*v1)
+    return v2
+}
+"#,
+    );
+
+    program.assert_verified();
+}
+
+/// A case change through a fresh handle invalidates a live borrow of the selected payload.
+#[test]
+fn test_reject_a_case_change_through_a_fresh_handle_under_a_payload_borrow() {
+    let mut program = TestProgram::mir(
+        r#"
+type Either = variant<uint1> { 0uint1 = int32; 1uint1 = int64; };
+
+type Box {
+    value: Either;
+}
+
+function test(v0: Either): int32 {
+entry(v0: Either):
+    v1: ref<Box, managed, mutable, local> = new.zeroed Box, local
+    v2: ref<int32, borrowed, 'frame, readonly> = address (((*v1).0) as 0)
+    store (*v1).0, v0
+    v3: int32 = load (*v2)
+    return v3
+}
+"#,
+    );
+
+    program.assert_verify_errors(
+        r#"
+error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
+  ──▶ <test.dsm>:12:5
+   │
+ 9 │ entry(v0: Either):
+10 │     v1: ref<Box, managed, mutable, local> = new.zeroed Box, local
+11 │     v2: ref<int32, borrowed, 'frame, readonly> = address (((*v1).0) as 0)
+   │     --------------------------------------------------------------------- borrow starts here
+12 │     store (*v1).0, v0
+   │     ^^^^^^^^^^^^^^^^^
+13 │     v3: int32 = load (*v2)
+14 │     return v3
+   │
+
+for more information about an error, run `destack explain invalidation-of-borrowed-place`
+"#,
+    );
+}
+
 /// A handle grants no immutable borrow of an object holding an all-Copy variant of two cases.
 #[test]
 fn test_reject_an_immutable_borrow_cast_from_a_handle_over_a_copy_variant() {

@@ -910,6 +910,46 @@ export async function replace(a: Holder, b: Holder): Promise<int32> {
     );
 }
 
+/// A borrow into an owned field survives a replacement through another handle, then a park.
+///
+/// The heap retains the replaced value below the handle, so the borrow stays valid after the park.
+#[test]
+fn test_allow_a_borrow_into_a_replaced_field_used_after_a_park() {
+    let session = TestSession::single(
+        r#"
+struct Payload {
+    value: int32;
+}
+
+class Holder {
+    item: ^Payload;
+
+    constructor(item: ^Payload) {
+        this.item = item;
+    }
+}
+
+function read(payload: &readonly Payload): int32 {
+    return payload.value;
+}
+
+async function pause(): Promise<void> {}
+
+export async function replace(a: Holder, b: Holder): Promise<int32> {
+    const held = &readonly a.item;
+    b.item = Payload { value: 1 };
+    await pause();
+    return read(held);
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+"#,
+    );
+}
+
 /// Mutating through a second handle inside a method holding a borrow of its own storage verifies.
 #[test]
 fn test_allow_reentrant_mutation_through_a_second_handle_inside_a_method() {
@@ -1282,3 +1322,53 @@ entry(v0: ref<Pair, borrowed, 'a, mutable>, v1: ref<Pair, borrowed, 'a, mutable>
 
     program.assert_verified();
 }
+
+/// A write through a stored copy of a handle invalidates a borrow issued while its allocation was fresh.
+#[test]
+fn test_reject_a_write_through_a_stored_handle_under_a_borrow_of_an_escaped_allocation() {
+    let mut program = TestProgram::mir(
+        r#"
+type Box {
+    value: int32;
+}
+
+function test(): int32 {
+    local l0: ref<Box, managed, mutable, local>
+
+entry:
+    v0: ref<Box, managed, mutable, local> = new.zeroed Box, local
+    v1: ref<int32, borrowed, 'frame, immutable> = address (*v0).0
+    store l0, v0
+    v2: int32 = 1
+    v3: ref<Box, managed, mutable, local> = load l0
+    store (*v3).0, v2
+    v4: int32 = load (*v1)
+    return v4
+}
+"#,
+    );
+
+    program.assert_verify_errors(
+        r#"
+error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
+  ──▶ <test.dsm>:15:5
+   │
+ 9 │ entry:
+10 │     v0: ref<Box, managed, mutable, local> = new.zeroed Box, local
+11 │     v1: ref<int32, borrowed, 'frame, immutable> = address (*v0).0
+   │     ------------------------------------------------------------- borrow starts here
+12 │     store l0, v0
+13 │     v2: int32 = 1
+14 │     v3: ref<Box, managed, mutable, local> = load l0
+15 │     store (*v3).0, v2
+   │     ^^^^^^^^^^^^^^^^^
+16 │     v4: int32 = load (*v1)
+17 │     return v4
+   │
+
+for more information about an error, run `destack explain invalidation-of-borrowed-place`
+"#,
+    );
+}
+
+

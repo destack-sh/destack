@@ -89,6 +89,7 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
                                 is_redundant_clone(
                                     place,
                                     *loan_id,
+                                    instruction_id.into_any(),
                                     &state,
                                     &live,
                                     |left, right| {
@@ -133,6 +134,7 @@ fn check(module: &mut MirModule<'_>, lint: &Lint) -> LintResult {
 fn is_redundant_clone(
     place: &mir::Place,
     receiver_loan: mir::LoanId,
+    at: mir::LocalNodeIdAny,
     state: &mir::OriginState,
     live: &mir::LivenessCursor<'_>,
     may_overlap: impl FnMut(&mir::Place, &mir::Place) -> bool,
@@ -157,7 +159,9 @@ fn is_redundant_clone(
     );
     active.retain(|loan| *loan != receiver_loan);
 
-    loans.blocking_change(place, &active, may_overlap).is_none()
+    loans
+        .blocking_change(place, at, &active, places, may_overlap)
+        .is_none()
 }
 
 #[cfg(test)]

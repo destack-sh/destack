@@ -220,7 +220,6 @@ impl FunctionChecker<'_, '_> {
                         argument,
                         carried.loans().iter().copied(),
                         anchor,
-                        &self.places,
                     );
                     borrows.push(Cow::Owned(loan));
                 }
@@ -232,6 +231,7 @@ impl FunctionChecker<'_, '_> {
                 let is_aliased = earlier.iter().any(|earlier| {
                     earlier.conflicts(
                         borrow,
+                        anchor,
                         &self.constants,
                         &self.places,
                         self.function_id,
@@ -393,7 +393,8 @@ impl FunctionChecker<'_, '_> {
                 // skip authorized and traversed loans, and loans unexposed to an unrelated access
                 !self.authorized_loans.contains(loan_id.index())
                     && !self.traversed_loans.contains(loan_id.index())
-                    && (matches!(target, AccessTarget::Place(_)) || self.is_loan_exposed(loan))
+                    && (matches!(target, AccessTarget::Place(_))
+                        || self.is_loan_exposed(loan, anchor))
                     && loan.forbids(
                         target,
                         access,
@@ -460,8 +461,8 @@ impl FunctionChecker<'_, '_> {
             .emit_error(error.label(borrowed_at, "borrow starts here"));
     }
 
-    /// Return whether an unrelated call can access the borrowed storage at this point.
-    fn is_loan_exposed(&self, loan: &Loan) -> bool {
+    /// Return whether an unrelated call can access the borrowed storage at one operation.
+    fn is_loan_exposed(&self, loan: &Loan, at: LocalNodeIdAny) -> bool {
         // leave an incoming borrow to its caller, whose aliases alone address its referent
         let Some(place) = loan.place() else {
             return false;
@@ -473,28 +474,33 @@ impl FunctionChecker<'_, '_> {
         }
 
         // find loans stored through an alias to this storage or to a unique pointer on its path
-        let pointers = place
-            .dereferences(self.function_id, self.tree)
-            .filter(|(_, reference)| reference.is_unique_storage())
-            .map(|(length, _)| Cow::Owned(place.prefix(length)));
+        let mut pointer = Place::new(place.origin);
+        self.is_escaped_change(place, at)
+            || place
+                .dereferences(self.function_id, self.tree)
+                .filter(|(_, reference)| reference.is_unique_storage())
+                .any(|(length, _)| {
+                    pointer.extend_to(place, length);
+                    self.is_escaped_change(&pointer, at)
+                })
+    }
+
+    /// Return whether an escaped loan blocks a change to one place at one operation.
+    fn is_escaped_change(&self, place: &Place, at: LocalNodeIdAny) -> bool {
         let escaped = self.state.escaped_loans();
-        [Cow::Borrowed(place)]
-            .into_iter()
-            .chain(pointers)
-            .any(|storage| {
-                self.origin
-                    .loans()
-                    .blocking_change(&storage, escaped, |left, right| {
-                        left.may_overlap(
-                            right,
-                            &self.constants,
-                            &self.places,
-                            self.function_id,
-                            self.tree,
-                        )
-                    })
-                    .is_some()
+
+        self.origin
+            .loans()
+            .blocking_change(place, at, escaped, &self.places, |left, right| {
+                left.may_overlap(
+                    right,
+                    &self.constants,
+                    &self.places,
+                    self.function_id,
+                    self.tree,
+                )
             })
+            .is_some()
     }
 
     /// Return the places a call argument's loans borrow, else the argument's own place.
@@ -515,8 +521,10 @@ impl FunctionChecker<'_, '_> {
 
     /// Collect the loans held by the reference at each dereference of one place.
     fn collect_traversed(&self, place: &Place, loans: &mut Vec<LoanId>) {
+        let mut reference = Place::new(place.origin);
         for (length, _) in place.dereferences(self.function_id, self.tree) {
-            let source = self.places.resolve_place(&place.prefix(length));
+            reference.extend_to(place, length);
+            let source = self.places.resolve_place(&reference);
             loans.extend_from_slice(self.state.place(&self.context(), &source).loans());
         }
     }

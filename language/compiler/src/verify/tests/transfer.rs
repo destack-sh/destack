@@ -449,3 +449,81 @@ invalid MIR: a store of type 'uninit<Box>' where 'Box' is expected in 'test'
 "#,
     );
 }
+
+/// Reject a jump argument of another type than its target parameter as invalid MIR.
+#[test]
+fn test_reject_a_mistyped_block_argument() {
+    let mut program = TestProgram::mir(
+        r#"
+function test(v0: int32): int64 {
+entry(v0: int32):
+    jump exit(v0)
+
+exit(v1: int64):
+    return v1
+}
+"#,
+    );
+
+    program.assert_invalid_mir(
+        r#"
+invalid MIR: a block argument of type 'int32' where 'int64' is expected in 'test'
+"#,
+    );
+}
+
+/// Reject an invoke result of another type than its normal target's first parameter as invalid MIR.
+#[test]
+fn test_reject_a_mistyped_invoke_result() {
+    let mut program = TestProgram::mir(
+        r#"
+external function read(): int32
+
+function test(): int64 {
+entry:
+    invoke read(): () => int32 => resume | cleanup
+
+resume(v0: int64):
+    return v0
+
+cleanup:
+    unwind.resume
+}
+"#,
+    );
+
+    program.assert_invalid_mir(
+        r#"
+invalid MIR: a call result of type 'int32' where 'int64' is expected in 'test'
+"#,
+    );
+}
+
+/// Reject a fallible allocation of a handle in another heap than the one it names as invalid MIR.
+#[test]
+fn test_reject_a_fallible_allocation_of_another_heap() {
+    let mut program = TestProgram::mir(
+        r#"
+type Box {
+    value: int32;
+}
+
+function test(): void {
+entry:
+    new.zeroed.try Box, local => done | failed
+
+done(v0: ref<Box, managed, mutable, shared>):
+    return
+
+failed:
+    return
+}
+"#,
+    );
+
+    program.assert_invalid_mir(
+        r#"
+invalid MIR: an allocation of a shared heap handle in the local heap in 'test'
+"#,
+    );
+}
