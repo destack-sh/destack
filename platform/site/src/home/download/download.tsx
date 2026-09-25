@@ -109,7 +109,7 @@ export function DownloadCell(properties: { style?: stylex.Styles }) {
                     <Show when={!downloads().length}>
                         <span role="status" {...stylex.attrs(styles.message)}>
                             <Show when={error()} fallback="Loading downloads…">
-                                {(message) => message()}
+                                {(message) => <>{message()}</>}
                             </Show>
                         </span>
                     </Show>
