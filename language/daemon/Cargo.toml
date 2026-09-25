@@ -1,6 +1,6 @@
 [package]
 name = "tspp_daemon"
-description = "Destack Daemon"
+description = "TS++ Daemon"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

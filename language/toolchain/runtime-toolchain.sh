@@ -19,7 +19,7 @@ run_lint() {
 run_ensure() {
 	local auto_install
 
-	auto_install="${DESTACK_AUTO_INSTALL_TOOLCHAINS:-0}"
+	auto_install="${TSPP_AUTO_INSTALL_TOOLCHAINS:-0}"
 
 	if run_doctor; then
 		return 0
@@ -28,7 +28,7 @@ run_ensure() {
 	if [ "${auto_install}" != "1" ]; then
 		echo "missing required runtime toolchains"
 		echo "run: just language/install-toolchain"
-		echo "or run with auto install: DESTACK_AUTO_INSTALL_TOOLCHAINS=1 just language/ensure-toolchain"
+		echo "or run with auto install: TSPP_AUTO_INSTALL_TOOLCHAINS=1 just language/ensure-toolchain"
 		return 1
 	fi
 

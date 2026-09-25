@@ -33,7 +33,7 @@ impl TemporaryPhysicalFileSystem {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| io::Error::other(format!("system time error: {error}")))?
             .as_nanos();
-        let name = format!("destack_{prefix}_{nanos}_{counter}");
+        let name = format!("tspp_{prefix}_{nanos}_{counter}");
 
         // create the temp root
         let root = env::temp_dir().join(name);

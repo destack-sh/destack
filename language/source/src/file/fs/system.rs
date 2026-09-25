@@ -323,7 +323,7 @@ impl PhysicalFileSystem {
             .file_name()
             .map(|name| name.to_string_lossy())
             .unwrap_or_default();
-        let temporary = format!(".{name}.destack-{process}-{identifier}.tmp");
+        let temporary = format!(".{name}.tspp-{process}-{identifier}.tmp");
 
         path.with_file_name(temporary)
     }

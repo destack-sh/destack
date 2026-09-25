@@ -2828,7 +2828,7 @@
       }
     },
     "Entrypoint": {
-      "description": "User callable launched by a Destack target.",
+      "description": "User callable launched by a TS++ target.",
       "type": "object",
       "properties": {
         "module": {
@@ -3308,7 +3308,7 @@
           "const": "o3"
         },
         {
-          "description": "Maximum Destack optimization level.",
+          "description": "Maximum TS++ optimization level.",
           "type": "string",
           "const": "o4"
         }

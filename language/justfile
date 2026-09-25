@@ -160,9 +160,9 @@ test-linter:
 test-formatter:
     cargo test --release -p tspp_formatter --test fixture
 
-# test grammar destack
+# test grammar tspp
 test-grammar-tspp:
-    bash grammar/scripts/test-grammar.sh destack
+    bash grammar/scripts/test-grammar.sh tspp
 
 # test grammar mir
 test-grammar-mir:

@@ -10,9 +10,9 @@ use zed::{
 use zed_extension_api as zed;
 
 const COMMAND_NAME: &str = "tspp";
-const RELEASE_REPOSITORY: &str = "destack-sh/destack";
+const RELEASE_REPOSITORY: &str = "destack-sh/tspp";
 
-/// One supported Destack release target.
+/// One supported TS++ release target.
 struct ReleaseTarget {
     /// The Rust target triple.
     triple: &'static str,
@@ -165,7 +165,7 @@ impl TsppExtension {
 
         let version = env!("CARGO_PKG_VERSION");
         let target = Self::release_target()?;
-        let package_name = format!("destack-{version}-{}", target.triple);
+        let package_name = format!("tspp-{version}-{}", target.triple);
         let release_directory = Path::new("server").join(&package_name);
         let command = release_directory
             .join(&package_name)
@@ -188,7 +188,7 @@ impl TsppExtension {
             }
         }
         if !Self::command_works(&command) {
-            return Err(format!("installed Destack release cannot run: {command}"));
+            return Err(format!("installed TS++ release cannot run: {command}"));
         }
 
         self.managed_command = Some(command.clone());
@@ -196,7 +196,7 @@ impl TsppExtension {
         Ok(command)
     }
 
-    /// Install one Destack release archive.
+    /// Install one TS++ release archive.
     fn install(
         language_server_id: &LanguageServerId,
         version: &str,
@@ -209,14 +209,14 @@ impl TsppExtension {
         );
         let release = zed::github_release_by_tag_name(RELEASE_REPOSITORY, &format!("v{version}"))?;
         let archive_name = format!(
-            "destack-{version}-{}.{}",
+            "tspp-{version}-{}.{}",
             target.triple, target.archive_extension
         );
         let asset = release
             .assets
             .iter()
             .find(|asset| asset.name == archive_name)
-            .ok_or_else(|| format!("Destack release has no asset named {archive_name}"))?;
+            .ok_or_else(|| format!("TS++ release has no asset named {archive_name}"))?;
 
         // download and extract the exact extension release
         zed::set_language_server_installation_status(
@@ -226,14 +226,14 @@ impl TsppExtension {
         if release_directory.exists() {
             fs::remove_dir_all(release_directory).map_err(|error| {
                 format!(
-                    "failed to remove incomplete Destack release {}: {error}",
+                    "failed to remove incomplete TS++ release {}: {error}",
                     release_directory.display()
                 )
             })?;
         }
         let release_directory = release_directory.to_str().ok_or_else(|| {
             format!(
-                "Destack release directory is not valid UTF-8: {}",
+                "TS++ release directory is not valid UTF-8: {}",
                 release_directory.display()
             )
         })?;
@@ -242,7 +242,7 @@ impl TsppExtension {
         // restore executable permissions removed by archive transport
         if !matches!(zed::current_platform().0, Os::Windows) {
             let command = Path::new(release_directory)
-                .join(format!("destack-{version}-{}", target.triple))
+                .join(format!("tspp-{version}-{}", target.triple))
                 .join(target.executable_name);
             let command = command.to_str().ok_or_else(|| {
                 format!(
@@ -295,7 +295,7 @@ impl TsppExtension {
                 executable_name: "tspp.exe",
             }),
             _ => Err(format!(
-                "Destack has no release for {operating_system:?}/{architecture:?}"
+                "TS++ has no release for {operating_system:?}/{architecture:?}"
             )),
         }
     }

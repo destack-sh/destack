@@ -17,8 +17,8 @@ pub struct VersionArgs {
 /// JSON payload for version output.
 #[derive(serde::Serialize)]
 struct VersionPayload {
-    /// Destack version identifier.
-    destack: String,
+    /// TS++ version identifier.
+    tspp: String,
     /// CLI version identifier.
     cli: String,
 }
@@ -28,7 +28,7 @@ pub fn run(args: &VersionArgs) -> i32 {
     // emit structured output when requested
     if args.report.is_json() {
         let payload = VersionPayload {
-            destack: CLI_VERSION.to_string(),
+            tspp: CLI_VERSION.to_string(),
             cli: CLI_VERSION.to_string(),
         };
         if let Err(code) = print_json_payload_report("version", &args.report, 0, &payload) {

@@ -7,7 +7,7 @@ use indexmap::IndexMap;
 use tspp_artifact::{ArtifactKey, BuildId, IndexKind};
 use tspp_query::{QueryRequest, QueryResponse};
 use tspp_repository::{
-    DestackLayoutOverride, Edit, Environment, Execution, Host, Repository, Revision, Settings,
+    Edit, Environment, Execution, Host, Repository, Revision, Settings, StorageLayoutOverride,
     Trace, TraceLevel, TraceSnapshot, TraceView,
 };
 use tspp_session::{ArtifactPriority, Executor, Session};
@@ -74,7 +74,7 @@ impl QueryWorkspace {
             root.clone(),
             host,
             Settings::default(),
-            DestackLayoutOverride::default(),
+            StorageLayoutOverride::default(),
         )
         .map_err(|error| format!("failed to open query repository: {error}"))?;
         let repository = Arc::new(repository);

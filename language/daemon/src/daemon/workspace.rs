@@ -7,7 +7,7 @@ use parking_lot::RwLock;
 use tspp_artifact::{ArtifactPayload, BuildId};
 use tspp_core::Blob;
 use tspp_repository as repository;
-use tspp_repository::{Commit, DestackLayoutOverride, Host, Repository, Revision, Settings};
+use tspp_repository::{Commit, Host, Repository, Revision, Settings, StorageLayoutOverride};
 use tspp_rpc::{Code, Request, Response, ResponseSender, Status};
 use tspp_session::Executor;
 use tspp_workspace as workspace;
@@ -26,7 +26,7 @@ pub(crate) struct WorkspaceRegistry {
     /// Machine settings shared by workspace repositories.
     settings: Settings,
     /// Machine layout shared while workspace-local paths remain root-relative.
-    layout: DestackLayoutOverride,
+    layout: StorageLayoutOverride,
     /// Live workspaces keyed by canonical root.
     registrations: Arc<RwLock<HashMap<PathBuf, WorkspaceRegistration>>>,
 }
@@ -52,7 +52,7 @@ impl WorkspaceRegistry {
         let repository = workspace.session().repository();
         let host = repository.host().clone();
         let settings = repository.settings().clone();
-        let layout = DestackLayoutOverride {
+        let layout = StorageLayoutOverride {
             home: Some(repository.layout().home.clone()),
             packages: Some(repository.layout().packages.clone()),
             cache: Some(repository.layout().cache.clone()),

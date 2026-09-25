@@ -10,8 +10,8 @@ use tspp_artifact::{
 };
 use tspp_repository as repository;
 use tspp_repository::{
-    ArtifactReader, DestackLayoutOverride, Environment, Execution, Host, Repository, Revision,
-    RevisionPin, Settings, Trace, TraceLevel, TraceSnapshot, TraceView,
+    ArtifactReader, Environment, Execution, Host, Repository, Revision, RevisionPin, Settings,
+    StorageLayoutOverride, Trace, TraceLevel, TraceSnapshot, TraceView,
 };
 use tspp_source::{FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId, Uri};
 
@@ -38,7 +38,7 @@ impl TestSession {
             self.root.clone(),
             self.repository.host().clone(),
             Settings::default(),
-            DestackLayoutOverride::default(),
+            StorageLayoutOverride::default(),
         )
         .unwrap();
         let repository = Arc::new(repository);
@@ -138,7 +138,7 @@ impl TestSession {
             root.clone(),
             host,
             Settings::default(),
-            DestackLayoutOverride::default(),
+            StorageLayoutOverride::default(),
         )?;
         let repository = Arc::new(repository);
         let root = repository.path().to_path_buf();

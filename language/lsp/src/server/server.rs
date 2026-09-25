@@ -10,7 +10,7 @@ use tspp_lsp_server::{Client, LanguageServer, LogRecord, LspService, Server, Uri
 use tspp_lsp_types as lsp;
 use tspp_query as query;
 use tspp_repository::{
-    Clock, DestackLayout, Environment, Execution, Host, Revision, Settings, Trace, TraceLevel,
+    Clock, Environment, Execution, Host, Revision, Settings, StorageLayout, Trace, TraceLevel,
     TraceReport, TraceSnapshot, TraceView,
 };
 use tspp_session::{
@@ -71,10 +71,10 @@ impl TsppLanguageServer {
         let cwd = environment.cwd.as_deref().unwrap_or_else(|| Path::new("."));
 
         // open persistent artifact storage
-        let home = DestackLayout::resolve_home(cwd, &environment, None);
+        let home = StorageLayout::resolve_home(cwd, &environment, None);
         let settings = Settings::load_from_home(file_system.as_ref(), &home)?;
         let cache_directory =
-            DestackLayout::resolve_cache(cwd, &home, &environment, &settings, None);
+            StorageLayout::resolve_cache(cwd, &home, &environment, &settings, None);
         let artifact_cache = ArtifactCache::open(
             Workspace::BUILD_ID,
             cache_directory,

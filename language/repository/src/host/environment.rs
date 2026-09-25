@@ -7,8 +7,7 @@ use tspp_artifact::EnvironmentKey;
 use tspp_serde::Reflect;
 
 use super::{
-    DESTACK_FEATURES, DESTACK_MODES, DESTACK_PRODUCT, DESTACK_PROFILE, DESTACK_ROLES, DESTACK_TAGS,
-    DESTACK_TARGET,
+    TSPP_FEATURES, TSPP_MODES, TSPP_PRODUCT, TSPP_PROFILE, TSPP_ROLES, TSPP_TAGS, TSPP_TARGET,
 };
 
 /// Virtual ambient state for one session operation.
@@ -93,13 +92,13 @@ impl ConditionSelection {
     /// Build condition selection from captured environment variables.
     pub fn from_env(env: &BTreeMap<String, String>) -> Self {
         Self {
-            target: env.get(DESTACK_TARGET).cloned(),
-            product: env.get(DESTACK_PRODUCT).cloned(),
-            profile: env.get(DESTACK_PROFILE).cloned(),
-            modes: condition_list(env.get(DESTACK_MODES)),
-            roles: condition_list(env.get(DESTACK_ROLES)),
-            features: condition_list(env.get(DESTACK_FEATURES)),
-            tags: condition_list(env.get(DESTACK_TAGS)),
+            target: env.get(TSPP_TARGET).cloned(),
+            product: env.get(TSPP_PRODUCT).cloned(),
+            profile: env.get(TSPP_PROFILE).cloned(),
+            modes: condition_list(env.get(TSPP_MODES)),
+            roles: condition_list(env.get(TSPP_ROLES)),
+            features: condition_list(env.get(TSPP_FEATURES)),
+            tags: condition_list(env.get(TSPP_TAGS)),
         }
     }
 }

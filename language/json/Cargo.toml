@@ -1,6 +1,6 @@
 [package]
 name = "tspp_json"
-description = "JSON/JSONC AST, parser, and formatter for Destack"
+description = "JSON/JSONC AST, parser, and formatter for TS++"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

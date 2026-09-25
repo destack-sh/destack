@@ -1,6 +1,6 @@
 [package]
 name = "tspp_workspace"
-description = "Destack Workspace"
+description = "TS++ Workspace"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

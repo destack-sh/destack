@@ -119,5 +119,5 @@ fn path_to_pipe_name(path: &Path) -> Result<String, IpcError> {
         return Err(IpcError::InvalidPath(PathBuf::from(path)));
     };
 
-    Ok(format!(r"\\.\pipe\destack-{name}"))
+    Ok(format!(r"\\.\pipe\tspp-{name}"))
 }

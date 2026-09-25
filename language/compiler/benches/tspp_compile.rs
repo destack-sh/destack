@@ -9,8 +9,8 @@ use std::sync::Arc;
 use tspp_artifact::{ArtifactKey, BuildId};
 use tspp_core::FxIndexSet;
 use tspp_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Repository, Revision,
-    Settings,
+    Edit, Environment, Execution, Host, Repository, Revision, Settings, StorageLayout,
+    StorageLayoutOverride,
 };
 use tspp_session::{ArtifactPriority, Executor, Session};
 use tspp_source::{FileSystem, FileType, ModuleId, PhysicalFileSystem, TargetId, glob};
@@ -80,7 +80,7 @@ impl Profiler for PprofProfiler {
     }
 }
 
-/// Load destack sources for compilation.
+/// Load TS++ sources for compilation.
 fn load_sources(workspace_root: &Path) -> (Vec<SourceFile>, u64) {
     // collect file paths
     let workspace_root = workspace_root.to_string_lossy();
@@ -99,7 +99,7 @@ fn load_sources(workspace_root: &Path) -> (Vec<SourceFile>, u64) {
         // file type
         let file_type = FileType::from_path(&path).expect("bench path should have a file type");
         let is_tspp_source = matches!(file_type, FileType::Tspp | FileType::TsppDeclaration);
-        assert!(is_tspp_source, "path is not a destack source: {path:?}");
+        assert!(is_tspp_source, "path is not a TS++ source: {path:?}");
 
         // file content
         let content = fs::read_to_string(&path).unwrap_or_default();
@@ -125,12 +125,12 @@ fn build_workspace(
     let workspace_root = workspace_root.to_path_buf();
     let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
     let environment = Environment::capture_process();
-    let layout = DestackLayout::resolve(
+    let layout = StorageLayout::resolve(
         &workspace_root,
         &workspace_root,
         &environment,
         &Settings::default(),
-        &DestackLayoutOverride::default(),
+        &StorageLayoutOverride::default(),
         None,
     );
     let build_id = BuildId::test();

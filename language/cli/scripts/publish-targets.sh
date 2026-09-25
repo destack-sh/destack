@@ -19,7 +19,7 @@ resolve_package_directory() {
 	linux-x64-gnu | x86_64-unknown-linux-gnu) printf '%s\n' "npm-linux-x64-gnu" ;;
 	win32-x64-msvc | x86_64-pc-windows-msvc) printf '%s\n' "npm-win32-x64-msvc" ;;
 	*)
-		printf '%s\n' "error: unsupported DESTACK_RELEASE_TARGETS entry: ${token}" >&2
+		printf '%s\n' "error: unsupported TSPP_RELEASE_TARGETS entry: ${token}" >&2
 		exit 1
 		;;
 	esac
@@ -35,8 +35,8 @@ append_unique_package_directory() {
 }
 
 selected_package_directories=""
-if [ -n "${DESTACK_RELEASE_TARGETS:-}" ]; then
-	for target_token in ${DESTACK_RELEASE_TARGETS}; do
+if [ -n "${TSPP_RELEASE_TARGETS:-}" ]; then
+	for target_token in ${TSPP_RELEASE_TARGETS}; do
 		package_directory="$(resolve_package_directory "${target_token}")"
 		append_unique_package_directory "${package_directory}"
 	done

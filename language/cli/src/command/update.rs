@@ -10,13 +10,13 @@ use crate::common::{ReportArgs, print_json_payload_report, report_error};
 use crate::console;
 
 /// Default github repository used for release installers.
-const DEFAULT_RELEASE_REPOSITORY: &str = "destack-sh/destack";
+const DEFAULT_RELEASE_REPOSITORY: &str = "destack-sh/tspp";
 
 /// Environment variable that overrides the release repository.
-const RELEASE_REPOSITORY_ENV: &str = "DESTACK_REPOSITORY";
+const RELEASE_REPOSITORY_ENV: &str = "TSPP_REPOSITORY";
 
 /// Environment variable that marks npm managed launches.
-const MANAGED_BY_NPM_ENV: &str = "DESTACK_MANAGED_BY_NPM";
+const MANAGED_BY_NPM_ENV: &str = "TSPP_MANAGED_BY_NPM";
 
 /// Install script file name for unix hosts.
 #[cfg(not(windows))]
@@ -167,7 +167,7 @@ struct VerifiedReleaseMetadata {
     release_tag: String,
 }
 
-/// Update the installed Destack CLI binaries.
+/// Update the installed TS++ CLI binaries.
 pub fn run(args: &UpdateArgs) -> i32 {
     // resolve install metadata
     let requested_version = normalize_requested_version(&args.version);
@@ -258,7 +258,7 @@ fn emit_update_report(
 
     if applied {
         console::success(&format!(
-            "updated destack {} via {}",
+            "updated tspp {} via {}",
             requested_version,
             action.channel_name()
         ));
@@ -333,10 +333,10 @@ fn normalize_requested_version(version_input: &str) -> String {
 /// Resolve the npm package spec for update commands.
 fn resolve_npm_package_spec(requested_version: &str) -> String {
     if requested_version == "latest" {
-        return "@destack/cli@latest".to_string();
+        return "@destack/tspp@latest".to_string();
     }
 
-    format!("@destack/cli@{requested_version}")
+    format!("@destack/tspp@{requested_version}")
 }
 
 /// Resolve the release repository from environment overrides.
@@ -476,7 +476,7 @@ fn create_temp_directory() -> Result<PathBuf, String> {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| format!("failed to read system time: {error}"))?
             .as_nanos();
-        let directory_name = format!("destack-update-{process_id}-{now_nanos}-{attempt}");
+        let directory_name = format!("tspp-update-{process_id}-{now_nanos}-{attempt}");
         let directory_path = temp_directory.join(directory_name);
 
         match fs::create_dir(&directory_path) {
@@ -872,7 +872,7 @@ fn create_temp_script_path() -> Result<PathBuf, String> {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| format!("failed to read system time: {error}"))?
             .as_nanos();
-        let file_name = format!("destack-update-{process_id}-{now_nanos}-{attempt}.{extension}");
+        let file_name = format!("tspp-update-{process_id}-{now_nanos}-{attempt}.{extension}");
         let file_path = temp_directory.join(file_name);
 
         let create_result = OpenOptions::new()
@@ -986,7 +986,7 @@ fn execute_installer_script(script_path: &Path, requested_version: &str) -> Resu
     // execute installer script with requested version
     let status = Command::new("sh")
         .arg(script_path)
-        .env("DESTACK_VERSION", requested_version)
+        .env("TSPP_VERSION", requested_version)
         .status()
         .map_err(|error| format!("failed to run installer script: {error}"))?;
 
@@ -1005,7 +1005,7 @@ fn execute_installer_script(script_path: &Path, requested_version: &str) -> Resu
             "-File",
             &script_path.display().to_string(),
         ])
-        .env("DESTACK_VERSION", requested_version)
+        .env("TSPP_VERSION", requested_version)
         .status()
         .map_err(|error| format!("failed to run installer script: {error}"))?;
 
@@ -1023,7 +1023,7 @@ mod tests {
             checksums_file: "SHA256SUMS".to_string(),
             assets: vec![ReleaseManifestAsset {
                 target_triple: "x86_64-unknown-linux-gnu".to_string(),
-                archive_name: "destack-1.2.3-x86_64-unknown-linux-gnu.tar.gz".to_string(),
+                archive_name: "tspp-1.2.3-x86_64-unknown-linux-gnu.tar.gz".to_string(),
                 archive_sha256: "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
                     .to_string(),
             }],
@@ -1032,14 +1032,14 @@ mod tests {
 
     fn sample_checksums() -> HashMap<String, String> {
         HashMap::from([(
-            "destack-1.2.3-x86_64-unknown-linux-gnu.tar.gz".to_string(),
+            "tspp-1.2.3-x86_64-unknown-linux-gnu.tar.gz".to_string(),
             "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string(),
         )])
     }
 
     #[test]
     fn test_detect_update_action_for_npm_env() {
-        let action = detect_update_action(true, "destack-sh/destack", "latest");
+        let action = detect_update_action(true, "destack-sh/tspp", "latest");
 
         assert!(matches!(
             action,
@@ -1053,7 +1053,7 @@ mod tests {
 
     #[test]
     fn test_detect_update_action_for_standalone_path() {
-        let action = detect_update_action(false, "destack-sh/destack", "latest");
+        let action = detect_update_action(false, "destack-sh/tspp", "latest");
 
         assert!(matches!(action, UpdateAction::StandaloneInstaller { .. }));
     }
@@ -1079,12 +1079,12 @@ mod tests {
     #[test]
     fn test_parse_checksums_map_reads_entries() {
         let checksums = parse_checksums_map(
-            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  destack-1.2.3-x86_64-unknown-linux-gnu.tar.gz\n",
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  tspp-1.2.3-x86_64-unknown-linux-gnu.tar.gz\n",
         )
         .unwrap();
 
         assert_eq!(
-            checksums.get("destack-1.2.3-x86_64-unknown-linux-gnu.tar.gz"),
+            checksums.get("tspp-1.2.3-x86_64-unknown-linux-gnu.tar.gz"),
             Some(&"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef".to_string())
         );
     }
@@ -1092,8 +1092,8 @@ mod tests {
     #[test]
     fn test_parse_checksums_map_rejects_duplicate_entries() {
         let error = parse_checksums_map(
-            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  destack-1.2.3-x86_64-unknown-linux-gnu.tar.gz\n\
-             fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210  destack-1.2.3-x86_64-unknown-linux-gnu.tar.gz\n",
+            "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef  tspp-1.2.3-x86_64-unknown-linux-gnu.tar.gz\n\
+             fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210  tspp-1.2.3-x86_64-unknown-linux-gnu.tar.gz\n",
         )
         .unwrap_err();
 
@@ -1108,15 +1108,15 @@ mod tests {
         };
 
         let (installer_url, installer_version) = resolve_standalone_execution_input(
-            "https://github.com/destack-sh/destack/releases/latest/download/install.sh",
+            "https://github.com/destack-sh/tspp/releases/latest/download/install.sh",
             "latest",
-            "destack-sh/destack",
+            "destack-sh/tspp",
             Some(&metadata),
         );
 
         assert_eq!(
             installer_url,
-            "https://github.com/destack-sh/destack/releases/download/v1.2.3/install.sh"
+            "https://github.com/destack-sh/tspp/releases/download/v1.2.3/install.sh"
         );
         assert_eq!(installer_version, "1.2.3");
     }
@@ -1124,15 +1124,15 @@ mod tests {
     #[test]
     fn test_resolve_standalone_execution_input_uses_fallback_without_metadata() {
         let (installer_url, installer_version) = resolve_standalone_execution_input(
-            "https://github.com/destack-sh/destack/releases/latest/download/install.sh",
+            "https://github.com/destack-sh/tspp/releases/latest/download/install.sh",
             "latest",
-            "destack-sh/destack",
+            "destack-sh/tspp",
             None,
         );
 
         assert_eq!(
             installer_url,
-            "https://github.com/destack-sh/destack/releases/latest/download/install.sh"
+            "https://github.com/destack-sh/tspp/releases/latest/download/install.sh"
         );
         assert_eq!(installer_version, "latest");
     }
@@ -1146,9 +1146,8 @@ mod tests {
             report: ReportArgs::default(),
         };
         let action = UpdateAction::StandaloneInstaller {
-            installer_url:
-                "https://github.com/destack-sh/destack/releases/latest/download/install.sh"
-                    .to_string(),
+            installer_url: "https://github.com/destack-sh/tspp/releases/latest/download/install.sh"
+                .to_string(),
         };
 
         assert!(should_verify_release_metadata(&args, &action));
@@ -1163,9 +1162,8 @@ mod tests {
             report: ReportArgs::default(),
         };
         let action = UpdateAction::StandaloneInstaller {
-            installer_url:
-                "https://github.com/destack-sh/destack/releases/latest/download/install.sh"
-                    .to_string(),
+            installer_url: "https://github.com/destack-sh/tspp/releases/latest/download/install.sh"
+                .to_string(),
         };
 
         assert!(should_verify_release_metadata(&args, &action));
@@ -1180,9 +1178,8 @@ mod tests {
             report: ReportArgs::default(),
         };
         let action = UpdateAction::StandaloneInstaller {
-            installer_url:
-                "https://github.com/destack-sh/destack/releases/latest/download/install.sh"
-                    .to_string(),
+            installer_url: "https://github.com/destack-sh/tspp/releases/latest/download/install.sh"
+                .to_string(),
         };
 
         assert!(!should_verify_release_metadata(&args, &action));

@@ -3,7 +3,7 @@
   "private": true,
   "version": "2026.9.0",
   "description": "TS++ grammar for tree-sitter",
-  "repository": "https://github.com/destack-sh/destack",
+  "repository": "https://github.com/destack-sh/tspp",
   "license": "MIT",
   "keywords": [
     "tspp",

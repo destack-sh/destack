@@ -2,16 +2,16 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 
 # release source
-$DestackRepository = if ($env:DESTACK_REPOSITORY) { $env:DESTACK_REPOSITORY } else { "destack-sh/destack" }
-$DestackReleaseBaseUrl = if ($env:DESTACK_RELEASE_BASE_URL) { $env:DESTACK_RELEASE_BASE_URL } else { "https://github.com/$DestackRepository/releases/download" }
-$DestackApiBaseUrl = if ($env:DESTACK_API_BASE_URL) { $env:DESTACK_API_BASE_URL } else { "https://api.github.com/repos/$DestackRepository" }
-$DestackGithubToken = if ($env:DESTACK_GITHUB_TOKEN) { $env:DESTACK_GITHUB_TOKEN } else { "" }
-$DestackUserAgent = if ($env:DESTACK_CURL_USER_AGENT) { $env:DESTACK_CURL_USER_AGENT } else { "destack-cli-installer" }
+$TsppRepository = if ($env:TSPP_REPOSITORY) { $env:TSPP_REPOSITORY } else { "destack-sh/tspp" }
+$TsppReleaseBaseUrl = if ($env:TSPP_RELEASE_BASE_URL) { $env:TSPP_RELEASE_BASE_URL } else { "https://github.com/$TsppRepository/releases/download" }
+$TsppApiBaseUrl = if ($env:TSPP_API_BASE_URL) { $env:TSPP_API_BASE_URL } else { "https://api.github.com/repos/$TsppRepository" }
+$TsppGithubToken = if ($env:TSPP_GITHUB_TOKEN) { $env:TSPP_GITHUB_TOKEN } else { "" }
+$TsppUserAgent = if ($env:TSPP_CURL_USER_AGENT) { $env:TSPP_CURL_USER_AGENT } else { "tspp-installer" }
 
 # install configuration
-$DestackVersionInput = if ($env:DESTACK_VERSION) { $env:DESTACK_VERSION } else { "latest" }
-$DestackInstallDir = if ($env:DESTACK_INSTALL) { $env:DESTACK_INSTALL } else { Join-Path $HOME ".destack\bin" }
-$DestackNoModifyPath = if ($env:DESTACK_NO_MODIFY_PATH) { $env:DESTACK_NO_MODIFY_PATH } else { "0" }
+$TsppVersionInput = if ($env:TSPP_VERSION) { $env:TSPP_VERSION } else { "latest" }
+$TsppInstallDir = if ($env:TSPP_INSTALL) { $env:TSPP_INSTALL } else { Join-Path $HOME ".tspp\bin" }
+$TsppNoModifyPath = if ($env:TSPP_NO_MODIFY_PATH) { $env:TSPP_NO_MODIFY_PATH } else { "0" }
 
 # print an informational message
 function Write-InstallInfo {
@@ -28,12 +28,12 @@ function Throw-InstallError {
 # resolve request headers for github api and release downloads
 function Resolve-RequestHeaders {
     $headers = @{
-        "User-Agent" = $DestackUserAgent
+        "User-Agent" = $TsppUserAgent
     }
 
     # include github auth when a token is configured
-    if (-not [string]::IsNullOrWhiteSpace($DestackGithubToken)) {
-        $headers["Authorization"] = "Bearer $DestackGithubToken"
+    if (-not [string]::IsNullOrWhiteSpace($TsppGithubToken)) {
+        $headers["Authorization"] = "Bearer $TsppGithubToken"
     }
 
     return $headers
@@ -175,7 +175,7 @@ function Ensure-PathEntry {
     param([string]$InstallDirectory, [string]$NoModifyPath)
 
     if ($NoModifyPath -eq "1") {
-        Write-InstallInfo "skipping path update because DESTACK_NO_MODIFY_PATH=1"
+        Write-InstallInfo "skipping path update because TSPP_NO_MODIFY_PATH=1"
         return
     }
 
@@ -204,20 +204,20 @@ function Invoke-Install {
     # resolve runtime and release metadata
     $architecture = Resolve-Architecture
     $targetTriple = Resolve-TargetTriple -Architecture $architecture
-    $release = Resolve-ReleaseVersion -VersionInput $DestackVersionInput -ApiBaseUrl $DestackApiBaseUrl
+    $release = Resolve-ReleaseVersion -VersionInput $TsppVersionInput -ApiBaseUrl $TsppApiBaseUrl
     $version = [string]$release.version
     $tag = [string]$release.tag
 
-    Write-InstallInfo "installing destack $version for $targetTriple"
+    Write-InstallInfo "installing tspp $version for $targetTriple"
 
     # resolve release asset names
-    $archiveName = "destack-$version-$targetTriple.zip"
-    $archiveUrl = "$DestackReleaseBaseUrl/$tag/$archiveName"
+    $archiveName = "tspp-$version-$targetTriple.zip"
+    $archiveUrl = "$TsppReleaseBaseUrl/$tag/$archiveName"
     $checksumsName = "SHA256SUMS"
-    $checksumsUrl = "$DestackReleaseBaseUrl/$tag/$checksumsName"
+    $checksumsUrl = "$TsppReleaseBaseUrl/$tag/$checksumsName"
 
     # create a temporary workspace
-    $tempDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("destack-install-" + [Guid]::NewGuid().ToString("N"))
+    $tempDirectory = Join-Path ([System.IO.Path]::GetTempPath()) ("tspp-install-" + [Guid]::NewGuid().ToString("N"))
     New-Item -ItemType Directory -Path $tempDirectory -Force | Out-Null
 
     try {
@@ -235,12 +235,12 @@ function Invoke-Install {
         Expand-Archive -Path $archivePath -DestinationPath $extractDirectory -Force
 
         # install binaries and update path
-        Install-Binaries -ExtractDirectory $extractDirectory -InstallDirectory $DestackInstallDir
-        Ensure-PathEntry -InstallDirectory $DestackInstallDir -NoModifyPath $DestackNoModifyPath
+        Install-Binaries -ExtractDirectory $extractDirectory -InstallDirectory $TsppInstallDir
+        Ensure-PathEntry -InstallDirectory $TsppInstallDir -NoModifyPath $TsppNoModifyPath
 
         # print final guidance
-        Write-InstallInfo "installed binaries into $DestackInstallDir"
-        Write-InstallInfo "run: destack --version"
+        Write-InstallInfo "installed binaries into $TsppInstallDir"
+        Write-InstallInfo "run: tspp --version"
     } finally {
         Remove-Item -Path $tempDirectory -Recurse -Force -ErrorAction SilentlyContinue
     }

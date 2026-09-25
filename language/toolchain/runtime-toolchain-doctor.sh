@@ -73,10 +73,10 @@ check_command just required "just"
 # ensure the active rustup default toolchain matches the pinned ci toolchain
 if [ -n "$(runtime_command_path rustup)" ]; then
 	default_toolchain="$(rustup default 2>/dev/null | awk '{print $1}' || true)"
-	if [ "${default_toolchain}" = "${DESTACK_RUST_TOOLCHAIN}" ]; then
+	if [ "${default_toolchain}" = "${TSPP_RUST_TOOLCHAIN}" ]; then
 		print_ok "rustup default toolchain: ${default_toolchain}"
 	else
-		print_warn "rustup default toolchain is ${default_toolchain}, expected ${DESTACK_RUST_TOOLCHAIN}"
+		print_warn "rustup default toolchain is ${default_toolchain}, expected ${TSPP_RUST_TOOLCHAIN}"
 	fi
 fi
 

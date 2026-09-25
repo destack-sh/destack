@@ -3,12 +3,12 @@ use serde::{Deserialize, Serialize};
 
 use super::Dependency;
 
-/// Destack lock document.
+/// Package lockfile document.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
-pub struct DestackLock {
+pub struct Lockfile {
     /// Lock document format version.
     pub version: u32,
     /// Root package name.

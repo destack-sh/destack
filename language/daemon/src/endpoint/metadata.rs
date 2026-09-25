@@ -14,7 +14,7 @@ use super::{DaemonEndpoint, DaemonEndpointError};
 pub struct DaemonMetadata {
     /// Metadata schema version.
     pub schema_version: u32,
-    /// Machine-local Destack home.
+    /// Machine-local toolchain home.
     pub home: PathBuf,
     /// Stable endpoint instance identifier.
     pub instance_id: String,

@@ -1,11 +1,10 @@
 {
-    "name": "@destack/language-cli",
+    "name": "@destack/tspp",
     "version": "2026.9.0",
     "license": "MIT",
     "type": "module",
-    "description": "Destack command-line interface",
+    "description": "TS++ command-line interface",
     "bin": {
-        "destack": "npm/dist/bin/destack.js",
         "tspp": "npm/dist/bin/tspp.js",
         "tsppc": "npm/dist/bin/tsppc.js"
     },
@@ -24,11 +23,11 @@
         "publish:live": "npm publish --access public"
     },
     "optionalDependencies": {
-        "@destack/language-cli-darwin-arm64": "2026.9.0",
-        "@destack/language-cli-darwin-x64": "2026.9.0",
-        "@destack/language-cli-linux-arm64-gnu": "2026.9.0",
-        "@destack/language-cli-linux-x64-gnu": "2026.9.0",
-        "@destack/language-cli-win32-x64-msvc": "2026.9.0"
+        "@destack/tspp-darwin-arm64": "2026.9.0",
+        "@destack/tspp-darwin-x64": "2026.9.0",
+        "@destack/tspp-linux-arm64-gnu": "2026.9.0",
+        "@destack/tspp-linux-x64-gnu": "2026.9.0",
+        "@destack/tspp-win32-x64-msvc": "2026.9.0"
     },
     "publishConfig": {
         "access": "public"

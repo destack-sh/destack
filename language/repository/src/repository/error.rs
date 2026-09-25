@@ -287,14 +287,14 @@ impl fmt::Display for RepositoryError {
             Self::ConfigCycle { path } => {
                 write!(
                     formatter,
-                    "circular destack config inheritance for '{}'",
+                    "circular manifest inheritance for '{}'",
                     path.display()
                 )
             }
             Self::InvalidConfigExtends { file, specifier } => {
                 write!(
                     formatter,
-                    "invalid destack config inheritance specifier '{specifier}' for '{file}'"
+                    "invalid manifest inheritance specifier '{specifier}' for '{file}'"
                 )
             }
             Self::FileSystem {

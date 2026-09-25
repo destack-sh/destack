@@ -4,7 +4,7 @@ description = "TS++ language and toolchain support."
 version = "2026.9.0"
 schema_version = 1
 authors = ["Florian Cäsar <florian@symbol.industries>"]
-repository = "https://github.com/destack-sh/destack"
+repository = "https://github.com/destack-sh/tspp"
 languages = ["languages/tspp", "languages/tsppm", "languages/tsppa"]
 
 [[capabilities]]
@@ -15,7 +15,7 @@ args = ["--version"]
 [[capabilities]]
 kind = "download_file"
 host = "github.com"
-path = ["destack-sh", "destack", "releases", "download", "**"]
+path = ["destack-sh", "tspp", "releases", "download", "**"]
 
 [lib]
 kind = "Rust"

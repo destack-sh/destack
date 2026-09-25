@@ -10,16 +10,15 @@ type MainPackageManifest = {
 
 /** The platform package names expected in optionalDependencies. */
 const PLATFORM_PACKAGE_NAMES = [
-    "@destack/language-cli-darwin-arm64",
-    "@destack/language-cli-darwin-x64",
-    "@destack/language-cli-linux-arm64-gnu",
-    "@destack/language-cli-linux-x64-gnu",
-    "@destack/language-cli-win32-x64-msvc",
+    "@destack/tspp-darwin-arm64",
+    "@destack/tspp-darwin-x64",
+    "@destack/tspp-linux-arm64-gnu",
+    "@destack/tspp-linux-x64-gnu",
+    "@destack/tspp-win32-x64-msvc",
 ];
 
 /** The built bin wrapper paths required for npm publish. */
 const BUILT_BIN_WRAPPERS = [
-    "./npm/dist/bin/destack.js",
     "./npm/dist/bin/tspp.js",
     "./npm/dist/bin/tsppc.js",
 ];

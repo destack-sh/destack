@@ -5,12 +5,12 @@ set -euo pipefail
 export LC_ALL="C"
 
 # test configuration
-DESTACK_VERSION_INPUT="${1:-}"
-DESTACK_RELEASE_TAG_INPUT="${DESTACK_RELEASE_TAG:-}"
-DESTACK_SCRIPT_DIRECTORY="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-DESTACK_CLI_DIRECTORY="$(cd -- "${DESTACK_SCRIPT_DIRECTORY}/.." >/dev/null 2>&1 && pwd)"
-DESTACK_ARTIFACTS_DIRECTORY="${2:-${DESTACK_CLI_DIRECTORY}/install/artifacts}"
-DESTACK_INSTALL_SCRIPT_PATH="${DESTACK_SCRIPT_DIRECTORY}/install.sh"
+TSPP_VERSION_INPUT="${1:-}"
+TSPP_RELEASE_TAG_INPUT="${TSPP_RELEASE_TAG:-}"
+TSPP_SCRIPT_DIRECTORY="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+TSPP_CLI_DIRECTORY="$(cd -- "${TSPP_SCRIPT_DIRECTORY}/.." >/dev/null 2>&1 && pwd)"
+TSPP_ARTIFACTS_DIRECTORY="${2:-${TSPP_CLI_DIRECTORY}/install/artifacts}"
+TSPP_INSTALL_SCRIPT_PATH="${TSPP_SCRIPT_DIRECTORY}/install.sh"
 
 # print an error message and exit
 fail() {
@@ -22,8 +22,8 @@ fail() {
 resolve_release_tag() {
     local version_value="$1"
 
-    if [ -n "${DESTACK_RELEASE_TAG_INPUT}" ]; then
-        printf '%s\n' "${DESTACK_RELEASE_TAG_INPUT}"
+    if [ -n "${TSPP_RELEASE_TAG_INPUT}" ]; then
+        printf '%s\n' "${TSPP_RELEASE_TAG_INPUT}"
         return
     fi
 
@@ -32,8 +32,8 @@ resolve_release_tag() {
 
 # resolve the release version
 resolve_version() {
-    if [ -n "${DESTACK_VERSION_INPUT}" ]; then
-        printf '%s\n' "${DESTACK_VERSION_INPUT#v}"
+    if [ -n "${TSPP_VERSION_INPUT}" ]; then
+        printf '%s\n' "${TSPP_VERSION_INPUT#v}"
         return
     fi
 
@@ -127,16 +127,16 @@ main() {
     local install_directory="${temp_directory}/install/bin"
     mkdir -p "${release_directory}"
 
-    cp "${DESTACK_ARTIFACTS_DIRECTORY}/destack-${version_value}-${target_triple}.tar.gz" "${release_directory}/"
-    cp "${DESTACK_ARTIFACTS_DIRECTORY}/SHA256SUMS" "${release_directory}/"
+    cp "${TSPP_ARTIFACTS_DIRECTORY}/tspp-${version_value}-${target_triple}.tar.gz" "${release_directory}/"
+    cp "${TSPP_ARTIFACTS_DIRECTORY}/SHA256SUMS" "${release_directory}/"
 
-    DESTACK_VERSION="${version_value}" \
-    DESTACK_RELEASE_BASE_URL="file://${temp_directory}/releases/download" \
-    DESTACK_INSTALL="${install_directory}" \
-    DESTACK_NO_MODIFY_PATH=1 \
-        bash "${DESTACK_INSTALL_SCRIPT_PATH}"
+    TSPP_VERSION="${version_value}" \
+    TSPP_RELEASE_BASE_URL="file://${temp_directory}/releases/download" \
+    TSPP_INSTALL="${install_directory}" \
+    TSPP_NO_MODIFY_PATH=1 \
+        bash "${TSPP_INSTALL_SCRIPT_PATH}"
 
-    "${install_directory}/destack" --version >/dev/null
+    "${install_directory}/tspp" --version >/dev/null
     "${install_directory}/tspp" --version >/dev/null
 }
 

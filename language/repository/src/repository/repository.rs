@@ -12,8 +12,8 @@ use crate::repository::{
     FileCache, FileEntry, RepositoryError, Revision, RevisionEntry, RevisionState,
 };
 use crate::{
-    ArtifactSelection, DestackLayout, DestackLayoutOverride, Environment, Host, Root, RootKind,
-    Settings, SourceRoot,
+    ArtifactSelection, Environment, Host, Root, RootKind, Settings, SourceRoot, StorageLayout,
+    StorageLayoutOverride,
 };
 
 /// Revisioned source repository backed by shared host state.
@@ -28,7 +28,7 @@ pub struct Repository {
     /// Host capabilities available to repository tooling.
     pub(crate) host: Host,
     /// Resolved storage layout for this repository.
-    pub(crate) layout: DestackLayout,
+    pub(crate) layout: StorageLayout,
     /// Machine-local settings used to open this repository.
     pub(crate) settings: Settings,
     /// Persistent file entry tree.
@@ -45,13 +45,13 @@ impl Repository {
         path: PathBuf,
         host: Host,
         settings: Settings,
-        layout_override: DestackLayoutOverride,
+        layout_override: StorageLayoutOverride,
     ) -> Result<(Self, Revision), RepositoryError> {
         let root = PathBuf::from(SourceRoot::discover(host.files().as_ref(), &path)?);
         let environment = host.environment();
         let cwd = environment.cwd.as_deref().unwrap_or(&path);
         let layout =
-            DestackLayout::resolve(&root, cwd, environment, &settings, &layout_override, None);
+            StorageLayout::resolve(&root, cwd, environment, &settings, &layout_override, None);
 
         // create repository at the selected source root
         let (repository, base) = Self::new(root.clone(), host, settings, layout);
@@ -70,7 +70,7 @@ impl Repository {
         edits: Vec<source::Edit>,
         environment: Environment,
         settings: Settings,
-        layout_override: DestackLayoutOverride,
+        layout_override: StorageLayoutOverride,
     ) -> Result<(Self, Revision), RepositoryError> {
         let file_system = Arc::new(MemoryFileSystem::new());
         file_system
@@ -106,7 +106,7 @@ impl Repository {
         root: PathBuf,
         host: Host,
         settings: Settings,
-        layout: DestackLayout,
+        layout: StorageLayout,
     ) -> (Self, Revision) {
         // create one immutable empty revision
         let revisions = DashMap::default();
@@ -163,7 +163,7 @@ impl Repository {
     }
 
     /// Return the resolved repository layout.
-    pub fn layout(&self) -> &DestackLayout {
+    pub fn layout(&self) -> &StorageLayout {
         &self.layout
     }
 

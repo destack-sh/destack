@@ -24,8 +24,8 @@ ensure_weston() {
 ensure_weston || exit 1
 
 runtime_test_filter="platform::display::tests::backend::test_display_wayland_capabilities_match_implemented_contract"
-runtime_socket_name="destack-wayland-ci"
-runtime_startup_timeout_seconds="${DESTACK_WAYLAND_STARTUP_TIMEOUT_SECONDS:-20}"
+runtime_socket_name="tspp-wayland-ci"
+runtime_startup_timeout_seconds="${TSPP_WAYLAND_STARTUP_TIMEOUT_SECONDS:-20}"
 
 runtime_directory="$(mktemp -d)"
 weston_log="$(mktemp)"

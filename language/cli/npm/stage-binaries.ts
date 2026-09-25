@@ -42,12 +42,12 @@ const PLATFORM_TARGETS: PlatformTarget[] = [
 ];
 
 /** The CLI binary names expected in each target package. */
-const BINARY_NAMES = ["destack", "tspp", "tsppc"];
+const BINARY_NAMES = ["tspp", "tsppc"];
 
-/** Resolve platform targets from DESTACK_RELEASE_TARGETS when provided. */
+/** Resolve platform targets from TSPP_RELEASE_TARGETS when provided. */
 function resolveActivePlatformTargets(): PlatformTarget[] {
     // read the optional target filter from the environment
-    const targetsInput = process.env.DESTACK_RELEASE_TARGETS;
+    const targetsInput = process.env.TSPP_RELEASE_TARGETS;
     if (!targetsInput) {
         return PLATFORM_TARGETS;
     }
@@ -85,7 +85,7 @@ function resolveActivePlatformTargets(): PlatformTarget[] {
 
     // fail loudly when unknown target filters are provided
     if (unknownTokens.length > 0) {
-        console.error("error: unsupported DESTACK_RELEASE_TARGETS entries:");
+        console.error("error: unsupported TSPP_RELEASE_TARGETS entries:");
         for (const unknownToken of unknownTokens) {
             console.error(`  ${unknownToken}`);
         }
@@ -94,7 +94,7 @@ function resolveActivePlatformTargets(): PlatformTarget[] {
 
     // fail loudly when filtering resolved to no targets
     if (activeTargets.length === 0) {
-        console.error("error: DESTACK_RELEASE_TARGETS did not resolve to any npm platform targets");
+        console.error("error: TSPP_RELEASE_TARGETS did not resolve to any npm platform targets");
         process.exit(1);
     }
 

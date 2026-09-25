@@ -5,17 +5,17 @@ set -euo pipefail
 export LC_ALL="C"
 
 # packaging configuration
-DESTACK_SCRIPT_DIRECTORY="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-DESTACK_CLI_DIRECTORY="$(cd -- "${DESTACK_SCRIPT_DIRECTORY}/.." >/dev/null 2>&1 && pwd)"
-DESTACK_VERSION_INPUT="${1:-}"
-DESTACK_OUTPUT_DIRECTORY="${2:-}"
-DESTACK_TARGETS_INPUT="${DESTACK_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
-DESTACK_RELEASE_TAG_INPUT="${DESTACK_RELEASE_TAG:-}"
-DESTACK_RELEASE_CHANNEL_INPUT="${DESTACK_RELEASE_CHANNEL:-release}"
-DESTACK_RELEASE_STABILITY_INPUT="${DESTACK_RELEASE_STABILITY:-}"
-DESTACK_MANIFEST_NAME="manifest.json"
-read -r -a DESTACK_TARGETS <<< "${DESTACK_TARGETS_INPUT}"
-DESTACK_BINARY_NAMES=(destack tspp tsppc)
+TSPP_SCRIPT_DIRECTORY="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+TSPP_CLI_DIRECTORY="$(cd -- "${TSPP_SCRIPT_DIRECTORY}/.." >/dev/null 2>&1 && pwd)"
+TSPP_VERSION_INPUT="${1:-}"
+TSPP_OUTPUT_DIRECTORY="${2:-}"
+TSPP_TARGETS_INPUT="${TSPP_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
+TSPP_RELEASE_TAG_INPUT="${TSPP_RELEASE_TAG:-}"
+TSPP_RELEASE_CHANNEL_INPUT="${TSPP_RELEASE_CHANNEL:-release}"
+TSPP_RELEASE_STABILITY_INPUT="${TSPP_RELEASE_STABILITY:-}"
+TSPP_MANIFEST_NAME="manifest.json"
+read -r -a TSPP_TARGETS <<< "${TSPP_TARGETS_INPUT}"
+TSPP_BINARY_NAMES=(tspp tsppc)
 
 # print an error message and exit
 fail() {
@@ -33,8 +33,8 @@ require_command() {
 
 # resolve the release version
 resolve_version() {
-    if [ -n "${DESTACK_VERSION_INPUT}" ]; then
-        printf '%s\n' "${DESTACK_VERSION_INPUT#v}"
+    if [ -n "${TSPP_VERSION_INPUT}" ]; then
+        printf '%s\n' "${TSPP_VERSION_INPUT#v}"
         return
     fi
 
@@ -54,8 +54,8 @@ resolve_version() {
 resolve_release_tag() {
     local version_value="$1"
 
-    if [ -n "${DESTACK_RELEASE_TAG_INPUT}" ]; then
-        printf '%s\n' "${DESTACK_RELEASE_TAG_INPUT}"
+    if [ -n "${TSPP_RELEASE_TAG_INPUT}" ]; then
+        printf '%s\n' "${TSPP_RELEASE_TAG_INPUT}"
         return
     fi
 
@@ -64,19 +64,19 @@ resolve_release_tag() {
 
 # resolve the release channel
 resolve_release_channel() {
-    case "${DESTACK_RELEASE_CHANNEL_INPUT}" in
+    case "${TSPP_RELEASE_CHANNEL_INPUT}" in
         release | canary)
-            printf '%s\n' "${DESTACK_RELEASE_CHANNEL_INPUT}"
+            printf '%s\n' "${TSPP_RELEASE_CHANNEL_INPUT}"
             ;;
         *)
-            fail "unsupported release channel: ${DESTACK_RELEASE_CHANNEL_INPUT}"
+            fail "unsupported release channel: ${TSPP_RELEASE_CHANNEL_INPUT}"
             ;;
     esac
 }
 
 # resolve the release stability
 resolve_release_stability() {
-    local stability_value="${DESTACK_RELEASE_STABILITY_INPUT}"
+    local stability_value="${TSPP_RELEASE_STABILITY_INPUT}"
     if [ -z "${stability_value}" ] && [ -f "platform/release/config.json" ]; then
         stability_value="$(node -p 'JSON.parse(require("node:fs").readFileSync("platform/release/config.json", "utf8")).stability')"
     fi
@@ -93,12 +93,12 @@ resolve_release_stability() {
 
 # resolve the output directory
 resolve_output_directory() {
-    if [ -n "${DESTACK_OUTPUT_DIRECTORY}" ]; then
-        printf '%s\n' "${DESTACK_OUTPUT_DIRECTORY}"
+    if [ -n "${TSPP_OUTPUT_DIRECTORY}" ]; then
+        printf '%s\n' "${TSPP_OUTPUT_DIRECTORY}"
         return
     fi
 
-    printf '%s\n' "${DESTACK_CLI_DIRECTORY}/install/artifacts"
+    printf '%s\n' "${TSPP_CLI_DIRECTORY}/install/artifacts"
 }
 
 # resolve a target archive file extension
@@ -135,7 +135,7 @@ stage_target_files() {
     mkdir -p "${package_directory}"
 
     local binary_name
-    for binary_name in "${DESTACK_BINARY_NAMES[@]}"; do
+    for binary_name in "${TSPP_BINARY_NAMES[@]}"; do
         local source_path="${source_directory}/${binary_name}${binary_extension}"
         local destination_name="${binary_name}${binary_extension}"
 
@@ -158,7 +158,7 @@ create_target_archive() {
     local output_directory="$3"
     local temp_directory="$4"
 
-    local package_name="destack-${version_value}-${target_triple}"
+    local package_name="tspp-${version_value}-${target_triple}"
     local package_directory="${temp_directory}/${package_name}"
     local archive_extension
     archive_extension="$(resolve_archive_extension "${target_triple}")"
@@ -188,7 +188,7 @@ resolve_archive_name() {
     local archive_extension
     archive_extension="$(resolve_archive_extension "${target_triple}")"
 
-    printf '%s\n' "destack-${version_value}-${target_triple}.${archive_extension}"
+    printf '%s\n' "tspp-${version_value}-${target_triple}.${archive_extension}"
 }
 
 # compute sha256 for a file
@@ -215,7 +215,7 @@ write_checksums() {
     : > "${checksums_path}"
 
     local archive_file
-    for archive_file in "${output_directory}"/destack-*; do
+    for archive_file in "${output_directory}"/tspp-*; do
         if [ ! -f "${archive_file}" ]; then
             continue
         fi
@@ -236,8 +236,8 @@ write_manifest() {
     local release_stability="$4"
     local output_directory="$5"
     local checksums_path="${output_directory}/SHA256SUMS"
-    local manifest_path="${output_directory}/${DESTACK_MANIFEST_NAME}"
-    local targets_count="${#DESTACK_TARGETS[@]}"
+    local manifest_path="${output_directory}/${TSPP_MANIFEST_NAME}"
+    local targets_count="${#TSPP_TARGETS[@]}"
     local target_index=0
 
     {
@@ -250,7 +250,7 @@ write_manifest() {
         printf '  "assets": [\n'
 
         local target_triple
-        for target_triple in "${DESTACK_TARGETS[@]}"; do
+        for target_triple in "${TSPP_TARGETS[@]}"; do
             target_index="$((target_index + 1))"
 
             local archive_name
@@ -270,7 +270,7 @@ write_manifest() {
             printf '      "archiveName": "%s",\n' "${archive_name}"
             printf '      "archiveFormat": "%s",\n' "${archive_format}"
             printf '      "archiveSha256": "%s",\n' "${archive_sha256}"
-            printf '      "binaries": ["destack", "tspp", "tsppc"]\n'
+            printf '      "binaries": ["tspp", "tsppc"]\n'
 
             if [ "${target_index}" -lt "${targets_count}" ]; then
                 printf '    },\n'
@@ -289,7 +289,7 @@ clear_version_artifacts() {
     local version_value="$1"
     local output_directory="$2"
 
-    find "${output_directory}" -maxdepth 1 -type f -name "destack-${version_value}-*" -delete
+    find "${output_directory}" -maxdepth 1 -type f -name "tspp-${version_value}-*" -delete
     find "${output_directory}" -maxdepth 1 -type f -name "SHA256SUMS" -delete
 }
 
@@ -319,7 +319,7 @@ main() {
     clear_version_artifacts "${version_value}" "${output_directory}"
 
     local target_triple
-    for target_triple in "${DESTACK_TARGETS[@]}"; do
+    for target_triple in "${TSPP_TARGETS[@]}"; do
         create_target_archive "${version_value}" "${target_triple}" "${output_directory}" "${temp_directory}"
     done
 

@@ -24,7 +24,7 @@
       }
     ],
     "links": {
-      "repository": "https://github.com/destack-sh/destack"
+      "repository": "https://github.com/destack-sh/tspp"
     }
   },
   "bindings": {}

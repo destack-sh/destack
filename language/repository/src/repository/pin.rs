@@ -215,7 +215,7 @@ mod tests {
     };
 
     use crate::repository::{Change, Edit, Repository, RepositoryError, Revision};
-    use crate::{DestackLayout, DestackLayoutOverride, Environment, Host, Settings};
+    use crate::{Environment, Host, Settings, StorageLayout, StorageLayoutOverride};
 
     /// Create one repository for a test root.
     fn test_repository(root: &Path) -> (Repository, Revision) {
@@ -228,12 +228,12 @@ mod tests {
 
     /// Create one repository under an existing host.
     fn test_repository_with_host(root: &Path, host: Host) -> (Repository, Revision) {
-        let layout = DestackLayout::resolve(
+        let layout = StorageLayout::resolve(
             root,
             root,
             host.environment(),
             &Settings::default(),
-            &DestackLayoutOverride::default(),
+            &StorageLayoutOverride::default(),
             None,
         );
 
@@ -248,12 +248,12 @@ mod tests {
 
         let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
         let environment = Environment::capture_process();
-        let layout = DestackLayout::resolve(
+        let layout = StorageLayout::resolve(
             &root,
             &root,
             &environment,
             &Settings::default(),
-            &DestackLayoutOverride::default(),
+            &StorageLayoutOverride::default(),
             None,
         );
         let host = Host::new(BuildId::test(), environment, file_system);
@@ -757,7 +757,7 @@ mod tests {
             .as_nanos();
         let process_id = process::id();
 
-        env::temp_dir().join(format!("destack-{prefix}-{process_id}-{timestamp}"))
+        env::temp_dir().join(format!("tspp-{prefix}-{process_id}-{timestamp}"))
     }
 
     /// Prune old unpinned revisions during explicit retention.
@@ -768,12 +768,12 @@ mod tests {
 
         let file_system: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
         let environment = Environment::capture_process();
-        let layout = DestackLayout::resolve(
+        let layout = StorageLayout::resolve(
             &root,
             &root,
             &environment,
             &Settings::default(),
-            &DestackLayoutOverride::default(),
+            &StorageLayoutOverride::default(),
             None,
         );
         let host = Host::new(BuildId::test(), environment, file_system);

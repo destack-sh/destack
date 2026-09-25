@@ -9,8 +9,8 @@ use tspp_daemon::{
     OpenWorkspaceRequest,
 };
 use tspp_repository::{
-    DestackLayout, DestackLayoutOverride, Environment, Execution, FormatterOptions, Host,
-    Repository, Revision, Settings, SourceRoot,
+    Environment, Execution, FormatterOptions, Host, Repository, Revision, Settings, SourceRoot,
+    StorageLayout, StorageLayoutOverride,
 };
 use tspp_session::Executor;
 use tspp_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
@@ -170,7 +170,7 @@ pub struct ProgramArgs {
     #[arg(long = "workspace", global = true)]
     pub workspace: Option<PathBuf>,
 
-    /// Destack home directory override.
+    /// Toolchain home directory override.
     #[arg(long = "home", global = true)]
     pub home: Option<PathBuf>,
 
@@ -328,7 +328,7 @@ impl ProgramArgs {
         let (home, settings) = self.load_settings(file_system.as_ref(), &cwd, &environment)?;
 
         // resolve the final cache path from every machine override
-        let directory = DestackLayout::resolve_cache(
+        let directory = StorageLayout::resolve_cache(
             &cwd,
             &home,
             &environment,
@@ -348,7 +348,7 @@ impl ProgramArgs {
         environment.cwd = Some(cwd.clone());
 
         // resolve machine settings before opening the repository
-        let layout_override = DestackLayoutOverride {
+        let layout_override = StorageLayoutOverride {
             home: self.home.clone(),
             packages: self.package_dir.clone(),
             cache: self.cache_dir.clone(),
@@ -357,7 +357,7 @@ impl ProgramArgs {
 
         // discover and import the repository in one step
         let build_id = Workspace::BUILD_ID;
-        let artifact_cache = DestackLayout::resolve_cache(
+        let artifact_cache = StorageLayout::resolve_cache(
             &cwd,
             &home,
             &environment,
@@ -416,10 +416,10 @@ impl ProgramArgs {
         cwd: &Path,
         environment: &Environment,
     ) -> ConsoleResult<(PathBuf, Settings)> {
-        let home = DestackLayout::resolve_home(cwd, environment, self.home.as_deref());
+        let home = StorageLayout::resolve_home(cwd, environment, self.home.as_deref());
         let settings = Settings::load_from_home(file_system, &home).map_err(|error| {
             ConsoleError::message(format!(
-                "failed to load Destack settings from {}: {error}",
+                "failed to load toolchain settings from {}: {error}",
                 home.display()
             ))
         })?;
@@ -457,7 +457,7 @@ impl ProgramArgs {
     pub(crate) fn daemon_endpoint(&self) -> ConsoleResult<DaemonEndpoint> {
         let cwd = self.effective_cwd()?;
         let environment = Environment::capture_process();
-        let home = DestackLayout::resolve_home(&cwd, &environment, self.home.as_deref());
+        let home = StorageLayout::resolve_home(&cwd, &environment, self.home.as_deref());
 
         Ok(DaemonEndpoint::new(home))
     }

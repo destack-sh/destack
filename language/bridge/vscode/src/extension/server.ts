@@ -9,10 +9,10 @@ import * as vscode from "vscode";
 import type { Executable } from "vscode-languageclient/node";
 
 const COMMAND_NAME = "tspp";
-const RELEASE_REPOSITORY = "destack-sh/destack";
+const RELEASE_REPOSITORY = "destack-sh/tspp";
 const DOWNLOAD_TIMEOUT_MILLISECONDS = 60_000;
 
-/** One supported Destack release target. */
+/** One supported TS++ release target. */
 type ReleaseTarget = {
     /** The Rust target triple. */
     triple: string;
@@ -104,7 +104,7 @@ export class ServerCommand {
             ? this.resolvePath(expandedCommand, workingDirectory)
             : await this.commandOnPath(expandedCommand);
         if (!command || !(await this.isExecutable(command))) {
-            throw new Error(`configured Destack command is not executable: ${expandedCommand}`);
+            throw new Error(`configured TS++ command is not executable: ${expandedCommand}`);
         }
 
         const arguments_ = this.withLspSubcommand(command, configuredArguments);
@@ -168,34 +168,34 @@ export class ServerCommand {
         const target = this.releaseTarget();
         const releaseDirectory = vscode.Uri.joinPath(
             context.globalStorageUri,
-            `destack-${version}-${target.triple}`,
+            `tspp-${version}-${target.triple}`,
         ).fsPath;
         const command = path.join(releaseDirectory, target.executableName);
         if (!(await this.isExecutable(command))) {
             await vscode.window.withProgress(
                 {
                     location: vscode.ProgressLocation.Notification,
-                    title: `Installing Destack ${version}`,
+                    title: `Installing TS++ ${version}`,
                     cancellable: false,
                 },
                 async () => this.install(version, target, releaseDirectory),
             );
         }
         if (!(await this.isExecutable(command))) {
-            throw new Error(`installed Destack release has no executable: ${command}`);
+            throw new Error(`installed TS++ release has no executable: ${command}`);
         }
         const argumentsWithSubcommand = this.withLspSubcommand(command, arguments_);
 
         return new ServerCommand(command, argumentsWithSubcommand, workingDirectory);
     }
 
-    /** Install one verified Destack release archive. */
+    /** Install one verified TS++ release archive. */
     private static async install(
         version: string,
         target: ReleaseTarget,
         releaseDirectory: string,
     ): Promise<void> {
-        const archiveName = `destack-${version}-${target.triple}.${target.archiveExtension}`;
+        const archiveName = `tspp-${version}-${target.triple}.${target.archiveExtension}`;
         const releaseUrl = `https://github.com/${RELEASE_REPOSITORY}/releases/download/v${version}`;
         const parentDirectory = path.dirname(releaseDirectory);
         const command = path.join(releaseDirectory, target.executableName);
@@ -203,7 +203,7 @@ export class ServerCommand {
         // allocate one isolated installation directory
         await mkdir(parentDirectory, { recursive: true });
         const temporaryDirectory = await mkdtemp(
-            path.join(parentDirectory, `.destack-${version}-${target.triple}-`),
+            path.join(parentDirectory, `.tspp-${version}-${target.triple}-`),
         );
         const archivePath = path.join(temporaryDirectory, archiveName);
         const extractedDirectory = path.join(temporaryDirectory, "extracted");
@@ -233,11 +233,11 @@ export class ServerCommand {
             // publish the release directory atomically
             const packageDirectory = path.join(
                 extractedDirectory,
-                `destack-${version}-${target.triple}`,
+                `tspp-${version}-${target.triple}`,
             );
             const executable = path.join(packageDirectory, target.executableName);
             if (!(await this.isFile(executable))) {
-                throw new Error(`Destack release archive is missing ${target.executableName}`);
+                throw new Error(`TS++ release archive is missing ${target.executableName}`);
             }
             if (process.platform !== "win32") {
                 await chmod(executable, 0o755);
@@ -259,7 +259,7 @@ export class ServerCommand {
     /** Download one bounded release resource. */
     private static async download(url: string): Promise<Buffer> {
         const response = await fetch(url, {
-            headers: { "user-agent": "destack-vscode" },
+            headers: { "user-agent": "tspp-vscode" },
             signal: AbortSignal.timeout(DOWNLOAD_TIMEOUT_MILLISECONDS),
         });
         if (!response.ok) {
@@ -276,12 +276,12 @@ export class ServerCommand {
             .find((line) => line.trimEnd().endsWith(` ${archiveName}`));
         const expected = checksumLine?.trim().split(/\s+/)[0]?.toLowerCase();
         if (!expected || !/^[0-9a-f]{64}$/.test(expected)) {
-            throw new Error(`Destack release has no valid checksum for ${archiveName}`);
+            throw new Error(`TS++ release has no valid checksum for ${archiveName}`);
         }
 
         const actual = createHash("sha256").update(archive).digest("hex");
         if (actual !== expected) {
-            throw new Error(`Destack release checksum differs for ${archiveName}`);
+            throw new Error(`TS++ release checksum differs for ${archiveName}`);
         }
     }
 
@@ -325,7 +325,7 @@ export class ServerCommand {
             };
         }
 
-        throw new Error(`Destack has no release for ${platform}/${architecture}`);
+        throw new Error(`TS++ has no release for ${platform}/${architecture}`);
     }
 
     /** Resolve the configured working directory. */

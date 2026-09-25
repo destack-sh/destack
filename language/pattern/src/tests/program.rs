@@ -8,8 +8,8 @@ use tspp_artifact::{
 };
 use tspp_core::StringPool;
 use tspp_repository::{
-    ArtifactReader, DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host,
-    Repository, Revision, RevisionPin, Settings,
+    ArtifactReader, Edit, Environment, Execution, Host, Repository, Revision, RevisionPin,
+    Settings, StorageLayout, StorageLayoutOverride,
 };
 use tspp_session::{ArtifactPriority, Executor, Session};
 use tspp_source::{File, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
@@ -112,12 +112,12 @@ impl TestProgram {
             .create_dir_all(&root)
             .expect("create checked test workspace");
         let environment = Environment::capture_process();
-        let layout = DestackLayout::resolve(
+        let layout = StorageLayout::resolve(
             &root,
             &root,
             &environment,
             &Settings::default(),
-            &DestackLayoutOverride::default(),
+            &StorageLayoutOverride::default(),
             None,
         );
         let host = Host::new(BuildId::test(), environment, files);

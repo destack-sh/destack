@@ -9,7 +9,7 @@ use tspp_source::FileSystem;
 
 use super::SETTINGS_FILE_NAME;
 
-/// Machine-local Destack settings.
+/// Machine-local toolchain settings.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]

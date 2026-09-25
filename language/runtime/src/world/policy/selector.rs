@@ -667,9 +667,7 @@ fn glob_match(pattern: &str, text: &str) -> bool {
 
 /// Return the module segment for one binding id.
 fn binding_module_name(binding_name: &str) -> &str {
-    binding_name
-        .strip_prefix("destack.")
-        .unwrap_or(binding_name)
+    binding_name.strip_prefix("tspp.").unwrap_or(binding_name)
 }
 
 /// Return the component segment for one binding id.

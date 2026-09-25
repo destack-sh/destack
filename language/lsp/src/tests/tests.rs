@@ -17,7 +17,7 @@ use tspp_lsp_server::{ExitedError, LspService, ResponseSink};
 use tspp_lsp_types as lsp;
 use tspp_lsp_types::notification::Notification;
 use tspp_repository::{
-    DestackLayoutOverride, Environment, Execution, Host, Repository, RevisionPin, Settings,
+    Environment, Execution, Host, Repository, RevisionPin, Settings, StorageLayoutOverride,
 };
 use tspp_session::{ArtifactPriority, Executor, Session};
 use tspp_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem, Uri};
@@ -52,7 +52,7 @@ const WORKERS_ENV: &str = "TSPP_TEST_WORKERS";
 static LIBRARY: OnceLock<TestLibrary> = OnceLock::new();
 
 /// Package configuration used by LSP integration tests.
-const DESTACK_JSON: &str = r#"{
+const DEFAULT_MANIFEST: &str = r#"{
   "packageManager": "tspp@2026.9.0",
   "name": "lsp-fixture",
   "targets": {
@@ -84,7 +84,7 @@ impl TestLibrary {
     fn new() -> Self {
         // import the ordinary fixture package and embedded library
         let files = TemporaryPhysicalFileSystem::new_with_prefix("lsp-library");
-        files.write_text_or_error("package.json", DESTACK_JSON);
+        files.write_text_or_error("package.json", DEFAULT_MANIFEST);
         files.write_text_or_error("main.tspp", "export const value = 1;\n");
         let host = Host::new(
             BuildId::test(),
@@ -95,7 +95,7 @@ impl TestLibrary {
             files.root().to_path_buf(),
             host,
             Settings::default(),
-            DestackLayoutOverride::default(),
+            StorageLayoutOverride::default(),
         )
         .unwrap();
         let repository = Arc::new(repository);
@@ -249,7 +249,7 @@ impl TestServer {
     /// Create one configured language server.
     pub(super) fn new(name: &str) -> Self {
         let file_system = TemporaryPhysicalFileSystem::new_with_prefix(name);
-        file_system.write_text_or_error("package.json", DESTACK_JSON);
+        file_system.write_text_or_error("package.json", DEFAULT_MANIFEST);
 
         Self::start(file_system)
     }
@@ -264,7 +264,7 @@ impl TestServer {
     /// Create one configured package below the editor folder.
     pub(super) fn create_package(&self, path: impl AsRef<Path>) {
         self.file_system
-            .write_text_or_error(path.as_ref().join("package.json"), DESTACK_JSON);
+            .write_text_or_error(path.as_ref().join("package.json"), DEFAULT_MANIFEST);
     }
 
     /// Write one workspace document.

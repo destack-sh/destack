@@ -19,7 +19,7 @@ const SOCKET_DIRECTORY: &str = "tspp-daemon";
 /// Filesystem and network addresses for one daemon instance.
 #[derive(Debug, Clone)]
 pub struct DaemonEndpoint {
-    /// Machine-local Destack home.
+    /// Machine-local toolchain home.
     pub home: PathBuf,
     /// Stable endpoint instance identifier.
     pub instance_id: String,
@@ -40,7 +40,7 @@ pub struct DaemonEndpoint {
 }
 
 impl DaemonEndpoint {
-    /// Create one daemon endpoint for a Destack home.
+    /// Create one daemon endpoint for a toolchain home.
     pub fn new(home: PathBuf) -> Self {
         let instance_id = format!(
             "language-v{}-rpc{}",

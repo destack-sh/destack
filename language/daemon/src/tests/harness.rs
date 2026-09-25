@@ -4,7 +4,7 @@ use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use tspp_artifact::BuildId;
-use tspp_repository::{DestackLayoutOverride, Environment, Execution, Host, Repository, Settings};
+use tspp_repository::{Environment, Execution, Host, Repository, Settings, StorageLayoutOverride};
 use tspp_session::Executor;
 use tspp_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
 use tspp_workspace::Workspace;
@@ -83,9 +83,9 @@ impl TestDaemon {
         let mut environment = Environment::capture_process();
         environment.cwd = Some(root.root().to_path_buf());
         let settings = Settings::default();
-        let layout = DestackLayoutOverride {
+        let layout = StorageLayoutOverride {
             home: Some(root.root().join("home")),
-            ..DestackLayoutOverride::default()
+            ..StorageLayoutOverride::default()
         };
         let physical: Arc<dyn FileSystem> = Arc::new(PhysicalFileSystem::new());
         let host = Host::new(BuildId::test(), environment, physical);

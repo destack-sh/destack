@@ -1,11 +1,11 @@
 {
-    "name": "@destack/language-cli-darwin-x64",
+    "name": "@destack/tspp-darwin-x64",
     "version": "2026.9.0",
     "license": "MIT",
-    "description": "Destack CLI binaries for darwin x64",
+    "description": "TS++ CLI binaries for darwin x64",
     "os": ["darwin"],
     "cpu": ["x64"],
-    "files": ["bin/destack", "bin/tspp", "bin/tsppc"],
+    "files": ["bin/tspp", "bin/tsppc"],
     "scripts": {
         "prepublishOnly": "deno run -A ../npm/validate-platform-package.ts",
         "publish:dry": "npm publish --dry-run --access public",

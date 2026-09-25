@@ -12,7 +12,7 @@ pub(crate) use super::unix::{
 
 /// Create one page frame allocator.
 pub(crate) fn create_page_frame_allocator(byte_len: usize) -> MemoryResult<PageFrameAllocator> {
-    let name = c"destack-memory";
+    let name = c"tspp-memory";
 
     // SAFETY: name is a static nul terminated C string
     let fd = unsafe { libc::memfd_create(name.as_ptr(), libc::MFD_CLOEXEC) };

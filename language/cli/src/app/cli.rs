@@ -21,7 +21,7 @@ use crate::command::{
 const HELP_TEMPLATE_BASE: &str = "{before-help}{usage-heading} {usage}\n";
 
 /// Build the CLI style palette.
-fn destack_styles() -> Styles {
+fn tspp_styles() -> Styles {
     Styles::styled()
         .header(AnsiColor::Green.on_default().bold())
         .usage(AnsiColor::Green.on_default().bold())
@@ -77,9 +77,9 @@ impl ConsoleArgs {
 #[command(
     name = "tspp",
     version,
-    about = "Destack is a universal software engine for building correct, optimal, integrated software systems.",
+    about = "TS++ is a universal programming language with TypeScript ergonomics and up to Rust performance",
     long_about = None,
-    styles = destack_styles()
+    styles = tspp_styles()
 )]
 pub struct Cli {
     #[command(flatten)]
@@ -134,7 +134,7 @@ pub enum Command {
     /// Show version information.
     Version(VersionArgs),
 
-    /// Update the installed Destack CLI binaries.
+    /// Update the installed TS++ CLI binaries.
     Update(UpdateArgs),
 
     /// Generate shell completions.
@@ -240,7 +240,7 @@ fn build_before_help(color_enabled: bool) -> StyledStr {
         let version_style = Style::new().bold().dimmed();
         text.push_str(&format!("{title_style}tspp{title_style:#}\n"));
         text.push_str(&format!(
-            "{tagline_style}Destack is a universal software engine for building correct, optimal, integrated software systems{tagline_style:#} "
+            "{tagline_style}TS++ is a universal programming language with TypeScript ergonomics and up to Rust performance{tagline_style:#} "
         ));
         text.push_str(&format!("{version_style}({version}){version_style:#}"));
         return text;
@@ -248,7 +248,7 @@ fn build_before_help(color_enabled: bool) -> StyledStr {
 
     text.push_str("tspp\n");
     text.push_str(&format!(
-        "Destack is a universal software engine for building correct, optimal, integrated software systems ({version})",
+        "TS++ is a universal programming language with TypeScript ergonomics and up to Rust performance ({version})",
     ));
     text
 }

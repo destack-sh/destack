@@ -13,11 +13,11 @@ runtime_require_command rustup "missing required command: rustup" >&2 || exit 1
 runtime_require_command cargo "missing required command: cargo" >&2 || exit 1
 
 # install and activate the pinned rust toolchain
-if ! rustup toolchain list | grep -E "^${DESTACK_RUST_TOOLCHAIN}( |$)" >/dev/null; then
-	echo "installing rust toolchain: ${DESTACK_RUST_TOOLCHAIN}"
-	rustup toolchain install "${DESTACK_RUST_TOOLCHAIN}" --profile minimal
+if ! rustup toolchain list | grep -E "^${TSPP_RUST_TOOLCHAIN}( |$)" >/dev/null; then
+	echo "installing rust toolchain: ${TSPP_RUST_TOOLCHAIN}"
+	rustup toolchain install "${TSPP_RUST_TOOLCHAIN}" --profile minimal
 fi
-rustup default "${DESTACK_RUST_TOOLCHAIN}"
+rustup default "${TSPP_RUST_TOOLCHAIN}"
 
 # host sdk tools
 if [ "${host_kernel}" = "Darwin" ]; then

@@ -5,28 +5,28 @@ set -euo pipefail
 export LC_ALL="C"
 
 # release source
-DESTACK_REPOSITORY="${DESTACK_REPOSITORY:-destack-sh/destack}"
-DESTACK_RELEASE_BASE_URL="${DESTACK_RELEASE_BASE_URL:-https://github.com/${DESTACK_REPOSITORY}/releases/download}"
-DESTACK_API_BASE_URL="${DESTACK_API_BASE_URL:-https://api.github.com/repos/${DESTACK_REPOSITORY}}"
-DESTACK_CURL_USER_AGENT="${DESTACK_CURL_USER_AGENT:-destack-cli-installer}"
-DESTACK_GITHUB_TOKEN="${DESTACK_GITHUB_TOKEN:-}"
+TSPP_REPOSITORY="${TSPP_REPOSITORY:-destack-sh/tspp}"
+TSPP_RELEASE_BASE_URL="${TSPP_RELEASE_BASE_URL:-https://github.com/${TSPP_REPOSITORY}/releases/download}"
+TSPP_API_BASE_URL="${TSPP_API_BASE_URL:-https://api.github.com/repos/${TSPP_REPOSITORY}}"
+TSPP_CURL_USER_AGENT="${TSPP_CURL_USER_AGENT:-tspp-installer}"
+TSPP_GITHUB_TOKEN="${TSPP_GITHUB_TOKEN:-}"
 
 # install configuration
-DESTACK_VERSION_INPUT="${DESTACK_VERSION:-latest}"
-DESTACK_INSTALL_DIR="${DESTACK_INSTALL:-${HOME}/.destack/bin}"
-DESTACK_NO_MODIFY_PATH="${DESTACK_NO_MODIFY_PATH:-0}"
+TSPP_VERSION_INPUT="${TSPP_VERSION:-latest}"
+TSPP_INSTALL_DIR="${TSPP_INSTALL:-${HOME}/.tspp/bin}"
+TSPP_NO_MODIFY_PATH="${TSPP_NO_MODIFY_PATH:-0}"
 
 # resolved runtime metadata
-DESTACK_OS=""
-DESTACK_ARCH=""
-DESTACK_LIBC=""
-DESTACK_TARGET_TRIPLE=""
-DESTACK_VERSION_VALUE=""
-DESTACK_RELEASE_TAG=""
-DESTACK_ARCHIVE_NAME=""
-DESTACK_ARCHIVE_URL=""
-DESTACK_CHECKSUMS_NAME="SHA256SUMS"
-DESTACK_CHECKSUMS_URL=""
+TSPP_OS=""
+TSPP_ARCH=""
+TSPP_LIBC=""
+TSPP_TARGET_TRIPLE=""
+TSPP_VERSION_VALUE=""
+TSPP_RELEASE_TAG=""
+TSPP_ARCHIVE_NAME=""
+TSPP_ARCHIVE_URL=""
+TSPP_CHECKSUMS_NAME="SHA256SUMS"
+TSPP_CHECKSUMS_URL=""
 
 # print an informational message
 info() {
@@ -55,10 +55,10 @@ download_file() {
     require_command curl
 
     # include github auth when a token is configured
-    if [ -n "${DESTACK_GITHUB_TOKEN}" ]; then
+    if [ -n "${TSPP_GITHUB_TOKEN}" ]; then
         curl --fail --location --retry 3 --retry-delay 1 --retry-all-errors --silent --show-error \
-            --user-agent "${DESTACK_CURL_USER_AGENT}" \
-            --header "authorization: Bearer ${DESTACK_GITHUB_TOKEN}" \
+            --user-agent "${TSPP_CURL_USER_AGENT}" \
+            --header "authorization: Bearer ${TSPP_GITHUB_TOKEN}" \
             "${url}" \
             --output "${destination}"
         return
@@ -66,7 +66,7 @@ download_file() {
 
     # download without auth headers by default
     curl --fail --location --retry 3 --retry-delay 1 --retry-all-errors --silent --show-error \
-        --user-agent "${DESTACK_CURL_USER_AGENT}" \
+        --user-agent "${TSPP_CURL_USER_AGENT}" \
         "${url}" \
         --output "${destination}"
 }
@@ -78,17 +78,17 @@ fetch_json() {
     require_command curl
 
     # include github auth when a token is configured
-    if [ -n "${DESTACK_GITHUB_TOKEN}" ]; then
+    if [ -n "${TSPP_GITHUB_TOKEN}" ]; then
         curl --fail --location --retry 3 --retry-delay 1 --retry-all-errors --silent --show-error \
-            --user-agent "${DESTACK_CURL_USER_AGENT}" \
-            --header "authorization: Bearer ${DESTACK_GITHUB_TOKEN}" \
+            --user-agent "${TSPP_CURL_USER_AGENT}" \
+            --header "authorization: Bearer ${TSPP_GITHUB_TOKEN}" \
             "${url}"
         return
     fi
 
     # fetch without auth headers by default
     curl --fail --location --retry 3 --retry-delay 1 --retry-all-errors --silent --show-error \
-        --user-agent "${DESTACK_CURL_USER_AGENT}" \
+        --user-agent "${TSPP_CURL_USER_AGENT}" \
         "${url}"
 }
 
@@ -112,10 +112,10 @@ resolve_os() {
     uname_output="$(uname -s)"
     case "${uname_output}" in
         Darwin)
-            DESTACK_OS="darwin"
+            TSPP_OS="darwin"
             ;;
         Linux)
-            DESTACK_OS="linux"
+            TSPP_OS="linux"
             ;;
         *)
             fail "unsupported operating system: ${uname_output}"
@@ -129,10 +129,10 @@ resolve_arch() {
     uname_output="$(uname -m)"
     case "${uname_output}" in
         arm64|aarch64)
-            DESTACK_ARCH="arm64"
+            TSPP_ARCH="arm64"
             ;;
         x86_64|amd64)
-            DESTACK_ARCH="x64"
+            TSPP_ARCH="x64"
             ;;
         *)
             fail "unsupported architecture: ${uname_output}"
@@ -142,8 +142,8 @@ resolve_arch() {
 
 # resolve the linux libc family
 resolve_linux_libc() {
-    if [ "${DESTACK_OS}" != "linux" ]; then
-        DESTACK_LIBC=""
+    if [ "${TSPP_OS}" != "linux" ]; then
+        TSPP_LIBC=""
         return
     fi
 
@@ -152,53 +152,53 @@ resolve_linux_libc() {
         ldd_line="$(ldd --version 2>&1 | head -n 1 | tr '[:upper:]' '[:lower:]')"
 
         if printf '%s' "${ldd_line}" | grep -q "musl"; then
-            DESTACK_LIBC="musl"
+            TSPP_LIBC="musl"
             return
         fi
 
         if printf '%s' "${ldd_line}" | grep -q "gnu"; then
-            DESTACK_LIBC="gnu"
+            TSPP_LIBC="gnu"
             return
         fi
     fi
 
     if command -v getconf >/dev/null 2>&1 && getconf GNU_LIBC_VERSION >/dev/null 2>&1; then
-        DESTACK_LIBC="gnu"
+        TSPP_LIBC="gnu"
         return
     fi
 
-    DESTACK_LIBC="musl"
+    TSPP_LIBC="musl"
 }
 
 # resolve the rust target triple for release assets
 resolve_target_triple() {
-    case "${DESTACK_OS}:${DESTACK_ARCH}:${DESTACK_LIBC}" in
+    case "${TSPP_OS}:${TSPP_ARCH}:${TSPP_LIBC}" in
         darwin:arm64:*)
-            DESTACK_TARGET_TRIPLE="aarch64-apple-darwin"
+            TSPP_TARGET_TRIPLE="aarch64-apple-darwin"
             ;;
         darwin:x64:*)
-            DESTACK_TARGET_TRIPLE="x86_64-apple-darwin"
+            TSPP_TARGET_TRIPLE="x86_64-apple-darwin"
             ;;
         linux:arm64:gnu)
-            DESTACK_TARGET_TRIPLE="aarch64-unknown-linux-gnu"
+            TSPP_TARGET_TRIPLE="aarch64-unknown-linux-gnu"
             ;;
         linux:x64:gnu)
-            DESTACK_TARGET_TRIPLE="x86_64-unknown-linux-gnu"
+            TSPP_TARGET_TRIPLE="x86_64-unknown-linux-gnu"
             ;;
         linux:*:musl)
             fail "musl targets are not published yet, use npm or build from source"
             ;;
         *)
-            fail "unsupported target: ${DESTACK_OS}/${DESTACK_ARCH}/${DESTACK_LIBC}"
+            fail "unsupported target: ${TSPP_OS}/${TSPP_ARCH}/${TSPP_LIBC}"
             ;;
     esac
 }
 
 # resolve the release version and tag
 resolve_release_version() {
-    if [ "${DESTACK_VERSION_INPUT}" = "latest" ]; then
+    if [ "${TSPP_VERSION_INPUT}" = "latest" ]; then
         local release_json
-        release_json="$(fetch_json "${DESTACK_API_BASE_URL}/releases/latest")"
+        release_json="$(fetch_json "${TSPP_API_BASE_URL}/releases/latest")"
 
         local latest_tag
         latest_tag="$(parse_release_tag "${release_json}")"
@@ -206,26 +206,26 @@ resolve_release_version() {
             fail "failed to resolve latest release tag"
         fi
 
-        DESTACK_RELEASE_TAG="${latest_tag}"
-        DESTACK_VERSION_VALUE="${latest_tag#v}"
+        TSPP_RELEASE_TAG="${latest_tag}"
+        TSPP_VERSION_VALUE="${latest_tag#v}"
         return
     fi
 
-    if [[ "${DESTACK_VERSION_INPUT}" == v* ]]; then
-        DESTACK_RELEASE_TAG="${DESTACK_VERSION_INPUT}"
-        DESTACK_VERSION_VALUE="${DESTACK_VERSION_INPUT#v}"
+    if [[ "${TSPP_VERSION_INPUT}" == v* ]]; then
+        TSPP_RELEASE_TAG="${TSPP_VERSION_INPUT}"
+        TSPP_VERSION_VALUE="${TSPP_VERSION_INPUT#v}"
         return
     fi
 
-    DESTACK_VERSION_VALUE="${DESTACK_VERSION_INPUT}"
-    DESTACK_RELEASE_TAG="v${DESTACK_VERSION_VALUE}"
+    TSPP_VERSION_VALUE="${TSPP_VERSION_INPUT}"
+    TSPP_RELEASE_TAG="v${TSPP_VERSION_VALUE}"
 }
 
 # resolve release asset names and urls
 resolve_release_assets() {
-    DESTACK_ARCHIVE_NAME="destack-${DESTACK_VERSION_VALUE}-${DESTACK_TARGET_TRIPLE}.tar.gz"
-    DESTACK_ARCHIVE_URL="${DESTACK_RELEASE_BASE_URL}/${DESTACK_RELEASE_TAG}/${DESTACK_ARCHIVE_NAME}"
-    DESTACK_CHECKSUMS_URL="${DESTACK_RELEASE_BASE_URL}/${DESTACK_RELEASE_TAG}/${DESTACK_CHECKSUMS_NAME}"
+    TSPP_ARCHIVE_NAME="tspp-${TSPP_VERSION_VALUE}-${TSPP_TARGET_TRIPLE}.tar.gz"
+    TSPP_ARCHIVE_URL="${TSPP_RELEASE_BASE_URL}/${TSPP_RELEASE_TAG}/${TSPP_ARCHIVE_NAME}"
+    TSPP_CHECKSUMS_URL="${TSPP_RELEASE_BASE_URL}/${TSPP_RELEASE_TAG}/${TSPP_CHECKSUMS_NAME}"
 }
 
 # compute sha256 for a file
@@ -250,9 +250,9 @@ verify_checksum() {
     local checksums_path="$2"
 
     local checksum_line
-    checksum_line="$(grep -E "(\\*| )${DESTACK_ARCHIVE_NAME}\$" "${checksums_path}" | head -n 1 || true)"
+    checksum_line="$(grep -E "(\\*| )${TSPP_ARCHIVE_NAME}\$" "${checksums_path}" | head -n 1 || true)"
     if [ -z "${checksum_line}" ]; then
-        fail "checksum entry not found for ${DESTACK_ARCHIVE_NAME}"
+        fail "checksum entry not found for ${TSPP_ARCHIVE_NAME}"
     fi
 
     local expected_hash
@@ -261,7 +261,7 @@ verify_checksum() {
     actual_hash="$(sha256_file "${archive_path}" | tr '[:upper:]' '[:lower:]')"
 
     if [ "${expected_hash}" != "${actual_hash}" ]; then
-        fail "checksum mismatch for ${DESTACK_ARCHIVE_NAME}"
+        fail "checksum mismatch for ${TSPP_ARCHIVE_NAME}"
     fi
 }
 
@@ -282,14 +282,14 @@ find_extracted_binary() {
 # install binaries into the target directory
 install_binaries() {
     local extract_directory="$1"
-    mkdir -p "${DESTACK_INSTALL_DIR}"
+    mkdir -p "${TSPP_INSTALL_DIR}"
 
     local binary_name
-    for binary_name in destack tspp tsppc; do
+    for binary_name in tspp tsppc; do
         local source_binary
         source_binary="$(find_extracted_binary "${binary_name}" "${extract_directory}")"
-        cp "${source_binary}" "${DESTACK_INSTALL_DIR}/${binary_name}"
-        chmod 755 "${DESTACK_INSTALL_DIR}/${binary_name}"
+        cp "${source_binary}" "${TSPP_INSTALL_DIR}/${binary_name}"
+        chmod 755 "${TSPP_INSTALL_DIR}/${binary_name}"
     done
 }
 
@@ -316,12 +316,12 @@ resolve_rc_file() {
 
 # update path in shell rc when needed
 ensure_path_entry() {
-    if [ "${DESTACK_NO_MODIFY_PATH}" = "1" ]; then
-        info "skipping path update because DESTACK_NO_MODIFY_PATH=1"
+    if [ "${TSPP_NO_MODIFY_PATH}" = "1" ]; then
+        info "skipping path update because TSPP_NO_MODIFY_PATH=1"
         return
     fi
 
-    if printf ':%s:' "${PATH}" | grep -q ":${DESTACK_INSTALL_DIR}:"; then
+    if printf ':%s:' "${PATH}" | grep -q ":${TSPP_INSTALL_DIR}:"; then
         info "install directory already present in current PATH"
         return
     fi
@@ -330,13 +330,13 @@ ensure_path_entry() {
     rc_file="$(resolve_rc_file)"
     touch "${rc_file}"
 
-    if grep -Fq "${DESTACK_INSTALL_DIR}" "${rc_file}"; then
+    if grep -Fq "${TSPP_INSTALL_DIR}" "${rc_file}"; then
         info "install directory already present in ${rc_file}"
         return
     fi
 
-    printf '\n# destack cli\nexport PATH="%s:$PATH"\n' "${DESTACK_INSTALL_DIR}" >> "${rc_file}"
-    info "added ${DESTACK_INSTALL_DIR} to PATH in ${rc_file}"
+    printf '\n# tspp cli\nexport PATH="%s:$PATH"\n' "${TSPP_INSTALL_DIR}" >> "${rc_file}"
+    info "added ${TSPP_INSTALL_DIR} to PATH in ${rc_file}"
 }
 
 # run the installer flow
@@ -355,20 +355,20 @@ main() {
     resolve_release_version
     resolve_release_assets
 
-    info "installing destack ${DESTACK_VERSION_VALUE} for ${DESTACK_TARGET_TRIPLE}"
+    info "installing tspp ${TSPP_VERSION_VALUE} for ${TSPP_TARGET_TRIPLE}"
 
     # create a temporary workspace
     local temp_directory
     temp_directory="$(mktemp -d)"
     trap 'rm -rf "${temp_directory:-}"' EXIT
 
-    local archive_path="${temp_directory}/${DESTACK_ARCHIVE_NAME}"
-    local checksums_path="${temp_directory}/${DESTACK_CHECKSUMS_NAME}"
+    local archive_path="${temp_directory}/${TSPP_ARCHIVE_NAME}"
+    local checksums_path="${temp_directory}/${TSPP_CHECKSUMS_NAME}"
     local extract_directory="${temp_directory}/extract"
 
     # download release files
-    download_file "${DESTACK_ARCHIVE_URL}" "${archive_path}"
-    download_file "${DESTACK_CHECKSUMS_URL}" "${checksums_path}"
+    download_file "${TSPP_ARCHIVE_URL}" "${archive_path}"
+    download_file "${TSPP_CHECKSUMS_URL}" "${checksums_path}"
 
     # verify and extract archive
     verify_checksum "${archive_path}" "${checksums_path}"
@@ -380,8 +380,8 @@ main() {
     ensure_path_entry
 
     # print final guidance
-    info "installed binaries into ${DESTACK_INSTALL_DIR}"
-    info "run: destack --version"
+    info "installed binaries into ${TSPP_INSTALL_DIR}"
+    info "run: tspp --version"
 }
 
 main "$@"

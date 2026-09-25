@@ -9,7 +9,7 @@ source "${script_directory}/lib/runtime-common.sh"
 
 runtime_set_standard_environment
 
-runtime_test_filter="${DESTACK_X11_RUNTIME_TEST_FILTER:-platform::display::tests::backend::test_display_x11_capabilities_match_implemented_contract}"
+runtime_test_filter="${TSPP_X11_RUNTIME_TEST_FILTER:-platform::display::tests::backend::test_display_x11_capabilities_match_implemented_contract}"
 
 if [ "$(runtime_host_kernel)" != "Linux" ]; then
 	container_engine="$(runtime_host_container_engine)"
@@ -43,10 +43,10 @@ ensure_xvfb() {
 
 ensure_xvfb || exit 1
 
-runtime_display="${DESTACK_X11_DISPLAY:-:98}"
-runtime_screen="${DESTACK_X11_SCREEN:-0}"
-runtime_geometry="${DESTACK_X11_GEOMETRY:-1280x720x24}"
-runtime_startup_timeout_seconds="${DESTACK_X11_STARTUP_TIMEOUT_SECONDS:-10}"
+runtime_display="${TSPP_X11_DISPLAY:-:98}"
+runtime_screen="${TSPP_X11_SCREEN:-0}"
+runtime_geometry="${TSPP_X11_GEOMETRY:-1280x720x24}"
+runtime_startup_timeout_seconds="${TSPP_X11_STARTUP_TIMEOUT_SECONDS:-10}"
 
 xvfb_log="$(mktemp)"
 xvfb_pid=""

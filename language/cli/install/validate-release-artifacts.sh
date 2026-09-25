@@ -5,17 +5,17 @@ set -euo pipefail
 export LC_ALL="C"
 
 # validation configuration
-DESTACK_SCRIPT_DIRECTORY="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-DESTACK_CLI_DIRECTORY="$(cd -- "${DESTACK_SCRIPT_DIRECTORY}/.." >/dev/null 2>&1 && pwd)"
-DESTACK_VERSION_INPUT="${1:-}"
-DESTACK_ARTIFACTS_DIRECTORY="${2:-${DESTACK_CLI_DIRECTORY}/install/artifacts}"
-DESTACK_TARGETS_INPUT="${DESTACK_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
-DESTACK_RELEASE_TAG_INPUT="${DESTACK_RELEASE_TAG:-}"
-DESTACK_RELEASE_CHANNEL_INPUT="${DESTACK_RELEASE_CHANNEL:-release}"
-DESTACK_RELEASE_STABILITY_INPUT="${DESTACK_RELEASE_STABILITY:-}"
-DESTACK_CHECKSUMS_NAME="SHA256SUMS"
-DESTACK_MANIFEST_NAME="manifest.json"
-read -r -a DESTACK_TARGETS <<< "${DESTACK_TARGETS_INPUT}"
+TSPP_SCRIPT_DIRECTORY="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+TSPP_CLI_DIRECTORY="$(cd -- "${TSPP_SCRIPT_DIRECTORY}/.." >/dev/null 2>&1 && pwd)"
+TSPP_VERSION_INPUT="${1:-}"
+TSPP_ARTIFACTS_DIRECTORY="${2:-${TSPP_CLI_DIRECTORY}/install/artifacts}"
+TSPP_TARGETS_INPUT="${TSPP_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
+TSPP_RELEASE_TAG_INPUT="${TSPP_RELEASE_TAG:-}"
+TSPP_RELEASE_CHANNEL_INPUT="${TSPP_RELEASE_CHANNEL:-release}"
+TSPP_RELEASE_STABILITY_INPUT="${TSPP_RELEASE_STABILITY:-}"
+TSPP_CHECKSUMS_NAME="SHA256SUMS"
+TSPP_MANIFEST_NAME="manifest.json"
+read -r -a TSPP_TARGETS <<< "${TSPP_TARGETS_INPUT}"
 
 # print an error message and exit
 fail() {
@@ -27,8 +27,8 @@ fail() {
 resolve_release_tag() {
     local version_value="$1"
 
-    if [ -n "${DESTACK_RELEASE_TAG_INPUT}" ]; then
-        printf '%s\n' "${DESTACK_RELEASE_TAG_INPUT}"
+    if [ -n "${TSPP_RELEASE_TAG_INPUT}" ]; then
+        printf '%s\n' "${TSPP_RELEASE_TAG_INPUT}"
         return
     fi
 
@@ -37,19 +37,19 @@ resolve_release_tag() {
 
 # resolve the release channel
 resolve_release_channel() {
-    case "${DESTACK_RELEASE_CHANNEL_INPUT}" in
+    case "${TSPP_RELEASE_CHANNEL_INPUT}" in
         release | canary)
-            printf '%s\n' "${DESTACK_RELEASE_CHANNEL_INPUT}"
+            printf '%s\n' "${TSPP_RELEASE_CHANNEL_INPUT}"
             ;;
         *)
-            fail "unsupported release channel: ${DESTACK_RELEASE_CHANNEL_INPUT}"
+            fail "unsupported release channel: ${TSPP_RELEASE_CHANNEL_INPUT}"
             ;;
     esac
 }
 
 # resolve the release stability
 resolve_release_stability() {
-    local stability_value="${DESTACK_RELEASE_STABILITY_INPUT}"
+    local stability_value="${TSPP_RELEASE_STABILITY_INPUT}"
     if [ -z "${stability_value}" ] && [ -f "platform/release/config.json" ]; then
         stability_value="$(node -p 'JSON.parse(require("node:fs").readFileSync("platform/release/config.json", "utf8")).stability')"
     fi
@@ -66,8 +66,8 @@ resolve_release_stability() {
 
 # resolve the release version
 resolve_version() {
-    if [ -n "${DESTACK_VERSION_INPUT}" ]; then
-        printf '%s\n' "${DESTACK_VERSION_INPUT#v}"
+    if [ -n "${TSPP_VERSION_INPUT}" ]; then
+        printf '%s\n' "${TSPP_VERSION_INPUT#v}"
         return
     fi
 
@@ -117,7 +117,7 @@ resolve_archive_path() {
     local archive_extension
     archive_extension="$(resolve_archive_extension "${target_triple}")"
 
-    printf '%s\n' "${DESTACK_ARTIFACTS_DIRECTORY}/destack-${version_value}-${target_triple}.${archive_extension}"
+    printf '%s\n' "${TSPP_ARTIFACTS_DIRECTORY}/tspp-${version_value}-${target_triple}.${archive_extension}"
 }
 
 # verify one target archive exists and matches checksum
@@ -160,26 +160,26 @@ main() {
     release_stability="$(resolve_release_stability)"
     local release_channel
     release_channel="$(resolve_release_channel)"
-    local checksums_path="${DESTACK_ARTIFACTS_DIRECTORY}/${DESTACK_CHECKSUMS_NAME}"
+    local checksums_path="${TSPP_ARTIFACTS_DIRECTORY}/${TSPP_CHECKSUMS_NAME}"
     if [ ! -f "${checksums_path}" ]; then
         fail "missing checksums file: ${checksums_path}"
     fi
 
     local target_triple
-    for target_triple in "${DESTACK_TARGETS[@]}"; do
+    for target_triple in "${TSPP_TARGETS[@]}"; do
         validate_target_archive "${version_value}" "${target_triple}" "${checksums_path}"
     done
 
-    local manifest_path="${DESTACK_ARTIFACTS_DIRECTORY}/${DESTACK_MANIFEST_NAME}"
+    local manifest_path="${TSPP_ARTIFACTS_DIRECTORY}/${TSPP_MANIFEST_NAME}"
     if [ ! -f "${manifest_path}" ]; then
         fail "missing manifest file: ${manifest_path}"
     fi
 
     if ! command -v python3 >/dev/null 2>&1; then
-        fail "python3 is required to validate ${DESTACK_MANIFEST_NAME}"
+        fail "python3 is required to validate ${TSPP_MANIFEST_NAME}"
     fi
 
-    python3 - "${manifest_path}" "${checksums_path}" "${version_value}" "${release_tag}" "${release_channel}" "${release_stability}" "${DESTACK_TARGETS[@]}" <<'PY'
+    python3 - "${manifest_path}" "${checksums_path}" "${version_value}" "${release_tag}" "${release_channel}" "${release_stability}" "${TSPP_TARGETS[@]}" <<'PY'
 import json
 import pathlib
 import sys
@@ -250,7 +250,7 @@ for target in targets:
         raise SystemExit(f"error: manifest archiveName missing for {target}")
     if not isinstance(archive_sha256, str) or not archive_sha256:
         raise SystemExit(f"error: manifest archiveSha256 missing for {target}")
-    if binaries != ["destack", "tspp", "tsppc"]:
+    if binaries != ["tspp", "tsppc"]:
         raise SystemExit(f"error: manifest binaries mismatch for {target}: {binaries}")
 
     checksum_value = checksum_map.get(archive_name)

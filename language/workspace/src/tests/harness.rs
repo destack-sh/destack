@@ -8,8 +8,8 @@ use tspp_artifact::{ArtifactCache, BuildId};
 use tspp_core::Blob;
 use tspp_dir as dir;
 use tspp_repository::{
-    Change, Commit, DestackLayoutOverride, Environment, Execution, Host, Repository, Revision,
-    Settings, TraceLevel,
+    Change, Commit, Environment, Execution, Host, Repository, Revision, Settings,
+    StorageLayoutOverride, TraceLevel,
 };
 use tspp_session::Executor;
 use tspp_source::{
@@ -150,7 +150,7 @@ impl TestWorkspace {
             root.to_path_buf(),
             host,
             settings,
-            DestackLayoutOverride::default(),
+            StorageLayoutOverride::default(),
         )
         .expect("failed to import repository from physical fs");
         let repository = Arc::new(repository);

@@ -52,7 +52,7 @@ impl_command_input_options!(SettingsInput {});
 /// Payload for settings command output.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
 pub struct SettingsPayload {
-    /// Machine-local Destack home.
+    /// Machine-local toolchain home.
     pub home: String,
     /// Package directory.
     pub packages: String,

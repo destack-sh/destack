@@ -12,7 +12,7 @@ if [ "${OS:-}" = "Windows_NT" ] && command -v rustup.exe >/dev/null 2>&1; then
 	rustup_bin="rustup.exe"
 fi
 
-targets_input="${DESTACK_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
+targets_input="${TSPP_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
 selected_targets=()
 
 for token in ${targets_input}; do
@@ -23,7 +23,7 @@ for token in ${targets_input}; do
 	linux-x64-gnu | x86_64-unknown-linux-gnu) selected_targets+=("x86_64-unknown-linux-gnu") ;;
 	win32-x64-msvc | x86_64-pc-windows-msvc) selected_targets+=("x86_64-pc-windows-msvc") ;;
 	*)
-		echo "error: unsupported DESTACK_RELEASE_TARGETS entry: ${token}" >&2
+		echo "error: unsupported TSPP_RELEASE_TARGETS entry: ${token}" >&2
 		exit 1
 		;;
 	esac

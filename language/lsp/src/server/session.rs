@@ -648,7 +648,7 @@ impl Default for ServerSettings {
     }
 }
 
-/// Destack-specific client initialization options.
+/// TS++ client initialization options.
 #[derive(Debug, Clone, Default, Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 struct InitializationOptions {

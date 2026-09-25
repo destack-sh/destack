@@ -8,8 +8,8 @@ use tspp_artifact::{
 };
 use tspp_mir as mir;
 use tspp_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, ProviderContext,
-    Repository, Revision, RevisionPin, Settings,
+    Edit, Environment, Execution, Host, ProviderContext, Repository, Revision, RevisionPin,
+    Settings, StorageLayout, StorageLayoutOverride,
 };
 use tspp_session::{ArtifactPriority, Executor, Session};
 use tspp_source::{
@@ -24,7 +24,7 @@ use crate::{Fixability, Lint, LintCheck, LintTier, Linter, MirModule};
 const SOURCE_PATH: &str = "main.tspp";
 const WARMUP_PATH: &str = "__warm.tspp";
 const TARGET_NAME: &str = "native";
-const DEFAULT_DESTACK_JSON: &str = r#"{
+const DEFAULT_MANIFEST: &str = r#"{
   "packageManager": "tspp@2026.9.0",
   "name": "@test/app"
 }"#;
@@ -740,12 +740,12 @@ fn cold_repository_revision() -> (Arc<Repository>, Revision) {
     let root = PathBuf::new();
     let environment = Environment::default();
     let settings = Settings::default();
-    let layout = DestackLayout::resolve(
+    let layout = StorageLayout::resolve(
         &root,
         &root,
         &environment,
         &settings,
-        &DestackLayoutOverride::default(),
+        &StorageLayoutOverride::default(),
         None,
     );
 
@@ -761,7 +761,7 @@ fn cold_repository_revision() -> (Arc<Repository>, Revision) {
 
     // commit the default package configuration
     let configuration = repository
-        .retain_blob(DEFAULT_DESTACK_JSON.as_bytes())
+        .retain_blob(DEFAULT_MANIFEST.as_bytes())
         .expect("default lint configuration Blob should store");
     let revision = repository
         .edit(revision, [Edit::set_file("package.json", configuration)])

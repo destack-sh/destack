@@ -36,7 +36,7 @@ pub enum OptimizeLevel {
     O2,
     /// Aggressive release optimization level.
     O3,
-    /// Maximum Destack optimization level.
+    /// Maximum TS++ optimization level.
     O4,
 }
 

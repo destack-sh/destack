@@ -92,7 +92,7 @@ fn bench_lex(criterion: &mut Criterion) {
         // file type
         let file_type = FileType::from_path(path).expect("bench path should have a file type");
         let is_tspp_source = matches!(file_type, FileType::Tspp | FileType::TsppDeclaration);
-        assert!(is_tspp_source, "path is not a destack source: {path:?}");
+        assert!(is_tspp_source, "path is not a TS++ source: {path:?}");
 
         // file content
         let content = fs::read_to_string(path).unwrap_or_default();

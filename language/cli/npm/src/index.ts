@@ -17,15 +17,15 @@ type LinuxRuntimeReport = {
 
 /** The platform package names keyed by runtime target. */
 const PLATFORM_PACKAGES: Record<string, string> = {
-    "darwin-arm64": "@destack/language-cli-darwin-arm64",
-    "darwin-x64": "@destack/language-cli-darwin-x64",
-    "linux-arm64-gnu": "@destack/language-cli-linux-arm64-gnu",
-    "linux-x64-gnu": "@destack/language-cli-linux-x64-gnu",
-    "win32-x64-msvc": "@destack/language-cli-win32-x64-msvc",
+    "darwin-arm64": "@destack/tspp-darwin-arm64",
+    "darwin-x64": "@destack/tspp-darwin-x64",
+    "linux-arm64-gnu": "@destack/tspp-linux-arm64-gnu",
+    "linux-x64-gnu": "@destack/tspp-linux-x64-gnu",
+    "win32-x64-msvc": "@destack/tspp-win32-x64-msvc",
 };
 
 /** The supported CLI binary names exposed by npm wrappers. */
-const SUPPORTED_BINARIES = new Set(["destack", "tspp", "tsppc"]);
+const SUPPORTED_BINARIES = new Set(["tspp", "tsppc"]);
 
 /** Resolve the Linux libc family for package selection. */
 function resolveLinuxLibc(): "gnu" | "musl" {
@@ -120,7 +120,7 @@ function resolveBinaryPath(binaryName: string): string {
         throw new Error(
             [
                 `could not resolve ${platformPackageName} for ${platformKey}`,
-                "run npm install -g @destack/language-cli for your platform",
+                "run npm install -g @destack/tspp for your platform",
                 "or build locally with cargo build --release -p tspp_cli",
             ].join("\n"),
         );
@@ -132,7 +132,7 @@ function runBinary(binaryName: string, args: readonly string[]): number {
     // resolve the binary path and spawn the command
     const binaryPath = resolveBinaryPath(binaryName);
     const launchEnvironment = { ...process.env };
-    launchEnvironment.DESTACK_MANAGED_BY_NPM = "1";
+    launchEnvironment.TSPP_MANAGED_BY_NPM = "1";
 
     const result = spawnSync(binaryPath, args, {
         stdio: "inherit",
@@ -175,7 +175,7 @@ export function runBinaryCommand(
         }
         // report unknown thrown values
         else {
-            console.error("error: failed to launch destack binary");
+            console.error("error: failed to launch tspp binary");
         }
         process.exit(1);
     }

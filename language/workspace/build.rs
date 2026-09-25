@@ -4,7 +4,7 @@ use std::process::Command;
 use std::{env, fs};
 
 const BUILD_ID_BYTES: usize = 16;
-const BUILD_ID_ENVIRONMENT: &str = "DESTACK_BUILD_ID";
+const BUILD_ID_ENVIRONMENT: &str = "TSPP_BUILD_ID";
 const BUILD_PATHS: [&str; 5] = [
     ".cargo/config.toml",
     "Cargo.lock",
@@ -138,7 +138,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let build_id = if let Some(build_id) = env::var_os(BUILD_ID_ENVIRONMENT) {
         let build_id = build_id
             .into_string()
-            .map_err(|_| "DESTACK_BUILD_ID must be valid UTF-8")?;
+            .map_err(|_| "TSPP_BUILD_ID must be valid UTF-8")?;
 
         decode_build_id(&build_id)?
     }
@@ -150,7 +150,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         build.watch();
         build_id
     };
-    let output = PathBuf::from(env::var("OUT_DIR")?).join("destack-build-id");
+    let output = PathBuf::from(env::var("OUT_DIR")?).join("tspp-build-id");
 
     // write the exact bytes compiled into the workspace crate
     fs::write(output, build_id)?;
@@ -161,7 +161,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 /// Decode one explicit lowercase or uppercase hexadecimal build id.
 fn decode_build_id(value: &str) -> Result<[u8; BUILD_ID_BYTES], Box<dyn Error>> {
     if value.len() != BUILD_ID_BYTES * 2 {
-        return Err("DESTACK_BUILD_ID must contain exactly 32 hexadecimal digits".into());
+        return Err("TSPP_BUILD_ID must contain exactly 32 hexadecimal digits".into());
     }
 
     let mut bytes = [0; BUILD_ID_BYTES];

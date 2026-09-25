@@ -426,7 +426,7 @@ impl Target {
     }
 }
 
-/// User callable launched by a Destack target.
+/// User callable launched by a TS++ target.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]

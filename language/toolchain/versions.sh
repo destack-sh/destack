@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 
 # canonical toolchain versions shared across local scripts and ci workflows
-export DESTACK_RUST_TOOLCHAIN="nightly-2026-05-26"
-export DESTACK_SCCACHE_VERSION="0.14.0"
-export DESTACK_ZIG_VERSION="0.15.2"
+export TSPP_RUST_TOOLCHAIN="nightly-2026-05-26"
+export TSPP_SCCACHE_VERSION="0.14.0"
+export TSPP_ZIG_VERSION="0.15.2"

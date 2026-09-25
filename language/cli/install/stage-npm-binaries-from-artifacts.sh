@@ -5,12 +5,12 @@ set -euo pipefail
 export LC_ALL="C"
 
 # staging configuration
-DESTACK_SCRIPT_DIRECTORY="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
-DESTACK_CLI_DIRECTORY="$(cd -- "${DESTACK_SCRIPT_DIRECTORY}/.." >/dev/null 2>&1 && pwd)"
-DESTACK_VERSION_INPUT="${1:-}"
-DESTACK_ARTIFACTS_DIRECTORY="${2:-${DESTACK_CLI_DIRECTORY}/install/artifacts}"
-DESTACK_TARGETS_INPUT="${DESTACK_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
-DESTACK_BINARY_NAMES="destack tspp tsppc"
+TSPP_SCRIPT_DIRECTORY="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" >/dev/null 2>&1 && pwd)"
+TSPP_CLI_DIRECTORY="$(cd -- "${TSPP_SCRIPT_DIRECTORY}/.." >/dev/null 2>&1 && pwd)"
+TSPP_VERSION_INPUT="${1:-}"
+TSPP_ARTIFACTS_DIRECTORY="${2:-${TSPP_CLI_DIRECTORY}/install/artifacts}"
+TSPP_TARGETS_INPUT="${TSPP_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
+TSPP_BINARY_NAMES="tspp tsppc"
 
 # print an error message and exit
 fail() {
@@ -28,8 +28,8 @@ require_command() {
 
 # resolve the release version
 resolve_version() {
-    if [ -n "${DESTACK_VERSION_INPUT}" ]; then
-        printf '%s\n' "${DESTACK_VERSION_INPUT#v}"
+    if [ -n "${TSPP_VERSION_INPUT}" ]; then
+        printf '%s\n' "${TSPP_VERSION_INPUT#v}"
         return
     fi
 
@@ -93,8 +93,8 @@ stage_target_archive() {
 
     local archive_extension
     archive_extension="$(resolve_archive_extension "${target_triple}")"
-    local archive_name="destack-${version_value}-${target_triple}.${archive_extension}"
-    local archive_path="${DESTACK_ARTIFACTS_DIRECTORY}/${archive_name}"
+    local archive_name="tspp-${version_value}-${target_triple}.${archive_extension}"
+    local archive_path="${TSPP_ARTIFACTS_DIRECTORY}/${archive_name}"
 
     if [ ! -f "${archive_path}" ]; then
         fail "missing archive for ${target_triple}: ${archive_path}"
@@ -104,7 +104,7 @@ stage_target_archive() {
     mkdir -p "${extract_directory}"
     extract_archive "${archive_path}" "${target_triple}" "${extract_directory}"
 
-    local package_directory="${extract_directory}/destack-${version_value}-${target_triple}"
+    local package_directory="${extract_directory}/tspp-${version_value}-${target_triple}"
     if [ ! -d "${package_directory}" ]; then
         fail "archive did not contain expected directory: ${package_directory}"
     fi
@@ -116,7 +116,7 @@ stage_target_archive() {
     binary_extension="$(resolve_binary_extension "${target_triple}")"
 
     local binary_name
-    for binary_name in ${DESTACK_BINARY_NAMES}; do
+    for binary_name in ${TSPP_BINARY_NAMES}; do
         local source_path="${package_directory}/${binary_name}${binary_extension}"
         local destination_path="${destination_directory}/${binary_name}${binary_extension}"
 
@@ -144,7 +144,7 @@ main() {
     trap 'rm -rf "${temp_directory:-}"' EXIT
 
     local target_triple
-    for target_triple in ${DESTACK_TARGETS_INPUT}; do
+    for target_triple in ${TSPP_TARGETS_INPUT}; do
         stage_target_archive "${version_value}" "${target_triple}" "${temp_directory}"
     done
 }

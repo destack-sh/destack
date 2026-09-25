@@ -10,8 +10,8 @@ use futures::executor::block_on;
 use serde_json::{Value, json};
 use tspp_artifact::BuildId;
 use tspp_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Host, Repository, Revision,
-    RevisionPin, Settings,
+    Edit, Environment, Host, Repository, Revision, RevisionPin, Settings, StorageLayout,
+    StorageLayoutOverride,
 };
 use tspp_source::{File, FileSystem, MemoryFileSystem};
 
@@ -41,12 +41,12 @@ impl TestProgram {
         // initialize the file system and repository
         let fs = Arc::new(MemoryFileSystem::new());
         let environment = Environment::capture_process();
-        let layout = DestackLayout::resolve(
+        let layout = StorageLayout::resolve(
             &root,
             &root,
             &environment,
             &Settings::default(),
-            &DestackLayoutOverride::default(),
+            &StorageLayoutOverride::default(),
             None,
         );
         let host = Host::new(BuildId::test(), environment, fs.clone());

@@ -15,8 +15,8 @@ use tspp_core::BlobStore;
 use tspp_dir as dir;
 use tspp_mir::{FormatOptions, Formatter};
 use tspp_repository::{
-    DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Repository, Revision,
-    RevisionPin, Settings, Trace, TraceAggregate, TraceLevel, TraceReport, TraceSnapshot,
+    Edit, Environment, Execution, Host, Repository, Revision, RevisionPin, Settings, StorageLayout,
+    StorageLayoutOverride, Trace, TraceAggregate, TraceLevel, TraceReport, TraceSnapshot,
     TraceView,
 };
 use tspp_session::{ArtifactPriority, Executor, Session, SessionError};
@@ -29,14 +29,14 @@ use crate::tests::snapshot::{
 
 use super::module::{TestModule, parse_module, parsed_dependencies};
 
-const DEFAULT_DESTACK_JSON: &str = r#"{
+const DEFAULT_MANIFEST: &str = r#"{
   "packageManager": "tspp@2026.9.0",
   "name": "test"
 }"#;
 const WORKERS_ENV: &str = "TSPP_TEST_WORKERS";
 const TRACE_ENV: &str = "TSPP_TEST_TRACE";
 const TIMINGS_ENV: &str = "TSPP_TIMINGS";
-const PROFILE_ENV: &str = "DESTACK_PROFILE";
+const PROFILE_ENV: &str = "TSPP_PROFILE";
 const TRACE_SLOW_ARTIFACTS_ENV: &str = "TSPP_TEST_TRACE_SLOW_ARTIFACTS";
 const TRACE_SLOW_MS_ENV: &str = "TSPP_TEST_TRACE_SLOW_MS";
 const DEFAULT_TRACE_SLOW_ARTIFACTS: usize = 8;
@@ -1967,12 +1967,12 @@ fn shared_repository_revision() -> &'static (Arc<Repository>, RevisionPin) {
 fn cold_repository_revision() -> (Arc<Repository>, Revision) {
     let root = PathBuf::new();
     let environment = Environment::default();
-    let layout = DestackLayout::resolve(
+    let layout = StorageLayout::resolve(
         &root,
         &root,
         &environment,
         &Settings::default(),
-        &DestackLayoutOverride::default(),
+        &StorageLayoutOverride::default(),
         None,
     );
     // run providers inline when the test uses one worker
@@ -1992,7 +1992,7 @@ fn cold_repository_revision() -> (Arc<Repository>, Revision) {
 
     // store the default compiler test configuration
     let blob = repository
-        .retain_blob(DEFAULT_DESTACK_JSON.as_bytes())
+        .retain_blob(DEFAULT_MANIFEST.as_bytes())
         .expect("test configuration Blob should store");
 
     // commit the default compiler test configuration

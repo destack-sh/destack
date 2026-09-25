@@ -11,7 +11,7 @@ pub struct DaemonLaunchCommand {
     pub executable: PathBuf,
     /// Arguments preceding daemon options.
     pub arguments: Vec<OsString>,
-    /// Destack home override.
+    /// Toolchain home override.
     pub home: Option<PathBuf>,
     /// Package directory override.
     pub package_directory: Option<PathBuf>,
@@ -64,7 +64,7 @@ pub struct DaemonLaunch {
     pub root: PathBuf,
     /// Local RPC socket path.
     pub socket_path: PathBuf,
-    /// Destack home override.
+    /// Toolchain home override.
     pub home: Option<PathBuf>,
     /// Package directory override.
     pub package_directory: Option<PathBuf>,

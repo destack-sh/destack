@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tspp_core::BlobId;
 use tspp_lsp_server::{UriExt, jsonrpc};
 use tspp_lsp_types as lsp;
-use tspp_repository::{Commit, DestackLayoutOverride, Host, Repository, Revision, Settings, Trace};
+use tspp_repository::{Commit, Host, Repository, Revision, Settings, StorageLayoutOverride, Trace};
 use tspp_session::Executor;
 use tspp_source::{Edit, FileId, TextChange, Uri, apply_text_changes};
 use tspp_workspace::{FileSelection, QueryFile, Workspace};
@@ -67,7 +67,7 @@ impl Project {
                     root,
                     host,
                     Settings::default(),
-                    DestackLayoutOverride::default(),
+                    StorageLayoutOverride::default(),
                 )
             })
             .map_err(internal_error)?;

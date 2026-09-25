@@ -1,14 +1,14 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use tspp_repository::{DestackLayoutOverride, Environment, Repository, Settings};
+use tspp_repository::{Environment, Repository, Settings, StorageLayoutOverride};
 use tspp_session::Executor;
 use tspp_source::Edit;
 
 #[cfg(not(target_arch = "wasm32"))]
 use tspp_artifact::ArtifactCache;
 #[cfg(not(target_arch = "wasm32"))]
-use tspp_repository::{DestackLayout, Host, RepositoryError};
+use tspp_repository::{Host, RepositoryError, StorageLayout};
 #[cfg(not(target_arch = "wasm32"))]
 use tspp_source::PhysicalFileSystem;
 
@@ -25,10 +25,10 @@ impl Workspace {
         let environment = Environment::capture_process();
         let cwd = environment.cwd.as_deref().unwrap_or(&path);
         let settings = Settings::default();
-        let home = DestackLayout::resolve_home(cwd, &environment, None);
+        let home = StorageLayout::resolve_home(cwd, &environment, None);
         let build_id = Self::BUILD_ID;
         let artifact_cache =
-            DestackLayout::resolve_cache(cwd, &home, &environment, &settings, None);
+            StorageLayout::resolve_cache(cwd, &home, &environment, &settings, None);
         let artifact_cache =
             ArtifactCache::open(build_id, artifact_cache, settings.cache.maximum_bytes)
                 .map(Arc::new)
@@ -36,7 +36,7 @@ impl Workspace {
         let host = Host::new(build_id, environment, file_system)
             .with_artifact_cache(artifact_cache, executor.worker_count());
         let (repository, physical) =
-            Repository::open(path, host, settings, DestackLayoutOverride::default())?;
+            Repository::open(path, host, settings, StorageLayoutOverride::default())?;
 
         // restore cached artifacts valid at this revision
         repository.restore_artifacts(physical, executor.worker_count())?;
@@ -57,7 +57,7 @@ impl Workspace {
             edits,
             Environment::default(),
             Settings::default(),
-            DestackLayoutOverride::default(),
+            StorageLayoutOverride::default(),
         )?;
 
         Self::new(Arc::new(repository), physical, executor)
