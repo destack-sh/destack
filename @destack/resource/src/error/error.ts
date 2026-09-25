@@ -10,3 +10,21 @@ export class ResourceError extends Error {
         this.code = code;
     }
 }
+
+/** A desired state no plan can reach until its declarations change. */
+export class PlanError extends Error {
+    /** What the declarations must change, by the part of the resource it concerns. */
+    readonly problems: readonly {
+        /** The part of the resource, such as a table. */
+        readonly target: string;
+        /** What to declare, such as "declare a conversion to version 2". */
+        readonly detail: string;
+    }[];
+
+    /** Describe every problem at once. */
+    constructor(problems: PlanError["problems"]) {
+        super(problems.map((problem) => `${problem.target}: ${problem.detail}`).join("; "));
+        this.name = "PlanError";
+        this.problems = problems;
+    }
+}

@@ -6,7 +6,7 @@ import type { ResourceDescription } from "./resource.ts";
 export class ResourceHandle<Client> {
     /** The package declaring the handle, supplied by the module transform. */
     readonly package: Package;
-    /** Package-local resource name. */
+    /** The package-local resource name. */
     readonly name: ResourceDescription["name"];
 
     /** Retain the declaring package and its package-local binding name. */

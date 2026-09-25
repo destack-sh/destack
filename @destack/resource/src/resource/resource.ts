@@ -1,6 +1,7 @@
 import { defineSchema, schema } from "@destack/schema";
 import { DeclarationName, type Package } from "@destack/package";
 import { ResourceHandle } from "./handle.ts";
+import type { ResourceState } from "@destack/package/declare";
 
 /** A named infrastructure dependency declared by a package. */
 export const ResourceDescription = defineSchema(
@@ -20,9 +21,9 @@ export type ResourceDescription = schema.Infer<typeof ResourceDescription>;
 
 /** An inert declaration with access to a host-bound client. */
 export class Resource<
-    Handle,
+    Client,
     Declaration extends ResourceDescription = ResourceDescription,
-> extends ResourceHandle<Handle> {
+> extends ResourceHandle<Client> {
     /** The resource kind. */
     readonly kind: Declaration["kind"];
     /** The declaration format version. */
@@ -38,6 +39,22 @@ export class Resource<
         this.version = declaration.version;
         this.spec = declaration.spec;
     }
+
+    /** Describe the state the resource must hold, empty for resources that hold none. */
+    state(): ResourceState {
+        return {};
+    }
+
+    /** Serialise the declaration as its declaring package, name, kind, version and spec. */
+    toJSON() {
+        return {
+            package: this.package,
+            name: this.name,
+            kind: this.kind,
+            version: this.version,
+            spec: this.spec,
+        };
+    }
 }
 
 /** Define a resource declaration with a concrete specification. */
@@ -46,6 +63,7 @@ export function defineResourceSchema<const Kind extends string, Spec extends sch
     version: number,
     spec: Spec,
 ) {
+    // validate the kind and version before building the schema
     ResourceDescription.pick({ kind: true, version: true }).parse({ kind, version });
 
     return defineSchema(

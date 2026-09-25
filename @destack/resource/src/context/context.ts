@@ -8,9 +8,12 @@ export class ResourceContext {
 
     /** Bind an authorised client before invoking application code. */
     bind<Value>(resource: ResourceHandle<Value>, client: NoInfer<Value>): this {
+        // bind each declaration once
         if (this.#clients.has(resource)) {
-            throw new ResourceError("ALREADY_BOUND", `Resource already bound: ${resource.name}`);
+            throw new ResourceError("ALREADY_BOUND", `resource already bound: ${resource.name}`);
         }
+
+        // record the client
         this.#clients.set(resource, client);
 
         return this;
@@ -18,8 +21,9 @@ export class ResourceContext {
 
     /** Return the client selected for this declaration. */
     get<Value>(resource: ResourceHandle<Value>): Value {
+        // require a bound client
         if (!this.#clients.has(resource)) {
-            throw new ResourceError("NOT_BOUND", `Resource is not bound: ${resource.name}`);
+            throw new ResourceError("NOT_BOUND", `resource is not bound: ${resource.name}`);
         }
 
         return this.#clients.get(resource) as Value;
