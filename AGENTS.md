@@ -310,6 +310,9 @@ Write code and prose that read plainly.
 - **WC18** Trivial functions under 4 lines MAY omit comments and blank lines, especially when comments would repeat their documentation.
 - **WC19** Tests MAY use fewer comments within obvious cases.
 - **WC20** Test assertions SHOULD state what they check and why when non-trivial.
+- **WC21** Comments MUST avoid indirect speech and sentences that are hard to parse.
+  - `// borrow the object from a root local when reached by a target`, not `// borrow the object a reference in a root local names when the target reaches through it`
+- **WC22** Comments MUST NOT pack several complex clauses into one sentence with commas; multi part, noun-heavy sentences are the worst case.
 
 ### Documenting (WD)
 
@@ -404,6 +407,7 @@ Rewrite as understanding grows, toward the final shape.
 - **RF01** Bugs MUST be treated as misalignment, not as a natural phenomenon; correct systems come from clarity, simplicity, strong invariants and clear expectations.
 - **RF02** Issues MUST be treated as challenges to the model, answered by the model's long term shape rather than by standalone fixes.
 - **RF03** Fixes SHOULD NOT be additive or applied en masse; checking invariants is fine, making bad states impossible is better, and simplifying / compressing the model or avoiding the problem alltogether is best.
+- **RF04** Failures SHOULD act as a searchlight: study the model they expose, find its gaps, and correct the model in the most general, compressed, subtractive way.
 
 ## Check (C)
 
