@@ -6,6 +6,7 @@ import { DeclarationName } from "./package.ts";
 import { TemplateDefinition } from "../template/index.ts";
 import { PackageId } from "./package.ts";
 import { ViewDefinition } from "../view/index.ts";
+import { DeclarationConstructorMap } from "./constructor.ts";
 
 /** The declarations authored in destack.json. */
 export const PackageDefinition = defineSchema(
@@ -22,6 +23,8 @@ export const PackageDefinition = defineSchema(
         targets: schema.array(Target).min(1).optional(),
         /** Reviewed runtime compatibility shared by all exports. */
         runtimes: schema.array(Runtime).min(1).optional(),
+        /** The declaration constructors the package exports, by name. */
+        declarations: DeclarationConstructorMap.optional(),
         /** Compatibility overrides keyed by the names in package.json exports. */
         exports: schema
             .record(

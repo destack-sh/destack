@@ -2,7 +2,7 @@ import { defineSchema, schema } from "@destack/schema";
 import { PackageError } from "../error/index.ts";
 
 /** CPU and memory capacity assigned to one running instance. */
-export const ComputeResources = defineSchema(
+export const ComputeCapacity = defineSchema(
     schema.object({
         /** CPU capacity in cores. */
         cpu: schema.number().positive().optional(),
@@ -12,15 +12,15 @@ export const ComputeResources = defineSchema(
 );
 
 /** CPU and memory capacity assigned to one running instance. */
-export type ComputeResources = schema.Infer<typeof ComputeResources>;
+export type ComputeCapacity = schema.Infer<typeof ComputeCapacity>;
 
 /** Capacity and lifecycle policy for a workload. */
 export const ComputeDefinition = defineSchema(
     schema.object({
         /** Minimum capacity requested when scheduling an instance. */
-        requests: ComputeResources.optional(),
+        requests: ComputeCapacity.optional(),
         /** Maximum capacity allowed for an instance. */
-        limits: ComputeResources.optional(),
+        limits: ComputeCapacity.optional(),
         /** Scaling bounds, including whether idle execution may stop. */
         scaling: schema
             .object({
@@ -62,7 +62,7 @@ export function mergeCompute(
         compute.scaling?.maxInstances !== undefined &&
         compute.scaling.minInstances > compute.scaling.maxInstances
     ) {
-        throw new PackageError("INVALID_DEFINITION", "Minimum scaling exceeds maximum scaling.");
+        throw new PackageError("INVALID_DEFINITION", "minimum scaling exceeds maximum scaling");
     }
 
     // compare each requested resource with its corresponding limit
@@ -70,7 +70,7 @@ export function mergeCompute(
         const request = compute.requests?.[resource];
         const limit = compute.limits?.[resource];
         if (request !== undefined && limit !== undefined && request > limit) {
-            throw new PackageError("INVALID_DEFINITION", `${resource} request exceeds its limit.`);
+            throw new PackageError("INVALID_DEFINITION", `${resource} request exceeds its limit`);
         }
     }
 

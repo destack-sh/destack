@@ -1,87 +1,51 @@
-Describe packages, source code, inspections, and built files.
+Define Destack packages, transform their modules, and read their built manifests.
 
-```ts
-import { PackageDescription, PackageId } from "@destack/package";
+## Definition
 
-const id = PackageId.parse("package-01996ab0-0000-7000-8000-000000000001");
-
-const declaration: PackageDescription = {
-    package: { id, name: "@destack/schema", version: "2026.9.0" },
-    definition: { id, language: "typescript", targets: ["browser", "server"] },
-    exports: { ".": "./src/index.ts" },
-    dependencies: { zod: "4.6.5" },
-    peerDependencies: {},
-    peerDependenciesMeta: {},
-    optionalDependencies: {},
-    devDependencies: {},
-};
-```
-
-```ts
-import { PackageManifest } from "@destack/package";
-
-const manifest = PackageManifest.parse(document);
-```
-
-```ts
-import { openPackage } from "@destack/package/manifest";
-
-const reader = await openPackage(location, { fetch: authenticatedFetch });
-const files = await reader.files();
-const dependencies = await reader.dependencies();
-const sourceMaps = await reader.sourceMaps();
-```
+A package's `destack.json` holds what its code cannot declare.
 
 ```json
 {
     "id": "package-01996ab0-0000-7000-8000-000000000001",
     "language": "typescript",
-    "targets": ["browser", "server"]
+    "targets": ["browser", "server"],
+    "declarations": {
+        "defineDatabase": { "module": 1, "inspect": { "kind": "resource", "describe": "./inspect#describeDatabase" } },
+        "defineTable": { "module": 3 }
+    }
 }
 ```
 
-```ts
-import { BuildDescription } from "@destack/package/inspect";
+## Modules
 
-const build = BuildDescription.parse(document.descriptions);
-const { packages, inputs, outputs } = build;
-```
+The transform gives each module its package metadata and stamps declaration constructor calls with it.
 
 ```ts
-import type {} from "@destack/package/import-meta";
-
 const { id, name, version } = import.meta.destack.package;
 ```
 
-```ts
-import { describeFile } from "@destack/package/file";
+A module can have a variant per target, named after it, which replaces the module for that target.
 
-const file = await describeFile("src/index.ts", "text/plain", bytes);
+```text
+src/page/page.ts           shared by every target
+src/page/page.server.ts    replaces page.ts in server builds, Bun processes and tests
+src/page/page.browser.ts   replaces page.ts in browser builds
 ```
 
+- A variant starts with `export * from "./page.ts"` and may add or replace exports.
+- Importing another target's variant explicitly fails the build.
+- Declarations belong in the base module, since inspection loads bases only.
+
+## Manifests
+
+A build describes a package's files, outputs and declarations in its manifest.
+
 ```ts
-import { schema } from "@destack/schema";
-import { describeTable } from "@destack/db";
-import { TableDescription } from "@destack/db/inspect";
-import { ModuleGraph, SymbolReference } from "@destack/package/code";
-import { createPackageInspection } from "@destack/package/inspect";
-import { tables } from "../db/index.ts";
+import { openPackage } from "@destack/package/manifest";
 
-const description = schema.object({
-    tables: schema.array(
-        schema.object({
-            symbol: SymbolReference,
-            description: TableDescription,
-        }),
-    ),
-});
-
-export function inspectPackage(code: ModuleGraph) {
-    return createPackageInspection(import.meta.destack.package.name, code, description, {
-        tables: Object.entries(tables).map(([name, table]) => ({
-            symbol: code.resolveExport("src/index.ts", name),
-            description: describeTable(table),
-        })),
-    });
-}
+const reader = await openPackage(location, { fetch });
+const files = await reader.files();
+const services = await reader.domain("service", schema.array(DeclarationDescription));
 ```
+
+Manifests describe the declarations the package owns, and refers to its dependencies' declarations by package and name.

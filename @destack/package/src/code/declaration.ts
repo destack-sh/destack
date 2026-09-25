@@ -3,7 +3,7 @@ import { SourceRange } from "../source/location.ts";
 import { TypeDescription, TypeParameterDescription } from "./type.ts";
 
 /** One source declaration contributing to a symbol. */
-export const DeclarationDescription = defineSchema(
+export const SourceDeclaration = defineSchema(
     schema.object({
         /** The language's declaration kind. */
         kind: schema.string().min(1),
@@ -25,4 +25,4 @@ export const DeclarationDescription = defineSchema(
     }),
 );
 /** One source declaration contributing to a symbol. */
-export type DeclarationDescription = schema.Infer<typeof DeclarationDescription>;
+export type SourceDeclaration = schema.Infer<typeof SourceDeclaration>;

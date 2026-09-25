@@ -1,5 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
-import { DeclarationDescription } from "./declaration.ts";
+import { SourceDeclaration } from "./declaration.ts";
 import { TypeDescription } from "./type.ts";
 import { SignatureDescription } from "./signature.ts";
 import { Documentation } from "./documentation.ts";
@@ -10,7 +10,7 @@ export const MemberDescription = defineSchema(
         /** The member name. */
         name: schema.string(),
         /** Individual source declarations, including accessors and overloads. */
-        declarations: schema.array(DeclarationDescription).min(1),
+        declarations: schema.array(SourceDeclaration).min(1),
         /** Whether the member can be absent. */
         isOptional: schema.boolean(),
         /** The member type. */

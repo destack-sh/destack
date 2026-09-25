@@ -9,6 +9,15 @@ export interface Declaration {
     readonly name: string;
 }
 
+/** The state a resource declaration requires of its resource, as data providers plan from. */
+export type ResourceState = Readonly<Record<string, schema.Infer<ReturnType<typeof schema.json>>>>;
+
+/** A resource declaration, which describes the state it requires. */
+export interface ResourceDeclaration extends Declaration {
+    /** Describe the state the resource must hold. */
+    state(): ResourceState;
+}
+
 /** A declaration qualified by its declaring package, as bindings, permissions and events store it. */
 export const DeclarationReference = defineSchema(
     schema.object({

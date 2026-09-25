@@ -17,7 +17,7 @@ export const TemplateDefinition = defineSchema(
 export type TemplateDefinition = schema.Infer<typeof TemplateDefinition>;
 
 /** The new package name and dependency selections. */
-export const TemplateParameters = defineSchema(
+export const TemplateInput = defineSchema(
     schema
         .object({
             /** The fresh identity assigned to the generated package. */
@@ -30,4 +30,4 @@ export const TemplateParameters = defineSchema(
         .strict(),
 );
 /** The new package name and dependency selections. */
-export type TemplateParameters = schema.Infer<typeof TemplateParameters>;
+export type TemplateInput = schema.Infer<typeof TemplateInput>;

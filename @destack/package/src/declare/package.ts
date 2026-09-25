@@ -1,19 +1,19 @@
 import { declaringModule, type ModuleMetadata } from "../definition/metadata.ts";
 import { Package } from "../definition/package.ts";
 import { PackageError } from "../error/error.ts";
-import type { Declaration } from "./declaration.ts";
+import type { ResourceDeclaration, Declaration } from "./declaration.ts";
 
 /** Declarations a package lets its installations bind, keyed by declaration name. */
-export interface PackageDeclarations {
+export interface PackageDeclarationMap {
     /** Databases, buckets, vaults and other resources the package uses. */
-    readonly resources?: Readonly<Record<string, Declaration>>;
+    readonly resources?: Readonly<Record<string, ResourceDeclaration>>;
     /** Secrets the package reads. */
     readonly secrets?: Readonly<Record<string, Declaration>>;
 }
 
 /** A package's identity and the declarations its installations bind. */
 export interface PackageHandle<
-    Declarations extends PackageDeclarations = PackageDeclarations,
+    Declarations extends PackageDeclarationMap = PackageDeclarationMap,
 > extends Package {
     /** Resource declarations keyed by name. */
     readonly resources: NonNullable<Declarations["resources"]>;
@@ -22,7 +22,7 @@ export interface PackageHandle<
 }
 
 /** Declare the package handle stacks import to install this package. */
-export function definePackage<const Declarations extends PackageDeclarations>(
+export function definePackage<const Declarations extends PackageDeclarationMap>(
     declarations: Declarations,
     module?: ModuleMetadata,
 ): PackageHandle<Declarations> {

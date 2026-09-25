@@ -1,25 +1,34 @@
 /// <reference types="bun" />
 import { readFile } from "node:fs/promises";
-import { ModulePackages, transformModule } from "./transform.ts";
+import { PackageLocator, transformModule } from "./transform.ts";
+import { requireBase, resolveVariant } from "./variant.ts";
 
 /** Package lookups shared by every load in this process. */
-const packages = new ModulePackages();
+const packages = new PackageLocator();
 
-/** Inject Destack module metadata while Bun loads or bundles package sources. */
+/** Inject Destack module metadata while Bun loads package sources, resolving server variants. */
 export const modulePlugin: Bun.BunPlugin = {
     name: "destack-module",
     setup(build) {
+        // replace relative imports with their server variants, since Bun runs server code
+        build.onResolve({ filter: /^\./ }, ({ path, importer }) => {
+            const variant = resolveVariant(path, importer, "server");
+
+            return variant === undefined ? undefined : { path: variant };
+        });
+
+        // stamp package sources, since runtime loads need contents and bundles take the rest
         const isBundling = build.config !== undefined;
         build.onLoad({ filter: /\.[cm]?tsx?$/ }, async ({ path }) => {
-            // leave files outside Destack packages to the default loader
+            // read the source and require variants to re-export their base
             const owner = await packages.find(path);
-            if (!owner) {
-                return undefined;
+            const code = await readFile(path, "utf8");
+            if (owner) {
+                requireBase(code, path);
             }
 
-            // leave unchanged sources to later bundler plugins; runtime loads require contents
-            const code = await readFile(path, "utf8");
-            const result = transformModule(code, path, owner.metadata);
+            // pass unchanged sources on to later bundler plugins
+            const result = owner && transformModule(code, path, owner.metadata);
             if (!result && isBundling) {
                 return undefined;
             }

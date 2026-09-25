@@ -1,5 +1,5 @@
 import { defineSchema, schema } from "@destack/schema";
-import { DeclarationDescription } from "./declaration.ts";
+import { SourceDeclaration } from "./declaration.ts";
 import { SymbolReference } from "./reference.ts";
 import { TypeDescription } from "./type.ts";
 import { SignatureDescription } from "./signature.ts";
@@ -12,7 +12,7 @@ export const SymbolDescription = defineSchema(
         /** The symbol's qualified module-local name. */
         name: schema.string().min(1),
         /** Individual declarations, including overloads and declaration merging. */
-        declarations: schema.array(DeclarationDescription).min(1),
+        declarations: schema.array(SourceDeclaration).min(1),
         /** Combined documentation for this symbol. */
         documentation: Documentation,
         /** The declared type, including the instance type of a class. */

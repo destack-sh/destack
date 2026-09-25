@@ -48,19 +48,17 @@ export async function describeFile(
 /** Verify a file's exact size and digest before reading its contents. */
 export async function verifyFile(file: PackageFile, bytes: Uint8Array<ArrayBuffer>): Promise<void> {
     if (bytes.byteLength !== file.size) {
-        throw new PackageError("INVALID_FILE", `File size mismatch: ${file.path}`);
+        throw new PackageError("INVALID_FILE", `file size mismatch: ${file.path}`);
     }
 
     // reject any content change, including changes that preserve the length
     const digest = await digestFile(bytes);
     if (digest !== file.digest) {
-        throw new PackageError("INVALID_FILE", `File digest mismatch: ${file.path}`);
+        throw new PackageError("INVALID_FILE", `file digest mismatch: ${file.path}`);
     }
 }
 
 /** Hash file bytes using SHA-256. */
 async function digestFile(bytes: Uint8Array<ArrayBuffer>): Promise<string> {
-    const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
-
-    return Array.from(digest, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)).toHex();
 }
