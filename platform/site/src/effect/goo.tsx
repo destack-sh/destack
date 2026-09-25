@@ -3,6 +3,7 @@ import { type JSX, onSettled } from "@destack/view";
 
 import { tokens } from "../style/tokens.stylex";
 import { isDarkPage, pageScroll, Shader } from "./gl";
+import { sound } from "./sound";
 import { drainAt, pageWater } from "./water";
 
 /** The distance the goo field reaches past the site frame, in CSS pixels, so its rim can wobble across the frame rules. */
@@ -393,6 +394,7 @@ class Field {
         const swell = outside < 0 ? 1 : Math.exp(-outside / 60) * 0.8;
         this.pull += (swell - this.pull) * 0.08;
         this.stir += (Math.min(1, speed / 24) * swell - this.stir) * 0.08;
+        sound.ooze(this.isMoving ? this.stir : 0);
         const isOverCell =
             pagePointer.isKnown && pouredAt(pagePointer.x, pagePointer.y, terrain.islands, 0) < 0;
         this.shower += ((isOverCell ? 1 : 0) - this.shower) * 0.04;

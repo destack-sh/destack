@@ -2,6 +2,8 @@ import { color } from "@destack/theme/tokens.stylex";
 import { createSignal, onSettled, Show } from "@destack/view";
 import * as stylex from "@destack/style";
 
+import { sound } from "../effect/sound";
+
 /** Switch between light and dark themes, starting with the system preference. */
 export function ThemeToggle() {
     // hold the current theme
@@ -29,6 +31,7 @@ export function ThemeToggle() {
         document.documentElement.dataset.destackTheme = theme;
         document.documentElement.style.colorScheme = theme;
         setIsDark(theme === "dark");
+        sound.play("theme");
         try {
             localStorage.setItem("destack-theme", theme);
         } catch (error) {
@@ -42,6 +45,7 @@ export function ThemeToggle() {
             title={isDark() ? "Switch to light theme" : "Switch to dark theme"}
             onClick={toggle}
             type="button"
+            data-silent
             {...stylex.attrs(styles.toggle)}
         >
             <svg

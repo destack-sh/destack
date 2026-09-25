@@ -2,7 +2,7 @@ import { color } from "@destack/theme/tokens.stylex";
 import * as stylex from "@destack/style";
 import { createMemo, createSignal, For, onSettled } from "@destack/view";
 
-import { sound } from "../effect/sound";
+import { type Shift, sound } from "../effect/sound";
 import { tokens } from "../style/tokens.stylex";
 import {
     boardCells,
@@ -886,7 +886,7 @@ export function Remix(properties: {
         const startX = event.clientX;
         const startY = event.clientY;
         event.preventDefault();
-        sound.play("click");
+        sound.play("lift");
         setDrag({ id, x: 0, y: 0 });
 
         // follow the pointer until it lifts, then let go of the card
@@ -894,6 +894,7 @@ export function Remix(properties: {
             setDrag({ id, x: moving.clientX - startX, y: moving.clientY - startY });
         const drop = () => {
             // let go of the card and stop following the pointer
+            sound.play("set");
             setDrag(undefined);
             window.removeEventListener("pointermove", move);
             window.removeEventListener("pointerup", drop);
@@ -1286,6 +1287,7 @@ export function Remix(properties: {
             } else if (scene() !== wasScene || properties.today !== wasToday) {
                 changedAt = now;
                 delay = moveTime * 0.8;
+                soundShifts(layout());
             }
             wasScene = scene();
             wasToday = properties.today;
@@ -1375,7 +1377,7 @@ export function Remix(properties: {
                                     placement().row === 0
                                         ? `calc(100% / 6 + ${userDrop}px)`
                                         : "50%",
-                                ...motion(isVendor, placement(), held()),
+                                ...follow(motion(isVendor, placement()), held()),
                             }}
                             class={stylex.attrs(styles.card, held() && styles.held).class}
                         >
@@ -1437,27 +1439,20 @@ function centre(place: Placement, cell: number) {
     return (place.left + place.width / 2) * cell;
 }
 
-/** Return a card's inline motion: how it enters, leaves, and springs back from a drag. */
-function motion(
-    isVendor: boolean,
-    place: Placement,
-    held: { x: number; y: number } | undefined,
-): Record<string, string> {
-    // read the card's visibility and drag offset
+/** Return a card's inline motion: how it enters and leaves. */
+function motion(isVendor: boolean, place: Placement): Record<string, string> {
+    // read the card's visibility
     const isShown = place.isShown;
-    const offset = held ? `${held.x}px ${held.y}px` : "0 0";
 
     // sink a silo under the water and fade it as it goes deep, and raise the next one out of it onto its berg
     if (isVendor) {
         return isShown
             ? {
                   opacity: "1",
-                  translate: offset,
+                  translate: "0 0",
                   rotate: "0deg",
                   scale: "1",
-                  transition: held
-                      ? "none"
-                      : `opacity 500ms ease ${place.delay}ms, translate 1100ms ${spring} ${place.delay}ms, rotate 1100ms ${spring} ${place.delay}ms, scale 900ms ${spring} ${place.delay}ms`,
+                  transition: `opacity 500ms ease ${place.delay}ms, translate 1100ms ${spring} ${place.delay}ms, rotate 1100ms ${spring} ${place.delay}ms, scale 900ms ${spring} ${place.delay}ms`,
               }
             : place.step === "drain"
               ? {
@@ -1488,7 +1483,7 @@ function motion(
             opacity: isShown ? "1" : "0",
             rotate: `x ${isShown ? 0 : (place.turn ?? 90)}deg`,
             "transform-origin": "50% 0",
-            translate: offset,
+            translate: "0 0",
             "z-index": isShown ? "2" : "1",
             transition:
                 place.step === "park"
@@ -1515,10 +1510,50 @@ function motion(
         rotate: "x 0deg",
         opacity: isShown ? "1" : "0",
         "z-index": isShown ? "2" : "1",
-        translate: offset,
-        transition:
-            place.step === "park" ? "none" : held ? move : `${move}, translate 700ms ${spring}`,
+        translate: "0 0",
+        transition: place.step === "park" ? "none" : move,
         ...(place.isShown ? {} : { "pointer-events": "none" }),
+    };
+}
+
+/** Sound the cards moving in a remix: turning over, fusing, and sliding in and out, once per kind and moment. */
+function soundShifts(places: ReadonlyMap<string, Placement>) {
+    const heard = new Set<string>();
+    for (const place of places.values()) {
+        // pick the sounding move and when it happens: a turn halfway through, a fuse as it lands, a slide as it starts
+        let shift: { kind: Shift; at: number } | undefined;
+        if (place.step === "flip" && place.isShown) {
+            shift = { kind: "flip", at: place.delay + flipTime / 2 };
+        } else if (place.step === "fuse" && !place.isShown) {
+            shift = { kind: "fuse", at: place.delay + moveTime * 0.8 };
+        } else if (place.step === "enter" && place.isShown) {
+            shift = { kind: "enter", at: place.delay };
+        } else if (place.step === "leave" && !place.isShown) {
+            shift = { kind: "leave", at: place.delay };
+        }
+
+        // sound each kind once per moment, where across the board it happens
+        const key = shift && `${shift.kind}:${Math.round(shift.at / 80)}`;
+        if (shift && key && !heard.has(key)) {
+            heard.add(key);
+            sound.shift(shift.kind, shift.at / 1000, (place.left + place.width / 2) / boardCells);
+        }
+    }
+}
+
+/** Add the drag offset to a card's motion: the card follows the pointer while held and springs home when let go. */
+function follow(
+    motion: Record<string, string>,
+    held: { x: number; y: number } | undefined,
+): Record<string, string> {
+    // spring the offset home on its own, apart from the entrance and exit delays
+    const offset = held ? `translate(${held.x}px, ${held.y}px)` : "translate(0px, 0px)";
+    const release = held ? "transform 0ms" : `transform 700ms ${spring}`;
+
+    return {
+        ...motion,
+        transform: `${offset} translateY(-50%)`,
+        transition: motion.transition === "none" ? release : `${motion.transition}, ${release}`,
     };
 }
 
@@ -1751,7 +1786,6 @@ const styles = stylex.create({
         pointerEvents: "auto",
         position: "absolute",
         touchAction: "none",
-        transform: "translateY(-50%)",
         userSelect: "none",
     },
     held: {

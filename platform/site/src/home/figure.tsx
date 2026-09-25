@@ -487,6 +487,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
         if (!isOpen() && distance < stirRange) {
             if (stirredAt === undefined || Math.abs(light.target.x - stirredAt) > stirStep) {
                 stir(light.target.x + waterSpill, 7 * (1 - distance / stirRange));
+                sound.stir(1 - distance / stirRange, event.clientX / window.innerWidth);
                 stirredAt = light.target.x;
             }
         } else {
@@ -571,7 +572,7 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             }, 120);
         }
 
-        // sound the change, and switch the background from sea to piano or back
+        // sound the change, and switch the background from sea to music or back
         sound.play(next === "destack" ? "destack" : "restack");
         sound.follow(next);
 
@@ -580,6 +581,21 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
             debris?.rise(shardOrigins());
         } else {
             debris?.fall();
+        }
+
+        // sound each shard's flight, breaking off and chiming into the ring, or falling home to the freezing ice
+        if (debris) {
+            const now = performance.now();
+            const flights = debris.shards.map((shard) => ({
+                leaveIn: (shard.at - now) / 1000,
+                reachIn: (shard.at + shard.duration - now) / 1000,
+                position: (shard.home.x - window.scrollX) / window.innerWidth,
+            }));
+            if (next === "destack") {
+                sound.shatter(flights);
+            } else {
+                sound.gather(flights);
+            }
         }
 
         // shatter the ice as the water drains, or clump it together just before it returns
@@ -749,8 +765,22 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                 const bobs = ice!.bobs;
                 const cell = frame.width / boardCells;
 
+                // read where each showing silo is dragged or springing home to, less its centring, before any writes
+                const drags = riders.map((rider) => {
+                    // skip hidden silos
+                    const card = rider.element.parentElement!;
+                    if (card.style.opacity === "0") {
+                        return undefined;
+                    }
+
+                    // read the rendered offset
+                    const offset = new DOMMatrixReadOnly(getComputedStyle(card).transform);
+
+                    return { x: offset.m41, y: offset.m42 + rider.height / 2 };
+                });
+
                 // float each vendor card low above its berg, moving with it
-                for (const rider of riders) {
+                for (const [index, rider] of riders.entries()) {
                     // move the rider with its berg
                     const bob = bobs[rider.berg];
                     const sink = waterline() - rider.rest + rider.height * cardDraft;
@@ -760,18 +790,14 @@ export function StackFigure(properties: { onChange: (isOpen: boolean) => void })
                     rider.element.style.setProperty("--sway", `${bob.sway.toFixed(2)}px`);
                     rider.element.style.setProperty("--tilt", `${bob.tilt.toFixed(2)}deg`);
 
-                    // work out where the showing silo floats, dragged or not, for its tapes, without reading the layout
-                    const card = rider.element.parentElement;
-                    if (!card || card.style.opacity === "0") {
-                        continue;
+                    // hold the showing silo's tapes where it floats, dragged or not
+                    const drag = drags[index];
+                    if (drag) {
+                        tapeCentres[rider.berg] = {
+                            x: cell * columnCentres[rider.berg] + bob.sway + drag.x,
+                            y: rider.rest - rider.height + rider.lift + drag.y,
+                        };
                     }
-                    const [dragX = 0, dragY = 0] = card.style.translate
-                        .split(" ")
-                        .map((part) => Number.parseFloat(part));
-                    tapeCentres[rider.berg] = {
-                        x: cell * columnCentres[rider.berg] + bob.sway + dragX,
-                        y: rider.rest - rider.height + rider.lift + dragY,
-                    };
                 }
                 strips ??= [...figure.querySelectorAll<SVGElement>("[data-tape]")];
                 for (const tape of strips) {

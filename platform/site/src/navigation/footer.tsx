@@ -4,6 +4,7 @@ import { createSignal } from "@destack/view";
 
 import { installCommand } from "../content/site";
 import { Goo } from "../effect/goo";
+import { sound } from "../effect/sound";
 import { lattice } from "../style/lattice.stylex";
 import { tokens } from "../style/tokens.stylex";
 import { SiteLink } from "./link";
@@ -51,7 +52,11 @@ function InstallCommand() {
 
     // copy the install command and acknowledge it briefly
     const copy = async () => {
+        // write the command to the clipboard
         await navigator.clipboard.writeText(installCommand);
+
+        // chime and mark it copied for a moment
+        sound.play("copy");
         setIsCopied(true);
         setTimeout(() => setIsCopied(false), 1600);
     };

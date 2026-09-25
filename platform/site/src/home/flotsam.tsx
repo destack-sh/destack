@@ -254,6 +254,7 @@ export function Flotsam(properties: {
                 path: [{ ...pointer, at: performance.now() }],
                 downAt: performance.now(),
             };
+            sound.play("lift");
         };
 
         // follow the pointer, keeping only the last moments of its path
@@ -284,7 +285,7 @@ export function Flotsam(properties: {
             if (performance.now() - held.downAt < 250 && travelled < 6 && drift.lift <= 0) {
                 drift.sunk = 0;
                 bubble(drift.x + pieces[held.index].width / 2);
-                sound.play("splash");
+                sound.splash(0.6, (drift.x + pieces[held.index].width / 2) / width());
             }
             // throw it at the pointer's last speed otherwise
             else {
@@ -358,7 +359,7 @@ export function Flotsam(properties: {
                     drift.rise = 1;
                     tags[index].textContent = pieces[index].tags[drift.tag];
                 });
-                sound.play("splash");
+                sound.splash(0.8, 0.5);
             }
 
             // move each piece, its tag, and its wire
@@ -389,7 +390,10 @@ export function Flotsam(properties: {
                         drift.lift += drift.climb * elapsed;
                         if (drift.lift <= 0) {
                             stir(drift.x + piece.width / 2, Math.min(8, 1.5 - drift.climb / 150));
-                            sound.play("splash");
+                            sound.splash(
+                                0.3 - drift.climb / fastestThrow,
+                                (drift.x + piece.width / 2) / width(),
+                            );
                             drift.lift = 0;
                             drift.climb = 0;
                         }
@@ -413,7 +417,7 @@ export function Flotsam(properties: {
                 // splash now and then while on the water
                 const isAfloat = drifts[index].x > -piece.width && drifts[index].x < width();
                 if (isAfloat && Math.random() < splashChance * elapsed) {
-                    sound.play("splash");
+                    sound.splash(0.05, (drifts[index].x + piece.width / 2) / width());
                 }
 
                 // sit on the wave under the piece's middle, leaning with its slope

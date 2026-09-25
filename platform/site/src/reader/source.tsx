@@ -4,6 +4,7 @@ import * as stylex from "@destack/style";
 
 import { commandEvents } from "../command/command";
 import type { PageSource } from "../content/source";
+import { sound } from "../effect/sound";
 
 /** Properties for the page source controls. */
 type SourceActionsProperties = {
@@ -38,6 +39,7 @@ export function createPageSourceCommands(source: PageSource): PageSourceCommands
 
         // publish the requested source
         await navigator.clipboard.writeText(await response.text());
+        sound.play("copy");
     };
 
     // copy in the background, logging failures
