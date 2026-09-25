@@ -10,7 +10,7 @@ use destack_source::{ModuleId, TargetId};
 
 use crate::lower::{
     DeclaredModule, DirModule, FunctionDeclaration, FunctionDefinition, FunctionLowerer,
-    GenericInstanceKey, GenericScope, LowerPhase, NominalInstance, NominalState, Unbound,
+    GenericInstanceKey, GenericScope, LowerPhase, NominalInstance, NominalState,
 };
 use crate::{Compiler, CompilerError, CompilerResult};
 
@@ -481,9 +481,9 @@ impl<'a> ModuleLowerer<'a> {
             });
         }
 
-        // keep the template with its open arguments unbound, else declare the closed instance
+        // place the template arguments
         let template = self.template_function(tree, key.symbol, key.receiver)?;
-        let (lowered, _) = self.instance_arguments(
+        let placed = self.instance_arguments(
             tree,
             template,
             key.symbol,
@@ -491,9 +491,30 @@ impl<'a> ModuleLowerer<'a> {
             &bindings,
             &key.dependents,
             &chain,
-            &caller,
-            Unbound::ImplementerParameters,
         )?;
+
+        // require each owner parameter but induced memory, leaving the implementer's places open
+        for (parameter, index) in &chain.parameters {
+            let is_induced = self
+                .state(parameter.module_id)?
+                .generics
+                .get_parameter(parameter.local_id)
+                .induced_memory_parameter()
+                .is_some();
+            if placed[*index as usize].is_none() && *index < chain.owner_count && !is_induced {
+                return Err(self.unplaced_argument(key.symbol, &chain, *index)?);
+            }
+        }
+
+        // lower the placed arguments, then keep the template while one stays open
+        let mut lower = self.type_lowerer(tree, &caller);
+        let mut lowered = Vec::with_capacity(placed.len());
+        for argument in placed {
+            lowered.push(match argument {
+                Some(argument) => Some(lower.lower_generic_argument(argument)?),
+                None => None,
+            });
+        }
         if lowered.iter().any(Option::is_none) {
             return Ok(WitnessEntry {
                 function: template,

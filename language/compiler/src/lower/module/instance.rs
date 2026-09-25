@@ -14,15 +14,6 @@ pub(in crate::lower) enum FunctionDeclaration {
     Failed,
 }
 
-/// The places one instantiation may leave unbound.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(in crate::lower) enum Unbound {
-    /// Every place binds.
-    Rejected,
-    /// An implementer's own parameters and dependents stay unbound.
-    ImplementerParameters,
-}
-
 /// One callable a selection names: a declared specialization or an applied template.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(in crate::lower) enum Instance {
@@ -189,135 +180,128 @@ impl ModuleLowerer<'_> {
             };
         }
 
-        // read the template and the argument each of its parameters takes
+        // read the template and require the argument each of its places takes
         let template = self.template_function(tree, symbol, receiver)?;
-        let (lowered, is_open) = self.instance_arguments(
-            tree,
-            template,
-            symbol,
-            receiver,
-            bindings,
-            dependents,
-            &chain,
-            enclosing,
-            Unbound::Rejected,
+        let placed = self.instance_arguments(
+            tree, template, symbol, receiver, bindings, dependents, &chain,
         )?;
-        let mut arguments = Vec::with_capacity(lowered.len());
-        for argument in lowered {
+        let mut arguments = Vec::with_capacity(placed.len());
+        for (index, argument) in placed.into_iter().enumerate() {
             let Some(argument) = argument else {
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "an instantiation of '{}' leaves a place open",
-                        self.symbol_path(symbol)?
-                    ),
-                });
+                return Err(self.unplaced_argument(symbol, &chain, index as u32)?);
             };
             arguments.push(argument);
+        }
+
+        // lower the arguments in the enclosing parameter space, noting open ones
+        let mut lower = self.type_lowerer(tree, enclosing);
+        let mut lowered = Vec::with_capacity(arguments.len());
+        let mut is_open = false;
+        for argument in arguments {
+            is_open |= lower.lower.is_open_argument(argument)?;
+            lowered.push(lower.lower_generic_argument(argument)?);
         }
 
         // apply the template in place when an argument stays open in the enclosing template
         if is_open {
             return Ok(Instance::Applied {
                 template,
-                arguments,
+                arguments: lowered,
             });
         }
 
-        self.declare_specialization(tree, key, symbol, template, arguments, &chain)
+        self.declare_specialization(tree, key, symbol, template, lowered, &chain)
             .map(Instance::Declared)
     }
 
-    /// Lower each template argument and dependent, none at unbound places, reporting open ones.
+    /// Place the argument each template parameter and dependent takes, none where unbound.
     pub(in crate::lower) fn instance_arguments(
         &mut self,
-        tree: &mut mir::Tree,
+        tree: &mir::Tree,
         template: mir::FunctionId,
         symbol: dir::GlobalSymbolId,
         receiver: Option<dir::GlobalTypeId>,
         bindings: &[dir::GenericArgumentBinding],
         dependents: &[dir::GlobalTypeId],
         chain: &GenericScope,
-        enclosing: &GenericScope,
-        unbound: Unbound,
-    ) -> CompilerResult<(Vec<Option<mir::GenericArgument>>, bool)> {
-        // place each dependent value, a missing one a hole only in an implementer's own template
-        let mut arguments = vec![None; chain.count() as usize];
-        for (position, dependent) in chain.dependents.values().enumerate() {
-            match dependents.get(position) {
-                Some(value) => arguments[dependent.index as usize] = Some(*value),
-                None if unbound == Unbound::ImplementerParameters => {}
-                None => {
-                    let dependent = self.ty(dependent.ty)?;
-
-                    return Err(CompilerError::Internal {
-                        message: format!(
-                            "an instantiation of '{}' without a value for its dependent {dependent:?}",
-                            self.symbol_path(symbol)?
-                        ),
-                    });
-                }
-            }
+    ) -> CompilerResult<Vec<Option<dir::GlobalTypeId>>> {
+        // require one place per template parameter
+        let slots = tree.get(template).generics.len();
+        if chain.count() as usize != slots {
+            return Err(CompilerError::Internal {
+                message: format!(
+                    "an instantiation of '{}' with {} places for {slots} slots",
+                    self.symbol_path(symbol)?,
+                    chain.count()
+                ),
+            });
         }
 
-        // place each bound parameter, leaving induced memory and implementer parameters unbound
+        // place each given dependent value
+        let mut arguments = vec![None; chain.count() as usize];
+        for (dependent, value) in chain.dependents.values().zip(dependents) {
+            arguments[dependent.index as usize] = Some(*value);
+        }
+
+        // place each bound parameter, the receiver parameter defaulting to the receiver
         for (parameter, index) in &chain.parameters {
             let binding = self
                 .state(parameter.module_id)?
                 .generics
                 .get_parameter(parameter.local_id);
             let is_receiver = binding.origin == dir::GenericParameterOrigin::Receiver;
-            let bound = bindings
+            arguments[*index as usize] = bindings
                 .iter()
                 .find(|binding| binding.parameter == *parameter)
                 .map(|binding| binding.argument)
                 .or(if is_receiver { receiver } else { None });
-            let Some(argument) = bound else {
-                // leave induced memory arguments and an implementer's own parameters unbound
-                if binding.induced_memory_parameter().is_some()
-                    || (unbound == Unbound::ImplementerParameters && *index >= chain.owner_count)
-                {
-                    continue;
-                }
-
-                // report every other unbound parameter
-                let path = self.symbol_path(symbol)?;
-                let name = self.format_parameter_name(*parameter)?;
-
-                return Err(CompilerError::Internal {
-                    message: format!(
-                        "an instantiation of '{path}' without a binding for its parameter '{name}'"
-                    ),
-                });
-            };
-            arguments[*index as usize] = Some(argument);
         }
 
-        // lower the arguments in the enclosing parameter space
-        let mut lower = self.type_lowerer(tree, enclosing);
-        let mut lowered = Vec::with_capacity(arguments.len());
-        let mut is_open = false;
-        for argument in arguments {
-            let Some(argument) = argument else {
-                lowered.push(None);
-                continue;
-            };
-            is_open |= lower.lower.is_open_argument(argument)?;
-            lowered.push(Some(lower.lower_generic_argument(argument)?));
-        }
+        Ok(arguments)
+    }
 
-        // require one argument per template parameter
-        let slots = tree.get(template).generics.len();
-        if lowered.len() != slots {
-            return Err(CompilerError::Internal {
+    /// Return the error for one instantiation leaving a parameter or dependent unplaced.
+    pub(in crate::lower) fn unplaced_argument(
+        &mut self,
+        symbol: dir::GlobalSymbolId,
+        chain: &GenericScope,
+        index: u32,
+    ) -> CompilerResult<CompilerError> {
+        let path = self.symbol_path(symbol)?;
+
+        // name the parameter at the index
+        let parameter = chain
+            .parameters
+            .iter()
+            .find(|(_, parameter_index)| **parameter_index == index)
+            .map(|(parameter, _)| *parameter);
+        if let Some(parameter) = parameter {
+            let name = self.format_parameter_name(parameter)?;
+
+            return Ok(CompilerError::Internal {
                 message: format!(
-                    "an instantiation of '{}' with {} arguments for {slots} slots",
-                    self.symbol_path(symbol)?,
-                    lowered.len()
+                    "an instantiation of '{path}' without a binding for its parameter '{name}'"
                 ),
             });
         }
 
-        Ok((lowered, is_open))
+        // otherwise name the dependent at the index
+        let Some(dependent) = chain
+            .dependents
+            .values()
+            .find(|dependent| dependent.index == index)
+        else {
+            return Err(CompilerError::Internal {
+                message: format!("an instantiation of '{path}' without a place at index {index}"),
+            });
+        };
+        let dependent = self.ty(dependent.ty)?;
+
+        Ok(CompilerError::Internal {
+            message: format!(
+                "an instantiation of '{path}' without a value for its dependent {dependent:?}"
+            ),
+        })
     }
 
     /// Return whether one generic argument names a parameter of its enclosing template.

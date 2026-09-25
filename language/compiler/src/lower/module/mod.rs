@@ -26,4 +26,4 @@ pub(crate) use state::*;
 
 pub(in crate::lower) use callable::Receiver;
 pub(in crate::lower) use decorator::CallableImplementation;
-pub(in crate::lower) use instance::{FunctionDeclaration, GenericInstanceKey, Instance, Unbound};
+pub(in crate::lower) use instance::{FunctionDeclaration, GenericInstanceKey, Instance};
