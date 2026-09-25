@@ -14,6 +14,8 @@ import { primaryLinks } from "./navigation";
 import { SoundToggle } from "./sound";
 import { ThemeToggle } from "./theme";
 
+/** The media query for screens too narrow for the sign in cell, which sign in through the account icon instead. */
+const narrow = "@media (max-width: 1099px)";
 /** The media query for phone-width screens. */
 const mobile = "@media (max-width: 767px)";
 
@@ -78,17 +80,27 @@ export function TopBar() {
                         </SiteLink>
                     ))}
 
-                    {/* TODO #Incomplete: open the shared Destack account sign in once accounts are live */}
+                    {/* TODO #Incomplete: open the registry once it is live */}
                     <button
                         type="button"
                         disabled
-                        {...stylex.attrs(lattice.ruleRight, styles.account)}
+                        {...stylex.attrs(lattice.ruleRight, styles.pending)}
                     >
-                        Sign in
+                        Registry
                     </button>
                 </nav>
 
-                {/* keep search, theme, sound, and the account together on the right edge */}
+                {/* sign in above the planet, where the reader's own download and settings sit */}
+                {/* TODO #Incomplete: open the shared Destack account sign in once accounts are live */}
+                <button
+                    type="button"
+                    disabled
+                    {...stylex.attrs(lattice.ruleRight, styles.pending, styles.account)}
+                >
+                    Sign in
+                </button>
+
+                {/* keep search, theme, sound, and the narrow screens' account icon together on the right edge */}
                 <div data-universe {...stylex.attrs(styles.tools)}>
                     <CommandPalette />
                     <ThemeToggle />
@@ -214,6 +226,13 @@ export function TopBar() {
                                 </svg>
                             </SiteLink>
                         ))}
+                        <span
+                            aria-disabled="true"
+                            {...stylex.attrs(styles.menuLink, styles.menuPending)}
+                        >
+                            Registry
+                            <span {...stylex.attrs(styles.soon)}>Soon</span>
+                        </span>
                     </nav>
                 </dialog>
             </Portal>
@@ -273,18 +292,23 @@ const styles = stylex.create({
     tools: {
         alignItems: "center",
         display: "flex",
-        gridColumn: "9 / span 4",
+        gridColumn: "11 / span 2",
         justifyContent: "flex-end",
         paddingInline: "0.75rem",
+        [narrow]: { gridColumn: "9 / span 4" },
         [mobile]: { gridColumn: "span 2", justifyContent: "flex-end", paddingInline: "0.25rem" },
     },
-    account: {
+    pending: {
         backgroundColor: "transparent",
         borderWidth: 0,
         color: color.mutedForeground,
         cursor: "not-allowed",
         fontFamily: fontFamily.default,
         fontSize: "var(--size-navigation)",
+    },
+    account: {
+        gridColumn: "9 / span 2",
+        [narrow]: { display: "none" },
     },
     accountIcon: {
         alignItems: "center",
@@ -297,6 +321,7 @@ const styles = stylex.create({
         justifyContent: "center",
         padding: 0,
         width: "2.75rem",
+        "@media (min-width: 1100px)": { display: "none" },
     },
     menuButton: {
         alignItems: "center",
@@ -367,5 +392,15 @@ const styles = stylex.create({
         justifyContent: "space-between",
         paddingBlock: "1.25rem",
         ":hover": hover,
+    },
+    menuPending: {
+        color: color.mutedForeground,
+        ":hover": { color: color.mutedForeground },
+    },
+    soon: {
+        fontFamily: tokens.monoFont,
+        fontSize: "0.75rem",
+        letterSpacing: "0.08em",
+        textTransform: "uppercase",
     },
 });
