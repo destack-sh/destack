@@ -14,7 +14,7 @@ use crate::{EmitError, ObjectEmitter};
 
 use super::super::object::SymbolTable;
 use super::super::r#type::{TypeEmitter, ValueType};
-use super::memory::MemoryRegion;
+use super::memory::AliasRegion;
 use super::{Local, StackMap, Value};
 
 /// Emit one MIR function into Cranelift IR.
@@ -65,8 +65,8 @@ pub(crate) struct FunctionEmitter<'a> {
     pub(super) stack_maps: Vec<StackMap>,
     /// Next function-local stack-slot identity.
     pub(super) next_key: u32,
-    /// The trusted access flags of each memory region, declared when the body emission starts.
-    pub(super) memory_flags: [cir::MemFlagsData; MemoryRegion::ALL.len()],
+    /// The trusted access flags of each alias region, declared when the body emission starts.
+    pub(super) memory_flags: [cir::MemFlagsData; AliasRegion::ALL.len()],
 }
 
 impl<'a> FunctionEmitter<'a> {
@@ -115,13 +115,13 @@ impl<'a> FunctionEmitter<'a> {
             frame_base,
             stack_maps: Vec::new(),
             next_key: 0,
-            memory_flags: [cir::MemFlagsData::trusted(); MemoryRegion::ALL.len()],
+            memory_flags: [cir::MemFlagsData::trusted(); AliasRegion::ALL.len()],
         })
     }
 
     /// Emit one typed native function body.
     pub(crate) fn emit(mut self, target: &mut cir::Function) -> Result<Vec<StackMap>, EmitError> {
-        self.memory_flags = MemoryRegion::ALL.map(|region| region.declare(target));
+        self.memory_flags = AliasRegion::ALL.map(|region| region.declare(target));
 
         let mut context = FunctionBuilderContext::new();
         let mut builder = cranelift_frontend::FunctionBuilder::new(target, &mut context);

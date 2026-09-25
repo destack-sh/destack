@@ -6,7 +6,7 @@ use destack_program as program;
 
 use crate::EmitError;
 
-use super::memory::MemoryRegion;
+use super::memory::AliasRegion;
 
 use super::super::r#type::ValueType;
 use super::FunctionEmitter;
@@ -140,7 +140,7 @@ impl<'a> FunctionEmitter<'a> {
         value_type: ValueType,
         builder: &mut FunctionBuilder<'_>,
     ) -> Result<Value, EmitError> {
-        let flags = self.memory_flags(MemoryRegion::World);
+        let flags = self.memory_flags(AliasRegion::World);
         match value_type {
             ValueType::Direct { ty, .. } => {
                 let value = builder.ins().load(ty, flags, address, 0);
@@ -173,7 +173,7 @@ impl<'a> FunctionEmitter<'a> {
         value_type: ValueType,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
-        let flags = self.memory_flags(MemoryRegion::World);
+        let flags = self.memory_flags(AliasRegion::World);
         match value_type {
             ValueType::Direct { .. } => {
                 let value = value
@@ -220,7 +220,7 @@ impl<'a> FunctionEmitter<'a> {
         byte_len: u32,
         builder: &mut FunctionBuilder<'_>,
     ) {
-        let flags = self.memory_flags(MemoryRegion::World);
+        let flags = self.memory_flags(AliasRegion::World);
         let word_count = byte_len / 8;
 
         // clear complete machine words
@@ -268,7 +268,7 @@ impl<'a> FunctionEmitter<'a> {
             && scalar.primitive.bit_width() <= u16::from(program::Word::BIT_LEN)
         {
             let value = self.canonical_word(value, ty, scalar, builder)?;
-            let flags = self.memory_flags(MemoryRegion::World);
+            let flags = self.memory_flags(AliasRegion::World);
             builder.ins().store(flags, value, destination, 0);
 
             return Ok(());
@@ -276,7 +276,7 @@ impl<'a> FunctionEmitter<'a> {
 
         // clear the padding the canonical value representation leaves behind
         let zero = builder.ins().iconst(cir::types::I64, 0);
-        let flags = self.memory_flags(MemoryRegion::World);
+        let flags = self.memory_flags(AliasRegion::World);
         for index in 0..value_type.word_count() {
             builder
                 .ins()
@@ -335,7 +335,7 @@ impl<'a> FunctionEmitter<'a> {
         let byte_len = value_type.byte_len();
         let word_count = byte_len / 8;
         let alignment = value_type.alignment().min(align_of::<u64>() as u32) as u8;
-        let mut flags = self.memory_flags(MemoryRegion::World);
+        let mut flags = self.memory_flags(AliasRegion::World);
         if alignment >= 8 {
             flags.set_aligned();
         }

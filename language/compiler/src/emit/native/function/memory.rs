@@ -9,17 +9,17 @@ use crate::EmitError;
 use super::super::r#type::ValueType;
 use super::{FunctionEmitter, Value};
 
-/// One disjoint memory category native accesses name for alias analysis.
+/// One disjoint alias region native accesses name for alias analysis.
 #[repr(u32)]
 #[derive(Debug, Clone, Copy)]
-pub(super) enum MemoryRegion {
+pub(super) enum AliasRegion {
     /// The fields of the native activation, stable between calls.
     Activation = 0,
     /// World memory: the heap, the statics, and the frames.
     World = 1,
 }
 
-impl MemoryRegion {
+impl AliasRegion {
     /// The regions in alias identity order.
     pub(super) const ALL: [Self; 2] = [Self::Activation, Self::World];
 
@@ -165,7 +165,7 @@ impl<'a> FunctionEmitter<'a> {
                     .ok_or_else(|| self.invalid("native raw equality has zero alignment"))?;
 
                 // compare the bytes as world memory loads
-                let flags = self.memory_flags(MemoryRegion::World);
+                let flags = self.memory_flags(AliasRegion::World);
                 let value = builder.emit_small_memory_compare(
                     self.types.frontend_config(),
                     IntCC::Equal,
@@ -226,7 +226,7 @@ impl<'a> FunctionEmitter<'a> {
     }
 
     /// Return the flags of one trusted access in one alias region.
-    pub(super) fn memory_flags(&self, region: MemoryRegion) -> cir::MemFlagsData {
+    pub(super) fn memory_flags(&self, region: AliasRegion) -> cir::MemFlagsData {
         self.memory_flags[region as usize]
     }
 
@@ -236,7 +236,7 @@ impl<'a> FunctionEmitter<'a> {
         byte_offset: usize,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        let flags = self.memory_flags(MemoryRegion::Activation);
+        let flags = self.memory_flags(AliasRegion::Activation);
         let activation = self.activation()?;
 
         Ok(builder

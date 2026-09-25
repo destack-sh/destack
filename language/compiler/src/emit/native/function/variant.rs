@@ -5,7 +5,7 @@ use destack_mir as mir;
 
 use crate::EmitError;
 
-use super::memory::MemoryRegion;
+use super::memory::AliasRegion;
 use super::{FunctionEmitter, Value};
 
 impl FunctionEmitter<'_> {
@@ -268,7 +268,7 @@ impl FunctionEmitter<'_> {
         let ty = self.discriminant_type(field)?;
         let address = builder.ins().iadd_imm_u(address, i64::from(field.offset));
 
-        let flags = self.memory_flags(MemoryRegion::World);
+        let flags = self.memory_flags(AliasRegion::World);
 
         Ok(builder.ins().load(ty, flags, address, 0))
     }

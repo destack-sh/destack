@@ -9,17 +9,6 @@ use crate::EmitError;
 
 use super::{Call, FunctionEmitter};
 
-/// One scalar parameter or result of the native runtime ABI.
-#[derive(Debug, Clone, Copy)]
-enum RuntimeParameter {
-    /// One target pointer-width integer or pointer.
-    Pointer,
-    /// One 32-bit integer.
-    Uint32,
-    /// One 64-bit integer.
-    Uint64,
-}
-
 impl<'a> FunctionEmitter<'a> {
     /// Return the stack slot retaining one active platform unwind object.
     pub(super) fn unwind_slot(
@@ -189,7 +178,7 @@ impl<'a> FunctionEmitter<'a> {
         signature
             .params
             .push(cir::AbiParam::new(self.types.pointer()));
-        for parameter in Self::runtime_parameters(operation) {
+        for parameter in operation.parameters() {
             let ty = self.runtime_type(*parameter);
             signature.params.push(cir::AbiParam::new(ty));
         }
@@ -209,9 +198,9 @@ impl<'a> FunctionEmitter<'a> {
         // return the operation's result type where it has one
         let result = match operation.result() {
             native::abi::OperationResult::Void | native::abi::OperationResult::Never => None,
-            native::abi::OperationResult::Pointer => Some(RuntimeParameter::Pointer),
-            native::abi::OperationResult::Uint32 => Some(RuntimeParameter::Uint32),
-            native::abi::OperationResult::Uint64 => Some(RuntimeParameter::Uint64),
+            native::abi::OperationResult::Pointer => Some(native::abi::OperationValue::Pointer),
+            native::abi::OperationResult::Uint32 => Some(native::abi::OperationValue::Uint32),
+            native::abi::OperationResult::Uint64 => Some(native::abi::OperationValue::Uint64),
         };
         if let Some(result) = result {
             let ty = self.runtime_type(result);
@@ -238,77 +227,12 @@ impl<'a> FunctionEmitter<'a> {
         Ok(Call::pointer(function, signature, parameters))
     }
 
-    /// Return the parameters one runtime operation declares after the activation.
-    const fn runtime_parameters(operation: native::abi::Operation) -> &'static [RuntimeParameter] {
-        match operation {
-            native::abi::Operation::Allocate => &[
-                RuntimeParameter::Uint32,
-                RuntimeParameter::Uint32,
-                RuntimeParameter::Uint32,
-            ],
-            native::abi::Operation::AllocateRepeated => &[
-                RuntimeParameter::Uint32,
-                RuntimeParameter::Uint32,
-                RuntimeParameter::Pointer,
-                RuntimeParameter::Uint32,
-            ],
-            native::abi::Operation::Release => &[
-                RuntimeParameter::Pointer,
-                RuntimeParameter::Uint32,
-                RuntimeParameter::Pointer,
-            ],
-            native::abi::Operation::Free => &[RuntimeParameter::Pointer],
-            native::abi::Operation::WriteBarrier => &[
-                RuntimeParameter::Pointer,
-                RuntimeParameter::Pointer,
-                RuntimeParameter::Pointer,
-            ],
-            native::abi::Operation::Poll => &[RuntimeParameter::Uint32, RuntimeParameter::Pointer],
-            native::abi::Operation::Stop => &[
-                RuntimeParameter::Uint32,
-                RuntimeParameter::Uint32,
-                RuntimeParameter::Pointer,
-            ],
-            native::abi::Operation::Deopt => &[RuntimeParameter::Uint32, RuntimeParameter::Pointer],
-            native::abi::Operation::Panic => &[],
-            native::abi::Operation::PanicValue => {
-                &[RuntimeParameter::Uint32, RuntimeParameter::Pointer]
-            }
-            native::abi::Operation::UnwindClassify => &[],
-            native::abi::Operation::UnwindResume => &[RuntimeParameter::Pointer],
-            native::abi::Operation::IsSubtype => {
-                &[RuntimeParameter::Uint32, RuntimeParameter::Uint32]
-            }
-            native::abi::Operation::ProfileIncrement => &[RuntimeParameter::Uint32],
-            native::abi::Operation::ProfileSample => {
-                &[RuntimeParameter::Uint32, RuntimeParameter::Uint64]
-            }
-            native::abi::Operation::BindingCall => &[
-                RuntimeParameter::Uint32,
-                RuntimeParameter::Pointer,
-                RuntimeParameter::Pointer,
-                RuntimeParameter::Pointer,
-                RuntimeParameter::Pointer,
-            ],
-            native::abi::Operation::VolatileRead => &[
-                RuntimeParameter::Pointer,
-                RuntimeParameter::Pointer,
-                RuntimeParameter::Pointer,
-            ],
-            native::abi::Operation::VolatileWrite => &[
-                RuntimeParameter::Pointer,
-                RuntimeParameter::Pointer,
-                RuntimeParameter::Pointer,
-            ],
-        }
-    }
-
-    /// Return the Cranelift type of one runtime parameter.
-    fn runtime_type(&self, parameter: RuntimeParameter) -> cir::Type {
-        match parameter {
-            RuntimeParameter::Pointer => self.types.pointer(),
-            RuntimeParameter::Uint32 => cir::types::I32,
-            RuntimeParameter::Uint64 => cir::types::I64,
+    /// Return the Cranelift type of one runtime operation value.
+    fn runtime_type(&self, value: native::abi::OperationValue) -> cir::Type {
+        match value {
+            native::abi::OperationValue::Pointer => self.types.pointer(),
+            native::abi::OperationValue::Uint32 => cir::types::I32,
+            native::abi::OperationValue::Uint64 => cir::types::I64,
         }
     }
 }

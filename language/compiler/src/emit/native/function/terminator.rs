@@ -8,7 +8,7 @@ use crate::EmitError;
 
 use super::super::r#type::ValueType;
 use super::FunctionEmitter;
-use super::memory::MemoryRegion;
+use super::memory::AliasRegion;
 
 impl<'a> FunctionEmitter<'a> {
     /// Emit one MIR terminator.
@@ -112,7 +112,7 @@ impl<'a> FunctionEmitter<'a> {
             mir::Terminator::UnwindResume => {
                 let slot = self.unwind_slot(builder);
                 let address = builder.ins().stack_addr(self.types.pointer(), slot, 0);
-                let flags = self.memory_flags(MemoryRegion::World);
+                let flags = self.memory_flags(AliasRegion::World);
                 let unwind = builder.ins().load(self.types.pointer(), flags, address, 0);
                 self.emit_runtime(native::abi::Operation::UnwindResume, &[unwind], builder)?;
                 Self::terminate_runtime(builder);

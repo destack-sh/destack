@@ -6,47 +6,50 @@ macro_rules! runtime_operations {
     ($macro:ident) => {
         $macro! {
             /// Allocate one heap object.
-            Allocate = 0x0000 => allocate: Allocate -> Pointer,
+            Allocate = 0x0000 => allocate: Allocate(Uint32, Uint32, Uint32) -> Pointer,
             /// Allocate one repeated heap backing.
-            AllocateRepeated = 0x0001 => allocate_repeated: AllocateRepeated -> Pointer,
+            AllocateRepeated = 0x0001 =>
+                allocate_repeated: AllocateRepeated(Uint32, Uint32, Pointer, Uint32) -> Pointer,
             /// Release one unique heap value.
-            Release = 0x0002 => release: Release -> Void,
+            Release = 0x0002 => release: Release(Pointer, Uint32, Pointer) -> Void,
             /// Free one unique heap value holding no live values.
-            Free = 0x0003 => free: Free -> Void,
+            Free = 0x0003 => free: Free(Pointer) -> Void,
             /// Record one managed reference write.
-            WriteBarrier = 0x0004 => write_barrier: WriteBarrier -> Void,
+            WriteBarrier = 0x0004 => write_barrier: WriteBarrier(Pointer, Pointer, Pointer) -> Void,
 
             /// Poll pending runtime work.
-            Poll = 0x0010 => poll: Poll -> Never,
+            Poll = 0x0010 => poll: Poll(Uint32, Pointer) -> Never,
             /// Stop execution for host inspection.
-            Stop = 0x0011 => stop: Stop -> Never,
+            Stop = 0x0011 => stop: Stop(Uint32, Uint32, Pointer) -> Never,
             /// Deoptimize native execution.
-            Deopt = 0x0012 => deopt: Deopt -> Never,
+            Deopt = 0x0012 => deopt: Deopt(Uint32, Pointer) -> Never,
 
             /// Report one payloadless language panic.
-            Panic = 0x0014 => panic: Panic -> Never,
+            Panic = 0x0014 => panic: Panic() -> Never,
             /// Report one typed language panic.
-            PanicValue = 0x0015 => panic_value: PanicValue -> Never,
+            PanicValue = 0x0015 => panic_value: PanicValue(Uint32, Pointer) -> Never,
             /// Classify the active unwind.
-            UnwindClassify = 0x0016 => unwind_classify: ClassifyUnwind -> Uint32,
+            UnwindClassify = 0x0016 => unwind_classify: ClassifyUnwind() -> Uint32,
             /// Continue the active unwind.
-            UnwindResume = 0x0017 => unwind_resume: ResumeUnwind -> Never,
+            UnwindResume = 0x0017 => unwind_resume: ResumeUnwind(Pointer) -> Never,
 
             /// Return whether one concrete type satisfies another.
-            IsSubtype = 0x0020 => is_subtype: IsSubtype -> Uint32,
+            IsSubtype = 0x0020 => is_subtype: IsSubtype(Uint32, Uint32) -> Uint32,
 
             /// Increment one explicit profile counter.
-            ProfileIncrement = 0x0030 => profile_increment: IncrementProfile -> Void,
+            ProfileIncrement = 0x0030 => profile_increment: IncrementProfile(Uint32) -> Void,
             /// Record one explicit profile sample.
-            ProfileSample = 0x0031 => profile_sample: SampleProfile -> Void,
+            ProfileSample = 0x0031 => profile_sample: SampleProfile(Uint32, Uint64) -> Void,
 
             /// Call one runtime binding.
-            BindingCall = 0x0040 => binding_call: BindingCall -> Void,
+            BindingCall = 0x0040 =>
+                binding_call: BindingCall(Uint32, Pointer, Pointer, Pointer, Pointer) -> Void,
 
             /// Read one volatile byte range.
-            VolatileRead = 0x0050 => volatile_read: VolatileRead -> Void,
+            VolatileRead = 0x0050 => volatile_read: VolatileRead(Pointer, Pointer, Pointer) -> Void,
             /// Write one volatile byte range.
-            VolatileWrite = 0x0051 => volatile_write: VolatileWrite -> Void,
+            VolatileWrite = 0x0051 =>
+                volatile_write: VolatileWrite(Pointer, Pointer, Pointer) -> Void,
         }
     };
 }
@@ -54,7 +57,11 @@ macro_rules! runtime_operations {
 pub(super) use runtime_operations;
 
 macro_rules! define_runtime {
-    ($( $(#[$meta:meta])* $operation:ident = $code:literal => $field:ident: $ty:ident -> $result:ident, )*) => {
+    ($(
+        $(#[$meta:meta])*
+        $operation:ident = $code:literal =>
+            $field:ident: $ty:ident($($parameter:ident),*) -> $result:ident,
+    )*) => {
         /// Runtime operations callable by generated native code.
         #[repr(C)]
         #[derive(Debug, Clone, Copy)]

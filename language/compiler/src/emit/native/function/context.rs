@@ -6,7 +6,7 @@ use destack_program::ContextNode;
 
 use crate::EmitError;
 
-use super::memory::MemoryRegion;
+use super::memory::AliasRegion;
 use super::{FunctionEmitter, Value};
 
 impl<'a> FunctionEmitter<'a> {
@@ -31,7 +31,7 @@ impl<'a> FunctionEmitter<'a> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let activation = self.activation()?;
-        let flags = self.memory_flags(MemoryRegion::Activation);
+        let flags = self.memory_flags(AliasRegion::Activation);
         let offset = std::mem::offset_of!(native::abi::Activation, context);
         let previous = self.activation_pointer(offset, builder)?;
         let context = self.reference(context)?;
@@ -69,7 +69,7 @@ impl<'a> FunctionEmitter<'a> {
 
         // write the fixed header and concrete inline value before publication
         let address = self.materialize_pointer(destination, builder)?;
-        let flags = self.memory_flags(MemoryRegion::World);
+        let flags = self.memory_flags(AliasRegion::World);
         let context = self.reference(context)?;
         let variable = self.reference(variable)?;
         builder
@@ -146,7 +146,7 @@ impl<'a> FunctionEmitter<'a> {
         builder.switch_to_block(inspect);
         builder.seal_block(inspect);
         let address = builder.ins().iadd(memory, current);
-        let flags = self.memory_flags(MemoryRegion::World);
+        let flags = self.memory_flags(AliasRegion::World);
         let candidate =
             builder
                 .ins()

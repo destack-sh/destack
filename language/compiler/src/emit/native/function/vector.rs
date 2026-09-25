@@ -5,7 +5,7 @@ use destack_native as native;
 
 use crate::EmitError;
 
-use super::memory::MemoryRegion;
+use super::memory::AliasRegion;
 use super::{FunctionEmitter, Value};
 
 impl FunctionEmitter<'_> {
@@ -283,7 +283,7 @@ impl FunctionEmitter<'_> {
             ty.bytes().next_power_of_two().trailing_zeros() as u8,
         ));
         let base = builder.ins().stack_addr(self.types.pointer(), slot, 0);
-        let flags = self.memory_flags(MemoryRegion::World);
+        let flags = self.memory_flags(AliasRegion::World);
         builder.ins().store(flags, vector, base, 0);
         let lane_bytes = builder
             .ins()
