@@ -1,9 +1,12 @@
 use destack_core::{FxIndexMap, FxIndexSet};
-use destack_mir::{BlockId, Instruction, PlaceOrigin, Projection, Terminator, Type, Value};
+use destack_mir::{
+    BlockId, FunctionKind, Instruction, Place, PlaceOrigin, Projection, Terminator, Value,
+};
 
 use crate::verify::VerifyError;
 
 use super::checker::FunctionChecker;
+use super::validate::{struct_field_count, uninitialized_value};
 
 /// The field initialization state entering one block.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -79,55 +82,29 @@ impl FunctionChecker<'_, '_> {
             return;
         };
 
-        // collect the receiver's aliases, its handles, and its projected field addresses
-        let (aliases, handles, addresses) = self.collect_receiver_addresses(receiver, field_count);
+        // collect aliases to the receiver storage and initialized object
+        let (aliases, handles) = self.collect_receiver_aliases(receiver);
 
         // require every field initialized once on every path to return
-        self.check_field_flow(receiver, field_count, &aliases, &handles, &addresses);
-    }
-
-    /// Return the number of leading fields one delegated receiver's base constructor initializes.
-    fn delegated_field_count(&self, receiver: Value) -> usize {
-        let ty = self.function.expect_value_type(receiver);
-        let Type::Reference { pointee, .. } = self.tree.get(ty) else {
-            return 0;
-        };
-        let Type::Uninit { value } = self.tree.get(*pointee) else {
-            return 0;
-        };
-        match self.tree.get(self.tree.represented(*value)) {
-            Type::Struct { fields, .. } => fields.len(),
-            _ => 0,
-        }
+        self.check_field_flow(receiver, field_count, &aliases, &handles);
     }
 
     /// Return the receiver value and field count of one constructor.
     fn uninitialized_receiver(&self) -> Option<(Value, usize)> {
-        // read the struct behind the first parameter's uninitialized pointee
+        if self.function.kind != FunctionKind::Constructor {
+            return None;
+        }
         let receiver = self.function.parameters.first()?;
-        let Type::Reference { pointee, .. } = self.tree.get(receiver.ty) else {
-            return None;
-        };
-        let Type::Uninit { value } = self.tree.get(*pointee) else {
-            return None;
-        };
-        let Type::Struct { fields, .. } = self.tree.get(self.tree.represented(*value)) else {
-            return None;
-        };
+        let value = uninitialized_value(self.tree, receiver.ty)?;
+        let count = struct_field_count(self.tree, value)?;
 
-        Some((receiver.value, fields.len()))
+        Some((receiver.value, count))
     }
 
-    /// Collect the values naming the receiver's uninitialized storage, the values reading the
-    /// initialized object out of it, and the values addressing its fields.
-    fn collect_receiver_addresses(
-        &self,
-        receiver: Value,
-        field_count: usize,
-    ) -> (FxIndexSet<Value>, FxIndexSet<Value>, FxIndexMap<Value, u32>) {
+    /// Collect aliases to the receiver's uninitialized storage and initialized object.
+    fn collect_receiver_aliases(&self, receiver: Value) -> (FxIndexSet<Value>, FxIndexSet<Value>) {
         let mut aliases = FxIndexSet::default();
         let mut handles = FxIndexSet::default();
-        let mut addresses = FxIndexMap::default();
         for (index, ty) in self.function.value_types().iter().enumerate() {
             if ty.is_none() {
                 continue;
@@ -139,20 +116,29 @@ impl FunctionChecker<'_, '_> {
             }
             match place.path.projections.as_slice() {
                 // alias the uninitialized storage, a read as the initialized object a handle
-                [] if self.points_to_uninitialized(value) => {
+                [Projection::Deref] if self.points_to_uninitialized(value) => {
                     aliases.insert(value);
                 }
-                [] => {
+                [Projection::Deref] => {
                     handles.insert(value);
-                }
-                [Projection::Field { index }] if (*index as usize) < field_count => {
-                    addresses.insert(value, *index);
                 }
                 _ => {}
             }
         }
 
-        (aliases, handles, addresses)
+        (aliases, handles)
+    }
+
+    /// Return the receiver field selected by a canonical place.
+    fn receiver_field(&self, receiver: Value, place: &Place) -> Option<u32> {
+        match (place.origin, place.path.projections.as_slice()) {
+            (PlaceOrigin::Value(value), [Projection::Deref, Projection::Field { index }])
+                if value == receiver =>
+            {
+                Some(*index)
+            }
+            _ => None,
+        }
     }
 
     /// Run the field initialization dataflow, reporting violations.
@@ -162,7 +148,6 @@ impl FunctionChecker<'_, '_> {
         field_count: usize,
         aliases: &FxIndexSet<Value>,
         handles: &FxIndexSet<Value>,
-        addresses: &FxIndexMap<Value, u32>,
     ) {
         // seed every block entry, starting the entry block uninitialized
         let mut entries: FxIndexMap<BlockId, FieldState> = FxIndexMap::default();
@@ -177,9 +162,7 @@ impl FunctionChecker<'_, '_> {
             let Some(mut state) = entries.get(&block).cloned() else {
                 continue;
             };
-            self.transfer_block(
-                block, receiver, &mut state, aliases, handles, addresses, false,
-            );
+            self.transfer_block(block, receiver, &mut state, aliases, handles, false);
 
             // join this exit into every successor entry, the entry block keeping its seed
             for successor in self
@@ -209,9 +192,7 @@ impl FunctionChecker<'_, '_> {
             let Some(mut state) = entries.get(&block).cloned() else {
                 continue;
             };
-            self.transfer_block(
-                block, receiver, &mut state, aliases, handles, addresses, true,
-            );
+            self.transfer_block(block, receiver, &mut state, aliases, handles, true);
         }
     }
 
@@ -223,7 +204,6 @@ impl FunctionChecker<'_, '_> {
         state: &mut FieldState,
         aliases: &FxIndexSet<Value>,
         handles: &FxIndexSet<Value>,
-        addresses: &FxIndexMap<Value, u32>,
         is_reporting: bool,
     ) {
         let block = self.tree.get(block);
@@ -231,7 +211,7 @@ impl FunctionChecker<'_, '_> {
             let instruction = self.tree.get(instruction_id);
 
             // let a handle escape once every field initializes
-            let escapes = !matches!(instruction, Instruction::FieldAddr { .. })
+            let escapes = !matches!(instruction, Instruction::Address { .. })
                 && instruction
                     .reads(self.tree)
                     .iter()
@@ -239,19 +219,20 @@ impl FunctionChecker<'_, '_> {
             if escapes && is_reporting && !state.is_complete() {
                 self.verification
                     .emit_error(VerifyError::ReceiverBeforeInitialization {
-                        anchor: self.verification.anchor(instruction_id.into_any()),
+                        anchor: self.anchor(instruction_id.into_any()),
                     });
             }
             match instruction {
                 // initialize the field one store names, rejecting a repeat
-                Instruction::Store { pointer, .. } => {
-                    let Some(field) = addresses.get(pointer).copied() else {
+                Instruction::Store { place, .. } => {
+                    let place = self.places.resolve_place(place);
+                    let Some(field) = self.receiver_field(receiver, &place) else {
                         continue;
                     };
                     if is_reporting && state.may[field as usize] {
                         self.verification
                             .emit_error(VerifyError::FieldInitializedTwice {
-                                anchor: self.verification.anchor(instruction_id.into_any()),
+                                anchor: self.anchor(instruction_id.into_any()),
                                 field: field.to_string(),
                             });
                     }
@@ -259,25 +240,48 @@ impl FunctionChecker<'_, '_> {
                     state.must[field as usize] = true;
                     state.may[field as usize] = true;
                 }
-                // initialize the fields one call receives
+                // initialize the uninitialized storage each call argument fills in place
                 Instruction::Call { call, .. } => {
-                    for argument in self.tree.get_values(call.arguments) {
-                        // a narrowed receiver delegates to the base constructor, initializing the
-                        // base's leading fields once
-                        if *argument != receiver
-                            && aliases.contains(argument)
-                            && let count = self.delegated_field_count(*argument)
-                            && count <= state.must.len()
-                        {
+                    let Some((_, parameters, _)) = self
+                        .tree
+                        .type_definition(call.signature)
+                        .function_signature_parts()
+                    else {
+                        unreachable!("a validated call has a function signature");
+                    };
+                    let arguments = self.tree.get_values(call.arguments);
+                    for (parameter, &argument) in parameters.iter().zip(arguments) {
+                        if uninitialized_value(self.tree, parameter.ty).is_none() {
+                            continue;
+                        }
+
+                        // complete the base constructor's leading fields once
+                        if argument != receiver && aliases.contains(&argument) {
+                            let argument_type = self.function.expect_value_type(argument);
+                            let Some(count) = uninitialized_value(self.tree, argument_type)
+                                .and_then(|value| struct_field_count(self.tree, value))
+                                .filter(|count| *count <= state.must.len())
+                            else {
+                                unreachable!("a validated view of the receiver holds its fields");
+                            };
                             if is_reporting && state.may_delegate {
                                 self.verification.emit_error(VerifyError::SuperCalledTwice {
-                                    anchor: self.verification.anchor(instruction_id.into_any()),
+                                    anchor: self.anchor(instruction_id.into_any()),
                                 });
                             }
                             state.fill(count);
                         }
-                        // a passed field address initializes its field
-                        if let Some(field) = addresses.get(argument).copied() {
+                        // complete one field constructed in place
+                        else if let Some(field) =
+                            self.receiver_field(receiver, self.places.get(argument))
+                        {
+                            if is_reporting && state.may[field as usize] {
+                                self.verification
+                                    .emit_error(VerifyError::FieldInitializedTwice {
+                                        anchor: self.anchor(instruction_id.into_any()),
+                                        field: field.to_string(),
+                                    });
+                            }
                             state.must[field as usize] = true;
                             state.may[field as usize] = true;
                         }
@@ -294,7 +298,7 @@ impl FunctionChecker<'_, '_> {
                 if !initialized {
                     self.verification
                         .emit_error(VerifyError::FieldLeftUninitialized {
-                            anchor: self.verification.anchor(block.terminator.into_any()),
+                            anchor: self.anchor(block.terminator.into_any()),
                             field: field.to_string(),
                         });
                 }

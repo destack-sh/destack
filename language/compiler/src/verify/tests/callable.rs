@@ -71,3 +71,53 @@ function invokeOwned(run: ^Function<(), void, "once">): void {
 "#,
     );
 }
+
+/// Release a once closure's environment after its captures move out.
+#[test]
+fn test_release_a_once_closure_environment_after_its_captures_move_out() {
+    let session = TestSession::single(
+        r#"
+import { Box } from "destack:memory";
+
+function invokeOwned(run: ^Function<(), void, "once">): void {
+    run();
+}
+
+function consume(value: ^Box<int32>): void {}
+
+function spawn(): void {
+    let value = Box.new(1);
+    @capture("move")
+    let run: ^Function<(), void, "once"> = () => {
+        consume(value);
+    };
+    invokeOwned(run);
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+
+"#,
+    );
+}
+
+/// Read a copyable value through a closure parameter borrow under the enclosing where clause.
+#[test]
+fn test_copy_through_a_closure_parameter_borrow_under_an_enclosing_where_clause() {
+    let session = TestSession::single(
+        r#"
+import { Copy } from "destack:memory";
+
+function keep<T>(predicate: (value: T) => boolean): ((value: &immutable T) => boolean) where T: Copy {
+    return (value: &immutable T) => predicate(*value);
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+"#,
+    );
+}

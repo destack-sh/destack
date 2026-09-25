@@ -1,4 +1,7 @@
-use destack_mir::{Lifetime, LocalNodeIdAny, Origin, Path, Terminator, TypeId, Value};
+use destack_mir::{
+    Lifetime, LocalNodeIdAny, Origin, Path, Terminator, TypeId, Value, type_borrowed_paths,
+    type_contains_borrowed_refs, type_lifetime, type_origin_paths,
+};
 
 use crate::verify::VerifyError;
 
@@ -7,10 +10,7 @@ use super::checker::FunctionChecker;
 impl FunctionChecker<'_, '_> {
     /// Check one returned value.
     pub(super) fn check_return(&mut self, value: Value, anchor: LocalNodeIdAny) {
-        if !self
-            .tree
-            .type_contains_borrowed_refs(self.function.return_type)
-        {
+        if !type_contains_borrowed_refs(self.tree, self.function.return_type) {
             return;
         }
 
@@ -43,8 +43,8 @@ impl FunctionChecker<'_, '_> {
         }
 
         let return_type = self.function.return_type;
-        let return_paths = self.tree.type_borrowed_paths(return_type);
-        let return_lifetime = self.tree.type_lifetime(return_type);
+        let return_paths = type_borrowed_paths(self.tree, return_type);
+        let return_lifetime = type_lifetime(self.tree, return_type);
 
         for (path, origin) in bindings {
             // require a proven origin
@@ -67,7 +67,7 @@ impl FunctionChecker<'_, '_> {
             if is_unproven || is_uncovered {
                 self.verification
                     .emit_error(VerifyError::BorrowOutlivesOrigin {
-                        anchor: self.verification.anchor(anchor),
+                        anchor: self.anchor(anchor),
                     });
 
                 return;
@@ -109,34 +109,67 @@ impl FunctionChecker<'_, '_> {
             .map(|parameter| parameter.ty)
             .collect::<Vec<_>>();
 
-        // prove every declared outlives bound from the actual argument origin
-        for (slot, parameter) in lifetimes.iter().enumerate() {
-            for target in &parameter.outlives {
-                let longer = self.context().map_lifetime(
-                    &self.state,
-                    &Lifetime::slot(slot as u32),
-                    lifetimes,
-                    &parameter_types,
-                    arguments,
-                );
-                let shorter = self.context().map_lifetime(
-                    &self.state,
-                    &Lifetime::slot(target.0),
-                    lifetimes,
-                    &parameter_types,
-                    arguments,
-                );
+        // check each declared outlives set against the actual argument origins
+        for (index, parameter) in lifetimes.iter().enumerate() {
+            let longer = self.context().map_lifetime(
+                &self.state,
+                &Lifetime::bound(index as u32),
+                lifetimes,
+                &parameter_types,
+                arguments,
+            );
+            let shorter = self.context().map_lifetime(
+                &self.state,
+                &parameter.outlives,
+                lifetimes,
+                &parameter_types,
+                arguments,
+            );
 
-                // defer result-only slots to result mapping
-                if shorter.is_empty() {
-                    continue;
+            // check bounds whose origins are available at this call
+            if !shorter.is_empty() && !longer.outlives(&shorter, &self.function.lifetimes) {
+                self.verification
+                    .emit_error(VerifyError::BorrowOutlivesOrigin {
+                        anchor: self.anchor(anchor),
+                    });
+            }
+        }
+    }
+
+    /// Check that every borrow one stored value holds outlives its destination.
+    pub(super) fn check_stored_borrows(
+        &mut self,
+        value: Value,
+        destination: TypeId,
+        anchor: LocalNodeIdAny,
+    ) {
+        let bindings = self.state.value_borrows(&self.context(), value);
+        if bindings.is_empty() {
+            return;
+        }
+        let paths = type_origin_paths(self.tree, destination);
+        let root = type_lifetime(self.tree, destination);
+
+        // cover every stored borrow by its destination path, else by the destination root
+        for (path, origin) in bindings {
+            let required = paths
+                .iter()
+                .find(|borrowed| borrowed.path == path)
+                .map(|borrowed| &borrowed.lifetime)
+                .or_else(|| root.as_ref().filter(|_| path.is_root()));
+            let is_covered = match required {
+                Some(required) => {
+                    !origin.is_empty() && origin.is_covered_by(required, &self.function.lifetimes)
                 }
-                if !longer.outlives(&shorter, &self.function.lifetimes) {
-                    self.verification
-                        .emit_error(VerifyError::BorrowOutlivesOrigin {
-                            anchor: self.verification.anchor(anchor),
-                        });
-                }
+                None => false,
+            };
+            if !is_covered {
+                self.verification
+                    .emit_error(VerifyError::BorrowOutlivesOrigin {
+                        anchor: self.anchor(anchor),
+                    });
+
+                return;
             }
         }
     }
@@ -161,7 +194,7 @@ impl FunctionChecker<'_, '_> {
 
         self.verification
             .emit_error(VerifyError::BorrowOutlivesOrigin {
-                anchor: self.verification.anchor(anchor),
+                anchor: self.anchor(anchor),
             });
         for (_, origin) in escaping {
             for loan in origin.loans() {

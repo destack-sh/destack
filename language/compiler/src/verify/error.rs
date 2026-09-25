@@ -7,28 +7,6 @@ use crate::DiagnosticAnchor;
 #[diagnostic(severity = Error, phase = Verify)]
 pub enum VerifyError {
     // move checking
-    /// A conditional selection attempts to duplicate move-only operands.
-    ///
-    /// ```mir
-    /// type Box {
-    ///     value: int32;
-    /// }
-    ///
-    /// function test(v0: Box, v1: Box, v2: boolean): Box {
-    /// entry(v0: Box, v1: Box, v2: boolean):
-    ///     v3: Box = select v2, v0, v1
-    ///     return v3
-    /// }
-    /// ```
-    #[diagnostic(
-        id = "select-of-move-only-value",
-        message = "invalid MIR: select operands must implement Copy"
-    )]
-    SelectOfMoveOnlyValue {
-        /// The invalid selection.
-        anchor: DiagnosticAnchor,
-    },
-
     /// A place is read before it is initialized.
     ///
     /// ```mir
@@ -247,7 +225,7 @@ pub enum VerifyError {
         active_borrow: DiagnosticAnchor,
     },
 
-    /// A writable borrow is created through a readonly reference.
+    /// A borrow requests stronger access than its source grants.
     ///
     /// ```mir
     /// type Box {
@@ -256,16 +234,36 @@ pub enum VerifyError {
     ///
     /// function test(v0: ref<Box, borrowed, readonly>): void {
     /// entry(v0: ref<Box, borrowed, readonly>):
-    ///     v1: ref<int32, borrowed, mutable> = field.address v0, 0
+    ///     v1: ref<int32, borrowed, mutable> = address (*v0).0
     ///     return
     /// }
     /// ```
     #[diagnostic(
-        id = "borrow-through-readonly-reference",
-        message = "cannot create a writable borrow through a readonly reference"
+        id = "borrow-access-strengthening",
+        message = "cannot strengthen borrowed access"
     )]
-    BorrowThroughReadonlyReference {
+    BorrowAccessStrengthening {
         /// The invalid borrow.
+        anchor: DiagnosticAnchor,
+    },
+
+    /// An alias can replace the case containing a borrowed inline payload.
+    ///
+    /// ```mir
+    /// type Either = variant<uint1> { 0uint1 = int32; 1uint1 = int64; };
+    ///
+    /// function test(v0: ref<Either, borrowed, mutable>): void {
+    /// entry(v0: ref<Either, borrowed, mutable>):
+    ///     v1: ref<int32, borrowed, mutable> = address ((*v0) as 0)
+    ///     return
+    /// }
+    /// ```
+    #[diagnostic(
+        id = "borrow-of-aliasable-variant",
+        message = "cannot borrow an inline variant payload through aliasable access"
+    )]
+    BorrowOfAliasableVariant {
+        /// The payload borrow.
         anchor: DiagnosticAnchor,
     },
 
@@ -328,8 +326,8 @@ pub enum VerifyError {
     /// }
     /// ```
     #[diagnostic(
-        id = "use-of-mutably-borrowed-place",
-        message = "cannot use mutably borrowed place"
+        id = "use-of-exclusively-borrowed-place",
+        message = "cannot use exclusively borrowed place"
     )]
     UseOfExclusivelyBorrowedPlace {
         /// The conflicting read.
@@ -365,8 +363,8 @@ pub enum VerifyError {
     ///
     /// function test(v0: ref<User, managed, mutable, shared>): int32 {
     /// entry(v0: ref<User, managed, mutable, shared>):
-    ///     v1: ref<int32, borrowed, mutable, shared> = field.address v0, 0
-    ///     v2: int32 = load v1
+    ///     v1: ref<int32, borrowed, 'managed, mutable> = address (*v0).0
+    ///     v2: int32 = load (*v1)
     ///     return v2
     /// }
     /// ```

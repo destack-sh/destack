@@ -1,17 +1,35 @@
+use std::borrow::Cow;
+
 use destack_mir::{
-    Access, Block, Instruction, Lifetime, Loan, LoanId, LocalId, LocalNodeId, LocalNodeIdAny,
-    MemoryAccessEffect, MemoryRegion, Place, PlaceOrigin, Projection, ReferenceKind, Storage,
-    StorageSet, Terminator, Type, TypeId, Value,
+    Access, AccessTarget, Block, Call, Instruction, Loan, LoanId, LocalNodeId, LocalNodeIdAny,
+    MemoryAccessEffect, MemoryAddress, MemoryRegion, Place, PlaceOrigin, Projection, Reference,
+    Storage, Terminator, Value,
 };
+use smallvec::SmallVec;
 
 use destack_core::BitSet;
 
 use crate::verify::VerifyError;
 
 use super::checker::FunctionChecker;
+use super::r#move::Movability;
+use super::validate::stored_values;
+
+/// What one access does to the storage it touches, deciding the diagnostic of a conflict.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AccessKind {
+    /// A new loan of the place.
+    Borrow,
+    /// A read of the place.
+    Read,
+    /// A write of the place, which may retag it or release the owned storage below it.
+    Write,
+    /// A move out of the place, leaving it uninitialized.
+    Move,
+}
 
 impl FunctionChecker<'_, '_> {
-    /// Check one instruction against the current origin.
+    /// Check one instruction against the loans live before it.
     pub(super) fn check_instruction(
         &mut self,
         instruction_id: LocalNodeId<Instruction>,
@@ -19,131 +37,67 @@ impl FunctionChecker<'_, '_> {
     ) {
         let anchor = instruction_id.into_any();
 
-        // enforce every memory effect against active loans
-        self.check_instruction_memory(instruction_id, instruction, anchor);
-
-        // enforce instruction-specific ownership rules
+        // check the access each new reference is granted, a cast addressing its argument's referent
         match instruction {
-            Instruction::LocalGet { destination, local } if self.is_move_only(*destination) => {
-                self.invalidate_local(*local, anchor);
-            }
-            // a move-only load out of owned storage moves the addressed place
-            Instruction::Load {
+            Instruction::Address {
+                destination, place, ..
+            } => self.check_address_grant(*destination, place, anchor),
+            Instruction::Cast {
                 destination,
-                pointer,
+                argument,
                 ..
-            } if self.is_move_only(*destination) && self.addresses_owned_storage(*pointer) => {
-                let place = self.places.get(*pointer).clone();
-                self.check_invalidation(&place, anchor);
-            }
-            Instruction::LocalSet { local, value } => {
-                self.check_invalidation(&Place::local(*local), anchor);
-                let ty = self.tree.get(*local).ty;
-                self.check_write(*value, ty, anchor);
-            }
-            Instruction::Store { pointer, value } => {
-                self.check_store(*pointer, *value, anchor);
-            }
-            Instruction::Aggregate {
-                destination,
-                values,
-            } => {
-                for (index, value) in self.tree.get_values(*values).iter().copied().enumerate() {
-                    let ty = self.slot_type(*destination, index, value);
-                    self.check_write(value, ty, anchor);
-                }
-            }
-            Instruction::FieldAddr {
-                destination,
-                aggregate,
-                ..
-            } => {
-                self.check_projection_loan(*destination, *aggregate, anchor);
-            }
-            Instruction::ElementAddr {
-                destination, base, ..
-            } => {
-                self.check_projection_loan(*destination, *base, anchor);
-            }
-            Instruction::VariantPayloadAddr {
-                destination,
-                variant,
-                ..
-            } => {
-                self.check_projection_loan(*destination, *variant, anchor);
-            }
-            Instruction::SliceView {
-                destination,
-                source,
-                ..
-            } => {
-                self.check_projection_loan(*destination, *source, anchor);
-            }
-            Instruction::FieldGet {
-                destination,
-                aggregate,
-                field,
-            } => {
-                let projection = Projection::Field { index: *field };
-                self.invalidate_projection(*destination, *aggregate, projection, anchor);
-            }
-            Instruction::ElementGet {
-                destination,
-                aggregate,
-                index,
-            } => {
-                let projection = Projection::Element { index: *index };
-                self.invalidate_projection(*destination, *aggregate, projection, anchor);
-            }
-            Instruction::LocalAddr { destination, .. } => {
-                self.check_borrow(*destination, anchor);
-            }
-            Instruction::FieldSet {
-                aggregate,
-                field,
-                value,
-                ..
-            } => {
-                let ty = self.field_type(*aggregate, *field);
-                self.check_write(*value, ty, anchor);
-            }
-            Instruction::ElementSet {
-                aggregate, value, ..
-            } => {
-                let ty = self.element_type(*aggregate);
-                self.check_write(*value, ty, anchor);
-            }
-            Instruction::VariantNew {
-                payload: Some(payload),
-                case,
-                result_type,
-                ..
-            } => {
-                let result_type = self.tree.represented(*result_type);
-                let Type::Variant { cases, .. } = self.tree.get(result_type) else {
-                    unreachable!("variant.new result has no variant type")
-                };
-                let ty = cases
-                    .get(*case as usize)
-                    .map(|case| case.payload(self.tree))
-                    .unwrap_or_else(|| unreachable!("variant.new case is out of range"));
-                self.check_write(*payload, ty, anchor);
-            }
-            Instruction::GlobalAddr { destination, .. } => {
-                self.check_borrow(*destination, anchor);
-            }
-            Instruction::Call { call, .. } => {
-                let arguments = self.tree.get_values(call.arguments);
-                self.check_call_outlives(&call.signature, arguments, anchor);
+            } if self.is_dereferenceable(*argument) => {
+                let place = Place::value(*argument).with_projection(Projection::Deref);
+                self.check_address_grant(*destination, &place, anchor);
             }
             _ => {}
         }
+        if let Some(place) = instruction.store_place() {
+            self.check_write_grant(place, anchor);
+        }
 
-        // invalidate loans rooted in consumed values
-        self.invalidate_instruction(instruction, anchor);
+        // check the lifetimes of stored borrows, leaving unchecked pointer stores to their author
+        if !self.is_unchecked_store(instruction) {
+            let stored = stored_values(self.tree, self.function_id, instruction)
+                .unwrap_or_else(|message| unreachable!("a validated instruction has {message}"));
+            for (value, destination) in stored {
+                self.check_stored_borrows(value, destination, anchor);
+            }
+        }
+
+        // check the lifetimes of call arguments
+        if let Instruction::Call { call, .. } = instruction {
+            let arguments = self.tree.get_values(call.arguments);
+            self.check_call_outlives(&call.signature, arguments, anchor);
+        }
+
+        // check new loans, then every access against the loans live here
+        let authorized = match instruction {
+            Instruction::Address { destination, .. } | Instruction::Cast { destination, .. } => {
+                self.check_issued_loans(*destination, anchor);
+                Vec::new()
+            }
+            Instruction::Call { call, .. } => self.check_call_borrows(call, anchor),
+            _ => Vec::new(),
+        };
+        let effects = self.effects.clone();
+        self.check_effects(effects.instruction_effects(instruction_id), anchor);
+        self.revoke(&authorized);
+
+        // check each move out of a consumed value, an aggregate, or owned storage
+        for value in instruction.consumes(self.tree) {
+            if self.is_moved_on_use(value) {
+                self.check_move(&Place::value(value), anchor);
+            }
+        }
+        if let Some(place) = self.moved_place(instruction)
+            && matches!(self.movability(&place), Movability::Owned { .. })
+        {
+            self.check_move(&place, anchor);
+        }
     }
 
-    /// Check one terminator against the current origin.
+    /// Check one terminator against the loans live before it.
     pub(super) fn check_terminator(
         &mut self,
         block_id: LocalNodeId<Block>,
@@ -152,575 +106,418 @@ impl FunctionChecker<'_, '_> {
     ) {
         let anchor = terminator_id.into_any();
 
-        // check returned retention against the function return lifetime
+        // check the lifetimes of returned borrows and of call arguments
         if let Terminator::Return { value: Some(value) } = terminator {
             self.check_return(*value, anchor);
         }
-
-        // check declared call lifetime relations
         self.check_terminator_call_outlives(terminator, anchor);
-
-        // reject frame origin transferred out of a replaced frame
         if let Terminator::TailCall { call } = terminator {
             self.check_tail_call(self.tree.get_values(call.arguments), anchor);
         }
-
-        // enforce terminator memory effects against active loans
-        self.check_terminator_memory(block_id, terminator, anchor);
-
-        // check tail-call result retention against the function return lifetime
         self.check_tail_call_return(terminator, anchor);
 
-        // invalidate loans rooted in consumed terminator values
+        // check every access against the loans live here
+        let authorized = match terminator {
+            Terminator::Invoke { call, .. } | Terminator::TailCall { call } => {
+                self.check_call_borrows(call, anchor)
+            }
+            _ => Vec::new(),
+        };
+        let effects = self.effects.clone();
+        self.check_effects(effects.terminator_effects(block_id), anchor);
+        self.revoke(&authorized);
+
+        // check each move out of a consumed value
         for value in terminator.consumes(self.tree) {
-            self.invalidate_value(value, anchor);
-        }
-    }
-
-    /// Check loans invalidated by consuming one move-only value.
-    fn invalidate_value(&mut self, value: Value, anchor: LocalNodeIdAny) {
-        if !self.is_move_only(value) {
-            return;
-        }
-
-        let place = self.places.get(value).clone();
-        self.check_invalidation(&place, anchor);
-    }
-
-    /// Check loans invalidated by one instruction.
-    fn invalidate_instruction(&mut self, instruction: &Instruction, anchor: LocalNodeIdAny) {
-        for value in instruction.consumes(self.tree) {
-            self.invalidate_value(value, anchor);
-        }
-    }
-
-    /// Check loans invalidated by consuming one local.
-    fn invalidate_local(&mut self, local: LocalId, anchor: LocalNodeIdAny) {
-        let place = Place::local(local);
-        self.check_invalidation(&place, anchor);
-    }
-
-    /// Check loans invalidated by consuming one projected place.
-    fn invalidate_projection(
-        &mut self,
-        value: Value,
-        base: Value,
-        projection: Projection,
-        anchor: LocalNodeIdAny,
-    ) {
-        if !self.is_move_only(value) {
-            return;
-        }
-
-        // invalidate the complete variant or selected aggregate child
-        let place = self.place_moved_by_projection(base, projection);
-        self.check_invalidation(&place, anchor);
-    }
-
-    /// Check one projected loan.
-    fn check_projection_loan(&mut self, reference: Value, root: Value, anchor: LocalNodeIdAny) {
-        // propagate a rejected parent loan through the projection
-        let is_parent_rejected = self
-            .state
-            .value(root)
-            .loans()
-            .iter()
-            .any(|loan| self.rejected_loans.contains(loan.index()));
-        if is_parent_rejected {
-            self.reject_loan(reference);
-        }
-
-        // preserve readonly access through every safe projection
-        let is_writable = self
-            .reference_access(reference)
-            .is_some_and(Access::can_write);
-        let is_readonly_root = self
-            .reference_access(root)
-            .is_some_and(|access| !access.can_write());
-        if is_writable && is_readonly_root {
-            self.verification
-                .emit_error(VerifyError::BorrowThroughReadonlyReference {
-                    anchor: self.verification.anchor(anchor),
-                });
-            self.reject_loan(reference);
-        }
-
-        self.check_borrow(reference, anchor);
-    }
-
-    /// Check memory touched by one instruction.
-    fn check_instruction_memory(
-        &mut self,
-        instruction_id: LocalNodeId<Instruction>,
-        instruction: &Instruction,
-        anchor: LocalNodeIdAny,
-    ) {
-        // reject writes through readonly safe references
-        if let Some(pointer) = instruction.store_pointer() {
-            self.check_reference_write(pointer, anchor);
-        }
-
-        let effects = self
-            .accesses
-            .instruction_effects(instruction_id)
-            .cloned()
-            .collect::<Vec<_>>();
-        let mut authorized = BitSet::new(self.origin.loans().len());
-        let carried = instruction
-            .reads(self.tree)
-            .into_iter()
-            .flat_map(|value| self.state.value(value).loans().to_vec())
-            .collect::<Vec<_>>();
-        self.authorize_through(&mut authorized, carried);
-
-        // check temporary parameter loans at calls
-        if let Instruction::Call { call, .. } = instruction {
-            let arguments = self.tree.get_values(call.arguments);
-            for loan in self.check_call_access(&call.signature, arguments, anchor) {
-                authorized.insert(loan.index());
+            if self.is_moved_on_use(value) {
+                self.check_move(&Place::value(value), anchor);
             }
         }
-
-        self.check_memory_effects(&effects, &authorized, anchor);
     }
 
-    /// Authorize loans and every loan they reborrow through.
-    fn authorize_through(&self, authorized: &mut BitSet, mut pending: Vec<LoanId>) {
-        while let Some(loan) = pending.pop() {
-            if !authorized.insert(loan.index()) {
+    /// Return whether one value is a reference or pointer an address may dereference.
+    fn is_dereferenceable(&self, value: Value) -> bool {
+        let ty = self.value_type(value);
+
+        ty.reference_kind().is_some() || ty.is_pointer()
+    }
+
+    /// Return whether one instruction stores through a raw pointer, which its author vouches for.
+    fn is_unchecked_store(&self, instruction: &Instruction) -> bool {
+        let Instruction::Store { place, .. } = instruction else {
+            return false;
+        };
+
+        place
+            .reference_type(self.function_id, self.tree)
+            .is_some_and(|ty| {
+                let reference = self.tree.type_definition(ty);
+                reference.is_pointer() || reference.reference_kind() == Some(Reference::Raw)
+            })
+    }
+
+    /// Check every loan one new reference issues against the loans live here.
+    fn check_issued_loans(&mut self, reference: Value, anchor: LocalNodeIdAny) {
+        let origin = self.origin.clone();
+        for loan_id in origin.loans().roots_of(reference) {
+            // reject a reborrow of a rejected loan with it
+            let loan = origin.loans().get(loan_id);
+            if loan
+                .parents()
+                .iter()
+                .any(|parent| self.rejected_loans.contains(parent.index()))
+            {
+                self.reject_borrow(reference);
+            }
+            if self.rejected_loans.contains(loan_id.index()) {
                 continue;
             }
-            pending.extend(self.origin.loans().get(loan).parents().iter().copied());
+
+            self.check_loan(loan, false, anchor);
         }
     }
 
-    /// Check memory touched by one call terminator.
-    fn check_terminator_memory(
-        &mut self,
-        block: LocalNodeId<Block>,
-        terminator: &Terminator,
-        anchor: LocalNodeIdAny,
-    ) {
-        let (Terminator::Invoke { call, .. } | Terminator::TailCall { call }) = terminator else {
-            return;
+    /// Check the borrow each call argument makes, authorizing the loans the arguments hold.
+    ///
+    /// Return the authorized loans, which the caller revokes once the call's effects are checked.
+    fn check_call_borrows(&mut self, call: &Call, anchor: LocalNodeIdAny) -> Vec<LoanId> {
+        let Some((_, parameters, _)) = self.tree.get(call.signature).function_signature_parts()
+        else {
+            unreachable!("a validated call has a function signature")
         };
         let arguments = self.tree.get_values(call.arguments);
-        let mut authorized = BitSet::new(self.origin.loans().len());
-        for loan in self.check_call_access(&call.signature, arguments, anchor) {
-            authorized.insert(loan.index());
-        }
+        let origin = self.origin.clone();
+        let loans = origin.loans();
+        let mut borrows: Vec<Cow<'_, Loan>> = Vec::new();
 
-        let effects = self
-            .accesses
-            .terminator_effects(block)
-            .cloned()
-            .collect::<Vec<_>>();
-        for loan in arguments
-            .iter()
-            .copied()
-            .flat_map(|value| self.state.value(value).loans().to_vec())
-        {
-            authorized.insert(loan.index());
-        }
+        // borrow each borrowed parameter's argument for the duration of the call
+        for (parameter, &argument) in parameters.iter().zip(arguments) {
+            let parameter_type = self.tree.get(parameter.ty);
+            if parameter_type.reference_kind() != Some(Reference::Borrowed) {
+                continue;
+            }
+            let access = parameter_type
+                .reference_access()
+                .unwrap_or_else(|| unreachable!("a borrowed parameter has no access"));
 
-        self.check_memory_effects(&effects, &authorized, anchor);
-    }
-
-    /// Check memory effects against active exclusive loans.
-    fn check_memory_effects(
-        &mut self,
-        effects: &[MemoryAccessEffect],
-        authorized: &BitSet,
-        anchor: LocalNodeIdAny,
-    ) {
-        for effect in effects {
-            for index in 0..self.active_loans.len() {
-                let loan_id = self.active_loans[index];
-                let loan = self.origin.loans().get(loan_id);
-
-                // check every borrow for assignments and exclusive borrows for opaque effects
-                let is_assignment = matches!(
-                    effect.region,
-                    MemoryRegion::Local(_) | MemoryRegion::Address { .. }
-                );
-                let is_conflicting = (effect.writes && is_assignment) || self.is_exclusive(loan);
-                if !is_conflicting || authorized.contains(loan_id.index()) {
-                    continue;
-                }
-
-                // skip opaque effects over loans confined to this frame
-                if matches!(effect.region, MemoryRegion::Any { .. }) && !self.is_loan_exposed(loan)
-                {
-                    continue;
-                }
-
-                // report each loan once per anchor, over the effects that may touch it
-                if !self.effect_may_touch_loan(effect, loan) {
-                    continue;
-                }
-                if !self.reports(loan_id, anchor) {
-                    continue;
-                }
-
-                let issued_at = self.origin.loans().get(loan_id).issued_at;
-                let borrowed_at = self.verification.anchor(issued_at);
-                if effect.writes {
-                    self.verification.emit_error(
-                        VerifyError::InvalidationOfBorrowedPlace {
-                            anchor: self.verification.anchor(anchor),
-                            borrowed_at: borrowed_at.clone(),
-                        }
-                        .label(borrowed_at, "borrow starts here"),
+            // reuse the loans the argument issued, else borrow the places it may address
+            let start = borrows.len();
+            borrows.extend(
+                loans
+                    .roots_of(argument)
+                    .map(|loan| loans.get(loan))
+                    .filter(|loan| loan.place().is_some())
+                    .map(Cow::Borrowed),
+            );
+            let is_issued = borrows.len() > start;
+            if !is_issued {
+                let carried = self.state.value(argument);
+                for place in self.argument_places(argument) {
+                    let loan = Loan::new(
+                        place,
+                        None,
+                        access,
+                        argument,
+                        carried.loans().iter().copied(),
+                        anchor,
+                        &self.places,
                     );
-                } else if effect.reads {
-                    self.verification.emit_error(
-                        VerifyError::UseOfExclusivelyBorrowedPlace {
-                            anchor: self.verification.anchor(anchor),
-                            borrowed_at: borrowed_at.clone(),
-                        }
-                        .label(borrowed_at, "borrow starts here"),
-                    );
+                    borrows.push(Cow::Owned(loan));
+                }
+            }
+
+            // reject a borrow excluding a borrow of an earlier argument
+            let (earlier, current) = borrows.split_at(start);
+            for borrow in current {
+                let is_aliased = earlier.iter().any(|earlier| {
+                    earlier.conflicts(
+                        borrow,
+                        &self.constants,
+                        &self.places,
+                        self.function_id,
+                        self.tree,
+                    )
+                });
+                if is_aliased {
+                    self.verification
+                        .emit_error(VerifyError::MutableArgumentAlias {
+                            anchor: self.anchor(anchor),
+                        });
+                }
+
+                // check each temporary borrow, which no address instruction checked
+                if !is_issued {
+                    self.check_loan(borrow, true, anchor);
                 }
             }
         }
+
+        // authorize the loans every argument holds, with their ancestry
+        let mut authorized = Vec::new();
+        for argument in arguments {
+            authorized.extend_from_slice(self.state.value(*argument).loans());
+        }
+        loans.extend_parents(&mut authorized, &mut self.authorized_loans);
+
+        authorized
+    }
+
+    /// Revoke the loans one operation authorized.
+    fn revoke(&mut self, authorized: &[LoanId]) {
+        for loan in authorized {
+            self.authorized_loans.remove(loan.index());
+        }
+    }
+
+    /// Check one new loan against shared storage and the loans live here.
+    fn check_loan(&mut self, loan: &Loan, is_temporary: bool, anchor: LocalNodeIdAny) {
+        let reference = loan.representation;
+
+        // reject mutable access to shared storage, except a constructor filling it uninitialized
+        let is_shared = loan
+            .place()
+            .and_then(|place| place.storage(self.function_id, self.tree))
+            .is_some_and(Storage::is_shared);
+        let is_uninit = !is_temporary && self.points_to_uninitialized(reference);
+        if loan.writes() && is_shared && !is_uninit {
+            self.verification
+                .emit_error(VerifyError::MutableBorrowFromSharedStorage {
+                    anchor: self.anchor(anchor),
+                });
+            if !is_temporary {
+                self.reject_borrow(reference);
+            }
+
+            return;
+        }
+
+        // reject a live loan this one excludes
+        let conflict = self.origin.loans().conflict(
+            loan,
+            &self.active_loans,
+            &self.constants,
+            &self.places,
+            self.function_id,
+            self.tree,
+        );
+        if let Some(conflict) = conflict {
+            self.report_conflict(AccessKind::Borrow, conflict, anchor);
+            if !is_temporary {
+                self.reject_borrow(reference);
+            }
+        }
+    }
+
+    /// Check the memory effects of one operation against the loans live here.
+    fn check_effects<'e>(
+        &mut self,
+        effects: impl Iterator<Item = &'e MemoryAccessEffect>,
+        anchor: LocalNodeIdAny,
+    ) {
+        for effect in effects.filter(|effect| effect.reads || effect.writes) {
+            let (kind, access) = if effect.writes {
+                (AccessKind::Write, Access::Mutable)
+            } else {
+                (AccessKind::Read, Access::Readonly)
+            };
+
+            // select the touched storage and the references traversed to it
+            let mut traversed = Vec::new();
+            let target = match &effect.region {
+                MemoryRegion::Address { location, .. } => match &location.address {
+                    MemoryAddress::Place(place) => {
+                        self.collect_traversed(place, &mut traversed);
+                        AccessTarget::Place(self.places.resolve_place(place))
+                    }
+                    MemoryAddress::Dynamic { value, .. } => {
+                        traversed.extend_from_slice(self.state.value(*value).loans());
+                        AccessTarget::Place(self.places.get(*value).clone())
+                    }
+                },
+                MemoryRegion::Local(local) => AccessTarget::Place(Place::local(*local)),
+                MemoryRegion::Any { spaces } => AccessTarget::Spaces(*spaces),
+                MemoryRegion::Place(_) => {
+                    unreachable!("an operation's memory effect has no analysis place region")
+                }
+            };
+            self.origin
+                .loans()
+                .extend_parents(&mut traversed, &mut self.traversed_loans);
+
+            // leave accesses through a rejected borrow to its own diagnostic
+            let is_rejected = traversed
+                .iter()
+                .any(|loan| self.rejected_loans.contains(loan.index()));
+            if !is_rejected {
+                self.check_access(&target, kind, access, anchor);
+            }
+            self.untraverse(&traversed);
+        }
+    }
+
+    /// Check one move out of a place against the loans live here, except the loans it traverses.
+    fn check_move(&mut self, place: &Place, anchor: LocalNodeIdAny) {
+        let mut traversed = Vec::new();
+        self.collect_traversed(place, &mut traversed);
+        self.origin
+            .loans()
+            .extend_parents(&mut traversed, &mut self.traversed_loans);
+
+        let target = AccessTarget::Place(self.places.resolve_place(place));
+        self.check_access(&target, AccessKind::Move, Access::Exclusive, anchor);
+        self.untraverse(&traversed);
+    }
+
+    /// Forget the loans one access traversed.
+    fn untraverse(&mut self, traversed: &[LoanId]) {
+        for loan in traversed {
+            self.traversed_loans.remove(loan.index());
+        }
+    }
+
+    /// Check one access against the loans live here, except the authorized and traversed ones.
+    fn check_access(
+        &mut self,
+        target: &AccessTarget,
+        kind: AccessKind,
+        access: Access,
+        anchor: LocalNodeIdAny,
+    ) {
+        let conflicting = self
+            .active_loans
+            .iter()
+            .copied()
+            .filter(|&loan_id| {
+                let loan = self.origin.loans().get(loan_id);
+
+                // skip authorized and traversed loans, and loans unexposed to an unrelated access
+                !self.authorized_loans.contains(loan_id.index())
+                    && !self.traversed_loans.contains(loan_id.index())
+                    && (matches!(target, AccessTarget::Place(_)) || self.is_loan_exposed(loan))
+                    && loan.forbids(
+                        target,
+                        access,
+                        anchor,
+                        &self.constants,
+                        &self.places,
+                        self.function_id,
+                        self.tree,
+                    )
+            })
+            .collect::<SmallVec<[LoanId; 4]>>();
+        self.report_innermost(&conflicting, kind, anchor);
+    }
+
+    /// Report the innermost reborrow of each broken loan chain.
+    fn report_innermost(
+        &mut self,
+        conflicting: &[LoanId],
+        kind: AccessKind,
+        anchor: LocalNodeIdAny,
+    ) {
+        if conflicting.is_empty() {
+            return;
+        }
+
+        // report only the innermost reborrow of each chain
+        let mut ancestors = BitSet::new(self.origin.loans().len());
+        for &loan_id in conflicting {
+            let mut parents = self.origin.loans().get(loan_id).parents().to_vec();
+            self.origin
+                .loans()
+                .extend_parents(&mut parents, &mut ancestors);
+        }
+        for &loan_id in conflicting {
+            if !ancestors.contains(loan_id.index()) {
+                self.report_conflict(kind, loan_id, anchor);
+            }
+        }
+    }
+
+    /// Report one access breaking one loan, once per loan chain and anchor.
+    fn report_conflict(&mut self, kind: AccessKind, loan: LoanId, anchor: LocalNodeIdAny) {
+        if !self.reports(loan, anchor) {
+            return;
+        }
+        let borrowed_at = self.anchor(self.origin.loans().get(loan).issued_at);
+        let anchor = self.anchor(anchor);
+
+        let error = match kind {
+            AccessKind::Borrow => VerifyError::BorrowConflict {
+                anchor,
+                active_borrow: borrowed_at.clone(),
+            },
+            AccessKind::Read => VerifyError::UseOfExclusivelyBorrowedPlace {
+                anchor,
+                borrowed_at: borrowed_at.clone(),
+            },
+            AccessKind::Write | AccessKind::Move => VerifyError::InvalidationOfBorrowedPlace {
+                anchor,
+                borrowed_at: borrowed_at.clone(),
+            },
+        };
+        self.verification
+            .emit_error(error.label(borrowed_at, "borrow starts here"));
     }
 
     /// Return whether an unrelated call can access the borrowed storage at this point.
     fn is_loan_exposed(&self, loan: &Loan) -> bool {
-        // admit aliases to incoming borrows and global storage
+        // leave an incoming borrow to its caller, whose aliases alone address its referent
         let Some(place) = loan.place() else {
-            return true;
+            return false;
         };
-        if matches!(place.origin, PlaceOrigin::Global(_)) || !self.owns_place(place) {
-            return true;
-        }
-
-        // find loans already stored through an alias to this owned storage
-        self.origin
-            .loans()
-            .blocking_change(place, self.state.escaped_loans(), |left, right| {
-                left.may_overlap(right, &self.constants, self.function, self.tree)
-            })
-            .is_some()
-    }
-
-    /// Return whether one memory effect may touch an active loan.
-    fn effect_may_touch_loan(&self, effect: &MemoryAccessEffect, loan: &Loan) -> bool {
-        match &effect.region {
-            MemoryRegion::Local(local) => loan.place().is_some_and(|place| {
-                Place::local(*local).may_overlap(place, &self.constants, self.function, self.tree)
-            }),
-            MemoryRegion::Address { location, .. } => {
-                let place = self.places.get(location.address.value());
-
-                loan.place().is_some_and(|loan| {
-                    place.may_overlap(loan, &self.constants, self.function, self.tree)
-                })
-            }
-            MemoryRegion::Place(_) | MemoryRegion::Any { .. } => {
-                // compare opaque effects with the reference's permitted memory spaces
-                let spaces = self
-                    .function
-                    .reference_storage(loan.representation, self.tree)
-                    .map_or(StorageSet::ANY, Storage::storage_set);
-
-                !effect.region.spaces().is_disjoint(spaces)
-            }
-        }
-    }
-
-    /// Check that one safe reference permits writes.
-    fn check_reference_write(&mut self, pointer: Value, anchor: LocalNodeIdAny) {
-        let is_writable = self
-            .reference_access(pointer)
-            .is_some_and(Access::can_write);
-        if self.is_pointer(pointer) || is_writable {
-            return;
-        }
-
-        self.verification
-            .emit_error(VerifyError::WriteThroughReadonlyReference {
-                anchor: self.verification.anchor(anchor),
-            });
-    }
-
-    /// Check every loan issued by one borrowed reference.
-    fn check_borrow(&mut self, reference: Value, anchor: LocalNodeIdAny) {
-        let origin = self.origin.clone();
-        for loan in origin.loans().roots_of(reference) {
-            self.check_loan(loan, anchor);
-        }
-    }
-
-    /// Check one borrowed reference loan.
-    fn check_loan(&mut self, loan_id: LoanId, anchor: LocalNodeIdAny) {
-        let loan = self.origin.loans().get(loan_id);
-        let reference = loan.representation;
-
-        // derive every rejection before emitting diagnostics
-        let storage = loan
-            .place()
-            .and_then(|place| place.storage(self.function, self.tree));
-        let is_rejected = self.rejected_loans.contains(loan_id.index());
-
-        // hold uninitialized storage exclusively while its constructor fills it
-        let is_uninit = match self
-            .tree
-            .get(self.function.expect_value_type(loan.representation))
+        if matches!(place.origin, PlaceOrigin::Global(_))
+            || place.may_be_retained(self.function_id, self.tree)
         {
-            Type::Reference { pointee, .. } | Type::Pointer { pointee, .. } => {
-                matches!(self.tree.get(*pointee), Type::Uninit { .. })
-            }
-            _ => false,
-        };
-        let is_shared_mutable = !is_rejected
-            && !is_uninit
-            && loan.access.can_write()
-            && storage.is_some_and(Storage::is_shared);
-        let conflict = if is_rejected || is_shared_mutable {
-            None
-        } else {
-            self.origin.loans().conflict(
-                loan,
-                &self.active_loans,
-                |left, right| left.may_overlap(right, &self.constants, self.function, self.tree),
-                |loan| self.is_exclusive(loan),
-            )
-        };
-        let conflict = match conflict {
-            Some(conflict) if !self.reports(conflict, anchor) => None,
-            other => other.map(|conflict| self.origin.loans().get(conflict).issued_at),
-        };
-
-        // reject mutable access to shared storage
-        if is_shared_mutable {
-            self.verification
-                .emit_error(VerifyError::MutableBorrowFromSharedStorage {
-                    anchor: self.verification.anchor(anchor),
-                });
-            self.reject_loan(reference);
+            return true;
         }
 
-        // reject overlap with a loan already active here
-        if let Some(conflict) = conflict {
-            let active_borrow = self.verification.anchor(conflict);
-            self.verification.emit_error(
-                VerifyError::BorrowConflict {
-                    anchor: self.verification.anchor(anchor),
-                    active_borrow: active_borrow.clone(),
-                }
-                .label(active_borrow, "borrow starts here"),
-            );
-
-            self.reject_loan(reference);
-        }
-    }
-
-    /// Check one value stored through a pointer.
-    fn check_store(&mut self, pointer: Value, value: Value, anchor: LocalNodeIdAny) {
-        if self.is_pointer(pointer) {
-            return;
-        }
-
-        let pointer_type = self.function.expect_value_type(pointer);
-        let pointer_type = self.tree.represented(pointer_type);
-        let Type::Reference { pointee, .. } = self.tree.get(pointer_type) else {
-            unreachable!("safe store pointer has no reference type")
-        };
-
-        self.check_write(value, *pointee, anchor);
-    }
-
-    /// Check reference access granted to call arguments.
-    fn check_call_access(
-        &mut self,
-        signature: &TypeId,
-        arguments: &[Value],
-        anchor: LocalNodeIdAny,
-    ) -> Vec<LoanId> {
-        let Some((_, parameters, _)) = self.tree.get(*signature).function_signature_parts() else {
-            unreachable!("call has no function signature")
-        };
-        let mut loans = Vec::new();
-
-        // create a loan per borrowed parameter, active for the duration of the call
-        for (parameter, argument) in parameters.iter().zip(arguments.iter().copied()) {
-            let parameter_type = self.tree.get(parameter.ty);
-            if parameter_type.reference_kind() != Some(ReferenceKind::Borrowed) {
-                continue;
-            }
-            let Some(access) = parameter_type.reference_access() else {
-                continue;
-            };
-            let Some(argument_access) = self.reference_access(argument) else {
-                continue;
-            };
-
-            // prevent calls from strengthening readonly references
-            if access.can_write() && !argument_access.can_write() {
-                self.verification
-                    .emit_error(VerifyError::BorrowThroughReadonlyReference {
-                        anchor: self.verification.anchor(anchor),
-                    });
-
-                continue;
-            }
-
-            // reuse every loan issued by this argument or create its temporary borrow
-            let mut issued = self
-                .origin
-                .loans()
-                .roots_of(argument)
-                .map(|loan| self.origin.loans().get(loan))
-                .filter(|loan| loan.place().is_some())
-                .cloned()
-                .collect::<Vec<_>>();
-            let is_issued = !issued.is_empty();
-            if !is_issued {
-                issued.push(Loan::new(
-                    self.places.get(argument).clone(),
-                    None,
-                    access,
-                    argument,
-                    self.state.value(argument).loans().to_vec(),
-                    anchor,
-                ));
-            }
-
-            // compare each possible referent with earlier arguments
-            let previous_count = loans.len();
-            for loan in issued {
-                // reject mutable access to shared storage
-                let storage = loan
-                    .place()
-                    .and_then(|place| place.storage(self.function, self.tree));
-                if !is_issued && loan.writes() && storage.is_some_and(Storage::is_shared) {
-                    self.verification
-                        .emit_error(VerifyError::MutableBorrowFromSharedStorage {
-                            anchor: self.verification.anchor(anchor),
-                        });
-
-                    continue;
-                }
-
-                // check loans already active before this call
-                if !is_issued
-                    && let Some(conflict) = self
-                        .origin
-                        .loans()
-                        .conflict(
-                            &loan,
-                            &self.active_loans,
-                            |left, right| {
-                                left.may_overlap(right, &self.constants, self.function, self.tree)
-                            },
-                            |loan| self.is_exclusive(loan),
+        // find loans stored through an alias to this storage or to a unique pointer on its path
+        let pointers = place
+            .dereferences(self.function_id, self.tree)
+            .filter(|(_, reference)| reference.is_unique_storage())
+            .map(|(length, _)| Cow::Owned(place.prefix(length)));
+        let escaped = self.state.escaped_loans();
+        [Cow::Borrowed(place)]
+            .into_iter()
+            .chain(pointers)
+            .any(|storage| {
+                self.origin
+                    .loans()
+                    .blocking_change(&storage, escaped, |left, right| {
+                        left.may_overlap(
+                            right,
+                            &self.constants,
+                            &self.places,
+                            self.function_id,
+                            self.tree,
                         )
-                        .map(|conflict| self.origin.loans().get(conflict).issued_at)
-                {
-                    let active_borrow = self.verification.anchor(conflict);
-                    self.verification.emit_error(
-                        VerifyError::BorrowConflict {
-                            anchor: self.verification.anchor(anchor),
-                            active_borrow: active_borrow.clone(),
-                        }
-                        .label(active_borrow, "borrow starts here"),
-                    );
-                }
-
-                // check arguments whose temporary loans overlap each other
-                if loans[..previous_count].iter().any(|active: &Loan| {
-                    (self.is_exclusive(active) || self.is_exclusive(&loan))
-                        && active
-                            .place()
-                            .zip(loan.place())
-                            .is_some_and(|(left, right)| {
-                                left.may_overlap(right, &self.constants, self.function, self.tree)
-                            })
-                }) {
-                    self.verification
-                        .emit_error(VerifyError::MutableArgumentAlias {
-                            anchor: self.verification.anchor(anchor),
-                        });
-                }
-
-                loans.push(loan);
-            }
-        }
-
-        // authorize the active loans these argument loans already cover
-        self.active_loans
-            .iter()
-            .copied()
-            .filter(|active| {
-                let active = self.origin.loans().get(*active);
-
-                loans.iter().any(|loan| {
-                    active
-                        .place()
-                        .zip(loan.place())
-                        .is_some_and(|(left, right)| {
-                            left.may_overlap(right, &self.constants, self.function, self.tree)
-                        })
-                })
+                    })
+                    .is_some()
             })
-            .collect()
     }
 
-    /// Check one value against its declared destination type.
-    fn check_write(&mut self, value: Value, destination: TypeId, anchor: LocalNodeIdAny) {
-        let bindings = self.state.value_borrows(&self.context(), value);
-        if bindings.is_empty() {
-            return;
+    /// Return the places a call argument's loans borrow, else the argument's own place.
+    fn argument_places(&self, argument: Value) -> SmallVec<[Place; 2]> {
+        let mut places: SmallVec<[Place; 2]> = self
+            .state
+            .value(argument)
+            .loans()
+            .iter()
+            .filter_map(|loan| self.origin.loans().get(*loan).place().cloned())
+            .collect();
+        if places.is_empty() {
+            places.push(self.places.get(argument).clone());
         }
 
-        let paths = self.tree.type_origin_paths(destination);
-        let root = self.tree.type_lifetime(destination);
-
-        // prove every stored borrow against its exact destination path
-        for (path, origin) in bindings {
-            let required = paths
-                .iter()
-                .find(|borrowed| borrowed.path == path)
-                .map(|borrowed| borrowed.lifetime.clone())
-                .or_else(|| path.is_root().then(|| root.clone()).flatten())
-                .unwrap_or_else(Lifetime::empty);
-            if origin.is_empty() || !origin.is_covered_by(&required, &self.function.lifetimes) {
-                self.verification
-                    .emit_error(VerifyError::BorrowOutlivesOrigin {
-                        anchor: self.verification.anchor(anchor),
-                    });
-
-                return;
-            }
-        }
+        places
     }
 
-    /// Check whether changing a place invalidates active loans.
-    fn check_invalidation(&mut self, place: &Place, anchor: LocalNodeIdAny) {
-        let Some(loan) =
-            self.origin
-                .loans()
-                .blocking_change(place, &self.active_loans, |left, right| {
-                    left.may_overlap(right, &self.constants, self.function, self.tree)
-                })
-        else {
-            return;
-        };
-        if !self.reports(loan, anchor) {
-            return;
+    /// Collect the loans held by the reference at each dereference of one place.
+    fn collect_traversed(&self, place: &Place, loans: &mut Vec<LoanId>) {
+        for (length, _) in place.dereferences(self.function_id, self.tree) {
+            let source = self.places.resolve_place(&place.prefix(length));
+            loans.extend_from_slice(self.state.place(&self.context(), &source).loans());
         }
-
-        // reject changes blocked by active loans
-        let borrowed_at = self
-            .verification
-            .anchor(self.origin.loans().get(loan).issued_at);
-        self.verification.emit_error(
-            VerifyError::InvalidationOfBorrowedPlace {
-                anchor: self.verification.anchor(anchor),
-                borrowed_at: borrowed_at.clone(),
-            }
-            .label(borrowed_at, "borrow starts here"),
-        );
     }
 }

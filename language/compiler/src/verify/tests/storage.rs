@@ -11,8 +11,8 @@ type User {
 
 function test(v0: ref<User, managed, mutable, shared>): int32 {
 entry(v0: ref<User, managed, mutable, shared>):
-    v1: ref<int32, borrowed, 'managed, readonly, shared> = field.address v0, 0
-    v2: int32 = load v1
+    v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
+    v2: int32 = load (*v1)
     return v2
 }
 "#,
@@ -32,8 +32,8 @@ type User {
 
 function test(v0: ref<User, managed, mutable, shared>): int32 {
 entry(v0: ref<User, managed, mutable, shared>):
-    v1: ref<int32, borrowed, 'managed, mutable, shared> = field.address v0, 0
-    v2: int32 = load v1
+    v1: ref<int32, borrowed, 'managed, mutable> = address (*v0).0
+    v2: int32 = load (*v1)
     return v2
 }
 "#,
@@ -46,9 +46,9 @@ error[mutable-borrow-from-shared-storage]: cannot borrow shared storage mutably
    │
  6 │ function test(v0: ref<User, managed, mutable, shared>): int32 {
  7 │ entry(v0: ref<User, managed, mutable, shared>):
- 8 │     v1: ref<int32, borrowed, 'managed, mutable, shared> = field.address v0, 0
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
- 9 │     v2: int32 = load v1
+ 8 │     v1: ref<int32, borrowed, 'managed, mutable> = address (*v0).0
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+ 9 │     v2: int32 = load (*v1)
 10 │     return v2
    │
 
@@ -66,8 +66,8 @@ shared global value: int32 = 0
 
 function test(): int32 {
 entry:
-    v0: ref<int32, borrowed, 'static, mutable, shared static> = global.address value
-    v1: int32 = load v0
+    v0: ref<int32, borrowed, 'static, mutable> = address @value
+    v1: int32 = load (*v0)
     return v1
 }
 "#,
@@ -80,9 +80,9 @@ error[mutable-borrow-from-shared-storage]: cannot borrow shared storage mutably
   │
 4 │ function test(): int32 {
 5 │ entry:
-6 │     v0: ref<int32, borrowed, 'static, mutable, shared static> = global.address value
-  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-7 │     v1: int32 = load v0
+6 │     v0: ref<int32, borrowed, 'static, mutable> = address @value
+  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+7 │     v1: int32 = load (*v0)
 8 │     return v1
   │
 
@@ -100,11 +100,12 @@ type User {
     id: int32;
 }
 
-external function update<'a>(ref<User, borrowed, 'a, mutable, shared>): void
+external function update<'a>(ref<User, borrowed, 'a, mutable>): void
 
 function test(v0: ref<User, managed, mutable, shared>): void {
 entry(v0: ref<User, managed, mutable, shared>):
-    call update(v0): <'a>(ref<User, borrowed, 'a, mutable, shared>) => void
+    v1: ref<User, borrowed, 'managed, mutable> = address (*v0)
+    call update(v1): <'a>(ref<User, borrowed, 'a, mutable>) => void
     return
 }
 "#,
@@ -117,10 +118,10 @@ error[mutable-borrow-from-shared-storage]: cannot borrow shared storage mutably
    │
  8 │ function test(v0: ref<User, managed, mutable, shared>): void {
  9 │ entry(v0: ref<User, managed, mutable, shared>):
-10 │     call update(v0): <'a>(ref<User, borrowed, 'a, mutable, shared>) => void
-   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-11 │     return
-12 │ }
+10 │     v1: ref<User, borrowed, 'managed, mutable> = address (*v0)
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+11 │     call update(v1): <'a>(ref<User, borrowed, 'a, mutable>) => void
+12 │     return
    │
 
 for more information about an error, run `destack explain mutable-borrow-from-shared-storage`
@@ -138,14 +139,14 @@ type Owner {
 }
 
 type View<'a> {
-    value: ref<int32, borrowed, 'a, readonly, local>;
+    value: ref<int32, borrowed, 'a, readonly>;
 }
 
-function test<'a>(v0: ref<Owner, unique, mutable, local>, v1: ref<View<'a & local>, managed, mutable, local>): void {
-entry(v0: ref<Owner, unique, mutable, local>, v1: ref<View<'a & local>, managed, mutable, local>):
-    v2: ref<int32, borrowed, 'frame, readonly, frame> = field.address v0, 0
-    v3: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'managed, mutable, local> = field.address v1, 0
-    store v3, v2
+function test<'a>(v0: ref<Owner, unique, mutable>, v1: ref<View<'a>, managed, mutable, local>): void {
+entry(v0: ref<Owner, unique, mutable>, v1: ref<View<'a>, managed, mutable, local>):
+    v2: ref<int32, borrowed, 'frame, readonly> = address (*v0).0
+    v3: ref<ref<int32, borrowed, 'a, readonly>, borrowed, 'managed, mutable> = address (*v1).0
+    store (*v3), v2
     return
 }
 "#,
@@ -156,10 +157,10 @@ entry(v0: ref<Owner, unique, mutable, local>, v1: ref<View<'a & local>, managed,
 error[borrow-outlives-origin]: borrow does not live long enough
   ──▶ <test.dsm>:14:5
    │
-12 │     v2: ref<int32, borrowed, 'frame, readonly, frame> = field.address v0, 0
-13 │     v3: ref<ref<int32, borrowed, 'a, readonly, local>, borrowed, 'managed, mutable, local> = field.a··
-14 │     store v3, v2
-   │     ^^^^^^^^^^^^
+12 │     v2: ref<int32, borrowed, 'frame, readonly> = address (*v0).0
+13 │     v3: ref<ref<int32, borrowed, 'a, readonly>, borrowed, 'managed, mutable> = address (*v1).0
+14 │     store (*v3), v2
+   │     ^^^^^^^^^^^^^^^
 15 │     return
 16 │ }
    │
@@ -180,12 +181,12 @@ type Box {
     value: int32;
 }
 
-function test<'a>(v0: ref<Box, borrowed, 'a, mutable, local>): int32 {
-entry(v0: ref<Box, borrowed, 'a, mutable, local>):
-    v1: ref<int32, borrowed, 'a, mutable, local> = field.address v0, 0
-    v2: ref<int32, borrowed, 'static, mutable, local> = global.address value
-    v3: int32 = load v1
-    v4: int32 = load v2
+function test<'a>(v0: ref<Box, borrowed, 'a, mutable>): int32 {
+entry(v0: ref<Box, borrowed, 'a, mutable>):
+    v1: ref<int32, borrowed, 'a, mutable> = address (*v0).0
+    v2: ref<int32, borrowed, 'static, mutable> = address @value
+    v3: int32 = load (*v1)
+    v4: int32 = load (*v2)
     v5: int32 = add v3, v4
     return v5
 }
@@ -200,19 +201,18 @@ entry(v0: ref<Box, borrowed, 'a, mutable, local>):
 fn test_allow_mutable_borrows_from_distinct_allocations() {
     let mut program = TestProgram::mir(
         r#"
-@copy
 type Box {
     value: int32;
 }
 
 function test(): int32 {
 entry:
-    v0: ref<Box, managed, mutable, local> = new.zeroed Box
-    v1: ref<Box, managed, mutable, local> = new.zeroed Box
-    v2: ref<int32, borrowed, 'managed, mutable, local> = field.address v0, 0
-    v3: ref<int32, borrowed, 'managed, mutable, local> = field.address v1, 0
-    v4: int32 = load v2
-    v5: int32 = load v3
+    v0: ref<Box, managed, mutable, local> = new.zeroed Box, local
+    v1: ref<Box, managed, mutable, local> = new.zeroed Box, local
+    v2: ref<int32, borrowed, 'managed, mutable> = address (*v0).0
+    v3: ref<int32, borrowed, 'managed, mutable> = address (*v1).0
+    v4: int32 = load (*v2)
+    v5: int32 = load (*v3)
     v6: int32 = add v4, v5
     return v6
 }
@@ -220,4 +220,28 @@ entry:
     );
 
     program.assert_verified();
+}
+
+/// Reject an allocation outside its handle heap as invalid MIR.
+#[test]
+fn test_reject_an_allocation_outside_its_handle_heap() {
+    let mut program = TestProgram::mir(
+        r#"
+type User {
+    id: int32;
+}
+
+function test(): void {
+entry:
+    v0: ref<User, managed, mutable, shared> = new.zeroed User, local
+    return
+}
+"#,
+    );
+
+    program.assert_invalid_mir(
+        r#"
+invalid MIR: an allocation of a shared heap handle in the local heap in 'test'
+"#,
+    );
 }

@@ -3,6 +3,7 @@ use std::sync::{Arc, Mutex};
 use destack_artifact::{DiagnosticBuilder, ToDiagnostic};
 use destack_source::{DiagnosticCollection, FileId, PrintOptions, print_diagnostics};
 
+use crate::CompilerError;
 use crate::tests::TestProgram;
 use crate::tests::snapshot::assert_snapshot;
 use crate::verify::{VerifyError, VerifyState};
@@ -10,10 +11,25 @@ use crate::verify::{VerifyError, VerifyState};
 impl TestProgram {
     /// Run MIR verification.
     pub(in crate::verify) fn verify(&mut self) -> Vec<DiagnosticBuilder<VerifyError>> {
-        let mut state = VerifyState::new(&self.lowered);
+        let mut state = VerifyState::new(&self.lowered, &self.strings);
         state.verify();
+        if let Some(error) = state.take_invalid_mir() {
+            panic!("verified MIR is invalid: {error:?}");
+        }
 
         state.take_errors()
+    }
+
+    /// Assert the complete MIR invariant violation verification reports.
+    #[track_caller]
+    pub(in crate::verify) fn assert_invalid_mir(&mut self, expected: &str) {
+        let mut state = VerifyState::new(&self.lowered, &self.strings);
+        state.verify();
+        let Some(CompilerError::Internal { message }) = state.take_invalid_mir() else {
+            panic!("verified MIR is valid");
+        };
+
+        assert_snapshot(message, expected);
     }
 
     /// Assert that MIR verification succeeds.
@@ -29,6 +45,10 @@ impl TestProgram {
     /// Assert the complete MIR verification diagnostics.
     #[track_caller]
     pub(in crate::verify) fn assert_verify_errors(&mut self, expected: &str) {
+        assert!(
+            !expected.is_empty(),
+            "an empty expectation is written as the blessable placeholder r#\"\\n\"#"
+        );
         let diagnostics = self.verify();
         let actual = self.render_verify_diagnostics(&diagnostics);
 

@@ -5,7 +5,6 @@ use crate::tests::TestProgram;
 fn test_allow_managed_borrow_across_park() {
     let mut program = TestProgram::mir(
         r#"
-@copy
 type Box {
     value: int32;
 }
@@ -15,9 +14,9 @@ external function park(): void
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
+    v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
     call park(): () => void
-    v2: int32 = load v1
+    v2: int32 = load (*v1)
     return v2
 }
 "#,
@@ -31,18 +30,17 @@ entry(v0: ref<Box, managed, mutable, local>):
 fn test_allow_managed_borrow_passed_to_park() {
     let mut program = TestProgram::mir(
         r#"
-@copy
 type Box {
     value: int32;
 }
 
 @binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
-external function park<'a>(ref<int32, borrowed, 'a, readonly, local>): void
+external function park<'a>(ref<int32, borrowed, 'a, readonly>): void
 
 function test(v0: ref<Box, managed, mutable, local>): void {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
-    call park(v1): <'a>(ref<int32, borrowed, 'a, readonly, local>) => void
+    v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
+    call park(v1): <'a>(ref<int32, borrowed, 'a, readonly>) => void
     return
 }
 "#,
@@ -56,7 +54,6 @@ entry(v0: ref<Box, managed, mutable, local>):
 fn test_allow_managed_borrow_across_transitive_park() {
     let mut program = TestProgram::mir(
         r#"
-@copy
 type Box {
     value: int32;
 }
@@ -72,9 +69,9 @@ entry():
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
+    v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
     call helper(): () => void
-    v2: int32 = load v1
+    v2: int32 = load (*v1)
     return v2
 }
 "#,
@@ -88,7 +85,6 @@ entry(v0: ref<Box, managed, mutable, local>):
 fn test_allow_managed_borrow_across_parking_invoke() {
     let mut program = TestProgram::mir(
         r#"
-@copy
 type Box {
     value: int32;
 }
@@ -98,11 +94,11 @@ external function park(): int32
 
 function test(v0: ref<Box, managed, mutable, local>): int32 {
 entry(v0: ref<Box, managed, mutable, local>):
-    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
+    v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
     invoke park(): () => int32 => resume | cleanup
 
 resume(v2: int32):
-    v3: int32 = load v1
+    v3: int32 = load (*v1)
     return v3
 
 cleanup:
@@ -119,7 +115,6 @@ cleanup:
 fn test_allow_unique_borrow_across_park() {
     let mut program = TestProgram::mir(
         r#"
-@copy
 type Box {
     value: int32;
 }
@@ -127,11 +122,11 @@ type Box {
 @binding("test.park", { provider: "runtime", effect: "deterministic", park: true })
 external function park(): void
 
-function test(v0: ref<Box, unique, mutable, local>): int32 {
-entry(v0: ref<Box, unique, mutable, local>):
-    v1: ref<int32, borrowed, 'frame, readonly, local> = field.address v0, 0
+function test(v0: ref<Box, unique, mutable>): int32 {
+entry(v0: ref<Box, unique, mutable>):
+    v1: ref<int32, borrowed, 'frame, readonly> = address (*v0).0
     call park(): () => void
-    v2: int32 = load v1
+    v2: int32 = load (*v1)
     return v2
 }
 "#,
@@ -152,9 +147,9 @@ constant MAGIC: int32 = 42
 
 function test(): int32 {
 entry:
-    v0: ref<int32, borrowed, 'static, readonly, local> = global.address MAGIC
+    v0: ref<int32, borrowed, 'static, readonly> = address @MAGIC
     call park(): () => void
-    v1: int32 = load v0
+    v1: int32 = load (*v0)
     return v1
 }
 "#,
@@ -168,7 +163,6 @@ entry:
 fn test_allow_shared_readonly_borrow_across_park() {
     let mut program = TestProgram::mir(
         r#"
-@copy
 type Box {
     value: int32;
 }
@@ -178,9 +172,9 @@ external function park(): void
 
 function test(v0: ref<Box, managed, readonly, shared>): int32 {
 entry(v0: ref<Box, managed, readonly, shared>):
-    v1: ref<int32, borrowed, 'managed, readonly, local> = field.address v0, 0
+    v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
     call park(): () => void
-    v2: int32 = load v1
+    v2: int32 = load (*v1)
     return v2
 }
 "#,

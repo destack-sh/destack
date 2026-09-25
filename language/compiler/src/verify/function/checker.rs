@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use destack_mir::{
-    Access, Block, ConstantTable, Copy, Function, FunctionCache, InitializationTable,
-    LivenessCursor, LivenessTable, Loan, LoanId, LocalNodeId, LocalNodeIdAny, MemoryEffectTable,
-    MovePathId, MoveTable, OriginContext, OriginState, OriginTable, Place, PlaceOrigin, PlaceTable,
-    Projection, ReferenceKind, RetentionTable, Tree, Type, TypeId, Value,
+    Block, ConstantTable, Function, FunctionCache, FunctionId, InitializationTable, LivenessCursor,
+    LivenessTable, LoanId, LocalNodeId, LocalNodeIdAny, MemoryEffectTable, MovePathId, MoveTable,
+    OriginContext, OriginState, OriginTable, PlaceOrigin, PlaceTable, RetentionTable, Tree, Type,
+    Value, is_copy,
 };
 
 use destack_artifact::DiagnosticAnchor;
@@ -16,6 +16,8 @@ use crate::verify::VerifyState;
 pub(in crate::verify) struct FunctionChecker<'a, 'b> {
     /// The function being verified.
     pub(super) function: &'a Function,
+    /// The identity of the function being verified.
+    pub(super) function_id: FunctionId,
     /// The MIR tree.
     pub(super) tree: &'a Tree,
     /// Module verification state.
@@ -27,7 +29,7 @@ pub(in crate::verify) struct FunctionChecker<'a, 'b> {
     /// Constants used to compare structural projections.
     pub(super) constants: Arc<ConstantTable>,
     /// Memory effects for every operation.
-    pub(super) accesses: Arc<MemoryEffectTable>,
+    pub(super) effects: Arc<MemoryEffectTable>,
     /// Places derived by address values.
     pub(super) places: Arc<PlaceTable>,
     /// Dense independently movable paths, owned pointees included.
@@ -42,42 +44,52 @@ pub(in crate::verify) struct FunctionChecker<'a, 'b> {
     pub(super) active_loans: Vec<LoanId>,
     /// Loans rejected while emitting diagnostics.
     pub(super) rejected_loans: BitSet,
-    /// Access errors already reported, one per loan and source anchor.
+    /// The scratch loan set each activation fills and empties.
+    included_loans: BitSet,
+    /// The scratch loan set of the operation being checked: its arguments' loans with their ancestry.
+    pub(super) authorized_loans: BitSet,
+    /// The scratch loan set of the access being checked: the loans it traverses with their ancestry.
+    pub(super) traversed_loans: BitSet,
+    /// Access errors already reported, one per loan chain root and source anchor.
     reported: FxIndexSet<(LoanId, DiagnosticAnchor)>,
 }
 
 impl<'a, 'b> FunctionChecker<'a, 'b> {
     /// Create one function checker over the function's analyses.
     pub(in crate::verify) fn new(
-        function: &'a Function,
+        function_id: FunctionId,
         tree: &'a Tree,
         verification: &'a mut VerifyState<'b>,
         analyses: &mut FunctionCache,
     ) -> Self {
-        let initialization = analyses.initialization(function, tree);
-        let liveness = analyses.liveness(function, tree);
-        let places = analyses.place(function, tree);
-        let moves = analyses.moves(function, tree);
-        let constants = analyses.constant(function, tree);
-        let accesses =
-            analyses.memory_effect(function, tree, verification.accesses, &verification.effects);
-        let origin = analyses.origin(function, tree);
+        let function = tree.get(function_id);
+        let initialization = analyses.initialization(function_id, tree);
+        let liveness = analyses.liveness(function_id, tree);
+        let places = analyses.place(function_id, tree);
+        let moves = analyses.moves(function_id, tree);
+        let constants = analyses.constant(function_id, tree);
+        let effects = analyses.memory_effect(function_id, tree, &verification.effects);
+        let origin = analyses.origin(function_id, tree);
         let loan_count = origin.loans().len();
 
         Self {
             function,
+            function_id,
             tree,
             verification,
             initialization,
             liveness,
             constants,
-            accesses,
+            effects,
             places,
             moves,
             origin,
             state: OriginState::new(),
             active_loans: Vec::new(),
             rejected_loans: BitSet::new(loan_count),
+            included_loans: BitSet::new(loan_count),
+            authorized_loans: BitSet::new(loan_count),
+            traversed_loans: BitSet::new(loan_count),
             reported: FxIndexSet::default(),
             retention: RetentionTable::default(),
         }
@@ -85,16 +97,34 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
 
     /// Return the origin transfer context over this function's analyses.
     pub(super) fn context(&self) -> OriginContext<'_> {
-        OriginContext::new(self.function, self.tree, &self.places, self.origin.loans())
+        OriginContext::new(
+            self.function_id,
+            self.tree,
+            &self.places,
+            self.origin.loans(),
+        )
     }
 
-    /// Report one loan's access error at most once per anchor.
+    /// Anchor one diagnostic at a node of the verified function.
+    pub(super) fn anchor(&self, node: LocalNodeIdAny) -> DiagnosticAnchor {
+        self.verification.anchor(node)
+    }
+
+    /// Report one loan chain's access error at most once per anchor.
     pub(super) fn reports(&mut self, loan: LoanId, anchor: LocalNodeIdAny) -> bool {
-        let anchor = self.verification.anchor(anchor);
-        self.reported.insert((loan, anchor))
+        // key the report by the least loan of the chain's ancestry, which parent cycles share
+        let loans = self.origin.loans();
+        let mut chain = vec![loan];
+        loans.extend_parents(&mut chain, &mut BitSet::new(loans.len()));
+        let Some(&root) = chain.iter().min() else {
+            unreachable!("a loan chain holds its own loan");
+        };
+        let anchor = self.anchor(anchor);
+
+        self.reported.insert((root, anchor))
     }
 
-    /// Check the function: moves, then the constructor's initialization, then borrows.
+    /// Check the function's moves, constructor initialization, then borrows.
     pub(in crate::verify) fn check(mut self) -> RetentionTable {
         self.check_moves();
         self.check_initialization();
@@ -126,9 +156,6 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
         let entries = self.retention_entries(&live);
         self.retention.insert_block(block_id, entries);
 
-        // activate loans live at block entry
-        self.activate_loans(&live);
-
         // check and transfer each instruction in execution order
         for &instruction_id in &block.instructions {
             let instruction = self.tree.get(instruction_id);
@@ -138,8 +165,12 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
 
             // check ownership and advance origin
             self.check_instruction(instruction_id, instruction);
-            let cx =
-                OriginContext::new(self.function, self.tree, &self.places, self.origin.loans());
+            let cx = OriginContext::new(
+                self.function_id,
+                self.tree,
+                &self.places,
+                self.origin.loans(),
+            );
             self.state.advance(&cx, instruction_id);
 
             // advance liveness and retain ownership after the instruction
@@ -225,56 +256,6 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
         (representation != origin).then_some(owner)
     }
 
-    /// Return one structural field type.
-    pub(super) fn field_type(&self, aggregate: Value, field: u32) -> TypeId {
-        let ty = self.function.expect_value_type(aggregate);
-        let ty = self.tree.represented(ty);
-
-        self.tree
-            .get(ty)
-            .field_type(field, self.tree)
-            .unwrap_or_else(|| unreachable!("aggregate has no field {field}"))
-    }
-
-    /// Return one fixed-array element type.
-    pub(super) fn element_type(&self, aggregate: Value) -> TypeId {
-        let ty = self.function.expect_value_type(aggregate);
-        let ty = self.tree.represented(ty);
-        let Type::FixedArray { element, .. } = self.tree.get(ty) else {
-            unreachable!("element.set aggregate has no fixed-array type")
-        };
-
-        *element
-    }
-
-    /// Return the aggregate element type, selecting a newtype variant case by the stored value.
-    pub(super) fn slot_type(&self, aggregate: Value, index: usize, value: Value) -> TypeId {
-        let ty = self.function.expect_value_type(aggregate);
-        let ty = self.tree.represented(ty);
-        let aggregate = self.tree.get(ty);
-        let slot = match aggregate {
-            Type::Struct { fields, .. } => fields.get(index).map(|field| self.tree.get(*field).ty),
-            Type::Tuple { elements, .. } => elements.get(index).copied(),
-            Type::FixedArray { element, .. } => Some(*element),
-            Type::Newtype { inner, .. } if index == 0 => {
-                let inner = self.tree.represented(*inner);
-                match self.tree.get(inner) {
-                    Type::Variant { cases, .. } => {
-                        let filled = TypeId::from(self.function.expect_value_type(value));
-                        cases
-                            .iter()
-                            .map(|case| case.ty)
-                            .find(|case| self.tree.same_representation(*case, filled))
-                    }
-                    _ => Some(inner),
-                }
-            }
-            _ => None,
-        };
-
-        slot.unwrap_or_else(|| unreachable!("aggregate has no slot {index}"))
-    }
-
     /// Derive loans retained by live values and places.
     fn activate_loans(&mut self, live: &LivenessCursor<'_>) {
         self.active_loans = self.state.active_loans(
@@ -284,55 +265,25 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
                     .is_some()
             },
         );
+
+        // retain each parent loan while any of its reborrows remains live
+        self.origin
+            .loans()
+            .extend_parents(&mut self.active_loans, &mut self.included_loans);
+        for loan in &self.active_loans {
+            self.included_loans.remove(loan.index());
+        }
+
+        // leave rejected loans to their own diagnostics
         self.active_loans
             .retain(|loan| !self.rejected_loans.contains(loan.index()));
     }
 
-    /// Return whether a value is move-only.
-    pub(super) fn is_move_only(&self, value: Value) -> bool {
+    /// Return whether using one value moves it, anything but Copy.
+    pub(super) fn is_moved_on_use(&self, value: Value) -> bool {
         let ty = self.function.expect_value_type(value);
 
-        Copy::decide(self.tree, ty, &self.function.generics).is_no()
-    }
-
-    /// Return whether one value stores a variant, a store changing its case.
-    pub(super) fn is_variant(&self, value: Value) -> bool {
-        let ty = self.function.expect_value_type(value);
-
-        matches!(self.tree.get(ty), Type::Variant { .. })
-    }
-
-    /// Return whether one value has a user drop hook.
-    pub(super) fn has_drop_hook(&self, value: Value) -> bool {
-        let ty = self.function.expect_value_type(value);
-
-        self.verification.drops.has_hook(ty)
-    }
-
-    /// Return whether the loan writes to owned storage.
-    pub(super) fn is_exclusive(&self, loan: &Loan) -> bool {
-        loan.writes() && loan.place().is_some_and(|place| self.owns_place(place))
-    }
-
-    /// Return whether one address names owned storage.
-    pub(super) fn addresses_owned_storage(&self, pointer: Value) -> bool {
-        self.owns_place(self.places.get(pointer))
-    }
-
-    /// Return whether one place is owned storage.
-    pub(super) fn owns_place(&self, place: &Place) -> bool {
-        match (place.origin, place.path.first()) {
-            (PlaceOrigin::Local(local), Some(Projection::Deref)) => {
-                let ty = self.tree.get(local).ty;
-
-                self.tree.get(ty).reference_kind() == Some(ReferenceKind::Unique)
-            }
-            (PlaceOrigin::Local(_) | PlaceOrigin::Global(_), _) => true,
-            (PlaceOrigin::Value(value), _) => !matches!(
-                self.function.reference_kind(value, self.tree),
-                Some(ReferenceKind::Managed | ReferenceKind::Borrowed)
-            ),
-        }
+        !is_copy(self.tree, ty, &self.function.generics)
     }
 
     /// Return whether one reference addresses uninitialized storage.
@@ -345,36 +296,17 @@ impl<'a, 'b> FunctionChecker<'a, 'b> {
         matches!(self.tree.get(*pointee), Type::Uninit { .. })
     }
 
-    /// Return access for one reference-like value.
-    pub(super) fn reference_access(&self, value: Value) -> Option<Access> {
+    /// Return the storage definition of one SSA value's type.
+    pub(super) fn value_type(&self, value: Value) -> &'a Type {
         let ty = self.function.expect_value_type(value);
 
-        self.tree.get(ty).reference_access()
+        self.tree.type_definition(self.tree.storage_type(ty))
     }
 
-    /// Return whether one value has an unchecked pointer type.
-    pub(super) fn is_pointer(&self, value: Value) -> bool {
-        let ty = self.function.expect_value_type(value);
-
-        self.tree.get(ty).is_pointer()
-    }
-
-    /// Return the moved place for one projected move.
-    pub(super) fn place_moved_by_projection(&self, base: Value, projection: Projection) -> Place {
-        let place = self.places.get(base).clone();
-        if self.is_variant(base) {
-            return place;
+    /// Exclude every loan issued by a rejected reference from later diagnostics.
+    pub(super) fn reject_borrow(&mut self, reference: Value) {
+        for loan in self.origin.loans().roots_of(reference) {
+            self.rejected_loans.insert(loan.index());
         }
-
-        place.with_projection(projection)
-    }
-
-    /// Exclude one rejected loan from later diagnostics.
-    pub(super) fn reject_loan(&mut self, reference: Value) {
-        let Some(loan) = self.origin.loans().root(reference) else {
-            return;
-        };
-
-        self.rejected_loans.insert(loan.index());
     }
 }

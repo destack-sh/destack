@@ -1,5 +1,6 @@
 use crate::tests::{TestProgram, TestSession};
 
+/// Two mutable borrows of one field alias without conflict.
 #[test]
 fn test_allow_aliasable_mutable_overlap() {
     let mut program = TestProgram::mir(
@@ -8,12 +9,12 @@ type Box {
     value: int32;
 }
 
-function test<'a>(v0: ref<Box, borrowed, 'a, mutable, local>): void {
-entry(v0: ref<Box, borrowed, 'a, mutable, local>):
-    v1: ref<int32, borrowed, 'a, mutable, local> = field.address v0, 0
-    v2: ref<int32, borrowed, 'a, mutable, local> = field.address v0, 0
-    v3: int32 = load v1
-    v4: int32 = load v2
+function test<'a>(v0: ref<Box, borrowed, 'a, mutable>): void {
+entry(v0: ref<Box, borrowed, 'a, mutable>):
+    v1: ref<int32, borrowed, 'a, mutable> = address (*v0).0
+    v2: ref<int32, borrowed, 'a, mutable> = address (*v0).0
+    v3: int32 = load (*v1)
+    v4: int32 = load (*v2)
     return
 }
 "#,
@@ -22,6 +23,7 @@ entry(v0: ref<Box, borrowed, 'a, mutable, local>):
     program.assert_verified();
 }
 
+/// Mutable borrows through two distinct parameters coexist.
 #[test]
 fn test_allow_mutable_borrows_from_distinct_parameters() {
     let mut program = TestProgram::mir(
@@ -30,12 +32,12 @@ type Box {
     value: int32;
 }
 
-function test<'a, 'b>(v0: ref<Box, borrowed, 'a, mutable, local>, v1: ref<Box, borrowed, 'b, mutable, local>): void {
-entry(v0: ref<Box, borrowed, 'a, mutable, local>, v1: ref<Box, borrowed, 'b, mutable, local>):
-    v2: ref<int32, borrowed, 'a, mutable, local> = field.address v0, 0
-    v3: ref<int32, borrowed, 'b, mutable, local> = field.address v1, 0
-    v4: int32 = load v2
-    v5: int32 = load v3
+function test<'a, 'b>(v0: ref<Box, borrowed, 'a, mutable>, v1: ref<Box, borrowed, 'b, mutable>): void {
+entry(v0: ref<Box, borrowed, 'a, mutable>, v1: ref<Box, borrowed, 'b, mutable>):
+    v2: ref<int32, borrowed, 'a, mutable> = address (*v0).0
+    v3: ref<int32, borrowed, 'b, mutable> = address (*v1).0
+    v4: int32 = load (*v2)
+    v5: int32 = load (*v3)
     return
 }
 "#,
@@ -44,6 +46,7 @@ entry(v0: ref<Box, borrowed, 'a, mutable, local>, v1: ref<Box, borrowed, 'b, mut
     program.assert_verified();
 }
 
+/// Mutable borrows of two different fields coexist.
 #[test]
 fn test_allow_mutable_disjoint_fields() {
     let mut program = TestProgram::mir(
@@ -53,12 +56,12 @@ type Pair {
     right: int32;
 }
 
-function test<'a>(v0: ref<Pair, borrowed, 'a, mutable, local>): void {
-entry(v0: ref<Pair, borrowed, 'a, mutable, local>):
-    v1: ref<int32, borrowed, 'a, mutable, local> = field.address v0, 0
-    v2: ref<int32, borrowed, 'a, mutable, local> = field.address v0, 1
-    v3: int32 = load v1
-    v4: int32 = load v2
+function test<'a>(v0: ref<Pair, borrowed, 'a, mutable>): void {
+entry(v0: ref<Pair, borrowed, 'a, mutable>):
+    v1: ref<int32, borrowed, 'a, mutable> = address (*v0).0
+    v2: ref<int32, borrowed, 'a, mutable> = address (*v0).1
+    v3: int32 = load (*v1)
+    v4: int32 = load (*v2)
     return
 }
 "#,
@@ -67,16 +70,17 @@ entry(v0: ref<Pair, borrowed, 'a, mutable, local>):
     program.assert_verified();
 }
 
+/// Exclusive borrows at two dynamic indices may overlap and conflict.
 #[test]
 fn test_reject_mutable_dynamic_element_overlap() {
     let mut program = TestProgram::mir(
         r#"
 function test(v0: [int32; 4], v1: usize, v2: usize): void {
 entry(v0: [int32; 4], v1: usize, v2: usize):
-    v3: ref<int32, borrowed, 'frame, mutable, local> = element.address v0, v1
-    v4: ref<int32, borrowed, 'frame, mutable, local> = element.address v0, v2
-    v5: int32 = load v3
-    v6: int32 = load v4
+    v3: ref<int32, borrowed, 'frame, exclusive> = address (v0)[v1]
+    v4: ref<int32, borrowed, 'frame, exclusive> = address (v0)[v2]
+    v5: int32 = load (*v3)
+    v6: int32 = load (*v4)
     return
 }
 "#,
@@ -89,12 +93,12 @@ error[borrow-conflict]: borrow conflicts with active borrow
   │
 2 │ function test(v0: [int32; 4], v1: usize, v2: usize): void {
 3 │ entry(v0: [int32; 4], v1: usize, v2: usize):
-4 │     v3: ref<int32, borrowed, 'frame, mutable, local> = element.address v0, v1
-  │     ------------------------------------------------------------------------- borrow starts here
-5 │     v4: ref<int32, borrowed, 'frame, mutable, local> = element.address v0, v2
-  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-6 │     v5: int32 = load v3
-7 │     v6: int32 = load v4
+4 │     v3: ref<int32, borrowed, 'frame, exclusive> = address (v0)[v1]
+  │     -------------------------------------------------------------- borrow starts here
+5 │     v4: ref<int32, borrowed, 'frame, exclusive> = address (v0)[v2]
+  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+6 │     v5: int32 = load (*v3)
+7 │     v6: int32 = load (*v4)
   │
 
 for more information about an error, run `destack explain borrow-conflict`
@@ -102,6 +106,7 @@ for more information about an error, run `destack explain borrow-conflict`
     );
 }
 
+/// Mutable borrows at two distinct constant indices coexist.
 #[test]
 fn test_allow_mutable_constant_element_disjoint() {
     let mut program = TestProgram::mir(
@@ -110,10 +115,10 @@ function test(v0: [int32; 4]): void {
 entry(v0: [int32; 4]):
     v1: uint64 = 0
     v2: uint64 = 1
-    v3: ref<int32, borrowed, 'frame, mutable, local> = element.address v0, v1
-    v4: ref<int32, borrowed, 'frame, mutable, local> = element.address v0, v2
-    v5: int32 = load v3
-    v6: int32 = load v4
+    v3: ref<int32, borrowed, 'frame, mutable> = address (v0)[v1]
+    v4: ref<int32, borrowed, 'frame, mutable> = address (v0)[v2]
+    v5: int32 = load (*v3)
+    v6: int32 = load (*v4)
     return
 }
 "#,
@@ -127,12 +132,12 @@ entry(v0: [int32; 4]):
 fn test_allow_overlapping_element_borrows_of_a_borrowed_slice() {
     let mut program = TestProgram::mir(
         r#"
-function test<'a>(v0: slice<int32, borrowed, 'a, mutable, local>, v1: usize, v2: usize): void {
-entry(v0: slice<int32, borrowed, 'a, mutable, local>, v1: usize, v2: usize):
-    v3: ref<int32, borrowed, 'a, mutable, local> = element.address v0, v1
-    v4: ref<int32, borrowed, 'a, mutable, local> = element.address v0, v2
-    v5: int32 = load v3
-    v6: int32 = load v4
+function test<'a>(v0: slice<int32, borrowed, 'a, mutable>, v1: usize, v2: usize): void {
+entry(v0: slice<int32, borrowed, 'a, mutable>, v1: usize, v2: usize):
+    v3: ref<int32, borrowed, 'a, mutable> = address (*v0)[v1]
+    v4: ref<int32, borrowed, 'a, mutable> = address (*v0)[v2]
+    v5: int32 = load (*v3)
+    v6: int32 = load (*v4)
     return
 }
 "#,
@@ -141,20 +146,21 @@ entry(v0: slice<int32, borrowed, 'a, mutable, local>, v1: usize, v2: usize):
     program.assert_verified();
 }
 
+/// Mutable borrows into two disjoint constant slice ranges coexist.
 #[test]
 fn test_allow_mutable_disjoint_slice_ranges() {
     let mut program = TestProgram::mir(
         r#"
-function test<'a>(v0: slice<int32, borrowed, 'a, mutable, local>): void {
-entry(v0: slice<int32, borrowed, 'a, mutable, local>):
+function test<'a>(v0: slice<int32, borrowed, 'a, mutable>): void {
+entry(v0: slice<int32, borrowed, 'a, mutable>):
     v1: uint64 = 0
     v2: uint64 = 2
-    v3: slice<int32, borrowed, 'a, mutable, local> = slice.view v0, v1, v2
-    v4: slice<int32, borrowed, 'a, mutable, local> = slice.view v0, v2, v2
-    v5: ref<int32, borrowed, 'a, mutable, local> = element.address v3, v1
-    v6: ref<int32, borrowed, 'a, mutable, local> = element.address v4, v1
-    v7: int32 = load v5
-    v8: int32 = load v6
+    v3: slice<int32, borrowed, 'a, mutable> = address (*v0)[v1; v2]
+    v4: slice<int32, borrowed, 'a, mutable> = address (*v0)[v2; v2]
+    v5: ref<int32, borrowed, 'a, mutable> = address (*v3)[v1]
+    v6: ref<int32, borrowed, 'a, mutable> = address (*v4)[v1]
+    v7: int32 = load (*v5)
+    v8: int32 = load (*v6)
     return
 }
 "#,
@@ -168,17 +174,17 @@ entry(v0: slice<int32, borrowed, 'a, mutable, local>):
 fn test_allow_overlapping_views_of_a_borrowed_slice() {
     let mut program = TestProgram::mir(
         r#"
-function test<'a>(v0: slice<int32, borrowed, 'a, mutable, local>): void {
-entry(v0: slice<int32, borrowed, 'a, mutable, local>):
+function test<'a>(v0: slice<int32, borrowed, 'a, mutable>): void {
+entry(v0: slice<int32, borrowed, 'a, mutable>):
     v1: uint64 = 0
     v2: uint64 = 2
     v3: uint64 = 1
-    v4: slice<int32, borrowed, 'a, mutable, local> = slice.view v0, v1, v2
-    v5: slice<int32, borrowed, 'a, mutable, local> = slice.view v0, v3, v2
-    v6: ref<int32, borrowed, 'a, mutable, local> = element.address v4, v1
-    v7: ref<int32, borrowed, 'a, mutable, local> = element.address v5, v1
-    v8: int32 = load v6
-    v9: int32 = load v7
+    v4: slice<int32, borrowed, 'a, mutable> = address (*v0)[v1; v2]
+    v5: slice<int32, borrowed, 'a, mutable> = address (*v0)[v3; v2]
+    v6: ref<int32, borrowed, 'a, mutable> = address (*v4)[v1]
+    v7: ref<int32, borrowed, 'a, mutable> = address (*v5)[v1]
+    v8: int32 = load (*v6)
+    v9: int32 = load (*v7)
     return
 }
 "#,
@@ -196,12 +202,12 @@ type Box {
     value: int32;
 }
 
-function test<'a>(v0: ref<Box, borrowed, 'a, mutable, local>): void {
-entry(v0: ref<Box, borrowed, 'a, mutable, local>):
-    v1: ref<int32, borrowed, 'a, readonly, local> = field.address v0, 0
-    v2: ref<int32, borrowed, 'a, mutable, local> = field.address v0, 0
-    v3: int32 = load v1
-    v4: int32 = load v2
+function test<'a>(v0: ref<Box, borrowed, 'a, mutable>): void {
+entry(v0: ref<Box, borrowed, 'a, mutable>):
+    v1: ref<int32, borrowed, 'a, readonly> = address (*v0).0
+    v2: ref<int32, borrowed, 'a, mutable> = address (*v0).0
+    v3: int32 = load (*v1)
+    v4: int32 = load (*v2)
     return
 }
 "#,
@@ -210,6 +216,7 @@ entry(v0: ref<Box, borrowed, 'a, mutable, local>):
     program.assert_verified();
 }
 
+/// A mutable borrow may start after the last use of a readonly borrow.
 #[test]
 fn test_allow_mutable_after_last_borrow_use() {
     let mut program = TestProgram::mir(
@@ -218,12 +225,12 @@ type Box {
     value: int32;
 }
 
-function test<'a>(v0: ref<Box, borrowed, 'a, mutable, local>): void {
-entry(v0: ref<Box, borrowed, 'a, mutable, local>):
-    v1: ref<int32, borrowed, 'a, readonly, local> = field.address v0, 0
-    v2: int32 = load v1
-    v3: ref<int32, borrowed, 'a, mutable, local> = field.address v0, 0
-    v4: int32 = load v3
+function test<'a>(v0: ref<Box, borrowed, 'a, mutable>): void {
+entry(v0: ref<Box, borrowed, 'a, mutable>):
+    v1: ref<int32, borrowed, 'a, readonly> = address (*v0).0
+    v2: int32 = load (*v1)
+    v3: ref<int32, borrowed, 'a, mutable> = address (*v0).0
+    v4: int32 = load (*v3)
     return
 }
 "#,
@@ -232,6 +239,7 @@ entry(v0: ref<Box, borrowed, 'a, mutable, local>):
     program.assert_verified();
 }
 
+/// A borrow returned on one branch leaves the other branch free to write.
 #[test]
 fn test_allow_change_after_borrow_returns_on_other_branch() {
     let mut program = TestProgram::mir(
@@ -240,17 +248,17 @@ type Box {
     value: int32;
 }
 
-function test<'L>(v0: ref<Box, borrowed, 'L, mutable, local>, v1: boolean, v2: int32): ref<int32, borrowed, 'L, readonly, local> {
-entry(v0: ref<Box, borrowed, 'L, mutable, local>, v1: boolean, v2: int32):
-    v3: ref<int32, borrowed, 'L, readonly, local> = field.address v0, 0
+function test<'L>(v0: ref<Box, borrowed, 'L, mutable>, v1: boolean, v2: int32): ref<int32, borrowed, 'L, readonly> {
+entry(v0: ref<Box, borrowed, 'L, mutable>, v1: boolean, v2: int32):
+    v3: ref<int32, borrowed, 'L, readonly> = address (*v0).0
     branch v1 => found(v3) | missing
 
-found(v4: ref<int32, borrowed, 'L, readonly, local>):
+found(v4: ref<int32, borrowed, 'L, readonly>):
     return v4
 
 missing:
-    v5: ref<int32, borrowed, 'L, mutable, local> = field.address v0, 0
-    store v5, v2
+    v5: ref<int32, borrowed, 'L, mutable> = address (*v0).0
+    store (*v5), v2
     return v5
 }
 "#,
@@ -259,6 +267,7 @@ missing:
     program.assert_verified();
 }
 
+/// A write in a loop is allowed once the loop-carried borrow moves to another field.
 #[test]
 fn test_allow_change_after_loop_carried_borrow_is_replaced() {
     let mut program = TestProgram::mir(
@@ -268,27 +277,27 @@ type Pair {
     right: int32;
 }
 
-function test<'a>(v0: ref<Pair, borrowed, 'a, mutable, local>, v1: boolean, v2: int32): void {
-    local l0: ref<int32, borrowed, 'a, readonly, local>
+function test<'a>(v0: ref<Pair, borrowed, 'a, mutable>, v1: boolean, v2: int32): void {
+    local l0: ref<int32, borrowed, 'a, readonly>
 
-entry(v0: ref<Pair, borrowed, 'a, mutable, local>, v1: boolean, v2: int32):
-    v3: ref<int32, borrowed, 'a, readonly, local> = field.address v0, 0
-    local.set l0, v3
+entry(v0: ref<Pair, borrowed, 'a, mutable>, v1: boolean, v2: int32):
+    v3: ref<int32, borrowed, 'a, readonly> = address (*v0).0
+    store l0, v3
     jump next
 
 next:
     branch v1 => replace | done
 
 replace:
-    v4: ref<int32, borrowed, 'a, readonly, local> = field.address v0, 1
-    local.set l0, v4
-    v5: ref<int32, borrowed, 'a, mutable, local> = field.address v0, 0
-    store v5, v2
+    v4: ref<int32, borrowed, 'a, readonly> = address (*v0).1
+    store l0, v4
+    v5: ref<int32, borrowed, 'a, mutable> = address (*v0).0
+    store (*v5), v2
     jump next
 
 done:
-    v6: ref<int32, borrowed, 'a, readonly, local> = local.get l0
-    v7: int32 = load v6
+    v6: ref<int32, borrowed, 'a, readonly> = load l0
+    v7: int32 = load (*v6)
     return
 }
 "#,
@@ -297,9 +306,9 @@ done:
     program.assert_verified();
 }
 
-/// A readonly borrow kept live through one branch rejects an exclusive borrow after the join.
+/// Allow a writable argument over Copy storage while a conditional readonly loan lives.
 #[test]
-fn test_reject_an_mutable_borrow_while_a_conditional_readonly_borrow_lives() {
+fn test_allow_a_copy_writable_argument_while_a_conditional_readonly_loan_lives() {
     let session = TestSession::single(
         r#"
 struct Cell {
@@ -339,11 +348,11 @@ export function preFreezeElse(): void {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#"
-/// @diagnostic.error id=borrow-conflict message="borrow conflicts with active borrow"
-/// @diagnostic.label line=21 column=21 span="&v" line_source="borrowExclusive(&v);"
-/// @diagnostic.related line=19 column=13 span="&readonly v" line_source="w = &readonly v;" message="borrow starts here"
-"#);
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+
+"#,
+    );
 }
 
 /// A borrow returned from one branch leaves the other branch free to write.
@@ -367,12 +376,15 @@ export function getOrInsert(slot: &Slot, fallback: ^string): &readonly string {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+"#,
+    );
 }
 
-/// Borrows carried across loops conflict with the accesses each iteration makes.
+/// Allow a writable argument over Copy storage under a readonly loan carried across loops.
 #[test]
-fn test_track_borrows_across_loops() {
+fn test_allow_a_copy_writable_argument_under_a_readonly_loan_carried_across_loops() {
     let session = TestSession::single(
         r#"
 struct Cell {
@@ -430,14 +442,11 @@ export function whileAliasedMutCond(): void {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#"
-/// @diagnostic.error id=borrow-conflict message="borrow conflicts with active borrow"
-/// @diagnostic.label line=27 column=16 span="&readonly v" line_source="borrow(&readonly v);"
-/// @diagnostic.related line=25 column=15 span="&v" line_source="const x = &v;" message="borrow starts here"
-/// @diagnostic.error id=borrow-conflict message="borrow conflicts with active borrow"
-/// @diagnostic.label line=47 column=25 span="&v" line_source="borrowExclusive(&v);"
-/// @diagnostic.related line=49 column=17 span="&readonly v" line_source="x = &readonly v;" message="borrow starts here"
-"#);
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+
+"#,
+    );
 }
 
 /// Reassigning the reference binding kills the loan it held.
@@ -463,12 +472,15 @@ export function main(thing: &Thing): void {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+"#,
+    );
 }
 
-/// A loan ends at the last use of its reference.
+/// Allow Copy writes under an aliasable loan before its last use.
 #[test]
-fn test_end_a_loan_at_the_last_use_of_its_reference() {
+fn test_allow_copy_writes_under_an_aliasable_loan_before_its_last_use() {
     let session = TestSession::single(
         r#"
 struct Data {
@@ -478,7 +490,7 @@ struct Data {
 
 function capitalize(value: &int32): void {}
 
-export function nllFail(): void {
+export function useAfterWrites(): void {
     let data = Data { a: 1, b: 2 };
     const c = &data.a;
     capitalize(c);
@@ -488,7 +500,7 @@ export function nllFail(): void {
     capitalize(c);
 }
 
-export function nllOk(): void {
+export function writesAfterUse(): void {
     let data = Data { a: 1, b: 2 };
     const c = &data.a;
     capitalize(c);
@@ -499,11 +511,11 @@ export function nllOk(): void {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#"
-/// @diagnostic.error id=invalidation-of-borrowed-place message="cannot invalidate borrowed place"
-/// @diagnostic.label line=13 column=5 span="data.a = 5" line_source="data.a = 5;"
-/// @diagnostic.related line=11 column=15 span="&data.a" line_source="const c = &data.a;" message="borrow starts here"
-"#);
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+
+"#,
+    );
 }
 
 /// A borrow returned from one arm leaves the other arm free to write, and a write before the return conflicts.
@@ -537,12 +549,15 @@ export function ok(map: &Map): &readonly string {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+"#,
+    );
 }
 
-/// A call result reborrowing a parameter keeps that borrow live, a later write through the parameter aliasing it.
+/// Allow replacing a handle field while a borrow of the object it held lives.
 #[test]
-fn test_allow_a_write_through_a_parameter_while_its_call_result_borrow_lives() {
+fn test_allow_replacing_a_handle_field_while_a_borrow_of_its_object_lives() {
     let session = TestSession::single(
         r#"
 struct Map {
@@ -566,7 +581,11 @@ export function refresh(map: &Map): &readonly string {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+
+"#,
+    );
 }
 
 /// Distinct struct elements are disjoint at the stride their layout names.
@@ -579,16 +598,16 @@ type Pair {
     right: int32;
 }
 
-function test<'a>(v0: slice<Pair, borrowed, 'a, mutable, local>): void {
-entry(v0: slice<Pair, borrowed, 'a, mutable, local>):
+function test<'a>(v0: slice<Pair, borrowed, 'a, mutable>): void {
+entry(v0: slice<Pair, borrowed, 'a, mutable>):
     v1: usize = 0
     v2: usize = 1
-    v3: ref<Pair, borrowed, 'a, mutable, local> = element.address v0, v1
-    v4: ref<Pair, borrowed, 'a, mutable, local> = element.address v0, v2
-    v5: ref<int32, borrowed, 'a, mutable, local> = field.address v3, 0
-    v6: ref<int32, borrowed, 'a, mutable, local> = field.address v4, 0
-    v7: int32 = load v5
-    v8: int32 = load v6
+    v3: ref<Pair, borrowed, 'a, mutable> = address (*v0)[v1]
+    v4: ref<Pair, borrowed, 'a, mutable> = address (*v0)[v2]
+    v5: ref<int32, borrowed, 'a, mutable> = address (*v3).0
+    v6: ref<int32, borrowed, 'a, mutable> = address (*v4).0
+    v7: int32 = load (*v5)
+    v8: int32 = load (*v6)
     return
 }
 "#,
@@ -597,8 +616,9 @@ entry(v0: slice<Pair, borrowed, 'a, mutable, local>):
     program.assert_verified();
 }
 
-/// Overwriting an owned field through one handle while a borrow reaches through another verifies:
-/// distinct handles are disjoint places and the old value stays until the park.
+/// Overwriting an owned field through one handle under a borrow through another verifies.
+///
+/// A write below a handle releases nothing, since the heap retains the replaced value.
 #[test]
 fn test_allow_overwriting_an_owned_field_through_a_handle_under_a_borrow() {
     let session = TestSession::single(
@@ -627,7 +647,10 @@ export function overwrite(a: Holder, b: Holder): int32 {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+"#,
+    );
 }
 
 /// Overwriting an inline Drop struct field through a handle under a borrow verifies.
@@ -661,7 +684,10 @@ export function overwrite(a: Holder, b: Holder): int32 {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+"#,
+    );
 }
 
 /// Popping through one handle while a borrow reaches into an element through another verifies.
@@ -693,7 +719,10 @@ export function pop(a: Holder, b: Holder): int32 {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+"#,
+    );
 }
 
 /// Changing the case of a union field through a handle under a payload borrow verifies.
@@ -724,12 +753,15 @@ export function change(a: Holder, b: Holder): isize {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+"#,
+    );
 }
 
-/// Clearing an optional owned field through a handle under a payload borrow verifies.
+/// Borrowing a non-Copy payload in place through a handle is rejected.
 #[test]
-fn test_allow_clearing_an_optional_owned_field_through_a_handle_under_a_borrow() {
+fn test_reject_borrowing_a_non_copy_payload_through_a_handle() {
     let session = TestSession::single(
         r#"
 struct Payload {
@@ -759,7 +791,85 @@ export function clear(a: Holder, b: Holder): int32 {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+    session.assert_mir_verified_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=borrow-of-aliasable-variant message="cannot borrow an inline variant payload through aliasable access"
+/// @diagnostic.label line=20 column=22 span="&readonly a.slot" line_source="const held = &readonly a.slot;"
+"#,
+    );
+}
+
+/// A field of a narrowed non-Copy payload reads as a direct load through a handle.
+#[test]
+fn test_allow_reading_a_narrowed_non_copy_payload_through_a_handle() {
+    let session = TestSession::single(
+        r#"
+struct Payload {
+    value: int32;
+}
+
+class Holder {
+    slot: ^Payload | undefined;
+
+    constructor(slot: ^Payload | undefined) {
+        this.slot = slot;
+    }
+}
+
+export function read(a: Holder, b: Holder): int32 {
+    if (a.slot !== undefined) {
+        const value = a.slot.value;
+        b.slot = undefined;
+        return value;
+    }
+    return 0;
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+"#,
+    );
+}
+
+/// A non-Copy payload of a frame-owned object borrows in place.
+#[test]
+fn test_allow_borrowing_a_non_copy_payload_of_a_frame_owned_object() {
+    let session = TestSession::single(
+        r#"
+struct Payload {
+    value: int32;
+}
+
+class Holder {
+    slot: ^Payload | undefined;
+
+    constructor(&exclusive this, slot: ^Payload | undefined) {
+        this.slot = slot;
+    }
+}
+
+function read(payload: &readonly Payload): int32 {
+    return payload.value;
+}
+
+export function inspect(slot: ^Payload | undefined): int32 {
+    const holder: ^Holder = new Holder(slot);
+    if (holder.slot !== undefined) {
+        const held = &readonly holder.slot;
+        return read(held);
+    }
+    return 0;
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+"#,
+    );
 }
 
 /// A borrow into an owned field survives a park and a replacement through another handle.
@@ -794,7 +904,10 @@ export async function replace(a: Holder, b: Holder): Promise<int32> {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+"#,
+    );
 }
 
 /// Mutating through a second handle inside a method holding a borrow of its own storage verifies.
@@ -822,7 +935,10 @@ class Holder {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+"#,
+    );
 }
 
 /// Iterating one handle's items while pushing through another handle verifies.
@@ -849,67 +965,8 @@ export function grow(a: Holder, b: Holder): int32 {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#""#);
-}
-
-/// Clearing a boxed non-Copy payload through a handle under a borrow into the box verifies.
-#[test]
-fn test_allow_clearing_a_boxed_payload_through_a_handle_under_a_borrow() {
-    let session = TestSession::single(
-        r#"
-struct Payload {
-    steps: ^Array<int32>;
-}
-
-class Holder {
-    slot: ^Payload | undefined;
-
-    constructor(slot: ^Payload | undefined) {
-        this.slot = slot;
-    }
-}
-
-function read(payload: &readonly Payload): isize {
-    return payload.steps.length;
-}
-
-export function clear(a: Holder, b: Holder): isize {
-    if (a.slot !== undefined) {
-        const held = &readonly a.slot;
-        b.slot = undefined;
-        return read(held);
-    }
-    return 0;
-}
-"#,
-    );
-
-    session.assert_mir_verified_diagnostics("main.ds", r#""#);
-}
-
-/// Pushing onto an owned array while a borrow iterates its items is rejected by the borrow check.
-#[test]
-fn test_reject_pushing_onto_an_owned_array_while_iterating_its_items() {
-    let session = TestSession::single(
-        r#"
-export function grow(): int32 {
-    let items: ^int64[] = Array.of(1, 2, 3);
-    let total = 0;
-    for (const item of &readonly items) {
-        items.push(1);
-        total += 1;
-    }
-    return total;
-}
-"#,
-    );
-
     session.assert_mir_verified_diagnostics(
-        "main.ds",
-        r#"
-/// @diagnostic.error id=borrow-conflict message="borrow conflicts with active borrow"
-/// @diagnostic.label line=6 column=9 span="items.push(1)" line_source="items.push(1);"
-/// @diagnostic.related line=5 column=24 span="&readonly items" line_source="for (const item of &readonly items) {" message="borrow starts here"
+        "main.ds", r#"
 "#,
     );
 }
@@ -929,5 +986,299 @@ export function total(items: ^int64[]): int64 {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#""#);
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+"#,
+    );
+}
+
+/// Overwriting an owned field of a frame-owned object under an exclusive borrow invalidates it.
+#[test]
+fn test_reject_overwriting_an_owned_field_of_a_frame_owned_object_under_an_exclusive_borrow() {
+    let session = TestSession::single(
+        r#"
+import { Box } from "destack:memory";
+
+class Holder {
+    item: ^Box<int32>;
+
+    constructor(item: ^Box<int32>) {
+        this.item = item;
+    }
+}
+
+function read(item: &readonly Box<int32>): void {}
+
+export function overwrite(a: ^Holder): void {
+    const held = &exclusive a.item;
+    a.item = Box.new(1);
+    read(held);
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=invalidation-of-borrowed-place message="cannot invalidate borrowed place"
+/// @diagnostic.label line=16 column=5 span="a.item = Box.new(1)" line_source="a.item = Box.new(1);"
+/// @diagnostic.related line=15 column=18 span="&exclusive a.item" line_source="const held = &exclusive a.item;" message="borrow starts here"
+"#,
+    );
+}
+
+/// Overwriting an owned field of a frame-owned object under a readonly borrow invalidates it.
+#[test]
+fn test_reject_overwriting_an_owned_field_of_a_frame_owned_object_under_a_readonly_borrow() {
+    let session = TestSession::single(
+        r#"
+import { Box } from "destack:memory";
+
+class Holder {
+    item: ^Box<int32>;
+
+    constructor(item: ^Box<int32>) {
+        this.item = item;
+    }
+}
+
+function read(item: &readonly Box<int32>): void {}
+
+export function overwrite(a: ^Holder): void {
+    const held = &readonly a.item;
+    a.item = Box.new(1);
+    read(held);
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=invalidation-of-borrowed-place message="cannot invalidate borrowed place"
+/// @diagnostic.label line=16 column=5 span="a.item = Box.new(1)" line_source="a.item = Box.new(1);"
+/// @diagnostic.related line=15 column=18 span="&readonly a.item" line_source="const held = &readonly a.item;" message="borrow starts here"
+"#,
+    );
+}
+
+/// Popping a frame-owned array under a borrow of one owned element invalidates the borrow.
+#[test]
+fn test_reject_popping_a_frame_owned_array_under_an_element_borrow() {
+    let session = TestSession::single(
+        r#"
+import { Box } from "destack:memory";
+
+function read(item: &immutable Box<int32>): int32 {
+    return 0;
+}
+
+export function pop(items: ^Array<^Box<int32>>): int32 {
+    const held = &immutable items[0];
+    items.pop();
+    return read(held);
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=borrow-conflict message="borrow conflicts with active borrow"
+/// @diagnostic.label line=10 column=5 span="items.pop()" line_source="items.pop();"
+/// @diagnostic.related line=9 column=18 span="&immutable items[0]" line_source="const held = &immutable items[0];" message="borrow starts here"
+"#,
+    );
+}
+
+/// Pushing to a frame-owned array conflicts with the readonly borrow its iteration holds.
+#[test]
+fn test_reject_pushing_to_a_frame_owned_array_while_iterating_it() {
+    let session = TestSession::single(
+        r#"
+export function grow(items: ^int64[]): int64 {
+    let total = 0;
+    for (const item of &readonly items) {
+        items.push(1);
+        total += item;
+    }
+    return total;
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=borrow-conflict message="borrow conflicts with active borrow"
+/// @diagnostic.label line=5 column=9 span="items.push(1)" line_source="items.push(1);"
+/// @diagnostic.related line=4 column=24 span="&readonly items" line_source="for (const item of &readonly items) {" message="borrow starts here"
+"#,
+    );
+}
+
+/// Pushing through a mutable borrow parameter conflicts with the readonly borrow its iteration holds.
+#[test]
+fn test_reject_pushing_through_a_mutable_borrow_parameter_while_iterating_it() {
+    let session = TestSession::single(
+        r#"
+export function grow(items: &int64[]): int64 {
+    let total = 0;
+    for (const item of &readonly items) {
+        items.push(1);
+        total += item;
+    }
+    return total;
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics(
+        "main.ds",
+        r#"
+/// @diagnostic.error id=borrow-conflict message="borrow conflicts with active borrow"
+/// @diagnostic.label line=5 column=9 span="items.push(1)" line_source="items.push(1);"
+/// @diagnostic.related line=4 column=24 span="&readonly items" line_source="for (const item of &readonly items) {" message="borrow starts here"
+"#,
+    );
+}
+
+/// A provided optional field of an index-signature alias writes its case at the field's type.
+#[test]
+fn test_write_an_index_signature_alias_into_its_optional_field() {
+    let session = TestSession::single(
+        r#"
+type Fields = { readonly [key: string]: int32 };
+
+struct Entry {
+    fields?: Fields | undefined;
+    depth: int32;
+}
+
+function at(fields: Fields): Entry {
+    return Entry { fields, depth: 1 };
+}
+"#,
+    );
+
+    session.assert_mir_verified_diagnostics(
+        "main.ds", r#"
+"#,
+    );
+}
+
+/// Replacing a unique pointer invalidates a readonly borrow of a Copy field behind it.
+#[test]
+fn test_reject_replacing_a_unique_pointer_under_a_borrow_behind_it() {
+    let mut program = TestProgram::mir(
+        r#"
+type Item {
+    value: int32;
+}
+
+type Holder {
+    item: ref<Item, unique, mutable>;
+}
+
+function test(v0: Holder, v1: ref<Item, unique, mutable>): int32 {
+    local l0: Holder
+
+entry(v0: Holder, v1: ref<Item, unique, mutable>):
+    store l0, v0
+    v2: ref<int32, borrowed, 'frame, readonly> = address (*(l0).0).0
+    store (l0).0, v1
+    v3: int32 = load (*v2)
+    return v3
+}
+"#,
+    );
+
+    program.assert_verify_errors(
+        r#"
+error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
+  ──▶ <test.dsm>:16:5
+   │
+13 │ entry(v0: Holder, v1: ref<Item, unique, mutable>):
+14 │     store l0, v0
+15 │     v2: ref<int32, borrowed, 'frame, readonly> = address (*(l0).0).0
+   │     ---------------------------------------------------------------- borrow starts here
+16 │     store (l0).0, v1
+   │     ^^^^^^^^^^^^^^^^
+17 │     v3: int32 = load (*v2)
+18 │     return v3
+   │
+
+for more information about an error, run `destack explain invalidation-of-borrowed-place`
+"#,
+    );
+}
+
+/// A call that may replace a global's unique pointer invalidates a readonly borrow behind it.
+#[test]
+fn test_reject_a_call_under_a_borrow_behind_the_unique_pointer_of_a_global() {
+    let mut program = TestProgram::mir(
+        r#"
+type Item {
+    value: int32;
+}
+
+type Holder {
+    item: ref<Item, unique, mutable>;
+}
+
+global holder: Holder = zeroinit
+
+external function touch(): void
+
+function test(): int32 {
+entry:
+    v0: ref<int32, borrowed, 'static, readonly> = address (*(@holder).0).0
+    call touch(): () => void
+    v1: int32 = load (*v0)
+    return v1
+}
+"#,
+    );
+
+    program.assert_verify_errors(
+        r#"
+error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
+  ──▶ <test.dsm>:17:5
+   │
+14 │ function test(): int32 {
+15 │ entry:
+16 │     v0: ref<int32, borrowed, 'static, readonly> = address (*(@holder).0).0
+   │     ---------------------------------------------------------------------- borrow starts here
+17 │     call touch(): () => void
+   │     ^^^^^^^^^^^^^^^^^^^^^^^^
+18 │     v1: int32 = load (*v0)
+19 │     return v1
+   │
+
+for more information about an error, run `destack explain invalidation-of-borrowed-place`
+"#,
+    );
+}
+
+/// A Copy write through one parameter leaves a readonly loan of a non-Copy value through another live.
+#[test]
+fn test_allow_a_copy_write_beside_a_non_copy_loan_of_another_root() {
+    let mut program = TestProgram::mir(
+        r#"
+type Pair {
+    first: int32;
+    second: ref<int32, unique, mutable>;
+}
+
+function test<'a>(v0: ref<Pair, borrowed, 'a, mutable>, v1: ref<Pair, borrowed, 'a, mutable>, v2: int32): int32 {
+entry(v0: ref<Pair, borrowed, 'a, mutable>, v1: ref<Pair, borrowed, 'a, mutable>, v2: int32):
+    v3: ref<Pair, borrowed, 'a, readonly> = address (*v1)
+    store (*v0).0, v2
+    v4: int32 = load (*v3).0
+    return v4
+}
+"#,
+    );
+
+    program.assert_verified();
 }

@@ -14,6 +14,9 @@ impl TestProgram {
         let mut state = VerifyState::new(&self.lowered, &self.strings);
         state.verify();
 
+        if let Some(error) = state.take_invalid_mir() {
+            panic!("elaboration input is invalid MIR: {error:?}");
+        }
         let errors = state.take_errors();
         assert!(
             errors.is_empty(),

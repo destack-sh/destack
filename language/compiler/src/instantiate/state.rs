@@ -163,6 +163,11 @@ impl<'a> InstantiateState<'a> {
         );
         analyses.verify_functions(&self.specializations);
 
+        // fail on invalid MIR in an instance
+        if let Some(error) = analyses.take_invalid_mir() {
+            return Err(error);
+        }
+
         // reject an instance that fails verification, every failure named
         let errors = analyses.take_errors();
         if !errors.is_empty() {

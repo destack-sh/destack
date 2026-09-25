@@ -36,9 +36,14 @@ impl Compiler {
         let lowered = artifacts
             .read::<MirLowered>((module, profile, target))
             .map_err(CompilerError::from)?;
-        let mut state = VerifyState::new(&lowered);
+        let mut state = VerifyState::new(&lowered, self.strings());
 
         state.verify();
+
+        // fail on invalid MIR before reporting any diagnostic
+        if let Some(error) = state.take_invalid_mir() {
+            return Err(error);
+        }
 
         // emit every diagnostic and fail the verified artifact
         let mut errors = state.take_errors();
