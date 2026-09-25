@@ -3,6 +3,7 @@ pub mod command;
 pub mod common;
 pub mod console;
 pub mod diagnostic;
+pub mod example;
 
 pub use command::{
     build, cache, check, clean, completions, doc, doctor, explain, fmt, info, lint, lsp, query,

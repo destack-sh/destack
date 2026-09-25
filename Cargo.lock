@@ -2941,6 +2941,7 @@ dependencies = [
  "tspp_core",
  "tspp_daemon",
  "tspp_dir",
+ "tspp_doc",
  "tspp_fir",
  "tspp_formatter",
  "tspp_json",
@@ -3083,6 +3084,7 @@ dependencies = [
 name = "tspp_doc"
 version = "2026.9.0"
 dependencies = [
+ "pulldown-cmark",
  "rustc-hash 2.1.2",
  "serde",
  "tspp_artifact",
