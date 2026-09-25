@@ -1,5 +1,5 @@
-use destack_mir::{Space, Storage};
-use destack_program::{
+use tspp_mir::{Space, Storage};
+use tspp_program::{
     BindingEvent, BindingId, EdgeSite, Event, EventKind, FrameEvent, FunctionId, GlobalId,
     GlobalLocation, Memory, MemoryAccess, MemoryRange, TypeId, Word,
 };

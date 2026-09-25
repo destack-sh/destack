@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_bind_member_scopes() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 struct User<T> {
     id: string;
@@ -25,7 +25,7 @@ interface Reader<T> {
         .build();
 
     compiler.assert_dir_bound(
-        "main.ds",
+        "main.tspp",
         DirRows::binding().with_summaries(),
         r#"
 struct User<T> {
@@ -98,7 +98,7 @@ interface Reader<T> {
 fn test_bind_enum_fields() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 enum Priority {
     Low = 1,
@@ -113,7 +113,7 @@ enum Priority {
         .build();
 
     compiler.assert_dir_bound(
-        "main.ds",
+        "main.tspp",
         DirRows::binding(),
         r#"
 enum Priority {

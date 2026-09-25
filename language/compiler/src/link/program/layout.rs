@@ -1,5 +1,5 @@
-use destack_mir::{TraceMap, TraceTable};
-use destack_program::{LayoutBuilder, LayoutShapeBuilder, TypeId};
+use tspp_mir::{TraceMap, TraceTable};
+use tspp_program::{LayoutBuilder, LayoutShapeBuilder, TypeId};
 
 use crate::LinkResult;
 

@@ -6,11 +6,11 @@
 
 Tuples can be destructured in match patterns.
 
-```ds
+```tspp
 match (point) { (0, 0) => "origin"; (x, 0) => `x-axis at ${x}`; (0, y) => `y-axis at ${y}`; (x, y) => `at (${x}, ${y})` }
 ```
 
-```ds expected
+```tspp expected
 match (point) {
     (0, 0) => "origin"
     (x, 0) => `x-axis at ${x}`
@@ -23,11 +23,11 @@ match (point) {
 
 Tuple patterns can be nested.
 
-```ds
+```tspp
 match (data) { ((a, b), c) => a + b + c }
 ```
 
-```ds expected
+```tspp expected
 match (data) {
     ((a, b), c) => a + b + c
 }

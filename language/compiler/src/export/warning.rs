@@ -1,5 +1,5 @@
 use crate::DiagnosticAnchor;
-use destack_artifact_macros::Diagnostic;
+use tspp_artifact_macros::Diagnostic;
 
 /// Warnings during the export phase.
 #[derive(Debug, Clone, PartialEq, Diagnostic)]

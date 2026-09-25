@@ -43,7 +43,7 @@ extension of User {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -222,7 +222,7 @@ const fromSlice = Path.from(slice);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

@@ -1,5 +1,5 @@
-use destack_dir as dir;
 use smallvec::SmallVec;
+use tspp_dir as dir;
 
 use crate::CompilerResult;
 use crate::sema::{
@@ -10,7 +10,7 @@ use crate::sema::{
 /// One active match arm used for coverage.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// match (value) { _ => value }
 /// match (value) { Some(item) => item }
 /// ```
@@ -25,7 +25,7 @@ pub(in crate::sema) struct PatternArm {
 /// User-facing check that runs once its inputs solve.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// match (value) { _ => value }
 /// const { name } = user
 /// sizeOf<T>()
@@ -454,7 +454,7 @@ pub(in crate::sema) enum UncoveredValue {
 
 /// Obliges one site's patterns to cover the matched value space.
 ///
-/// ```ds
+/// ```tspp
 /// match (value) { true => 1, false => 0 }
 /// let { name } = user;
 /// try {} catch ({ message }) {}
@@ -491,7 +491,7 @@ pub(in crate::sema) enum PatternCoverage {
 
 /// Obliges an assignment target to accept writes.
 ///
-/// ```ds
+/// ```tspp
 /// value = 2;
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -504,7 +504,7 @@ pub(in crate::sema) struct WritableTargetObligation {
 
 /// Obliges a concrete declaration to initialize required fields.
 ///
-/// ```ds
+/// ```tspp
 /// class User {
 ///     name: string;
 ///     constructor(name: string) { this.name = name; }
@@ -524,7 +524,7 @@ pub(in crate::sema) struct FieldInitializationObligation {
 
 /// Obliges a written type operation to be well-formed once its operands close.
 ///
-/// ```ds
+/// ```tspp
 /// type Value = User["name"]
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -537,7 +537,7 @@ pub(in crate::sema) struct WellFormedTypeObligation {
 
 /// Obliges a runtime predicate to be executable.
 ///
-/// ```ds
+/// ```tspp
 /// value instanceof User
 /// "name" in value
 /// ```
@@ -555,7 +555,7 @@ pub(in crate::sema) struct RuntimePredicateObligation {
 
 /// Obliges a range's written endpoints to share one element type.
 ///
-/// ```ds
+/// ```tspp
 /// low..high
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -568,7 +568,7 @@ pub(in crate::sema) struct RangeElementObligation {
 
 /// Require a rest parameter to describe an argument sequence once its type solves.
 ///
-/// ```ds
+/// ```tspp
 /// declare function consume(...values: int32[]): void;
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -581,7 +581,7 @@ pub(in crate::sema) struct RestParameterObligation {
 
 /// Require the type of a shared binding to live in shared space.
 ///
-/// ```ds
+/// ```tspp
 /// shared const user: User = load();
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -594,7 +594,7 @@ pub(in crate::sema) struct SharedStorageObligation {
 
 /// Obliges a declaration to satisfy every declared interface.
 ///
-/// ```ds
+/// ```tspp
 /// struct Point implements Display { toString(): string }
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -607,7 +607,7 @@ pub(in crate::sema) struct InterfaceConformanceObligation {
 
 /// Obliges an implementation to avoid overlapping conflicting implementations.
 ///
-/// ```ds
+/// ```tspp
 /// extension of User implements Display {}
 /// ```
 #[derive(Debug, Clone, PartialEq)]
@@ -620,7 +620,7 @@ pub(in crate::sema) struct ImplementationCoherenceObligation {
 
 /// Obliges an extension to leave other visible extensions' properties alone.
 ///
-/// ```ds
+/// ```tspp
 /// extension of User { greeting(this): string { "hello" } }
 /// ```
 #[derive(Debug, Clone, PartialEq)]

@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactCache, ArtifactCacheError};
 use parking_lot::{Condvar, Mutex};
+use tspp_artifact::{ArtifactCache, ArtifactCacheError};
 
 use crate::{ArtifactCacheWrite, Revision};
 

@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use destack_bytecode as bytecode;
-use destack_core::Optional;
-use destack_mir::{Access, Reference, Space, Storage, TraceMap};
-use destack_program as program;
-use destack_program::{
+use tspp_bytecode as bytecode;
+use tspp_core::Optional;
+use tspp_mir::{Access, Reference, Space, Storage, TraceMap};
+use tspp_program as program;
+use tspp_program::{
     AllocationSite, BreakpointId, CallDispatch, CallMode, CallSite, CounterId, CounterSite,
     DynamicEntry, DynamicTableBuilder, EdgeSite, FunctionId, LayoutId, LayoutShapeBuilder,
     MemoryAccess, MemorySite, MemoryStop, MemoryTarget, ObjectLayoutBuilder, ProgramPoint,

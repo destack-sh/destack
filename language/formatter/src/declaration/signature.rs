@@ -14,23 +14,23 @@ use crate::operator::{
     write_colon_prefixed_type_annotation, write_type_annotation_prefix,
     write_type_expression_with_inline_prefix_annotations,
 };
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_core::StringId;
-use destack_dir::{
+use crate::{FormatNode, TsppFormatContext, TsppFormatter};
+use smallvec::SmallVec;
+use tspp_core::StringId;
+use tspp_dir::{
     Asynchrony, Expression, FunctionForm, FunctionPhase, FunctionRole, FunctionSignature,
     GenericParameter, Keyword, LocalNodeId, Node, Parameter, Pattern, ThisForm, TokenType, Tree,
     TreeStore, TypeExpression, VarianceModifier, WhereClause, WhereRelation,
 };
-use destack_fir::format::{FormatError, FormatResult};
-use destack_fir::prelude::*;
-use destack_fir::{format_args, write};
-use destack_repository::TrailingComma;
-use destack_source::{NodeSpanRegion, NodeSpanType};
-use smallvec::SmallVec;
+use tspp_fir::format::{FormatError, FormatResult};
+use tspp_fir::prelude::*;
+use tspp_fir::{format_args, write};
+use tspp_repository::TrailingComma;
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 /// Write one variance prefix.
 fn write_variance_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     variance: Option<VarianceModifier>,
 ) -> FormatResult<()> {
     // variance
@@ -48,7 +48,7 @@ fn write_variance_prefix<'ast>(
 
 /// Write one generic parameter list when present.
 pub(crate) fn write_declaration_generic_parameters<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     generic_parameters: &[LocalNodeId<GenericParameter>],
 ) -> FormatResult<()> {
     if generic_parameters.is_empty() {
@@ -64,7 +64,7 @@ pub(crate) fn write_declaration_generic_parameters<'ast>(
 
 /// Write one where-clause list when present.
 pub(crate) fn write_declaration_where_clauses<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     where_clauses: &[LocalNodeId<WhereClause>],
 ) -> FormatResult<()> {
     if where_clauses.is_empty() {
@@ -76,14 +76,14 @@ pub(crate) fn write_declaration_where_clauses<'ast>(
 
 /// Write one type-parameter-like `extends` and `=` trailer sequence.
 fn write_generic_parameter_constraint_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     write!(f, [token(":")])
 }
 
 /// Write one type-parameter-like constraint and `=` trailer sequence.
 pub(crate) fn write_type_parameter_constraint_and_default<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<GenericParameter>,
     constraint: Option<LocalNodeId<TypeExpression>>,
     default: Option<LocalNodeId<TypeExpression>>,
@@ -148,7 +148,7 @@ pub(crate) fn write_type_parameter_constraint_and_default<'ast>(
 
 /// Write one grouped generic-parameter list.
 pub(crate) fn write_generic_parameter_list<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     generic_parameters: &[LocalNodeId<GenericParameter>],
     trailing_separator: TrailingSeparator,
 ) -> FormatResult<()> {
@@ -171,7 +171,7 @@ pub(crate) fn write_generic_parameter_list<'ast>(
 
 /// Return the default trailing separator for one generic-parameter list.
 pub(crate) fn default_generic_parameter_trailing_separator(
-    f: &DestackFormatter<'_, '_>,
+    f: &TsppFormatter<'_, '_>,
 ) -> TrailingSeparator {
     match f.context().options.trailing_comma {
         TrailingComma::None => TrailingSeparator::Omit,
@@ -181,7 +181,7 @@ pub(crate) fn default_generic_parameter_trailing_separator(
 
 /// Write one parameter type annotation.
 fn write_parameter_type<'ast, T>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<T>,
     declared_type: Option<LocalNodeId<TypeExpression>>,
 ) -> FormatResult<()>
@@ -207,7 +207,7 @@ where
 }
 
 /// Return whether one annotation spells the plain Lifetime bound.
-fn is_lifetime_bound(f: &DestackFormatter<'_, '_>, ty: LocalNodeId<TypeExpression>) -> bool {
+fn is_lifetime_bound(f: &TsppFormatter<'_, '_>, ty: LocalNodeId<TypeExpression>) -> bool {
     let TypeExpression::Reference {
         path,
         generic_arguments,
@@ -225,7 +225,7 @@ fn is_lifetime_bound(f: &DestackFormatter<'_, '_>, ty: LocalNodeId<TypeExpressio
 
 /// Write one signature return type annotation.
 pub(crate) fn write_signature_return_type<'ast, T>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<T>,
     return_type: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()>
@@ -264,7 +264,7 @@ where
 
 /// Return whether one pattern parameter is destructuring.
 fn parameter_pattern_is_destructuring(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parameter_id: LocalNodeId<Parameter>,
 ) -> bool {
     let pattern_id = match context.tree.get(parameter_id) {
@@ -279,7 +279,7 @@ fn parameter_pattern_is_destructuring(
 
 /// Return whether one parameter default is simple enough to hug.
 fn parameter_default_is_huggable(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parameter_id: LocalNodeId<Parameter>,
 ) -> bool {
     let default = match context.tree.get(parameter_id) {
@@ -309,7 +309,7 @@ fn parameter_default_is_huggable(
 
 /// Return whether one parameter is a plain binding identifier.
 fn parameter_is_binding_identifier(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parameter_id: LocalNodeId<Parameter>,
 ) -> bool {
     matches!(
@@ -320,7 +320,7 @@ fn parameter_is_binding_identifier(
 
 /// Return the declared type annotation for one parameter.
 fn parameter_declared_type(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parameter_id: LocalNodeId<Parameter>,
 ) -> Option<LocalNodeId<TypeExpression>> {
     match context.tree.get(parameter_id) {
@@ -334,7 +334,7 @@ fn parameter_declared_type(
 
 /// Return whether one parameter has a default value.
 fn parameter_has_default(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parameter_id: LocalNodeId<Parameter>,
 ) -> bool {
     match context.tree.get(parameter_id) {
@@ -347,7 +347,7 @@ fn parameter_has_default(
 
 /// Return whether one type annotation is object-like for parameter hugging.
 fn type_expression_is_object_like(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     type_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     matches!(
@@ -358,7 +358,7 @@ fn type_expression_is_object_like(
 
 /// Return whether one generic parameter permits parameter grouping.
 pub(crate) fn function_grouping_generic_parameter_is_plain(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     generic_parameter_id: LocalNodeId<GenericParameter>,
 ) -> bool {
     match context.tree.get(generic_parameter_id) {
@@ -379,7 +379,7 @@ pub(crate) fn function_grouping_generic_parameter_is_plain(
 
 /// Return whether parameters should group separately from the return type.
 pub(crate) fn should_group_parameters_with_return_type<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     generic_parameters: &[LocalNodeId<GenericParameter>],
     parameter_count: usize,
     return_type: Option<LocalNodeId<TypeExpression>>,
@@ -409,7 +409,7 @@ pub(crate) fn should_group_parameters_with_return_type<'ast>(
 
 /// Write type parameters, parameters, and return type using grouped signature layout.
 pub(crate) fn write_grouped_parameters_with_return_type<'ast, H, P, R>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     generic_parameters: &[LocalNodeId<GenericParameter>],
     parameter_count: usize,
     return_type: Option<LocalNodeId<TypeExpression>>,
@@ -420,9 +420,9 @@ pub(crate) fn write_grouped_parameters_with_return_type<'ast, H, P, R>(
     should_group_return_type: bool,
 ) -> FormatResult<()>
 where
-    H: Format<'ast, DestackFormatContext<'ast>>,
-    P: Format<'ast, DestackFormatContext<'ast>>,
-    R: Format<'ast, DestackFormatContext<'ast>>,
+    H: Format<'ast, TsppFormatContext<'ast>>,
+    P: Format<'ast, TsppFormatContext<'ast>>,
+    R: Format<'ast, TsppFormatContext<'ast>>,
 {
     let format_parameter_head = CapturedFormat::new(f, format_parameter_head)?;
     let format_parameters = CapturedFormat::new(f, format_parameters)?;
@@ -460,7 +460,7 @@ where
 
 /// Return whether comments surround the only parameter inside its parentheses.
 fn single_parameter_has_paren_comments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parameter_id: LocalNodeId<Parameter>,
 ) -> bool {
     let parameter_span = context.span(parameter_id);
@@ -489,7 +489,7 @@ fn single_parameter_has_paren_comments(
 
 /// Format one named parameter.
 fn write_named_parameter<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     parameter_id: LocalNodeId<Parameter>,
     name: StringId,
     is_optional: bool,
@@ -498,7 +498,7 @@ fn write_named_parameter<'ast>(
 ) -> FormatResult<()> {
     let left = CapturedFormat::new(
         f,
-        format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        format_with(|f: &mut TsppFormatter<'ast, '_>| {
             // name
             write!(f, [name])?;
             write_token_suffix(f, "?", is_optional)?;
@@ -527,7 +527,7 @@ fn write_named_parameter<'ast>(
 
 /// Format one pattern parameter.
 fn write_pattern_parameter<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     parameter_id: LocalNodeId<Parameter>,
     pattern: LocalNodeId<Pattern>,
     is_optional: bool,
@@ -536,7 +536,7 @@ fn write_pattern_parameter<'ast>(
 ) -> FormatResult<()> {
     let left = CapturedFormat::new(
         f,
-        format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        format_with(|f: &mut TsppFormatter<'ast, '_>| {
             // pattern
             write!(f, [pattern])?;
             write_token_suffix(f, "?", is_optional)?;
@@ -565,7 +565,7 @@ fn write_pattern_parameter<'ast>(
 
 /// Format one variadic named parameter.
 fn write_variadic_named_parameter<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     parameter_id: LocalNodeId<Parameter>,
     name: StringId,
     declared_type: Option<LocalNodeId<TypeExpression>>,
@@ -579,7 +579,7 @@ fn write_variadic_named_parameter<'ast>(
 
 /// Format one variadic pattern parameter.
 fn write_variadic_pattern_parameter<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     parameter_id: LocalNodeId<Parameter>,
     pattern: LocalNodeId<Pattern>,
     declared_type: Option<LocalNodeId<TypeExpression>>,
@@ -593,7 +593,7 @@ fn write_variadic_pattern_parameter<'ast>(
 
 /// Format one parameter body.
 fn format_parameter_node<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Parameter>,
     parameter: &Parameter,
 ) -> FormatResult<()> {
@@ -626,11 +626,11 @@ impl<'ast> FormatNode<'ast, Parameter> for Parameter {
     fn format_node(
         &self,
         node_id: LocalNodeId<Parameter>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [prefix_annotations(f.context(), node_id)])?;
 
-        let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             format_parameter_node(f, node_id, self)?;
             write!(f, [infix_or_postfix_annotations(f.context(), node_id)])
         });
@@ -676,7 +676,7 @@ impl Deref for ParameterList {
 
 /// Return whether one parameter is variadic.
 pub(crate) fn parameter_is_variadic(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parameter_id: LocalNodeId<Parameter>,
 ) -> bool {
     matches!(
@@ -687,7 +687,7 @@ pub(crate) fn parameter_is_variadic(
 
 /// Return whether one single-parameter list should hug.
 pub(crate) fn should_hug_function_parameters(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parameters: &[LocalNodeId<Parameter>],
     can_omit_parentheses: bool,
 ) -> bool {
@@ -722,7 +722,7 @@ pub(crate) fn should_hug_function_parameters(
 
 /// Write one function abstraction prefix.
 pub(crate) fn write_function_abstraction_prefix(
-    f: &mut DestackFormatter<'_, '_>,
+    f: &mut TsppFormatter<'_, '_>,
     is_abstract: bool,
     is_override: bool,
 ) -> FormatResult<()> {
@@ -741,7 +741,7 @@ pub(crate) fn write_function_abstraction_prefix(
 
 /// Write the async keyword prefix.
 pub(crate) fn write_function_asynchrony_prefix(
-    f: &mut DestackFormatter<'_, '_>,
+    f: &mut TsppFormatter<'_, '_>,
     asynchrony: Asynchrony,
 ) -> FormatResult<()> {
     // asynchrony
@@ -754,7 +754,7 @@ pub(crate) fn write_function_asynchrony_prefix(
 
 /// Write shared function header keywords and generator markers.
 pub(crate) fn write_function_header_prefix(
-    f: &mut DestackFormatter<'_, '_>,
+    f: &mut TsppFormatter<'_, '_>,
     signature: &FunctionSignature,
     is_declaration_style: bool,
     has_name_or_key: bool,
@@ -807,7 +807,7 @@ pub(crate) fn write_function_header_prefix(
 
 /// Write one grouped parameter list with an optional receiver.
 pub(crate) fn write_signature_parameter_list_with_this<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     this_form: Option<ThisForm>,
     this_parameter: Option<LocalNodeId<Parameter>>,
     parameters: &[LocalNodeId<Parameter>],
@@ -825,7 +825,7 @@ pub(crate) fn write_signature_parameter_list_with_this<'ast>(
     let combined_parameters = ParameterList::new(this_parameter, parameters);
     let parameter_count = combined_parameters.len();
 
-    let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let body = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         for (index, parameter_id) in combined_parameters.iter().copied().enumerate() {
             if index > 0 {
                 let parameter_span = f.context().span(parameter_id);
@@ -860,11 +860,11 @@ pub(crate) fn write_signature_parameter_list_with_this<'ast>(
 
 /// Write one grouped parameter list without a receiver.
 fn write_signature_parameter_list_without_this<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     parameters: &[LocalNodeId<Parameter>],
     trailing_separator: TrailingSeparator,
 ) -> FormatResult<()> {
-    let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let body = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         let entries = FormatSeparatedIter::new(parameters.iter().copied(), ",")
             .with_trailing_separator(trailing_separator);
 
@@ -894,13 +894,13 @@ fn write_signature_parameter_list_without_this<'ast>(
 
 /// Write one hugged parameter list with an optional receiver.
 pub(crate) fn write_signature_hug_parameter_list_with_this<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     this_form: Option<ThisForm>,
     this_parameter: Option<LocalNodeId<Parameter>>,
     parameters: &[LocalNodeId<Parameter>],
 ) -> FormatResult<()> {
     let combined_parameters = ParameterList::new(this_parameter, parameters);
-    let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         for (index, parameter_id) in combined_parameters.iter().copied().enumerate() {
             if index > 0 {
                 write!(f, [token(","), space()])?;
@@ -917,7 +917,7 @@ pub(crate) fn write_signature_hug_parameter_list_with_this<'ast>(
 
 /// Write one signature parameter or receiver shorthand.
 fn write_signature_parameter_entry<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     this_form: Option<ThisForm>,
     this_parameter: Option<LocalNodeId<Parameter>>,
     parameter_id: LocalNodeId<Parameter>,
@@ -931,7 +931,7 @@ fn write_signature_parameter_entry<'ast>(
 
 /// Write one receiver parameter.
 fn write_this_parameter<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     this_form: Option<ThisForm>,
     this_parameter: LocalNodeId<Parameter>,
 ) -> FormatResult<()> {
@@ -963,7 +963,7 @@ fn this_parameter_declared_type(
 
 /// Write one empty parameter list with interior annotations.
 pub(crate) fn write_empty_parameter_list_with_interior_comments<'ast, T>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<T>,
 ) -> FormatResult<()>
 where
@@ -988,10 +988,10 @@ where
 
 /// Format one where-clause list as an independent group.
 pub(crate) fn format_where_clause<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     where_clauses: &[LocalNodeId<WhereClause>],
 ) -> FormatResult<()> {
-    let clause = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let clause = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         format_where_clause_continuation(f, where_clauses)
     });
 
@@ -1000,7 +1000,7 @@ pub(crate) fn format_where_clause<'ast>(
 
 /// Format one where-clause list inside its declaration header group.
 pub(crate) fn format_where_clause_continuation<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     where_clauses: &[LocalNodeId<WhereClause>],
 ) -> FormatResult<()> {
     let body = separated_entries(",", where_clauses, TrailingSeparator::Omit, None);
@@ -1019,7 +1019,7 @@ impl<'ast> FormatNode<'ast, WhereClause> for WhereClause {
     fn format_node(
         &self,
         node_id: LocalNodeId<WhereClause>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [prefix_annotations(f.context(), node_id)])?;
 
@@ -1039,7 +1039,7 @@ impl<'ast> FormatNode<'ast, GenericParameter> for GenericParameter {
     fn format_node(
         &self,
         node_id: LocalNodeId<GenericParameter>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [prefix_annotations(f.context(), node_id)])?;
 

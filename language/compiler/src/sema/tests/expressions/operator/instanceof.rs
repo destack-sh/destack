@@ -12,7 +12,7 @@ const ok = value instanceof User;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -67,7 +67,7 @@ if (value instanceof User) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -161,7 +161,7 @@ if (value instanceof User) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -250,7 +250,7 @@ const ok = value instanceof Named;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -310,7 +310,7 @@ const ok = value instanceof User;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -364,7 +364,7 @@ function adopt<T>(value: T): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -449,7 +449,7 @@ function adopt<T>(value: T | Deferred<T>): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -539,7 +539,7 @@ function adopt<T>(value: T | Deferred<T>): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===

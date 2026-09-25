@@ -1,8 +1,8 @@
 use super::html::HTML_NAMED_ENTITIES;
 use super::tokenizer::Tokenizer;
-use destack_dir::{Token, TokenLiteral, TokenType, is_identifier_continue, is_identifier_start};
-use destack_source::{File, Span};
 use memchr::memchr;
+use tspp_dir::{Token, TokenLiteral, TokenType, is_identifier_continue, is_identifier_start};
+use tspp_source::{File, Span};
 
 impl Tokenizer {
     /// Return one contextual tree child token from source.

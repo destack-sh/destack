@@ -6,11 +6,11 @@
 
 Const expressions keep `const` tight to the body.
 
-```ds
+```tspp
 const value = const 1 + 2 + 3
 ```
 
-```ds expected
+```tspp expected
 const value = const 1 + 2 + 3;
 ```
 
@@ -18,12 +18,12 @@ const value = const 1 + 2 + 3;
 
 Const values follow their inner expression shape in operand positions.
 
-```ds
+```tspp
 render(const buildView())
 const value = (const createBuilder()).build()
 ```
 
-```ds expected
+```tspp expected
 render(const buildView());
 const value = (const createBuilder()).build();
 ```
@@ -32,12 +32,12 @@ const value = (const createBuilder()).build();
 
 Const values keep spread and object-value grouping.
 
-```ds
+```tspp
 const values = [const buildValue(), ...(const buildValues())]
 const envelope = { value: const buildValue() }
 ```
 
-```ds expected
+```tspp expected
 const values = [const buildValue(), ...const buildValues()];
 const envelope = { value: const buildValue() };
 ```
@@ -46,11 +46,11 @@ const envelope = { value: const buildValue() };
 
 Default parameters can use compact const values.
 
-```ds
+```tspp
 function render(view = const buildView()) { use(view) }
 ```
 
-```ds expected
+```tspp expected
 function render(view = const buildView()) {
     use(view)
 }
@@ -60,11 +60,11 @@ function render(view = const buildView()) {
 
 Compact const values stay inline inside template interpolations.
 
-```ds
+```tspp
 const label = `size: ${const computeSize()}`
 ```
 
-```ds expected
+```tspp expected
 const label = `size: ${const computeSize()}`;
 ```
 
@@ -72,11 +72,11 @@ const label = `size: ${const computeSize()}`;
 
 Const block values expand inside template interpolations.
 
-```ds
+```tspp
 const label = `size: ${const { computeSize() }}`
 ```
 
-```ds expected
+```tspp expected
 const label = `size: ${
     const {
         computeSize()

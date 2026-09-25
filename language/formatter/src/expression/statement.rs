@@ -5,7 +5,7 @@ use super::control::{
     format_while_expression, format_yield_expression,
 };
 use super::ternary::format_ternary;
-use crate::DestackFormatter;
+use crate::TsppFormatter;
 use crate::annotation::{
     FormatLeadingComments, FormatTrailingComments, infix_or_postfix_annotations,
 };
@@ -18,10 +18,10 @@ use crate::declaration::{
     format_using_statement_expression,
 };
 use crate::tree::tree_control_child_should_expand;
-use destack_dir::{Catch, Expression, IfForm, LocalNodeId, StringId, TokenType};
-use destack_fir::format::{Format, FormatResult};
-use destack_fir::prelude::{format_with, group, space, token};
-use destack_fir::write;
+use tspp_dir::{Catch, Expression, IfForm, LocalNodeId, StringId, TokenType};
+use tspp_fir::format::{Format, FormatResult};
+use tspp_fir::prelude::{format_with, group, space, token};
+use tspp_fir::write;
 
 /// Return whether one statement expression owns its own trailing annotations.
 pub(crate) fn statement_expression_owns_trailing_annotations(expression: &Expression) -> bool {
@@ -36,7 +36,7 @@ pub(crate) fn statement_expression_owns_trailing_annotations(expression: &Expres
 
 /// Write trailing annotations for one statement expression.
 pub(crate) fn write_statement_expression_trailing_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> FormatResult<()> {
@@ -53,7 +53,7 @@ pub(crate) fn write_statement_expression_trailing_annotations<'ast>(
 
 /// Return whether one value-capable control expression should expand explicit branch blocks.
 fn value_branch_expression_should_expand<'ast>(
-    f: &DestackFormatter<'ast, '_>,
+    f: &TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     if expression_is_value_block_tail(f.context(), node_id) {
@@ -69,7 +69,7 @@ fn value_branch_expression_should_expand<'ast>(
 
 /// Return whether one try expression should expand explicit branch blocks.
 fn try_expression_should_expand<'ast>(
-    f: &DestackFormatter<'ast, '_>,
+    f: &TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     catch: Option<LocalNodeId<Catch>>,
     finally: Option<LocalNodeId<Expression>>,
@@ -83,7 +83,7 @@ fn try_expression_should_expand<'ast>(
 
 /// Format statement-like expression variants.
 pub(crate) fn format_statement_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> FormatResult<bool> {
@@ -248,7 +248,7 @@ pub(crate) fn format_statement_expression<'ast>(
 
 /// Format one loop label ahead of its loop keyword.
 fn format_loop_label<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     label: Option<&StringId>,
     target: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
@@ -265,7 +265,7 @@ fn format_loop_label<'ast>(
 
 /// Format one statement label with its colon and separator comments.
 fn format_statement_label<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     label: &StringId,
     target: LocalNodeId<Expression>,
 ) -> FormatResult<()> {

@@ -8,13 +8,13 @@ Import statement fixtures cover import syntax forms, attributes, comments, and l
 
 Import braces get internal spacing, like object literals.
 
-```ds
+```tspp
 import {foo,bar,baz} from "module"
 ```
 
 Spaces are added after `{` and before `}`.
 
-```ds expected
+```tspp expected
 import { bar, baz, foo } from "module";
 ```
 
@@ -22,11 +22,11 @@ import { bar, baz, foo } from "module";
 
 Short import lists remain on a single line.
 
-```ds
+```tspp
 import { a, b, c } from "module"
 ```
 
-```ds expected
+```tspp expected
 import { a, b, c } from "module";
 ```
 
@@ -34,11 +34,11 @@ import { a, b, c } from "module";
 
 Single imports also get internal spacing.
 
-```ds
+```tspp
 import { foo } from "module"
 ```
 
-```ds expected
+```tspp expected
 import { foo } from "module";
 ```
 
@@ -46,11 +46,11 @@ import { foo } from "module";
 
 Imports can rename values using `as`.
 
-```ds
+```tspp
 import { foo as bar } from "module"
 ```
 
-```ds expected
+```tspp expected
 import { foo as bar } from "module";
 ```
 
@@ -58,11 +58,11 @@ import { foo as bar } from "module";
 
 Multiple imports can each have aliases.
 
-```ds
+```tspp
 import { foo as f, bar as b, baz as z } from "module"
 ```
 
-```ds expected
+```tspp expected
 import { bar as b, foo as f, baz as z } from "module";
 ```
 
@@ -72,11 +72,11 @@ import { bar as b, foo as f, baz as z } from "module";
 
 Default imports use the value directly without braces.
 
-```ds
+```tspp
 import foo from "module"
 ```
 
-```ds expected
+```tspp expected
 import foo from "module";
 ```
 
@@ -84,11 +84,11 @@ import foo from "module";
 
 Default and named imports can be combined.
 
-```ds
+```tspp
 import foo, { bar, baz } from "module"
 ```
 
-```ds expected
+```tspp expected
 import foo, { bar, baz } from "module";
 ```
 
@@ -96,11 +96,11 @@ import foo, { bar, baz } from "module";
 
 Both default and named imports support aliases.
 
-```ds
+```tspp
 import Default, { foo as f } from "module"
 ```
 
-```ds expected
+```tspp expected
 import Default, { foo as f } from "module";
 ```
 
@@ -110,11 +110,11 @@ import Default, { foo as f } from "module";
 
 Namespace imports collect all exports under a single identifier.
 
-```ds
+```tspp
 import * as mod from "module"
 ```
 
-```ds expected
+```tspp expected
 import * as mod from "module";
 ```
 
@@ -122,11 +122,11 @@ import * as mod from "module";
 
 Extra spacing is normalized to single spaces.
 
-```ds
+```tspp
 import   *   as   mod   from   "module"
 ```
 
-```ds expected
+```tspp expected
 import * as mod from "module";
 ```
 
@@ -136,11 +136,11 @@ import * as mod from "module";
 
 Side effect imports execute a module without importing bindings.
 
-```ds
+```tspp
 import "module"
 ```
 
-```ds expected
+```tspp expected
 import "module";
 ```
 
@@ -148,11 +148,11 @@ import "module";
 
 Extra spacing after `import` is removed.
 
-```ds
+```tspp
 import   "module"
 ```
 
-```ds expected
+```tspp expected
 import "module";
 ```
 
@@ -162,13 +162,13 @@ import "module";
 
 When imports exceed the line width, they break to multiple lines.
 
-```ds line-width=40
+```tspp line-width=40
 import { veryLongName, anotherLongName, thirdLongName } from "module"
 ```
 
 Each import goes on its own line with a trailing comma.
 
-```ds expected
+```tspp expected
 import {
     anotherLongName,
     thirdLongName,
@@ -180,11 +180,11 @@ import {
 
 Many short imports also break when they exceed the line width.
 
-```ds line-width=50
+```tspp line-width=50
 import { a, b, c, d, e, f, g, h, i, j, k } from "module"
 ```
 
-```ds expected
+```tspp expected
 import {
     a,
     b,
@@ -204,11 +204,11 @@ import {
 
 Long module paths are preserved as-is.
 
-```ds
+```tspp
 import { foo } from "@organization/very-long-package-name/deeply/nested/module"
 ```
 
-```ds expected
+```tspp expected
 import { foo } from "@organization/very-long-package-name/deeply/nested/module";
 ```
 
@@ -218,11 +218,11 @@ import { foo } from "@organization/very-long-package-name/deeply/nested/module";
 
 All exports from a module can be re-exported.
 
-```ds
+```tspp
 export * from "module"
 ```
 
-```ds expected
+```tspp expected
 export * from "module";
 ```
 
@@ -230,11 +230,11 @@ export * from "module";
 
 Specific exports can be selected for re-export.
 
-```ds
+```tspp
 export { foo, bar } from "module"
 ```
 
-```ds expected
+```tspp expected
 export { bar, foo } from "module";
 ```
 
@@ -242,11 +242,11 @@ export { bar, foo } from "module";
 
 Re-exports can be renamed using `as`.
 
-```ds
+```tspp
 export { foo as f, bar as b } from "module"
 ```
 
-```ds expected
+```tspp expected
 export { bar as b, foo as f } from "module";
 ```
 
@@ -254,11 +254,11 @@ export { bar as b, foo as f } from "module";
 
 All exports can be bundled under a namespace.
 
-```ds
+```tspp
 export * as ns from "module"
 ```
 
-```ds expected
+```tspp expected
 export * as ns from "module";
 ```
 
@@ -268,11 +268,11 @@ export * as ns from "module";
 
 Import attributes provide metadata about the module.
 
-```ds
+```tspp
 import data from "data.json" with { type: "json" }
 ```
 
-```ds expected
+```tspp expected
 import data from "data.json" with { type: "json" };
 ```
 
@@ -280,11 +280,11 @@ import data from "data.json" with { type: "json" };
 
 Multiple attributes can be specified.
 
-```ds
+```tspp
 import styles from "styles.css" with { type: "css", scope: "local" }
 ```
 
-```ds expected
+```tspp expected
 import styles from "styles.css" with { type: "css", scope: "local" };
 ```
 
@@ -292,10 +292,10 @@ import styles from "styles.css" with { type: "css", scope: "local" };
 
 Re-exports can include module attributes.
 
-```ds
+```tspp
 export { foo } from "data.json" with { type: "json" }
 ```
 
-```ds expected
+```tspp expected
 export { foo } from "data.json" with { type: "json" };
 ```

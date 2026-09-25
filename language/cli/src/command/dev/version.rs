@@ -6,7 +6,7 @@ use clap::Subcommand;
 use jiff::Timestamp;
 use jiff::tz::TimeZone;
 
-use destack_source::glob;
+use tspp_source::glob;
 
 use crate::console;
 
@@ -15,7 +15,7 @@ const FILE_GLOBS_TO_UPDATE: &[&str] = &[
     "Cargo.toml",
     "package.json",
     "language/library/destack.json",
-    "language/grammar/destack/tree-sitter.json",
+    "language/grammar/tspp/tree-sitter.json",
     "language/grammar/bytecode/tree-sitter.json",
     "language/grammar/mir/tree-sitter.json",
     "language/bridge/zed/Cargo.toml",

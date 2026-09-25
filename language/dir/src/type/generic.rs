@@ -1,6 +1,6 @@
-use destack_serde::Reflect;
-use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
+use tspp_source::ModuleId;
 
 use crate::{
     Coercion, GenericParameter, GlobalNodeIdAny, GlobalSymbolId, GlobalTypeId, InstanceKey,
@@ -205,7 +205,7 @@ pub enum GenericParameterKey {
 /// One declaration of generic parameters.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// class Box<T> { ... }            // one template with one parameter
 /// function zip<A, B>(...) { ... } // one template with two parameters
 /// ```
@@ -250,7 +250,7 @@ impl GenericTemplate {
 /// template's own scope assumes them.
 ///
 /// Example:
-/// ```ds
+/// ```tspp
 /// get<Q: Hash>(key: &readonly Q): V | undefined where K: Borrow<Q>
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, TypeFold)]
@@ -268,7 +268,7 @@ pub struct WherePredicate {
 /// One declaration-side generic parameter.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// <T: Serializable = string>
 /// <const Size: usize>
 /// ```
@@ -351,7 +351,7 @@ pub struct GlobalInstanceId {
 /// One generic template closed over concrete type arguments.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// pick<float64>(30.5, 40.5)  // template: pick, arguments: (float64)
 /// Array<int32>               // template: Array, arguments: (int32)
 /// ```
@@ -379,7 +379,7 @@ pub enum InstanceOrigin {
 /// One closed type's implementation of one interface, in the interface's member order.
 ///
 /// Example:
-/// ```ds
+/// ```tspp
 /// first<Array<int32>>(values)  // witness (Array<int32>, Iterable<int32>):
 ///                              //   functions: (Array.iterator<int32>), types: (int32)
 /// ```
@@ -434,7 +434,7 @@ pub struct WitnessConst {
 /// One instantiation a body performs, open while it mentions parameters.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// function outer<T>(value: T): T {
 ///     return inner(value);  // owner: outer, template: inner, arguments: (T)
 /// }

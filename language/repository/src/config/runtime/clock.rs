@@ -1,5 +1,5 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// World clock configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]

@@ -8,11 +8,11 @@ If-let fixtures cover pattern conditions, branch tails, comments, and nested con
 
 If let expressions keep spacing around `=` and format blocks.
 
-```ds
+```tspp
 const value = if (let Some(x) = maybe) { x } else { 0 }
 ```
 
-```ds expected
+```tspp expected
 const value = if (let Some(x) = maybe) { x } else { 0 };
 ```
 
@@ -20,11 +20,11 @@ const value = if (let Some(x) = maybe) { x } else { 0 };
 
 If let without else still formats the block.
 
-```ds
+```tspp
 if (let (x, y) = point) { print(x + y) }
 ```
 
-```ds expected
+```tspp expected
 if (let (x, y) = point) {
     print(x + y)
 }
@@ -34,11 +34,11 @@ if (let (x, y) = point) {
 
 Tagged object patterns stay inside the parenthesized condition.
 
-```ds
+```tspp
 if (let Point { x, y } = value) { x + y } else { 0 }
 ```
 
-```ds expected
+```tspp expected
 if (let Point { x, y } = value) {
     x + y
 } else {
@@ -50,11 +50,11 @@ if (let Point { x, y } = value) {
 
 Dereference prefixes stay attached to the pattern head.
 
-```ds
+```tspp
 if (let *Point { x, y } = point) { x + y } else { 0 }
 ```
 
-```ds expected
+```tspp expected
 if (let *Point { x, y } = point) {
     x + y
 } else {
@@ -66,11 +66,11 @@ if (let *Point { x, y } = point) {
 
 Else-if chains expand consistently when one branch expands.
 
-```ds
+```tspp
 if(let Some(value)=maybe){value}else if(let Err(error)=result){handle(error)}else{fallback()}
 ```
 
-```ds expected
+```tspp expected
 if (let Some(value) = maybe) {
     value
 } else if (let Err(error) = result) {
@@ -84,7 +84,7 @@ if (let Some(value) = maybe) {
 
 Comments in the condition expand the whole head and branches.
 
-```ds
+```tspp
 const value = if (
     let Some(x) =
         // maybe value
@@ -92,7 +92,7 @@ const value = if (
 ) { x } else { 0 }
 ```
 
-```ds expected
+```tspp expected
 const value = if (
     let Some(x) =
         // maybe value
@@ -108,11 +108,11 @@ const value = if (
 
 Comments in nested patterns stay with the pattern fields they describe.
 
-```ds
+```tspp
 if (let Result.Ok(Point { x: /* x */ x, y: /* y */ y }) = value) { x + y } else { 0 }
 ```
 
-```ds expected
+```tspp expected
 if (let Result.Ok(Point { x: /* x */ x, y: /* y */ y }) = value) {
     x + y
 } else {
@@ -124,11 +124,11 @@ if (let Result.Ok(Point { x: /* x */ x, y: /* y */ y }) = value) {
 
 Nested newtype object patterns break inside the parenthesized condition when needed.
 
-```ds line-width=80
+```tspp line-width=80
 if (let Shape.Line({ start: Point { x, y }, end }) = shape) { x + y } else { 0 }
 ```
 
-```ds expected
+```tspp expected
 if (
     let Shape.Line({
         start: Point { x, y },
@@ -145,11 +145,11 @@ if (
 
 Array patterns keep omitted rest boundaries in conditions.
 
-```ds
+```tspp
 if (let [first, ..., last] = items) { use(first, last) } else { reset() }
 ```
 
-```ds expected
+```tspp expected
 if (let [first, ..., last] = items) {
     use(first, last)
 } else {
@@ -161,11 +161,11 @@ if (let [first, ..., last] = items) {
 
 Comments around the matched value stay on their side of the `=`.
 
-```ds
+```tspp
 const value = if (let Some(item) /* pattern */ = /* value */ maybe) { item } else { fallback }
 ```
 
-```ds expected
+```tspp expected
 const value = if (let Some(item) /* pattern */ = /* value */ maybe) { item } else { fallback };
 ```
 
@@ -173,11 +173,11 @@ const value = if (let Some(item) /* pattern */ = /* value */ maybe) { item } els
 
 If-let default values stay compact when they fit.
 
-```ds
+```tspp
 function configure(options = if (let Some(entry) = maybe) { entry.options } else { defaultOptions }) { apply(options) }
 ```
 
-```ds expected
+```tspp expected
 function configure(
     options = if (let Some(entry) = maybe) { entry.options } else { defaultOptions },
 ) {
@@ -189,11 +189,11 @@ function configure(
 
 If-let call argument values stay compact when they fit.
 
-```ds
+```tspp
 render(if (let Some(value) = maybe) { value.current } else { defaultValue })
 ```
 
-```ds expected
+```tspp expected
 render(if (let Some(value) = maybe) { value.current } else { defaultValue });
 ```
 
@@ -201,12 +201,12 @@ render(if (let Some(value) = maybe) { value.current } else { defaultValue });
 
 If-let values keep required grouping in collection and spread positions.
 
-```ds
+```tspp
 const values = [if (let Some(value) = maybe) { value } else { fallback }, ...(if (let Some(items) = maybeItems) { items } else { [] })]
 const envelope = { value: if (let Some(value) = maybe) { value } else { fallback } }
 ```
 
-```ds expected
+```tspp expected
 const values = [
     if (let Some(value) = maybe) { value } else { fallback },
     ...(if (let Some(items) = maybeItems) { items } else { [] }),
@@ -218,11 +218,11 @@ const envelope = { value: if (let Some(value) = maybe) { value } else { fallback
 
 Compact if-let values stay inline inside template interpolations.
 
-```ds
+```tspp
 const label = `value: ${if (let Some(value) = maybe) { value } else { fallback }}`
 ```
 
-```ds expected
+```tspp expected
 const label = `value: ${if (let Some(value) = maybe) { value } else { fallback }}`;
 ```
 
@@ -230,11 +230,11 @@ const label = `value: ${if (let Some(value) = maybe) { value } else { fallback }
 
 If-let lambda body values stay compact when they fit.
 
-```ds
+```tspp
 const choose = (entry) => if (let Some(value) = entry) { value.current } else { defaultValue }
 ```
 
-```ds expected
+```tspp expected
 const choose = (entry) => if (let Some(value) = entry) { value.current } else { defaultValue };
 ```
 
@@ -242,11 +242,11 @@ const choose = (entry) => if (let Some(value) = entry) { value.current } else { 
 
 Long if-let initializer values expand all branch blocks.
 
-```ds line-width=80
+```tspp line-width=80
 const value = if (let Some(entry) = source.lookup(user.id)) { buildEntryView(entry, context.locale, context.timeZone) } else { buildFallbackView(context.locale, context.timeZone) }
 ```
 
-```ds expected
+```tspp expected
 const value = if (let Some(entry) = source.lookup(user.id)) {
     buildEntryView(entry, context.locale, context.timeZone)
 } else {
@@ -258,11 +258,11 @@ const value = if (let Some(entry) = source.lookup(user.id)) {
 
 Long if-let chain receiver values expand all branch blocks.
 
-```ds line-width=80
+```tspp line-width=80
 const result = (if (let Some(entry) = maybe) { createReadyBuilder(entry, context) } else { createPendingBuilder(context) }).build().finalize()
 ```
 
-```ds expected
+```tspp expected
 const result = (if (let Some(entry) = maybe) {
     createReadyBuilder(entry, context)
 } else {
@@ -276,13 +276,13 @@ const result = (if (let Some(entry) = maybe) {
 
 Manually broken if-let values keep all branch blocks expanded.
 
-```ds
+```tspp
 const value = if (let Some(entry) = maybe) {
     entry.value
 } else { fallback }
 ```
 
-```ds expected
+```tspp expected
 const value = if (let Some(entry) = maybe) {
     entry.value
 } else {
@@ -294,11 +294,11 @@ const value = if (let Some(entry) = maybe) {
 
 If let expressions in function tail position preserve branch values.
 
-```ds
+```tspp
 function unwrap(maybe: Maybe<number>): number { if (let Some(value) = maybe) { value } else { 0 } }
 ```
 
-```ds expected
+```tspp expected
 function unwrap(maybe: Maybe<number>): number {
     if (let Some(value) = maybe) {
         value
@@ -312,11 +312,11 @@ function unwrap(maybe: Maybe<number>): number {
 
 If let expressions in method tail position preserve branch values.
 
-```ds
+```tspp
 class Box { value(): number { if (let Some(value) = this.cached) { value } else { this.compute() } } }
 ```
 
-```ds expected
+```tspp expected
 class Box {
     value(): number {
         if (let Some(value) = this.cached) {
@@ -332,11 +332,11 @@ class Box {
 
 Void method bodies keep branch tail expressions semicolonless unless the semicolon was explicit.
 
-```ds
+```tspp
 class Box { apply(): void { if (let Some(value) = this.cached) { use(value) } else { reset() } } }
 ```
 
-```ds expected
+```tspp expected
 class Box {
     apply(): void {
         if (let Some(value) = this.cached) {
@@ -352,11 +352,11 @@ class Box {
 
 Explicit semicolons inside value-tail branches are preserved.
 
-```ds
+```tspp
 function unwrap(maybe: Maybe<number>): number { if (let Some(value) = maybe) { value; } else { 0 } }
 ```
 
-```ds expected
+```tspp expected
 function unwrap(maybe: Maybe<number>): number {
     if (let Some(value) = maybe) {
         value;
@@ -370,13 +370,13 @@ function unwrap(maybe: Maybe<number>): number {
 
 Branch comments keep tail expressions semicolonless.
 
-```ds
+```tspp
 function unwrap(maybe: Maybe<number>): number { if (let Some(value) = maybe) { // present
 value } else { // missing
 0 } }
 ```
 
-```ds expected
+```tspp expected
 function unwrap(maybe: Maybe<number>): number {
     if (let Some(value) = maybe) {
         // present
@@ -392,11 +392,11 @@ function unwrap(maybe: Maybe<number>): number {
 
 Nested matches inside if-let tails preserve arm values.
 
-```ds
+```tspp
 function unwrap(maybe: Maybe<Result<number, Error>>): number { if (let Some(result) = maybe) { match (result) { Ok(value) => value; Err(_) => 0 } } else { 0 } }
 ```
 
-```ds expected
+```tspp expected
 function unwrap(maybe: Maybe<Result<number, Error>>): number {
     if (let Some(result) = maybe) {
         match (result) {

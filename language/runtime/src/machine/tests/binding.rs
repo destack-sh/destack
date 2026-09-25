@@ -1,5 +1,5 @@
-use destack_program as program;
-use destack_repository::RuntimeOptions;
+use tspp_program as program;
+use tspp_repository::RuntimeOptions;
 
 use crate::binding::{Binding, BindingTable, ReplayPayload};
 use crate::diagnostic::{RuntimeError, RuntimeResult};

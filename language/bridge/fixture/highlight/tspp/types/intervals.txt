@@ -1,0 +1,18 @@
+// SYNTAX TEST "source.tspp"
+
+// types / intervals / numeric
+type Digit = 0..=9;
+// <- keyword.declaration.type.tspp
+
+type UserPort = 1024..=65535;
+
+// types / intervals / character
+type LowerAscii = 'a'..='z';
+// <- keyword.declaration.type.tspp
+
+// types / intervals / static constraints
+struct InlineBuffer<T, const N: 0..=4096> {
+// <- keyword.declaration.type.tspp
+    storage: [T; N];
+}
+

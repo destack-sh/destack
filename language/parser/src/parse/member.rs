@@ -1,9 +1,9 @@
-use destack_dir::{
+use tspp_dir::{
     Asynchrony, BlockContext, Expression, FunctionForm, FunctionPhase, FunctionRole,
     FunctionSignature, Keyword, LocalNodeId, Member, Name, NodeType, StringId, TokenType,
     TypeExpression,
 };
-use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
+use tspp_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 use crate::parse::{
     BindingModifiers, BindingPosition, DeclarationNesting, ExpressionPosition, ExpressionStop,
@@ -276,7 +276,7 @@ impl Parser {
     /// Parse the shared tail of one method head.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// (): int32
     /// <T>(value: T): T
     /// get value(): int32
@@ -408,7 +408,7 @@ impl Parser {
     /// Parse one associated type member when present.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// type Item
     /// type Item = string
     /// type Item: Display
@@ -507,7 +507,7 @@ impl Parser {
     /// Parse a member (class/struct/interface/extension body element).
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// // field
     /// x: int32
     /// x

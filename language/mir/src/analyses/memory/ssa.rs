@@ -1,7 +1,7 @@
 use std::ops::Range;
 use std::sync::Arc;
 
-use destack_core::{FxIndexMap, FxIndexSet};
+use tspp_core::{FxIndexMap, FxIndexSet};
 
 use crate::{
     AliasTable, Analysis, Block, ControlTable, DominatorTable, Function, Instruction, LayoutError,

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_repository::Repository;
+use tspp_repository::Repository;
 
 use crate::SessionError;
 use crate::executor::Executor;

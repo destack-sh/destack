@@ -2,9 +2,9 @@ use std::collections::HashSet;
 use std::io::{self, ErrorKind};
 use std::path::{Path, PathBuf};
 
-use destack_core::{Blob, BlobId, StableHasher};
-use destack_repository::{Change, Commit, Revision};
-use destack_source::Edit;
+use tspp_core::{Blob, BlobId, StableHasher};
+use tspp_repository::{Change, Commit, Revision};
+use tspp_source::Edit;
 
 use crate::workspace::{State, Workspace};
 use crate::{Error, FileSelection};

@@ -1,5 +1,5 @@
-use destack_bytecode::{Instruction, Opcode};
-use destack_program::{Runtime, TypeId, Word};
+use tspp_bytecode::{Instruction, Opcode};
+use tspp_program::{Runtime, TypeId, Word};
 
 use crate::diagnostic::Result;
 use crate::machine::Activation;

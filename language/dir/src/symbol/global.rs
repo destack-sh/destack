@@ -1,6 +1,6 @@
-use destack_serde::Reflect;
-use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
+use tspp_source::ModuleId;
 
 use crate::{DependencyItem, ExportBinding, LocalNodeId, LocalSymbolId, StaticKey};
 

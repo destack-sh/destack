@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch, PatchSet};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -362,7 +362,7 @@ function isPresent(value: float64): boolean {
         session.assert_diagnostics(
             r#"
 warning[use-isnan]: equality cannot test for NaN
- ──▶ main.ds:2:22
+ ──▶ main.tspp:2:22
   │
 1 │ function isPresent(value: float64): boolean {
 2 │     return value !== 0.0 / 0.0;
@@ -372,8 +372,8 @@ warning[use-isnan]: equality cannot test for NaN
 
  = help: use a negated NaN predicate instead
  = suggestion: replace the equality check with a NaN predicate (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function isPresent(value: float64): boolean {
 -   2│     return value !== 0.0 / 0.0;
@@ -406,7 +406,7 @@ function isMissing(value: float64): boolean {
         session.assert_diagnostics(
             r#"
 warning[use-isnan]: equality cannot test for NaN
- ──▶ main.ds:2:22
+ ──▶ main.tspp:2:22
   │
 1 │ function isMissing(value: float64): boolean {
 2 │     return value === NaN;
@@ -416,8 +416,8 @@ warning[use-isnan]: equality cannot test for NaN
 
  = help: use a NaN predicate instead
  = suggestion: replace the equality check with a NaN predicate (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function isMissing(value: float64): boolean {
 -   2│     return value === NaN;
@@ -442,7 +442,7 @@ function isMissing(value: float64): boolean {
         session.assert_diagnostics(
             r#"
 warning[use-isnan]: equality cannot test for NaN
- ──▶ main.ds:2:22
+ ──▶ main.tspp:2:22
   │
 1 │ function isMissing(value: float64): boolean {
 2 │     return value === -NaN;
@@ -452,8 +452,8 @@ warning[use-isnan]: equality cannot test for NaN
 
  = help: use a NaN predicate instead
  = suggestion: replace the equality check with a NaN predicate (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function isMissing(value: float64): boolean {
 -   2│     return value === -NaN;
@@ -478,7 +478,7 @@ function isMissing(value: float64): boolean {
         session.assert_diagnostics(
             r#"
 warning[use-isnan]: equality cannot test for NaN
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function isMissing(value: float64): boolean {
 2 │     return Number.NaN === value;
@@ -488,8 +488,8 @@ warning[use-isnan]: equality cannot test for NaN
 
  = help: use a NaN predicate instead
  = suggestion: replace the equality check with a NaN predicate (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function isMissing(value: float64): boolean {
 -   2│     return Number.NaN === value;
@@ -512,7 +512,7 @@ const same = NaN === Number.NaN;
         session.assert_diagnostics(
             r#"
 warning[use-isnan]: equality cannot test for NaN
- ──▶ main.ds:1:14
+ ──▶ main.tspp:1:14
   │
 1 │ const same = NaN === Number.NaN;
   │              ^^^
@@ -567,7 +567,7 @@ function locate(values: float64[], start: isize): isize | undefined {
         session.assert_diagnostics(
             r#"
 warning[use-isnan]: Array index search cannot find NaN
- ──▶ main.ds:2:27
+ ──▶ main.tspp:2:27
   │
 1 │ function locate(values: float64[], start: isize): isize | undefined {
 2 │     return values.indexOf(NaN, start);
@@ -616,7 +616,7 @@ function isMissing(value: float64): boolean {
         session.assert_diagnostics(
             r#"
 warning[use-isnan]: equality cannot test for NaN
- ──▶ main.ds:3:22
+ ──▶ main.tspp:3:22
   │
 1 │ const Missing = 0.0 / 0.0;
 2 │ function isMissing(value: float64): boolean {
@@ -627,8 +627,8 @@ warning[use-isnan]: equality cannot test for NaN
 
  = help: use a NaN predicate instead
  = suggestion: replace the equality check with a NaN predicate (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     2│ function isMissing(value: float64): boolean {
 -   3│     return value === Missing;
@@ -653,7 +653,7 @@ function isMissing(value: float64): boolean {
         session.assert_diagnostics(
             r#"
 warning[use-isnan]: equality cannot test for NaN
- ──▶ main.ds:2:39
+ ──▶ main.tspp:2:39
   │
 1 │ function isMissing(value: float64): boolean {
 2 │     return value /* comparison */ === NaN;
@@ -693,7 +693,7 @@ function isMissing(value: float64): boolean {
         let session = TestSession::dir(
             &USE_ISNAN,
             r#"
-import { Float } from "destack:math";
+import { Float } from "tspp:math";
 
 function isMissing<T: Float>(value: T): boolean {
     return value.isNaN();
@@ -725,7 +725,7 @@ function isZero(value: float64): boolean {
         let session = TestSession::dir(
             &USE_ISNAN,
             r#"
-import { PartialEqual } from "destack:ops";
+import { PartialEqual } from "tspp:ops";
 
 struct Measure {
     value: float64;
@@ -763,7 +763,7 @@ function select(value: float64): void {
         session.assert_diagnostics(
             r#"
 warning[use-isnan]: switch case cannot match NaN
- ──▶ main.ds:3:14
+ ──▶ main.tspp:3:14
   │
 1 │ function select(value: float64): void {
 2 │     switch (value) {
@@ -798,7 +798,7 @@ function select(): void {
         session.assert_diagnostics(
             r#"
 warning[use-isnan]: NaN switch value cannot match a case
- ──▶ main.ds:2:13
+ ──▶ main.tspp:2:13
   │
 1 │ function select(): void {
 2 │     switch (NaN) {

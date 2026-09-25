@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use destack_artifact::{ConditionSet, Host, Platform, Runtime};
-use destack_heap as heap;
-use destack_memory::MemoryRange;
-use destack_program as program;
-use destack_repository::{Environment, RuntimeOptions, WorldOptions};
-use destack_vm as vm;
+use tspp_artifact::{ConditionSet, Host, Platform, Runtime};
+use tspp_heap as heap;
+use tspp_memory::MemoryRange;
+use tspp_program as program;
+use tspp_repository::{Environment, RuntimeOptions, WorldOptions};
+use tspp_vm as vm;
 
 use crate::binding::BindingTable;
 use crate::diagnostic::RuntimeResult;
@@ -175,7 +175,7 @@ impl TestWorker {
             labels: Default::default(),
             platform: Platform::Unknown,
             host: Host::Native,
-            runtime: Runtime::Destack,
+            runtime: Runtime::Tspp,
         })
     }
 

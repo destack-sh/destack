@@ -1,6 +1,6 @@
-use destack_fir::format::FormatOptions as FirFormatOptions;
-use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions};
-use destack_source::{IndentStyle, LineEnding};
+use tspp_fir::format::FormatOptions as FirFormatOptions;
+use tspp_fir::print::{MAX_OUTPUT_BYTES, PrintOptions};
+use tspp_source::{IndentStyle, LineEnding};
 
 /// MIR formatting options.
 #[derive(Debug, Clone, Copy, PartialEq)]

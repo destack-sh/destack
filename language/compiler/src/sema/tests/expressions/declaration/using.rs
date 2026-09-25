@@ -5,7 +5,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_record_the_dispose_call_of_a_using_binding() {
     let session = TestSession::single(
         r#"
-import { Dispose } from "destack:memory";
+import { Dispose } from "tspp:memory";
 
 struct File implements Dispose {
     handle: int32;
@@ -19,9 +19,9 @@ function run(): void {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Dispose } from "destack:memory";
+import { Dispose } from "tspp:memory";
 
 struct File implements Dispose {
     handle: int32;
@@ -34,7 +34,7 @@ function run(): void {
 }
 
 === dir ===
-import { Dispose } from "destack:memory";
+import { Dispose } from "tspp:memory";
 
 struct File implements Dispose {
 /// @type.symbol symbol=File type=File
@@ -76,7 +76,7 @@ function run(): void {
 fn test_record_the_dispose_call_of_a_nullable_using_binding() {
     let session = TestSession::single(
         r#"
-import { Dispose } from "destack:memory";
+import { Dispose } from "tspp:memory";
 
 struct File implements Dispose {
     handle: int32;
@@ -90,9 +90,9 @@ function run(file: File | undefined): void {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Dispose } from "destack:memory";
+import { Dispose } from "tspp:memory";
 
 struct File implements Dispose {
     handle: int32;
@@ -105,7 +105,7 @@ function run(file: File | undefined): void {
 }
 
 === dir ===
-import { Dispose } from "destack:memory";
+import { Dispose } from "tspp:memory";
 
 struct File implements Dispose {
 /// @type.symbol symbol=File type=File
@@ -150,8 +150,8 @@ function run(file: File | undefined): void {
 fn test_record_the_async_dispose_call_of_an_await_using_binding() {
     let session = TestSession::single(
         r#"
-import { Promise } from "destack:async";
-import { AsyncDispose } from "destack:memory";
+import { Promise } from "tspp:async";
+import { AsyncDispose } from "tspp:memory";
 
 class Connection implements AsyncDispose {
     async asyncDispose(): Promise<void> {}
@@ -167,10 +167,10 @@ async function run(): Promise<void> {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Promise } from "destack:async";
-import { AsyncDispose } from "destack:memory";
+import { Promise } from "tspp:async";
+import { AsyncDispose } from "tspp:memory";
 
 class Connection implements AsyncDispose {
     async asyncDispose(): Promise<void> {}
@@ -185,8 +185,8 @@ async function run(): Promise<void> {
 }
 
 === dir ===
-import { Promise } from "destack:async";
-import { AsyncDispose } from "destack:memory";
+import { Promise } from "tspp:async";
+import { AsyncDispose } from "tspp:memory";
 
 class Connection implements AsyncDispose {
 /// @type.symbol symbol=Connection type=typeof Connection
@@ -252,7 +252,7 @@ async function run(): Promise<void> {
 fn test_fall_back_to_the_dispose_call_for_an_await_using_binding() {
     let session = TestSession::single(
         r#"
-import { Dispose } from "destack:memory";
+import { Dispose } from "tspp:memory";
 
 struct File implements Dispose {
     handle: int32;
@@ -266,9 +266,9 @@ async function run(): Promise<void> {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Dispose } from "destack:memory";
+import { Dispose } from "tspp:memory";
 
 struct File implements Dispose {
     handle: int32;
@@ -281,7 +281,7 @@ async function run(): Promise<void> {
 }
 
 === dir ===
-import { Dispose } from "destack:memory";
+import { Dispose } from "tspp:memory";
 
 struct File implements Dispose {
 /// @type.symbol symbol=File type=File
@@ -332,7 +332,7 @@ function run(): void {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 function run(): void {
     using value: int64 = 1;
@@ -358,7 +358,7 @@ function run(): void {
 fn test_record_the_dispose_call_of_a_for_of_using_binding() {
     let session = TestSession::single(
         r#"
-import { Dispose } from "destack:memory";
+import { Dispose } from "tspp:memory";
 
 struct File implements Dispose {
     handle: int32;
@@ -377,9 +377,9 @@ function total(files: File[]): int32 {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Dispose } from "destack:memory";
+import { Dispose } from "tspp:memory";
 
 struct File implements Dispose {
     handle: int32;
@@ -397,7 +397,7 @@ function total(files: File[]): int32 {
 }
 
 === dir ===
-import { Dispose } from "destack:memory";
+import { Dispose } from "tspp:memory";
 
 struct File implements Dispose {
 /// @type.symbol symbol=File type=File

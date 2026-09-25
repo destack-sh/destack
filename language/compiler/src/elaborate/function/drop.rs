@@ -1,6 +1,6 @@
-use destack_core::FxIndexMap;
+use tspp_core::FxIndexMap;
 
-use destack_mir as mir;
+use tspp_mir as mir;
 
 use crate::elaborate::drop::{
     BlockDrop, DropAction, DropEmitter, DropPlan, EdgeDrop, OverwriteDrop,

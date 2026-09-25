@@ -14,7 +14,7 @@ let copy = user;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -67,7 +67,7 @@ user satisfies SharedUser;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -128,7 +128,7 @@ user satisfies SharedUser;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -189,7 +189,7 @@ shared const sharedPoint: Point = Point { x: 2 };
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -240,7 +240,7 @@ register({ skip: true });
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -289,7 +289,7 @@ sharedPoint.x;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -357,7 +357,7 @@ state.user satisfies SharedUser;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -417,7 +417,7 @@ values[0];
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -453,7 +453,7 @@ value satisfies int32;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -494,7 +494,7 @@ shared const sharedWorld: ^World = world;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -543,7 +543,7 @@ const transform = (value: User): User => value;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -594,7 +594,7 @@ Registry.current satisfies User;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

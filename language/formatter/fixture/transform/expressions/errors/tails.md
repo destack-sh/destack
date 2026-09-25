@@ -6,11 +6,11 @@
 
 Try expressions in function tail position preserve try and catch values.
 
-```ds
+```tspp
 function read(): number { try { value() } catch (error) { fallback(error) } }
 ```
 
-```ds expected
+```tspp expected
 function read(): number {
     try {
         value()
@@ -24,11 +24,11 @@ function read(): number {
 
 Try and catch branches keep expression tails in void functions.
 
-```ds
+```tspp
 function read(): void { try { value() } catch (error) { fallback(error) } }
 ```
 
-```ds expected
+```tspp expected
 function read(): void {
     try {
         value()
@@ -42,11 +42,11 @@ function read(): void {
 
 Finally blocks keep their expression tails like other try branches.
 
-```ds
+```tspp
 function read(): number { try { value() } catch (error) { fallback(error) } finally { cleanup() } }
 ```
 
-```ds expected
+```tspp expected
 function read(): number {
     try {
         value()
@@ -62,11 +62,11 @@ function read(): number {
 
 Explicit semicolons inside try and catch branches are preserved.
 
-```ds
+```tspp
 function read(): number { try { value(); } catch (error) { fallback(error); } }
 ```
 
-```ds expected
+```tspp expected
 function read(): number {
     try {
         value();
@@ -80,13 +80,13 @@ function read(): number {
 
 Comments before branch tail expressions stay in the branch block.
 
-```ds
+```tspp
 function read(): number { try { // cached
 value() } catch (error) { // fallback
 fallback(error) } }
 ```
 
-```ds expected
+```tspp expected
 function read(): number {
     try {
         // cached

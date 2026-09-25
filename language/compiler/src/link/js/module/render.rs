@@ -1,9 +1,9 @@
 use crate::emit::js;
 use crate::link::{OutputLocation, TargetLocation};
 use crate::{Compiler, LinkError, LinkResult};
-use destack_artifact::{BundleFile, Script};
-use destack_repository::JsOutputMode;
-use destack_source::ModuleId;
+use tspp_artifact::{BundleFile, Script};
+use tspp_repository::JsOutputMode;
+use tspp_source::ModuleId;
 
 use super::super::plan::Plan;
 use super::super::{JsLinker, OutputId};

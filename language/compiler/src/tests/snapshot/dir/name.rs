@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use destack_core::StringPool;
-use destack_dir as dir;
+use tspp_core::StringPool;
+use tspp_dir as dir;
 
 /// Binding table names for DIR snapshots.
 pub(super) struct BindingSnapshotName<'a> {

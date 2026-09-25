@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, NodeSpanRegion};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch, NodeSpanRegion};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -158,7 +158,7 @@ function last(values: int32[]): int32 | undefined {
         session.assert_diagnostics(
             r#"
 warning[prefer-first-last]: endpoint lookup uses a numeric index
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function last(values: int32[]): int32 | undefined {
 2 │     return values.at(-1);
@@ -167,8 +167,8 @@ warning[prefer-first-last]: endpoint lookup uses a numeric index
   │
 
  = fix: use the endpoint accessor
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function last(values: int32[]): int32 | undefined {
 -   2│     return values.at(-1);
@@ -272,7 +272,7 @@ function first(values: int32[]): int32 | undefined {
         session.assert_diagnostics(
             r#"
 warning[prefer-first-last]: endpoint lookup uses a numeric index
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function first(values: int32[]): int32 | undefined {
 2 │     return values.at(/* retain */ 0);

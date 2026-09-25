@@ -14,7 +14,7 @@ const loose: Loose = tight;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -63,7 +63,7 @@ const tight: Tight = loose;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -119,7 +119,7 @@ const id: StringId = numeric;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -168,7 +168,7 @@ const numeric: NumericId = id;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -223,7 +223,7 @@ const bad: Route = "users";
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

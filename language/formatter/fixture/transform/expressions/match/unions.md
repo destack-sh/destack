@@ -6,11 +6,11 @@
 
 Multiple patterns can be combined with `|`.
 
-```ds
+```tspp
 match (x) { 1 | 2 | 3 => "small"; _ => "other" }
 ```
 
-```ds expected
+```tspp expected
 match (x) {
     1 | 2 | 3 => "small"
     _ => "other"
@@ -21,11 +21,11 @@ match (x) {
 
 Or patterns work with any pattern type.
 
-```ds
+```tspp
 match (s) { "a" | "b" | "c" => true; _ => false }
 ```
 
-```ds expected
+```tspp expected
 match (s) {
     "a" | "b" | "c" => true
     _ => false
@@ -39,11 +39,11 @@ match (s) {
 
 Union patterns can match multiple literal values in one arm.
 
-```ds
+```tspp
 match (n) { 1 | 2 | 3 => "small"; 4 | 5 => "medium"; _ => "large" }
 ```
 
-```ds expected
+```tspp expected
 match (n) {
     1 | 2 | 3 => "small"
     4 | 5 => "medium"

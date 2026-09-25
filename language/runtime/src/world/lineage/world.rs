@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_core::CaptureMode;
-use destack_repository::{ExecutionMode, WorldOptions};
+use tspp_core::CaptureMode;
+use tspp_repository::{ExecutionMode, WorldOptions};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::HostQueue;

@@ -1,7 +1,7 @@
-use destack_core::{FxIndexMap, FxIndexSet};
-use destack_dir as dir;
-use destack_source::ModuleId;
 use smallvec::SmallVec;
+use tspp_core::{FxIndexMap, FxIndexSet};
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use crate::sema::{
     CheckState, ExtensionCoherenceObligation, ExtensionHead, ImplementationCoherenceObligation,

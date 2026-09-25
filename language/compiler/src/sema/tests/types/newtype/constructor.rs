@@ -11,7 +11,7 @@ const id = UserId(42);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -47,7 +47,7 @@ const pair = Pair(1, "x");
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -84,7 +84,7 @@ const config = Config({ debug: true });
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -122,7 +122,7 @@ const annotation = Annotation("lint", { reason: "intentional" });
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -161,7 +161,7 @@ const id: UserId = _(42);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -197,7 +197,7 @@ const point: Point = _(1, 2);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -234,7 +234,7 @@ const config: Config = _({ debug: true });
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -272,7 +272,7 @@ const value: Box<int32> = _(1);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -315,7 +315,7 @@ function from<T, E>(value: E): Result<T, E> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -372,7 +372,7 @@ const value = _(1);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -401,7 +401,7 @@ const value: string = _(1);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

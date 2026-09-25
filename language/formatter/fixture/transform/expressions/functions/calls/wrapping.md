@@ -6,11 +6,11 @@
 
 When arguments exceed line width, they break to multiple lines.
 
-```ds line-width=20
+```tspp line-width=20
 foo(aLongArg, anotherLongArg, thirdArg)
 ```
 
-```ds expected
+```tspp expected
 foo(
     aLongArg,
     anotherLongArg,
@@ -22,11 +22,11 @@ foo(
 
 Many short arguments also break when exceeding line width.
 
-```ds line-width=30
+```tspp line-width=30
 foo(a, b, c, d, e, f, g, h, i, j)
 ```
 
-```ds expected
+```tspp expected
 foo(
     a,
     b,
@@ -45,11 +45,11 @@ foo(
 
 Nested calls are preserved without extra spacing.
 
-```ds
+```tspp
 foo(bar(baz(x)))
 ```
 
-```ds expected
+```tspp expected
 foo(bar(baz(x)));
 ```
 
@@ -57,11 +57,11 @@ foo(bar(baz(x)));
 
 Arrow function callbacks stay on one line if short.
 
-```ds
+```tspp
 array.map((item) => item.value)
 ```
 
-```ds expected
+```tspp expected
 array.map((item) => item.value);
 ```
 
@@ -69,11 +69,11 @@ array.map((item) => item.value);
 
 Block bodies in callbacks expand to multiple lines.
 
-```ds
+```tspp
 array.map((item) => { return item.value })
 ```
 
-```ds expected
+```tspp expected
 array.map((item) => {
     return item.value;
 });

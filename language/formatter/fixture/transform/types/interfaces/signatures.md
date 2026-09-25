@@ -6,11 +6,11 @@
 
 Call signatures make an interface callable like a function.
 
-```ds
+```tspp
 interface Callable { (x: number): number }
 ```
 
-```ds expected
+```tspp expected
 interface Callable {
     (x: number): number;
 }
@@ -20,11 +20,11 @@ interface Callable {
 
 Construct signatures allow using `new` with the interface.
 
-```ds
+```tspp
 interface Constructor { new(x: number): Foo }
 ```
 
-```ds expected
+```tspp expected
 interface Constructor {
     new (x: number): Foo;
 }
@@ -37,11 +37,11 @@ interface Constructor {
 
 Constructor signatures keep a space before parameter lists.
 
-```ds:main.ds
+```tspp:main.tspp
 interface Creator { new(...args): Foo }
 ```
 
-```ds expected
+```tspp expected
 interface Creator {
     new (...args): Foo;
 }
@@ -51,11 +51,11 @@ interface Creator {
 
 Call signatures format without a name and include semicolons.
 
-```ds:main.ds
+```tspp:main.tspp
 interface Callable { (...args): Foo }
 ```
 
-```ds expected
+```tspp expected
 interface Callable {
     (...args): Foo;
 }
@@ -65,11 +65,11 @@ interface Callable {
 
 Declaration interfaces can expose callable boolean signatures.
 
-```ds
+```tspp
 interface Guard<T> { (value: unknown): boolean; readonly source?: string }
 ```
 
-```ds expected
+```tspp expected
 interface Guard<T> {
     (value: unknown): boolean;
     readonly source?: string;

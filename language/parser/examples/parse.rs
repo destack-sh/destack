@@ -7,11 +7,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use destack_dir::Tree;
-use destack_parser::{CommentRetention, Parse, ParseOptions, Parser};
-use destack_source::{File, FileId, FileType, LanguageType, ModuleId, PackageId, Uri};
 use pprof::ProfilerGuardBuilder;
 use pprof::flamegraph::Options as FlamegraphOptions;
+use tspp_dir::Tree;
+use tspp_parser::{CommentRetention, Parse, ParseOptions, Parser};
+use tspp_source::{File, FileId, FileType, LanguageType, ModuleId, PackageId, Uri};
 
 const DEFAULT_SECONDS: u64 = 10;
 const DEFAULT_SAMPLE_HZ: i32 = 997;
@@ -63,11 +63,11 @@ impl ProfileOptions {
     fn from_env() -> Result<Self, Box<dyn Error>> {
         let source_path = source_path()?;
         let output_path = output_path();
-        let seconds = number_from_env("DESTACK_PARSE_SECONDS", DEFAULT_SECONDS)?;
-        let sample_hz = number_from_env("DESTACK_PARSE_HZ", DEFAULT_SAMPLE_HZ)?;
+        let seconds = number_from_env("TSPP_PARSE_SECONDS", DEFAULT_SECONDS)?;
+        let sample_hz = number_from_env("TSPP_PARSE_HZ", DEFAULT_SAMPLE_HZ)?;
         let comment_retention =
-            comment_retention_from_env("DESTACK_PARSE_COMMENTS", CommentRetention::Documentation)?;
-        let stage = ParserStage::from_env("DESTACK_PARSE_STAGE", ParserStage::Parse)?;
+            comment_retention_from_env("TSPP_PARSE_COMMENTS", CommentRetention::Documentation)?;
+        let stage = ParserStage::from_env("TSPP_PARSE_STAGE", ParserStage::Parse)?;
 
         Ok(Self {
             source_path,
@@ -237,7 +237,7 @@ fn folded_path(path: &Path) -> PathBuf {
 fn source_path() -> Result<PathBuf, Box<dyn Error>> {
     let path = env::args()
         .nth(1)
-        .or_else(|| env::var("DESTACK_PARSE_FILE").ok())
+        .or_else(|| env::var("TSPP_PARSE_FILE").ok())
         .ok_or("usage: parse <source-file>")?;
 
     Ok(PathBuf::from(path))
@@ -245,7 +245,7 @@ fn source_path() -> Result<PathBuf, Box<dyn Error>> {
 
 /// Return the flamegraph output path.
 fn output_path() -> PathBuf {
-    env::var("DESTACK_PARSE_OUTPUT")
+    env::var("TSPP_PARSE_OUTPUT")
         .map(PathBuf::from)
         .unwrap_or_else(|_| PathBuf::from(DEFAULT_OUTPUT_PATH))
 }

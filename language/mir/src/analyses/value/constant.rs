@@ -1,4 +1,4 @@
-use destack_core::{FxIndexMap, FxIndexSet, float_from_bits, float_to_bits};
+use tspp_core::{FxIndexMap, FxIndexSet, float_from_bits, float_to_bits};
 
 use crate as mir;
 use crate::{Analysis, DefinitionTable, NodeTable, TargetLayout, UseTable, ValueUse};

@@ -1,6 +1,6 @@
-use destack_core::FxIndexMap;
-use destack_mir as mir;
-use destack_source::ModuleId;
+use tspp_core::FxIndexMap;
+use tspp_mir as mir;
+use tspp_source::ModuleId;
 
 use crate::instantiate::function::constant::NullishCase;
 use crate::instantiate::module::Dispatch;

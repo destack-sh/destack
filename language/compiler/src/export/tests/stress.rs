@@ -10,10 +10,10 @@ fn test_export_counters_show_symbol_scan_and_static_cache_work() {
         .join("\n");
     let source = format!("{locals}\n\n@if(true)\nexport {{ value0 }};");
     let compiler = TestSession::builder()
-        .module("main.ds", &source)
+        .module("main.tspp", &source)
         .cold()
         .build();
-    let counters = compiler.artifact_counters(compiler.dir_exported_key("main.ds"), "export.");
+    let counters = compiler.artifact_counters(compiler.dir_exported_key("main.tspp"), "export.");
     let expected = format!(
         "export.roots={}\n\
 export.visibility_expressions={}\n\
@@ -43,10 +43,10 @@ fn test_export_counters_scale_with_many_static_guards() {
         .collect::<Vec<_>>()
         .join("\n\n");
     let compiler = TestSession::builder()
-        .module("main.ds", &source)
+        .module("main.tspp", &source)
         .cold()
         .build();
-    let counters = compiler.artifact_counters(compiler.dir_exported_key("main.ds"), "export.");
+    let counters = compiler.artifact_counters(compiler.dir_exported_key("main.tspp"), "export.");
     let expected = format!(
         "export.roots={ITEMS}\n\
 export.visibility_expressions={ITEMS}\n\

@@ -1,7 +1,7 @@
-use destack_core::FxIndexSet;
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::Span;
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::Span;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -312,7 +312,7 @@ struct Session {
         session.assert_diagnostics(
             r#"
 warning[missing-docs]: type must have documentation
- ──▶ main.ds:1:8
+ ──▶ main.tspp:1:8
   │
 1 │ struct Session {
   │        ^^^^^^^
@@ -321,7 +321,7 @@ warning[missing-docs]: type must have documentation
   │
 
 warning[missing-docs]: field must have documentation
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ struct Session {
 2 │     userId: string;
@@ -331,7 +331,7 @@ warning[missing-docs]: field must have documentation
   │
 
 warning[missing-docs]: method must have documentation
- ──▶ main.ds:4:5
+ ──▶ main.tspp:4:5
   │
 2 │     userId: string;
 3 │
@@ -388,7 +388,7 @@ interface Factory {
         session.assert_diagnostics(
             r#"
 warning[missing-docs]: constant must have documentation
- ──▶ main.ds:1:7
+ ──▶ main.tspp:1:7
   │
 1 │ const LIMIT = 1;
   │       ^^^^^
@@ -397,7 +397,7 @@ warning[missing-docs]: constant must have documentation
   │
 
 warning[missing-docs]: enum must have documentation
- ──▶ main.ds:3:6
+ ──▶ main.tspp:3:6
   │
 1 │ const LIMIT = 1;
 2 │
@@ -408,7 +408,7 @@ warning[missing-docs]: enum must have documentation
   │
 
 warning[missing-docs]: variant must have documentation
- ──▶ main.ds:4:5
+ ──▶ main.tspp:4:5
   │
 2 │
 3 │ enum Status {
@@ -419,7 +419,7 @@ warning[missing-docs]: variant must have documentation
   │
 
 warning[missing-docs]: interface must have documentation
- ──▶ main.ds:7:11
+ ──▶ main.tspp:7:11
   │
 5 │ }
 6 │
@@ -430,7 +430,7 @@ warning[missing-docs]: interface must have documentation
   │
 
 warning[missing-docs]: call signature must have documentation
- ──▶ main.ds:8:5
+ ──▶ main.tspp:8:5
   │
 6 │
 7 │ interface Factory {
@@ -513,7 +513,7 @@ type RequestOptions = BaseOptions & {
         session.assert_diagnostics(
             r#"
 warning[missing-docs]: field must have documentation
- ──▶ main.ds:6:5
+ ──▶ main.tspp:6:5
   │
 4 │ /// Request options.
 5 │ type RequestOptions = BaseOptions & {

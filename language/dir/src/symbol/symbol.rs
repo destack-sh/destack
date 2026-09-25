@@ -1,7 +1,7 @@
-use destack_serde::Reflect;
-use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+use tspp_serde::Reflect;
+use tspp_source::ModuleId;
 
 use crate::{ExportKind, GlobalNodeIdAny, LocalScope, Mutability, StaticKey, StringId};
 

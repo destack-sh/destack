@@ -12,7 +12,7 @@ hasX satisfies boolean;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -62,7 +62,7 @@ hasName satisfies boolean;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -118,7 +118,7 @@ found satisfies boolean;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -192,7 +192,7 @@ declare const user: User;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -248,7 +248,7 @@ if ("name" in value) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -321,7 +321,7 @@ if ("name" in value) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -388,7 +388,7 @@ fn test_in_rejects_primitive_receiver() {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -419,7 +419,7 @@ true in point;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -461,7 +461,7 @@ declare const value: unknown;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===

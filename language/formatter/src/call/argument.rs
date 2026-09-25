@@ -16,18 +16,18 @@ use crate::annotation::{
 use crate::expression::write_expression_without_trailing_comments;
 use crate::file::write_source_span;
 use crate::tree::has_multiline_tree_argument;
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_dir::{
+use crate::{FormatNode, TsppFormatContext, TsppFormatter};
+use tspp_dir::{
     Argument, Declaration, DecoratorPosition, Expression, LocalNodeId, NodeType, TypeExpression,
 };
-use destack_fir::format::{FormatError, FormatResult};
-use destack_fir::prelude::token;
-use destack_fir::write;
-use destack_source::{NodeSpanRegion, NodeSpanType, Span};
+use tspp_fir::format::{FormatError, FormatResult};
+use tspp_fir::prelude::token;
+use tspp_fir::write;
+use tspp_source::{NodeSpanRegion, NodeSpanType, Span};
 
 /// Return whether an argument can be emitted directly without argument-node formatting.
 pub(crate) fn argument_is_plain_call_argument(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
     !context.has_annotation(argument_id)
@@ -39,7 +39,7 @@ pub(crate) fn argument_is_plain_call_argument(
 
 /// Return whether any argument carries annotations.
 pub(crate) fn arguments_have_annotations(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     arguments: &[LocalNodeId<Argument>],
 ) -> bool {
     arguments
@@ -50,7 +50,7 @@ pub(crate) fn arguments_have_annotations(
 
 /// Write one call argument that is known to be plain.
 pub(crate) fn write_plain_call_argument<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     argument_id: LocalNodeId<Argument>,
 ) -> FormatResult<()> {
     write!(f, [prefix_annotations(f.context(), argument_id)])?;
@@ -76,7 +76,7 @@ pub(crate) fn write_plain_call_argument<'ast>(
 
 /// Return whether an argument has a prefix annotation.
 pub(crate) fn argument_has_prefix_annotation(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
     context
@@ -97,7 +97,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
     fn format_node(
         &self,
         node_id: LocalNodeId<Argument>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         // non call-like argument nodes still use the local body-only path
         if !argument_uses_call_node_comments(f.context(), node_id) {
@@ -130,7 +130,7 @@ impl<'ast> FormatNode<'ast, Argument> for Argument {
 
 /// Return whether one argument node is in one call-like parent that uses generic node comments.
 fn argument_uses_call_node_comments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Argument>,
 ) -> bool {
     let Some((parent_id, parent_type)) = context.parent(node_id) else {
@@ -149,7 +149,7 @@ fn argument_uses_call_node_comments(
 
 /// Return the enclosing span used for one argument node's trailing comments.
 pub(crate) fn argument_enclosing_span(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Argument>,
 ) -> FormatResult<Span> {
     let Some((parent_id, parent_type)) = context.parent(node_id) else {
@@ -169,7 +169,7 @@ pub(crate) fn argument_enclosing_span(
 
 /// Return the span that owns trailing comments for one argument node.
 pub(crate) fn argument_trailing_span(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Argument>,
 ) -> Span {
     let node_span = context.span(node_id);
@@ -187,7 +187,7 @@ pub(crate) fn argument_trailing_span(
 
 /// Return the trailing-comment anchor span for one argument value.
 fn argument_value_trailing_span(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     value_id: LocalNodeId<Expression>,
 ) -> Span {
     let value_span = context.span(value_id);
@@ -222,9 +222,9 @@ fn argument_value_trailing_span(
 
 /// Format one node while exposing one following sibling start to trailing comment logic.
 pub(crate) fn with_argument_following_span_start<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     following_span_start: Option<u32>,
-    content: impl FnOnce(&mut DestackFormatter<'ast, '_>) -> FormatResult<()>,
+    content: impl FnOnce(&mut TsppFormatter<'ast, '_>) -> FormatResult<()>,
 ) -> FormatResult<()> {
     // install
     let previous_following_span_start = f
@@ -243,7 +243,7 @@ pub(crate) fn with_argument_following_span_start<'ast>(
 
 /// Write one argument node without list-level trailing comment handling.
 pub(crate) fn write_call_argument_node_body<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Argument>,
 ) -> FormatResult<()> {
     let argument = f.context().tree.get(node_id);
@@ -272,7 +272,7 @@ pub(crate) fn write_call_argument_node_body<'ast>(
 fn write_call_argument_payload<'ast>(
     argument: &Argument,
     argument_id: LocalNodeId<Argument>,
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     match argument {
         Argument::Positional { value } => {
@@ -293,7 +293,7 @@ fn write_call_argument_payload<'ast>(
 
 /// Format call arguments with list-group awareness.
 pub(crate) fn format_call_arguments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     call_node_id: LocalNodeId<Expression>,
     arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {

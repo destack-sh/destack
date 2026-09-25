@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirBound, DirParsed, LanguageEnvironment};
-use destack_dir as dir;
-use destack_repository::{ArtifactReader, ProfileId};
-use destack_source::ModuleId;
+use tspp_artifact::{DirBound, DirParsed, LanguageEnvironment};
+use tspp_dir as dir;
+use tspp_repository::{ArtifactReader, ProfileId};
+use tspp_source::ModuleId;
 
 use crate::{Compiler, CompilerError, CompilerResult};
 

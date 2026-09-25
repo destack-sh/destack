@@ -1,7 +1,7 @@
 use super::linker::Rewriter;
 use crate::emit::js;
-use destack_core::StringPool;
-use destack_repository::Target;
+use tspp_core::StringPool;
+use tspp_repository::Target;
 
 /// One small JS module builder for minify rewrite tests.
 struct TestModuleBuilder {
@@ -210,7 +210,7 @@ impl TestModuleBuilder {
 /// One real rewriter harness for direct minify helper tests.
 struct TestRewriter {
     /// The target policy used by the rewriter.
-    target: destack_repository::Target,
+    target: tspp_repository::Target,
     /// The module under test.
     module: js::Module,
 }

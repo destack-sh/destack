@@ -1,7 +1,7 @@
 use crate::DiagnosticAnchor;
-use destack_artifact::Code;
-use destack_artifact_macros::Diagnostic;
-use destack_source::ModuleId;
+use tspp_artifact::Code;
+use tspp_artifact_macros::Diagnostic;
+use tspp_source::ModuleId;
 
 /// Errors during the emit phase.
 #[derive(Debug, Clone, PartialEq, Diagnostic)]

@@ -6,13 +6,13 @@
 
 Extra whitespace in the function signature should be removed.
 
-```ds
+```tspp
 function   foo  (  )   {   }
 ```
 
 Empty function bodies stay on one line with a space inside the braces.
 
-```ds expected
+```tspp expected
 function foo() {}
 ```
 
@@ -20,11 +20,11 @@ function foo() {}
 
 Parameter spacing should be normalized with no space after `(` or before `)`.
 
-```ds
+```tspp
 function   foo  (  x  :  number  ,  y  :  string  )   {   }
 ```
 
-```ds expected
+```tspp expected
 function foo(x: number, y: string) {}
 ```
 
@@ -32,11 +32,11 @@ function foo(x: number, y: string) {}
 
 Functions with statements in the body get their body broken to multiple lines.
 
-```ds
+```tspp
 function   foo  (  )  :  number   {  return 1  }
 ```
 
-```ds expected
+```tspp expected
 function foo(): number {
     return 1;
 }
@@ -46,11 +46,11 @@ function foo(): number {
 
 Return statements cause the function body to expand to multiple lines.
 
-```ds
+```tspp
 function add(a: number, b: number): number { return a + b }
 ```
 
-```ds expected
+```tspp expected
 function add(a: number, b: number): number {
     return a + b;
 }
@@ -60,11 +60,11 @@ function add(a: number, b: number): number {
 
 Each statement goes on its own line with stable indentation.
 
-```ds
+```tspp
 function process(x: number) { const y = x * 2; const z = y + 1; return z; }
 ```
 
-```ds expected
+```tspp expected
 function process(x: number) {
     const y = x * 2;
     const z = y + 1;
@@ -76,11 +76,11 @@ function process(x: number) {
 
 Short value-returning functions expand nested control-flow tails.
 
-```ds
+```tspp
 function score(value: number): number { const base = value * 2; if (base > 10) { base } else { base + 1 } }
 ```
 
-```ds expected
+```tspp expected
 function score(value: number): number {
     const base = value * 2;
     if (base > 10) {
@@ -95,11 +95,11 @@ function score(value: number): number {
 
 Value-returning functions preserve expression tails through nested blocks.
 
-```ds
+```tspp
 function score(value: number): number { const base = value * 2; if (base > 10) { const capped = base - 1; capped } else { const boosted = base + 1; boosted } }
 ```
 
-```ds expected
+```tspp expected
 function score(value: number): number {
     const base = value * 2;
     if (base > 10) {
@@ -116,11 +116,11 @@ function score(value: number): number {
 
 Void functions keep nested if branch tails semicolonless unless the semicolon was explicit.
 
-```ds
+```tspp
 function score(value: number): void { const base = value * 2; if (base > 10) { report(base) } else { report(base + 1) } }
 ```
 
-```ds expected
+```tspp expected
 function score(value: number): void {
     const base = value * 2;
     if (base > 10) {
@@ -135,11 +135,11 @@ function score(value: number): void {
 
 Match expressions in function tail position keep arm values.
 
-```ds
+```tspp
 function label(status: Status): string { const normalized = status.normalize(); match (normalized) { Ready => "ready"; Waiting => "waiting"; Failed(error) => error.message } }
 ```
 
-```ds expected
+```tspp expected
 function label(status: Status): string {
     const normalized = status.normalize();
     match (normalized) {
@@ -156,11 +156,11 @@ function label(status: Status): string {
 
 The `export` keyword precedes the function declaration.
 
-```ds
+```tspp
 export function foo() { }
 ```
 
-```ds expected
+```tspp expected
 export function foo() {}
 ```
 
@@ -168,11 +168,11 @@ export function foo() {}
 
 Default exports use `export default` before the function.
 
-```ds
+```tspp
 export default function handler() { }
 ```
 
-```ds expected
+```tspp expected
 export default function handler() {}
 ```
 
@@ -182,13 +182,13 @@ export default function handler() {}
 
 Overload signatures are listed before the implementation signature.
 
-```ds
+```tspp
 function parse(x: string): number
 function parse(x: number): number
 function parse(x: string | number): number { return x is string ? parseInt(x) : x }
 ```
 
-```ds expected
+```tspp expected
 function parse(x: string): number;
 function parse(x: number): number;
 function parse(x: string | number): number {

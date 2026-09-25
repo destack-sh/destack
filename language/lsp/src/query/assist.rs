@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 
-use destack_lsp_server::jsonrpc;
-use destack_lsp_types as lsp;
-use destack_query as query;
-use destack_source::DiagnosticReference;
 use serde_json::{Value, from_value};
+use tspp_lsp_server::jsonrpc;
+use tspp_lsp_types as lsp;
+use tspp_query as query;
+use tspp_source::DiagnosticReference;
 
 use super::{Document, DocumentSet, IntoLsp};
 use crate::server::{ProjectId, internal_error};
@@ -13,15 +13,15 @@ use crate::server::{ProjectId, internal_error};
 pub(crate) struct CodeActionContext {
     /// The requested action kinds.
     only: Vec<query::CodeActionKind>,
-    /// Exact Destack diagnostics carried by the request.
+    /// Exact TS++ diagnostics carried by the request.
     diagnostics: Vec<CodeActionDiagnostic>,
     /// Whether the client supplied an action kind filter.
     is_filtered: bool,
 }
 
-/// One client diagnostic and its exact Destack identity.
+/// One client diagnostic and its exact TS++ identity.
 struct CodeActionDiagnostic {
-    /// The Destack diagnostic identity.
+    /// The TS++ diagnostic identity.
     reference: DiagnosticReference,
     /// The client diagnostic.
     diagnostic: lsp::Diagnostic,
@@ -228,7 +228,7 @@ impl TryFrom<&lsp::CodeActionContext> for CodeActionContext {
             }
         }
 
-        // read exact Destack diagnostics
+        // read exact TS++ diagnostics
         let mut diagnostics = Vec::new();
         for diagnostic in &context.diagnostics {
             let Some(reference) = Self::diagnostic_reference(diagnostic)? else {
@@ -280,20 +280,20 @@ impl CodeActionContext {
         }
     }
 
-    /// Return one Destack diagnostic reference carried by the client.
+    /// Return one TS++ diagnostic reference carried by the client.
     fn diagnostic_reference(
         diagnostic: &lsp::Diagnostic,
     ) -> jsonrpc::Result<Option<DiagnosticReference>> {
-        if diagnostic.source.as_deref() != Some("destack") {
+        if diagnostic.source.as_deref() != Some("tspp") {
             return Ok(None);
         }
 
         let data = diagnostic.data.clone().ok_or_else(|| {
-            jsonrpc::Error::invalid_params("Destack diagnostic is missing its source reference")
+            jsonrpc::Error::invalid_params("TS++ diagnostic is missing its source reference")
         })?;
         let reference = from_value(data).map_err(|error| {
             jsonrpc::Error::invalid_params(format!(
-                "Destack diagnostic has an invalid source reference: {error}"
+                "TS++ diagnostic has an invalid source reference: {error}"
             ))
         })?;
 
@@ -430,7 +430,7 @@ impl Document {
         // render declaration and authored documentation
         let mut documentation = Markdown::default();
         if let Some(declaration) = details.declaration.as_deref() {
-            documentation.push_code("ds", declaration);
+            documentation.push_code("tspp", declaration);
         }
         if let Some(text) = details.documentation.as_deref() {
             documentation.push(text);
@@ -489,11 +489,11 @@ impl DocumentSet {
         let location = format!("{}:{}:{}", path, position.line + 1, position.character + 1);
         let mut markdown = Markdown::default();
         markdown.push(&format!("`{location}`"));
-        markdown.push_code("ds", &item.declaration);
+        markdown.push_code("tspp", &item.declaration);
 
         // add the selected type
         if let Some(selected_type) = &item.selected_type {
-            markdown.push_code("ds", selected_type);
+            markdown.push_code("tspp", selected_type);
         }
 
         // add documentation
@@ -543,7 +543,7 @@ impl Document {
 
                 Some(lsp::Command {
                     title: format!("{count} reference{suffix}"),
-                    command: "destack.showReferences".to_string(),
+                    command: "tspp.showReferences".to_string(),
                     arguments: Some(vec![uri, position]),
                 })
             }
@@ -552,7 +552,7 @@ impl Document {
 
                 Some(lsp::Command {
                     title: format!("{count} implementation{suffix}"),
-                    command: "destack.showImplementations".to_string(),
+                    command: "tspp.showImplementations".to_string(),
                     arguments: Some(vec![uri, position]),
                 })
             }

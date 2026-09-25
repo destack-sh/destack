@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
-use destack_artifact::{
+use tspp_artifact::{
     ArtifactKey, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
     DiagnosticLike, DiagnosticRecord, DirBound, DirChecked, DirDeclared, DirElaborated,
     DirExpanded, DirImported, DirParsed, DirResolved, DirView, EnvironmentBound,
     EnvironmentDeclared,
 };
-use destack_dir as dir;
-use destack_formatter::format_file_tree;
-use destack_repository::{FormatterOptions, ProviderContext, Revision};
-use destack_source::{DiagnosticLabel, ModuleId, ProfileId};
+use tspp_dir as dir;
+use tspp_formatter::format_file_tree;
+use tspp_repository::{FormatterOptions, ProviderContext, Revision};
+use tspp_source::{DiagnosticLabel, ModuleId, ProfileId};
 
 use crate::sema::{CheckModuleState, CheckState, ExternalModuleTable, Pass};
 use crate::{Compiler, CompilerError, CompilerResult};

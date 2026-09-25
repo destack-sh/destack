@@ -1,6 +1,6 @@
 use crate::{DiagnosticAnchor, LowerError};
-use destack_artifact_macros::Diagnostic;
-use destack_source::ModuleId;
+use tspp_artifact_macros::Diagnostic;
+use tspp_source::ModuleId;
 
 /// Errors during the materialize phase.
 #[derive(Debug, Clone, PartialEq, Diagnostic)]

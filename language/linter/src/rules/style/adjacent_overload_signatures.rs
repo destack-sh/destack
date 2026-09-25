@@ -1,9 +1,9 @@
 use std::hash::Hash;
 
-use destack_core::{FxIndexMap, FxIndexSet};
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::Span;
+use tspp_core::{FxIndexMap, FxIndexSet};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::Span;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -243,7 +243,7 @@ interface Parser {
         session.assert_diagnostics(
             r#"
 warning[adjacent-overload-signatures]: overload signature is separated from its group
- ──▶ main.ds:4:5
+ ──▶ main.tspp:4:5
   │
 2 │     parse(value: string): string;
 3 │     format(value: string): string;
@@ -337,7 +337,7 @@ type Parser = {
         session.assert_diagnostics(
             r#"
 warning[adjacent-overload-signatures]: overload signature is separated from its group
- ──▶ main.ds:6:5
+ ──▶ main.tspp:6:5
   │
 4 │     format(value: string): string;
 5 │
@@ -366,7 +366,7 @@ interface Parser {
         session.assert_diagnostics(
             r#"
 warning[adjacent-overload-signatures]: overload signature is separated from its group
- ──▶ main.ds:4:5
+ ──▶ main.tspp:4:5
   │
 2 │     (value: string): string;
 3 │     reset(): void;
@@ -395,7 +395,7 @@ interface Factory {
         session.assert_diagnostics(
             r#"
 warning[adjacent-overload-signatures]: overload signature is separated from its group
- ──▶ main.ds:4:5
+ ──▶ main.tspp:4:5
   │
 2 │     new (value: string): string;
 3 │     reset(): void;
@@ -441,7 +441,7 @@ module {
         session.assert_diagnostics(
             r#"
 warning[adjacent-overload-signatures]: overload signature is separated from its group
- ──▶ main.ds:4:22
+ ──▶ main.tspp:4:22
   │
 2 │     declare function parse(value: string): string;
 3 │     declare function format(value: string): string;
@@ -470,7 +470,7 @@ declare global {
         session.assert_diagnostics(
             r#"
 warning[adjacent-overload-signatures]: overload signature is separated from its group
- ──▶ main.ds:4:22
+ ──▶ main.tspp:4:22
   │
 2 │     declare function parse(value: string): string;
 3 │     declare function format(value: string): string;

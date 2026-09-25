@@ -1,6 +1,6 @@
-use destack_bytecode::{CodeOffset, CodeRange, RegisterSpan};
-use destack_program::{Completion, FrameStateId, FunctionId, Word};
 use serde::{Deserialize, Serialize};
+use tspp_bytecode::{CodeOffset, CodeRange, RegisterSpan};
+use tspp_program::{Completion, FrameStateId, FunctionId, Word};
 
 /// One active bytecode call frame.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]

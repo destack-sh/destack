@@ -10,7 +10,7 @@ DESTACK_CLI_DIRECTORY="$(cd -- "${DESTACK_SCRIPT_DIRECTORY}/.." >/dev/null 2>&1 
 DESTACK_VERSION_INPUT="${1:-}"
 DESTACK_ARTIFACTS_DIRECTORY="${2:-${DESTACK_CLI_DIRECTORY}/install/artifacts}"
 DESTACK_TARGETS_INPUT="${DESTACK_RELEASE_TARGETS:-aarch64-apple-darwin x86_64-apple-darwin aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu x86_64-pc-windows-msvc}"
-DESTACK_BINARY_NAMES="destack ds dsc"
+DESTACK_BINARY_NAMES="destack tspp tsppc"
 
 # print an error message and exit
 fail() {

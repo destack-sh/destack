@@ -1,5 +1,5 @@
-use destack_core::{FxIndexMap, FxIndexSet};
-use destack_dir as dir;
+use tspp_core::{FxIndexMap, FxIndexSet};
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -192,7 +192,7 @@ function advance(): int32 {
         session.assert_diagnostics(
             r#"
 warning[mixed-read-write-expression]: expression reads and mutates the same place
- ──▶ main.ds:3:12
+ ──▶ main.tspp:3:12
   │
 1 │ function advance(): int32 {
 2 │     let value: int32 = 0;
@@ -224,7 +224,7 @@ function advance(): int32 {
         session.assert_diagnostics(
             r#"
 warning[mixed-read-write-expression]: expression reads and mutates the same place
- ──▶ main.ds:7:12
+ ──▶ main.tspp:7:12
   │
 5 │ function advance(): int32 {
 6 │     let value: int32 = 0;
@@ -252,7 +252,7 @@ function advance(): int32 {
         session.assert_diagnostics(
             r#"
 warning[mixed-read-write-expression]: expression reads and mutates the same place
- ──▶ main.ds:3:12
+ ──▶ main.tspp:3:12
   │
 1 │ function advance(): int32 {
 2 │     let value: int32 = 0;

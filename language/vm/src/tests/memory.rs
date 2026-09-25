@@ -1,5 +1,5 @@
-use destack_core::Optional;
-use destack_program::{LayoutField, LayoutShapeBuilder, ScalarFormat, TypeId, Word};
+use tspp_core::Optional;
+use tspp_program::{LayoutField, LayoutShapeBuilder, ScalarFormat, TypeId, Word};
 
 use super::{TestMachine, TestProgram};
 

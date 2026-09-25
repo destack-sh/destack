@@ -8,7 +8,7 @@ pub use rewrite::*;
 
 #[cfg(test)]
 mod tests {
-    use destack_source::DiagnosticRegistry;
+    use tspp_source::DiagnosticRegistry;
 
     use super::{PatternError, PredicateError, RewriteError};
 

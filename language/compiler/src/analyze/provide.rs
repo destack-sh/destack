@@ -1,13 +1,13 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use destack_artifact::{
+use tspp_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirAnalyzed, MirElaborated, ModuleGraph,
     ProgramAnalysis,
 };
-use destack_mir as mir;
-use destack_repository::{ArtifactReader, ProfileId, ProviderContext, ProviderError};
-use destack_source::{ModuleId, PackageId, TargetId};
+use tspp_mir as mir;
+use tspp_repository::{ArtifactReader, ProfileId, ProviderContext, ProviderError};
+use tspp_source::{ModuleId, PackageId, TargetId};
 
 use crate::{Compiler, CompilerError, CompilerResult};
 

@@ -1,6 +1,6 @@
-use destack_artifact::DirExported;
-use destack_dir as dir;
-use destack_source::ModuleId;
+use tspp_artifact::DirExported;
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use crate::export::ExportLookup;
 use crate::resolve::state::ResolveState;

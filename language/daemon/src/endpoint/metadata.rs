@@ -3,9 +3,9 @@ use std::path::PathBuf;
 use std::process;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use destack_artifact::BuildId;
-use destack_rpc::ProtocolVersion;
 use serde::{Deserialize, Serialize};
+use tspp_artifact::BuildId;
+use tspp_rpc::ProtocolVersion;
 
 use super::{DaemonEndpoint, DaemonEndpointError};
 
@@ -26,7 +26,7 @@ pub struct DaemonMetadata {
     pub process_id: u32,
     /// Exact RPC wire grammar.
     pub rpc_version: u16,
-    /// Destack toolchain build identity.
+    /// TS++ toolchain build identity.
     pub build_id: String,
     /// Daemon package version.
     pub version: String,

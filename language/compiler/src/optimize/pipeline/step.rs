@@ -1,5 +1,5 @@
-use destack_artifact::MirOptimized;
-use destack_mir::{Function, ModuleCache, Mutation};
+use tspp_artifact::MirOptimized;
+use tspp_mir::{Function, ModuleCache, Mutation};
 
 use crate::CompilerResult;
 

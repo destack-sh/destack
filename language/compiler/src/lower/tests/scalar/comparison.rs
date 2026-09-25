@@ -11,7 +11,7 @@ function less(a: int32, b: int32): boolean {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.less",
         r#"
 function test.main.less(v0: int32, v1: int32): boolean {
@@ -41,7 +41,7 @@ function above(a: uint32, b: uint32): boolean {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.above",
         r#"
 function test.main.above(v0: uint32, v1: uint32): boolean {
@@ -71,7 +71,7 @@ function same(a: int64, b: int64): boolean {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.same",
         r#"
 function test.main.same(v0: int64, v1: int64): boolean {
@@ -101,7 +101,7 @@ function yes(): boolean {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.yes",
         r#"
 function test.main.yes(): boolean {

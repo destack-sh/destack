@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, NodeSpanRegion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, NodeSpanRegion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -137,7 +137,7 @@ function commaSeparated(values: string[]): string {
         session.assert_diagnostics(
             r#"
 warning[require-array-join-separator]: array join uses the implicit comma separator
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function commaSeparated(values: string[]): string {
 2 │     return values.join(/* retain */);

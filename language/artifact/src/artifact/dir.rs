@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use destack_dir as dir;
-use destack_serde::Reflect;
-use destack_source::{ByteRange, FileId, ModuleId};
 use serde::{Deserialize, Serialize};
+use tspp_dir as dir;
+use tspp_serde::Reflect;
+use tspp_source::{ByteRange, FileId, ModuleId};
 
 use crate::{ArtifactProjectionFingerprint, DiagnosticControlTable};
 

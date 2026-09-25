@@ -1,6 +1,6 @@
 [package]
-name = "destack_rpc_macros"
-description = "Destack RPC macros"
+name = "tspp_rpc_macros"
+description = "TS++ RPC macros"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

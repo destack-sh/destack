@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -91,7 +91,7 @@ function visit(values: int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[no-needless-continue]: continue repeats the end of this iteration
- ──▶ main.ds:4:9
+ ──▶ main.tspp:4:9
   │
 2 │     for (const value of values) {
 3 │         value;
@@ -102,8 +102,8 @@ warning[no-needless-continue]: continue repeats the end of this iteration
   │
 
  = fix: remove the redundant continue
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     3│         value;
 -   4│         continue;

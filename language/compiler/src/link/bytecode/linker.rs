@@ -1,5 +1,5 @@
-use destack_bytecode as bytecode;
-use destack_program::Object;
+use tspp_bytecode as bytecode;
+use tspp_program::Object;
 
 use crate::LinkResult;
 

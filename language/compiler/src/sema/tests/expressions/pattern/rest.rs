@@ -14,7 +14,7 @@ tail satisfies ^int32[];
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -73,7 +73,7 @@ let [...middle, last] = [1, 2, 3];
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -107,7 +107,7 @@ let [head, ...middle, ...tail] = [1, 2, 3];
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===

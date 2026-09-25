@@ -1,0 +1,762 @@
+import { Add, Divide, Multiply, Negate, Subtract } from "tspp:ops";
+
+import { Float } from "./float.tspp";
+import { Numeric } from "./numeric.tspp";
+
+/// Two-dimensional vector.
+@languageItem("math.Vector2")
+export struct Vector2<T: Numeric> {
+    /// The x component.
+    x: T;
+
+    /// The y component.
+    y: T;
+}
+
+/// Three-dimensional vector.
+@languageItem("math.Vector3")
+export struct Vector3<T: Numeric> {
+    /// The x component.
+    x: T;
+
+    /// The y component.
+    y: T;
+
+    /// The z component.
+    z: T;
+}
+
+/// Four-dimensional vector.
+@languageItem("math.Vector4")
+export struct Vector4<T: Numeric> {
+    /// The x component.
+    x: T;
+
+    /// The y component.
+    y: T;
+
+    /// The z component.
+    z: T;
+
+    /// The w component.
+    w: T;
+}
+
+/// Two-dimensional single-precision vector.
+export type Vector2f = Vector2<float32>;
+
+/// Three-dimensional single-precision vector.
+export type Vector3f = Vector3<float32>;
+
+/// Four-dimensional single-precision vector.
+export type Vector4f = Vector4<float32>;
+
+/// Two-dimensional double-precision vector.
+export type Vector2d = Vector2<float64>;
+
+/// Three-dimensional double-precision vector.
+export type Vector3d = Vector3<float64>;
+
+/// Four-dimensional double-precision vector.
+export type Vector4d = Vector4<float64>;
+
+/// Two-dimensional signed integer vector.
+export type Vector2i = Vector2<int32>;
+
+/// Three-dimensional signed integer vector.
+export type Vector3i = Vector3<int32>;
+
+/// Four-dimensional signed integer vector.
+export type Vector4i = Vector4<int32>;
+
+export extension<T: Numeric> of Vector2<T>
+    implements Add<Vector2<T>>, Subtract<Vector2<T>>, Multiply<T>, Divide<T>, Negate
+{
+    /// The arithmetic result type.
+    type Output = Vector2<T>;
+
+    /// Create a vector from components.
+    static new(x: T, y: T): Vector2<T> {
+        Vector2 { x, y }
+    }
+
+    /// Return the zero vector.
+    static zero(): Vector2<T> {
+        Vector2 {
+            x: T.zero(),
+            y: T.zero(),
+        }
+    }
+
+    /// Return a vector with every component set to `value`.
+    static splat(value: T): Vector2<T> {
+        Vector2 { x: value, y: value }
+    }
+
+    /// Return the dot product with `other`.
+    dot(this, other: Vector2<T>): T {
+        this.x * other.x + this.y * other.y
+    }
+
+    /// Return the squared length.
+    lengthSquared(this): T {
+        this.dot(this)
+    }
+
+    /// Return the squared distance to `other`.
+    distanceSquared(this, other: Vector2<T>): T {
+        this.subtract(other).lengthSquared()
+    }
+
+    /// Return the componentwise minimum with `other`.
+    min(this, other: Vector2<T>): Vector2<T> {
+        Vector2 {
+            x: this.x < other.x ? this.x : other.x,
+            y: this.y < other.y ? this.y : other.y,
+        }
+    }
+
+    /// Return the componentwise maximum with `other`.
+    max(this, other: Vector2<T>): Vector2<T> {
+        Vector2 {
+            x: this.x > other.x ? this.x : other.x,
+            y: this.y > other.y ? this.y : other.y,
+        }
+    }
+
+    /// Clamp each component between `minimum` and `maximum`.
+    clamp(this, minimum: Vector2<T>, maximum: Vector2<T>): Vector2<T> {
+        this.max(minimum).min(maximum)
+    }
+
+    /// Return the componentwise absolute value.
+    abs(this): Vector2<T> {
+        Vector2 {
+            x: this.x < T.zero() ? -this.x : this.x,
+            y: this.y < T.zero() ? -this.y : this.y,
+        }
+    }
+
+    /// Add `other`.
+    add(this, other: Vector2<T>): this.Output {
+        Vector2 { x: this.x + other.x, y: this.y + other.y }
+    }
+
+    /// Subtract `other`.
+    subtract(this, other: Vector2<T>): this.Output {
+        Vector2 { x: this.x - other.x, y: this.y - other.y }
+    }
+
+    /// Multiply by `scalar`.
+    multiply(this, scalar: T): this.Output {
+        Vector2 { x: this.x * scalar, y: this.y * scalar }
+    }
+
+    /// Divide by `scalar`.
+    divide(this, scalar: T): this.Output {
+        Vector2 { x: this.x / scalar, y: this.y / scalar }
+    }
+
+    /// Negate this vector.
+    negate(this): this.Output {
+        Vector2 { x: -this.x, y: -this.y }
+    }
+}
+
+export extension<T: Float> of Vector2<T> {
+    /// Return the Euclidean length.
+    length(this): T {
+        // scale components before squaring
+        let scale = this.x.abs().max(this.y.abs());
+        if (scale == T.zero() || scale.isInfinite()) {
+            return scale;
+        }
+        let scaled = this / scale;
+
+        scale * scaled.lengthSquared().sqrt()
+    }
+
+    /// Return the Euclidean distance to `other`.
+    distance(this, other: Vector2<T>): T {
+        (this - other).length()
+    }
+
+    /// Return the angle to `other` in radians.
+    angleTo(this, other: Vector2<T>): T {
+        let left = this.normalized();
+        let right = other.normalized();
+
+        left.dot(right).min(T.one()).max(-T.one()).acos()
+    }
+
+    /// Return the signed angle to `other` in radians.
+    signedAngleTo(this, other: Vector2<T>): T {
+        (this.x * other.y - this.y * other.x).atan2(this.dot(other))
+    }
+
+    /// Return the normalized vector.
+    normalized(this): Vector2<T> {
+        // normalize scaled components so the length cannot overflow
+        let scale = this.x.abs().max(this.y.abs());
+        let scaled = this / scale;
+
+        scaled / scaled.lengthSquared().sqrt()
+    }
+
+    /// Return a normalized vector, or zero when the length is zero.
+    normalizedOrZero(this): Vector2<T> {
+        // identify zero without squaring subnormal components
+        let scale = this.x.abs().max(this.y.abs());
+        if (scale == T.zero()) {
+            Vector2.zero()
+        } else {
+            let scaled = this / scale;
+
+            scaled / scaled.lengthSquared().sqrt()
+        }
+    }
+
+    /// Return this vector limited to `length`.
+    limitLength(this, length: T): Vector2<T> {
+        let current = this.length();
+
+        let scale = current > length ? length / current : T.one();
+
+        Vector2 {
+            x: this.x * scale,
+            y: this.y * scale,
+        }
+    }
+
+    /// Linearly interpolate toward `other`.
+    lerp(this, other: Vector2<T>, weight: T): Vector2<T> {
+        Vector2 {
+            x: this.x + (other.x - this.x) * weight,
+            y: this.y + (other.y - this.y) * weight,
+        }
+    }
+
+    /// Spherically interpolate toward `other`.
+    slerp(this, other: Vector2<T>, weight: T): Vector2<T> {
+        let angle = this.angleTo(other);
+        let sin = angle.sin();
+
+        if (sin == T.zero()) {
+            return this.lerp(other, weight);
+        }
+
+        let from = ((T.one() - weight) * angle).sin() / sin;
+        let to = (weight * angle).sin() / sin;
+
+        Vector2 {
+            x: this.x * from + other.x * to,
+            y: this.y * from + other.y * to,
+        }
+    }
+
+    /// Return this vector projected onto `normal`.
+    project(this, normal: Vector2<T>): Vector2<T> {
+        let scale = this.dot(normal);
+
+        Vector2 {
+            x: normal.x * scale,
+            y: normal.y * scale,
+        }
+    }
+
+    /// Return this vector reflected around `normal`.
+    reflect(this, normal: Vector2<T>): Vector2<T> {
+        let scale = this.dot(normal) * (T.one() + T.one());
+
+        Vector2 {
+            x: this.x - normal.x * scale,
+            y: this.y - normal.y * scale,
+        }
+    }
+
+    /// Return whether squared length differs from one by at most `tolerance`.
+    isNormalized(this, tolerance: T): boolean {
+        (this.lengthSquared() - T.one()).abs() <= tolerance
+    }
+
+    /// Return whether all components are finite.
+    isFinite(this): boolean {
+        this.x.isFinite() && this.y.isFinite()
+    }
+}
+
+export extension<T: Numeric> of Vector3<T>
+    implements Add<Vector3<T>>, Subtract<Vector3<T>>, Multiply<T>, Divide<T>, Negate
+{
+    /// The arithmetic result type.
+    type Output = Vector3<T>;
+
+    /// Create a vector from components.
+    static new(x: T, y: T, z: T): Vector3<T> {
+        Vector3 { x, y, z }
+    }
+
+    /// Return the zero vector.
+    static zero(): Vector3<T> {
+        Vector3 {
+            x: T.zero(),
+            y: T.zero(),
+            z: T.zero(),
+        }
+    }
+
+    /// Return a vector with every component set to `value`.
+    static splat(value: T): Vector3<T> {
+        Vector3 { x: value, y: value, z: value }
+    }
+
+    /// Return the dot product with `other`.
+    dot(this, other: Vector3<T>): T {
+        this.x * other.x + this.y * other.y + this.z * other.z
+    }
+
+    /// Return the cross product with `other`.
+    cross(this, other: Vector3<T>): Vector3<T> {
+        Vector3 {
+            x: this.y * other.z - this.z * other.y,
+            y: this.z * other.x - this.x * other.z,
+            z: this.x * other.y - this.y * other.x,
+        }
+    }
+
+    /// Return the squared length.
+    lengthSquared(this): T {
+        this.dot(this)
+    }
+
+    /// Return the squared distance to `other`.
+    distanceSquared(this, other: Vector3<T>): T {
+        this.subtract(other).lengthSquared()
+    }
+
+    /// Return the componentwise minimum with `other`.
+    min(this, other: Vector3<T>): Vector3<T> {
+        Vector3 {
+            x: this.x < other.x ? this.x : other.x,
+            y: this.y < other.y ? this.y : other.y,
+            z: this.z < other.z ? this.z : other.z,
+        }
+    }
+
+    /// Return the componentwise maximum with `other`.
+    max(this, other: Vector3<T>): Vector3<T> {
+        Vector3 {
+            x: this.x > other.x ? this.x : other.x,
+            y: this.y > other.y ? this.y : other.y,
+            z: this.z > other.z ? this.z : other.z,
+        }
+    }
+
+    /// Clamp each component between `minimum` and `maximum`.
+    clamp(this, minimum: Vector3<T>, maximum: Vector3<T>): Vector3<T> {
+        this.max(minimum).min(maximum)
+    }
+
+    /// Return the componentwise absolute value.
+    abs(this): Vector3<T> {
+        Vector3 {
+            x: this.x < T.zero() ? -this.x : this.x,
+            y: this.y < T.zero() ? -this.y : this.y,
+            z: this.z < T.zero() ? -this.z : this.z,
+        }
+    }
+
+    /// Add `other`.
+    add(this, other: Vector3<T>): this.Output {
+        Vector3 { x: this.x + other.x, y: this.y + other.y, z: this.z + other.z }
+    }
+
+    /// Subtract `other`.
+    subtract(this, other: Vector3<T>): this.Output {
+        Vector3 { x: this.x - other.x, y: this.y - other.y, z: this.z - other.z }
+    }
+
+    /// Multiply by `scalar`.
+    multiply(this, scalar: T): this.Output {
+        Vector3 { x: this.x * scalar, y: this.y * scalar, z: this.z * scalar }
+    }
+
+    /// Divide by `scalar`.
+    divide(this, scalar: T): this.Output {
+        Vector3 { x: this.x / scalar, y: this.y / scalar, z: this.z / scalar }
+    }
+
+    /// Negate this vector.
+    negate(this): this.Output {
+        Vector3 { x: -this.x, y: -this.y, z: -this.z }
+    }
+}
+
+export extension<T: Float> of Vector3<T> {
+    /// Return the Euclidean length.
+    length(this): T {
+        // scale components before squaring
+        let scale = this.x.abs().max(this.y.abs()).max(this.z.abs());
+        if (scale == T.zero() || scale.isInfinite()) {
+            return scale;
+        }
+        let scaled = this / scale;
+
+        scale * scaled.lengthSquared().sqrt()
+    }
+
+    /// Return the Euclidean distance to `other`.
+    distance(this, other: Vector3<T>): T {
+        (this - other).length()
+    }
+
+    /// Return the angle to `other` in radians.
+    angleTo(this, other: Vector3<T>): T {
+        let left = this.normalized();
+        let right = other.normalized();
+
+        left.dot(right).min(T.one()).max(-T.one()).acos()
+    }
+
+    /// Return the signed angle to `other` around `axis` in radians.
+    signedAngleTo(this, other: Vector3<T>, axis: Vector3<T>): T {
+        let angle = this.angleTo(other);
+
+        axis.dot(this.cross(other)) < T.zero() ? -angle : angle
+    }
+
+    /// Return the normalized vector.
+    normalized(this): Vector3<T> {
+        // normalize scaled components so the length cannot overflow
+        let scale = this.x.abs().max(this.y.abs()).max(this.z.abs());
+        let scaled = this / scale;
+
+        scaled / scaled.lengthSquared().sqrt()
+    }
+
+    /// Return a normalized vector, or zero when the length is zero.
+    normalizedOrZero(this): Vector3<T> {
+        // identify zero without squaring subnormal components
+        let scale = this.x.abs().max(this.y.abs()).max(this.z.abs());
+        if (scale == T.zero()) {
+            Vector3.zero()
+        } else {
+            let scaled = this / scale;
+
+            scaled / scaled.lengthSquared().sqrt()
+        }
+    }
+
+    /// Return this vector limited to `length`.
+    limitLength(this, length: T): Vector3<T> {
+        let current = this.length();
+
+        let scale = current > length ? length / current : T.one();
+
+        Vector3 {
+            x: this.x * scale,
+            y: this.y * scale,
+            z: this.z * scale,
+        }
+    }
+
+    /// Linearly interpolate toward `other`.
+    lerp(this, other: Vector3<T>, weight: T): Vector3<T> {
+        Vector3 {
+            x: this.x + (other.x - this.x) * weight,
+            y: this.y + (other.y - this.y) * weight,
+            z: this.z + (other.z - this.z) * weight,
+        }
+    }
+
+    /// Spherically interpolate toward `other`.
+    slerp(this, other: Vector3<T>, weight: T): Vector3<T> {
+        let angle = this.angleTo(other);
+        let sin = angle.sin();
+
+        if (sin == T.zero()) {
+            return this.lerp(other, weight);
+        }
+
+        let from = ((T.one() - weight) * angle).sin() / sin;
+        let to = (weight * angle).sin() / sin;
+
+        Vector3 {
+            x: this.x * from + other.x * to,
+            y: this.y * from + other.y * to,
+            z: this.z * from + other.z * to,
+        }
+    }
+
+    /// Return this vector projected onto `normal`.
+    project(this, normal: Vector3<T>): Vector3<T> {
+        let scale = this.dot(normal);
+
+        Vector3 {
+            x: normal.x * scale,
+            y: normal.y * scale,
+            z: normal.z * scale,
+        }
+    }
+
+    /// Return this vector projected onto a plane.
+    projectOnPlane(this, normal: Vector3<T>): Vector3<T> {
+        let scale = this.dot(normal);
+
+        Vector3 {
+            x: this.x - normal.x * scale,
+            y: this.y - normal.y * scale,
+            z: this.z - normal.z * scale,
+        }
+    }
+
+    /// Return this vector reflected around `normal`.
+    reflect(this, normal: Vector3<T>): Vector3<T> {
+        let scale = this.dot(normal) * (T.one() + T.one());
+
+        Vector3 {
+            x: this.x - normal.x * scale,
+            y: this.y - normal.y * scale,
+            z: this.z - normal.z * scale,
+        }
+    }
+
+    /// Return whether squared length differs from one by at most `tolerance`.
+    isNormalized(this, tolerance: T): boolean {
+        (this.lengthSquared() - T.one()).abs() <= tolerance
+    }
+
+    /// Return whether all components are finite.
+    isFinite(this): boolean {
+        this.x.isFinite() && this.y.isFinite() && this.z.isFinite()
+    }
+}
+
+export extension<T: Numeric> of Vector4<T>
+    implements Add<Vector4<T>>, Subtract<Vector4<T>>, Multiply<T>, Divide<T>, Negate
+{
+    /// The arithmetic result type.
+    type Output = Vector4<T>;
+
+    /// Create a vector from components.
+    static new(x: T, y: T, z: T, w: T): Vector4<T> {
+        Vector4 { x, y, z, w }
+    }
+
+    /// Return the zero vector.
+    static zero(): Vector4<T> {
+        Vector4 {
+            x: T.zero(),
+            y: T.zero(),
+            z: T.zero(),
+            w: T.zero(),
+        }
+    }
+
+    /// Return a vector with every component set to `value`.
+    static splat(value: T): Vector4<T> {
+        Vector4 { x: value, y: value, z: value, w: value }
+    }
+
+    /// Return the dot product with `other`.
+    dot(this, other: Vector4<T>): T {
+        this.x * other.x + this.y * other.y + this.z * other.z + this.w * other.w
+    }
+
+    /// Return the squared length.
+    lengthSquared(this): T {
+        this.dot(this)
+    }
+
+    /// Return the squared distance to `other`.
+    distanceSquared(this, other: Vector4<T>): T {
+        this.subtract(other).lengthSquared()
+    }
+
+    /// Return the componentwise minimum with `other`.
+    min(this, other: Vector4<T>): Vector4<T> {
+        Vector4 {
+            x: this.x < other.x ? this.x : other.x,
+            y: this.y < other.y ? this.y : other.y,
+            z: this.z < other.z ? this.z : other.z,
+            w: this.w < other.w ? this.w : other.w,
+        }
+    }
+
+    /// Return the componentwise maximum with `other`.
+    max(this, other: Vector4<T>): Vector4<T> {
+        Vector4 {
+            x: this.x > other.x ? this.x : other.x,
+            y: this.y > other.y ? this.y : other.y,
+            z: this.z > other.z ? this.z : other.z,
+            w: this.w > other.w ? this.w : other.w,
+        }
+    }
+
+    /// Clamp each component between `minimum` and `maximum`.
+    clamp(this, minimum: Vector4<T>, maximum: Vector4<T>): Vector4<T> {
+        this.max(minimum).min(maximum)
+    }
+
+    /// Return the componentwise absolute value.
+    abs(this): Vector4<T> {
+        Vector4 {
+            x: this.x < T.zero() ? -this.x : this.x,
+            y: this.y < T.zero() ? -this.y : this.y,
+            z: this.z < T.zero() ? -this.z : this.z,
+            w: this.w < T.zero() ? -this.w : this.w,
+        }
+    }
+
+    /// Add `other`.
+    add(this, other: Vector4<T>): this.Output {
+        Vector4 {
+            x: this.x + other.x,
+            y: this.y + other.y,
+            z: this.z + other.z,
+            w: this.w + other.w,
+        }
+    }
+
+    /// Subtract `other`.
+    subtract(this, other: Vector4<T>): this.Output {
+        Vector4 {
+            x: this.x - other.x,
+            y: this.y - other.y,
+            z: this.z - other.z,
+            w: this.w - other.w,
+        }
+    }
+
+    /// Multiply by `scalar`.
+    multiply(this, scalar: T): this.Output {
+        Vector4 {
+            x: this.x * scalar,
+            y: this.y * scalar,
+            z: this.z * scalar,
+            w: this.w * scalar,
+        }
+    }
+
+    /// Divide by `scalar`.
+    divide(this, scalar: T): this.Output {
+        Vector4 {
+            x: this.x / scalar,
+            y: this.y / scalar,
+            z: this.z / scalar,
+            w: this.w / scalar,
+        }
+    }
+
+    /// Negate this vector.
+    negate(this): this.Output {
+        Vector4 { x: -this.x, y: -this.y, z: -this.z, w: -this.w }
+    }
+}
+
+export extension<T: Float> of Vector4<T> {
+    /// Return the Euclidean length.
+    length(this): T {
+        // scale components before squaring
+        let scale = this.x.abs().max(this.y.abs()).max(this.z.abs()).max(this.w.abs());
+        if (scale == T.zero() || scale.isInfinite()) {
+            return scale;
+        }
+        let scaled = this / scale;
+
+        scale * scaled.lengthSquared().sqrt()
+    }
+
+    /// Return the Euclidean distance to `other`.
+    distance(this, other: Vector4<T>): T {
+        (this - other).length()
+    }
+
+    /// Return the angle to `other` in radians.
+    angleTo(this, other: Vector4<T>): T {
+        let left = this.normalized();
+        let right = other.normalized();
+
+        left.dot(right).min(T.one()).max(-T.one()).acos()
+    }
+
+    /// Return the normalized vector.
+    normalized(this): Vector4<T> {
+        // normalize scaled components so the length cannot overflow
+        let scale = this.x.abs().max(this.y.abs()).max(this.z.abs()).max(this.w.abs());
+        let scaled = this / scale;
+
+        scaled / scaled.lengthSquared().sqrt()
+    }
+
+    /// Return a normalized vector, or zero when the length is zero.
+    normalizedOrZero(this): Vector4<T> {
+        // identify zero without squaring subnormal components
+        let scale = this.x.abs().max(this.y.abs()).max(this.z.abs()).max(this.w.abs());
+        if (scale == T.zero()) {
+            Vector4.zero()
+        } else {
+            let scaled = this / scale;
+
+            scaled / scaled.lengthSquared().sqrt()
+        }
+    }
+
+    /// Return this vector limited to `length`.
+    limitLength(this, length: T): Vector4<T> {
+        let current = this.length();
+
+        let scale = current > length ? length / current : T.one();
+
+        Vector4 {
+            x: this.x * scale,
+            y: this.y * scale,
+            z: this.z * scale,
+            w: this.w * scale,
+        }
+    }
+
+    /// Linearly interpolate toward `other`.
+    lerp(this, other: Vector4<T>, weight: T): Vector4<T> {
+        Vector4 {
+            x: this.x + (other.x - this.x) * weight,
+            y: this.y + (other.y - this.y) * weight,
+            z: this.z + (other.z - this.z) * weight,
+            w: this.w + (other.w - this.w) * weight,
+        }
+    }
+
+    /// Return this vector projected onto `normal`.
+    project(this, normal: Vector4<T>): Vector4<T> {
+        let scale = this.dot(normal);
+
+        Vector4 {
+            x: normal.x * scale,
+            y: normal.y * scale,
+            z: normal.z * scale,
+            w: normal.w * scale,
+        }
+    }
+
+    /// Return this vector reflected around `normal`.
+    reflect(this, normal: Vector4<T>): Vector4<T> {
+        let scale = this.dot(normal) * (T.one() + T.one());
+
+        Vector4 {
+            x: this.x - normal.x * scale,
+            y: this.y - normal.y * scale,
+            z: this.z - normal.z * scale,
+            w: this.w - normal.w * scale,
+        }
+    }
+
+    /// Return whether squared length differs from one by at most `tolerance`.
+    isNormalized(this, tolerance: T): boolean {
+        (this.lengthSquared() - T.one()).abs() <= tolerance
+    }
+
+    /// Return whether all components are finite.
+    isFinite(this): boolean {
+        this.x.isFinite() && this.y.isFinite() && this.z.isFinite() && this.w.isFinite()
+    }
+}

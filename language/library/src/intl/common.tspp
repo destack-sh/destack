@@ -1,0 +1,43 @@
+import { Result, todo } from "tspp:error";
+
+import { IntlError } from "./error.tspp";
+import { Locale } from "./locale.tspp";
+
+/// A Unicode BCP 47 locale identifier.
+export type LocaleIdentifier = string;
+
+/// A locale or ordered locale preference list.
+export type Locales = LocaleIdentifier | Locale | readonly (LocaleIdentifier | Locale)[];
+
+/// A locale selection algorithm.
+export type LocaleMatcher = "lookup" | "best fit";
+
+/// Options for selecting supported locales.
+export interface SupportedLocalesOptions {
+    /// The locale selection algorithm.
+    localeMatcher?: LocaleMatcher;
+}
+
+/// A supported-value category.
+export type SupportedValueKey =
+    | "calendar"
+    | "collation"
+    | "currency"
+    | "numberingSystem"
+    | "timeZone"
+    | "unit";
+
+/// Return an empty canonical locale list.
+export function getCanonicalLocales(): ^string[] {
+    todo("intl.getCanonicalLocalesDefault")
+}
+
+/// Return canonical locale identifiers without duplicates.
+export function getCanonicalLocales(locales?: &readonly Locales): Result<^string[], IntlError> {
+    todo("intl.getCanonicalLocales")
+}
+
+/// Return the implementation values supported for `key`.
+export function supportedValuesOf(key: SupportedValueKey): ^string[] {
+    todo("intl.supportedValuesOf")
+}

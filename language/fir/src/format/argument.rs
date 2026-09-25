@@ -21,7 +21,7 @@ impl<Context> Clone for Argument<'_, '_, Context> {
 impl<Context> Copy for Argument<'_, '_, Context> {}
 
 impl<'fmt, 'a, Context> Argument<'fmt, 'a, Context> {
-    /// Called by the [destack_fir::format_args] macro.
+    /// Called by the [tspp_fir::format_args] macro.
     #[doc(hidden)]
     #[inline]
     pub const fn new<F: Format<'a, Context>>(value: &'fmt F) -> Self {

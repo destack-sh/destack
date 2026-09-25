@@ -1,10 +1,10 @@
 use std::collections::{BTreeMap, btree_map};
 
-use destack_dir as dir;
-use destack_serde::Reflect;
-use destack_source::{FileId, FilePatch, Patch, PatchSet, Span};
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
+use tspp_dir as dir;
+use tspp_serde::Reflect;
+use tspp_source::{FileId, FilePatch, Patch, PatchSet, Span};
 
 use super::rename_target::RenameSelection;
 use crate::source::is_simple_identifier;

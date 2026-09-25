@@ -1,0 +1,11 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / synchronization / shared mutexes
+let counter: shared Mutex<Counter> = new Mutex(Counter { value: 0 });
+// <- keyword.declaration.variable.tspp
+const guard = counter.lock();
+//                    ^^^^ entity.name.function.call.tspp
+
+// memory / synchronization / shared constants
+shared const world: World = new World();
+// <- keyword.other.modifier.tspp

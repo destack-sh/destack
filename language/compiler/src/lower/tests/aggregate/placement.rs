@@ -15,7 +15,7 @@ export function make(): Counter {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Counter.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
 type test.main.Counter {
     value: int32;
@@ -36,7 +36,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>):
 /// @layout.field owner=test.main.Counter index=0 name=value offset=0 size=4 align=4
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.make", r#"
+    session.assert_mir_function("main.tspp", "test.main.make", r#"
 @nocopy
 type test.main.Counter {
     value: int32;
@@ -72,7 +72,7 @@ export struct Cache {
     );
 
     session.assert_mir_lowered(
-        "main.ds",
+        "main.tspp",
         r#"
 @nocopy
 type test.main.User { }
@@ -103,7 +103,7 @@ export shared class Counter {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Counter.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
 type test.main.Counter {
     value: int32;
@@ -125,7 +125,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>):
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Counter.bump",
         r#"
 @nocopy
@@ -156,7 +156,7 @@ entry(v0: ref<test.main.Counter, managed, mutable, shared>):
 fn test_lower_shared_field_read_across_modules() {
     let session = TestSession::builder()
         .module(
-            "state.ds",
+            "state.tspp",
             r#"
 export shared class User {}
 
@@ -166,9 +166,9 @@ export shared struct Holder {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Holder } from "./state.ds";
+import { Holder } from "./state.tspp";
 
 export function read(holder: Holder): void {
     const user = holder.user;
@@ -178,7 +178,7 @@ export function read(holder: Holder): void {
         .build();
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 type test.state.Holder;
@@ -212,7 +212,7 @@ function grow(items: &int64[]): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.grow",
         r#"
 @nocopy
@@ -245,7 +245,7 @@ entry(v0: ref<Array<int64>, borrowed, 'a, mutable>):
 fn test_lower_a_callee_place_from_a_generic_borrowed_receiver() {
     let session = TestSession::single(
         r#"
-import { Clone } from "destack:memory";
+import { Clone } from "tspp:memory";
 
 function duplicate<T: Clone>(value: &immutable T): T {
     return value.clone();
@@ -254,7 +254,7 @@ function duplicate<T: Clone>(value: &immutable T): T {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.duplicate",
         r#"
 @nocopy

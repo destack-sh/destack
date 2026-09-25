@@ -1,7 +1,7 @@
-use destack_source::FileType;
+use tspp_source::FileType;
 
 use crate::{
-    DestackFormatOptions, assert_format, assert_format_program,
+    TsppFormatOptions, assert_format, assert_format_program,
     assert_format_program_reference_widths, assert_format_program_roundtrip_with_file_type,
     parse_first_expression,
 };
@@ -32,7 +32,7 @@ fn test_format_block_insert_semicolon() {
     }
 }"#,
         parse_first_expression,
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -43,7 +43,7 @@ fn test_format_placed_binding_declaration() {
 "#,
         r#"shared const registry: Registry = new Registry();
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -72,7 +72,7 @@ function writePath(data: PathBytes) {
     done();
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -99,7 +99,7 @@ function osPathBytes(data: PathBytes): OsPath {
     }
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -115,7 +115,7 @@ module {}
 @noHeap
 module {}
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -139,7 +139,7 @@ const visit = () => {
     consume();
 };
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -163,7 +163,7 @@ const visit = () => {
     consume()
 };
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -189,7 +189,7 @@ fn test_format_semicolonless_statement_comments() {
     fallback // tail
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -205,7 +205,7 @@ fn test_format_void_function_body_inserts_terminal_semicolon() {
     done();
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -249,7 +249,7 @@ fn test_format_method_body_preserves_terminal_expression_without_semicolon() {
     }
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -269,7 +269,7 @@ fn test_format_object_method_body_preserves_terminal_expression_without_semicolo
     },
 };
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -317,7 +317,7 @@ fn test_format_extension_getter_ternary_tail_without_semicolon() {
     }
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -328,7 +328,7 @@ fn test_format_block_inline() {
         r#"const x = if (y) { z } else { w }"#,
         r#"const x = if (y) { z } else { w }"#,
         parse_first_expression,
-        DestackFormatOptions::default_tab()
+        TsppFormatOptions::default_tab()
     );
 }
 
@@ -343,7 +343,7 @@ fn test_format_block_statement_like() {
 	w;
 }"#,
         parse_first_expression,
-        DestackFormatOptions::default_tab()
+        TsppFormatOptions::default_tab()
     );
 }
 
@@ -356,7 +356,7 @@ fn test_format_let_else_statement() {
     return;
 }"#,
         parse_first_expression,
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -370,7 +370,7 @@ fn test_format_block_declaration_after_expression_no_forced_blank_line() {
 	class A {}
 }"#,
         parse_first_expression,
-        DestackFormatOptions::default_tab()
+        TsppFormatOptions::default_tab()
     );
 }
 
@@ -388,7 +388,7 @@ const mode = runCli();
 // Call the Rust CLI first
 const mode = runCli();
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -422,7 +422,7 @@ declare let sessionStorage: Storage;
 /// Provides access to the Cache API.
 declare let caches: CacheStorage;
 "#,
-        FileType::DestackDeclaration,
+        FileType::TsppDeclaration,
     );
 }
 
@@ -438,7 +438,7 @@ const value = 1;
 /// Returns the previous value.
 const value = 1;
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -455,7 +455,7 @@ const value = 1;
 /// Returns the previous value.
 const value = 1;
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -471,7 +471,7 @@ declare const second: string
 /// doc
 declare const second: string;
 "#,
-        FileType::DestackDeclaration,
+        FileType::TsppDeclaration,
     );
 }
 
@@ -487,7 +487,7 @@ fn test_format_global_omits_redundant_declare_modifier() {
     let Buffer: BufferConstructor;
 }
 "#,
-        FileType::DestackDeclaration,
+        FileType::TsppDeclaration,
     );
 }
 
@@ -503,7 +503,7 @@ fn test_format_global_prints_declare_modifier() {
     let Buffer: BufferConstructor;
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -525,7 +525,7 @@ bar();
 
 baz();
 [7,8,9]"#,
-        FileType::Destack,
+        FileType::Tspp,
         &[(
             80,
             r#"const a = 1;
@@ -562,8 +562,8 @@ import fs from "node:fs";
 
 import thing from "pkg";
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default()
+        FileType::Tspp,
+        TsppFormatOptions::default()
     );
 }
 
@@ -583,8 +583,8 @@ import alias from "~/core";
 
 import rel from "./rel";
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default()
+        FileType::Tspp,
+        TsppFormatOptions::default()
     );
 }
 
@@ -592,7 +592,7 @@ import rel from "./rel";
 #[test]
 fn test_format_decorator_comments() {
     assert_format_program_reference_widths(
-        r#"// test.ds
+        r#"// test.tspp
 import { Component } from "@angular/core";
 
 @Component({
@@ -605,11 +605,11 @@ export class AppMyComponent {}
 })
 export default class AppMyComponent {}
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
-                r#"// test.ds
+                r#"// test.tspp
 import { Component } from "@angular/core";
 
 @Component({
@@ -625,7 +625,7 @@ export default class AppMyComponent {}
             ),
             (
                 100,
-                r#"// test.ds
+                r#"// test.tspp
 import { Component } from "@angular/core";
 
 @Component({
@@ -652,7 +652,7 @@ export /* keep */ default class B {}
 export /* keep */ function c() {}
 export /* keep */ type T = string
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -732,8 +732,8 @@ const rangeIgnoredB   =  {  gamma:3,  delta:4 }
 
 const keepFormattedToo = 2;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 }
 
@@ -749,8 +749,8 @@ const formatted =  1
 run(  alpha,  beta  );
 const formatted = 1;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 }
 
@@ -768,8 +768,8 @@ run(  alpha,  beta  )
 ;
 const formatted = 1;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 }
 
@@ -783,8 +783,8 @@ const formatted =  1
         r#"run(  alpha  ); // format-ignore
 const formatted = 1;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 }
 
@@ -798,8 +798,8 @@ const raw   =  [  1,2,3 ]
         r#"// format-ignore-file
 const raw   =  [  1,2,3 ]
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 
     assert_format_program_roundtrip_with_file_type(
@@ -811,7 +811,7 @@ const alsoFormatted =  [  1,2,3 ]
 // format-ignore-file
 const alsoFormatted = [1, 2, 3];
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 }

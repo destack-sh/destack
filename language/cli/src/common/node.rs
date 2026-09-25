@@ -1,5 +1,5 @@
 use clap::ValueEnum;
-use destack_dir as dir;
+use tspp_dir as dir;
 
 /// A DIR node type accepted by structural commands.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]

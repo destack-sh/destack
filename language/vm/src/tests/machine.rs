@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use destack_heap::{
+use tspp_heap::{
     AllocationCache, AllocationPlan, Heap, HeapLimits, HeapOptions, HeapReference, RootSlot,
     SharedHeap, SharedHeapLimits, SharedHeapOptions, SharedMarkWorker,
 };
-use destack_memory::{MemoryMap, MemoryRange};
-use destack_program as program;
-use destack_program::{FunctionId, Program, StopReason, StopSet, WatchSet, Word};
+use tspp_memory::{MemoryMap, MemoryRange};
+use tspp_program as program;
+use tspp_program::{FunctionId, Program, StopReason, StopSet, WatchSet, Word};
 
 use crate::diagnostic::ExecutionError;
 use crate::machine::Activation;

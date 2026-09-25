@@ -1,4 +1,4 @@
-use destack_mir::TraceMap;
+use tspp_mir::TraceMap;
 
 use super::{HeapPlace, HeapStorage, LargeBlock, LargeBlockId, PageOwner, SmallSpan};
 use crate::{
@@ -6,7 +6,7 @@ use crate::{
     HeapRepresentationError, HeapResult, Payload, Slot, SmallAllocationClass, SmallSpanClass,
     clear_slot_reference_bits, write_slot_reference_bits,
 };
-use destack_memory::MemoryRange;
+use tspp_memory::MemoryRange;
 
 impl HeapStorage {
     /// Return the projected retained-byte delta for one block plan.

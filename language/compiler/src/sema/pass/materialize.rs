@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_artifact::{DiagnosticRecord, DirMaterialized};
-use destack_repository::ArtifactAttemptRecorder;
+use tspp_artifact::{DiagnosticRecord, DirMaterialized};
+use tspp_repository::ArtifactAttemptRecorder;
 
 use crate::CompilerResult;
 use crate::sema::CheckState;

@@ -1,0 +1,33 @@
+// SYNTAX TEST "source.tspp"
+
+// expressions / loops / loop
+const value = loop {
+//            ^^^^ keyword.control.loop.tspp
+    break 1;
+};
+
+const labeled = outer: loop {
+    break outer: 2;
+//  ^^^^^ keyword.control.flow.tspp
+};
+
+// expressions / loops / while for and continue
+while (ready()) {
+// <- keyword.control.loop.tspp
+    continue;
+}
+
+for (const item of items) {
+// <- keyword.control.loop.tspp
+    break;
+}
+
+for item in items {
+// <- keyword.control.loop.tspp
+    consume(item);
+}
+
+for await (const entry of stream) {
+// <- keyword.control.loop.tspp
+    consume(entry);
+}

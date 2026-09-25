@@ -1,6 +1,6 @@
-use destack_core::FxIndexMap;
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_core::FxIndexMap;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -146,7 +146,7 @@ const position = Position { z: 3, x: 1, y: 2 };
         session.assert_diagnostics(
             r#"
 warning[inconsistent-field-order]: field 'x' is out of declaration order
- ──▶ main.ds:7:35
+ ──▶ main.tspp:7:35
   │
 5 │ }
 6 │
@@ -155,7 +155,7 @@ warning[inconsistent-field-order]: field 'x' is out of declaration order
   │
 
 warning[inconsistent-field-order]: field 'y' is out of declaration order
- ──▶ main.ds:7:41
+ ──▶ main.tspp:7:41
   │
 5 │ }
 6 │
@@ -219,7 +219,7 @@ const task = Task {
         session.assert_diagnostics(
             r#"
 warning[inconsistent-field-order]: field 'run' is out of declaration order
- ──▶ main.ds:8:5
+ ──▶ main.tspp:8:5
   │
 6 │ const task = Task {
 7 │     name: "compile",

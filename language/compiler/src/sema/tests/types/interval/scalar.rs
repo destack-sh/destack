@@ -12,7 +12,7 @@ declare const count: Count;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -38,7 +38,7 @@ declare const count: Count;
 fn test_interval_satisfies_integer_domain() {
     let session = TestSession::single(
         r#"
-import { IntegerDomain } from "destack:math";
+import { IntegerDomain } from "tspp:math";
 
 declare const value: 0..=255;
 
@@ -47,18 +47,18 @@ value satisfies IntegerDomain;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { IntegerDomain } from "destack:math";
+import { IntegerDomain } from "tspp:math";
 
 declare const value: 0..=255;
 
 value satisfies IntegerDomain;
 
 === dir ===
-import { IntegerDomain } from "destack:math";
+import { IntegerDomain } from "tspp:math";
 
 declare const value: 0..=255;
 /// @type.symbol symbol=value source=value type=0..=255

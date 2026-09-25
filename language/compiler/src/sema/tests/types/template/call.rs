@@ -14,7 +14,7 @@ segment satisfies "users";
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -62,7 +62,7 @@ key satisfies "id:users";
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -112,7 +112,7 @@ text satisfies string;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -169,7 +169,7 @@ parse(key);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -221,7 +221,7 @@ segment satisfies "";
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -269,7 +269,7 @@ value satisfies 42;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -315,7 +315,7 @@ parse("no");
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -356,7 +356,7 @@ const segment = parse("id:users", "other");
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

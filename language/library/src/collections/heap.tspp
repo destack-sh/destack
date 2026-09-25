@@ -1,0 +1,139 @@
+import { From } from "tspp:convert";
+import { todo } from "tspp:error";
+import { Extend, FromIterator, Iterable, Iterator } from "tspp:iter";
+import { Borrowed, Copy, Default, WithAccess } from "tspp:memory";
+import { Compare } from "tspp:ops";
+
+import { Array } from "./array.tspp";
+
+/// A binary max-heap.
+@languageItem("collections.BinaryHeap")
+export struct BinaryHeap<T> {
+    /// The heap storage.
+    private storage: ^Array<T>;
+}
+
+export extension<T> of BinaryHeap<T> implements Iterable<T> {
+    /// Consume this heap into owned values.
+    iterator(this): this.Iterator {
+        todo("BinaryHeap.iterator")
+    }
+}
+
+export extension<T, 'a> of Borrowed<BinaryHeap<T>, 'a, "immutable">
+    implements Iterable<Borrowed<T, 'a, "immutable">>
+{
+    /// Borrow the greatest element.
+    peek(this): Borrowed<T, 'a, "immutable"> | undefined {
+        todo("BinaryHeap.peek")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator(this): this.Iterator {
+        todo("BinaryHeap.iterator")
+    }
+}
+
+export extension<T> of BinaryHeap<T> implements Default {
+    /// Create an empty binary heap.
+    static new(): BinaryHeap<T> {
+        todo("BinaryHeap.new")
+    }
+
+    /// Create a binary heap with room for at least `capacity` elements.
+    static withCapacity(capacity: usize): BinaryHeap<T> {
+        todo("BinaryHeap.withCapacity")
+    }
+
+    /// Create the default binary heap.
+    static default(): BinaryHeap<T> {
+        BinaryHeap.new()
+    }
+}
+
+export extension<T: Compare<T>> of BinaryHeap<T> implements From<Iterable<T>>, FromIterator<T> {
+    /// Create a binary heap from values.
+    static from(values: Iterable<T>): BinaryHeap<T> {
+        todo("BinaryHeap.from")
+    }
+
+    /// Create a binary heap from `values`.
+    static fromIterator<I: Iterable<T>>(values: I): BinaryHeap<T> {
+        todo("BinaryHeap.fromIterator")
+    }
+}
+
+export extension<T> of BinaryHeap<T> {
+    /// Return the number of elements.
+    get size(&readonly this): usize {
+        this.storage.size.truncate<usize>()
+    }
+
+    /// Return the allocated element count.
+    get capacity(&readonly this): usize {
+        this.storage.capacity
+    }
+
+    /// Return whether this heap has no elements.
+    get isEmpty(&readonly this): boolean {
+        this.storage.isEmpty
+    }
+
+    /// Push `value`.
+    push<const A: "mutable" | "exclusive">(this: WithAccess<&this, A>, value: T): void
+        where T: Compare<T>, A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
+        todo("BinaryHeap.push");
+    }
+
+    /// Remove and return the greatest element.
+    pop<const A: "mutable" | "exclusive">(this: WithAccess<&this, A>): T | undefined
+        where T: Compare<T>, A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never) {
+        todo("BinaryHeap.pop")
+    }
+
+    /// Remove all elements.
+    clear(&this): void {
+        todo("BinaryHeap.clear");
+    }
+
+    /// Retain only values accepted by `predicate`.
+    retain(&exclusive this, predicate: (value: &immutable T) => boolean): void where T: Compare<T> {
+        todo("BinaryHeap.retain");
+    }
+
+    /// Remove all values and return them.
+    drain(&this): Iterator<T> {
+        todo("BinaryHeap.drain")
+    }
+
+    /// Remove values accepted by `predicate` and return them.
+    extractIf(&exclusive this, predicate: (value: &immutable T) => boolean): Iterator<T>
+        where T: Compare<T> {
+        todo("BinaryHeap.extractIf")
+    }
+
+    /// Reserve room for at least `additional` more elements.
+    reserve(&this, additional: usize): void {
+        todo("BinaryHeap.reserve");
+    }
+
+    /// Shrink capacity to fit current elements.
+    shrinkToFit(&this): void {
+        todo("BinaryHeap.shrinkToFit");
+    }
+
+    /// Convert this heap into a sorted array.
+    intoSortedArray(this): ^Array<T> where T: Compare<T> {
+        todo("BinaryHeap.intoSortedArray")
+    }
+}
+
+export extension<T, const A: "mutable" | "exclusive"> of BinaryHeap<T>
+    implements Extend<T, A>
+    where T: Compare<T>, A: "exclusive" | ((T,) extends (Copy,) ? "mutable" : never)
+{
+    /// Push all `values`.
+    extend<I: Iterable<T>>(this: WithAccess<&this, A>, values: I): void {
+        todo("BinaryHeap.extend");
+    }
+}

@@ -20,7 +20,7 @@ value satisfies Point;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -115,7 +115,7 @@ const total = requireEqual(Sample { label: "a", weight: 1.0 });
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -226,7 +226,7 @@ node satisfies Node;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -327,7 +327,7 @@ const measure = requireHash(Measure { value: 1.0 });
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -431,7 +431,7 @@ const value = requireCompare(Point { x: 1, y: 2 });
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -516,7 +516,7 @@ const hashed = requireHash(new Session());
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -627,7 +627,7 @@ struct Sample {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -674,7 +674,7 @@ struct Point {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -724,7 +724,7 @@ struct Point {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -776,7 +776,7 @@ requireEqual(Point { x: 1 });
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 const invalid: 1 = 1;
 
@@ -874,7 +874,7 @@ const value = requireEqual(Point { x: 1 });
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -994,7 +994,7 @@ cstrict satisfies boolean;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1141,7 +1141,7 @@ const strict = a === b;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1215,7 +1215,7 @@ const cloned = requireClone(hold(), holdBlocker());
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Blocker {
     run: ^(() => void);
@@ -1332,7 +1332,7 @@ const cloned = requireClone(held);
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Blocker {
     run: ^(() => void);
@@ -1435,7 +1435,7 @@ const cloned = requireClone(handler);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

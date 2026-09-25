@@ -1,6 +1,6 @@
-use destack_repository::Revision;
-use destack_source::Uri;
 use futures::executor::block_on;
+use tspp_repository::Revision;
+use tspp_source::Uri;
 
 use crate::tests::harness::TestWorkspace;
 use crate::{Error, RevisionPolicy, RunQueryInput};
@@ -13,7 +13,7 @@ fn test_resolve_query_file_requires_target() {
     let config = test.write_text("destack.json", config_source);
     let _ = test.apply_text(&config, config_source);
     let source = "export const value = 1;\n";
-    let path = test.write_text("main.ds", source);
+    let path = test.write_text("main.tspp", source);
     let _ = test.apply_text(&path, source);
     let revision = test.workspace.revision().expect("read revision");
     let error = test
@@ -29,10 +29,10 @@ fn test_resolve_query_file_requires_target() {
 fn test_resolve_query_file_from_canonical_uri() {
     let test = TestWorkspace::new("query-canonical-uri");
     let manifest = r#"{
-  "name": "destack",
+  "name": "tspp",
   "targets": {
     "default": {
-      "entry": ["src/custom.ds"]
+      "entry": ["src/custom.tspp"]
     }
   },
   "defaultTarget": "default"
@@ -40,11 +40,11 @@ fn test_resolve_query_file_from_canonical_uri() {
 "#;
     test.file("destack.json", manifest);
     let source = "export const custom = 1;\n";
-    test.file("src/custom.ds", source);
+    test.file("src/custom.tspp", source);
     let revision = test.workspace.revision().expect("read revision");
 
     // resolve the URI to the authored file in this exact revision
-    let uri = Uri::from_string("destack://custom.ds");
+    let uri = Uri::from_string("tspp://custom.tspp");
     let file = test
         .workspace
         .resolve_query_file(revision, uri)
@@ -56,8 +56,8 @@ fn test_resolve_query_file_from_canonical_uri() {
 /// Executes latest and historical queries against their exact selected revisions.
 #[test]
 fn test_run_query_selects_exact_revision() {
-    let test = TestWorkspace::with_entry("query-exact-revision", "main.ds");
-    let path = test.write_text("main.ds", "export const value = 1;\n");
+    let test = TestWorkspace::with_entry("query-exact-revision", "main.tspp");
+    let path = test.write_text("main.tspp", "export const value = 1;\n");
     let _ = test.apply_text(&path, "export const value = 1;\n");
     let first = test.workspace.revision().expect("first revision");
     let _ = test.apply_text(&path, "export const value = 2;\n");
@@ -86,7 +86,7 @@ fn test_run_query_selects_exact_revision() {
 fn test_run_query_requires_matching_revision() {
     let test = TestWorkspace::new("workspace_mutation_revision");
     let source = "export const value = 1;\n";
-    let path = test.write_text("main.ds", source);
+    let path = test.write_text("main.tspp", source);
 
     let _ = test.apply_text(&path, source);
     let current_revision = test
@@ -111,8 +111,8 @@ fn test_run_query_requires_matching_revision() {
 }
 
 /// Builds one empty file-rename query for revision selection exercises.
-fn empty_rename_files() -> destack_query::QueryRequest {
-    destack_query::QueryRequest::RenameFiles(destack_query::RenameFilesRequest {
+fn empty_rename_files() -> tspp_query::QueryRequest {
+    tspp_query::QueryRequest::RenameFiles(tspp_query::RenameFilesRequest {
         renames: Vec::new(),
     })
 }

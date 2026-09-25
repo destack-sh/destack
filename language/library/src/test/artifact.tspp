@@ -1,0 +1,49 @@
+import { Json } from "tspp:json";
+
+/// Stable test artifact identifier.
+@languageItem("test.ArtifactId")
+export newtype ArtifactId = string;
+
+/// Test artifact kind.
+@languageItem("test.ArtifactKind")
+export enum ArtifactKind {
+    /// Plain text artifact.
+    Text = 1,
+    /// Structured JSON artifact.
+    Json = 2,
+    /// Binary artifact.
+    Binary = 3,
+    /// Image artifact.
+    Image = 4,
+    /// Execution trace artifact.
+    Trace = 5,
+    /// Snapshot artifact.
+    Snapshot = 6,
+    /// Log artifact.
+    Log = 8,
+}
+
+/// Durable output produced by a test run.
+@languageItem("test.Artifact")
+export struct Artifact {
+    /// Artifact identifier when persisted.
+    id?: ArtifactId;
+
+    /// Artifact name.
+    name: string;
+
+    /// Artifact kind.
+    kind: ArtifactKind;
+
+    /// Media type when known.
+    mediaType?: string;
+
+    /// Structured value when available.
+    value?: Json;
+
+    /// Binary content when available.
+    bytes?: [uint8];
+
+    /// Persisted artifact path when available.
+    path?: string;
+}

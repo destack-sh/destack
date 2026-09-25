@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
-use destack_artifact::{
+use parking_lot::Mutex;
+use tspp_artifact::{
     ArtifactDependency, ArtifactKey, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay,
     DiagnosticError, DiagnosticLike, DiagnosticRecord, SourceDependency,
 };
-use destack_core::Blob;
-use destack_repository::{
+use tspp_core::Blob;
+use tspp_repository::{
     ArtifactAttemptRecorder, ArtifactBase, ProviderContext, Repository, Revision,
 };
-use destack_source::{DiagnosticLabel, DiagnosticTarget, FileId, ModuleId, PackageId, Span};
-use parking_lot::Mutex;
+use tspp_source::{DiagnosticLabel, DiagnosticTarget, FileId, ModuleId, PackageId, Span};
 
 /// One artifact provider attempt owned by an executor worker.
 #[derive(Debug)]

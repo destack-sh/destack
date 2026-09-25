@@ -1,11 +1,11 @@
 use std::collections::HashSet;
 
 use crate::emit::js;
-use destack_artifact::{DirBound, DirExpanded, DirExported, DirImported, DirParsed, DirView};
-use destack_core::{StringId, StringPool};
-use destack_dir as dir;
-use destack_repository::ProviderContext;
-use destack_source::{ModuleId, PackageId, TargetId};
+use tspp_artifact::{DirBound, DirExpanded, DirExported, DirImported, DirParsed, DirView};
+use tspp_core::{StringId, StringPool};
+use tspp_dir as dir;
+use tspp_repository::ProviderContext;
+use tspp_source::{ModuleId, PackageId, TargetId};
 
 use crate::{JsLinker, LinkError, LinkResult};
 
@@ -147,7 +147,7 @@ impl JsLinker<'_> {
         statement_id: js::LocalNodeId<js::Statement>,
         module_id: ModuleId,
         target_module: ModuleId,
-        profile_id: destack_source::ProfileId,
+        profile_id: tspp_source::ProfileId,
         package_id: PackageId,
     ) -> LinkResult<Vec<js::LocalNodeId<js::Statement>>> {
         let mut declarators = Vec::new();
@@ -286,7 +286,7 @@ impl JsLinker<'_> {
         module: &js::Module,
         item_id: js::LocalNodeId<js::DependencyItem>,
         module_id: ModuleId,
-        profile_id: destack_source::ProfileId,
+        profile_id: tspp_source::ProfileId,
         package_id: PackageId,
     ) -> LinkResult<(dir::GlobalSymbolId, String)> {
         let origin = module
@@ -324,11 +324,11 @@ impl JsLinker<'_> {
     fn source_bindings(
         &self,
         module_id: ModuleId,
-        profile_id: destack_source::ProfileId,
+        profile_id: tspp_source::ProfileId,
         package_id: PackageId,
     ) -> LinkResult<dir::BindingTable<'static>> {
         let key = (module_id, profile_id);
-        let read = |error: destack_repository::ProviderError| LinkError::Internal {
+        let read = |error: tspp_repository::ProviderError| LinkError::Internal {
             anchor: package_id.into(),
             package: package_id,
             message: format!(
@@ -349,7 +349,7 @@ impl JsLinker<'_> {
     fn resolve_same_output_printable_symbol(
         &self,
         symbol_id: dir::GlobalSymbolId,
-        profile_id: destack_source::ProfileId,
+        profile_id: tspp_source::ProfileId,
         package_id: PackageId,
     ) -> LinkResult<(dir::GlobalSymbolId, String)> {
         // load the source module for the exported symbol
@@ -512,7 +512,7 @@ impl JsLinker<'_> {
         module: &mut js::Module,
         statement_id: js::LocalNodeId<js::Statement>,
         target_module: ModuleId,
-        profile_id: destack_source::ProfileId,
+        profile_id: tspp_source::ProfileId,
         package_id: PackageId,
     ) -> LinkResult<js::LocalNodeId<js::Expression>> {
         let target_directory = self

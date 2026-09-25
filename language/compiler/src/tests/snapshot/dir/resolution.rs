@@ -1,6 +1,6 @@
 use std::slice;
 
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use super::{DirSnapshotBuilder, SnapshotTable};
 use crate::tests::snapshot::{SnapshotAnchor, SnapshotRow};
@@ -2209,7 +2209,7 @@ fn type_label_with_bindings(
 /// Render one applied declaration while applying selected generic bindings.
 fn generic_instance_type_label(
     builder: &DirSnapshotBuilder<'_>,
-    module: destack_source::ModuleId,
+    module: tspp_source::ModuleId,
     instance: &dir::GenericApplication,
     bindings: &[dir::GenericArgumentBinding],
 ) -> String {
@@ -2242,7 +2242,7 @@ fn type_value(builder: &DirSnapshotBuilder<'_>, type_id: dir::GlobalTypeId) -> O
 /// Return the visible type table for one module.
 fn type_table<'a>(
     builder: &'a DirSnapshotBuilder<'_>,
-    module: destack_source::ModuleId,
+    module: tspp_source::ModuleId,
 ) -> Option<&'a dir::TypeTable<'static>> {
     if module == builder.tree.module_id {
         builder.types.as_ref()
@@ -2733,7 +2733,7 @@ fn generic_instance_arguments(
 /// Return the generic table for one module, when loaded.
 fn generic_table<'a>(
     builder: &'a DirSnapshotBuilder<'_>,
-    module: destack_source::ModuleId,
+    module: tspp_source::ModuleId,
 ) -> Option<&'a dir::GenericTable<'static>> {
     if module == builder.tree.module_id {
         builder.generics.as_ref()

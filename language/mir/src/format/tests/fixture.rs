@@ -1,5 +1,5 @@
-use destack_core::StringPool;
-use destack_source::{DiffOptions, print_diff};
+use tspp_core::StringPool;
+use tspp_source::{DiffOptions, print_diff};
 
 use crate::parse::{ParseOptions, Parser, test_file};
 use crate::{FormatOptions, Formatter, TargetLayout, Tree};

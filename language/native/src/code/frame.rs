@@ -1,6 +1,6 @@
-use destack_core::{EntryRange, EntryStore, SectionEntry};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::{EntryRange, EntryStore, SectionEntry};
+use tspp_serde::Reflect;
 
 use crate::BlockId;
 

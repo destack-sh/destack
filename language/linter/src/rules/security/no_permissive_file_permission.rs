@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -16,12 +16,12 @@ Instead, you SHOULD grant only the required permissions and write mode literals 
 "#,
         example: {
             reported: r#"
-import { FileMode } from "destack:fs/binding";
+import { FileMode } from "tspp:fs/binding";
 
 const mode = FileMode(0o666);
 "#,
             accepted: r#"
-import { FileMode } from "destack:fs/binding";
+import { FileMode } from "tspp:fs/binding";
 
 const mode = FileMode(0o640);
 "#,
@@ -104,7 +104,7 @@ mod tests {
         let session = TestSession::dir(
             &NO_PERMISSIVE_FILE_PERMISSION,
             r#"
-import { FileMode } from "destack:fs/binding";
+import { FileMode } from "tspp:fs/binding";
 
 const mode = FileMode(416);
 "#,
@@ -112,9 +112,9 @@ const mode = FileMode(416);
 
         session.assert_diagnostics(
             r#"warning[no-permissive-file-permission]: file permission uses decimal notation
- ──▶ main.ds:3:14
+ ──▶ main.tspp:3:14
   │
-1 │ import { FileMode } from "destack:fs/binding";
+1 │ import { FileMode } from "tspp:fs/binding";
 2 │
 3 │ const mode = FileMode(416);
   │              ^^^^^^^^^^^^^
@@ -131,7 +131,7 @@ const mode = FileMode(416);
         let session = TestSession::dir(
             &NO_PERMISSIVE_FILE_PERMISSION,
             r#"
-import { FileMode } from "destack:fs/binding";
+import { FileMode } from "tspp:fs/binding";
 
 const mode = FileMode(438);
 "#,
@@ -139,9 +139,9 @@ const mode = FileMode(438);
 
         session.assert_diagnostics(
             r#"warning[no-permissive-file-permission]: file permission is world-writable and uses decimal notation
- ──▶ main.ds:3:14
+ ──▶ main.tspp:3:14
   │
-1 │ import { FileMode } from "destack:fs/binding";
+1 │ import { FileMode } from "tspp:fs/binding";
 2 │
 3 │ const mode = FileMode(438);
   │              ^^^^^^^^^^^^^
@@ -158,7 +158,7 @@ const mode = FileMode(438);
         let session = TestSession::dir(
             &NO_PERMISSIVE_FILE_PERMISSION,
             r#"
-import { FileMode } from "destack:fs/binding";
+import { FileMode } from "tspp:fs/binding";
 
 const empty = FileMode(0);
 
@@ -181,7 +181,7 @@ const readBit = FileMode(0B100);
         let session = TestSession::dir(
             &NO_PERMISSIVE_FILE_PERMISSION,
             r#"
-import { FileMode } from "destack:fs/binding";
+import { FileMode } from "tspp:fs/binding";
 
 function preserve(mode: FileMode): FileMode {
     return mode;
@@ -198,7 +198,7 @@ function preserve(mode: FileMode): FileMode {
         let session = TestSession::dir(
             &NO_PERMISSIVE_FILE_PERMISSION,
             r#"
-import { FileMode } from "destack:fs/binding";
+import { FileMode } from "tspp:fs/binding";
 
 declare function mode(value: uint32): FileMode;
 

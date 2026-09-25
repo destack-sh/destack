@@ -8,11 +8,11 @@ Tree comment fixtures cover comment containers, dangling comments, and arrow-exp
 
 Block comments remain inside their expression containers.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <div>{/* TODO: add content */}</div>
 ```
 
-```ds expected
+```tspp expected
 const node = <div>{/* TODO: add content */}</div>;
 ```
 
@@ -20,11 +20,11 @@ const node = <div>{/* TODO: add content */}</div>;
 
 Comments between children stay on their own line.
 
-```ds:main.ds line-width=40
+```tspp:main.tspp line-width=40
 const node = <div>{/* header */}<Header /><Body /></div>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <div>
         {/* header */}
@@ -38,11 +38,11 @@ const node = (
 
 Comments inside expression containers are preserved.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <div>{items /* keep */ .map((item) => <Item key={item.id} />)}</div>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <div>
         {items /* keep */
@@ -59,7 +59,7 @@ const node = (
 
 Dangling comments stay inside the expression container.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = (<>
   {
     value
@@ -68,7 +68,7 @@ const node = (<>
 </>)
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <>
         {
@@ -83,11 +83,11 @@ const node = (
 
 Simple fragment expressions stay on one line.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <>{ value }</>
 ```
 
-```ds expected
+```tspp expected
 const node = <>{value}</>;
 ```
 
@@ -97,7 +97,7 @@ const node = <>{value}</>;
 
 Arrow expressions inside tree containers break with comments preserved.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <>
   <div>
     {() => function A() {
@@ -107,7 +107,7 @@ const node = <>
 </>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <>
         <div>
@@ -126,12 +126,12 @@ const node = (
 
 Trailing comments on tree branches stay on the same line.
 
-```ds:main.ds line-width=30
+```tspp:main.tspp line-width=30
 const node = <div>{isVideo ? <Video /> : <Image /> // eslint-disable-line
 }</div>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <div>
         {
@@ -153,11 +153,11 @@ Tree comment boundaries cover children, ternaries, inline expressions, and call 
 
 Comments between sibling children stay between the same children.
 
-```ds:main.ds line-width=40
+```tspp:main.tspp line-width=40
 const node = <div><A />{/* between */}<B /></div>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <div>
         <A />
@@ -173,7 +173,7 @@ const node = (
 
 Block comments inside ternary branches are preserved.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = (
   <div>
     {isVideo ? <Video /> /* video-comment */ : <Image /> /* image-comment */}
@@ -181,7 +181,7 @@ const node = (
 )
 ```
 
-```ds expected
+```tspp expected
 const node = <div>{isVideo ? <Video /> /* video-comment */ : <Image /> /* image-comment */}</div>;
 ```
 
@@ -189,7 +189,7 @@ const node = <div>{isVideo ? <Video /> /* video-comment */ : <Image /> /* image-
 
 Trailing line comments on alternate branches stay with the alternate branch.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = (
   <>
     {x ? <A /> : // alt-line
@@ -198,7 +198,7 @@ const node = (
 )
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <>
         {x ? (
@@ -215,11 +215,11 @@ const node = (
 
 Inline comments inside tree ternary branches stay attached on both sides.
 
-```ds:main.ds line-width=40
+```tspp:main.tspp line-width=40
 const node = <div>{isVideo ? <Video /> /* keep-video */ : <Image /> /* keep-image */}</div>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <div>
         {isVideo ? (
@@ -235,7 +235,7 @@ const node = (
 
 Block comments inside alternate tree branches stay with the alternate branch.
 
-```ds:main.ds
+```tspp:main.tspp
 const Component = () => (
   <div>
     {"error" ? (
@@ -248,7 +248,7 @@ const Component = () => (
 )
 ```
 
-```ds expected
+```tspp expected
 const Component = () => (
     <div>
         {"error" ? (
@@ -267,11 +267,11 @@ const Component = () => (
 
 Inline comments in tree expression callbacks stay attached to the callback body.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <div>{items.map((item) => item /* map-inline */)}</div>
 ```
 
-```ds expected
+```tspp expected
 const node = <div>{items.map((item) => item /* map-inline */)}</div>;
 ```
 
@@ -279,12 +279,12 @@ const node = <div>{items.map((item) => item /* map-inline */)}</div>;
 
 Trailing comments in logical tree expressions stay on the same logical line.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <div>{ready && <Body /> // logical-tail
 }</div>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <div>
         {
@@ -300,14 +300,14 @@ const node = (
 
 Trailing comments on tree first arguments stay attached to that argument.
 
-```ds:main.ds
+```tspp:main.tspp
 send(
   <Card />, // tree-first
   options,
 )
 ```
 
-```ds expected
+```tspp expected
 send(
     <Card />, // tree-first
     options,
@@ -318,14 +318,14 @@ send(
 
 Trailing comments on generic tree element heads stay attached to the same tree argument.
 
-```ds:main.ds line-width=36
+```tspp:main.tspp line-width=36
 send(
   <Card<T> value={value} />, // tree-generic
   options,
 )
 ```
 
-```ds expected
+```tspp expected
 send(
     <Card<T> value={value} />, // tree-generic
     options,
@@ -336,7 +336,7 @@ send(
 
 Line comments after a tree argument stay in the following argument position.
 
-```ds:main.ds
+```tspp:main.tspp
 someFunction(
   <Component
     value1={{
@@ -347,7 +347,7 @@ someFunction(
 )
 ```
 
-```ds expected
+```tspp expected
 someFunction(
     <Component
         value1={{
@@ -365,10 +365,10 @@ someFunction(
 Comments inside tree literals use expression containers.
 Comments remain inline when the element fits.
 
-```ds
+```tspp
 <Container>{/* XOXO: something something add content */}</Container>
 ```
 
-```ds expected
+```tspp expected
 <Container>{/* XOXO: something something add content */}</Container>;
 ```

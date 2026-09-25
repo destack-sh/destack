@@ -6,11 +6,11 @@
 
 Guard conditions keep their required parentheses.
 
-```ds
+```tspp
 match (n) { x if (x > 0) => "positive"; x if (x < 0) => "negative"; _ => "zero" }
 ```
 
-```ds expected
+```tspp expected
 match (n) {
     x if (x > 0) => "positive"
     x if (x < 0) => "negative"
@@ -22,11 +22,11 @@ match (n) {
 
 Guards can use any boolean expression.
 
-```ds
+```tspp
 match (user) { User { age } if (age >= 18) => "adult"; User { age } if (age >= 13) => "teen"; _ => "child" }
 ```
 
-```ds expected
+```tspp expected
 match (user) {
     User { age } if (age >= 18) => "adult"
     User { age } if (age >= 13) => "teen"
@@ -38,11 +38,11 @@ match (user) {
 
 Method calls work in guard conditions.
 
-```ds
+```tspp
 match (x) { v if (v.isValid()) => process(v); _ => null }
 ```
 
-```ds expected
+```tspp expected
 match (x) {
     v if (v.isValid()) => process(v)
     _ => null
@@ -53,11 +53,11 @@ match (x) {
 
 Tuple pattern guards keep comparison expressions inside the guard.
 
-```ds
+```tspp
 match (pair) { (_, count) if (count > 0) => count; _ => 0 }
 ```
 
-```ds expected
+```tspp expected
 match (pair) {
     (_, count) if (count > 0) => count
     _ => 0

@@ -1,8 +1,8 @@
-use destack_dir::{
+use tspp_dir::{
     Asynchrony, BindingKeyword, BlockContext, Condition, Expression, ForEachBinding, Keyword,
     LocalNodeId, NodeType, Pattern, TokenType, WhileForm,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::{Parser, ParserResult};
@@ -11,7 +11,7 @@ impl Parser {
     /// Parse one unconditional loop.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// loop { work(); }
     /// ```
     pub(crate) fn parse_loop(&mut self) -> ParserResult<LocalNodeId<Expression>> {
@@ -39,7 +39,7 @@ impl Parser {
     /// Parse one condition or iteration loop.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// for (item of items) visit(item);
     /// for (let index = 0; index < count; index++) work(index);
     /// ```
@@ -263,7 +263,7 @@ impl Parser {
     /// Parse one while or do-while loop.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// while (ready) work();
     /// do { work(); } while (ready)
     /// ```

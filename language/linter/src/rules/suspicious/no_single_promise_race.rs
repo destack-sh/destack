@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -18,14 +18,14 @@ Instead, you SHOULD use the existing Promise directly when no second input is in
 "#,
         example: {
             reported: r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 function first(value: Promise<int32>): Promise<int32> {
     return Promise.race([value]);
 }
 "#,
             accepted: r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 function first(value: Promise<int32>): Promise<int32> {
     return value;
@@ -129,7 +129,7 @@ mod tests {
         let session = TestSession::dir(
             &NO_SINGLE_PROMISE_RACE,
             r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 function first(left: Promise<int32>, right: Promise<int32>): Promise<int32> {
     return Promise.race([left, right]);
@@ -146,7 +146,7 @@ function first(left: Promise<int32>, right: Promise<int32>): Promise<int32> {
         let session = TestSession::dir(
             &NO_SINGLE_PROMISE_RACE,
             r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 function gather(value: Promise<int32>): Promise<int32[]> {
     return Promise.all([value]);
@@ -163,7 +163,7 @@ function gather(value: Promise<int32>): Promise<int32[]> {
         let session = TestSession::dir(
             &NO_SINGLE_PROMISE_RACE,
             r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 function first(value: int32): Promise<int32> {
     return Promise.race([value]);

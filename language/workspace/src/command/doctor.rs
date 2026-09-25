@@ -1,10 +1,10 @@
-use destack_serde::Reflect;
 use std::path::PathBuf;
 use std::process::Command;
+use tspp_serde::Reflect;
 
-use destack_repository::{DestackFile, TraceView};
-use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
+use tspp_repository::{DestackFile, TraceView};
+use tspp_source::DiagnosticCollection;
 
 use super::CommandResult;
 use super::common::{

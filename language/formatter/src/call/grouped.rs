@@ -10,25 +10,25 @@ use crate::declaration::{
     FormatLambdaDeclarationOptions, FunctionCacheMode, GroupedCallArgumentLayout,
     format_function_declaration, format_lambda_declaration_with_options,
 };
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{
+use crate::{TsppFormatContext, TsppFormatter};
+use tspp_dir::{
     Argument, Declaration, Expression, FunctionForm, FunctionSignature, GenericArgument, Literal,
     LocalNodeId, Parameter, TypeExpression, UnaryOperator,
 };
-use destack_fir::format::{
+use tspp_fir::format::{
     FormatElement as FirElement, FormatError, FormatLayout, FormatResult, GroupId,
 };
-use destack_fir::prelude::{
+use tspp_fir::prelude::{
     empty_line, expand_parent, format_with, group, soft_block_indent, soft_line_break_or_space,
     token,
 };
-use destack_fir::{best_fitting, format_args, write};
-use destack_repository::TrailingComma;
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_fir::{best_fitting, format_args, write};
+use tspp_repository::TrailingComma;
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 /// Return whether one expression is a function declaration expression.
 fn is_function_argument(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let Expression::Declaration(declaration_id) = ctx.tree.get(expression_id) else {
@@ -40,7 +40,7 @@ fn is_function_argument(
 
 /// Return whether one lambda declaration can group as one call argument.
 fn can_group_lambda_argument(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     declaration_id: LocalNodeId<Declaration>,
     is_lambda_recursion: bool,
 ) -> bool {
@@ -100,7 +100,7 @@ fn can_group_lambda_argument(
 
 /// Return whether one expression can participate in grouped call-argument layout.
 fn can_group_function_argument(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
@@ -119,7 +119,7 @@ fn can_group_function_argument(
 
 /// Return whether one type expression is simple enough for grouped call layout.
 fn is_simple_type_expression(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     let expression_id = extract_array_type_element_expression(ctx, expression_id);
@@ -143,7 +143,7 @@ fn is_simple_type_expression(
 
 /// Return one type expression after stripping up to two array suffixes.
 fn extract_array_type_element_expression(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<TypeExpression>,
 ) -> LocalNodeId<TypeExpression> {
     let mut expression_id = expression_id;
@@ -162,7 +162,7 @@ fn extract_array_type_element_expression(
 
 /// Return one type expression after extracting one single generic argument.
 fn extract_single_generic_argument_type_expression(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<TypeExpression>,
 ) -> LocalNodeId<TypeExpression> {
     let generic_arguments = match ctx.tree.get(expression_id) {
@@ -192,7 +192,7 @@ fn extract_single_generic_argument_type_expression(
 
 /// Return whether one expression can participate in grouped call-argument layout.
 fn can_group_expression_argument(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let expression_id = transparent_inner_expression(ctx, expression_id);
@@ -215,7 +215,7 @@ fn can_group_expression_argument(
 
 /// Return whether one expression is short enough to stay next to a grouped function argument.
 fn is_relatively_short_argument(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     if ctx.node_has_newline(expression_id) || ctx.has_annotation(expression_id) {
@@ -258,7 +258,7 @@ fn is_relatively_short_argument(
 
 /// Return whether the first argument should use grouped layout.
 fn should_group_first_argument(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     first_id: LocalNodeId<Expression>,
     second_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -312,7 +312,7 @@ fn should_group_first_argument(
 
 /// Return whether the last argument should use grouped layout.
 fn should_group_last_argument_impl(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     args_len: usize,
     penultimate_id: Option<LocalNodeId<Expression>>,
     last_id: LocalNodeId<Expression>,
@@ -387,7 +387,7 @@ fn should_group_last_argument_impl(
 
 /// Return whether one expression is a zero-parameter lambda with a block body.
 fn is_zero_parameter_block_lambda(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let Expression::Declaration(declaration_id) = ctx.tree.get(expression_id) else {
@@ -408,7 +408,7 @@ fn is_zero_parameter_block_lambda(
 
 /// Return whether one array expression is concise enough to avoid grouped-last layout.
 fn can_concisely_print_array_expression(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let expression_id = transparent_inner_expression(ctx, expression_id);
@@ -434,7 +434,7 @@ fn can_concisely_print_array_expression(
 
 /// Return whether one array element is a concise numeric literal element.
 fn is_concise_numeric_array_element(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
     let Some(expression_id) = argument_expression_id(ctx, argument_id) else {
@@ -446,7 +446,7 @@ fn is_concise_numeric_array_element(
 
 /// Return whether one expression is a concise numeric array element.
 fn is_concise_numeric_literal_expression(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let expression_id = transparent_inner_expression(ctx, expression_id);
@@ -471,7 +471,7 @@ fn is_concise_numeric_literal_expression(
 
 /// Return whether the last argument should use grouped layout.
 fn should_group_last_argument(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     arguments: &[LocalNodeId<Argument>],
 ) -> bool {
     let Some(last_argument_id) = arguments.last().copied() else {
@@ -494,7 +494,7 @@ fn should_group_last_argument(
 
 /// Return the grouped call-argument layout, if one standard grouped layout applies.
 pub(crate) fn arguments_grouped_layout(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     arguments: &[LocalNodeId<Argument>],
 ) -> Option<GroupedCallArgumentLayout> {
@@ -521,7 +521,7 @@ pub(crate) fn arguments_grouped_layout(
 
 /// Return whether one parameter list stays simple enough for grouped function arguments.
 fn grouped_function_signature_is_simple(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     signature: &FunctionSignature,
 ) -> bool {
     if signature.this_parameter.is_some() {
@@ -542,7 +542,7 @@ fn grouped_function_signature_is_simple(
 
 /// Return the function declaration eligible for grouped call formatting.
 fn grouped_function_argument_declaration_id(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
     layout: GroupedCallArgumentLayout,
     is_only_argument: bool,
@@ -571,7 +571,7 @@ fn grouped_function_argument_declaration_id(
 
 /// Write one function argument through its declaration owner.
 fn write_function_argument_with_options<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     argument_id: LocalNodeId<Argument>,
     declaration_id: LocalNodeId<Declaration>,
     following_span_start: Option<u32>,
@@ -647,7 +647,7 @@ fn write_function_argument_with_options<'ast>(
 
 /// Write one grouped argument replacement entry.
 fn write_grouped_argument_entry<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     argument_id: LocalNodeId<Argument>,
     following_span_start: Option<u32>,
     write_comma: bool,
@@ -689,7 +689,7 @@ fn write_grouped_argument_entry<'ast>(
 
 /// Write one grouped call-argument layout.
 pub(crate) fn write_grouped_arguments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     arguments: &[LocalNodeId<Argument>],
     layout: GroupedCallArgumentLayout,
     group_id: GroupId,
@@ -725,7 +725,7 @@ pub(crate) fn write_grouped_arguments<'ast>(
             call_argument_lines_before(f.context(), argument_id)
         };
 
-        let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        let content = format_with(move |f: &mut TsppFormatter<'ast, '_>| {
             let is_only_argument = index == 0 && last_index == 0;
 
             if is_grouped_argument {
@@ -836,7 +836,7 @@ pub(crate) fn write_grouped_arguments<'ast>(
             f.context_mut().cache_element(&cache_key, element);
         }
 
-        let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        let content = format_with(move |f: &mut TsppFormatter<'ast, '_>| {
             write_grouped_argument_entry(
                 f,
                 argument_id,
@@ -850,7 +850,7 @@ pub(crate) fn write_grouped_arguments<'ast>(
         elements[grouped_index].0 = element;
     }
 
-    let format_most_flat = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_most_flat = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write!(f, [token("(")])?;
 
         let separator = soft_line_break_or_space();
@@ -861,7 +861,7 @@ pub(crate) fn write_grouped_arguments<'ast>(
                 continue;
             };
 
-            joiner.entry(&format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+            joiner.entry(&format_with(move |f: &mut TsppFormatter<'ast, '_>| {
                 f.write_element(element);
                 Ok(())
             }));
@@ -872,7 +872,7 @@ pub(crate) fn write_grouped_arguments<'ast>(
         write!(f, [token(")")])
     });
 
-    let format_grouped = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_grouped = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write!(f, [token("(")])?;
 
         let separator = soft_line_break_or_space();
@@ -883,7 +883,7 @@ pub(crate) fn write_grouped_arguments<'ast>(
                 continue;
             };
 
-            let entry = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+            let entry = format_with(move |f: &mut TsppFormatter<'ast, '_>| {
                 f.write_element(element);
                 Ok(())
             });
@@ -899,7 +899,7 @@ pub(crate) fn write_grouped_arguments<'ast>(
         write!(f, [token(")")])
     });
 
-    let format_expanded = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_expanded = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         format_all_elements_broken_out(f, &elements, group_id, disallow_trailing_separator, true)
     });
 
@@ -922,7 +922,7 @@ pub(crate) fn write_grouped_arguments<'ast>(
 
 /// Return whether a call has multiple function-like arguments.
 pub(crate) fn is_function_composition_args(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     arguments: &[LocalNodeId<Argument>],
 ) -> bool {
     if arguments.len() <= 1 {
@@ -961,7 +961,7 @@ pub(crate) fn is_function_composition_args(
 
 /// Format precomputed call argument elements in explicit broken-out layout.
 fn format_all_elements_broken_out<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     elements: &[(Option<FirElement<'ast>>, usize)],
     group_id: GroupId,
     disallow_trailing_separator: bool,
@@ -974,7 +974,7 @@ fn format_all_elements_broken_out<'ast>(
         f,
         [group(&format_args![
             token("("),
-            soft_block_indent(&format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+            soft_block_indent(&format_with(move |f: &mut TsppFormatter<'ast, '_>| {
                 for (index, (element, lines_before)) in elements.iter().enumerate() {
                     if index > 0 {
                         match lines_before {

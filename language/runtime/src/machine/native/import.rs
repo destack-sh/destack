@@ -1,6 +1,6 @@
 use std::ptr::copy_nonoverlapping;
 
-use destack_native as native;
+use tspp_native as native;
 
 use super::{Error, Platform};
 

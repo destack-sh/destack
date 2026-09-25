@@ -15,7 +15,7 @@ const direction: Direction = "UP";
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 enum Direction {
     Up = "UP",
@@ -75,7 +75,7 @@ const matches = direction === "UP";
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 enum Direction {
     Up = "UP",

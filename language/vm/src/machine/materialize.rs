@@ -1,5 +1,5 @@
-use destack_bytecode::{CodeOffset, Instruction, Opcode};
-use destack_program::{
+use tspp_bytecode::{CodeOffset, Instruction, Opcode};
+use tspp_program::{
     ActivationImage, CallMode, FrameImage, FrameReturn, FrameSegment, FunctionId, ProgramPoint,
     Word,
 };
@@ -242,7 +242,7 @@ impl Machine {
                 let moved = segments
                     .iter()
                     .find_map(|segment| segment.relocate(offset))
-                    .ok_or(destack_program::Error::StrayFrameAddress { address })?;
+                    .ok_or(tspp_program::Error::StrayFrameAddress { address })?;
 
                 Ok(Some(moved as u64))
             })?;

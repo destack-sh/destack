@@ -6,23 +6,23 @@
 
 Tuple types use parentheses.
 
-```ds:main.ds
+```tspp:main.tspp
 type Pair = (T, boolean)
 ```
 
-```ds expected
+```tspp expected
 type Pair = (T, boolean);
 ```
 
 ### slice type
 
-Destack slice types keep bracket syntax.
+TS++ slice types keep bracket syntax.
 
-```ds
+```tspp
 type Values = [Value]
 ```
 
-```ds expected
+```tspp expected
 type Values = [Value];
 ```
 
@@ -30,11 +30,11 @@ type Values = [Value];
 
 Slice element types keep readonly prefixes inside brackets.
 
-```ds
+```tspp
 type Values = [readonly Value]
 ```
 
-```ds expected
+```tspp expected
 type Values = [readonly Value];
 ```
 
@@ -42,12 +42,12 @@ type Values = [readonly Value];
 
 Fixed array types keep their length expression.
 
-```ds
+```tspp
 type Bytes = [byte; 32]
 type Lane<const N: uint> = [byte; N * 2]
 ```
 
-```ds expected
+```tspp expected
 type Bytes = [byte; 32];
 type Lane<const N: uint> = [byte; N * 2];
 ```
@@ -56,11 +56,11 @@ type Lane<const N: uint> = [byte; N * 2];
 
 Empty and singleton tuple types keep their required punctuation in unions.
 
-```ds:main.ds
+```tspp:main.tspp
 type Next<TNext> = () | (TNext,)
 ```
 
-```ds expected
+```tspp expected
 type Next<TNext> = () | (TNext,);
 ```
 
@@ -68,11 +68,11 @@ type Next<TNext> = () | (TNext,);
 
 Tuple rest elements keep array suffixes on the rest type.
 
-```ds:main.ds
+```tspp:main.tspp
 type Requirements = (...HostAction[])
 ```
 
-```ds expected
+```tspp expected
 type Requirements = (...HostAction[],);
 ```
 
@@ -80,11 +80,11 @@ type Requirements = (...HostAction[],);
 
 Labeled tuple rest elements keep the spread marker after the label.
 
-```ds:main.ds
+```tspp:main.tspp
 type RedisArgs = (keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES")
 ```
 
-```ds expected
+```tspp expected
 type RedisArgs = (keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES");
 ```
 
@@ -92,11 +92,11 @@ type RedisArgs = (keys: ...RedisClient.KeyLike[], withscores: "WITHSCORES");
 
 Optional labeled tuple elements keep `?` on the label.
 
-```ds:main.ds
+```tspp:main.tspp
 type UpgradeOptions<WebSocketData> = (options?: {data?: undefined}, options: {data: WebSocketData})
 ```
 
-```ds expected
+```tspp expected
 type UpgradeOptions<WebSocketData> = (
     options?: { data?: undefined },
     options: { data: WebSocketData },
@@ -107,11 +107,11 @@ type UpgradeOptions<WebSocketData> = (
 
 Conditional tuple branches keep optional labels parseable after formatting.
 
-```ds:main.ds
+```tspp:main.tspp
 type UpgradeOptions<WebSocketData> = (WebSocketData,) extends (undefined,) ? (options?: {data?: undefined},) : (options: {data: WebSocketData},)
 ```
 
-```ds expected
+```tspp expected
 type UpgradeOptions<WebSocketData> = (WebSocketData,) extends (undefined,)
     ? (options?: { data?: undefined },)
     : (options: { data: WebSocketData },);
@@ -121,11 +121,11 @@ type UpgradeOptions<WebSocketData> = (WebSocketData,) extends (undefined,)
 
 Indexed access types keep brackets tight.
 
-```ds
+```tspp
 type Name = User["name"]
 ```
 
-```ds expected
+```tspp expected
 type Name = User["name"];
 ```
 
@@ -133,10 +133,10 @@ type Name = User["name"];
 
 Type queries keep a space after `typeof`.
 
-```ds
+```tspp
 type Result = typeof someValue
 ```
 
-```ds expected
+```tspp expected
 type Result = typeof someValue;
 ```

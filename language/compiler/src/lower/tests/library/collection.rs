@@ -5,7 +5,7 @@ use crate::tests::TestSession;
 fn test_lower_a_set_collected_from_an_integer_array() {
     let session = TestSession::single(
         r#"
-import { Set } from "destack:collections";
+import { Set } from "tspp:collections";
 
 function collect(values: int32[]): Set<int32> {
     return Set.from(values);
@@ -14,7 +14,7 @@ function collect(values: int32[]): Set<int32> {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.collect",
         r#"
 @nocopy
@@ -51,7 +51,7 @@ entry(v0: ref<Array<int32>, managed, mutable, local>):
 fn test_lower_a_set_membership_test_through_default_equality() {
     let session = TestSession::single(
         r#"
-import { Set } from "destack:collections";
+import { Set } from "tspp:collections";
 
 function has(values: Set<int32>, value: int32): boolean {
     return values.has(value);
@@ -60,7 +60,7 @@ function has(values: Set<int32>, value: int32): boolean {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.has",
         r#"
 type Equality<T>;
@@ -98,7 +98,7 @@ function order(values: float64[]): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.order",
         r#"
 @nocopy
@@ -141,7 +141,7 @@ function count(labels: &immutable Label[]): isize {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.count",
         r#"
 type test.main.Label {

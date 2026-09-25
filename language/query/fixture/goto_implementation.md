@@ -5,7 +5,7 @@
 
 An interface resolves to every nominal implementation.
 
-```ds main.ds
+```tspp main.tspp
 interface Drawable {
           ^^^^^^^^ target:drawable
     draw(): void;
@@ -26,27 +26,27 @@ struct Rectangle implements Drawable {
 ^ declaration:rectangle:end
 ```
 
-```query goto_implementation main.ds#target:drawable
-@goto_implementation.target origin=main.ds#target:drawable location=main.ds#declaration:circle selection=main.ds#implementation:circle symbol=main.ds#Circle@4
-@goto_implementation.target origin=main.ds#target:drawable location=main.ds#declaration:rectangle selection=main.ds#implementation:rectangle symbol=main.ds#Rectangle@7
+```query goto_implementation main.tspp#target:drawable
+@goto_implementation.target origin=main.tspp#target:drawable location=main.tspp#declaration:circle selection=main.tspp#implementation:circle symbol=main.tspp#Circle@4
+@goto_implementation.target origin=main.tspp#target:drawable location=main.tspp#declaration:rectangle selection=main.tspp#implementation:rectangle symbol=main.tspp#Rectangle@7
 ```
 
 ### Return current implementations
 
 Implementation lookup includes declarations added by later edits.
 
-```ds main.ds
+```tspp main.tspp
 interface Drawable {
           ^^^^^^^^ target
     draw(): void;
 }
 ```
 
-```query goto_implementation main.ds#target
+```query goto_implementation main.tspp#target
 @goto_implementation.none
 ```
 
-```ds main.ds change
+```tspp main.tspp change
 interface Drawable {
           ^^^^^^^^ target
     draw(): void;
@@ -60,8 +60,8 @@ class Circle implements Drawable {
 ^ declaration:end
 ```
 
-```query goto_implementation main.ds#target
-@goto_implementation.target origin=main.ds#target location=main.ds#declaration selection=main.ds#implementation symbol=main.ds#Circle@4
+```query goto_implementation main.tspp#target
+@goto_implementation.target origin=main.tspp#target location=main.tspp#declaration selection=main.tspp#implementation symbol=main.tspp#Circle@4
 ```
 
 ## Nominal Interfaces
@@ -70,7 +70,7 @@ class Circle implements Drawable {
 
 A nominal interface resolves to every class, struct, enum, and extension declaration that implements it.
 
-```ds main.ds
+```tspp main.tspp
 newtype interface Display {}
                   ^^^^^^^ target:display
 
@@ -97,23 +97,23 @@ extension of UserId implements Display {}
              ^^^^^^ implementation:user_id
 ```
 
-```query goto_implementation main.ds#target:display
-@goto_implementation.target origin=main.ds#target:display location=main.ds#declaration:view selection=main.ds#implementation:view symbol=main.ds#View@2
-@goto_implementation.target origin=main.ds#target:display location=main.ds#declaration:packet selection=main.ds#implementation:packet symbol=main.ds#Packet@3
-@goto_implementation.target origin=main.ds#target:display location=main.ds#declaration:status selection=main.ds#implementation:status symbol=main.ds#Status@4
-@goto_implementation.target origin=main.ds#target:display location=main.ds#declaration:user_id selection=main.ds#implementation:user_id symbol=main.ds#symbol@7
+```query goto_implementation main.tspp#target:display
+@goto_implementation.target origin=main.tspp#target:display location=main.tspp#declaration:view selection=main.tspp#implementation:view symbol=main.tspp#View@2
+@goto_implementation.target origin=main.tspp#target:display location=main.tspp#declaration:packet selection=main.tspp#implementation:packet symbol=main.tspp#Packet@3
+@goto_implementation.target origin=main.tspp#target:display location=main.tspp#declaration:status selection=main.tspp#implementation:status symbol=main.tspp#Status@4
+@goto_implementation.target origin=main.tspp#target:display location=main.tspp#declaration:user_id selection=main.tspp#implementation:user_id symbol=main.tspp#symbol@7
 ```
 
 ### Return no targets for an unimplemented interface
 
 An interface without implementations has no implementation target.
 
-```ds main.ds
+```tspp main.tspp
 newtype interface Display {}
                   ^^^^^^^ target
 ```
 
-```query goto_implementation main.ds#target
+```query goto_implementation main.tspp#target
 @goto_implementation.none
 ```
 
@@ -123,12 +123,12 @@ newtype interface Display {}
 
 Functions are not implementation hierarchy targets.
 
-```ds main.ds
+```tspp main.tspp
 function helper(): void {}
          ^^^^^^ target:helper
 ```
 
-```query goto_implementation main.ds#target:helper
+```query goto_implementation main.tspp#target:helper
 @goto_implementation.none
 ```
 
@@ -136,14 +136,14 @@ function helper(): void {}
 
 Structs do not have nominal subtypes.
 
-```ds main.ds
+```tspp main.tspp
 struct Point {
        ^^^^^ target:point
     x: int32;
 }
 ```
 
-```query goto_implementation main.ds#target:point
+```query goto_implementation main.tspp#target:point
 @goto_implementation.none
 ```
 
@@ -153,7 +153,7 @@ struct Point {
 
 A class resolves to its direct subclasses.
 
-```ds main.ds
+```tspp main.tspp
 class Base {
       ^^^^ target:base
     value: int32;
@@ -169,8 +169,8 @@ class Derived extends Base {
 class SubDerived extends Derived {}
 ```
 
-```query goto_implementation main.ds#target:base
-@goto_implementation.target origin=main.ds#target:base location=main.ds#declaration:derived selection=main.ds#implementation:derived symbol=main.ds#Derived@4
+```query goto_implementation main.tspp#target:base
+@goto_implementation.target origin=main.tspp#target:base location=main.tspp#declaration:derived selection=main.tspp#implementation:derived symbol=main.tspp#Derived@4
 ```
 
 ## Methods
@@ -179,7 +179,7 @@ class SubDerived extends Derived {}
 
 An interface method resolves to every member that implements it.
 
-```ds main.ds
+```tspp main.tspp
 interface Renderable {
     render(): string;
     ^^^^^^ target
@@ -204,16 +204,16 @@ struct Document implements Renderable {
 }
 ```
 
-```query goto_implementation main.ds#target
-@goto_implementation.target origin=main.ds#target location=main.ds#declaration:view selection=main.ds#implementation:view symbol=main.ds#render@5
-@goto_implementation.target origin=main.ds#target location=main.ds#declaration:document selection=main.ds#implementation:document symbol=main.ds#render@8
+```query goto_implementation main.tspp#target
+@goto_implementation.target origin=main.tspp#target location=main.tspp#declaration:view selection=main.tspp#implementation:view symbol=main.tspp#render@5
+@goto_implementation.target origin=main.tspp#target location=main.tspp#declaration:document selection=main.tspp#implementation:document symbol=main.tspp#render@8
 ```
 
 ### Find implementations of an associated type
 
 An interface associated type resolves to every implementing associated declaration.
 
-```ds main.ds
+```tspp main.tspp
 interface Container {
     type Item;
          ^^^^ target
@@ -227,11 +227,11 @@ class StringContainer implements Container {
 }
 ```
 
-```query goto_implementation main.ds#target
-@goto_implementation.target origin=main.ds#target location=main.ds#declaration selection=main.ds#implementation symbol=main.ds#Item@5
+```query goto_implementation main.tspp#target
+@goto_implementation.target origin=main.tspp#target location=main.tspp#declaration selection=main.tspp#implementation symbol=main.tspp#Item@5
 ```
 
-```diff main.ds
+```diff main.tspp
 @@ -6,6 +6,6 @@
  class StringContainer implements Container {
 -    type Item = string;
@@ -243,15 +243,15 @@ class StringContainer implements Container {
  }
 ```
 
-```query goto_implementation main.ds#target
-@goto_implementation.target origin=main.ds#target location=main.ds#declaration selection=main.ds#implementation symbol=main.ds#Item@5
+```query goto_implementation main.tspp#target
+@goto_implementation.target origin=main.tspp#target location=main.tspp#declaration selection=main.tspp#implementation symbol=main.tspp#Item@5
 ```
 
 ### Find overrides of a class method
 
 An abstract class method resolves to every overriding member.
 
-```ds main.ds
+```tspp main.tspp
 abstract class Writer {
     abstract write(value: string): void;
              ^^^^^ target
@@ -265,8 +265,8 @@ class FileWriter extends Writer {
 }
 ```
 
-```query goto_implementation main.ds#target
-@goto_implementation.target origin=main.ds#target location=main.ds#declaration selection=main.ds#implementation symbol=main.ds#write@6
+```query goto_implementation main.tspp#target
+@goto_implementation.target origin=main.tspp#target location=main.tspp#declaration selection=main.tspp#implementation symbol=main.tspp#write@6
 ```
 
 ## Cross-Module Interfaces
@@ -275,7 +275,7 @@ class FileWriter extends Writer {
 
 Implementations can live in another module.
 
-```ds library.ds
+```tspp library.tspp
 export interface Drawable {
                  ^^^^^^^^ target:drawable
     draw(): void;
@@ -283,8 +283,8 @@ export interface Drawable {
 }
 ```
 
-```ds implementation.ds
-import { Drawable } from "./library.ds";
+```tspp implementation.tspp
+import { Drawable } from "./library.tspp";
 
 export class Circle implements Drawable {
 ^ declaration:circle:start
@@ -307,33 +307,33 @@ export struct Square implements Drawable {
 ^ declaration:square:end
 ```
 
-```query goto_implementation library.ds#target:drawable
-@goto_implementation.target origin=library.ds#target:drawable location=implementation.ds#declaration:circle selection=implementation.ds#implementation:circle symbol=implementation.ds#Circle@2
-@goto_implementation.target origin=library.ds#target:drawable location=implementation.ds#declaration:square selection=implementation.ds#implementation:square symbol=implementation.ds#Square@5
+```query goto_implementation library.tspp#target:drawable
+@goto_implementation.target origin=library.tspp#target:drawable location=implementation.tspp#declaration:circle selection=implementation.tspp#implementation:circle symbol=implementation.tspp#Circle@2
+@goto_implementation.target origin=library.tspp#target:drawable location=implementation.tspp#declaration:square selection=implementation.tspp#implementation:square symbol=implementation.tspp#Square@5
 ```
 
-```query goto_implementation library.ds#target:draw
-@goto_implementation.target origin=library.ds#target:draw location=implementation.ds#declaration:circle_draw selection=implementation.ds#implementation:circle_draw symbol=implementation.ds#draw@3
-@goto_implementation.target origin=library.ds#target:draw location=implementation.ds#declaration:square_draw selection=implementation.ds#implementation:square_draw symbol=implementation.ds#draw@6
+```query goto_implementation library.tspp#target:draw
+@goto_implementation.target origin=library.tspp#target:draw location=implementation.tspp#declaration:circle_draw selection=implementation.tspp#implementation:circle_draw symbol=implementation.tspp#draw@3
+@goto_implementation.target origin=library.tspp#target:draw location=implementation.tspp#declaration:square_draw selection=implementation.tspp#implementation:square_draw symbol=implementation.tspp#draw@6
 ```
 
 ### Find implementations through a re-exported interface
 
 A re-export alias preserves the interface's implementation set.
 
-```ds alias_library.ds
+```tspp alias_library.tspp
 export interface Renderable {
                  ^^^^^^^^^^ target:renderable
     render(): void;
 }
 ```
 
-```ds alias_barrel.ds
-export { Renderable } from "./alias_library.ds";
+```tspp alias_barrel.tspp
+export { Renderable } from "./alias_library.tspp";
 ```
 
-```ds alias_implementation.ds
-import { Renderable } from "./alias_barrel.ds";
+```tspp alias_implementation.tspp
+import { Renderable } from "./alias_barrel.tspp";
 
 export class Sprite implements Renderable {
 ^ declaration:sprite:start
@@ -350,9 +350,9 @@ export struct Icon implements Renderable {
 ^ declaration:icon:end
 ```
 
-```query goto_implementation alias_library.ds#target:renderable
-@goto_implementation.target origin=alias_library.ds#target:renderable location=alias_implementation.ds#declaration:sprite selection=alias_implementation.ds#implementation:sprite symbol=alias_implementation.ds#Sprite@2
-@goto_implementation.target origin=alias_library.ds#target:renderable location=alias_implementation.ds#declaration:icon selection=alias_implementation.ds#implementation:icon symbol=alias_implementation.ds#Icon@5
+```query goto_implementation alias_library.tspp#target:renderable
+@goto_implementation.target origin=alias_library.tspp#target:renderable location=alias_implementation.tspp#declaration:sprite selection=alias_implementation.tspp#implementation:sprite symbol=alias_implementation.tspp#Sprite@2
+@goto_implementation.target origin=alias_library.tspp#target:renderable location=alias_implementation.tspp#declaration:icon selection=alias_implementation.tspp#implementation:icon symbol=alias_implementation.tspp#Icon@5
 ```
 
 ## Cross-Module Classes
@@ -361,13 +361,13 @@ export struct Icon implements Renderable {
 
 A subclass can live in another module.
 
-```ds library.ds
+```tspp library.tspp
 export class Base {}
              ^^^^ target:base
 ```
 
-```ds implementation.ds
-import { Base } from "./library.ds";
+```tspp implementation.tspp
+import { Base } from "./library.tspp";
 
 export class Derived extends Base {}
 ^ declaration:derived:start
@@ -375,8 +375,8 @@ export class Derived extends Base {}
              ^^^^^^^ implementation:derived
 ```
 
-```query goto_implementation library.ds#target:base
-@goto_implementation.target origin=library.ds#target:base location=implementation.ds#declaration:derived selection=implementation.ds#implementation:derived symbol=implementation.ds#Derived@2
+```query goto_implementation library.tspp#target:base
+@goto_implementation.target origin=library.tspp#target:base location=implementation.tspp#declaration:derived selection=implementation.tspp#implementation:derived symbol=implementation.tspp#Derived@2
 ```
 
 ## Re-Export Chains
@@ -385,23 +385,23 @@ export class Derived extends Base {}
 
 Implementation lookup follows a chain of re-exports.
 
-```ds types.ds
+```tspp types.tspp
 export interface Renderable {
                  ^^^^^^^^^^ target:renderable
     render(): void;
 }
 ```
 
-```ds barrel_a.ds
-export { Renderable as Surface } from "./types.ds";
+```tspp barrel_a.tspp
+export { Renderable as Surface } from "./types.tspp";
 ```
 
-```ds barrel_b.ds
-export { Surface } from "./barrel_a.ds";
+```tspp barrel_b.tspp
+export { Surface } from "./barrel_a.tspp";
 ```
 
-```ds implementation.ds
-import { Surface } from "./barrel_b.ds";
+```tspp implementation.tspp
+import { Surface } from "./barrel_b.tspp";
 
 export class Sprite implements Surface {
 ^ declaration:sprite:start
@@ -411,6 +411,6 @@ export class Sprite implements Surface {
 ^ declaration:sprite:end
 ```
 
-```query goto_implementation types.ds#target:renderable
-@goto_implementation.target origin=types.ds#target:renderable location=implementation.ds#declaration:sprite selection=implementation.ds#implementation:sprite symbol=implementation.ds#Sprite@2
+```query goto_implementation types.tspp#target:renderable
+@goto_implementation.target origin=types.tspp#target:renderable location=implementation.tspp#declaration:sprite selection=implementation.tspp#implementation:sprite symbol=implementation.tspp#Sprite@2
 ```

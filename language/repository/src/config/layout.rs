@@ -8,7 +8,7 @@ use crate::{
     USERPROFILE, WINDOWS_DESTACK_HOME_DIRECTORY, XDG_CACHE_HOME,
 };
 
-/// Resolved Destack storage layout for one invocation.
+/// Resolved TS++ storage layout for one invocation.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "camelCase")]

@@ -1,8 +1,8 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::MetavariableId;
 
-/// A parsed Destack expression evaluated for a candidate match.
+/// A parsed TS++ expression evaluated for a candidate match.
 #[derive(Debug)]
 pub struct Predicate {
     /// The parsed expression nodes.

@@ -13,10 +13,7 @@ fn test_publish_endpoint_metadata() {
 
     assert_eq!(metadata.home, daemon.endpoint.home);
     assert_eq!(metadata.socket_path, daemon.endpoint.socket_path);
-    assert_eq!(
-        metadata.rpc_version,
-        destack_rpc::ProtocolVersion::CURRENT.0
-    );
+    assert_eq!(metadata.rpc_version, tspp_rpc::ProtocolVersion::CURRENT.0);
     assert!(metadata.websocket_url.starts_with("ws://127.0.0.1:"));
 
     daemon.shutdown(connection);

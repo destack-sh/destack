@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::{FilePatch, PatchSet};
+use tspp_dir as dir;
+use tspp_source::{FilePatch, PatchSet};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -120,7 +120,7 @@ function differs(left: boolean, right: boolean): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-negation-in-equality-check]: left equality operand is negated
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function differs(left: boolean, right: boolean): boolean {
 2 │     return !(/* left */ left) === /* right */ right;
@@ -129,8 +129,8 @@ warning[no-negation-in-equality-check]: left equality operand is negated
   │
 
  = suggestion: negate the complete equality check (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function differs(left: boolean, right: boolean): boolean {
 -   2│     return !(/* left */ left) === /* right */ right;
@@ -198,7 +198,7 @@ function hasValue(value: string): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-negation-in-equality-check]: left equality operand is negated
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function hasValue(value: string): boolean {
 2 │     return !value === false;

@@ -6,12 +6,12 @@
 
 Short objects with internal comments stay inline.
 
-```ds:main.ds
+```tspp:main.tspp
 ({ /* key */ a: 1, /* another */ b: 2 })
 ```
 
 The formatter keeps this object inline when it fits.
 
-```ds expected
+```tspp expected
 ({ /* key */ a: 1, /* another */ b: 2 });
 ```

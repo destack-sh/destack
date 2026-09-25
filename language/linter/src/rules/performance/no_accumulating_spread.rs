@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -246,7 +246,7 @@ function copy(source: int32[]): int32[] {
         session.assert_diagnostics(
             r#"
 warning[no-accumulating-spread]: accumulator is copied on every iteration
- ──▶ main.ds:4:19
+ ──▶ main.tspp:4:19
   │
 2 │     let output: int32[] = [];
 3 │     for (const value of source) {
@@ -276,7 +276,7 @@ function copy(source: int32[]): int32[] {
         session.assert_diagnostics(
             r#"
 warning[no-accumulating-spread]: reduction accumulator is copied on every iteration
- ──▶ main.ds:2:55
+ ──▶ main.tspp:2:55
   │
 1 │ function copy(source: int32[]): int32[] {
 2 │     return source.reduce<int32[]>((output, value) => [...output, value], []);
@@ -309,7 +309,7 @@ function retain(source: boolean[]): { active: boolean } {
         session.assert_diagnostics(
             r#"
 warning[no-accumulating-spread]: accumulator is copied on every iteration
- ──▶ main.ds:4:20
+ ──▶ main.tspp:4:20
   │
 2 │     let output: { active: boolean } = { active: false };
 3 │     for (const value of source) {
@@ -342,7 +342,7 @@ function retain(source: boolean[]): { active: boolean } {
         session.assert_diagnostics(
             r#"
 warning[no-accumulating-spread]: reduction accumulator is copied on every iteration
- ──▶ main.ds:3:31
+ ──▶ main.tspp:3:31
   │
 1 │ function retain(source: boolean[]): { active: boolean } {
 2 │     return source.reduce<{ active: boolean }>(
@@ -421,7 +421,7 @@ function copy(input: int32[], condition: boolean): int32[] {
         let session = TestSession::dir(
             &NO_ACCUMULATING_SPREAD,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function copy(source: Iterator<int32>): int32[] {
     return source.reduce<int32[]>((output, value) => [...output, value], []);
@@ -432,7 +432,7 @@ function copy(source: Iterator<int32>): int32[] {
         session.assert_diagnostics(
             r#"
 warning[no-accumulating-spread]: reduction accumulator is copied on every iteration
- ──▶ main.ds:4:55
+ ──▶ main.tspp:4:55
   │
 2 │
 3 │ function copy(source: Iterator<int32>): int32[] {

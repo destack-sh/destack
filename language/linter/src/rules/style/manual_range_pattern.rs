@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};

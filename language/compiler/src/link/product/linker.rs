@@ -1,8 +1,8 @@
 use crate::{Compiler, CompilerResult, LinkError};
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, Output, Product, ProductTarget};
-use destack_repository::{ArtifactReader, ProviderContext, RepositoryError, Target};
-use destack_source::{PackageId, ProductId, TargetId};
 use indexmap::IndexMap;
+use tspp_artifact::{ArtifactDependencySet, ArtifactKey, Output, Product, ProductTarget};
+use tspp_repository::{ArtifactReader, ProviderContext, RepositoryError, Target};
+use tspp_source::{PackageId, ProductId, TargetId};
 
 /// Linker for one product.
 pub(crate) struct ProductLinker<'a> {

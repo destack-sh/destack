@@ -6,11 +6,11 @@
 
 Comments in chained assignments are preserved.
 
-```ds
+```tspp
 x = /* important */ y = /* also important */ z
 ```
 
-```ds expected
+```tspp expected
 x = /* important */ y = /* also important */ z;
 ```
 
@@ -18,10 +18,10 @@ x = /* important */ y = /* also important */ z;
 
 Comment between equals and value.
 
-```ds
+```tspp
 const result = /* computed */ calculate(a, b)
 ```
 
-```ds expected
+```tspp expected
 const result = /* computed */ calculate(a, b);
 ```

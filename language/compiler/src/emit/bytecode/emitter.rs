@@ -1,8 +1,8 @@
-use destack_artifact::MirOptimized;
-use destack_bytecode as bytecode;
-use destack_core::{EntryRange, Optional};
-use destack_mir::ModuleCache;
-use destack_source::ModuleId;
+use tspp_artifact::MirOptimized;
+use tspp_bytecode as bytecode;
+use tspp_core::{EntryRange, Optional};
+use tspp_mir::ModuleCache;
+use tspp_source::ModuleId;
 
 use crate::{EmitError, ObjectEmitter};
 

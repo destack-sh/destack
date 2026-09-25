@@ -12,19 +12,19 @@ use crate::tree::{
     tree_children_have_blank_line_between, tree_text_child_text, tree_text_is_whitespace_only,
     write_tree_child,
 };
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{
+use crate::{TsppFormatContext, TsppFormatter};
+use smallvec::SmallVec;
+use tspp_dir::{
     Argument, Comment, Declaration, Expression, FunctionForm, GenericArgument, IfForm, Literal,
     LocalNodeId, NodeType, Tree, TreeAttribute, TreeChild,
 };
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::{
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::{
     block_indent, empty_line, format_with, group, hard_line_break, if_group_breaks,
     soft_block_indent, token,
 };
-use destack_fir::write;
-use destack_source::{NodeSpanRegion, NodeSpanType, Span};
-use smallvec::SmallVec;
+use tspp_fir::write;
+use tspp_source::{NodeSpanRegion, NodeSpanType, Span};
 
 /// Return the value expression id for one tree child.
 fn tree_child_value_id(
@@ -36,7 +36,7 @@ fn tree_child_value_id(
 
 /// Build tree-child layout data for one tree body.
 fn tree_children_layout(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     children: &[LocalNodeId<TreeChild>],
     force_break_attributes: bool,
 ) -> TreeChildrenLayout {
@@ -161,7 +161,7 @@ struct TreeLiteralLayout {
 
 /// Write one tree closing tag.
 fn write_tree_closing_tag<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     _expression_id: LocalNodeId<Expression>,
     left: &Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
@@ -175,7 +175,7 @@ fn write_tree_closing_tag<'ast>(
 
 /// Format tree children in one-child-per-line mode.
 fn format_tree_children_multiline<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     children: &[LocalNodeId<TreeChild>],
 ) -> FormatResult<()> {
     let mut wrote_child = false;
@@ -237,7 +237,7 @@ fn format_tree_children_multiline<'ast>(
 
 /// Format tree children with one tree child per line.
 fn format_tree_children_tree_per_line<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     children: &[LocalNodeId<TreeChild>],
 ) -> FormatResult<()> {
     for (index, child_id) in children.iter().enumerate() {
@@ -253,7 +253,7 @@ fn format_tree_children_tree_per_line<'ast>(
 
 /// Return whether one tree child is a multiline tree expression in source.
 fn tree_child_is_multiline_tree_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     child_id: LocalNodeId<TreeChild>,
 ) -> bool {
     let Some(value_id) = tree_child_value_id(context.tree, child_id) else {
@@ -268,7 +268,7 @@ fn tree_child_is_multiline_tree_expression(
 
 /// Return whether one tree literal has braced-whitespace separators around multiline tree children.
 fn tree_literal_has_multiline_whitespace_separator(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     children: &[LocalNodeId<TreeChild>],
 ) -> bool {
     children.iter().enumerate().any(|(index, child_id)| {
@@ -295,7 +295,7 @@ fn tree_literal_has_multiline_whitespace_separator(
 
 /// Return the single template child that stays attached to its enclosing tags.
 fn tree_literal_single_template_child(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     children: &[LocalNodeId<TreeChild>],
 ) -> Option<LocalNodeId<TreeChild>> {
     let [child_id] = children else {
@@ -317,7 +317,7 @@ fn tree_literal_single_template_child(
 
 /// Format tree children using the selected layout rules.
 fn format_tree_children<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     children: &[LocalNodeId<TreeChild>],
     layout: TreeChildrenLayout,
 ) -> FormatResult<()> {
@@ -334,7 +334,7 @@ fn format_tree_children<'ast>(
 
 /// Collect top-level layout data for one tree literal.
 fn tree_literal_layout(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     body_span: Option<Span>,
     attributes: &Option<Vec<LocalNodeId<TreeAttribute>>>,
     children: &Option<Vec<LocalNodeId<TreeChild>>>,
@@ -373,7 +373,7 @@ fn tree_literal_layout(
 
 /// Decide whether a tree literal should break across multiple lines.
 pub(crate) fn tree_literal_should_break(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     attributes: &Option<Vec<LocalNodeId<TreeAttribute>>>,
     children: &Option<Vec<LocalNodeId<TreeChild>>>,
 ) -> bool {
@@ -382,7 +382,7 @@ pub(crate) fn tree_literal_should_break(
 
 /// Return the source body span for one tree literal.
 fn tree_literal_body_span(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> Option<Span> {
     context
@@ -392,7 +392,7 @@ fn tree_literal_body_span(
 
 /// Return whether a tree literal is the body of one lambda declaration.
 fn tree_literal_is_lambda_body(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some((parent_id, parent_type)) = context.parent_by_id(node_id.id) else {
@@ -413,7 +413,7 @@ fn tree_literal_is_lambda_body(
 
 /// Return whether one tree literal is a call-like argument value.
 fn tree_literal_is_call_argument(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     argument_id: u32,
 ) -> bool {
@@ -434,7 +434,7 @@ fn tree_literal_is_call_argument(
 
 /// Return whether a tree literal should be wrapped in parentheses when it breaks.
 pub(crate) fn tree_literal_wraps_on_break(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     // top-level expression statements stay unwrapped
@@ -512,7 +512,7 @@ pub(crate) fn tree_literal_wraps_on_break(
 
 /// Return whether a tree literal should force expanded layout in one parent chain.
 fn tree_literal_should_expand_in_parent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let should_expand_tree_callback_body = context.should_expand_tree_callback_bodies()
@@ -591,7 +591,7 @@ fn tree_literal_should_expand_in_parent(
 
 /// Write ternary branch trailing comments attached to one tree literal.
 fn write_tree_literal_ternary_branch_trailing_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<bool> {
     let Some((_, comments)) = ternary_branch_trailing_comments(f.context(), node_id) else {
@@ -606,7 +606,7 @@ fn write_tree_literal_ternary_branch_trailing_comments<'ast>(
 
 /// Write trailing comments owned by one tree literal.
 fn write_tree_literal_trailing_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     if write_tree_literal_ternary_branch_trailing_comments(f, node_id)? {
@@ -618,7 +618,7 @@ fn write_tree_literal_trailing_comments<'ast>(
 
 /// Format one tree literal layout and its branch trailing comments.
 fn format_tree_literal_with_branch_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     left: &Option<LocalNodeId<Expression>>,
     generic_arguments: &[LocalNodeId<GenericArgument>],
@@ -647,7 +647,7 @@ fn format_tree_literal_with_branch_comments<'ast>(
 
 /// Format a tree literal expression with optional wrap-on-break parentheses.
 pub(crate) fn format_tree_literal_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     left: &Option<LocalNodeId<Expression>>,
     generic_arguments: &[LocalNodeId<GenericArgument>],
@@ -723,7 +723,7 @@ pub(crate) fn format_tree_literal_expression<'ast>(
 
 /// Format one tree body and closing tag.
 fn format_tree_body<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     left: &Option<LocalNodeId<Expression>>,
     children: &Option<Vec<LocalNodeId<TreeChild>>>,
@@ -763,7 +763,7 @@ fn format_tree_body<'ast>(
 
 /// Format one tree literal from precomputed layout data.
 fn format_tree_literal_with_layout<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     _expression_id: LocalNodeId<Expression>,
     left: &Option<LocalNodeId<Expression>>,
     generic_arguments: &[LocalNodeId<GenericArgument>],

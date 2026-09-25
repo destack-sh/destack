@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_mir::TraceMap;
+use tspp_mir::TraceMap;
 
 use crate::shared::storage::HeapStorage;
 use crate::{Payload, SharedHeapOptions, SizeClassTable, test_layouts};

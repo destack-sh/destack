@@ -16,7 +16,8 @@ function forward(values: int32[]): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -73,7 +74,7 @@ b1(v0: Pair<'a, 'b>):
     program.assert_verify_errors(
         r#"
 error[borrow-outlives-origin]: borrow does not live long enough
-  ──▶ <test.dsm>:16:5
+  ──▶ <test.tsppm>:16:5
    │
 14 │     v1: Pair<'a, 'b> = call callee(v0): (Pair<'a, 'b>) => Pair<'a, 'b>
 15 │     v2: ref<int32, borrowed, 'b, readonly> = field.get v1, 1
@@ -82,7 +83,7 @@ error[borrow-outlives-origin]: borrow does not live long enough
 17 │ }
    │
 
-for more information about an error, run `destack explain borrow-outlives-origin`
+for more information about an error, run `tspp explain borrow-outlives-origin`
 "#,
     );
 }
@@ -139,7 +140,7 @@ entry(v0: ref<int32, borrowed, 'L, mutable>):
 
     program.assert_verify_errors(r#"
 error[borrow-outlives-origin]: borrow does not live long enough
-  ──▶ <test.dsm>:20:5
+  ──▶ <test.tsppm>:20:5
    │
 18 │     v3: ref<Box, borrowed, 'frame, mutable> = address l0
 19 │     v4: ref<int32, borrowed, 'frame, mutable> = address (*v3).0
@@ -149,7 +150,7 @@ error[borrow-outlives-origin]: borrow does not live long enough
 22 │ }
    │
 
-for more information about an error, run `destack explain borrow-outlives-origin`
+for more information about an error, run `tspp explain borrow-outlives-origin`
 "#);
 }
 
@@ -176,7 +177,7 @@ join(v3: ref<int32, borrowed, 'a | 'b, readonly>):
 
     program.assert_verify_errors(r#"
 error[borrow-outlives-origin]: borrow does not live long enough
-  ──▶ <test.dsm>:12:5
+  ──▶ <test.tsppm>:12:5
    │
 10 │
 11 │ join(v3: ref<int32, borrowed, 'a | 'b, readonly>):
@@ -186,7 +187,7 @@ error[borrow-outlives-origin]: borrow does not live long enough
 14 │ }
    │
 
-for more information about an error, run `destack explain borrow-outlives-origin`
+for more information about an error, run `tspp explain borrow-outlives-origin`
 "#);
 }
 
@@ -305,7 +306,7 @@ entry(v0: ref<Box, unique, mutable>):
     program.assert_verify_errors(
         r#"
 error[borrow-outlives-origin]: borrow does not live long enough
-  ──▶ <test.dsm>:14:5
+  ──▶ <test.tsppm>:14:5
    │
 12 │ entry(v0: ref<Box, unique, mutable>):
 13 │     v1: ref<int32, borrowed, 'frame, readonly> = address (*v0).0
@@ -315,7 +316,7 @@ error[borrow-outlives-origin]: borrow does not live long enough
 16 │
    │
 
-for more information about an error, run `destack explain borrow-outlives-origin`
+for more information about an error, run `tspp explain borrow-outlives-origin`
 "#,
     );
 }
@@ -346,7 +347,8 @@ export function drive(): int32 {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -379,7 +381,8 @@ export function accessDuringReservation(): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -404,7 +407,8 @@ function start(name: &readonly string): Span {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -483,7 +487,7 @@ entry:
     program.assert_verify_errors(
         r#"
 error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
-  ──▶ <test.dsm>:9:5
+  ──▶ <test.tsppm>:9:5
    │
  6 │ function test(): int32 {
  7 │ entry:
@@ -495,7 +499,7 @@ error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
 11 │     return v1
    │
 
-for more information about an error, run `destack explain invalidation-of-borrowed-place`
+for more information about an error, run `tspp explain invalidation-of-borrowed-place`
 "#,
     );
 }
@@ -525,7 +529,7 @@ entry:
     program.assert_verify_errors(
         r#"
 error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
-  ──▶ <test.dsm>:12:5
+  ──▶ <test.tsppm>:12:5
    │
  9 │ entry:
 10 │     v0: ref<Box, unique, mutable> = new.zeroed Box, local
@@ -537,7 +541,7 @@ error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
 14 │     return v2
    │
 
-for more information about an error, run `destack explain invalidation-of-borrowed-place`
+for more information about an error, run `tspp explain invalidation-of-borrowed-place`
 "#,
     );
 }
@@ -573,7 +577,7 @@ entry(v0: int32):
     program.assert_verify_errors(
         r#"
 error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
-  ──▶ <test.dsm>:17:5
+  ──▶ <test.tsppm>:17:5
    │
 12 │     v1: ref<int32, borrowed, 'static, immutable> = address @initial
 13 │     store l1, v1
@@ -587,7 +591,7 @@ error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
 19 │     v5: int32 = load (*v4)
    │
 
-for more information about an error, run `destack explain invalidation-of-borrowed-place`
+for more information about an error, run `tspp explain invalidation-of-borrowed-place`
 "#,
     );
 }
@@ -646,7 +650,8 @@ class Derived extends Base {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -679,7 +684,8 @@ function feed(source: &immutable Holder, sink: &exclusive Sink): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -701,7 +707,7 @@ export function run(sink: Dynamic<Sink>): void {
     );
 
     session.assert_mir_lowered(
-        "main.ds",
+        "main.tspp",
         r#"
 @nocopy
 type test.main.Sink { }
@@ -727,7 +733,8 @@ entry(v0: dynamic<test.main.Sink, managed, mutable, local>):
 "#,
     );
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 
 "#,
     );
@@ -764,7 +771,7 @@ export function run(): int32 {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 @nocopy
 type test.main.Derived<T: Copy> {
     value: T;
@@ -856,7 +863,8 @@ shared constructor test.main.Derived.constructor<int32>(v0: ref<uninit<test.main
 /// @dispatch.shape constraint=type@6 function=clone function=cloneFrom
 "#);
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 
 "#,
     );

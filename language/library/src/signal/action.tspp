@@ -1,0 +1,17 @@
+import { Promise, Task } from "tspp:async";
+import { todo } from "tspp:error";
+import { Copy } from "tspp:memory";
+
+/// Wrap an affine asynchronous function in one signal transition across every await.
+export function action<Parameters: readonly (...unknown[],), T>(
+    run: ^Function<Parameters, Task<T>>,
+): Function<Parameters, Task<T>> {
+    todo("signal.action")
+}
+
+/// Wrap an aliasable asynchronous function in one signal transition across every await.
+export function action<Parameters: readonly (...unknown[],), T: Copy>(
+    run: ^Function<Parameters, Promise<T>>,
+): Function<Parameters, Promise<T>> {
+    todo("signal.action")
+}

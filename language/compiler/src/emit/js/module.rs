@@ -1,10 +1,10 @@
 use crate::{Compiler, CompilerError, CompilerResult};
-use destack_artifact::{
+use tspp_artifact::{
     DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported, DirMaterialized,
     DirParsed, DirResolved, DirView, Script,
 };
-use destack_repository::{ArtifactReader, ProfileId, ProviderContext, Target};
-use destack_source::ModuleId;
+use tspp_repository::{ArtifactReader, ProfileId, ProviderContext, Target};
+use tspp_source::ModuleId;
 
 use super::ScriptGenerator;
 

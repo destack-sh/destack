@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use destack_core::{FxIndexMap, FxIndexSet, StringId};
-use destack_dir as dir;
-use destack_mir as mir;
-use destack_source::ModuleId;
+use tspp_core::{FxIndexMap, FxIndexSet, StringId};
+use tspp_dir as dir;
+use tspp_mir as mir;
+use tspp_source::ModuleId;
 
 use crate::lower::function::disposal::Disposal;
 use crate::lower::function::place::Place;
@@ -115,7 +115,7 @@ pub(in crate::lower) struct FunctionDefinition {
     /// The polymorphic lifetime parameters of this definition.
     pub(in crate::lower) scope: GenericScope,
     /// The module declaring this body.
-    pub(in crate::lower) source: destack_source::ModuleId,
+    pub(in crate::lower) source: tspp_source::ModuleId,
     /// The class this constructor body initializes, when one exists.
     pub(in crate::lower) constructs: Option<dir::GlobalSymbolId>,
     /// The declared default expression of each parameter, in header order.

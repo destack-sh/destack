@@ -3,12 +3,12 @@ use crate::{
     ExpressionPosition, ExpressionStop, TestParser, assert_comment, assert_expression_path,
     assert_node, assert_path, assert_string,
 };
-use destack_dir::{
+use tspp_dir::{
     CommentKind, Declaration, Expression, GenericArgument, GenericParameter, IntegerType,
     InterfaceDeclaration, Name, Parameter, Pattern, PatternField, TypeExpression, TypeKind,
     TypeLiteral, TypeMember, VarianceModifier, WhereClause,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 #[test]
 fn test_parse_interface_anonymous_empty() {
@@ -921,7 +921,7 @@ export newtype interface Add<T, R = this> {
     });
 }
 
-/// Parse Destack default method bodies on nominal interfaces.
+/// Parse TS++ default method bodies on nominal interfaces.
 #[test]
 fn test_parse_newtype_interface_default_method_body() {
     let test = TestParser::new(

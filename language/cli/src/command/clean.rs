@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
 use clap::Args;
-use destack_artifact::{ArtifactCache, ArtifactCacheRemoval};
-use destack_workspace::{CleanInput, CleanPayload, CommandRevision};
 use serde::Serialize;
+use tspp_artifact::{ArtifactCache, ArtifactCacheRemoval};
+use tspp_workspace::{CleanInput, CleanPayload, CommandRevision};
 
 use crate::common::{
     CommandError, CommandOptionsBuilder, CommandResult, ProgramArgs, ReportArgs, command_error,

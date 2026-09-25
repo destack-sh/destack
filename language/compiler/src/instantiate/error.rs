@@ -1,4 +1,4 @@
-use destack_artifact_macros::Diagnostic;
+use tspp_artifact_macros::Diagnostic;
 
 /// Errors during the instantiate phase.
 #[derive(Debug, Clone, PartialEq, Diagnostic)]

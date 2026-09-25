@@ -1,5 +1,5 @@
 use crate::{Opcode, RegisterId, RegisterSpan};
-use destack_fir::format::{FormatError, FormatResult};
+use tspp_fir::format::{FormatError, FormatResult};
 
 use super::instruction::InstructionFormatter;
 

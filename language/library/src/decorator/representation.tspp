@@ -1,0 +1,26 @@
+/// Representation policy for a declaration.
+export type Representation =
+    | "tspp"
+    | "C"
+    | "transparent"
+    | "int"
+    | "uint"
+    | "isize"
+    | "usize"
+    | `int${1..=128}`
+    | `uint${1..=128}`;
+
+/// Representation options for a declaration.
+export type RepresentationOptions = {
+    align?: 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024;
+    packed?: boolean | 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024;
+};
+
+/// Specify the representation for a declaration.
+///
+/// `@repr("tspp")` is the default language representation.
+@languageItem("decorator.repr")
+export newtype repr =
+    | (Representation,)
+    | (Representation, RepresentationOptions)
+    | (RepresentationOptions,);

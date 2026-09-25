@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::CompilerResult;
 use crate::sema::WalkState;
@@ -7,7 +7,7 @@ impl WalkState<'_, '_> {
     /// Walk one dependency item.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// export const value: number = 1;
     /// ```
     pub(in crate::sema) fn walk_dependency_item(

@@ -22,7 +22,7 @@ selected satisfies "borrowed";
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -112,7 +112,7 @@ selected satisfies "readonly";
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -202,7 +202,7 @@ selected satisfies "readonly";
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -288,7 +288,7 @@ replace(user);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -383,7 +383,7 @@ replace(user);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -471,7 +471,7 @@ inspect(user);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -526,7 +526,7 @@ replace(user);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -611,7 +611,7 @@ inspect(state.users[0]);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -761,7 +761,7 @@ function select(): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -840,7 +840,7 @@ function select(): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -924,7 +924,7 @@ function select(): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -988,7 +988,7 @@ inspect("message");
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -1027,7 +1027,7 @@ modify(user);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -1098,7 +1098,7 @@ replace(user);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1157,7 +1157,7 @@ replace(user);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -1249,7 +1249,7 @@ inspectValues(values);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -1337,7 +1337,7 @@ replace(value);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -1423,7 +1423,7 @@ messages.push(message);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1498,7 +1498,7 @@ same satisfies User;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1546,7 +1546,7 @@ let owned: ^User = user;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1599,7 +1599,7 @@ let owned: ^Label = borrow;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1666,7 +1666,7 @@ let owned: ^Point = borrow;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
@@ -1745,7 +1745,7 @@ let owned: ^User = new User();
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1787,7 +1787,7 @@ let owned: ^Point = point;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1835,7 +1835,7 @@ let owned: ^Point = point;
 fn test_copy_bounded_value_into_owned_result() {
     let session = TestSession::single(
         r#"
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 function duplicate<T: Copy>(value: T): ^T {
     value
@@ -1844,18 +1844,18 @@ function duplicate<T: Copy>(value: T): ^T {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 function duplicate<T: Copy>(value: T): ^T {
     value as ^T
 }
 
 === dir ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 function duplicate<T: Copy>(value: T): ^T {
 /// @generic.template symbol=duplicate parameters=(T: Copy)
@@ -1883,7 +1883,7 @@ function duplicate<T: Copy>(value: T): ^T {
 fn test_reject_inferred_argument_violating_copy_bound() {
     let session = TestSession::single(
         r#"
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 declare function duplicate<T: Copy>(value: T): ^T;
 declare const values: ^Array<int32>;
@@ -1894,11 +1894,11 @@ duplicate(values);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 declare function duplicate<T: Copy>(value: T): ^T;
 declare const values: ^int32[];
@@ -1907,7 +1907,7 @@ duplicate<int64>(32);
 duplicate<^int32[]>(values);
 
 === dir ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 declare function duplicate<T: Copy>(value: T): ^T;
 /// @generic.template symbol=duplicate parameters=(T: Copy)
@@ -1956,7 +1956,7 @@ filtered;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2036,7 +2036,7 @@ kept;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -2107,7 +2107,7 @@ const handle: Array<int32> = borrow;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===

@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -213,7 +213,7 @@ export declare function read<T>(pointer: *T): ^T;
         session.assert_diagnostics(
             r#"
 warning[undocumented-unsafe]: unsafe declaration has no `# Safety` section
- ──▶ main.ds:2:1
+ ──▶ main.tspp:2:1
   │
 1 │ /// Read one raw pointer.
 2 │ @unsafe
@@ -260,7 +260,7 @@ declare function read<T>(pointer: *T): ^T;
         session.assert_diagnostics(
             r#"
 warning[undocumented-unsafe]: unsafe declaration has no `# Safety` section
- ──▶ main.ds:2:1
+ ──▶ main.tspp:2:1
   │
 1 │ /// Read one raw pointer.
 2 │ @unsafe
@@ -289,7 +289,7 @@ function run(): void {
         session.assert_diagnostics(
             r#"
 warning[undocumented-unsafe]: unsafe region has no safety rationale
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function run(): void {
 2 │     @unsafe
@@ -374,7 +374,7 @@ function run(): void {
         session.assert_diagnostics(
             r#"
 warning[undocumented-unsafe]: unsafe region has no safety rationale
- ──▶ main.ds:4:5
+ ──▶ main.tspp:4:5
   │
 2 │     // SAFETY: no unsafe operation escapes this empty tracer
 3 │
@@ -411,7 +411,7 @@ function run(): void {
         let session = TestSession::dir(
             &UNDOCUMENTED_UNSAFE,
             r#"
-import { Unpin } from "destack:memory";
+import { Unpin } from "tspp:memory";
 
 newtype Handle = uint32;
 
@@ -423,7 +423,7 @@ export extension of Handle implements Unpin {}
         session.assert_diagnostics(
             r#"
 warning[undocumented-unsafe]: unsafe implementation has no safety rationale
- ──▶ main.ds:5:1
+ ──▶ main.tspp:5:1
   │
 3 │ newtype Handle = uint32;
 4 │
@@ -443,7 +443,7 @@ warning[undocumented-unsafe]: unsafe implementation has no safety rationale
         let session = TestSession::dir(
             &UNDOCUMENTED_UNSAFE,
             r#"
-import { Unpin } from "destack:memory";
+import { Unpin } from "tspp:memory";
 
 newtype Handle = uint32;
 

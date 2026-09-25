@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -18,7 +18,7 @@ The rule requires propagation to be the reducer's first operation, preserving ev
 "#,
         example: {
             reported: r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function sum(values: Iterator<int32>): Result<int32, string> {
     return values.reduce((result, value) => {
@@ -29,7 +29,7 @@ function sum(values: Iterator<int32>): Result<int32, string> {
 }
 "#,
             accepted: r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function sum(values: Iterator<int32>): Result<int32, string> {
     return values.tryFold(0, (total, value) => Result.ok(total + value));
@@ -270,7 +270,7 @@ mod tests {
         let session = TestSession::dir(
             &MANUAL_TRY_FOLD,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 declare function add(left: int32, right: int32): Result<int32, string>;
 
@@ -286,7 +286,7 @@ function sum(values: Iterator<int32>): Result<int32, string> {
 
         session.assert_suggestions(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 declare function add(left: int32, right: int32): Result<int32, string>;
 
@@ -303,7 +303,7 @@ function sum(values: Iterator<int32>): Result<int32, string> {
         let session = TestSession::dir(
             &MANUAL_TRY_FOLD,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 declare function inspect(value: int32): void;
 
@@ -327,7 +327,7 @@ function sum(values: Iterator<int32>): Result<int32, string> {
         let session = TestSession::dir(
             &MANUAL_TRY_FOLD,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function sum(values: Iterator<int32>): Result<int32, string> {
     return values.reduce((result, value, index) => {

@@ -9,7 +9,7 @@ use zed::{
 };
 use zed_extension_api as zed;
 
-const COMMAND_NAME: &str = "destack";
+const COMMAND_NAME: &str = "tspp";
 const RELEASE_REPOSITORY: &str = "destack-sh/destack";
 
 /// One supported Destack release target.
@@ -24,7 +24,7 @@ struct ReleaseTarget {
     executable_name: &'static str,
 }
 
-/// The resolved Destack language server command.
+/// The resolved TS++ language server command.
 struct ServerCommand {
     /// The executable path.
     command: String,
@@ -35,7 +35,7 @@ struct ServerCommand {
 }
 
 impl ServerCommand {
-    /// Create one command and add the Destack LSP subcommand when required.
+    /// Create one command and add the TS++ LSP subcommand when required.
     fn new(
         command: String,
         mut arguments: Vec<String>,
@@ -45,9 +45,7 @@ impl ServerCommand {
             .file_name()
             .and_then(|name| name.to_str())
         else {
-            return Err(format!(
-                "invalid Destack language server command: `{command}`"
-            ));
+            return Err(format!("invalid TS++ language server command: `{command}`"));
         };
         let executable_name = executable_name.to_ascii_lowercase();
         let executable_name = match executable_name.strip_suffix(".exe") {
@@ -77,13 +75,13 @@ impl From<ServerCommand> for zed::Command {
     }
 }
 
-/// The Zed extension entry point for Destack language support.
-pub(crate) struct DestackExtension {
+/// The Zed extension entry point for TS++ language support.
+pub(crate) struct TsppExtension {
     /// The managed binary resolved during this extension session.
     managed_command: Option<String>,
 }
 
-impl DestackExtension {
+impl TsppExtension {
     /// Resolve the complete language server command.
     fn resolve_server_command(
         &mut self,
@@ -123,7 +121,7 @@ impl DestackExtension {
     /// Resolve the first executable workspace build.
     fn resolve_workspace_command(worktree: &zed::Worktree) -> Result<Option<String>> {
         let executable_name = if matches!(zed::current_platform().0, Os::Windows) {
-            "destack.exe"
+            "tspp.exe"
         } else {
             COMMAND_NAME
         };
@@ -137,7 +135,7 @@ impl DestackExtension {
         for candidate in candidates {
             let command = candidate.into_os_string().into_string().map_err(|path| {
                 format!(
-                    "Destack workspace command is not valid UTF-8: {}",
+                    "TS++ workspace command is not valid UTF-8: {}",
                     PathBuf::from(path).display()
                 )
             })?;
@@ -174,7 +172,7 @@ impl DestackExtension {
             .join(target.executable_name);
         let command = command.into_os_string().into_string().map_err(|path| {
             format!(
-                "Destack managed command is not valid UTF-8: {}",
+                "TS++ managed command is not valid UTF-8: {}",
                 PathBuf::from(path).display()
             )
         })?;
@@ -248,7 +246,7 @@ impl DestackExtension {
                 .join(target.executable_name);
             let command = command.to_str().ok_or_else(|| {
                 format!(
-                    "Destack managed command is not valid UTF-8: {}",
+                    "TS++ managed command is not valid UTF-8: {}",
                     command.display()
                 )
             })?;
@@ -294,7 +292,7 @@ impl DestackExtension {
                 triple: "x86_64-pc-windows-msvc",
                 archive_type: DownloadedFileType::Zip,
                 archive_extension: "zip",
-                executable_name: "destack.exe",
+                executable_name: "tspp.exe",
             }),
             _ => Err(format!(
                 "Destack has no release for {operating_system:?}/{architecture:?}"
@@ -303,7 +301,7 @@ impl DestackExtension {
     }
 }
 
-impl zed::Extension for DestackExtension {
+impl zed::Extension for TsppExtension {
     /// Create the extension instance.
     fn new() -> Self {
         Self {

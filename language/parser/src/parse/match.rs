@@ -2,11 +2,11 @@ use crate::parse::error::ParserResultExt;
 use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::{Parser, ParserResult};
 
-use destack_dir::{
+use tspp_dir::{
     BlockContext, Condition, Expression, Keyword, LocalNodeId, MatchArm, NodeType, Pattern,
     TokenType,
 };
-use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
+use tspp_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 /// One match guard and its source range.
 struct MatchGuard {

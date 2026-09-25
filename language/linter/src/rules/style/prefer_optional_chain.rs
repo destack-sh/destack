@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -146,8 +146,8 @@ fn optional_position(
 fn fix(
     module: &DirModule<'_>,
     lint: &Lint,
-    target: destack_source::Span,
-    selected: destack_source::Span,
+    target: tspp_source::Span,
+    selected: tspp_source::Span,
     position: u32,
     marker: &str,
 ) -> Result<DiagnosticSuggestion, ProviderError> {

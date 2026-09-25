@@ -2,7 +2,7 @@ use super::{assert_format, assert_format_eq, assert_output_eq, format_tree_with_
 use crate::{
     Attribute, AttributeArgs, AttributeIdentifier, Field, FormatOptions, Symbol, Tree, Type,
 };
-use destack_core::StringPool;
+use tspp_core::StringPool;
 
 /// Formats pointer-sized builtin types canonically.
 #[test]

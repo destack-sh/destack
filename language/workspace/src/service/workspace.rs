@@ -1,9 +1,9 @@
-use destack_artifact::ArtifactPayload;
-use destack_core::Blob;
-use destack_repository as repository;
-use destack_repository::{Commit, Revision, TraceLevel};
-use destack_rpc::{Request, Response, ResponseSender, Status};
 use futures::{FutureExt, pin_mut, select_biased};
+use tspp_artifact::ArtifactPayload;
+use tspp_core::Blob;
+use tspp_repository as repository;
+use tspp_repository::{Commit, Revision, TraceLevel};
+use tspp_rpc::{Request, Response, ResponseSender, Status};
 
 use super::*;
 use crate::{
@@ -13,8 +13,8 @@ use crate::{
     Workspace,
 };
 
-/// RPC operations over one Destack workspace.
-#[destack_rpc::service(name = "destack.workspace.Workspace")]
+/// RPC operations over one TS++ workspace.
+#[tspp_rpc::service(name = "tspp.workspace.Workspace")]
 pub trait WorkspaceService {
     // =============================================================================
     // Workspace

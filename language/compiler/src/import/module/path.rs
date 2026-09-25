@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use destack_repository::ModulePathResolution;
-use destack_source::Loader;
+use tspp_repository::ModulePathResolution;
+use tspp_source::Loader;
 
 use crate::import::ImportState;
 use crate::{Compiler, CompilerError, CompilerResult};

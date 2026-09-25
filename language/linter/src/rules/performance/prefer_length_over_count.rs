@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -144,7 +144,7 @@ function length(values: int32[]): isize {
         session.assert_diagnostics(
             r#"
 warning[prefer-length-over-count]: array iterator is counted in full
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function length(values: int32[]): isize {
 2 │     return values.iterator().count();
@@ -153,8 +153,8 @@ warning[prefer-length-over-count]: array iterator is counted in full
   │
 
  = fix: read the stored array length
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function length(values: int32[]): isize {
 -   2│     return values.iterator().count();
@@ -260,7 +260,7 @@ function length(values: int32[]): isize {
         session.assert_diagnostics(
             r#"
 warning[prefer-length-over-count]: array iterator is counted in full
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function length(values: int32[]): isize {
 2 │     return values.iterator() /* every value */.count();

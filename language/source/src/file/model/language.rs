@@ -1,18 +1,18 @@
 use std::path::Path;
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use crate::FileType;
 
-/// The Destack source form.
+/// The TS++ source form.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
 pub enum LanguageType {
-    /// Destack implementation source (`.ds`).
+    /// TS++ implementation source (`.tspp`).
     #[default]
-    Destack,
-    /// Destack declaration source (`.d.ds`).
-    DestackDeclaration,
+    Tspp,
+    /// TS++ declaration source (`.d.tspp`).
+    TsppDeclaration,
 }
 
 impl TryFrom<FileType> for LanguageType {
@@ -22,8 +22,8 @@ impl TryFrom<FileType> for LanguageType {
     /// Try to convert one file type into its source language.
     fn try_from(file_type: FileType) -> Result<Self, Self::Error> {
         match file_type {
-            FileType::Destack => Ok(Self::Destack),
-            FileType::DestackDeclaration => Ok(Self::DestackDeclaration),
+            FileType::Tspp => Ok(Self::Tspp),
+            FileType::TsppDeclaration => Ok(Self::TsppDeclaration),
             _ => Err(file_type),
         }
     }
@@ -33,8 +33,8 @@ impl From<LanguageType> for FileType {
     /// Convert one source language into its corresponding file type.
     fn from(language: LanguageType) -> Self {
         match language {
-            LanguageType::Destack => Self::Destack,
-            LanguageType::DestackDeclaration => Self::DestackDeclaration,
+            LanguageType::Tspp => Self::Tspp,
+            LanguageType::TsppDeclaration => Self::TsppDeclaration,
         }
     }
 }
@@ -57,6 +57,6 @@ impl LanguageType {
     /// Return whether this is declaration source.
     #[inline]
     pub fn is_declaration(self) -> bool {
-        matches!(self, Self::DestackDeclaration)
+        matches!(self, Self::TsppDeclaration)
     }
 }

@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -16,7 +16,7 @@ Instead, you SHOULD pass each Promise directly so `Promise.all` or `Promise.race
 "#,
         example: {
             reported: r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 declare function first(): Promise<int32>;
 declare function second(): Promise<int32>;
@@ -26,7 +26,7 @@ async function gather(): Promise<int32[]> {
 }
 "#,
             accepted: r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 declare function first(): Promise<int32>;
 declare function second(): Promise<int32>;
@@ -137,7 +137,7 @@ mod tests {
         let session = TestSession::dir(
             &NO_AWAIT_IN_PROMISE_METHODS,
             r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 async function first(left: Promise<int32>, right: Promise<int32>): Promise<int32> {
     return await Promise.race([left, await right]);
@@ -147,7 +147,7 @@ async function first(left: Promise<int32>, right: Promise<int32>): Promise<int32
 
         session.assert_suggestions(
             r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 async function first(left: Promise<int32>, right: Promise<int32>): Promise<int32> {
     return await Promise.race([left, right]);
@@ -162,7 +162,7 @@ async function first(left: Promise<int32>, right: Promise<int32>): Promise<int32
         let session = TestSession::dir(
             &NO_AWAIT_IN_PROMISE_METHODS,
             r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 async function deferred(value: Promise<int32>): Promise<(() => Promise<int32>)[]> {
     return await Promise.all([async () => await value]);
@@ -179,7 +179,7 @@ async function deferred(value: Promise<int32>): Promise<(() => Promise<int32>)[]
         let session = TestSession::dir(
             &NO_AWAIT_IN_PROMISE_METHODS,
             r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 declare function wrap(value: int32): Promise<int32>;
 
@@ -198,7 +198,7 @@ async function gather(value: Promise<int32>): Promise<int32[]> {
         let session = TestSession::dir(
             &NO_AWAIT_IN_PROMISE_METHODS,
             r#"
-import { Promise, Task } from "destack:async";
+import { Promise, Task } from "tspp:async";
 
 declare function work(): Task<int32>;
 
@@ -217,7 +217,7 @@ async function gather(): Promise<int32[]> {
         let session = TestSession::dir(
             &NO_AWAIT_IN_PROMISE_METHODS,
             r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 async function gather(value: Promise<int32>): Promise<int32[]> {
     return await Promise.all([await Promise.race([await value])]);
@@ -227,7 +227,7 @@ async function gather(value: Promise<int32>): Promise<int32[]> {
 
         session.assert_suggestions(
             r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 async function gather(value: Promise<int32>): Promise<int32[]> {
     return await Promise.all([Promise.race([value])]);

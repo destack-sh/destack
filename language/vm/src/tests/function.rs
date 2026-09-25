@@ -1,4 +1,4 @@
-use destack_program::Word;
+use tspp_program::Word;
 
 use super::{TestMachine, TestProgram};
 
@@ -40,7 +40,7 @@ function f3 {
     );
 
     let environment = Word::from_bits(0x1200);
-    let identity = Word::from(destack_program::FunctionId(1));
+    let identity = Word::from(tspp_program::FunctionId(1));
     let value = machine.complete(3, &[environment, Word::int32(73)]);
 
     assert_eq!(

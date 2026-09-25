@@ -1,9 +1,9 @@
-use destack_core::Blob;
-use destack_memory::MemoryRange;
-use destack_program as program;
-use destack_serde::Reflect;
-use destack_source::Diagnostic;
 use serde::{Deserialize, Serialize};
+use tspp_core::Blob;
+use tspp_memory::MemoryRange;
+use tspp_program as program;
+use tspp_serde::Reflect;
+use tspp_source::Diagnostic;
 
 use crate::runtime::RuntimeId;
 use crate::world::Stop;

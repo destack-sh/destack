@@ -1,8 +1,8 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use crate::Token;
-use destack_source::Span;
+use tspp_source::Span;
 
 /// A Token with a Span.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
@@ -16,7 +16,7 @@ pub struct TokenSpan {
 impl TokenSpan {
     /// Create a token span from a source-file token.
     #[inline]
-    pub fn new(token: Token, file: destack_source::FileId) -> Self {
+    pub fn new(token: Token, file: tspp_source::FileId) -> Self {
         Self {
             token,
             span: token.span(file),

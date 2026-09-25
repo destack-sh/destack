@@ -1,4 +1,4 @@
-use destack_core::{EntryRange, SectionBuilder};
+use tspp_core::{EntryRange, SectionBuilder};
 
 use crate::tree::object::Header;
 use crate::{CodeOffset, CodeRange, FrameMap, Function, Object, RegisterSpan, Relocation};

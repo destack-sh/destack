@@ -18,7 +18,7 @@ class Node {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Node.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Node.constructor", r#"
 type test.main.Wrapper {
     node: ref<test.main.Node, managed, mutable, local>;
 }
@@ -72,7 +72,7 @@ function tally(start: int32): int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Counter.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
 type test.main.Counter {
     count: int32;
@@ -96,7 +96,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Counter.bump",
         r#"
 @nocopy
@@ -126,7 +126,7 @@ entry(v0: ref<test.main.Counter, managed, mutable, local>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.tally",
         r#"
 @nocopy
@@ -181,7 +181,7 @@ function peek(counter: readonly Counter): int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Counter.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
 type test.main.Counter {
     count: int32;
@@ -205,7 +205,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.own",
         r#"
 @nocopy
@@ -228,7 +228,7 @@ entry(v0: test.main.Counter):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.peek",
         r#"
 @nocopy
@@ -280,7 +280,7 @@ function forget(counter: Counter): Counter | null {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Counter.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
 type test.main.Counter {
     count: int32;
@@ -304,7 +304,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 @nocopy
@@ -342,7 +342,7 @@ b2:
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.forget",
         r#"
 @nocopy
@@ -413,7 +413,7 @@ function classify(counter: Counter | undefined | null): int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Counter.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
 type test.main.Counter {
     count: int32;
@@ -437,7 +437,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.lookup",
         r#"
 @nocopy
@@ -475,7 +475,7 @@ b2:
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.classify",
         r#"
 @nocopy
@@ -544,7 +544,7 @@ function total(chain: Chain): int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Chain.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Chain.constructor", r#"
 @nocopy
 type test.main.Chain {
     next: variant<uint1> { 0uint1 = ref<test.main.Chain, managed, mutable, local>; 1uint1 = null; };
@@ -578,7 +578,7 @@ entry(v0: ref<uninit<test.main.Chain>, borrowed, 'managed, mutable>, v1: int32):
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.total",
         r#"
 @nocopy
@@ -626,7 +626,7 @@ function main(counter: Counter): int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Counter.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
 type test.main.Counter {
     count: int32;
@@ -650,7 +650,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: int32
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.peek",
         r#"
 @nocopy
@@ -674,7 +674,7 @@ entry(v0: ref<test.main.Counter, borrowed, 'a, readonly>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.main",
         r#"
 @nocopy
@@ -718,7 +718,7 @@ function own(start: int32): int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Counter.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
 type test.main.Counter {
     count: int32;
@@ -741,7 +741,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>, v1: int32):
 /// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.own", r#"
+    session.assert_mir_function("main.tspp", "test.main.own", r#"
 @nocopy
 type test.main.Counter {
     count: int32;
@@ -784,7 +784,7 @@ function make(): ^Counter {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Counter.constructor",
         r#"
 @nocopy
@@ -809,7 +809,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.make",
         r#"
 @nocopy
@@ -859,7 +859,7 @@ function build(): ^Derived {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Base.constructor",
         r#"
 @nocopy
@@ -883,7 +883,7 @@ entry(v0: ref<uninit<test.main.Base>, borrowed, 'a, exclusive>):
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Derived.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Derived.constructor", r#"
 @nocopy
 type test.main.Base {
     tag: int32;
@@ -918,7 +918,7 @@ entry(v0: ref<uninit<test.main.Derived>, borrowed, 'a, exclusive>):
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.build",
         r#"
 @nocopy
@@ -964,7 +964,7 @@ export class Failure {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Failure.display",
         r#"
 @nocopy
@@ -992,7 +992,7 @@ entry(v0: ref<test.main.Failure, borrowed, 'a, readonly>):
 /// @layout.field owner=test.main.Failure index=0 name=message offset=0 size=8 align=8
 "#,
     );
-    session.assert_mir_function("main.ds", "test.main.Failure.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Failure.constructor", r#"
 @nocopy
 type test.main.Failure {
     message: ref<String, managed, mutable, local>;
@@ -1019,7 +1019,7 @@ entry(v0: ref<uninit<test.main.Failure>, borrowed, 'managed, mutable>, v1: ref<S
 /// @layout.field owner=test.main.Failure index=0 name=message offset=0 size=8 align=8
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.Failure.display", r#"
+    session.assert_mir_function("main.tspp", "test.main.Failure.display", r#"
 @nocopy
 type test.main.Failure {
     message: ref<String, managed, mutable, local>;
@@ -1062,7 +1062,7 @@ class Runtime {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Runtime.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Runtime.constructor", r#"
 @nocopy
 type test.main.Runtime {
     id: int32;
@@ -1115,7 +1115,7 @@ class Counter {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Counter.constructor",
         r#"
 @nocopy
@@ -1144,7 +1144,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>):
 fn test_lower_borrow_of_an_owned_slice_field_through_its_place() {
     let session = TestSession::single(
         r#"
-import { Slice } from "destack:collections";
+import { Slice } from "tspp:collections";
 
 class Holder {
     storage: ^[int32] = Slice.new();
@@ -1158,7 +1158,7 @@ function size(holder: &readonly Holder): isize {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Holder.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Holder.constructor", r#"
 @nocopy
 type test.main.Holder {
     storage: slice<int32, unique, mutable>;
@@ -1180,7 +1180,7 @@ entry(v0: ref<uninit<test.main.Holder>, borrowed, 'a, exclusive>):
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.size",
         r#"
 @nocopy
@@ -1228,7 +1228,7 @@ function make(reset: boolean): Counter {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Counter.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
 type test.main.Counter {
     count: int32;
@@ -1261,7 +1261,7 @@ b2:
 /// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.make", r#"
+    session.assert_mir_function("main.tspp", "test.main.make", r#"
 @nocopy
 type test.main.Counter {
     count: int32;
@@ -1303,7 +1303,7 @@ function make(): Counter {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Counter.constructor",
         r#"
 @nocopy
@@ -1333,7 +1333,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.make",
         r#"
 @nocopy
@@ -1384,7 +1384,7 @@ function forms(
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.forms", r#"
+    session.assert_mir_function("main.tspp", "test.main.forms", r#"
 @nocopy
 type test.main.User {
     name: int32;
@@ -1461,7 +1461,7 @@ export function inspect(slot: ^Payload | undefined): int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.inspect", r#"
+    session.assert_mir_function("main.tspp", "test.main.inspect", r#"
 type test.main.Payload {
     value: int32;
 }
@@ -1547,7 +1547,7 @@ function read(derived: Derived): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 @nocopy
@@ -1614,7 +1614,7 @@ function read(derived: Derived): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 @nocopy

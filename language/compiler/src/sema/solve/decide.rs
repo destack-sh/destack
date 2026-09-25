@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::CompilerResult;
 use crate::sema::{BoundSide, CheckState, Settle, VariableKind, VariableState, Verdict};

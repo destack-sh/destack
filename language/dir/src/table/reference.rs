@@ -1,8 +1,8 @@
-use destack_core::FxIndexMap;
-use destack_serde::Reflect;
-use destack_source::{ModuleId, NodeSpanList, NodeSpanType};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+use tspp_core::FxIndexMap;
+use tspp_serde::Reflect;
+use tspp_source::{ModuleId, NodeSpanList, NodeSpanType};
 
 use crate::{ExportTarget, GlobalNodeIdAny, GlobalSymbolId, TypeLiteral};
 

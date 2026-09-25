@@ -2,14 +2,14 @@ use crate::parse::error::ParserResultExt;
 use crate::parse::{TypePosition, TypeStop};
 use crate::{Parser, ParserError, ParserResult};
 
-use destack_dir::{Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_dir::{Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
     /// Parse one heritage type list.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// Base
     /// Base, Other
     /// Base<T> implements Contract
@@ -85,7 +85,7 @@ impl Parser {
     /// Parse one optional extends type clause.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// extends Base
     /// extends Base<T>, Other
     /// extends (abstract new () => Instance)
@@ -110,7 +110,7 @@ impl Parser {
     /// Report and skip an extends clause on a struct or enum declaration.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// struct Point extends Base {}   // reports `extends`
     /// enum Day extends Weekday {}    // reports `extends`
     /// ```
@@ -129,7 +129,7 @@ impl Parser {
     /// Parse one optional implements type clause.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// implements Contract
     /// implements First, Second
     /// implements Namespace.Contract<T>

@@ -11,7 +11,7 @@ function nudge(x: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.nudge",
         r#"
 function test.main.nudge(v0: int32): int32 {
@@ -39,7 +39,7 @@ function mask(x: uint32, m: uint32): uint32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.mask",
         r#"
 function test.main.mask(v0: uint32, v1: uint32): uint32 {

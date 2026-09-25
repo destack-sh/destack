@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -237,7 +237,7 @@ function firstPositive(values: int32[]): int32 | undefined {
         let session = TestSession::dir(
             &PREFER_FIND_MAP,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function firstDefined(values: Iterator<int32 | undefined> | undefined): int32 | undefined {
     return values?.map((value) => value).find((value) => value !== undefined);
@@ -247,7 +247,7 @@ function firstDefined(values: Iterator<int32 | undefined> | undefined): int32 | 
 
         session.assert_fixes(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function firstDefined(values: Iterator<int32 | undefined> | undefined): int32 | undefined {
     return values?.findMap((value) => value);
@@ -338,7 +338,7 @@ function firstDefined(values: (int32 | undefined)[]): int32 | undefined {
         session.assert_diagnostics(
             r#"
 warning[prefer-find-map]: Iterator maps values before selecting the first defined result
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function firstDefined(values: (int32 | undefined)[]): int32 | undefined {
 2 │     return values

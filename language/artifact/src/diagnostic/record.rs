@@ -1,7 +1,7 @@
-use destack_dir::GlobalSymbolId;
-use destack_serde::Reflect;
-use destack_source::Diagnostic;
 use serde::{Deserialize, Serialize};
+use tspp_dir::GlobalSymbolId;
+use tspp_serde::Reflect;
+use tspp_source::Diagnostic;
 
 /// One stored diagnostic and its deferred labels.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]

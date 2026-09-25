@@ -1,6 +1,6 @@
-use destack_core::StableHasher;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::StableHasher;
+use tspp_serde::Reflect;
 
 /// Stable identity for environment variables read by one profile.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect)]

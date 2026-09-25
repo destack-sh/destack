@@ -1,0 +1,43 @@
+import { todo } from "tspp:error";
+import { Exclude, NoInfer } from "tspp:types";
+
+import { SignalArgument, SourceAccessor } from "./accessor.tspp";
+import { DerivationSignal, DerivationValue } from "./derive.tspp";
+import { MemoOptions, SignalOptions } from "./options.tspp";
+import { Setter } from "./setter.tspp";
+
+/// Getter and setter for one writable signal value.
+export type Signal<T> = (SourceAccessor<T>, Setter<T>);
+
+/// Create an undefined writable signal.
+export function createSignal<T>(): Signal<T | undefined> {
+    todo("signal.createSignal")
+}
+
+/// Create a ready writable signal from a derivation and an initial settled value.
+export function createSignal<Output>(
+    derive: ^Function<(SignalArgument<NoInfer<DerivationValue<Output>>>,), Output>,
+    options: SignalOptions<DerivationValue<Output>> &
+        MemoOptions<DerivationValue<Output>> & {
+            /// Initial settled value used until the first derived value is ready.
+            loadingValue: DerivationValue<Output>;
+        },
+): Signal<DerivationValue<Output>> {
+    todo("signal.createSignal")
+}
+
+/// Create a writable signal from one synchronous, polling, or asynchronous derivation.
+export function createSignal<Output>(
+    derive: ^Function<(SignalArgument<NoInfer<DerivationValue<Output>>> | undefined,), Output>,
+    options?: SignalOptions<DerivationValue<Output>> & MemoOptions<DerivationValue<Output>>,
+): DerivationSignal<Output> {
+    todo("signal.createSignal")
+}
+
+/// Create a writable signal from one initial value.
+export function createSignal<T>(
+    value: Exclude<T, Function>,
+    options?: SignalOptions<T>,
+): Signal<T> {
+    todo("signal.createSignal")
+}

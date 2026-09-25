@@ -1,6 +1,6 @@
 use cranelift_codegen::ir as cir;
-use destack_mir as mir;
 use smallvec::{SmallVec, smallvec};
+use tspp_mir as mir;
 
 use crate::EmitError;
 

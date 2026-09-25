@@ -1,11 +1,11 @@
-use destack_core::{
+use serde::{Deserialize, Serialize};
+use tspp_core::{
     EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
     StringId,
 };
-use destack_mir::{Access, FloatType, Space};
-use destack_serde::Reflect;
-use destack_source as source;
-use serde::{Deserialize, Serialize};
+use tspp_mir::{Access, FloatType, Space};
+use tspp_serde::Reflect;
+use tspp_source as source;
 
 use super::{BindingId, EntryPoint, FunctionId, LayoutId, TypeId};
 

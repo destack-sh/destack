@@ -1,8 +1,8 @@
 use std::fmt;
 use std::ops::Range;
 
-use destack_native::abi;
-use destack_program::{FunctionId, Word};
+use tspp_native::abi;
+use tspp_program::{FunctionId, Word};
 
 /// One process-local native function.
 #[derive(Clone)]

@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use destack_artifact::{
+use tspp_artifact::{
     DiagnosticAnchor, DiagnosticBuilder, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
     ToDiagnostic,
 };
-use destack_core::{Arena, StringPool};
-use destack_dir as dir;
-use destack_parser::{CommentRetention, Parse, ParseOptions, Parser, SourceForm};
-use destack_source::{
+use tspp_core::{Arena, StringPool};
+use tspp_dir as dir;
+use tspp_parser::{CommentRetention, Parse, ParseOptions, Parser, SourceForm};
+use tspp_source::{
     Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, File, LanguageType,
     ModuleId, PackageId, Span,
 };
@@ -282,7 +282,7 @@ impl Compiler {
 
         let parser = Parser::new(
             file,
-            LanguageType::Destack,
+            LanguageType::Tspp,
             tree,
             ParseOptions {
                 form: SourceForm::Pattern,

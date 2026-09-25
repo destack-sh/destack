@@ -3,11 +3,11 @@ use crate::{
     ExpressionPosition, ExpressionStop, assert_expression_path, assert_node, assert_string,
     assert_value_expression_path,
 };
-use destack_dir::{
+use tspp_dir::{
     BinaryOperator, Block, Declaration, Declarator, ExportKind, Expression, GenericArgument,
     Literal, Pattern, TypeDeclaration, TypeExpression, TypeLiteral,
 };
-use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
 /// Parse labeled statements when the target statement starts on a new line.
 #[test]

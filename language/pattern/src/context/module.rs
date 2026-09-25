@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirExported, DirResolved, DirView};
-use destack_dir as dir;
-use destack_source::ModuleId;
+use tspp_artifact::{DirExported, DirResolved, DirView};
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use crate::ContextError;
 

@@ -1,0 +1,40 @@
+================================================================================
+Arena syntax
+:language(tspp)
+================================================================================
+
+let arena: Arena<User> = Arena.create();
+let user: &readonly User = arena.allocate(User.create());
+
+--------------------------------------------------------------------------------
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier))))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (memory_type
+          (type_identifier)))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (call_expression
+            (member_expression
+              (identifier)
+              (property_identifier))
+            (arguments)))))))

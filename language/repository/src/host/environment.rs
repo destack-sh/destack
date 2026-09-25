@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 use std::env;
 use std::path::PathBuf;
 
-use destack_artifact::EnvironmentKey;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_artifact::EnvironmentKey;
+use tspp_serde::Reflect;
 
 use super::{
     DESTACK_FEATURES, DESTACK_MODES, DESTACK_PRODUCT, DESTACK_PROFILE, DESTACK_ROLES, DESTACK_TAGS,

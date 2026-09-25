@@ -6,11 +6,11 @@
 
 Optional parameters use `?` after the parameter name.
 
-```ds
+```tspp
 function greet(name?: string) { return `Hello, ${name ?? "world"}` }
 ```
 
-```ds expected
+```tspp expected
 function greet(name?: string) {
     return `Hello, ${name ?? "world"}`;
 }
@@ -20,11 +20,11 @@ function greet(name?: string) {
 
 Default values use `= value` after the type annotation.
 
-```ds
+```tspp
 function greet(name: string = "world") { return `Hello, ${name}` }
 ```
 
-```ds expected
+```tspp expected
 function greet(name: string = "world") {
     return `Hello, ${name}`;
 }
@@ -34,11 +34,11 @@ function greet(name: string = "world") {
 
 Rest parameters use `...` prefix and must be the last parameter.
 
-```ds
+```tspp
 function sum(...numbers: number[]): number { return numbers.reduce((a, b) => a + b, 0) }
 ```
 
-```ds expected
+```tspp expected
 function sum(...numbers: number[]): number {
     return numbers.reduce((a, b) => a + b, 0);
 }
@@ -48,11 +48,11 @@ function sum(...numbers: number[]): number {
 
 Explicit `this` parameters stay first in the list.
 
-```ds:main.ds
+```tspp:main.tspp
 function bind(this: Handler, event: Event) { this.handle(event) }
 ```
 
-```ds expected
+```tspp expected
 function bind(this: Handler, event: Event) {
     this.handle(event)
 }
@@ -62,11 +62,11 @@ function bind(this: Handler, event: Event) {
 
 Receiver shorthand stays first in the list.
 
-```ds
+```tspp
 function visit(&readonly this, node: Node): void { this.handle(node) }
 ```
 
-```ds expected
+```tspp expected
 function visit(&readonly this, node: Node): void {
     this.handle(node);
 }
@@ -76,13 +76,13 @@ function visit(&readonly this, node: Node): void {
 
 Exclusive receiver shorthand formats like a normal receiver.
 
-```ds
+```tspp
 extension of Buffer {
 push(&exclusive this, value: uint8): void { undefined! }
 }
 ```
 
-```ds expected
+```tspp expected
 extension of Buffer {
     push(&exclusive this, value: uint8): void {
         undefined!;
@@ -94,11 +94,11 @@ extension of Buffer {
 
 Object destructuring in parameters preserves the pattern structure.
 
-```ds
+```tspp
 function point({ x, y }: Point): string { return `(${x}, ${y})` }
 ```
 
-```ds expected
+```tspp expected
 function point({ x, y }: Point): string {
     return `(${x}, ${y})`;
 }
@@ -108,11 +108,11 @@ function point({ x, y }: Point): string {
 
 Array destructuring extracts elements by position.
 
-```ds
+```tspp
 function first([head]: number[]): number { return head }
 ```
 
-```ds expected
+```tspp expected
 function first([head]: number[]): number {
     return head;
 }
@@ -122,11 +122,11 @@ function first([head]: number[]): number {
 
 Annotated parameters keep the `@` prefix before the name.
 
-```ds
+```tspp
 function process(@nonempty input: string) { return input }
 ```
 
-```ds expected
+```tspp expected
 function process(@nonempty input: string) {
     return input;
 }

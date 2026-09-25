@@ -1,0 +1,12 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / borrows / readonly and exclusive
+let name: &readonly string = &readonly user.name;
+// <- keyword.declaration.variable.tspp
+
+let writable: &exclusive Buffer = &exclusive buffer;
+// <- keyword.declaration.variable.tspp
+
+// memory / borrows / dereference
+let first = *pointer;
+//          ^ keyword.operator.pointer.tspp

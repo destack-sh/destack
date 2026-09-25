@@ -5,7 +5,7 @@ use crate::lex::{InvalidEscape, cook};
 use crate::lex::decode_html_entity;
 use crate::{Parser, ParserError, ParserResult};
 
-use destack_dir::{Literal, NodeType, NumberBase, TokenLiteral, TokenSpan, TokenType};
+use tspp_dir::{Literal, NodeType, NumberBase, TokenLiteral, TokenSpan, TokenType};
 
 /// One integer token body and its lexer classification.
 #[derive(Clone, Copy)]
@@ -195,7 +195,7 @@ impl Parser {
     /// Parse a scalar literal and return its value.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// true
     /// false
     /// 1
@@ -351,7 +351,7 @@ impl Parser {
                     })
             }
 
-            // string or Destack character literal
+            // string or TS++ character literal
             TokenLiteral::String {
                 is_terminated,
                 has_invalid_escape,

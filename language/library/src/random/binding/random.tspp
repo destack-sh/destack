@@ -1,0 +1,13 @@
+import { Binding } from "tspp:binding";
+
+import { RandomEntropyBinding } from "./entropy.tspp";
+
+/// Random binding family.
+@languageItem("random.RandomBinding")
+export interface RandomBinding {
+    /// Entropy bindings.
+    readonly entropy: RandomEntropyBinding;
+}
+
+/// Current random binding family.
+export const random: Binding<RandomBinding> = new Binding<RandomBinding>("random");

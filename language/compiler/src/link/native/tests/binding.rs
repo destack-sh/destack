@@ -1,5 +1,5 @@
-use destack_program::BindingId;
-use destack_source::{ModuleId, PackageId};
+use tspp_program::BindingId;
+use tspp_source::{ModuleId, PackageId};
 
 use crate::link::tests::TestModule;
 

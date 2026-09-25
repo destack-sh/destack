@@ -1,7 +1,7 @@
-use destack_artifact::DiagnosticBuilder;
-use destack_core::{FxIndexSet, StringPool};
-use destack_dir as dir;
-use destack_source::ModuleId;
+use tspp_artifact::DiagnosticBuilder;
+use tspp_core::{FxIndexSet, StringPool};
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use crate::sema::{CheckError, CheckState, DecoratorApplication, DecoratorObject};
 use crate::{CompilerError, CompilerResult};
@@ -195,7 +195,7 @@ impl RepresentationValue {
         // select native layout for the options-only constructor
         let name = match name {
             Some(name) => name,
-            None => strings.intern("destack"),
+            None => strings.intern("tspp"),
         };
 
         // read the representation kind the name selects

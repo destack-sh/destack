@@ -1,8 +1,8 @@
-use destack_mir::{
+use smallvec::{SmallVec, smallvec};
+use tspp_mir::{
     BlockId, BlockTarget, Call, FunctionId, Instruction, Multiplicity, Place, PlaceType, Reference,
     Space, Substitution, Successor, Terminator, Tree, Type, TypeId, Value, is_copy,
 };
-use smallvec::{SmallVec, smallvec};
 
 use crate::verify::VerifyState;
 

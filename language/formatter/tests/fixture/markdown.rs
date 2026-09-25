@@ -185,9 +185,9 @@ fn parse_fence(language: &str) -> Result<Fence, String> {
     }
 
     Ok(Fence {
-        is_source: language.eq_ignore_ascii_case("ds") && !is_expected,
-        is_expected: language.eq_ignore_ascii_case("ds") && is_expected,
-        path: path.unwrap_or_else(|| PathBuf::from("main.ds")),
+        is_source: language.eq_ignore_ascii_case("tspp") && !is_expected,
+        is_expected: language.eq_ignore_ascii_case("tspp") && is_expected,
+        path: path.unwrap_or_else(|| PathBuf::from("main.tspp")),
         options,
     })
 }

@@ -1,0 +1,125 @@
+import { From } from "tspp:convert";
+import { ControlFlow, FromResidual, Try } from "tspp:ops";
+
+import { Awaitable } from "./awaitable.tspp";
+import { Fiber } from "./fiber.tspp";
+
+/// Available poll result.
+export struct Ready<T> {
+    /// The result tag.
+    kind: "Ready" = "Ready";
+
+    /// The available value.
+    value: T;
+}
+
+/// Pending poll result.
+export struct Pending {
+    /// The result tag.
+    kind: "Pending" = "Pending";
+}
+
+/// Result of one immediate readiness check.
+export newtype Poll<T> = Ready<T> | Pending;
+
+/// Value produced directly or through a poll result.
+///
+/// `?` treats a direct value as available and branches through the poll member.
+export type PollOrValue<T> = Poll<T> | T;
+
+export extension<T> of Poll<T> {
+    /// Create an available result.
+    static ready(value: T): Poll<T> {
+        Poll(Ready { value })
+    }
+
+    /// Create a pending result.
+    static pending(): Poll<T> {
+        Poll(Pending {})
+    }
+
+    /// Return whether this result contains a value.
+    isReady(&readonly this): boolean {
+        this.kind == "Ready"
+    }
+
+    /// Return whether this result is pending.
+    isPending(&readonly this): boolean {
+        this.kind == "Pending"
+    }
+
+    /// Map the available value.
+    map<U>(this, f: ^Function<(T,), U, "once">): Poll<U> {
+        match (this) {
+            Ready { value } => Poll.ready(f(value))
+            Pending {} => Poll.pending()
+        }
+    }
+}
+
+export extension<T> of Poll<T> implements From<T> {
+    /// Create an available result.
+    static from(value: T): Poll<T> {
+        Poll.ready(value)
+    }
+}
+
+export extension<T> of Poll<T> implements Try, FromResidual<Poll<never>> {
+    /// The available value.
+    type Output = T;
+
+    /// The pending result in its own poll shape.
+    type Residual = Poll<never>;
+
+    /// Create an available result.
+    static fromOutput(output: T): Poll<T> {
+        Poll.ready(output)
+    }
+
+    /// Create a poll from a propagated pending result.
+    static fromResidual(residual: Poll<never>): Poll<T> {
+        match (residual) {
+            Ready { value } => value
+            Pending {} => Poll.pending()
+        }
+    }
+
+    /// Branch into available or pending control flow.
+    branch(this): ControlFlow<Poll<never>, T> {
+        match (this) {
+            Ready { value } => ControlFlow.continue(value)
+            Pending {} => ControlFlow.break(Poll.pending())
+        }
+    }
+}
+
+/// Single-consumer value with one registered waiter.
+export newtype interface Pollable<T> {
+    /// Return the result when it is available.
+    poll(&exclusive this): Poll<T>;
+
+    /// Set or clear the fiber to wake when readiness may change.
+    setWaiter(&exclusive this, fiber: Fiber | undefined): void;
+}
+
+export extension PollableAwaitable<T, P: Pollable<T>, 'a> of &'a exclusive P
+    implements Awaitable<T>
+{
+    /// Hold exclusive access until the value is ready or the wait is cancelled.
+    static park(pollable: &'a exclusive P): T {
+        // register before checking readiness and retain exclusion through suspension
+        try {
+            loop {
+                pollable.setWaiter(Fiber.current());
+                match (pollable.poll()) {
+                    Ready { value } => return value
+                    Pending {} => Fiber.park()
+                }
+            }
+        }
+        // clear registration when receiving finishes or unwinds
+        finally {
+            pollable.setWaiter(undefined);
+        }
+    }
+}

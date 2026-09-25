@@ -1,7 +1,5 @@
 use crate::parse::r#type::operator::TypeRelation;
-use destack_dir::{
-    AssignOperator, BinaryOperator, Keyword, OperatorPrecedence, RangeEnd, TokenType,
-};
+use tspp_dir::{AssignOperator, BinaryOperator, Keyword, OperatorPrecedence, RangeEnd, TokenType};
 
 /// One value infix operation.
 #[derive(Debug, Copy, Clone, PartialEq)]

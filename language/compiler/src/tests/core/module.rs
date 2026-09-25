@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependency, DirParsed, DirParsedFile, SourceDependency};
-use destack_dir as dir;
-use destack_parser::{CommentRetention, ParseOptions, Parser};
-use destack_repository::{Module, Repository, Revision};
-use destack_source::{File, LanguageType, ProfileId, Span};
+use tspp_artifact::{ArtifactDependency, DirParsed, DirParsedFile, SourceDependency};
+use tspp_dir as dir;
+use tspp_parser::{CommentRetention, ParseOptions, Parser};
+use tspp_repository::{Module, Repository, Revision};
+use tspp_source::{File, LanguageType, ProfileId, Span};
 
 /// One code module in a compiler test.
 #[derive(Debug)]

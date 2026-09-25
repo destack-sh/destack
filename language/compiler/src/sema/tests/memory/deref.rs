@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_read_and_write_through_a_box_dereference() {
     let session = TestSession::single(
         r#"
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 struct Point {
     x: int32;
@@ -23,11 +23,11 @@ function run(boxed: Box<Point>, readonlyBoxed: &readonly Box<Point>): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 struct Point {
     x: int32;
@@ -44,7 +44,7 @@ function run<'a>(boxed: Box<Point>, readonlyBoxed: &'a readonly Box<Point>): int
 }
 
 === dir ===
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 struct Point {
 /// @type.symbol symbol=Point type=Point
@@ -140,7 +140,7 @@ function run(boxed: Box<Point>, readonlyBoxed: &readonly Box<Point>): int32 {
 fn test_record_an_exclusive_write_through_a_dereference() {
     let session = TestSession::single(
         r#"
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 function run(boxed: Box<int32>): void {
     const before = *boxed;
@@ -153,11 +153,11 @@ function run(boxed: Box<int32>): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 function run(boxed: Box<int32>): void {
     const before: int32 = *boxed;
@@ -168,7 +168,7 @@ function run(boxed: Box<int32>): void {
 }
 
 === dir ===
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 function run(boxed: Box<int32>): void {
 /// @type.symbol symbol=run type=(Box<int32>) => void
@@ -234,7 +234,7 @@ function run(boxed: Box<int32>): void {
 fn test_dereference_a_shared_handle_readonly() {
     let session = TestSession::single(
         r#"
-import { rc } from "destack:memory";
+import { rc } from "tspp:memory";
 
 struct Point {
     x: int32;
@@ -249,11 +249,11 @@ function run(shared: rc.Rc<Point>): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { rc } from "destack:memory";
+import { rc } from "tspp:memory";
 
 struct Point {
     x: int32;
@@ -266,7 +266,7 @@ function run(shared: Rc<Point>): int32 {
 }
 
 === dir ===
-import { rc } from "destack:memory";
+import { rc } from "tspp:memory";
 
 struct Point {
 /// @type.symbol symbol=Point type=Point
@@ -320,7 +320,7 @@ function run(shared: rc.Rc<Point>): int32 {
 fn test_dereference_an_operand_in_an_operator() {
     let session = TestSession::single(
         r#"
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 function run(left: Box<int32>, right: Box<int32>): int32 {
     const sum = *left + *right;
@@ -331,11 +331,11 @@ function run(left: Box<int32>, right: Box<int32>): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 function run(left: Box<int32>, right: Box<int32>): int32 {
     const sum: int32 = *left + *right;
@@ -344,7 +344,7 @@ function run(left: Box<int32>, right: Box<int32>): int32 {
 }
 
 === dir ===
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 function run(left: Box<int32>, right: Box<int32>): int32 {
 /// @type.symbol symbol=run type=(Box<int32>, Box<int32>) => int32
@@ -403,7 +403,7 @@ function run(left: Box<int32>, right: Box<int32>): int32 {
 fn test_dereference_nested_boxes_and_call_methods_through_them() {
     let session = TestSession::single(
         r#"
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 struct Point {
     x: int32;
@@ -431,11 +431,11 @@ function run(boxed: Box<Point>, nested: Box<Box<Point>>, viewed: &readonly Box<P
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 struct Point {
     x: int32;
@@ -465,7 +465,7 @@ function run<'a>(
 }
 
 === dir ===
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 struct Point {
 /// @type.symbol symbol=Point type=Point
@@ -623,9 +623,9 @@ function run(boxed: Box<Point>, nested: Box<Box<Point>>, viewed: &readonly Box<P
 fn test_project_an_associated_target_through_an_extension_dereference_on_a_struct() {
     let session = TestSession::single(
         r#"
-import { todo } from "destack:error";
-import { Borrowed, Region } from "destack:memory";
-import { Dereference } from "destack:ops";
+import { todo } from "tspp:error";
+import { Borrowed, Region } from "tspp:memory";
+import { Dereference } from "tspp:ops";
 
 struct Cell<T> {
     value: T;
@@ -648,13 +648,13 @@ extension<T> of Cell<T> implements Dereference {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { todo } from "destack:error";
-import { Borrowed, Region } from "destack:memory";
-import { Dereference } from "destack:ops";
+import { todo } from "tspp:error";
+import { Borrowed, Region } from "tspp:memory";
+import { Dereference } from "tspp:ops";
 
 struct Cell<out T> {
     value: T;
@@ -673,9 +673,9 @@ extension<T> of Cell<T> implements Dereference {
 }
 
 === dir ===
-import { todo } from "destack:error";
-import { Borrowed, Region } from "destack:memory";
-import { Dereference } from "destack:ops";
+import { todo } from "tspp:error";
+import { Borrowed, Region } from "tspp:memory";
+import { Dereference } from "tspp:ops";
 
 struct Cell<T> {
 /// @generic.template symbol=Cell parameters=(out T#1)

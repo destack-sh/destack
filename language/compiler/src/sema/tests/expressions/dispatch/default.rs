@@ -12,7 +12,7 @@ function greet(count: int32 | undefined = 3): int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -51,7 +51,7 @@ function greet(count: int32 | undefined = maybe()): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

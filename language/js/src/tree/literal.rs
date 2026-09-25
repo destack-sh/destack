@@ -1,7 +1,7 @@
 use crate::{Expression, LocalNodeId, Path, StringId};
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 /// A Literal is literal scalar value.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Literal {

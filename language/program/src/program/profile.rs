@@ -1,7 +1,7 @@
-use destack_core::{FxIndexMap, StringId};
-use destack_mir::FloatType;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::{FxIndexMap, StringId};
+use tspp_mir::FloatType;
+use tspp_serde::Reflect;
 
 use super::{AllocationSiteId, CallSiteId, CounterId, EdgeSiteId, Program, SamplerId, WordLayout};
 

@@ -1,8 +1,8 @@
 use std::time::Duration;
 
-use destack_artifact::ConditionSet;
-use destack_program as program;
-use destack_repository::{Environment, RuntimeDiagnosticLevel};
+use tspp_artifact::ConditionSet;
+use tspp_program as program;
+use tspp_repository::{Environment, RuntimeDiagnosticLevel};
 
 use crate::binding::{Binding, BindingAccess, BindingTable, ReplayPayload};
 use crate::diagnostic::{DiagnosticStore, RuntimeError, RuntimeResult};

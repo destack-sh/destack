@@ -1,5 +1,5 @@
 use crate::source::TokenType;
-use destack_source::Span;
+use tspp_source::Span;
 
 use crate::{
     BlockId, BlockParameter, FunctionId, GenericArgument, GlobalId, LocalId, Place, Projection,

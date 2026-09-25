@@ -1,19 +1,19 @@
-use destack_dir as dir;
-use destack_source::ModuleId;
 use std::collections::BTreeMap;
 use std::path::Path;
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use crate::sema::{CheckState, GenericTemplateId, VariableKind};
 use crate::{CompilerError, CompilerResult};
 
 /// The uri scheme of the standard library, whose names print bare.
-const LIBRARY_SCHEME: &str = "destack://";
+const LIBRARY_SCHEME: &str = "tspp://";
 
 /// The uri scheme of an on-disk module, whose label is its file stem.
 const FILE_SCHEME: &str = "file://";
 
 /// The source extension a module label drops.
-const MODULE_EXTENSION: &str = ".ds";
+const MODULE_EXTENSION: &str = ".tspp";
 
 impl CheckState<'_> {
     /// Format one type for diagnostics.

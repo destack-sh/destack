@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_repository::{Repository, Revision};
-use destack_source::{
+use tspp_repository::{Repository, Revision};
+use tspp_source::{
     Applicability, DiagnosticCollection, DiagnosticLabel, DiagnosticSuggestion, File, FileId,
     PrintOptions, apply_file_patch, print_diagnostics,
 };
@@ -113,7 +113,7 @@ pub(crate) fn render_source_diagnostics(
     });
     let options = PrintOptions::new()
         .with_color(use_color)
-        .with_colorizer(destack_parser::source_colorizer())
+        .with_colorizer(tspp_parser::source_colorizer())
         .with_line_writer(writer);
     let file_for_id = |file_id: FileId| repository.file(revision, file_id).ok().flatten();
 

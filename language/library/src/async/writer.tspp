@@ -1,0 +1,13 @@
+import { IoError } from "tspp:error";
+
+import { Task } from "./task.tspp";
+
+/// Asynchronous byte writer.
+@languageItem("async.AsyncWriter")
+export interface AsyncWriter {
+    /// Write bytes from `buffer`.
+    write(&this, buffer: &readonly [uint8]): Task<Result<usize, IoError>>;
+
+    /// Flush buffered writes.
+    flush(&this): Task<Result<void, IoError>>;
+}

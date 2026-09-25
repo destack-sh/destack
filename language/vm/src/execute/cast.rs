@@ -1,5 +1,5 @@
-use destack_bytecode::{CastOperation, ConvertMode, Instruction, Scalar, ValueType};
-use destack_program::{Runtime, Word};
+use tspp_bytecode::{CastOperation, ConvertMode, Instruction, Scalar, ValueType};
+use tspp_program::{Runtime, Word};
 
 use crate::diagnostic::{Error, Result, Trap};
 use crate::machine::Activation;

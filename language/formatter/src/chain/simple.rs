@@ -1,7 +1,7 @@
 use super::transparent_inner_expression;
-use crate::DestackFormatContext;
+use crate::TsppFormatContext;
 use crate::expression::static_value_expression;
-use destack_dir::{
+use tspp_dir::{
     Argument, Expression, GenericArgument, Literal, LocalNodeId, Property, TemplateLiteral,
     UnaryOperator,
 };
@@ -23,16 +23,12 @@ impl SimpleArgument {
     }
 
     /// Return whether the candidate is simple.
-    pub(crate) fn is_simple(&self, context: &DestackFormatContext<'_>) -> bool {
+    pub(crate) fn is_simple(&self, context: &TsppFormatContext<'_>) -> bool {
         self.is_simple_with_depth(context, 0)
     }
 
     /// Return whether the candidate is simple at one recursion depth.
-    pub(crate) fn is_simple_with_depth(
-        &self,
-        context: &DestackFormatContext<'_>,
-        depth: u8,
-    ) -> bool {
+    pub(crate) fn is_simple_with_depth(&self, context: &TsppFormatContext<'_>, depth: u8) -> bool {
         // recursion limit
         if depth >= MAX_SIMPLE_ARGUMENT_DEPTH {
             return false;
@@ -53,7 +49,7 @@ impl From<LocalNodeId<Expression>> for SimpleArgument {
 
 /// Return whether one argument node is simple at one recursion depth.
 fn argument_is_simple(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
     depth: u8,
 ) -> bool {
@@ -70,7 +66,7 @@ fn argument_is_simple(
 
 /// Return whether one generic argument is simple at one recursion depth.
 fn generic_argument_is_simple(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<GenericArgument>,
     depth: u8,
 ) -> bool {
@@ -90,7 +86,7 @@ fn generic_argument_is_simple(
 
 /// Return whether one expression node is simple at one recursion depth.
 fn expression_is_simple(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     depth: u8,
 ) -> bool {
@@ -169,7 +165,7 @@ fn expression_is_simple(
 
 /// Return whether one call-like expression is simple at one recursion depth.
 fn call_like_is_simple(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     callee_id: LocalNodeId<Expression>,
     generic_arguments: &[LocalNodeId<GenericArgument>],
     arguments: &[LocalNodeId<Argument>],
@@ -188,7 +184,7 @@ fn call_like_is_simple(
 
 /// Return whether one template literal is simple at one recursion depth.
 pub(crate) fn template_literal_is_simple(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     template: &TemplateLiteral,
     depth: u8,
 ) -> bool {
@@ -210,7 +206,7 @@ pub(crate) fn template_literal_is_simple(
 
 /// Return whether one object expression is simple at one recursion depth.
 fn object_expression_is_simple(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     properties: &[LocalNodeId<Property>],
     depth: u8,
 ) -> bool {
@@ -222,7 +218,7 @@ fn object_expression_is_simple(
 
 /// Return whether one property is simple at one recursion depth.
 fn property_is_simple(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     property_id: LocalNodeId<Property>,
     depth: u8,
 ) -> bool {
@@ -236,7 +232,7 @@ fn property_is_simple(
 
 /// Return whether one array expression is simple at one recursion depth.
 fn array_expression_is_simple(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     elements: &[LocalNodeId<Argument>],
     depth: u8,
 ) -> bool {

@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -256,7 +256,7 @@ mod tests {
 
         session.assert_diagnostics(
             r#"warning[manual-checked-division]: manual zero guard precedes checked division
- ──▶ main.ds:2:9
+ ──▶ main.tspp:2:9
   │
 1 │ function divide(value: uint32, divisor: uint32): uint32 | undefined {
 2 │     if (divisor != 0) {
@@ -290,7 +290,7 @@ function divide(value: uint32, divisor: uint32): uint32 {
 
         session.assert_diagnostics(
             r#"warning[manual-checked-division]: manual zero guard precedes checked division
- ──▶ main.ds:2:9
+ ──▶ main.tspp:2:9
   │
 1 │ function divide(value: uint32, divisor: uint32): uint32 {
 2 │     if (divisor == 0) {
@@ -327,7 +327,7 @@ function divide(first: uint32, second: uint32, divisor: uint32): void {
 
         session.assert_diagnostics(
             r#"warning[manual-checked-division]: manual zero guard precedes checked division
- ──▶ main.ds:4:9
+ ──▶ main.tspp:4:9
   │
 2 │
 3 │ function divide(first: uint32, second: uint32, divisor: uint32): void {
@@ -364,7 +364,7 @@ function divide(value: uint32, divisor: uint32): uint32 {
 
         session.assert_diagnostics(
             r#"warning[manual-checked-division]: manual zero guard precedes checked division
- ──▶ main.ds:3:9
+ ──▶ main.tspp:3:9
   │
 1 │ function divide(value: uint32, divisor: uint32): uint32 {
 2 │     let result = value;
@@ -399,7 +399,7 @@ function remainder(value: uint32, divisor: uint32): uint32 | undefined {
 
         session.assert_diagnostics(
             r#"warning[manual-checked-division]: manual zero guard precedes checked division
- ──▶ main.ds:2:9
+ ──▶ main.tspp:2:9
   │
 1 │ function remainder(value: uint32, divisor: uint32): uint32 | undefined {
 2 │     if (divisor !== 0) {
@@ -434,7 +434,7 @@ function divide(value: uint32, divisor: uint32): void {
 
         session.assert_diagnostics(
             r#"warning[manual-checked-division]: manual zero guard precedes checked division
- ──▶ main.ds:4:9
+ ──▶ main.tspp:4:9
   │
 2 │
 3 │ function divide(value: uint32, divisor: uint32): void {

@@ -1,8 +1,8 @@
 use crate::{Compiler, CompilerError, CompilerResult, LinkError, LinkResult};
 
-use destack_artifact::{Bundle, BundleFile};
-use destack_repository::JsOutputFormat;
-use destack_source::ModuleId;
+use tspp_artifact::{Bundle, BundleFile};
+use tspp_repository::JsOutputFormat;
+use tspp_source::ModuleId;
 
 use super::JsLinker;
 

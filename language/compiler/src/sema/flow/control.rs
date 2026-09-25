@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::sema::{
     CheckState, ControlLabel, ControlTarget, ControlTargetForm, FlowBranch, TryTarget,

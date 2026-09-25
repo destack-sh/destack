@@ -1,7 +1,7 @@
-use destack_core::StringId;
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::*;
-use destack_fir::write;
+use tspp_core::StringId;
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::*;
+use tspp_fir::write;
 
 use super::value::format_type_id;
 

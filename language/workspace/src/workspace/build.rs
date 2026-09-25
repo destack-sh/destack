@@ -1,4 +1,4 @@
-use destack_artifact::BuildId;
+use tspp_artifact::BuildId;
 
 use super::Workspace;
 

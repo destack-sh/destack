@@ -4,7 +4,7 @@ use crate::tests::TestSession;
 fn test_lower_imported_function_call_to_an_extern_symbol() {
     let session = TestSession::builder()
         .module(
-            "math.ds",
+            "math.tspp",
             r#"
 export function add(a: int32, b: int32): int32 {
     return a + b;
@@ -12,7 +12,7 @@ export function add(a: int32, b: int32): int32 {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { add } from "./math";
 
@@ -24,7 +24,7 @@ function total(base: int32): int32 {
         .build();
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.total",
         r#"
 function test.main.total(v0: int32): int32 {
@@ -45,7 +45,7 @@ entry(v0: int32):
 fn test_lower_imported_call_returning_a_foreign_struct() {
     let session = TestSession::builder()
         .module(
-            "point.ds",
+            "point.tspp",
             r#"
 export struct Point {
     x: int32;
@@ -58,7 +58,7 @@ export function diagonal(a: int32, b: int32): Point {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { Point, diagonal } from "./point";
 
@@ -71,7 +71,7 @@ function stretch(by: int32): int32 {
         .build();
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.stretch",
         r#"
 type test.point.Point;
@@ -99,7 +99,7 @@ entry(v0: int32):
 fn test_lower_imported_struct_method_call_through_an_extern() {
     let session = TestSession::builder()
         .module(
-            "point.ds",
+            "point.tspp",
             r#"
 export struct Point {
     x: int32;
@@ -112,7 +112,7 @@ export struct Point {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { Point } from "./point";
 
@@ -124,7 +124,7 @@ function measure(by: int32): int32 {
         )
         .build();
 
-    session.assert_mir_function("main.ds", "test.main.measure", r#"
+    session.assert_mir_function("main.tspp", "test.main.measure", r#"
 type test.point.Point;
 
 function test.main.measure(v0: int32): int32 {
@@ -148,7 +148,7 @@ entry(v0: int32):
 fn test_lower_imported_class_construction_and_method_call() {
     let session = TestSession::builder()
         .module(
-            "box.ds",
+            "box.tspp",
             r#"
 export class Box {
     weight: int32 = 0;
@@ -164,7 +164,7 @@ export class Box {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { Box } from "./box";
 
@@ -176,7 +176,7 @@ function open(): int32 {
         )
         .build();
 
-    session.assert_mir_function("main.ds", "test.main.open", r#"
+    session.assert_mir_function("main.tspp", "test.main.open", r#"
 @nocopy
 type test.box.Box;
 
@@ -195,7 +195,7 @@ entry:
 }
 "#);
 
-    session.assert_mir_function("main.ds", "test.box.Box.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.box.Box.constructor", r#"
 @nocopy
 type test.box.Box;
 
@@ -203,7 +203,7 @@ external constructor test.box.Box.constructor(ref<uninit<test.box.Box>, borrowed
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.box.Box.weigh",
         r#"
 @nocopy
@@ -226,7 +226,7 @@ function duplicate(value: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.duplicate",
         r#"
 function test.main.duplicate(v0: int32): int32 {
@@ -246,7 +246,7 @@ entry(v0: int32):
 fn test_lower_an_imported_generic_call_instantiating_a_nested_class() {
     let session = TestSession::builder()
         .module(
-            "box.ds",
+            "box.tspp",
             r#"
 export class Holder<T: Copy> {
     value: T;
@@ -262,7 +262,7 @@ export function hold<T: Copy>(value: T): Holder<T> {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { hold } from "./box";
 
@@ -275,7 +275,7 @@ function go(): int32 {
         )
         .build();
 
-    session.assert_mir_function("main.ds", "test.main.go", r#"
+    session.assert_mir_function("main.tspp", "test.main.go", r#"
 @nocopy
 type test.box.Holder<T: Copy>;
 
@@ -288,7 +288,7 @@ entry:
 }
 "#);
 
-    session.assert_mir_function("main.ds", "test.box.hold<int64>", r#"
+    session.assert_mir_function("main.tspp", "test.box.hold<int64>", r#"
 @nocopy
 type test.box.Holder<T: Copy>;
 
@@ -300,7 +300,7 @@ shared function test.box.hold<int64>(v0: int64): ref<test.box.Holder<int64>, man
 fn test_lower_an_imported_generic_call_closing_over_a_nested_class() {
     let session = TestSession::builder()
         .module(
-            "box.ds",
+            "box.tspp",
             r#"
 export class Holder<T: Copy> {
     value: T;
@@ -318,7 +318,7 @@ export function hold<T: Copy>(value: T): Holder<T> {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { hold } from "./box";
 
@@ -331,7 +331,7 @@ function go(): int32 {
         )
         .build();
 
-    session.assert_mir_function("main.ds", "test.main.go", r#"
+    session.assert_mir_function("main.tspp", "test.main.go", r#"
 @nocopy
 type test.box.Holder<T: Copy>;
 
@@ -344,7 +344,7 @@ entry:
 }
 "#);
 
-    session.assert_mir_function("main.ds", "test.box.hold<int64>", r#"
+    session.assert_mir_function("main.tspp", "test.box.hold<int64>", r#"
 @nocopy
 type test.box.Holder<T: Copy>;
 
@@ -368,7 +368,7 @@ async function double(): Promise<int32> {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.fetchCount", r#"
+    session.assert_mir_function("main.tspp", "test.main.fetchCount", r#"
 @nocopy
 @languageItem("async.Promise")
 type Promise<T: Copy>;
@@ -386,7 +386,7 @@ entry:
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.fetchCount.body",
         r#"
 @environment(ref<{  }, unique, mutable>)
@@ -404,7 +404,7 @@ entry:
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.double", r#"
+    session.assert_mir_function("main.tspp", "test.main.double", r#"
 @nocopy
 @languageItem("async.Promise")
 type Promise<T: Copy>;
@@ -421,7 +421,7 @@ entry:
 /// @layout.struct name=type@6 size=0 align=1
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.double.body", r#"
+    session.assert_mir_function("main.tspp", "test.main.double.body", r#"
 @nocopy
 @languageItem("async.Promise")
 type Promise<T: Copy>;
@@ -462,7 +462,7 @@ function run(): void {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.run", r#"
+    session.assert_mir_function("main.tspp", "test.main.run", r#"
 @nocopy
 @languageItem("async.Promise")
 type Promise<T: Copy>;
@@ -476,7 +476,7 @@ entry:
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.pass<int64>",
         r#"
 @nocopy
@@ -507,7 +507,7 @@ function* tally(): Generator<int32, int32, int32> {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.count", r#"
+    session.assert_mir_function("main.tspp", "test.main.count", r#"
 @nocopy
 @languageItem("async.Generator")
 type Generator<Y, R, N>;
@@ -531,7 +531,7 @@ entry(v0: int32):
 /// @layout.field owner=type@72 index=0 offset=0 size=4 align=4
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.count.body", r#"
+    session.assert_mir_function("main.tspp", "test.main.count.body", r#"
 @languageItem("async.GeneratorNext")
 type GeneratorNext<N>;
 
@@ -606,7 +606,7 @@ b7:
 /// @layout.case owner=type@95 index=1 discriminant=1 payload_offset=1
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.tally", r#"
+    session.assert_mir_function("main.tspp", "test.main.tally", r#"
 @nocopy
 @languageItem("async.Generator")
 type Generator<Y, R, N>;
@@ -625,7 +625,7 @@ entry:
 /// @layout.struct name=type@11 size=0 align=1
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.tally.body", r#"
+    session.assert_mir_function("main.tspp", "test.main.tally.body", r#"
 @languageItem("async.GeneratorNext")
 type GeneratorNext<N>;
 
@@ -725,7 +725,7 @@ function makeAdder(base: int32): ^Function<(), Promise<int32>, "once"> {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.fetchCount", r#"
+    session.assert_mir_function("main.tspp", "test.main.fetchCount", r#"
 @nocopy
 @languageItem("async.Promise")
 type Promise<T: Copy>;
@@ -743,7 +743,7 @@ entry:
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.fetchCount.body",
         r#"
 @environment(ref<{  }, unique, mutable>)
@@ -761,7 +761,7 @@ entry:
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.makeAdder", r#"
+    session.assert_mir_function("main.tspp", "test.main.makeAdder", r#"
 @nocopy
 @languageItem("async.Promise")
 type Promise<T: Copy>;
@@ -785,7 +785,7 @@ entry(v0: int32):
 /// @layout.field owner=type@56 index=0 offset=0 size=4 align=4
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.makeAdder.closure#0", r#"
+    session.assert_mir_function("main.tspp", "test.main.makeAdder.closure#0", r#"
 @nocopy
 @languageItem("async.Promise")
 type Promise<T: Copy>;
@@ -808,7 +808,7 @@ entry:
 /// @layout.field owner=type@61 index=0 offset=0 size=8 align=8
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.makeAdder.closure#0.body", r#"
+    session.assert_mir_function("main.tspp", "test.main.makeAdder.closure#0.body", r#"
 @nocopy
 @languageItem("async.Promise")
 type Promise<T: Copy>;

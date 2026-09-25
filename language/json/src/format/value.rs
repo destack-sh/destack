@@ -1,5 +1,5 @@
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::*;
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::*;
 
 use crate::JsonValue;
 

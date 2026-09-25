@@ -3,7 +3,7 @@ use crate::{
     ExpressionPosition, ExpressionStop, ParserErrorKind, TypePosition, TypeStop,
     assert_expression_path, assert_node, assert_value_expression_path,
 };
-use destack_dir::{
+use tspp_dir::{
     Access, BinaryOperator, Expression, Literal, NodeType, TokenType, UnaryOperator, VarianceBound,
 };
 

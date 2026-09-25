@@ -3,12 +3,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_core::{Blob, BlobId};
-use destack_serde::Reflect;
-use destack_source as source;
-use destack_source::{FileId, FileMetadata, FileType, PathExt, StringId, Uri};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
+use tspp_core::{Blob, BlobId};
+use tspp_serde::Reflect;
+use tspp_source as source;
+use tspp_source::{FileId, FileMetadata, FileType, PathExt, StringId, Uri};
 
 use crate::DestackFile;
 use crate::repository::{Repository, RepositoryError, Revision};
@@ -48,7 +48,7 @@ impl FileEntry {
 pub(crate) struct FileCache {
     /// Loaded source files by identity and exact Blob.
     pub(crate) files: DashMap<(FileId, BlobId), Arc<source::File>>,
-    /// Parsed Destack files by path and exact Blob.
+    /// Parsed TS++ files by path and exact Blob.
     pub(crate) destack: DashMap<(FileId, BlobId), Result<Arc<DestackFile>, String>>,
 }
 

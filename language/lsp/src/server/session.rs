@@ -4,18 +4,18 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use destack_lsp_server::{Client, UriExt, jsonrpc};
-use destack_lsp_types as lsp;
-use destack_query as query;
-use destack_repository::{Host, Revision, SourceRoot, Trace};
-use destack_session::Executor;
-use destack_source::{File, TextChange};
-use destack_workspace::{QueryFile, Workspace};
 use parking_lot::RwLock;
 use serde::Deserialize;
 use serde_json::from_value;
+use tspp_lsp_server::{Client, UriExt, jsonrpc};
+use tspp_lsp_types as lsp;
+use tspp_query as query;
+use tspp_repository::{Host, Revision, SourceRoot, Trace};
+use tspp_session::Executor;
+use tspp_source::{File, TextChange};
+use tspp_workspace::{QueryFile, Workspace};
 
-use super::{DESTACK_URI_SCHEME, Project, ProjectSet, internal_error};
+use super::{Project, ProjectSet, TSPP_URI_SCHEME, internal_error};
 use crate::query::DiagnosticDelivery;
 
 /// State installed after one language server initialization.
@@ -235,7 +235,7 @@ impl ServerSession {
 
     /// Read one Builtin Package file by its canonical URI.
     pub(super) fn read_builtin_file(&self, uri: &lsp::Uri) -> jsonrpc::Result<Arc<File>> {
-        if uri.scheme().as_str() != DESTACK_URI_SCHEME {
+        if uri.scheme().as_str() != TSPP_URI_SCHEME {
             return Err(jsonrpc::Error::invalid_params(format!(
                 "unsupported source URI scheme: {}",
                 uri.scheme()
@@ -484,7 +484,7 @@ impl TryFrom<&lsp::InitializeParams> for ClientCapabilities {
             .transpose()
             .map_err(|error| {
                 jsonrpc::Error::invalid_params(format!(
-                    "invalid Destack initialization options: {error}"
+                    "invalid TS++ initialization options: {error}"
                 ))
             })?
             .unwrap_or_default();
@@ -630,11 +630,11 @@ impl ServerSettings {
         vec![
             lsp::ConfigurationItem {
                 scope_uri: None,
-                section: Some("destack.completion".to_string()),
+                section: Some("tspp.completion".to_string()),
             },
             lsp::ConfigurationItem {
                 scope_uri: None,
-                section: Some("destack.inlayHints".to_string()),
+                section: Some("tspp.inlayHints".to_string()),
             },
         ]
     }

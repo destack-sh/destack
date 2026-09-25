@@ -1,7 +1,7 @@
-use destack_core::FxIndexSet;
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::Patch;
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::Patch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -136,9 +136,9 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
 /// Rewrite one callable member as a function or constructor type.
 fn callable_type_source(
-    object: destack_source::Span,
-    member: destack_source::Span,
-    return_type: destack_source::Span,
+    object: tspp_source::Span,
+    member: tspp_source::Span,
+    return_type: tspp_source::Span,
     needs_parentheses: bool,
     module: &DirModule<'_>,
 ) -> Result<Option<String>, ProviderError> {
@@ -417,7 +417,7 @@ type Fluent = { (): this };
         session.assert_diagnostics(
             r#"
 warning[prefer-function-type]: object type contains only one callable signature
- ──▶ main.ds:1:15
+ ──▶ main.tspp:1:15
   │
 1 │ type Fluent = { (): this };
   │               ^^^^^^^^^^^^

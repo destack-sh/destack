@@ -1,7 +1,7 @@
 use std::f64::consts;
 
-use destack_dir as dir;
-use destack_source::Patch;
+use tspp_dir as dir;
+use tspp_source::Patch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -177,15 +177,15 @@ const angle = 3.1416;
         session.assert_diagnostics(
             r#"
 warning[no-approx-constant]: approximate value of `Math.PI`
- ──▶ main.ds:1:15
+ ──▶ main.tspp:1:15
   │
 1 │ const angle = 3.1416;
   │               ^^^^^^
   │
 
  = suggestion: use `Math.PI` (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ const angle = 3.1416;
 +   1│ const angle = Math.PI;

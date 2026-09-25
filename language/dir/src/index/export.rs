@@ -1,6 +1,6 @@
 use crate::{ExportTarget, Postings};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// Indexed resolved named exports.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]

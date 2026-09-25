@@ -4,9 +4,9 @@ use crate::emit::js;
 use crate::link::{OutputLayout, SourceMapBuilder, SourceMapMarker};
 use crate::{Compiler, CompilerError, CompilerResult, JsLinker};
 use base64::Engine;
-use destack_artifact::{BundleFile, BundleSection, DirParsed, Script, SourceMap};
-use destack_repository::{Module, ProviderContext, SourceMapMode, Target};
-use destack_source::{FileType, ModuleId, Uri};
+use tspp_artifact::{BundleFile, BundleSection, DirParsed, Script, SourceMap};
+use tspp_repository::{Module, ProviderContext, SourceMapMode, Target};
+use tspp_source::{FileType, ModuleId, Uri};
 
 /// One final JS text output derived from one target.
 #[derive(Debug, Clone, Copy)]

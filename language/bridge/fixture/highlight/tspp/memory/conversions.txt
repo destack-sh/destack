@@ -1,0 +1,11 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / conversions / owned to borrowed
+let point = ^Point { x: 1 };
+// <- keyword.declaration.variable.tspp
+let borrow = &point;
+// <- keyword.declaration.variable.tspp
+
+// memory / conversions / mutable to readonly
+let view: &readonly Point = borrow;
+// <- keyword.declaration.variable.tspp

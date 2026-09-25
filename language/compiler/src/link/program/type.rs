@@ -1,16 +1,16 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use destack_core::Optional;
-use destack_heap::DropId;
-use destack_mir as mir;
-use destack_program::{
+use tspp_core::Optional;
+use tspp_heap::DropId;
+use tspp_mir as mir;
+use tspp_program::{
     DropEntry, DynamicLayout, ElementLayout, FunctionId, FunctionLayout, LayoutField,
     LayoutShapeBuilder, NewtypeLayout, Object, ObjectLayoutBuilder, PointerLayout, ReferenceLayout,
     ScalarFormat, SignatureId, SliceLayout, TypeDescriptorBuilder, TypeFingerprint, TypeId,
     TypeTableBuilder, VariantCaseLayout, VariantLayoutBuilder,
 };
-use destack_source::{ModuleId, PackageId};
+use tspp_source::{ModuleId, PackageId};
 
 use crate::{LinkError, LinkResult};
 

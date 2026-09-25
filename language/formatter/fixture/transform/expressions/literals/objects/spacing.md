@@ -6,13 +6,13 @@
 
 Object braces get internal spacing, unlike arrays.
 
-```ds
+```tspp
 const x = {a:1,b:2}
 ```
 
 Spaces are added after `{` and before `}`.
 
-```ds expected
+```tspp expected
 const x = { a: 1, b: 2 };
 ```
 
@@ -20,11 +20,11 @@ const x = { a: 1, b: 2 };
 
 Property colons have no space before and one space after.
 
-```ds
+```tspp
 const x = { a : 1 }
 ```
 
-```ds expected
+```tspp expected
 const x = { a: 1 };
 ```
 
@@ -32,11 +32,11 @@ const x = { a: 1 };
 
 Short object literals remain on a single line.
 
-```ds
+```tspp
 const x = { a: 1, b: 2 }
 ```
 
-```ds expected
+```tspp expected
 const x = { a: 1, b: 2 };
 ```
 
@@ -44,11 +44,11 @@ const x = { a: 1, b: 2 };
 
 Empty objects stay compact.
 
-```ds
+```tspp
 const x = {  }
 ```
 
-```ds expected
+```tspp expected
 const x = {};
 ```
 
@@ -56,11 +56,11 @@ const x = {};
 
 Trailing commas in source are normalized.
 
-```ds
+```tspp
 const obj = { a: 1, }
 ```
 
-```ds expected
+```tspp expected
 const obj = { a: 1 };
 ```
 
@@ -68,10 +68,10 @@ const obj = { a: 1 };
 
 Single properties have spacing normalized.
 
-```ds
+```tspp
 const x = {   a : 1   }
 ```
 
-```ds expected
+```tspp expected
 const x = { a: 1 };
 ```

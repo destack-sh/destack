@@ -7,7 +7,7 @@ use crate::{
     local_trace_map, shared_trace_map, test_layout, test_layouts, visit_heap_references,
     visit_heap_root_slots,
 };
-use destack_mir::{Lifetime, Reference, TraceMap, TraceTable};
+use tspp_mir::{Lifetime, Reference, TraceMap, TraceTable};
 
 use super::{
     TestHeapPlan, TestTraceTable, read_mapped_bytes, test_heap, test_memory, test_storage,

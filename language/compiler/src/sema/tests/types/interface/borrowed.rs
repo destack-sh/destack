@@ -5,7 +5,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_keep_sibling_conformances_beside_a_borrowed_interface_argument() {
     let session = TestSession::single(
         r#"
-import { Add, Hash, Hasher } from "destack:ops";
+import { Add, Hash, Hasher } from "tspp:ops";
 
 class Foo {}
 
@@ -46,11 +46,11 @@ const derived = requireHash(Key { foo: new Foo(), name });
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Add, Hash, Hasher } from "destack:ops";
+import { Add, Hash, Hasher } from "tspp:ops";
 
 class Foo {}
 
@@ -89,7 +89,7 @@ const named: Name = requireHash<Name>(name);
 const derived: Key = requireHash<Key>(Key { foo: new Foo(), name });
 
 === dir ===
-import { Add, Hash, Hasher } from "destack:ops";
+import { Add, Hash, Hasher } from "tspp:ops";
 
 class Foo {}
 /// @type.symbol symbol=Foo source="class Foo {}" type=typeof Foo

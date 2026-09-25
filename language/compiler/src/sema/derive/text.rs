@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::sema::derive::{Component, ComponentProjection, Composite, Derivation};
 use crate::sema::{CheckState, Origin, Value};

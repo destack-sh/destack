@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_query::Module;
-use destack_repository::Revision;
-use destack_serde::Reflect;
-use destack_source::Uri;
 use serde::{Deserialize, Serialize};
+use tspp_query::Module;
+use tspp_repository::Revision;
+use tspp_serde::Reflect;
+use tspp_source::Uri;
 
 use crate::{Error, FileImage, QueryFile, RunQueryInput};
 

@@ -6,11 +6,11 @@
 
 Generic interfaces have type parameters in angle brackets.
 
-```ds
+```tspp
 interface Container<T> { value: T }
 ```
 
-```ds expected
+```tspp expected
 interface Container<T> {
     value: T;
 }
@@ -20,11 +20,11 @@ interface Container<T> {
 
 Type constraints use colon syntax: `T: Constraint`.
 
-```ds
+```tspp
 interface Container<T: Comparable> { value: T }
 ```
 
-```ds expected
+```tspp expected
 interface Container<T: Comparable> {
     value: T;
 }
@@ -34,11 +34,11 @@ interface Container<T: Comparable> {
 
 Variance modifiers precede type parameter names.
 
-```ds
+```tspp
 interface   Box< in  T , out U > { get(): U; set(value: T): void }
 ```
 
-```ds expected
+```tspp expected
 interface Box<in T, out U> {
     get(): U;
     set(value: T): void;
@@ -49,11 +49,11 @@ interface Box<in T, out U> {
 
 Multiple type parameters are separated by commas.
 
-```ds
+```tspp
 interface Map<K, V> { get(key: K): V; set(key: K, value: V): void }
 ```
 
-```ds expected
+```tspp expected
 interface Map<K, V> {
     get(key: K): V;
     set(key: K, value: V): void;

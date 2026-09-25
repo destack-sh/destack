@@ -1,8 +1,8 @@
-use destack_dir::{
+use tspp_dir::{
     CommentKind, Declaration, Expression, IntegerType, NodeType, TokenType, TypeExpression,
     TypeLiteral, WhereClause, WhereRelation,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::{
     TestParser, assert_comment, assert_expression_path, assert_node, assert_path, assert_string,

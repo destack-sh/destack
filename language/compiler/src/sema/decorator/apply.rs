@@ -1,8 +1,8 @@
 use std::mem::take;
 
-use destack_artifact::DiagnosticControlLevel;
-use destack_core::FxIndexSet;
-use destack_dir as dir;
+use tspp_artifact::DiagnosticControlLevel;
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
 
 use crate::CompilerResult;
 use crate::sema::{

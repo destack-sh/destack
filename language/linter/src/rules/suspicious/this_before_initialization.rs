@@ -1,7 +1,7 @@
-use destack_core::{FxIndexMap, FxIndexSet};
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::StringId;
+use tspp_core::{FxIndexMap, FxIndexSet};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::StringId;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -262,7 +262,7 @@ class Point {
         session.assert_diagnostics(
             r#"
 warning[this-before-initialization]: 'this' is used before every field initializes
- ──▶ main.ds:7:9
+ ──▶ main.tspp:7:9
   │
 5 │     constructor(x: float64, y: float64) {
 6 │         this.x = x;
@@ -297,7 +297,7 @@ class Point {
         session.assert_diagnostics(
             r#"
 warning[this-before-initialization]: 'this' is used before every field initializes
- ──▶ main.ds:7:18
+ ──▶ main.tspp:7:18
   │
 5 │
 6 │     constructor(x: float64) {

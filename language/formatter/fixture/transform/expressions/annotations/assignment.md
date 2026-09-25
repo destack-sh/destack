@@ -6,12 +6,12 @@
 
 Assignment right side marker comments stay attached to the assigned expression.
 
-```ds:main.ds
+```tspp:main.tspp
 longVariableName1 = // @ts-ignore
 (variable01 + veryLongVariableNameNumber2).method()
 ```
 
-```ds expected
+```tspp expected
 longVariableName1 = // @ts-ignore
     (variable01 + veryLongVariableNameNumber2).method();
 ```
@@ -20,7 +20,7 @@ longVariableName1 = // @ts-ignore
 
 Comments around assignment to arrow expressions stay attached to the assigned arrow.
 
-```ds:main.ds
+```tspp:main.tspp
 const handler = /* marker */
 
   // before-arrow
@@ -28,7 +28,7 @@ const handler = /* marker */
   () => {}
 ```
 
-```ds expected
+```tspp expected
 const handler =
     /* marker */
 

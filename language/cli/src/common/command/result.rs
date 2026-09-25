@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::time::Duration;
 
-use destack_serde::Value;
-use destack_source::{DiagnosticCollection, File, FileId};
-use destack_workspace::{CommandError, CommandOutput, FileImage, Output};
+use tspp_serde::Value;
+use tspp_source::{DiagnosticCollection, File, FileId};
+use tspp_workspace::{CommandError, CommandOutput, FileImage, Output};
 
 use crate::console;
 use crate::diagnostic::{ConsoleError, ConsoleResult};

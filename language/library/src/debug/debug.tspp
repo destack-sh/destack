@@ -1,0 +1,428 @@
+import { Result } from "tspp:error";
+import { HostError } from "tspp:error/host";
+import { SourceLocation } from "tspp:error/stack";
+import { FrameId, FrameSlotId, FrameStateId } from "tspp:runtime/frame";
+import { BranchId, Moment } from "tspp:runtime/lineage";
+import { WorkerId, WorldHandle, WorldViewHandle } from "tspp:runtime/world";
+
+/// Runtime debug scope identifier.
+@languageItem("debug.ScopeId")
+export newtype ScopeId = uint32;
+
+/// Runtime debug binding identifier.
+@languageItem("debug.BindingId")
+export newtype BindingId = uint32;
+
+/// Runtime inline frame identifier.
+@languageItem("debug.InlineFrameId")
+export newtype InlineFrameId = uint32;
+
+/// Runtime execution point inside one frame.
+@languageItem("debug.ExecutionPoint")
+export struct ExecutionPoint {
+    /// Worker stopped at this point.
+    worker: WorkerId;
+    /// Frame stopped at this point.
+    frame: FrameId;
+    /// Frame state stopped at this point.
+    frameState: FrameStateId;
+}
+
+/// Source-level projection for one execution point.
+@languageItem("debug.Point")
+export struct Point {
+    /// Execution coordinate.
+    execution: ExecutionPoint;
+    /// Source location when debug metadata is available.
+    location?: SourceLocation;
+    /// Active scope when debug metadata is available.
+    scope?: ScopeId;
+    /// Active inline frame when this point is inlined.
+    inlineFrame?: InlineFrameId;
+}
+
+/// Debugger stop reason.
+@languageItem("debug.StopReason")
+export enum StopReason {
+    /// Execution is paused explicitly.
+    Pause = 1,
+    /// Execution stopped after one debugger step.
+    Step = 2,
+    /// Execution reached a breakpoint.
+    Breakpoint = 3,
+    /// Execution trapped.
+    Trap = 4,
+    /// Execution panicked.
+    Panic = 5,
+    /// Execution yielded to the runtime.
+    Yield = 6,
+    /// Execution stopped on a scenario event.
+    Scenario = 7,
+}
+
+/// Debugger stop state.
+@languageItem("debug.Stop")
+export struct Stop {
+    /// World history coordinate.
+    moment: Moment;
+    /// Stop reason.
+    reason: StopReason;
+    /// Stopped worker.
+    worker: WorkerId;
+    /// Source-level debug point when available.
+    point?: Point;
+}
+
+/// Debugger step mode.
+@languageItem("debug.StepMode")
+export enum StepMode {
+    /// Step by one lowered program point.
+    Instruction = 1,
+    /// Step to the next source statement boundary.
+    Statement = 2,
+    /// Step to the next source line boundary.
+    Line = 3,
+    /// Step into calls.
+    Into = 4,
+    /// Step over calls.
+    Over = 5,
+    /// Step out of the current frame.
+    Out = 6,
+}
+
+/// Debugger step options.
+@languageItem("debug.StepOptions")
+export struct StepOptions {
+    /// Step mode.
+    mode: StepMode;
+    /// Optional number of steps.
+    count?: uint32;
+}
+
+/// Source-level debug scope.
+@languageItem("debug.Scope")
+export struct Scope {
+    /// Scope identifier.
+    id: ScopeId;
+    /// Optional display name.
+    name?: string;
+    /// Parent scope when present.
+    parent?: ScopeId;
+}
+
+/// Debug binding kind.
+@languageItem("debug.BindingKind")
+export enum BindingKind {
+    /// Function parameter binding.
+    Parameter = 1,
+    /// Local binding.
+    Local = 2,
+    /// Captured binding.
+    Capture = 3,
+    /// Compiler-synthesized binding.
+    Synthetic = 4,
+}
+
+/// Source-level debug binding.
+@languageItem("debug.Binding")
+export struct Binding {
+    /// Binding identifier.
+    id: BindingId;
+    /// Binding name.
+    name: string;
+    /// Binding kind.
+    kind: BindingKind;
+    /// Scope containing this binding.
+    scope: ScopeId;
+}
+
+/// Debug slot binding value.
+@languageItem("debug.ValueSlot")
+export struct ValueSlot {
+    /// Value discriminator.
+    kind: "slot";
+    /// Frame slot containing this value when available.
+    slot: FrameSlotId;
+}
+
+/// Debug byte binding value.
+@languageItem("debug.ValueBytes")
+export struct ValueBytes {
+    /// Value discriminator.
+    kind: "bytes";
+    /// Encoded value bytes when available.
+    bytes: [uint8];
+}
+
+/// Optimized-out debug binding value.
+@languageItem("debug.ValueOptimizedOut")
+export struct ValueOptimizedOut {
+    /// Value discriminator.
+    kind: "optimizedOut";
+}
+
+/// Unavailable debug binding value.
+@languageItem("debug.ValueUnavailable")
+export struct ValueUnavailable {
+    /// Value discriminator.
+    kind: "unavailable";
+}
+
+/// Debug binding value.
+@languageItem("debug.Value")
+export newtype Value = ValueSlot | ValueBytes | ValueOptimizedOut | ValueUnavailable;
+
+/// Debug scope list page.
+@languageItem("debug.ScopePage")
+export struct ScopePage {
+    /// Scope records in this page.
+    scopes: Scope[];
+    /// Next scope cursor when more records exist.
+    next?: ScopeId;
+}
+
+/// Debug binding list page.
+@languageItem("debug.BindingPage")
+export struct BindingPage {
+    /// Binding records in this page.
+    bindings: Binding[];
+    /// Next binding cursor when more records exist.
+    next?: BindingId;
+}
+
+/// Debugger for one world.
+@languageItem("debug.Debugger")
+export class Debugger {
+    /// World controlled by this debugger.
+    readonly world: WorldHandle;
+
+    /// Create a debugger.
+    constructor(world: WorldHandle) {
+        this.world = world;
+    }
+
+    /// Return the current stop state.
+    stop(&readonly this): Result<Stop, HostError> {
+        readStop(this.world)
+    }
+
+    /// Return the debug point for one frame.
+    point(
+        &readonly this,
+        view: WorldViewHandle,
+        worker: WorkerId,
+        frame: FrameId,
+    ): Result<Point, HostError> {
+        readPoint(view, worker, frame)
+    }
+
+    /// List source scopes visible from one frame.
+    scopes(
+        &readonly this,
+        view: WorldViewHandle,
+        frame: FrameId,
+        limit: uint32,
+        after?: ScopeId,
+    ): Result<ScopePage, HostError> {
+        listScopes(view, frame, limit, after)
+    }
+
+    /// List source bindings visible from one scope.
+    bindings(
+        &readonly this,
+        view: WorldViewHandle,
+        scope: ScopeId,
+        limit: uint32,
+        after?: BindingId,
+    ): Result<BindingPage, HostError> {
+        listBindings(view, scope, limit, after)
+    }
+
+    /// Read one source binding value.
+    read(
+        &readonly this,
+        view: WorldViewHandle,
+        frame: FrameId,
+        binding: BindingId,
+    ): Result<Value, HostError> {
+        readBinding(view, frame, binding)
+    }
+
+    /// Pause execution.
+    pause(&readonly this): Result<Stop, HostError> {
+        pause(this.world)
+    }
+
+    /// Resume execution.
+    resume(&readonly this): Result<Stop, HostError> {
+        resume(this.world)
+    }
+
+    /// Step execution.
+    step(&readonly this, worker: WorkerId, options: StepOptions): Result<Stop, HostError> {
+        step(this.world, worker, options)
+    }
+
+    /// Rewind execution to one moment.
+    rewind(&readonly this, moment: Moment): Result<Stop, HostError> {
+        rewind(this.world, moment)
+    }
+
+    /// Run execution to one moment.
+    runTo(&readonly this, moment: Moment): Result<Stop, HostError> {
+        runTo(this.world, moment)
+    }
+
+    /// Fork execution at one moment.
+    forkAt(&readonly this, moment: Moment): Result<BranchId, HostError> {
+        forkAt(this.world, moment)
+    }
+}
+
+/// Open a debugger for one world.
+export function open(world: WorldHandle): Debugger {
+    new Debugger(world)
+}
+
+/// Return the current debugger stop state.
+@binding("tspp.debug.currentStop", {
+    effect: "deterministic",
+    requires: ["runtime.debug.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function readStop(world: WorldHandle): Result<Stop, HostError>;
+
+/// Return the debug point for one frame.
+@binding("tspp.debug.point", {
+    effect: "deterministic",
+    requires: ["runtime.debug.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function readPoint(
+    view: WorldViewHandle,
+    worker: WorkerId,
+    frame: FrameId,
+): Result<Point, HostError>;
+
+/// List source scopes visible from one frame.
+@binding("tspp.debug.scopes", {
+    effect: "deterministic",
+    requires: ["runtime.debug.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function listScopes(
+    view: WorldViewHandle,
+    frame: FrameId,
+    limit: uint32,
+    after?: ScopeId,
+): Result<ScopePage, HostError>;
+
+/// List source bindings visible from one scope.
+@binding("tspp.debug.bindings", {
+    effect: "deterministic",
+    requires: ["runtime.debug.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function listBindings(
+    view: WorldViewHandle,
+    scope: ScopeId,
+    limit: uint32,
+    after?: BindingId,
+): Result<BindingPage, HostError>;
+
+/// Read one source binding value.
+@binding("tspp.debug.binding", {
+    effect: "deterministic",
+    requires: ["runtime.debug.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function readBinding(
+    view: WorldViewHandle,
+    frame: FrameId,
+    binding: BindingId,
+): Result<Value, HostError>;
+
+/// Pause debugger execution.
+@binding("tspp.debug.pause", {
+    effect: "deterministic",
+    requires: ["runtime.debug.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function pause(world: WorldHandle): Result<Stop, HostError>;
+
+/// Resume debugger execution.
+@binding("tspp.debug.resume", {
+    effect: "deterministic",
+    requires: ["runtime.debug.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function resume(world: WorldHandle): Result<Stop, HostError>;
+
+/// Step debugger execution.
+@binding("tspp.debug.step", {
+    effect: "deterministic",
+    requires: ["runtime.debug.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function step(
+    world: WorldHandle,
+    worker: WorkerId,
+    options: StepOptions,
+): Result<Stop, HostError>;
+
+/// Rewind debugger execution to one moment.
+@binding("tspp.debug.rewind", {
+    effect: "deterministic",
+    requires: ["runtime.debug.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function rewind(world: WorldHandle, moment: Moment): Result<Stop, HostError>;
+
+/// Run debugger execution to one moment.
+@binding("tspp.debug.runTo", {
+    effect: "deterministic",
+    requires: ["runtime.debug.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function runTo(world: WorldHandle, moment: Moment): Result<Stop, HostError>;
+
+/// Fork debugger execution at one moment.
+@binding("tspp.debug.forkAt", {
+    effect: "deterministic",
+    requires: ["runtime.debug.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function forkAt(world: WorldHandle, moment: Moment): Result<BranchId, HostError>;

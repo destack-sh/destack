@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -158,7 +158,7 @@ function classify(value: int32): string {
         session.assert_diagnostics(
             r#"
 warning[prefer-else]: terminal value alternative is separate from its if
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function classify(value: int32): string {
 2 │     if (value < 0) {
@@ -168,7 +168,7 @@ warning[prefer-else]: terminal value alternative is separate from its if
   │
 
 warning[prefer-else]: terminal value alternative is separate from its if
- ──▶ main.ds:5:5
+ ──▶ main.tspp:5:5
   │
 3 │         return "negative";
 4 │     }
@@ -199,7 +199,7 @@ function checked(result: int32, overflow: boolean): int32 | undefined {
         session.assert_diagnostics(
             r#"
 warning[prefer-else]: terminal value alternative is separate from its if
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function checked(result: int32, overflow: boolean): int32 | undefined {
 2 │     if (overflow) {

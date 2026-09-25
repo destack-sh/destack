@@ -15,7 +15,7 @@ function run(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -70,7 +70,7 @@ function run(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -140,7 +140,7 @@ function run(holder: Holder): User {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -259,7 +259,7 @@ function run(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -318,7 +318,7 @@ function run(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -401,7 +401,7 @@ const block = () => {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -465,7 +465,7 @@ function run(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -553,7 +553,7 @@ function run(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -621,7 +621,7 @@ function run(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -681,7 +681,7 @@ function run(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -746,7 +746,7 @@ function run(): void {
 fn test_select_a_blanket_member_over_the_owned_form() {
     let session = TestSession::single(
         r#"
-import { Owned } from "destack:memory";
+import { Owned } from "tspp:memory";
 
 class User {}
 
@@ -772,11 +772,11 @@ function run(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
-import { Owned } from "destack:memory";
+import { Owned } from "tspp:memory";
 
 class User {}
 
@@ -800,7 +800,7 @@ function run(): void {
 }
 
 === dir ===
-import { Owned } from "destack:memory";
+import { Owned } from "tspp:memory";
 
 class User {}
 /// @type.symbol symbol=User source="class User {}" type=typeof User
@@ -906,7 +906,7 @@ function pass(input: ^User): ^User {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -993,7 +993,7 @@ function run(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -1074,7 +1074,7 @@ function fill<T: Default>(): Slot<T> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===

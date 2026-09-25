@@ -8,7 +8,7 @@ use super::tests::{TestProgram, assert_success, execute, input_args_from_path};
 fn test_build_dry_run_single_file() {
     // set up a minimal source file
     let program = TestProgram::new("build_dry_run");
-    let path = program.write_text("main.ds", "export const answer: int32 = 42;\n");
+    let path = program.write_text("main.tspp", "export const answer: int32 = 42;\n");
 
     // build args with dry run enabled
     let args = BuildArgs {

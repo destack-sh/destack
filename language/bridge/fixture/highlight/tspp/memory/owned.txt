@@ -1,0 +1,8 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / owned / owned placement and dereference
+let owned: ^User = ^User.create();
+//         ^ keyword.operator.owned.tspp
+
+let value = *owned;
+//          ^ keyword.operator.pointer.tspp

@@ -9,7 +9,7 @@ const value = 42n;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -33,7 +33,7 @@ let value = 42n;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -57,7 +57,7 @@ const value: bigint = 42n;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -81,7 +81,7 @@ const value: number = 42n;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -110,7 +110,7 @@ const value: bigint | string = 42n;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -129,7 +129,7 @@ const value: bigint | string = 42n;
 fn test_bigint_literal_resolves_extension_member() {
     let session = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 const isZero = (1n).isZero;
 
@@ -139,7 +139,7 @@ isZero satisfies boolean;
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -171,7 +171,7 @@ isZero satisfies boolean;
 fn test_bigint_alias_resolves_extension_member() {
     let session = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let value: bigint = 1n;
 const isZero = value.isZero;
@@ -182,7 +182,7 @@ isZero satisfies boolean;
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===

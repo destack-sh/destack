@@ -42,7 +42,7 @@ fn expand_input(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
         if let GenericParam::Type(parameter) = parameter {
             parameter
                 .bounds
-                .push(syn::parse_quote!(destack_serde::Reflect));
+                .push(syn::parse_quote!(tspp_serde::Reflect));
         }
     }
 
@@ -50,8 +50,8 @@ fn expand_input(input: DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let name = ident.to_string();
 
     Ok(quote! {
-        impl #impl_generics destack_serde::Reflect for #ident #type_generics #where_clause {
-            fn reflect(schema: &mut destack_serde::Schema) -> destack_serde::Type {
+        impl #impl_generics tspp_serde::Reflect for #ident #type_generics #where_clause {
+            fn reflect(schema: &mut tspp_serde::Schema) -> tspp_serde::Type {
                 schema.declare(
                     #module,
                     #name,
@@ -112,7 +112,7 @@ fn ty(attributes: &[syn::Attribute], data: &Data) -> syn::Result<proc_macro2::To
                     let payload = payload(&variant.fields)?;
 
                     Ok(quote! {
-                        destack_serde::Variant {
+                        tspp_serde::Variant {
                             name: #name.to_string(),
                             docs: vec![#(#docs.to_string()),*],
                             payload: #payload,
@@ -121,11 +121,11 @@ fn ty(attributes: &[syn::Attribute], data: &Data) -> syn::Result<proc_macro2::To
                 })
                 .collect::<syn::Result<Vec<_>>>()?;
 
-            Ok(quote!(destack_serde::Type::Enum(vec![#(#variants),*])))
+            Ok(quote!(tspp_serde::Type::Enum(vec![#(#variants),*])))
         }
         Data::Union(data) => Err(syn::Error::new(
             data.union_token.span,
-            "Destack schemas do not support unions",
+            "TS++ schemas do not support unions",
         )),
     }
 }
@@ -144,7 +144,7 @@ fn transparent_type(fields: &Fields) -> syn::Result<proc_macro2::TokenStream> {
     };
     let ty = &field.ty;
 
-    Ok(quote!(<#ty as destack_serde::Reflect>::reflect(schema)))
+    Ok(quote!(<#ty as tspp_serde::Reflect>::reflect(schema)))
 }
 
 /// Build one reflected struct type.
@@ -153,25 +153,25 @@ fn struct_type(fields: &Fields) -> syn::Result<proc_macro2::TokenStream> {
         Fields::Named(fields) => {
             let fields = named_fields(fields)?;
 
-            Ok(quote!(destack_serde::Type::Struct(#fields)))
+            Ok(quote!(tspp_serde::Type::Struct(#fields)))
         }
         Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
             let Some(field) = fields.unnamed.first() else {
                 return Err(syn::Error::new_spanned(fields, "expected newtype field"));
             };
             let Some(field) = active_field(field)? else {
-                return Ok(quote!(destack_serde::Type::Tuple(Vec::new())));
+                return Ok(quote!(tspp_serde::Type::Tuple(Vec::new())));
             };
             let ty = &field.ty;
 
-            Ok(quote!(<#ty as destack_serde::Reflect>::reflect(schema)))
+            Ok(quote!(<#ty as tspp_serde::Reflect>::reflect(schema)))
         }
         Fields::Unnamed(fields) => {
             let fields = unnamed_types(fields)?;
 
-            Ok(quote!(destack_serde::Type::Tuple(#fields)))
+            Ok(quote!(tspp_serde::Type::Tuple(#fields)))
         }
-        Fields::Unit => Ok(quote!(destack_serde::Type::Struct(Vec::new()))),
+        Fields::Unit => Ok(quote!(tspp_serde::Type::Struct(Vec::new()))),
     }
 }
 
@@ -205,7 +205,7 @@ fn unnamed_types(fields: &syn::FieldsUnnamed) -> syn::Result<proc_macro2::TokenS
             let field = field?;
             let ty = &field.ty;
 
-            Ok(quote!(<#ty as destack_serde::Reflect>::reflect(schema)))
+            Ok(quote!(<#ty as tspp_serde::Reflect>::reflect(schema)))
         })
         .collect::<syn::Result<Vec<_>>>()?;
 
@@ -240,10 +240,10 @@ fn field_schema(field: &syn::Field, name: String) -> syn::Result<proc_macro2::To
     let ty = &field.ty;
 
     Ok(quote! {
-        destack_serde::Field {
+        tspp_serde::Field {
             name: #name.to_string(),
             docs: vec![#(#docs.to_string()),*],
-            ty: <#ty as destack_serde::Reflect>::reflect(schema),
+            ty: <#ty as tspp_serde::Reflect>::reflect(schema),
         }
     })
 }
@@ -251,31 +251,31 @@ fn field_schema(field: &syn::Field, name: String) -> syn::Result<proc_macro2::To
 /// Build enum variant payload schema.
 fn payload(input: &Fields) -> syn::Result<proc_macro2::TokenStream> {
     match input {
-        Fields::Unit => Ok(quote!(destack_serde::Payload::Unit)),
+        Fields::Unit => Ok(quote!(tspp_serde::Payload::Unit)),
         Fields::Unnamed(fields) if fields.unnamed.len() == 1 => {
             let Some(field) = fields.unnamed.first() else {
                 return Err(syn::Error::new_spanned(input, "expected newtype field"));
             };
             let Some(field) = active_field(field)? else {
-                return Ok(quote!(destack_serde::Payload::Unit));
+                return Ok(quote!(tspp_serde::Payload::Unit));
             };
             let ty = &field.ty;
 
-            Ok(quote!(destack_serde::Payload::Value(
-                <#ty as destack_serde::Reflect>::reflect(schema),
+            Ok(quote!(tspp_serde::Payload::Value(
+                <#ty as tspp_serde::Reflect>::reflect(schema),
             )))
         }
         Fields::Unnamed(fields) => {
             let fields = unnamed_types(fields)?;
 
-            Ok(quote!(destack_serde::Payload::Value(
-                destack_serde::Type::Tuple(#fields),
+            Ok(quote!(tspp_serde::Payload::Value(
+                tspp_serde::Type::Tuple(#fields),
             )))
         }
         Fields::Named(fields) => {
             let fields = named_fields(fields)?;
 
-            Ok(quote!(destack_serde::Payload::Struct(#fields)))
+            Ok(quote!(tspp_serde::Payload::Struct(#fields)))
         }
     }
 }
@@ -360,7 +360,7 @@ fn validate_serde_options(attributes: &[syn::Attribute], allowed: &[&str]) -> sy
                 .unwrap_or_else(|| "<qualified>".to_string());
             if !allowed.iter().any(|allowed| *allowed == name) {
                 return Err(meta.error(format!(
-                    "serde option `{name}` is not represented by the Destack wire schema"
+                    "serde option `{name}` is not represented by the TS++ wire schema"
                 )));
             }
 

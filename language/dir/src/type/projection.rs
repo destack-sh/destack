@@ -1,5 +1,5 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use crate::{
     Access, Call, CallDecision, Dereference, DereferenceResolution, FieldResolution, GlobalTypeId,
@@ -10,7 +10,7 @@ use crate::{
 /// Value projection selected during checking.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// point.x               // Field
 /// user.name             // Call, when backed by a getter
 /// bag[key]              // Subscript
@@ -34,7 +34,7 @@ pub enum Projection {
     /// Produce `undefined` for one statically absent destructuring field.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// const { missing = fallback } = {};
     /// ```
     Absent {
@@ -44,7 +44,7 @@ pub enum Projection {
     /// Extract one static layout field from an aggregate value.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// point.x
     /// tuple[0]
     /// user[uniqueName]
@@ -53,14 +53,14 @@ pub enum Projection {
     /// Read one dynamically selected subscript value.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// const { [key]: value } = object;
     /// ```
     Subscript(Box<Subscript>),
     /// Read one value through a selected call.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// const [head] = values; // selected Sequence.index call
     /// const [head, ...tail] = values; // selected Sequence.rest call
     /// ```
@@ -68,7 +68,7 @@ pub enum Projection {
     /// Read through one selected member access.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// declare const value: { item: Readable } & { item: Writable };
     /// const { item } = value;
     /// ```
@@ -76,7 +76,7 @@ pub enum Projection {
     /// Materialize one object rest value from selected fields.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// const { name, ...rest } = user;
     /// ```
     ObjectRest {
@@ -88,7 +88,7 @@ pub enum Projection {
     /// Read the runtime length from a slice descriptor.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// values.length
     /// ```
     SliceLength {
@@ -98,7 +98,7 @@ pub enum Projection {
     /// Read the erased payload from a dynamic value.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// dynamic.payload
     /// ```
     DynamicPayload {
@@ -108,7 +108,7 @@ pub enum Projection {
     /// Read the concrete type id from a dynamic value.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// dynamic.type
     /// ```
     DynamicType {
@@ -118,7 +118,7 @@ pub enum Projection {
     /// Read a singleton property that distinguishes every arm of a union.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// shape.kind
     /// result.success
     /// ```
@@ -135,7 +135,7 @@ pub enum Projection {
     /// Unwrap one newtype payload.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// newtype UserId = string;
     /// match id { UserId(raw) => raw }
     /// ```
@@ -148,7 +148,7 @@ pub enum Projection {
     /// Borrow the input before matching it.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// match &value { Pattern => ... }
     /// ```
     Borrow {
@@ -160,7 +160,7 @@ pub enum Projection {
     /// Move the input before matching it.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// match ^value { Pattern => ... }
     /// ```
     Move {
@@ -172,14 +172,14 @@ pub enum Projection {
     /// Dereference the input before matching it.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// match *box { Point { x, y } => ... }
     /// ```
     Dereference(Dereference),
     /// Duplicate one copyable value out of a place or view.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// takeHandle(view.handle) // copies the handle out of the view
     /// value as float64        // copies the scalar it converts
     /// ```
@@ -203,7 +203,7 @@ pub struct DiscriminantCase {
 /// Projection selected for one value or every runtime union arm.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// const { x } = value; // Union when value is a union
 /// ```
 pub type ProjectionResolution = OperationResolution<Projection>;

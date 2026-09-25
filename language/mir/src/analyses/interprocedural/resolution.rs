@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use destack_core::BitSet;
+use tspp_core::BitSet;
 
 use crate as mir;
 use crate::{Analysis, Mutation};
@@ -1332,7 +1332,7 @@ entry(v0: int32):
             concrete: receiver,
             constraint: interface,
             functions: vec![mir::WitnessFunction {
-                member: destack_core::StringId::for_text("clone"),
+                member: tspp_core::StringId::for_text("clone"),
                 requirement,
                 function: callee,
                 arguments: Vec::new(),

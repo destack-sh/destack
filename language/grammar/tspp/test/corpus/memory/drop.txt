@@ -1,0 +1,97 @@
+================================================================================
+Drop member syntax
+:language(tspp)
+================================================================================
+
+class Resource {
+    drop(): void {
+        cleanup();
+    }
+}
+
+--------------------------------------------------------------------------------
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (statement_block
+          (expression_statement
+            (call_expression
+              (identifier)
+              (arguments))))))))
+
+================================================================================
+Explicit drop operations
+:language(tspp)
+================================================================================
+
+function run(): void {
+    let buffer: ^Buffer = Buffer.open();
+    process(&buffer);
+    drop(buffer);
+    forget(ManuallyDrop.create(Buffer.open()));
+    Box.leak(Buffer.open());
+}
+
+--------------------------------------------------------------------------------
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (predefined_type))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (type_annotation
+            (memory_type
+              (type_identifier)))
+          (call_expression
+            (member_expression
+              (identifier)
+              (property_identifier))
+            (arguments))))
+      (expression_statement
+        (call_expression
+          (identifier)
+          (arguments
+            (memory_expression
+              (identifier)))))
+      (expression_statement
+        (call_expression
+          (identifier)
+          (arguments
+            (identifier))))
+      (expression_statement
+        (call_expression
+          (identifier)
+          (arguments
+            (call_expression
+              (member_expression
+                (identifier)
+                (property_identifier))
+              (arguments
+                (call_expression
+                  (member_expression
+                    (identifier)
+                    (property_identifier))
+                  (arguments)))))))
+      (expression_statement
+        (call_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (arguments
+            (call_expression
+              (member_expression
+                (identifier)
+                (property_identifier))
+              (arguments))))))))

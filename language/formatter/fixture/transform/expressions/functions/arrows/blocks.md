@@ -6,11 +6,11 @@
 
 Block bodies expand to multiple lines with indented content.
 
-```ds
+```tspp
 const f = (x) => { return x * 2 }
 ```
 
-```ds expected
+```tspp expected
 const f = (x) => {
     return x * 2;
 };
@@ -20,11 +20,11 @@ const f = (x) => {
 
 Multiple statements require a block body.
 
-```ds
+```tspp
 const f = (x) => { const y = x * 2; return y + 1 }
 ```
 
-```ds expected
+```tspp expected
 const f = (x) => {
     const y = x * 2;
     return y + 1;
@@ -35,11 +35,11 @@ const f = (x) => {
 
 Short arrow blocks expand nested control-flow tails.
 
-```ds
+```tspp
 const f = (x: number): number => { const y = x * 2; if (y > 10) { y } else { y + 1 } }
 ```
 
-```ds expected
+```tspp expected
 const f = (x: number): number => {
     const y = x * 2;
     if (y > 10) {
@@ -54,11 +54,11 @@ const f = (x: number): number => {
 
 Arrow blocks preserve semicolonless value tails.
 
-```ds
+```tspp
 const f = (x: number): number => { const y = x * 2; if (y > 10) { const capped = y - 1; capped } else { const boosted = y + 1; boosted } }
 ```
 
-```ds expected
+```tspp expected
 const f = (x: number): number => {
     const y = x * 2;
     if (y > 10) {
@@ -75,11 +75,11 @@ const f = (x: number): number => {
 
 Terminal semicolons in arrow blocks keep statement position.
 
-```ds
+```tspp
 const f = (x: number): number => { const y = x * 2; y; }
 ```
 
-```ds expected
+```tspp expected
 const f = (x: number): number => {
     const y = x * 2;
     y;
@@ -90,10 +90,10 @@ const f = (x: number): number => {
 
 Empty blocks have internal spacing.
 
-```ds
+```tspp
 const f = () => { }
 ```
 
-```ds expected
+```tspp expected
 const f = () => {};
 ```

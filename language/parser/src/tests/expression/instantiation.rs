@@ -4,7 +4,7 @@ use crate::{
     CommentRetention, ParserErrorKind, assert_expression_path, assert_node, assert_path,
     assert_string,
 };
-use destack_dir::{
+use tspp_dir::{
     Argument, AssignOperator, BinaryOperator, Declarator, Expression, GenericArgument, Literal,
     Name, Pattern, PostfixPosition, TypeExpression, TypeLiteral, TypeMember, UnaryOperator,
 };

@@ -1,16 +1,16 @@
 use super::shape::expression_is_lambda_declaration;
 use super::ternary::{expression_is_ternary_branch, ternary_branch_is_tree_like};
-use crate::DestackFormatContext;
+use crate::TsppFormatContext;
 use crate::declaration::expression_is_in_statement_context;
-use destack_dir::{
+use tspp_dir::{
     Argument, AssignPattern, BinaryOperator, Declaration, Expression, FunctionForm, IfForm,
     LocalNodeId, MatchArm, NodeType, OperatorPrecedence, Property, TypeExpression,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType, Span};
+use tspp_source::{NodeSpanRegion, NodeSpanType, Span};
 
 /// Return whether one expression is a match arm expression body.
 fn expression_is_match_arm_body(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parent_id: u32,
     parent_type: NodeType,
     parent_child_id: LocalNodeId<Expression>,
@@ -25,7 +25,7 @@ fn expression_is_match_arm_body(
 
 /// Return whether one expression is a spread value.
 fn expression_is_spread_value(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parent_id: u32,
     parent_type: NodeType,
     parent_child_id: LocalNodeId<Expression>,
@@ -86,7 +86,7 @@ fn parent_requires_primary_expression(
 
 /// Return whether one expression is a statement-sensitive identifier.
 fn expression_is_statement_sensitive_identifier(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let Expression::Identifier { name } = context.tree.get(node_id) else {
@@ -109,7 +109,7 @@ fn expression_is_statement_sensitive_identifier(
 
 /// Return whether one compound condition requires parentheses around an expression operand.
 fn expression_condition_operand_needs_parentheses(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parent_id: u32,
     parent_type: NodeType,
     operand: LocalNodeId<Expression>,
@@ -142,7 +142,7 @@ fn expression_condition_operand_needs_parentheses(
 
 /// Return whether one statement-context expression is the left chain of `as` or `satisfies`.
 fn expression_is_type_relation_left_chain_in_statement_context(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let mut current_id = node_id;
@@ -197,7 +197,7 @@ fn expression_is_type_relation_left_chain_in_statement_context(
 
 /// Return whether one expression sits in a call-like callee or tag.
 fn expression_is_call_like_callee(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parent_expression_id: LocalNodeId<Expression>,
     parent_child_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -212,7 +212,7 @@ fn expression_is_call_like_callee(
 
 /// Return whether one declaration expression behaves like a class or lambda.
 fn expression_is_class_or_function_declaration(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let Expression::Declaration(declaration_id) = context.tree.get(node_id) else {
@@ -227,7 +227,7 @@ fn expression_is_class_or_function_declaration(
 
 /// Return whether one assignment expression needs parentheses in statement context.
 fn expression_assignment_needs_parentheses_in_statement_context(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     left: LocalNodeId<AssignPattern>,
 ) -> bool {
@@ -240,7 +240,7 @@ fn expression_assignment_needs_parentheses_in_statement_context(
 
 /// Return whether one named class or function declaration is in declaration statement context.
 fn expression_is_named_declaration_statement(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     if !expression_is_in_statement_context(context, node_id) {
@@ -263,7 +263,7 @@ fn expression_is_named_declaration_statement(
 
 /// Return whether one expression is the body of one lambda declaration.
 fn expression_is_lambda_body_position(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some((parent_id, parent_type)) = context.parent(node_id) else {
@@ -286,7 +286,7 @@ fn expression_is_lambda_body_position(
 
 /// Return whether one lambda expression needs parentheses in its parent.
 fn expression_lambda_needs_parentheses_in_parent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parent_expression_id: LocalNodeId<Expression>,
     parent_expression: &Expression,
     parent_child_id: LocalNodeId<Expression>,
@@ -324,7 +324,7 @@ fn expression_lambda_needs_parentheses_in_parent(
 
 /// Return whether one assertion expression targets a composite type.
 fn assertion_expression_has_composite_target(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let target_type = match context.tree.get(expression_id) {
@@ -343,7 +343,7 @@ fn assertion_expression_has_composite_target(
 
 /// Return whether one `as` or `satisfies` expression needs parentheses in its parent.
 fn expression_as_or_satisfies_needs_parentheses_in_parent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     _parent_id: u32,
     parent_type: NodeType,
     parent_expression: &Expression,
@@ -380,7 +380,7 @@ fn expression_as_or_satisfies_needs_parentheses_in_parent(
 
 /// Return whether one await-like expression needs parentheses in its parent.
 fn expression_await_like_needs_parentheses_in_parent(
-    _context: &DestackFormatContext<'_>,
+    _context: &TsppFormatContext<'_>,
     _parent_id: u32,
     parent_type: NodeType,
     parent_expression: &Expression,
@@ -419,7 +419,7 @@ fn expression_await_like_needs_parentheses_in_parent(
 
 /// Return whether one binary-like expression needs parentheses in its parent.
 fn expression_binary_like_needs_parentheses_in_parent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     _parent_id: u32,
     parent_type: NodeType,
@@ -527,7 +527,7 @@ fn expression_is_binary_like(expression: &Expression) -> bool {
 
 /// Return whether one range expression needs parentheses in its parent.
 fn expression_range_needs_parentheses_in_parent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parent_expression_id: LocalNodeId<Expression>,
     parent_expression: &Expression,
     parent_child_id: LocalNodeId<Expression>,
@@ -555,7 +555,7 @@ fn expression_range_needs_parentheses_in_parent(
 
 /// Return whether one statement-like value needs parentheses in a tighter parent.
 fn statement_like_value_needs_parentheses_in_parent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parent_id: u32,
     parent_type: NodeType,
     parent_child_id: LocalNodeId<Expression>,
@@ -580,7 +580,7 @@ fn statement_like_value_needs_parentheses_in_parent(
 
 /// Return the elided source parentheses around one expression.
 pub(crate) fn source_parentheses_span(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> Option<Span> {
     context
@@ -623,7 +623,7 @@ fn is_postfix_parent_changed_by_parentheses(
 
 /// Return whether elided source parentheses must be preserved.
 pub(crate) fn should_preserve_source_parentheses(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some(parentheses_span) = source_parentheses_span(context, node_id) else {
@@ -658,7 +658,7 @@ pub(crate) fn should_preserve_source_parentheses(
 
 /// Return whether one expression needs derived parentheses in its parent.
 pub(crate) fn expression_needs_parentheses_in_parent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     // preserve source parentheses that own comments or affect postfix parsing
@@ -671,7 +671,7 @@ pub(crate) fn expression_needs_parentheses_in_parent(
 
 /// Return whether one expression structurally needs parentheses in its parent.
 pub(crate) fn expression_requires_parentheses_in_parent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     // statement-sensitive identifiers on the left of `as` and `satisfies` must stay parenthesized

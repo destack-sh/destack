@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use destack_artifact::ConditionSet;
-use destack_core::CaptureMode;
-use destack_heap as heap;
-use destack_program as program;
-use destack_repository::{Environment, RuntimeOptions, WorldOptions};
-use destack_vm as vm;
+use tspp_artifact::ConditionSet;
+use tspp_core::CaptureMode;
+use tspp_heap as heap;
+use tspp_program as program;
+use tspp_repository::{Environment, RuntimeOptions, WorldOptions};
+use tspp_vm as vm;
 
 use crate::binding::BindingTable;
 use crate::host::time::TimerClock;

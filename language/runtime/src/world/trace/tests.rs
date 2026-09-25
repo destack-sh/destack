@@ -1,12 +1,12 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use destack_native::abi;
-use destack_program as program;
-use destack_repository::Environment;
-use destack_repository::config::ExecutionMode;
-use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use tspp_native::abi;
+use tspp_program as program;
+use tspp_repository::Environment;
+use tspp_repository::config::ExecutionMode;
+use tspp_vm as vm;
 
 use crate::binding::{Binding, ReplayPayload};
 use crate::diagnostic::{BindingError, HostErrorCode, RuntimeError, RuntimeResult};
@@ -68,7 +68,7 @@ fn test_binding_call(
 /// Recordable binding calls replay in order.
 #[test]
 fn test_record_replay_binding_call() {
-    let name = "destack.test.call";
+    let name = "tspp.test.call";
     let binding = test_binding(name);
 
     // record a binding call
@@ -90,7 +90,7 @@ fn test_record_replay_binding_call() {
 /// Binding-call replay preserves runtime error variants.
 #[test]
 fn test_replay_binding_call_runtime_error_roundtrip() {
-    let name = "destack.test.binding.error";
+    let name = "tspp.test.binding.error";
     let binding = test_binding(name);
 
     // record one failing binding call
@@ -100,12 +100,7 @@ fn test_replay_binding_call_runtime_error_roundtrip() {
             binding,
             name,
             ReplayPayload::Results,
-            || {
-                Err(
-                    RuntimeError::policy_violation("destack.test.binding.error".to_string())
-                        .boxed(),
-                )
-            },
+            || Err(RuntimeError::policy_violation("tspp.test.binding.error".to_string()).boxed()),
             |result| {
                 let payload = match result {
                     Ok(value) => BindingErrorReplayPayload { result: Ok(*value) },
@@ -159,7 +154,7 @@ fn test_replay_binding_call_runtime_error_roundtrip() {
 fn test_record_replay_random_stream() {
     // record a stream allocation
     let record_state = TraceLog::new(ExecutionMode::Record, test_trace_header());
-    let subject = test_entropy_subject("destack.test.random.stream");
+    let subject = test_entropy_subject("tspp.test.random.stream");
     let stream_id = record_state
         .run_random_stream(subject, || {}, || Ok(42))
         .expect("record random stream");
@@ -180,7 +175,7 @@ fn test_record_replay_random_stream() {
 fn test_replay_time_read_executes_replay_hook() {
     // record one wall clock read
     let record_state = TraceLog::new(ExecutionMode::Record, test_trace_header());
-    let subject = test_entropy_subject("destack.test.time.wall");
+    let subject = test_entropy_subject("tspp.test.time.wall");
     let recorded = record_state
         .run_time_wall_read(subject, || {}, || Ok(123))
         .expect("record time read");
@@ -211,7 +206,7 @@ fn test_replay_random_u64_executes_replay_hook() {
     // record one stream-scoped random sample
     let stream_id = RandomStreamId::new(99);
     let record_state = TraceLog::new(ExecutionMode::Record, test_trace_header());
-    let subject = test_entropy_subject("destack.test.random.u64");
+    let subject = test_entropy_subject("tspp.test.random.u64");
     let recorded = record_state
         .run_random_u64(subject, stream_id, || {}, || Ok(777))
         .expect("record random u64");
@@ -242,7 +237,7 @@ fn test_replay_random_u64_executes_replay_hook() {
 fn test_replay_entropy_host_error_roundtrip() {
     // record one time read that fails with one host error
     let record_state = TraceLog::new(ExecutionMode::Record, test_trace_header());
-    let subject = test_entropy_subject("destack.test.time.wall.error");
+    let subject = test_entropy_subject("tspp.test.time.wall.error");
     let record_error = record_state
         .run_time_wall_read(
             subject,
@@ -270,7 +265,7 @@ fn test_replay_entropy_host_error_roundtrip() {
 fn test_replay_entropy_runtime_error_roundtrip() {
     // record one random read that fails with one runtime policy error
     let record_state = TraceLog::new(ExecutionMode::Record, test_trace_header());
-    let subject = test_entropy_subject("destack.test.random.u64.error");
+    let subject = test_entropy_subject("tspp.test.random.u64.error");
     let stream_id = RandomStreamId::new(17);
     let record_error = record_state
         .run_random_u64(
@@ -279,7 +274,7 @@ fn test_replay_entropy_runtime_error_roundtrip() {
             || {},
             || {
                 Err(
-                    RuntimeError::policy_violation("destack.test.random.u64.error".to_string())
+                    RuntimeError::policy_violation("tspp.test.random.u64.error".to_string())
                         .boxed(),
                 )
             },
@@ -313,7 +308,7 @@ fn test_replay_entropy_runtime_error_roundtrip() {
 fn test_replay_entropy_vm_error_roundtrip() {
     // record one random read that fails with one VM panic
     let record_state = TraceLog::new(ExecutionMode::Record, test_trace_header());
-    let subject = test_entropy_subject("destack.test.random.vm.error");
+    let subject = test_entropy_subject("tspp.test.random.vm.error");
     let stream_id = RandomStreamId::new(23);
     let record_error = record_state
         .run_random_u64(
@@ -344,7 +339,7 @@ fn test_replay_entropy_vm_error_roundtrip() {
 fn test_replay_entropy_native_error_roundtrip() {
     // record one random read that fails with one native trap
     let record_state = TraceLog::new(ExecutionMode::Record, test_trace_header());
-    let subject = test_entropy_subject("destack.test.random.native.error");
+    let subject = test_entropy_subject("tspp.test.random.native.error");
     let stream_id = RandomStreamId::new(29);
     let error = native::Error::Trapped {
         trap: abi::Trap::Bounds,
@@ -382,7 +377,7 @@ fn test_record_replay_mutations() {
             rule: Rule::deny(
                 "test.runtime.policy.mutation",
                 ActionSelector {
-                    binding: Some("destack.test.policy.mutation".to_string()),
+                    binding: Some("tspp.test.policy.mutation".to_string()),
                     ..ActionSelector::default()
                 },
             ),

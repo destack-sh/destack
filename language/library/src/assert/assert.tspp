@@ -1,0 +1,65 @@
+import { panic } from "tspp:error";
+
+import { Debug, PartialEqual } from "tspp:ops";
+
+/// An assertion message or a function that creates one after failure.
+export type AssertionMessage = string | ^Function<(), string, "once">;
+
+/// Require `condition` to hold.
+@languageItem("assert.assert")
+export function assert(condition: boolean, message?: AssertionMessage): void {
+    // stop on the failed invariant
+    if (!condition) {
+        panic(evaluateMessage(message, "assertion failed"));
+    }
+}
+
+/// Require `actual` and `expected` to compare equal.
+export function assertEqual<T, U>(
+    actual: &immutable T,
+    expected: &immutable U,
+    message?: AssertionMessage,
+): void where T: Debug, T: PartialEqual<U>, U: Debug {
+    // return without formatting successful operands
+    if (actual.equal(expected)) {
+        return;
+    }
+
+    // render both unequal operands
+    const actual = actual.debug();
+    const expected = expected.debug();
+    const message = evaluateMessage(message, "expected values to be equal");
+
+    panic(`${message}\nactual: ${actual}\nexpected: ${expected}`);
+}
+
+/// Require `actual` and `expected` to compare unequal.
+export function assertNotEqual<T, U>(
+    actual: &immutable T,
+    expected: &immutable U,
+    message?: AssertionMessage,
+): void where T: Debug, T: PartialEqual<U>, U: Debug {
+    // return without formatting successful operands
+    if (!actual.equal(expected)) {
+        return;
+    }
+
+    // render both unexpectedly equal operands
+    const actual = actual.debug();
+    const expected = expected.debug();
+    const message = evaluateMessage(message, "expected values to be different");
+
+    panic(`${message}\nactual: ${actual}\nexpected: ${expected}`);
+}
+
+/// Evaluate an assertion message after its assertion fails.
+function evaluateMessage(message: AssertionMessage | undefined, fallback: string): string {
+    // compute lazy messages only on the failure path
+    if (message is ^Function<(), string, "once">) {
+        return message();
+    }
+
+    const message = message ?? fallback;
+
+    return String.from(message.borrow());
+}

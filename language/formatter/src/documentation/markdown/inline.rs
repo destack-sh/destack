@@ -1,5 +1,5 @@
-use destack_fir::format::{FormatError, FormatResult};
 use markdown::mdast::{Node, ReferenceKind};
+use tspp_fir::format::{FormatError, FormatResult};
 
 use super::MarkdownFormatter;
 

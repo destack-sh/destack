@@ -5,7 +5,7 @@
 
 A value resolves to its nominal type declaration.
 
-```ds main.ds
+```tspp main.tspp
 struct Point {
 ^ declaration:start
        ^^^^^ definition
@@ -17,15 +17,15 @@ const point = Point { x: 1 };
       ^^^^^ reference
 ```
 
-```query goto_type_definition main.ds#reference
-@goto_type_definition.target origin=main.ds#reference location=main.ds#declaration selection=main.ds#definition symbol=main.ds#Point@1
+```query goto_type_definition main.tspp#reference
+@goto_type_definition.target origin=main.tspp#reference location=main.tspp#declaration selection=main.tspp#definition symbol=main.tspp#Point@1
 ```
 
 ### Resolve a class-valued binding
 
 A binding with a class type resolves to the class declaration.
 
-```ds main.ds
+```tspp main.tspp
 class Widget {
 ^ declaration:widget:start
       ^^^^^^ definition:widget
@@ -36,15 +36,15 @@ declare const widget: Widget;
               ^^^^^^ reference:widget
 ```
 
-```query goto_type_definition main.ds#reference:widget
-@goto_type_definition.target origin=main.ds#reference:widget location=main.ds#declaration:widget selection=main.ds#definition:widget symbol=main.ds#Widget@1
+```query goto_type_definition main.tspp#reference:widget
+@goto_type_definition.target origin=main.tspp#reference:widget location=main.tspp#declaration:widget selection=main.tspp#definition:widget symbol=main.tspp#Widget@1
 ```
 
 ### Resolve a typed parameter
 
 A parameter resolves through its declared type.
 
-```ds main.ds
+```tspp main.tspp
 struct Config {
 ^ declaration:config:start
        ^^^^^^ definition:config
@@ -56,15 +56,15 @@ function inspect(config: Config): void {}
                  ^^^^^^ reference:config
 ```
 
-```query goto_type_definition main.ds#reference:config
-@goto_type_definition.target origin=main.ds#reference:config location=main.ds#declaration:config selection=main.ds#definition:config symbol=main.ds#Config@1
+```query goto_type_definition main.tspp#reference:config
+@goto_type_definition.target origin=main.tspp#reference:config location=main.tspp#declaration:config selection=main.tspp#definition:config symbol=main.tspp#Config@1
 ```
 
 ### Resolve an enum-valued binding
 
 An enum value resolves to the enum declaration rather than one variant.
 
-```ds main.ds
+```tspp main.tspp
 enum Color {
 ^ declaration:color:start
      ^^^^^ definition:color
@@ -76,15 +76,15 @@ const color: Color = Color.Red;
       ^^^^^ reference:color
 ```
 
-```query goto_type_definition main.ds#reference:color
-@goto_type_definition.target origin=main.ds#reference:color location=main.ds#declaration:color selection=main.ds#definition:color symbol=main.ds#Color@1
+```query goto_type_definition main.tspp#reference:color
+@goto_type_definition.target origin=main.tspp#reference:color location=main.tspp#declaration:color selection=main.tspp#definition:color symbol=main.tspp#Color@1
 ```
 
 ### Resolve the current value type
 
 A value resolves to its nominal type after each edit.
 
-```ds main.ds
+```tspp main.tspp
 struct First {
 ^ declaration:first:start
        ^^^^^ definition:first
@@ -101,11 +101,11 @@ declare const value: First;
               ^^^^^ reference
 ```
 
-```query goto_type_definition main.ds#reference
-@goto_type_definition.target origin=main.ds#reference location=main.ds#declaration:first selection=main.ds#definition:first symbol=main.ds#First@1
+```query goto_type_definition main.tspp#reference
+@goto_type_definition.target origin=main.tspp#reference location=main.tspp#declaration:first selection=main.tspp#definition:first symbol=main.tspp#First@1
 ```
 
-```ds main.ds change
+```tspp main.tspp change
 struct First {
 ^ declaration:first:start
        ^^^^^ definition:first
@@ -122,8 +122,8 @@ declare const value: Second;
               ^^^^^ reference
 ```
 
-```query goto_type_definition main.ds#reference
-@goto_type_definition.target origin=main.ds#reference location=main.ds#declaration:second selection=main.ds#definition:second symbol=main.ds#Second@2
+```query goto_type_definition main.tspp#reference
+@goto_type_definition.target origin=main.tspp#reference location=main.tspp#declaration:second selection=main.tspp#definition:second symbol=main.tspp#Second@2
 ```
 
 ## Type References
@@ -132,7 +132,7 @@ declare const value: Second;
 
 Primitive types resolve to their runtime declarations.
 
-```ds main.ds
+```tspp main.tspp
 type Text = string;
             ^^^^^^ reference:string
 
@@ -140,19 +140,19 @@ type Integer = bigint;
                ^^^^^^ reference:bigint
 ```
 
-```query goto_type_definition main.ds#reference:string
-@goto_type_definition.target origin=main.ds#reference:string location=destack://string/string:16:1-19:2 selection=destack://string/string:16:14-16:20 symbol=destack://string/string#String@28
+```query goto_type_definition main.tspp#reference:string
+@goto_type_definition.target origin=main.tspp#reference:string location=tspp://string/string:16:1-19:2 selection=tspp://string/string:16:14-16:20 symbol=tspp://string/string#String@28
 ```
 
-```query goto_type_definition main.ds#reference:bigint
-@goto_type_definition.target origin=main.ds#reference:bigint location=destack://math/bigint:27:1-36:2 selection=destack://math/bigint:27:14-27:20 symbol=destack://math/bigint#BigInt@26
+```query goto_type_definition main.tspp#reference:bigint
+@goto_type_definition.target origin=main.tspp#reference:bigint location=tspp://math/bigint:27:1-36:2 selection=tspp://math/bigint:27:14-27:20 symbol=tspp://math/bigint#BigInt@26
 ```
 
 ### Resolve a direct type reference
 
 A nominal name in type position resolves to its declaration.
 
-```ds main.ds
+```tspp main.tspp
 class Animal {}
 ^ declaration:animal:start
       ^^^^^^ definition:animal
@@ -162,15 +162,15 @@ declare const animal: Animal;
                       ^^^^^^ reference:animal
 ```
 
-```query goto_type_definition main.ds#reference:animal
-@goto_type_definition.target origin=main.ds#reference:animal location=main.ds#declaration:animal selection=main.ds#definition:animal symbol=main.ds#Animal@1
+```query goto_type_definition main.tspp#reference:animal
+@goto_type_definition.target origin=main.tspp#reference:animal location=main.tspp#declaration:animal selection=main.tspp#definition:animal symbol=main.tspp#Animal@1
 ```
 
 ### Resolve a local type alias
 
 A type alias reference resolves to the alias declaration.
 
-```ds main.ds
+```tspp main.tspp
 type UserId = int32;
 ^ declaration:user_id:start
      ^^^^^^ definition:user_id
@@ -180,8 +180,8 @@ declare const userId: UserId;
                       ^^^^^^ reference:user_id
 ```
 
-```query goto_type_definition main.ds#reference:user_id
-@goto_type_definition.target origin=main.ds#reference:user_id location=main.ds#declaration:user_id selection=main.ds#definition:user_id symbol=main.ds#UserId@1
+```query goto_type_definition main.tspp#reference:user_id
+@goto_type_definition.target origin=main.tspp#reference:user_id location=main.tspp#declaration:user_id selection=main.tspp#definition:user_id symbol=main.tspp#UserId@1
 ```
 
 ## Imports
@@ -190,7 +190,7 @@ declare const userId: UserId;
 
 An imported value follows its type into the defining module.
 
-```ds model.ds
+```tspp model.tspp
 export struct Widget {
 ^ declaration:start
               ^^^^^^ definition
@@ -199,15 +199,15 @@ export struct Widget {
 ^ declaration:end
 ```
 
-```ds main.ds
-import { Widget } from "./model.ds";
+```tspp main.tspp
+import { Widget } from "./model.tspp";
 
 const widget = Widget { value: 1 };
       ^^^^^^ reference
 ```
 
-```query goto_type_definition main.ds#reference
-@goto_type_definition.target origin=main.ds#reference location=model.ds#declaration selection=model.ds#definition symbol=model.ds#Widget@1
+```query goto_type_definition main.tspp#reference
+@goto_type_definition.target origin=main.tspp#reference location=model.tspp#declaration selection=model.tspp#definition symbol=model.tspp#Widget@1
 ```
 
 ## Scalar Values
@@ -216,12 +216,12 @@ const widget = Widget { value: 1 };
 
 A scalar value has no nominal type declaration.
 
-```ds main.ds
+```tspp main.tspp
 const count = 1;
       ^^^^^ reference
 ```
 
-```query goto_type_definition main.ds#reference
+```query goto_type_definition main.tspp#reference
 @goto_type_definition.none
 ```
 
@@ -231,7 +231,7 @@ const count = 1;
 
 A binding with an unnamed union type resolves to each distinct nominal declaration.
 
-```ds main.ds
+```tspp main.tspp
 class Circle {}
 ^ declaration:circle:start
       ^^^^^^ definition:circle
@@ -245,16 +245,16 @@ declare const shape: Circle | Square;
               ^^^^^ reference
 ```
 
-```query goto_type_definition main.ds#reference
-@goto_type_definition.target origin=main.ds#reference location=main.ds#declaration:circle selection=main.ds#definition:circle symbol=main.ds#Circle@1
-@goto_type_definition.target origin=main.ds#reference location=main.ds#declaration:square selection=main.ds#definition:square symbol=main.ds#Square@2
+```query goto_type_definition main.tspp#reference
+@goto_type_definition.target origin=main.tspp#reference location=main.tspp#declaration:circle selection=main.tspp#definition:circle symbol=main.tspp#Circle@1
+@goto_type_definition.target origin=main.tspp#reference location=main.tspp#declaration:square selection=main.tspp#definition:square symbol=main.tspp#Square@2
 ```
 
 ### Resolve the nominal member of a nullable union
 
 Null has no definition target, while the nominal member resolves to its declaration.
 
-```ds main.ds
+```tspp main.tspp
 class User {}
 ^ declaration:user:start
       ^^^^ definition:user
@@ -264,8 +264,8 @@ declare const user: User | null;
               ^^^^ reference
 ```
 
-```query goto_type_definition main.ds#reference
-@goto_type_definition.target origin=main.ds#reference location=main.ds#declaration:user selection=main.ds#definition:user symbol=main.ds#User@1
+```query goto_type_definition main.tspp#reference
+@goto_type_definition.target origin=main.tspp#reference location=main.tspp#declaration:user selection=main.tspp#definition:user symbol=main.tspp#User@1
 ```
 
 ## Imported Types
@@ -274,7 +274,7 @@ declare const user: User | null;
 
 A plain import preserves the exported declaration's type symbol space.
 
-```ds model.ds
+```tspp model.tspp
 export type Options = {
 ^ declaration:imported_type:start
             ^^^^^^^ definition:imported_type
@@ -283,22 +283,22 @@ export type Options = {
 ^ declaration:imported_type:end
 ```
 
-```ds main.ds
-import { Options } from "./model.ds";
+```tspp main.tspp
+import { Options } from "./model.tspp";
 
 const options: Options = { enabled: true };
                ^^^^^^^ reference:imported_type
 ```
 
-```query goto_type_definition main.ds#reference:imported_type
-@goto_type_definition.target origin=main.ds#reference:imported_type location=model.ds#declaration:imported_type selection=model.ds#definition:imported_type symbol=model.ds#Options@1
+```query goto_type_definition main.tspp#reference:imported_type
+@goto_type_definition.target origin=main.tspp#reference:imported_type location=model.tspp#declaration:imported_type selection=model.tspp#definition:imported_type symbol=model.tspp#Options@1
 ```
 
 ### Resolve an imported type alias
 
 An imported alias resolves to the defining type declaration.
 
-```ds model.ds
+```tspp model.tspp
 export struct Settings {
 ^ declaration:settings:start
               ^^^^^^^^ definition:settings
@@ -307,22 +307,22 @@ export struct Settings {
 ^ declaration:settings:end
 ```
 
-```ds main.ds
-import { Settings as AppSettings } from "./model.ds";
+```tspp main.tspp
+import { Settings as AppSettings } from "./model.tspp";
 
 declare const settings: AppSettings;
                         ^^^^^^^^^^^ reference:settings
 ```
 
-```query goto_type_definition main.ds#reference:settings
-@goto_type_definition.target origin=main.ds#reference:settings location=model.ds#declaration:settings selection=model.ds#definition:settings symbol=model.ds#Settings@1
+```query goto_type_definition main.tspp#reference:settings
+@goto_type_definition.target origin=main.tspp#reference:settings location=model.tspp#declaration:settings selection=model.tspp#definition:settings symbol=model.tspp#Settings@1
 ```
 
 ### Resolve imported types and values together
 
 One plain import preserves each declaration's original symbol space.
 
-```ds types.ds
+```tspp types.tspp
 export struct Settings {
 ^ declaration:mixed:start
               ^^^^^^^^ definition:mixed
@@ -331,30 +331,30 @@ export struct Settings {
 ^ declaration:mixed:end
 ```
 
-```ds values.ds
+```tspp values.tspp
 export function enabled(): boolean {
     return true;
 }
 ```
 
-```ds main.ds
-import { Settings } from "./types.ds";
-import { enabled } from "./values.ds";
+```tspp main.tspp
+import { Settings } from "./types.tspp";
+import { enabled } from "./values.tspp";
 
 declare const settings: Settings;
                         ^^^^^^^^ reference:mixed
 const isEnabled = enabled();
 ```
 
-```query goto_type_definition main.ds#reference:mixed
-@goto_type_definition.target origin=main.ds#reference:mixed location=types.ds#declaration:mixed selection=types.ds#definition:mixed symbol=types.ds#Settings@1
+```query goto_type_definition main.tspp#reference:mixed
+@goto_type_definition.target origin=main.tspp#reference:mixed location=types.tspp#declaration:mixed selection=types.tspp#definition:mixed symbol=types.tspp#Settings@1
 ```
 
 ### Follow re-exports
 
 A type reference follows every plain re-export to its declaration.
 
-```ds model.ds
+```tspp model.tspp
 export interface ServiceOptions {
 ^ declaration:options:start
                  ^^^^^^^^^^^^^^ definition:options
@@ -363,23 +363,23 @@ export interface ServiceOptions {
 ^ declaration:options:end
 ```
 
-```ds first.ds
-export { ServiceOptions as Options } from "./model.ds";
+```tspp first.tspp
+export { ServiceOptions as Options } from "./model.tspp";
 ```
 
-```ds second.ds
-export { Options } from "./first.ds";
+```tspp second.tspp
+export { Options } from "./first.tspp";
 ```
 
-```ds main.ds
-import { Options } from "./second.ds";
+```tspp main.tspp
+import { Options } from "./second.tspp";
 
 declare const options: Options;
                        ^^^^^^^ reference:options
 ```
 
-```query goto_type_definition main.ds#reference:options
-@goto_type_definition.target origin=main.ds#reference:options location=model.ds#declaration:options selection=model.ds#definition:options symbol=model.ds#ServiceOptions@1
+```query goto_type_definition main.tspp#reference:options
+@goto_type_definition.target origin=main.tspp#reference:options location=model.tspp#declaration:options selection=model.tspp#definition:options symbol=model.tspp#ServiceOptions@1
 ```
 
 ## Import Forms
@@ -388,7 +388,7 @@ declare const options: Options;
 
 A type member on a namespace import resolves to the exported declaration.
 
-```ds model.ds
+```tspp model.tspp
 export struct Settings {
 ^ declaration:namespace:start
               ^^^^^^^^ definition:namespace
@@ -397,22 +397,22 @@ export struct Settings {
 ^ declaration:namespace:end
 ```
 
-```ds main.ds
-import * as models from "./model.ds";
+```tspp main.tspp
+import * as models from "./model.tspp";
 
 declare const settings: models.Settings;
                                ^^^^^^^^ reference:namespace
 ```
 
-```query goto_type_definition main.ds#reference:namespace
-@goto_type_definition.target origin=main.ds#reference:namespace location=model.ds#declaration:namespace selection=model.ds#definition:namespace symbol=model.ds#Settings@1
+```query goto_type_definition main.tspp#reference:namespace
+@goto_type_definition.target origin=main.tspp#reference:namespace location=model.tspp#declaration:namespace selection=model.tspp#definition:namespace symbol=model.tspp#Settings@1
 ```
 
 ### Resolve a default class import
 
 A default import resolves to the defining class declaration.
 
-```ds model.ds
+```tspp model.tspp
 export default class Widget {
 ^ declaration:default:start
                      ^^^^^^ definition:default
@@ -420,22 +420,22 @@ export default class Widget {
 ^ declaration:default:end
 ```
 
-```ds main.ds
-import WidgetModel from "./model.ds";
+```tspp main.tspp
+import WidgetModel from "./model.tspp";
 
 declare const widget: WidgetModel;
                       ^^^^^^^^^^^ reference:default
 ```
 
-```query goto_type_definition main.ds#reference:default
-@goto_type_definition.target origin=main.ds#reference:default location=model.ds#declaration:default selection=model.ds#definition:default symbol=model.ds#Widget@1
+```query goto_type_definition main.tspp#reference:default
+@goto_type_definition.target origin=main.tspp#reference:default location=model.tspp#declaration:default selection=model.tspp#definition:default symbol=model.tspp#Widget@1
 ```
 
 ### Follow a default re-export alias
 
 A named import follows a default re-export to the defining class.
 
-```ds model.ds
+```tspp model.tspp
 export default class Widget {
 ^ declaration:reexport:start
                      ^^^^^^ definition:reexport
@@ -443,19 +443,19 @@ export default class Widget {
 ^ declaration:reexport:end
 ```
 
-```ds barrel.ds
-export { default as Widget } from "./model.ds";
+```tspp barrel.tspp
+export { default as Widget } from "./model.tspp";
 ```
 
-```ds main.ds
-import { Widget } from "./barrel.ds";
+```tspp main.tspp
+import { Widget } from "./barrel.tspp";
 
 declare const widget: Widget;
                       ^^^^^^ reference:reexport
 ```
 
-```query goto_type_definition main.ds#reference:reexport
-@goto_type_definition.target origin=main.ds#reference:reexport location=model.ds#declaration:reexport selection=model.ds#definition:reexport symbol=model.ds#Widget@1
+```query goto_type_definition main.tspp#reference:reexport
+@goto_type_definition.target origin=main.tspp#reference:reexport location=model.tspp#declaration:reexport selection=model.tspp#definition:reexport symbol=model.tspp#Widget@1
 ```
 
 ## Ownership Forms
@@ -464,7 +464,7 @@ declare const widget: Widget;
 
 Memory forms resolve to the nominal declaration of their contained value.
 
-```ds main.ds
+```tspp main.tspp
 struct Buffer {
 ^ declaration:buffer:start
        ^^^^^^ definition:buffer
@@ -480,16 +480,16 @@ declare const pointer: *Buffer;
               ^^^^^^^ reference:pointer
 ```
 
-```query goto_type_definition main.ds#reference:borrowed
-@goto_type_definition.target origin=main.ds#reference:borrowed location=main.ds#declaration:buffer selection=main.ds#definition:buffer symbol=main.ds#Buffer@1
+```query goto_type_definition main.tspp#reference:borrowed
+@goto_type_definition.target origin=main.tspp#reference:borrowed location=main.tspp#declaration:buffer selection=main.tspp#definition:buffer symbol=main.tspp#Buffer@1
 ```
 
-```query goto_type_definition main.ds#reference:owned
-@goto_type_definition.target origin=main.ds#reference:owned location=main.ds#declaration:buffer selection=main.ds#definition:buffer symbol=main.ds#Buffer@1
+```query goto_type_definition main.tspp#reference:owned
+@goto_type_definition.target origin=main.tspp#reference:owned location=main.tspp#declaration:buffer selection=main.tspp#definition:buffer symbol=main.tspp#Buffer@1
 ```
 
-```query goto_type_definition main.ds#reference:pointer
-@goto_type_definition.target origin=main.ds#reference:pointer location=main.ds#declaration:buffer selection=main.ds#definition:buffer symbol=main.ds#Buffer@1
+```query goto_type_definition main.tspp#reference:pointer
+@goto_type_definition.target origin=main.tspp#reference:pointer location=main.tspp#declaration:buffer selection=main.tspp#definition:buffer symbol=main.tspp#Buffer@1
 ```
 
 ## Explicit Receivers
@@ -498,7 +498,7 @@ declare const pointer: *Buffer;
 
 An explicit receiver annotation resolves like any other nominal type reference.
 
-```ds main.ds
+```tspp main.tspp
 class Counter {}
 ^ declaration:counter:start
       ^^^^^^^ definition:counter
@@ -510,8 +510,8 @@ function read(this: Counter): Counter {
 }
 ```
 
-```query goto_type_definition main.ds#reference:counter
-@goto_type_definition.target origin=main.ds#reference:counter location=main.ds#declaration:counter selection=main.ds#definition:counter symbol=main.ds#Counter@1
+```query goto_type_definition main.tspp#reference:counter
+@goto_type_definition.target origin=main.tspp#reference:counter location=main.tspp#declaration:counter selection=main.tspp#definition:counter symbol=main.tspp#Counter@1
 ```
 
 ## Generic Applications
@@ -520,7 +520,7 @@ function read(this: Counter): Counter {
 
 A generic application resolves to its nominal declaration.
 
-```ds main.ds
+```tspp main.tspp
 class Box<T> {
 ^ declaration:box:start
       ^^^ definition:box
@@ -532,8 +532,8 @@ declare const box: Box<int32>;
                    ^^^ reference:box
 ```
 
-```query goto_type_definition main.ds#reference:box
-@goto_type_definition.target origin=main.ds#reference:box location=main.ds#declaration:box selection=main.ds#definition:box symbol=main.ds#Box@1
+```query goto_type_definition main.tspp#reference:box
+@goto_type_definition.target origin=main.tspp#reference:box location=main.tspp#declaration:box selection=main.tspp#definition:box symbol=main.tspp#Box@1
 ```
 
 ## Missing Symbols
@@ -542,13 +542,13 @@ declare const box: Box<int32>;
 
 An unresolved occurrence has no type declaration.
 
-```ds main.ds
+```tspp main.tspp
 function main(): void {
     missingValue;
     ^^^^^^^^^^^^ reference
 }
 ```
 
-```query goto_type_definition main.ds#reference
+```query goto_type_definition main.tspp#reference
 @goto_type_definition.none
 ```

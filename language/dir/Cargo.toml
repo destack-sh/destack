@@ -1,6 +1,6 @@
 [package]
-name = "destack_dir"
-description = "Destack Data IR"
+name = "tspp_dir"
+description = "TS++ Data IR"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,12 +13,12 @@ doctest = false
 
 [dependencies]
 # language
-destack_core = { workspace = true }
-destack_dir_macros = { workspace = true }
-destack_fir = { workspace = true }
-destack_serde = { workspace = true }
-destack_source = { workspace = true }
-destack_unicode = { workspace = true }
+tspp_core = { workspace = true }
+tspp_dir_macros = { workspace = true }
+tspp_fir = { workspace = true }
+tspp_serde = { workspace = true }
+tspp_source = { workspace = true }
+tspp_unicode = { workspace = true }
 
 # general
 dashmap = { workspace = true }

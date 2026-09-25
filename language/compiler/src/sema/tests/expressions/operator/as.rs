@@ -9,7 +9,7 @@ const value = 1 as int32;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
@@ -47,7 +47,7 @@ const code = letter as uint32;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -152,7 +152,7 @@ const whole = ratio as int32;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -259,7 +259,7 @@ const parsed = "1" as int32;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

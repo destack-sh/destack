@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use destack_fir::format;
-use destack_fir::format::{
+use tspp_fir::format;
+use tspp_fir::format::{
     Allocator, FormatContext, FormatError, FormatOptions, FormatResult, Formatter,
 };
-use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions};
-use destack_source::{File, FileType, IndentStyle, LineEnding};
+use tspp_fir::print::{MAX_OUTPUT_BYTES, PrintOptions};
+use tspp_source::{File, FileType, IndentStyle, LineEnding};
 
 use crate::{CodeOffset, CodeRange, FunctionId, Label, Object, Relocation};
 
@@ -116,7 +116,7 @@ impl<'a> BytecodeFormatContext<'a> {
             relocations,
             function_names,
             options,
-            file: File::empty_text(FileType::Destack),
+            file: File::empty_text(FileType::Tspp),
         }
     }
 

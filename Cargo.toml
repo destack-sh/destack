@@ -73,51 +73,51 @@ rust-version = "1.93.0"
 
 [workspace.dependencies]
 # language
-destack_artifact = { path = "language/artifact" }
-destack_artifact_macros = { path = "language/artifact/macros" }
-destack_bytecode = { path = "language/bytecode" }
-destack_compiler = { path = "language/compiler", default-features = false }
-destack_core = { path = "language/core" }
-destack_dir = { path = "language/dir" }
-destack_dir_macros = { path = "language/dir/macros" }
-destack_doc = { path = "language/doc" }
-destack_program = { path = "language/program" }
-destack_fir = { path = "language/fir" }
-destack_formatter = { path = "language/formatter" }
-destack_heap = { path = "language/heap" }
-destack_index = { path = "language/index" }
-destack_json = { path = "language/json" }
-destack_js = { path = "language/js" }
-destack_linter = { path = "language/linter" }
-destack_memory = { path = "language/memory" }
-destack_native = { path = "language/native" }
-destack_vm = { path = "language/vm" }
-destack_mir = { path = "language/mir" }
-destack_parser = { path = "language/parser" }
-destack_pattern = { path = "language/pattern" }
-destack_query = { path = "language/query" }
-destack_rpc = { path = "language/rpc" }
-destack_rpc_macros = { path = "language/rpc/macros" }
-destack_runtime = { path = "language/runtime" }
-destack_signal = { path = "language/signal" }
-destack_session = { path = "language/session", default-features = false }
-destack_serde = { path = "language/serde" }
-destack_serde_macros = { path = "language/serde/macros" }
-destack_source = { path = "language/source" }
-destack_unicode = { path = "language/unicode" }
-destack_workspace = { path = "language/workspace", default-features = false }
-destack_webassembly = { path = "language/wasm" }
-destack_repository = { path = "language/repository" }
-destack_daemon = { path = "language/daemon" }
-destack_lsp = { path = "language/lsp" }
-destack_lsp_server = { path = "language/lsp/server" }
-destack_lsp_types = { path = "language/lsp/types" }
-destack_language_cli = { path = "language/cli" }
+tspp_artifact = { path = "language/artifact" }
+tspp_artifact_macros = { path = "language/artifact/macros" }
+tspp_bytecode = { path = "language/bytecode" }
+tspp_compiler = { path = "language/compiler", default-features = false }
+tspp_core = { path = "language/core" }
+tspp_dir = { path = "language/dir" }
+tspp_dir_macros = { path = "language/dir/macros" }
+tspp_doc = { path = "language/doc" }
+tspp_program = { path = "language/program" }
+tspp_fir = { path = "language/fir" }
+tspp_formatter = { path = "language/formatter" }
+tspp_heap = { path = "language/heap" }
+tspp_index = { path = "language/index" }
+tspp_json = { path = "language/json" }
+tspp_js = { path = "language/js" }
+tspp_linter = { path = "language/linter" }
+tspp_memory = { path = "language/memory" }
+tspp_native = { path = "language/native" }
+tspp_vm = { path = "language/vm" }
+tspp_mir = { path = "language/mir" }
+tspp_parser = { path = "language/parser" }
+tspp_pattern = { path = "language/pattern" }
+tspp_query = { path = "language/query" }
+tspp_rpc = { path = "language/rpc" }
+tspp_rpc_macros = { path = "language/rpc/macros" }
+tspp_runtime = { path = "language/runtime" }
+tspp_signal = { path = "language/signal" }
+tspp_session = { path = "language/session", default-features = false }
+tspp_serde = { path = "language/serde" }
+tspp_serde_macros = { path = "language/serde/macros" }
+tspp_source = { path = "language/source" }
+tspp_unicode = { path = "language/unicode" }
+tspp_workspace = { path = "language/workspace", default-features = false }
+tspp_webassembly = { path = "language/wasm" }
+tspp_repository = { path = "language/repository" }
+tspp_daemon = { path = "language/daemon" }
+tspp_lsp = { path = "language/lsp" }
+tspp_lsp_server = { path = "language/lsp/server" }
+tspp_lsp_types = { path = "language/lsp/types" }
+tspp_cli = { path = "language/cli" }
 
 # app
 
 # client
-destack_zed = { path = "language/bridge/zed" }
+tspp_zed = { path = "language/bridge/zed" }
 
 # codegen
 cranelift-assembler-x64 = { path = "language/compiler/native/cranelift/assembler-x64" }
@@ -311,25 +311,25 @@ incremental = true
 split-debuginfo = "unpacked"
 panic = "abort"
 
-[profile.dev.package.destack_core]
+[profile.dev.package.tspp_core]
 opt-level = 2
 
-[profile.dev.package.destack_dir]
+[profile.dev.package.tspp_dir]
 opt-level = 2
 
-[profile.dev.package.destack_mir]
+[profile.dev.package.tspp_mir]
 opt-level = 2
 
-[profile.dev.package.destack_artifact]
+[profile.dev.package.tspp_artifact]
 opt-level = 2
 
-[profile.dev.package.destack_heap]
+[profile.dev.package.tspp_heap]
 opt-level = 2
 
-[profile.dev.package.destack_repository]
+[profile.dev.package.tspp_repository]
 opt-level = 2
 
-[profile.dev.package.destack_source]
+[profile.dev.package.tspp_source]
 opt-level = 2
 
 [profile.bench]

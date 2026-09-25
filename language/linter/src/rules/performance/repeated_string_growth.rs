@@ -1,7 +1,7 @@
-use destack_core::FxIndexSet;
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -246,7 +246,7 @@ fn concatenates_target(
     module: &DirModule<'_>,
     expression: dir::LocalNodeId<dir::Expression>,
     target: dir::LocalNodeId<dir::Expression>,
-) -> Result<bool, destack_repository::ProviderError> {
+) -> Result<bool, tspp_repository::ProviderError> {
     let view = module.view();
 
     // descend through canonical string addition
@@ -482,7 +482,7 @@ function sequence(depth: isize): string {
         session.assert_diagnostics(
             r#"
 warning[repeated-string-growth]: string is rebuilt on every iteration
- ──▶ main.ds:4:9
+ ──▶ main.tspp:4:9
   │
 2 │     let output = "";
 3 │     for (const index of 0..depth) {
@@ -537,7 +537,7 @@ function double(depth: isize): string {
         session.assert_diagnostics(
             r#"
 warning[repeated-string-growth]: string is rebuilt on every iteration
- ──▶ main.ds:4:9
+ ──▶ main.tspp:4:9
   │
 2 │     let output = "x";
 3 │     for (const _ of 0..depth) {
@@ -572,7 +572,7 @@ function extend(): string {
         session.assert_diagnostics(
             r#"
 warning[repeated-string-growth]: string is rebuilt on every iteration
- ──▶ main.ds:4:9
+ ──▶ main.tspp:4:9
   │
 2 │     let output = "x";
 3 │     for (let index: isize = 0; index < output.length; index++) {
@@ -607,7 +607,7 @@ function extend(): string {
         session.assert_diagnostics(
             r#"
 warning[repeated-string-growth]: string is rebuilt on every iteration
- ──▶ main.ds:4:9
+ ──▶ main.tspp:4:9
   │
 2 │     let output = "";
 3 │     for (let index: isize = 0; index < index + 4; index++) {
@@ -645,7 +645,7 @@ function indent(depth: isize): string {
         session.assert_diagnostics(
             r#"
 warning[repeated-string-growth]: string is rebuilt on every iteration
- ──▶ main.ds:6:9
+ ──▶ main.tspp:6:9
   │
 4 │     let output = "";
 5 │     for (const _ of 0..depth) {
@@ -681,7 +681,7 @@ function indent(depth: isize): string {
         session.assert_diagnostics(
             r#"
 warning[repeated-string-growth]: string is appended once per loop iteration
- ──▶ main.ds:3:5
+ ──▶ main.tspp:3:5
   │
 1 │ function indent(depth: isize): string {
 2 │     let output = "";
@@ -720,7 +720,7 @@ function join(values: string[]): string {
         session.assert_diagnostics(
             r#"
 warning[repeated-string-growth]: string is rebuilt on every iteration
- ──▶ main.ds:4:9
+ ──▶ main.tspp:4:9
   │
 2 │     let output = "";
 3 │     for (const value of values) {
@@ -755,7 +755,7 @@ function join(values: string[]): string {
         session.assert_diagnostics(
             r#"
 warning[repeated-string-growth]: string is rebuilt on every iteration
- ──▶ main.ds:4:9
+ ──▶ main.tspp:4:9
   │
 2 │     let output = "";
 3 │     for (const value of values) {
@@ -791,7 +791,7 @@ function append(output: Output, values: string[]): void {
         session.assert_diagnostics(
             r#"
 warning[repeated-string-growth]: string is rebuilt on every iteration
- ──▶ main.ds:7:9
+ ──▶ main.tspp:7:9
   │
 5 │ function append(output: Output, values: string[]): void {
 6 │     for (const value of values) {
@@ -826,7 +826,7 @@ function join(values: string[]): string {
         session.assert_diagnostics(
             r#"
 warning[repeated-string-growth]: string is rebuilt on every iteration
- ──▶ main.ds:4:9
+ ──▶ main.tspp:4:9
   │
 2 │     let output = "";
 3 │     for (const value of values) {

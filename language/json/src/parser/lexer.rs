@@ -1,4 +1,4 @@
-use destack_source::{FileId, Span};
+use tspp_source::{FileId, Span};
 
 /// A token in JSON/JSONC source.
 #[derive(Debug, Clone, PartialEq)]

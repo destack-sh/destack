@@ -1,9 +1,9 @@
 use std::mem;
 use std::sync::Arc;
 
-use destack_artifact::{DiagnosticBuilder, MirLowered};
-use destack_core::{FxIndexSet, StringPool};
-use destack_mir::{
+use tspp_artifact::{DiagnosticBuilder, MirLowered};
+use tspp_core::{FxIndexSet, StringPool};
+use tspp_mir::{
     CallTable, DispatchTable, DropTable, EffectTable, FormatOptions, Formatter, Function,
     FunctionBehavior, FunctionCache, FunctionId, LocalNodeId, LocalNodeIdAny, ResolutionTable,
     RetentionTable, TargetLayout, Tree, TypeId, WitnessTable,

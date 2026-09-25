@@ -1,0 +1,323 @@
+import { Result, todo } from "tspp:error";
+
+import { LocaleIdentifier, LocaleMatcher, Locales, SupportedLocalesOptions } from "./common.tspp";
+import { IntlError } from "./error.tspp";
+
+/// A number formatting style.
+export type NumberFormatStyle = "decimal" | "percent" | "currency" | "unit";
+
+/// A currency display mode.
+export type CurrencyDisplay = "code" | "symbol" | "narrowSymbol" | "name";
+
+/// A currency sign mode.
+export type CurrencySign = "standard" | "accounting";
+
+/// A unit display width.
+export type UnitDisplay = "short" | "long" | "narrow";
+
+/// A grouping separator mode.
+export type UseGrouping = boolean | "true" | "false" | "min2" | "auto" | "always";
+
+/// A resolved grouping separator mode.
+export type ResolvedUseGrouping = false | "min2" | "auto" | "always";
+
+/// A number notation.
+export type NumberNotation = "standard" | "scientific" | "engineering" | "compact";
+
+/// A compact notation width.
+export type CompactDisplay = "short" | "long";
+
+/// A sign display mode.
+export type SignDisplay = "auto" | "never" | "always" | "exceptZero" | "negative";
+
+/// A rounding priority.
+export type RoundingPriority = "auto" | "morePrecision" | "lessPrecision";
+
+/// A rounding increment.
+export type RoundingIncrement =
+    | 1
+    | 2
+    | 5
+    | 10
+    | 20
+    | 25
+    | 50
+    | 100
+    | 200
+    | 250
+    | 500
+    | 1000
+    | 2000
+    | 2500
+    | 5000;
+
+/// A decimal rounding mode.
+export type RoundingMode =
+    | "ceil"
+    | "floor"
+    | "expand"
+    | "trunc"
+    | "halfCeil"
+    | "halfFloor"
+    | "halfExpand"
+    | "halfTrunc"
+    | "halfEven";
+
+/// A trailing-zero display mode.
+export type TrailingZeroDisplay = "auto" | "stripIfInteger";
+
+/// Decimal digit options shared by number and plural formatting.
+export interface DigitOptions {
+    /// The minimum integer digit count.
+    minimumIntegerDigits?: number;
+
+    /// The minimum fraction digit count.
+    minimumFractionDigits?: number;
+
+    /// The maximum fraction digit count.
+    maximumFractionDigits?: number;
+
+    /// The minimum significant digit count.
+    minimumSignificantDigits?: number;
+
+    /// The maximum significant digit count.
+    maximumSignificantDigits?: number;
+}
+
+/// Rounding options shared by number and plural formatting.
+export interface RoundingOptions {
+    /// The rounding priority.
+    roundingPriority?: RoundingPriority;
+
+    /// The rounding increment.
+    roundingIncrement?: RoundingIncrement;
+
+    /// The rounding mode.
+    roundingMode?: RoundingMode;
+
+    /// The trailing-zero display mode.
+    trailingZeroDisplay?: TrailingZeroDisplay;
+}
+
+/// Options for creating a number formatter.
+export interface NumberFormatOptions extends DigitOptions, RoundingOptions {
+    /// The locale selection algorithm.
+    localeMatcher?: LocaleMatcher;
+
+    /// The number formatting style.
+    style?: NumberFormatStyle;
+
+    /// The numbering system identifier.
+    numberingSystem?: string;
+
+    /// The ISO 4217 currency code.
+    currency?: string;
+
+    /// The currency display mode.
+    currencyDisplay?: CurrencyDisplay;
+
+    /// The currency sign mode.
+    currencySign?: CurrencySign;
+
+    /// The Unicode unit identifier.
+    unit?: string;
+
+    /// The unit display width.
+    unitDisplay?: UnitDisplay;
+
+    /// The grouping separator mode.
+    useGrouping?: UseGrouping;
+
+    /// The number notation.
+    notation?: NumberNotation;
+
+    /// The compact notation width.
+    compactDisplay?: CompactDisplay;
+
+    /// The sign display mode.
+    signDisplay?: SignDisplay;
+}
+
+/// The resolved number formatter options.
+export struct ResolvedNumberFormatOptions {
+    /// The resolved locale identifier.
+    locale: LocaleIdentifier;
+
+    /// The resolved numbering system identifier.
+    numberingSystem: string;
+
+    /// The number formatting style.
+    style: NumberFormatStyle;
+
+    /// The ISO 4217 currency code.
+    currency?: string;
+
+    /// The currency display mode.
+    currencyDisplay?: CurrencyDisplay;
+
+    /// The currency sign mode.
+    currencySign?: CurrencySign;
+
+    /// The Unicode unit identifier.
+    unit?: string;
+
+    /// The unit display width.
+    unitDisplay?: UnitDisplay;
+
+    /// The minimum integer digit count.
+    minimumIntegerDigits: number;
+
+    /// The minimum fraction digit count.
+    minimumFractionDigits?: number;
+
+    /// The maximum fraction digit count.
+    maximumFractionDigits?: number;
+
+    /// The minimum significant digit count.
+    minimumSignificantDigits?: number;
+
+    /// The maximum significant digit count.
+    maximumSignificantDigits?: number;
+
+    /// The grouping separator mode.
+    useGrouping: ResolvedUseGrouping;
+
+    /// The number notation.
+    notation: NumberNotation;
+
+    /// The compact notation width.
+    compactDisplay?: CompactDisplay;
+
+    /// The sign display mode.
+    signDisplay: SignDisplay;
+
+    /// The rounding priority.
+    roundingPriority: RoundingPriority;
+
+    /// The rounding increment.
+    roundingIncrement: RoundingIncrement;
+
+    /// The rounding mode.
+    roundingMode: RoundingMode;
+
+    /// The trailing-zero display mode.
+    trailingZeroDisplay: TrailingZeroDisplay;
+}
+
+/// A numeric input accepted by number formatters.
+export type NumberFormatValue = number | bigint | string;
+
+/// A number format part category.
+export type NumberFormatPartType =
+    | "literal"
+    | "nan"
+    | "infinity"
+    | "percent"
+    | "integer"
+    | "group"
+    | "decimal"
+    | "fraction"
+    | "plusSign"
+    | "minusSign"
+    | "percentSign"
+    | "currency"
+    | "compact"
+    | "exponentInteger"
+    | "exponentMinusSign"
+    | "exponentSeparator"
+    | "unit"
+    | "unknown";
+
+/// One formatted number part.
+export struct NumberFormatPart {
+    /// The part category.
+    type: NumberFormatPartType;
+
+    /// The formatted text.
+    value: string;
+}
+
+/// One formatted number range part.
+export struct NumberRangeFormatPart {
+    /// The part category.
+    type: NumberFormatPartType | "approximatelySign";
+
+    /// The formatted text.
+    value: string;
+
+    /// The range value that produced this part.
+    source: "startRange" | "endRange" | "shared";
+}
+
+/// A locale-sensitive number formatter.
+@languageItem("intl.NumberFormat")
+export class NumberFormat {
+    /// Create a number formatter for the default locale.
+    static create(): NumberFormat {
+        todo("NumberFormat.createDefault")
+    }
+
+    /// Create a number formatter.
+    static create(
+        locales?: &readonly Locales,
+        options?: &readonly NumberFormatOptions,
+    ): Result<NumberFormat, IntlError> {
+        todo("NumberFormat.create")
+    }
+
+    /// Return the supported requested locales.
+    static supportedLocalesOf(
+        locales: &readonly Locales,
+        options?: &readonly SupportedLocalesOptions,
+    ): Result<^string[], IntlError> {
+        todo("NumberFormat.supportedLocalesOf")
+    }
+
+    /// Construct a validated number formatter internally.
+    private constructor() {
+        todo("NumberFormat.constructor");
+    }
+
+    /// Format a numeric value.
+    format(&readonly this, value: number | bigint): ^string {
+        todo("NumberFormat.format")
+    }
+
+    /// Format a numeric string.
+    format(&readonly this, value: &readonly string): ^string {
+        todo("NumberFormat.formatString")
+    }
+
+    /// Format a numeric value into separate parts.
+    formatToParts(&readonly this, value: number | bigint): ^NumberFormatPart[] {
+        todo("NumberFormat.formatToParts")
+    }
+
+    /// Format a numeric string into separate parts.
+    formatToParts(&readonly this, value: &readonly string): ^NumberFormatPart[] {
+        todo("NumberFormat.formatStringToParts")
+    }
+
+    /// Format a numeric range.
+    formatRange(
+        &readonly this,
+        start: &readonly NumberFormatValue,
+        end: &readonly NumberFormatValue,
+    ): Result<string, IntlError> {
+        todo("NumberFormat.formatRange")
+    }
+
+    /// Format a numeric range into separate parts.
+    formatRangeToParts(
+        &readonly this,
+        start: &readonly NumberFormatValue,
+        end: &readonly NumberFormatValue,
+    ): Result<^NumberRangeFormatPart[], IntlError> {
+        todo("NumberFormat.formatRangeToParts")
+    }
+
+    /// Return the resolved options.
+    resolvedOptions(&readonly this): ResolvedNumberFormatOptions {
+        todo("NumberFormat.resolvedOptions")
+    }
+}

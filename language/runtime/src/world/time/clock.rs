@@ -1,12 +1,12 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::time::{Instant, Nanos};
-use destack_core::{Capture, CaptureMode};
-use destack_repository::{ClockOptions, ExecutionMode};
+use tspp_core::{Capture, CaptureMode};
+use tspp_repository::{ClockOptions, ExecutionMode};
 
 /// Runtime clock sources and time policies.
 #[derive(Debug, Clone)]

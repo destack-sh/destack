@@ -1,6 +1,6 @@
 use crate::parse::{ExpressionPosition, ExpressionStop, TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
-use destack_dir::{
+use tspp_dir::{
     Expression, InferForm, Keyword, LocalNodeId, NodeType, TokenType, TupleElement, TupleForm,
     TypeExpression,
 };

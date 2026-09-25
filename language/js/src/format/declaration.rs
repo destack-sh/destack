@@ -2,9 +2,9 @@ use crate::format::function::format_function_signature_parameters;
 use crate::{
     Asynchrony, Context, Declaration, ExportKind, FormatNode, Formatter, Keyword, LocalNodeId,
 };
-use destack_fir::format::{Format, FormatResult};
-use destack_fir::prelude::*;
-use destack_fir::write;
+use tspp_fir::format::{Format, FormatResult};
+use tspp_fir::prelude::*;
+use tspp_fir::write;
 
 impl<'ast> Format<'ast, Context<'ast>> for ExportKind {
     fn format(&self, f: &mut Formatter<'ast, '_>) -> FormatResult<()> {

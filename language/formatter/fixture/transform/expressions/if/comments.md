@@ -6,11 +6,11 @@
 
 Comments before ternary branches are preserved.
 
-```ds line-width=60
+```tspp line-width=60
 const x = condition ? /* then */ valueA : /* else */ valueB
 ```
 
-```ds expected
+```tspp expected
 const x = condition ? /* then */ valueA : /* else */ valueB;
 ```
 
@@ -18,11 +18,11 @@ const x = condition ? /* then */ valueA : /* else */ valueB;
 
 Comments preserved when ternary breaks across lines.
 
-```ds line-width=30
+```tspp line-width=30
 const x = condition ? /* yes */ valueA : /* no */ valueB
 ```
 
-```ds expected
+```tspp expected
 const x = condition
     ? /* yes */ valueA
     : /* no */ valueB;

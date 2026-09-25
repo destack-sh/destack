@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::Patch;
+use tspp_dir as dir;
+use tspp_source::Patch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -15,14 +15,14 @@ Instead, you SHOULD call `copied` to state the Copy requirement directly.
 "#,
         example: {
             reported: r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function copy(values: Iterator<&immutable int32>): int32[] {
     return values.cloned().toArray();
 }
 "#,
             accepted: r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function copy(values: Iterator<&immutable int32>): int32[] {
     return values.copied().toArray();
@@ -88,7 +88,7 @@ mod tests {
         let session = TestSession::dir(
             &CLONED_INSTEAD_OF_COPIED,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 declare function values(): Iterator<&immutable int32>;
 
@@ -100,7 +100,7 @@ function copy(): int32[] {
 
         session.assert_fixes(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 declare function values(): Iterator<&immutable int32>;
 
@@ -117,7 +117,7 @@ function copy(): int32[] {
         let session = TestSession::dir(
             &CLONED_INSTEAD_OF_COPIED,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function copy<T: Copy>(values: Iterator<&immutable T>): T[] {
     return values.cloned().toArray();
@@ -127,7 +127,7 @@ function copy<T: Copy>(values: Iterator<&immutable T>): T[] {
 
         session.assert_fixes(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function copy<T: Copy>(values: Iterator<&immutable T>): T[] {
     return values.copied().toArray();
@@ -161,7 +161,7 @@ function copy(values: &immutable Label[]): Label[] {
         let session = TestSession::dir(
             &CLONED_INSTEAD_OF_COPIED,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function copy(values: Iterator<&immutable int32> | undefined): int32[] | undefined {
     return values?.cloned().toArray();
@@ -171,7 +171,7 @@ function copy(values: Iterator<&immutable int32> | undefined): int32[] | undefin
 
         session.assert_fixes(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function copy(values: Iterator<&immutable int32> | undefined): int32[] | undefined {
     return values?.copied().toArray();

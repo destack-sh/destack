@@ -1,0 +1,22 @@
+// SYNTAX TEST "source.tspp"
+
+// expressions / values / expression blocks
+const label = if (ready) {
+//            ^^ keyword.control.conditional.tspp
+    "ready"
+} else {
+    "waiting"
+};
+
+// expressions / values / tuples
+const pair = (left, right);
+// <- keyword.declaration.variable.tspp
+
+const one = (value,);
+
+// expressions / values / do expressions
+const value = do {
+//            ^^ keyword.control.loop.tspp
+    let base = 1;
+    base + 2
+};

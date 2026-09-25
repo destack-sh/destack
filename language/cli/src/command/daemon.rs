@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Args, Subcommand};
 
-use destack_daemon::{Daemon, DaemonConnectOptions, DaemonEndpoint, DaemonOptions};
+use tspp_daemon::{Daemon, DaemonConnectOptions, DaemonEndpoint, DaemonOptions};
 
 use crate::common::program::ProgramArgs;
 use crate::console;

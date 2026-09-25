@@ -1,15 +1,15 @@
 use std::cmp::Ordering;
 
-use destack_artifact::ArtifactKey;
-use destack_core::Blob;
-use destack_dir as dir;
-use destack_serde::Reflect;
-use destack_source::{
+use rustc_hash::FxHashSet;
+use serde::{Deserialize, Serialize};
+use tspp_artifact::ArtifactKey;
+use tspp_core::Blob;
+use tspp_dir as dir;
+use tspp_serde::Reflect;
+use tspp_source::{
     Applicability, Diagnostic, DiagnosticReference, DiagnosticTarget, FilePatch, Patch, PatchSet,
     Span,
 };
-use rustc_hash::FxHashSet;
-use serde::{Deserialize, Serialize};
 
 use crate::source::ImportBinding;
 use crate::{
@@ -363,7 +363,7 @@ impl ModuleQueryContext<'_> {
     fn import_actions(
         &self,
         program: &ProgramQueryContext<'_>,
-        file: destack_source::FileId,
+        file: tspp_source::FileId,
         name: &str,
         usage: DeclarationUse,
     ) -> QueryResult<Vec<ImportAction>> {

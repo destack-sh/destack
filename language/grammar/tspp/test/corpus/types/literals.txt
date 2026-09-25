@@ -1,0 +1,80 @@
+=======================================
+Literal types
+:language(tspp)
+=======================================
+
+let x: 2
+let x: 2 | -3 | +4
+let x: "string"
+let x: false
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (literal_type
+          (number)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (union_type
+          (union_type
+            (literal_type
+              (number))
+            (literal_type
+              (unary_expression
+                (number))))
+          (literal_type
+            (unary_expression
+              (number)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (literal_type
+          (string
+            (string_fragment))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (literal_type
+          (false))))))
+
+==================================
+Literal types and pre-defined types
+:language(tspp)
+==================================
+
+type T = Foo<unknown, unknown, number, string, void, true, false, null, undefined, 0, "foo">
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (predefined_type)
+        (predefined_type)
+        (predefined_type)
+        (predefined_type)
+        (predefined_type)
+        (literal_type
+          (true))
+        (literal_type
+          (false))
+        (literal_type
+          (null))
+        (literal_type
+          (undefined))
+        (literal_type
+          (number))
+        (literal_type
+          (string
+            (string_fragment)))))))

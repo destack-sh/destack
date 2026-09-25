@@ -1,4 +1,4 @@
-use destack_lsp_types as lsp;
+use tspp_lsp_types as lsp;
 
 use super::tests::{TestServer, position, range};
 
@@ -10,7 +10,7 @@ export function choose(device: Device): Device {
     return device;
 }
 "#;
-    let main = r#"import { Device, choose } from "./library.ds";
+    let main = r#"import { Device, choose } from "./library.tspp";
 
 const first = new Device();
 const second = choose(first);
@@ -29,11 +29,11 @@ extension of Robot implements Greeter {}
 "#;
     let (mut server, document) = TestServer::open_workspace(
         "navigation",
-        &[("src/library.ds", library), ("src/main.ds", main)],
-        "src/main.ds",
+        &[("src/library.tspp", library), ("src/main.tspp", main)],
+        "src/main.tspp",
     )
     .await;
-    let library = server.document("src/library.ds");
+    let library = server.document("src/library.tspp");
 
     // navigate the imported call to its authored function
     let definition = Some(lsp::GotoDefinitionResponse::Link(vec![library.link(

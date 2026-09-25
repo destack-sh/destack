@@ -4,13 +4,13 @@ use crate::tests::{DirRows, TestSession};
 fn test_import_records_local_import_edge() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Foo } from "./dep.ds";
+import { Foo } from "./dep.tspp";
 "#,
         )
         .module(
-            "dep.ds",
+            "dep.tspp",
             r#"
 export type Foo = string;
 "#,
@@ -18,11 +18,11 @@ export type Foo = string;
         .build();
 
     compiler.assert_dir_imported(
-        "main.ds",
+        "main.tspp",
         DirRows::modules().with_summaries(),
         r#"
-import { Foo } from "./dep.ds";
-/// @module.edge relation=import specifier=./dep.ds module=dep.ds
+import { Foo } from "./dep.tspp";
+/// @module.edge relation=import specifier=./dep.tspp module=dep.tspp
 
 /// @module.summary edges=1
 "#,
@@ -33,13 +33,13 @@ import { Foo } from "./dep.ds";
 fn test_import_records_side_effect_edge() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import "./dep.ds";
+import "./dep.tspp";
 "#,
         )
         .module(
-            "dep.ds",
+            "dep.tspp",
             r#"
 let value = 1;
 "#,
@@ -47,11 +47,11 @@ let value = 1;
         .build();
 
     compiler.assert_dir_imported(
-        "main.ds",
+        "main.tspp",
         DirRows::modules().with_summaries(),
         r#"
-import "./dep.ds";
-/// @module.edge relation=import specifier=./dep.ds module=dep.ds
+import "./dep.tspp";
+/// @module.edge relation=import specifier=./dep.tspp module=dep.tspp
 
 /// @module.summary edges=1
 "#,
@@ -62,13 +62,13 @@ import "./dep.ds";
 fn test_import_resolves_extensionless_source_path() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { Foo } from "./dep";
 "#,
         )
         .module(
-            "dep.ds",
+            "dep.tspp",
             r#"
 export type Foo = string;
 "#,
@@ -76,11 +76,11 @@ export type Foo = string;
         .build();
 
     compiler.assert_dir_imported(
-        "main.ds",
+        "main.tspp",
         DirRows::modules().with_summaries(),
         r#"
 import { Foo } from "./dep";
-/// @module.edge relation=import specifier=./dep module=dep.ds
+/// @module.edge relation=import specifier=./dep module=dep.tspp
 
 /// @module.summary edges=1
 "#,
@@ -91,13 +91,13 @@ import { Foo } from "./dep";
 fn test_import_resolves_relative_parent_path() {
     let compiler = TestSession::builder()
         .module(
-            "src/main.ds",
+            "src/main.tspp",
             r#"
-import { Foo } from "../dep.ds";
+import { Foo } from "../dep.tspp";
 "#,
         )
         .module(
-            "dep.ds",
+            "dep.tspp",
             r#"
 export type Foo = string;
 "#,
@@ -105,11 +105,11 @@ export type Foo = string;
         .build();
 
     compiler.assert_dir_imported(
-        "src/main.ds",
+        "src/main.tspp",
         DirRows::modules().with_summaries(),
         r#"
-import { Foo } from "../dep.ds";
-/// @module.edge relation=import specifier=../dep.ds module=dep.ds
+import { Foo } from "../dep.tspp";
+/// @module.edge relation=import specifier=../dep.tspp module=dep.tspp
 
 /// @module.summary edges=1
 "#,
@@ -120,13 +120,13 @@ import { Foo } from "../dep.ds";
 fn test_import_renders_multi_module_snapshot() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Foo } from "./dep.ds";
+import { Foo } from "./dep.tspp";
 "#,
         )
         .module(
-            "dep.ds",
+            "dep.tspp",
             r#"
 export type Foo = string;
 "#,
@@ -134,17 +134,17 @@ export type Foo = string;
         .build();
 
     compiler.assert_dir_imported_many(
-        &["main.ds", "dep.ds"],
+        &["main.tspp", "dep.tspp"],
         DirRows::modules().with_summaries(),
         r#"
-=== main.ds ===
+=== main.tspp ===
 
-import { Foo } from "./dep.ds";
-/// @module.edge relation=import specifier=./dep.ds module=dep.ds
+import { Foo } from "./dep.tspp";
+/// @module.edge relation=import specifier=./dep.tspp module=dep.tspp
 
 /// @module.summary edges=1
 
-=== dep.ds ===
+=== dep.tspp ===
 
 export type Foo = string;
 
@@ -157,18 +157,18 @@ export type Foo = string;
 fn test_import_reports_missing_local_module() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Missing } from "./missing.ds";
+import { Missing } from "./missing.tspp";
 "#,
         )
         .build();
 
     compiler.assert_dir_imported_diagnostics(
-        "main.ds",
+        "main.tspp",
         r#"
-/// @diagnostic.error id=unresolved-module message="unresolved module './missing.ds'"
-/// @diagnostic.label line=2 column=1 span="import { Missing } from \"./missing.ds\"" line_source="import { Missing } from \"./missing.ds\";"
+/// @diagnostic.error id=unresolved-module message="unresolved module './missing.tspp'"
+/// @diagnostic.label line=2 column=1 span="import { Missing } from \"./missing.tspp\"" line_source="import { Missing } from \"./missing.tspp\";"
 "#,
     );
 }
@@ -177,19 +177,19 @@ import { Missing } from "./missing.ds";
 fn test_import_reports_ambiguous_extensionless_specifier() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { value } from "./dep";
 "#,
         )
         .module(
-            "dep.ds",
+            "dep.tspp",
             r#"
 export let value = 1;
 "#,
         )
         .module(
-            "dep.d.ds",
+            "dep.d.tspp",
             r#"
 export declare let value: int32;
 "#,
@@ -197,9 +197,9 @@ export declare let value: int32;
         .build();
 
     compiler.assert_dir_imported_diagnostics(
-        "main.ds",
+        "main.tspp",
         r#"
-/// @diagnostic.error id=ambiguous-module-specifier message="ambiguous module specifier './dep': dep.ds, dep.d.ds"
+/// @diagnostic.error id=ambiguous-module-specifier message="ambiguous module specifier './dep': dep.tspp, dep.d.tspp"
 /// @diagnostic.label line=2 column=1 span="import { value } from \"./dep\"" line_source="import { value } from \"./dep\";"
 "#,
     );
@@ -235,13 +235,13 @@ fn test_import_reports_cross_package_relative_specifier() {
 "#,
         )
         .module(
-            "packages/app/main.ds",
+            "packages/app/main.tspp",
             r#"
-import { value } from "../lib/dep.ds";
+import { value } from "../lib/dep.tspp";
 "#,
         )
         .module(
-            "packages/lib/dep.ds",
+            "packages/lib/dep.tspp",
             r#"
 export let value = 1;
 "#,
@@ -249,10 +249,10 @@ export let value = 1;
         .build();
 
     compiler.assert_dir_imported_diagnostics(
-        "packages/app/main.ds",
+        "packages/app/main.tspp",
         r#"
-/// @diagnostic.error id=cross-package-relative-import message="relative module specifier '../lib/dep.ds' crosses package boundaries"
-/// @diagnostic.label line=2 column=1 span="import { value } from \"../lib/dep.ds\"" line_source="import { value } from \"../lib/dep.ds\";"
+/// @diagnostic.error id=cross-package-relative-import message="relative module specifier '../lib/dep.tspp' crosses package boundaries"
+/// @diagnostic.label line=2 column=1 span="import { value } from \"../lib/dep.tspp\"" line_source="import { value } from \"../lib/dep.tspp\";"
 "#,
     );
 }

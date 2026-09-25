@@ -1,5 +1,5 @@
-use destack_mir::{Discriminant, DiscriminantField, VariantEncoding};
-use destack_program::{
+use tspp_mir::{Discriminant, DiscriminantField, VariantEncoding};
+use tspp_program::{
     LayoutShapeBuilder, ScalarFormat, TypeId, VariantCaseLayout, VariantLayoutBuilder, Word,
 };
 

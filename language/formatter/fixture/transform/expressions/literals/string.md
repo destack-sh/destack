@@ -6,11 +6,11 @@
 
 Double quoted strings are preserved as-is.
 
-```ds
+```tspp
 const x = "hello"
 ```
 
-```ds expected
+```tspp expected
 const x = "hello";
 ```
 
@@ -18,11 +18,11 @@ const x = "hello";
 
 Character literals keep single quotes.
 
-```ds:main.ds
+```tspp:main.tspp
 const x = 'a'
 ```
 
-```ds expected
+```tspp expected
 const x = 'a';
 ```
 
@@ -30,11 +30,11 @@ const x = 'a';
 
 Empty strings are preserved.
 
-```ds
+```tspp
 const x = ""
 ```
 
-```ds expected
+```tspp expected
 const x = "";
 ```
 
@@ -42,11 +42,11 @@ const x = "";
 
 String content is preserved exactly.
 
-```ds
+```tspp
 const x = "hello world"
 ```
 
-```ds expected
+```tspp expected
 const x = "hello world";
 ```
 
@@ -57,11 +57,11 @@ const x = "hello world";
 
 Escape sequences are preserved.
 
-```ds
+```tspp
 const x = "hello\nworld"
 ```
 
-```ds expected
+```tspp expected
 const x = "hello\nworld";
 ```
 
@@ -69,11 +69,11 @@ const x = "hello\nworld";
 
 Tab escapes are preserved.
 
-```ds
+```tspp
 const x = "hello\tworld"
 ```
 
-```ds expected
+```tspp expected
 const x = "hello\tworld";
 ```
 
@@ -81,11 +81,11 @@ const x = "hello\tworld";
 
 Backslash escapes are preserved.
 
-```ds
+```tspp
 const x = "path\\to\\file"
 ```
 
-```ds expected
+```tspp expected
 const x = "path\\to\\file";
 ```
 
@@ -93,11 +93,11 @@ const x = "path\\to\\file";
 
 Escaped quotes are preserved.
 
-```ds
+```tspp
 const x = "say \"hello\""
 ```
 
-```ds expected
+```tspp expected
 const x = "say \"hello\"";
 ```
 
@@ -108,11 +108,11 @@ const x = "say \"hello\"";
 
 String concatenation uses `+` operator.
 
-```ds
+```tspp
 "hello" + " " + "world"
 ```
 
-```ds expected
+```tspp expected
 "hello" + " " + "world";
 ```
 
@@ -120,11 +120,11 @@ String concatenation uses `+` operator.
 
 Variables can be concatenated with strings.
 
-```ds
+```tspp
 prefix + name + suffix
 ```
 
-```ds expected
+```tspp expected
 prefix + name + suffix;
 ```
 
@@ -134,11 +134,11 @@ prefix + name + suffix;
 
 Strings can be passed directly as arguments.
 
-```ds
+```tspp
 foo("hello")
 ```
 
-```ds expected
+```tspp expected
 foo("hello");
 ```
 
@@ -146,11 +146,11 @@ foo("hello");
 
 Strings can be array elements.
 
-```ds
+```tspp
 ["a", "b", "c"]
 ```
 
-```ds expected
+```tspp expected
 ["a", "b", "c"];
 ```
 
@@ -158,11 +158,11 @@ Strings can be array elements.
 
 Strings can be object property values.
 
-```ds
+```tspp
 const x = { name: "test" }
 ```
 
-```ds expected
+```tspp expected
 const x = { name: "test" };
 ```
 
@@ -172,11 +172,11 @@ const x = { name: "test" };
 
 Methods can be called on string literals.
 
-```ds
+```tspp
 "hello".toUpperCase()
 ```
 
-```ds expected
+```tspp expected
 "hello".toUpperCase();
 ```
 
@@ -184,11 +184,11 @@ Methods can be called on string literals.
 
 Method chains on strings work normally.
 
-```ds
+```tspp
 "  hello  ".trim().toUpperCase()
 ```
 
-```ds expected
+```tspp expected
 "  hello  ".trim().toUpperCase();
 ```
 
@@ -196,11 +196,11 @@ Method chains on strings work normally.
 
 Properties can be accessed on template literals.
 
-```ds
+```tspp
 `hello ${name}`.length
 ```
 
-```ds expected
+```tspp expected
 `hello ${name}`.length;
 ```
 
@@ -211,11 +211,11 @@ Properties can be accessed on template literals.
 
 Long string declarator values break after `=` when they exceed line width.
 
-```ds line-width=40
+```tspp line-width=40
 const msg = "This is a very long string that exceeds the line width but should not be broken"
 ```
 
-```ds expected
+```tspp expected
 const msg =
     "This is a very long string that exceeds the line width but should not be broken";
 ```
@@ -224,10 +224,10 @@ const msg =
 
 Long template literal declarator values stay inline even when they exceed line width.
 
-```ds line-width=40
+```tspp line-width=40
 const msg = `This is a very long template literal that exceeds the line width but should not be broken`
 ```
 
-```ds expected
+```tspp expected
 const msg = `This is a very long template literal that exceeds the line width but should not be broken`;
 ```

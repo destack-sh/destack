@@ -11,7 +11,7 @@ declare const buffer: Buffer<1024>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -42,7 +42,7 @@ declare const halved: Halved<1024>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -75,7 +75,7 @@ declare const buffer: Buffer<uint>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -108,7 +108,7 @@ declare const quad: Quad<uint>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -150,7 +150,7 @@ function count<const N: usize>(): usize {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -195,7 +195,7 @@ struct Block<const N: usize> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -243,7 +243,7 @@ load(runtime);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===

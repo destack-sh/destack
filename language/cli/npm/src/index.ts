@@ -25,7 +25,7 @@ const PLATFORM_PACKAGES: Record<string, string> = {
 };
 
 /** The supported CLI binary names exposed by npm wrappers. */
-const SUPPORTED_BINARIES = new Set(["destack", "ds", "dsc"]);
+const SUPPORTED_BINARIES = new Set(["destack", "tspp", "tsppc"]);
 
 /** Resolve the Linux libc family for package selection. */
 function resolveLinuxLibc(): "gnu" | "musl" {
@@ -121,7 +121,7 @@ function resolveBinaryPath(binaryName: string): string {
             [
                 `could not resolve ${platformPackageName} for ${platformKey}`,
                 "run npm install -g @destack/language-cli for your platform",
-                "or build locally with cargo build --release -p destack_language_cli",
+                "or build locally with cargo build --release -p tspp_cli",
             ].join("\n"),
         );
     }

@@ -1,4 +1,4 @@
-use destack_mir::{TraceId, TraceMap};
+use tspp_mir::{TraceId, TraceMap};
 
 use crate::{
     Bitmap, HeapError, HeapReference, HeapRepresentationError, HeapResult, ReferenceOffsets,
@@ -1012,7 +1012,7 @@ fn reference_bytes_mut(
 
 #[cfg(test)]
 mod tests {
-    use destack_mir::{DiscriminantField, VariantEncoding, VariantTrace};
+    use tspp_mir::{DiscriminantField, VariantEncoding, VariantTrace};
 
     use super::*;
 

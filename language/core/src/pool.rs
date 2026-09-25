@@ -1,9 +1,9 @@
 use std::hash::{BuildHasher, Hash, Hasher};
 
-use destack_serde::Reflect;
 use rustc_hash::{FxBuildHasher, FxHashMap};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+use tspp_serde::Reflect;
 
 use crate::Arena;
 

@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// Runtime host module defaults.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]

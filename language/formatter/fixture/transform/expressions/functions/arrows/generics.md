@@ -4,21 +4,21 @@
 
 ### arrow function with type parameter
 
-```ds
+```tspp
 const identity = <T,>(x: T): T => x
 ```
 
-```ds expected
+```tspp expected
 const identity = <T,>(x: T): T => x;
 ```
 
 ### arrow function with constrained type parameter
 
-```ds
+```tspp
 const first = <T: Iterable<U>, U>(items: T): U => items[0]
 ```
 
-```ds expected
+```tspp expected
 const first = <T: Iterable<U>, U>(items: T): U => items[0];
 ```
 
@@ -26,10 +26,10 @@ const first = <T: Iterable<U>, U>(items: T): U => items[0];
 
 Multiple generic type parameters in function type syntax.
 
-```ds
+```tspp
 const map = <T, U>(arr: T[], fn: (x: T) => U): U[] => arr.map(fn)
 ```
 
-```ds expected
+```tspp expected
 const map = <T, U>(arr: T[], fn: (x: T) => U): U[] => arr.map(fn);
 ```

@@ -1,5 +1,5 @@
-use crate::{DestackFormatOptions, assert_format, assert_format_roundtrip, parse_first_expression};
-use destack_source::FileType;
+use crate::{TsppFormatOptions, assert_format, assert_format_roundtrip, parse_first_expression};
+use tspp_source::FileType;
 
 /// Simple imports should stay stable.
 #[test]
@@ -8,7 +8,7 @@ fn test_format_import() {
         r#"import "foo""#,
         r#"import "foo""#,
         parse_first_expression,
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -19,7 +19,7 @@ fn test_format_import_with_items_from() {
         r#"import {foo,bar,baz} from "foo""#,
         r#"import { bar, baz, foo } from "foo""#,
         parse_first_expression,
-        DestackFormatOptions::default_with_line_width(60)
+        TsppFormatOptions::default_with_line_width(60)
     );
 }
 
@@ -30,7 +30,7 @@ fn test_format_export_with_attributes() {
         r#"export { foo } from "bar" with { mode: "strict" }"#,
         r#"export { foo } from "bar" with { mode: "strict" }"#,
         parse_first_expression,
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -40,7 +40,7 @@ fn test_format_import_default_and_namespace_roundtrip() {
     assert_format_roundtrip!(
         r#"import a, * as b from "a""#,
         r#"import a, * as b from "a""#,
-        FileType::Destack,
+        FileType::Tspp,
         parse_first_expression,
     );
 }

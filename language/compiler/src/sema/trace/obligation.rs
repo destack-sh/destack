@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::TraceEvent;
+use tspp_dir as dir;
+use tspp_repository::TraceEvent;
 
 use crate::sema::{CheckId, EventFormatter, Obligation, PatternCoverage};
 

@@ -8,11 +8,11 @@ Import specifier fixtures cover sorting inside import and export braces.
 
 Import specifiers should be sorted alphabetically.
 
-```ds
+```tspp
 import { zebra, apple, mango } from "fruits"
 ```
 
-```ds expected
+```tspp expected
 import { apple, mango, zebra } from "fruits";
 ```
 
@@ -20,11 +20,11 @@ import { apple, mango, zebra } from "fruits";
 
 Default import stays first, remaining specifiers are sorted.
 
-```ds
+```tspp
 import Default, { zebra, apple, mango } from "fruits"
 ```
 
-```ds expected
+```tspp expected
 import Default, { apple, mango, zebra } from "fruits";
 ```
 
@@ -32,11 +32,11 @@ import Default, { apple, mango, zebra } from "fruits";
 
 Numbers are sorted as integers, not lexicographically.
 
-```ds
+```tspp
 import { item10, item2, item1 } from "items"
 ```
 
-```ds expected
+```tspp expected
 import { item1, item2, item10 } from "items";
 ```
 
@@ -46,11 +46,11 @@ import { item1, item2, item10 } from "items";
 
 Export specifiers are also sorted.
 
-```ds
+```tspp
 export { zebra, apple, mango } from "fruits"
 ```
 
-```ds expected
+```tspp expected
 export { apple, mango, zebra } from "fruits";
 ```
 
@@ -60,10 +60,10 @@ export { apple, mango, zebra } from "fruits";
 
 When an alias is present, sort by the alias (local name).
 
-```ds
+```tspp
 import { foo as zebra, bar as apple } from "module"
 ```
 
-```ds expected
+```tspp expected
 import { bar as apple, foo as zebra } from "module";
 ```

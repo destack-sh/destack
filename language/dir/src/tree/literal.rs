@@ -3,8 +3,8 @@ use std::hash::{Hash, Hasher};
 
 use serde::{Deserialize, Serialize};
 
-use destack_core::StringPool;
-use destack_serde::Reflect;
+use tspp_core::StringPool;
+use tspp_serde::Reflect;
 
 use crate::{
     Argument, Expression, FloatType, IntegerType, LanguageItem, LocalNodeId, Name, Node, NodeFold,

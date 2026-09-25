@@ -1,4 +1,4 @@
-use destack_repository::ArtifactAttemptRecorder;
+use tspp_repository::ArtifactAttemptRecorder;
 
 use crate::CompilerResult;
 use crate::sema::{Check, CheckState, Pass, WalkState};

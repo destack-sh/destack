@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -144,7 +144,7 @@ function ready(): boolean {
         session.assert_diagnostics(
             r#"
 warning[require-diagnostic-reason]: diagnostic suppression has no reason
- ──▶ main.ds:1:1
+ ──▶ main.tspp:1:1
   │
 1 │ @allow("constant-condition")
   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -218,7 +218,7 @@ function ready(): boolean {
         session.assert_diagnostics(
             r#"
 warning[require-diagnostic-reason]: diagnostic suppression has no reason
- ──▶ main.ds:1:1
+ ──▶ main.tspp:1:1
   │
 1 │ @allow("constant-condition", { reason: "generated declaration", ...{ reason: "" } })
   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -249,7 +249,7 @@ function ready(): boolean {
         session.assert_diagnostics(
             r#"
 warning[require-diagnostic-reason]: diagnostic suppression has no reason
- ──▶ main.ds:1:1
+ ──▶ main.tspp:1:1
   │
 1 │ @allow("constant-condition", { if: true, otherwise: "deny" })
   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -280,7 +280,7 @@ function ready(): boolean {
         session.assert_diagnostics(
             r#"
 warning[require-diagnostic-reason]: diagnostic suppression has no reason
- ──▶ main.ds:1:1
+ ──▶ main.tspp:1:1
   │
 1 │ @expect("constant-condition", { reason: "  " })
   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -311,7 +311,7 @@ function ready(): boolean {
         session.assert_diagnostics(
             r#"
 warning[constant-condition]: condition is always true
- ──▶ main.ds:3:9
+ ──▶ main.tspp:3:9
   │
 1 │ @warn("constant-condition")
 2 │ function ready(): boolean {

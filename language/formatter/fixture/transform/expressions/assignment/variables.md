@@ -8,13 +8,13 @@ Variable fixtures cover declaration keywords, binding patterns, ambient declarat
 
 Extra whitespace around the assignment should be normalized.
 
-```ds
+```tspp
 const   x   =   1
 ```
 
 The formatter produces a single space around `=` and adds a trailing semicolon.
 
-```ds expected
+```tspp expected
 const x = 1;
 ```
 
@@ -22,11 +22,11 @@ const x = 1;
 
 Type annotations have no space before the colon and one space after.
 
-```ds
+```tspp
 const   x  :  number   =   1
 ```
 
-```ds expected
+```tspp expected
 const x: number = 1;
 ```
 
@@ -34,11 +34,11 @@ const x: number = 1;
 
 Type annotations can be prefixed with decorators.
 
-```ds
+```tspp
 const buffer: @addrspace("shared") &Buffer = value
 ```
 
-```ds expected
+```tspp expected
 const buffer: @addrspace("shared") &Buffer = value;
 ```
 
@@ -46,11 +46,11 @@ const buffer: @addrspace("shared") &Buffer = value;
 
 Object patterns keep brace spacing and commas.
 
-```ds
+```tspp
 const {a,b} = value
 ```
 
-```ds expected
+```tspp expected
 const { a, b } = value;
 ```
 
@@ -58,11 +58,11 @@ const { a, b } = value;
 
 Computed keys in patterns use brackets.
 
-```ds
+```tspp
 const { [key]: value, ...rest } = obj
 ```
 
-```ds expected
+```tspp expected
 const { [key]: value, ...rest } = obj;
 ```
 
@@ -70,11 +70,11 @@ const { [key]: value, ...rest } = obj;
 
 Array patterns keep tight brackets.
 
-```ds
+```tspp
 const [a, b] = tuple
 ```
 
-```ds expected
+```tspp expected
 const [a, b] = tuple;
 ```
 
@@ -82,11 +82,11 @@ const [a, b] = tuple;
 
 Array rest patterns keep tight brackets.
 
-```ds:main.ds
+```tspp:main.tspp
 const [...rest] = arr
 ```
 
-```ds expected
+```tspp expected
 const [...rest] = arr;
 ```
 
@@ -94,11 +94,11 @@ const [...rest] = arr;
 
 Rest patterns keep tight spacing.
 
-```ds
+```tspp
 const { a, ...rest } = value
 ```
 
-```ds expected
+```tspp expected
 const { a, ...rest } = value;
 ```
 
@@ -106,11 +106,11 @@ const { a, ...rest } = value;
 
 Default values in short patterns stay inline with spacing around `=`.
 
-```ds
+```tspp
 const { a = 1, b: { c = 2 } } = value
 ```
 
-```ds expected
+```tspp expected
 const {
     a = 1,
     b: { c = 2 },
@@ -121,11 +121,11 @@ const {
 
 Array patterns keep empty slots and default values.
 
-```ds
+```tspp
 const [a, , b = 3] = values
 ```
 
-```ds expected
+```tspp expected
 const [a, , b = 3] = values;
 ```
 
@@ -135,11 +135,11 @@ const [a, , b = 3] = values;
 
 Mutable variable declarations use `let`.
 
-```ds
+```tspp
 let   x   =   1
 ```
 
-```ds expected
+```tspp expected
 let x = 1;
 ```
 
@@ -147,11 +147,11 @@ let x = 1;
 
 Multiple declarators format as one declarator per line.
 
-```ds
+```tspp
 let a=1, b=2, c=3
 ```
 
-```ds expected
+```tspp expected
 let a = 1,
     b = 2,
     c = 3;
@@ -161,11 +161,11 @@ let a = 1,
 
 Let-else statements keep the fallback block attached to `else`.
 
-```ds
+```tspp
 let { value } = result else { return }
 ```
 
-```ds expected
+```tspp expected
 let { value } = result else {
     return;
 };
@@ -175,11 +175,11 @@ let { value } = result else {
 
 Literal let-else patterns keep the fallback block attached to `else`.
 
-```ds
+```tspp
 let "ok" = value else { return }
 ```
 
-```ds expected
+```tspp expected
 let "ok" = value else {
     return;
 };
@@ -189,11 +189,11 @@ let "ok" = value else {
 
 Tagged patterns stay attached before the fallback block.
 
-```ds
+```tspp
 let Some(value) = maybe else { return }
 ```
 
-```ds expected
+```tspp expected
 let Some(value) = maybe else {
     return;
 };
@@ -203,11 +203,11 @@ let Some(value) = maybe else {
 
 Tagged object patterns keep field defaults and the fallback block attached.
 
-```ds
+```tspp
 let Point { x, y = 0 } = maybePoint else { return }
 ```
 
-```ds expected
+```tspp expected
 let Point { x, y = 0 } = maybePoint else {
     return;
 };
@@ -217,11 +217,11 @@ let Point { x, y = 0 } = maybePoint else {
 
 Tagged tuple patterns keep positional fields before the fallback block.
 
-```ds
+```tspp
 let Some(value, meta) = maybe else { return }
 ```
 
-```ds expected
+```tspp expected
 let Some(value, meta) = maybe else {
     return;
 };
@@ -231,13 +231,13 @@ let Some(value, meta) = maybe else {
 
 Comments around the fallback boundary stay attached to the pattern and fallback block.
 
-```ds
+```tspp
 let Some(value) /* pattern */ = maybe
 // no value
 else { return }
 ```
 
-```ds expected
+```tspp expected
 let Some(value) /* pattern */ = maybe
     // no value
     else {
@@ -249,11 +249,11 @@ let Some(value) /* pattern */ = maybe
 
 Fallback blocks keep nested if branch tails semicolonless.
 
-```ds
+```tspp
 let Some(value) = maybe else { if (shouldLog) { logMissing() } return fallback() }
 ```
 
-```ds expected
+```tspp expected
 let Some(value) = maybe else {
     if (shouldLog) {
         logMissing()
@@ -266,11 +266,11 @@ let Some(value) = maybe else {
 
 Comments inside tagged patterns stay attached before the fallback block.
 
-```ds
+```tspp
 let Result.Ok(Point { x: /* x */ x, y: /* y */ y }) = result else { return fallback() }
 ```
 
-```ds expected
+```tspp expected
 let Result.Ok(Point { x: /* x */ x, y: /* y */ y }) = result else {
     return fallback();
 };
@@ -280,11 +280,11 @@ let Result.Ok(Point { x: /* x */ x, y: /* y */ y }) = result else {
 
 Ownership pattern comments stay on the pattern side before the fallback block.
 
-```ds
+```tspp
 let Result.Ok(& /* borrowed */ value) = result else { return fallback() }
 ```
 
-```ds expected
+```tspp expected
 let Result.Ok(& /* borrowed */ value) = result else {
     return fallback();
 };
@@ -294,12 +294,12 @@ let Result.Ok(& /* borrowed */ value) = result else {
 
 Leading comments in fallback blocks stay inside the block.
 
-```ds
+```tspp
 let Some(value) = maybe else { // explain fallback
 return fallback() }
 ```
 
-```ds expected
+```tspp expected
 let Some(value) = maybe else {
     // explain fallback
     return fallback();
@@ -312,11 +312,11 @@ let Some(value) = maybe else {
 
 Declaration files keep the `declare` keyword.
 
-```ds:main.d.ds
+```tspp:main.d.tspp
 declare const PAGE_PATH: string;
 ```
 
-```ds expected
+```tspp expected
 declare const PAGE_PATH: string;
 ```
 
@@ -324,13 +324,13 @@ declare const PAGE_PATH: string;
 
 Comments before a declaration terminator stay after the emitted declaration semicolon.
 
-```ds:main.ds
+```tspp:main.tspp
 declare const PAGE_PATH: string
   // declaration tail
 ;(()=>{})()
 ```
 
-```ds expected
+```tspp expected
 declare const PAGE_PATH: string;
 // declaration tail
 (() => {})();
@@ -340,7 +340,7 @@ declare const PAGE_PATH: string;
 
 Assignment comments stay attached to the initializer shell.
 
-```ds:main.ds line-width=80
+```tspp:main.tspp line-width=80
 let longlonglonglonglonglong = /*#__PURE__*/_interopDefaultLegacy(aaaaaaaaaaaaaaa);
 let short = /*#__PURE__*/_interopDefaultLegacy(b);
 
@@ -357,7 +357,7 @@ class A {
 }
 ```
 
-```ds expected
+```tspp expected
 let longlonglonglonglonglong =
     /*#__PURE__*/ _interopDefaultLegacy(aaaaaaaaaaaaaaa);
 let short = /*#__PURE__*/ _interopDefaultLegacy(b);
@@ -381,11 +381,11 @@ class A {
 
 Tagged object patterns keep aliases, defaults, and rest fields structured.
 
-```ds
+```tspp
 const Point { x, y: renamed = 0, ...rest } = point
 ```
 
-```ds expected
+```tspp expected
 const Point { x, y: renamed = 0, ...rest } = point;
 ```
 
@@ -393,11 +393,11 @@ const Point { x, y: renamed = 0, ...rest } = point;
 
 Tagged tuple patterns keep tuple fields compact when they fit.
 
-```ds
+```tspp
 const Some(value, meta = defaultMeta) = maybe
 ```
 
-```ds expected
+```tspp expected
 const Some(value, meta = defaultMeta) = maybe;
 ```
 
@@ -405,11 +405,11 @@ const Some(value, meta = defaultMeta) = maybe;
 
 Nested tagged patterns preserve field shape across object and tuple forms.
 
-```ds
+```tspp
 const Result.Ok(Point { x, y }, meta) = result
 ```
 
-```ds expected
+```tspp expected
 const Result.Ok(Point { x, y }, meta) = result;
 ```
 
@@ -417,11 +417,11 @@ const Result.Ok(Point { x, y }, meta) = result;
 
 Nested newtype object fields break as a single pattern when they exceed the line width.
 
-```ds line-width=80
+```tspp line-width=80
 const Shape.Line({ start: Point { x, y }, end }) = line
 ```
 
-```ds expected
+```tspp expected
 const Shape.Line({
     start: Point { x, y },
     end,
@@ -432,11 +432,11 @@ const Shape.Line({
 
 Comments inside nested newtype fields stay attached to their bindings.
 
-```ds
+```tspp
 const Shape.Line({ start: Point { x: /* x */ x, y: /* y */ y }, end }) = line
 ```
 
-```ds expected
+```tspp expected
 const Shape.Line({
     start: Point { x: /* x */ x, y: /* y */ y },
     end,

@@ -1,11 +1,11 @@
 use std::fmt;
 use std::sync::Arc;
 
-use destack_memory::MemoryMap;
-use destack_native::abi::{DynamicTable, VirtualTable};
-use destack_program as program;
-use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use tspp_memory::MemoryMap;
+use tspp_native::abi::{DynamicTable, VirtualTable};
+use tspp_program as program;
+use tspp_vm as vm;
 
 use super::{Machine, native};
 use crate::diagnostic::{RuntimeError, RuntimeResult};

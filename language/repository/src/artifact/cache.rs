@@ -2,13 +2,13 @@ use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::{
+use tspp_artifact::{
     ArtifactCache, ArtifactCacheError, ArtifactCacheManifest, ArtifactCachePublication,
     ArtifactDependency, ArtifactEntry, ArtifactOutcome, ArtifactPack, ArtifactPackReference,
     ArtifactPackVersion, ArtifactVersion,
 };
-use destack_core::{BlobStore, StringPool, stable_hash_value};
-use destack_source::PackageId;
+use tspp_core::{BlobStore, StringPool, stable_hash_value};
+use tspp_source::PackageId;
 
 use crate::repository::RevisionState;
 use crate::{ArtifactSelection, Repository, RepositoryError, Revision, RevisionPin};

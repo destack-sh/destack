@@ -6,7 +6,7 @@ export LANG=C
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 cd "$ROOT_DIR"
 
-SOURCE_INPUT="${1:-language/library/src/collections/array.ds}"
+SOURCE_INPUT="${1:-language/library/src/collections/array.tspp}"
 DURATION="${2:-10}"
 MODE="${3:-trivia}"
 OUTPUT_INPUT="${4:-}"
@@ -49,10 +49,10 @@ else
   OUTPUT_FILE="$ROOT_DIR/language/parser/target/flamegraphs/${SOURCE_NAME}.${OUTPUT_MODE}.svg"
 fi
 
-DESTACK_PARSE_SECONDS="$DURATION" \
-DESTACK_PARSE_TRIVIA="$TRIVIA_MODE" \
-DESTACK_PARSE_OUTPUT="$OUTPUT_FILE" \
-  cargo run --profile bench -p destack_parser --example parse -- "$SOURCE_FILE"
+TSPP_PARSE_SECONDS="$DURATION" \
+TSPP_PARSE_TRIVIA="$TRIVIA_MODE" \
+TSPP_PARSE_OUTPUT="$OUTPUT_FILE" \
+  cargo run --profile bench -p tspp_parser --example parse -- "$SOURCE_FILE"
 
 if [[ ! -f "$OUTPUT_FILE" ]]; then
   echo "missing flamegraph: $OUTPUT_FILE"

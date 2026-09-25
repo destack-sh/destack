@@ -1,17 +1,17 @@
-use destack_fir::format::FormatOptions;
-use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions};
-use destack_repository::{
+use tspp_fir::format::FormatOptions;
+use tspp_fir::print::{MAX_OUTPUT_BYTES, PrintOptions};
+use tspp_repository::{
     ArrowParentheses, FormatterOptions, ImportSortOrder, OrganizeImports, QuoteProperty,
     QuoteStyle, TrailingComma,
 };
-use destack_source::{IndentStyle, LanguageType, LineEnding};
+use tspp_source::{IndentStyle, LanguageType, LineEnding};
 
-/// Destack format options.
+/// TS++ format options.
 #[derive(Debug, Default, PartialEq, Clone)]
-pub struct DestackFormatOptions {
+pub struct TsppFormatOptions {
     // source
     /// The source language type.
-    pub language_type: LanguageType = LanguageType::Destack,
+    pub language_type: LanguageType = LanguageType::Tspp,
 
     // layout
     /// The type of line ending to apply to the printed input.
@@ -51,7 +51,7 @@ pub struct DestackFormatOptions {
 
 }
 
-impl DestackFormatOptions {
+impl TsppFormatOptions {
     /// Default options with a given line width.
     pub fn default_with_line_width(line_width: u16) -> Self {
         Self {
@@ -121,13 +121,13 @@ impl DestackFormatOptions {
     }
 }
 
-impl From<FormatterOptions> for DestackFormatOptions {
+impl From<FormatterOptions> for TsppFormatOptions {
     fn from(options: FormatterOptions) -> Self {
-        Self::from_formatter_options(options, LanguageType::Destack)
+        Self::from_formatter_options(options, LanguageType::Tspp)
     }
 }
 
-impl FormatOptions for DestackFormatOptions {
+impl FormatOptions for TsppFormatOptions {
     #[inline]
     fn indent_style(&self) -> IndentStyle {
         self.indent_style

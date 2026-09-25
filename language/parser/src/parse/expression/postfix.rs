@@ -1,12 +1,12 @@
 use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
-use destack_core::StringId;
-use destack_dir::{
+use smallvec::smallvec;
+use tspp_core::StringId;
+use tspp_dir::{
     Declaration, Expression, FunctionDeclaration, FunctionForm, GenericArgument, LocalNodeId,
     NodeType, Path, PostfixPosition, TokenType, TypeExpression, UnaryOperator,
 };
-use destack_source::{ByteRange, NodeSpanList, NodeSpanType};
-use smallvec::smallvec;
+use tspp_source::{ByteRange, NodeSpanList, NodeSpanType};
 
 /// One value expression head that can be promoted into static type space.
 enum StaticTypeHead {

@@ -1,5 +1,5 @@
-use destack_core::FxIndexSet;
-use destack_dir as dir;
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
 
 use crate::sema::{
     AssignedPlace, CheckState, FieldInitializationObligation, ObligationCheck, ObligationFailure,

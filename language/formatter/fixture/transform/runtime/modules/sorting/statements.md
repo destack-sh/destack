@@ -8,7 +8,7 @@ Import sorting fixtures cover import groups, side effects, scoped packages, and 
 
 Builtin imports (using protocol prefix like `node:`, `bun:`, `deno:`) come before external packages.
 
-```ds
+```tspp
 {
     import lodash from "lodash"
     import fs from "node:fs"
@@ -16,7 +16,7 @@ Builtin imports (using protocol prefix like `node:`, `bun:`, `deno:`) come befor
 }
 ```
 
-```ds expected
+```tspp expected
 {
     import fs from "node:fs";
     import path from "node:path";
@@ -29,7 +29,7 @@ Builtin imports (using protocol prefix like `node:`, `bun:`, `deno:`) come befor
 
 Any protocol prefix (not just `node:`) is recognized as a builtin.
 
-```ds
+```tspp
 {
     import lodash from "lodash"
     import test from "bun:test"
@@ -37,7 +37,7 @@ Any protocol prefix (not just `node:`) is recognized as a builtin.
 }
 ```
 
-```ds expected
+```tspp expected
 {
     import test from "bun:test";
     import fs from "node:fs";
@@ -50,14 +50,14 @@ Any protocol prefix (not just `node:`) is recognized as a builtin.
 
 External packages come before relative imports.
 
-```ds
+```tspp
 {
     import local from "./local"
     import lodash from "lodash"
 }
 ```
 
-```ds expected
+```tspp expected
 {
     import lodash from "lodash";
 
@@ -69,14 +69,14 @@ External packages come before relative imports.
 
 Path aliases come before relative imports.
 
-```ds
+```tspp
 {
     import local from "./local"
     import util from "@/utils"
 }
 ```
 
-```ds expected
+```tspp expected
 {
     import util from "@/utils";
 
@@ -90,7 +90,7 @@ Path aliases come before relative imports.
 
 Packages are sorted alphabetically within their group.
 
-```ds
+```tspp
 {
     import zod from "zod"
     import axios from "axios"
@@ -98,7 +98,7 @@ Packages are sorted alphabetically within their group.
 }
 ```
 
-```ds expected
+```tspp expected
 {
     import axios from "axios";
     import lodash from "lodash";
@@ -110,7 +110,7 @@ Packages are sorted alphabetically within their group.
 
 Relative imports are sorted alphabetically.
 
-```ds
+```tspp
 {
     import z from "./z"
     import a from "./a"
@@ -118,7 +118,7 @@ Relative imports are sorted alphabetically.
 }
 ```
 
-```ds expected
+```tspp expected
 {
     import m from "../m";
     import a from "./a";
@@ -132,7 +132,7 @@ Relative imports are sorted alphabetically.
 
 Side-effect imports are not reordered and stay at the top.
 
-```ds
+```tspp
 {
     import "./setup"
     import lodash from "lodash"
@@ -140,7 +140,7 @@ Side-effect imports are not reordered and stay at the top.
 }
 ```
 
-```ds expected
+```tspp expected
 {
     import "./setup";
     import "./polyfill";
@@ -155,7 +155,7 @@ Side-effect imports are not reordered and stay at the top.
 
 Scoped packages like `@org/pkg` are treated as regular packages.
 
-```ds
+```tspp
 {
     import local from "./local"
     import scoped from "@org/package"
@@ -163,7 +163,7 @@ Scoped packages like `@org/pkg` are treated as regular packages.
 }
 ```
 
-```ds expected
+```tspp expected
 {
     import scoped from "@org/package";
     import lodash from "lodash";
@@ -178,7 +178,7 @@ Scoped packages like `@org/pkg` are treated as regular packages.
 
 All groups in their correct order.
 
-```ds
+```tspp
 {
     import "./polyfill"
     import local from "./components/Button"
@@ -191,7 +191,7 @@ All groups in their correct order.
 }
 ```
 
-```ds expected
+```tspp expected
 {
     import "./polyfill";
 

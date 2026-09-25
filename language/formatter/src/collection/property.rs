@@ -22,39 +22,37 @@ use crate::operator::{
     is_poorly_breakable_member_or_call_chain, write_colon_prefixed_type_annotation,
     write_type_annotation_prefix, write_type_expression_with_inline_prefix_annotations,
 };
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_core::StringId;
-use destack_dir::{
+use crate::{FormatNode, TsppFormatContext, TsppFormatter};
+use tspp_core::StringId;
+use tspp_dir::{
     BinaryOperator, Comment, Expression, FunctionSignature, Keyword, Literal, LocalNodeId, Member,
     MethodAbstraction, Name, Node, Parameter, Property, Tree, TreeStore, TypeExpression,
     Visibility, is_identifier_compat,
 };
-use destack_fir::format::{
-    FormatError, FormatLayout, FormatResult, Formatter as FirFormatter, text,
-};
-use destack_fir::prelude::*;
-use destack_fir::write;
-use destack_repository::{QuoteProperty, QuoteStyle};
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_fir::format::{FormatError, FormatLayout, FormatResult, Formatter as FirFormatter, text};
+use tspp_fir::prelude::*;
+use tspp_fir::write;
+use tspp_repository::{QuoteProperty, QuoteStyle};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
-impl<'ast> Format<'ast, DestackFormatContext<'ast>> for StringId {
+impl<'ast> Format<'ast, TsppFormatContext<'ast>> for StringId {
     #[inline]
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         let string = f.context().strings.get(*self);
         write!(f, [text(string)])
     }
 }
 
-impl<'ast> Format<'ast, DestackFormatContext<'ast>> for Name {
+impl<'ast> Format<'ast, TsppFormatContext<'ast>> for Name {
     #[inline]
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         format_name_with_quotes(f, *self, false)
     }
 }
 
-impl<'ast> Format<'ast, DestackFormatContext<'ast>> for Keyword {
+impl<'ast> Format<'ast, TsppFormatContext<'ast>> for Keyword {
     #[inline]
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         write!(f, [text(self.as_str())])
     }
 }
@@ -66,7 +64,7 @@ pub(crate) fn can_unquote_name(content: &str) -> bool {
 
 /// Format a property name while applying quote rules.
 pub(crate) fn format_name_with_quotes<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     name: Name,
     force_quotes: bool,
 ) -> FormatResult<()> {
@@ -107,7 +105,7 @@ pub(crate) fn format_name_with_quotes<'ast>(
 }
 
 /// Return whether one name requires quotes in a consistent quote group.
-pub(crate) fn name_requires_quote_group(context: &DestackFormatContext<'_>, name: Name) -> bool {
+pub(crate) fn name_requires_quote_group(context: &TsppFormatContext<'_>, name: Name) -> bool {
     match name {
         Name::String(string_id) => !can_unquote_name(context.strings.get(string_id)),
         _ => false,
@@ -116,7 +114,7 @@ pub(crate) fn name_requires_quote_group(context: &DestackFormatContext<'_>, name
 
 /// Format a quoted name using the preferred quote character.
 fn format_quoted_name<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     string_id: StringId,
 ) -> FormatResult<()> {
     let mut quote_style = f.context().options.quote_style;
@@ -133,7 +131,7 @@ fn format_quoted_name<'ast>(
 /// Write a field type annotation.
 #[inline]
 fn write_field_type_annotation<'ast, T>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<T>,
     value: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()>
@@ -175,7 +173,7 @@ enum FieldValueSeparator {
 
 impl FieldValueSeparator {
     /// Write this separator.
-    fn write<'ast>(self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+    fn write<'ast>(self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Self::Colon => write!(f, [token(":")]),
             Self::Equal => write!(f, [space(), token("=")]),
@@ -196,7 +194,7 @@ fn field_like_can_inline_logical_rhs(expression: &Expression) -> bool {
 
 /// Return the assignment-like layout for one field initializer.
 fn field_like_layout<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     right: LocalNodeId<Expression>,
     is_left_short: bool,
     left_may_break: bool,
@@ -246,7 +244,7 @@ fn field_like_layout<'ast>(
 
 /// Write one captured field left side and its value.
 fn write_field_value<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     left_instructions: InstructionTape<'ast>,
     right_id: LocalNodeId<Expression>,
     separator: FieldValueSeparator,
@@ -258,15 +256,15 @@ fn write_field_value<'ast>(
     let layout = field_like_layout(f, right_id, is_left_short, left_may_break)?;
     let left = left_instructions.collapse();
 
-    let left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+    let left = format_with(move |f: &mut TsppFormatter<'ast, '_>| {
         if let Some(left) = &left {
             f.write_element(*left);
         }
 
         Ok(())
     });
-    let right = format_with(|f: &mut DestackFormatter<'ast, '_>| write!(f, [right_id]));
-    let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let right = format_with(|f: &mut TsppFormatter<'ast, '_>| write!(f, [right_id]));
+    let content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         if left_may_break {
             write!(f, [left])?;
         } else {
@@ -299,7 +297,7 @@ fn write_field_value<'ast>(
 
 /// Return whether one property container should quote all eligible keys.
 fn property_should_force_quotes<'ast>(
-    f: &DestackFormatter<'ast, '_>,
+    f: &TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Property>,
 ) -> bool {
     if f.context().options.quote_props != QuoteProperty::Consistent {
@@ -325,7 +323,7 @@ fn property_should_force_quotes<'ast>(
 
 /// Format one runtime object property value using the assignment-like layout.
 fn format_object_property_value<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     name: Name,
     value: LocalNodeId<Expression>,
     is_shorthand: bool,
@@ -346,7 +344,7 @@ fn format_object_property_value<'ast>(
 
 /// Write one member field before its initializer.
 fn write_member_field_left<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Member>,
     member: &Member,
     force_quotes: bool,
@@ -408,7 +406,7 @@ fn write_member_field_left<'ast>(
 
 /// Format one member field.
 pub(crate) fn format_member_field<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Member>,
     member: &Member,
     force_quotes: bool,
@@ -434,7 +432,7 @@ pub(crate) fn format_member_field<'ast>(
 
 /// Format shared property or member method output.
 pub(crate) fn format_method_like<'ast, N>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<N>,
     name: Option<Name>,
     signature: &FunctionSignature,
@@ -501,7 +499,7 @@ where
 
 /// Write one method parameter list and return type.
 fn write_method_parameters_and_return_type<'ast, N>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<N>,
     signature: &FunctionSignature,
     parameters: &[LocalNodeId<Parameter>],
@@ -510,8 +508,8 @@ where
     N: Node + Clone + 'ast,
     Tree: TreeStore<N>,
 {
-    let format_parameters_and_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        let format_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_parameters_and_return_type = format_with(|f: &mut TsppFormatter<'ast, '_>| {
+        let format_parameters = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             if parameters.is_empty() {
                 write_empty_parameter_list_with_interior_comments(f, node_id)?;
             } else if should_hug_function_parameters(f.context(), parameters, false) {
@@ -537,7 +535,7 @@ where
             Ok(())
         });
 
-        let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let format_return_type = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             if let Some(return_type) = signature.return_type {
                 write_signature_return_type(f, node_id, return_type)?;
             }
@@ -545,7 +543,7 @@ where
             Ok(())
         });
 
-        let format_parameter_head = format_with(|_f: &mut DestackFormatter<'ast, '_>| Ok(()));
+        let format_parameter_head = format_with(|_f: &mut TsppFormatter<'ast, '_>| Ok(()));
         write_grouped_parameters_with_return_type(
             f,
             &signature.generic_parameters,
@@ -566,7 +564,7 @@ where
 
 /// Return comments between one method signature and its body.
 fn method_body_separator_comments<'ast>(
-    f: &DestackFormatter<'ast, '_>,
+    f: &TsppFormatter<'ast, '_>,
     body_id: LocalNodeId<Expression>,
 ) -> Vec<Comment> {
     let body_span = f.context().span(body_id);
@@ -587,7 +585,7 @@ fn method_body_separator_comments<'ast>(
 
 /// Write one method body after the signature has been resolved.
 fn write_method_body<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     body: LocalNodeId<Expression>,
     force_break_before_body: bool,
     _return_type: Option<LocalNodeId<TypeExpression>>,
@@ -649,7 +647,7 @@ fn write_method_body<'ast>(
 
 /// Format one node with shared directive handling and trailing annotation control.
 pub(crate) fn format_node_with_directive<'ast, T, F>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<T>,
     owns_infix_annotations: bool,
     mut format_node: F,
@@ -657,7 +655,7 @@ pub(crate) fn format_node_with_directive<'ast, T, F>(
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
-    F: FnMut(&mut DestackFormatter<'ast, '_>) -> FormatResult<()>,
+    F: FnMut(&mut TsppFormatter<'ast, '_>) -> FormatResult<()>,
 {
     let is_ignored = node_has_ignore_directive(f.context(), node_id);
     write!(f, [prefix_comments_before_decorators(f.context(), node_id)])?;
@@ -687,7 +685,7 @@ impl<'ast> FormatNode<'ast, Property> for Property {
     fn format_node(
         &self,
         node_id: LocalNodeId<Property>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let force_quotes = property_should_force_quotes(f, node_id);
 

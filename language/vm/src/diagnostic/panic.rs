@@ -1,8 +1,8 @@
 use std::{error, fmt};
 
-use destack_program::{TypeId, Word};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_program::{TypeId, Word};
+use tspp_serde::Reflect;
 
 /// One panic payload retained while frames unwind.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]

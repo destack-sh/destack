@@ -1,5 +1,5 @@
-use destack_core::{FNV_OFFSET_BASIS_128, fnv1a_128_update};
 use serde::{Deserialize, Serialize};
+use tspp_core::{FNV_OFFSET_BASIS_128, fnv1a_128_update};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 

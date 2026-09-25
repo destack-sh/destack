@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -18,14 +18,14 @@ diagnostic.
 "#,
         example: {
             reported: r#"
-import * as assert from "destack:assert";
+import * as assert from "tspp:assert";
 
 function verify(actual: int32, expected: int32): void {
     assert.assert(actual == expected);
 }
 "#,
             accepted: r#"
-import * as assert from "destack:assert";
+import * as assert from "tspp:assert";
 
 function verify(actual: int32, expected: int32): void {
     assert.assertEqual(actual, expected);
@@ -151,7 +151,7 @@ mod tests {
         let session = TestSession::dir(
             &MANUAL_ASSERT_EQUAL,
             r#"
-import * as assert from "destack:assert";
+import * as assert from "tspp:assert";
 
 function verify(actual: int32, expected: int32): void {
     assert.assert(actual != expected, "values must differ");
@@ -161,7 +161,7 @@ function verify(actual: int32, expected: int32): void {
 
         session.assert_suggestions(
             r#"
-import * as assert from "destack:assert";
+import * as assert from "tspp:assert";
 
 function verify(actual: int32, expected: int32): void {
     assert.assertNotEqual(actual, expected, "values must differ");
@@ -176,7 +176,7 @@ function verify(actual: int32, expected: int32): void {
         let session = TestSession::dir(
             &MANUAL_ASSERT_EQUAL,
             r#"
-import * as assert from "destack:assert";
+import * as assert from "tspp:assert";
 
 function verify(actual: int32, expected: int32): void {
     assert.assert((actual == expected));
@@ -186,7 +186,7 @@ function verify(actual: int32, expected: int32): void {
 
         session.assert_suggestions(
             r#"
-import * as assert from "destack:assert";
+import * as assert from "tspp:assert";
 
 function verify(actual: int32, expected: int32): void {
     assert.assertEqual(actual, expected);
@@ -201,7 +201,7 @@ function verify(actual: int32, expected: int32): void {
         let session = TestSession::dir(
             &MANUAL_ASSERT_EQUAL,
             r#"
-import { assert } from "destack:assert";
+import { assert } from "tspp:assert";
 
 function verify(actual: int32, expected: int32): void {
     assert(actual == expected);
@@ -212,7 +212,7 @@ function verify(actual: int32, expected: int32): void {
         session.assert_diagnostics(
             r#"
 warning[manual-assert-equal]: boolean assertion contains an equality test
- ──▶ main.ds:4:12
+ ──▶ main.tspp:4:12
   │
 2 │
 3 │ function verify(actual: int32, expected: int32): void {
@@ -230,7 +230,7 @@ warning[manual-assert-equal]: boolean assertion contains an equality test
         let session = TestSession::dir(
             &MANUAL_ASSERT_EQUAL,
             r#"
-import * as assert from "destack:assert";
+import * as assert from "tspp:assert";
 
 function verify(actual: int32, expected: int32): void {
     assert.assert(actual /* retain */ == expected);
@@ -241,7 +241,7 @@ function verify(actual: int32, expected: int32): void {
         session.assert_diagnostics(
             r#"
 warning[manual-assert-equal]: boolean assertion contains an equality test
- ──▶ main.ds:4:19
+ ──▶ main.tspp:4:19
   │
 2 │
 3 │ function verify(actual: int32, expected: int32): void {
@@ -259,7 +259,7 @@ warning[manual-assert-equal]: boolean assertion contains an equality test
         let session = TestSession::dir(
             &MANUAL_ASSERT_EQUAL,
             r#"
-import * as assert from "destack:assert";
+import * as assert from "tspp:assert";
 
 function verify(actual: int32, expected: int32): void {
     assert.assert(actual === expected);
@@ -276,7 +276,7 @@ function verify(actual: int32, expected: int32): void {
         let session = TestSession::dir(
             &MANUAL_ASSERT_EQUAL,
             r#"
-import * as assert from "destack:assert";
+import * as assert from "tspp:assert";
 
 function verify(actual: int32, expected: int32): void {
     assert.assert(actual < expected);

@@ -77,4 +77,4 @@ if ! wait_for_socket; then
 	exit 1
 fi
 
-cargo test -p destack_runtime "${runtime_test_filter}" -- --nocapture
+cargo test -p tspp_runtime "${runtime_test_filter}" -- --nocapture

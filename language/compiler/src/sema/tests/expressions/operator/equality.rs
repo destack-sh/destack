@@ -11,7 +11,7 @@ function positive(value: &readonly (int32 | undefined)): boolean {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -53,7 +53,7 @@ function positive(value: &readonly (int32 | undefined)): boolean {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -93,7 +93,7 @@ const value = undefined == undefined;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -125,7 +125,7 @@ function use(onValue?: (value: unknown) => void): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -177,7 +177,7 @@ const isMissing = undefined === undefined;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -207,7 +207,7 @@ const same = left === right;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -254,7 +254,7 @@ const same = left === right;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -293,7 +293,7 @@ const same = left === right;
 fn test_strict_equality_uses_generic_capability() {
     let session = TestSession::single(
         r#"
-import { StrictEqual } from "destack:ops";
+import { StrictEqual } from "tspp:ops";
 
 function same<R, L: StrictEqual<R>>(left: &readonly L, right: &readonly R): boolean {
     *left === *right
@@ -319,11 +319,11 @@ const usersDiffer = different(firstUser, secondUser);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { StrictEqual } from "destack:ops";
+import { StrictEqual } from "tspp:ops";
 
 function same<R, L: StrictEqual<R>, 'a, 'b>(left: &'a readonly L, right: &'b readonly R): boolean {
     *left === *right
@@ -359,7 +359,7 @@ const usersDiffer: boolean = different<User, "managed", "managed">(
 );
 
 === dir ===
-import { StrictEqual } from "destack:ops";
+import { StrictEqual } from "tspp:ops";
 
 function same<R, L: StrictEqual<R>>(left: &readonly L, right: &readonly R): boolean {
 /// @generic.template symbol=same parameters=(R, L: StrictEqual<R>, 'a, 'b)
@@ -515,7 +515,7 @@ const usersDiffer = different(firstUser, secondUser);
 fn test_strict_equality_rejects_owned_and_disjoint_conformance() {
     let session = TestSession::single(
         r#"
-import { StrictEqual } from "destack:ops";
+import { StrictEqual } from "tspp:ops";
 
 declare function requireStrictEqual<T: StrictEqual<T>>(value: T): void;
 declare function requireStringStrictEqual<T: StrictEqual<string>>(value: T): void;
@@ -538,11 +538,11 @@ requireStringStrictEqual(number);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { StrictEqual } from "destack:ops";
+import { StrictEqual } from "tspp:ops";
 
 declare function requireStrictEqual<T: StrictEqual<T>>(value: T): void;
 declare function requireStringStrictEqual<T: StrictEqual<string>>(value: T): void;
@@ -563,7 +563,7 @@ requireStrictEqual<Token>(token);
 requireStringStrictEqual<int32>(number);
 
 === dir ===
-import { StrictEqual } from "destack:ops";
+import { StrictEqual } from "tspp:ops";
 
 declare function requireStrictEqual<T: StrictEqual<T>>(value: T): void;
 /// @generic.template symbol=requireStrictEqual parameters=(T#1: StrictEqual<T#1>)
@@ -660,7 +660,7 @@ const same = "ready" === "done";
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -697,7 +697,7 @@ const same = left === right;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -762,7 +762,7 @@ const isReady = value === "ready";
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -806,7 +806,7 @@ const isPending = kind == "pending";
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -837,7 +837,7 @@ const isPending = kind == "pending";
 fn test_overloaded_equality_selects_extension_method() {
     let session = TestSession::single(
         r#"
-import { PartialEqual } from "destack:ops";
+import { PartialEqual } from "tspp:ops";
 
 struct Badge {
     id: float64;
@@ -856,11 +856,11 @@ const same = left == right;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { PartialEqual } from "destack:ops";
+import { PartialEqual } from "tspp:ops";
 
 struct Badge {
     id: float64;
@@ -877,7 +877,7 @@ declare const right: Badge;
 const same: boolean = left == (right as &'static readonly Badge);
 
 === dir ===
-import { PartialEqual } from "destack:ops";
+import { PartialEqual } from "tspp:ops";
 
 struct Badge {
 /// @type.symbol symbol=Badge type=Badge
@@ -954,7 +954,7 @@ const same = left == right;
 fn test_overloaded_equality_accepts_negative_zero_literal() {
     let session = TestSession::single(
         r#"
-import { PartialEqual } from "destack:ops";
+import { PartialEqual } from "tspp:ops";
 
 struct Measure {
     value: float64;
@@ -972,11 +972,11 @@ const same = measure == -0.0;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { PartialEqual } from "destack:ops";
+import { PartialEqual } from "tspp:ops";
 
 struct Measure {
     value: float64;
@@ -992,7 +992,7 @@ declare const measure: Measure;
 const same: boolean = measure == (-0.0 as &'frame readonly float64);
 
 === dir ===
-import { PartialEqual } from "destack:ops";
+import { PartialEqual } from "tspp:ops";
 
 struct Measure {
 /// @type.symbol symbol=Measure type=Measure
@@ -1064,7 +1064,7 @@ function positive(value: &readonly int32): boolean {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

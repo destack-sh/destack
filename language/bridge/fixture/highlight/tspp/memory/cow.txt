@@ -1,0 +1,7 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / cow / borrowed and owned variants
+let name: Cow<string> = Cow.borrowed(source);
+//        ^^^ entity.name.type.tspp
+
+let owned: Cow<string> = Cow.owned(source.clone());

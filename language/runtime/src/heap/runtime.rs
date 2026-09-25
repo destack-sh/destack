@@ -1,6 +1,6 @@
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::Runtime;
-use destack_heap as heap;
+use tspp_heap as heap;
 
 impl Runtime {
     /// Return whether one concurrent shared collection is still in flight.

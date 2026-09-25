@@ -1,5 +1,5 @@
 use crate::tests::TestProgram;
-use destack_bytecode as bytecode;
+use tspp_bytecode as bytecode;
 
 /// Pack scattered MIR values into one contiguous outgoing call window.
 #[test]

@@ -1,6 +1,6 @@
 use std::cmp::Reverse;
 
-use destack_core::{BitSet, FxIndexSet};
+use tspp_core::{BitSet, FxIndexSet};
 
 use crate::{
     Analysis, Block, ControlTable, Function, Instruction, Local, LocalId, LocalNodeId, Mutation,

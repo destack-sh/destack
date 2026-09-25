@@ -1,0 +1,29 @@
+// SYNTAX TEST "source.tspp"
+
+// types / generics / constraints defaults and variance
+interface Store<out T: Entity = User> {
+//              ^^^ keyword.operator.variance.tspp
+    get(id: UserId): T;
+}
+
+function decode<T>(input: Bytes): T where T: Deserialize;
+
+// types / generics / static values associated types and constants
+type InlineBytes<T, const N: uint = const 64> = [uint8; N];
+
+type Label<T: Message> = T.Label<"created">;
+//                         ^ entity.name.type.tspp
+
+type Row<...Fields: readonly (string | number)[]> = (...Fields);
+//       ^^^ keyword.operator.prefix.tspp
+
+type Buffer<const ...Shape: readonly usize[]> = TensorBuffer<...Shape>;
+//          ^^^^^ storage.modifier.tspp
+//                ^^^ keyword.operator.prefix.tspp
+
+extension MessageOps of Message {
+    type Output = string;
+//  ^^^^ keyword.declaration.type.tspp
+    const MaxSize: uint = 64;
+//  ^^^^^ keyword.declaration.variable.tspp
+}

@@ -1,0 +1,10 @@
+import { Default } from "./capability.tspp";
+
+/// Replace `destination` and return its previous value.
+@intrinsic("memory.ptr.replace")
+export declare function replace<T>(destination: &T, value: T): T;
+
+/// Replace `destination` with its default value and return its previous value.
+export function take<T: Default>(destination: &T): T {
+    replace(destination, T.default())
+}

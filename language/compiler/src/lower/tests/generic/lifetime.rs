@@ -15,7 +15,7 @@ function identity(value: &readonly User): &readonly User {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.identity", r#"
+    session.assert_mir_function("main.tspp", "test.main.identity", r#"
 type test.main.User {
     id: int32;
 }
@@ -51,7 +51,7 @@ function identity<'a>(
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.identity", r#"
+    session.assert_mir_function("main.tspp", "test.main.identity", r#"
 type test.main.User {
     id: int32;
 }
@@ -87,7 +87,7 @@ function identity<'a, 'b>(
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.identity", r#"
+    session.assert_mir_function("main.tspp", "test.main.identity", r#"
 type test.main.User {
     id: int32;
 }
@@ -119,7 +119,7 @@ function identity<'a, 'b>(
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.identity", r#"
+    session.assert_mir_function("main.tspp", "test.main.identity", r#"
 function test.main.identity<'a, 'b>(v0: ref<int32, borrowed, 'a | 'b, readonly>): ref<int32, borrowed, 'a | 'b, readonly> {
     local l0: ref<int32, borrowed, 'a | 'b, readonly>
 
@@ -159,7 +159,7 @@ function retainStatic(value: View<"static">): View<"static"> {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.retain",
         r#"
 type test.main.View<'a> {
@@ -181,7 +181,7 @@ entry(v0: test.main.View<'a>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.get",
         r#"
 type test.main.User {
@@ -209,7 +209,7 @@ entry(v0: test.main.View<'a>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.retainStatic",
         r#"
 type test.main.View<'a> {
@@ -255,7 +255,7 @@ function retain<'a>(value: Holder<'a>): Holder<'a> {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.retain",
         r#"
 type test.main.Holder<'a> {
@@ -301,7 +301,7 @@ function inspectManaged(marker: int32, value: User): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.User.constructor",
         r#"
 @nocopy
@@ -326,7 +326,7 @@ entry(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.inspectBorrowed",
         r#"
 @nocopy
@@ -352,7 +352,7 @@ entry(v0: int32, v1: ref<test.main.User, borrowed, 'a, readonly>):
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.inspectManaged", r#"
+    session.assert_mir_function("main.tspp", "test.main.inspectManaged", r#"
 @nocopy
 type test.main.User {
     id: int32;
@@ -376,7 +376,7 @@ entry(v0: int32, v1: ref<test.main.User, managed, mutable, local>):
 /// @layout.field owner=test.main.User index=0 name=id offset=0 size=4 align=4
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.inspect<int32>", r#"
+    session.assert_mir_function("main.tspp", "test.main.inspect<int32>", r#"
 @nocopy
 type test.main.User {
     id: int32;
@@ -406,7 +406,7 @@ function identity<'a, 'b>(
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.identity", r#"
+    session.assert_mir_function("main.tspp", "test.main.identity", r#"
 type test.main.User {
     id: int32;
 }
@@ -429,8 +429,8 @@ entry(v0: ref<test.main.User, borrowed, 'a | 'b, readonly>):
 fn test_lower_an_elided_wrapper_region_from_a_borrowed_parameter() {
     let session = TestSession::single(
         r#"
-import { Cow } from "destack:memory";
-import { StringSlice } from "destack:string";
+import { Cow } from "tspp:memory";
+import { StringSlice } from "tspp:string";
 
 function wrap(text: &immutable StringSlice): Cow<StringSlice> {
     Cow.borrowed(text)
@@ -438,7 +438,7 @@ function wrap(text: &immutable StringSlice): Cow<StringSlice> {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.wrap", r#"
+    session.assert_mir_function("main.tspp", "test.main.wrap", r#"
 @languageItem("string.StringSlice")
 type StringSlice;
 
@@ -469,7 +469,7 @@ entry(v0: slice<uint16, borrowed, 'a, immutable>):
 fn test_lower_an_elided_wrapper_region_from_an_implicit_receiver() {
     let session = TestSession::single(
         r#"
-import { Error } from "destack:error";
+import { Error } from "tspp:error";
 
 enum Kind {
     Syntax,
@@ -491,7 +491,7 @@ export extension of ParseError implements Error {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.ParseError.Error.display",
         r#"
 type test.main.ParseError {
@@ -523,7 +523,7 @@ entry(v0: ref<test.main.ParseError, borrowed, 'a, immutable>):
 /// @layout.field owner=test.main.ParseError index=2 name=offset offset=8 size=16 align=8
 "#,
     );
-    session.assert_mir_function("main.ds", "test.main.ParseError.Error.display", r#"
+    session.assert_mir_function("main.tspp", "test.main.ParseError.Error.display", r#"
 type test.main.ParseError {
     kind: test.main.Kind;
     message: ref<String, managed, mutable, local>;
@@ -592,7 +592,7 @@ function read<'a>(holder: &readonly Holder<'a>): &'a readonly int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.label", r#"
+    session.assert_mir_function("main.tspp", "test.main.label", r#"
 @nocopy
 type test.main.Label {
     text: ref<String, managed, mutable, local>;
@@ -617,7 +617,7 @@ entry(v0: ref<String, borrowed, 'a, readonly>):
 /// @layout.struct name=test.main.Label size=8 align=8
 /// @layout.field owner=test.main.Label index=0 name=text offset=0 size=8 align=8
 "#);
-    session.assert_mir_function("main.ds", "test.main.hold", r#"
+    session.assert_mir_function("main.tspp", "test.main.hold", r#"
 @nocopy
 type test.main.Holder<'a> {
     value: ref<int32, borrowed, 'a, readonly>;
@@ -638,7 +638,7 @@ entry(v0: ref<int32, borrowed, 'a, readonly>):
 /// @layout.struct name=test.main.Holder<'a> size=8 align=8
 /// @layout.field owner=test.main.Holder<'a> index=0 name=value offset=0 size=8 align=8
 "#);
-    session.assert_mir_function("main.ds", "test.main.read", r#"
+    session.assert_mir_function("main.tspp", "test.main.read", r#"
 @nocopy
 type test.main.Holder<'a> {
     value: ref<int32, borrowed, 'a, readonly>;
@@ -689,7 +689,7 @@ extension<T: Copy> of Pair<T> {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 type test.main.Bound<T> = newtype<variant<uint1> { 0uint1 = ref<{ kind: literal.string.included, value: T }, managed, mutable, local>; 1uint1 = ref<{ kind: literal.string.unbounded }, managed, mutable, local>; }>;
 
 type literal.string.included { }
@@ -769,7 +769,7 @@ extension<T: Copy, 'a, const A: Access, I: Iterator<Borrowed<T, 'a, A>>> of Copy
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 type test.main.CopyIterator<I, T> {
     iterator: I;
 }
@@ -836,7 +836,7 @@ struct Expectation<'a, T> {
     );
 
     session.assert_mir_lowered(
-        "main.ds",
+        "main.tspp",
         r#"
 type test.main.Expectation<'a, T> {
     value: ref<?T, borrowed, 'a, immutable>;

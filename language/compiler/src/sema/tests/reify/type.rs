@@ -1,6 +1,6 @@
-use destack_core::StringPool;
-use destack_dir as dir;
-use destack_source::{FileId, ModuleId, NodeSpanRegion, NodeSpanType, Span};
+use tspp_core::StringPool;
+use tspp_dir as dir;
+use tspp_source::{FileId, ModuleId, NodeSpanRegion, NodeSpanType, Span};
 
 use crate::CompilerResult;
 use crate::sema::CheckState;
@@ -825,7 +825,7 @@ impl<'a, 'b> TypeReifier<'a, 'b> {
     /// Reify one function type into a function type expression.
     fn reify_function(
         &mut self,
-        module: destack_source::ModuleId,
+        module: tspp_source::ModuleId,
         function: &dir::FunctionSignatureType,
         depth: usize,
     ) -> CompilerResult<Option<dir::FunctionTypeExpression>> {

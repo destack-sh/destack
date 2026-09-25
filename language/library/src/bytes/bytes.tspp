@@ -1,0 +1,248 @@
+import { todo } from "tspp:error";
+import { Iterator } from "tspp:iter";
+
+/// Immutable byte sequence.
+@languageItem("bytes.Bytes")
+export type Bytes = readonly [uint8];
+
+/// Byte order for numeric encoding.
+@languageItem("bytes.ByteOrder")
+export type ByteOrder = "bigEndian" | "littleEndian";
+
+/// Read one unsigned 16-bit integer.
+export function readUint16(
+    bytes: &readonly [uint8],
+    offset: usize,
+    order: ByteOrder = "bigEndian",
+): uint16 {
+    todo("bytes.readUint16")
+}
+
+/// Read one unsigned 32-bit integer.
+export function readUint32(
+    bytes: &readonly [uint8],
+    offset: usize,
+    order: ByteOrder = "bigEndian",
+): uint32 {
+    todo("bytes.readUint32")
+}
+
+/// Read one unsigned 64-bit integer.
+export function readUint64(
+    bytes: &readonly [uint8],
+    offset: usize,
+    order: ByteOrder = "bigEndian",
+): uint64 {
+    todo("bytes.readUint64")
+}
+
+/// Read one signed 16-bit integer.
+export function readInt16(
+    bytes: &readonly [uint8],
+    offset: usize,
+    order: ByteOrder = "bigEndian",
+): int16 {
+    todo("bytes.readInt16")
+}
+
+/// Read one signed 32-bit integer.
+export function readInt32(
+    bytes: &readonly [uint8],
+    offset: usize,
+    order: ByteOrder = "bigEndian",
+): int32 {
+    todo("bytes.readInt32")
+}
+
+/// Read one signed 64-bit integer.
+export function readInt64(
+    bytes: &readonly [uint8],
+    offset: usize,
+    order: ByteOrder = "bigEndian",
+): int64 {
+    todo("bytes.readInt64")
+}
+
+/// Read one 32-bit float.
+export function readFloat32(
+    bytes: &readonly [uint8],
+    offset: usize,
+    order: ByteOrder = "bigEndian",
+): float32 {
+    todo("bytes.readFloat32")
+}
+
+/// Read one 64-bit float.
+export function readFloat64(
+    bytes: &readonly [uint8],
+    offset: usize,
+    order: ByteOrder = "bigEndian",
+): float64 {
+    todo("bytes.readFloat64")
+}
+
+/// Write one unsigned 16-bit integer.
+export function writeUint16(
+    bytes: &[uint8],
+    offset: usize,
+    value: uint16,
+    order: ByteOrder = "bigEndian",
+): void {
+    todo("bytes.writeUint16");
+}
+
+/// Write one unsigned 32-bit integer.
+export function writeUint32(
+    bytes: &[uint8],
+    offset: usize,
+    value: uint32,
+    order: ByteOrder = "bigEndian",
+): void {
+    todo("bytes.writeUint32");
+}
+
+/// Write one unsigned 64-bit integer.
+export function writeUint64(
+    bytes: &[uint8],
+    offset: usize,
+    value: uint64,
+    order: ByteOrder = "bigEndian",
+): void {
+    todo("bytes.writeUint64");
+}
+
+/// Write one signed 16-bit integer.
+export function writeInt16(
+    bytes: &[uint8],
+    offset: usize,
+    value: int16,
+    order: ByteOrder = "bigEndian",
+): void {
+    todo("bytes.writeInt16");
+}
+
+/// Write one signed 32-bit integer.
+export function writeInt32(
+    bytes: &[uint8],
+    offset: usize,
+    value: int32,
+    order: ByteOrder = "bigEndian",
+): void {
+    todo("bytes.writeInt32");
+}
+
+/// Write one signed 64-bit integer.
+export function writeInt64(
+    bytes: &[uint8],
+    offset: usize,
+    value: int64,
+    order: ByteOrder = "bigEndian",
+): void {
+    todo("bytes.writeInt64");
+}
+
+/// Write one 32-bit float.
+export function writeFloat32(
+    bytes: &[uint8],
+    offset: usize,
+    value: float32,
+    order: ByteOrder = "bigEndian",
+): void {
+    todo("bytes.writeFloat32");
+}
+
+/// Write one 64-bit float.
+export function writeFloat64(
+    bytes: &[uint8],
+    offset: usize,
+    value: float64,
+    order: ByteOrder = "bigEndian",
+): void {
+    todo("bytes.writeFloat64");
+}
+
+/// Compare two byte sequences lexicographically.
+export function compare(left: &readonly [uint8], right: &readonly [uint8]): int32 {
+    todo("bytes.compare")
+}
+
+/// Return whether two byte sequences are equal.
+export function equal(left: &readonly [uint8], right: &readonly [uint8]): boolean {
+    todo("bytes.equal")
+}
+
+/// Return whether `bytes` contains `needle`.
+export function contains(bytes: &readonly [uint8], needle: &readonly [uint8]): boolean {
+    todo("bytes.contains")
+}
+
+/// Return the number of non-overlapping occurrences of `needle`.
+export function count(bytes: &readonly [uint8], needle: &readonly [uint8]): usize {
+    todo("bytes.count")
+}
+
+/// Return whether `bytes` starts with `prefix`.
+export function startsWith(bytes: &readonly [uint8], prefix: &readonly [uint8]): boolean {
+    todo("bytes.startsWith")
+}
+
+/// Return whether `bytes` ends with `suffix`.
+export function endsWith(bytes: &readonly [uint8], suffix: &readonly [uint8]): boolean {
+    todo("bytes.endsWith")
+}
+
+/// Return the first index of `needle`.
+export function indexOf(bytes: &readonly [uint8], needle: &readonly [uint8]): isize | undefined {
+    todo("bytes.indexOf")
+}
+
+/// Return the last index of `needle`.
+export function lastIndexOf(
+    bytes: &readonly [uint8],
+    needle: &readonly [uint8],
+): isize | undefined {
+    todo("bytes.lastIndexOf")
+}
+
+/// Split bytes around `separator`.
+export function split(bytes: &readonly [uint8], separator: &readonly [uint8]): Iterator<Bytes> {
+    todo("bytes.split")
+}
+
+/// Split bytes after each `separator`.
+export function splitAfter(
+    bytes: &readonly [uint8],
+    separator: &readonly [uint8],
+): Iterator<Bytes> {
+    todo("bytes.splitAfter")
+}
+
+/// Join byte sequences with `separator`.
+export function join(values: Iterator<Bytes>, separator: &readonly [uint8]): Bytes {
+    todo("bytes.join")
+}
+
+/// Repeat `bytes` `count` times.
+export function repeat(bytes: &readonly [uint8], count: isize): Bytes {
+    todo("bytes.repeat")
+}
+
+/// Trim leading and trailing ASCII whitespace.
+export function trimAscii(bytes: &readonly [uint8]): Bytes {
+    todo("bytes.trimAscii")
+}
+
+/// Trim leading ASCII whitespace.
+export function trimAsciiStart(bytes: &readonly [uint8]): Bytes {
+    todo("bytes.trimAsciiStart")
+}
+
+/// Trim trailing ASCII whitespace.
+export function trimAsciiEnd(bytes: &readonly [uint8]): Bytes {
+    todo("bytes.trimAsciiEnd")
+}
+
+/// Clone bytes into immutable storage.
+export function clone(bytes: &readonly [uint8]): Bytes {
+    todo("bytes.clone")
+}

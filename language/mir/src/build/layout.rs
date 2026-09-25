@@ -1,6 +1,6 @@
 use std::fmt;
 
-use destack_core::FxIndexSet;
+use tspp_core::FxIndexSet;
 
 use crate::{
     ElementLayout, Function, Global, Layout, LayoutId, LayoutShape, LayoutTable, LocalNodeId,

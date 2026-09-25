@@ -171,7 +171,7 @@ mod tests {
     #[test]
     fn test_normalize_args_rewrites_unknown_subcommand_to_task() {
         let args = vec![
-            OsString::from("destack"),
+            OsString::from("tspp"),
             OsString::from("up"),
             OsString::from("--force"),
         ];
@@ -181,7 +181,7 @@ mod tests {
         assert_eq!(
             args,
             vec![
-                OsString::from("destack"),
+                OsString::from("tspp"),
                 OsString::from("task"),
                 OsString::from("up"),
                 OsString::from("--"),
@@ -193,13 +193,10 @@ mod tests {
     /// Leave one builtin command unchanged.
     #[test]
     fn test_normalize_args_keeps_known_subcommand() {
-        let args = vec![OsString::from("destack"), OsString::from("build")];
+        let args = vec![OsString::from("tspp"), OsString::from("build")];
 
         let args = normalize_args_with(DefaultCommand::None, args);
 
-        assert_eq!(
-            args,
-            vec![OsString::from("destack"), OsString::from("build")]
-        );
+        assert_eq!(args, vec![OsString::from("tspp"), OsString::from("build")]);
     }
 }

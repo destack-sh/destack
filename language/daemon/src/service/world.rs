@@ -1,8 +1,8 @@
-use destack_repository::{Environment, WorldOptions};
-use destack_runtime::service::WorldId;
-use destack_runtime::world::Snapshot;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_repository::{Environment, WorldOptions};
+use tspp_runtime::service::WorldId;
+use tspp_runtime::world::Snapshot;
+use tspp_serde::Reflect;
 
 /// Request to create one daemon-hosted World.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]

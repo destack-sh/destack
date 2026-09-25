@@ -4,15 +4,15 @@ use crate::tests::{DirRows, TestSession};
 fn test_import_binding_rejects_assignment() {
     let session = TestSession::builder()
         .module(
-            "counter.ds",
+            "counter.tspp",
             r#"
 export let counter: int32 = 0;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { counter } from "./counter.ds";
+import { counter } from "./counter.tspp";
 
 counter = 1;
 "#,
@@ -20,16 +20,16 @@ counter = 1;
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { counter } from "./counter.ds";
+import { counter } from "./counter.tspp";
 
 counter = 1;
 
 === dir ===
-import { counter } from "./counter.ds";
+import { counter } from "./counter.tspp";
 
 counter = 1;
 /// @type.node source="counter = 1" type=1
@@ -44,7 +44,7 @@ counter = 1;
         r#"
 /// @diagnostic.error id=cannot-assign-imported-binding message="cannot assign to imported binding 'counter'"
 /// @diagnostic.label line=4 column=1 span="counter" line_source="counter = 1;"
-/// @diagnostic.related file="counter.ds" line=2 column=12 span="counter" line_source="export let counter: int32 = 0;" message="declared here"
+/// @diagnostic.related file="counter.tspp" line=2 column=12 span="counter" line_source="export let counter: int32 = 0;" message="declared here"
 "#,
     );
 }
@@ -53,15 +53,15 @@ counter = 1;
 fn test_import_alias_rejects_assignment() {
     let session = TestSession::builder()
         .module(
-            "counter.ds",
+            "counter.tspp",
             r#"
 export let counter: int32 = 0;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { counter as localCounter } from "./counter.ds";
+import { counter as localCounter } from "./counter.tspp";
 
 localCounter = 1;
 "#,
@@ -69,16 +69,16 @@ localCounter = 1;
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { counter as localCounter } from "./counter.ds";
+import { counter as localCounter } from "./counter.tspp";
 
 localCounter = 1;
 
 === dir ===
-import { counter as localCounter } from "./counter.ds";
+import { counter as localCounter } from "./counter.tspp";
 
 localCounter = 1;
 /// @type.node source="localCounter = 1" type=1
@@ -93,7 +93,7 @@ localCounter = 1;
         r#"
 /// @diagnostic.error id=cannot-assign-imported-binding message="cannot assign to imported binding 'localCounter'"
 /// @diagnostic.label line=4 column=1 span="localCounter" line_source="localCounter = 1;"
-/// @diagnostic.related file="counter.ds" line=2 column=12 span="counter" line_source="export let counter: int32 = 0;" message="declared here"
+/// @diagnostic.related file="counter.tspp" line=2 column=12 span="counter" line_source="export let counter: int32 = 0;" message="declared here"
 "#,
     );
 }
@@ -102,15 +102,15 @@ localCounter = 1;
 fn test_namespace_import_binding_rejects_assignment() {
     let session = TestSession::builder()
         .module(
-            "counter.ds",
+            "counter.tspp",
             r#"
 export let counter: int32 = 0;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import * as counter from "./counter.ds";
+import * as counter from "./counter.tspp";
 
 counter = counter;
 "#,
@@ -118,16 +118,16 @@ counter = counter;
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import * as counter from "./counter.ds";
+import * as counter from "./counter.tspp";
 
 counter = counter;
 
 === dir ===
-import * as counter from "./counter.ds";
+import * as counter from "./counter.tspp";
 
 counter = counter;
 /// @type.node source="counter = counter" type=<error>
@@ -145,15 +145,15 @@ counter = counter;
 fn test_namespace_import_member_rejects_assignment() {
     let session = TestSession::builder()
         .module(
-            "counter.ds",
+            "counter.tspp",
             r#"
 export let counter: int32 = 0;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import * as namespaceCounter from "./counter.ds";
+import * as namespaceCounter from "./counter.tspp";
 
 namespaceCounter.counter = 1;
 "#,
@@ -161,16 +161,16 @@ namespaceCounter.counter = 1;
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import * as namespaceCounter from "./counter.ds";
+import * as namespaceCounter from "./counter.tspp";
 
 namespaceCounter.counter = 1;
 
 === dir ===
-import * as namespaceCounter from "./counter.ds";
+import * as namespaceCounter from "./counter.tspp";
 
 namespaceCounter.counter = 1;
 /// @type.node source="namespaceCounter.counter = 1" type=1
@@ -184,7 +184,7 @@ namespaceCounter.counter = 1;
         r#"
 /// @diagnostic.error id=cannot-assign-imported-binding message="cannot assign to imported binding 'namespaceCounter.counter'"
 /// @diagnostic.label line=4 column=18 span="counter" line_source="namespaceCounter.counter = 1;"
-/// @diagnostic.related file="counter.ds" line=2 column=12 span="counter" line_source="export let counter: int32 = 0;" message="declared here"
+/// @diagnostic.related file="counter.tspp" line=2 column=12 span="counter" line_source="export let counter: int32 = 0;" message="declared here"
 "#,
     );
 }

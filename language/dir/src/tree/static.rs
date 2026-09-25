@@ -1,7 +1,7 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
-use destack_source::ModuleId;
+use tspp_source::ModuleId;
 
 use crate::{FunctionSignature, GlobalTypeId, Literal, StaticKey, StringId, TypeFold};
 

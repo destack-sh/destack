@@ -1,7 +1,7 @@
-use destack_core::StringId;
-use destack_fir::format::{Format, FormatResult};
-use destack_fir::prelude::*;
-use destack_fir::{format_args, write};
+use tspp_core::StringId;
+use tspp_fir::format::{Format, FormatResult};
+use tspp_fir::prelude::*;
+use tspp_fir::{format_args, write};
 
 use crate::{AttributeValue, Binding, BindingAffinity, BindingReplay, Formatter, Writer};
 

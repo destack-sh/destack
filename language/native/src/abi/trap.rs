@@ -1,9 +1,9 @@
 use std::error::Error;
 use std::fmt;
 
-use destack_core::SectionEntry;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::SectionEntry;
+use tspp_serde::Reflect;
 
 /// Native trap code.
 pub type TrapCode = u32;

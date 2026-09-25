@@ -1,5 +1,5 @@
-use destack_core::BlobStoreError;
-use destack_rpc::{Code, Status};
+use tspp_core::BlobStoreError;
+use tspp_rpc::{Code, Status};
 
 use crate::DaemonError;
 

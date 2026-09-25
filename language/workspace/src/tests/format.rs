@@ -8,7 +8,7 @@ fn test_format_file_without_query_target() {
     let config = test.write_text("destack.json", config_source);
     test.apply_text(&config, config_source);
     let source = "export const value=1;\n";
-    let path = test.write_text("main.ds", source);
+    let path = test.write_text("main.tspp", source);
     test.apply_text(&path, source);
     let revision = test.workspace.revision().expect("read revision");
 

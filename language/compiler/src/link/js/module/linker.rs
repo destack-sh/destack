@@ -3,9 +3,9 @@ use std::path::Path;
 
 use crate::emit::js;
 use crate::{Compiler, LinkError, LinkResult};
-use destack_artifact::Script;
-use destack_repository::{JsOutputMode, Target};
-use destack_source::{ModuleId, PackageId};
+use tspp_artifact::Script;
+use tspp_repository::{JsOutputMode, Target};
+use tspp_source::{ModuleId, PackageId};
 
 use super::super::{JsDependencyTarget, JsLinker, ModuleSet, OutputGraph, OutputId, OutputLayout};
 use crate::link::TargetLocation;

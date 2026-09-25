@@ -1,14 +1,14 @@
 use std::collections::HashSet;
 use std::fmt::{self, Debug, Display, Formatter};
 
-use destack_dir::DecoratorTarget;
-use destack_query::{
+use tspp_dir::DecoratorTarget;
+use tspp_query::{
     CallItem, CodeAction, CodeLens, CodeLensAction, CompletionDetailsResponse,
     CompletionEntryDetails, CompletionResponse, DecoratorItem, FoldingRange, Hover, IncomingCall,
     InlayHint, Link, NavigationTarget, OutgoingCall, OutlineSymbol, QueryResponse, SearchSymbol,
     SelectionRange, SemanticToken, SemanticTokenModifiers, SignatureHelp, Target, TypeItem,
 };
-use destack_source::{DiagnosticTarget, Patch, PatchSet};
+use tspp_source::{DiagnosticTarget, Patch, PatchSet};
 
 use super::{QueryCall, QueryRun, parse_words};
 

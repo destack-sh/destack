@@ -1,6 +1,6 @@
-use destack_core::FxIndexSet;
-use destack_dir as dir;
 use smallvec::SmallVec;
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
 
 use crate::CompilerResult;
 use crate::sema::{CheckState, Origin, Relation, Variance, Verdict};

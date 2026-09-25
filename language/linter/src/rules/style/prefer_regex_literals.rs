@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -182,7 +182,7 @@ fn valid_flags(flags: &str) -> bool {
 /// Build one regex literal replacement.
 fn suggestion(
     lint: &Lint,
-    span: destack_source::Span,
+    span: tspp_source::Span,
     literal: String,
 ) -> Result<DiagnosticSuggestion, ProviderError> {
     let patch = Patch::replace(span, literal);

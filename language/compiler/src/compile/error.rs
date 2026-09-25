@@ -1,7 +1,7 @@
-use destack_artifact::{
+use tspp_artifact::{
     ArtifactFailure, ArtifactKey, ArtifactVersion, DiagnosticError, DiagnosticLike,
 };
-use destack_repository::{ProviderError, RepositoryError};
+use tspp_repository::{ProviderError, RepositoryError};
 
 use crate::{
     AnalyzeError, BindError, CheckError, ElaborateError, EmitError, ExpandError, ExportError,

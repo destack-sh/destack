@@ -1,4 +1,4 @@
-use destack_repository::ProviderContext;
+use tspp_repository::ProviderContext;
 
 /// Counted work metrics for one export attempt.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

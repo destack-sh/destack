@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_source::{DiagnosticCollection, File};
+use tspp_source::{DiagnosticCollection, File};
 
 use super::CommandMessagePayload;
 use crate::Message;

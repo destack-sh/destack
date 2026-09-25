@@ -1,4 +1,4 @@
-use destack_program::{Profile, ProfileOptions, Word};
+use tspp_program::{Profile, ProfileOptions, Word};
 
 use super::{TestMachine, TestProgram};
 

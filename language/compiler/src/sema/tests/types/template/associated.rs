@@ -14,7 +14,7 @@ channel satisfies `topic:${"orders"}`;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -74,7 +74,7 @@ handlers["on-message"] satisfies string;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -168,7 +168,7 @@ kind satisfies "login";
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

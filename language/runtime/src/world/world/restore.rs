@@ -1,7 +1,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use destack_program as program;
+use tspp_program as program;
 
 use crate::binding::BindingTable;
 use crate::diagnostic::RuntimeResult;

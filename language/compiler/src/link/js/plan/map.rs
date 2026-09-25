@@ -1,10 +1,10 @@
-use destack_repository::ProviderContext;
 use std::path::{Component, Path, PathBuf};
+use tspp_repository::ProviderContext;
 
 use crate::emit::js;
 use crate::link::{SourceMapBuilder, SourceMapMarker};
 use crate::{CompilerResult, JsLinker};
-use destack_source::ModuleId;
+use tspp_source::ModuleId;
 
 impl JsLinker<'_> {
     /// Build one source map builder for linked JS modules.

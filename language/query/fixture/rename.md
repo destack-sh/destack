@@ -6,34 +6,34 @@
 
 Renaming a binding updates its definition and references.
 
-```ds main.ds
+```tspp main.tspp
 const count = 1;
       ^^^^^ target
 const next = count + count;
 ```
 
-```query rename main.ds#target new_name=total apply
+```query rename main.tspp#target new_name=total apply
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 const total = 1;
       ^^^^^ target
 const next = total + total;
 ```
 
-```query rename main.ds#target new_name=amount apply
+```query rename main.tspp#target new_name=amount apply
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 const amount = 1;
       ^^^^^^ target
 const next = amount + amount;
 ```
 
-```query rename main.ds#target new_name=count
+```query rename main.tspp#target new_name=count
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 const count = 1;
 const next = count + count;
 ```
@@ -42,17 +42,17 @@ const next = count + count;
 
 Renaming a parameter updates the signature and body.
 
-```ds main.ds
+```tspp main.tspp
 function identity(value: int32): int32 {
                   ^^^^^ target
     return value;
 }
 ```
 
-```query rename main.ds#target new_name=result
+```query rename main.tspp#target new_name=result
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 function identity(result: int32): int32 {
     return result;
 }
@@ -62,17 +62,17 @@ function identity(result: int32): int32 {
 
 Renaming a local value expands an object shorthand so its property name remains unchanged.
 
-```ds main.ds
+```tspp main.tspp
 const horizontal = 1;
       ^^^^^^^^^^ target
 
 const point = { horizontal };
 ```
 
-```query rename main.ds#target new_name=x
+```query rename main.tspp#target new_name=x
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 const x = 1;
 
 const point = { horizontal: x };
@@ -84,7 +84,7 @@ const point = { horizontal: x };
 
 Renaming a type updates type and construction references without touching longer names.
 
-```ds main.ds
+```tspp main.tspp
 class Message {}
       ^^^^^^^ target
 
@@ -97,10 +97,10 @@ function identity(message: Message): Message {
 const created = new Message();
 ```
 
-```query rename main.ds#target new_name=Packet
+```query rename main.tspp#target new_name=Packet
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 class Packet {}
 
 class MessageFactory {}
@@ -118,7 +118,7 @@ const created = new Packet();
 
 Renaming a field updates its declaration and accesses.
 
-```ds main.ds
+```tspp main.tspp
 struct Counter {
     count: int32;
     ^^^^^ target
@@ -129,10 +129,10 @@ function read(counter: Counter): int32 {
 }
 ```
 
-```query rename main.ds#target new_name=value
+```query rename main.tspp#target new_name=value
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 struct Counter {
     value: int32;
 }
@@ -146,7 +146,7 @@ function read(counter: Counter): int32 {
 
 Renaming a field expands an object shorthand so its local value keeps its original name.
 
-```ds main.ds
+```tspp main.tspp
 struct Point {
     horizontal: int32;
     ^^^^^^^^^^ target
@@ -156,10 +156,10 @@ const horizontal = 1;
 const point = Point { horizontal };
 ```
 
-```query rename main.ds#target new_name=x
+```query rename main.tspp#target new_name=x
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 struct Point {
     x: int32;
 }
@@ -172,7 +172,7 @@ const point = Point { x: horizontal };
 
 A static string key changes with its nominal field.
 
-```ds main.ds
+```tspp main.tspp
 struct Counter {
     count: int32;
     ^^^^^ target
@@ -183,10 +183,10 @@ function read(counter: Counter): int32 {
 }
 ```
 
-```query rename main.ds#target new_name=value
+```query rename main.tspp#target new_name=value
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 struct Counter {
     value: int32;
 }
@@ -200,7 +200,7 @@ function read(counter: Counter): int32 {
 
 Structural fields have no declaration identity shared by every compatible shape.
 
-```ds main.ds
+```tspp main.tspp
 type Counter = {
     count: int32,
     ^^^^^ target
@@ -211,7 +211,7 @@ function read(counter: Counter): int32 {
 }
 ```
 
-```query rename main.ds#target new_name=value
+```query rename main.tspp#target new_name=value
 @rename.none
 ```
 
@@ -221,30 +221,30 @@ function read(counter: Counter): int32 {
 
 Renaming an export updates its declaration, import, and call.
 
-```ds library.ds
+```tspp library.tspp
 export function greet(name: string): string {
                 ^^^^^ target:exported_function
     return name;
 }
 ```
 
-```ds main.ds
-import { greet } from "./library.ds";
+```tspp main.tspp
+import { greet } from "./library.tspp";
 
 const message = greet("Destack");
 ```
 
-```query rename library.ds#target:exported_function new_name=welcome
+```query rename library.tspp#target:exported_function new_name=welcome
 ```
 
-```ds library.ds after
+```tspp library.tspp after
 export function welcome(name: string): string {
     return name;
 }
 ```
 
-```ds main.ds after
-import { welcome } from "./library.ds";
+```tspp main.tspp after
+import { welcome } from "./library.tspp";
 
 const message = welcome("Destack");
 ```
@@ -253,31 +253,31 @@ const message = welcome("Destack");
 
 Renaming an export leaves its explicit local alias unchanged.
 
-```ds library.ds
+```tspp library.tspp
 export function greet(name: string): string {
                 ^^^^^ target:aliased_import
     return name;
 }
 ```
 
-```ds main.ds
-import { greet as importedGreet } from "./library.ds";
+```tspp main.tspp
+import { greet as importedGreet } from "./library.tspp";
 
 const greet = 1;
 const message = importedGreet("Destack");
 ```
 
-```query rename library.ds#target:aliased_import new_name=welcome
+```query rename library.tspp#target:aliased_import new_name=welcome
 ```
 
-```ds library.ds after
+```tspp library.tspp after
 export function welcome(name: string): string {
     return name;
 }
 ```
 
-```ds main.ds after
-import { welcome as importedGreet } from "./library.ds";
+```tspp main.tspp after
+import { welcome as importedGreet } from "./library.tspp";
 
 const greet = 1;
 const message = importedGreet("Destack");
@@ -287,7 +287,7 @@ const message = importedGreet("Destack");
 
 Hover, definition, references, and highlighting use the applied function name.
 
-```ds main.ds
+```tspp main.tspp
 function greet(name: string): string {
 ^ declaration:start
          ^^^^^ definition
@@ -299,18 +299,18 @@ const message = greet("World");
                 ^^^^^ reference
 ```
 
-```query hover main.ds#reference
-@hover.item index=0 declaration="function greet(name: string): string" location=main.ds#declaration selection=main.ds#definition range=main.ds#reference
+```query hover main.tspp#reference
+@hover.item index=0 declaration="function greet(name: string): string" location=main.tspp#declaration selection=main.tspp#definition range=main.tspp#reference
 ```
 
-```query goto_definition main.ds#reference
-@goto_definition.target origin=main.ds#reference location=main.ds#declaration selection=main.ds#definition symbol=main.ds#greet@1
+```query goto_definition main.tspp#reference
+@goto_definition.target origin=main.tspp#reference location=main.tspp#declaration selection=main.tspp#definition symbol=main.tspp#greet@1
 ```
 
-```query rename main.ds#definition new_name=formatName apply
+```query rename main.tspp#definition new_name=formatName apply
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 function formatName(name: string): string {
 ^ declaration:start
          ^^^^^^^^^^ definition
@@ -322,25 +322,25 @@ const message = formatName("World");
                 ^^^^^^^^^^ reference
 ```
 
-```query hover main.ds#reference
-@hover.item index=0 declaration="function formatName(name: string): string" location=main.ds#declaration selection=main.ds#definition range=main.ds#reference
+```query hover main.tspp#reference
+@hover.item index=0 declaration="function formatName(name: string): string" location=main.tspp#declaration selection=main.tspp#definition range=main.tspp#reference
 ```
 
-```query goto_definition main.ds#reference
-@goto_definition.target origin=main.ds#reference location=main.ds#declaration selection=main.ds#definition symbol=main.ds#formatName@1
+```query goto_definition main.tspp#reference
+@goto_definition.target origin=main.tspp#reference location=main.tspp#declaration selection=main.tspp#definition symbol=main.tspp#formatName@1
 ```
 
-```query find_references main.ds#reference include_declaration=true
-@find_references.reference location=main.ds#definition symbol=main.ds#formatName@1
-@find_references.reference location=main.ds#reference symbol=main.ds#formatName@1
+```query find_references main.tspp#reference include_declaration=true
+@find_references.reference location=main.tspp#definition symbol=main.tspp#formatName@1
+@find_references.reference location=main.tspp#reference symbol=main.tspp#formatName@1
 ```
 
-```query semantic_tokens main.ds
-@semantic_tokens.token range=main.ds#definition type=function modifiers=declaration
-@semantic_tokens.token range=main.ds:1:21-1:25 type=parameter modifiers=declaration
-@semantic_tokens.token range=main.ds:2:12-2:16 type=parameter
-@semantic_tokens.token range=main.ds:5:7-5:14 type=variable modifiers=declaration,readonly
-@semantic_tokens.token range=main.ds#reference type=function
+```query semantic_tokens main.tspp
+@semantic_tokens.token range=main.tspp#definition type=function modifiers=declaration
+@semantic_tokens.token range=main.tspp:1:21-1:25 type=parameter modifiers=declaration
+@semantic_tokens.token range=main.tspp:2:12-2:16 type=parameter
+@semantic_tokens.token range=main.tspp:5:7-5:14 type=variable modifiers=declaration,readonly
+@semantic_tokens.token range=main.tspp#reference type=function
 ```
 
 ## Namespace Imports
@@ -349,30 +349,30 @@ const message = formatName("World");
 
 Renaming an export updates its namespace member accesses.
 
-```ds library.ds
+```tspp library.tspp
 export function greet(name: string): string {
                 ^^^^^ target:namespace_import
     return name;
 }
 ```
 
-```ds main.ds
-import * as api from "./library.ds";
+```tspp main.tspp
+import * as api from "./library.tspp";
 
 const message = api.greet("Destack");
 ```
 
-```query rename library.ds#target:namespace_import new_name=welcome
+```query rename library.tspp#target:namespace_import new_name=welcome
 ```
 
-```ds library.ds after
+```tspp library.tspp after
 export function welcome(name: string): string {
     return name;
 }
 ```
 
-```ds main.ds after
-import * as api from "./library.ds";
+```tspp main.tspp after
+import * as api from "./library.tspp";
 
 const message = api.welcome("Destack");
 ```
@@ -383,38 +383,38 @@ const message = api.welcome("Destack");
 
 Renaming an export updates its re-export, downstream import, and call.
 
-```ds library.ds
+```tspp library.tspp
 export function greet(name: string): string {
                 ^^^^^ target:named_reexport
     return name;
 }
 ```
 
-```ds barrel.ds
-export { greet } from "./library.ds";
+```tspp barrel.tspp
+export { greet } from "./library.tspp";
 ```
 
-```ds main.ds
-import { greet } from "./barrel.ds";
+```tspp main.tspp
+import { greet } from "./barrel.tspp";
 
 const message = greet("Destack");
 ```
 
-```query rename library.ds#target:named_reexport new_name=welcome
+```query rename library.tspp#target:named_reexport new_name=welcome
 ```
 
-```ds library.ds after
+```tspp library.tspp after
 export function welcome(name: string): string {
     return name;
 }
 ```
 
-```ds barrel.ds after
-export { welcome } from "./library.ds";
+```tspp barrel.tspp after
+export { welcome } from "./library.tspp";
 ```
 
-```ds main.ds after
-import { welcome } from "./barrel.ds";
+```tspp main.tspp after
+import { welcome } from "./barrel.tspp";
 
 const message = welcome("Destack");
 ```
@@ -423,34 +423,34 @@ const message = welcome("Destack");
 
 Renaming an export leaves its explicit public alias unchanged.
 
-```ds library.ds
+```tspp library.tspp
 export function greet(name: string): string {
                 ^^^^^ target:aliased_reexport
     return name;
 }
 ```
 
-```ds barrel.ds
-export { greet as hello } from "./library.ds";
+```tspp barrel.tspp
+export { greet as hello } from "./library.tspp";
 ```
 
-```ds main.ds
-import { hello } from "./barrel.ds";
+```tspp main.tspp
+import { hello } from "./barrel.tspp";
 
 const message = hello("Destack");
 ```
 
-```query rename library.ds#target:aliased_reexport new_name=welcome
+```query rename library.tspp#target:aliased_reexport new_name=welcome
 ```
 
-```ds library.ds after
+```tspp library.tspp after
 export function welcome(name: string): string {
     return name;
 }
 ```
 
-```ds barrel.ds after
-export { welcome as hello } from "./library.ds";
+```tspp barrel.tspp after
+export { welcome as hello } from "./library.tspp";
 ```
 
 ## Imported Types
@@ -459,30 +459,30 @@ export { welcome as hello } from "./library.ds";
 
 Renaming an exported type updates its import and annotations.
 
-```ds library.ds
+```tspp library.tspp
 export type Settings = {
             ^^^^^^^^ target:exported_type
     enabled: boolean,
 };
 ```
 
-```ds main.ds
-import { Settings } from "./library.ds";
+```tspp main.tspp
+import { Settings } from "./library.tspp";
 
 const configuration: Settings = { enabled: true };
 ```
 
-```query rename library.ds#target:exported_type new_name=Configuration
+```query rename library.tspp#target:exported_type new_name=Configuration
 ```
 
-```ds library.ds after
+```tspp library.tspp after
 export type Configuration = {
     enabled: boolean,
 };
 ```
 
-```ds main.ds after
-import { Configuration } from "./library.ds";
+```tspp main.tspp after
+import { Configuration } from "./library.tspp";
 
 const configuration: Configuration = { enabled: true };
 ```
@@ -491,34 +491,34 @@ const configuration: Configuration = { enabled: true };
 
 Renaming an exported type updates its re-export while preserving the public alias.
 
-```ds library.ds
+```tspp library.tspp
 export type Settings = {
             ^^^^^^^^ target:reexported_type
     enabled: boolean,
 };
 ```
 
-```ds barrel.ds
-export { Settings as ApplicationSettings } from "./library.ds";
+```tspp barrel.tspp
+export { Settings as ApplicationSettings } from "./library.tspp";
 ```
 
-```ds main.ds
-import { ApplicationSettings } from "./barrel.ds";
+```tspp main.tspp
+import { ApplicationSettings } from "./barrel.tspp";
 
 const configuration: ApplicationSettings = { enabled: true };
 ```
 
-```query rename library.ds#target:reexported_type new_name=Configuration
+```query rename library.tspp#target:reexported_type new_name=Configuration
 ```
 
-```ds library.ds after
+```tspp library.tspp after
 export type Configuration = {
     enabled: boolean,
 };
 ```
 
-```ds barrel.ds after
-export { Configuration as ApplicationSettings } from "./library.ds";
+```tspp barrel.tspp after
+export { Configuration as ApplicationSettings } from "./library.tspp";
 ```
 
 ## Methods
@@ -527,7 +527,7 @@ export { Configuration as ApplicationSettings } from "./library.ds";
 
 Renaming a method updates its declaration and accesses.
 
-```ds main.ds
+```tspp main.tspp
 class Service {
     run(): void {}
     ^^^ target
@@ -538,10 +538,10 @@ function start(service: Service): void {
 }
 ```
 
-```query rename main.ds#target new_name=execute
+```query rename main.tspp#target new_name=execute
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 class Service {
     execute(): void {}
 }
@@ -555,7 +555,7 @@ function start(service: Service): void {
 
 Renaming an extension method updates its declaration and every extension call.
 
-```ds main.ds
+```tspp main.tspp
 struct Calculator {}
 
 extension of Calculator {
@@ -570,10 +570,10 @@ function total(calculator: Calculator): int32 {
 }
 ```
 
-```query rename main.ds#target new_name=sum
+```query rename main.tspp#target new_name=sum
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 struct Calculator {}
 
 extension of Calculator {
@@ -591,7 +591,7 @@ function total(calculator: Calculator): int32 {
 
 Renaming an interface method updates implementations and calls through the interface.
 
-```ds main.ds
+```tspp main.tspp
 interface Renderable {
     render(): string;
     ^^^^^^ target
@@ -608,10 +608,10 @@ function display(value: Renderable): string {
 }
 ```
 
-```query rename main.ds#target new_name=draw
+```query rename main.tspp#target new_name=draw
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 interface Renderable {
     draw(): string;
 }
@@ -631,14 +631,14 @@ function display(value: Renderable): string {
 
 Renaming an implementation updates its interface requirement and calls.
 
-```ds library.ds
+```tspp library.tspp
 export interface Renderable {
     render(): string;
 }
 ```
 
-```ds main.ds
-import { Renderable } from "./library.ds";
+```tspp main.tspp
+import { Renderable } from "./library.tspp";
 
 export class View implements Renderable {
     render(): string {
@@ -652,17 +652,17 @@ function display(value: View): string {
 }
 ```
 
-```query rename main.ds#target new_name=draw
+```query rename main.tspp#target new_name=draw
 ```
 
-```ds library.ds after
+```tspp library.tspp after
 export interface Renderable {
     draw(): string;
 }
 ```
 
-```ds main.ds after
-import { Renderable } from "./library.ds";
+```tspp main.tspp after
+import { Renderable } from "./library.tspp";
 
 export class View implements Renderable {
     draw(): string {
@@ -681,7 +681,7 @@ function display(value: View): string {
 
 Renaming an associated constant updates its declaration and nominal accesses.
 
-```ds main.ds
+```tspp main.tspp
 struct Buffer {
     const Width: uint = 8;
           ^^^^^ target
@@ -691,10 +691,10 @@ const first = Buffer.Width;
 const second = Buffer.Width;
 ```
 
-```query rename main.ds#target new_name=Size
+```query rename main.tspp#target new_name=Size
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 struct Buffer {
     const Size: uint = 8;
 }
@@ -709,15 +709,15 @@ const second = Buffer.Size;
 
 Renaming an interface associated type updates its implementations and projections.
 
-```ds container.ds
+```tspp container.tspp
 export interface Container {
     type Item;
          ^^^^ target
 }
 ```
 
-```ds main.ds
-import { Container } from "./container.ds";
+```tspp main.tspp
+import { Container } from "./container.tspp";
 
 class TextContainer implements Container {
     type Item = string;
@@ -726,17 +726,17 @@ class TextContainer implements Container {
 type Text = TextContainer.Item;
 ```
 
-```query rename container.ds#target new_name=Element
+```query rename container.tspp#target new_name=Element
 ```
 
-```ds container.ds after
+```tspp container.tspp after
 export interface Container {
     type Element;
 }
 ```
 
-```ds main.ds after
-import { Container } from "./container.ds";
+```tspp main.tspp after
+import { Container } from "./container.tspp";
 
 class TextContainer implements Container {
     type Element = string;
@@ -751,7 +751,7 @@ type Text = TextContainer.Element;
 
 Renaming a variant updates its declaration and member accesses.
 
-```ds main.ds
+```tspp main.tspp
 enum Color {
     Red,
     ^^^ target
@@ -760,10 +760,10 @@ enum Color {
 const color = Color.Red;
 ```
 
-```query rename main.ds#target new_name=Crimson
+```query rename main.tspp#target new_name=Crimson
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 enum Color {
     Crimson,
 }
@@ -777,7 +777,7 @@ const color = Color.Crimson;
 
 Renaming one overload updates every declaration and call in its overload family.
 
-```ds main.ds
+```tspp main.tspp
 function parse(value: int32): int32 {
          ^^^^^ target
     return value;
@@ -791,10 +791,10 @@ const integerValue = parse(1);
 const stringValue = parse("one");
 ```
 
-```query rename main.ds#target new_name=decode
+```query rename main.tspp#target new_name=decode
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 function decode(value: int32): int32 {
     return value;
 }
@@ -813,22 +813,22 @@ const stringValue = decode("one");
 
 Renaming an explicit local alias leaves the exported name unchanged.
 
-```ds library.ds
+```tspp library.tspp
 export function greet(): void {}
 ```
 
-```ds main.ds
-import { greet as welcome } from "./library.ds";
+```tspp main.tspp
+import { greet as welcome } from "./library.tspp";
                   ^^^^^^^ target
 
 welcome();
 ```
 
-```query rename main.ds#target new_name=salute
+```query rename main.tspp#target new_name=salute
 ```
 
-```ds main.ds after
-import { greet as salute } from "./library.ds";
+```tspp main.tspp after
+import { greet as salute } from "./library.tspp";
 
 salute();
 ```
@@ -837,22 +837,22 @@ salute();
 
 A default import binding is local to the importing module.
 
-```ds library.ds
+```tspp library.tspp
 export default function build(): void {}
 ```
 
-```ds main.ds
-import create from "./library.ds";
+```tspp main.tspp
+import create from "./library.tspp";
        ^^^^^^ target
 
 create();
 ```
 
-```query rename main.ds#target new_name=construct
+```query rename main.tspp#target new_name=construct
 ```
 
-```ds main.ds after
-import construct from "./library.ds";
+```tspp main.tspp after
+import construct from "./library.tspp";
 
 construct();
 ```
@@ -861,22 +861,22 @@ construct();
 
 A namespace import name is local to the importing module.
 
-```ds library.ds
+```tspp library.tspp
 export function ping(): void {}
 ```
 
-```ds main.ds
-import * as api from "./library.ds";
+```tspp main.tspp
+import * as api from "./library.tspp";
             ^^^ target
 
 api.ping();
 ```
 
-```query rename main.ds#target new_name=library
+```query rename main.tspp#target new_name=library
 ```
 
-```ds main.ds after
-import * as library from "./library.ds";
+```tspp main.tspp after
+import * as library from "./library.tspp";
 
 library.ping();
 ```
@@ -885,29 +885,29 @@ library.ping();
 
 Renaming a namespace re-export updates the exact namespace segment in each type path.
 
-```ds model.ds
+```tspp model.tspp
 export struct Packet {}
 ```
 
-```ds library.ds
+```tspp library.tspp
 export * as models from "./model";
 ```
 
-```ds main.ds
+```tspp main.tspp
 import * as library from "./library";
 
 declare const packet: library.models.Packet;
                               ^^^^^^ target
 ```
 
-```query rename main.ds#target new_name=types
+```query rename main.tspp#target new_name=types
 ```
 
-```ds library.ds after
+```tspp library.tspp after
 export * as types from "./model";
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 import * as library from "./library";
 
 declare const packet: library.types.Packet;
@@ -917,24 +917,24 @@ declare const packet: library.types.Packet;
 
 A local alias in the type symbol space changes without renaming the exported type.
 
-```ds library.ds
+```tspp library.tspp
 export type Options = {
     enabled: boolean,
 };
 ```
 
-```ds main.ds
-import { Options as Settings } from "./library.ds";
+```tspp main.tspp
+import { Options as Settings } from "./library.tspp";
                     ^^^^^^^^ target
 
 declare const settings: Settings;
 ```
 
-```query rename main.ds#target new_name=Configuration
+```query rename main.tspp#target new_name=Configuration
 ```
 
-```ds main.ds after
-import { Options as Configuration } from "./library.ds";
+```tspp main.tspp after
+import { Options as Configuration } from "./library.tspp";
 
 declare const settings: Configuration;
 ```
@@ -945,21 +945,21 @@ declare const settings: Configuration;
 
 Renaming a default declaration leaves downstream local import names unchanged.
 
-```ds library.ds
+```tspp library.tspp
 export default function build(): void {}
                         ^^^^^ target
 ```
 
-```ds main.ds
-import create from "./library.ds";
+```tspp main.tspp
+import create from "./library.tspp";
 
 create();
 ```
 
-```query rename library.ds#target new_name=construct
+```query rename library.tspp#target new_name=construct
 ```
 
-```ds library.ds after
+```tspp library.tspp after
 export default function construct(): void {}
 ```
 
@@ -969,17 +969,17 @@ export default function construct(): void {}
 
 Type parameter renames update every reference in the owning declaration.
 
-```ds main.ds
+```tspp main.tspp
 function identity<Value>(value: Value): Value {
                   ^^^^^ target
     return value;
 }
 ```
 
-```query rename main.ds#target new_name=Item
+```query rename main.tspp#target new_name=Item
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 function identity<Item>(value: Item): Item {
     return value;
 }
@@ -989,7 +989,7 @@ function identity<Item>(value: Item): Item {
 
 The owning class and all of its members share one type-parameter identity.
 
-```ds main.ds
+```tspp main.tspp
 class Box<Value> {
           ^^^^^ target
     value: Value;
@@ -1000,10 +1000,10 @@ class Box<Value> {
 }
 ```
 
-```query rename main.ds#target new_name=Item
+```query rename main.tspp#target new_name=Item
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 class Box<Item> {
     value: Item;
 
@@ -1017,15 +1017,15 @@ class Box<Item> {
 
 A const value parameter updates every use in its declaration.
 
-```ds main.ds
+```tspp main.tspp
 type Buffer<const size: usize> = [uint8; size];
                   ^^^^ target
 ```
 
-```query rename main.ds#target new_name=length
+```query rename main.tspp#target new_name=length
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 type Buffer<const length: usize> = [uint8; length];
 ```
 
@@ -1035,17 +1035,17 @@ type Buffer<const length: usize> = [uint8; length];
 
 Renaming a local destructuring alias leaves its property key unchanged.
 
-```ds main.ds
+```tspp main.tspp
 const point = { x: 1 };
 const { x: horizontal } = point;
            ^^^^^^^^^^ target
 const value = horizontal;
 ```
 
-```query rename main.ds#target new_name=position
+```query rename main.tspp#target new_name=position
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 const point = { x: 1 };
 const { x: position } = point;
 const value = position;
@@ -1055,7 +1055,7 @@ const value = position;
 
 Renaming a shorthand binding expands the pattern so its property remains unchanged.
 
-```ds main.ds
+```tspp main.tspp
 declare const point: { horizontal: int32 };
 
 const { horizontal } = point;
@@ -1063,10 +1063,10 @@ const { horizontal } = point;
 const value = horizontal;
 ```
 
-```query rename main.ds#target new_name=x
+```query rename main.tspp#target new_name=x
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 declare const point: { horizontal: int32 };
 
 const { horizontal: x } = point;
@@ -1077,7 +1077,7 @@ const value = x;
 
 A match binding changes only its arm-local declaration and references.
 
-```ds main.ds
+```tspp main.tspp
 declare const pair: (int32, int32);
 
 const total = match (pair) {
@@ -1086,10 +1086,10 @@ const total = match (pair) {
 };
 ```
 
-```query rename main.ds#target new_name=first
+```query rename main.tspp#target new_name=first
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 declare const pair: (int32, int32);
 
 const total = match (pair) {
@@ -1103,7 +1103,7 @@ const total = match (pair) {
 
 Renaming an annotation updates its declaration and applications.
 
-```ds main.ds
+```tspp main.tspp
 newtype tracked = ();
         ^^^^^^^ target
 
@@ -1114,10 +1114,10 @@ class Service {}
 function start(): void {}
 ```
 
-```query rename main.ds#target new_name=observed
+```query rename main.tspp#target new_name=observed
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 newtype observed = ();
 
 @observed
@@ -1133,7 +1133,7 @@ function start(): void {}
 
 Tagged templates and ordinary calls share the function identity.
 
-```ds main.ds
+```tspp main.tspp
 function sql(parts: string[], ...values: int32[]): string {
          ^^^ target
     return "";
@@ -1143,10 +1143,10 @@ const query = sql`select ${1}`;
 const text = sql([""], 2);
 ```
 
-```query rename main.ds#target new_name=execute
+```query rename main.tspp#target new_name=execute
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 function execute(parts: string[], ...values: int32[]): string {
     return "";
 }
@@ -1159,7 +1159,7 @@ const text = execute([""], 2);
 
 Const and runtime calls share the function declaration.
 
-```ds main.ds
+```tspp main.tspp
 function build(): int32 {
          ^^^^^ target
     return 1;
@@ -1169,10 +1169,10 @@ const first = const build();
 const second = build();
 ```
 
-```query rename main.ds#target new_name=make
+```query rename main.tspp#target new_name=make
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 function make(): int32 {
     return 1;
 }
@@ -1187,7 +1187,7 @@ const second = make();
 
 Renaming a control label updates its declaration and every targeted break.
 
-```ds main.ds
+```tspp main.tspp
 function choose(value: boolean): int32 {
     outer: loop {
     ^^^^^ target
@@ -1200,10 +1200,10 @@ function choose(value: boolean): int32 {
 }
 ```
 
-```query rename main.ds#target new_name=done
+```query rename main.tspp#target new_name=done
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 function choose(value: boolean): int32 {
     done: loop {
         if (value) {
@@ -1221,7 +1221,7 @@ function choose(value: boolean): int32 {
 
 A resource binding updates its local references.
 
-```ds main.ds
+```tspp main.tspp
 declare function openSession(): Dispose;
 
 using session = openSession();
@@ -1229,10 +1229,10 @@ using session = openSession();
 const value = session;
 ```
 
-```query rename main.ds#target new_name=resource
+```query rename main.tspp#target new_name=resource
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 declare function openSession(): Dispose;
 
 using resource = openSession();
@@ -1243,7 +1243,7 @@ const value = resource;
 
 An asynchronous resource binding updates its local references.
 
-```ds main.ds
+```tspp main.tspp
 declare function openResource(): AsyncDispose;
 
 async function run(): void {
@@ -1253,10 +1253,10 @@ async function run(): void {
 }
 ```
 
-```query rename main.ds#target new_name=handle
+```query rename main.tspp#target new_name=handle
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 declare function openResource(): AsyncDispose;
 
 async function run(): void {
@@ -1269,7 +1269,7 @@ async function run(): void {
 
 A loop resource binding updates references inside its loop body.
 
-```ds main.ds
+```tspp main.tspp
 declare function values(): Dispose[];
 
 for (using item of values()) {
@@ -1278,10 +1278,10 @@ for (using item of values()) {
 }
 ```
 
-```query rename main.ds#target new_name=value
+```query rename main.tspp#target new_name=value
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 declare function values(): Dispose[];
 
 for (using value of values()) {
@@ -1293,7 +1293,7 @@ for (using value of values()) {
 
 An exported resource binding has one declaration and reference identity.
 
-```ds main.ds
+```tspp main.tspp
 declare function openCache(): Dispose;
 
 export using cache = openCache();
@@ -1301,10 +1301,10 @@ export using cache = openCache();
 const value = cache;
 ```
 
-```query rename main.ds#target new_name=store
+```query rename main.tspp#target new_name=store
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 declare function openCache(): Dispose;
 
 export using store = openCache();
@@ -1317,13 +1317,13 @@ const value = store;
 
 A rename to the existing name produces no edit.
 
-```ds main.ds
+```tspp main.tspp
 const value = 1;
       ^^^^^ target
 const result = value;
 ```
 
-```query rename main.ds#target new_name=value
+```query rename main.tspp#target new_name=value
 @rename.none
 ```
 
@@ -1331,13 +1331,13 @@ const result = value;
 
 A keyword cannot replace an identifier.
 
-```ds main.ds
+```tspp main.tspp
 const value = 1;
       ^^^^^ target
 const result = value;
 ```
 
-```query rename main.ds#target new_name=class
+```query rename main.tspp#target new_name=class
 @rename.none
 ```
 
@@ -1345,7 +1345,7 @@ const result = value;
 
 Renaming one declaration cannot rewrite an occurrence that also belongs to another declaration.
 
-```ds main.ds
+```tspp main.tspp
 class Alpha {
     run(): void {}
     ^^^ target
@@ -1360,7 +1360,7 @@ function start(service: Alpha | Beta): void {
 }
 ```
 
-```query rename main.ds#target new_name=execute
+```query rename main.tspp#target new_name=execute
 @rename.none
 ```
 
@@ -1370,7 +1370,7 @@ function start(service: Alpha | Beta): void {
 
 Distinct lexical bindings remain separate rename identities.
 
-```ds main.ds
+```tspp main.tspp
 const value = 1;
 
 function inner(): int32 {
@@ -1382,10 +1382,10 @@ function inner(): int32 {
 const outer = value;
 ```
 
-```query rename main.ds#target new_name=innerValue
+```query rename main.tspp#target new_name=innerValue
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 const value = 1;
 
 function inner(): int32 {

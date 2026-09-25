@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use destack_artifact::{Host, Platform};
 use serde::{Deserialize, Serialize};
+use tspp_artifact::{Host, Platform};
 
 use crate::config::{CompilerRestrictions, Derive};
 

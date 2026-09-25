@@ -5,54 +5,54 @@
 
 A definition identifies its symbol and placeholder name.
 
-```ds main.ds
+```tspp main.tspp
 const count = 1;
       ^^^^^ definition
 const next = count;
 ```
 
-```query rename_target main.ds#definition
-@rename_target.target placeholder=count location=main.ds#definition symbol=main.ds#count@1
+```query rename_target main.tspp#definition
+@rename_target.target placeholder=count location=main.tspp#definition symbol=main.tspp#count@1
 ```
 
 ### Resolve a reference
 
 A reference reports its name range and symbol.
 
-```ds main.ds
+```tspp main.tspp
 const count = 1;
 const next = count;
              ^^^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=count location=main.ds#reference symbol=main.ds#count@1
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=count location=main.tspp#reference symbol=main.tspp#count@1
 ```
 
 ### Resolve the current binding
 
 The rename target is the symbol selected after each edit.
 
-```ds main.ds
+```tspp main.tspp
 const first = 1;
 const second = 2;
 const selected = first;
                  ^^^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=first location=main.ds#reference symbol=main.ds#first@1
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=first location=main.tspp#reference symbol=main.tspp#first@1
 ```
 
-```ds main.ds change
+```tspp main.tspp change
 const first = 1;
 const second = 2;
 const selected = second;
                  ^^^^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=second location=main.ds#reference symbol=main.ds#second@2
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=second location=main.tspp#reference symbol=main.tspp#second@2
 ```
 
 ## Members
@@ -61,7 +61,7 @@ const selected = second;
 
 A named field access resolves as a rename target.
 
-```ds main.ds
+```tspp main.tspp
 struct Counter {
     count: int32;
 }
@@ -72,15 +72,15 @@ function read(counter: Counter): int32 {
 }
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=count location=main.ds#reference symbol=main.ds#count@2
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=count location=main.tspp#reference symbol=main.tspp#count@2
 ```
 
 ### Resolve a string-keyed field access
 
 A string-keyed field access exposes only the identifier contents as its rename range.
 
-```ds main.ds
+```tspp main.tspp
 struct Counter {
     count: int32;
 }
@@ -91,8 +91,8 @@ function read(counter: Counter): int32 {
 }
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=count location=main.ds#reference symbol=main.ds#count@2
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=count location=main.tspp#reference symbol=main.tspp#count@2
 ```
 
 ## Methods
@@ -101,7 +101,7 @@ function read(counter: Counter): int32 {
 
 A method name is a rename target.
 
-```ds main.ds
+```tspp main.tspp
 class Service {
     run(): void {}
 }
@@ -112,15 +112,15 @@ function start(service: Service): void {
 }
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=run location=main.ds#reference symbol=main.ds#run@2
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=run location=main.tspp#reference symbol=main.tspp#run@2
 ```
 
 ### Resolve an extension method access
 
 An extension call identifies its extension method.
 
-```ds main.ds
+```tspp main.tspp
 struct Calculator {}
 
 extension of Calculator {
@@ -135,8 +135,8 @@ function total(calculator: Calculator): int32 {
 }
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=add location=main.ds#reference symbol=main.ds#add@3
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=add location=main.tspp#reference symbol=main.tspp#add@3
 ```
 
 ## Associated Constants
@@ -145,7 +145,7 @@ function total(calculator: Calculator): int32 {
 
 An associated constant identifies its member declaration.
 
-```ds main.ds
+```tspp main.tspp
 struct Buffer {
     const Width: uint = 8;
 }
@@ -154,8 +154,8 @@ const width = Buffer.Width;
                      ^^^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=Width location=main.ds#reference symbol=main.ds#Width@2
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=Width location=main.tspp#reference symbol=main.tspp#Width@2
 ```
 
 ## Enum Members
@@ -164,7 +164,7 @@ const width = Buffer.Width;
 
 An enum member occurrence identifies its member declaration.
 
-```ds main.ds
+```tspp main.tspp
 enum Color {
     Red,
 }
@@ -173,8 +173,8 @@ const color = Color.Red;
                     ^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=Red location=main.ds#reference symbol=main.ds#Red@2
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=Red location=main.tspp#reference symbol=main.tspp#Red@2
 ```
 
 ## Member Declarations
@@ -183,15 +183,15 @@ const color = Color.Red;
 
 A member name is a rename target.
 
-```ds main.ds
+```tspp main.tspp
 struct Point {
     x: int32;
     ^ definition
 }
 ```
 
-```query rename_target main.ds#definition
-@rename_target.target placeholder=x location=main.ds#definition symbol=main.ds#x@2
+```query rename_target main.tspp#definition
+@rename_target.target placeholder=x location=main.tspp#definition symbol=main.tspp#x@2
 ```
 
 ## Generic Parameters
@@ -200,41 +200,41 @@ struct Point {
 
 A generic type reference identifies its local parameter.
 
-```ds main.ds
+```tspp main.tspp
 function identity<T>(value: T): T {
                                 ^ reference
     return value;
 }
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=T location=main.ds#reference symbol=main.ds#T@2
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=T location=main.tspp#reference symbol=main.tspp#T@2
 ```
 
 ### Resolve a type parameter in a template literal
 
 A type parameter inside a template literal identifies its local parameter.
 
-```ds main.ds
+```tspp main.tspp
 type Route<T: string> = `api:${T}`;
                                ^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=T location=main.ds#reference symbol=main.ds#T@2
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=T location=main.tspp#reference symbol=main.tspp#T@2
 ```
 
 ### Resolve a const type parameter
 
 A const type parameter identifies its local parameter.
 
-```ds main.ds
+```tspp main.tspp
 type Buffer<const size: usize> = [uint8; size];
                                          ^^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=size location=main.ds#reference symbol=main.ds#size@2
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=size location=main.tspp#reference symbol=main.tspp#size@2
 ```
 
 ## Pattern Bindings
@@ -243,7 +243,7 @@ type Buffer<const size: usize> = [uint8; size];
 
 A destructured name is an ordinary lexical rename target.
 
-```ds main.ds
+```tspp main.tspp
 const pair = { left: 1, right: 2 };
 const { left } = pair;
         ^^^^ definition
@@ -252,15 +252,15 @@ const value = left;
               ^^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=left location=main.ds#reference symbol=main.ds#left@2
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=left location=main.tspp#reference symbol=main.tspp#left@2
 ```
 
 ### Resolve a match binding
 
 A match-arm name identifies its arm-local binding.
 
-```ds main.ds
+```tspp main.tspp
 declare const pair: (int32, int32);
 
 const total = match (pair) {
@@ -270,23 +270,23 @@ const total = match (pair) {
 };
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=left location=main.ds#reference symbol=main.ds#left@2
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=left location=main.tspp#reference symbol=main.tspp#left@2
 ```
 
 ### Resolve the local value of an object shorthand
 
 An object shorthand token selects its local value binding for rename preparation.
 
-```ds main.ds
+```tspp main.tspp
 const horizontal = 1;
 
 const point = { horizontal };
                 ^^^^^^^^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=horizontal location=main.ds#reference symbol=main.ds#horizontal@1
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=horizontal location=main.tspp#reference symbol=main.tspp#horizontal@1
 ```
 
 ## Overloads
@@ -295,7 +295,7 @@ const point = { horizontal };
 
 Rename preparation identifies every declaration that shares the called function name.
 
-```ds main.ds
+```tspp main.tspp
 function parse(value: int32): int32 {
     return value;
 }
@@ -308,8 +308,8 @@ const value = parse(1);
               ^^^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=parse location=main.ds#reference symbols=main.ds#parse@1,main.ds#parse@3
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=parse location=main.tspp#reference symbols=main.tspp#parse@1,main.tspp#parse@3
 ```
 
 ## Construction
@@ -318,7 +318,7 @@ const value = parse(1);
 
 The class name in a construction expression is a rename target for the class identity.
 
-```ds main.ds
+```tspp main.tspp
 class User {
     constructor(name: string) {}
 }
@@ -327,8 +327,8 @@ const user = new User("Ada");
                  ^^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=User location=main.ds#reference symbol=main.ds#User@1
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=User location=main.tspp#reference symbol=main.tspp#User@1
 ```
 
 ## Labels
@@ -337,7 +337,7 @@ const user = new User("Ada");
 
 A targeted break identifies its enclosing label.
 
-```ds main.ds
+```tspp main.tspp
 function choose(): int32 {
     outer: loop {
         break outer: 1;
@@ -346,8 +346,8 @@ function choose(): int32 {
 }
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=outer location=main.ds#reference symbol=main.ds#outer@2
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=outer location=main.tspp#reference symbol=main.tspp#outer@2
 ```
 
 ## Calls
@@ -356,7 +356,7 @@ function choose(): int32 {
 
 A tagged-template tag is the same rename target as an ordinary call.
 
-```ds main.ds
+```tspp main.tspp
 function sql(parts: string[], ...values: int32[]): string {
     return "";
 }
@@ -365,15 +365,15 @@ const query = sql`select ${1}`;
               ^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=sql location=main.ds#reference symbol=main.ds#sql@1
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=sql location=main.tspp#reference symbol=main.tspp#sql@1
 ```
 
 ### Resolve a const call
 
 A const call identifies the called function.
 
-```ds main.ds
+```tspp main.tspp
 function build(): int32 {
     return 1;
 }
@@ -382,8 +382,8 @@ const value = const build();
                     ^^^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=build location=main.ds#reference symbol=main.ds#build@1
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=build location=main.tspp#reference symbol=main.tspp#build@1
 ```
 
 ## Annotations
@@ -392,7 +392,7 @@ const value = const build();
 
 An annotation value is a rename target at its application.
 
-```ds main.ds
+```tspp main.tspp
 newtype tracked = ();
 
 @tracked
@@ -400,23 +400,23 @@ newtype tracked = ();
 class Service {}
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=tracked location=main.ds#reference symbol=main.ds#tracked@1
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=tracked location=main.tspp#reference symbol=main.tspp#tracked@1
 ```
 
 ### Resolve a parameter annotation
 
 An annotation on a parameter identifies the annotation value.
 
-```ds main.ds
+```tspp main.tspp
 newtype tracked = ();
 
 function start(@tracked value: int32): void {}
                 ^^^^^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=tracked location=main.ds#reference symbol=main.ds#tracked@1
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=tracked location=main.tspp#reference symbol=main.tspp#tracked@1
 ```
 
 ## Using Bindings
@@ -425,7 +425,7 @@ function start(@tracked value: int32): void {}
 
 A using declaration introduces an ordinary lexical rename target.
 
-```ds main.ds
+```tspp main.tspp
 declare function openSession(): Dispose;
 
 using session = openSession();
@@ -434,8 +434,8 @@ const value = session;
               ^^^^^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=session location=main.ds#reference symbol=main.ds#session@2
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=session location=main.tspp#reference symbol=main.tspp#session@2
 ```
 
 ## Import Bindings
@@ -444,119 +444,119 @@ const value = session;
 
 An explicit import alias remains a local rename target.
 
-```ds library.ds
+```tspp library.tspp
 export function greet(): void {}
 ```
 
-```ds main.ds
-import { greet as welcome } from "./library.ds";
+```tspp main.tspp
+import { greet as welcome } from "./library.tspp";
 
 welcome();
 ^^^^^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=welcome location=main.ds#reference symbol=main.ds#welcome@1
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=welcome location=main.tspp#reference symbol=main.tspp#welcome@1
 ```
 
 ### Resolve a namespace import alias
 
 A namespace receiver identifies its local import alias.
 
-```ds library.ds
+```tspp library.tspp
 export function ping(): void {}
 ```
 
-```ds main.ds
-import * as api from "./library.ds";
+```tspp main.tspp
+import * as api from "./library.tspp";
 
 api.ping();
 ^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=api location=main.ds#reference symbol=main.ds#api@1
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=api location=main.tspp#reference symbol=main.tspp#api@1
 ```
 
 ### Resolve a default import binding
 
 A default import name is local to the importing module.
 
-```ds library.ds
+```tspp library.tspp
 export default function greet(): void {}
 ```
 
-```ds main.ds
-import welcome from "./library.ds";
+```tspp main.tspp
+import welcome from "./library.tspp";
 
 welcome();
 ^^^^^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=welcome location=main.ds#reference symbol=main.ds#welcome@1
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=welcome location=main.tspp#reference symbol=main.tspp#welcome@1
 ```
 
 ### Resolve an imported type alias
 
 An explicit local alias remains a rename target in the declaration's type symbol space.
 
-```ds library.ds
+```tspp library.tspp
 export type Options = {
     enabled: boolean,
 };
 ```
 
-```ds main.ds
-import { Options as Settings } from "./library.ds";
+```tspp main.tspp
+import { Options as Settings } from "./library.tspp";
 
 declare const settings: Settings;
                         ^^^^^^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=Settings location=main.ds#reference symbol=main.ds#Settings@1
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=Settings location=main.tspp#reference symbol=main.tspp#Settings@1
 ```
 
 ### Resolve the imported side of an alias
 
 The source name of an aliased import identifies the exported symbol.
 
-```ds library.ds
+```tspp library.tspp
 export function greet(): void {}
 ```
 
-```ds main.ds
-import { greet as welcome } from "./library.ds";
+```tspp main.tspp
+import { greet as welcome } from "./library.tspp";
          ^^^^^ imported_name
 
 welcome();
 ```
 
-```query rename_target main.ds#imported_name
-@rename_target.target placeholder=greet location=main.ds#imported_name symbol=library.ds#greet@1
+```query rename_target main.tspp#imported_name
+@rename_target.target placeholder=greet location=main.tspp#imported_name symbol=library.tspp#greet@1
 ```
 
 ### Resolve a namespace re-export alias
 
 A namespace re-export alias remains the rename target when imported by name.
 
-```ds base.ds
+```tspp base.tspp
 export function ping(): void {}
 ```
 
-```ds barrel.ds
-export * as api from "./base.ds";
+```tspp barrel.tspp
+export * as api from "./base.tspp";
             ^^^ declaration
 ```
 
-```ds main.ds
-import { api } from "./barrel.ds";
+```tspp main.tspp
+import { api } from "./barrel.tspp";
          ^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=api location=main.ds#reference symbol=barrel.ds#api@1
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=api location=main.tspp#reference symbol=barrel.tspp#api@1
 ```
 
 ## Export Declarations
@@ -565,13 +565,13 @@ import { api } from "./barrel.ds";
 
 A named default export declaration is a rename target.
 
-```ds main.ds
+```tspp main.tspp
 export default function greet(): void {}
                         ^^^^^ definition
 ```
 
-```query rename_target main.ds#definition
-@rename_target.target placeholder=greet location=main.ds#definition symbol=main.ds#greet@1
+```query rename_target main.tspp#definition
+@rename_target.target placeholder=greet location=main.tspp#definition symbol=main.tspp#greet@1
 ```
 
 ## Invalid Targets
@@ -580,12 +580,12 @@ export default function greet(): void {}
 
 A literal is not a rename target.
 
-```ds main.ds
+```tspp main.tspp
 const count = 42;
               ^^ literal
 ```
 
-```query rename_target main.ds#literal
+```query rename_target main.tspp#literal
 @rename_target.none
 ```
 
@@ -593,14 +593,14 @@ const count = 42;
 
 A keyword is not a rename target.
 
-```ds main.ds
+```tspp main.tspp
 function value(): int32 {
     return 1;
     ^^^^^^ keyword
 }
 ```
 
-```query rename_target main.ds#keyword
+```query rename_target main.tspp#keyword
 @rename_target.none
 ```
 
@@ -608,14 +608,14 @@ function value(): int32 {
 
 The `constructor` keyword is fixed language syntax rather than a renameable identifier.
 
-```ds main.ds
+```tspp main.tspp
 class User {
     constructor(name: string) {}
     ^^^^^^^^^^^ keyword
 }
 ```
 
-```query rename_target main.ds#keyword
+```query rename_target main.tspp#keyword
 @rename_target.none
 ```
 
@@ -623,7 +623,7 @@ class User {
 
 A shared occurrence with multiple member identities has no unambiguous rename target.
 
-```ds main.ds
+```tspp main.tspp
 class Alpha {
     run(): void {}
 }
@@ -638,7 +638,7 @@ function start(service: Alpha | Beta): void {
 }
 ```
 
-```query rename_target main.ds#reference
+```query rename_target main.tspp#reference
 @rename_target.none
 ```
 
@@ -646,14 +646,14 @@ function start(service: Alpha | Beta): void {
 
 An unresolved occurrence has no rename identity.
 
-```ds main.ds
+```tspp main.tspp
 function main(): void {
     missingValue;
     ^^^^^^^^^^^^ reference
 }
 ```
 
-```query rename_target main.ds#reference
+```query rename_target main.tspp#reference
 @rename_target.none
 ```
 
@@ -663,7 +663,7 @@ function main(): void {
 
 An associated type projection identifies its member declaration.
 
-```ds main.ds
+```tspp main.tspp
 interface Envelope<T: string> {
     type Label<U: string> = `${T}:${U}`;
 }
@@ -674,6 +674,6 @@ type EventLabel = Message<"orders">.Label<"created">;
                                     ^^^^^ reference
 ```
 
-```query rename_target main.ds#reference
-@rename_target.target placeholder=Label location=main.ds#reference symbol=main.ds#Label@3
+```query rename_target main.tspp#reference
+@rename_target.target placeholder=Label location=main.tspp#reference symbol=main.tspp#Label@3
 ```

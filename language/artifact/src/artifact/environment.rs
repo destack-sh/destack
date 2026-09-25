@@ -1,8 +1,8 @@
-use destack_dir::{ExportResolution, GlobalSymbolId, LanguageItem, StaticKey, TypeRoot};
-use destack_serde::Reflect;
-use destack_source::ModuleId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use tspp_dir::{ExportResolution, GlobalSymbolId, LanguageItem, StaticKey, TypeRoot};
+use tspp_serde::Reflect;
+use tspp_source::ModuleId;
 
 /// Compiler-known language environment for one profile.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]
@@ -15,7 +15,7 @@ pub struct LanguageEnvironment {
 
 impl LanguageEnvironment {
     /// Return the package declaring the language items.
-    pub fn package(&self) -> Option<destack_source::PackageId> {
+    pub fn package(&self) -> Option<tspp_source::PackageId> {
         self.symbol_by_item
             .values()
             .next()

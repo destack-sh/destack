@@ -1,6 +1,6 @@
-use destack_bytecode::{RegisterId, RegisterSpan};
-use destack_mir::{Reference, Space, Storage};
-use destack_program::{MemoryAccess, Poll, StopReason, StopSet, WatchSet, Word};
+use tspp_bytecode::{RegisterId, RegisterSpan};
+use tspp_mir::{Reference, Space, Storage};
+use tspp_program::{MemoryAccess, Poll, StopReason, StopSet, WatchSet, Word};
 
 use super::{RuntimeCall, TestMachine, TestProgram};
 

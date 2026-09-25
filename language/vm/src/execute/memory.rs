@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 use std::{ptr, slice};
 
-use destack_bytecode::{Address, Instruction, MemoryOperation, Opcode, Prefetch, Scalar, Transfer};
-use destack_program::{GlobalId, Runtime, Word};
+use tspp_bytecode::{Address, Instruction, MemoryOperation, Opcode, Prefetch, Scalar, Transfer};
+use tspp_program::{GlobalId, Runtime, Word};
 
 use crate::diagnostic::Result;
 use crate::machine::Activation;

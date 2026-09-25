@@ -5,19 +5,19 @@ use crate::tests::{DirRows, TestSession};
 fn test_resolve_nested_namespace_types() {
     let session = TestSession::builder()
         .module(
-            "model.ds",
+            "model.tspp",
             r#"
 export struct Packet {}
 "#,
         )
         .module(
-            "library.ds",
+            "library.tspp",
             r#"
 export * as models from "./model";
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import * as library from "./library";
 
@@ -28,25 +28,25 @@ declare const partial: library.models.Missing;
         )
         .build();
 
-    session.assert_dir_resolved("main.ds", DirRows::imports().with_summaries(), r#"
+    session.assert_dir_resolved("main.tspp", DirRows::imports().with_summaries(), r#"
 import * as library from "./library";
-/// @import.resolved symbol=library declarations=[library.ds] targets=[library.ds]
-/// @reference.target source=<namespace> kind=namespace module=library.ds
+/// @import.resolved symbol=library declarations=[library.tspp] targets=[library.tspp]
+/// @reference.target source=<namespace> kind=namespace module=library.tspp
 
 declare const packet: library.models.Packet;
 /// @reference.target source=library.models.Packet kind=bound targets=[model.Packet]
 /// @reference.declaration source=library.models.Packet segment=0 kind=bound targets=[library]
-/// @reference.target source=library.models.Packet segment=0 kind=namespace module=library.ds
+/// @reference.target source=library.models.Packet segment=0 kind=namespace module=library.tspp
 /// @reference.declaration source=library.models.Packet segment=1 kind=bound targets=[library.models]
-/// @reference.target source=library.models.Packet segment=1 kind=namespace module=model.ds
+/// @reference.target source=library.models.Packet segment=1 kind=namespace module=model.tspp
 /// @reference.target source=library.models.Packet segment=2 kind=bound targets=[model.Packet]
 
 declare const partial: library.models.Missing;
-/// @reference.target source=library.models.Missing kind=projected base=model.ds from=2
+/// @reference.target source=library.models.Missing kind=projected base=model.tspp from=2
 /// @reference.declaration source=library.models.Missing segment=0 kind=bound targets=[library]
-/// @reference.target source=library.models.Missing segment=0 kind=namespace module=library.ds
+/// @reference.target source=library.models.Missing segment=0 kind=namespace module=library.tspp
 /// @reference.declaration source=library.models.Missing segment=1 kind=bound targets=[library.models]
-/// @reference.target source=library.models.Missing segment=1 kind=namespace module=model.ds
+/// @reference.target source=library.models.Missing segment=1 kind=namespace module=model.tspp
 /// @reference.target source=library.models.Missing segment=2 kind=missing
 
 /// @import.summary symbols=1
@@ -58,7 +58,7 @@ declare const partial: library.models.Missing;
 fn test_resolve_assignment_pattern_ignores_structural_member_names() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let x: int32 = 0;
 let label: string = "";
@@ -70,7 +70,7 @@ declare const point: { x: int32; y: string };
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 let x: int32 = 0;
@@ -99,7 +99,7 @@ declare const point: { x: int32; y: string };
 fn test_resolve_records_local_type_reference() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 type User = string;
 let value: User;
@@ -108,7 +108,7 @@ let value: User;
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 type User = string;
@@ -127,7 +127,7 @@ let value: User;
 fn test_resolve_records_conditional_infer_branch_reference() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 type Args<T> = T extends (...parameters: infer P) => unknown ? P : never;
 "#,
@@ -135,7 +135,7 @@ type Args<T> = T extends (...parameters: infer P) => unknown ? P : never;
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 type Args<T> = T extends (...parameters: infer P) => unknown ? P : never;
@@ -152,7 +152,7 @@ type Args<T> = T extends (...parameters: infer P) => unknown ? P : never;
 fn test_resolve_hoists_local_type_references() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let value: User;
 type User = string;
@@ -161,7 +161,7 @@ type User = string;
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 let value: User;
@@ -181,7 +181,7 @@ type User = string;
 fn test_resolve_binds_local_value_reference_ahead_of_declaration() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 const value = answer;
 const answer = 1;
@@ -190,7 +190,7 @@ const answer = 1;
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 const value = answer;
@@ -208,7 +208,7 @@ const answer = 1;
 fn test_resolve_records_unresolved_value_name() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 const value = missing;
 "#,
@@ -216,7 +216,7 @@ const value = missing;
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 const value = missing;
@@ -232,7 +232,7 @@ const value = missing;
 fn test_resolve_records_unresolved_type_name() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let value: Missing;
 "#,
@@ -240,7 +240,7 @@ let value: Missing;
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 let value: Missing;

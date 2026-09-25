@@ -8,13 +8,13 @@ Struct literal fixtures cover fields, spreads, comments, nested structs, and con
 
 Struct literals use the type name followed by braces with field assignments.
 
-```ds
+```tspp
 Point { x : 1 , y : 2 }
 ```
 
 Field colons have no space before and one space after.
 
-```ds expected
+```tspp expected
 Point { x: 1, y: 2 };
 ```
 
@@ -22,11 +22,11 @@ Point { x: 1, y: 2 };
 
 The spread operator attaches directly to the identifier with no space.
 
-```ds
+```tspp
 Point { x : 1 , ... other }
 ```
 
-```ds expected
+```tspp expected
 Point { x: 1, ...other };
 ```
 
@@ -34,11 +34,11 @@ Point { x: 1, ...other };
 
 Empty structs stay compact.
 
-```ds
+```tspp
 Empty {  }
 ```
 
-```ds expected
+```tspp expected
 Empty {};
 ```
 
@@ -46,11 +46,11 @@ Empty {};
 
 Inferred struct literals use `_` as the type marker.
 
-```ds
+```tspp
 _ { x : 1 }
 ```
 
-```ds expected
+```tspp expected
 _ { x: 1 };
 ```
 
@@ -58,11 +58,11 @@ _ { x: 1 };
 
 Single fields have spacing normalized.
 
-```ds
+```tspp
 Wrapper {   value : 42   }
 ```
 
-```ds expected
+```tspp expected
 Wrapper { value: 42 };
 ```
 
@@ -70,11 +70,11 @@ Wrapper { value: 42 };
 
 Shorthand fields use just the name when variable matches field.
 
-```ds
+```tspp
 Point { x, y }
 ```
 
-```ds expected
+```tspp expected
 Point { x, y };
 ```
 
@@ -82,11 +82,11 @@ Point { x, y };
 
 Struct literals in function tail position keep expression value.
 
-```ds
+```tspp
 function point(x: number, y: number): Point { Point { x, y } }
 ```
 
-```ds expected
+```tspp expected
 function point(x: number, y: number): Point {
     Point { x, y }
 }
@@ -96,11 +96,11 @@ function point(x: number, y: number): Point {
 
 Parenthesized struct literal statements drop the grouping and keep the semicolon.
 
-```ds
+```tspp
 function point(x: number, y: number): void { (Point { x, y }); }
 ```
 
-```ds expected
+```tspp expected
 function point(x: number, y: number): void {
     Point { x, y };
 }
@@ -112,11 +112,11 @@ function point(x: number, y: number): void {
 
 Long structs expand to multiple lines with trailing commas.
 
-```ds line-width=25
+```tspp line-width=25
 Point { x: 100, y: 200, z: 300 }
 ```
 
-```ds expected
+```tspp expected
 Point {
     x: 100,
     y: 200,
@@ -128,11 +128,11 @@ Point {
 
 Long field names trigger line breaking.
 
-```ds line-width=40
+```tspp line-width=40
 Config { firstName: "John", lastName: "Doe" }
 ```
 
-```ds expected
+```tspp expected
 Config {
     firstName: "John",
     lastName: "Doe",
@@ -145,13 +145,13 @@ Config {
 
 Trailing field comments and next field leading comments keep separate ownership.
 
-```ds
+```tspp
 Point { x: first, // x field
 // y field
 y: second }
 ```
 
-```ds expected
+```tspp expected
 Point {
     x: first, // x field
     // y field
@@ -163,11 +163,11 @@ Point {
 
 Comments around shorthand fields stay inside the struct literal.
 
-```ds
+```tspp
 Point { /* x */ x, /* y */ y }
 ```
 
-```ds expected
+```tspp expected
 Point { /* x */ x, /* y */ y };
 ```
 
@@ -177,11 +177,11 @@ Point { /* x */ x, /* y */ y };
 
 Nested structs stay on one line if short.
 
-```ds
+```tspp
 Outer { inner: Inner { value: 1 } }
 ```
 
-```ds expected
+```tspp expected
 Outer { inner: Inner { value: 1 } };
 ```
 
@@ -189,11 +189,11 @@ Outer { inner: Inner { value: 1 } };
 
 Deep nesting expands outer levels while keeping inner compact.
 
-```ds line-width=40
+```tspp line-width=40
 Level1 { level2: Level2 { level3: Level3 { value: 1 } } }
 ```
 
-```ds expected
+```tspp expected
 Level1 {
     level2: Level2 {
         level3: Level3 { value: 1 },
@@ -207,11 +207,11 @@ Level1 {
 
 Expressions can be struct field values.
 
-```ds
+```tspp
 Point { x: a + b, y: c * d }
 ```
 
-```ds expected
+```tspp expected
 Point { x: a + b, y: c * d };
 ```
 
@@ -219,11 +219,11 @@ Point { x: a + b, y: c * d };
 
 Function calls can be struct field values.
 
-```ds
+```tspp
 Config { value: getValue(), name: getName() }
 ```
 
-```ds expected
+```tspp expected
 Config { value: getValue(), name: getName() };
 ```
 
@@ -231,11 +231,11 @@ Config { value: getValue(), name: getName() };
 
 Method call results can be struct field values.
 
-```ds
+```tspp
 Result { data: source.transform() }
 ```
 
-```ds expected
+```tspp expected
 Result { data: source.transform() };
 ```
 
@@ -245,11 +245,11 @@ Result { data: source.transform() };
 
 Structs can be passed directly as arguments.
 
-```ds
+```tspp
 process(Point { x: 1, y: 2 })
 ```
 
-```ds expected
+```tspp expected
 process(Point { x: 1, y: 2 });
 ```
 
@@ -257,11 +257,11 @@ process(Point { x: 1, y: 2 });
 
 Long struct arguments expand with hugging.
 
-```ds line-width=30
+```tspp line-width=30
 process(Config { name: "test", value: 42 })
 ```
 
-```ds expected
+```tspp expected
 process(Config {
     name: "test",
     value: 42,
@@ -274,11 +274,11 @@ process(Config {
 
 Newtype wrappers use tuple-like syntax.
 
-```ds
+```tspp
 UserId(42)
 ```
 
-```ds expected
+```tspp expected
 UserId(42);
 ```
 
@@ -286,11 +286,11 @@ UserId(42);
 
 Tuple structs use parentheses.
 
-```ds
+```tspp
 Point(1.0, 2.0)
 ```
 
-```ds expected
+```tspp expected
 Point(1.0, 2.0);
 ```
 
@@ -298,11 +298,11 @@ Point(1.0, 2.0);
 
 Complex structs with nested types expand when they exceed line width.
 
-```ds line-width=60
+```tspp line-width=60
 Entity { id: UserId(1), position: Point { x: 0, y: 0 }, active: true }
 ```
 
-```ds expected
+```tspp expected
 Entity {
     id: UserId(1),
     position: Point { x: 0, y: 0 },
@@ -316,11 +316,11 @@ Entity {
 
 Short arrays of structs stay inline when they fit.
 
-```ds
+```tspp
 [Point { x: 1, y: 1 }, Point { x: 2, y: 2 }]
 ```
 
-```ds expected
+```tspp expected
 [Point { x: 1, y: 1 }, Point { x: 2, y: 2 }];
 ```
 
@@ -328,11 +328,11 @@ Short arrays of structs stay inline when they fit.
 
 Long arrays of structs break with one per line.
 
-```ds line-width=40
+```tspp line-width=40
 [Point { x: 1, y: 1 }, Point { x: 2, y: 2 }, Point { x: 3, y: 3 }]
 ```
 
-```ds expected
+```tspp expected
 [
     Point { x: 1, y: 1 },
     Point { x: 2, y: 2 },
@@ -346,11 +346,11 @@ Long arrays of structs break with one per line.
 
 Structs can be assigned to constants.
 
-```ds
+```tspp
 const p = Point { x: 1, y: 2 }
 ```
 
-```ds expected
+```tspp expected
 const p = Point { x: 1, y: 2 };
 ```
 
@@ -358,10 +358,10 @@ const p = Point { x: 1, y: 2 };
 
 Explicit type annotations work with struct literals.
 
-```ds
+```tspp
 const p: Point = Point { x: 1, y: 2 }
 ```
 
-```ds expected
+```tspp expected
 const p: Point = Point { x: 1, y: 2 };
 ```

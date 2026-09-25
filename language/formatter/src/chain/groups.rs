@@ -1,10 +1,10 @@
 use super::{
     ChainMember, expression_trivia_anchor_end, is_numeric_index, transparent_inner_expression,
 };
-use crate::DestackFormatContext;
-use destack_dir::{DecoratorPosition, Expression, LocalNodeId, PostfixPosition};
-use destack_fir::format::{FormatError, FormatResult};
+use crate::TsppFormatContext;
 use smallvec::SmallVec;
+use tspp_dir::{DecoratorPosition, Expression, LocalNodeId, PostfixPosition};
+use tspp_fir::format::{FormatError, FormatResult};
 
 /// One member-chain group.
 pub(crate) struct MemberChainGroup {
@@ -151,7 +151,7 @@ impl TailChainGroups {
 
 /// Return the number of members that stay in the head group.
 pub(crate) fn chain_head_member_count(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     root_id: LocalNodeId<Expression>,
     members: &[ChainMember],
 ) -> FormatResult<usize> {
@@ -195,7 +195,7 @@ pub(crate) fn chain_head_member_count(
 
 /// Return whether one chain member owns a source comment before its leading token.
 pub(crate) fn chain_member_has_leading_gap_comment(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     member: &ChainMember,
 ) -> bool {
     let node_id = member.node_id();
@@ -219,7 +219,7 @@ pub(crate) fn chain_member_has_leading_gap_comment(
 
 /// Build the tail groups after the head.
 pub(crate) fn build_tail_chain_groups(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     tail_members: Vec<ChainMember>,
 ) -> FormatResult<TailChainGroups> {
     let mut groups_builder = TailChainGroupsBuilder::default();
@@ -275,7 +275,7 @@ pub(crate) fn build_tail_chain_groups(
 
 /// Return whether one chain member has one source-adjacent trailing comment.
 fn chain_member_has_trailing_comment(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     member: &ChainMember,
 ) -> bool {
     let member_span = context.span(member.node_id());
@@ -295,7 +295,7 @@ fn chain_member_has_trailing_comment(
 
 /// Return whether one base begins with call-like chaining.
 fn chain_root_has_leading_call_like(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     root_id: LocalNodeId<Expression>,
     head_members: &[ChainMember],
 ) -> bool {
@@ -316,7 +316,7 @@ fn chain_expression_is_call_like_base(expression: &Expression) -> bool {
 
 /// Return whether one member stays in the leading head run.
 fn chain_member_stays_in_leading_head(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     member: &ChainMember,
 ) -> FormatResult<bool> {
     let stays = member.is_call_like()
@@ -333,7 +333,7 @@ fn chain_member_extends_member_head(member: &ChainMember) -> bool {
 
 /// Return whether one member is a numeric direct index.
 fn chain_member_is_numeric_direct_index(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     member: &ChainMember,
 ) -> FormatResult<bool> {
     let ChainMember::Index { .. } = member else {
@@ -366,7 +366,7 @@ fn chain_member_is_call_or_attached_tail(member: &ChainMember) -> bool {
 
 /// Return whether one member has postfix annotations that force a split.
 fn chain_member_has_trailing_annotations(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     member: &ChainMember,
 ) -> bool {
     context

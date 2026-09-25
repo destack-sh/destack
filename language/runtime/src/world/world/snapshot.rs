@@ -1,8 +1,8 @@
-use destack_core::Blob;
-use destack_program as program;
-use destack_repository::{ExecutionMode, ReplayPayloadMode, WorldOptions};
-use destack_serde as serde;
-use destack_serde::Reflect;
+use tspp_core::Blob;
+use tspp_program as program;
+use tspp_repository::{ExecutionMode, ReplayPayloadMode, WorldOptions};
+use tspp_serde as serde;
+use tspp_serde::Reflect;
 
 use ::serde::{Deserialize, Serialize};
 

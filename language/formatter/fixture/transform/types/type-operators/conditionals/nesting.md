@@ -6,7 +6,7 @@
 
 Conditional types keep parentheses and break cleanly.
 
-```ds:main.ds line-width=80
+```tspp:main.tspp line-width=80
 type IsUnion<T> = (
   Testtttttttttttttttttttttttttttttttttt extends any ? false : never
 ) extends false
@@ -14,7 +14,7 @@ type IsUnion<T> = (
   : true
 ```
 
-```ds expected
+```tspp expected
 type IsUnion<T> = (
     Testtttttttttttttttttttttttttttttttttt extends any ? false : never
 ) extends false
@@ -26,11 +26,11 @@ type IsUnion<T> = (
 
 Infer types stay inline with the `extends` clause.
 
-```ds:main.ds
+```tspp:main.tspp
 type Unpacked<T> = T extends (infer U)[] ? U : T
 ```
 
-```ds expected
+```tspp expected
 type Unpacked<T> = T extends (infer U)[] ? U : T;
 ```
 
@@ -38,7 +38,7 @@ type Unpacked<T> = T extends (infer U)[] ? U : T;
 
 Constrained `infer` clauses stay attached to the `extends` boundary under non-default formatter options.
 
-```ds:main.ds indent-width=2 line-width=80
+```tspp:main.tspp indent-width=2 line-width=80
 type X3<T> = T extends (infer U extends number,) ? MustBeNumber<U> : never;
 type X4<T> = T extends (infer U extends number, infer U extends number) ? MustBeNumber<U> : never;
 type X5<T> = T extends (infer U extends number, infer U) ? MustBeNumber<U> : never;
@@ -50,7 +50,7 @@ type X10<T> = T extends (infer U extends number) | { a: infer U extends number }
 type X11<T> = T extends (infer U extends number) & { a: infer U extends number } ? U : never
 ```
 
-```ds expected
+```tspp expected
 type X3<T> = T extends (infer U extends number,) ? MustBeNumber<U> : never;
 type X4<T> = T extends (infer U extends number, infer U extends number)
   ? MustBeNumber<U>

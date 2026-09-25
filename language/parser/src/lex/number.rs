@@ -1,5 +1,5 @@
 use super::tokenizer::Tokenizer;
-use destack_dir::{NumberBase, TokenLiteral, is_identifier_start};
+use tspp_dir::{NumberBase, TokenLiteral, is_identifier_start};
 
 impl Tokenizer {
     /// Return whether a byte can start an ASCII identifier.

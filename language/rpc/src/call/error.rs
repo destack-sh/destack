@@ -6,9 +6,9 @@ use crate::{ConnectionError, Status};
 #[derive(Debug)]
 pub enum CallError {
     /// The request or stream value could not be encoded.
-    Encode(destack_serde::Error),
+    Encode(tspp_serde::Error),
     /// The response or stream value could not be decoded.
-    Decode(destack_serde::Error),
+    Decode(tspp_serde::Error),
     /// The RPC connection failed.
     Connection(Arc<ConnectionError>),
     /// The service completed the call unsuccessfully.

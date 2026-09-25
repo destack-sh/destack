@@ -11,7 +11,7 @@ function both(a: boolean, b: boolean): boolean {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.both",
         r#"
 function test.main.both(v0: boolean, v1: boolean): boolean {
@@ -50,7 +50,7 @@ function either(a: boolean, b: boolean): boolean {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.either",
         r#"
 function test.main.either(v0: boolean, v1: boolean): boolean {
@@ -88,7 +88,7 @@ function label(name: string | undefined): string | undefined {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.label", r#"
+    session.assert_mir_function("main.tspp", "test.main.label", r#"
 @nocopy
 @languageItem("string.String")
 type String;

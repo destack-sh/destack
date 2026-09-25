@@ -1,6 +1,6 @@
-use destack_core::SectionEntry;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::SectionEntry;
+use tspp_serde::Reflect;
 
 /// One native code alignment in bytes.
 #[repr(transparent)]

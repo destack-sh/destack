@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -180,7 +180,7 @@ function acceptsMail(
         session.assert_diagnostics(
             r#"
 warning[excessive-nesting]: control flow is nested 5 levels deep
-  ──▶ main.ds:12:21
+  ──▶ main.tspp:12:21
    │
 10 │             if (isSubscribed) {
 11 │                 if (isVerified) {

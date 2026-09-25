@@ -1,0 +1,25 @@
+import { todo } from "tspp:error";
+
+import { EffectOptions } from "./options.tspp";
+
+/// Function that replaces the reads observed by one reaction.
+export type Reaction = Function<(^Function<(), void, "once">,), void>;
+
+/// Create an effect that runs once after each explicitly observed invalidation.
+export function createReaction(
+    apply: ^Function<(), void | ^Function<(), void, "once">>,
+    options?: EffectOptions,
+): Reaction {
+    todo("signal.createReaction")
+}
+
+/// Create an effect that tracks reads in the same function that applies changes.
+export function createTrackedEffect(
+    run: ^Function<(), void | ^Function<(), void, "once">>,
+    options?: {
+        /// Diagnostic name.
+        name?: string;
+    },
+): void {
+    todo("signal.createTrackedEffect");
+}

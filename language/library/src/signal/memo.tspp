@@ -1,0 +1,25 @@
+import { todo } from "tspp:error";
+import { NoInfer } from "tspp:types";
+
+import { SignalArgument, SourceAccessor } from "./accessor.tspp";
+import { DerivationAccessor, DerivationValue } from "./derive.tspp";
+import { MemoOptions } from "./options.tspp";
+
+/// Create a ready memo from one derivation and an initial settled value.
+export function createMemo<Output>(
+    derive: ^Function<(SignalArgument<NoInfer<DerivationValue<Output>>>,), Output>,
+    options: MemoOptions<DerivationValue<Output>> & {
+        /// Initial settled value used until the first derived value is ready.
+        loadingValue: DerivationValue<Output>;
+    },
+): SourceAccessor<DerivationValue<Output>> {
+    todo("signal.createMemo")
+}
+
+/// Create a memo from one synchronous, polling, or asynchronous derivation.
+export function createMemo<Output>(
+    derive: ^Function<(SignalArgument<NoInfer<DerivationValue<Output>>> | undefined,), Output>,
+    options?: MemoOptions<DerivationValue<Output>>,
+): DerivationAccessor<Output> {
+    todo("signal.createMemo")
+}

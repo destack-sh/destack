@@ -817,709 +817,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "destack_artifact"
-version = "2026.9.0"
-dependencies = [
- "blake3",
- "crc32fast",
- "dashmap",
- "destack_core",
- "destack_dir",
- "destack_js",
- "destack_mir",
- "destack_program",
- "destack_serde",
- "destack_source",
- "fs2",
- "indexmap",
- "rustc-hash 2.1.2",
- "schemars",
- "serde",
- "serde_json",
- "siphasher",
-]
-
-[[package]]
-name = "destack_artifact_macros"
-version = "2026.9.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "destack_bytecode"
-version = "2026.9.0"
-dependencies = [
- "destack_core",
- "destack_fir",
- "destack_serde",
- "destack_source",
- "serde",
-]
-
-[[package]]
-name = "destack_compiler"
-version = "2026.9.0"
-dependencies = [
- "base64",
- "clap",
- "cranelift-codegen",
- "cranelift-frontend",
- "cranelift-module",
- "cranelift-native",
- "cranelift-object",
- "criterion",
- "dashmap",
- "destack_artifact",
- "destack_artifact_macros",
- "destack_bytecode",
- "destack_core",
- "destack_dir",
- "destack_fir",
- "destack_formatter",
- "destack_heap",
- "destack_js",
- "destack_memory",
- "destack_mir",
- "destack_native",
- "destack_parser",
- "destack_program",
- "destack_repository",
- "destack_serde",
- "destack_session",
- "destack_source",
- "destack_webassembly",
- "elsa",
- "filetime",
- "futures",
- "gimli 0.33.0",
- "indexmap",
- "mime_guess",
- "parking_lot",
- "pprof",
- "rustc-hash 2.1.2",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "smallvec",
- "target-lexicon",
- "toml",
-]
-
-[[package]]
-name = "destack_core"
-version = "2026.9.0"
-dependencies = [
- "blake3",
- "destack_serde",
- "indexmap",
- "parking_lot",
- "rustc-hash 2.1.2",
- "serde",
- "serde_json",
- "smallvec",
- "stacker",
-]
-
-[[package]]
-name = "destack_daemon"
-version = "2026.9.0"
-dependencies = [
- "base64",
- "crossbeam-channel",
- "destack_artifact",
- "destack_core",
- "destack_program",
- "destack_repository",
- "destack_rpc",
- "destack_runtime",
- "destack_serde",
- "destack_session",
- "destack_source",
- "destack_vm",
- "destack_workspace",
- "fs2",
- "futures",
- "getrandom 0.4.2",
- "parking_lot",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "destack_dir"
-version = "2026.9.0"
-dependencies = [
- "dashmap",
- "destack_core",
- "destack_dir_macros",
- "destack_fir",
- "destack_serde",
- "destack_source",
- "destack_unicode",
- "elsa",
- "indexmap",
- "parking_lot",
- "rustc-hash 2.1.2",
- "serde",
- "serde_json",
- "siphasher",
- "smallvec",
-]
-
-[[package]]
-name = "destack_dir_macros"
-version = "2026.9.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "destack_doc"
-version = "2026.9.0"
-dependencies = [
- "destack_artifact",
- "destack_core",
- "destack_dir",
- "destack_repository",
- "destack_serde",
- "destack_source",
- "rustc-hash 2.1.2",
- "serde",
-]
-
-[[package]]
-name = "destack_fir"
-version = "2026.9.0"
-dependencies = [
- "destack_source",
- "destack_unicode",
- "rustc-hash 2.1.2",
-]
-
-[[package]]
-name = "destack_formatter"
-version = "2026.9.0"
-dependencies = [
- "destack_artifact",
- "destack_core",
- "destack_dir",
- "destack_fir",
- "destack_parser",
- "destack_repository",
- "destack_source",
- "libtest-mimic",
- "markdown",
- "pulldown-cmark",
- "rustc-hash 2.1.2",
- "serde_json",
- "smallvec",
-]
-
-[[package]]
-name = "destack_heap"
-version = "2026.9.0"
-dependencies = [
- "criterion",
- "crossbeam-deque",
- "destack_core",
- "destack_memory",
- "destack_mir",
- "destack_serde",
- "parking_lot",
- "serde",
-]
-
-[[package]]
-name = "destack_index"
-version = "2026.9.0"
-dependencies = [
- "destack_artifact",
- "destack_core",
- "destack_dir",
- "destack_repository",
- "destack_serde",
- "destack_source",
- "rustc-hash 2.1.2",
-]
-
-[[package]]
-name = "destack_js"
-version = "2026.9.0"
-dependencies = [
- "destack_core",
- "destack_dir",
- "destack_fir",
- "destack_serde",
- "destack_source",
- "serde",
- "serde_json",
- "smallvec",
-]
-
-[[package]]
-name = "destack_json"
-version = "2026.9.0"
-dependencies = [
- "destack_artifact",
- "destack_fir",
- "destack_repository",
- "destack_source",
- "serde_json",
-]
-
-[[package]]
-name = "destack_language_cli"
-version = "2026.9.0"
-dependencies = [
- "clap",
- "clap_complete",
- "console",
- "destack_artifact",
- "destack_compiler",
- "destack_core",
- "destack_daemon",
- "destack_dir",
- "destack_fir",
- "destack_formatter",
- "destack_json",
- "destack_linter",
- "destack_lsp",
- "destack_mir",
- "destack_parser",
- "destack_program",
- "destack_query",
- "destack_repository",
- "destack_rpc",
- "destack_runtime",
- "destack_serde",
- "destack_session",
- "destack_source",
- "destack_vm",
- "destack_workspace",
- "futures",
- "indicatif",
- "jiff",
- "schemars",
- "serde",
- "serde_json",
- "tiktoken-rs",
- "tokio",
-]
-
-[[package]]
-name = "destack_linter"
-version = "2026.9.0"
-dependencies = [
- "destack_artifact",
- "destack_artifact_macros",
- "destack_core",
- "destack_dir",
- "destack_mir",
- "destack_repository",
- "destack_session",
- "destack_source",
- "destack_unicode",
- "futures",
-]
-
-[[package]]
-name = "destack_lsp"
-version = "2026.9.0"
-dependencies = [
- "base64",
- "destack_artifact",
- "destack_compiler",
- "destack_core",
- "destack_dir",
- "destack_fir",
- "destack_formatter",
- "destack_lsp_server",
- "destack_lsp_types",
- "destack_parser",
- "destack_query",
- "destack_repository",
- "destack_serde",
- "destack_session",
- "destack_source",
- "destack_workspace",
- "futures",
- "libc",
- "parking_lot",
- "serde",
- "serde_json",
- "tokio",
- "tower",
-]
-
-[[package]]
-name = "destack_lsp_server"
-version = "2026.9.0"
-dependencies = [
- "bytes",
- "dashmap",
- "destack_lsp_types",
- "futures",
- "httparse",
- "memchr",
- "percent-encoding",
- "serde",
- "serde_json",
- "tokio",
- "tokio-util",
- "tower",
-]
-
-[[package]]
-name = "destack_lsp_types"
-version = "2026.9.0"
-dependencies = [
- "bitflags 2.11.0",
- "fluent-uri",
- "serde",
- "serde_json",
- "serde_repr",
-]
-
-[[package]]
-name = "destack_memory"
-version = "2026.9.0"
-dependencies = [
- "destack_serde",
- "destack_signal",
- "libc",
- "parking_lot",
- "serde",
- "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "destack_mir"
-version = "2026.9.0"
-dependencies = [
- "destack_core",
- "destack_fir",
- "destack_serde",
- "destack_source",
- "destack_unicode",
- "indexmap",
- "parking_lot",
- "rustc-hash 2.1.2",
- "serde",
- "smallvec",
-]
-
-[[package]]
-name = "destack_native"
-version = "2026.9.0"
-dependencies = [
- "destack_core",
- "destack_mir",
- "destack_serde",
- "serde",
-]
-
-[[package]]
-name = "destack_parser"
-version = "2026.9.0"
-dependencies = [
- "criterion",
- "destack_core",
- "destack_dir",
- "destack_source",
- "destack_unicode",
- "memchr",
- "num_cpus",
- "pprof",
- "rayon",
- "rustc-hash 2.1.2",
- "smallvec",
-]
-
-[[package]]
-name = "destack_pattern"
-version = "2026.9.0"
-dependencies = [
- "destack_artifact",
- "destack_artifact_macros",
- "destack_core",
- "destack_dir",
- "destack_formatter",
- "destack_parser",
- "destack_repository",
- "destack_session",
- "destack_source",
- "futures",
-]
-
-[[package]]
-name = "destack_program"
-version = "2026.9.0"
-dependencies = [
- "destack_bytecode",
- "destack_core",
- "destack_heap",
- "destack_memory",
- "destack_mir",
- "destack_native",
- "destack_serde",
- "destack_source",
- "destack_webassembly",
- "serde",
-]
-
-[[package]]
-name = "destack_query"
-version = "2026.9.0"
-dependencies = [
- "destack_artifact",
- "destack_core",
- "destack_dir",
- "destack_repository",
- "destack_serde",
- "destack_session",
- "destack_source",
- "destack_workspace",
- "futures",
- "indexmap",
- "libtest-mimic",
- "parking_lot",
- "pulldown-cmark",
- "rustc-hash 2.1.2",
- "serde",
-]
-
-[[package]]
-name = "destack_repository"
-version = "2026.9.0"
-dependencies = [
- "blake3",
- "dashmap",
- "destack_artifact",
- "destack_core",
- "destack_dir",
- "destack_heap",
- "destack_mir",
- "destack_program",
- "destack_serde",
- "destack_source",
- "filetime",
- "im",
- "indexmap",
- "js-sys",
- "memmap2",
- "parking_lot",
- "regex",
- "rustc-hash 2.1.2",
- "schemars",
- "serde",
- "serde_json",
- "smallvec",
- "wasm-bindgen",
-]
-
-[[package]]
-name = "destack_rpc"
-version = "2026.9.0"
-dependencies = [
- "base64",
- "crossbeam-channel",
- "destack_core",
- "destack_rpc_macros",
- "destack_serde",
- "futures",
- "httparse",
- "interprocess",
- "parking_lot",
- "serde",
- "sha1",
-]
-
-[[package]]
-name = "destack_rpc_macros"
-version = "2026.9.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "destack_runtime"
-version = "2026.9.0"
-dependencies = [
- "criterion",
- "destack_artifact",
- "destack_compiler",
- "destack_core",
- "destack_heap",
- "destack_memory",
- "destack_mir",
- "destack_native",
- "destack_program",
- "destack_repository",
- "destack_rpc",
- "destack_serde",
- "destack_signal",
- "destack_source",
- "destack_vm",
- "io-uring",
- "libc",
- "parking_lot",
- "psm",
- "rustc-hash 2.1.2",
- "serde",
- "windows-sys 0.52.0",
-]
-
-[[package]]
-name = "destack_serde"
-version = "2026.9.0"
-dependencies = [
- "destack_serde_macros",
- "im",
- "indexmap",
- "serde",
- "serde_json",
- "smallvec",
-]
-
-[[package]]
-name = "destack_serde_macros"
-version = "2026.9.0"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "destack_session"
-version = "2026.9.0"
-dependencies = [
- "destack_artifact",
- "destack_compiler",
- "destack_core",
- "destack_dir",
- "destack_index",
- "destack_linter",
- "destack_mir",
- "destack_parser",
- "destack_repository",
- "destack_serde",
- "destack_source",
- "futures",
- "parking_lot",
- "serde",
- "serde_json",
- "serde_yaml_ng",
- "toml",
-]
-
-[[package]]
-name = "destack_signal"
-version = "2026.9.0"
-dependencies = [
- "libc",
-]
-
-[[package]]
-name = "destack_source"
-version = "2026.9.0"
-dependencies = [
- "cfg-if",
- "crossbeam-channel",
- "dashmap",
- "destack_core",
- "destack_serde",
- "destack_unicode",
- "indexmap",
- "notify",
- "parking_lot",
- "rustc-hash 2.1.2",
- "rustix",
- "schemars",
- "serde",
- "serde_json",
- "simdutf8",
- "smallvec",
- "windows",
-]
-
-[[package]]
-name = "destack_unicode"
-version = "2026.9.0"
-
-[[package]]
-name = "destack_vm"
-version = "2026.9.0"
-dependencies = [
- "criterion",
- "destack_bytecode",
- "destack_core",
- "destack_heap",
- "destack_memory",
- "destack_mir",
- "destack_program",
- "destack_serde",
- "destack_source",
- "serde",
-]
-
-[[package]]
-name = "destack_webassembly"
-version = "2026.9.0"
-dependencies = [
- "destack_core",
- "destack_serde",
- "serde",
-]
-
-[[package]]
-name = "destack_workspace"
-version = "2026.9.0"
-dependencies = [
- "blake3",
- "crossbeam-channel",
- "dashmap",
- "destack_artifact",
- "destack_compiler",
- "destack_core",
- "destack_dir",
- "destack_doc",
- "destack_fir",
- "destack_formatter",
- "destack_json",
- "destack_mir",
- "destack_parser",
- "destack_pattern",
- "destack_program",
- "destack_query",
- "destack_repository",
- "destack_rpc",
- "destack_serde",
- "destack_session",
- "destack_source",
- "fs2",
- "futures",
- "parking_lot",
- "serde",
- "serde_json",
- "smallvec",
-]
-
-[[package]]
-name = "destack_zed"
-version = "2026.9.0"
-dependencies = [
- "zed_extension_api",
-]
-
-[[package]]
 name = "digest"
 version = "0.10.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3580,6 +2877,709 @@ name = "tower-service"
 version = "0.3.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8df9b6e13f2d32c91b9bd719c00d1958837bc7dec474d94952798cc8e69eeec3"
+
+[[package]]
+name = "tspp_artifact"
+version = "2026.9.0"
+dependencies = [
+ "blake3",
+ "crc32fast",
+ "dashmap",
+ "fs2",
+ "indexmap",
+ "rustc-hash 2.1.2",
+ "schemars",
+ "serde",
+ "serde_json",
+ "siphasher",
+ "tspp_core",
+ "tspp_dir",
+ "tspp_js",
+ "tspp_mir",
+ "tspp_program",
+ "tspp_serde",
+ "tspp_source",
+]
+
+[[package]]
+name = "tspp_artifact_macros"
+version = "2026.9.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "tspp_bytecode"
+version = "2026.9.0"
+dependencies = [
+ "serde",
+ "tspp_core",
+ "tspp_fir",
+ "tspp_serde",
+ "tspp_source",
+]
+
+[[package]]
+name = "tspp_cli"
+version = "2026.9.0"
+dependencies = [
+ "clap",
+ "clap_complete",
+ "console",
+ "futures",
+ "indicatif",
+ "jiff",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tiktoken-rs",
+ "tokio",
+ "tspp_artifact",
+ "tspp_compiler",
+ "tspp_core",
+ "tspp_daemon",
+ "tspp_dir",
+ "tspp_fir",
+ "tspp_formatter",
+ "tspp_json",
+ "tspp_linter",
+ "tspp_lsp",
+ "tspp_mir",
+ "tspp_parser",
+ "tspp_program",
+ "tspp_query",
+ "tspp_repository",
+ "tspp_rpc",
+ "tspp_runtime",
+ "tspp_serde",
+ "tspp_session",
+ "tspp_source",
+ "tspp_vm",
+ "tspp_workspace",
+]
+
+[[package]]
+name = "tspp_compiler"
+version = "2026.9.0"
+dependencies = [
+ "base64",
+ "clap",
+ "cranelift-codegen",
+ "cranelift-frontend",
+ "cranelift-module",
+ "cranelift-native",
+ "cranelift-object",
+ "criterion",
+ "dashmap",
+ "elsa",
+ "filetime",
+ "futures",
+ "gimli 0.33.0",
+ "indexmap",
+ "mime_guess",
+ "parking_lot",
+ "pprof",
+ "rustc-hash 2.1.2",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "smallvec",
+ "target-lexicon",
+ "toml",
+ "tspp_artifact",
+ "tspp_artifact_macros",
+ "tspp_bytecode",
+ "tspp_core",
+ "tspp_dir",
+ "tspp_fir",
+ "tspp_formatter",
+ "tspp_heap",
+ "tspp_js",
+ "tspp_memory",
+ "tspp_mir",
+ "tspp_native",
+ "tspp_parser",
+ "tspp_program",
+ "tspp_repository",
+ "tspp_serde",
+ "tspp_session",
+ "tspp_source",
+ "tspp_webassembly",
+]
+
+[[package]]
+name = "tspp_core"
+version = "2026.9.0"
+dependencies = [
+ "blake3",
+ "indexmap",
+ "parking_lot",
+ "rustc-hash 2.1.2",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "stacker",
+ "tspp_serde",
+]
+
+[[package]]
+name = "tspp_daemon"
+version = "2026.9.0"
+dependencies = [
+ "base64",
+ "crossbeam-channel",
+ "fs2",
+ "futures",
+ "getrandom 0.4.2",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "tspp_artifact",
+ "tspp_core",
+ "tspp_program",
+ "tspp_repository",
+ "tspp_rpc",
+ "tspp_runtime",
+ "tspp_serde",
+ "tspp_session",
+ "tspp_source",
+ "tspp_vm",
+ "tspp_workspace",
+]
+
+[[package]]
+name = "tspp_dir"
+version = "2026.9.0"
+dependencies = [
+ "dashmap",
+ "elsa",
+ "indexmap",
+ "parking_lot",
+ "rustc-hash 2.1.2",
+ "serde",
+ "serde_json",
+ "siphasher",
+ "smallvec",
+ "tspp_core",
+ "tspp_dir_macros",
+ "tspp_fir",
+ "tspp_serde",
+ "tspp_source",
+ "tspp_unicode",
+]
+
+[[package]]
+name = "tspp_dir_macros"
+version = "2026.9.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "tspp_doc"
+version = "2026.9.0"
+dependencies = [
+ "rustc-hash 2.1.2",
+ "serde",
+ "tspp_artifact",
+ "tspp_core",
+ "tspp_dir",
+ "tspp_repository",
+ "tspp_serde",
+ "tspp_source",
+]
+
+[[package]]
+name = "tspp_fir"
+version = "2026.9.0"
+dependencies = [
+ "rustc-hash 2.1.2",
+ "tspp_source",
+ "tspp_unicode",
+]
+
+[[package]]
+name = "tspp_formatter"
+version = "2026.9.0"
+dependencies = [
+ "libtest-mimic",
+ "markdown",
+ "pulldown-cmark",
+ "rustc-hash 2.1.2",
+ "serde_json",
+ "smallvec",
+ "tspp_artifact",
+ "tspp_core",
+ "tspp_dir",
+ "tspp_fir",
+ "tspp_parser",
+ "tspp_repository",
+ "tspp_source",
+]
+
+[[package]]
+name = "tspp_heap"
+version = "2026.9.0"
+dependencies = [
+ "criterion",
+ "crossbeam-deque",
+ "parking_lot",
+ "serde",
+ "tspp_core",
+ "tspp_memory",
+ "tspp_mir",
+ "tspp_serde",
+]
+
+[[package]]
+name = "tspp_index"
+version = "2026.9.0"
+dependencies = [
+ "rustc-hash 2.1.2",
+ "tspp_artifact",
+ "tspp_core",
+ "tspp_dir",
+ "tspp_repository",
+ "tspp_serde",
+ "tspp_source",
+]
+
+[[package]]
+name = "tspp_js"
+version = "2026.9.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "smallvec",
+ "tspp_core",
+ "tspp_dir",
+ "tspp_fir",
+ "tspp_serde",
+ "tspp_source",
+]
+
+[[package]]
+name = "tspp_json"
+version = "2026.9.0"
+dependencies = [
+ "serde_json",
+ "tspp_artifact",
+ "tspp_fir",
+ "tspp_repository",
+ "tspp_source",
+]
+
+[[package]]
+name = "tspp_linter"
+version = "2026.9.0"
+dependencies = [
+ "futures",
+ "tspp_artifact",
+ "tspp_artifact_macros",
+ "tspp_core",
+ "tspp_dir",
+ "tspp_mir",
+ "tspp_repository",
+ "tspp_session",
+ "tspp_source",
+ "tspp_unicode",
+]
+
+[[package]]
+name = "tspp_lsp"
+version = "2026.9.0"
+dependencies = [
+ "base64",
+ "futures",
+ "libc",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower",
+ "tspp_artifact",
+ "tspp_compiler",
+ "tspp_core",
+ "tspp_dir",
+ "tspp_fir",
+ "tspp_formatter",
+ "tspp_lsp_server",
+ "tspp_lsp_types",
+ "tspp_parser",
+ "tspp_query",
+ "tspp_repository",
+ "tspp_serde",
+ "tspp_session",
+ "tspp_source",
+ "tspp_workspace",
+]
+
+[[package]]
+name = "tspp_lsp_server"
+version = "2026.9.0"
+dependencies = [
+ "bytes",
+ "dashmap",
+ "futures",
+ "httparse",
+ "memchr",
+ "percent-encoding",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+ "tower",
+ "tspp_lsp_types",
+]
+
+[[package]]
+name = "tspp_lsp_types"
+version = "2026.9.0"
+dependencies = [
+ "bitflags 2.11.0",
+ "fluent-uri",
+ "serde",
+ "serde_json",
+ "serde_repr",
+]
+
+[[package]]
+name = "tspp_memory"
+version = "2026.9.0"
+dependencies = [
+ "libc",
+ "parking_lot",
+ "serde",
+ "tspp_serde",
+ "tspp_signal",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "tspp_mir"
+version = "2026.9.0"
+dependencies = [
+ "indexmap",
+ "parking_lot",
+ "rustc-hash 2.1.2",
+ "serde",
+ "smallvec",
+ "tspp_core",
+ "tspp_fir",
+ "tspp_serde",
+ "tspp_source",
+ "tspp_unicode",
+]
+
+[[package]]
+name = "tspp_native"
+version = "2026.9.0"
+dependencies = [
+ "serde",
+ "tspp_core",
+ "tspp_mir",
+ "tspp_serde",
+]
+
+[[package]]
+name = "tspp_parser"
+version = "2026.9.0"
+dependencies = [
+ "criterion",
+ "memchr",
+ "num_cpus",
+ "pprof",
+ "rayon",
+ "rustc-hash 2.1.2",
+ "smallvec",
+ "tspp_core",
+ "tspp_dir",
+ "tspp_source",
+ "tspp_unicode",
+]
+
+[[package]]
+name = "tspp_pattern"
+version = "2026.9.0"
+dependencies = [
+ "futures",
+ "tspp_artifact",
+ "tspp_artifact_macros",
+ "tspp_core",
+ "tspp_dir",
+ "tspp_formatter",
+ "tspp_parser",
+ "tspp_repository",
+ "tspp_session",
+ "tspp_source",
+]
+
+[[package]]
+name = "tspp_program"
+version = "2026.9.0"
+dependencies = [
+ "serde",
+ "tspp_bytecode",
+ "tspp_core",
+ "tspp_heap",
+ "tspp_memory",
+ "tspp_mir",
+ "tspp_native",
+ "tspp_serde",
+ "tspp_source",
+ "tspp_webassembly",
+]
+
+[[package]]
+name = "tspp_query"
+version = "2026.9.0"
+dependencies = [
+ "futures",
+ "indexmap",
+ "libtest-mimic",
+ "parking_lot",
+ "pulldown-cmark",
+ "rustc-hash 2.1.2",
+ "serde",
+ "tspp_artifact",
+ "tspp_core",
+ "tspp_dir",
+ "tspp_repository",
+ "tspp_serde",
+ "tspp_session",
+ "tspp_source",
+ "tspp_workspace",
+]
+
+[[package]]
+name = "tspp_repository"
+version = "2026.9.0"
+dependencies = [
+ "blake3",
+ "dashmap",
+ "filetime",
+ "im",
+ "indexmap",
+ "js-sys",
+ "memmap2",
+ "parking_lot",
+ "regex",
+ "rustc-hash 2.1.2",
+ "schemars",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "tspp_artifact",
+ "tspp_core",
+ "tspp_dir",
+ "tspp_heap",
+ "tspp_mir",
+ "tspp_program",
+ "tspp_serde",
+ "tspp_source",
+ "wasm-bindgen",
+]
+
+[[package]]
+name = "tspp_rpc"
+version = "2026.9.0"
+dependencies = [
+ "base64",
+ "crossbeam-channel",
+ "futures",
+ "httparse",
+ "interprocess",
+ "parking_lot",
+ "serde",
+ "sha1",
+ "tspp_core",
+ "tspp_rpc_macros",
+ "tspp_serde",
+]
+
+[[package]]
+name = "tspp_rpc_macros"
+version = "2026.9.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "tspp_runtime"
+version = "2026.9.0"
+dependencies = [
+ "criterion",
+ "io-uring",
+ "libc",
+ "parking_lot",
+ "psm",
+ "rustc-hash 2.1.2",
+ "serde",
+ "tspp_artifact",
+ "tspp_compiler",
+ "tspp_core",
+ "tspp_heap",
+ "tspp_memory",
+ "tspp_mir",
+ "tspp_native",
+ "tspp_program",
+ "tspp_repository",
+ "tspp_rpc",
+ "tspp_serde",
+ "tspp_signal",
+ "tspp_source",
+ "tspp_vm",
+ "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "tspp_serde"
+version = "2026.9.0"
+dependencies = [
+ "im",
+ "indexmap",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "tspp_serde_macros",
+]
+
+[[package]]
+name = "tspp_serde_macros"
+version = "2026.9.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "tspp_session"
+version = "2026.9.0"
+dependencies = [
+ "futures",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "serde_yaml_ng",
+ "toml",
+ "tspp_artifact",
+ "tspp_compiler",
+ "tspp_core",
+ "tspp_dir",
+ "tspp_index",
+ "tspp_linter",
+ "tspp_mir",
+ "tspp_parser",
+ "tspp_repository",
+ "tspp_serde",
+ "tspp_source",
+]
+
+[[package]]
+name = "tspp_signal"
+version = "2026.9.0"
+dependencies = [
+ "libc",
+]
+
+[[package]]
+name = "tspp_source"
+version = "2026.9.0"
+dependencies = [
+ "cfg-if",
+ "crossbeam-channel",
+ "dashmap",
+ "indexmap",
+ "notify",
+ "parking_lot",
+ "rustc-hash 2.1.2",
+ "rustix",
+ "schemars",
+ "serde",
+ "serde_json",
+ "simdutf8",
+ "smallvec",
+ "tspp_core",
+ "tspp_serde",
+ "tspp_unicode",
+ "windows",
+]
+
+[[package]]
+name = "tspp_unicode"
+version = "2026.9.0"
+
+[[package]]
+name = "tspp_vm"
+version = "2026.9.0"
+dependencies = [
+ "criterion",
+ "serde",
+ "tspp_bytecode",
+ "tspp_core",
+ "tspp_heap",
+ "tspp_memory",
+ "tspp_mir",
+ "tspp_program",
+ "tspp_serde",
+ "tspp_source",
+]
+
+[[package]]
+name = "tspp_webassembly"
+version = "2026.9.0"
+dependencies = [
+ "serde",
+ "tspp_core",
+ "tspp_serde",
+]
+
+[[package]]
+name = "tspp_workspace"
+version = "2026.9.0"
+dependencies = [
+ "blake3",
+ "crossbeam-channel",
+ "dashmap",
+ "fs2",
+ "futures",
+ "parking_lot",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "tspp_artifact",
+ "tspp_compiler",
+ "tspp_core",
+ "tspp_dir",
+ "tspp_doc",
+ "tspp_fir",
+ "tspp_formatter",
+ "tspp_json",
+ "tspp_mir",
+ "tspp_parser",
+ "tspp_pattern",
+ "tspp_program",
+ "tspp_query",
+ "tspp_repository",
+ "tspp_rpc",
+ "tspp_serde",
+ "tspp_session",
+ "tspp_source",
+]
+
+[[package]]
+name = "tspp_zed"
+version = "2026.9.0"
+dependencies = [
+ "zed_extension_api",
+]
 
 [[package]]
 name = "typenum"

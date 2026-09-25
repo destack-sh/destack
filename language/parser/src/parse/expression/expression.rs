@@ -1,12 +1,12 @@
 use crate::parse::expression::operator::ExpressionOperator;
 use crate::parse::{TypePosition, TypeStop};
 use crate::{Parser, ParserResult};
-use destack_dir::{
+use smallvec::{SmallVec, smallvec};
+use tspp_dir::{
     BinaryOperator, Condition, Expression, IfForm, LocalNodeId, NodeType, OperatorPrecedence,
     RangeEnd, TokenType,
 };
-use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
-use smallvec::{SmallVec, smallvec};
+use tspp_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 /// The source position of one value expression.
 #[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
@@ -136,7 +136,7 @@ impl Parser {
     /// Parse one complete value expression.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// left + right * 2
     /// ```
     pub(crate) fn parse_expression(

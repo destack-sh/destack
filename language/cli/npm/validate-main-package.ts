@@ -20,8 +20,8 @@ const PLATFORM_PACKAGE_NAMES = [
 /** The built bin wrapper paths required for npm publish. */
 const BUILT_BIN_WRAPPERS = [
     "./npm/dist/bin/destack.js",
-    "./npm/dist/bin/ds.js",
-    "./npm/dist/bin/dsc.js",
+    "./npm/dist/bin/tspp.js",
+    "./npm/dist/bin/tsppc.js",
 ];
 
 /** Validate the main npm package before publish. */

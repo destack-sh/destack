@@ -4,21 +4,21 @@ use crate::tests::TestSession;
 fn test_module_graph_tracks_import_edges() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { value } from "./dependency";
 
 export const result = value;
 "#,
         )
-        .module("dependency.ds", "export const value: int32 = 1;")
+        .module("dependency.tspp", "export const value: int32 = 1;")
         .build();
 
     compiler.assert_module_graph(
-        &["main.ds", "dependency.ds"],
+        &["main.tspp", "dependency.tspp"],
         r#"
-module dependency.ds -> []
-module main.ds -> [dependency.ds]
+module dependency.tspp -> []
+module main.tspp -> [dependency.tspp]
 "#,
     );
 }
@@ -27,7 +27,7 @@ module main.ds -> [dependency.ds]
 fn test_module_graph_keeps_cyclic_import_edges() {
     let compiler = TestSession::builder()
         .module(
-            "a.ds",
+            "a.tspp",
             r#"
 import { valueB } from "./b";
 
@@ -35,7 +35,7 @@ export const valueA: int32 = valueB;
 "#,
         )
         .module(
-            "b.ds",
+            "b.tspp",
             r#"
 import { valueA } from "./a";
 
@@ -45,10 +45,10 @@ export const valueB: int32 = valueA;
         .build();
 
     compiler.assert_module_graph(
-        &["a.ds", "b.ds"],
+        &["a.tspp", "b.tspp"],
         r#"
-module a.ds -> [b.ds]
-module b.ds -> [a.ds]
+module a.tspp -> [b.tspp]
+module b.tspp -> [a.tspp]
 "#,
     );
 }
@@ -57,13 +57,13 @@ module b.ds -> [a.ds]
 fn test_module_graph_retains_unused_import_reachability() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { value } from "./dependency";
 "#,
         )
         .module(
-            "dependency.ds",
+            "dependency.tspp",
             r#"
 const seed = 1;
 export const value = seed;
@@ -72,10 +72,10 @@ export const value = seed;
         .build();
 
     compiler.assert_module_graph(
-        &["main.ds", "dependency.ds"],
+        &["main.tspp", "dependency.tspp"],
         r#"
-module dependency.ds -> []
-module main.ds -> [dependency.ds]
+module dependency.tspp -> []
+module main.tspp -> [dependency.tspp]
 "#,
     );
 }
@@ -84,7 +84,7 @@ module main.ds -> [dependency.ds]
 fn test_module_graph_edges_follow_extension_imports() {
     let compiler = TestSession::builder()
         .module(
-            "point.ds",
+            "point.tspp",
             r#"
 export struct Point {
     x: int32;
@@ -92,7 +92,7 @@ export struct Point {
 "#,
         )
         .module(
-            "extension.ds",
+            "extension.tspp",
             r#"
 import { Point } from "./point";
 
@@ -106,10 +106,10 @@ export extension of Point {
         .build();
 
     compiler.assert_module_graph(
-        &["point.ds", "extension.ds"],
+        &["point.tspp", "extension.tspp"],
         r#"
-module extension.ds -> [point.ds]
-module point.ds -> []
+module extension.tspp -> [point.tspp]
+module point.tspp -> []
 "#,
     );
 }

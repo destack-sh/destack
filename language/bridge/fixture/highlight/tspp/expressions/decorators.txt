@@ -1,0 +1,17 @@
+// SYNTAX TEST "source.tspp"
+
+// expressions / decorators / derive
+@derive(Clone)
+// <~------ entity.name.function.decorator.tspp
+newtype Shape =
+    | { kind: "rectangle"; width: int32 }
+    | { kind: "circle"; radius: int32 };
+
+// expressions / decorators / capture policies
+@capture("borrow")
+// <~------- entity.name.function.decorator.tspp
+let borrowed: &Function<(), int32> = () => count;
+
+@capture({ default: "copy", logger: "borrow" })
+// <~------- entity.name.function.decorator.tspp
+const send = (message: string) => logger.info(message);

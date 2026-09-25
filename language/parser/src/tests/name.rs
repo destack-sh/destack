@@ -1,5 +1,5 @@
 use crate::tests::TestParser;
-use destack_dir::Name;
+use tspp_dir::Name;
 
 #[test]
 fn test_report_property_name_legacy_octal_index() {

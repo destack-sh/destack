@@ -1,4 +1,4 @@
-use destack_repository::RuntimeOptions;
+use tspp_repository::RuntimeOptions;
 
 use crate::binding::BindingTable;
 use crate::diagnostic::{RuntimeError, RuntimeFailure};

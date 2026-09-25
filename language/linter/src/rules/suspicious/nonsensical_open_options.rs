@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -26,7 +26,7 @@ import {
     FileOpenFlags,
     FileOpenOptions,
     FileResolveFlags,
-} from "destack:fs/binding";
+} from "tspp:fs/binding";
 
 const OPTIONS = FileOpenOptions {
     flags: FileOpenFlags(0x0011),
@@ -40,7 +40,7 @@ import {
     FileOpenFlags,
     FileOpenOptions,
     FileResolveFlags,
-} from "destack:fs/binding";
+} from "tspp:fs/binding";
 
 const OPTIONS = FileOpenOptions {
     flags: FileOpenFlags(0x0012),
@@ -206,7 +206,7 @@ import {
     FileOpenFlags,
     FileOpenOptions,
     FileResolveFlags,
-} from "destack:fs/binding";
+} from "tspp:fs/binding";
 
 const OPTIONS = FileOpenOptions {
     flags: FileOpenFlags(0x0038),
@@ -218,7 +218,7 @@ const OPTIONS = FileOpenOptions {
 
         session.assert_diagnostics(
             r#"warning[nonsensical-open-options]: open options select no access mode
-  ──▶ main.ds:9:12
+  ──▶ main.tspp:9:12
    │
  7 │
  8 │ const OPTIONS = FileOpenOptions {
@@ -230,7 +230,7 @@ const OPTIONS = FileOpenOptions {
 
  = help: add the read or write flag
 warning[nonsensical-open-options]: exclusive open has no create flag
-  ──▶ main.ds:9:12
+  ──▶ main.tspp:9:12
    │
  7 │
  8 │ const OPTIONS = FileOpenOptions {
@@ -242,7 +242,7 @@ warning[nonsensical-open-options]: exclusive open has no create flag
 
  = help: add the create flag or remove exclusive
 warning[nonsensical-open-options]: truncate open has no write flag
-  ──▶ main.ds:9:12
+  ──▶ main.tspp:9:12
    │
  7 │
  8 │ const OPTIONS = FileOpenOptions {
@@ -254,7 +254,7 @@ warning[nonsensical-open-options]: truncate open has no write flag
 
  = help: add the write flag or remove truncate
 warning[nonsensical-open-options]: append open has no write flag
-  ──▶ main.ds:9:12
+  ──▶ main.tspp:9:12
    │
  7 │
  8 │ const OPTIONS = FileOpenOptions {
@@ -266,7 +266,7 @@ warning[nonsensical-open-options]: append open has no write flag
 
  = help: add the write flag or remove append
 warning[nonsensical-open-options]: open mode has no create flag
-  ──▶ main.ds:10:11
+  ──▶ main.tspp:10:11
    │
  8 │ const OPTIONS = FileOpenOptions {
  9 │     flags: FileOpenFlags(0x0038),
@@ -278,7 +278,7 @@ warning[nonsensical-open-options]: open mode has no create flag
 
  = help: add the create flag or use a zero mode
 warning[nonsensical-open-options]: open options request append and truncate together
-  ──▶ main.ds:9:12
+  ──▶ main.tspp:9:12
    │
  7 │
  8 │ const OPTIONS = FileOpenOptions {
@@ -315,7 +315,7 @@ import {
     FileOpenFlags,
     FileOpenOptions,
     FileResolveFlags,
-} from "destack:fs/binding";
+} from "tspp:fs/binding";
 
 function options(flags: FileOpenFlags): FileOpenOptions {
     return FileOpenOptions {
@@ -341,7 +341,7 @@ import {
     FileOpenFlags,
     FileOpenOptions,
     FileResolveFlags,
-} from "destack:fs/binding";
+} from "tspp:fs/binding";
 
 declare function flags(value: uint32): FileOpenFlags;
 

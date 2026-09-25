@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::CompilerResult;
 use crate::sema::{CheckState, FlowPredicate};
@@ -37,7 +37,7 @@ impl CheckState<'_> {
     /// Narrow flow from one condition.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// if value is T { value }
     /// ```
     pub(in crate::sema) fn narrow_condition(
@@ -86,7 +86,7 @@ impl CheckState<'_> {
     /// Narrow flow from one expression condition.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// if value !== undefined { value }
     /// ```
     pub(in crate::sema) fn narrow_expression(
@@ -159,7 +159,7 @@ impl CheckState<'_> {
     /// Narrow flow from one guard expression.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// value is T
     /// ```
     fn narrow_by_guard(
@@ -195,7 +195,7 @@ impl CheckState<'_> {
     /// Narrow flow from one equality expression.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// value === undefined
     /// ```
     pub(in crate::sema) fn narrow_by_equality(

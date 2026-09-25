@@ -1,0 +1,116 @@
+import { Result, todo } from "tspp:error";
+import { Copy, WithAccess } from "tspp:memory";
+
+import { Deserialize, Deserializer, Serialize, Serializer } from "tspp:serde";
+
+import { JsonError } from "./error.tspp";
+import { JSON } from "./json.tspp";
+import { Json } from "./value.tspp";
+
+/// JSON encoder.
+@languageItem("json.JsonSerializer")
+export class JsonSerializer implements Serializer {
+    /// The encoding error type.
+    type Error = JsonError;
+
+    /// Serialize a null value.
+    serializeNull(&this): Result<void, JsonError> {
+        todo("JsonSerializer.serializeNull")
+    }
+
+    /// Serialize an undefined value.
+    serializeUndefined(&this): Result<void, JsonError> {
+        todo("JsonSerializer.serializeUndefined")
+    }
+
+    /// Serialize a boolean value.
+    serializeBoolean(&this, value: boolean): Result<void, JsonError> {
+        todo("JsonSerializer.serializeBoolean")
+    }
+
+    /// Serialize a number value.
+    serializeNumber(&this, value: number): Result<void, JsonError> {
+        todo("JsonSerializer.serializeNumber")
+    }
+
+    /// Serialize a string value.
+    serializeString(&this, value: &readonly string): Result<void, JsonError> {
+        todo("JsonSerializer.serializeString")
+    }
+
+    /// Serialize an array value.
+    serializeArray<T, const A: "readonly" | "immutable">(
+        &this,
+        value: WithAccess<&readonly T[], A>,
+    ): Result<void, JsonError>
+        where T: Serialize<this>, A: "immutable" | ((T,) extends (Copy,) ? "readonly" : never) {
+        todo("JsonSerializer.serializeArray")
+    }
+
+    /// Serialize an object field.
+    serializeField<T>(&this, key: &readonly string, value: &immutable T): Result<void, JsonError>
+        where T: Serialize<this> {
+        todo("JsonSerializer.serializeField")
+    }
+}
+
+/// JSON decoder.
+@languageItem("json.JsonDeserializer")
+export class JsonDeserializer implements Deserializer {
+    /// The decoding error type.
+    type Error = JsonError;
+
+    /// Deserialize a null value.
+    deserializeNull(&this): Result<void, JsonError> {
+        todo("JsonDeserializer.deserializeNull")
+    }
+
+    /// Deserialize a boolean value.
+    deserializeBoolean(&this): Result<boolean, JsonError> {
+        todo("JsonDeserializer.deserializeBoolean")
+    }
+
+    /// Deserialize a number value.
+    deserializeNumber(&this): Result<number, JsonError> {
+        todo("JsonDeserializer.deserializeNumber")
+    }
+
+    /// Deserialize a string value.
+    deserializeString(&this): Result<^string, JsonError> {
+        todo("JsonDeserializer.deserializeString")
+    }
+
+    /// Deserialize an array value.
+    deserializeArray<T: Deserialize<this>>(&this): Result<^T[], JsonError> {
+        todo("JsonDeserializer.deserializeArray")
+    }
+
+    /// Deserialize an object field.
+    deserializeField<T: Deserialize<this>>(
+        &this,
+        key: &readonly string,
+    ): Result<T | undefined, JsonError> {
+        todo("JsonDeserializer.deserializeField")
+    }
+}
+
+/// Value that can encode itself as JSON.
+export type JsonSerialize = Serialize<JsonSerializer>;
+
+/// Value that can be decoded from JSON.
+export type JsonDeserialize = Deserialize<JsonDeserializer>;
+
+/// Decode typed JSON text.
+export function decode<T: JsonDeserialize>(text: &readonly string): Result<T, JsonError> {
+    todo("json.decode")
+}
+
+/// Encode a typed value as JSON text.
+export function encode<T>(value: &immutable T): Result<^string, JsonError> where T: JsonSerialize {
+    todo("json.encode")
+}
+
+/// Serialize an already materialized JSON value.
+export function encodeJson(value: &readonly Json): Result<^string, JsonError> {
+    JSON.stringify(value)
+}

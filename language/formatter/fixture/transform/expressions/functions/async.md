@@ -6,11 +6,11 @@
 
 The `async` keyword precedes `function` with a single space between them.
 
-```ds
+```tspp
 async   function   foo  (  )   {   }
 ```
 
-```ds expected
+```tspp expected
 async function foo() {}
 ```
 
@@ -18,11 +18,11 @@ async function foo() {}
 
 Await expressions are preserved inside async function bodies.
 
-```ds
+```tspp
 async function fetch(url: string) { const res = await request(url); return res }
 ```
 
-```ds expected
+```tspp expected
 async function fetch(url: string) {
     const res = await request(url);
     return res;
@@ -33,11 +33,11 @@ async function fetch(url: string) {
 
 Async functions typically return Promise types.
 
-```ds
+```tspp
 async function getData(): Promise<Data> { return await fetchData() }
 ```
 
-```ds expected
+```tspp expected
 async function getData(): Promise<Data> {
     return await fetchData();
 }

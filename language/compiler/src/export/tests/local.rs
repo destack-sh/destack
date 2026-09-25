@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_export_records_local_value() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 export let value: number = 1;
 "#,
@@ -12,7 +12,7 @@ export let value: number = 1;
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::exports().with_summaries(),
         r#"
 export let value: number = 1;
@@ -27,7 +27,7 @@ export let value: number = 1;
 fn test_export_records_local_overload_group() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 export function parse(value: int32): int32 {
     return value;
@@ -41,7 +41,7 @@ export function parse(value: string): string {
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::exports().with_summaries(),
         r#"
 export function parse(value: int32): int32 {
@@ -63,7 +63,7 @@ export function parse(value: string): string {
 fn test_export_records_local_alias() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let value = 1;
 export { value as renamed };
@@ -72,7 +72,7 @@ export { value as renamed };
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::exports().with_summaries(),
         r#"
 let value = 1;
@@ -88,14 +88,14 @@ export { value as renamed };
 fn test_export_records_local_namespace_alias() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import * as api from "./api.ds";
+import * as api from "./api.tspp";
 export { api };
 "#,
         )
         .module(
-            "api.ds",
+            "api.tspp",
             r#"
 export const value = 1;
 "#,
@@ -103,14 +103,14 @@ export const value = 1;
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::modules().with_export().with_summaries(),
         r#"
-import * as api from "./api.ds";
-/// @module.edge relation=import specifier=./api.ds module=api.ds
+import * as api from "./api.tspp";
+/// @module.edge relation=import specifier=./api.tspp module=api.tspp
 
 export { api };
-/// @export.import key=api imported=<namespace> local=api declaration=api module=api.ds
+/// @export.import key=api imported=<namespace> local=api declaration=api module=api.tspp
 
 /// @module.summary edges=1
 /// @export.summary exports=1
@@ -122,7 +122,7 @@ export { api };
 fn test_export_uses_latest_local_binding() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let value = 1;
 let value = 2;
@@ -132,7 +132,7 @@ export { value };
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::exports().with_summaries(),
         r#"
 let value = 1;
@@ -149,7 +149,7 @@ export { value };
 fn test_export_records_global_symbols() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 global {
     let process: string;
@@ -160,7 +160,7 @@ global {
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::exports().with_summaries(),
         r#"
 global {
@@ -182,15 +182,15 @@ global {
 fn test_export_records_global_reexports() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 global {
-    export { Function, Option as Maybe } from "./types.ds";
+    export { Function, Option as Maybe } from "./types.tspp";
 }
 "#,
         )
         .module(
-            "types.ds",
+            "types.tspp",
             r#"
 export type Function = () => void;
 export type Option = string;
@@ -199,13 +199,13 @@ export type Option = string;
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::exports().with_summaries(),
         r#"
 global {
-    export { Function, Option as Maybe } from "./types.ds";
-    /// @global.reexport key=Function imported=Function module=types.ds
-    /// @global.reexport key=Maybe imported=Option declaration=Maybe module=types.ds
+    export { Function, Option as Maybe } from "./types.tspp";
+    /// @global.reexport key=Function imported=Function module=types.tspp
+    /// @global.reexport key=Maybe imported=Option declaration=Maybe module=types.tspp
 
 }
 
@@ -219,15 +219,15 @@ global {
 fn test_export_records_global_namespace_reexport() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 global {
-    export * as api from "./api.ds";
+    export * as api from "./api.tspp";
 }
 "#,
         )
         .module(
-            "api.ds",
+            "api.tspp",
             r#"
 export const value = 1;
 "#,
@@ -235,12 +235,12 @@ export const value = 1;
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::exports().with_summaries(),
         r#"
 global {
-    export * as api from "./api.ds";
-    /// @global.reexport key=api imported=<namespace> declaration=api module=api.ds
+    export * as api from "./api.tspp";
+    /// @global.reexport key=api imported=<namespace> declaration=api module=api.tspp
 
 }
 
@@ -254,7 +254,7 @@ global {
 fn test_export_records_global_local_export() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 const value: int32 = 1;
 
@@ -266,7 +266,7 @@ global {
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::exports().with_summaries(),
         r#"
 const value: int32 = 1;
@@ -287,9 +287,9 @@ global {
 fn test_export_records_global_local_namespace_alias() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import * as api from "./api.ds";
+import * as api from "./api.tspp";
 
 global {
     export { api };
@@ -297,7 +297,7 @@ global {
 "#,
         )
         .module(
-            "api.ds",
+            "api.tspp",
             r#"
 export const value = 1;
 "#,
@@ -305,15 +305,15 @@ export const value = 1;
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::modules().with_export().with_summaries(),
         r#"
-import * as api from "./api.ds";
-/// @module.edge relation=import specifier=./api.ds module=api.ds
+import * as api from "./api.tspp";
+/// @module.edge relation=import specifier=./api.tspp module=api.tspp
 
 global {
     export { api };
-    /// @global.import key=api imported=<namespace> local=api declaration=api module=api.ds
+    /// @global.import key=api imported=<namespace> local=api declaration=api module=api.tspp
 
 }
 

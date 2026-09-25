@@ -1,5 +1,5 @@
-use destack_core::FxIndexSet;
-use destack_dir as dir;
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -15,7 +15,7 @@ Instead, you SHOULD combine each suite's repeated hook bodies into one hook.
 "#,
         example: {
             reported: r#"
-import { beforeEach } from "destack:test";
+import { beforeEach } from "tspp:test";
 
 beforeEach(() => {
     // ...
@@ -25,7 +25,7 @@ beforeEach(() => {
 });
 "#,
             accepted: r#"
-import { beforeEach } from "destack:test";
+import { beforeEach } from "tspp:test";
 
 beforeEach(() => {
     // ...
@@ -100,7 +100,7 @@ mod tests {
         let session = TestSession::dir(
             &NO_DUPLICATE_TEST_HOOK,
             r#"
-import { beforeEach as prepare, describe } from "destack:test";
+import { beforeEach as prepare, describe } from "tspp:test";
 
 prepare(() => {
     // first root hook
@@ -123,7 +123,7 @@ describe("nested", () => {
         session.assert_diagnostics(
             r#"
 warning[no-duplicate-test-hook]: duplicate beforeEach hook in one test suite
- ──▶ main.ds:6:1
+ ──▶ main.tspp:6:1
   │
 4 │     // first root hook
 5 │ });
@@ -134,7 +134,7 @@ warning[no-duplicate-test-hook]: duplicate beforeEach hook in one test suite
   │
 
 warning[no-duplicate-test-hook]: duplicate beforeEach hook in one test suite
-  ──▶ main.ds:14:5
+  ──▶ main.tspp:14:5
    │
 12 │         // first nested hook
 13 │     });
@@ -160,7 +160,7 @@ import {
     aroundEach,
     beforeAll,
     beforeEach,
-} from "destack:test";
+} from "tspp:test";
 
 beforeEach(() => {
     // root setup
@@ -188,7 +188,7 @@ aroundAll((run, _context) => run());
         let session = TestSession::dir(
             &NO_DUPLICATE_TEST_HOOK,
             r#"
-import { beforeEach, describe } from "destack:test";
+import { beforeEach, describe } from "tspp:test";
 
 describe("first", () => {
     beforeEach(() => {
@@ -212,7 +212,7 @@ describe("second", () => {
         let session = TestSession::dir(
             &NO_DUPLICATE_TEST_HOOK,
             r#"
-import { beforeEach, test } from "destack:test";
+import { beforeEach, test } from "tspp:test";
 
 beforeEach(() => {
     // root setup
@@ -233,7 +233,7 @@ test.beforeEach(() => {
         let session = TestSession::dir(
             &NO_DUPLICATE_TEST_HOOK,
             r#"
-import { test } from "destack:test";
+import { test } from "tspp:test";
 
 const checked = test.extend("value", 1);
 const other = test.extend("value", 2);
@@ -253,7 +253,7 @@ other.beforeEach(() => {
         session.assert_diagnostics(
             r#"
 warning[no-duplicate-test-hook]: duplicate beforeEach hook in one test suite
-  ──▶ main.ds:9:9
+  ──▶ main.tspp:9:9
    │
  7 │     // first scoped hook
  8 │ });
@@ -272,7 +272,7 @@ warning[no-duplicate-test-hook]: duplicate beforeEach hook in one test suite
         let session = TestSession::dir(
             &NO_DUPLICATE_TEST_HOOK,
             r#"
-import { beforeEach } from "destack:test";
+import { beforeEach } from "tspp:test";
 
 function register(): void {
     beforeEach(() => {

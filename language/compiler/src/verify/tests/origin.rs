@@ -16,7 +16,7 @@ entry(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<int32, borrowed, 'b, reado
     program.assert_verify_errors(
         r#"
 error[borrow-outlives-origin]: borrow does not live long enough
- ──▶ <test.dsm>:5:5
+ ──▶ <test.tsppm>:5:5
   │
 3 │ entry(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<int32, borrowed, 'b, readonly>, v2: boolean):
 4 │     v3: ref<int32, borrowed, 'a, readonly> = select v2, v0, v1
@@ -26,7 +26,7 @@ error[borrow-outlives-origin]: borrow does not live long enough
 7 │
   │
 
-for more information about an error, run `destack explain borrow-outlives-origin`
+for more information about an error, run `tspp explain borrow-outlives-origin`
 "#,
     );
 }
@@ -173,7 +173,7 @@ entry(v0: Pair<'a, 'b>, v1: ref<int32, borrowed, 'a, readonly>):
     program.assert_verify_errors(
         r#"
 error[borrow-outlives-origin]: borrow does not live long enough
-  ──▶ <test.dsm>:9:5
+  ──▶ <test.tsppm>:9:5
    │
  7 │ function test<'a, 'b>(v0: Pair<'a, 'b>, v1: ref<int32, borrowed, 'a, readonly>): void {
  8 │ entry(v0: Pair<'a, 'b>, v1: ref<int32, borrowed, 'a, readonly>):
@@ -183,7 +183,7 @@ error[borrow-outlives-origin]: borrow does not live long enough
 11 │ }
    │
 
-for more information about an error, run `destack explain borrow-outlives-origin`
+for more information about an error, run `tspp explain borrow-outlives-origin`
 "#,
     );
 }
@@ -212,7 +212,7 @@ b3(v3: ref<int32, borrowed, 'a | 'b, mutable>):
     program.assert_verify_errors(
         r#"
 error[borrow-outlives-origin]: borrow does not live long enough
-  ──▶ <test.dsm>:13:5
+  ──▶ <test.tsppm>:13:5
    │
 11 │
 12 │ b3(v3: ref<int32, borrowed, 'a | 'b, mutable>):
@@ -222,7 +222,7 @@ error[borrow-outlives-origin]: borrow does not live long enough
 15 │
    │
 
-for more information about an error, run `destack explain borrow-outlives-origin`
+for more information about an error, run `tspp explain borrow-outlives-origin`
 "#,
     );
 }
@@ -472,7 +472,7 @@ export function wrap(id: Id): Ref {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 type test.main.Id = newtype<String>;
 
 @nocopy
@@ -527,7 +527,8 @@ entry(v0: ref<test.main.Id, managed, mutable, local>):
 /// @layout.field owner=type@6 index=0 name=codeUnits offset=0 size=16 align=8
 "#);
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -551,11 +552,12 @@ export function wrap(id: Id, label: &readonly string): Ref {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 
 "#,
     );
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 type test.main.Id = newtype<String>;
 
 @nocopy

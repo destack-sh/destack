@@ -25,7 +25,7 @@ export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -125,7 +125,7 @@ export extension<T, ...Axes: Axis[]> of Grid<T, Sharding<...Axes>> {
 fn test_diagnose_spreading_a_mismatched_pack_into_a_const_variadic() {
     let session = TestSession::builder()
         .module(
-            "sharding.ds",
+            "sharding.tspp",
             r#"
 export newtype interface Marker {}
 
@@ -141,9 +141,9 @@ export newtype Axis = intrinsic;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Axis, Grid, Marker, Wrap } from "./sharding.ds";
+import { Axis, Grid, Marker, Wrap } from "./sharding.tspp";
 
 declare function mesh<T, ...Xs: Axis[]>(
     grid: &readonly Grid<T, Wrap<...Xs>>,
@@ -160,11 +160,11 @@ extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Axis, Grid, Marker, Wrap } from "./sharding.ds";
+import { Axis, Grid, Marker, Wrap } from "./sharding.tspp";
 
 declare function mesh<T, ...Xs: Axis[], 'a>(grid: &readonly Grid<T, Wrap<...Xs>>): int32;
 
@@ -176,7 +176,7 @@ extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
 }
 
 === dir ===
-import { Axis, Grid, Marker, Wrap } from "./sharding.ds";
+import { Axis, Grid, Marker, Wrap } from "./sharding.tspp";
 
 declare function mesh<T, ...Xs: Axis[]>(
 /// @generic.template symbol=mesh parameters=(T#1, ...Xs#1: sharding.Axis[], 'a)
@@ -226,10 +226,10 @@ extension<T, const ...Xs: Marker> of Grid<T, Wrap<...Xs>> {
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'sharding.Wrap<Xs>' does not satisfy 'sharding.Placed'"
 /// @diagnostic.label line=5 column=29 span="Wrap<...Xs>" line_source="grid: &readonly Grid<T, Wrap<...Xs>>,"
-/// @diagnostic.related file="sharding.ds" line=10 column=24 span="P" line_source="export newtype Grid<T, P: Placed> = intrinsic;" message="required by this bound on 'P'"
+/// @diagnostic.related file="sharding.tspp" line=10 column=24 span="P" line_source="export newtype Grid<T, P: Placed> = intrinsic;" message="required by this bound on 'P'"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Xs' does not satisfy 'sharding.Marker'"
 /// @diagnostic.label line=5 column=34 span="...Xs" line_source="grid: &readonly Grid<T, Wrap<...Xs>>,"
-/// @diagnostic.related file="sharding.ds" line=6 column=30 span="Xs" line_source="export newtype Wrap<const ...Xs: Marker> = intrinsic;" message="required by this bound on 'Xs'"
+/// @diagnostic.related file="sharding.tspp" line=6 column=30 span="Xs" line_source="export newtype Wrap<const ...Xs: Marker> = intrinsic;" message="required by this bound on 'Xs'"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'Xs' does not satisfy 'sharding.Axis[]'"
 /// @diagnostic.label line=11 column=16 span="mesh<T, ...Xs>(this)" line_source="return mesh<T, ...Xs>(this);"
 /// @diagnostic.related line=4 column=29 span="Xs" line_source="declare function mesh<T, ...Xs: Axis[]>(" message="required by this bound on 'Xs'"
@@ -247,7 +247,7 @@ declare function mesh<...Axes: Missing[]>(value: int32): int32;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

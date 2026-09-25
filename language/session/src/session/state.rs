@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use destack_artifact::ArtifactOutcome;
-use destack_compiler::Compiler;
-use destack_index::Indexer;
-use destack_linter::Linter;
-use destack_repository::Repository;
+use tspp_artifact::ArtifactOutcome;
+use tspp_compiler::Compiler;
+use tspp_index::Indexer;
+use tspp_linter::Linter;
+use tspp_repository::Repository;
 
 use crate::executor::{SessionId, Task};
 use crate::{SessionError, diagnostic};

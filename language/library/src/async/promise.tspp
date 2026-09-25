@@ -1,0 +1,322 @@
+import { todo, trap } from "tspp:error";
+import { Iterable } from "tspp:iter";
+import { Copy } from "tspp:memory";
+
+import { Awaitable } from "./awaitable.tspp";
+import { Fiber } from "./fiber.tspp";
+import { queueMicrotask } from "./task.tspp";
+
+/// Value produced by asynchronous execution.
+@languageItem("async.Promise")
+export class Promise<T: Copy> implements Awaitable<T> {
+    /// The current settlement state.
+    private state: PromiseState<T>;
+
+    /// Create a promise from an eager executor.
+    constructor(executor: (resolve: (value: T) => void) => void) {
+        this.state = PromisePending {
+            kind: "pending",
+            head: undefined,
+            tail: undefined,
+        };
+
+        let resolve = (value: T) => {
+            Promise.fulfill(this, value);
+        };
+
+        executor(resolve);
+    }
+
+    /// Continue when the promise fulfills, adopting the returned promise.
+    then<U: Copy>(onFulfilled: (value: T) => Promise<U>): Promise<U> {
+        let next = Promise.pending<U>();
+
+        this.addReaction((source) => {
+            let returned = onFulfilled(source.observe());
+            returned.addReaction((source) => {
+                next.forward(source);
+            });
+        });
+
+        return next;
+    }
+
+    /// Continue when the promise fulfills.
+    then<U: Copy>(onFulfilled: (value: T) => U): Promise<U> {
+        let next = Promise.pending<U>();
+
+        this.addReaction((source) => {
+            Promise.fulfill(next, onFulfilled(source.observe()));
+        });
+
+        return next;
+    }
+
+    /// Continue after the promise fulfills, adopting the returned promise.
+    finally(onFinally: () => Promise<void>): Promise<T> {
+        let next = Promise.pending<T>();
+
+        this.addReaction((source) => {
+            let returned = onFinally();
+            returned.addReaction((_completion) => {
+                next.forward(source);
+            });
+        });
+
+        return next;
+    }
+
+    /// Continue after the promise fulfills, keeping the value.
+    finally(onFinally: () => void): Promise<T> {
+        let next = Promise.pending<T>();
+
+        this.addReaction((source) => {
+            onFinally();
+            next.forward(source);
+        });
+
+        return next;
+    }
+
+    /// Return an existing promise.
+    static resolve<T: Copy>(value: Promise<T>): Promise<T> {
+        value
+    }
+
+    /// Create a fulfilled promise.
+    static resolve<T: Copy>(value: T): Promise<T> {
+        new Promise<T>((resolve) => {
+            resolve(value);
+        })
+    }
+
+    /// Wait for all promises.
+    static all<T: Copy>(values: Iterable<T | Promise<T>>): Promise<T[]> {
+        todo("Promise.all")
+    }
+
+    /// Wait for the first fulfilled promise.
+    static race<T: Copy>(values: Iterable<T | Promise<T>>): Promise<T> {
+        todo("Promise.race")
+    }
+
+    /// Create a promise with an exposed resolving function.
+    static withResolvers<T: Copy>(): PromiseResolvers<T> {
+        let resolve: ((value: T) => void) | undefined = undefined;
+        let promise = new Promise<T>((innerResolve) => {
+            resolve = innerResolve;
+        });
+
+        return PromiseResolvers {
+            promise,
+            resolve: resolve!,
+        };
+    }
+
+    /// Create the promise carrying one lowered async body's result.
+    @languageItem("async.Promise.create")
+    private static create<T: Copy>(body: ^Function<(), T, "once">): Promise<T> {
+        let promise = Promise.pending<T>();
+        let target = promise;
+
+        @capture("move")
+        let run: ^Function<(), void, "once"> = () => {
+            Promise.fulfill(target, body());
+        };
+        let fiber = Fiber.create(run);
+        fiber.resume();
+
+        return promise;
+    }
+
+    /// Park the current fiber until a promise fulfills.
+    private static park<T: Copy>(promise: Promise<T>): T {
+        promise.addWaiter(new PromiseAwaiter(Fiber.current()));
+
+        Fiber.park();
+
+        return promise.observe();
+    }
+
+    /// Fulfill one promise with a final value.
+    @languageItem("async.Promise.fulfill")
+    private static fulfill<T: Copy>(promise: Promise<T>, value: T): void {
+        // ignore repeated settlement
+        if (promise.state.kind != "pending") {
+            return;
+        }
+
+        // publish the value before running waiters
+        let waiters = promise.state.head;
+        promise.state = PromiseFulfilled { kind: "fulfilled", value };
+        promise.queueWaiters(waiters, promise);
+    }
+
+    /// Fulfill this promise from an existing fulfilled promise.
+    private forward(source: Promise<T>): void {
+        // ignore repeated settlement
+        if (this.state.kind != "pending") {
+            return;
+        }
+
+        // retain the source before running waiters
+        let waiters = this.state.head;
+        this.state = PromiseForwarded { kind: "forwarded", source };
+        this.queueWaiters(waiters, source);
+    }
+
+    /// Observe this fulfilled promise.
+    private observe(): T {
+        match (this.state) {
+            PromiseFulfilled { value } => value
+            PromiseForwarded { source } => source.observe()
+            _ => trap("promise does not own a fulfilled value")
+        }
+    }
+
+    /// Add one reaction.
+    private addReaction(run: (source: Promise<T>) => void): void {
+        this.addWaiter(new PromiseReaction(run));
+    }
+
+    /// Add or schedule one waiter.
+    private addWaiter(waiter: PromiseWaiter<T>): void {
+        // schedule from direct fulfilled storage
+        if (this.state.kind == "fulfilled") {
+            this.queueWaiter(waiter, this);
+        }
+        // schedule from forwarded fulfilled storage
+        else if (this.state.kind == "forwarded") {
+            this.queueWaiter(waiter, this.state.source);
+        }
+        // initialize the pending list
+        else if (this.state.tail == undefined) {
+            this.state.head = waiter;
+            this.state.tail = waiter;
+        }
+        // append in settlement order
+        else {
+            this.state.tail.next = waiter;
+            this.state.tail = waiter;
+        }
+    }
+
+    /// Schedule all waiters after fulfillment.
+    private queueWaiters(head: PromiseWaiter<T> | undefined, source: Promise<T>): void {
+        // detach before queueing each waiter
+        let waiter = head;
+        while (waiter != undefined) {
+            let next = waiter.next;
+            waiter.next = undefined;
+            this.queueWaiter(waiter, source);
+            waiter = next;
+        }
+    }
+
+    /// Schedule one waiter after fulfillment.
+    private queueWaiter(waiter: PromiseWaiter<T>, source: Promise<T>): void {
+        // resume compiler-lowered await as a microtask
+        if (waiter.kind == "await") {
+            queueMicrotask(() => {
+                waiter.fiber.wake();
+            });
+        }
+        // schedule user reactions as callbacks
+        else {
+            queueMicrotask(() => {
+                waiter.run(source);
+            });
+        }
+    }
+
+    /// Create one unresolved promise.
+    private static pending<T: Copy>(): Promise<T> {
+        new Promise<T>((_resolve) => {
+            // leave the promise unresolved
+        })
+    }
+}
+
+/// Promise with its resolving function.
+@languageItem("async.PromiseResolvers")
+export struct PromiseResolvers<T: Copy> implements !SharedSafe {
+    /// The created promise.
+    promise: Promise<T>;
+
+    /// Resolve the promise.
+    resolve: (value: T) => void;
+}
+
+/// Current promise state.
+type PromiseState<T: Copy> = PromisePending<T> | PromiseFulfilled<T> | PromiseForwarded<T>;
+
+/// Pending promise state.
+struct PromisePending<T: Copy> implements !SharedSafe {
+    /// The state tag.
+    kind: "pending";
+
+    /// First waiter to run after fulfillment.
+    head: PromiseWaiter<T> | undefined;
+
+    /// Last waiter to run after fulfillment.
+    tail: PromiseWaiter<T> | undefined;
+}
+
+/// Fulfilled promise state.
+struct PromiseFulfilled<T: Copy> implements !SharedSafe {
+    /// The state tag.
+    kind: "fulfilled";
+
+    /// The fulfilled value.
+    value: T;
+}
+
+/// Promise state forwarded to existing fulfilled storage.
+struct PromiseForwarded<T: Copy> implements !SharedSafe {
+    /// The state tag.
+    kind: "forwarded";
+
+    /// The fulfilled promise that owns the value.
+    source: Promise<T>;
+}
+
+/// One promise settlement waiter.
+type PromiseWaiter<T: Copy> = PromiseAwaiter<T> | PromiseReaction<T>;
+
+/// One execution awaiting promise settlement.
+class PromiseAwaiter<T: Copy> {
+    /// The waiter tag.
+    kind: "await";
+
+    /// The parked fiber.
+    fiber: Fiber;
+
+    /// Next waiter in fulfillment order.
+    next: PromiseWaiter<T> | undefined;
+
+    /// Create one promise awaiter.
+    constructor(fiber: Fiber) {
+        this.kind = "await";
+        this.fiber = fiber;
+        this.next = undefined;
+    }
+}
+
+/// One callback reacting to promise settlement.
+class PromiseReaction<T: Copy> {
+    /// The waiter tag.
+    kind: "reaction";
+
+    /// Callback to queue with the fulfilled source.
+    run: (source: Promise<T>) => void;
+
+    /// Next waiter in fulfillment order.
+    next: PromiseWaiter<T> | undefined;
+
+    /// Create one promise reaction.
+    constructor(run: (source: Promise<T>) => void) {
+        this.kind = "reaction";
+        this.run = run;
+        this.next = undefined;
+    }
+}

@@ -1,7 +1,0 @@
-// SYNTAX TEST "source.ds"
-
-// memory / cell / interior containers
-let cell: Cell<User> = Cell.new(user);
-//        ^^^^ entity.name.type.ds
-
-let current = cell.get();

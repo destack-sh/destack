@@ -2,9 +2,9 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::sync::Arc;
 
-use destack_program as program;
-use destack_repository::ExecutionMode;
 use serde::{Deserialize, Serialize};
+use tspp_program as program;
+use tspp_repository::ExecutionMode;
 
 use crate::debugger::{
     Breakpoint, MemoryFilter, PointFilter, Probe, ProbeAction, ProbeFilter, ProbeId, Watchpoint,

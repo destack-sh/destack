@@ -13,7 +13,7 @@ function span(distance: Meters): Meters {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.span",
         r#"
 type test.main.Meters = newtype<int32>;
@@ -43,7 +43,7 @@ function total(base: int32): Meters {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.total",
         r#"
 type test.main.Meters = newtype<int32>;
@@ -77,7 +77,7 @@ function organisation(user: UserId): OrganisationId {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.organisation",
         r#"
 type test.main.UserId = newtype<int32>;

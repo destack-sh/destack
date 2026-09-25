@@ -1,5 +1,5 @@
-use destack_artifact::DiagnosticBuilder;
-use destack_dir as dir;
+use tspp_artifact::DiagnosticBuilder;
+use tspp_dir as dir;
 
 use crate::sema::{Cause, CauseId, CauseKind, CheckState, Origin, PropertySource, Relation};
 use crate::{CompilerResult, DiagnosticAnchor};

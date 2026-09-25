@@ -1,9 +1,9 @@
 use std::hash::{Hash, Hasher};
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
-use destack_source::{ModuleId, PackageId, ProfileId};
+use tspp_source::{ModuleId, PackageId, ProfileId};
 
 use crate::{ArtifactDependency, ArtifactFingerprint, ArtifactKey, BuildId};
 

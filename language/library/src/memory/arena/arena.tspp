@@ -1,0 +1,42 @@
+import { Array } from "tspp:collections";
+import { Result, todo } from "tspp:error";
+
+import { AllocationError } from "../error.tspp";
+import { Owned } from "../owned.tspp";
+
+/// Typed arena for values with a shared lifetime.
+@languageItem("memory.arena.Arena")
+export struct Arena<in out T> {
+    /// Typed chunks whose buffers never grow after their first allocation.
+    private chunks: ^Array<^Array<Owned<T>>>;
+
+    /// The number of allocated values.
+    private length: usize = 0;
+}
+
+export extension<T> of Arena<T> {
+    /// Create an empty arena.
+    static new(): Arena<T> {
+        todo("Arena.new")
+    }
+
+    /// Allocate `value` in this arena.
+    alloc<'a>(&'a this, value: ^T): &'a exclusive T {
+        todo("Arena.alloc")
+    }
+
+    /// Try to allocate `value` in this arena.
+    tryAlloc<'a>(&'a this, value: ^T): Result<&'a exclusive T, AllocationError> {
+        todo("Arena.tryAlloc")
+    }
+
+    /// Return the number of allocated values.
+    get size(&readonly this): usize {
+        this.length
+    }
+
+    /// Release all values allocated in this arena.
+    clear(&exclusive this): void {
+        todo("Arena.clear");
+    }
+}

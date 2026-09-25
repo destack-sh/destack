@@ -1,0 +1,653 @@
+{
+  "name": "TS++",
+  "scopeName": "source.tspp",
+  "fileTypes": [
+    "tspp"
+  ],
+  "patterns": [
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#string"
+    },
+    {
+      "include": "#regex"
+    },
+    {
+      "include": "#number"
+    },
+    {
+      "include": "#constant"
+    },
+    {
+      "include": "#declaration"
+    },
+    {
+      "include": "#call"
+    },
+    {
+      "include": "#memory"
+    },
+    {
+      "include": "#keyword"
+    },
+    {
+      "include": "#builtin"
+    },
+    {
+      "include": "#decorator"
+    },
+    {
+      "include": "#lifetime"
+    },
+    {
+      "include": "#member"
+    },
+    {
+      "include": "#type_parameters"
+    },
+    {
+      "include": "#jsx"
+    },
+    {
+      "include": "#type_name"
+    },
+    {
+      "include": "#operator"
+    },
+    {
+      "include": "#punctuation"
+    }
+  ],
+  "repository": {
+    "comment": {
+      "patterns": [
+        {
+          "name": "comment.line.documentation.tspp",
+          "match": "///.*$"
+        },
+        {
+          "name": "comment.line.double-slash.tspp",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.block.documentation.tspp",
+          "begin": "/\\*\\*",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.begin.tspp"
+            }
+          },
+          "end": "\\*/",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.end.tspp"
+            }
+          }
+        },
+        {
+          "name": "comment.block.tspp",
+          "begin": "/\\*",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.begin.tspp"
+            }
+          },
+          "end": "\\*/",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.comment.end.tspp"
+            }
+          }
+        }
+      ]
+    },
+    "string": {
+      "patterns": [
+        {
+          "name": "constant.character.tspp",
+          "match": "'(?:\\\\(?:[0abfnrtv'\"\\\\]|x[0-9A-Fa-f]{2}|u\\{[0-9A-Fa-f_]+\\}|u[0-9A-Fa-f]{4})|[^'\\\\\\n])'"
+        },
+        {
+          "name": "string.quoted.double.tspp",
+          "begin": "\"",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.tspp"
+            }
+          },
+          "end": "\"",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.tspp"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#escape"
+            }
+          ]
+        },
+        {
+          "name": "string.template.tspp",
+          "begin": "`",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.tspp"
+            }
+          },
+          "end": "`",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.tspp"
+            }
+          },
+          "patterns": [
+            {
+              "include": "#escape"
+            },
+            {
+              "name": "meta.embedded.expression.tspp",
+              "begin": "\\$\\{",
+              "beginCaptures": {
+                "0": {
+                  "name": "punctuation.section.embedded.begin.tspp"
+                }
+              },
+              "end": "\\}",
+              "endCaptures": {
+                "0": {
+                  "name": "punctuation.section.embedded.end.tspp"
+                }
+              },
+              "patterns": [
+                {
+                  "include": "$self"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "escape": {
+      "patterns": [
+        {
+          "name": "constant.character.escape.tspp",
+          "match": "\\\\(?:[0abfnrtv'\"\\\\]|x[0-9A-Fa-f]{2}|u\\{[0-9A-Fa-f_]+\\}|u[0-9A-Fa-f]{4})"
+        },
+        {
+          "name": "invalid.illegal.escape.tspp",
+          "match": "\\\\."
+        }
+      ]
+    },
+    "regex": {
+      "patterns": [
+        {
+          "name": "string.regexp.tspp",
+          "begin": "(?x)(?<![\\w$\\)\\]\\}])/(?![/*])(?=(?:\\\\.|\\[(?:\\\\.|[^\\]\\n])*\\]|[^/\\n])*/[a-z]*\\b)",
+          "beginCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.begin.tspp"
+            }
+          },
+          "end": "(?<!\\\\)/(?:[a-z]*)|(?=\\n)",
+          "endCaptures": {
+            "0": {
+              "name": "punctuation.definition.string.end.tspp"
+            }
+          },
+          "patterns": [
+            {
+              "name": "constant.character.escape.tspp",
+              "match": "\\\\."
+            },
+            {
+              "name": "string.regexp.character-class.tspp",
+              "begin": "\\[",
+              "end": "\\](?!\\])",
+              "patterns": [
+                {
+                  "name": "constant.character.escape.tspp",
+                  "match": "\\\\."
+                }
+              ]
+            }
+          ],
+          "applyEndPatternLast": true
+        }
+      ]
+    },
+    "number": {
+      "patterns": [
+        {
+          "name": "constant.numeric.binary.tspp",
+          "match": "\\b0[bB][01_]+n?\\b"
+        },
+        {
+          "name": "constant.numeric.octal.tspp",
+          "match": "\\b0[oO][0-7_]+n?\\b"
+        },
+        {
+          "name": "constant.numeric.hex.tspp",
+          "match": "\\b0[xX][0-9A-Fa-f_]+n?\\b"
+        },
+        {
+          "name": "constant.numeric.bigint.decimal.tspp",
+          "match": "\\b(?:0|[1-9][0-9_]*)n\\b"
+        },
+        {
+          "name": "constant.numeric.decimal.tspp",
+          "match": "(?x)\\b(?:\\d[\\d_]*)(?:\\.(?:\\d[\\d_]*))?(?:[eE][+-]?\\d[\\d_]*)?\\b"
+        },
+        {
+          "name": "constant.numeric.decimal.tspp",
+          "match": "(?x)(?<![\\w$.])\\.(?:\\d[\\d_]*)(?:[eE][+-]?\\d[\\d_]*)?\\b"
+        }
+      ]
+    },
+    "constant": {
+      "patterns": [
+        {
+          "name": "constant.language.boolean.tspp",
+          "match": "\\b(?:true|false)\\b"
+        },
+        {
+          "name": "constant.language.null.tspp",
+          "match": "\\bnull\\b"
+        },
+        {
+          "name": "constant.language.undefined.tspp",
+          "match": "\\bundefined\\b"
+        }
+      ]
+    },
+    "declaration": {
+      "patterns": [
+        {
+          "name": "meta.function.definition.tspp",
+          "match": "\\b(function)\\s*(\\*)?\\s*([$A-Za-z_][$\\w]*)",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.function.tspp"
+            },
+            "2": {
+              "name": "keyword.operator.generator.tspp"
+            },
+            "3": {
+              "name": "entity.name.function.definition.tspp"
+            }
+          }
+        },
+        {
+          "name": "meta.function.definition.tspp",
+          "match": "(?x)\\b((?:(?:public|protected|private|readonly|exclusive|local|shared|static|final|virtual|abstract|override|get|set)\\s+)*)(?!(?:if|switch|match|for|while|catch|with)\\b)([$A-Za-z_][$\\w]*)(?=\\s*(?:<[^<>\\n]*>)?\\s*\\([^\\n()]*\\)\\s*(?::[^\\n{;]+)?\\s*(?:where\\b[^\\n{;]*)?\\{)",
+          "captures": {
+            "1": {
+              "name": "keyword.other.modifier.tspp"
+            },
+            "2": {
+              "name": "entity.name.function.definition.tspp"
+            }
+          }
+        },
+        {
+          "name": "meta.type.definition.tspp",
+          "match": "\\b(newtype)\\s+(interface)\\s+([$A-Za-z_][$\\w]*)",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.type.tspp"
+            },
+            "2": {
+              "name": "keyword.declaration.type.tspp"
+            },
+            "3": {
+              "name": "entity.name.type.definition.tspp"
+            }
+          }
+        },
+        {
+          "name": "meta.type.definition.tspp",
+          "match": "\\b(?:(local|shared)\\s+)?(?:(abstract|const)\\s+)?(type|newtype|struct|class|enum|interface|extension)\\b(?:\\s+([$A-Za-z_][$\\w]*))?",
+          "captures": {
+            "1": {
+              "name": "keyword.other.modifier.tspp"
+            },
+            "2": {
+              "name": "keyword.other.modifier.tspp"
+            },
+            "3": {
+              "name": "keyword.declaration.type.tspp"
+            },
+            "4": {
+              "name": "entity.name.type.definition.tspp"
+            }
+          }
+        },
+        {
+          "name": "meta.binding.definition.tspp",
+          "match": "\\b(const|let)\\s+([$A-Za-z_][$\\w]*)(?![$\\w])(?!\\s*(?:<[^<>\\n]*>)?\\s*\\()",
+          "captures": {
+            "1": {
+              "name": "keyword.declaration.variable.tspp"
+            },
+            "2": {
+              "name": "variable.other.definition.tspp"
+            }
+          }
+        },
+        {
+          "name": "keyword.declaration.variable.tspp",
+          "match": "\\bconst\\b(?=\\s*[\\{\\[][^;\\n]*=(?!=))"
+        },
+        {
+          "name": "storage.modifier.tspp",
+          "match": "\\bconst\\b"
+        },
+        {
+          "name": "keyword.declaration.variable.tspp",
+          "match": "\\blet\\b"
+        }
+      ]
+    },
+    "keyword": {
+      "patterns": [
+        {
+          "name": "keyword.other.modifier.tspp",
+          "match": "\\b(?:public|protected|private|readonly|exclusive|local|shared|static|final|virtual|accessor|default|abstract|override|unique)\\b"
+        },
+        {
+          "name": "keyword.other.context.tspp",
+          "match": "\\b(?:this|super|package)\\b"
+        },
+        {
+          "name": "keyword.declaration.import.tspp",
+          "match": "\\b(?:import|export|from)\\b"
+        },
+        {
+          "name": "keyword.declaration.import.tspp",
+          "match": "\\bwith\\b(?=\\s*\\{)"
+        },
+        {
+          "name": "keyword.declaration.type.tspp",
+          "match": "\\b(?:type|newtype|struct|class|enum|interface|extension|module|global|declare|constructor)\\b"
+        },
+        {
+          "name": "keyword.control.using.tspp",
+          "match": "\\busing\\b"
+        },
+        {
+          "name": "keyword.operator.type.binary.tspp",
+          "match": "\\b(?:extends|implements|satisfies|instanceof|as|is)\\b"
+        },
+        {
+          "name": "keyword.operator.type.unary.tspp",
+          "match": "\\b(?:typeof|keyof|infer)\\b"
+        },
+        {
+          "name": "keyword.operator.type.tspp",
+          "match": "\\b(?:where|in|of)\\b"
+        },
+        {
+          "name": "keyword.other.type.tspp",
+          "match": "\\b(?:never|void)\\b"
+        },
+        {
+          "name": "keyword.control.conditional.tspp",
+          "match": "\\b(?:if|else|match|switch|case)\\b"
+        },
+        {
+          "name": "keyword.control.loop.tspp",
+          "match": "\\b(?:do|while|for|loop)\\b"
+        },
+        {
+          "name": "keyword.control.flow.tspp",
+          "match": "\\b(?:break|continue|debugger|return|yield)\\b"
+        },
+        {
+          "name": "keyword.control.exception.tspp",
+          "match": "\\b(?:try|catch|finally)\\b"
+        },
+        {
+          "name": "keyword.control.async.tspp",
+          "match": "\\b(?:async|await)\\b"
+        },
+        {
+          "name": "keyword.other.accessor.tspp",
+          "match": "\\b(?:get|set)\\b(?=\\s+[$A-Za-z_][$\\w]*\\s*(?:<|\\())"
+        },
+        {
+          "name": "keyword.operator.new.tspp",
+          "match": "\\bnew\\b"
+        }
+      ]
+    },
+    "builtin": {
+      "patterns": [
+        {
+          "name": "support.type.builtin.tspp",
+          "match": "\\b(?:unknown|boolean|char|string|number|bigint|int(?:\\d+)?|uint(?:\\d+)?|u\\d+|isize|usize|float(?:32|64)?)\\b"
+        },
+        {
+          "name": "support.type.builtin.tspp",
+          "match": "\\b(?:Partial|Required|Readonly|Record|Pick|Omit|Exclude|Extract|NonNullable|Parameters|ConstructorParameters|ReturnType|InstanceType|ThisParameterType|OmitThisParameter|ThisType|Awaited|Uppercase|Lowercase|Capitalize|Uncapitalize)\\b(?=\\s*<)"
+        }
+      ]
+    },
+    "decorator": {
+      "patterns": [
+        {
+          "match": "(@)([$A-Za-z_][$\\w]*)",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.annotation.tspp"
+            },
+            "2": {
+              "name": "entity.name.function.decorator.tspp"
+            }
+          }
+        }
+      ]
+    },
+    "lifetime": {
+      "patterns": [
+        {
+          "name": "entity.name.label.lifetime.tspp",
+          "match": "'[$A-Za-z_][$\\w]*\\b"
+        }
+      ]
+    },
+    "call": {
+      "patterns": [
+        {
+          "name": "entity.name.function.call.tspp",
+          "match": "\\b(?!(?:if|switch|match|for|while|catch|function|constructor|shared|local|readonly|exclusive)\\b)[$A-Za-z_][$\\w]*(?=\\s*(?:\\?\\.)?\\s*(?:<[^<>\\n]*>)?\\s*\\()"
+        }
+      ]
+    },
+    "member": {
+      "patterns": [
+        {
+          "name": "variable.other.member.tspp",
+          "match": "(?<=\\.)[$A-Za-z_][$\\w]*\\b"
+        }
+      ]
+    },
+    "jsx": {
+      "patterns": [
+        {
+          "match": "(</?)([A-Z][$\\w]*(?:\\.[A-Z][$\\w])*)(?!\\s*(?:,|>\\s*\\())",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.tag.begin.tsx"
+            },
+            "2": {
+              "name": "entity.name.tag.tsx"
+            }
+          }
+        }
+      ]
+    },
+    "type_name": {
+      "patterns": [
+        {
+          "name": "entity.name.type.tspp",
+          "match": "\\b[A-Z][$\\w]*(?:\\s*\\.\\s*[A-Z][$\\w]*)*\\b"
+        }
+      ]
+    },
+    "type_parameters": {
+      "patterns": [
+        {
+          "match": "([<,])(\\s*)(?:(const)\\s+)?(?:(in|out)\\s+)?(\\.\\.\\.)?([$A-Za-z_][$\\w]*)(?=\\s*(?::|=|,|>))",
+          "captures": {
+            "1": {
+              "name": "punctuation.definition.typeparameters.begin.tspp"
+            },
+            "3": {
+              "name": "storage.modifier.tspp"
+            },
+            "4": {
+              "name": "keyword.operator.variance.tspp"
+            },
+            "5": {
+              "name": "keyword.operator.prefix.tspp"
+            },
+            "6": {
+              "name": "entity.name.type.parameter.tspp"
+            }
+          }
+        }
+      ]
+    },
+    "memory": {
+      "patterns": [
+        {
+          "match": "(?x)(?:(?<=[:=,(\\[\\{])|^)\\s*(?:(&)|(\\^)|(\\*))(?=\\s*(?:readonly\\b|exclusive\\b|[$A-Za-z_(\\[&^*]))",
+          "captures": {
+            "1": {
+              "name": "keyword.operator.borrow.tspp"
+            },
+            "2": {
+              "name": "keyword.operator.owned.tspp"
+            },
+            "3": {
+              "name": "keyword.operator.pointer.tspp"
+            }
+          }
+        },
+        {
+          "match": "(\\b(?:return|yield|type)\\b)(\\s+)(?:(&)|(\\^)|(\\*))(?=\\s*(?:readonly\\b|exclusive\\b|[$A-Za-z_(\\[&^*]))",
+          "captures": {
+            "1": {
+              "name": "keyword.control.flow.tspp"
+            },
+            "3": {
+              "name": "keyword.operator.borrow.tspp"
+            },
+            "4": {
+              "name": "keyword.operator.owned.tspp"
+            },
+            "5": {
+              "name": "keyword.operator.pointer.tspp"
+            }
+          }
+        }
+      ]
+    },
+    "operator": {
+      "patterns": [
+        {
+          "name": "keyword.operator.range.tspp",
+          "match": "(?<!\\.)\\.\\.(?:=)?(?!\\.)"
+        },
+        {
+          "name": "keyword.operator.prefix.tspp",
+          "match": "\\.\\.\\."
+        },
+        {
+          "name": "keyword.operator.assignment.addition.tspp",
+          "match": "(?:\\+=|-=)"
+        },
+        {
+          "name": "keyword.operator.assignment.tspp",
+          "match": "(?:\\*\\*=|>>>=|<<=|>>=|&&=|\\|\\|=|\\?\\?=|\\*=|/=|%=|&=|\\^=|\\|=)"
+        },
+        {
+          "name": "keyword.operator.postfix.tspp",
+          "match": "(?<=[\\w\\)\\]])\\?(?![?.])"
+        },
+        {
+          "name": "keyword.operator.ternary.tspp",
+          "match": "\\?(?![?.])"
+        },
+        {
+          "name": "keyword.operator.boolean.tspp",
+          "match": "(?:&&|\\|\\||\\?\\?)"
+        },
+        {
+          "name": "keyword.operator.shift.tspp",
+          "match": "(?:<<|>>>|>>)"
+        },
+        {
+          "name": "keyword.operator.comparison.tspp",
+          "match": "(?:===|!==|==|!=|<=|>=|<|>)"
+        },
+        {
+          "name": "keyword.operator.assignment.tspp",
+          "match": "="
+        },
+        {
+          "name": "keyword.operator.elementwise.tspp",
+          "match": "(?:&(?!&)|\\|(?!\\|)|\\^)"
+        },
+        {
+          "name": "keyword.operator.addition.tspp",
+          "match": "(?:\\+|-)"
+        },
+        {
+          "name": "keyword.operator.multiplication.tspp",
+          "match": "(?:\\*\\*|\\*|/|%)"
+        },
+        {
+          "name": "keyword.operator.tspp",
+          "match": "(?:\\.\\.\\.|=>|->|\\+\\+|--|~|!)"
+        }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        {
+          "name": "punctuation.section.group.begin.tspp",
+          "match": "\\("
+        },
+        {
+          "name": "punctuation.section.group.end.tspp",
+          "match": "\\)"
+        },
+        {
+          "name": "punctuation.section.braces.begin.tspp",
+          "match": "\\{"
+        },
+        {
+          "name": "punctuation.section.braces.end.tspp",
+          "match": "\\}"
+        },
+        {
+          "name": "punctuation.section.brackets.begin.tspp",
+          "match": "\\["
+        },
+        {
+          "name": "punctuation.section.brackets.end.tspp",
+          "match": "\\]"
+        },
+        {
+          "name": "punctuation.separator.tspp",
+          "match": "[,;:.@]"
+        }
+      ]
+    }
+  }
+}

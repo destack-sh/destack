@@ -1,5 +1,5 @@
 use crate::assert_format_program_reference_widths;
-use destack_source::FileType;
+use tspp_source::FileType;
 
 /// Type alias comments after `=` should stay with the union head.
 #[test]
@@ -7,7 +7,7 @@ fn test_format_union_head_comment_after_equals_is_idempotent() {
     assert_format_program_reference_widths(
         r#"type Aa1 = /*1*/ | /*2*/ C | D;
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -30,7 +30,7 @@ fn test_format_type_alias_line_comment_after_equals() {
         r#"type Item = // keep
 Alpha | Beta;
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -67,7 +67,7 @@ class A {
   }
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -116,7 +116,7 @@ fn test_format_assignment_interpolated_template_argument_uses_fluid_layout() {
     assert_format_program_reference_widths(
         r#"const veryLongBindingName = namespace.foo(`hello ${name}`)
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[(
             30,
             r#"const veryLongBindingName =
@@ -134,7 +134,7 @@ fn test_format_assignment_null_argument_breaks_after_operator() {
     assert_format_program_reference_widths(
         r#"const veryLongBindingName = namespace.foo(null)
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[(
             30,
             r#"const veryLongBindingName =
@@ -154,7 +154,7 @@ fn test_format_assignment_nested_object_pattern_stays_inline() {
   }
 } = obj;
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[(
             80,
             r#"const {
@@ -178,7 +178,7 @@ export const globalRegistry: $ZodRegistry = /*@__PURE__*/ registry();
 const r = /* THIS */ f<Type>()
 const s = /* comment */ foo<A | B | C>()
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -213,7 +213,7 @@ fn test_format_type_alias_conditional_layout() {
   ? Cast<X, List>
   : never
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -246,7 +246,7 @@ const onPanning: ComponenASDtProps<
 >["onPanning"] = () => {
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -278,7 +278,7 @@ fn test_format_assignment_chain_layout() {
     assert_format_program_reference_widths(
         r#"const longVariableName = alpha = beta = computeValue()
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[(
             30,
             r#"const longVariableName =
@@ -297,7 +297,7 @@ fn test_format_assignment_chain_lambda_tail_layout() {
         r#"const longVariableName = alpha = beta = () => {}
 const short = a = b
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[(
             30,
             r#"const longVariableName =
@@ -320,7 +320,7 @@ fn test_format_assignment_break_left_hand_side_layout() {
   ({ className, unfurl: unfurlAttrr, ...attrs } = { className: "name", unfurl: "unfurl", others: [1, 2, 3]});
 };
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -386,7 +386,7 @@ const result = configurationService.getValue<Record<string, boolean>>(
   enalementSetting
 );
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -462,7 +462,7 @@ class A {
 const requestTrie =
   TernarySearchTree.forPaths<IRecursiveWatchRequest>(!isLinux);
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -500,7 +500,7 @@ fn test_format_assignment_expression_call_chain_breaks_after_operator() {
     assert_format_program_reference_widths(
         r#"result = api.namespace.member().tail()
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[(
             20,
             r#"result =
@@ -519,7 +519,7 @@ fn test_format_assignment_string_rhs_breaks_after_operator() {
         r#"const veryLongVariableName = "value"
 veryLongVariableName = "value"
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[(
             20,
             r#"const veryLongVariableName =

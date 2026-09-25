@@ -1,0 +1,74 @@
+import { todo } from "tspp:error";
+
+/// Character classification and conversion methods.
+export extension Character of char {
+    /// Return whether this character is ASCII.
+    isAscii(): boolean {
+        todo("Character.isAscii")
+    }
+
+    /// Return whether this character is an ASCII letter.
+    isAsciiAlphabetic(): boolean {
+        todo("Character.isAsciiAlphabetic")
+    }
+
+    /// Return whether this character is an ASCII letter or decimal digit.
+    isAsciiAlphanumeric(): boolean {
+        todo("Character.isAsciiAlphanumeric")
+    }
+
+    /// Return whether this character is an ASCII control character.
+    isAsciiControl(): boolean {
+        todo("Character.isAsciiControl")
+    }
+
+    /// Return whether this character is an ASCII decimal digit.
+    isAsciiDigit(): boolean {
+        todo("Character.isAsciiDigit")
+    }
+
+    /// Return whether this character is an ASCII graphic character.
+    isAsciiGraphic(): boolean {
+        todo("Character.isAsciiGraphic")
+    }
+
+    /// Return whether this character is an ASCII hexadecimal digit.
+    isAsciiHexDigit(): boolean {
+        todo("Character.isAsciiHexDigit")
+    }
+
+    /// Return whether this character is an ASCII lowercase letter.
+    isAsciiLowercase(): boolean {
+        todo("Character.isAsciiLowercase")
+    }
+
+    /// Return whether this character is ASCII punctuation.
+    isAsciiPunctuation(): boolean {
+        todo("Character.isAsciiPunctuation")
+    }
+
+    /// Return whether this character is an ASCII uppercase letter.
+    isAsciiUppercase(): boolean {
+        todo("Character.isAsciiUppercase")
+    }
+
+    /// Return whether this character is ASCII whitespace.
+    isAsciiWhitespace(): boolean {
+        todo("Character.isAsciiWhitespace")
+    }
+
+    /// Return this character with ASCII uppercase letters converted to lowercase.
+    toAsciiLowercase(): char {
+        todo("Character.toAsciiLowercase")
+    }
+
+    /// Return this character with ASCII lowercase letters converted to uppercase.
+    toAsciiUppercase(): char {
+        todo("Character.toAsciiUppercase")
+    }
+
+    /// Return whether this character equals `other` ignoring ASCII case.
+    equalIgnoreAsciiCase(other: char): boolean {
+        todo("Character.equalIgnoreAsciiCase")
+    }
+}

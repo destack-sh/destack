@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -118,7 +118,7 @@ function classify(value: int32): void {
         session.assert_diagnostics(
             r#"
 warning[no-useless-switch-case]: case shares the default behavior
- ──▶ main.ds:3:9
+ ──▶ main.tspp:3:9
   │
 1 │ function classify(value: int32): void {
 2 │     switch (value) {
@@ -150,7 +150,7 @@ function classify(value: int32): void {
         session.assert_diagnostics(
             r#"
 warning[no-useless-switch-case]: case shares the default behavior
- ──▶ main.ds:4:9
+ ──▶ main.tspp:4:9
   │
 2 │     switch (value) {
 3 │         default:

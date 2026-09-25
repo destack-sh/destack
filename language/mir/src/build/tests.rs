@@ -1,4 +1,4 @@
-use destack_core::StringPool;
+use tspp_core::StringPool;
 
 use crate::build::ModuleBuilder;
 use crate::parse::{ParseOptions, Parser, test_file};

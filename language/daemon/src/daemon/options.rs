@@ -1,7 +1,7 @@
 use std::fmt;
 use std::time::Duration;
 
-use destack_rpc::ConnectionOptions;
+use tspp_rpc::ConnectionOptions;
 
 use super::constants::DEFAULT_IDLE_TIMEOUT;
 
@@ -29,7 +29,7 @@ impl Default for DaemonOptions {
     /// Create default daemon options.
     fn default() -> Self {
         Self {
-            rpc: ConnectionOptions::new("destack-daemon"),
+            rpc: ConnectionOptions::new("tspp-daemon"),
             idle_timeout: Some(DEFAULT_IDLE_TIMEOUT),
         }
     }

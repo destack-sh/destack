@@ -1,8 +1,8 @@
 #![no_main]
 
-use destack_formatter::format_file_source;
-use destack_repository::FormatterOptions;
-use destack_source::{File, FileId, FileType, Uri};
+use tspp_formatter::format_file_source;
+use tspp_repository::FormatterOptions;
+use tspp_source::{File, FileId, FileType, Uri};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
@@ -45,7 +45,7 @@ fn fuzz_file(name: &str, file_type: FileType, source: &str) -> File {
 /// Select one formatter file type and its canonical name.
 fn file_from_byte(byte: u8) -> (FileType, &'static str) {
     match byte % 2 {
-        0 => (FileType::Destack, "fuzz.ds"),
-        _ => (FileType::DestackDeclaration, "fuzz.d.ds"),
+        0 => (FileType::Tspp, "fuzz.tspp"),
+        _ => (FileType::TsppDeclaration, "fuzz.d.tspp"),
     }
 }

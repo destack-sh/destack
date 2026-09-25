@@ -1,0 +1,17 @@
+// SYNTAX TEST "source.tspp"
+
+// expressions / const / expressions and blocks
+const size = const sizeOf<User>();
+//           ^^^^^ storage.modifier.tspp
+
+// expressions / const / static if annotations
+@if(import.meta.runtime == "js")
+// <~-- entity.name.function.decorator.tspp
+function runtimeName(): string {
+    "js"
+}
+
+function make<const N: uint>(value: [uint8; N]): Buffer<N> {
+//            ^^^^^ storage.modifier.tspp
+    Buffer.from(value)
+}

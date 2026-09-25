@@ -3,8 +3,8 @@ use crate::common::{
     CommandOptionsBuilder, CommandResult, ReportArgs, command_error, run_workspace_command,
 };
 
-use destack_source::FileSystem;
-use destack_workspace::{CommandRevision, FormatInput, FormatMode, FormatPayload, FormatSource};
+use tspp_source::FileSystem;
+use tspp_workspace::{CommandRevision, FormatInput, FormatMode, FormatPayload, FormatSource};
 
 use super::tests::{TestProgram, assert_exit, assert_success, execute};
 
@@ -13,7 +13,7 @@ use super::tests::{TestProgram, assert_exit, assert_success, execute};
 fn test_fmt_formats_destack_file() {
     // set up a source file with minimal spacing
     let program = TestProgram::new("fmt_destack");
-    let path = program.write_text("main.ds", "const answer=42");
+    let path = program.write_text("main.tspp", "const answer=42");
 
     // build formatter args
     let args = FmtArgs {
@@ -36,12 +36,12 @@ fn test_fmt_formats_destack_file() {
     assert_eq!(formatted, "const answer = 42;\n");
 }
 
-/// Formats `.ds` files during default directory scans.
+/// Formats `.tspp` files during default directory scans.
 #[test]
 fn test_fmt_default_scan_includes_destack() {
     // set up a source file in the root
     let program = TestProgram::new("fmt_scan_ds");
-    let path = program.write_text("main.ds", "const answer=42");
+    let path = program.write_text("main.tspp", "const answer=42");
 
     // build formatter args with default scan behavior
     let args = FmtArgs {
@@ -70,8 +70,8 @@ fn test_fmt_default_scan_honors_gitignore() {
     // set up a regular source and an output source
     let program = TestProgram::new("fmt_scan_ignore");
     program.write_text(".gitignore", "dist/\n");
-    let src_path = program.write_text("src/main.ds", "const answer=42");
-    let output_path = program.write_text("dist/index.ds", "const output=1");
+    let src_path = program.write_text("src/main.tspp", "const answer=42");
+    let output_path = program.write_text("dist/index.tspp", "const output=1");
 
     // build formatter args with default scan behavior
     let args = FmtArgs {
@@ -106,7 +106,7 @@ fn test_fmt_default_scan_honors_gitignore() {
 fn test_fmt_check_mode_returns_nonzero_on_change() {
     // set up an unformatted source file
     let program = TestProgram::new("fmt_check");
-    let path = program.write_text("main.ds", "const answer=42");
+    let path = program.write_text("main.tspp", "const answer=42");
 
     // build formatter args in check mode
     let args = FmtArgs {
@@ -134,8 +134,8 @@ fn test_fmt_check_mode_returns_nonzero_on_change() {
 fn test_fmt_formats_valid_files_when_other_files_error() {
     // set up one valid file and one invalid file
     let program = TestProgram::new("fmt_mixed_errors");
-    let good_path = program.write_text("good.ds", "const answer=42");
-    let bad_path = program.write_text("bad.ds", "const broken =");
+    let good_path = program.write_text("good.tspp", "const answer=42");
+    let bad_path = program.write_text("bad.tspp", "const broken =");
 
     // build formatter args for explicit files
     let args = FmtArgs {
@@ -172,8 +172,8 @@ fn test_fmt_formats_valid_files_when_other_files_error() {
 fn test_fmt_payload_includes_changed_and_error_files() {
     // set up one valid and one invalid source file
     let program = TestProgram::new("fmt_payload_lists");
-    let good_path = program.write_text("good.ds", "const answer=42");
-    let bad_path = program.write_text("bad.ds", "const broken =");
+    let good_path = program.write_text("good.tspp", "const answer=42");
+    let bad_path = program.write_text("bad.tspp", "const broken =");
 
     // build workspace command options
     let common = CommandOptionsBuilder::new(&program.program_args())

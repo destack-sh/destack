@@ -1,6 +1,6 @@
-use destack_core::Color;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::Color;
+use tspp_serde::Reflect;
 
 /// The level of a diagnostic.
 #[derive(

@@ -1,11 +1,11 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use crate::{
     AssignOperator, Asynchrony, Block, CatchClause, Declaration, Declarator, DependencyItem,
     Expression, LocalNodeId, Mutability, Node, NodeType, Pattern, Property, StringId, SwitchCase,
 };
-use destack_source::ModuleId;
+use tspp_source::ModuleId;
 
 /// The kind of one dependency attribute clause.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect)]

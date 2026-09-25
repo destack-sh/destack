@@ -75,7 +75,7 @@ impl ConsoleArgs {
 /// Root CLI arguments for destack.
 #[derive(Parser, Debug)]
 #[command(
-    name = "destack",
+    name = "tspp",
     version,
     about = "Destack is a universal software engine for building correct, optimal, integrated software systems.",
     long_about = None,
@@ -162,7 +162,7 @@ pub enum Command {
     /// Start the language server (for editor integration).
     Lsp(LspArgs),
 
-    /// Manage the Destack daemon.
+    /// Manage the TS++ daemon.
     Daemon(DaemonArgs),
 
     /// Developer commands (compiler inspection, version management).
@@ -250,7 +250,7 @@ fn build_before_help(color_enabled: bool) -> StyledStr {
         return text;
     }
 
-    text.push_str("destack\n");
+    text.push_str("tspp\n");
     text.push_str(&format!(
         "Destack is a universal software engine for building correct, optimal, integrated software systems ({version})",
     ));
@@ -274,7 +274,7 @@ fn build_commands_help(color_enabled: bool) -> String {
     let entries = vec![
         CommandEntry {
             name: "run",
-            example: "./src/main.ds",
+            example: "./src/main.tspp",
             help: None,
             group: 0,
         },
@@ -286,7 +286,7 @@ fn build_commands_help(color_enabled: bool) -> String {
         },
         CommandEntry {
             name: "build",
-            example: "./src/main.ds",
+            example: "./src/main.tspp",
             help: None,
             group: 0,
         },

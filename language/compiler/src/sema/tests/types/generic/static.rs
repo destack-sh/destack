@@ -15,7 +15,7 @@ const read = Holder<int32>.zero;
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Holder<out T: Copy> {
     value: T;
@@ -70,7 +70,7 @@ const read = Registry<int32>.fallback;
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Registry<out T: Copy> {
     value: T;
@@ -124,7 +124,7 @@ struct Meter {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 declare function measure(): int32;
 
@@ -166,7 +166,7 @@ const read = Wrapper<int32>.fallback;
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Wrapper<out T: Copy> {
     value: T;
@@ -222,7 +222,7 @@ const read = Holder.zero;
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Holder<out T: Copy> {
     value: T;
@@ -277,7 +277,7 @@ const fallback: int32 | undefined = Registry.fallback;
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Registry<out T: Copy> {
     value: T;
@@ -341,7 +341,7 @@ const read = Pair.first(1);
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 class Pair<in out A, in out B> {
     left: A;
@@ -463,7 +463,7 @@ const read = Pair.first(1);
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 class Pair<in out A, in out B = string> {
     left: A;

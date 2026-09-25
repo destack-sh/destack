@@ -1,142 +1,142 @@
-// SYNTAX TEST "source.dsm"
+// SYNTAX TEST "source.tsppm"
 
 function fib(v0: int64): int64 {
-// <- keyword.declaration.function.dsm
-//       ^^^ entity.name.function.dsm
-//           ^^ variable.other.ssa.dsm
-//               ^^^^^ support.type.dsm
-//                       ^^^^^ support.type.dsm
+// <- keyword.declaration.function.tsppm
+//       ^^^ entity.name.function.tsppm
+//           ^^ variable.other.ssa.tsppm
+//               ^^^^^ support.type.tsppm
+//                       ^^^^^ support.type.tsppm
 
 bb0(v0: int64):
-// <- entity.name.label.dsm
-//  ^^ variable.other.ssa.dsm
-//      ^^^^^ support.type.dsm
+// <- entity.name.label.tsppm
+//  ^^ variable.other.ssa.tsppm
+//      ^^^^^ support.type.tsppm
 
     v1: int64 = const 2int64
-//  ^^ variable.other.ssa.dsm
-//      ^^^^^ support.type.dsm
-//              ^^^^^ keyword.operator.instruction.dsm
-//                    ^^^^^^ constant.numeric.dsm
+//  ^^ variable.other.ssa.tsppm
+//      ^^^^^ support.type.tsppm
+//              ^^^^^ keyword.operator.instruction.tsppm
+//                    ^^^^^^ constant.numeric.tsppm
 
     v2: boolean = int.lt.s v0, v1
-//  ^^ variable.other.ssa.dsm
-//      ^^^^^^^ support.type.dsm
-//                ^^^^^^^^ keyword.operator.instruction.dsm
+//  ^^ variable.other.ssa.tsppm
+//      ^^^^^^^ support.type.tsppm
+//                ^^^^^^^^ keyword.operator.instruction.tsppm
 
     branch v2, bb1, bb2
-//  ^^^^^^ keyword.control.flow.dsm
-//             ^^^ entity.name.label.dsm
-//                  ^^^ entity.name.label.dsm
+//  ^^^^^^ keyword.control.flow.tsppm
+//             ^^^ entity.name.label.tsppm
+//                  ^^^ entity.name.label.tsppm
 
     store v0, v1
-//  ^^^^^ keyword.operator.instruction.dsm
+//  ^^^^^ keyword.operator.instruction.tsppm
 
     local.set v0, v1
-//  ^^^^^^^^^ keyword.operator.instruction.dsm
+//  ^^^^^^^^^ keyword.operator.instruction.tsppm
 
     v6: slice<(int64, int64) -> int64> = new.slice.zeroed (int64, int64) -> int64, v5
-//      ^^^ support.type.dsm
-//                                       ^^^^^^^^^ keyword.operator.instruction.dsm
+//      ^^^ support.type.tsppm
+//                                       ^^^^^^^^^ keyword.operator.instruction.tsppm
 
     v7: int64 = const -1int64
-//                    ^^^^^^^ constant.numeric.dsm
+//                    ^^^^^^^ constant.numeric.tsppm
 
     local local0: ref<int64, copy>
-//  ^^^^^ keyword.declaration.dsm
-//        ^^^^^^ variable.other.local.dsm
-//                           ^^^^ keyword.other.memory.dsm
+//  ^^^^^ keyword.declaration.tsppm
+//        ^^^^^^ variable.other.local.tsppm
+//                           ^^^^ keyword.other.memory.tsppm
 
     v8: ref<int64, copy> = local.get local0
-//  ^^ variable.other.ssa.dsm
-//                         ^^^^^^^^^ keyword.operator.instruction.dsm
-//                                   ^^^^^^ variable.other.local.dsm
+//  ^^ variable.other.ssa.tsppm
+//                         ^^^^^^^^^ keyword.operator.instruction.tsppm
+//                                   ^^^^^^ variable.other.local.tsppm
 
     function.address function0
-//  ^^^^^^^^^^^^^^^^ keyword.operator.instruction.dsm
-//                   ^^^^^^^^^ entity.name.function.dsm
+//  ^^^^^^^^^^^^^^^^ keyword.operator.instruction.tsppm
+//                   ^^^^^^^^^ entity.name.function.tsppm
 
     call print(v0)
-//  ^^^^ keyword.operator.instruction.dsm
+//  ^^^^ keyword.operator.instruction.tsppm
 
     intrinsic.memset(v0, v1)
-//  ^^^^^^^^^^^^^^^^ keyword.operator.instruction.dsm
+//  ^^^^^^^^^^^^^^^^ keyword.operator.instruction.tsppm
 
 // comment
-// <- comment.line.double-slash.dsm
+// <- comment.line.double-slash.tsppm
 }
 
 external function @host.print(v0: ref<borrowed vector<int32, 4>>) -> void
-// <- keyword.declaration.dsm
-//                                ^^^ support.type.dsm
-//                                    ^^^^^^^^ keyword.other.memory.dsm
-//                                             ^^^^^^ support.type.dsm
+// <- keyword.declaration.tsppm
+//                                ^^^ support.type.tsppm
+//                                    ^^^^^^^^ keyword.other.memory.tsppm
+//                                             ^^^^^^ support.type.tsppm
 
 function @refs(v0: ref<int32, managed, nullable>) -> typeDescriptor {
-//                 ^^^ support.type.dsm
-//                            ^^^^^^^ keyword.other.memory.dsm
-//                                     ^^^^^^^^ keyword.other.memory.dsm
+//                 ^^^ support.type.tsppm
+//                            ^^^^^^^ keyword.other.memory.tsppm
+//                                     ^^^^^^^^ keyword.other.memory.tsppm
 }
 
 function @unique(v0: ref<int32, unique, readonly>) -> void {
-//                              ^^^^^^ keyword.other.memory.dsm
-//                                      ^^^^^^^^ keyword.other.memory.dsm
+//                              ^^^^^^ keyword.other.memory.tsppm
+//                                      ^^^^^^^^ keyword.other.memory.tsppm
 }
 
 function @raw(v0: ref<int32, raw, space(shared)>) -> void {
-//                           ^^^ keyword.other.memory.dsm
-//                                ^^^^^ support.type.dsm
+//                           ^^^ keyword.other.memory.tsppm
+//                                ^^^^^ support.type.tsppm
 }
 
 function @borrow(v0: ref<int32, borrowed, lifetime(0)>) -> void {
-//                              ^^^^^^^^ keyword.other.memory.dsm
+//                              ^^^^^^^^ keyword.other.memory.tsppm
 }
 
 type @AtomicCounter = atomic<uint32>;
-//                    ^^^^^^ support.type.dsm
-//                           ^^^^^^ support.type.dsm
+//                    ^^^^^^ support.type.tsppm
+//                           ^^^^^^ support.type.tsppm
 
 type @Outcome = variant<uint8> {
-//              ^^^^^^^ support.type.dsm
-//                      ^^^^^ support.type.dsm
+//              ^^^^^^^ support.type.tsppm
+//                      ^^^^^ support.type.tsppm
     0uint8 = int32;
-//  ^^^^^^ constant.numeric.dsm
+//  ^^^^^^ constant.numeric.tsppm
 }
 
 export global @COUNTER: ref<raw const int64>
-// <- keyword.declaration.dsm
-//            ^^^^^^^^ entity.name.symbol.dsm
-//                          ^^^ keyword.other.memory.dsm
-//                              ^^^^^ keyword.other.memory.dsm
+// <- keyword.declaration.tsppm
+//            ^^^^^^^^ entity.name.symbol.tsppm
+//                          ^^^ keyword.other.memory.tsppm
+//                              ^^^^^ keyword.other.memory.tsppm
 
 function @tokens(v0: ref<int64, raw>, v1: ref<dynamic<@Iface>, owned>) -> void {
 entry0(v0: ref<int64, raw>):
     jump block1
-//  ^^^^ keyword.control.flow.dsm
+//  ^^^^ keyword.control.flow.tsppm
 block1:
     switch v0, block2, block3
-//  ^^^^^^ keyword.control.flow.dsm
+//  ^^^^^^ keyword.control.flow.tsppm
 block2:
     tailCall.virtual @Klass.method(v0) -> (int64) -> void
-//  ^^^^^^^^^^^^^^^^ keyword.operator.instruction.dsm
+//  ^^^^^^^^^^^^^^^^ keyword.operator.instruction.tsppm
     call.dynamic @Iface.method(v0) -> (int64) -> void
-//  ^^^^^^^^^^^^ keyword.operator.instruction.dsm
+//  ^^^^^^^^^^^^ keyword.operator.instruction.tsppm
     call.indirect v0(v1) -> (int64) -> void
-//  ^^^^^^^^^^^^^ keyword.operator.instruction.dsm
+//  ^^^^^^^^^^^^^ keyword.operator.instruction.tsppm
     v2: boolean = select true, false, true
-//                ^^^^^^ keyword.operator.instruction.dsm
-//                       ^^^^ constant.language.boolean.dsm
-//                             ^^^^^ constant.language.boolean.dsm
+//                ^^^^^^ keyword.operator.instruction.tsppm
+//                       ^^^^ constant.language.boolean.tsppm
+//                             ^^^^^ constant.language.boolean.tsppm
     call @log("line\\nvalue", 'x')
-//       ^^^^ entity.name.symbol.dsm
-//            ^^^^^^^^^^^^^^ string.quoted.double.dsm
-//                            ^^^ constant.character.quoted.single.dsm
+//       ^^^^ entity.name.symbol.tsppm
+//            ^^^^^^^^^^^^^^ string.quoted.double.tsppm
+//                            ^^^ constant.character.quoted.single.tsppm
 block3:
     panic
-//  ^^^^^ keyword.control.flow.dsm
+//  ^^^^^ keyword.control.flow.tsppm
     panic.resume
-//  ^^^^^^^^^^^^ keyword.control.flow.dsm
+//  ^^^^^^^^^^^^ keyword.control.flow.tsppm
     trap.abort
-//  ^^^^^^^^^^ keyword.control.flow.dsm
+//  ^^^^^^^^^^ keyword.control.flow.tsppm
     unreachable
-//  ^^^^^^^^^^^ keyword.control.flow.dsm
+//  ^^^^^^^^^^^ keyword.control.flow.tsppm
 }

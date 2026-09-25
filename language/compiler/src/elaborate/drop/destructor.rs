@@ -1,6 +1,6 @@
-use destack_core::StringPool;
-use destack_mir as mir;
-use destack_source::ModuleId;
+use tspp_core::StringPool;
+use tspp_mir as mir;
+use tspp_source::ModuleId;
 
 use super::DestructorBody;
 

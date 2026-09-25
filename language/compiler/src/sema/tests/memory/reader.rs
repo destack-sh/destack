@@ -32,7 +32,7 @@ const viewIncludes = view.includes(1);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -265,7 +265,7 @@ const viewTrimmed = view.trim();
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -425,7 +425,7 @@ const viewTrimmed = view.trim();
 fn test_read_map_and_set_readers_through_every_receiver_form() {
     let session = TestSession::single(
         r#"
-import { Map, Set } from "destack:collections";
+import { Map, Set } from "tspp:collections";
 
 declare const ownedMap: ^Map<string, int32>;
 declare const managedMap: Map<string, int32>;
@@ -451,11 +451,11 @@ const viewSetHas = viewSet.has(1);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Map, Set } from "destack:collections";
+import { Map, Set } from "tspp:collections";
 
 declare const ownedMap: ^Map<string, int32, Equality<string>>;
 declare const managedMap: Map<string, int32, Equality<string>>;
@@ -502,7 +502,7 @@ const viewSetSize: usize = viewSet.size;
 const viewSetHas: boolean = viewSet.has<int32, Equality<int32>, int32, "readonly", "static">(1);
 
 === dir ===
-import { Map, Set } from "destack:collections";
+import { Map, Set } from "tspp:collections";
 
 declare const ownedMap: ^Map<string, int32>;
 /// @type.symbol symbol=ownedMap source=ownedMap type=^Map<string, int32, Equality<string>>
@@ -692,7 +692,7 @@ function mutate(owned: ^Counter, managed: Counter, borrowed: &Counter, view: &re
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -899,7 +899,7 @@ takeText("a");
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===

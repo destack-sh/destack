@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::{ModuleId, Span};
+use tspp_dir as dir;
+use tspp_source::{ModuleId, Span};
 
 use crate::sema::{Bound, CheckId, CheckState, ExpectedType, Origin, Relation};
 
@@ -203,7 +203,7 @@ impl<'a, 'b> EventFormatter<'a, 'b> {
 
     /// Return a compact URI label.
     fn uri_label(&self, uri: &str) -> String {
-        uri.strip_prefix("destack://")
+        uri.strip_prefix("tspp://")
             .map(|path| format!("/{path}"))
             .unwrap_or_else(|| uri.to_string())
     }

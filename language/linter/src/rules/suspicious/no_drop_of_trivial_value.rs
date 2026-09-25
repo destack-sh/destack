@@ -1,6 +1,6 @@
 use crate::rules::declare_lint;
 use crate::{Lint, LintOutput, LintResult, MirModule};
-use destack_mir as mir;
+use tspp_mir as mir;
 
 declare_lint! {
     /// Disallow dropping values without destructors.
@@ -13,14 +13,14 @@ Instead, you SHOULD remove the call or use a narrower scope when ownership must 
 "#,
         example: {
             reported: r#"
-import { drop } from "destack:memory";
+import { drop } from "tspp:memory";
 
 function discard(value: int32): void {
     drop(value);
 }
 "#,
             accepted: r#"
-import { Drop, drop } from "destack:memory";
+import { Drop, drop } from "tspp:memory";
 
 struct Subscription implements Drop {
     drop(&this): void {}
@@ -107,7 +107,7 @@ mod tests {
 
         session.assert_diagnostics(
             r#"warning[no-drop-of-trivial-value]: value requires no destruction
- ──▶ main.ds:4:5
+ ──▶ main.tspp:4:5
   │
 2 │
 3 │ function discard(value: int32): void {
@@ -183,7 +183,7 @@ warning[no-drop-of-trivial-value]: value requires no destruction
         let session = TestSession::dir(
             &NO_DROP_OF_TRIVIAL_VALUE,
             r#"
-import { drop } from "destack:memory";
+import { drop } from "tspp:memory";
 
 struct Point {
     x: int32;
@@ -198,7 +198,7 @@ function discard(value: Point): void {
 
         session.assert_diagnostics(
             r#"warning[no-drop-of-trivial-value]: value requires no destruction
-  ──▶ main.ds:9:5
+  ──▶ main.tspp:9:5
    │
  7 │
  8 │ function discard(value: Point): void {
@@ -227,7 +227,7 @@ function discard(value: Point): void {
         let session = TestSession::dir(
             &NO_DROP_OF_TRIVIAL_VALUE,
             r#"
-import { drop } from "destack:memory";
+import { drop } from "tspp:memory";
 
 class Plain {
     value: int32 = 0;
@@ -248,7 +248,7 @@ function release(value: Plain): void {
         let session = TestSession::dir(
             &NO_DROP_OF_TRIVIAL_VALUE,
             r#"
-import { Drop, drop } from "destack:memory";
+import { Drop, drop } from "tspp:memory";
 
 struct Subscription {
     handle: int32;
@@ -273,7 +273,7 @@ function unsubscribe(value: Subscription): void {
         let session = TestSession::dir(
             &NO_DROP_OF_TRIVIAL_VALUE,
             r#"
-import { Drop, drop } from "destack:memory";
+import { Drop, drop } from "tspp:memory";
 
 struct Producer<T> implements Drop {
     value: T;
@@ -296,7 +296,7 @@ function unsubscribe(producer: Producer<int32>): void {
         let session = TestSession::dir(
             &NO_DROP_OF_TRIVIAL_VALUE,
             r#"
-import { Drop, drop } from "destack:memory";
+import { Drop, drop } from "tspp:memory";
 
 class Session implements Drop {
     drop(&this): void {}

@@ -2,7 +2,7 @@
   "name": "tree-sitter-mir",
   "private": true,
   "version": "2026.9.0",
-  "description": "Destack MIR grammar for tree-sitter",
+  "description": "TS++ MIR grammar for tree-sitter",
   "license": "MIT",
   "type": "commonjs"
 }

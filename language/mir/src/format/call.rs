@@ -1,6 +1,6 @@
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::*;
-use destack_fir::write;
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::*;
+use tspp_fir::write;
 
 use super::r#type::{format_function_signature, format_generic_arguments};
 use super::value::{format_function_id, format_type_id};

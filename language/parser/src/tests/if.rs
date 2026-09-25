@@ -1,8 +1,8 @@
-use destack_dir::{
+use tspp_dir::{
     BinaryOperator, Block, CommentKind, ConditionOperand, Declaration, Declarator, Expression,
     FunctionDeclaration, FunctionForm, LetKind, Literal, Mutability, Pattern, PatternField,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::{
     TestParser, assert_comment, assert_expression_path, assert_name, assert_node, assert_string,

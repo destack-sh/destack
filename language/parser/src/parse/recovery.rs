@@ -3,11 +3,11 @@ use crate::parse::{
     DECLARATION_START_TOKENS, ExpressionPosition, ExpressionStop, TokenMode, TypePosition, TypeStop,
 };
 use crate::{ParseStart, Parser, ParserError, ParserResult, TokenProbe};
-use destack_dir::{
+use tspp_dir::{
     Expression, Keyword, LocalNodeId, NodeType, TokenSpan, TokenType, TreeAttribute, TreeChild,
     TypeExpression,
 };
-use destack_source::ByteRange;
+use tspp_source::ByteRange;
 
 /// The declaration form allowed to remain inside the current parser container.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

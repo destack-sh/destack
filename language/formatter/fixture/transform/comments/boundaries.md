@@ -8,12 +8,12 @@ Comment boundary fixtures cover comments placed between neighboring syntax nodes
 
 Line comments before optional calls stay attached to the full call.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = target // opt-call
 ?.()
 ```
 
-```ds expected
+```tspp expected
 const value = target?.(); // opt-call
 ```
 
@@ -21,11 +21,11 @@ const value = target?.(); // opt-call
 
 Block comments before optional calls stay attached at the call boundary.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = target /* opt-call */ ?.()
 ```
 
-```ds expected
+```tspp expected
 const value = target /* opt-call */?.();
 ```
 
@@ -33,14 +33,14 @@ const value = target /* opt-call */?.();
 
 Trailing comments on the last argument stay with that argument.
 
-```ds:main.ds
+```tspp:main.tspp
 call(
   value,
   other // last-arg
 )
 ```
 
-```ds expected
+```tspp expected
 call(
     value,
     other, // last-arg
@@ -51,11 +51,11 @@ call(
 
 Inline comments between member hops stay attached to the same hop.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = source /* hop-a */ .first() /* hop-b */ .second()
 ```
 
-```ds expected
+```tspp expected
 const value = source /* hop-a */
     .first() /* hop-b */
     .second();
@@ -67,12 +67,12 @@ const value = source /* hop-a */
 
 Line comments on if heads stay with the condition line.
 
-```ds:main.ds
+```tspp:main.tspp
 if (ready) // if-head
     run()
 ```
 
-```ds expected
+```tspp expected
 if (ready)
     // if-head
     run();
@@ -82,7 +82,7 @@ if (ready)
 
 Boundary comments between if and else stay on the boundary.
 
-```ds:main.ds
+```tspp:main.tspp
 if (ready) {
   run()
 }
@@ -92,7 +92,7 @@ else {
 }
 ```
 
-```ds expected
+```tspp expected
 if (ready) {
     run()
 }
@@ -106,13 +106,13 @@ else {
 
 Trailing comments on return expressions stay on the return line.
 
-```ds:main.ds
+```tspp:main.tspp
 function run() {
   return compute() // return-tail
 }
 ```
 
-```ds expected
+```tspp expected
 function run() {
     return compute(); // return-tail
 }
@@ -124,7 +124,7 @@ function run() {
 
 Comments before, inside, and after control expressions in argument position keep their attachment.
 
-```ds
+```tspp
 render(
     // state
     if (ready) {
@@ -143,7 +143,7 @@ render(
 )
 ```
 
-```ds expected
+```tspp expected
 render(
     // state
     if (ready) {
@@ -166,7 +166,7 @@ render(
 
 Comments around control expressions in collection slots keep their attachment.
 
-```ds
+```tspp
 const values = [
     // selected
     if (ready) {
@@ -186,7 +186,7 @@ const values = [
 ]
 ```
 
-```ds expected
+```tspp expected
 const values = [
     // selected
     if (ready) {
@@ -210,14 +210,14 @@ const values = [
 
 Trailing comments on `break` stay attached to the break statement.
 
-```ds:main.ds
+```tspp:main.tspp
 while (running) {
   if (done) break // break-tail
   tick()
 }
 ```
 
-```ds expected
+```tspp expected
 while (running) {
     if (done) break; // break-tail
     tick();
@@ -228,14 +228,14 @@ while (running) {
 
 Trailing comments on `continue` stay attached to the continue statement.
 
-```ds:main.ds
+```tspp:main.tspp
 for (const item of items) {
   if (!item) continue // continue-tail
   use(item)
 }
 ```
 
-```ds expected
+```tspp expected
 for (const item of items) {
     if (!item) continue; // continue-tail
     use(item);
@@ -246,7 +246,7 @@ for (const item of items) {
 
 Case boundary comments stay attached to the same case block.
 
-```ds:main.ds
+```tspp:main.tspp
 switch (state) {
   // before-ready
   case "ready":
@@ -257,7 +257,7 @@ switch (state) {
 }
 ```
 
-```ds expected
+```tspp expected
 switch (state) {
     // before-ready
     case "ready":
@@ -274,7 +274,7 @@ switch (state) {
 
 Comments around array elements keep source order.
 
-```ds:main.ds
+```tspp:main.tspp
 const list = [
   first, // first-tail
   /* second-head */ second,
@@ -282,7 +282,7 @@ const list = [
 ]
 ```
 
-```ds expected
+```tspp expected
 const list = [
     first, // first-tail
     /* second-head */ second,
@@ -294,14 +294,14 @@ const list = [
 
 Trailing property comments stay with the same property.
 
-```ds:main.ds
+```tspp:main.tspp
 const config = {
   first: 1, // first-tail
   second: 2 /* second-tail */
 }
 ```
 
-```ds expected
+```tspp expected
 const config = {
     first: 1, // first-tail
     second: 2 /* second-tail */,
@@ -314,12 +314,12 @@ const config = {
 
 Line comments between union arms stay between the same arms.
 
-```ds:main.ds line-width=24
+```tspp:main.tspp line-width=24
 type Value = First | // union-line
     Second | Third
 ```
 
-```ds expected
+```tspp expected
 type Value =
     | First // union-line
     | Second
@@ -330,11 +330,11 @@ type Value =
 
 Block comments between union arms stay between the same arms.
 
-```ds:main.ds line-width=24
+```tspp:main.tspp line-width=24
 type Value = First /* union-block */ | Second
 ```
 
-```ds expected
+```tspp expected
 type Value =
     | First /* union-block */
     | Second;
@@ -344,12 +344,12 @@ type Value =
 
 Line comments between intersection members stay between the same members.
 
-```ds:main.ds line-width=24
+```tspp:main.tspp line-width=24
 type Value = First & // intersection-line
     Second
 ```
 
-```ds expected
+```tspp expected
 type Value = First & // intersection-line
     Second;
 ```
@@ -360,12 +360,12 @@ type Value = First & // intersection-line
 
 Comments around strict directives keep adjacency semantics.
 
-```ds:main.ds
+```tspp:main.tspp
 /******/ "use strict" /**/
 /******/ run()
 ```
 
-```ds expected
+```tspp expected
 /******/ "use strict"; /**/
 /******/ run();
 ```
@@ -376,12 +376,12 @@ Comments around strict directives keep adjacency semantics.
 
 Specifier comments stay attached to the same import specifier.
 
-```ds:main.ds
+```tspp:main.tspp
 import { first, // first-spec
 second } from "mod"
 ```
 
-```ds expected
+```tspp expected
 import {
     first, // first-spec
     second,
@@ -392,14 +392,14 @@ import {
 
 Specifier comments stay attached to the same export specifier.
 
-```ds:main.ds
+```tspp:main.tspp
 export {
   first, // first-export
   second
 }
 ```
 
-```ds expected
+```tspp expected
 export {
     first, // first-export
     second,
@@ -412,7 +412,7 @@ export {
 
 Boundary comments in try and catch blocks stay attached to the same statement line.
 
-```ds:main.ds
+```tspp:main.tspp
 try {
   run() // try-tail
 } catch (error) {
@@ -420,7 +420,7 @@ try {
 }
 ```
 
-```ds expected
+```tspp expected
 try {
     run() // try-tail
 } catch (error) {
@@ -432,13 +432,13 @@ try {
 
 Trailing comments on yield expressions stay attached to the yield expression line.
 
-```ds:main.ds
+```tspp:main.tspp
 function* run() {
   yield value // yield-tail
 }
 ```
 
-```ds expected
+```tspp expected
 function* run() {
     yield value; // yield-tail
 }
@@ -448,14 +448,14 @@ function* run() {
 
 Trailing comments on class properties stay attached to the same property.
 
-```ds:main.ds
+```tspp:main.tspp
 class Box {
   first = 1 // first-tail
   second = 2 // second-tail
 }
 ```
 
-```ds expected
+```tspp expected
 class Box {
     first = 1; // first-tail
     second = 2; // second-tail
@@ -466,14 +466,14 @@ class Box {
 
 Comments in assignment patterns stay attached to the same pattern segment.
 
-```ds:main.ds
+```tspp:main.tspp
 const {
   first = fallbackA, // assign-a
   second = fallbackB // assign-b
 } = source
 ```
 
-```ds expected
+```tspp expected
 const {
     first = fallbackA, // assign-a
     second = fallbackB, // assign-b
@@ -488,11 +488,11 @@ Expression boundary fixtures cover comments inside expression formatting.
 
 Inline comments in ternary branches stay attached to branch expressions.
 
-```ds:main.ds line-width=40
+```tspp:main.tspp line-width=40
 const value = cond ? left /* left-note */ : right /* right-note */
 ```
 
-```ds expected
+```tspp expected
 const value = cond
     ? left /* left-note */
     : right; /* right-note */
@@ -502,12 +502,12 @@ const value = cond
 
 Line comments in ternary alternates stay attached to alternates.
 
-```ds:main.ds line-width=30
+```tspp:main.tspp line-width=30
 const value = cond ? left : // alt-line
 right
 ```
 
-```ds expected
+```tspp expected
 const value = cond
     ? left
     : // alt-line
@@ -518,14 +518,14 @@ const value = cond
 
 Trailing comments on conditional arguments stay attached to the same argument.
 
-```ds:main.ds
+```tspp:main.tspp
 cb(
   overflowing ? "absolute top-0" : "relative", // conditional-tail
   parameter
 )
 ```
 
-```ds expected
+```tspp expected
 cb(
     overflowing ? "absolute top-0" : "relative", // conditional-tail
     parameter,
@@ -536,11 +536,11 @@ cb(
 
 Boundary comments around `new` expressions stay attached inside conditional branches.
 
-```ds:main.ds line-width=36
+```tspp:main.tspp line-width=36
 const value = cond ? new Left() /* left-new */ : new Right()
 ```
 
-```ds expected
+```tspp expected
 const value = cond
     ? new Left() /* left-new */
     : new Right();
@@ -552,11 +552,11 @@ const value = cond
 
 Comments at binary operator boundaries stay with the same operator group.
 
-```ds:main.ds line-width=40
+```tspp:main.tspp line-width=40
 const value = left + /* plus-note */ right + next
 ```
 
-```ds expected
+```tspp expected
 const value = left
     + /* plus-note */ right
     + next;
@@ -566,11 +566,11 @@ const value = left
 
 Comments after assignment right sides stay on assignment lines.
 
-```ds:main.ds
+```tspp:main.tspp
 value = compute() // assign-tail
 ```
 
-```ds expected
+```tspp expected
 value = compute(); // assign-tail
 ```
 
@@ -580,7 +580,7 @@ value = compute(); // assign-tail
 
 Boundary comments before first call arguments stay in call argument context.
 
-```ds:main.ds
+```tspp:main.tspp
 call(
   // first-arg
   first,
@@ -588,7 +588,7 @@ call(
 )
 ```
 
-```ds expected
+```tspp expected
 call(
     // first-arg
     first,
@@ -600,7 +600,7 @@ call(
 
 Intentional empty lines between call arguments are preserved.
 
-```ds:main.ds
+```tspp:main.tspp
 call(
   first,
 
@@ -608,7 +608,7 @@ call(
 )
 ```
 
-```ds expected
+```tspp expected
 call(
     first,
 
@@ -620,14 +620,14 @@ call(
 
 Inline block comments after arguments stay attached to those arguments.
 
-```ds:main.ds
+```tspp:main.tspp
 call(
   first /* first-inline */,
   second,
 )
 ```
 
-```ds expected
+```tspp expected
 call(first /* first-inline */, second);
 ```
 
@@ -635,7 +635,7 @@ call(first /* first-inline */, second);
 
 Trailing comments on callback arguments stay attached to that argument before the comma.
 
-```ds:main.ds
+```tspp:main.tspp
 call(
   () => {
     work()
@@ -644,7 +644,7 @@ call(
 )
 ```
 
-```ds expected
+```tspp expected
 call(
     () => {
         work()
@@ -659,13 +659,13 @@ call(
 
 Comments before optional chain operators stay on the preceding segment.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = source
   .first /* first-boundary */
   ?.second()
 ```
 
-```ds expected
+```tspp expected
 const value = source.first /* first-boundary */
     ?.second();
 ```
@@ -674,11 +674,11 @@ const value = source.first /* first-boundary */
 
 Comments before computed members stay attached to the preceding segment.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = source /* before-index */ [key]
 ```
 
-```ds expected
+```tspp expected
 const value = source /* before-index */[key];
 ```
 
@@ -688,11 +688,11 @@ const value = source /* before-index */[key];
 
 Comments between `new` callee and arguments stay at the call boundary.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = new Factory /* new-call */ (arg)
 ```
 
-```ds expected
+```tspp expected
 const value = new Factory(/* new-call */ arg);
 ```
 
@@ -702,11 +702,11 @@ const value = new Factory(/* new-call */ arg);
 
 Trailing comments near tagged template expressions stay attached to template expression lines.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = css`color: red;` // css-tail
 ```
 
-```ds expected
+```tspp expected
 const value = css`color: red;`; // css-tail
 ```
 
@@ -714,11 +714,11 @@ const value = css`color: red;`; // css-tail
 
 Comments inside template interpolations stay attached to interpolation expressions.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = `${source /* member-note */ .name}`
 ```
 
-```ds expected
+```tspp expected
 const value = `${source /* member-note */.name}`;
 ```
 
@@ -726,11 +726,11 @@ const value = `${source /* member-note */.name}`;
 
 Comments after unary minus stay attached to the unary expression.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = -/* unary-note */ 1
 ```
 
-```ds expected
+```tspp expected
 const value = -(/* unary-note */ 1);
 ```
 
@@ -738,12 +738,12 @@ const value = -(/* unary-note */ 1);
 
 Line comments after unary minus stay attached to the unary expression with stable multiline wrapping.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = -// unary-line-note
 1
 ```
 
-```ds expected
+```tspp expected
 const value = -(
     // unary-line-note
     1
@@ -754,14 +754,14 @@ const value = -(
 
 Label comments stay attached to the labeled statement body.
 
-```ds:main.ds
+```tspp:main.tspp
 start: // label-tail
 while (true) {
   break start
 }
 ```
 
-```ds expected
+```tspp expected
 // label-tail
 start: while (true) {
     break start;
@@ -774,11 +774,11 @@ start: while (true) {
 
 Callee boundary comments stay attached before call parentheses.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = run /* callee-note */ (first, second)
 ```
 
-```ds expected
+```tspp expected
 const value = run(/* callee-note */ first, second);
 ```
 
@@ -786,7 +786,7 @@ const value = run(/* callee-note */ first, second);
 
 Leading first argument comments stay in first argument positions during expansion.
 
-```ds:main.ds line-width=34
+```tspp:main.tspp line-width=34
 const value = compute(
   // first-note
   veryLongFirstArgument,
@@ -794,7 +794,7 @@ const value = compute(
 )
 ```
 
-```ds expected
+```tspp expected
 const value = compute(
     // first-note
     veryLongFirstArgument,
@@ -806,14 +806,14 @@ const value = compute(
 
 Tree first-argument comments stay attached to the same tree argument line.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = compute(
   <Card />, // first-tree
   second,
 )
 ```
 
-```ds expected
+```tspp expected
 const value = compute(
     <Card />, // first-tree
     second,
@@ -826,12 +826,12 @@ const value = compute(
 
 If condition trailing comments stay attached to the condition line.
 
-```ds:main.ds
+```tspp:main.tspp
 if (ready && enabled) // if-condition
   run()
 ```
 
-```ds expected
+```tspp expected
 if (ready && enabled)
     // if-condition
     run();
@@ -841,13 +841,13 @@ if (ready && enabled)
 
 Return statement trailing comments stay on return lines with nested calls.
 
-```ds:main.ds
+```tspp:main.tspp
 function run() {
   return compute(value) // return-note
 }
 ```
 
-```ds expected
+```tspp expected
 function run() {
     return compute(value); // return-note
 }
@@ -857,7 +857,7 @@ function run() {
 
 Try and catch expression comments stay attached to expression lines.
 
-```ds:main.ds
+```tspp:main.tspp
 try {
   run(value) // try-note
 } catch (error) {
@@ -865,7 +865,7 @@ try {
 }
 ```
 
-```ds expected
+```tspp expected
 try {
     run(value) // try-note
 } catch (error) {

@@ -1,5 +1,5 @@
-use destack_dir as dir;
 use dir::NodeVisitor as _;
+use tspp_dir as dir;
 
 use super::super::state::{BindState, BindingModifiers};
 

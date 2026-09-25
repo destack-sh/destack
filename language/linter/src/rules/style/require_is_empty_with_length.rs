@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -227,7 +227,7 @@ interface Sequence {
         session.assert_diagnostics(
             r#"
 warning[require-is-empty-with-length]: length property has no matching isEmpty query
- ──▶ main.ds:2:9
+ ──▶ main.tspp:2:9
   │
 1 │ interface Sequence {
 2 │     get length(): isize;
@@ -285,7 +285,7 @@ interface Sequence {
         session.assert_diagnostics(
             r#"
 warning[require-is-empty-with-length]: length property has no matching isEmpty query
- ──▶ main.ds:2:9
+ ──▶ main.tspp:2:9
   │
 1 │ interface Sequence {
 2 │     get length(): isize;
@@ -313,7 +313,7 @@ declare class Sequence {
         session.assert_diagnostics(
             r#"
 warning[require-is-empty-with-length]: length property has no matching isEmpty query
- ──▶ main.ds:2:9
+ ──▶ main.tspp:2:9
   │
 1 │ declare class Sequence {
 2 │     get length(): isize;

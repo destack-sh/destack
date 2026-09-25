@@ -14,7 +14,7 @@ const shapes: Shape[] = circles;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -71,7 +71,7 @@ const shapes: readonly Shape[] = circles;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -129,7 +129,7 @@ const widened: readonly (Circle | Square)[] = circles;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -195,7 +195,7 @@ const either: () => Circle | Square = make;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -266,7 +266,7 @@ declare class Evil<out T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -307,7 +307,7 @@ struct Sink<out T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -355,7 +355,7 @@ const copy: Box<Shape> = owned;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -426,7 +426,7 @@ declare class Reader<out T> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -462,7 +462,7 @@ const widened: { x: float64 } = point;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -510,7 +510,7 @@ const converted: { readonly x: float64 } = scalar;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -592,7 +592,7 @@ const useShape2: (shape: Shape) => void = useCircle2;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -667,7 +667,7 @@ const target: Handle<string> = source;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -729,7 +729,7 @@ class Holder {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -830,7 +830,7 @@ take(increment);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -885,7 +885,7 @@ forEach(async (value) => value);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -934,7 +934,7 @@ const widened: Box<Shape> = exact;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1023,7 +1023,7 @@ const widened: &readonly Box<Shape> = &readonly exact;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1112,7 +1112,7 @@ const widened: &Box<Shape> = &exact;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1196,7 +1196,7 @@ function widen<U, E, F>(result: Result<U, F>): Result<U, E | F> {
     );
 
     session.assert_diagnostics(
-        session.dir_checked_key("main.ds"),
+        session.dir_checked_key("main.tspp"),
         r#"
 /// @diagnostic.error id=return-not-assignable message="type 'Result<U, F>' is not assignable to the declared result type 'Result<U, E | F>'"
 /// @diagnostic.label line=3 column=12 span="result" line_source="return result;"

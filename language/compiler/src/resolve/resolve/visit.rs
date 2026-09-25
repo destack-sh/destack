@@ -1,6 +1,6 @@
-use destack_artifact::{DirExported, EnvironmentBound};
-use destack_dir as dir;
 use dir::NodeVisitor as _;
+use tspp_artifact::{DirExported, EnvironmentBound};
+use tspp_dir as dir;
 
 use crate::CompilerResult;
 use crate::resolve::state::ResolveState;
@@ -32,8 +32,8 @@ impl ResolveState<'_> {
     /// Walk active roots and collect references and language item uses.
     ///
     /// Example:
-    /// ```ds
-    /// import { value } from "./dep.ds";
+    /// ```tspp
+    /// import { value } from "./dep.tspp";
     ///
     /// value;
     /// ```
@@ -65,7 +65,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
     /// Visit one expression.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// dep.value;
     /// ```
     fn visit_expression(
@@ -99,7 +99,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
     /// Visit one type expression.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// let value: dep.Model;
     /// ```
     fn visit_type_expression(
@@ -115,7 +115,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
     /// Visit one declaration.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// async function load() {}
     /// ```
     fn visit_declaration(
@@ -139,7 +139,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
     /// Visit one object property.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// const service = {
     ///     async load() {}
     /// };
@@ -165,7 +165,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
     /// Visit one structural type member.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// type Service = {
     ///     load(): Promise<void>;
     /// };
@@ -186,7 +186,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
     /// Visit one class or interface member.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// class Service {
     ///     async load() {}
     /// }
@@ -212,7 +212,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
     /// Visit one pattern.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// const { name } = user;
     /// const [first] = users;
     /// ```
@@ -245,7 +245,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
     /// Visit one pattern field.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// const { [key]: value } = object;
     /// ```
     fn visit_pattern_field(
@@ -264,7 +264,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
     /// Visit one assignment pattern.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// [target] = values;
     /// ({ name: target } = user);
     /// ```
@@ -290,7 +290,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
     /// Visit one assignment pattern field.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// ({ [key]: target } = object);
     /// ```
     fn visit_assign_pattern_field(
@@ -309,7 +309,7 @@ impl dir::NodeVisitor for ResolveState<'_> {
     /// Visit one decorator.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// @trace
     /// function f() {}
     /// ```

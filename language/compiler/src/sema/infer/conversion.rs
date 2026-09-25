@@ -1,6 +1,6 @@
-use destack_dir as dir;
 use dir::TypeFold;
 use smallvec::SmallVec;
+use tspp_dir as dir;
 
 use crate::sema::{
     Answer, BorrowConversion, CandidateOutcome, CauseId, Check, CheckFailure, CheckOutcome,

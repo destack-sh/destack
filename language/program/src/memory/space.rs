@@ -1,11 +1,11 @@
 use std::mem::size_of;
 use std::sync::Arc;
 
-use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
-use destack_memory::{MemoryError, MemoryMap, MemoryRange, MemoryResult};
-use destack_native::abi;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
+use tspp_memory::{MemoryError, MemoryMap, MemoryRange, MemoryResult};
+use tspp_native::abi;
+use tspp_serde::Reflect;
 
 use crate::{Global, GlobalAddress, GlobalLocation};
 

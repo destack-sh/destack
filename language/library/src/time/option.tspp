@@ -1,0 +1,150 @@
+import { PlainDateLike } from "./plain-date.tspp";
+import { DateTimeUnit, LargestUnit, RoundingMode, SmallestUnit, TimeUnit } from "./unit.tspp";
+import { TimeZoneLike, ZonedDateTimeLike } from "./zoned-date-time.tspp";
+
+/// Date or zoned date-time used to interpret a duration.
+export type RelativeTo = PlainDateLike | ZonedDateTimeLike;
+
+/// Options for handling out-of-range Temporal fields.
+export type OverflowOptions = {
+    /// How to handle out-of-range values.
+    overflow?: "constrain" | "reject";
+};
+
+/// Options for resolving local times to instants.
+export type DisambiguationOptions = {
+    /// How to resolve nonexistent or ambiguous local times.
+    disambiguation?: "compatible" | "earlier" | "later" | "reject";
+};
+
+/// Options for resolving time-zone offsets.
+export type OffsetOptions = {
+    /// How to handle offsets embedded in parsed values.
+    offset?: "use" | "prefer" | "ignore" | "reject";
+};
+
+/// Options for creating a zoned date-time from fields or text.
+export type ZonedDateTimeFromOptions = OverflowOptions & DisambiguationOptions & OffsetOptions;
+
+/// Options for Temporal difference methods.
+export interface DifferenceOptions<T: DateTimeUnit> {
+    /// Smallest unit to include.
+    smallestUnit?: SmallestUnit<T>;
+
+    /// Largest unit to include.
+    largestUnit?: LargestUnit<T>;
+
+    /// Rounding increment for the smallest unit.
+    roundingIncrement?: number;
+
+    /// Rounding mode.
+    roundingMode?: RoundingMode;
+}
+
+/// Options for Temporal round methods.
+export type RoundTo<T: DateTimeUnit> =
+    | SmallestUnit<T>
+    | {
+          /// Smallest unit to include.
+          smallestUnit: SmallestUnit<T>;
+
+          /// Rounding increment for the smallest unit.
+          roundingIncrement?: number;
+
+          /// Rounding mode.
+          roundingMode?: RoundingMode;
+      };
+
+/// Options for `Duration.round`.
+export type DurationRoundTo =
+    | SmallestUnit<"day" | TimeUnit>
+    | (
+          | {
+                /// Smallest unit to include.
+                smallestUnit: SmallestUnit<DateTimeUnit>;
+
+                /// Largest unit to include.
+                largestUnit?: LargestUnit<DateTimeUnit>;
+            }
+          | {
+                /// Smallest unit to include.
+                smallestUnit?: SmallestUnit<DateTimeUnit>;
+
+                /// Largest unit to include.
+                largestUnit: LargestUnit<DateTimeUnit>;
+            }
+      ) & {
+          /// Rounding increment for the smallest unit.
+          roundingIncrement?: number;
+
+          /// Rounding mode.
+          roundingMode?: RoundingMode;
+
+          /// Relative date or zoned date-time.
+          relativeTo?: RelativeTo;
+      };
+
+/// Options for interpreting a duration relative to a date or time zone.
+export interface DurationRelativeToOptions {
+    /// Relative date or zoned date-time.
+    relativeTo?: RelativeTo;
+}
+
+/// Options for `Duration.total`.
+export type DurationTotalOf =
+    | SmallestUnit<"day" | TimeUnit>
+    | {
+          /// Unit to total into.
+          unit: SmallestUnit<DateTimeUnit>;
+
+          /// Relative date or zoned date-time.
+          relativeTo?: RelativeTo;
+      };
+
+/// Options for plain time and instant strings.
+export type TimeToStringOptions = {
+    /// Fractional second digit count.
+    fractionalSecondDigits?: "auto" | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+
+    /// Smallest unit to include.
+    smallestUnit?: SmallestUnit<"minute" | "second" | "millisecond" | "microsecond" | "nanosecond">;
+
+    /// Rounding mode.
+    roundingMode?: RoundingMode;
+};
+
+/// Options for duration strings.
+export type DurationToStringOptions = {
+    /// Fractional second digit count.
+    fractionalSecondDigits?: "auto" | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+
+    /// Smallest unit to include.
+    smallestUnit?: SmallestUnit<"second" | "millisecond" | "microsecond" | "nanosecond">;
+
+    /// Rounding mode.
+    roundingMode?: RoundingMode;
+};
+
+/// Options for calendar annotations in strings.
+export type PlainDateToStringOptions = {
+    /// Calendar annotation display mode.
+    calendarName?: "auto" | "always" | "never" | "critical";
+};
+
+/// Options for plain date-time strings.
+export type PlainDateTimeToStringOptions = TimeToStringOptions & PlainDateToStringOptions;
+
+/// Options for instant strings.
+export type InstantToStringOptions = TimeToStringOptions & {
+    /// Time zone used for rendering.
+    timeZone?: TimeZoneLike;
+};
+
+/// Options for zoned date-time strings.
+export type ZonedDateTimeToStringOptions = PlainDateTimeToStringOptions & {
+    /// Time-zone annotation display mode.
+    timeZoneName?: "auto" | "never" | "critical";
+
+    /// Offset display mode.
+    offset?: "auto" | "never";
+};

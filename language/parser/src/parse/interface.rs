@@ -2,16 +2,16 @@ use crate::parse::error::ParserResultExt;
 use crate::parse::{DeclarationHeader, TypeMemberContainerKind};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
-use destack_dir::{
+use tspp_dir::{
     Declaration, InterfaceDeclaration, Keyword, LocalNodeId, NodeType, TokenType, TypeKind,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
     /// Parse one structural or nominal interface declaration.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// interface Collection<T> extends Iterable<T> {}
     /// ```
     pub(crate) fn parse_interface(

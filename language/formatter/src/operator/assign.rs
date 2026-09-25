@@ -7,31 +7,31 @@ use crate::chain::{
     MemberChain, assignment_like_parent, is_assignment_chain_tail_lambda,
     transparent_inner_expression,
 };
-use crate::context::DestackFormatterSpeculationExt;
+use crate::context::TsppFormatterSpeculationExt;
 use crate::declaration::{FormatLambdaDeclarationOptions, format_lambda_declaration_with_options};
 use crate::expression::{
     ExpressionLeftPath, static_value_expression, write_expression_without_prefix_annotations,
 };
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{
+use crate::{TsppFormatContext, TsppFormatter};
+use tspp_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Comment,
     Declaration, Declarator, DecoratorPosition, Expression, FunctionDeclaration, FunctionForm,
     GenericArgument, Literal, LocalNodeId, NodeType, Pattern, PatternField, TemplateLiteral,
     TokenType, TypeExpression,
 };
-use destack_fir::format::{
+use tspp_fir::format::{
     Format, FormatError, FormatLayout, FormatResult, Formatter as FirFormatter, InstructionTape,
 };
-use destack_fir::prelude::{
+use tspp_fir::prelude::{
     empty_line, format_with, group, hard_line_break, indent, indent_if_group_breaks,
     line_suffix_boundary, soft_line_break_or_space, soft_line_indent_or_space, space, token,
 };
-use destack_fir::write;
-use destack_source::Span;
+use tspp_fir::write;
+use tspp_source::Span;
 
 /// Return whether one argument expression is short enough to keep a call attached.
 fn is_short_argument(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
     threshold: u32,
 ) -> bool {
@@ -45,7 +45,7 @@ fn is_short_argument(
 
 /// Return whether one expression is short enough to keep a call attached.
 fn is_short_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     threshold: u32,
 ) -> bool {
@@ -96,7 +96,7 @@ fn is_short_expression(
 
 /// Return whether one single type argument is complex for assignment-like layout.
 fn type_argument_is_complex(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     type_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     matches!(
@@ -109,7 +109,7 @@ fn type_argument_is_complex(
 
 /// Return whether one generic argument list is complex enough to break a call chain.
 fn is_complex_generic_arguments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     generic_arguments: &[LocalNodeId<GenericArgument>],
 ) -> FormatResult<bool> {
     // multiple arguments always count as complex in the assignment-like layout
@@ -163,7 +163,7 @@ fn is_complex_generic_arguments<'ast>(
         .context()
         .previous_token_before_span(argument_span)
         .map_or(argument_span.start, |token| token.span.start);
-    let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         super::r#type::format_generic_argument_list(f, generic_arguments)
     });
 
@@ -172,7 +172,7 @@ fn is_complex_generic_arguments<'ast>(
 
 /// Return whether one call or member chain is awkward to break inside an assignment layout.
 pub(crate) fn is_poorly_breakable_member_or_call_chain<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<bool> {
     let threshold = u32::from(f.context().options.line_width) / 4;
@@ -278,7 +278,7 @@ pub(crate) fn is_poorly_breakable_member_or_call_chain<'ast>(
 
 /// Return whether one expression has an own-line prefix annotation.
 fn assign_expression_has_own_line_prefix_annotation(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     context
@@ -306,7 +306,7 @@ fn is_assignment_operator_token(token_type: TokenType) -> bool {
 
 /// Return whether one expression has an inline prefix comment after an assignment operator.
 pub(crate) fn assignment_rhs_has_inline_operator_prefix_comment(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let mut left_path = Some(ExpressionLeftPath::new(transparent_inner_expression(
@@ -356,7 +356,7 @@ pub(crate) fn assignment_rhs_has_inline_operator_prefix_comment(
 
 /// Return whether one rhs expression is a class declaration.
 fn expression_is_class_declaration(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     matches!(
@@ -368,7 +368,7 @@ fn expression_is_class_declaration(
 
 /// Return whether one assignment operator has a slash line comment between left and right.
 pub(crate) fn assignment_operator_has_line_comment_between(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     left: LocalNodeId<AssignPattern>,
     right: LocalNodeId<Expression>,
 ) -> bool {
@@ -391,7 +391,7 @@ pub(crate) fn assignment_operator_has_line_comment_between(
 
 /// Return comments between one assignment operator and rhs expression.
 fn assignment_rhs_operator_comment_nodes(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     right: LocalNodeId<Expression>,
 ) -> Vec<Comment> {
     let right_span = context.span(right);
@@ -441,7 +441,7 @@ fn assignment_rhs_operator_comment_nodes(
 
 /// Return the simple expression target inside one assign-pattern, when one exists.
 pub(crate) fn assign_pattern_target_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     pattern_id: LocalNodeId<AssignPattern>,
 ) -> Option<LocalNodeId<Expression>> {
     match context.tree.get(pattern_id) {
@@ -462,7 +462,7 @@ pub(crate) fn assign_pattern_target_expression(
 
 /// Return whether one assign-pattern contains the expression.
 pub(crate) fn assign_pattern_contains_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     pattern_id: LocalNodeId<AssignPattern>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -487,7 +487,7 @@ pub(crate) fn assign_pattern_contains_expression(
 
 /// Return whether one assign-pattern field contains the expression.
 fn assign_pattern_field_contains_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     field_id: LocalNodeId<AssignPatternField>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -518,7 +518,7 @@ fn assign_pattern_field_contains_expression(
 
 /// Capture one assignment expression left side for layout selection.
 fn capture_assignment_expression_left<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     left: LocalNodeId<AssignPattern>,
     operator_span: Span,
 ) -> FormatResult<(InstructionTape<'ast>, bool, bool)> {
@@ -541,7 +541,7 @@ fn capture_assignment_expression_left<'ast>(
 
 /// Capture one declarator left side for layout selection.
 fn capture_declarator_left<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     declarator_id: LocalNodeId<Declarator>,
     pattern_id: LocalNodeId<Pattern>,
     type_id: Option<LocalNodeId<TypeExpression>>,
@@ -583,7 +583,7 @@ fn capture_declarator_left<'ast>(
 
 /// Return comments that syntactically trail the left side before the assignment operator.
 fn assignment_left_trailing_comments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     left_end: u32,
     operator_span: Span,
 ) -> Vec<Comment> {
@@ -599,7 +599,7 @@ fn assignment_left_trailing_comments(
 
 /// Write comments that syntactically trail the left side before the assignment operator.
 fn write_assignment_left_trailing_comments<'ast>(
-    f: &mut FirFormatter<'_, 'ast, DestackFormatContext<'ast>>,
+    f: &mut FirFormatter<'_, 'ast, TsppFormatContext<'ast>>,
     comments: &[Comment],
 ) -> FormatResult<()> {
     write!(f, [FormatTrailingComments::Comments(comments)])
@@ -607,7 +607,7 @@ fn write_assignment_left_trailing_comments<'ast>(
 
 /// Return whether one declarator pattern subtree contains one default assignment.
 fn declarator_pattern_has_default_assignment(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     pattern_id: LocalNodeId<Pattern>,
 ) -> bool {
     match context.tree.get(pattern_id) {
@@ -655,7 +655,7 @@ fn declarator_pattern_has_default_assignment(
 
 /// Return whether one declarator pattern field contains one default assignment.
 fn declarator_pattern_field_has_default_assignment(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     pattern_field_id: LocalNodeId<PatternField>,
 ) -> bool {
     match context.tree.get(pattern_field_id) {
@@ -684,7 +684,7 @@ fn declarator_pattern_field_has_default_assignment(
 
 /// Return whether one declarator pattern is complex enough to break its left side first.
 fn declarator_pattern_is_complex_destructuring(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     pattern_id: LocalNodeId<Pattern>,
 ) -> bool {
     match context.tree.get(pattern_id) {
@@ -725,7 +725,7 @@ fn declarator_pattern_is_complex_destructuring(
 
 /// Return whether one declarator object-pattern field makes the left side complex.
 fn declarator_pattern_field_is_complex_destructuring(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     pattern_field_id: LocalNodeId<PatternField>,
 ) -> bool {
     match context.tree.get(pattern_field_id) {
@@ -744,7 +744,7 @@ fn declarator_pattern_field_is_complex_destructuring(
 
 /// Return whether one declarator rhs is one lambda-like declaration.
 fn declarator_value_is_lambda_like(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let expression_id = transparent_inner_expression(context, expression_id);
@@ -760,7 +760,7 @@ fn declarator_value_is_lambda_like(
 
 /// Return whether one type expression contains generic arguments.
 fn declaration_type_expression_has_generic_arguments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     type_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     match context.tree.get(type_id) {
@@ -781,7 +781,7 @@ fn declaration_type_expression_has_generic_arguments(
 
 /// Return whether one declaration heritage clause contains generic arguments.
 fn declaration_has_generic_heritage(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     declaration_id: LocalNodeId<Declaration>,
 ) -> bool {
     match context.tree.get(declaration_id) {
@@ -822,7 +822,7 @@ fn declaration_has_generic_heritage(
 
 /// Return whether one declarator rhs wraps a class declaration with generic heritage.
 fn declarator_value_has_generic_class_heritage(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let expression_id = transparent_inner_expression(context, expression_id);
@@ -841,7 +841,7 @@ fn declarator_value_has_generic_class_heritage(
 
 /// Write comments between one assignment operator and rhs expression.
 pub(crate) fn write_assignment_rhs_operator_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     right: LocalNodeId<Expression>,
     omit_leading_separator: bool,
 ) -> FormatResult<()> {
@@ -922,7 +922,7 @@ pub(crate) fn write_assignment_rhs_operator_comments<'ast>(
 
 /// Write one declarator rhs while preserving inline operator prefix annotations.
 fn write_declarator_assignment_value<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     value_id: LocalNodeId<Expression>,
     layout: AssignmentLikeLayout,
     rhs_has_inline_operator_prefix_comment: bool,
@@ -981,7 +981,7 @@ fn write_declarator_assignment_value<'ast>(
 
 /// Write one expression with assignment-like layout routed into lambda declarations.
 fn write_expression_with_assignment_layout<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     layout: AssignmentLikeLayout,
     without_prefix_annotations: bool,
@@ -1040,7 +1040,7 @@ fn write_expression_with_assignment_layout<'ast>(
 
 /// Format one declarator assignment through the shared assignment-like owner.
 pub(crate) fn format_declarator_assignment<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     declarator_id: LocalNodeId<Declarator>,
 ) -> FormatResult<()> {
     AssignmentLike::Declarator(declarator_id).format(f)
@@ -1088,7 +1088,7 @@ enum AssignmentLike {
 
 impl AssignmentLike {
     /// Return the right-hand side expression when one exists.
-    fn right(self, context: &DestackFormatContext<'_>) -> Option<LocalNodeId<Expression>> {
+    fn right(self, context: &TsppFormatContext<'_>) -> Option<LocalNodeId<Expression>> {
         match self {
             AssignmentLike::Declarator(declarator_id) => context.tree.get(declarator_id).value,
             AssignmentLike::Expression { right, .. } => Some(right),
@@ -1098,7 +1098,7 @@ impl AssignmentLike {
     /// Capture the left side for layout selection.
     fn capture_left<'ast>(
         self,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<(InstructionTape<'ast>, bool, bool)> {
         match self {
             AssignmentLike::Declarator(declarator_id) => {
@@ -1122,7 +1122,7 @@ impl AssignmentLike {
     /// Select one layout for one assignment-like expression.
     fn layout<'ast>(
         self,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
         right: LocalNodeId<Expression>,
         is_left_short: bool,
         left_may_break: bool,
@@ -1233,7 +1233,7 @@ impl AssignmentLike {
     }
 
     /// Write the operator for one assignment-like expression.
-    fn write_operator<'ast>(self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+    fn write_operator<'ast>(self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             AssignmentLike::Declarator(_) => write!(f, [space(), token("=")]),
             AssignmentLike::Expression { left, operator, .. } => {
@@ -1254,7 +1254,7 @@ impl AssignmentLike {
     /// Write the right-hand side for one assignment-like expression.
     fn write_right<'ast>(
         self,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
         right: LocalNodeId<Expression>,
         layout: AssignmentLikeLayout,
     ) -> FormatResult<()> {
@@ -1267,10 +1267,10 @@ impl AssignmentLike {
         // attach the first line comment to the operator
         if has_inline_line_comment {
             let first_comment = comments[0];
-            let value = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            let value = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 self.write_right_value(f, right, layout, true, &[])
             });
-            let value = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            let value = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 write!(f, [hard_line_break(), value])
             });
 
@@ -1281,7 +1281,7 @@ impl AssignmentLike {
         }
 
         // write remaining operator comments with the value
-        let value = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let value = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             self.write_right_value(f, right, layout, has_inline_comment, &comments)
         });
 
@@ -1291,7 +1291,7 @@ impl AssignmentLike {
     /// Write the right-hand value and its operator comments.
     fn write_right_value<'ast>(
         self,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
         right: LocalNodeId<Expression>,
         layout: AssignmentLikeLayout,
         has_inline_comment: bool,
@@ -1313,7 +1313,7 @@ impl AssignmentLike {
     }
 
     /// Return one explicit chain layout when this expression is eligible.
-    fn chain_layout(self, context: &DestackFormatContext<'_>) -> Option<AssignmentLikeLayout> {
+    fn chain_layout(self, context: &TsppFormatContext<'_>) -> Option<AssignmentLikeLayout> {
         let AssignmentLike::Expression { node_id, right, .. } = self else {
             return None;
         };
@@ -1354,7 +1354,7 @@ impl AssignmentLike {
     /// Return whether the left side should break before the operator.
     fn should_break_left_hand_side(
         self,
-        context: &DestackFormatContext<'_>,
+        context: &TsppFormatContext<'_>,
         left_may_break: bool,
     ) -> bool {
         match self {
@@ -1393,7 +1393,7 @@ impl AssignmentLike {
     /// Return whether the operator should break before the rhs.
     fn should_break_after_operator<'ast>(
         self,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
         right: LocalNodeId<Expression>,
         is_left_short: bool,
     ) -> FormatResult<bool> {
@@ -1463,7 +1463,7 @@ impl AssignmentLike {
     }
 
     /// Format one assignment-like expression.
-    fn format<'ast>(self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format<'ast>(self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         // left side only
         let Some(right) = self.right(f.context()) else {
             let (left_instructions, _, _) = self.capture_left(f)?;
@@ -1480,7 +1480,7 @@ impl AssignmentLike {
         let (left_instructions, is_left_short, left_may_break) = self.capture_left(f)?;
         let layout = self.layout(f, right, is_left_short, left_may_break)?;
         let left = left_instructions.collapse();
-        let formatted_left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        let formatted_left = format_with(move |f: &mut TsppFormatter<'ast, '_>| {
             if let Some(left) = &left {
                 f.write_element(*left);
             }
@@ -1489,7 +1489,7 @@ impl AssignmentLike {
         });
 
         // content
-        let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             if layout == AssignmentLikeLayout::BreakLeftHandSide {
                 write!(f, [formatted_left])?;
             } else {
@@ -1511,9 +1511,9 @@ impl AssignmentLike {
 
 /// Write the right-hand side for one assignment-like layout.
 pub(crate) fn write_assignment_like_right<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     layout: AssignmentLikeLayout,
-    right: &impl Format<'ast, DestackFormatContext<'ast>>,
+    right: &impl Format<'ast, TsppFormatContext<'ast>>,
 ) -> FormatResult<()> {
     match layout {
         AssignmentLikeLayout::Fluid => {
@@ -1541,7 +1541,7 @@ pub(crate) fn write_assignment_like_right<'ast>(
 
 /// Return whether one rhs shape should prefer breaking after the operator.
 pub(crate) fn assignment_rhs_prefers_break_after_operator<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     right: LocalNodeId<Expression>,
     is_left_short: bool,
 ) -> FormatResult<bool> {
@@ -1598,7 +1598,7 @@ pub(crate) fn assignment_rhs_prefers_break_after_operator<'ast>(
 
 /// Return the innermost rhs expression after unwrapping unary-like expressions.
 fn assignment_rhs_innermost_expression<'a>(
-    context: &'a DestackFormatContext<'_>,
+    context: &'a TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> &'a Expression {
     let mut current_expression_id = expression_id;
@@ -1622,7 +1622,7 @@ fn assignment_rhs_innermost_expression<'a>(
 
 /// Return whether one assignment target is complex enough to break the left side.
 fn assignment_target_is_complex_destructuring(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     left: LocalNodeId<AssignPattern>,
 ) -> bool {
     let fields = match context.tree.get(left) {
@@ -1678,7 +1678,7 @@ fn assignment_target_is_complex_destructuring(
 
 /// Return whether one rhs expression stays attached to the assignment operator.
 fn assignment_rhs_is_compact(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     right: LocalNodeId<Expression>,
 ) -> bool {
     let right = transparent_inner_expression(context, right);
@@ -1694,7 +1694,7 @@ fn assignment_rhs_is_compact(
 
 /// Return whether one assignment rhs carries leading trivia that forces break-after-operator.
 fn assignment_expression_rhs_has_forcing_leading_trivia(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     left: LocalNodeId<AssignPattern>,
     right: LocalNodeId<Expression>,
 ) -> bool {
@@ -1715,7 +1715,7 @@ fn assignment_expression_rhs_has_forcing_leading_trivia(
 
 /// Format an assignment expression with one selected layout.
 pub(crate) fn format_assign_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     left: LocalNodeId<AssignPattern>,
     operator: &AssignOperator,

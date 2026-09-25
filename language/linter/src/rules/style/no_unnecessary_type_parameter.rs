@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -65,7 +65,7 @@ fn check_parameters(
     parameters: &[dir::LocalNodeId<dir::GenericParameter>],
     body: Option<dir::LocalNodeId<dir::Expression>>,
     output: &mut LintOutput,
-) -> Result<(), destack_repository::ProviderError> {
+) -> Result<(), tspp_repository::ProviderError> {
     let view = module.view();
 
     // require one ordinary constrained parameter without other generic behavior
@@ -120,7 +120,7 @@ function display<T: Display>(value: &immutable T): void {
         session.assert_diagnostics(
             r#"
 warning[no-unnecessary-type-parameter]: type parameter occurs once in the callable signature
- ──▶ main.ds:1:18
+ ──▶ main.tspp:1:18
   │
 1 │ function display<T: Display>(value: &immutable T): void {
   │                  ^
@@ -161,7 +161,7 @@ interface Formatter {
         session.assert_diagnostics(
             r#"
 warning[no-unnecessary-type-parameter]: type parameter occurs once in the callable signature
- ──▶ main.ds:2:6
+ ──▶ main.tspp:2:6
   │
 1 │ interface Formatter {
 2 │     <T: Display>(value: &immutable T): void;

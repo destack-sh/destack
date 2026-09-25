@@ -15,7 +15,7 @@ declare const number: Number;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -70,7 +70,7 @@ declare const value: Result;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -114,7 +114,7 @@ declare const value: Result;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -157,7 +157,7 @@ let value: Result = "no";
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -208,7 +208,7 @@ declare const value: Value;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -265,7 +265,7 @@ declare const count: Count;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -321,7 +321,7 @@ let value: Value = "no";
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -385,7 +385,7 @@ const no: No = false;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -454,7 +454,7 @@ const second: Value = "b";
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -519,7 +519,7 @@ const first: Element<typeof values> = values[0];
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -564,7 +564,7 @@ const first: Element<typeof values> = values[0];
 fn test_refine_the_check_type_in_the_true_branch() {
     let session = TestSession::single(
         r#"
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Holder<T: Copy> {
     value: T;
@@ -574,9 +574,9 @@ export type Poll<T> = T | (T extends Copy ? Holder<T> : never);
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Holder<out T: Copy> {
     value: T;
@@ -585,7 +585,7 @@ struct Holder<out T: Copy> {
 export type Poll<T> = T | (T extends Copy ? Holder<T> : never);
 
 === dir ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Holder<T: Copy> {
 /// @generic.template symbol=Holder parameters=(out T#1: Copy)
@@ -620,7 +620,7 @@ export type Poll<T> = T | (T extends Copy ? Holder<T> : never);
 fn test_reject_the_refinement_in_the_false_branch() {
     let session = TestSession::single(
         r#"
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Holder<T: Copy> {
     value: T;
@@ -630,9 +630,9 @@ export type Poll<T> = T extends Copy ? never : Holder<T>;
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Holder<out T: Copy> {
     value: T;
@@ -641,7 +641,7 @@ struct Holder<out T: Copy> {
 export type Poll<T> = T extends Copy ? never : Holder<T>;
 
 === dir ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Holder<T: Copy> {
 /// @generic.template symbol=Holder parameters=(out T#1: Copy)
@@ -678,7 +678,7 @@ export type Poll<T> = T extends Copy ? never : Holder<T>;
 fn test_keep_a_concrete_check_out_of_the_true_branch() {
     let session = TestSession::single(
         r#"
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Buffer {
     text: ^string;
@@ -692,9 +692,9 @@ export type Pick = string extends usize ? Holder<Buffer> : never;
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Buffer {
     text: ^string;
@@ -707,7 +707,7 @@ struct Holder<out T: Copy> {
 export type Pick = string extends usize ? Holder<Buffer> : never;
 
 === dir ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
@@ -758,7 +758,7 @@ declare const value: Result;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -805,7 +805,7 @@ declare const empty: Head<()>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -865,7 +865,7 @@ declare const last: Last<(1, 2, 3)>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -904,7 +904,7 @@ declare const head: Head<readonly (1, 2)>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -946,7 +946,7 @@ declare const result: Result<Signature>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1011,7 +1011,7 @@ declare const receiver: Receiver<(this: { id: string }, count: int32) => void>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1053,7 +1053,7 @@ declare const value: Values<{ [key: string]: int32 }>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1093,7 +1093,7 @@ declare const bad: Text<(1,)>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1138,7 +1138,7 @@ declare const value: Both<{ a: string, b: int32 }>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1181,7 +1181,7 @@ declare const value: Both<{ f: (x: string) => void, g: (y: int32) => void }>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1229,7 +1229,7 @@ declare const wide: Mixed<{ a: int32, f: (x: string) => void }>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1284,7 +1284,7 @@ declare const direct: Deep<{ value: string }>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1336,7 +1336,7 @@ function choose<T>(value: T): 1 | 0 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1386,7 +1386,7 @@ type Loose<T> = infer U;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1418,7 +1418,7 @@ declare const stripped: Strip<"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1459,7 +1459,7 @@ declare const value: Grow<int32>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1501,7 +1501,7 @@ declare const text: Value<{ value: "ready" }>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

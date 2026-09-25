@@ -1,0 +1,43 @@
+import { Add, Multiply, Negate, Subtract } from "tspp:ops";
+
+import { Integer } from "./integer.tspp";
+
+/// Integer with modular arithmetic operators.
+@languageItem("math.Wrapping")
+export newtype Wrapping<T: Integer> = T;
+
+export extension<T: Integer> of Wrapping<T> implements Add<Wrapping<T>> {
+    type Output = Wrapping<T>;
+
+    /// Add with modular arithmetic.
+    add(this, other: Wrapping<T>): this.Output {
+        Wrapping((this as T).wrappingAdd(other as T))
+    }
+}
+
+export extension<T: Integer> of Wrapping<T> implements Subtract<Wrapping<T>> {
+    type Output = Wrapping<T>;
+
+    /// Subtract with modular arithmetic.
+    subtract(this, other: Wrapping<T>): this.Output {
+        Wrapping((this as T).wrappingSubtract(other as T))
+    }
+}
+
+export extension<T: Integer> of Wrapping<T> implements Multiply<Wrapping<T>> {
+    type Output = Wrapping<T>;
+
+    /// Multiply with modular arithmetic.
+    multiply(this, other: Wrapping<T>): this.Output {
+        Wrapping((this as T).wrappingMultiply(other as T))
+    }
+}
+
+export extension<T: Integer> of Wrapping<T> implements Negate {
+    type Output = Wrapping<T>;
+
+    /// Negate with modular arithmetic.
+    negate(this): this.Output {
+        Wrapping((this as T).wrappingNegate())
+    }
+}

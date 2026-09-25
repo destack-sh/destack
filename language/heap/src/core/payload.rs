@@ -1,4 +1,4 @@
-use destack_memory::MemoryMap;
+use tspp_memory::MemoryMap;
 
 /// The source bytes used to initialize one block.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

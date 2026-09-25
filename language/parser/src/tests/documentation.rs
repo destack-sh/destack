@@ -1,5 +1,5 @@
 use crate::TestParser;
-use destack_dir::{
+use tspp_dir::{
     Argument, Catch, Declaration, Declarator, DependencyItem, DocumentationTag, EnumField,
     Expression, GenericArgument, GenericParameter, MatchArm, Member, Parameter, Pattern,
     PatternField, Property, SwitchCase, TupleElement, TypeDeclaration, TypeExpression,
@@ -101,7 +101,7 @@ fn test_parse_callable_documentation() {
 /// @typeParam Value - The returned value type.
 /// @param value - The value to return.
 /// @example
-/// ```ds
+/// ```tspp
 /// identity<string>("value");
 /// ```
 function identity<Value>(value: Value): Value {
@@ -153,7 +153,7 @@ function identity<Value>(value: Value): Value {
     };
     assert_eq!(
         parser.strings.get(markdown),
-        "```ds\nidentity<string>(\"value\");\n```"
+        "```tspp\nidentity<string>(\"value\");\n```"
     );
 }
 
@@ -608,7 +608,7 @@ enum Color {
 import {
     /// Imported value.
     value
-} from "./value.ds"
+} from "./value.tspp"
 "#,
     );
     let (parser, _) = test.parse();

@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
-use destack_core::Blob;
+use tspp_core::Blob;
 
 use crate::{FileId, PatchApplyError};
 

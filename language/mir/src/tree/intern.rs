@@ -1,12 +1,12 @@
 use std::fmt::{Debug, Formatter};
 use std::hash::Hash;
 
-use destack_core::{FrozenArena, SectionEntry, stable_hash_value};
-use destack_serde::{Reflect, Schema, Type as ReflectType};
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use smallvec::SmallVec;
+use tspp_core::{FrozenArena, SectionEntry, stable_hash_value};
+use tspp_serde::{Reflect, Schema, Type as ReflectType};
 
 use crate::{Field, Static, StaticId, Tree, Type};
 

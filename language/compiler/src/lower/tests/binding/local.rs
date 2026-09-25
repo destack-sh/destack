@@ -12,7 +12,7 @@ function twice(x: float64): float64 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.twice",
         r#"
 function test.main.twice(v0: float64): float64 {
@@ -45,7 +45,7 @@ function bump(x: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.bump",
         r#"
 function test.main.bump(v0: int32): int32 {
@@ -85,7 +85,7 @@ function relay(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.relay",
         r#"
 type test.main.Point {
@@ -132,7 +132,7 @@ function span(point: Point): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.span",
         r#"
 type test.main.Point {
@@ -180,7 +180,7 @@ function read(length: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.parse",
         r#"
 function test.main.parse(v0: int32): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
@@ -218,7 +218,7 @@ b3:
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.read", r#"
+    session.assert_mir_function("main.tspp", "test.main.read", r#"
 function test.main.read(v0: int32): int32 {
     local l0: int32
     local l1: variant<uint1> { 0uint1 = int32; 1uint1 = void; }

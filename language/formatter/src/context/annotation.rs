@@ -1,8 +1,8 @@
-use super::context::DestackFormatContext;
-use destack_dir::{Decorator, DecoratorPosition, LocalNodeId, Node, TokenType, Tree, TreeStore};
-use destack_source::Span;
+use super::context::TsppFormatContext;
+use tspp_dir::{Decorator, DecoratorPosition, LocalNodeId, Node, TokenType, Tree, TreeStore};
+use tspp_source::Span;
 
-impl<'a> DestackFormatContext<'a> {
+impl<'a> TsppFormatContext<'a> {
     /// Get one annotation by id.
     #[inline]
     pub fn annotation(&self, annotation_id: LocalNodeId<Decorator>) -> &Decorator {

@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, NodeSpanRegion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, NodeSpanRegion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -99,8 +99,8 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
-    enclosing: destack_source::Span,
-    extent: destack_source::Span,
+    enclosing: tspp_source::Span,
+    extent: tspp_source::Span,
     nested: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let nested = module.source_extent(nested.into_any())?;
@@ -179,7 +179,7 @@ function classify(value: int32): string {
         session.assert_diagnostics(
             r#"
 warning[no-lonely-if]: else block contains only another if
- ──▶ main.ds:4:7
+ ──▶ main.tspp:4:7
   │
 2 │     if (value > 0) {
 3 │         return "positive";
@@ -190,8 +190,8 @@ warning[no-lonely-if]: else block contains only another if
   │
 
  = fix: flatten the else-if chain
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     3│         return "positive";
 -   4│     } else {
@@ -260,7 +260,7 @@ function classify(value: int32): void {
         session.assert_diagnostics(
             r#"
 warning[no-lonely-if]: else block contains only another if
- ──▶ main.ds:3:7
+ ──▶ main.tspp:3:7
   │
 1 │ function classify(value: int32): void {
 2 │     if (value > 0) {

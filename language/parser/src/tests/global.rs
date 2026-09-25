@@ -1,5 +1,5 @@
 use crate::{ExpressionPosition, ExpressionStop};
-use destack_dir::{Declaration, Expression, GlobalDeclaration};
+use tspp_dir::{Declaration, Expression, GlobalDeclaration};
 
 use crate::{TestParser, assert_node};
 

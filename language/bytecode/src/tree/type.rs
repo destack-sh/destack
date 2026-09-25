@@ -1,6 +1,6 @@
-use destack_core::SectionEntry;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::SectionEntry;
+use tspp_serde::Reflect;
 
 /// A type identity, object-local before linking and Program-local afterward.
 #[repr(transparent)]

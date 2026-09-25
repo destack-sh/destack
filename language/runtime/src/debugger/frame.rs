@@ -1,10 +1,10 @@
 use std::fmt;
 
-use destack_memory::MemoryImage;
-use destack_program as program;
-use destack_serde::Reflect;
-use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use tspp_memory::MemoryImage;
+use tspp_program as program;
+use tspp_serde::Reflect;
+use tspp_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::{RuntimeId, RuntimeImage};

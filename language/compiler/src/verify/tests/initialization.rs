@@ -33,7 +33,7 @@ b2:
     program.assert_verify_errors(
         r#"
 error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
-  ──▶ <test.dsm>:17:5
+  ──▶ <test.tsppm>:17:5
    │
 11 │ function test(v0: ref<Box, unique, mutable>, v1: boolean): void {
 12 │ entry(v0: ref<Box, unique, mutable>, v1: boolean):
@@ -48,7 +48,7 @@ error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
 19 │     return
    │
 
-for more information about an error, run `destack explain invalidation-of-borrowed-place`
+for more information about an error, run `tspp explain invalidation-of-borrowed-place`
 "#,
     );
 }
@@ -75,7 +75,7 @@ entry(v0: ref<int32, unique, mutable>):
     program.assert_verify_errors(
         r#"
 error[use-after-move]: use of moved value
-  ──▶ <test.dsm>:10:5
+  ──▶ <test.tsppm>:10:5
    │
  7 │ function test(v0: ref<int32, unique, mutable>): void {
  8 │ entry(v0: ref<int32, unique, mutable>):
@@ -87,7 +87,7 @@ error[use-after-move]: use of moved value
 12 │ }
    │
 
-for more information about an error, run `destack explain use-after-move`
+for more information about an error, run `tspp explain use-after-move`
 "#,
     );
 }
@@ -113,7 +113,7 @@ entry(v0: ref<int32, unique, mutable>):
     program.assert_verify_errors(
         r#"
 error[use-after-move]: use of moved value
-  ──▶ <test.dsm>:9:5
+  ──▶ <test.tsppm>:9:5
    │
  6 │ function test(v0: ref<int32, unique, mutable>): void {
  7 │ entry(v0: ref<int32, unique, mutable>):
@@ -125,7 +125,7 @@ error[use-after-move]: use of moved value
 11 │ }
    │
 
-for more information about an error, run `destack explain use-after-move`
+for more information about an error, run `tspp explain use-after-move`
 "#,
     );
 }
@@ -152,7 +152,7 @@ entry:
     program.assert_verify_errors(
         r#"
 error[use-after-move]: use of moved value
-  ──▶ <test.dsm>:10:5
+  ──▶ <test.tsppm>:10:5
    │
  7 │ entry:
  8 │     v0: uninit<ref<Box, managed, mutable, local>> = new.uninit Box, local
@@ -164,7 +164,7 @@ error[use-after-move]: use of moved value
 12 │ }
    │
 
-for more information about an error, run `destack explain use-after-move`
+for more information about an error, run `tspp explain use-after-move`
 "#,
     );
 }
@@ -200,7 +200,7 @@ b3:
     program.assert_verify_errors(
         r#"
 error[maybe-use-after-move]: value may have been moved
-  ──▶ <test.dsm>:19:5
+  ──▶ <test.tsppm>:19:5
    │
 10 │
 11 │ b1:
@@ -218,7 +218,7 @@ error[maybe-use-after-move]: value may have been moved
 21 │ }
    │
 
-for more information about an error, run `destack explain maybe-use-after-move`
+for more information about an error, run `tspp explain maybe-use-after-move`
 "#,
     );
 }
@@ -248,7 +248,7 @@ done(v3: ref<int32, unique, mutable>):
     program.assert_verify_errors(
         r#"
 error[maybe-use-after-move]: value may have been moved
-  ──▶ <test.dsm>:13:5
+  ──▶ <test.tsppm>:13:5
    │
  7 │ function test(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: boolean): void {
  8 │ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>, v2: boolean):
@@ -263,7 +263,7 @@ error[maybe-use-after-move]: value may have been moved
 15 │ }
    │
 
-for more information about an error, run `destack explain maybe-use-after-move`
+for more information about an error, run `tspp explain maybe-use-after-move`
 "#,
     );
 }
@@ -290,7 +290,7 @@ entry(v0: ref<uninit<Pair>, borrowed, 'a, exclusive>, v1: int32):
     program.assert_verify_errors(
         r#"
 error[field-left-uninitialized]: constructor returns before initializing field 1
-  ──▶ <test.dsm>:11:5
+  ──▶ <test.tsppm>:11:5
    │
  9 │     v2: ref<uninit<int32>, borrowed, 'a, mutable> = address (*v0).0
 10 │     store (*v2), v1
@@ -300,7 +300,7 @@ error[field-left-uninitialized]: constructor returns before initializing field 1
 13 │
    │
 
-for more information about an error, run `destack explain field-left-uninitialized`
+for more information about an error, run `tspp explain field-left-uninitialized`
 "#,
     );
 }
@@ -328,7 +328,7 @@ entry(v0: ref<uninit<Single>, borrowed, 'a, exclusive>, v1: int32):
     program.assert_verify_errors(
         r#"
 error[field-initialized-twice]: constructor initializes field 0 twice
-  ──▶ <test.dsm>:11:5
+  ──▶ <test.tsppm>:11:5
    │
  9 │     store (*v2), v1
 10 │     v3: ref<uninit<int32>, borrowed, 'a, mutable> = address (*v0).0
@@ -338,7 +338,7 @@ error[field-initialized-twice]: constructor initializes field 0 twice
 13 │ }
    │
 
-for more information about an error, run `destack explain field-initialized-twice`
+for more information about an error, run `tspp explain field-initialized-twice`
 "#,
     );
 }
@@ -366,7 +366,7 @@ export function main(): void {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#"
+    session.assert_mir_verified_diagnostics("main.tspp", r#"
 /// @diagnostic.error id=use-after-move message="use of moved value"
 /// @diagnostic.label line=15 column=13 span="x" line_source="consume(x);"
 /// @diagnostic.related line=14 column=13 span="x" line_source="consume(x);" message="value moved here"
@@ -437,7 +437,7 @@ entry(v0: ref<uninit<Pair>, borrowed, 'managed, exclusive>, v1: int32):
     program.assert_verify_errors(
         r#"
 error[receiver-before-initialization]: 'this' escapes before every field initializes
-  ──▶ <test.dsm>:18:5
+  ──▶ <test.tsppm>:18:5
    │
 16 │     v5: ref<uninit<Pair>, borrowed, 'managed, exclusive> = address (*v0)
 17 │     v3: ref<Pair, managed, mutable, local> = cast.bit v5 -> ref<Pair, managed, mutable, local>
@@ -447,7 +447,7 @@ error[receiver-before-initialization]: 'this' escapes before every field initial
 20 │     store (*v4), v1
    │
 
-for more information about an error, run `destack explain receiver-before-initialization`
+for more information about an error, run `tspp explain receiver-before-initialization`
 "#,
     );
 }
@@ -520,7 +520,7 @@ entry(v0: ref<uninit<Derived>, borrowed, 'a, exclusive>, v1: int32):
 fn test_initialize_every_field_through_the_reborrowed_receiver() {
     let session = TestSession::single(
         r#"
-import { Cell } from "destack:memory";
+import { Cell } from "tspp:memory";
 
 struct Next<N> {
     value: N | undefined;
@@ -552,7 +552,8 @@ class Request<Y: Copy, R: Copy, N> {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }

@@ -1,0 +1,72 @@
+import { AbortSignal, Promise, Task } from "tspp:async";
+import { Json } from "tspp:json";
+
+import { Artifact } from "./artifact.tspp";
+import { Expect } from "./expect.tspp";
+import { CaseId, RunId, SuiteId } from "./id.tspp";
+import { Issue } from "./issue.tspp";
+
+/// Cleanup registered for the end of one test run.
+export type Cleanup = ^Function<(), void | Promise<void> | Task<void>, "once">;
+
+/// Cleanup registered for a failed test run.
+export type FailureCleanup = ^Function<
+    (readonly Issue[],),
+    void | Promise<void> | Task<void>,
+    "once"
+>;
+
+/// Test output sink.
+@languageItem("test.Output")
+export newtype interface Output {
+    /// Write one output line.
+    line(value: &readonly string): void;
+
+    /// Attach one durable artifact.
+    attach(artifact: Artifact): void;
+}
+
+/// State shared by suite and case callbacks.
+@languageItem("test.Context")
+export newtype interface Context {
+    /// Test run identifier.
+    readonly runId: RunId;
+
+    /// Cancellation requested by the runner.
+    readonly signal: AbortSignal;
+
+    /// Test output sink.
+    readonly output: Output;
+
+    /// Attach one structured annotation to this run.
+    annotate(name: string, value: Json): void;
+}
+
+/// State provided to one test case.
+@languageItem("test.CaseContext")
+export newtype interface CaseContext extends Context {
+    /// Test case identifier.
+    readonly caseId: CaseId;
+
+    /// Assertions scoped to this test case.
+    readonly expect: Expect;
+
+    /// Run one cleanup after this test ends.
+    onTestFinished(cleanup: Cleanup): void;
+
+    /// Run one cleanup after this test fails.
+    onTestFailed(cleanup: FailureCleanup): void;
+
+    /// Skip the current test case.
+    skip(reason?: string): never;
+
+    /// Skip the current test case when `condition` holds.
+    skip(condition: boolean, reason?: string): void;
+}
+
+/// State provided to one test suite.
+@languageItem("test.SuiteContext")
+export newtype interface SuiteContext extends Context {
+    /// Test suite identifier.
+    readonly suiteId: SuiteId;
+}

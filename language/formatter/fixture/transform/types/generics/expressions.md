@@ -8,11 +8,11 @@ Generic fixtures cover type arguments on calls, members, and instantiation expre
 
 Spaces inside angle brackets should be removed.
 
-```ds
+```tspp
 const x: Array< number > = []
 ```
 
-```ds expected
+```tspp expected
 const x: Array<number> = [];
 ```
 
@@ -20,11 +20,11 @@ const x: Array<number> = [];
 
 Multiple type parameters are separated by comma and space.
 
-```ds
+```tspp
 const x: Map< string , number > = new Map()
 ```
 
-```ds expected
+```tspp expected
 const x: Map<string, number> = new Map();
 ```
 
@@ -32,11 +32,11 @@ const x: Map<string, number> = new Map();
 
 Comments inside type arguments are preserved.
 
-```ds
+```tspp
 const x: Map</* key */ string, /* value */ number> = new Map()
 ```
 
-```ds expected
+```tspp expected
 const x: Map</* key */ string, /* value */ number> = new Map();
 ```
 
@@ -44,11 +44,11 @@ const x: Map</* key */ string, /* value */ number> = new Map();
 
 Spread type arguments keep the spread marker attached to the argument.
 
-```ds
+```tspp
 const tensor: Tensor< ...Shape > = value
 ```
 
-```ds expected
+```tspp expected
 const tensor: Tensor<...Shape> = value;
 ```
 
@@ -56,11 +56,11 @@ const tensor: Tensor<...Shape> = value;
 
 Spread value arguments keep expression spacing inside the argument.
 
-```ds
+```tspp
 const buffer: Buffer< ...shape() > = value
 ```
 
-```ds expected
+```tspp expected
 const buffer: Buffer<...shape()> = value;
 ```
 
@@ -70,11 +70,11 @@ const buffer: Buffer<...shape()> = value;
 
 Instantiation expressions should retain their type arguments without extra spacing.
 
-```ds:main.ds
+```tspp:main.tspp
 const factory = getFactory<number>
 ```
 
-```ds expected
+```tspp expected
 const factory = getFactory<number>;
 ```
 
@@ -82,11 +82,11 @@ const factory = getFactory<number>;
 
 Multiple type arguments are separated by comma and space.
 
-```ds:main.ds
+```tspp:main.tspp
 const pair = makePair<string, number>
 ```
 
-```ds expected
+```tspp expected
 const pair = makePair<string, number>;
 ```
 
@@ -94,11 +94,11 @@ const pair = makePair<string, number>;
 
 Comments inside instantiation type arguments are preserved.
 
-```ds:main.ds
+```tspp:main.tspp
 const pair = makePair</* key */ string, /* value */ number>
 ```
 
-```ds expected
+```tspp expected
 const pair = makePair</* key */ string, /* value */ number>;
 ```
 
@@ -106,14 +106,14 @@ const pair = makePair</* key */ string, /* value */ number>;
 
 Comments inside multiline instantiation type arguments keep the type arguments multiline.
 
-```ds:main.ds
+```tspp:main.tspp
 Math.random<
   // comment
   string | number | undefined
 >
 ```
 
-```ds expected
+```tspp expected
 Math.random<
     // comment
     string | number | undefined

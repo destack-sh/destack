@@ -1,6 +1,6 @@
 [package]
-name = "destack_lsp_server"
-description = "LSP server framework for the Destack language server"
+name = "tspp_lsp_server"
+description = "LSP server framework for the TS++ language server"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,7 +12,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-destack_lsp_types = { workspace = true }
+tspp_lsp_types = { workspace = true }
 
 bytes = { workspace = true }
 dashmap = { workspace = true }

@@ -1,6 +1,6 @@
 [package]
-name = "destack_rpc"
-description = "Destack RPC"
+name = "tspp_rpc"
+description = "TS++ RPC"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,9 +13,9 @@ doctest = false
 
 [dependencies]
 # language
-destack_core = { workspace = true }
-destack_rpc_macros = { workspace = true }
-destack_serde = { workspace = true }
+tspp_core = { workspace = true }
+tspp_rpc_macros = { workspace = true }
+tspp_serde = { workspace = true }
 
 # general
 crossbeam-channel = { workspace = true }

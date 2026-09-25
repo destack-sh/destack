@@ -6,11 +6,11 @@
 
 Await using preserves the `await` keyword.
 
-```ds
+```tspp
 await using conn = open()
 ```
 
-```ds expected
+```tspp expected
 await using conn = open();
 ```
 
@@ -18,10 +18,10 @@ await using conn = open();
 
 Await using declarations preserve initializer call arguments.
 
-```ds
+```tspp
 await using resource = openAsync(path)
 ```
 
-```ds expected
+```tspp expected
 await using resource = openAsync(path);
 ```

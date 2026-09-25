@@ -1,5 +1,5 @@
-use destack_core::FxIndexMap;
-use destack_dir as dir;
+use tspp_core::FxIndexMap;
+use tspp_dir as dir;
 
 use crate::sema::CheckState;
 use crate::{CompilerError, CompilerResult};

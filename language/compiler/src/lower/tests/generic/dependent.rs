@@ -18,7 +18,7 @@ function hasPrevious<T>(previous: Unwrap<T> | undefined): boolean {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.hasPrevious",
         r#"
 function test.main.hasPrevious<T, P0>(v0: variant<uint1> { 0uint1 = P0; 1uint1 = void; }): boolean {
@@ -35,7 +35,7 @@ entry(v0: variant<uint1> { 0uint1 = P0; 1uint1 = void; }):
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.hasPrevious",
         r#"
 function test.main.hasPrevious<T, P0>(v0: variant<uint1> { 0uint1 = P0; 1uint1 = void; }): boolean {
@@ -71,7 +71,7 @@ function keep<A, B>(value: Merged<A, B>): Merged<A, B> {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.keep",
         r#"
 function test.main.keep<A, B, P0>(v0: P0): P0 {
@@ -85,7 +85,7 @@ entry(v0: P0):
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.keep",
         r#"
 function test.main.keep<A, B, P0>(v0: P0): P0 {
@@ -105,7 +105,7 @@ entry(v0: P0):
 fn test_lower_a_memory_kind_const_projection_as_an_access_dependent() {
     let session = TestSession::single(
         r#"
-import { Access, Borrowed, Region } from "destack:memory";
+import { Access, Borrowed, Region } from "tspp:memory";
 
 newtype interface Dereference<const A: Access = "readonly"> {
     type Target;
@@ -124,7 +124,7 @@ function read<P: Dereference<"readonly", type Target = int32, const OutputAccess
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 @nocopy

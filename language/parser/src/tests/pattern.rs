@@ -1,4 +1,4 @@
-use destack_dir::{
+use tspp_dir::{
     Access, Expression, Literal, LocalNodeId, Mutability, Name, Pattern, PatternField, RangeEnd,
     TokenType, Tree, TypeExpression,
 };

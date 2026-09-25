@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
-pub use destack_artifact::DiagnosticPolicy;
 use serde::{Deserialize, Serialize};
+pub use tspp_artifact::DiagnosticPolicy;
 
 use crate::config::target::{EsTarget, JsModuleFormat};
 
-/// Normalized Destack compiler options.
+/// Normalized TS++ compiler options.
 ///
-/// `.ds` semantics are always strict; these options only describe project,
+/// `.tspp` semantics are always strict; these options only describe project,
 /// build, interop, and compile-time policy.
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]

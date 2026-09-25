@@ -6,14 +6,14 @@
 
 Trailing block comments on class fields stay with the same field.
 
-```ds:main.ds
+```tspp:main.tspp
 class Box {
   first = 1 /* first-tail */
   second = 2
 }
 ```
 
-```ds expected
+```tspp expected
 class Box {
     first = 1; /* first-tail */
     second = 2;
@@ -24,14 +24,14 @@ class Box {
 
 Body level field decorators stay on their own line above the field.
 
-```ds:main.ds
+```tspp:main.tspp
 class Box {
   @observable
   value: number
 }
 ```
 
-```ds expected
+```tspp expected
 class Box {
     @observable
     value: number;
@@ -42,14 +42,14 @@ class Box {
 
 Body level method decorators stay on their own line above the method.
 
-```ds:main.ds
+```tspp:main.tspp
 class Box {
   @memoize
   compute(): number { return 1 }
 }
 ```
 
-```ds expected
+```tspp expected
 class Box {
     @memoize
     compute(): number {
@@ -62,13 +62,13 @@ class Box {
 
 Accessor decorators stay on their own line above the accessor.
 
-```ds:main.ds
+```tspp:main.tspp
 class Box {
   @observable accessor value: number
 }
 ```
 
-```ds expected
+```tspp expected
 class Box {
     @observable
     accessor value: number;
@@ -79,7 +79,7 @@ class Box {
 
 Comments between stacked method decorators stay interleaved with the same decorator group.
 
-```ds:main.ds
+```tspp:main.tspp
 class Box {
   // comment before entity
   @entity
@@ -91,7 +91,7 @@ class Box {
 }
 ```
 
-```ds expected
+```tspp expected
 class Box {
     // comment before entity
     @entity
@@ -107,13 +107,13 @@ class Box {
 
 Abstract accessor members keep type annotations.
 
-```ds:main.ds
+```tspp:main.tspp
 abstract class Foo {
   abstract accessor prop7: number;
 }
 ```
 
-```ds expected
+```tspp expected
 abstract class Foo {
     abstract accessor prop7: number;
 }

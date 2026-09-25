@@ -7,11 +7,11 @@
 Arrow functions with expression bodies stay on one line.
 Single parameters get parentheses.
 
-```ds
+```tspp
 const   foo   =   (  x  )   =>   x  +  1
 ```
 
-```ds expected
+```tspp expected
 const foo = (x) => x + 1;
 ```
 
@@ -19,11 +19,11 @@ const foo = (x) => x + 1;
 
 Arrow functions with block bodies get broken to multiple lines.
 
-```ds
+```tspp
 const   foo   =   (  x  )   =>   {   return  x  +  1   }
 ```
 
-```ds expected
+```tspp expected
 const foo = (x) => {
     return x + 1;
 };
@@ -33,11 +33,11 @@ const foo = (x) => {
 
 Type annotations on arrow function variables are preserved.
 
-```ds
+```tspp
 const foo: (x: number) => number = (x) => x + 1
 ```
 
-```ds expected
+```tspp expected
 const foo: (x: number) => number = (x) => x + 1;
 ```
 
@@ -45,10 +45,10 @@ const foo: (x: number) => number = (x) => x + 1;
 
 Single generic arrow type parameters keep the comma that disambiguates them from tree literals.
 
-```ds:main.ds
+```tspp:main.tspp
 const fn = <T,>() => {}
 ```
 
-```ds expected
+```tspp expected
 const fn = <T,>() => {};
 ```

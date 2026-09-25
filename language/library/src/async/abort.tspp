@@ -1,0 +1,183 @@
+import { Copy, Dispose } from "tspp:memory";
+
+/// Shared cancellation request.
+@languageItem("async.AbortSignal")
+export newtype interface AbortSignal {
+    /// Return whether cancellation was requested.
+    get aborted(): boolean;
+
+    /// Return the first cancellation reason.
+    get reason(): unknown | undefined;
+
+    /// Run one function when this signal aborts.
+    onAbort(run: (reason: unknown | undefined) => void): AbortSubscription;
+}
+
+/// Controller that aborts one signal.
+@languageItem("async.AbortController")
+export class AbortController {
+    /// The controlled state.
+    private readonly state: AbortState;
+
+    /// Create one active signal.
+    constructor() {
+        this.state = new AbortState();
+    }
+
+    /// Return the controlled signal.
+    get signal(&this): AbortSignal {
+        return this.state;
+    }
+
+    /// Abort the signal once.
+    abort(reason: unknown | undefined = undefined): void {
+        this.state.abort(reason);
+    }
+}
+
+/// Active abort listener registration.
+export struct AbortSubscription implements Dispose, !Copy, !SharedSafe {
+    /// The registered state when still active.
+    private readonly state: AbortState | undefined;
+
+    /// The registered listener.
+    private readonly listener: AbortListener;
+
+    /// Stop observing the signal.
+    dispose(this): void {
+        if (this.state != undefined) {
+            this.state.remove(this.listener);
+        }
+    }
+}
+
+/// Mutable state retained by one controller and its signal.
+class AbortState implements AbortSignal {
+    /// Whether cancellation was requested.
+    private isAborted: boolean;
+
+    /// The first cancellation reason.
+    private abortReason: unknown | undefined;
+
+    /// First registered listener.
+    private head: AbortListener | undefined;
+
+    /// Last registered listener.
+    private tail: AbortListener | undefined;
+
+    /// Create one active state.
+    constructor() {
+        this.isAborted = false;
+        this.abortReason = undefined;
+        this.head = undefined;
+        this.tail = undefined;
+    }
+
+    /// Return whether cancellation was requested.
+    get aborted(): boolean {
+        return this.isAborted;
+    }
+
+    /// Return the first cancellation reason.
+    get reason(): unknown | undefined {
+        return this.abortReason;
+    }
+
+    /// Run one function when this state aborts.
+    onAbort(run: (reason: unknown | undefined) => void): AbortSubscription {
+        let listener = new AbortListener(run);
+
+        // dispatch immediately after prior cancellation
+        if (this.isAborted) {
+            run(this.abortReason);
+
+            return AbortSubscription {
+                state: undefined,
+                listener,
+            };
+        }
+
+        // append in registration order
+        if (this.tail == undefined) {
+            this.head = listener;
+            this.tail = listener;
+        } else {
+            listener.previous = this.tail;
+            this.tail.next = listener;
+            this.tail = listener;
+        }
+
+        return AbortSubscription {
+            state: this,
+            listener,
+        };
+    }
+
+    /// Abort this state and synchronously notify its listeners.
+    abort(reason: unknown | undefined): void {
+        // preserve the first cancellation request
+        if (this.isAborted) {
+            return;
+        }
+        this.isAborted = true;
+        this.abortReason = reason;
+
+        // detach the list before invoking user code
+        let listener = this.head;
+        this.head = undefined;
+        this.tail = undefined;
+
+        // dispatch in registration order
+        while (listener != undefined) {
+            let next = listener.next;
+            listener.previous = undefined;
+            listener.next = undefined;
+            listener.run(reason);
+            listener = next;
+        }
+    }
+
+    /// Remove one registered listener.
+    remove(listener: AbortListener): void {
+        let previous = listener.previous;
+        let next = listener.next;
+
+        // unlink from the head or its predecessor
+        if (previous == undefined) {
+            if (this.head !== listener) {
+                return;
+            }
+            this.head = next;
+        } else {
+            previous.next = next;
+        }
+
+        // unlink from the tail or its successor
+        if (next == undefined) {
+            this.tail = previous;
+        } else {
+            next.previous = previous;
+        }
+        listener.previous = undefined;
+        listener.next = undefined;
+    }
+}
+
+/// One abort listener in registration order.
+class AbortListener {
+    /// The listener function.
+    run: (reason: unknown | undefined) => void;
+
+    /// Previous registered listener.
+    previous: AbortListener | undefined;
+
+    /// Next registered listener.
+    next: AbortListener | undefined;
+
+    /// Create one unregistered listener.
+    constructor(run: (reason: unknown | undefined) => void) {
+        this.run = run;
+        this.previous = undefined;
+        this.next = undefined;
+    }
+}

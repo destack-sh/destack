@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, NodeSpanRegion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, NodeSpanRegion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -226,7 +226,7 @@ function tail(value: string): string {
         session.assert_diagnostics(
             r#"
 warning[no-unnecessary-slice-end]: slice end repeats the source length
- ──▶ main.ds:2:40
+ ──▶ main.tspp:2:40
   │
 1 │ function tail(value: string): string {
 2 │     return value.slice(1, /* retain */ value.length);

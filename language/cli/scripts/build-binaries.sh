@@ -37,5 +37,5 @@ for target_triple in "${selected_targets[@]}"; do
 
 	built_targets="${built_targets} ${target_triple}"
 	"${rustup_bin}" target add "${target_triple}"
-	"${cargo_bin}" build --release -p destack_language_cli --target "${target_triple}"
+	"${cargo_bin}" build --release -p tspp_cli --target "${target_triple}"
 done

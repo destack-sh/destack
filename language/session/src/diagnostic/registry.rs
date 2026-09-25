@@ -1,8 +1,8 @@
-use destack_compiler::Compiler;
-use destack_linter::{Lint, LinterError};
-use destack_mir::parse;
-use destack_parser::ParserError;
-use destack_source::{DiagnosticDefinition, DiagnosticRegistry};
+use tspp_compiler::Compiler;
+use tspp_linter::{Lint, LinterError};
+use tspp_mir::parse;
+use tspp_parser::ParserError;
+use tspp_source::{DiagnosticDefinition, DiagnosticRegistry};
 
 /// Iterate every built-in diagnostic definition.
 pub fn definitions() -> impl Iterator<Item = &'static DiagnosticDefinition> {

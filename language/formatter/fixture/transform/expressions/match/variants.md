@@ -6,11 +6,11 @@
 
 Enum variants can be matched with destructuring.
 
-```ds
+```tspp
 match (result) { Ok(value) => value; Err(e) => panic("unhandled error") }
 ```
 
-```ds expected
+```tspp expected
 match (result) {
     Ok(value) => value
     Err(e) => panic("unhandled error")
@@ -21,11 +21,11 @@ match (result) {
 
 Variants can be qualified with their enum name.
 
-```ds
+```tspp
 match (result) { Result.Ok(v) => v; Result.Err(e) => handle(e) }
 ```
 
-```ds expected
+```tspp expected
 match (result) {
     Result.Ok(v) => v
     Result.Err(e) => handle(e)
@@ -36,11 +36,11 @@ match (result) {
 
 Option types use Some and None variants.
 
-```ds
+```tspp
 match (opt) { Some(x) => x; None => default }
 ```
 
-```ds expected
+```tspp expected
 match (opt) {
     Some(x) => x
     None => default

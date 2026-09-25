@@ -6,11 +6,11 @@
 
 Shorthand properties use the variable name as both key and value.
 
-```ds
+```tspp
 const x = { a, b, c }
 ```
 
-```ds expected
+```tspp expected
 const x = { a, b, c };
 ```
 
@@ -18,11 +18,11 @@ const x = { a, b, c };
 
 Shorthand and regular properties can be mixed.
 
-```ds
+```tspp
 const x = { a, b: 2, c }
 ```
 
-```ds expected
+```tspp expected
 const x = { a, b: 2, c };
 ```
 
@@ -30,11 +30,11 @@ const x = { a, b: 2, c };
 
 Objects with methods expand to multiple lines.
 
-```ds
+```tspp
 const x = { a, method() { return 1 } }
 ```
 
-```ds expected
+```tspp expected
 const x = {
     a,
     method() {

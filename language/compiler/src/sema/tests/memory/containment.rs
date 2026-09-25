@@ -21,7 +21,7 @@ const cache: Cache = Cache { localUser, sharedUser };
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -108,7 +108,7 @@ shared const cache: Cache = Cache { user, count: 1 };
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -180,7 +180,7 @@ shared const union: User | undefined = user;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -272,7 +272,7 @@ shared struct State {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -325,7 +325,7 @@ service.user satisfies User;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -395,7 +395,7 @@ shared struct EscapeHatch {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -442,7 +442,7 @@ shared const borrowedBox: BorrowedBox<'static> = BorrowedBox { value: borrowed }
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -498,7 +498,7 @@ shared const borrowedBox: BorrowedBox<'static> = BorrowedBox { value: borrowed }
 fn test_satisfy_shared_safe_bound_by_containment() {
     let session = TestSession::single(
         r#"
-import { SharedSafe } from "destack:memory";
+import { SharedSafe } from "tspp:memory";
 
 class Message {}
 
@@ -529,11 +529,11 @@ cleanEnvelope satisfies SharedSafe;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { SharedSafe } from "destack:memory";
+import { SharedSafe } from "tspp:memory";
 
 class Message {}
 
@@ -562,7 +562,7 @@ publish<Handle>(handle);
 cleanEnvelope satisfies SharedSafe;
 
 === dir ===
-import { SharedSafe } from "destack:memory";
+import { SharedSafe } from "tspp:memory";
 
 class Message {}
 /// @type.symbol symbol=Message source="class Message {}" type=typeof Message
@@ -678,7 +678,7 @@ cleanEnvelope satisfies SharedSafe;
 fn test_accept_unsafe_shared_safe_implementation() {
     let session = TestSession::single(
         r#"
-import { SharedSafe } from "destack:memory";
+import { SharedSafe } from "tspp:memory";
 
 class Handle {}
 
@@ -691,11 +691,11 @@ handle satisfies SharedSafe;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_definitions().with_decorators(),
         r#"
 === annotated ===
-import { SharedSafe } from "destack:memory";
+import { SharedSafe } from "tspp:memory";
 
 class Handle {}
 
@@ -706,7 +706,7 @@ declare const handle: Handle;
 handle satisfies SharedSafe;
 
 === dir ===
-import { SharedSafe } from "destack:memory";
+import { SharedSafe } from "tspp:memory";
 
 class Handle {}
 /// @type.symbol symbol=Handle source="class Handle {}" type=typeof Handle
@@ -754,7 +754,7 @@ function probe(borrowed: &Point, handle: User, exclusive: &exclusive int32[]): i
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -880,7 +880,7 @@ class Logger {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 type Fields = { readonly [key: string]: int32 };
 type Options = { fields?: Fields | undefined };
@@ -956,7 +956,7 @@ class Logger {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 class Logger {
     write(
@@ -1021,7 +1021,7 @@ class Logger {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 class Logger {
     write(&readonly this, fields: { readonly [key: string]: int32 }): void {}
@@ -1082,7 +1082,7 @@ class Logger {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 class Logger {
     write(&readonly this, options: { fields: { readonly [key: string]: int32 } }): void {}

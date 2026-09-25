@@ -1,9 +1,9 @@
 use super::comment::Comments;
-use super::context::DestackFormatContext;
+use super::context::TsppFormatContext;
 use std::ops::Deref;
 
-use destack_dir::{LocalNodeId, Node, TokenSpan, Tree, TreeStore};
-use destack_source::Span;
+use tspp_dir::{LocalNodeId, Node, TokenSpan, Tree, TreeStore};
+use tspp_source::Span;
 
 /// Source text wrapper for formatter byte and span queries.
 #[derive(Debug, Clone, Copy)]
@@ -262,7 +262,7 @@ fn is_single_line_whitespace(current: char) -> bool {
     current.is_whitespace() && !is_line_terminator(current)
 }
 
-impl<'a> DestackFormatContext<'a> {
+impl<'a> TsppFormatContext<'a> {
     /// Return the source text wrapper for this file.
     pub fn source_text(&self) -> SourceText<'a> {
         SourceText::new(self.file.text())
@@ -305,7 +305,7 @@ impl<'a> DestackFormatContext<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use destack_source::FileId;
+    use tspp_source::FileId;
 
     // line endings
 
@@ -324,7 +324,7 @@ const z = 3;
         let source_text = SourceText::new(source_text);
         let comments = vec![];
         let comments = Comments::new(source_text, &comments);
-        let file_id = FileId::from_logical_str("formatter/source-lf.ds");
+        let file_id = FileId::from_logical_str("formatter/source-lf.tspp");
 
         let span_x = Span::new(file_id, 0, 12);
         let span_y = Span::new(file_id, 14, 26);
@@ -350,7 +350,7 @@ const z = 3;
         let source_text = SourceText::new(source_text);
         let comments = vec![];
         let comments = Comments::new(source_text, &comments);
-        let file_id = FileId::from_logical_str("formatter/source-crlf.ds");
+        let file_id = FileId::from_logical_str("formatter/source-crlf.tspp");
 
         let span_x = Span::new(file_id, 0, 12);
         let span_y = Span::new(file_id, 16, 28);
@@ -374,7 +374,7 @@ const z = 3;
         let source_text = SourceText::new(source_text);
         let comments = vec![];
         let comments = Comments::new(source_text, &comments);
-        let file_id = FileId::from_logical_str("formatter/source-mixed.ds");
+        let file_id = FileId::from_logical_str("formatter/source-mixed.tspp");
 
         let span_x = Span::new(file_id, 0, 12);
         let span_y = Span::new(file_id, 15, 27);

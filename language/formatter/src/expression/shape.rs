@@ -1,14 +1,14 @@
-use crate::DestackFormatContext;
+use crate::TsppFormatContext;
 use crate::operator::assign_pattern_target_expression;
-use destack_dir::{
+use tspp_dir::{
     Argument, Declaration, Expression, FunctionForm, IfForm, Literal, LocalNodeId, Pattern,
     Property, Tree, TypeExpression, UnaryOperator,
 };
-use destack_source::Span;
+use tspp_source::Span;
 
 /// Return whether one expression is a lambda declaration.
 pub(crate) fn expression_is_lambda_declaration(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
@@ -23,7 +23,7 @@ pub(crate) fn expression_is_lambda_declaration(
 
 /// Return whether one expression is a multiline template starting on its opening line.
 pub(crate) fn expression_is_multiline_template_starting_on_same_line(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     if !matches!(
@@ -61,7 +61,7 @@ impl ExpressionLeftPath {
     }
 
     /// Advance to the current expression's left operand.
-    pub(crate) fn next(self, context: &DestackFormatContext<'_>) -> Option<Self> {
+    pub(crate) fn next(self, context: &TsppFormatContext<'_>) -> Option<Self> {
         let expression_id = match context.tree.get(self.expression_id) {
             Expression::Member { left, .. }
             | Expression::Index { left, .. }
@@ -95,7 +95,7 @@ impl ExpressionLeftPath {
     }
 
     /// Return the leftmost expression reachable from this expression.
-    pub(crate) fn leftmost(mut self, context: &DestackFormatContext<'_>) -> Self {
+    pub(crate) fn leftmost(mut self, context: &TsppFormatContext<'_>) -> Self {
         while let Some(left) = self.next(context) {
             self = left;
         }
@@ -274,7 +274,7 @@ pub(crate) fn array_elements_are_fill_candidates(
 
 /// Return whether comments in an array appear only before the first or after the last element.
 pub(crate) fn array_has_only_outer_comments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     array_span: Span,
     elements: &[LocalNodeId<Argument>],
 ) -> bool {

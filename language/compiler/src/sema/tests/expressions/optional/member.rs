@@ -11,7 +11,7 @@ function name(user: { name: string } | null): string | undefined {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_node_types(),
         r#"
 === annotated ===
@@ -51,7 +51,7 @@ function name(user: { name: string } | null): string {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_node_types(),
         r#"
 === annotated ===

@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -139,7 +139,7 @@ function approximatelyEqual(left: float64, right: float64): boolean {
         session.assert_diagnostics(
             r#"
 warning[float-equality-without-abs]: floating-point difference is compared without an absolute value
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function approximatelyEqual(left: float64, right: float64): boolean {
 2 │     return left - right < Number.EPSILON;
@@ -148,8 +148,8 @@ warning[float-equality-without-abs]: floating-point difference is compared witho
   │
 
  = suggestion: take the absolute difference (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function approximatelyEqual(left: float64, right: float64): boolean {
 -   2│     return left - right < Number.EPSILON;

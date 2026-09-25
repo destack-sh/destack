@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
-use destack_artifact::{
+use tspp_artifact::{
     DiagnosticBuilder, DiagnosticControlTable, DirBound, DirChecked, DirDeclared, DirElaborated,
     DirExpanded, DirImported, DirMaterialized, DirParsed, DirResolved, DirView, ProfileKey,
 };
-use destack_core::{FxIndexMap, FxIndexSet};
-use destack_dir as dir;
-use destack_repository::{ArtifactReader, Module, Package, ProviderError, Revision};
+use tspp_core::{FxIndexMap, FxIndexSet};
+use tspp_dir as dir;
+use tspp_repository::{ArtifactReader, Module, Package, ProviderError, Revision};
 
-use destack_source::{ModuleId, ProfileId, Span};
 use smallvec::SmallVec;
+use tspp_source::{ModuleId, ProfileId, Span};
 
 use crate::sema::{
     Capture, Cause, CauseKind, CheckError, CheckEvent, CheckState, CheckWarning, Expectation,

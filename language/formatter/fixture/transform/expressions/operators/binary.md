@@ -8,11 +8,11 @@ Binary fixtures cover operator spacing, precedence, flattening, and line breakin
 
 Logical chains break with leading operators when they exceed line width.
 
-```ds line-width=12
+```tspp line-width=12
 a && b && c && d
 ```
 
-```ds expected
+```tspp expected
 a
     && b
     && c
@@ -23,11 +23,11 @@ a
 
 Logical OR chains break with leading operators.
 
-```ds line-width=12
+```tspp line-width=12
 a || b || c || d
 ```
 
-```ds expected
+```tspp expected
 a
     || b
     || c
@@ -38,11 +38,11 @@ a
 
 Nullish coalescing chains break with leading operators.
 
-```ds line-width=12
+```tspp line-width=12
 a ?? b ?? c ?? d
 ```
 
-```ds expected
+```tspp expected
 a
     ?? b
     ?? c
@@ -53,11 +53,11 @@ a
 
 Nullish coalescing stays compact when it fits.
 
-```ds
+```tspp
 const result = primary ?? secondary ?? fallback
 ```
 
-```ds expected
+```tspp expected
 const result = primary ?? secondary ?? fallback;
 ```
 
@@ -67,11 +67,11 @@ const result = primary ?? secondary ?? fallback;
 
 Arithmetic groups stay inline inside logical expressions.
 
-```ds line-width=40
+```tspp line-width=40
 (a + b * c) && (d - e / f)
 ```
 
-```ds expected
+```tspp expected
 a + b * c && d - e / f;
 ```
 
@@ -79,11 +79,11 @@ a + b * c && d - e / f;
 
 Comparison expressions align with logical operators on breaks.
 
-```ds line-width=20
+```tspp line-width=20
 a <= b && c >= d && e <= f
 ```
 
-```ds expected
+```tspp expected
 a <= b
     && c >= d
     && e <= f;
@@ -93,11 +93,11 @@ a <= b
 
 Container operators keep spaces around them.
 
-```ds
+```tspp
 value in container && value instanceof Type
 ```
 
-```ds expected
+```tspp expected
 value in container && value instanceof Type;
 ```
 
@@ -105,11 +105,11 @@ value in container && value instanceof Type;
 
 Multiplication binds tighter than addition without extra parentheses.
 
-```ds
+```tspp
 a + b * c - d / e
 ```
 
-```ds expected
+```tspp expected
 a + b * c - d / e;
 ```
 
@@ -117,11 +117,11 @@ a + b * c - d / e;
 
 Bitwise operators remain inline when mixed with logical operators.
 
-```ds
+```tspp
 flags & mask && ready
 ```
 
-```ds expected
+```tspp expected
 flags & mask && ready;
 ```
 
@@ -131,11 +131,11 @@ flags & mask && ready;
 
 Mixed bitwise operators preserve precedence with explicit grouping.
 
-```ds
+```tspp
 flags & mask | other
 ```
 
-```ds expected
+```tspp expected
 (flags & mask) | other;
 ```
 
@@ -145,11 +145,11 @@ flags & mask | other
 
 Comments stay with the following operand on breaks.
 
-```ds line-width=20
+```tspp line-width=20
 a && /* keep */ b && /* keep */ c
 ```
 
-```ds expected
+```tspp expected
 a
     && /* keep */ b
     && /* keep */ c;

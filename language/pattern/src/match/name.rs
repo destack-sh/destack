@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::NodeSpanType;
+use tspp_dir as dir;
+use tspp_source::NodeSpanType;
 
 use crate::{Bindings, MatchError, Matcher, PatternNodes};
 

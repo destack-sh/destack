@@ -6,11 +6,11 @@
 
 Borrowed references keep the `&` operator tight to the type.
 
-```ds
+```tspp
 type Borrowed = &Buffer
 ```
 
-```ds expected
+```tspp expected
 type Borrowed = &Buffer;
 ```
 
@@ -18,11 +18,11 @@ type Borrowed = &Buffer;
 
 Readonly borrows keep `&readonly` tight.
 
-```ds
+```tspp
 type Borrowed = &readonly Buffer
 ```
 
-```ds expected
+```tspp expected
 type Borrowed = &readonly Buffer;
 ```
 
@@ -30,11 +30,11 @@ type Borrowed = &readonly Buffer;
 
 Owned references keep the `^` operator tight.
 
-```ds
+```tspp
 type Owned = ^Result
 ```
 
-```ds expected
+```tspp expected
 type Owned = ^Result;
 ```
 
@@ -42,11 +42,11 @@ type Owned = ^Result;
 
 Comments after ownership operators group the target type.
 
-```ds
+```tspp
 type Handles = (& /* borrowed */ Buffer, ^ /* owned */ Result, * /* pointer */ Raw)
 ```
 
-```ds expected
+```tspp expected
 type Handles = (&(/* borrowed */ Buffer), ^(/* owned */ Result), *(/* pointer */ Raw));
 ```
 
@@ -54,11 +54,11 @@ type Handles = (&(/* borrowed */ Buffer), ^(/* owned */ Result), *(/* pointer */
 
 Comments after readonly ownership prefixes group the target type.
 
-```ds
+```tspp
 type Handles = (&readonly /* borrowed */ Buffer, *readonly /* pointer */ Raw)
 ```
 
-```ds expected
+```tspp expected
 type Handles = (&readonly (/* borrowed */ Buffer), *readonly (/* pointer */ Raw));
 ```
 
@@ -66,11 +66,11 @@ type Handles = (&readonly (/* borrowed */ Buffer), *readonly (/* pointer */ Raw)
 
 Ownership operators stay tight inside nested tuple positions.
 
-```ds line-width=80
+```tspp line-width=80
 type NestedHandles = ((&Buffer, ^Result), (&readonly Buffer, *readonly Raw), ^Buffer)
 ```
 
-```ds expected
+```tspp expected
 type NestedHandles = (
     (&Buffer, ^Result),
     (&readonly Buffer, *readonly Raw),
@@ -82,11 +82,11 @@ type NestedHandles = (
 
 Comments after nested ownership prefixes keep each target grouped when the tuple breaks.
 
-```ds line-width=48
+```tspp line-width=48
 type Handles = (& /* borrowed */ LongBufferName, ^ /* owned */ LongResultName, *readonly /* pointer */ LongRawName)
 ```
 
-```ds expected
+```tspp expected
 type Handles = (
     &(/* borrowed */ LongBufferName),
     ^(/* owned */ LongResultName),
@@ -100,11 +100,11 @@ type Handles = (
 
 Dereference prefixes apply to scalar pattern heads.
 
-```ds
+```tspp
 match(value){*item=>item;*_=>0;*0..10=>1;_=>2}
 ```
 
-```ds expected
+```tspp expected
 match (value) {
     *item => item
     *_ => 0
@@ -117,11 +117,11 @@ match (value) {
 
 Dereference prefixes apply to tuple, array, and object pattern heads.
 
-```ds
+```tspp
 match(value){*(x,y)=>x+y;*[head,...tail]=>head;*{left,right}=>left+right;_=>0}
 ```
 
-```ds expected
+```tspp expected
 match (value) {
     *(x, y) => x + y
     *[head, ...tail] => head
@@ -134,11 +134,11 @@ match (value) {
 
 Dereference prefixes apply to nominal tuple and struct pattern heads.
 
-```ds
+```tspp
 match(point){*Some(value)=>value;*Point{x:&readonly x,y:&readonly y}=>x+y;_=>0}
 ```
 
-```ds expected
+```tspp expected
 match (point) {
     *Some(value) => value
     *Point { x: &readonly x, y: &readonly y } => x + y
@@ -150,11 +150,11 @@ match (point) {
 
 Borrow, move, and dereference prefixes compose without extra spacing.
 
-```ds
+```tspp
 match(value){&*borrowed=>borrowed;^*moved=>moved;*&readonly read=>read;*&exclusive unique=>unique;_=>fallback}
 ```
 
-```ds expected
+```tspp expected
 match (value) {
     &*borrowed => borrowed
     ^*moved => moved
@@ -168,11 +168,11 @@ match (value) {
 
 Comments after ownership pattern prefixes keep a readable pattern boundary.
 
-```ds
+```tspp
 match(value){& /* borrowed */ item=>item;^ /* moved */ item=>item;*&readonly /* readonly */ read=>read;_=>fallback}
 ```
 
-```ds expected
+```tspp expected
 match (value) {
     & /* borrowed */ item => item
     ^ /* moved */ item => item

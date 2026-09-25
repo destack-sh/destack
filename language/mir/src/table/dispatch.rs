@@ -2,8 +2,8 @@ use std::mem;
 
 use serde::{Deserialize, Serialize};
 
-use destack_core::StringId;
-use destack_serde::Reflect;
+use tspp_core::StringId;
+use tspp_serde::Reflect;
 
 use crate::{FieldId, Function, LocalNodeId, TypeId};
 

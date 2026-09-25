@@ -17,7 +17,7 @@ function sum(n: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.sum",
         r#"
 function test.main.sum(v0: int32): int32 {
@@ -76,7 +76,7 @@ function firstOver(limit: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.firstOver",
         r#"
 function test.main.firstOver(v0: int32): int32 {
@@ -134,7 +134,7 @@ function sum(n: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.sum",
         r#"
 function test.main.sum(v0: int32): int32 {
@@ -193,7 +193,7 @@ function drain(n: int64): int64 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.drain",
         r#"
 function test.main.drain(v0: int64): int64 {
@@ -245,7 +245,7 @@ function next(seed: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.next",
         r#"
 function test.main.next(v0: int32): int32 {
@@ -302,7 +302,7 @@ function find(limit: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.find",
         r#"
 function test.main.find(v0: int32): int32 {
@@ -394,7 +394,7 @@ function sum(values: int32[]): int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.sum", r#"
+    session.assert_mir_function("main.tspp", "test.main.sum", r#"
 @nocopy
 @languageItem("collections.Array")
 type Array<T>;
@@ -471,7 +471,7 @@ function split(values: int32[]): int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.split", r#"
+    session.assert_mir_function("main.tspp", "test.main.split", r#"
 @nocopy
 @languageItem("collections.Array")
 type Array<T>;
@@ -545,7 +545,7 @@ function first(count: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.first",
         r#"
 function test.main.first(v0: int32): int32 {
@@ -603,7 +603,7 @@ function total(items: ^int64[]): int64 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.total",
         r#"
 @nocopy

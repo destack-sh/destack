@@ -3,12 +3,12 @@ use crate::tests::{TestParser, block_expression_ids};
 use crate::{
     TypePosition, TypeStop, assert_expression_path, assert_node, assert_path, assert_string,
 };
-use destack_dir::{
+use tspp_dir::{
     Argument, Block, Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm,
     InferForm, Literal, Name, NodeType, Pattern, PostfixPosition, Property, TokenType,
     TupleElement, TypeExpression,
 };
-use destack_source::{NodeSpanList, NodeSpanType};
+use tspp_source::{NodeSpanList, NodeSpanType};
 
 /// Parse a tuple literal with two elements.
 #[test]

@@ -1,6 +1,6 @@
-use destack_native as native;
-use destack_program::FrameStateId;
-use destack_source::ModuleId;
+use tspp_native as native;
+use tspp_program::FrameStateId;
+use tspp_source::ModuleId;
 
 use crate::LinkResult;
 

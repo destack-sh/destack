@@ -21,7 +21,7 @@ const tail: () => Mode = () => "fast";
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -111,7 +111,7 @@ function fallback(result: Result<int32, string>): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -219,7 +219,7 @@ function fallback(result: Result<int32, string>): int32 {
 fn test_solve_an_integer_binding_from_an_expression_use_and_an_operator() {
     let session = TestSession::single(
         r#"
-import { Result, Ok } from "destack:error";
+import { Result, Ok } from "tspp:error";
 
 function value(result: Result<int32, string>): int32 {
     let fallback = 0;
@@ -241,11 +241,11 @@ function count(): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Ok, Result } from "destack:error";
+import { Ok, Result } from "tspp:error";
 
 function value(result: Result<int32, string>): int32 {
     let fallback: int32 = 0;
@@ -265,7 +265,7 @@ function count(): int32 {
 }
 
 === dir ===
-import { Result, Ok } from "destack:error";
+import { Result, Ok } from "tspp:error";
 
 function value(result: Result<int32, string>): int32 {
 /// @type.symbol symbol=value type=(Result<int32, string>) => int32
@@ -351,7 +351,7 @@ function count(): int32 {
 fn test_type_a_match_arm_block_tail_at_the_expected_representation() {
     let session = TestSession::single(
         r#"
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 declare function observe(): void;
 
@@ -368,11 +368,11 @@ function value(result: Result<int32, string>): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 declare function observe(): void;
 
@@ -387,7 +387,7 @@ function value(result: Result<int32, string>): int32 {
 }
 
 === dir ===
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 declare function observe(): void;
 /// @type.symbol symbol=observe source="declare function observe(): void" type=() => void
@@ -449,7 +449,7 @@ function sequence(depth: isize): string {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -523,7 +523,7 @@ const taken = take(() => {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -579,7 +579,7 @@ function settle(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

@@ -109,7 +109,7 @@ enum SchemaSkippedChoice {
 
 /// Schema item with an explicit public module.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]
-#[reflect(module = "destack_serde::public")]
+#[reflect(module = "tspp_serde::public")]
 struct SchemaPublicModule {
     /// Visible value.
     value: String,
@@ -242,7 +242,7 @@ fn test_build_schema_uses_explicit_module() {
     let mut schema = Schema::default();
     schema.register::<SchemaPublicModule>();
 
-    let name = Name::new("destack_serde::public", "SchemaPublicModule");
+    let name = Name::new("tspp_serde::public", "SchemaPublicModule");
     let item = schema.items.get(&name).expect("schema item");
 
     assert_eq!(item.name, name);

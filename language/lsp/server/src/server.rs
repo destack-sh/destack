@@ -1,8 +1,8 @@
-use destack_lsp_types::request::{
+use tspp_lsp_types::request::{
     GotoDeclarationParams, GotoDeclarationResponse, GotoImplementationParams,
     GotoImplementationResponse, GotoTypeDefinitionParams, GotoTypeDefinitionResponse,
 };
-use destack_lsp_types::*;
+use tspp_lsp_types::*;
 
 use crate::jsonrpc::{Error, Result};
 
@@ -35,7 +35,7 @@ macro_rules! rpc {
         pub mod generated {
             use crate::jsonrpc::Router;
             use crate::service::{layers, Client, Pending, ServerState, ExitedError};
-            use destack_lsp_types::*;
+            use tspp_lsp_types::*;
             use std::sync::Arc;
             use super::LanguageServer;
 
@@ -301,7 +301,7 @@ rpc! {
         ///
         /// This request was introduced in specification version 3.14.0.
         ///
-        /// The [`GotoDeclarationResponse::Link`](destack_lsp_types::GotoDefinitionResponse::Link) return value
+        /// The [`GotoDeclarationResponse::Link`](tspp_lsp_types::GotoDefinitionResponse::Link) return value
         /// was introduced in specification version 3.14.0 and requires client-side support in order to
         /// be used. It can be returned if the client set the following field to `true` in the
         /// [`initialize`](Self::initialize) method:
@@ -325,7 +325,7 @@ rpc! {
         ///
         /// # Compatibility
         ///
-        /// The [`GotoDefinitionResponse::Link`](destack_lsp_types::GotoDefinitionResponse::Link) return value
+        /// The [`GotoDefinitionResponse::Link`](tspp_lsp_types::GotoDefinitionResponse::Link) return value
         /// was introduced in specification version 3.14.0 and requires client-side support in order to
         /// be used. It can be returned if the client set the following field to `true` in the
         /// [`initialize`](Self::initialize) method:
@@ -351,7 +351,7 @@ rpc! {
         ///
         /// This request was introduced in specification version 3.6.0.
         ///
-        /// The [`GotoTypeDefinitionResponse::Link`](destack_lsp_types::GotoDefinitionResponse::Link) return
+        /// The [`GotoTypeDefinitionResponse::Link`](tspp_lsp_types::GotoDefinitionResponse::Link) return
         /// value was introduced in specification version 3.14.0 and requires client-side support in
         /// order to be used. It can be returned if the client set the following field to `true` in the
         /// [`initialize`](Self::initialize) method:
@@ -377,7 +377,7 @@ rpc! {
         ///
         /// This request was introduced in specification version 3.6.0.
         ///
-        /// The [`GotoImplementationResponse::Link`](destack_lsp_types::GotoDefinitionResponse::Link)
+        /// The [`GotoImplementationResponse::Link`](tspp_lsp_types::GotoDefinitionResponse::Link)
         /// return value was introduced in specification version 3.14.0 and requires client-side
         /// support in order to be used. It can be returned if the client set the following field to
         /// `true` in the [`initialize`](Self::initialize) method:

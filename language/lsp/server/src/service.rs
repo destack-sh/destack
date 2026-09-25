@@ -10,9 +10,9 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 use std::time::{Duration, Instant};
 
-use destack_lsp_types::{LSPAny, MessageType, TraceValue};
 use futures::future::{self, BoxFuture, FutureExt};
 use tower::Service;
+use tspp_lsp_types::{LSPAny, MessageType, TraceValue};
 
 use crate::LanguageServer;
 use crate::jsonrpc::{
@@ -361,7 +361,7 @@ impl<S: LanguageServer> LspServiceBuilder<S> {
     /// ```rust
     /// use serde_json::{json, Value};
     /// use tower_lsp_server::jsonrpc::Result;
-    /// use tower_lsp_server::destack_lsp_types::*;
+    /// use tower_lsp_server::tspp_lsp_types::*;
     /// use tower_lsp_server::{LanguageServer, LspService};
     ///
     /// struct Mock;
@@ -448,9 +448,9 @@ impl<S: Debug> Debug for LspServiceBuilder<S> {
 
 #[cfg(test)]
 mod tests {
-    use destack_lsp_types::*;
     use serde_json::json;
     use tower::ServiceExt;
+    use tspp_lsp_types::*;
 
     use super::*;
     use crate::jsonrpc::Result;

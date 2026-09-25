@@ -6,11 +6,11 @@
 
 Config objects expand to multiple lines when exceeding width.
 
-```ds line-width=50
+```tspp line-width=50
 const config = { host: "localhost", port: 3000, debug: true, timeout: 5000 }
 ```
 
-```ds expected
+```tspp expected
 const config = {
     host: "localhost",
     port: 3000,
@@ -23,11 +23,11 @@ const config = {
 
 Mixed properties and methods expand to multiple lines.
 
-```ds line-width=40
+```tspp line-width=40
 const x = { name: "test", items: [1, 2], handler() { return this.name } }
 ```
 
-```ds expected
+```tspp expected
 const x = {
     name: "test",
     items: [1, 2],
@@ -41,10 +41,10 @@ const x = {
 
 Objects can be passed directly as function arguments.
 
-```ds
+```tspp
 foo({ a: 1, b: 2 })
 ```
 
-```ds expected
+```tspp expected
 foo({ a: 1, b: 2 });
 ```

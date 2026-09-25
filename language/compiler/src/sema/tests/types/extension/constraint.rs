@@ -30,7 +30,7 @@ const text = boxed.read();
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -179,7 +179,7 @@ boxed.read();
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -292,8 +292,8 @@ boxed.read();
 fn test_conformance_assumes_the_extension_where_clause() {
     let session = TestSession::single(
         r#"
-import { todo } from "destack:error";
-import { Equal, Hash } from "destack:ops";
+import { todo } from "tspp:error";
+import { Equal, Hash } from "tspp:ops";
 
 interface Keyed<I> {
     type Output;
@@ -316,12 +316,12 @@ extension<K: Hash, V> of Table<K, V> implements Keyed<K> where K: Equal<K> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { todo } from "destack:error";
-import { Equal, Hash } from "destack:ops";
+import { todo } from "tspp:error";
+import { Equal, Hash } from "tspp:ops";
 
 interface Keyed<in I> {
     type Output;
@@ -342,8 +342,8 @@ extension<K: Hash, V> of Table<K, V> implements Keyed<K> where K: Equal<K> {
 }
 
 === dir ===
-import { todo } from "destack:error";
-import { Equal, Hash } from "destack:ops";
+import { todo } from "tspp:error";
+import { Equal, Hash } from "tspp:ops";
 
 interface Keyed<I> {
 /// @generic.template symbol=Keyed parameters=(in I, this: Keyed<I>)
@@ -427,7 +427,7 @@ extension<K: Hash, V> of Table<K, V> implements Keyed<K> where K: Equal<K> {
 fn test_where_assumptions_prove_sibling_where_clauses() {
     let session = TestSession::single(
         r#"
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Pack<T> {
     value: T;
@@ -448,11 +448,11 @@ export extension<T> of Pack<T> where T: Copy {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Pack<out T> {
     value: T;
@@ -471,7 +471,7 @@ export extension<T> of Pack<T> where T: Copy {
 }
 
 === dir ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Pack<T> {
 /// @generic.template symbol=Pack parameters=(out T#1)
@@ -568,7 +568,7 @@ extension<T, U> of Box<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -660,7 +660,7 @@ function open(value: Token): boolean {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 newtype interface Give<out T> {
     give(this): T;

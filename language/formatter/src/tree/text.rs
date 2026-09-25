@@ -3,15 +3,15 @@ use super::whitespace::{
     is_tree_whitespace_char, tree_child_is_space_expression, tree_text_child_text,
     tree_text_is_whitespace_only,
 };
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{LocalNodeId, TreeChild};
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::{
+use crate::{TsppFormatContext, TsppFormatter};
+use tspp_dir::{LocalNodeId, TreeChild};
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::{
     copied_text, empty_line, format_with, hard_line_break, if_group_breaks, if_group_fits_on_line,
     soft_line_break, soft_line_break_or_space, space, text, token,
 };
-use destack_fir::{format_args, write};
-use destack_repository::QuoteStyle;
+use tspp_fir::{format_args, write};
+use tspp_repository::QuoteStyle;
 
 /// One tree text chunk.
 #[derive(Clone, Copy, Debug)]
@@ -122,7 +122,7 @@ fn tree_text_words(text: &str) -> Vec<&str> {
 
 /// Write tree text words in one child-line position.
 pub(crate) fn write_tree_text_words<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     source: &'ast str,
 ) -> FormatResult<bool> {
     let words = tree_text_words(source);
@@ -145,7 +145,7 @@ pub(crate) fn write_tree_text_words<'ast>(
 
 /// Return whether one whitespace-only child run contains inline or newline spacing.
 fn tree_whitespace_run_spacing(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     children: &[LocalNodeId<TreeChild>],
 ) -> (bool, bool) {
     let mut has_inline_whitespace = false;
@@ -199,7 +199,7 @@ pub(crate) fn tree_text_is_inline_punctuation(text: &str) -> bool {
 
 /// Return whether one tree child can own following inline punctuation.
 pub(crate) fn tree_child_allows_trailing_inline_punctuation(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     child_id: LocalNodeId<TreeChild>,
 ) -> bool {
     match context.tree.get(child_id) {
@@ -261,7 +261,7 @@ fn push_tree_inline_word(items: &mut Vec<TreeInlineItem>, word: &str) {
 
 /// Split tree children into an inline content stream.
 fn tree_inline_items(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     children: &[LocalNodeId<TreeChild>],
 ) -> Vec<TreeInlineItem> {
     let mut items = Vec::new();
@@ -382,7 +382,7 @@ fn tree_inline_separator(
 
 /// Format one inline item separator.
 fn write_tree_inline_separator<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     separator: TreeInlineSeparator,
 ) -> FormatResult<()> {
     match separator {
@@ -398,7 +398,7 @@ fn write_tree_inline_separator<'ast>(
 }
 
 /// Return one tree space token that matches the configured quote style.
-fn tree_space_token(context: &DestackFormatContext<'_>) -> &'static str {
+fn tree_space_token(context: &TsppFormatContext<'_>) -> &'static str {
     match context.options.quote_style {
         QuoteStyle::Single => "{' '}",
         QuoteStyle::Double | QuoteStyle::Semantic => "{\" \"}",
@@ -406,7 +406,7 @@ fn tree_space_token(context: &DestackFormatContext<'_>) -> &'static str {
 }
 
 /// Emit one tree whitespace separator that stays inline in flat mode.
-fn write_tree_whitespace_separator<'ast>(f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+fn write_tree_whitespace_separator<'ast>(f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
     let tree_space = token(tree_space_token(f.context()));
     write!(
         f,
@@ -419,7 +419,7 @@ fn write_tree_whitespace_separator<'ast>(f: &mut DestackFormatter<'ast, '_>) -> 
 
 /// Write one embedded inline tree item.
 fn write_tree_inline_embedded<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     embedded: &TreeInlineEmbedded,
 ) -> FormatResult<()> {
     write_tree_child(f, embedded.child_id, None)?;
@@ -432,7 +432,7 @@ fn write_tree_inline_embedded<'ast>(
 
 /// Format mixed tree children with inline fill layout.
 pub(crate) fn format_tree_children_inline_fill<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     children: &[LocalNodeId<TreeChild>],
     force_multiline: bool,
 ) -> FormatResult<()> {

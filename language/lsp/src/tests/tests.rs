@@ -6,23 +6,23 @@ use std::path::Path;
 use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
-use destack_artifact::{ArtifactKey, ArtifactOutcome, BuildId};
-use destack_lsp_server::jsonrpc::{self, Id};
-use destack_lsp_server::{ExitedError, LspService, ResponseSink};
-use destack_lsp_types as lsp;
-use destack_lsp_types::notification::Notification;
-use destack_repository::{
-    DestackLayoutOverride, Environment, Execution, Host, Repository, RevisionPin, Settings,
-};
-use destack_session::{ArtifactPriority, Executor, Session};
-use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem, Uri};
 use futures::channel::mpsc::{UnboundedReceiver, unbounded};
 use futures::executor::block_on;
 use futures::{FutureExt, SinkExt, StreamExt};
 use serde_json::{Value, from_value, to_value};
 use tower::{Service, ServiceExt};
+use tspp_artifact::{ArtifactKey, ArtifactOutcome, BuildId};
+use tspp_lsp_server::jsonrpc::{self, Id};
+use tspp_lsp_server::{ExitedError, LspService, ResponseSink};
+use tspp_lsp_types as lsp;
+use tspp_lsp_types::notification::Notification;
+use tspp_repository::{
+    DestackLayoutOverride, Environment, Execution, Host, Repository, RevisionPin, Settings,
+};
+use tspp_session::{ArtifactPriority, Executor, Session};
+use tspp_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem, Uri};
 
-use crate::DestackLanguageServer;
+use crate::TsppLanguageServer;
 use crate::query::ToLspUri;
 use crate::server::ProjectId;
 
@@ -31,7 +31,7 @@ pub(super) const MANIFEST: &str = r#"{
   "name": "lsp-fixture",
   "targets": {
     "default": {
-      "include": ["src/**/*.ds"]
+      "include": ["src/**/*.tspp"]
     }
   },
   "defaultTarget": "default"
@@ -43,9 +43,9 @@ const CLIENT_MESSAGE_TIMEOUT: Duration = Duration::from_secs(15);
 /// Maximum time to wait for one server call.
 const SERVER_CALL_TIMEOUT: Duration = Duration::from_secs(15);
 /// Environment variable enabling timing output.
-const TIMINGS_ENV: &str = "DESTACK_TIMINGS";
+const TIMINGS_ENV: &str = "TSPP_TIMINGS";
 /// Environment variable selecting the shared artifact worker count.
-const WORKERS_ENV: &str = "DESTACK_TEST_WORKERS";
+const WORKERS_ENV: &str = "TSPP_TEST_WORKERS";
 
 /// Library prerequisites retained for all protocol fixtures in this process.
 static LIBRARY: OnceLock<TestLibrary> = OnceLock::new();
@@ -55,7 +55,7 @@ const DESTACK_JSON: &str = r#"{
   "name": "lsp-fixture",
   "targets": {
     "default": {
-      "entry": ["main.ds"]
+      "entry": ["main.tspp"]
     }
   },
   "defaultTarget": "default"
@@ -83,7 +83,7 @@ impl TestLibrary {
         // import the ordinary fixture package and embedded library
         let files = TemporaryPhysicalFileSystem::new_with_prefix("lsp-library");
         files.write_text_or_error("destack.json", DESTACK_JSON);
-        files.write_text_or_error("main.ds", "export const value = 1;\n");
+        files.write_text_or_error("main.tspp", "export const value = 1;\n");
         let host = Host::new(
             BuildId::test(),
             Environment::capture_process(),
@@ -162,7 +162,7 @@ impl TestLibrary {
 /// One isolated language server and physical workspace.
 pub(super) struct TestServer {
     /// In-process LSP service.
-    service: LspService<DestackLanguageServer>,
+    service: LspService<TsppLanguageServer>,
 
     /// Server initiated messages consumed by the simulated client.
     requests: UnboundedReceiver<jsonrpc::Request>,
@@ -576,7 +576,7 @@ impl TestServer {
     /// Reload every workspace owned by this server.
     pub(super) fn reload(&self) -> TestRequest<lsp::request::ExecuteCommand> {
         TestRequest::new(lsp::ExecuteCommandParams {
-            command: "destack.reload".to_string(),
+            command: "tspp.reload".to_string(),
             arguments: Vec::new(),
             work_done_progress_params: lsp::WorkDoneProgressParams::default(),
         })
@@ -1010,7 +1010,7 @@ impl TestServer {
 
         // create one server over the isolated host
         let (service, socket) = LspService::new(move |client| {
-            DestackLanguageServer::new(client, host.clone(), executor.clone())
+            TsppLanguageServer::new(client, host.clone(), executor.clone())
         });
         let (mut requests, responses) = socket.split();
         let (sender, received) = unbounded();
@@ -1091,7 +1091,7 @@ impl TestDocument {
             range,
             severity: Some(lsp::DiagnosticSeverity::ERROR),
             code: Some(lsp::NumberOrString::String(code.to_string())),
-            source: Some("destack".to_string()),
+            source: Some("tspp".to_string()),
             message: message.to_string(),
             ..lsp::Diagnostic::default()
         }
@@ -1121,7 +1121,7 @@ impl TestDocument {
         lsp::DidOpenTextDocumentParams {
             text_document: lsp::TextDocumentItem {
                 uri: self.uri.clone(),
-                language_id: "destack".to_string(),
+                language_id: "tspp".to_string(),
                 version,
                 text: source.to_string(),
             },

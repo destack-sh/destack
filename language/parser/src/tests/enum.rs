@@ -1,8 +1,8 @@
-use destack_dir::{
+use tspp_dir::{
     CommentKind, Declaration, Decorator, DecoratorPosition, EnumDeclaration, EnumField, Expression,
     GenericParameter, Literal, NodeType, TokenType, TypeExpression, WhereClause,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::parse::DeclarationHeader;
 use crate::{

@@ -1,16 +1,16 @@
-use destack_source::Diagnostic;
+use tspp_source::Diagnostic;
 
 use crate::tests::harness::TestWorkspace;
 
 /// Read diagnostics from each exact source revision.
 #[test]
 fn test_diagnose_successive_source_revisions() {
-    let test = TestWorkspace::with_entry("diagnose-source-revisions", "main.ds");
+    let test = TestWorkspace::with_entry("diagnose-source-revisions", "main.tspp");
     let source = r#"export function run(): void {
   const value: float64 = false;
 }
 "#;
-    let mut file = test.file("main.ds", source);
+    let mut file = test.file("main.tspp", source);
     let mut branch = test.create_branch("editor");
     let first_revision = branch.revision();
 
@@ -39,14 +39,14 @@ fn test_diagnose_successive_source_revisions() {
 /// Move primary and declaration labels with editor revisions.
 #[test]
 fn test_diagnose_moves_cross_file_labels() {
-    let test = TestWorkspace::with_entry("diagnose-cross-file-labels", "src/main.ds");
+    let test = TestWorkspace::with_entry("diagnose-cross-file-labels", "src/main.tspp");
     let mut library = test.file(
-        "src/library.ds",
+        "src/library.tspp",
         "export const helper: int32 = 1;\nexport const sibling: int32 = 2;\n",
     );
     let mut main = test.file(
-        "src/main.ds",
-        r#"import { helper } from "./library.ds";
+        "src/main.tspp",
+        r#"import { helper } from "./library.tspp";
 
 const first = helper;
 const second = sibling;

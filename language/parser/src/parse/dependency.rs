@@ -2,13 +2,13 @@ use crate::lex::{InvalidEscape, cook};
 use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::{Parser, ParserError, ParserResult};
 
-use destack_core::StringId;
-use destack_dir::{
+use tspp_core::StringId;
+use tspp_dir::{
     Argument, DependencyBinding, DependencyItem, Expression, ImportAttribute,
     ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue, Keyword, LocalNodeId,
     Name, NodeType, Property, TokenLiteral, TokenType,
 };
-use destack_source::{ByteRange, NodeSpanList, NodeSpanRegion, NodeSpanType};
+use tspp_source::{ByteRange, NodeSpanList, NodeSpanRegion, NodeSpanType};
 
 /// One import attribute clause and its source ranges.
 #[derive(Debug, Clone)]
@@ -25,7 +25,7 @@ impl Parser {
     /// Parse an import declaration (including the `import` keyword and an optional body).
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// import "foo"
     /// import "foo.bar"
     /// import * as foo from "foo"
@@ -119,7 +119,7 @@ impl Parser {
     /// Parse an export declaration (including the `export` keyword and an optional body).
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// export "foo"
     /// export * from "foo"
     /// export * as foo from "foo"
@@ -444,7 +444,7 @@ impl Parser {
     /// Parse a dependency target and return both the string and its byte range.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// "foo"
     /// "foo/bar:something"
     /// ```
@@ -474,7 +474,7 @@ impl Parser {
     /// Parse a dependency items block.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// foo
     /// * as foo
     /// Default, { a, b }
@@ -612,7 +612,7 @@ impl Parser {
     /// Parse a dependency item (like `geometry` or `geometry as geom`).
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// geometry
     /// geometry as geom
     /// ```

@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 
-use destack_mir as mir;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_mir as mir;
+use tspp_serde::Reflect;
 
 /// One logical operation in an emitted object.
 #[derive(

@@ -1,0 +1,10 @@
+import { Float, FloatDomain } from "./float.tspp";
+import { Integer, IntegerDomain } from "./integer.tspp";
+
+/// Any numeric literal, interval, or sized machine scalar, excluding `bigint`.
+@languageItem("math.NumericDomain")
+export type NumericDomain = IntegerDomain | FloatDomain;
+
+/// Any sized machine scalar, excluding `bigint`.
+@languageItem("math.Numeric")
+export type Numeric = Integer | Float;

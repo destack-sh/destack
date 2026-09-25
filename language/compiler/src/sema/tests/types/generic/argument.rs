@@ -12,7 +12,7 @@ declare const bytes: Bytes;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
@@ -60,7 +60,7 @@ const result = Result<int32, string>.ok(42);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -141,7 +141,7 @@ function print(value: Printable): string {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -200,7 +200,7 @@ function makeCircle(): Shape {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -276,7 +276,7 @@ const mixed = first([["a", 1]]);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -355,7 +355,7 @@ const expected: int32 = first([1, 2]);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

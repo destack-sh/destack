@@ -25,11 +25,11 @@ fn test_canonicalize_service_fingerprint() {
     assert_eq!(service.double.0, 666_045_904_407_490_870);
     assert_eq!(
         service.fingerprint(service.double).0,
-        300_652_519_399_172_628_929_253_121_341_196_797_834
+        98_151_332_897_294_745_605_305_899_252_637_444_896
     );
     assert_eq!(
         service.schema.fingerprint().0,
-        83_906_476_527_576_347_358_312_781_079_707_886_886
+        63_301_317_089_302_594_779_645_085_898_397_344_182
     );
     assert_eq!(schema.fingerprint(), service.schema.fingerprint());
     assert_eq!(

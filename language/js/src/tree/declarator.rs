@@ -1,7 +1,7 @@
 use crate::{Expression, LocalNodeId, Node, NodeType, Pattern};
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 /// A Declarator is an individual variable declaration within a let/const/var statement.
 /// For example, in `let a: T1 = v1, b: T2 = v2`, there are two declarators.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]

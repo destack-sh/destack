@@ -1,16 +1,16 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_repository::{DestackLayoutOverride, Environment, Repository, Settings};
-use destack_session::Executor;
-use destack_source::Edit;
+use tspp_repository::{DestackLayoutOverride, Environment, Repository, Settings};
+use tspp_session::Executor;
+use tspp_source::Edit;
 
 #[cfg(not(target_arch = "wasm32"))]
-use destack_artifact::ArtifactCache;
+use tspp_artifact::ArtifactCache;
 #[cfg(not(target_arch = "wasm32"))]
-use destack_repository::{DestackLayout, Host, RepositoryError};
+use tspp_repository::{DestackLayout, Host, RepositoryError};
 #[cfg(not(target_arch = "wasm32"))]
-use destack_source::PhysicalFileSystem;
+use tspp_source::PhysicalFileSystem;
 
 use super::Workspace;
 use crate::Error;

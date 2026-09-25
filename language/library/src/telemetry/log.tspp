@@ -1,0 +1,139 @@
+import { telemetry } from "./binding/telemetry.tspp";
+import { Fields } from "./field.tspp";
+import { Level, LogEntry, SpanContext } from "./record.tspp";
+
+/// Structured log options.
+export type LogOptions<'a> = {
+    /// Structured fields attached to this event.
+    fields?: Fields | undefined;
+
+    /// Human-readable event message.
+    message?: &'a readonly string | undefined;
+
+    /// Error value when available.
+    error?: unknown | undefined;
+
+    /// Active span when available.
+    span?: SpanContext | undefined;
+};
+
+/// Structured logger.
+@languageItem("telemetry.Logger")
+export class Logger {
+    /// Logger name.
+    readonly name: string;
+
+    /// Create a logger.
+    constructor(name: string) {
+        this.name = name;
+    }
+
+    /// Write one log entry.
+    log<'a>(
+        &'a readonly this,
+        level: Level,
+        name: &'a readonly string,
+        options?: LogOptions<'a>,
+    ): void {
+        const entry = LogEntry {
+            level,
+            name,
+            logger: &readonly this.name,
+            message: options?.message,
+            fields: options?.fields,
+            error: options?.error,
+            span: options?.span,
+        };
+
+        telemetry.get().emitLog(&readonly entry);
+    }
+
+    /// Write one trace event.
+    trace<'a>(&'a readonly this, name: &'a readonly string, fields?: Fields): void {
+        this.log(Level.Trace, name, { fields });
+    }
+
+    /// Write one debug event.
+    debug<'a>(&'a readonly this, name: &'a readonly string, fields?: Fields): void {
+        this.log(Level.Debug, name, { fields });
+    }
+
+    /// Write one informational event.
+    info<'a>(&'a readonly this, name: &'a readonly string, fields?: Fields): void {
+        this.log(Level.Info, name, { fields });
+    }
+
+    /// Write one warning event.
+    warn<'a>(&'a readonly this, name: &'a readonly string, fields?: Fields): void {
+        this.log(Level.Warn, name, { fields });
+    }
+
+    /// Write one error event.
+    error<'a>(
+        &'a readonly this,
+        name: &'a readonly string,
+        fields?: Fields,
+        error?: unknown,
+    ): void {
+        this.log(Level.Error, name, { fields, error });
+    }
+
+    /// Write one fatal event.
+    fatal<'a>(
+        &'a readonly this,
+        name: &'a readonly string,
+        fields?: Fields,
+        error?: unknown,
+    ): void {
+        this.log(Level.Fatal, name, { fields, error });
+    }
+}
+
+/// Return one named logger.
+export function logger(name: string): Logger {
+    return new Logger(name);
+}
+
+/// Write one log entry.
+export function log<'a>(level: Level, name: &'a readonly string, options?: LogOptions<'a>): void {
+    const entry = LogEntry {
+        level,
+        name,
+        message: options?.message,
+        fields: options?.fields,
+        error: options?.error,
+        span: options?.span,
+    };
+
+    telemetry.get().emitLog(&readonly entry);
+}
+
+/// Write one trace event.
+export function trace(name: &readonly string, fields?: Fields): void {
+    log(Level.Trace, name, { fields });
+}
+
+/// Write one debug event.
+export function debug(name: &readonly string, fields?: Fields): void {
+    log(Level.Debug, name, { fields });
+}
+
+/// Write one informational event.
+export function info(name: &readonly string, fields?: Fields): void {
+    log(Level.Info, name, { fields });
+}
+
+/// Write one warning event.
+export function warn(name: &readonly string, fields?: Fields): void {
+    log(Level.Warn, name, { fields });
+}
+
+/// Write one error event.
+export function error(name: &readonly string, fields?: Fields, cause?: unknown): void {
+    log(Level.Error, name, { fields, error: cause });
+}
+
+/// Write one fatal event.
+export function fatal(name: &readonly string, fields?: Fields, cause?: unknown): void {
+    log(Level.Fatal, name, { fields, error: cause });
+}

@@ -6,11 +6,11 @@
 
 Generic extensions keep parameters and format member bodies.
 
-```ds
+```tspp
 extension<T> of Box<T> { map<U>(f: (T) => U): Box<U> { return Box { value: f(this.value) } } }
 ```
 
-```ds expected
+```tspp expected
 extension<T> of Box<T> {
     map<U>(f: (T) => U): Box<U> {
         return Box { value: f(this.value) };
@@ -22,11 +22,11 @@ extension<T> of Box<T> {
 
 Value-returning extension methods keep terminal expressions semicolonless.
 
-```ds
+```tspp
 extension<T> of Box<T> { clone(): Box<T> { Box { value: this.value } } clear(): void { reset() } }
 ```
 
-```ds expected
+```tspp expected
 extension<T> of Box<T> {
     clone(): Box<T> {
         Box { value: this.value }
@@ -41,10 +41,10 @@ extension<T> of Box<T> {
 
 Extensions can include implements and where constraints.
 
-```ds
+```tspp
 extension<T> of Buffer<T> implements Iterable<T> where T: Copy { }
 ```
 
-```ds expected
+```tspp expected
 extension<T> of Buffer<T> implements Iterable<T> where T: Copy {}
 ```

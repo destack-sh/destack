@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
 use bytecode::{BytecodeFormatOptions, format_bytecode};
-use destack_artifact::{
+use tspp_artifact::{
     ArtifactKey, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
     DiagnosticLike, DiagnosticRecord, MirLowered, MirOptimized,
 };
-use destack_bytecode as bytecode;
-use destack_core::StringPool;
-use destack_mir as mir;
-use destack_program::Object;
-use destack_repository::{ProviderContext, Revision};
-use destack_source::{
+use tspp_bytecode as bytecode;
+use tspp_core::StringPool;
+use tspp_mir as mir;
+use tspp_program::Object;
+use tspp_repository::{ProviderContext, Revision};
+use tspp_source::{
     DiagnosticLabel, DiagnosticSeverity, DiagnosticTarget, File, FileId, FileType, ModuleId,
     PackageId, ProfileId, TargetId, Uri,
 };
@@ -37,8 +37,8 @@ impl TestProgram {
         let file = Arc::new(
             File::from_text(
                 file_id,
-                "<test.dsm>".to_string(),
-                Uri::from_string("<test.dsm>"),
+                "<test.tsppm>".to_string(),
+                Uri::from_string("<test.tsppm>"),
                 None,
                 FileType::Text,
                 source.to_string(),
@@ -119,7 +119,7 @@ impl TestProgram {
     /// Assert complete native emission and return the reloaded object.
     #[track_caller]
     #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
-    pub(crate) fn assert_native(&self, expected: &str) -> destack_native::Object {
+    pub(crate) fn assert_native(&self, expected: &str) -> tspp_native::Object {
         let optimized = self.optimized();
         let mut analyses = mir::ModuleCache::with_target_layout(optimized.target);
         let object = ObjectEmitter::new(self.module_id(), &optimized, Vec::new(), &mut analyses)
@@ -128,7 +128,7 @@ impl TestProgram {
             self.module_id(),
             &optimized,
             &object,
-            &destack_repository::Target::native(),
+            &tspp_repository::Target::native(),
         )
         .expect("host native emitter should initialize");
         let cranelift = emitter
@@ -141,13 +141,13 @@ impl TestProgram {
             self.module_id(),
             &optimized,
             &object,
-            &destack_repository::Target::native(),
+            &tspp_repository::Target::native(),
         )
         .expect("host native emitter should initialize")
         .emit()
         .expect("test MIR should emit native code");
 
-        destack_native::Object::from_bytes(native.bytes())
+        tspp_native::Object::from_bytes(native.bytes())
             .expect("emitted native object should reload")
     }
 

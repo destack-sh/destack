@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, NodeSpanRegion, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch, NodeSpanRegion, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult, MemberCall};
@@ -556,7 +556,7 @@ function firstPositive(values: int32[]): int32 | undefined {
         session.assert_diagnostics(
             r#"
 warning[prefer-array-search]: filtered array is used only for its first element
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function firstPositive(values: int32[]): int32 | undefined {
 2 │     return values.filter((value) => value > 0).at(0);
@@ -565,8 +565,8 @@ warning[prefer-array-search]: filtered array is used only for its first element
   │
 
  = suggestion: search the array directly (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function firstPositive(values: int32[]): int32 | undefined {
 -   2│     return values.filter((value) => value > 0).at(0);
@@ -1123,7 +1123,7 @@ function hasPositive(values: int32[]): boolean {
         session.assert_diagnostics(
             r#"
 warning[prefer-array-search]: array search is used only to test for a match
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function hasPositive(values: int32[]): boolean {
 2 │     return values.filter((value) => value > 0) /* retain */ .length > 0;
@@ -1149,7 +1149,7 @@ function locate(values: int32[], target: int32): isize | undefined {
         session.assert_diagnostics(
             r#"
 warning[prefer-array-search]: index predicate only compares one value
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function locate(values: int32[], target: int32): isize | undefined {
 2 │     return values.findIndex((value) => value /* retain */ === target);

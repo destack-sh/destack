@@ -6,11 +6,11 @@
 
 Regex literals use forward slashes.
 
-```ds
+```tspp
 const x = /pattern/
 ```
 
-```ds expected
+```tspp expected
 const x = /pattern/;
 ```
 
@@ -18,11 +18,11 @@ const x = /pattern/;
 
 Flags follow the closing slash.
 
-```ds
+```tspp
 const x = /\d+/g
 ```
 
-```ds expected
+```tspp expected
 const x = /\d+/g;
 ```
 
@@ -30,11 +30,11 @@ const x = /\d+/g;
 
 Multiple flags can be combined.
 
-```ds
+```tspp
 const x = /hello/gi
 ```
 
-```ds expected
+```tspp expected
 const x = /hello/gi;
 ```
 
@@ -42,10 +42,10 @@ const x = /hello/gi;
 
 Complex patterns are preserved exactly.
 
-```ds
+```tspp
 const x = /^[a-z]+$/i
 ```
 
-```ds expected
+```tspp expected
 const x = /^[a-z]+$/i;
 ```

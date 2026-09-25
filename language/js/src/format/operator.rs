@@ -1,5 +1,5 @@
-use destack_fir::prelude::*;
-use destack_fir::write;
+use tspp_fir::prelude::*;
+use tspp_fir::write;
 
 use crate::{AssignOperator, BinaryOperator, UnaryOperator};
 

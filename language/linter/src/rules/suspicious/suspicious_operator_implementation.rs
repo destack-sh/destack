@@ -1,5 +1,5 @@
-use destack_core::FxIndexMap;
-use destack_dir as dir;
+use tspp_core::FxIndexMap;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -193,7 +193,7 @@ extension of Score implements Add<Score> {
         session.assert_diagnostics(
             r#"
 warning[suspicious-operator-implementation]: Add implementation uses the Subtract operator
-  ──▶ main.ds:9:42
+  ──▶ main.tspp:9:42
    │
  7 │
  8 │     add(&readonly this, other: Score): Score {

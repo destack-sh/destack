@@ -1,8 +1,8 @@
 use crate::parse::error::ParserResultExt;
-use destack_dir::{
+use tspp_dir::{
     Expression, Keyword, LocalNodeId, NodeType, Parameter, Pattern, StringId, ThisForm, TokenType,
 };
-use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
+use tspp_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 use crate::parse::{
     AwaitKeyword, BindingPosition, DeclarationNesting, ExpressionPosition, ExpressionStop,
@@ -32,7 +32,7 @@ impl Parser {
     /// Parse one standalone parameter fragment.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// value: string = "default"
     /// ```
     pub fn parse_parameter_fragment(&mut self) -> ParserResult<LocalNodeId<Parameter>> {
@@ -42,7 +42,7 @@ impl Parser {
     /// Parse one standalone parenthesized parameter list.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// (left: int, right: int = 0)
     /// ```
     pub fn parse_parameter_list_fragment(&mut self) -> ParserResult<Vec<LocalNodeId<Parameter>>> {
@@ -118,7 +118,7 @@ impl Parser {
     /// Parse one parameter.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// x
     /// T
     /// x: int32
@@ -387,7 +387,7 @@ impl Parser {
     /// Parameters may be comma or newline separated.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// x: int32
     /// x: int32, y: int32
     /// x: int32

@@ -1,12 +1,12 @@
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_fir::format::{FormatResult, copied_text};
-use destack_fir::prelude::{empty_line, hard_line_break};
-use destack_fir::write;
-use destack_source::Span;
+use crate::{TsppFormatContext, TsppFormatter};
+use tspp_fir::format::{FormatResult, copied_text};
+use tspp_fir::prelude::{empty_line, hard_line_break};
+use tspp_fir::write;
+use tspp_source::Span;
 
 /// Return the raw line prefix before one byte offset.
 pub(super) fn line_prefix_text<'a>(
-    context: &'a DestackFormatContext<'a>,
+    context: &'a TsppFormatContext<'a>,
     offset: u32,
 ) -> Option<&'a str> {
     let (line_index, column) = context.file.get_position(offset)?;
@@ -17,7 +17,7 @@ pub(super) fn line_prefix_text<'a>(
 }
 
 /// Return source text dedented relative to its containing line.
-fn source_span_text(context: &DestackFormatContext<'_>, span: Span) -> String {
+fn source_span_text(context: &TsppFormatContext<'_>, span: Span) -> String {
     let source = context.span_str(span);
 
     // retain source when its line position is unavailable
@@ -42,7 +42,7 @@ fn source_span_text(context: &DestackFormatContext<'_>, span: Span) -> String {
 
 /// Write one authored source span with formatter-managed indentation.
 pub(crate) fn write_source_span<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     span: Span,
 ) -> FormatResult<()> {
     // source spans already contain their own comments

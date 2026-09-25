@@ -1,7 +1,7 @@
-use crate::DestackFormatContext;
+use crate::TsppFormatContext;
 use crate::chain::transparent_inner_expression;
 use crate::tree::child::tree_expression_contains_callback_break;
-use destack_dir::{Argument, Expression, LocalNodeId, Tree, TreeAttribute};
+use tspp_dir::{Argument, Expression, LocalNodeId, Tree, TreeAttribute};
 
 /// Get the value expression for any call argument variant.
 pub(crate) fn argument_value_id(
@@ -16,7 +16,7 @@ pub(crate) fn argument_value_id(
 
 /// Return an argument value expression with transparent wrappers removed.
 pub(crate) fn argument_transparent_value_id(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<LocalNodeId<Expression>> {
     argument_value_id(context.tree, argument_id)
@@ -33,7 +33,7 @@ pub(crate) fn tree_attribute_value_id(
 
 /// Decide whether tree attributes should force the element to break.
 pub(crate) fn should_force_break_tree_attributes(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     attributes: &[LocalNodeId<TreeAttribute>],
 ) -> bool {
     let tree = context.tree;

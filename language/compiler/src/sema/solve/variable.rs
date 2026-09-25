@@ -1,6 +1,6 @@
 use std::mem::size_of;
 
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::sema::{BoundList, OriginId};
 

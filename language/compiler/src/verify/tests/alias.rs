@@ -89,7 +89,7 @@ entry(v0: [int32; 4], v1: usize, v2: usize):
     program.assert_verify_errors(
         r#"
 error[borrow-conflict]: borrow conflicts with active borrow
- ──▶ <test.dsm>:5:5
+ ──▶ <test.tsppm>:5:5
   │
 2 │ function test(v0: [int32; 4], v1: usize, v2: usize): void {
 3 │ entry(v0: [int32; 4], v1: usize, v2: usize):
@@ -101,7 +101,7 @@ error[borrow-conflict]: borrow conflicts with active borrow
 7 │     v6: int32 = load (*v4)
   │
 
-for more information about an error, run `destack explain borrow-conflict`
+for more information about an error, run `tspp explain borrow-conflict`
 "#,
     );
 }
@@ -349,7 +349,8 @@ export function preFreezeElse(): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 
 "#,
     );
@@ -377,7 +378,8 @@ export function getOrInsert(slot: &Slot, fallback: ^string): &readonly string {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -443,7 +445,8 @@ export function whileAliasedMutCond(): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 
 "#,
     );
@@ -473,7 +476,8 @@ export function main(thing: &Thing): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -512,7 +516,8 @@ export function writesAfterUse(): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 
 "#,
     );
@@ -550,7 +555,8 @@ export function ok(map: &Map): &readonly string {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -582,7 +588,8 @@ export function refresh(map: &Map): &readonly string {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 
 "#,
     );
@@ -648,7 +655,8 @@ export function overwrite(a: Holder, b: Holder): int32 {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -685,7 +693,8 @@ export function overwrite(a: Holder, b: Holder): int32 {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -720,7 +729,8 @@ export function pop(a: Holder, b: Holder): int32 {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -754,7 +764,8 @@ export function change(a: Holder, b: Holder): isize {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -792,7 +803,7 @@ export function clear(a: Holder, b: Holder): int32 {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds",
+        "main.tspp",
         r#"
 /// @diagnostic.error id=borrow-of-aliasable-variant message="cannot borrow an inline variant payload through aliasable access"
 /// @diagnostic.label line=20 column=22 span="&readonly a.slot" line_source="const held = &readonly a.slot;"
@@ -829,7 +840,8 @@ export function read(a: Holder, b: Holder): int32 {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -867,7 +879,8 @@ export function inspect(slot: ^Payload | undefined): int32 {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -905,7 +918,8 @@ export async function replace(a: Holder, b: Holder): Promise<int32> {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -945,7 +959,8 @@ export async function replace(a: Holder, b: Holder): Promise<int32> {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -976,7 +991,8 @@ class Holder {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -1006,7 +1022,8 @@ export function grow(a: Holder, b: Holder): int32 {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -1027,7 +1044,8 @@ export function total(items: ^int64[]): int64 {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -1037,7 +1055,7 @@ export function total(items: ^int64[]): int64 {
 fn test_reject_overwriting_an_owned_field_of_a_frame_owned_object_under_an_exclusive_borrow() {
     let session = TestSession::single(
         r#"
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 class Holder {
     item: ^Box<int32>;
@@ -1058,7 +1076,7 @@ export function overwrite(a: ^Holder): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds",
+        "main.tspp",
         r#"
 /// @diagnostic.error id=invalidation-of-borrowed-place message="cannot invalidate borrowed place"
 /// @diagnostic.label line=16 column=5 span="a.item = Box.new(1)" line_source="a.item = Box.new(1);"
@@ -1072,7 +1090,7 @@ export function overwrite(a: ^Holder): void {
 fn test_reject_overwriting_an_owned_field_of_a_frame_owned_object_under_a_readonly_borrow() {
     let session = TestSession::single(
         r#"
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 class Holder {
     item: ^Box<int32>;
@@ -1093,7 +1111,7 @@ export function overwrite(a: ^Holder): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds",
+        "main.tspp",
         r#"
 /// @diagnostic.error id=invalidation-of-borrowed-place message="cannot invalidate borrowed place"
 /// @diagnostic.label line=16 column=5 span="a.item = Box.new(1)" line_source="a.item = Box.new(1);"
@@ -1107,7 +1125,7 @@ export function overwrite(a: ^Holder): void {
 fn test_reject_popping_a_frame_owned_array_under_an_element_borrow() {
     let session = TestSession::single(
         r#"
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 function read(item: &immutable Box<int32>): int32 {
     return 0;
@@ -1122,7 +1140,7 @@ export function pop(items: ^Array<^Box<int32>>): int32 {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds",
+        "main.tspp",
         r#"
 /// @diagnostic.error id=borrow-conflict message="borrow conflicts with active borrow"
 /// @diagnostic.label line=10 column=5 span="items.pop()" line_source="items.pop();"
@@ -1148,7 +1166,7 @@ export function grow(items: ^int64[]): int64 {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds",
+        "main.tspp",
         r#"
 /// @diagnostic.error id=borrow-conflict message="borrow conflicts with active borrow"
 /// @diagnostic.label line=5 column=9 span="items.push(1)" line_source="items.push(1);"
@@ -1174,7 +1192,7 @@ export function grow(items: &int64[]): int64 {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds",
+        "main.tspp",
         r#"
 /// @diagnostic.error id=borrow-conflict message="borrow conflicts with active borrow"
 /// @diagnostic.label line=5 column=9 span="items.push(1)" line_source="items.push(1);"
@@ -1202,7 +1220,8 @@ function at(fields: Fields): Entry {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -1236,7 +1255,7 @@ entry(v0: Holder, v1: ref<Item, unique, mutable>):
     program.assert_verify_errors(
         r#"
 error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
-  ──▶ <test.dsm>:16:5
+  ──▶ <test.tsppm>:16:5
    │
 13 │ entry(v0: Holder, v1: ref<Item, unique, mutable>):
 14 │     store l0, v0
@@ -1248,7 +1267,7 @@ error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
 18 │     return v3
    │
 
-for more information about an error, run `destack explain invalidation-of-borrowed-place`
+for more information about an error, run `tspp explain invalidation-of-borrowed-place`
 "#,
     );
 }
@@ -1283,7 +1302,7 @@ entry:
     program.assert_verify_errors(
         r#"
 error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
-  ──▶ <test.dsm>:17:5
+  ──▶ <test.tsppm>:17:5
    │
 14 │ function test(): int32 {
 15 │ entry:
@@ -1295,7 +1314,7 @@ error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
 19 │     return v1
    │
 
-for more information about an error, run `destack explain invalidation-of-borrowed-place`
+for more information about an error, run `tspp explain invalidation-of-borrowed-place`
 "#,
     );
 }
@@ -1351,7 +1370,7 @@ entry:
     program.assert_verify_errors(
         r#"
 error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
-  ──▶ <test.dsm>:15:5
+  ──▶ <test.tsppm>:15:5
    │
  9 │ entry:
 10 │     v0: ref<Box, managed, mutable, local> = new.zeroed Box, local
@@ -1366,7 +1385,7 @@ error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
 17 │     return v4
    │
 
-for more information about an error, run `destack explain invalidation-of-borrowed-place`
+for more information about an error, run `tspp explain invalidation-of-borrowed-place`
 "#,
     );
 }
@@ -1407,7 +1426,7 @@ done:
     program.assert_verify_errors(
         r#"
 error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
-  ──▶ <test.dsm>:19:5
+  ──▶ <test.tsppm>:19:5
    │
 14 │
 15 │ body:
@@ -1421,7 +1440,7 @@ error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
 21 │     store l0, v1
    │
 
-for more information about an error, run `destack explain invalidation-of-borrowed-place`
+for more information about an error, run `tspp explain invalidation-of-borrowed-place`
 "#,
     );
 }
@@ -1454,7 +1473,7 @@ entry:
     program.assert_verify_errors(
         r#"
 error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
-  ──▶ <test.dsm>:15:5
+  ──▶ <test.tsppm>:15:5
    │
  9 │ entry:
 10 │     v0: ref<Box, managed, mutable, local> = new.zeroed Box, local
@@ -1469,7 +1488,7 @@ error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
 17 │     return v4
    │
 
-for more information about an error, run `destack explain invalidation-of-borrowed-place`
+for more information about an error, run `tspp explain invalidation-of-borrowed-place`
 "#,
     );
 }

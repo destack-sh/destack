@@ -1,7 +1,7 @@
-use destack_dir as dir;
-use destack_serde::Reflect;
-use destack_source::{File, FileId, NodeSpanRegion, NodeSpanType, Span};
 use serde::{Deserialize, Serialize};
+use tspp_dir as dir;
+use tspp_serde::Reflect;
+use tspp_source::{File, FileId, NodeSpanRegion, NodeSpanType, Span};
 
 use crate::{Module, ModuleQueryContext, QueryError, QueryResult};
 

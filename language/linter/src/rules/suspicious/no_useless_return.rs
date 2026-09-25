@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -86,7 +86,7 @@ function record(value: int32): void {
         session.assert_diagnostics(
             r#"
 warning[no-useless-return]: return is redundant at the end of this function
- ──▶ main.ds:3:5
+ ──▶ main.tspp:3:5
   │
 1 │ function record(value: int32): void {
 2 │     value;
@@ -96,8 +96,8 @@ warning[no-useless-return]: return is redundant at the end of this function
   │
 
  = fix: remove the redundant return
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     2│     value;
 -   3│     return;

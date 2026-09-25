@@ -15,7 +15,7 @@ function read(text: string): int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

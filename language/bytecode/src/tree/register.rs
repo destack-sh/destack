@@ -1,8 +1,8 @@
 use std::mem::size_of;
 
-use destack_core::{EntryRange, SectionEntry};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::{EntryRange, SectionEntry};
+use tspp_serde::Reflect;
 
 /// Physical bytecode locations for one canonical frame state.
 #[repr(C)]

@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use destack_heap as heap;
-use destack_memory::MemoryMap;
-use destack_program as program;
-use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use tspp_heap as heap;
+use tspp_memory::MemoryMap;
+use tspp_program as program;
+use tspp_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 

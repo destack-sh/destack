@@ -6,20 +6,20 @@ use crate::collection::TrailingSeparator;
 use crate::collection::literal::format_scalar_literal;
 use crate::collection::property::{can_unquote_name, format_name_with_quotes};
 use crate::declaration::expression_needs_statement_terminator;
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_core::{StringId, StringPool};
-use destack_dir::{
+use crate::{FormatNode, TsppFormatContext, TsppFormatter};
+use std::borrow::Cow;
+use std::cmp::Ordering;
+use tspp_core::{StringId, StringPool};
+use tspp_dir::{
     DecoratorPosition, DependencyBinding, DependencyItem, Expression, ImportAttribute,
     ImportAttributeClause, ImportAttributeClauseKind, ImportAttributeValue, Keyword, Literal,
     LocalNodeId, Name, TokenSpan, TokenType, Tree,
 };
-use destack_fir::format::{FormatError, FormatResult};
-use destack_fir::prelude::*;
-use destack_fir::write;
-use destack_repository::{ImportSortOrder, QuoteProperty, TrailingComma};
-use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
-use std::borrow::Cow;
-use std::cmp::Ordering;
+use tspp_fir::format::{FormatError, FormatResult};
+use tspp_fir::prelude::*;
+use tspp_fir::write;
+use tspp_repository::{ImportSortOrder, QuoteProperty, TrailingComma};
+use tspp_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 
 /// The import group category for declaration ordering.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
@@ -60,7 +60,7 @@ impl ImportGroup {
 
 /// Format a dependency item name.
 fn format_dependency_item_name<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     name: Name,
 ) -> FormatResult<()> {
     match name {
@@ -82,7 +82,7 @@ impl<'ast> FormatNode<'ast, DependencyItem> for DependencyItem {
     fn format_node(
         &self,
         node_id: LocalNodeId<DependencyItem>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let DependencyItem::Binding {
             binding,
@@ -153,7 +153,7 @@ pub(crate) fn is_import(expr_id: LocalNodeId<Expression>, tree: &Tree) -> bool {
 
 /// Format one dependency-shaped statement expression.
 pub(crate) fn format_dependency_statement_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> FormatResult<bool> {
@@ -398,7 +398,7 @@ fn dependency_item_value(item: &DependencyItem) -> Option<LocalNodeId<Expression
 
 /// Return the earliest prefix start for one dependency item.
 fn dependency_item_prefix_start(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     item_id: LocalNodeId<DependencyItem>,
 ) -> u32 {
     let mut start = context.span(item_id).start;
@@ -420,7 +420,7 @@ fn dependency_item_prefix_start(
 }
 
 /// Return whether one dependency gap contains a blank line.
-fn dependency_gap_has_blank_line(context: &DestackFormatContext<'_>, start: u32, end: u32) -> bool {
+fn dependency_gap_has_blank_line(context: &TsppFormatContext<'_>, start: u32, end: u32) -> bool {
     if start >= end {
         return false;
     }
@@ -430,7 +430,7 @@ fn dependency_gap_has_blank_line(context: &DestackFormatContext<'_>, start: u32,
 
 /// Write spacing for one dependency gap using source-relative line shape.
 fn write_dependency_gap_spacing<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     start: u32,
     end: u32,
     should_allow_soft_break: bool,
@@ -460,7 +460,7 @@ fn write_dependency_gap_spacing<'ast>(
 
 /// Write comments in one dependency gap and return the last emitted end position.
 fn write_dependency_gap_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     start: u32,
     end: u32,
 ) -> FormatResult<u32> {
@@ -485,7 +485,7 @@ fn write_dependency_gap_comments<'ast>(
 
 /// Write one dependency gap using local comments plus normalized spacing.
 fn write_dependency_gap<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     start: u32,
     end: u32,
     should_allow_soft_break: bool,
@@ -520,7 +520,7 @@ fn write_dependency_gap<'ast>(
 
 /// Write one dependency item alias clause with preserved comments.
 fn write_dependency_item_alias_clause<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<DependencyItem>,
     alias: StringId,
 ) -> FormatResult<()> {
@@ -553,7 +553,7 @@ fn write_dependency_item_alias_clause<'ast>(
 
 /// Write one import attribute value.
 fn write_import_attribute_value<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     value: &ImportAttributeValue,
 ) -> FormatResult<()> {
     match value {
@@ -615,7 +615,7 @@ fn write_import_attribute_value<'ast>(
 
 /// Write one import attribute entry.
 fn format_import_attribute<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     attribute: &ImportAttribute,
     force_quote_keys: bool,
 ) -> FormatResult<()> {
@@ -629,7 +629,7 @@ fn format_import_attribute<'ast>(
 
 /// Return whether one import attribute key requires quotes.
 fn import_attribute_key_requires_quotes(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     attribute: &ImportAttribute,
 ) -> bool {
     match attribute.key {
@@ -640,7 +640,7 @@ fn import_attribute_key_requires_quotes(
 
 /// Format `with { ... }` arguments for import and export statements.
 fn format_dependency_with_arguments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     clause_kind: ImportAttributeClauseKind,
     attributes: &[ImportAttribute],
@@ -673,7 +673,7 @@ fn format_dependency_with_arguments<'ast>(
         .is_some_and(|span| f.context().source_text().has_newline_before(span.start));
 
     // body
-    let format_arguments = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_arguments = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         let use_inner_space = f.context().options.bracket_spacing && !attributes.is_empty();
         if use_inner_space {
             write!(f, [if_group_fits_on_line(&space())])?;
@@ -704,7 +704,7 @@ fn format_dependency_with_arguments<'ast>(
 
         Ok(())
     });
-    let with_arguments = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let with_arguments = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write!(
             f,
             [token("{"), soft_block_indent(&format_arguments), token("}")]
@@ -726,7 +726,7 @@ fn format_dependency_with_arguments<'ast>(
 
 /// Return whether any dependency item in one list has annotations.
 fn dependency_items_have_annotations(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     items: &[LocalNodeId<DependencyItem>],
 ) -> bool {
     items.iter().any(|item| ctx.has_annotation(*item))
@@ -734,7 +734,7 @@ fn dependency_items_have_annotations(
 
 /// Return whether one dependency item list has separator comments.
 fn dependency_items_have_separator_signal(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     items: &[LocalNodeId<DependencyItem>],
 ) -> bool {
     items.windows(2).any(|item_pair| {
@@ -748,7 +748,7 @@ fn dependency_items_have_separator_signal(
 }
 
 /// Return whether one dependency gap contains comments.
-fn dependency_gap_has_comments(context: &DestackFormatContext<'_>, start: u32, end: u32) -> bool {
+fn dependency_gap_has_comments(context: &TsppFormatContext<'_>, start: u32, end: u32) -> bool {
     if start >= end {
         return false;
     }
@@ -758,7 +758,7 @@ fn dependency_gap_has_comments(context: &DestackFormatContext<'_>, start: u32, e
 
 /// Return one dependency item collection close-brace token.
 fn dependency_item_collection_close_brace_token(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     items: &[LocalNodeId<DependencyItem>],
 ) -> Option<TokenSpan> {
@@ -799,7 +799,7 @@ fn dependency_item_collection_close_brace_token(
 
 /// Return one dependency item collection open-brace token.
 fn dependency_item_collection_open_brace_token(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     items: &[LocalNodeId<DependencyItem>],
 ) -> Option<TokenSpan> {
@@ -825,7 +825,7 @@ fn dependency_item_collection_open_brace_token(
 
 /// Return whether one dependency item collection interior has preserved source signal.
 fn dependency_item_collection_has_interior_signal(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     items: &[LocalNodeId<DependencyItem>],
 ) -> bool {
@@ -881,7 +881,7 @@ fn dependency_item_collection_has_interior_signal(
 
 /// Return dependency items in output order with optional organize-imports sorting.
 fn dependency_items_for_output<'a>(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     items: &'a [LocalNodeId<DependencyItem>],
     has_item_annotations: bool,
 ) -> Cow<'a, [LocalNodeId<DependencyItem>]> {
@@ -906,7 +906,7 @@ fn dependency_items_for_output<'a>(
 
 /// Write one dependency item list body with preserved separator comments.
 fn write_dependency_item_entries<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     open_brace: Option<TokenSpan>,
     items: &[LocalNodeId<DependencyItem>],
     trailing_separator: TrailingSeparator,
@@ -962,7 +962,7 @@ fn write_dependency_item_entries<'ast>(
 
 /// Write one reordered dependency item list body.
 fn write_reordered_dependency_item_entries<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     items: &[LocalNodeId<DependencyItem>],
     trailing_separator: TrailingSeparator,
 ) -> FormatResult<()> {
@@ -987,7 +987,7 @@ fn write_reordered_dependency_item_entries<'ast>(
 
 /// Write one dependency item collection list with stable expansion rules.
 fn write_dependency_item_collection<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     source_items: &[LocalNodeId<DependencyItem>],
     items: &[LocalNodeId<DependencyItem>],
@@ -1020,10 +1020,10 @@ fn write_dependency_item_collection<'ast>(
 
     write!(
         f,
-        [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        [group(&format_with(|f: &mut TsppFormatter<'ast, '_>| {
             write!(f, [token("{")])?;
 
-            let format_interior = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            let format_interior = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 if !items.is_empty() {
                     if is_source_order {
                         write_dependency_item_entries(f, open_brace, items, trailing_separator)?;
@@ -1100,7 +1100,7 @@ fn write_dependency_item_collection<'ast>(
 
 /// Write one dependency item collection using shared output ordering options.
 fn write_dependency_items<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     items: &[LocalNodeId<DependencyItem>],
 ) -> FormatResult<()> {
@@ -1121,7 +1121,7 @@ fn write_dependency_items<'ast>(
 
 /// Write one quoted dependency source target.
 fn write_dependency_target<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     target: StringId,
 ) -> FormatResult<()> {
     write!(f, [token("\""), target, token("\"")])
@@ -1129,7 +1129,7 @@ fn write_dependency_target<'ast>(
 
 /// Write one `from "<target>"` dependency source clause.
 fn write_dependency_from_target_clause<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     target: StringId,
 ) -> FormatResult<()> {
@@ -1156,7 +1156,7 @@ fn write_dependency_from_target_clause<'ast>(
 
 /// Write one side-effect dependency target after `import`.
 fn write_dependency_direct_target_clause<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     target: StringId,
 ) -> FormatResult<()> {
@@ -1176,7 +1176,7 @@ fn write_dependency_direct_target_clause<'ast>(
 
 /// Write one optional dependency attribute clause.
 fn write_dependency_attribute_clause<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     attributes: Option<&ImportAttributeClause>,
 ) -> FormatResult<()> {
@@ -1189,7 +1189,7 @@ fn write_dependency_attribute_clause<'ast>(
 
 /// Write one namespace import clause.
 fn write_namespace_import_clause<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     first_item: &DependencyItem,
 ) -> FormatResult<()> {
     let namespace_alias = dependency_item_alias(first_item).ok_or(FormatError::SyntaxError {
@@ -1211,7 +1211,7 @@ fn write_namespace_import_clause<'ast>(
 
 /// Write one default-led import clause.
 fn write_default_import_clause<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     first_item: &DependencyItem,
     rest_items: &[LocalNodeId<DependencyItem>],
@@ -1256,7 +1256,7 @@ fn write_default_import_clause<'ast>(
 
 /// Write one normal import clause after the `import` keyword.
 fn write_import_clause<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     items: &[LocalNodeId<DependencyItem>],
     has_item_clause: bool,
@@ -1293,7 +1293,7 @@ fn write_import_clause<'ast>(
 
 /// Write one export clause after the `export` keyword.
 fn write_export_clause<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     items: &[LocalNodeId<DependencyItem>],
     target: Option<StringId>,
@@ -1396,7 +1396,7 @@ fn write_export_clause<'ast>(
 }
 /// Write one ordinary import statement body.
 fn write_import_declaration_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     target: StringId,
     items: &[LocalNodeId<DependencyItem>],
@@ -1420,7 +1420,7 @@ fn write_import_declaration_expression<'ast>(
 
 /// Format an import expression.
 pub(crate) fn format_import_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     target: StringId,
     items: Option<&[LocalNodeId<DependencyItem>]>,
@@ -1434,7 +1434,7 @@ pub(crate) fn format_import_expression<'ast>(
 
 /// Write one export declaration body.
 fn write_export_declaration_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     target: Option<StringId>,
     items: &[LocalNodeId<DependencyItem>],
@@ -1459,7 +1459,7 @@ fn write_export_declaration_expression<'ast>(
 
 /// Format an export expression.
 pub(crate) fn format_export_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     target: Option<StringId>,
     items: &[LocalNodeId<DependencyItem>],

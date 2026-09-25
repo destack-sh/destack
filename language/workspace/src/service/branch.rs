@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use destack_repository::Revision;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_repository::Revision;
+use tspp_serde::Reflect;
 
 /// Request to list branches in one workspace.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]

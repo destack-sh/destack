@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use std::fs::{File, OpenOptions};
 
-use destack_source::{FileSystem, PhysicalFileSystem};
 use serde::de::DeserializeOwned;
+use tspp_source::{FileSystem, PhysicalFileSystem};
 
 use crate::{
     ArtifactCacheError, ArtifactCacheManifest, ArtifactPack, ArtifactPackReference,
@@ -215,7 +215,7 @@ impl ArtifactCache {
         repository: &Path,
         manifest: &ArtifactCacheManifest<R>,
     ) -> Result<(), ArtifactCacheError> {
-        let bytes = destack_serde::to_vec(manifest)?;
+        let bytes = tspp_serde::to_vec(manifest)?;
         let path = self.manifest_path(repository);
 
         Self::write_file(&path, &bytes)
@@ -321,7 +321,7 @@ impl ArtifactCache {
             return Ok(None);
         }
         let bytes = Self::read_file(&path)?;
-        let manifest: ArtifactCacheManifest<R> = destack_serde::from_slice(&bytes)
+        let manifest: ArtifactCacheManifest<R> = tspp_serde::from_slice(&bytes)
             .map_err(ArtifactCacheError::from)
             .map_err(|error| error.record(&path))?;
         manifest

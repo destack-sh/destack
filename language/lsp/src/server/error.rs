@@ -1,8 +1,8 @@
 use std::fmt::Display;
 
-use destack_lsp_server::jsonrpc;
-use destack_workspace::Error;
 use serde_json::Value;
+use tspp_lsp_server::jsonrpc;
+use tspp_workspace::Error;
 
 /// Build an internal LSP error without discarding its cause.
 pub(crate) fn internal_error(detail: impl Display) -> jsonrpc::Error {

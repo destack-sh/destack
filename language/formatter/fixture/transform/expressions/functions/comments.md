@@ -6,12 +6,12 @@
 
 Doc comments are preserved above the function declaration.
 
-```ds
+```tspp
 /// Adds two numbers together.
 function add(a: number, b: number): number { return a + b }
 ```
 
-```ds expected
+```tspp expected
 /// Adds two numbers together.
 function add(a: number, b: number): number {
     return a + b;
@@ -22,13 +22,13 @@ function add(a: number, b: number): number {
 
 Inline comments at the start of a block move to their own line.
 
-```ds
+```tspp
 function foo() { // inline comment
     return 1
 }
 ```
 
-```ds expected
+```tspp expected
 function foo() {
     // inline comment
     return 1;
@@ -40,11 +40,11 @@ function foo() {
 
 Comments in function bodies are preserved.
 
-```ds
+```tspp
 function foo() { /* empty */ }
 ```
 
-```ds expected
+```tspp expected
 function foo() {
     /* empty */
 }

@@ -90,19 +90,19 @@ runtime_run_full_runtime_crate_lane() {
 		LANG=C \
 		LC_CTYPE=C \
 		CARGO_INCREMENTAL=0 \
-		"${cargo_bin}" check -p destack_runtime
+		"${cargo_bin}" check -p tspp_runtime
 
 	LC_ALL=C \
 		LANG=C \
 		LC_CTYPE=C \
 		CARGO_INCREMENTAL=0 \
-		"${cargo_bin}" clippy -p destack_runtime --all-targets -- -D warnings
+		"${cargo_bin}" clippy -p tspp_runtime --all-targets -- -D warnings
 
 	LC_ALL=C \
 		LANG=C \
 		LC_CTYPE=C \
 		CARGO_INCREMENTAL=0 \
-		"${cargo_bin}" test -p destack_runtime -- --nocapture
+		"${cargo_bin}" test -p tspp_runtime -- --nocapture
 }
 
 runtime_run_linux_container_runtime_lane() {
@@ -134,9 +134,9 @@ runtime_run_linux_container_runtime_lane() {
 			export CARGO_PROFILE_TEST_DEBUG=0
 			export RUSTFLAGS='${container_rustflags}'
 			export CARGO_TARGET_DIR=/work/target/runtime-linux-container
-			LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo check --manifest-path /work/Cargo.toml -p destack_runtime
-			LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo clippy --manifest-path /work/Cargo.toml -p destack_runtime --all-targets --no-deps -- -D warnings
-			LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo test --manifest-path /work/Cargo.toml -p destack_runtime -- --nocapture
+			LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo check --manifest-path /work/Cargo.toml -p tspp_runtime
+			LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo clippy --manifest-path /work/Cargo.toml -p tspp_runtime --all-targets --no-deps -- -D warnings
+			LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo test --manifest-path /work/Cargo.toml -p tspp_runtime -- --nocapture
 		"
 }
 

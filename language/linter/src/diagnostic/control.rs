@@ -1,8 +1,8 @@
-use destack_artifact::{
+use tspp_artifact::{
     DiagnosticAnchor, DiagnosticBuilder, DiagnosticControlIndex, DiagnosticControlLevel,
 };
-use destack_core::{StringId, StringPool};
-use destack_source::DiagnosticSeverity;
+use tspp_core::{StringId, StringPool};
+use tspp_source::DiagnosticSeverity;
 
 use crate::{Lint, LinterDiagnostic, LinterError};
 

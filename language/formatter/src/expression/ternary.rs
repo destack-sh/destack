@@ -2,15 +2,15 @@ use super::conditional::ConditionalLayout;
 use super::dispatch::write_expression_without_trailing_comments;
 use crate::annotation::{FormatTrailingComments, write_comment_slice};
 use crate::chain::{expression_trivia_anchor_end, transparent_inner_expression};
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{Argument, Comment, Expression, IfForm, Literal, LocalNodeId, NodeType, Tree};
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::{
+use crate::{TsppFormatContext, TsppFormatter};
+use smallvec::SmallVec;
+use tspp_dir::{Argument, Comment, Expression, IfForm, Literal, LocalNodeId, NodeType, Tree};
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::{
     align, dedent, format_with, group, if_group_breaks, if_group_fits_on_line, indent,
     soft_block_indent, soft_line_break_or_space, space, token,
 };
-use destack_fir::{format_args, write};
-use smallvec::SmallVec;
+use tspp_fir::{format_args, write};
 
 /// Return the value expression for an argument.
 pub(crate) fn argument_value(
@@ -50,7 +50,7 @@ fn ternary_parts(
 
 /// Return whether a ternary branch expression is tree-like.
 pub(crate) fn ternary_branch_is_tree_like(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let expression_id = transparent_inner_expression(context, expression_id);
@@ -62,7 +62,7 @@ pub(crate) fn ternary_branch_is_tree_like(
 
 /// Return whether any branch in a ternary chain is tree-like.
 fn ternary_chain_has_tree_branch(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some((_, then_expression, else_expression)) = ternary_parts(context.tree, node_id) else {
@@ -87,7 +87,7 @@ fn ternary_chain_has_tree_branch(
 
 /// Return whether one tree ternary chain must expand to preserve branch ownership.
 pub(crate) fn tree_chain_ternary_needs_expanded_branches(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some((_, then_expression, else_expression)) = ternary_parts(context.tree, node_id) else {
@@ -102,7 +102,7 @@ pub(crate) fn tree_chain_ternary_needs_expanded_branches(
 
 /// Return comments before one ternary separator token.
 fn ternary_separator_comments<'a>(
-    context: &'a DestackFormatContext<'a>,
+    context: &'a TsppFormatContext<'a>,
     mut start: u32,
     end: u32,
     operator: u8,
@@ -143,7 +143,7 @@ fn ternary_separator_comments<'a>(
 
 /// Write the separator comments that belong to one ternary branch boundary.
 fn write_ternary_separator_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     start: u32,
     end: u32,
     operator: u8,
@@ -164,7 +164,7 @@ fn write_ternary_separator_comments<'ast>(
 
 /// Return whether one expression is a ternary expression.
 fn expression_is_ternary(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let expression_id = transparent_inner_expression(context, expression_id);
@@ -179,7 +179,7 @@ fn expression_is_ternary(
 
 /// Return the layout position for one ternary expression.
 fn ternary_layout(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> ConditionalLayout {
     let Some((parent_id, parent_type)) = context.parent(node_id) else {
@@ -214,7 +214,7 @@ fn ternary_layout(
 
 /// Return whether one tree-chain branch expression can stay unwrapped.
 fn expression_is_tree_chain_bare_branch(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     is_alternate: bool,
 ) -> bool {
@@ -230,7 +230,7 @@ fn expression_is_tree_chain_bare_branch(
 
 /// Return the parent ternary for one branch expression.
 fn ternary_branch_parent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<Expression>> {
     let (parent_id, parent_type) = context.parent_by_id(expression_id.id)?;
@@ -249,7 +249,7 @@ fn ternary_branch_parent(
 
 /// Return whether one expression is a direct ternary branch.
 pub(crate) fn expression_is_ternary_branch(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     ternary_branch_parent(context, expression_id).is_some()
@@ -257,7 +257,7 @@ pub(crate) fn expression_is_ternary_branch(
 
 /// Return trailing comments attached to one ternary branch.
 pub(crate) fn ternary_branch_trailing_comments<'a>(
-    context: &'a DestackFormatContext<'a>,
+    context: &'a TsppFormatContext<'a>,
     expression_id: LocalNodeId<Expression>,
 ) -> Option<(u32, &'a [Comment])> {
     let branch_end = expression_trivia_anchor_end(context, expression_id);
@@ -291,7 +291,7 @@ pub(crate) fn ternary_branch_trailing_comments<'a>(
 
 /// Return whether branch trailing comments require the branch to break.
 fn ternary_branch_has_breaking_trailing_comments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some((branch_end, comments)) = ternary_branch_trailing_comments(context, expression_id)
@@ -309,7 +309,7 @@ fn ternary_branch_has_breaking_trailing_comments(
 
 /// Format one branch in a tree ternary chain.
 fn format_tree_chain_branch<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     is_alternate: bool,
 ) -> FormatResult<()> {
@@ -324,7 +324,7 @@ fn format_tree_chain_branch<'ast>(
             .copied()
             .collect();
 
-    let write_branch_body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let write_branch_body = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         if branch_comments.is_empty() {
             write!(f, [expression_id])?;
         } else {
@@ -351,7 +351,7 @@ fn format_tree_chain_branch<'ast>(
 
 /// Return whether a ternary branch needs inline disambiguating parentheses.
 fn ternary_branch_needs_inline_parentheses(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let expression_id = transparent_inner_expression(context, expression_id);
@@ -366,12 +366,12 @@ fn ternary_branch_needs_inline_parentheses(
 
 /// Write one ternary test using the current layout.
 fn write_standard_ternary_test<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     layout: ConditionalLayout,
     condition: LocalNodeId<Expression>,
     then_expression: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let format_test = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_test = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         let condition_end = expression_trivia_anchor_end(f.context(), condition);
         let then_start = f.context().expression_token_start(then_expression);
 
@@ -390,12 +390,12 @@ fn write_standard_ternary_test<'ast>(
 
 /// Write one standard ternary tail.
 fn write_standard_ternary_tail<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     _layout: ConditionalLayout,
     then_expression: LocalNodeId<Expression>,
     else_expression: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
-    let format_then_expression = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_then_expression = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         let then_end = expression_trivia_anchor_end(f.context(), then_expression);
 
         write_expression_without_trailing_comments(f, then_expression)?;
@@ -408,8 +408,8 @@ fn write_standard_ternary_tail<'ast>(
         Ok(())
     });
 
-    let format_then_expression = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        let format_then_expression = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_then_expression = format_with(|f: &mut TsppFormatter<'ast, '_>| {
+        let format_then_expression = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             if f.options().indent_style.is_space() {
                 write!(f, [align(2, &format_then_expression)])?;
             } else {
@@ -435,14 +435,14 @@ fn write_standard_ternary_tail<'ast>(
         Ok(())
     });
 
-    let format_else_expression = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_else_expression = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         if let Some(else_expression) = else_expression {
             write_expression_without_trailing_comments(f, else_expression)?;
         }
         Ok(())
     });
 
-    let format_else_expression = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_else_expression = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         if f.options().indent_style.is_space() {
             write!(f, [align(2, &format_else_expression)])?;
         } else {
@@ -471,7 +471,7 @@ fn write_standard_ternary_tail<'ast>(
 
 /// Format one standard ternary expression.
 fn format_standard_ternary<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     force_expand: bool,
 ) -> FormatResult<()> {
@@ -482,10 +482,10 @@ fn format_standard_ternary<'ast>(
     };
 
     let layout = ternary_layout(f.context(), node_id);
-    let format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_inner = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_standard_ternary_test(f, layout, condition, then_expression)?;
 
-        let format_tail = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let format_tail = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             write_standard_ternary_tail(f, layout, then_expression, else_expression)
         });
 
@@ -504,7 +504,7 @@ fn format_standard_ternary<'ast>(
         Ok(())
     });
 
-    let grouped = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let grouped = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         if layout.groups_at_root() {
             let grouped = group(&format_inner).should_expand(force_expand);
             write!(f, [grouped])?;
@@ -526,7 +526,7 @@ fn format_standard_ternary<'ast>(
 
 /// Format one ternary expression in its expanded multiline form.
 pub(crate) fn format_expanded_ternary_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     format_standard_ternary(f, node_id, true)
@@ -534,7 +534,7 @@ pub(crate) fn format_expanded_ternary_expression<'ast>(
 
 /// Format one tree ternary chain expression.
 fn format_tree_chain_ternary<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let Some((condition, then_expression, else_expression)) =
@@ -571,7 +571,7 @@ fn format_tree_chain_ternary<'ast>(
 /// Format a ternary expression with the standard breaking layout.
 /// Nested ternaries get progressive indentation when they break.
 pub(crate) fn format_ternary(
-    f: &mut DestackFormatter<'_, '_>,
+    f: &mut TsppFormatter<'_, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     if ternary_chain_has_tree_branch(f.context(), node_id) {

@@ -2,13 +2,13 @@ use std::io::Write;
 use std::ops::AsyncFnOnce;
 use std::time::Duration;
 
-use destack_workspace::{
-    CommandMessagePayload, CommandOutputChunk, CommandProgress, Message, MessageKind, OutputStream,
-    Workspace,
-};
 use futures::{FutureExt, pin_mut, select_biased};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+use tspp_workspace::{
+    CommandMessagePayload, CommandOutputChunk, CommandProgress, Message, MessageKind, OutputStream,
+    Workspace,
+};
 
 use super::result::CommandResult;
 use crate::common::{

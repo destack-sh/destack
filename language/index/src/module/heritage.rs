@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::{ProviderError, ProviderResult};
+use tspp_dir as dir;
+use tspp_repository::{ProviderError, ProviderResult};
 
 use super::context::ModuleIndexContext;
 

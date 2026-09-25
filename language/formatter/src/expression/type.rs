@@ -25,24 +25,24 @@ use crate::operator::{
     format_generic_argument_list, write_colon_prefixed_type_annotation, write_range_operator,
     write_type_annotation_prefix, write_type_expression_with_inline_prefix_annotations,
 };
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_core::ensure_sufficient_stack;
-use destack_dir::{
+use crate::{FormatNode, TsppFormatContext, TsppFormatter};
+use tspp_core::ensure_sufficient_stack;
+use tspp_dir::{
     Comment, ConstructorType, Declaration, Expression, FunctionForm, FunctionSignature,
     FunctionTypeExpression, GenericArgument, GenericParameter, InferForm, Keyword, LocalNodeId,
     MappedTypeModifier, Member, Mutability, Name, Node, NodeType, Parameter, Property, RangeEnd,
     TokenSpan, TokenType, Tree, TreeStore, TupleElement, TupleForm, TypeExpression, TypeLiteral,
     TypeMappedParameter, TypeMember, VarianceBound, WhereClause,
 };
-use destack_fir::format::{FormatElement as FirElement, FormatError, FormatLayout, FormatResult};
-use destack_fir::prelude::{space, token, *};
-use destack_fir::{format_args, write};
-use destack_repository::TrailingComma;
-use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
+use tspp_fir::format::{FormatElement as FirElement, FormatError, FormatLayout, FormatResult};
+use tspp_fir::prelude::{space, token, *};
+use tspp_fir::{format_args, write};
+use tspp_repository::TrailingComma;
+use tspp_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 
 /// Return the innermost type that can own one postfix type operator.
 fn normalize_postfix_type_operand(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     mut expression_id: LocalNodeId<TypeExpression>,
 ) -> LocalNodeId<TypeExpression> {
     loop {
@@ -60,7 +60,7 @@ fn normalize_postfix_type_operand(
 
 /// Return whether one normalized type needs parentheses before postfix operators.
 fn type_needs_postfix_parentheses(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     match context.tree.get(expression_id) {
@@ -88,7 +88,7 @@ fn type_needs_postfix_parentheses(
 
 /// Return whether one indexed-access object type needs parentheses.
 fn type_needs_index_object_parentheses(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     match context.tree.get(expression_id) {
@@ -210,7 +210,7 @@ impl LeadingComments {
 
 /// Return the content start for one type expression.
 fn type_expression_content_start(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
 ) -> u32 {
     context
@@ -221,7 +221,7 @@ fn type_expression_content_start(
 
 /// Write positional leading comments that belong directly before one type node.
 pub(crate) fn write_type_expression_leading_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     expression: &TypeExpression,
 ) -> FormatResult<()> {
@@ -269,7 +269,7 @@ pub(crate) fn write_type_expression_leading_comments<'ast>(
 
 /// Return the conditional layout for one type expression.
 fn type_conditional_layout(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
 ) -> ConditionalLayout {
     let Some((parent_id, parent_type)) = context.parent(node_id) else {
@@ -304,7 +304,7 @@ fn type_conditional_layout(
 
 /// Return whether one type expression is a conditional.
 fn type_expression_is_conditional(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     matches!(
@@ -315,7 +315,7 @@ fn type_expression_is_conditional(
 
 /// Return the source anchor for trailing comments after one type expression.
 fn type_expression_trailing_anchor_end(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<TypeExpression>,
 ) -> u32 {
     let span = context.span(expression_id);
@@ -327,7 +327,7 @@ fn type_expression_trailing_anchor_end(
 
 /// Return conditional comments that trail one branch before the next operator.
 fn type_conditional_trailing_comments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     mut start: u32,
     end: u32,
     operator: u8,
@@ -363,14 +363,14 @@ fn type_conditional_trailing_comments(
 
 /// Write the test layout of one conditional type.
 fn write_type_conditional_test<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     layout: ConditionalLayout,
     left: LocalNodeId<TypeExpression>,
     extends_type: LocalNodeId<TypeExpression>,
     then_type: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
-    let format_test = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_test = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write!(f, [left, space(), Keyword::Extends, space(), extends_type])?;
 
         let trailing_comments = type_conditional_trailing_comments(
@@ -406,11 +406,11 @@ fn write_type_conditional_test<'ast>(
 
 /// Write the `? ... : ...` tail of one conditional type.
 fn write_type_conditional_tail<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     then_type: LocalNodeId<TypeExpression>,
     else_type: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
-    let format_then_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_then_type = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         let then_leading_comments = f.context().comments_after_previous_token(then_type);
 
         if !then_leading_comments.is_empty() {
@@ -433,8 +433,8 @@ fn write_type_conditional_tail<'ast>(
         Ok(())
     });
 
-    let format_then_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        let format_then_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_then_type = format_with(|f: &mut TsppFormatter<'ast, '_>| {
+        let format_then_type = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             if f.options().indent_style.is_space() {
                 write!(f, [align(2, &format_then_type)])?;
             } else {
@@ -460,7 +460,7 @@ fn write_type_conditional_tail<'ast>(
         Ok(())
     });
 
-    let format_else_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_else_type = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         if !type_expression_is_conditional(f.context(), else_type) {
             let else_leading_comments = f.context().comments_after_previous_token(else_type);
 
@@ -472,7 +472,7 @@ fn write_type_conditional_tail<'ast>(
         write_type_expression_without_prefix_annotations(f, else_type)
     });
 
-    let format_else_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_else_type = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         if f.options().indent_style.is_space() {
             write!(f, [align(2, &format_else_type)])?;
         } else {
@@ -501,7 +501,7 @@ fn write_type_conditional_tail<'ast>(
 
 /// Format one conditional type with the nested layout rules.
 fn write_conditional_type<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     left: LocalNodeId<TypeExpression>,
     extends_type: LocalNodeId<TypeExpression>,
@@ -510,10 +510,10 @@ fn write_conditional_type<'ast>(
 ) -> FormatResult<()> {
     let layout = type_conditional_layout(f.context(), node_id);
 
-    let format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_inner = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_type_conditional_test(f, node_id, layout, left, extends_type, then_type)?;
 
-        let format_tail = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let format_tail = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             write_type_conditional_tail(f, then_type, else_type)
         });
 
@@ -533,7 +533,7 @@ fn write_conditional_type<'ast>(
         Ok(())
     });
 
-    let grouped = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let grouped = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         if layout.groups_at_root() {
             write!(f, [group(&format_inner)])?;
         } else {
@@ -554,7 +554,7 @@ fn write_conditional_type<'ast>(
 
 /// Write one static boolean type relation.
 fn write_type_relation(
-    f: &mut DestackFormatter<'_, '_>,
+    f: &mut TsppFormatter<'_, '_>,
     left: LocalNodeId<TypeExpression>,
     keyword: Keyword,
     right: LocalNodeId<TypeExpression>,
@@ -564,7 +564,7 @@ fn write_type_relation(
 
 /// Return comments after one mapped opening brace.
 fn mapped_type_leading_body_comments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
     span: Span,
 ) -> Vec<Comment> {
@@ -591,7 +591,7 @@ fn intersection_type_is_object_like(expression: &TypeExpression) -> bool {
 
 /// Return the object body layout for object arms in one intersection.
 fn intersection_object_body_layout<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     elements: &[LocalNodeId<TypeExpression>],
 ) -> FormatResult<ObjectTypeBodyLayout> {
     for element_id in elements.iter().copied() {
@@ -611,7 +611,7 @@ fn intersection_object_body_layout<'ast>(
 
 /// Write one type expression with an explicit layout and no trailing comments.
 fn write_type_expression_without_trailing_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     layout: TypeExpressionLayout,
 ) -> FormatResult<()> {
@@ -638,7 +638,7 @@ fn write_type_expression_without_trailing_comments<'ast>(
 
 /// Write one intersection member with generated-node-style trailing comments.
 fn write_intersection_member<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     intersection_id: LocalNodeId<TypeExpression>,
     element_id: LocalNodeId<TypeExpression>,
     next_element_id: Option<LocalNodeId<TypeExpression>>,
@@ -657,7 +657,7 @@ fn write_intersection_member<'ast>(
         return write!(
             f,
             [
-                format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+                format_with(move |f: &mut TsppFormatter<'ast, '_>| {
                     write_type_expression_without_trailing_comments(f, element_id, layout)
                 }),
                 format_trailing_comments(enclosing_span, element_span, Some(following_span_start))
@@ -670,7 +670,7 @@ fn write_intersection_member<'ast>(
 
 /// Write one intersection type with object-chain layout.
 fn write_intersection_type<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     elements: &[LocalNodeId<TypeExpression>],
 ) -> FormatResult<()> {
@@ -681,7 +681,7 @@ fn write_intersection_type<'ast>(
 
     let object_body = intersection_object_body_layout(f, elements)?;
 
-    let format_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         let last_index = elements.len().saturating_sub(1);
         let mut previous_is_object_like = false;
         let mut is_chain_indented = false;
@@ -701,7 +701,7 @@ fn write_intersection_type<'ast>(
                     .comments()
                     .has_leading_own_line_comment(f.context().span(element_id).start)
             {
-                let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+                let content = format_with(move |f: &mut TsppFormatter<'ast, '_>| {
                     write_intersection_member(f, node_id, element_id, next_element_id, object_body)
                 });
 
@@ -716,7 +716,7 @@ fn write_intersection_type<'ast>(
                 }
 
                 if is_chain_indented {
-                    let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+                    let content = format_with(move |f: &mut TsppFormatter<'ast, '_>| {
                         write_intersection_member(
                             f,
                             node_id,
@@ -753,7 +753,7 @@ fn write_intersection_type<'ast>(
 
 /// Return whether a type object body starts on its own line in source.
 fn type_object_members_have_leading_newline(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
     members: &[LocalNodeId<TypeMember>],
 ) -> bool {
@@ -777,7 +777,7 @@ fn type_object_members_have_leading_newline(
 
 /// Return whether one parameter directly owns a declared type.
 fn parameter_declared_type_is(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parameter_id: LocalNodeId<Parameter>,
     type_id: LocalNodeId<TypeExpression>,
 ) -> bool {
@@ -794,7 +794,7 @@ fn parameter_declared_type_is(
 
 /// Return whether one parameter has a default expression.
 fn parameter_has_default_value(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parameter_id: LocalNodeId<Parameter>,
 ) -> bool {
     match context.tree.get(parameter_id) {
@@ -807,7 +807,7 @@ fn parameter_has_default_value(
 
 /// Return whether one callable should hug a parameter-owned object type.
 fn parameters_should_hug_type(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parameters: ParameterList,
     parameter_id: LocalNodeId<Parameter>,
 ) -> bool {
@@ -819,7 +819,7 @@ fn parameters_should_hug_type(
 
 /// Return whether one object type should use parameter hugging layout.
 fn type_object_should_hug(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     let Some((parameter_parent_id, NodeType::Parameter)) = context.parent(node_id) else {
@@ -900,7 +900,7 @@ fn type_object_should_hug(
 
 /// Return whether one object type is structurally eligible for direct inline formatting.
 fn type_object_allows_inline_body(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
     members: &[LocalNodeId<TypeMember>],
 ) -> bool {
@@ -925,7 +925,7 @@ fn type_object_allows_inline_body(
 
 /// Prepare a direct inline object body when it is measurable and fits.
 fn prepare_inline_type_object<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     members: &[LocalNodeId<TypeMember>],
     layout: TypeExpressionLayout,
@@ -939,7 +939,7 @@ fn prepare_inline_type_object<'ast>(
     }
 
     let content =
-        format_with(|f: &mut DestackFormatter<'ast, '_>| write_inline_type_object(f, members[0]));
+        format_with(|f: &mut TsppFormatter<'ast, '_>| write_inline_type_object(f, members[0]));
 
     let snapshot = f.context().comments().snapshot();
     let element = f.capture(&content);
@@ -963,7 +963,7 @@ fn prepare_inline_type_object<'ast>(
 
 /// Write one direct inline object type body.
 fn write_inline_type_object<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     member_id: LocalNodeId<TypeMember>,
 ) -> FormatResult<()> {
     write!(f, [token("{")])?;
@@ -983,7 +983,7 @@ fn write_inline_type_object<'ast>(
 
 /// Return whether one union should stay inline when it fits.
 fn union_should_hug(
-    f: &DestackFormatter<'_, '_>,
+    f: &TsppFormatter<'_, '_>,
     node_id: LocalNodeId<TypeExpression>,
     elements: &[LocalNodeId<TypeExpression>],
 ) -> bool {
@@ -1039,7 +1039,7 @@ fn union_should_hug(
 
 /// Return whether one multiline union should own one extra indent.
 fn union_should_indent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
     leading_comments: LeadingComments,
 ) -> bool {
@@ -1082,7 +1082,7 @@ fn union_should_indent(
 
 /// Return whether one type-alias union should keep its extra union indent.
 fn type_alias_union_should_indent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     declaration_id: LocalNodeId<Declaration>,
     leading_comments: LeadingComments,
 ) -> bool {
@@ -1110,7 +1110,7 @@ fn type_alias_union_should_indent(
 
 /// Return the outer parent that decides one union indent.
 fn union_indent_parent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
 ) -> Option<(u32, NodeType)> {
     let (parent_id, parent_type, _) = effective_type_parent(context, node_id)?;
@@ -1129,7 +1129,7 @@ struct UnionChainHead {
 
 /// Return the union node that carries the printable arms.
 fn union_print_node(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
     elements: &[LocalNodeId<TypeExpression>],
 ) -> LocalNodeId<TypeExpression> {
@@ -1156,7 +1156,7 @@ fn union_print_node(
 
 /// Return the head information for one union chain.
 fn union_chain_head(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     mut node_id: LocalNodeId<TypeExpression>,
     elements_len: usize,
 ) -> UnionChainHead {
@@ -1199,7 +1199,7 @@ fn union_chain_head(
 
 /// Return whether one expression parent should add one union indent.
 fn union_expression_should_indent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     match context.tree.get(expression_id) {
@@ -1218,7 +1218,7 @@ fn union_expression_should_indent(
 
 /// Write one inline union body without multiline grouping logic.
 fn write_inline_union_type<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     elements: &[LocalNodeId<TypeExpression>],
     emit_last_arm_trailing_comments: bool,
 ) -> FormatResult<()> {
@@ -1251,7 +1251,7 @@ fn write_inline_union_type<'ast>(
 
 /// Write one union type with break-aware leading separators.
 pub(crate) fn write_union_type<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     elements: &[LocalNodeId<TypeExpression>],
     is_in_explicit_parentheses: bool,
@@ -1328,8 +1328,8 @@ pub(crate) fn write_union_type<'ast>(
     let content_group_id = f.group_id();
 
     // grouped content
-    let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        let leading_separator = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
+        let leading_separator = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             if should_indent && !leading_comments.has_comments {
                 write!(f, [soft_line_break_or_space()])?;
             }
@@ -1356,7 +1356,7 @@ pub(crate) fn write_union_type<'ast>(
             if should_hug {
                 write!(f, [element_id])?;
             } else if element_index == 0 && has_leading_separator_prefix_comment {
-                let first_element = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                let first_element = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                     write!(
                         f,
                         [FormatLeadingComments::Comments(&leading_separator_comments)]
@@ -1436,7 +1436,7 @@ pub(crate) fn write_union_type<'ast>(
         Ok(())
     });
 
-    let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         if needs_parentheses {
             return write!(f, [indent(&content), soft_line_break()]);
         }
@@ -1444,7 +1444,7 @@ pub(crate) fn write_union_type<'ast>(
         write!(f, [content])
     });
 
-    let format_inner_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_inner_content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         let has_own_line_comment = leading_comments.has_own_line_comment
             || matches!(
                 chain_head.parent,
@@ -1491,7 +1491,7 @@ fn type_expression_body_owns_leading_comments(expression: &TypeExpression) -> bo
 
 /// Write prefix annotations for one type expression.
 pub(crate) fn write_type_expression_prefix_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
     write!(
@@ -1502,7 +1502,7 @@ pub(crate) fn write_type_expression_prefix_annotations<'ast>(
 
 /// Write one type expression without emitting prefix annotations.
 pub(crate) fn write_type_expression_without_prefix_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
     let expression = f.context().tree.get(node_id);
@@ -1512,7 +1512,7 @@ pub(crate) fn write_type_expression_without_prefix_annotations<'ast>(
 
 /// Return whether one prefix type operand needs grouping.
 fn prefix_type_operand_needs_grouping(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
     target_type: LocalNodeId<TypeExpression>,
 ) -> bool {
@@ -1527,14 +1527,14 @@ fn prefix_type_operand_needs_grouping(
 
 /// Write one prefix type operand with grouped boundary comments.
 fn write_prefix_type_operand<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     target_type: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
     if prefix_type_operand_needs_grouping(f.context(), node_id, target_type) {
         write!(
             f,
-            [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            [group(&format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 write!(f, [token("("), soft_block_indent(&target_type), token(")")])
             }))]
         )?;
@@ -1547,7 +1547,7 @@ fn write_prefix_type_operand<'ast>(
 
 /// Write one type expression without positional leading comments.
 fn write_type_expression_without_leading_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
     let expression = f.context().tree.get(node_id);
@@ -1572,7 +1572,7 @@ fn write_type_expression_without_leading_comments<'ast>(
 
 /// Write one type expression node with optional derived parentheses.
 pub(crate) fn write_type_expression_node<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     expression: &TypeExpression,
     layout: TypeExpressionLayout,
@@ -1611,7 +1611,7 @@ pub(crate) fn write_type_expression_node<'ast>(
 
 /// Write one type with parentheses when one postfix operator needs them.
 fn write_postfix_type_operand<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
     let expression_id = normalize_postfix_type_operand(f.context(), expression_id);
@@ -1643,7 +1643,7 @@ fn write_postfix_type_operand<'ast>(
 
 /// Write one range type expression.
 fn write_range_type<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     start: Option<LocalNodeId<TypeExpression>>,
     end: Option<LocalNodeId<TypeExpression>>,
@@ -1670,7 +1670,7 @@ fn write_range_type<'ast>(
 
 /// Return one effective parent plus the outermost transparent child it sees.
 fn effective_type_parent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     mut node_id: LocalNodeId<TypeExpression>,
 ) -> Option<(u32, NodeType, LocalNodeId<TypeExpression>)> {
     let mut parent_child_id = node_id;
@@ -1702,7 +1702,7 @@ fn effective_type_parent(
 
 /// Return whether one prefix operand needs grouping.
 fn type_needs_prefix_operand_parentheses(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     child_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     match context.tree.get(child_id) {
@@ -1722,7 +1722,7 @@ fn type_needs_prefix_operand_parentheses(
 
 /// Return whether one parent type forces parentheses around its child position.
 fn type_parent_requires_parentheses(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parent_id: LocalNodeId<TypeExpression>,
     child_id: LocalNodeId<TypeExpression>,
 ) -> bool {
@@ -1774,7 +1774,7 @@ struct CallableType {
 
 /// Return whether one conditional `extends` branch needs function-like type parentheses.
 fn conditional_extends_branch_needs_callable_parentheses(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     return_type: Option<LocalNodeId<TypeExpression>>,
 ) -> bool {
     let Some(return_type) = return_type else {
@@ -1789,7 +1789,7 @@ fn conditional_extends_branch_needs_callable_parentheses(
 
 /// Return one callable type expression.
 fn type_expression_callable(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
 ) -> Option<CallableType> {
     match context.tree.get(node_id) {
@@ -1807,7 +1807,7 @@ fn type_expression_callable(
 
 /// Return whether one callable type needs parentheses in one type-expression parent.
 fn callable_type_needs_parentheses_in_type_parent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     callable: CallableType,
     parent_id: LocalNodeId<TypeExpression>,
     child_id: LocalNodeId<TypeExpression>,
@@ -1840,7 +1840,7 @@ fn callable_type_needs_parentheses_in_type_parent(
 
 /// Return whether one callable type needs parentheses in one declaration parent.
 fn callable_type_needs_parentheses_in_declaration_parent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     callable: CallableType,
     parent_id: LocalNodeId<Declaration>,
     child_id: LocalNodeId<TypeExpression>,
@@ -1858,7 +1858,7 @@ fn callable_type_needs_parentheses_in_declaration_parent(
 
 /// Unwrap the value term one type expression carries in type space.
 pub(crate) fn static_value_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
 ) -> Option<LocalNodeId<Expression>> {
     match context.tree.get(node_id) {
@@ -1869,7 +1869,7 @@ pub(crate) fn static_value_expression(
 
 /// Return whether one type expression needs derived parentheses in its effective parent.
 pub(crate) fn type_expression_needs_parentheses_in_parent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     let Some((parent_id, parent_type, parent_child_id)) = effective_type_parent(context, node_id)
@@ -1982,8 +1982,8 @@ pub(crate) fn type_expression_needs_parentheses_in_parent(
 
 /// Write one list of value parameters in type position.
 fn write_value_parameters<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    this_form: Option<destack_dir::ThisForm>,
+    f: &mut TsppFormatter<'ast, '_>,
+    this_form: Option<tspp_dir::ThisForm>,
     this_parameter: Option<LocalNodeId<Parameter>>,
     parameter_ids: &[LocalNodeId<Parameter>],
 ) -> FormatResult<()> {
@@ -2017,10 +2017,10 @@ fn write_value_parameters<'ast>(
 
 /// Write one complete callable declaration in type position.
 fn write_type_callable<'ast, H, R>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     generic_parameters: &[LocalNodeId<GenericParameter>],
     where_clauses: &[LocalNodeId<WhereClause>],
-    this_form: Option<destack_dir::ThisForm>,
+    this_form: Option<tspp_dir::ThisForm>,
     this_parameter: Option<LocalNodeId<Parameter>>,
     parameters: &[LocalNodeId<Parameter>],
     return_type: Option<LocalNodeId<TypeExpression>>,
@@ -2029,11 +2029,11 @@ fn write_type_callable<'ast, H, R>(
     should_group_return_type: bool,
 ) -> FormatResult<()>
 where
-    H: Format<'ast, DestackFormatContext<'ast>>,
-    R: Format<'ast, DestackFormatContext<'ast>>,
+    H: Format<'ast, TsppFormatContext<'ast>>,
+    R: Format<'ast, TsppFormatContext<'ast>>,
 {
-    let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        let format_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
+        let format_parameters = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             write_value_parameters(f, this_form, this_parameter, parameters)
         });
 
@@ -2058,7 +2058,7 @@ where
 
 /// Write generic parameters for one type-space callable.
 fn write_type_callable_generic_parameters<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     generic_parameters: &[LocalNodeId<GenericParameter>],
     has_leading_space: bool,
 ) -> FormatResult<()> {
@@ -2081,7 +2081,7 @@ fn write_type_callable_generic_parameters<'ast>(
 
 /// Write comments in one generated child boundary.
 fn write_generated_boundary_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     start: u32,
     end: u32,
 ) -> FormatResult<bool> {
@@ -2102,7 +2102,7 @@ fn write_generated_boundary_comments<'ast>(
 
 /// Return the parameter-list source span for one function-like node.
 fn function_like_parameters_span<T>(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<T>,
 ) -> Option<Span>
 where
@@ -2116,7 +2116,7 @@ where
 
 /// Write the constructor-type boundary between `new` and parameters.
 fn write_constructor_type_parameter_boundary<'ast, T>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<T>,
 ) -> FormatResult<()>
 where
@@ -2142,7 +2142,7 @@ where
 
 /// Write the arrow return section for one function-like type expression.
 fn write_type_callable_arrow_return<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     return_type: Option<LocalNodeId<TypeExpression>>,
 ) -> FormatResult<()> {
@@ -2167,7 +2167,7 @@ fn write_type_callable_arrow_return<'ast>(
 
 /// Write the where-clause suffix for one type-space callable.
 fn write_type_callable_where_clauses<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     where_clauses: &[LocalNodeId<WhereClause>],
 ) -> FormatResult<()> {
     if !where_clauses.is_empty() {
@@ -2179,14 +2179,14 @@ fn write_type_callable_where_clauses<'ast>(
 
 /// Write one function-like type declaration directly in type space.
 fn write_function_type<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     function: &FunctionTypeExpression,
 ) -> FormatResult<()> {
-    let generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let generic_parameters = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_type_callable_generic_parameters(f, &function.generic_parameters, false)
     });
-    let return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let return_type = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_type_callable_arrow_return(f, node_id, function.return_type)
     });
 
@@ -2206,11 +2206,11 @@ fn write_function_type<'ast>(
 
 /// Write one constructor type declaration directly in type space.
 fn write_constructor_type<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     function: &ConstructorType,
 ) -> FormatResult<()> {
-    let generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let generic_parameters = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_function_abstraction_prefix(f, function.is_abstract, false)?;
         write!(f, [Keyword::New])?;
         write_type_callable_generic_parameters(f, &function.generic_parameters, true)?;
@@ -2221,7 +2221,7 @@ fn write_constructor_type<'ast>(
 
         Ok(())
     });
-    let return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let return_type = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_type_callable_arrow_return(f, node_id, function.return_type)
     });
 
@@ -2241,13 +2241,13 @@ fn write_constructor_type<'ast>(
 
 /// Write one type-space function signature.
 fn write_type_signature<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeMember>,
     signature: &FunctionSignature,
     name: Name,
     is_optional: bool,
 ) -> FormatResult<()> {
-    let generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let generic_parameters = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_function_header_prefix(f, signature, false, true)?;
         write!(f, [name])?;
 
@@ -2257,7 +2257,7 @@ fn write_type_signature<'ast>(
 
         write_type_callable_generic_parameters(f, &signature.generic_parameters, false)
     });
-    let return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let return_type = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_type_member_return(f, node_id, signature.return_type)
     });
 
@@ -2277,14 +2277,14 @@ fn write_type_signature<'ast>(
 
 /// Write one call signature declaration in type position.
 fn write_call_signature<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeMember>,
     signature: &FunctionTypeExpression,
 ) -> FormatResult<()> {
-    let generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let generic_parameters = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_type_callable_generic_parameters(f, &signature.generic_parameters, false)
     });
-    let return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let return_type = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_type_member_return(f, node_id, signature.return_type)
     });
 
@@ -2304,11 +2304,11 @@ fn write_call_signature<'ast>(
 
 /// Write one construct signature declaration in type position.
 fn write_construct_signature<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeMember>,
     signature: &ConstructorType,
 ) -> FormatResult<()> {
-    let generic_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let generic_parameters = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_function_abstraction_prefix(f, signature.is_abstract, false)?;
         write!(f, [Keyword::New])?;
         write_type_callable_generic_parameters(f, &signature.generic_parameters, true)?;
@@ -2319,7 +2319,7 @@ fn write_construct_signature<'ast>(
 
         Ok(())
     });
-    let return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let return_type = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_type_member_return(f, node_id, signature.return_type)
     });
 
@@ -2339,7 +2339,7 @@ fn write_construct_signature<'ast>(
 
 /// Write the optional marker and adjacent comments for one method.
 fn write_optional_method_marker<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeMember>,
 ) -> FormatResult<()> {
     let name_end = f
@@ -2369,7 +2369,7 @@ fn write_optional_method_marker<'ast>(
 
 /// Write an optional type-member return annotation.
 fn write_type_member_return<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeMember>,
     return_type: Option<LocalNodeId<TypeExpression>>,
 ) -> FormatResult<()> {
@@ -2382,7 +2382,7 @@ fn write_type_member_return<'ast>(
 
 /// Write one mapped-type modifier prefix.
 fn write_mapped_modifier_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     modifier: MappedTypeModifier,
     keyword: &'static str,
 ) -> FormatResult<()> {
@@ -2397,7 +2397,7 @@ fn write_mapped_modifier_prefix<'ast>(
 
 /// Write one mapped-type modifier suffix.
 fn write_mapped_modifier_suffix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     modifier: MappedTypeModifier,
 ) -> FormatResult<()> {
     // modifier
@@ -2413,7 +2413,7 @@ impl<'ast> FormatNode<'ast, TypeMappedParameter> for TypeMappedParameter {
     fn format_node(
         &self,
         node_id: LocalNodeId<TypeMappedParameter>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let source_type_comment_end =
             mapped_source_type_trailing_comment_end(f.context(), self.source_type, self.key_remap);
@@ -2444,7 +2444,7 @@ impl<'ast> FormatNode<'ast, TypeMappedParameter> for TypeMappedParameter {
 
 /// Return the `as` token that starts one mapped-type key remap.
 fn mapped_key_remap_as_token(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     key_remap: LocalNodeId<TypeExpression>,
 ) -> Option<TokenSpan> {
     let remap_span = context.span(key_remap);
@@ -2459,7 +2459,7 @@ fn mapped_key_remap_as_token(
 
 /// Return the offset where mapped source-type trailing comments stop.
 fn mapped_source_type_trailing_comment_end(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     source_type: LocalNodeId<TypeExpression>,
     key_remap: Option<LocalNodeId<TypeExpression>>,
 ) -> u32 {
@@ -2472,7 +2472,7 @@ fn mapped_source_type_trailing_comment_end(
 
 /// Write one mapped-type key remap after the source type.
 fn write_mapped_key_remap<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     key_remap: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
     let Some(as_token) = mapped_key_remap_as_token(f.context(), key_remap) else {
@@ -2492,7 +2492,7 @@ fn write_mapped_key_remap<'ast>(
 
     write!(f, [space(), Keyword::As, space()])?;
 
-    let format_remap = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_remap = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         if !leading_comments.is_empty() {
             write!(f, [FormatLeadingComments::Comments(&leading_comments)])?;
         }
@@ -2509,7 +2509,7 @@ fn write_mapped_key_remap<'ast>(
 
 /// Write the value annotation for one mapped type.
 fn write_mapped_value_type_annotation<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     value: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
@@ -2589,7 +2589,7 @@ fn write_mapped_value_type_annotation<'ast>(
 
 /// Format one type-member list with group-aware separators.
 pub(crate) fn format_type_member_list<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     members: &[LocalNodeId<TypeMember>],
 ) -> FormatResult<()> {
     let entries = FormatSeparatedIter::new(members.iter().copied(), ";")
@@ -2614,7 +2614,7 @@ pub(crate) fn format_type_member_list<'ast>(
 
 /// Return whether source preserves an empty line between two type members.
 fn type_members_have_blank_line_between(
-    f: &DestackFormatter<'_, '_>,
+    f: &TsppFormatter<'_, '_>,
     next_id: LocalNodeId<TypeMember>,
 ) -> bool {
     let next_span = f.context().span(next_id);
@@ -2626,7 +2626,7 @@ fn type_members_have_blank_line_between(
 
 /// Format one expanded type-member block.
 pub(crate) fn format_type_member_block_list<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     members: &[LocalNodeId<TypeMember>],
 ) -> FormatResult<()> {
     let ignore_ranges = if f.context().has_ignore_directive_markers() {
@@ -2683,7 +2683,7 @@ pub(crate) fn format_type_member_block_list<'ast>(
 }
 
 /// Return the optional trailing separator style for tuple types.
-fn optional_tuple_trailing_separator(f: &DestackFormatter<'_, '_>) -> TrailingSeparator {
+fn optional_tuple_trailing_separator(f: &TsppFormatter<'_, '_>) -> TrailingSeparator {
     match f.context().options.trailing_comma {
         TrailingComma::None => TrailingSeparator::Omit,
         TrailingComma::Es5 | TrailingComma::All => TrailingSeparator::Allowed,
@@ -2692,7 +2692,7 @@ fn optional_tuple_trailing_separator(f: &DestackFormatter<'_, '_>) -> TrailingSe
 
 /// Write one tuple type with explicit delimiters.
 fn write_tuple_type<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     elements: &[LocalNodeId<TupleElement>],
     open_token: &'static str,
     close_token: &'static str,
@@ -2712,7 +2712,7 @@ fn write_tuple_type<'ast>(
 
 /// Write one type body without prefix annotations.
 pub(crate) fn write_type_expression_body<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     expression: &TypeExpression,
     is_in_explicit_parentheses: bool,
@@ -2725,7 +2725,7 @@ pub(crate) fn write_type_expression_body<'ast>(
 
 /// Write one type body.
 fn write_type_expression_body_inner<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<TypeExpression>,
     expression: &TypeExpression,
     is_in_explicit_parentheses: bool,
@@ -2787,7 +2787,7 @@ fn write_type_expression_body_inner<'ast>(
             let should_expand =
                 type_object_members_have_leading_newline(f.context(), node_id, members);
             let should_hug = type_object_should_hug(f.context(), node_id);
-            let inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            let inner = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 if f.context().options.bracket_spacing {
                     write!(f, [if_group_fits_on_line(&space())])?;
                 }
@@ -2977,7 +2977,7 @@ fn write_type_expression_body_inner<'ast>(
             let leading_comments = mapped_type_leading_body_comments(f.context(), node_id, span);
 
             // mapped body
-            let format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            let format_inner = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 // comments after `{`
                 if should_expand && !leading_comments.is_empty() {
                     write!(f, [FormatLeadingComments::Comments(&leading_comments)])?;
@@ -2987,7 +2987,7 @@ fn write_type_expression_body_inner<'ast>(
                 write_mapped_modifier_prefix(f, *readonly, "readonly")?;
 
                 // key head
-                let format_key = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                let format_key = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                     let source_type_comment_end = mapped_source_type_trailing_comment_end(
                         f.context(),
                         parameter.source_type,
@@ -3032,7 +3032,7 @@ fn write_type_expression_body_inner<'ast>(
                 f,
                 [group(&format_args![
                     token("{"),
-                    soft_block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    soft_block_indent(&format_with(|f: &mut TsppFormatter<'ast, '_>| {
                         if f.context().options.bracket_spacing {
                             write!(f, [if_group_fits_on_line(&space())])?;
                         }
@@ -3090,7 +3090,7 @@ impl<'ast> FormatNode<'ast, TypeExpression> for TypeExpression {
     fn format_node(
         &self,
         node_id: LocalNodeId<TypeExpression>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         if node_has_ignore_directive(f.context(), node_id) {
             return write_ignored_node(f, node_id);
@@ -3104,7 +3104,7 @@ impl<'ast> FormatNode<'ast, TypeMember> for TypeMember {
     fn format_node(
         &self,
         node_id: LocalNodeId<TypeMember>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         // prefix annotations
         write!(f, [prefix_annotations(f.context(), node_id)])?;
@@ -3277,7 +3277,7 @@ impl<'ast> FormatNode<'ast, GenericArgument> for GenericArgument {
     fn format_node(
         &self,
         node_id: LocalNodeId<GenericArgument>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         // prefix annotations
         write!(f, [prefix_annotations(f.context(), node_id)])?;
@@ -3333,7 +3333,7 @@ impl<'ast> FormatNode<'ast, TupleElement> for TupleElement {
     fn format_node(
         &self,
         node_id: LocalNodeId<TupleElement>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         // prefix annotations
         write!(f, [prefix_annotations(f.context(), node_id)])?;

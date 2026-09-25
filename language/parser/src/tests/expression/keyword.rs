@@ -3,13 +3,13 @@ use crate::{
     ExpressionPosition, ExpressionStop, assert_comment, assert_expression_path, assert_node,
     assert_string,
 };
-use destack_dir::{
+use tspp_dir::{
     Argument, AssignOperator, AssignPattern, BinaryOperator, Block, BlockForm, ClassDeclaration,
     CommentKind, Declaration, Declarator, Decorator, DependencyBinding, DependencyItem, ExportKind,
     Expression, FunctionDeclaration, ImportAttributeClauseKind, Literal, Name, Parameter, Pattern,
     Property, TypeDeclaration, TypeExpression, TypeLiteral,
 };
-use destack_source::{NodeSpanBoundary, NodeSpanType};
+use tspp_source::{NodeSpanBoundary, NodeSpanType};
 
 /// Parse explicit first-class type values beginning with symbolic prefixes.
 #[test]

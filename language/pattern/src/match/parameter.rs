@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::NodeSpanType;
+use tspp_dir as dir;
+use tspp_source::NodeSpanType;
 
 use crate::{Bindings, MatchError, Matcher, PatternNodes};
 
@@ -335,8 +335,8 @@ impl Matcher<'_, '_> {
         nodes: &PatternNodes<'_>,
         pattern: dir::LocalNodeIdAny,
         candidate: dir::LocalNodeIdAny,
-        pattern_name: Option<destack_core::StringId>,
-        candidate_name: Option<destack_core::StringId>,
+        pattern_name: Option<tspp_core::StringId>,
+        candidate_name: Option<tspp_core::StringId>,
         bindings: &mut Bindings,
     ) -> Result<bool, MatchError> {
         let use_entry = nodes.uses().get_name(pattern, NodeSpanType::Main);

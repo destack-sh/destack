@@ -1,10 +1,10 @@
 use super::identifier::classify_keyword_bytes;
 use super::scanner::EOF_CHAR;
 use super::tokenizer::Tokenizer;
-use destack_dir::{
+use tspp_dir::{
     Token, TokenLiteral, TokenType, is_identifier_continue, is_identifier_start, is_whitespace,
 };
-use destack_unicode::UnicodeEmoji;
+use tspp_unicode::UnicodeEmoji;
 
 impl Tokenizer {
     /// Return true when the character is a line terminator.

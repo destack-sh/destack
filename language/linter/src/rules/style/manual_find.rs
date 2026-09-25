@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -208,7 +208,7 @@ function firstPositive(values: int32[]): int32 | undefined {
         session.assert_diagnostics(
             r#"
 warning[manual-find]: loop manually finds its first matching value
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function firstPositive(values: int32[]): int32 | undefined {
 2 │     for (const value of values) {
@@ -226,8 +226,8 @@ warning[manual-find]: loop manually finds its first matching value
   │
 
  = suggestion: return the first matching value directly (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function firstPositive(values: int32[]): int32 | undefined {
 -   2│     for (const value of values) {
@@ -388,7 +388,7 @@ function firstPositive(values: Set<int32>): int32 | undefined {
         let session = TestSession::dir(
             &MANUAL_FIND,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function firstPositive(values: Iterator<int32>): int32 | undefined {
     for (const value of values) {
@@ -403,7 +403,7 @@ function firstPositive(values: Iterator<int32>): int32 | undefined {
 
         session.assert_suggestions(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function firstPositive(values: Iterator<int32>): int32 | undefined {
     return values.find((value) => value > 0);
@@ -463,7 +463,7 @@ function firstPositive(values: int32[]): int32 | undefined {
         session.assert_diagnostics(
             r#"
 warning[manual-find]: loop manually finds its first matching value
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function firstPositive(values: int32[]): int32 | undefined {
 2 │     for (const value of values) {

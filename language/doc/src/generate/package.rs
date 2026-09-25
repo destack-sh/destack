@@ -1,10 +1,10 @@
 use std::collections::HashSet;
 use std::path::Path;
 
-use destack_artifact::{IndexKind, ModuleIndex};
-use destack_dir as dir;
-use destack_repository::{ArtifactReader, Package};
-use destack_source::ModuleId;
+use tspp_artifact::{IndexKind, ModuleIndex};
+use tspp_dir as dir;
+use tspp_repository::{ArtifactReader, Package};
+use tspp_source::ModuleId;
 
 use crate::{
     DocError, DocResult, ExportReference, ModuleReference, NamespaceReference,

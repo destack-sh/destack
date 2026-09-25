@@ -1,13 +1,13 @@
 use std::fmt;
 use std::ops::Range;
 
-use destack_heap::{HeapEdge, HeapError, HeapReference, HeapReferenceKind, Payload, Release};
-use destack_memory::MemoryMap;
-use destack_mir::Space;
-use destack_native as native;
-use destack_native::abi;
-use destack_program as program;
-use destack_program::Runtime;
+use tspp_heap::{HeapEdge, HeapError, HeapReference, HeapReferenceKind, Payload, Release};
+use tspp_memory::MemoryMap;
+use tspp_mir::Space;
+use tspp_native as native;
+use tspp_native::abi;
+use tspp_program as program;
+use tspp_program::Runtime;
 
 use crate::diagnostic::RuntimeError;
 use crate::worker::Activation;

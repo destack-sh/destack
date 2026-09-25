@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use destack_dir as dir;
-use destack_source::{NodeSpanRegion, Patch};
+use tspp_dir as dir;
+use tspp_source::{NodeSpanRegion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -383,7 +383,7 @@ function identity(value: int32): int32 {
         session.assert_diagnostics(
             r#"
 warning[prefer-const]: binding is never reassigned
- ──▶ main.ds:2:9
+ ──▶ main.tspp:2:9
   │
 1 │ function identity(value: int32): int32 {
 2 │     let result: int32;
@@ -455,7 +455,7 @@ function increment(counter: Counter): Counter {
         session.assert_diagnostics(
             r#"
 warning[prefer-const]: binding is never reassigned
-  ──▶ main.ds:9:5
+  ──▶ main.tspp:9:5
    │
  7 │ }
  8 │ function increment(counter: Counter): Counter {
@@ -466,8 +466,8 @@ warning[prefer-const]: binding is never reassigned
    │
 
  = fix: declare the binding with const
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     8│ function increment(counter: Counter): Counter {
 -   9│     let result = counter;
@@ -583,7 +583,7 @@ function sum(point: { x: int32; y: int32 }): int32 {
         session.assert_diagnostics(
             r#"
 warning[prefer-const]: binding is never reassigned
- ──▶ main.ds:2:14
+ ──▶ main.tspp:2:14
   │
 1 │ function sum(point: { x: int32; y: int32 }): int32 {
 2 │     let { x, y } = point;

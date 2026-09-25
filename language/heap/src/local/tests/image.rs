@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_memory::MemoryMap;
-use destack_mir::TraceMap;
+use tspp_memory::MemoryMap;
+use tspp_mir::TraceMap;
 
 use crate::local::storage::{HeapStorage, HeapStorageImage, LargeBlockImage, SmallSpanImage};
 use crate::{

@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -124,7 +124,7 @@ function power(left: number, right: number, exponent: number): number {
         session.assert_diagnostics(
             r#"
 warning[prefer-exponentiation-operator]: Math.pow call obscures exponentiation
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function power(left: number, right: number, exponent: number): number {
 2 │     return Math.pow(left + right, exponent + 1);
@@ -133,8 +133,8 @@ warning[prefer-exponentiation-operator]: Math.pow call obscures exponentiation
   │
 
  = fix: use the exponentiation operator
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function power(left: number, right: number, exponent: number): number {
 -   2│     return Math.pow(left + right, exponent + 1);
@@ -207,7 +207,7 @@ function power(value: number): number {
         session.assert_diagnostics(
             r#"
 warning[prefer-exponentiation-operator]: Math.pow call obscures exponentiation
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function power(value: number): number {
 2 │     return Math.pow(value /* retain */, 2);

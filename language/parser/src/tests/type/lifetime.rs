@@ -1,7 +1,7 @@
 use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
 use crate::{assert_node, assert_path, assert_string};
-use destack_dir::{
+use tspp_dir::{
     Access, Declaration, Expression, GenericArgument, GenericParameter, TypeDeclaration,
     TypeExpression,
 };

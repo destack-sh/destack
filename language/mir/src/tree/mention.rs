@@ -1,4 +1,4 @@
-use destack_core::FxIndexSet;
+use tspp_core::FxIndexSet;
 
 use crate::{FunctionId, NodeVisitor, Tree, Type, TypeId, walk_type};
 

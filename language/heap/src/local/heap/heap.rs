@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::TraceView;
-use destack_mir::TraceMap;
+use tspp_mir::TraceMap;
 
 use crate::local::storage::HeapStorage;
 use crate::{
@@ -9,7 +9,7 @@ use crate::{
     GcStats, HeapError, HeapLimits, HeapOptions, HeapReference, HeapResult, Payload, Release,
     RootSlot, SharedHeapReference, SmallAllocationPlan,
 };
-use destack_memory::{MemoryMap, MemoryRange};
+use tspp_memory::{MemoryMap, MemoryRange};
 
 /// One live heap over one shared memory.
 #[derive(Debug)]

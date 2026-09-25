@@ -1,0 +1,256 @@
+================================================================
+Shared owned borrow across await is allowed
+:language(tspp)
+================================================================
+
+struct Packet {
+    id: int32;
+}
+
+declare function ready(): Promise<void>;
+
+async function read(packet: shared ^Packet): Promise<int32> {
+    let id = &readonly packet.id;
+    await ready();
+    id satisfies shared (&readonly int32);
+    return *id;
+}
+
+
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)))))
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (placement_type
+            (memory_type
+              (type_identifier))))))
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (memory_expression
+            (member_expression
+              (identifier)
+              (property_identifier)))))
+      (expression_statement
+        (await_expression
+          (call_expression
+            (identifier)
+            (arguments))))
+      (value_satisfies_statement
+        (identifier)
+        (placement_type
+          (parenthesized_type
+            (memory_type
+              (type_identifier)))))
+      (return_statement
+        (memory_expression
+          (identifier))))))
+
+================================================================
+Explicit lifetime relationships
+:language(tspp)
+================================================================
+
+declare function only<const L: Lifetime>(value: Borrowed<Node, L>): Borrowed<Node, L>;
+
+declare function choose<const L1: Lifetime, const L2: Lifetime>(
+    a: Borrowed<Node, L1>,
+    b: Borrowed<Node, L2>,
+): Borrowed<Node, L1 | L2>;
+
+struct WorldView<const L1: Lifetime, const L2: Lifetime> {
+    engine: Borrowed<Engine, L1>;
+    assets: Borrowed<AssetStore, L2>;
+}
+
+---
+
+(program
+  (declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)
+              (type_identifier))))))
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)
+          (type_identifier)))))
+  (declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier)))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)
+              (type_identifier)))))
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)
+              (type_identifier))))))
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)
+          (union_type
+            (type_identifier)
+            (type_identifier))))))
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier)))
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)
+              (type_identifier)))))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)
+              (type_identifier))))))))
+
+================================================================
+Tick lifetimes and character literals
+:language(tspp)
+================================================================
+
+struct WorldView<'engine, 'assets> {
+    engine: &'engine Engine;
+    assets: &'assets AssetStore;
+}
+
+function choose<'a, 'b>(a: &'a Node, b: &'b Node): Borrowed<Node, 'a | 'b> {
+    const marker = 'x';
+    return a;
+}
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (lifetime))
+      (type_parameter
+        (lifetime)))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (memory_type
+            (lifetime)
+            (type_identifier))))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (memory_type
+            (lifetime)
+            (type_identifier))))))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (lifetime))
+      (type_parameter
+        (lifetime)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (memory_type
+            (lifetime)
+            (type_identifier))))
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (memory_type
+            (lifetime)
+            (type_identifier)))))
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)
+          (union_type
+            (lifetime)
+            (lifetime)))))
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (string
+            (string_fragment))))
+      (return_statement
+        (identifier)))))

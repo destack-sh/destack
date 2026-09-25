@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// Label selection operator for runtime identity selectors.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]

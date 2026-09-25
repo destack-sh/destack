@@ -1,7 +1,7 @@
-use destack_core::StringId;
-use destack_mir as mir;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::StringId;
+use tspp_mir as mir;
+use tspp_serde::Reflect;
 
 /// One object-local global declaration or definition.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]

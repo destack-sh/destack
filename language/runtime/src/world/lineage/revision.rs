@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use crate::diagnostic::{Entity, EntityError, RuntimeError, RuntimeResult};
 use crate::world::time::Instant;

@@ -5,41 +5,41 @@
 
 Symbol search ranks matches across the program.
 
-```ds alpha.ds
+```tspp alpha.tspp
 export function quartz(): void {}
                 ^^^^^^ quartz
 export class QuartzClass {}
              ^^^^^^^^^^^ quartz_class
 ```
 
-```ds beta.ds
+```tspp beta.tspp
 export function beta(): void {}
 export struct BetaStruct {}
 ```
 
 ```query search_symbols query=quartz max_results=10
-@search_symbols.symbol name=quartz kind=function location=alpha.ds:1:1-1:34 selection=alpha.ds#quartz symbol=alpha.ds#quartz@1
-@search_symbols.symbol name=QuartzClass kind=class location=alpha.ds:2:1-2:28 selection=alpha.ds#quartz_class symbol=alpha.ds#QuartzClass@2
+@search_symbols.symbol name=quartz kind=function location=alpha.tspp:1:1-1:34 selection=alpha.tspp#quartz symbol=alpha.tspp#quartz@1
+@search_symbols.symbol name=QuartzClass kind=class location=alpha.tspp:2:1-2:28 selection=alpha.tspp#quartz_class symbol=alpha.tspp#QuartzClass@2
 ```
 
 ### Match without case sensitivity
 
 Search matching is case-insensitive.
 
-```ds main.ds
+```tspp main.tspp
 export function CamelCaseFeature(): void {}
                 ^^^^^^^^^^^^^^^^ name
 ```
 
 ```query search_symbols query=camelcase max_results=10
-@search_symbols.symbol name=CamelCaseFeature kind=function location=main.ds:1:1-1:44 selection=main.ds#name symbol=main.ds#CamelCaseFeature@1
+@search_symbols.symbol name=CamelCaseFeature kind=function location=main.tspp:1:1-1:44 selection=main.tspp#name symbol=main.tspp#CamelCaseFeature@1
 ```
 
 ### Match name boundaries
 
 Initials match camel case and separator boundaries.
 
-```ds main.ds
+```tspp main.tspp
 function getElementsByAttribute(): void {}
          ^^^^^^^^^^^^^^^^^^^^^^ camel_name
 function get_element_by_id(): void {}
@@ -47,25 +47,25 @@ function get_element_by_id(): void {}
 ```
 
 ```query search_symbols query=gEA max_results=10
-@search_symbols.symbol name=getElementsByAttribute kind=function location=main.ds:1:1-1:43 selection=main.ds#camel_name symbol=main.ds#getElementsByAttribute@1
+@search_symbols.symbol name=getElementsByAttribute kind=function location=main.tspp:1:1-1:43 selection=main.tspp#camel_name symbol=main.tspp#getElementsByAttribute@1
 ```
 
 ```query search_symbols query=gebi max_results=10
-@search_symbols.symbol name=get_element_by_id kind=function location=main.ds:2:1-2:38 selection=main.ds#get_name symbol=main.ds#get_element_by_id@2
-@search_symbols.symbol name=getElementsByAttribute kind=function location=main.ds:1:1-1:43 selection=main.ds#camel_name symbol=main.ds#getElementsByAttribute@1
+@search_symbols.symbol name=get_element_by_id kind=function location=main.tspp:2:1-2:38 selection=main.tspp#get_name symbol=main.tspp#get_element_by_id@2
+@search_symbols.symbol name=getElementsByAttribute kind=function location=main.tspp:1:1-1:43 selection=main.tspp#camel_name symbol=main.tspp#getElementsByAttribute@1
 ```
 
 ### Match ordered subsequences
 
 A compact search term may match ordered characters when no stronger lexical match exists.
 
-```ds main.ds
+```tspp main.tspp
 function completionEngine(): void {}
          ^^^^^^^^^^^^^^^^ name
 ```
 
 ```query search_symbols query=cmpl max_results=10
-@search_symbols.symbol name=completionEngine kind=function location=main.ds:1:1-1:37 selection=main.ds#name symbol=main.ds#completionEngine@1
+@search_symbols.symbol name=completionEngine kind=function location=main.tspp:1:1-1:37 selection=main.tspp#name symbol=main.tspp#completionEngine@1
 ```
 
 ## Ordering
@@ -74,7 +74,7 @@ function completionEngine(): void {}
 
 Matching symbols follow relevance order.
 
-```ds main.ds
+```tspp main.tspp
 export function orbit(): void {}
                 ^^^^^ orbit
 export function orbital(): void {}
@@ -84,23 +84,23 @@ export function megaOrbit(): void {}
 ```
 
 ```query search_symbols query=orbit max_results=10
-@search_symbols.symbol name=orbit kind=function location=main.ds:1:1-1:33 selection=main.ds#orbit symbol=main.ds#orbit@1
-@search_symbols.symbol name=orbital kind=function location=main.ds:2:1-2:35 selection=main.ds#orbital symbol=main.ds#orbital@2
-@search_symbols.symbol name=megaOrbit kind=function location=main.ds:3:1-3:37 selection=main.ds#mega_orbit symbol=main.ds#megaOrbit@3
+@search_symbols.symbol name=orbit kind=function location=main.tspp:1:1-1:33 selection=main.tspp#orbit symbol=main.tspp#orbit@1
+@search_symbols.symbol name=orbital kind=function location=main.tspp:2:1-2:35 selection=main.tspp#orbital symbol=main.tspp#orbital@2
+@search_symbols.symbol name=megaOrbit kind=function location=main.tspp:3:1-3:37 selection=main.tspp#mega_orbit symbol=main.tspp#megaOrbit@3
 ```
 
 ### Rank duplicate names across modules
 
 Exact names precede prefix matches, and shorter prefixes precede longer prefixes.
 
-```ds alpha.ds
+```tspp alpha.tspp
 export class Widget {}
              ^^^^^^ widget
 export function WidgetFactory(): void {}
                 ^^^^^^^^^^^^^ widget_factory
 ```
 
-```ds beta.ds
+```tspp beta.tspp
 export struct Widget {}
               ^^^^^^ widget
 export struct WidgetBox {}
@@ -108,17 +108,17 @@ export struct WidgetBox {}
 ```
 
 ```query search_symbols query=Widget max_results=10
-@search_symbols.symbol name=Widget kind=struct location=beta.ds:1:1-1:24 selection=beta.ds#widget symbol=beta.ds#Widget@1
-@search_symbols.symbol name=Widget kind=class location=alpha.ds:1:1-1:23 selection=alpha.ds#widget symbol=alpha.ds#Widget@1
-@search_symbols.symbol name=WidgetBox kind=struct location=beta.ds:2:1-2:27 selection=beta.ds#widget_box symbol=beta.ds#WidgetBox@2
-@search_symbols.symbol name=WidgetFactory kind=function location=alpha.ds:2:1-2:41 selection=alpha.ds#widget_factory symbol=alpha.ds#WidgetFactory@2
+@search_symbols.symbol name=Widget kind=struct location=beta.tspp:1:1-1:24 selection=beta.tspp#widget symbol=beta.tspp#Widget@1
+@search_symbols.symbol name=Widget kind=class location=alpha.tspp:1:1-1:23 selection=alpha.tspp#widget symbol=alpha.tspp#Widget@1
+@search_symbols.symbol name=WidgetBox kind=struct location=beta.tspp:2:1-2:27 selection=beta.tspp#widget_box symbol=beta.tspp#WidgetBox@2
+@search_symbols.symbol name=WidgetFactory kind=function location=alpha.tspp:2:1-2:41 selection=alpha.tspp#widget_factory symbol=alpha.tspp#WidgetFactory@2
 ```
 
 ### Prefer exact case
 
 An exact-case prefix precedes the same prefix after case folding.
 
-```ds main.ds
+```tspp main.tspp
 export function HTTPServer(): void {}
                 ^^^^^^^^^^ upper
 export function HttpServer(): void {}
@@ -126,15 +126,15 @@ export function HttpServer(): void {}
 ```
 
 ```query search_symbols query=HT max_results=10
-@search_symbols.symbol name=HTTPServer kind=function location=main.ds:1:1-1:38 selection=main.ds#upper symbol=main.ds#HTTPServer@1
-@search_symbols.symbol name=HttpServer kind=function location=main.ds:2:1-2:38 selection=main.ds#title symbol=main.ds#HttpServer@2
+@search_symbols.symbol name=HTTPServer kind=function location=main.tspp:1:1-1:38 selection=main.tspp#upper symbol=main.tspp#HTTPServer@1
+@search_symbols.symbol name=HttpServer kind=function location=main.tspp:2:1-2:38 selection=main.tspp#title symbol=main.tspp#HttpServer@2
 ```
 
 ### Limit the ranked results
 
 The result limit truncates the ranked sequence.
 
-```ds main.ds
+```tspp main.tspp
 export function item(): void {}
                 ^^^^ item
 export function itemize(): void {}
@@ -143,8 +143,8 @@ export function itemFactory(): void {}
 ```
 
 ```query search_symbols query=item max_results=2
-@search_symbols.symbol name=item kind=function location=main.ds:1:1-1:32 selection=main.ds#item symbol=main.ds#item@1
-@search_symbols.symbol name=itemize kind=function location=main.ds:2:1-2:35 selection=main.ds#itemize symbol=main.ds#itemize@2
+@search_symbols.symbol name=item kind=function location=main.tspp:1:1-1:32 selection=main.tspp#item symbol=main.tspp#item@1
+@search_symbols.symbol name=itemize kind=function location=main.tspp:2:1-2:35 selection=main.tspp#itemize symbol=main.tspp#itemize@2
 ```
 
 ## Empty Results
@@ -153,7 +153,7 @@ export function itemFactory(): void {}
 
 An unmatched search returns no symbols.
 
-```ds main.ds
+```tspp main.tspp
 export function alphaOnly(): void {}
 ```
 
@@ -165,7 +165,7 @@ export function alphaOnly(): void {}
 
 A zero result limit returns no symbols without changing matching behavior.
 
-```ds main.ds
+```tspp main.tspp
 function matched(): void {}
 ```
 
@@ -179,26 +179,26 @@ function matched(): void {}
 
 Equal names and kinds follow deterministic module order.
 
-```ds alpha.ds
+```tspp alpha.tspp
 export function render(): void {}
                 ^^^^^^ render
 ```
 
-```ds beta.ds
+```tspp beta.tspp
 export function render(): void {}
                 ^^^^^^ render
 ```
 
 ```query search_symbols query=render max_results=10
-@search_symbols.symbol name=render kind=function location=beta.ds:1:1-1:34 selection=beta.ds#render symbol=beta.ds#render@1
-@search_symbols.symbol name=render kind=function location=alpha.ds:1:1-1:34 selection=alpha.ds#render symbol=alpha.ds#render@1
+@search_symbols.symbol name=render kind=function location=beta.tspp:1:1-1:34 selection=beta.tspp#render symbol=beta.tspp#render@1
+@search_symbols.symbol name=render kind=function location=alpha.tspp:1:1-1:34 selection=alpha.tspp#render symbol=alpha.tspp#render@1
 ```
 
 ### Order equal members by container
 
 Container names order otherwise equal member matches.
 
-```ds main.ds
+```tspp main.tspp
 class BetaContainer {
     render(): void {}
     ^^^^^^ beta_render
@@ -211,8 +211,8 @@ class AlphaContainer {
 ```
 
 ```query search_symbols query=render max_results=10
-@search_symbols.symbol name=render kind=method container=AlphaContainer location=main.ds:6:5-6:22 selection=main.ds#alpha_render symbol=main.ds#render@5
-@search_symbols.symbol name=render kind=method container=BetaContainer location=main.ds:2:5-2:22 selection=main.ds#beta_render symbol=main.ds#render@2
+@search_symbols.symbol name=render kind=method container=AlphaContainer location=main.tspp:6:5-6:22 selection=main.tspp#alpha_render symbol=main.tspp#render@5
+@search_symbols.symbol name=render kind=method container=BetaContainer location=main.tspp:2:5-2:22 selection=main.tspp#beta_render symbol=main.tspp#render@2
 ```
 
 ## Members
@@ -221,7 +221,7 @@ class AlphaContainer {
 
 Member results include the owning nominal type.
 
-```ds main.ds
+```tspp main.tspp
 class Logger {
       ^^^^^^ logger
     log(message: string): void {}
@@ -230,15 +230,15 @@ class Logger {
 ```
 
 ```query search_symbols query=log max_results=10
-@search_symbols.symbol name=log kind=method container=Logger location=main.ds:2:5-2:34 selection=main.ds#log symbol=main.ds#log@2
-@search_symbols.symbol name=Logger kind=class location=main.ds:1:1-3:2 selection=main.ds#logger symbol=main.ds#Logger@1
+@search_symbols.symbol name=log kind=method container=Logger location=main.tspp:2:5-2:34 selection=main.tspp#log symbol=main.tspp#log@2
+@search_symbols.symbol name=Logger kind=class location=main.tspp:1:1-3:2 selection=main.tspp#logger symbol=main.tspp#Logger@1
 ```
 
 ### Return enum variants with their containers
 
 Enum variants include their owning enum.
 
-```ds main.ds
+```tspp main.tspp
 enum Color {
     Red,
     ^^^ red
@@ -246,14 +246,14 @@ enum Color {
 ```
 
 ```query search_symbols query=Red max_results=10
-@search_symbols.symbol name=Red kind=enum_member container=Color location=main.ds#red symbol=main.ds#Red@2
+@search_symbols.symbol name=Red kind=enum_member container=Color location=main.tspp#red symbol=main.tspp#Red@2
 ```
 
 ### Distinguish fields and properties
 
 Member results use their editor-facing declaration kinds.
 
-```ds main.ds
+```tspp main.tspp
 class Meter {
     reading: int32;
     ^^^^^^^ reading
@@ -266,11 +266,11 @@ class Meter {
 ```
 
 ```query search_symbols query=reading max_results=10
-@search_symbols.symbol name=reading kind=field container=Meter location=main.ds:2:5-2:19 selection=main.ds#reading symbol=main.ds#reading@2
+@search_symbols.symbol name=reading kind=field container=Meter location=main.tspp:2:5-2:19 selection=main.tspp#reading symbol=main.tspp#reading@2
 ```
 
 ```query search_symbols query=current max_results=10
-@search_symbols.symbol name=current kind=property container=Meter location=main.ds:4:5-6:6 selection=main.ds#current symbol=main.ds#current@4
+@search_symbols.symbol name=current kind=property container=Meter location=main.tspp:4:5-6:6 selection=main.tspp#current symbol=main.tspp#current@4
 ```
 
 ## Scope
@@ -279,20 +279,20 @@ class Meter {
 
 Program search includes named module declarations regardless of export visibility.
 
-```ds main.ds
+```tspp main.tspp
 function internalSearch(): void {}
          ^^^^^^^^^^^^^^ name
 ```
 
 ```query search_symbols query=internalSearch max_results=10
-@search_symbols.symbol name=internalSearch kind=function location=main.ds:1:1-1:35 selection=main.ds#name symbol=main.ds#internalSearch@1
+@search_symbols.symbol name=internalSearch kind=function location=main.tspp:1:1-1:35 selection=main.tspp#name symbol=main.tspp#internalSearch@1
 ```
 
 ### Omit local bindings and parameters
 
 Function parameters and body-local bindings do not participate in program search.
 
-```ds main.ds
+```tspp main.tspp
 function calculate(searchInput: int32): int32 {
     const searchLocal = searchInput;
     return searchLocal;
@@ -311,91 +311,91 @@ function calculate(searchInput: int32): int32 {
 
 Search returns the declaring symbol without duplicating an importing binding.
 
-```ds library.ds
+```tspp library.tspp
 export function externalSearch(): void {}
                 ^^^^^^^^^^^^^^ name
 ```
 
-```ds main.ds
-import { externalSearch } from "./library.ds";
+```tspp main.tspp
+import { externalSearch } from "./library.tspp";
 ```
 
 ```query search_symbols query=externalSearch max_results=10
-@search_symbols.symbol name=externalSearch kind=function location=library.ds:1:1-1:42 selection=library.ds#name symbol=library.ds#externalSearch@1
+@search_symbols.symbol name=externalSearch kind=function location=library.tspp:1:1-1:42 selection=library.tspp#name symbol=library.tspp#externalSearch@1
 ```
 
 ### Return named re-export aliases
 
 Named re-exports use the target declaration kind at the alias declaration.
 
-```ds library.ds
+```tspp library.tspp
 export function internalRender(): void {}
 export const internalLimit = 10;
 ```
 
-```ds barrel.ds
-export { internalRender as publicRender } from "./library.ds";
+```tspp barrel.tspp
+export { internalRender as publicRender } from "./library.tspp";
                            ^^^^^^^^^^^^ name
-export { internalLimit as publicLimit } from "./library.ds";
+export { internalLimit as publicLimit } from "./library.tspp";
                           ^^^^^^^^^^^ public_limit
 ```
 
 ```query search_symbols query=publicRender max_results=10
-@search_symbols.symbol name=publicRender kind=function location=barrel.ds:1:10-1:40 selection=barrel.ds#name symbol=barrel.ds#publicRender@1
+@search_symbols.symbol name=publicRender kind=function location=barrel.tspp:1:10-1:40 selection=barrel.tspp#name symbol=barrel.tspp#publicRender@1
 ```
 
 ```query search_symbols query=publicLimit max_results=10
-@search_symbols.symbol name=publicLimit kind=constant location=barrel.ds:2:10-2:38 selection=barrel.ds#public_limit symbol=barrel.ds#publicLimit@2
+@search_symbols.symbol name=publicLimit kind=constant location=barrel.tspp:2:10-2:38 selection=barrel.tspp#public_limit symbol=barrel.tspp#publicLimit@2
 ```
 
 ### Resolve re-export alias chains
 
 Re-export chains use the final declaration kind at the outer alias.
 
-```ds library.ds
+```tspp library.tspp
 export function internalRender(): void {}
 ```
 
-```ds intermediate.ds
-export { internalRender as sharedRender } from "./library.ds";
+```tspp intermediate.tspp
+export { internalRender as sharedRender } from "./library.tspp";
 ```
 
-```ds barrel.ds
-export { sharedRender as publicRender } from "./intermediate.ds";
+```tspp barrel.tspp
+export { sharedRender as publicRender } from "./intermediate.tspp";
                          ^^^^^^^^^^^^ name
 ```
 
 ```query search_symbols query=publicRender max_results=10
-@search_symbols.symbol name=publicRender kind=function location=barrel.ds:1:10-1:38 selection=barrel.ds#name symbol=barrel.ds#publicRender@1
+@search_symbols.symbol name=publicRender kind=function location=barrel.tspp:1:10-1:38 selection=barrel.tspp#name symbol=barrel.tspp#publicRender@1
 ```
 
 ### Return namespace re-export aliases
 
 Namespace re-exports retain their authored alias and module kind.
 
-```ds library.ds
+```tspp library.tspp
 export function execute(): void {}
 ```
 
-```ds barrel.ds
-export * as publicApi from "./library.ds";
+```tspp barrel.tspp
+export * as publicApi from "./library.tspp";
             ^^^^^^^^^ name
 ```
 
 ```query search_symbols query=publicApi max_results=10
-@search_symbols.symbol name=publicApi kind=namespace location=barrel.ds:1:8-1:42 selection=barrel.ds#name symbol=barrel.ds#publicApi@1
+@search_symbols.symbol name=publicApi kind=namespace location=barrel.tspp:1:8-1:42 selection=barrel.tspp#name symbol=barrel.tspp#publicApi@1
 ```
 
 ### Return no unresolved re-export alias
 
 An unresolved alias has no editor symbol kind.
 
-```ds library.ds
+```tspp library.tspp
 export function available(): void {}
 ```
 
-```ds barrel.ds
-export { missing as publicMissing } from "./library.ds";
+```tspp barrel.tspp
+export { missing as publicMissing } from "./library.tspp";
 ```
 
 ```query search_symbols query=publicMissing max_results=10
@@ -406,7 +406,7 @@ export { missing as publicMissing } from "./library.ds";
 
 Search follows the exact workspace file set.
 
-```ds main.ds
+```tspp main.tspp
 export function stableFeature(): void {}
                 ^^^^^^^^^^^^^ stable_feature
 ```
@@ -415,27 +415,27 @@ export function stableFeature(): void {}
 @search_symbols.none
 ```
 
-```ds staged.ds add
+```tspp staged.tspp add
 export function transientFeature(): void {}
                 ^^^^^^^^^^^^^^^^ transient_feature
 ```
 
 ```query search_symbols query=transientFeature max_results=10
-@search_symbols.symbol name=transientFeature kind=function location=staged.ds:1:1-1:44 selection=staged.ds#transient_feature symbol=staged.ds#transientFeature@1
+@search_symbols.symbol name=transientFeature kind=function location=staged.tspp:1:1-1:44 selection=staged.tspp#transient_feature symbol=staged.tspp#transientFeature@1
 ```
 
 ```query search_symbols query=stableFeature max_results=10
-@search_symbols.symbol name=stableFeature kind=function location=main.ds:1:1-1:41 selection=main.ds#stable_feature symbol=main.ds#stableFeature@1
+@search_symbols.symbol name=stableFeature kind=function location=main.tspp:1:1-1:41 selection=main.tspp#stable_feature symbol=main.tspp#stableFeature@1
 ```
 
-```move staged.ds published.ds
+```move staged.tspp published.tspp
 ```
 
 ```query search_symbols query=transientFeature max_results=10
-@search_symbols.symbol name=transientFeature kind=function location=published.ds:1:1-1:44 selection=published.ds#transient_feature symbol=published.ds#transientFeature@1
+@search_symbols.symbol name=transientFeature kind=function location=published.tspp:1:1-1:44 selection=published.tspp#transient_feature symbol=published.tspp#transientFeature@1
 ```
 
-```remove published.ds
+```remove published.tspp
 ```
 
 ```query search_symbols query=transientFeature max_results=10
@@ -448,86 +448,86 @@ export function transientFeature(): void {}
 
 Type aliases participate in symbol search.
 
-```ds main.ds
+```tspp main.tspp
 export type UserId = string;
             ^^^^^^ name
 ```
 
 ```query search_symbols query=UserId max_results=10
-@search_symbols.symbol name=UserId kind=type_alias location=main.ds:1:1-1:28 selection=main.ds#name symbol=main.ds#UserId@1
+@search_symbols.symbol name=UserId kind=type_alias location=main.tspp:1:1-1:28 selection=main.tspp#name symbol=main.tspp#UserId@1
 ```
 
 ### Return an interface
 
 Interfaces participate in symbol search.
 
-```ds main.ds
+```tspp main.tspp
 export interface SearchInterface {}
                  ^^^^^^^^^^^^^^^ name
 ```
 
 ```query search_symbols query=SearchInterface max_results=10
-@search_symbols.symbol name=SearchInterface kind=interface location=main.ds:1:1-1:36 selection=main.ds#name symbol=main.ds#SearchInterface@1
+@search_symbols.symbol name=SearchInterface kind=interface location=main.tspp:1:1-1:36 selection=main.tspp#name symbol=main.tspp#SearchInterface@1
 ```
 
 ### Return an enum
 
 Enums participate in symbol search.
 
-```ds main.ds
+```tspp main.tspp
 export enum SearchState { Ready }
             ^^^^^^^^^^^ name
 ```
 
 ```query search_symbols query=SearchState max_results=10
-@search_symbols.symbol name=SearchState kind=enum location=main.ds:1:1-1:34 selection=main.ds#name symbol=main.ds#SearchState@1
+@search_symbols.symbol name=SearchState kind=enum location=main.tspp:1:1-1:34 selection=main.tspp#name symbol=main.tspp#SearchState@1
 ```
 
 ### Return a newtype
 
 Newtypes participate in symbol search.
 
-```ds main.ds
+```tspp main.tspp
 export newtype SearchId = uint64;
                ^^^^^^^^ name
 ```
 
 ```query search_symbols query=SearchId max_results=10
-@search_symbols.symbol name=SearchId kind=newtype location=main.ds:1:1-1:33 selection=main.ds#name symbol=main.ds#SearchId@1
+@search_symbols.symbol name=SearchId kind=newtype location=main.tspp:1:1-1:33 selection=main.tspp#name symbol=main.tspp#SearchId@1
 ```
 
 ### Return a nominal interface
 
 Nominal interfaces participate in symbol search.
 
-```ds main.ds
+```tspp main.tspp
 export newtype interface SearchCapability {}
                          ^^^^^^^^^^^^^^^^ name
 ```
 
 ```query search_symbols query=SearchCapability max_results=10
-@search_symbols.symbol name=SearchCapability kind=newtype_interface location=main.ds:1:1-1:45 selection=main.ds#name symbol=main.ds#SearchCapability@1
+@search_symbols.symbol name=SearchCapability kind=newtype_interface location=main.tspp:1:1-1:45 selection=main.tspp#name symbol=main.tspp#SearchCapability@1
 ```
 
 ### Return a named extension
 
 Named extensions participate in symbol search.
 
-```ds main.ds
+```tspp main.tspp
 export struct SearchSubject {}
 export extension SearchExtension of SearchSubject {}
                  ^^^^^^^^^^^^^^^ name
 ```
 
 ```query search_symbols query=SearchExtension max_results=10
-@search_symbols.symbol name=SearchExtension kind=extension location=main.ds:2:1-2:53 selection=main.ds#name symbol=main.ds#SearchExtension@2
+@search_symbols.symbol name=SearchExtension kind=extension location=main.tspp:2:1-2:53 selection=main.tspp#name symbol=main.tspp#SearchExtension@2
 ```
 
 ### Distinguish constants and variables
 
 Top-level value declarations use mutability-derived editor kinds.
 
-```ds main.ds
+```tspp main.tspp
 export const searchValue = 1;
              ^^^^^^^^^^^ name
 
@@ -536,19 +536,19 @@ export let mutableSearchValue = 2;
 ```
 
 ```query search_symbols query=searchValue max_results=10
-@search_symbols.symbol name=searchValue kind=constant location=main.ds#name symbol=main.ds#searchValue@1
-@search_symbols.symbol name=mutableSearchValue kind=variable location=main.ds#mutable_name symbol=main.ds#mutableSearchValue@2
+@search_symbols.symbol name=searchValue kind=constant location=main.tspp#name symbol=main.tspp#searchValue@1
+@search_symbols.symbol name=mutableSearchValue kind=variable location=main.tspp#mutable_name symbol=main.tspp#mutableSearchValue@2
 ```
 
 ### Search current declarations
 
 Search follows declarations across edits.
 
-```ds alpha.ds
+```tspp alpha.tspp
 export function existingAlpha(): void {}
 ```
 
-```ds beta.ds
+```tspp beta.tspp
 export function existingBeta(): void {}
 ```
 
@@ -556,31 +556,31 @@ export function existingBeta(): void {}
 @search_symbols.none
 ```
 
-```ds alpha.ds change
+```tspp alpha.tspp change
 export function existingAlpha(): void {}
 export function newFeatureAlpha(): void {}
                 ^^^^^^^^^^^^^^^ new_feature
 ```
 
-```ds beta.ds change
+```tspp beta.tspp change
 export function existingBeta(): void {}
 export function newFeatureBeta(): void {}
                 ^^^^^^^^^^^^^^ new_feature
 ```
 
 ```query search_symbols query=newFeature max_results=10
-@search_symbols.symbol name=newFeatureBeta kind=function location=beta.ds:2:1-2:42 selection=beta.ds#new_feature symbol=beta.ds#newFeatureBeta@2
-@search_symbols.symbol name=newFeatureAlpha kind=function location=alpha.ds:2:1-2:43 selection=alpha.ds#new_feature symbol=alpha.ds#newFeatureAlpha@2
+@search_symbols.symbol name=newFeatureBeta kind=function location=beta.tspp:2:1-2:42 selection=beta.tspp#new_feature symbol=beta.tspp#newFeatureBeta@2
+@search_symbols.symbol name=newFeatureAlpha kind=function location=alpha.tspp:2:1-2:43 selection=alpha.tspp#new_feature symbol=alpha.tspp#newFeatureAlpha@2
 ```
 
-```diff alpha.ds
+```diff alpha.tspp
 @@ -1,3 +1,1 @@
  export function existingAlpha(): void {}
 -export function newFeatureAlpha(): void {}
 -                ^^^^^^^^^^^^^^^ new_feature
 ```
 
-```diff beta.ds
+```diff beta.tspp
 @@ -1,3 +1,1 @@
  export function existingBeta(): void {}
 -export function newFeatureBeta(): void {}

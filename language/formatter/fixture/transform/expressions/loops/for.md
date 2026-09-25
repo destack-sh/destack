@@ -6,13 +6,13 @@
 
 Traditional C-style for loops use semicolons to separate parts.
 
-```ds
+```tspp
 for(let i=0;i<10;i++){process(i)}
 ```
 
 Spaces are added around `=` and operators.
 
-```ds expected
+```tspp expected
 for (let i = 0; i < 10; i++) {
     process(i);
 }
@@ -22,11 +22,11 @@ for (let i = 0; i < 10; i++) {
 
 For-of loops space the `of` keyword and expand their bodies.
 
-```ds
+```tspp
 for (item of items) { handle(item) }
 ```
 
-```ds expected
+```tspp expected
 for (item of items) {
     handle(item);
 }
@@ -36,11 +36,11 @@ for (item of items) {
 
 For-await-of loops keep the `await` keyword in the header.
 
-```ds:main.ds
+```tspp:main.tspp
 async function run() { for await (const item of stream) { consume(item) } }
 ```
 
-```ds expected
+```tspp expected
 async function run() {
     for await (const item of stream) {
         consume(item);
@@ -52,11 +52,11 @@ async function run() {
 
 Using bindings stay attached to for-of headers.
 
-```ds
+```tspp
 for (using handle of handles) { handle.use() }
 ```
 
-```ds expected
+```tspp expected
 for (using handle of handles) {
     handle.use();
 }
@@ -66,12 +66,12 @@ for (using handle of handles) {
 
 Annotations can prefix loop statements.
 
-```ds
+```tspp
 @unroll
 for(let i=0;i<4;i++){process(i)}
 ```
 
-```ds expected
+```tspp expected
 @unroll
 for (let i = 0; i < 4; i++) {
     process(i);
@@ -82,11 +82,11 @@ for (let i = 0; i < 4; i++) {
 
 For-of loops iterate over iterables.
 
-```ds
+```tspp
 for(const item of items){process(item)}
 ```
 
-```ds expected
+```tspp expected
 for (const item of items) {
     process(item);
 }
@@ -96,11 +96,11 @@ for (const item of items) {
 
 For-of loops can iterate inline array literals.
 
-```ds
+```tspp
 for (const i of [0,1,2]) { print(i) }
 ```
 
-```ds expected
+```tspp expected
 for (const i of [0, 1, 2]) {
     print(i);
 }
@@ -110,11 +110,11 @@ for (const i of [0, 1, 2]) {
 
 For-of loops with destructuring keep explicit `const`.
 
-```ds
+```tspp
 for (const [key, value] of map) { process(key, value) }
 ```
 
-```ds expected
+```tspp expected
 for (const [key, value] of map) {
     process(key, value);
 }
@@ -124,11 +124,11 @@ for (const [key, value] of map) {
 
 Object destructuring in for-of loops also keeps explicit `const`.
 
-```ds
+```tspp
 for (const { name, value } of items) { process(name, value) }
 ```
 
-```ds expected
+```tspp expected
 for (const { name, value } of items) {
     process(name, value);
 }
@@ -138,11 +138,11 @@ for (const { name, value } of items) {
 
 Tagged patterns in for-of headers keep their shape.
 
-```ds
+```tspp
 for (const Some(value, meta) of items) { process(value, meta) }
 ```
 
-```ds expected
+```tspp expected
 for (const Some(value, meta) of items) {
     process(value, meta);
 }
@@ -152,11 +152,11 @@ for (const Some(value, meta) of items) {
 
 Nested newtype patterns in for-of headers break with the header.
 
-```ds line-width=80
+```tspp line-width=80
 for (const Shape.Line({ start: Point { x, y }, end }) of lines) { draw(start, end) }
 ```
 
-```ds expected
+```tspp expected
 for (const Shape.Line({
     start: Point { x, y },
     end,
@@ -169,11 +169,11 @@ for (const Shape.Line({
 
 Array boundary patterns stay compact in for-of headers.
 
-```ds
+```tspp
 for (const [first, ..., last] of windows) { use(first, last) }
 ```
 
-```ds expected
+```tspp expected
 for (const [first, ..., last] of windows) {
     use(first, last);
 }
@@ -183,11 +183,11 @@ for (const [first, ..., last] of windows) {
 
 Nested if branches inside loop bodies keep expression-tail semantics.
 
-```ds
+```tspp
 for (const item of items) { if (item.valid) { use(item) } else { skip(item) } }
 ```
 
-```ds expected
+```tspp expected
 for (const item of items) {
     if (item.valid) {
         use(item)

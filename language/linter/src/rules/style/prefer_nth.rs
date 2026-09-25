@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -16,14 +16,14 @@ Instead, you SHOULD use `nth` to skip preceding values and return the selected v
 "#,
         example: {
             reported: r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function select(values: Iterator<int32>, index: isize): int32 | undefined {
     return values.drop(index).first();
 }
 "#,
             accepted: r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function select(values: Iterator<int32>, index: isize): int32 | undefined {
     return values.nth(index);
@@ -149,7 +149,7 @@ mod tests {
         let session = TestSession::dir(
             &PREFER_NTH,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function select(values: Iterator<int32>, index: isize): int32 | undefined {
     return values.drop(index).first();
@@ -159,7 +159,7 @@ function select(values: Iterator<int32>, index: isize): int32 | undefined {
 
         session.assert_fixes(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function select(values: Iterator<int32>, index: isize): int32 | undefined {
     return values.nth(index);
@@ -174,7 +174,7 @@ function select(values: Iterator<int32>, index: isize): int32 | undefined {
         let session = TestSession::dir(
             &PREFER_NTH,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function select(values: Iterator<int32> | undefined, index: isize): int32 | undefined {
     return values?.drop(index).first();
@@ -184,7 +184,7 @@ function select(values: Iterator<int32> | undefined, index: isize): int32 | unde
 
         session.assert_fixes(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function select(values: Iterator<int32> | undefined, index: isize): int32 | undefined {
     return values?.nth(index);
@@ -199,7 +199,7 @@ function select(values: Iterator<int32> | undefined, index: isize): int32 | unde
         let session = TestSession::dir(
             &PREFER_NTH,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function select(values: Iterator<int32>, index: isize): Iterator<int32> {
     return values.drop(index);
@@ -241,7 +241,7 @@ function select(values: Values): int32 {
         let session = TestSession::dir(
             &PREFER_NTH,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function select(values: Iterator<int32>, index: isize): int32 | undefined {
     return values.drop(index) /* retain */ .first();
@@ -252,7 +252,7 @@ function select(values: Iterator<int32>, index: isize): int32 | undefined {
         session.assert_diagnostics(
             r#"
 warning[prefer-nth]: drop adapter is consumed only for its first value
- ──▶ main.ds:4:12
+ ──▶ main.tspp:4:12
   │
 2 │
 3 │ function select(values: Iterator<int32>, index: isize): int32 | undefined {

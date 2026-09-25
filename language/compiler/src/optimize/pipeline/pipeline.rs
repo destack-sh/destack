@@ -1,5 +1,5 @@
-use destack_artifact::{MirElaborated, MirOptimized};
-use destack_mir::ModuleCache;
+use tspp_artifact::{MirElaborated, MirOptimized};
+use tspp_mir::ModuleCache;
 
 use crate::CompilerResult;
 use crate::optimize::passes::{InsertSafepoints, InsertWriteBarriers};

@@ -1,19 +1,19 @@
-use crate::DestackFormatContext;
+use crate::TsppFormatContext;
 use crate::chain::{
     argument_value_id_if_present, chain_has_call_like_expression, transparent_inner_expression,
 };
 use crate::expression::expression_is_multiline_template_starting_on_same_line;
-use destack_dir::{
+use tspp_dir::{
     Argument, Declaration, Expression, FunctionForm, Literal, LocalNodeId, TemplateLiteral,
 };
-use destack_source::Span;
+use tspp_source::Span;
 
 /// The maximum callee depth that test-pattern detection inspects.
 const MAX_CALLEE_NAMES: usize = 5;
 
 /// Return one argument's transparent expression value, if present.
 pub(crate) fn argument_expression_id(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<LocalNodeId<Expression>> {
     let value_id = argument_value_id_if_present(context.tree, argument_id)?;
@@ -22,7 +22,7 @@ pub(crate) fn argument_expression_id(
 
 /// Return whether one argument is a template literal expression.
 pub(crate) fn argument_is_template_literal(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
     argument_expression_id(context, argument_id).is_some_and(|value_id| {
@@ -35,7 +35,7 @@ pub(crate) fn argument_is_template_literal(
 
 /// Return whether an argument is an interpolated template literal.
 pub(crate) fn argument_is_interpolated_template_literal(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
     let Some(value_id) = argument_expression_id(context, argument_id) else {
@@ -52,7 +52,7 @@ pub(crate) fn argument_is_interpolated_template_literal(
 
 /// Return whether one argument list contains exactly one multiline template argument.
 pub(crate) fn is_multiline_template_only_args(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     arguments: &[LocalNodeId<Argument>],
 ) -> bool {
     if arguments.len() != 1 {
@@ -66,7 +66,7 @@ pub(crate) fn is_multiline_template_only_args(
 
 /// Return whether one call is the head of a longer curried call chain.
 pub(crate) fn expression_is_long_curried_call(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
 ) -> bool {
     let Expression::Call { arguments, .. } = context.tree.get(call_node_id) else {
@@ -93,7 +93,7 @@ pub(crate) fn expression_is_long_curried_call(
 
 /// Return whether one call expression should use member-chain formatting.
 pub(crate) fn call_should_route_to_chain(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     left: LocalNodeId<Expression>,
     arguments: &[LocalNodeId<Argument>],
@@ -115,7 +115,7 @@ pub(crate) fn call_should_route_to_chain(
 
 /// Return whether one call callee is a member-chain root.
 fn expression_is_member_chain_callee(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     match context.tree.get(expression_id) {
@@ -131,7 +131,7 @@ fn expression_is_member_chain_callee(
 
 /// Return whether one call should use the direct flat argument writer.
 pub(crate) fn call_uses_simple_list_layout(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     left: LocalNodeId<Expression>,
     arguments: &[LocalNodeId<Argument>],
@@ -149,7 +149,7 @@ pub(crate) fn call_uses_simple_list_layout(
 
 /// Return whether one call is a simple module import helper.
 fn is_simple_module_import_call(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     left: LocalNodeId<Expression>,
     arguments: &[LocalNodeId<Argument>],
@@ -170,7 +170,7 @@ fn is_simple_module_import_call(
 
 /// Return whether one call expression matches one test-style pattern.
 fn is_test_call_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     left: LocalNodeId<Expression>,
     arguments: &[LocalNodeId<Argument>],
@@ -198,7 +198,7 @@ fn is_test_call_expression(
 
 /// Return whether one wrapper-style test call should use simple layout.
 fn is_single_argument_test_call_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     left: LocalNodeId<Expression>,
     argument_id: LocalNodeId<Argument>,
@@ -223,7 +223,7 @@ fn is_single_argument_test_call_expression(
 
 /// Return whether one multi-argument test call should use simple layout.
 fn is_multi_argument_test_call_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     left: LocalNodeId<Expression>,
     arguments: &[LocalNodeId<Argument>],
     first_argument_id: LocalNodeId<Argument>,
@@ -266,7 +266,7 @@ fn is_multi_argument_test_call_expression(
 
 /// Return whether one call expression matches one test-style pattern.
 pub(crate) fn expression_is_test_call(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
 ) -> bool {
     let Expression::Call {
@@ -281,7 +281,7 @@ pub(crate) fn expression_is_test_call(
 
 /// Return whether one wrapper call is nested under a test call.
 fn call_is_nested_test_call_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some(parent_call_id) = context.expression_parent(call_node_id) else {
@@ -300,7 +300,7 @@ fn call_is_nested_test_call_expression(
 
 /// Return whether one call uses the callback and dependency-array hook layout.
 fn is_react_hook_with_deps_array(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
     arguments: &[LocalNodeId<Argument>],
 ) -> bool {
@@ -354,7 +354,7 @@ fn is_comment_outside_hook_parts(comment_span: Span, callback_span: Span, deps_s
 
 /// Return whether one expression is an Angular-style test wrapper call.
 fn is_angular_test_wrapper_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let Expression::Call { left, .. } = context.tree.get(expression_id) else {
@@ -366,7 +366,7 @@ fn is_angular_test_wrapper_expression(
 
 /// Return whether one callee is an Angular-style test wrapper.
 fn is_angular_test_wrapper_call(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     callee_id: LocalNodeId<Expression>,
 ) -> bool {
     matches!(
@@ -381,7 +381,7 @@ fn is_angular_test_wrapper_call(
 
 /// Return whether one callee is a unit-test setup helper.
 fn is_unit_test_setup_callee(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     callee_id: LocalNodeId<Expression>,
 ) -> bool {
     matches!(
@@ -396,7 +396,7 @@ fn is_unit_test_setup_callee(
 
 /// Return whether one expression is a function callback.
 fn expression_is_function_callback(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
@@ -411,7 +411,7 @@ fn expression_is_function_callback(
 
 /// Return whether one expression is a test callback.
 fn expression_is_test_callback(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     allow_any_callback_shape: bool,
 ) -> bool {
@@ -436,7 +436,7 @@ fn expression_is_test_callback(
 
 /// Return whether one expression is a zero-parameter callback with a block body.
 fn expression_is_zero_parameter_block_callback(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
@@ -456,7 +456,7 @@ fn expression_is_zero_parameter_block_callback(
 
 /// Return whether one argument is a string literal.
 fn argument_is_string_literal(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
     argument_expression_id(context, argument_id).is_some_and(|expression_id| {
@@ -469,7 +469,7 @@ fn argument_is_string_literal(
 
 /// Return whether one argument is a string or template literal.
 fn argument_is_string_or_template_literal(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
     argument_expression_id(context, argument_id).is_some_and(|expression_id| {
@@ -482,7 +482,7 @@ fn argument_is_string_or_template_literal(
 
 /// Return whether one argument is an identifier expression.
 fn argument_is_identifier(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
     argument_expression_id(context, argument_id).is_some_and(|expression_id| {
@@ -495,7 +495,7 @@ fn argument_is_identifier(
 
 /// Return whether one argument is a numeric literal.
 fn argument_is_numeric_literal(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
     argument_expression_id(context, argument_id).is_some_and(|expression_id| {
@@ -508,7 +508,7 @@ fn argument_is_numeric_literal(
 
 /// Return whether one callee is `import.meta.resolve`.
 fn is_import_meta_resolve_call(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let Expression::Member { left, name, .. } = context.tree.get(expression_id) else {
@@ -529,7 +529,7 @@ fn is_import_meta_resolve_call(
 
 /// Return callee names in top-down order.
 fn callee_name_iterator<'a>(
-    context: &'a DestackFormatContext<'a>,
+    context: &'a TsppFormatContext<'a>,
     expression_id: LocalNodeId<Expression>,
 ) -> Option<impl Iterator<Item = &'a str>> {
     let mut names = [None; MAX_CALLEE_NAMES];
@@ -562,7 +562,7 @@ fn callee_name_iterator<'a>(
 
 /// Return whether one callee name chain matches a known test pattern.
 fn contains_a_test_pattern(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some(mut names) = callee_name_iterator(context, expression_id) else {

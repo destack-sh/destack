@@ -1,0 +1,13 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / layout / placement
+let localValue: local Buffer = Buffer.allocate();
+//              ^^^^^ keyword.other.modifier.tspp
+
+let sharedValue: shared Counter = Counter.create();
+//               ^^^^^^ keyword.other.modifier.tspp
+
+// memory / layout / raw pointers
+let pointer: *uint8 = &bytes[0];
+//           ^ keyword.operator.pointer.tspp
+

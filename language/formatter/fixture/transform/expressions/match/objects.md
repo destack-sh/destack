@@ -6,11 +6,11 @@
 
 Objects can be destructured in match patterns.
 
-```ds
+```tspp
 match (user) { { name: "admin" } => "admin user"; { name, age } => `${name} is ${age}`; _ => "unknown" }
 ```
 
-```ds expected
+```tspp expected
 match (user) {
     { name: "admin" } => "admin user"
     { name, age } => `${name} is ${age}`
@@ -22,11 +22,11 @@ match (user) {
 
 Named struct patterns include the struct name.
 
-```ds
+```tspp
 match (point) { Point { x: 0, y: 0 } => "origin"; Point { x, y } => `at (${x}, ${y})` }
 ```
 
-```ds expected
+```tspp expected
 match (point) {
     Point { x: 0, y: 0 } => "origin"
     Point { x, y } => `at (${x}, ${y})`

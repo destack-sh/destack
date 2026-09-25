@@ -1,0 +1,15 @@
+import { Promise } from "tspp:async";
+
+/// Deterministic synchronous cleanup capability, called at the end of a `using` scope.
+@languageItem("memory.Dispose")
+export newtype interface Dispose {
+    /// Dispose this value.
+    dispose(this): void;
+}
+
+/// Deterministic asynchronous cleanup capability, called at the end of an `await using` scope.
+@languageItem("memory.AsyncDispose")
+export newtype interface AsyncDispose {
+    /// Dispose this value asynchronously.
+    asyncDispose(this): Promise<void>;
+}

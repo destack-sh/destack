@@ -1,5 +1,5 @@
-use destack_core::FxIndexSet;
 use smallvec::SmallVec;
+use tspp_core::FxIndexSet;
 
 use crate::{
     Access, Analysis, Block, BlockTarget, BorrowedPath, Call, ControlTable, DataflowTable, Edge,

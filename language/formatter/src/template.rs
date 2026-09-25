@@ -1,7 +1,7 @@
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_fir::format::{Format, FormatElement, FormatResult, FormatTag};
-use destack_fir::prelude::{align, dedent_to_root, format_with};
-use destack_fir::write;
+use crate::{TsppFormatContext, TsppFormatter};
+use tspp_fir::format::{Format, FormatElement, FormatResult, FormatTag};
+use tspp_fir::prelude::{align, dedent_to_root, format_with};
+use tspp_fir::write;
 
 /// The indentation derived from a template string segment.
 #[derive(Clone, Copy, Debug, Default)]
@@ -51,9 +51,9 @@ impl TemplateInterpolationIndentation {
 
 /// Write one template interpolation body with source-derived indentation.
 pub(crate) fn write_template_interpolation_with_indentation<'ast>(
-    content: &impl Format<'ast, DestackFormatContext<'ast>>,
+    content: &impl Format<'ast, TsppFormatContext<'ast>>,
     indentation: TemplateInterpolationIndentation,
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     let level = indentation.level(f.options().indent_width);
     let spaces = indentation.align(f.options().indent_width);

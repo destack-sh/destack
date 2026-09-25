@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_bind_label_scopes() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let done: boolean = false;
 
@@ -19,7 +19,7 @@ outer: for (let index = 0; index < 3; index = index + 1) {
         .build();
 
     compiler.assert_dir_bound(
-        "main.ds",
+        "main.tspp",
         DirRows::binding().with_summaries(),
         r#"
 let done: boolean = false;

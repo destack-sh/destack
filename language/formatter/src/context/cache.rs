@@ -1,8 +1,8 @@
 use rustc_hash::FxHashMap;
 
-use super::context::{DestackFormatContext, DestackFormatter};
-use destack_fir::format::{Format, FormatElement as FirElement, FormatLayout, FormatResult};
-use destack_source::ByteRange;
+use super::context::{TsppFormatContext, TsppFormatter};
+use tspp_fir::format::{Format, FormatElement as FirElement, FormatLayout, FormatResult};
+use tspp_source::ByteRange;
 
 /// FIR elements cached for one formatter pass.
 #[derive(Debug, Default)]
@@ -31,9 +31,9 @@ pub(crate) struct CapturedFormat<'a> {
 
 impl<'ast> CapturedFormat<'ast> {
     /// Capture content as one reusable FIR element.
-    pub(crate) fn new<T>(f: &mut DestackFormatter<'ast, '_>, content: T) -> FormatResult<Self>
+    pub(crate) fn new<T>(f: &mut TsppFormatter<'ast, '_>, content: T) -> FormatResult<Self>
     where
-        T: Format<'ast, DestackFormatContext<'ast>>,
+        T: Format<'ast, TsppFormatContext<'ast>>,
     {
         let element = f.capture(&content)?;
 
@@ -46,8 +46,8 @@ impl<'ast> CapturedFormat<'ast> {
     }
 }
 
-impl<'ast> Format<'ast, DestackFormatContext<'ast>> for CapturedFormat<'ast> {
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<'ast, TsppFormatContext<'ast>> for CapturedFormat<'ast> {
+    fn format(&self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         let Some(element) = self.element else {
             return Ok(());
         };

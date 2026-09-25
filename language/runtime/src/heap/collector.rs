@@ -2,10 +2,10 @@ use std::sync::Arc;
 use std::sync::mpsc::{self, Receiver, SendError, Sender};
 use std::thread::{self, JoinHandle};
 
-use destack_heap as heap;
-use destack_program as program;
-use destack_repository::ExecutionMode;
 use parking_lot::Mutex;
+use tspp_heap as heap;
+use tspp_program as program;
+use tspp_repository::ExecutionMode;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::heap::SharedCollectionState;

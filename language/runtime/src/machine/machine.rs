@@ -1,12 +1,12 @@
 use std::fmt;
 use std::sync::Arc;
 
-use destack_heap::{DropReference, GcDrop, HeapResult, RootSlot};
-use destack_memory::MemoryMap;
-use destack_program as program;
-use destack_program::Runtime;
-use destack_vm as vm;
 use program::{Outcome, Value};
+use tspp_heap::{DropReference, GcDrop, HeapResult, RootSlot};
+use tspp_memory::MemoryMap;
+use tspp_program as program;
+use tspp_program::Runtime;
+use tspp_vm as vm;
 
 use super::{Engine, Entry, MachineImage, Target};
 use crate::diagnostic::{MachineError, RuntimeError, RuntimeResult};

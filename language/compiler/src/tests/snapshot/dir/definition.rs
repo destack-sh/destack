@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use super::generic::generic_template_parameter_label;
 use super::{DirSnapshotBuilder, SnapshotTable};

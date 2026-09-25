@@ -74,7 +74,7 @@ fn test_match_imported_namespace_symbol() {
     TestMatcher::new(
         "$CALLEE($VALUE)",
         r#"
-import * as myPackage from "./package.ds";
+import * as myPackage from "./package.tspp";
 
 const request = myPackage.net.fetch;
 
@@ -83,13 +83,13 @@ request("second");
 "#,
     )
     .file(
-        "package.ds",
+        "package.tspp",
         r#"
-export * as net from "./net.ds";
+export * as net from "./net.tspp";
 "#,
     )
     .file(
-        "net.ds",
+        "net.tspp",
         r#"
 export function fetch(value: string): string {
     return value;
@@ -99,7 +99,7 @@ export function fetch(value: string): string {
     .guard("$CALLEE == myPackage.net.fetch")
     .assert(
         r#"
-import * as myPackage from "./package.ds";
+import * as myPackage from "./package.tspp";
 
 const request = myPackage.net.fetch;
 

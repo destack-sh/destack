@@ -1,7 +1,7 @@
 use std::ptr::{self, NonNull};
 
-use destack_bytecode::{CodeOffset, Instruction};
-use destack_program::Word;
+use tspp_bytecode::{CodeOffset, Instruction};
+use tspp_program::Word;
 
 use super::Frame;
 

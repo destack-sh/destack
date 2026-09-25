@@ -1,9 +1,9 @@
 use std::ops::Range;
 use std::ptr;
 
-use destack_bytecode::{CodeOffset, Instruction, Operands, RegisterId, RegisterSpan};
-use destack_program as program;
-use destack_program::{
+use tspp_bytecode::{CodeOffset, Instruction, Operands, RegisterId, RegisterSpan};
+use tspp_program as program;
+use tspp_program::{
     Completion, EventSet, FunctionId, Outcome, Profile, ProgramPoint, ResumeSkip, Runtime, StopSet,
     WatchSet, Word,
 };

@@ -1,11 +1,11 @@
-id = "destack"
-name = "Destack"
-description = "Destack language and toolchain support."
+id = "tspp"
+name = "TS++"
+description = "TS++ language and toolchain support."
 version = "2026.9.0"
 schema_version = 1
 authors = ["Florian Cäsar <florian@symbol.industries>"]
 repository = "https://github.com/destack-sh/destack"
-languages = ["languages/ds", "languages/dsm", "languages/dsa"]
+languages = ["languages/tspp", "languages/tsppm", "languages/tsppa"]
 
 [[capabilities]]
 kind = "process:exec"
@@ -15,16 +15,16 @@ args = ["--version"]
 [[capabilities]]
 kind = "download_file"
 host = "github.com"
-path = ["destack-sh", "destack", "releases", "download", "**"]
+path = ["destack-sh", "tspp", "releases", "download", "**"]
 
 [lib]
 kind = "Rust"
 version = "0.7.0"
 
-[language_servers.destack-lsp]
-name = "Destack Language Server"
-languages = ["Destack"]
-language_ids = { Destack = "destack" }
+[language_servers.tspp-lsp]
+name = "TS++ Language Server"
+languages = ["TS++"]
+language_ids = { "TS++" = "tspp" }
 
 [grammars.destack]
 repository = "https://github.com/destack-sh/destack"

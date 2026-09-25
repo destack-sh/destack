@@ -6,11 +6,11 @@
 
 Generic classes have type parameters in angle brackets.
 
-```ds
+```tspp
 class Container<T> { value: T }
 ```
 
-```ds expected
+```tspp expected
 class Container<T> {
     value: T;
 }
@@ -20,11 +20,11 @@ class Container<T> {
 
 Type constraints use colon syntax: `T: Constraint`.
 
-```ds
+```tspp
 class Container<T: Comparable> { value: T }
 ```
 
-```ds expected
+```tspp expected
 class Container<T: Comparable> {
     value: T;
 }
@@ -34,11 +34,11 @@ class Container<T: Comparable> {
 
 Multiple type parameters are separated by commas.
 
-```ds
+```tspp
 class Pair<K, V> { key: K; value: V }
 ```
 
-```ds expected
+```tspp expected
 class Pair<K, V> {
     key: K;
     value: V;

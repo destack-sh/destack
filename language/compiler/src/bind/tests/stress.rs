@@ -9,10 +9,10 @@ fn test_bind_counters_scale_with_visited_nodes() {
         .collect::<Vec<_>>()
         .join("\n");
     let compiler = TestSession::builder()
-        .module("main.ds", &source)
+        .module("main.tspp", &source)
         .cold()
         .build();
-    let counters = compiler.artifact_counters(compiler.dir_bound_key("main.ds"), "bind.");
+    let counters = compiler.artifact_counters(compiler.dir_bound_key("main.tspp"), "bind.");
     let expected = format!(
         "bind.files=1\n\
 bind.roots={ITEMS}\n\
@@ -36,10 +36,10 @@ fn test_bind_counters_scale_with_large_function_body() {
         .join("\n");
     let source = format!("function heavy() {{\n{body}\n}}");
     let compiler = TestSession::builder()
-        .module("main.ds", &source)
+        .module("main.tspp", &source)
         .cold()
         .build();
-    let counters = compiler.artifact_counters(compiler.dir_bound_key("main.ds"), "bind.");
+    let counters = compiler.artifact_counters(compiler.dir_bound_key("main.tspp"), "bind.");
     let expected = format!(
         "bind.files=1\n\
 bind.roots=1\n\

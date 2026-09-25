@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::Span;
+use tspp_dir as dir;
+use tspp_source::Span;
 
 use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};
 
@@ -76,7 +76,7 @@ impl ProgramQueryContext<'_> {
         let package = self
             .repository()
             .package(self.revision(), package_id)?
-            .ok_or(destack_repository::RepositoryError::MissingPackage {
+            .ok_or(tspp_repository::RepositoryError::MissingPackage {
                 package: package_id,
             })?;
 

@@ -1,7 +1,7 @@
 use std::{error, fmt};
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// One exhausted machine resource.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]

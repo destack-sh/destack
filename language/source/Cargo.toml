@@ -1,6 +1,6 @@
 [package]
-name = "destack_source"
-description = "Destack Span"
+name = "tspp_source"
+description = "TS++ Span"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -17,9 +17,9 @@ schema = ["schemars"]
 
 [dependencies]
 # language
-destack_core = { workspace = true }
-destack_serde = { workspace = true }
-destack_unicode = { workspace = true }
+tspp_core = { workspace = true }
+tspp_serde = { workspace = true }
+tspp_unicode = { workspace = true }
 
 # general
 cfg-if = { workspace = true }

@@ -1,4 +1,4 @@
-use destack_core::Arena;
+use tspp_core::Arena;
 
 use crate::{Node, NodeId, NodeList};
 

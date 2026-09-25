@@ -4,11 +4,11 @@ use std::ops::Deref;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::Stability;
-use destack_source::{File, FileId, FileSystem, FileType, Uri, matches, matches_prefix};
 use indexmap::IndexMap;
 use serde::Deserialize;
 use serde_json::Value;
+use tspp_artifact::Stability;
+use tspp_source::{File, FileId, FileSystem, FileType, Uri, matches, matches_prefix};
 
 use crate::RepositoryError;
 use crate::config::{

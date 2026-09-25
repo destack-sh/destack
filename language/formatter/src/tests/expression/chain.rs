@@ -1,8 +1,8 @@
 use crate::{
-    DestackFormatOptions, assert_format_program, assert_format_program_reference_widths,
+    TsppFormatOptions, assert_format_program, assert_format_program_reference_widths,
     assert_format_program_roundtrip_with_file_type,
 };
-use destack_source::FileType;
+use tspp_source::FileType;
 
 /// Struct literals should flow directly into postfix member calls.
 #[test]
@@ -22,7 +22,7 @@ fn test_format_struct_literal_member_call() {
     w: T.zero(),
 }.normalized();
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -48,8 +48,8 @@ fn test_format_member_call_arguments_stay_flat_in_broken_tuple() {
     );
 }
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -59,7 +59,7 @@ fn test_format_member_chain_splits_after_base_head() {
     assert_format_program_reference_widths(
         r#"const result = api.getClient().getService().fetchAll().map((x) => x.id)
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[(
             30,
             r#"const result = api
@@ -78,7 +78,7 @@ fn test_format_member_chain_with_generic_call_arguments() {
     assert_format_program_reference_widths(
         r#"const defaultColorDecoratorsEnablement = accessor.get(IConfigurationService).getValue<"auto" | "always" | "never">("longlonglonglonglonglonglonglonglong")
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[(
             60,
             r#"const defaultColorDecoratorsEnablement = accessor
@@ -97,7 +97,7 @@ fn test_format_optional_chain_breaks_with_leading_operators() {
     assert_format_program_reference_widths(
         r#"const value = dataSource?.getClient()?.getUser(id)?.profile?.name
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[(
             35,
             r#"const value = dataSource
@@ -117,7 +117,7 @@ fn test_format_member_chain_preserves_blank_lines() {
   // TO DO -- END
   .then(() => writeRegistry())
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[(
             80,
             r#"Promise.all(writeIconFiles)
@@ -138,8 +138,8 @@ fn test_format_member_instantiation_chain_breaks_at_narrow_width() {
         r#"api.getService()
     .getFactory<number>;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(25),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(25),
     );
 }
 
@@ -151,8 +151,8 @@ fn test_format_parenthesized_instantiation_callee_keeps_grouping() {
 "#,
         r#"(getContainer().map<string>)<number>(1);
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -164,8 +164,8 @@ fn test_format_parenthesized_member_callee_keeps_field_selection() {
 "#,
         r#"(runner.run)() satisfies "field";
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -177,8 +177,8 @@ fn test_format_parenthesized_identifier_callee_drops_redundant_grouping() {
 "#,
         r#"run<string>();
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -192,8 +192,8 @@ fn test_format_member_chain_merges_short_statement_head() {
     .transform() /* step 2 */
     .result();
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(20),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(20),
     );
 }
 
@@ -206,8 +206,8 @@ fn test_format_member_chain_merges_short_statement_call_head() {
         r#"data.filter((x) => x.valid) /* now map */
     .map((x) => x.value);
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(50),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(50),
     );
 }
 
@@ -221,8 +221,8 @@ fn test_format_member_chain_breaks_computed_first_hop_with_separator_comment() {
     key
 ].call();
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(20),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(20),
     );
 }
 
@@ -236,8 +236,8 @@ fn test_format_member_chain_elides_blank_line_after_terminal_call() {
 "#,
         r#"const x = fn().c1();
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(80),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(80),
     );
 }
 
@@ -247,7 +247,7 @@ fn test_format_member_chain_breaks_for_tagged_template_argument() {
     assert_format_program_reference_widths(
         r#"const value = utc("time_updated").notNull().default(sql`CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)`);
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[(
             60,
             r#"const value = utc("time_updated")

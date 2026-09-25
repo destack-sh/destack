@@ -1,0 +1,300 @@
+import { Result, todo } from "tspp:error";
+
+import { Exclude } from "tspp:types";
+
+import { Duration } from "../time/duration.tspp";
+import { LocaleIdentifier, LocaleMatcher, Locales, SupportedLocalesOptions } from "./common.tspp";
+import { IntlError } from "./error.tspp";
+import { NumberFormatPartType } from "./number-format.tspp";
+
+/// A duration formatting width.
+export type DurationFormatStyle = "long" | "short" | "narrow" | "digital";
+
+/// A duration unit display mode.
+export type DurationFormatDisplay = "always" | "auto";
+
+/// A duration text unit width.
+export type DurationTextStyle = "long" | "short" | "narrow";
+
+/// A duration clock unit width.
+export type DurationClockStyle = DurationTextStyle | "numeric" | "2-digit";
+
+/// A duration fractional unit width.
+export type DurationFractionStyle = DurationTextStyle | "numeric";
+
+/// A singular duration unit.
+export type DurationFormatUnit =
+    | "year"
+    | "month"
+    | "week"
+    | "day"
+    | "hour"
+    | "minute"
+    | "second"
+    | "millisecond"
+    | "microsecond"
+    | "nanosecond";
+
+/// A duration value accepted by duration formatters.
+export interface DurationFormatValue {
+    /// The year count.
+    years?: number;
+
+    /// The month count.
+    months?: number;
+
+    /// The week count.
+    weeks?: number;
+
+    /// The day count.
+    days?: number;
+
+    /// The hour count.
+    hours?: number;
+
+    /// The minute count.
+    minutes?: number;
+
+    /// The second count.
+    seconds?: number;
+
+    /// The millisecond count.
+    milliseconds?: number;
+
+    /// The microsecond count.
+    microseconds?: number;
+
+    /// The nanosecond count.
+    nanoseconds?: number;
+}
+
+/// Options for creating a duration formatter.
+export interface DurationFormatOptions {
+    /// The locale selection algorithm.
+    localeMatcher?: LocaleMatcher;
+
+    /// The numbering system identifier.
+    numberingSystem?: string;
+
+    /// The overall formatting width.
+    style?: DurationFormatStyle;
+
+    /// The year unit width.
+    years?: DurationTextStyle;
+
+    /// The year display mode.
+    yearsDisplay?: DurationFormatDisplay;
+
+    /// The month unit width.
+    months?: DurationTextStyle;
+
+    /// The month display mode.
+    monthsDisplay?: DurationFormatDisplay;
+
+    /// The week unit width.
+    weeks?: DurationTextStyle;
+
+    /// The week display mode.
+    weeksDisplay?: DurationFormatDisplay;
+
+    /// The day unit width.
+    days?: DurationTextStyle;
+
+    /// The day display mode.
+    daysDisplay?: DurationFormatDisplay;
+
+    /// The hour unit width.
+    hours?: DurationClockStyle;
+
+    /// The hour display mode.
+    hoursDisplay?: DurationFormatDisplay;
+
+    /// The minute unit width.
+    minutes?: DurationClockStyle;
+
+    /// The minute display mode.
+    minutesDisplay?: DurationFormatDisplay;
+
+    /// The second unit width.
+    seconds?: DurationClockStyle;
+
+    /// The second display mode.
+    secondsDisplay?: DurationFormatDisplay;
+
+    /// The millisecond unit width.
+    milliseconds?: DurationFractionStyle;
+
+    /// The millisecond display mode.
+    millisecondsDisplay?: DurationFormatDisplay;
+
+    /// The microsecond unit width.
+    microseconds?: DurationFractionStyle;
+
+    /// The microsecond display mode.
+    microsecondsDisplay?: DurationFormatDisplay;
+
+    /// The nanosecond unit width.
+    nanoseconds?: DurationFractionStyle;
+
+    /// The nanosecond display mode.
+    nanosecondsDisplay?: DurationFormatDisplay;
+
+    /// The fractional digit count.
+    fractionalDigits?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+}
+
+/// The resolved duration formatter options.
+export struct ResolvedDurationFormatOptions {
+    /// The resolved locale identifier.
+    locale: LocaleIdentifier;
+
+    /// The resolved numbering system identifier.
+    numberingSystem: string;
+
+    /// The overall formatting width.
+    style: DurationFormatStyle;
+
+    /// The year unit width.
+    years: DurationTextStyle;
+
+    /// The year display mode.
+    yearsDisplay: DurationFormatDisplay;
+
+    /// The month unit width.
+    months: DurationTextStyle;
+
+    /// The month display mode.
+    monthsDisplay: DurationFormatDisplay;
+
+    /// The week unit width.
+    weeks: DurationTextStyle;
+
+    /// The week display mode.
+    weeksDisplay: DurationFormatDisplay;
+
+    /// The day unit width.
+    days: DurationTextStyle;
+
+    /// The day display mode.
+    daysDisplay: DurationFormatDisplay;
+
+    /// The hour unit width.
+    hours: DurationClockStyle;
+
+    /// The hour display mode.
+    hoursDisplay: DurationFormatDisplay;
+
+    /// The minute unit width.
+    minutes: DurationClockStyle;
+
+    /// The minute display mode.
+    minutesDisplay: DurationFormatDisplay;
+
+    /// The second unit width.
+    seconds: DurationClockStyle;
+
+    /// The second display mode.
+    secondsDisplay: DurationFormatDisplay;
+
+    /// The millisecond unit width.
+    milliseconds: DurationFractionStyle;
+
+    /// The millisecond display mode.
+    millisecondsDisplay: DurationFormatDisplay;
+
+    /// The microsecond unit width.
+    microseconds: DurationFractionStyle;
+
+    /// The microsecond display mode.
+    microsecondsDisplay: DurationFormatDisplay;
+
+    /// The nanosecond unit width.
+    nanoseconds: DurationFractionStyle;
+
+    /// The nanosecond display mode.
+    nanosecondsDisplay: DurationFormatDisplay;
+
+    /// The fractional digit count.
+    fractionalDigits?: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
+}
+
+/// One formatted duration part.
+export newtype DurationFormatPart =
+    | {
+          /// The literal part category.
+          type: "literal";
+
+          /// The formatted text.
+          value: string;
+
+          /// The related duration unit when present.
+          unit?: DurationFormatUnit;
+      }
+    | {
+          /// The numeric part category.
+          type: Exclude<NumberFormatPartType, "literal">;
+
+          /// The formatted text.
+          value: string;
+
+          /// The related duration unit.
+          unit: DurationFormatUnit;
+      };
+
+/// A locale-sensitive duration formatter.
+@languageItem("intl.DurationFormat")
+export class DurationFormat {
+    /// Create a duration formatter for the default locale.
+    static create(): DurationFormat {
+        todo("DurationFormat.createDefault")
+    }
+
+    /// Create a duration formatter.
+    static create(
+        locales?: &readonly Locales,
+        options?: &readonly DurationFormatOptions,
+    ): Result<DurationFormat, IntlError> {
+        todo("DurationFormat.create")
+    }
+
+    /// Return the supported requested locales.
+    static supportedLocalesOf(
+        locales: &readonly Locales,
+        options?: &readonly SupportedLocalesOptions,
+    ): Result<^string[], IntlError> {
+        todo("DurationFormat.supportedLocalesOf")
+    }
+
+    /// Construct a validated duration formatter internally.
+    private constructor() {
+        todo("DurationFormat.constructor");
+    }
+
+    /// Format a validated Temporal duration.
+    format(&readonly this, duration: &readonly Duration): ^string {
+        todo("DurationFormat.formatDuration")
+    }
+
+    /// Format duration fields.
+    format(&readonly this, duration: &readonly DurationFormatValue): Result<string, IntlError> {
+        todo("DurationFormat.format")
+    }
+
+    /// Format a validated Temporal duration into separate parts.
+    formatToParts(&readonly this, duration: &readonly Duration): ^DurationFormatPart[] {
+        todo("DurationFormat.formatDurationToParts")
+    }
+
+    /// Format duration fields into separate parts.
+    formatToParts(
+        &readonly this,
+        duration: &readonly DurationFormatValue,
+    ): Result<^DurationFormatPart[], IntlError> {
+        todo("DurationFormat.formatToParts")
+    }
+
+    /// Return the resolved options.
+    resolvedOptions(&readonly this): ResolvedDurationFormatOptions {
+        todo("DurationFormat.resolvedOptions")
+    }
+}

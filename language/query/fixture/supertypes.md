@@ -5,7 +5,7 @@
 
 The class reports its direct base class.
 
-```ds main.ds
+```tspp main.tspp
 class Base {}
       ^^^^ base
 
@@ -13,15 +13,15 @@ class Derived extends Base {}
       ^^^^^^^ derived
 ```
 
-```query supertypes main.ds#derived
-@supertypes.item name=Base kind=class location=main.ds:1:1-1:14 selection=main.ds#base symbol=main.ds#Base@1
+```query supertypes main.tspp#derived
+@supertypes.item name=Base kind=class location=main.tspp:1:1-1:14 selection=main.tspp#base symbol=main.tspp#Base@1
 ```
 
 ### Return class and interface parents in heritage order
 
 The extended class precedes interfaces in the order written on the derived declaration.
 
-```ds main.ds
+```tspp main.tspp
 class Base {}
       ^^^^ base
 interface Writable {}
@@ -33,17 +33,17 @@ class Document extends Base implements Readable, Writable {}
       ^^^^^^^^ document
 ```
 
-```query supertypes main.ds#document
-@supertypes.item name=Base kind=class location=main.ds:1:1-1:14 selection=main.ds#base symbol=main.ds#Base@1
-@supertypes.item name=Readable kind=interface location=main.ds:3:1-3:22 selection=main.ds#readable symbol=main.ds#Readable@3
-@supertypes.item name=Writable kind=interface location=main.ds:2:1-2:22 selection=main.ds#writable symbol=main.ds#Writable@2
+```query supertypes main.tspp#document
+@supertypes.item name=Base kind=class location=main.tspp:1:1-1:14 selection=main.tspp#base symbol=main.tspp#Base@1
+@supertypes.item name=Readable kind=interface location=main.tspp:3:1-3:22 selection=main.tspp#readable symbol=main.tspp#Readable@3
+@supertypes.item name=Writable kind=interface location=main.tspp:2:1-2:22 selection=main.tspp#writable symbol=main.tspp#Writable@2
 ```
 
 ### Return only direct parents
 
 Hierarchy expansion advances one declared edge at a time.
 
-```ds main.ds
+```tspp main.tspp
 class Root {}
 class Middle extends Root {}
       ^^^^^^ middle
@@ -51,15 +51,15 @@ class Leaf extends Middle {}
       ^^^^ leaf
 ```
 
-```query supertypes main.ds#leaf
-@supertypes.item name=Middle kind=class location=main.ds:2:1-2:29 selection=main.ds#middle symbol=main.ds#Middle@2
+```query supertypes main.tspp#leaf
+@supertypes.item name=Middle kind=class location=main.tspp:2:1-2:29 selection=main.tspp#middle symbol=main.tspp#Middle@2
 ```
 
 ### Return the current direct supertype
 
 Supertype lookup follows the current heritage declaration.
 
-```ds main.ds
+```tspp main.tspp
 class First {}
 ^^^^^^^^^^^^^^ declaration:first
       ^^^^^ first
@@ -71,11 +71,11 @@ class Derived extends First {}
       ^^^^^^^ derived
 ```
 
-```query supertypes main.ds#derived
-@supertypes.item name=First kind=class location=main.ds#declaration:first selection=main.ds#first symbol=main.ds#First@1
+```query supertypes main.tspp#derived
+@supertypes.item name=First kind=class location=main.tspp#declaration:first selection=main.tspp#first symbol=main.tspp#First@1
 ```
 
-```ds main.ds change
+```tspp main.tspp change
 class First {}
 ^^^^^^^^^^^^^^ declaration:first
       ^^^^^ first
@@ -87,8 +87,8 @@ class Derived extends Second {}
       ^^^^^^^ derived
 ```
 
-```query supertypes main.ds#derived
-@supertypes.item name=Second kind=class location=main.ds#declaration:second selection=main.ds#second symbol=main.ds#Second@2
+```query supertypes main.tspp#derived
+@supertypes.item name=Second kind=class location=main.tspp#declaration:second selection=main.tspp#second symbol=main.tspp#Second@2
 ```
 
 ## Interfaces
@@ -97,7 +97,7 @@ class Derived extends Second {}
 
 An implementing class returns its direct interface edge.
 
-```ds main.ds
+```tspp main.tspp
 interface Animal {}
           ^^^^^^ animal
 
@@ -105,15 +105,15 @@ class Dog implements Animal {}
       ^^^ dog
 ```
 
-```query supertypes main.ds#dog
-@supertypes.item name=Animal kind=interface location=main.ds:1:1-1:20 selection=main.ds#animal symbol=main.ds#Animal@1
+```query supertypes main.tspp#dog
+@supertypes.item name=Animal kind=interface location=main.tspp:1:1-1:20 selection=main.tspp#animal symbol=main.tspp#Animal@1
 ```
 
 ### Find an extended interface
 
 An extending interface returns its direct interface edge.
 
-```ds main.ds
+```tspp main.tspp
 interface Base {}
           ^^^^ base
 
@@ -121,15 +121,15 @@ interface Derived extends Base {}
           ^^^^^^^ derived
 ```
 
-```query supertypes main.ds#derived
-@supertypes.item name=Base kind=interface location=main.ds:1:1-1:18 selection=main.ds#base symbol=main.ds#Base@1
+```query supertypes main.tspp#derived
+@supertypes.item name=Base kind=interface location=main.tspp:1:1-1:18 selection=main.tspp#base symbol=main.tspp#Base@1
 ```
 
 ### Return multiple extended interfaces in declaration order
 
 An interface returns each direct parent in declaration order.
 
-```ds main.ds
+```tspp main.tspp
 interface Readable {}
           ^^^^^^^^ readable
 interface Writable {}
@@ -139,16 +139,16 @@ interface Document extends Readable, Writable {}
           ^^^^^^^^ document
 ```
 
-```query supertypes main.ds#document
-@supertypes.item name=Readable kind=interface location=main.ds:1:1-1:22 selection=main.ds#readable symbol=main.ds#Readable@1
-@supertypes.item name=Writable kind=interface location=main.ds:2:1-2:22 selection=main.ds#writable symbol=main.ds#Writable@2
+```query supertypes main.tspp#document
+@supertypes.item name=Readable kind=interface location=main.tspp:1:1-1:22 selection=main.tspp#readable symbol=main.tspp#Readable@1
+@supertypes.item name=Writable kind=interface location=main.tspp:2:1-2:22 selection=main.tspp#writable symbol=main.tspp#Writable@2
 ```
 
 ### Find the parent of a nominal interface
 
 Nominal interfaces participate in the same interface hierarchy.
 
-```ds main.ds
+```tspp main.tspp
 newtype interface PartialEqual {}
                   ^^^^^^^^^^^^ partial_equal
 
@@ -156,8 +156,8 @@ newtype interface Equal extends PartialEqual {}
                   ^^^^^ equal
 ```
 
-```query supertypes main.ds#equal
-@supertypes.item name=PartialEqual kind=newtype_interface location=main.ds:1:1-1:34 selection=main.ds#partial_equal symbol=main.ds#PartialEqual@1
+```query supertypes main.tspp#equal
+@supertypes.item name=PartialEqual kind=newtype_interface location=main.tspp:1:1-1:34 selection=main.tspp#partial_equal symbol=main.tspp#PartialEqual@1
 ```
 
 ## Implementations
@@ -166,7 +166,7 @@ newtype interface Equal extends PartialEqual {}
 
 Structs and enums return their direct implementation edges.
 
-```ds main.ds
+```tspp main.tspp
 interface Display {}
           ^^^^^^^ display
 
@@ -177,19 +177,19 @@ enum Status implements Display { Ready }
      ^^^^^^ status
 ```
 
-```query supertypes main.ds#packet
-@supertypes.item name=Display kind=interface location=main.ds:1:1-1:21 selection=main.ds#display symbol=main.ds#Display@1
+```query supertypes main.tspp#packet
+@supertypes.item name=Display kind=interface location=main.tspp:1:1-1:21 selection=main.tspp#display symbol=main.tspp#Display@1
 ```
 
-```query supertypes main.ds#status
-@supertypes.item name=Display kind=interface location=main.ds:1:1-1:21 selection=main.ds#display symbol=main.ds#Display@1
+```query supertypes main.tspp#status
+@supertypes.item name=Display kind=interface location=main.tspp:1:1-1:21 selection=main.tspp#display symbol=main.tspp#Display@1
 ```
 
 ### Find an implementation contributed by an extension
 
 An extension implementation belongs to its nominal target.
 
-```ds main.ds
+```tspp main.tspp
 newtype UserId = string;
         ^^^^^^ user_id
 
@@ -199,8 +199,8 @@ newtype interface Display {}
 extension of UserId implements Display {}
 ```
 
-```query supertypes main.ds#user_id
-@supertypes.item name=Display kind=newtype_interface location=main.ds:3:1-3:29 selection=main.ds#display symbol=main.ds#Display@2
+```query supertypes main.tspp#user_id
+@supertypes.item name=Display kind=newtype_interface location=main.tspp:3:1-3:29 selection=main.tspp#display symbol=main.tspp#Display@2
 ```
 
 ## Generics
@@ -209,7 +209,7 @@ extension of UserId implements Display {}
 
 Hierarchy items display the generic parameters of their declarations.
 
-```ds main.ds
+```tspp main.tspp
 newtype interface Container<Value> {}
                   ^^^^^^^^^ name
 
@@ -217,8 +217,8 @@ struct Box<Value> implements Container<Value> {}
        ^^^ box
 ```
 
-```query supertypes main.ds#box
-@supertypes.item name=Container kind=newtype_interface generics="<Value>" location=main.ds:1:1-1:38 selection=main.ds#name symbol=main.ds#Container@1
+```query supertypes main.tspp#box
+@supertypes.item name=Container kind=newtype_interface generics="<Value>" location=main.tspp:1:1-1:38 selection=main.tspp#name symbol=main.tspp#Container@1
 ```
 
 ## Modules
@@ -227,24 +227,24 @@ struct Box<Value> implements Container<Value> {}
 
 Supertype lookup follows plain re-exports without losing the declaration's type symbol space.
 
-```ds types.ds
+```tspp types.tspp
 export interface Renderable {}
                  ^^^^^^^^^^ renderable
 ```
 
-```ds public.ds
-export { Renderable as Surface } from "./types.ds";
+```tspp public.tspp
+export { Renderable as Surface } from "./types.tspp";
 ```
 
-```ds implementation.ds
-import { Surface } from "./public.ds";
+```tspp implementation.tspp
+import { Surface } from "./public.tspp";
 
 export class Sprite implements Surface {}
              ^^^^^^ sprite
 ```
 
-```query supertypes implementation.ds#sprite
-@supertypes.item name=Renderable kind=interface location=types.ds:1:1-1:31 selection=types.ds#renderable symbol=types.ds#Renderable@1
+```query supertypes implementation.tspp#sprite
+@supertypes.item name=Renderable kind=interface location=types.tspp:1:1-1:31 selection=types.tspp#renderable symbol=types.tspp#Renderable@1
 ```
 
 ## Empty Results
@@ -253,11 +253,11 @@ export class Sprite implements Surface {}
 
 A root class has no nominal parent.
 
-```ds main.ds
+```tspp main.tspp
 class Root {}
       ^^^^ root
 ```
 
-```query supertypes main.ds#root
+```query supertypes main.tspp#root
 @supertypes.none
 ```

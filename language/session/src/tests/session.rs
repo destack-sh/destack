@@ -2,18 +2,18 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::thread;
 
-use destack_artifact::{
+use futures::executor::block_on;
+use parking_lot::Mutex;
+use tspp_artifact::{
     ArtifactFailure, ArtifactKey, ArtifactOutcome, ArtifactVersion, BuildId, DirImported,
     DirParsed, IndexKind,
 };
-use destack_repository as repository;
-use destack_repository::{
+use tspp_repository as repository;
+use tspp_repository::{
     ArtifactReader, DestackLayoutOverride, Environment, Execution, Host, Repository, Revision,
     RevisionPin, Settings, Trace, TraceLevel, TraceSnapshot, TraceView,
 };
-use destack_source::{FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId, Uri};
-use futures::executor::block_on;
-use parking_lot::Mutex;
+use tspp_source::{FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId, Uri};
 
 use crate::{ArtifactPriority, Executor, Session, SessionError};
 
@@ -308,7 +308,7 @@ fn test_reuse_builtin_imports_after_adding_a_package() {
 "#,
         ),
         (
-            "packages/app/main.ds",
+            "packages/app/main.tspp",
             r#"export const value = 1;
 "#,
         ),
@@ -317,15 +317,12 @@ fn test_reuse_builtin_imports_after_adding_a_package() {
     let revision = session.revision();
     let profile = session.profile_id(
         revision,
-        session.module_id("packages/app/main.ds", revision),
+        session.module_id("packages/app/main.tspp", revision),
         "js",
     );
     let module = session
         .repository
-        .module_id_for_uri(
-            revision,
-            &Uri::from_string("destack://memory/capability.ds"),
-        )
+        .module_id_for_uri(revision, &Uri::from_string("tspp://memory/capability.tspp"))
         .unwrap()
         .unwrap();
     let key = ArtifactKey::dir_imported(module, profile);
@@ -348,23 +345,23 @@ fn test_reuse_builtin_imports_after_adding_a_package() {
 #[test]
 fn test_parse_added_conditional_file() {
     let session = TestSession::open(&[(
-        "main.ds",
+        "main.tspp",
         r#"export const value = 1;
 "#,
     )])
     .unwrap();
-    let module = session.module_id("main.ds", session.revision());
+    let module = session.module_id("main.tspp", session.revision());
     let key = ArtifactKey::dir_parsed(module);
     assert_eq!(session.provide(key), ArtifactOutcome::Ok);
     let before = session.version(key);
 
     session.edit_text(
-        "main.test.ds",
+        "main.test.tspp",
         r#"export const example = 2;
 "#,
     );
     assert_eq!(
-        session.module_id("main.test.ds", session.revision()),
+        session.module_id("main.test.tspp", session.revision()),
         module
     );
     assert_eq!(session.provide(key), ArtifactOutcome::Ok);
@@ -378,10 +375,10 @@ fn test_parse_added_conditional_file() {
     assert_eq!(
         files,
         [
-            session.repository.file_id(&session.root.join("main.ds")),
+            session.repository.file_id(&session.root.join("main.tspp")),
             session
                 .repository
-                .file_id(&session.root.join("main.test.ds")),
+                .file_id(&session.root.join("main.test.tspp")),
         ]
     );
 }
@@ -390,7 +387,7 @@ fn test_parse_added_conditional_file() {
 #[test]
 fn test_reuse_builtin_imports_across_repositories() {
     let original = TestSession::open(&[(
-        "main.ds",
+        "main.tspp",
         r#"export const value = 1;
 "#,
     )])
@@ -398,13 +395,10 @@ fn test_reuse_builtin_imports_across_repositories() {
     let revision = original.revision();
     let module = original
         .repository
-        .module_id_for_uri(
-            revision,
-            &Uri::from_string("destack://memory/capability.ds"),
-        )
+        .module_id_for_uri(revision, &Uri::from_string("tspp://memory/capability.tspp"))
         .unwrap()
         .unwrap();
-    let profile = original.profile_id(revision, original.module_id("main.ds", revision), "js");
+    let profile = original.profile_id(revision, original.module_id("main.tspp", revision), "js");
     let key = ArtifactKey::dir_imported(module, profile);
     assert_eq!(original.provide(key), ArtifactOutcome::Ok);
     let version = original.version(key);
@@ -423,7 +417,7 @@ fn test_replace_embedded_module() {
         .repository
         .module_id_for_uri(
             original.revision(),
-            &Uri::from_string("destack://memory/capability.ds"),
+            &Uri::from_string("tspp://memory/capability.tspp"),
         )
         .unwrap()
         .unwrap();
@@ -436,11 +430,11 @@ fn test_replace_embedded_module() {
         ("README.md", "# Destack\n"),
         (
             "destack.json",
-            r#"{ "name": "destack" }
+            r#"{ "name": "tspp" }
 "#,
         ),
         (
-            "src/memory/capability.ds",
+            "src/memory/capability.tspp",
             r#"export const replacement = 1;
 "#,
         ),
@@ -453,7 +447,7 @@ fn test_replace_embedded_module() {
     }
     let reopened = original.reopen();
     assert_eq!(
-        reopened.module_id("src/memory/capability.ds", reopened.revision()),
+        reopened.module_id("src/memory/capability.tspp", reopened.revision()),
         module
     );
     assert_eq!(reopened.provide(key), ArtifactOutcome::Ok);
@@ -468,7 +462,7 @@ fn test_replace_embedded_module() {
         files,
         [reopened
             .repository
-            .file_id(&reopened.root.join("src/memory/capability.ds"))]
+            .file_id(&reopened.root.join("src/memory/capability.tspp"))]
     );
 }
 
@@ -483,11 +477,11 @@ fn test_resolve_added_builtin_imports() {
         ),
         (
             "packages/library/destack.json",
-            r#"{ "name": "destack" }
+            r#"{ "name": "tspp" }
 "#,
         ),
         (
-            "packages/library/src/index.ds",
+            "packages/library/src/index.tspp",
             r#"import { value } from "./value";
 "#,
         ),
@@ -497,13 +491,13 @@ fn test_resolve_added_builtin_imports() {
 "#,
         ),
         (
-            "packages/app/main.ds",
-            r#"import { value } from "destack:example";
+            "packages/app/main.tspp",
+            r#"import { value } from "tspp:example";
 "#,
         ),
     ])
     .unwrap();
-    let keys = ["packages/library/src/index.ds", "packages/app/main.ds"]
+    let keys = ["packages/library/src/index.tspp", "packages/app/main.tspp"]
         .map(|path| session.profile_key(path, "js", ArtifactKey::dir_imported));
     let before = keys.map(|key| {
         session.provide(key);
@@ -513,11 +507,11 @@ fn test_resolve_added_builtin_imports() {
     });
 
     session.edit_text(
-        "packages/library/src/value.ds",
+        "packages/library/src/value.tspp",
         r#"export const value = 1;
 "#,
     );
-    let target = session.module_id("packages/library/src/value.ds", session.revision());
+    let target = session.module_id("packages/library/src/value.tspp", session.revision());
     for (key, expected) in keys.into_iter().zip([Some(target), None]) {
         session.provide(key);
         assert_eq!(session.imports(key), [expected]);
@@ -526,8 +520,8 @@ fn test_resolve_added_builtin_imports() {
     session.edit_text(
         "packages/library/destack.json",
         r#"{
-  "name": "destack",
-  "exports": { "./example": { "kind": "module", "path": "src/value.ds" } }
+  "name": "tspp",
+  "exports": { "./example": { "kind": "module", "path": "src/value.tspp" } }
 }
 "#,
     );
@@ -558,13 +552,13 @@ fn test_resolve_added_workspace_dependency() {
 "#,
         ),
         (
-            "packages/app/main.ds",
+            "packages/app/main.tspp",
             r#"import { value } from "other";
 "#,
         ),
     ])
     .unwrap();
-    let key = session.profile_key("packages/app/main.ds", "js", ArtifactKey::dir_imported);
+    let key = session.profile_key("packages/app/main.tspp", "js", ArtifactKey::dir_imported);
     session.provide(key);
     let before = session.version(key);
 
@@ -572,12 +566,12 @@ fn test_resolve_added_workspace_dependency() {
         "packages/other/destack.json",
         r#"{
   "name": "other",
-  "exports": { ".": { "kind": "module", "path": "index.ds" } }
+  "exports": { ".": { "kind": "module", "path": "index.tspp" } }
 }
 "#,
     );
     session.edit_text(
-        "packages/other/index.ds",
+        "packages/other/index.tspp",
         r#"export const value = 1;
 "#,
     );
@@ -586,7 +580,7 @@ fn test_resolve_added_workspace_dependency() {
     assert_eq!(
         session.imports(key),
         [Some(session.module_id(
-            "packages/other/index.ds",
+            "packages/other/index.tspp",
             session.revision()
         ))]
     );
@@ -602,7 +596,7 @@ fn test_provide_same_artifact_across_sessions() {
 }
 "#,
         ),
-        ("src/main.ds", "export const answer = 42;\n"),
+        ("src/main.tspp", "export const answer = 42;\n"),
     ];
     let executor = Executor::new(Execution::Threaded, 2).expect("shared executor should start");
     let first = TestSession::open_with_executor(&files, executor.clone())
@@ -611,8 +605,8 @@ fn test_provide_same_artifact_across_sessions() {
         TestSession::open_with_executor(&files, executor).expect("second session should open");
 
     // provide identical task coordinates concurrently through distinct repositories
-    let first = thread::spawn(move || first.check("src/main.ds", "js"));
-    let second = thread::spawn(move || second.check("src/main.ds", "js"));
+    let first = thread::spawn(move || first.check("src/main.tspp", "js"));
+    let second = thread::spawn(move || second.check("src/main.tspp", "js"));
     let (first_version, _) = first.join().expect("first session should complete");
     let (second_version, _) = second.join().expect("second session should complete");
 
@@ -630,12 +624,12 @@ fn test_poison_lowering_of_a_module_with_check_errors() {
 }
 "#,
         ),
-        ("src/main.ds", "export const answer: string = 42;\n"),
+        ("src/main.tspp", "export const answer: string = 42;\n"),
     ];
     let session = TestSession::open(&files).expect("test session should open");
-    let checked = session.profile_key("src/main.ds", "js", ArtifactKey::dir_checked);
-    let lowered = session.target_key("src/main.ds", "js", ArtifactKey::mir_lowered);
-    let index = session.profile_key("src/main.ds", "js", |module, profile| {
+    let checked = session.profile_key("src/main.tspp", "js", ArtifactKey::dir_checked);
+    let lowered = session.target_key("src/main.tspp", "js", ArtifactKey::mir_lowered);
+    let index = session.profile_key("src/main.tspp", "js", |module, profile| {
         ArtifactKey::module_index(module, profile, IndexKind::Symbols)
     });
 

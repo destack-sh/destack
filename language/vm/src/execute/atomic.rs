@@ -1,10 +1,10 @@
 use std::sync::atomic::{AtomicU8, AtomicU16, AtomicU32, AtomicU64, Ordering, fence};
 
-use destack_bytecode::{
+use tspp_bytecode::{
     Address, AtomicAccess, AtomicOperation, AtomicOrder, CompareExchangeAccess, FenceAccess,
     Instruction, Scalar,
 };
-use destack_program::{Runtime, Word};
+use tspp_program::{Runtime, Word};
 
 use crate::diagnostic::Result;
 use crate::machine::Activation;

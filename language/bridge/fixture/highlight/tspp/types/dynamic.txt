@@ -1,0 +1,25 @@
+// SYNTAX TEST "source.tspp"
+
+// types / dynamic / erased fields
+struct Logger {
+// <- keyword.declaration.type.tspp
+    writer: Dynamic<Writer>;
+//          ^^^^^^^ entity.name.type.tspp
+}
+
+// types / dynamic / erased storage
+const erased: Dynamic<Writer> = console;
+// <- keyword.declaration.variable.tspp
+
+// types / dynamic / universal values
+struct ErasedEvent {
+// <- keyword.declaration.type.tspp
+    payload: Dynamic<unknown>;
+//           ^^^^^^^ entity.name.type.tspp
+}
+
+// types / dynamic / narrowing
+if (erased is Console) {
+// <- keyword.control.conditional.tspp
+    erased.written satisfies uint;
+}

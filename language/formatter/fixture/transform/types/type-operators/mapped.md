@@ -6,11 +6,11 @@
 
 Mapped types include spaces when bracket spacing is enabled.
 
-```ds:main.ds
+```tspp:main.tspp
 export type Bar<T> = {[P in keyof T]: string}
 ```
 
-```ds expected
+```tspp expected
 export type Bar<T> = { [P in keyof T]: string };
 ```
 
@@ -18,12 +18,12 @@ export type Bar<T> = { [P in keyof T]: string };
 
 Mapped type modifiers keep their prefixes and suffixes.
 
-```ds:main.ds
+```tspp:main.tspp
 type ReadonlyPartial<T> = { readonly [K in keyof T]?: T[K] }
 type Mutable<T> = { -readonly [K in keyof T]-?: T[K] }
 ```
 
-```ds expected
+```tspp expected
 type ReadonlyPartial<T> = { readonly [K in keyof T]?: T[K] };
 type Mutable<T> = { -readonly [K in keyof T]-?: T[K] };
 ```
@@ -32,11 +32,11 @@ type Mutable<T> = { -readonly [K in keyof T]-?: T[K] };
 
 Mapped type key remaps keep `as` spacing.
 
-```ds:main.ds
+```tspp:main.tspp
 type EventHandlers<T> = { [K in keyof T as `on${Capitalize<K & string>}`]?: T[K] }
 ```
 
-```ds expected
+```tspp expected
 type EventHandlers<T> = { [K in keyof T as `on${Capitalize<K & string>}`]?: T[K] };
 ```
 
@@ -44,7 +44,7 @@ type EventHandlers<T> = { [K in keyof T as `on${Capitalize<K & string>}`]?: T[K]
 
 Mapped type comments format at remap and value boundaries.
 
-```ds
+```tspp
 type Flags<T> = {
   [K in keyof T as /* remap */ `can${Capitalize<K & string>}`]: /* value */ boolean
 }
@@ -55,7 +55,7 @@ type Values<T> = {
 }
 ```
 
-```ds expected
+```tspp expected
 type Flags<T> = {
     [K in keyof T as /* remap */ `can${Capitalize<K & string>}`]: /* value */ boolean;
 };
@@ -69,11 +69,11 @@ type Values<T> = {
 
 Short exported mapped types stay inline under non-default formatter options.
 
-```ds:main.ds indent-width=2 line-width=80
+```tspp:main.tspp indent-width=2 line-width=80
 export type Bar<T> = {[P in keyof T]: string}
 ```
 
-```ds expected
+```tspp expected
 export type Bar<T> = { [P in keyof T]: string };
 ```
 
@@ -81,7 +81,7 @@ export type Bar<T> = { [P in keyof T]: string };
 
 Mapped types with `as` remaps preserve their remap expressions under non-default formatter options.
 
-```ds:main.ds indent-width=2 line-width=80
+```tspp:main.tspp indent-width=2 line-width=80
 type MappedTypeWithNewKeys<T> = {
   [K in keyof T as NewKeyType]: T[K]
 };
@@ -95,7 +95,7 @@ type PickByValueType<T, U> = {
 };
 ```
 
-```ds expected
+```tspp expected
 type MappedTypeWithNewKeys<T> = {
   [K in keyof T as NewKeyType]: T[K];
 };

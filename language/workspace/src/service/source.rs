@@ -1,10 +1,10 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_repository::Revision;
-use destack_serde::Reflect;
-use destack_source::{Edit, FileId, Patch, TextRange};
 use serde::{Deserialize, Serialize};
+use tspp_repository::Revision;
+use tspp_serde::Reflect;
+use tspp_source::{Edit, FileId, Patch, TextRange};
 
 use crate::{Error, FileEdit, FileImage, FileSelection};
 

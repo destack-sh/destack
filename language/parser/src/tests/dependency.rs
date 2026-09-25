@@ -1,10 +1,10 @@
 use crate::{ExpressionPosition, ExpressionStop};
-use destack_core::StringId;
-use destack_dir::{
+use tspp_core::StringId;
+use tspp_dir::{
     DependencyBinding, DependencyItem, Expression, ImportAttribute, ImportAttributeClauseKind,
     ImportAttributeValue, Literal, LocalNodeId, Name,
 };
-use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
+use tspp_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 
 use crate::parse::ParserErrorKind;
 use crate::{Parser, TestParser, assert_expression_path, assert_node, assert_string};
@@ -34,14 +34,14 @@ fn assert_empty_import_shell(
 #[test]
 fn test_parse_import_simple() {
     // import sample
-    let test = TestParser::new("import \"destack\"");
+    let test = TestParser::new("import \"tspp\"");
     let mut parser = test.prepare();
     let import_id = parser.parse_import().unwrap();
 
     // import
     assert_node!(parser.tree, import_id, Expression::Import { target, items, .. } => {
         assert_bare_import(items);
-        assert_import_target_string(&parser, *target, "destack");
+        assert_import_target_string(&parser, *target, "tspp");
     });
 }
 
@@ -67,7 +67,7 @@ fn test_parse_import_from_expression() {
 
 #[test]
 fn test_parse_import_path_with_arguments() {
-    let test = TestParser::new("import \"destack.geometry\" with { bar: true }");
+    let test = TestParser::new("import \"tspp.geometry\" with { bar: true }");
     let mut parser = test.prepare();
     let import_id = parser.parse_import().unwrap();
 
@@ -75,7 +75,7 @@ fn test_parse_import_path_with_arguments() {
     assert_node!(parser.tree, import_id, Expression::Import { target, items, attributes, .. } => {
         // sample.module
         assert_bare_import(items);
-        assert_import_target_string(&parser, *target, "destack.geometry");
+        assert_import_target_string(&parser, *target, "tspp.geometry");
 
         // with { bar: true }
         let attributes = attributes.as_ref().expect("expected attributes");
@@ -110,7 +110,7 @@ fn test_parse_import_path_with_arguments() {
 
 #[test]
 fn test_parse_import_path_with_missing_attribute_close_brace() {
-    let test = TestParser::new("import \"destack.geometry\" with { bar: true");
+    let test = TestParser::new("import \"tspp.geometry\" with { bar: true");
     let mut parser = test.prepare();
     let import_id = parser.parse_import().unwrap();
 
@@ -131,7 +131,7 @@ fn test_parse_import_path_with_missing_attribute_close_brace() {
 #[test]
 fn test_parse_import_path_with_nested_attributes() {
     let test = TestParser::new(
-        r#"import "destack.geometry" with {
+        r#"import "tspp.geometry" with {
     mode: "json"
     options: { eager: true, levels: [1, 2] }
 }"#,
@@ -533,7 +533,7 @@ fn test_parse_import_block_recovers_missing_close_before_from() {
 #[test]
 fn test_parse_import_block_keeps_statement_owner_in_missing_close_gap() {
     // keep the import expression enclosing the whitespace gap before `from`
-    let source = "import { Widget,  from \"./types.ds\";";
+    let source = "import { Widget,  from \"./types.tspp\";";
     let cursor = source.find("  from").unwrap() as u32 + 1;
     let test = TestParser::new(source);
     let mut parser = test.prepare();
@@ -543,7 +543,7 @@ fn test_parse_import_block_keeps_statement_owner_in_missing_close_gap() {
     assert_node!(parser.tree, root_id, Expression::Import { items, target, .. } => {
             let items = import_items(items);
             assert_eq!(items.len(), 1);
-            assert_import_target_string(&parser, *target, "./types.ds");
+            assert_import_target_string(&parser, *target, "./types.tspp");
             assert_node!(parser.tree, items[0], DependencyItem::Binding { name: Some(name), .. } => {
                 assert_string!(parser, name.string(), "Widget");
             });
@@ -781,7 +781,8 @@ fn test_parse_export_with_namespace_alias() {
 /// Recover namespace exports without a `from` target.
 #[test]
 fn test_recover_export_namespace_without_target() {
-    let test = TestParser::new("export * as from './module.ds';\nexport type Recovered = string;");
+    let test =
+        TestParser::new("export * as from './module.tspp';\nexport type Recovered = string;");
     let mut parser = test.prepare();
     let expressions = parser.parse_in_place();
 

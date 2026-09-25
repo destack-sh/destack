@@ -2,17 +2,17 @@ use crate::annotation::FormatTrailingComments;
 use crate::context::with_following_span_start;
 use crate::expression::format_generic_argument_list;
 use crate::tree::write_tree_attribute;
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{
+use crate::{TsppFormatContext, TsppFormatter};
+use tspp_dir::{
     Expression, GenericArgument, LocalNodeId, TreeAttribute, TreeAttributeValue, TreeChild,
 };
-use destack_fir::format::{Format, FormatResult};
-use destack_fir::prelude::{
+use tspp_fir::format::{Format, FormatResult};
+use tspp_fir::prelude::{
     expand_parent, format_with, group, hard_line_break, soft_line_break, soft_line_break_or_space,
     soft_line_indent_or_space, space, token,
 };
-use destack_fir::write;
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_fir::write;
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 /// Formatter for one tree opening element.
 pub(crate) struct FormatTreeOpeningElement<'tree> {
@@ -56,7 +56,7 @@ impl<'tree> FormatTreeOpeningElement<'tree> {
     }
 
     /// Compute the opening element layout.
-    fn compute_layout(&self, context: &DestackFormatContext<'_>) -> TreeOpeningElementLayout {
+    fn compute_layout(&self, context: &TsppFormatContext<'_>) -> TreeOpeningElementLayout {
         let attributes = self.attributes.as_deref().unwrap_or(&[]);
         let comments = context.comments();
         let opening_span = context
@@ -103,10 +103,10 @@ impl<'tree> FormatTreeOpeningElement<'tree> {
     }
 }
 
-impl<'ast> Format<'ast, DestackFormatContext<'ast>> for FormatTreeOpeningElement<'_> {
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<'ast, TsppFormatContext<'ast>> for FormatTreeOpeningElement<'_> {
+    fn format(&self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         let layout = self.compute_layout(f.context());
-        let format_open = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let format_open = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             write!(f, [token("<")])?;
             if let Some(left) = self.left {
                 let attributes = self.attributes.as_deref().unwrap_or(&[]);
@@ -223,7 +223,7 @@ enum TreeOpeningElementLayout {
 
 /// Return whether one attribute has a multiline string literal value.
 fn is_multiline_string_literal_attribute(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     attribute_id: LocalNodeId<TreeAttribute>,
 ) -> bool {
     as_string_literal_attribute_value(context, attribute_id)
@@ -232,7 +232,7 @@ fn is_multiline_string_literal_attribute(
 
 /// Return whether one attribute has a single-line string literal value.
 fn is_single_line_string_literal_attribute(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     attribute_id: LocalNodeId<TreeAttribute>,
 ) -> bool {
     as_string_literal_attribute_value(context, attribute_id)
@@ -241,9 +241,9 @@ fn is_single_line_string_literal_attribute(
 
 /// Return a string literal attribute value.
 fn as_string_literal_attribute_value(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     attribute_id: LocalNodeId<TreeAttribute>,
-) -> Option<destack_core::StringId> {
+) -> Option<tspp_core::StringId> {
     let TreeAttribute::Named {
         value: Some(TreeAttributeValue::String(string_id)),
         ..
@@ -257,18 +257,18 @@ fn as_string_literal_attribute_value(
 
 /// Format tree attributes in one opening tag.
 fn format_tree_attributes<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     attributes: &[LocalNodeId<TreeAttribute>],
     force_break_attributes: bool,
 ) -> FormatResult<()> {
     let single_attribute_per_line = f.context().options.single_attribute_per_line;
-    let attr_separator: &dyn Format<'ast, DestackFormatContext<'ast>> =
+    let attr_separator: &dyn Format<'ast, TsppFormatContext<'ast>> =
         if force_break_attributes || (single_attribute_per_line && attributes.len() > 1) {
             &hard_line_break()
         } else {
             &soft_line_break_or_space()
         };
-    let format_attrs = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_attrs = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         let following_span_starts = attributes
             .iter()
             .enumerate()

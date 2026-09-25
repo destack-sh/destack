@@ -1,7 +1,7 @@
-use destack_core::{FxIndexMap, FxIndexSet};
+use tspp_core::{FxIndexMap, FxIndexSet};
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use crate::{
     Analysis, FunctionId, Instruction, Local, LocalId, Mutation, NodeTable, Place, PlaceOrigin,

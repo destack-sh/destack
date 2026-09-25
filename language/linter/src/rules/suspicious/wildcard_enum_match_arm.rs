@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -132,7 +132,7 @@ function describe(mode: Mode): string {
         session.assert_diagnostics(
             r#"
 warning[wildcard-enum-match-arm]: wildcard arm hides future enum variants
-  ──▶ main.ds:9:9
+  ──▶ main.tspp:9:9
    │
  7 │     return match (mode) {
  8 │         Mode.Read => "read"
@@ -168,7 +168,7 @@ function describe(mode: &readonly Mode): string {
         session.assert_diagnostics(
             r#"
 warning[wildcard-enum-match-arm]: wildcard arm hides future enum variants
-  ──▶ main.ds:9:9
+  ──▶ main.tspp:9:9
    │
  7 │     return match (mode) {
  8 │         Mode.Read => "read"
@@ -203,7 +203,7 @@ function describe(mode: Mode): string {
         session.assert_diagnostics(
             r#"
 warning[wildcard-enum-match-arm]: wildcard arm hides future enum variants
-  ──▶ main.ds:8:21
+  ──▶ main.tspp:8:21
    │
  6 │ function describe(mode: Mode): string {
  7 │     return match (mode) {

@@ -1,0 +1,12 @@
+// SYNTAX TEST "source.tspp"
+
+// types / convert / from reference and try
+newtype UserId = string;
+// <- keyword.declaration.type.tspp
+
+extension of UserId implements From<string> {
+//                  ^^^^^^^^^^ keyword.operator.type.binary.tspp
+    static from(value: string): UserId {
+        return UserId(value);
+    }
+}

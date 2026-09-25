@@ -1,0 +1,18 @@
+// SYNTAX TEST "source.tspp"
+
+// types / core / primitives literals arrays and tuples
+type Sample = string | number | null | undefined;
+// <- keyword.declaration.type.tspp
+
+type Bytes = readonly [label: string, ...items: uint8[]];
+
+type Fixed<T, const N: uint> = [T; N];
+
+type Slice = [uint8];
+//           ^ punctuation.section.brackets.begin.tspp
+
+// types / core / object mapped and indexed access
+type Shape<T> = { readonly [K in keyof T]?: T[K] };
+// <- keyword.declaration.type.tspp
+
+type Field = User["name"];

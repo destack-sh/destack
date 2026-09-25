@@ -1,0 +1,11 @@
+// SYNTAX TEST "source.tspp"
+
+// expressions / tasks / scopes
+async function run(): Promise<void> {
+    await using scope = TaskScope.open();
+    const task = scope.spawn(() => fetchName());
+//  ^^^^^ keyword.declaration.variable.tspp
+//                     ^^^^^ entity.name.function.call.tspp
+
+    task satisfies Task<string>;
+}

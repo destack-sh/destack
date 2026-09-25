@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_core::StringPool;
-use destack_dir as dir;
-use destack_source::{DiagnosticCollection, File};
+use tspp_core::StringPool;
+use tspp_dir as dir;
+use tspp_source::{DiagnosticCollection, File};
 
 use super::{TestCompilation, test_file};
 use crate::Pattern;

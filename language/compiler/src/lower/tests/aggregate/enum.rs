@@ -19,7 +19,7 @@ function pick(flag: boolean): Mode {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.pick",
         r#"
 type test.main.Mode = variant<uint8> { 1uint8 = void; 2uint8 = void; };
@@ -75,7 +75,7 @@ function fallback(mode: Mode): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.describe",
         r#"
 type test.main.Mode = variant<uint8> { 1uint8 = void; 2uint8 = void; };
@@ -115,7 +115,7 @@ b4:
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.fallback",
         r#"
 type test.main.Mode = variant<uint8> { 1uint8 = void; 2uint8 = void; };

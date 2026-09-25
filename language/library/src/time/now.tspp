@@ -1,0 +1,66 @@
+import { HostError, Result, todo } from "tspp:error";
+
+import { TimeError } from "./error.tspp";
+import { Instant } from "./instant.tspp";
+import { PlainDateTime } from "./plain-date-time.tspp";
+import { PlainDate } from "./plain-date.tspp";
+import { PlainTime } from "./plain-time.tspp";
+import { TimeZoneLike, ZonedDateTime } from "./zoned-date-time.tspp";
+
+/// Return the current exact time.
+export function instant(): Result<Instant, HostError> {
+    todo("Temporal.Now.instant")
+}
+
+/// Return the current ISO zoned date-time.
+export function zonedDateTimeISO(): Result<ZonedDateTime, HostError> {
+    todo("Temporal.Now.zonedDateTimeISODefault")
+}
+
+/// Return the current ISO zoned date-time in `timeZone`.
+export function zonedDateTimeISO(
+    timeZone: TimeZoneLike,
+): Result<ZonedDateTime, HostError | TimeError> {
+    todo("Temporal.Now.zonedDateTimeISO")
+}
+
+/// Return the current ISO plain date-time.
+export function plainDateTimeISO(): Result<PlainDateTime, HostError> {
+    todo("Temporal.Now.plainDateTimeISODefault")
+}
+
+/// Return the current ISO plain date-time in `timeZone`.
+export function plainDateTimeISO(
+    timeZone: &readonly TimeZoneLike,
+): Result<PlainDateTime, HostError | TimeError> {
+    todo("Temporal.Now.plainDateTimeISO")
+}
+
+/// Return the current ISO plain date.
+export function plainDateISO(): Result<PlainDate, HostError> {
+    todo("Temporal.Now.plainDateISODefault")
+}
+
+/// Return the current ISO plain date in `timeZone`.
+export function plainDateISO(
+    timeZone: &readonly TimeZoneLike,
+): Result<PlainDate, HostError | TimeError> {
+    todo("Temporal.Now.plainDateISO")
+}
+
+/// Return the current ISO plain time.
+export function plainTimeISO(): Result<PlainTime, HostError> {
+    todo("Temporal.Now.plainTimeISODefault")
+}
+
+/// Return the current ISO plain time in `timeZone`.
+export function plainTimeISO(
+    timeZone: &readonly TimeZoneLike,
+): Result<PlainTime, HostError | TimeError> {
+    todo("Temporal.Now.plainTimeISO")
+}
+
+/// Return the current system time-zone identifier.
+export function timeZoneId(): Result<string, HostError> {
+    todo("Temporal.Now.timeZoneId")
+}

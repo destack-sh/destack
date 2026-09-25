@@ -6,14 +6,14 @@
 
 Type parameter modifiers keep their declaration order.
 
-```ds
+```tspp
 function id< const T , U >(value: T): T { return value }
 class Box< out T , const U > {
     method< const V , in W >(value: V): V { return value }
 }
 ```
 
-```ds expected
+```tspp expected
 function id<const T, U>(value: T): T {
     return value;
 }
@@ -28,7 +28,7 @@ class Box<out T, const U> {
 
 Long generic constraints and defaults break cleanly under non-default formatter options.
 
-```ds:main.ds indent-width=2 line-width=80
+```tspp:main.tspp indent-width=2 line-width=80
 export type OuterType1<
   LongerLongerLongerLongerInnerType: LongerLongerLongerLongerOtherType<OneMoreType>
 > = { a: 1 };
@@ -62,7 +62,7 @@ export type OuterType42<
 > = { a: 1 };
 ```
 
-```ds expected
+```tspp expected
 export type OuterType1<
   LongerLongerLongerLongerInnerType:
     LongerLongerLongerLongerOtherType<OneMoreType>,
@@ -106,11 +106,11 @@ export type OuterType42<
 
 Variadic type parameters keep the spread marker attached to the name.
 
-```ds
+```tspp
 type Callback< ...Parameters , Return > = (...parameters: Parameters) => Return
 ```
 
-```ds expected
+```tspp expected
 type Callback<...Parameters, Return> = (...parameters: Parameters) => Return;
 ```
 
@@ -118,10 +118,10 @@ type Callback<...Parameters, Return> = (...parameters: Parameters) => Return;
 
 Variadic value parameters keep the `const` marker before the spread marker.
 
-```ds
+```tspp
 function tensor< const ...Shape : readonly usize[] >(value: Tensor< ...Shape >): void {}
 ```
 
-```ds expected
+```tspp expected
 function tensor<const ...Shape: readonly usize[]>(value: Tensor<...Shape>): void {}
 ```

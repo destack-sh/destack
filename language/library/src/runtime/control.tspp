@@ -1,0 +1,70 @@
+import { HostError } from "tspp:error/host";
+
+import { RevisionId } from "./lineage.tspp";
+import { WorldHandle } from "./world.tspp";
+
+/// Runtime control event kind.
+@languageItem("runtime.ControlEventKind")
+export enum ControlEventKind {
+    /// The runtime paused execution.
+    Paused = 1,
+    /// The runtime resumed execution.
+    Resumed = 2,
+    /// The runtime completed one step.
+    Stepped = 3,
+    /// The runtime reached a breakpoint.
+    Breakpoint = 4,
+}
+
+/// Runtime control event.
+@languageItem("runtime.ControlEvent")
+export struct ControlEvent {
+    /// Event kind.
+    kind: ControlEventKind;
+    /// Event revision.
+    revision: RevisionId;
+}
+
+/// Pause one world.
+@binding("tspp.runtime.control.pause", {
+    effect: "deterministic",
+    requires: ["runtime.world.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function pauseWorld(world: WorldHandle): Result<void, HostError>;
+
+/// Resume one world.
+@binding("tspp.runtime.control.resume", {
+    effect: "deterministic",
+    requires: ["runtime.world.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function resumeWorld(world: WorldHandle): Result<void, HostError>;
+
+/// Advance one world by one debugger step.
+@binding("tspp.runtime.control.step", {
+    effect: "deterministic",
+    requires: ["runtime.world.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function stepWorld(world: WorldHandle): Result<ControlEvent, HostError>;
+
+/// Request a debugger break in one world.
+@binding("tspp.runtime.control.break", {
+    effect: "deterministic",
+    requires: ["runtime.world.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function breakWorld(world: WorldHandle): Result<void, HostError>;

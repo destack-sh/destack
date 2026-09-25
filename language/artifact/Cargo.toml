@@ -1,6 +1,6 @@
 [package]
-name = "destack_artifact"
-description = "Destack Artifact"
+name = "tspp_artifact"
+description = "TS++ Artifact"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -16,13 +16,13 @@ schema = ["schemars"]
 
 [dependencies]
 # language
-destack_core = { workspace = true }
-destack_dir = { workspace = true }
-destack_js = { workspace = true }
-destack_mir = { workspace = true }
-destack_program = { workspace = true }
-destack_serde = { workspace = true }
-destack_source = { workspace = true }
+tspp_core = { workspace = true }
+tspp_dir = { workspace = true }
+tspp_js = { workspace = true }
+tspp_mir = { workspace = true }
+tspp_program = { workspace = true }
+tspp_serde = { workspace = true }
+tspp_source = { workspace = true }
 
 # general
 blake3 = { workspace = true }

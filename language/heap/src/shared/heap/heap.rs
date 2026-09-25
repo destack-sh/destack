@@ -1,9 +1,9 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use destack_memory::{MemoryMap, MemoryRange};
-use destack_mir::TraceMap;
 use serde::{Deserialize, Serialize};
+use tspp_memory::{MemoryMap, MemoryRange};
+use tspp_mir::TraceMap;
 
 use super::limits::SharedHeapLimits;
 use super::usage::SharedHeapUsage;

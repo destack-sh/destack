@@ -1,6 +1,6 @@
-use destack_core::FxIndexMap;
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_core::FxIndexMap;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -130,7 +130,7 @@ declare class Store {
         session.assert_diagnostics(
             r#"
 warning[grouped-accessor-pairs]: accessor is separated from its pair
- ──▶ main.ds:4:9
+ ──▶ main.tspp:4:9
   │
 2 │     get value(): string;
 3 │     clear(): void;
@@ -210,7 +210,7 @@ const store = {
         session.assert_diagnostics(
             r#"
 warning[grouped-accessor-pairs]: accessor is separated from its pair
- ──▶ main.ds:6:9
+ ──▶ main.tspp:6:9
   │
 4 │     },
 5 │     clear(): void {},
@@ -259,7 +259,7 @@ type Store = {
         session.assert_diagnostics(
             r#"
 warning[grouped-accessor-pairs]: accessor is separated from its pair
- ──▶ main.ds:6:9
+ ──▶ main.tspp:6:9
   │
 4 │     clear(): void;
 5 │

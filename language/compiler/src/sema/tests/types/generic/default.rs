@@ -4,23 +4,23 @@ use crate::tests::{DirRows, TestSession};
 fn test_default_trait_returns_this_type() {
     let session = TestSession::single(
         r#"
-import { Phantom } from "destack:memory";
+import { Phantom } from "tspp:memory";
 
 const marker: Phantom<int32> = Phantom<int32>.default();
 "#,
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { Phantom } from "destack:memory";
+import { Phantom } from "tspp:memory";
 
 const marker: Phantom<int32> = Phantom<int32>.default<int32>();
 
 === dir ===
-import { Phantom } from "destack:memory";
+import { Phantom } from "tspp:memory";
 
 const marker: Phantom<int32> = Phantom<int32>.default();
 /// @type.symbol symbol=marker source=marker type=Phantom<int32>

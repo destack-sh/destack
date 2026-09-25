@@ -1,5 +1,5 @@
-use destack_dir as dir;
 use smallvec::smallvec;
+use tspp_dir as dir;
 
 use crate::resolve::state::{PathReference, ResolveState};
 
@@ -7,8 +7,8 @@ impl ResolveState<'_> {
     /// Walk one expression and collect references and implied language items.
     ///
     /// Example:
-    /// ```ds
-    /// import { value } from "./dep.ds";
+    /// ```tspp
+    /// import { value } from "./dep.tspp";
     /// dep.api.value + value;
     /// ```
     pub(in crate::resolve) fn walk_expression(
@@ -146,7 +146,7 @@ impl ResolveState<'_> {
     /// Walk one type expression and collect references and implied language items.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// let value: dep.Model[];
     /// ```
     pub(in crate::resolve) fn walk_type_expression(

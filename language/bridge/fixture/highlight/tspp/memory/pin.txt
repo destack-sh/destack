@@ -1,0 +1,8 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / pin / pinned box types
+let task: Pin<Box<Task>> = Box.pin(source);
+//        ^^^ entity.name.type.tspp
+
+let handle: &readonly Pin<Box<Task>> = &readonly task;
+//          ^ keyword.operator.borrow.tspp

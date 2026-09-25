@@ -1,0 +1,24 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / algebra / shared borrowed and owned combinations
+let view: shared (&readonly Packet) = packet;
+//        ^^^^^^ keyword.other.modifier.tspp
+
+let owner: shared ^Packet = ^Packet.create();
+
+type Place = PlaceOf<shared ^Packet>;
+
+type Reborrowed = WithAccess<&Packet, "exclusive">;
+
+PlaceOf<shared Packet> satisfies "shared";
+//      ^^^^^^ keyword.other.modifier.tspp
+//                     ^^^^^^^^^ keyword.operator.type.binary.tspp
+
+PlaceOf<local Packet | shared Packet> satisfies "local" | "shared";
+//      ^^^^^ keyword.other.modifier.tspp
+//                     ^^^^^^ keyword.other.modifier.tspp
+//                                    ^^^^^^^^^ keyword.operator.type.binary.tspp
+
+WithAccess<&Packet, "exclusive"> satisfies &exclusive Packet;
+//                               ^^^^^^^^^ keyword.operator.type.binary.tspp
+//                                          ^^^^^^^^^ keyword.other.modifier.tspp

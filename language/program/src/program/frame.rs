@@ -1,10 +1,8 @@
 use std::mem::size_of;
 
-use destack_core::{
-    EntryRange, EntryStore, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
-};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::{EntryRange, EntryStore, SectionBuilder, SectionEntry, SectionImage, SectionSlice};
+use tspp_serde::Reflect;
 
 use super::{FramePoint, TypeId};
 

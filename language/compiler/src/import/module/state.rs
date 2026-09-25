@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use destack_artifact::{
+use rustc_hash::FxHashMap;
+use tspp_artifact::{
     ArtifactDependency, ConditionSet, DiagnosticAnchor, DirImported, PackageNode, ProfileKey,
     SourceDependency,
 };
-use destack_core::{StringPool, closest_string};
-use destack_dir as dir;
-use destack_repository::{Environment, Module, Package, ProviderContext, Revision};
-use destack_source::{Loader, PackageId};
-use rustc_hash::FxHashMap;
+use tspp_core::{StringPool, closest_string};
+use tspp_dir as dir;
+use tspp_repository::{Environment, Module, Package, ProviderContext, Revision};
+use tspp_source::{Loader, PackageId};
 
 use crate::{ImportError, ImportResult, diagnostic_suggestion_distance};
 

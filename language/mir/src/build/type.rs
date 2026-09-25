@@ -1,4 +1,4 @@
-use destack_core::StringId;
+use tspp_core::StringId;
 
 use crate::build::ModuleBuilder;
 use crate::{

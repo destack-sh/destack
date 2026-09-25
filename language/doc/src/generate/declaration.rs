@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::print::{FormattedSignature, Printer};
 use crate::{

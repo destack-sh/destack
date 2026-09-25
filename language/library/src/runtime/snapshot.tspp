@@ -1,0 +1,135 @@
+import { HostError } from "tspp:error/host";
+
+import { ImageId } from "./lineage.tspp";
+import { WorldHandle } from "./world.tspp";
+
+/// Serialized snapshot identifier.
+@languageItem("runtime.SnapshotId")
+export newtype SnapshotId = uint64;
+
+/// Snapshot export format.
+@languageItem("runtime.SnapshotFormat")
+export enum SnapshotFormat {
+    /// Fast local image export with runtime-specific backing.
+    Fast = 1,
+    /// Portable export intended for cross-machine or cross-runtime transport.
+    Portable = 2,
+}
+
+/// Snapshot state.
+@languageItem("runtime.Snapshot")
+export struct Snapshot {
+    /// Snapshot identifier.
+    id: SnapshotId;
+    /// Backing image.
+    image: ImageId;
+    /// Snapshot export format.
+    format: SnapshotFormat;
+    /// Optional serialized size in bytes.
+    sizeBytes?: uint64;
+}
+
+/// Snapshot list page.
+export struct SnapshotPage {
+    /// Snapshot records in this page.
+    snapshots: Snapshot[];
+    /// Next snapshot cursor when more records exist.
+    next?: SnapshotId;
+}
+
+/// Export one snapshot from one image.
+@binding("tspp.runtime.snapshot.create", {
+    effect: "deterministic",
+    requires: ["runtime.snapshot.create"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function snapshotCreate(
+    world: WorldHandle,
+    imageId: ImageId,
+    format: SnapshotFormat,
+): Result<SnapshotId, HostError>;
+
+/// Describe one snapshot.
+@binding("tspp.runtime.snapshot.describe", {
+    effect: "deterministic",
+    requires: ["runtime.snapshot.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function snapshotDescribe(
+    world: WorldHandle,
+    snapshotId: SnapshotId,
+): Result<Snapshot, HostError>;
+
+/// List snapshots in one world lineage.
+@binding("tspp.runtime.snapshot.list", {
+    effect: "deterministic",
+    requires: ["runtime.snapshot.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function snapshotList(
+    world: WorldHandle,
+    limit: uint32,
+    after?: SnapshotId,
+): Result<SnapshotPage, HostError>;
+
+/// Read one serialized snapshot payload.
+@binding("tspp.runtime.snapshot.read", {
+    effect: "deterministic",
+    requires: ["runtime.snapshot.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function snapshotRead(
+    world: WorldHandle,
+    snapshotId: SnapshotId,
+): Result<uint8[], HostError>;
+
+/// Import one serialized snapshot payload.
+@binding("tspp.runtime.snapshot.import", {
+    effect: "deterministic",
+    requires: ["runtime.snapshot.create"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function snapshotImport(
+    world: WorldHandle,
+    payload: &readonly [uint8],
+): Result<SnapshotId, HostError>;
+
+/// Restore one world from one image.
+@binding("tspp.runtime.snapshot.restoreImage", {
+    effect: "deterministic",
+    requires: ["runtime.snapshot.restore"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function restoreImage(world: WorldHandle, imageId: ImageId): Result<void, HostError>;
+
+/// Restore one world from one snapshot.
+@binding("tspp.runtime.snapshot.restoreSnapshot", {
+    effect: "deterministic",
+    requires: ["runtime.snapshot.restore"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function restoreSnapshot(
+    world: WorldHandle,
+    snapshotId: SnapshotId,
+): Result<void, HostError>;

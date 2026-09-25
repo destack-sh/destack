@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::Span;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::Span;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -163,7 +163,7 @@ function visit(limit: int32): void {
         session.assert_diagnostics(
             r#"
 warning[no-mutated-range-bound]: range bound is mutated after the range captures it
- ──▶ main.ds:4:9
+ ──▶ main.tspp:4:9
   │
 2 │     let end = limit;
 3 │     for (const value of 0..end) {
@@ -194,7 +194,7 @@ function visit(state: { end: int32; count: int32 }): void {
         session.assert_diagnostics(
             r#"
 warning[no-mutated-range-bound]: range bound is mutated after the range captures it
- ──▶ main.ds:3:15
+ ──▶ main.tspp:3:15
   │
 1 │ function visit(state: { end: int32; count: int32 }): void {
 2 │     for (const value of 0..state.end) {
@@ -228,7 +228,7 @@ function visit(limit: int32): void {
         session.assert_diagnostics(
             r#"
 warning[no-mutated-range-bound]: range bound is mutated after the range captures it
- ──▶ main.ds:6:15
+ ──▶ main.tspp:6:15
   │
 4 │     let end = limit;
 5 │     for (const value of 0..end) {

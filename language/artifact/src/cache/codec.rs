@@ -1,8 +1,8 @@
 use std::ops::Range;
 
-use destack_core::{Blob, BlobId, BlobStore, StringId, StringPool};
-use destack_source::PackageId;
 use serde::Serialize;
+use tspp_core::{Blob, BlobId, BlobStore, StringId, StringPool};
+use tspp_source::PackageId;
 
 use crate::{ArtifactCacheError, BuildId};
 
@@ -46,13 +46,13 @@ impl ArtifactPackEncoder {
     ) -> Result<Range<usize>, ArtifactCacheError> {
         let mut visit = |name: &'static str, bytes: &[u8]| {
             if name == STRING_ID_NEWTYPE {
-                strings.push(destack_serde::from_slice_fixed(bytes)?);
+                strings.push(tspp_serde::from_slice_fixed(bytes)?);
             }
 
             Ok(())
         };
         let start = self.len();
-        destack_serde::append_fixed(value, &mut self.bytes, &mut visit)?;
+        tspp_serde::append_fixed(value, &mut self.bytes, &mut visit)?;
 
         Ok(start..self.len())
     }

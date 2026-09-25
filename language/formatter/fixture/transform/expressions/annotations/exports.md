@@ -6,14 +6,14 @@
 
 Boundary comments around export declaration heads stay attached to the exported node.
 
-```ds:main.ds
+```tspp:main.tspp
 export // export-head
 interface Shape {
   value: string // value-tail
 }
 ```
 
-```ds expected
+```tspp expected
 export // export-head
 interface Shape {
     value: string; // value-tail
@@ -24,7 +24,7 @@ interface Shape {
 
 Comments around interface property and method type boundaries stay attached.
 
-```ds:main.ds
+```tspp:main.tspp
 interface Api {
   url: string // url-tail
   run(): // run-ret
@@ -32,7 +32,7 @@ interface Api {
 }
 ```
 
-```ds expected
+```tspp expected
 interface Api {
     url: string; // url-tail
     run(): // run-ret

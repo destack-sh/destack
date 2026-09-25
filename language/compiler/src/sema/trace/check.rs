@@ -1,4 +1,4 @@
-use destack_repository::TraceEvent;
+use tspp_repository::TraceEvent;
 
 use crate::sema::{Check, CheckId, EventFormatter};
 

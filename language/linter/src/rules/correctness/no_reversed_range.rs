@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -86,7 +86,7 @@ const characters = 'z'..='a';
         session.assert_diagnostics(
             r#"
 warning[no-reversed-range]: range start exceeds its end
- ──▶ main.ds:2:18
+ ──▶ main.tspp:2:18
   │
 1 │ const Start: int32 = 10;
 2 │ const integers = Start..0;
@@ -96,7 +96,7 @@ warning[no-reversed-range]: range start exceeds its end
   │
 
 warning[no-reversed-range]: range start exceeds its end
- ──▶ main.ds:3:17
+ ──▶ main.tspp:3:17
   │
 1 │ const Start: int32 = 10;
 2 │ const integers = Start..0;
@@ -106,7 +106,7 @@ warning[no-reversed-range]: range start exceeds its end
   │
 
 warning[no-reversed-range]: range start exceeds its end
- ──▶ main.ds:4:20
+ ──▶ main.tspp:4:20
   │
 2 │ const integers = Start..0;
 3 │ const bigints = 10n..0n;

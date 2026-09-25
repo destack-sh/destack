@@ -5,7 +5,7 @@
 
 Outgoing calls identify each callee and call site in one function.
 
-```ds main.ds
+```tspp main.tspp
 function target(): void {}
          ^^^^^^ target
 
@@ -16,16 +16,16 @@ function source(): void {
 }
 ```
 
-```query outgoing_calls main.ds#source
-@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=main.ds:1:1-1:27 selection=main.ds#target symbol=main.ds#target@1
-@outgoing_calls.site call=0 range=main.ds#call
+```query outgoing_calls main.tspp#source
+@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=main.tspp:1:1-1:27 selection=main.tspp#target symbol=main.tspp#target@1
+@outgoing_calls.site call=0 range=main.tspp#call
 ```
 
 ### Resolve the current outgoing call target
 
 Outgoing calls identify the function selected after each edit.
 
-```ds main.ds
+```tspp main.tspp
 function first(): void {}
 ^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:first
          ^^^^^ name:first
@@ -40,12 +40,12 @@ function source(): void {
 }
 ```
 
-```query outgoing_calls main.ds#source
-@outgoing_calls.call index=0 name=first kind=function signature="first(): void" location=main.ds#declaration:first selection=main.ds#name:first symbol=main.ds#first@1
-@outgoing_calls.site call=0 range=main.ds#call
+```query outgoing_calls main.tspp#source
+@outgoing_calls.call index=0 name=first kind=function signature="first(): void" location=main.tspp#declaration:first selection=main.tspp#name:first symbol=main.tspp#first@1
+@outgoing_calls.site call=0 range=main.tspp#call
 ```
 
-```ds main.ds change
+```tspp main.tspp change
 function first(): void {}
 ^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:first
          ^^^^^ name:first
@@ -60,9 +60,9 @@ function source(): void {
 }
 ```
 
-```query outgoing_calls main.ds#source
-@outgoing_calls.call index=0 name=second kind=function signature="second(): void" location=main.ds#declaration:second selection=main.ds#name:second symbol=main.ds#second@2
-@outgoing_calls.site call=0 range=main.ds#call
+```query outgoing_calls main.tspp#source
+@outgoing_calls.call index=0 name=second kind=function signature="second(): void" location=main.tspp#declaration:second selection=main.tspp#name:second symbol=main.tspp#second@2
+@outgoing_calls.site call=0 range=main.tspp#call
 ```
 
 ## Multiple Callees
@@ -71,7 +71,7 @@ function source(): void {
 
 Distinct callees follow first-call order and include every call site.
 
-```ds main.ds
+```tspp main.tspp
 function first(): void {}
          ^^^^^ first
 function second(): void {}
@@ -86,11 +86,11 @@ function source(): void {
 }
 ```
 
-```query outgoing_calls main.ds#source
-@outgoing_calls.call index=0 name=second kind=function signature="second(): void" location=main.ds:2:1-2:27 selection=main.ds#second symbol=main.ds#second@2
-@outgoing_calls.site call=0 range=main.ds#second_call
-@outgoing_calls.call index=1 name=first kind=function signature="first(): void" location=main.ds:1:1-1:26 selection=main.ds#first symbol=main.ds#first@1
-@outgoing_calls.site call=1 range=main.ds#first_call
+```query outgoing_calls main.tspp#source
+@outgoing_calls.call index=0 name=second kind=function signature="second(): void" location=main.tspp:2:1-2:27 selection=main.tspp#second symbol=main.tspp#second@2
+@outgoing_calls.site call=0 range=main.tspp#second_call
+@outgoing_calls.call index=1 name=first kind=function signature="first(): void" location=main.tspp:1:1-1:26 selection=main.tspp#first symbol=main.tspp#first@1
+@outgoing_calls.site call=1 range=main.tspp#first_call
 ```
 
 ## Call Sites
@@ -99,7 +99,7 @@ function source(): void {
 
 Repeated calls share one callee item and follow source order.
 
-```ds main.ds
+```tspp main.tspp
 function target(): void {}
 ^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration
          ^^^^^^ target
@@ -113,10 +113,10 @@ function source(): void {
 }
 ```
 
-```query outgoing_calls main.ds#source
-@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=main.ds#declaration selection=main.ds#target symbol=main.ds#target@1
-@outgoing_calls.site call=0 range=main.ds#first_call
-@outgoing_calls.site call=0 range=main.ds#second_call
+```query outgoing_calls main.tspp#source
+@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=main.tspp#declaration selection=main.tspp#target symbol=main.tspp#target@1
+@outgoing_calls.site call=0 range=main.tspp#first_call
+@outgoing_calls.site call=0 range=main.tspp#second_call
 ```
 
 ## Modules
@@ -125,13 +125,13 @@ function source(): void {
 
 Outgoing call lookup preserves the defining-module target.
 
-```ds library.ds
+```tspp library.tspp
 export function target(): void {}
                 ^^^^^^ target
 ```
 
-```ds main.ds
-import { target } from "./library.ds";
+```tspp main.tspp
+import { target } from "./library.tspp";
 
 function source(): void {
          ^^^^^^ source
@@ -140,22 +140,22 @@ function source(): void {
 }
 ```
 
-```query outgoing_calls main.ds#source
-@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=library.ds:1:1-1:34 selection=library.ds#target symbol=library.ds#target@1
-@outgoing_calls.site call=0 range=main.ds#call
+```query outgoing_calls main.tspp#source
+@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=library.tspp:1:1-1:34 selection=library.tspp#target symbol=library.tspp#target@1
+@outgoing_calls.site call=0 range=main.tspp#call
 ```
 
 ### Find a namespace-imported callee
 
 Namespace member calls resolve to their exported callable.
 
-```ds library.ds
+```tspp library.tspp
 export function target(): void {}
                 ^^^^^^ target
 ```
 
-```ds main.ds
-import * as library from "./library.ds";
+```tspp main.tspp
+import * as library from "./library.tspp";
 
 function source(): void {
          ^^^^^^ source
@@ -164,26 +164,26 @@ function source(): void {
 }
 ```
 
-```query outgoing_calls main.ds#source
-@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=library.ds:1:1-1:34 selection=library.ds#target symbol=library.ds#target@1
-@outgoing_calls.site call=0 range=main.ds#call
+```query outgoing_calls main.tspp#source
+@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=library.tspp:1:1-1:34 selection=library.tspp#target symbol=library.tspp#target@1
+@outgoing_calls.site call=0 range=main.tspp#call
 ```
 
 ### Find a re-exported callee
 
 Outgoing call lookup follows a re-export to the defining function.
 
-```ds library.ds
+```tspp library.tspp
 export function target(): void {}
                 ^^^^^^ target
 ```
 
-```ds public.ds
-export { target } from "./library.ds";
+```tspp public.tspp
+export { target } from "./library.tspp";
 ```
 
-```ds main.ds
-import { target } from "./public.ds";
+```tspp main.tspp
+import { target } from "./public.tspp";
 
 function source(): void {
          ^^^^^^ source
@@ -192,9 +192,9 @@ function source(): void {
 }
 ```
 
-```query outgoing_calls main.ds#source
-@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=library.ds:1:1-1:34 selection=library.ds#target symbol=library.ds#target@1
-@outgoing_calls.site call=0 range=main.ds#call
+```query outgoing_calls main.tspp#source
+@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=library.tspp:1:1-1:34 selection=library.tspp#target symbol=library.tspp#target@1
+@outgoing_calls.site call=0 range=main.tspp#call
 ```
 
 ## Recursion
@@ -203,7 +203,7 @@ function source(): void {
 
 A recursive function is its own outgoing callee.
 
-```ds main.ds
+```tspp main.tspp
 function recurse(): void {
          ^^^^^^^ recurse
     recurse();
@@ -211,9 +211,9 @@ function recurse(): void {
 }
 ```
 
-```query outgoing_calls main.ds#recurse
-@outgoing_calls.call index=0 name=recurse kind=function signature="recurse(): void" location=main.ds:1:1-3:2 selection=main.ds#recurse symbol=main.ds#recurse@1
-@outgoing_calls.site call=0 range=main.ds#call
+```query outgoing_calls main.tspp#recurse
+@outgoing_calls.call index=0 name=recurse kind=function signature="recurse(): void" location=main.tspp:1:1-3:2 selection=main.tspp#recurse symbol=main.tspp#recurse@1
+@outgoing_calls.site call=0 range=main.tspp#call
 ```
 
 ## Methods
@@ -222,7 +222,7 @@ function recurse(): void {
 
 Outgoing call lookup preserves the method identity.
 
-```ds main.ds
+```tspp main.tspp
 class Service {
     run(): void {}
     ^^^ target
@@ -235,9 +235,9 @@ function start(service: Service): void {
 }
 ```
 
-```query outgoing_calls main.ds#source
-@outgoing_calls.call index=0 name=run kind=method signature="Service.run(): void" location=main.ds:2:5-2:19 selection=main.ds#target symbol=main.ds#run@2
-@outgoing_calls.site call=0 range=main.ds#call
+```query outgoing_calls main.tspp#source
+@outgoing_calls.call index=0 name=run kind=method signature="Service.run(): void" location=main.tspp:2:5-2:19 selection=main.tspp#target symbol=main.tspp#run@2
+@outgoing_calls.site call=0 range=main.tspp#call
 ```
 
 ## Overloads
@@ -246,7 +246,7 @@ function start(service: Service): void {
 
 Calls to overloads identify their matching declarations.
 
-```ds main.ds
+```tspp main.tspp
 function parse(value: int32): int32 {
          ^^^^^ integer_name
     return value;
@@ -266,11 +266,11 @@ function caller(): void {
 }
 ```
 
-```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=parse kind=function signature="parse(value: int32): int32" location=main.ds:1:1-3:2 selection=main.ds#integer_name symbol=main.ds#parse@1
-@outgoing_calls.site call=0 range=main.ds#integer_call
-@outgoing_calls.call index=1 name=parse kind=function signature="parse(value: string): string" location=main.ds:5:1-7:2 selection=main.ds#string_name symbol=main.ds#parse@3
-@outgoing_calls.site call=1 range=main.ds#string_call
+```query outgoing_calls main.tspp#caller
+@outgoing_calls.call index=0 name=parse kind=function signature="parse(value: int32): int32" location=main.tspp:1:1-3:2 selection=main.tspp#integer_name symbol=main.tspp#parse@1
+@outgoing_calls.site call=0 range=main.tspp#integer_call
+@outgoing_calls.call index=1 name=parse kind=function signature="parse(value: string): string" location=main.tspp:5:1-7:2 selection=main.tspp#string_name symbol=main.tspp#parse@3
+@outgoing_calls.site call=1 range=main.tspp#string_call
 ```
 
 ## Generic Functions
@@ -279,7 +279,7 @@ function caller(): void {
 
 An applied generic call identifies the generic callable declaration.
 
-```ds main.ds
+```tspp main.tspp
 function identity<T>(value: T): T {
 ^ declaration:start
          ^^^^^^^^ name
@@ -294,9 +294,9 @@ function caller(): string {
 }
 ```
 
-```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=identity kind=function signature="identity<T>(value: T): T" location=main.ds#declaration selection=main.ds#name symbol=main.ds#identity@1
-@outgoing_calls.site call=0 range=main.ds#call
+```query outgoing_calls main.tspp#caller
+@outgoing_calls.call index=0 name=identity kind=function signature="identity<T>(value: T): T" location=main.tspp#declaration selection=main.tspp#name symbol=main.tspp#identity@1
+@outgoing_calls.site call=0 range=main.tspp#call
 ```
 
 ## Extensions
@@ -305,7 +305,7 @@ function caller(): string {
 
 An extension call identifies its extension method.
 
-```ds main.ds
+```tspp main.tspp
 struct Calculator {}
 
 extension of Calculator {
@@ -322,9 +322,9 @@ function caller(calculator: Calculator): int32 {
 }
 ```
 
-```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=add kind=method signature="Calculator.add(left: int32, right: int32): int32" location=main.ds:4:5-6:6 selection=main.ds#name symbol=main.ds#add@3
-@outgoing_calls.site call=0 range=main.ds#call
+```query outgoing_calls main.tspp#caller
+@outgoing_calls.call index=0 name=add kind=method signature="Calculator.add(left: int32, right: int32): int32" location=main.tspp:4:5-6:6 selection=main.tspp#name symbol=main.tspp#add@3
+@outgoing_calls.site call=0 range=main.tspp#call
 ```
 
 ## Constructors
@@ -333,7 +333,7 @@ function caller(calculator: Calculator): int32 {
 
 Construction identifies its constructor declaration.
 
-```ds main.ds
+```tspp main.tspp
 class User {
     constructor(name: string) {}
     ^^^^^^^^^^^ name
@@ -346,16 +346,16 @@ function create(): User {
 }
 ```
 
-```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=constructor kind=constructor signature="User.constructor(name: string)" location=main.ds:2:5-2:33 selection=main.ds#name symbol=main.ds#symbol@2
-@outgoing_calls.site call=0 range=main.ds#call
+```query outgoing_calls main.tspp#caller
+@outgoing_calls.call index=0 name=constructor kind=constructor signature="User.constructor(name: string)" location=main.tspp:2:5-2:33 selection=main.tspp#name symbol=main.tspp#symbol@2
+@outgoing_calls.site call=0 range=main.tspp#call
 ```
 
 ### Return a default class constructor
 
 Construction of a class without a constructor declaration identifies the class item.
 
-```ds main.ds
+```tspp main.tspp
 class User {}
 ^^^^^^^^^^^^^ declaration
       ^^^^ name
@@ -367,16 +367,16 @@ function create(): User {
 }
 ```
 
-```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=User kind=constructor signature="User(): User" location=main.ds#declaration selection=main.ds#name symbol=main.ds#User@1
-@outgoing_calls.site call=0 range=main.ds#call
+```query outgoing_calls main.tspp#caller
+@outgoing_calls.call index=0 name=User kind=constructor signature="User(): User" location=main.tspp#declaration selection=main.tspp#name symbol=main.tspp#User@1
+@outgoing_calls.site call=0 range=main.tspp#call
 ```
 
 ### Return a newtype constructor
 
 Newtype construction identifies the nominal newtype declaration.
 
-```ds main.ds
+```tspp main.tspp
 newtype UserId = string;
 ^^^^^^^^^^^^^^^^^^^^^^^ declaration
         ^^^^^^ name
@@ -388,9 +388,9 @@ function create(): UserId {
 }
 ```
 
-```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=UserId kind=constructor signature="UserId(string): UserId" location=main.ds#declaration selection=main.ds#name symbol=main.ds#UserId@1
-@outgoing_calls.site call=0 range=main.ds#call
+```query outgoing_calls main.tspp#caller
+@outgoing_calls.call index=0 name=UserId kind=constructor signature="UserId(string): UserId" location=main.tspp#declaration selection=main.tspp#name symbol=main.tspp#UserId@1
+@outgoing_calls.site call=0 range=main.tspp#call
 ```
 
 ## Caller Items
@@ -399,7 +399,7 @@ function create(): UserId {
 
 Outgoing lookup expands a method body through its method item.
 
-```ds main.ds
+```tspp main.tspp
 function target(): void {}
          ^^^^^^ target
 
@@ -412,16 +412,16 @@ class Service {
 }
 ```
 
-```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=main.ds:1:1-1:27 selection=main.ds#target symbol=main.ds#target@1
-@outgoing_calls.site call=0 range=main.ds#call
+```query outgoing_calls main.tspp#caller
+@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=main.tspp:1:1-1:27 selection=main.tspp#target symbol=main.tspp#target@1
+@outgoing_calls.site call=0 range=main.tspp#call
 ```
 
 ### Find calls made by a constructor
 
 Outgoing lookup expands a constructor body through its constructor item.
 
-```ds main.ds
+```tspp main.tspp
 function target(): void {}
          ^^^^^^ target
 
@@ -434,9 +434,9 @@ class Service {
 }
 ```
 
-```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=main.ds:1:1-1:27 selection=main.ds#target symbol=main.ds#target@1
-@outgoing_calls.site call=0 range=main.ds#call
+```query outgoing_calls main.tspp#caller
+@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=main.tspp:1:1-1:27 selection=main.tspp#target symbol=main.tspp#target@1
+@outgoing_calls.site call=0 range=main.tspp#call
 ```
 
 ## Indirect Calls
@@ -445,7 +445,7 @@ class Service {
 
 A call through a function-valued binding has no declaration-backed callee.
 
-```ds main.ds
+```tspp main.tspp
 function callee(): void {}
 
 function caller(): void {
@@ -455,7 +455,7 @@ function caller(): void {
 }
 ```
 
-```query outgoing_calls main.ds#caller
+```query outgoing_calls main.tspp#caller
 @outgoing_calls.none
 ```
 
@@ -465,7 +465,7 @@ function caller(): void {
 
 A lambda body is not part of the enclosing function's outgoing call hierarchy.
 
-```ds main.ds
+```tspp main.tspp
 function target(): void {}
 
 function outer(): void {
@@ -476,7 +476,7 @@ function outer(): void {
 }
 ```
 
-```query outgoing_calls main.ds#outer
+```query outgoing_calls main.tspp#outer
 @outgoing_calls.none
 ```
 
@@ -484,7 +484,7 @@ function outer(): void {
 
 A nested named function owns the calls in its body.
 
-```ds main.ds
+```tspp main.tspp
 function target(): void {}
 ^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration
          ^^^^^^ target
@@ -499,13 +499,13 @@ function outer(): void {
 }
 ```
 
-```query outgoing_calls main.ds#outer
+```query outgoing_calls main.tspp#outer
 @outgoing_calls.none
 ```
 
-```query outgoing_calls main.ds#inner
-@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=main.ds#declaration selection=main.ds#target symbol=main.ds#target@1
-@outgoing_calls.site call=0 range=main.ds#call
+```query outgoing_calls main.tspp#inner
+@outgoing_calls.call index=0 name=target kind=function signature="target(): void" location=main.tspp#declaration selection=main.tspp#target symbol=main.tspp#target@1
+@outgoing_calls.site call=0 range=main.tspp#call
 ```
 
 ## Union Dispatch
@@ -514,7 +514,7 @@ function outer(): void {
 
 A union receiver contributes one outgoing edge per reachable method.
 
-```ds main.ds
+```tspp main.tspp
 class Alpha {
     run(): void {}
     ^^^ alpha
@@ -532,11 +532,11 @@ function start(service: Alpha | Beta): void {
 }
 ```
 
-```query outgoing_calls main.ds#caller
-@outgoing_calls.call index=0 name=run kind=method signature="Alpha.run(): void" location=main.ds:2:5-2:19 selection=main.ds#alpha symbol=main.ds#run@2
-@outgoing_calls.site call=0 range=main.ds#call
-@outgoing_calls.call index=1 name=run kind=method signature="Beta.run(): void" location=main.ds:6:5-6:19 selection=main.ds#beta symbol=main.ds#run@5
-@outgoing_calls.site call=1 range=main.ds#call
+```query outgoing_calls main.tspp#caller
+@outgoing_calls.call index=0 name=run kind=method signature="Alpha.run(): void" location=main.tspp:2:5-2:19 selection=main.tspp#alpha symbol=main.tspp#run@2
+@outgoing_calls.site call=0 range=main.tspp#call
+@outgoing_calls.call index=1 name=run kind=method signature="Beta.run(): void" location=main.tspp:6:5-6:19 selection=main.tspp#beta symbol=main.tspp#run@5
+@outgoing_calls.site call=1 range=main.tspp#call
 ```
 
 ## Empty Results
@@ -545,11 +545,11 @@ function start(service: Alpha | Beta): void {
 
 A leaf function has no outgoing calls.
 
-```ds main.ds
+```tspp main.tspp
 function leaf(): void {}
          ^^^^ leaf
 ```
 
-```query outgoing_calls main.ds#leaf
+```query outgoing_calls main.tspp#leaf
 @outgoing_calls.none
 ```

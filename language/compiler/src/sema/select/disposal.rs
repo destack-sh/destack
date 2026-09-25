@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::sema::{
     Cause, CauseKind, CheckState, Origin, ProtocolCall, Relation, RelationCheck, Value, Verdict,

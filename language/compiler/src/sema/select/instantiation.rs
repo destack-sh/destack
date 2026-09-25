@@ -1,5 +1,5 @@
-use destack_dir as dir;
 use smallvec::SmallVec;
+use tspp_dir as dir;
 
 use crate::CompilerResult;
 use crate::sema::{CheckState, GenericParameterId, Origin, TypeSubstitution, VariableState};

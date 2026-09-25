@@ -1,11 +1,11 @@
 use super::decorator::write_decorator;
 use super::trivia::format_comment;
-use crate::{Decorator, DestackFormatContext, DestackFormatter};
-use destack_dir::{Comment, DecoratorPosition, LocalNodeId, Node, TokenType, Tree, TreeStore};
-use destack_fir::format::{Format, FormatResult};
-use destack_fir::prelude::{format_with, *};
-use destack_fir::write;
-use destack_source::{NodeSpanBoundary, NodeSpanType};
+use crate::{Decorator, TsppFormatContext, TsppFormatter};
+use tspp_dir::{Comment, DecoratorPosition, LocalNodeId, Node, TokenType, Tree, TreeStore};
+use tspp_fir::format::{Format, FormatResult};
+use tspp_fir::prelude::{format_with, *};
+use tspp_fir::write;
+use tspp_source::{NodeSpanBoundary, NodeSpanType};
 
 /// One source-ordered prefix item.
 #[derive(Debug, Copy, Clone)]
@@ -18,7 +18,7 @@ enum PrefixSequenceItem {
 
 /// Return prefix comments for one node in source order.
 pub(crate) fn prefix_comment_nodes<'ast, T>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     node_id: LocalNodeId<T>,
 ) -> Vec<Comment>
 where
@@ -56,7 +56,7 @@ where
 
 /// Return prefix comments that are not physically inside decorator spans.
 fn prefix_comment_nodes_outside_decorators<'ast, T>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     node_id: LocalNodeId<T>,
 ) -> Vec<Comment>
 where
@@ -71,7 +71,7 @@ where
 
 /// Return prefix comments for one node that start at or after one offset.
 fn prefix_comments_after_offset<'ast, T>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     node_id: LocalNodeId<T>,
     start_offset: u32,
 ) -> Vec<Comment>
@@ -87,7 +87,7 @@ where
 
 /// Return prefix comments for one node that start before one offset.
 fn prefix_comments_before_offset<'ast, T>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     node_id: LocalNodeId<T>,
     end_offset: u32,
 ) -> Vec<Comment>
@@ -103,7 +103,7 @@ where
 
 /// Format one prepared annotation sequence.
 pub(crate) fn write_annotation_sequence<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     items: &[LocalNodeId<Decorator>],
 ) -> FormatResult<()> {
     write_annotation_sequence_with_trailing_break(f, items, true)
@@ -111,7 +111,7 @@ pub(crate) fn write_annotation_sequence<'ast>(
 
 /// Format inline prefix annotations without introducing extra line breaks.
 pub(crate) fn write_inline_prefix_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     items: &[LocalNodeId<Decorator>],
 ) -> FormatResult<()> {
     let mut wrote_annotation = false;
@@ -130,7 +130,7 @@ pub(crate) fn write_inline_prefix_annotations<'ast>(
 
 /// Format one vertical prefix annotation block.
 pub(crate) fn write_vertical_prefix_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     items: &[LocalNodeId<Decorator>],
 ) -> FormatResult<()> {
     for annotation_id in items.iter().copied() {
@@ -143,9 +143,9 @@ pub(crate) fn write_vertical_prefix_annotations<'ast>(
 
 /// Format block infix annotations for one node.
 pub(crate) fn block_infix_annotations<'ast, T>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     node_id: LocalNodeId<T>,
-) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, TsppFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -157,14 +157,14 @@ where
         }
     }
 
-    format_with(move |f: &mut DestackFormatter<'ast, '_>| write_annotation_sequence(f, &items))
+    format_with(move |f: &mut TsppFormatter<'ast, '_>| write_annotation_sequence(f, &items))
 }
 
 /// Format prefix annotations for one node.
 pub(crate) fn prefix_annotations<'ast, T>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     node_id: LocalNodeId<T>,
-) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, TsppFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -177,10 +177,10 @@ where
 
 /// Format prefix annotations for one node before one prefix comment cutoff.
 pub(crate) fn prefix_annotations_before_offset<'ast, T>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     node_id: LocalNodeId<T>,
     end_offset: u32,
-) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, TsppFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -193,9 +193,9 @@ where
 
 /// Format prefix annotations for one node without leading comments.
 pub(crate) fn prefix_annotations_without_comments<'ast, T>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     node_id: LocalNodeId<T>,
-) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, TsppFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -205,10 +205,10 @@ where
 
 /// Format prefix annotations for one node after one prefix comment cutoff.
 pub(crate) fn prefix_annotations_after_offset<'ast, T>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     node_id: LocalNodeId<T>,
     start_offset: u32,
-) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, TsppFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -221,10 +221,10 @@ where
 
 /// Format statement prefix annotations for one node.
 pub(crate) fn statement_prefix_annotations<'ast, T>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     node_id: LocalNodeId<T>,
     start_offset: Option<u32>,
-) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, TsppFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -237,25 +237,25 @@ where
     let annotation_ids = prefix_annotation_ids(context, node_id);
     let items = collect_prefix_sequence_items(context, comments, annotation_ids);
 
-    format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+    format_with(move |f: &mut TsppFormatter<'ast, '_>| {
         write_statement_prefix_sequence_items(f, &items)
     })
 }
 
 /// Format one prefix sequence for one node.
 fn prefix_sequence<'ast>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     comments: Vec<Comment>,
     annotation_ids: Vec<LocalNodeId<Decorator>>,
-) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast> {
+) -> impl Format<'ast, TsppFormatContext<'ast>> + use<'ast> {
     let items = collect_prefix_sequence_items(context, comments, annotation_ids);
 
-    format_with(move |f: &mut DestackFormatter<'ast, '_>| write_prefix_sequence_items(f, &items))
+    format_with(move |f: &mut TsppFormatter<'ast, '_>| write_prefix_sequence_items(f, &items))
 }
 
 /// Return prefix decorator ids for one node.
 fn prefix_annotation_ids<'ast, T>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     node_id: LocalNodeId<T>,
 ) -> Vec<LocalNodeId<Decorator>>
 where
@@ -280,7 +280,7 @@ where
 
 /// Return whether one comment lies inside any decorator annotation span for the node.
 fn comment_is_inside_decorator_span<'ast, T>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     node_id: LocalNodeId<T>,
     comment: Comment,
 ) -> bool
@@ -300,9 +300,9 @@ where
 
 /// Format prefix comments that appear before the decorator block for one node.
 pub(crate) fn prefix_comments_before_decorators<'ast, T>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     node_id: LocalNodeId<T>,
-) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, TsppFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -322,14 +322,14 @@ where
 
     let items = collect_prefix_comment_items(comments);
 
-    format_with(move |f: &mut DestackFormatter<'ast, '_>| write_prefix_sequence_items(f, &items))
+    format_with(move |f: &mut TsppFormatter<'ast, '_>| write_prefix_sequence_items(f, &items))
 }
 
 /// Format decorator prefix annotations for one node as a vertical prefix block.
 pub(crate) fn decorator_prefix_annotations<'ast, T>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     node_id: LocalNodeId<T>,
-) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, TsppFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -351,14 +351,14 @@ where
     let annotation_ids = prefix_annotation_ids(context, node_id);
     let items = collect_prefix_sequence_items(context, comments, annotation_ids);
 
-    format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+    format_with(move |f: &mut TsppFormatter<'ast, '_>| {
         write_decorator_prefix_sequence_items(f, &items)
     })
 }
 
 /// Collect one prefix item sequence.
 fn collect_prefix_sequence_items<'ast>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     comments: Vec<Comment>,
     annotation_ids: Vec<LocalNodeId<Decorator>>,
 ) -> Vec<PrefixSequenceItem> {
@@ -385,10 +385,7 @@ fn collect_prefix_comment_items(comments: Vec<Comment>) -> Vec<PrefixSequenceIte
 }
 
 /// Sort one prefix item sequence into source order.
-fn sort_prefix_sequence_items(
-    context: &DestackFormatContext<'_>,
-    items: &mut [PrefixSequenceItem],
-) {
+fn sort_prefix_sequence_items(context: &TsppFormatContext<'_>, items: &mut [PrefixSequenceItem]) {
     items.sort_by(|left, right| {
         let left_span = prefix_sequence_item_span(context, *left);
         let right_span = prefix_sequence_item_span(context, *right);
@@ -421,7 +418,7 @@ fn sort_prefix_sequence_items(
 }
 
 /// Return the span for one prefix sequence item.
-fn prefix_sequence_item_span(context: &DestackFormatContext<'_>, item: PrefixSequenceItem) -> Span {
+fn prefix_sequence_item_span(context: &TsppFormatContext<'_>, item: PrefixSequenceItem) -> Span {
     match item {
         PrefixSequenceItem::Comment(comment) => comment.span,
         PrefixSequenceItem::Decorator(annotation_id) => context.annotation_span(annotation_id),
@@ -430,7 +427,7 @@ fn prefix_sequence_item_span(context: &DestackFormatContext<'_>, item: PrefixSeq
 
 /// Write one prefix item unless it was already printed.
 fn write_prefix_sequence_item<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     item: PrefixSequenceItem,
 ) -> FormatResult<bool> {
     match item {
@@ -451,7 +448,7 @@ fn write_prefix_sequence_item<'ast>(
 
 /// Write one plain prefix item sequence.
 fn write_prefix_sequence_items<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     items: &[PrefixSequenceItem],
 ) -> FormatResult<()> {
     write_prefix_sequence_items_with_policy(f, items, false)
@@ -459,7 +456,7 @@ fn write_prefix_sequence_items<'ast>(
 
 /// Write one statement prefix item sequence.
 fn write_statement_prefix_sequence_items<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     items: &[PrefixSequenceItem],
 ) -> FormatResult<()> {
     write_prefix_sequence_items_with_policy(f, items, true)
@@ -467,7 +464,7 @@ fn write_statement_prefix_sequence_items<'ast>(
 
 /// Write one prefix item sequence with the requested decorator spacing.
 fn write_prefix_sequence_items_with_policy<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     items: &[PrefixSequenceItem],
     should_break_after_decorator: bool,
 ) -> FormatResult<()> {
@@ -488,7 +485,7 @@ fn write_prefix_sequence_items_with_policy<'ast>(
 
 /// Write the separator that follows one source prefix item.
 fn write_prefix_sequence_source_separator<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     item: PrefixSequenceItem,
 ) -> FormatResult<()> {
     let item_span = prefix_sequence_item_span(f.context(), item);
@@ -505,7 +502,7 @@ fn write_prefix_sequence_source_separator<'ast>(
 
 /// Write one vertical decorator prefix sequence.
 fn write_decorator_prefix_sequence_items<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     items: &[PrefixSequenceItem],
 ) -> FormatResult<()> {
     if items.is_empty() {
@@ -524,7 +521,7 @@ fn write_decorator_prefix_sequence_items<'ast>(
 
 /// Collect one node's annotations in the selected positions.
 fn annotation_ids_in_positions<T>(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<T>,
     positions: &[DecoratorPosition],
 ) -> Vec<LocalNodeId<Decorator>>
@@ -542,9 +539,9 @@ where
 
 /// Format postfix annotations for one node.
 pub(crate) fn postfix_annotations<'ast, T>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     node_id: LocalNodeId<T>,
-) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, TsppFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -555,14 +552,14 @@ where
     ];
     let items = annotation_ids_in_positions(context, node_id, &positions);
 
-    format_with(move |f: &mut DestackFormatter<'ast, '_>| write_annotation_sequence(f, &items))
+    format_with(move |f: &mut TsppFormatter<'ast, '_>| write_annotation_sequence(f, &items))
 }
 
 /// Format infix or postfix annotations for one node.
 pub(crate) fn infix_or_postfix_annotations<'ast, T>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     node_id: LocalNodeId<T>,
-) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, TsppFormatContext<'ast>> + use<'ast, T>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
@@ -574,12 +571,12 @@ where
     ];
     let items = annotation_ids_in_positions(context, node_id, &positions);
 
-    format_with(move |f: &mut DestackFormatter<'ast, '_>| write_annotation_sequence(f, &items))
+    format_with(move |f: &mut TsppFormatter<'ast, '_>| write_annotation_sequence(f, &items))
 }
 
 /// Format one prepared annotation sequence.
 fn write_annotation_sequence_with_trailing_break<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     items: &[LocalNodeId<Decorator>],
     should_write_trailing_break: bool,
 ) -> FormatResult<()> {

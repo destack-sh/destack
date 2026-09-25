@@ -1,8 +1,8 @@
 use std::future::Future;
 use std::pin::Pin;
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use super::{ServerCall, ServiceError, ServiceSchema};
 
@@ -33,7 +33,7 @@ impl ServiceId {
 
     /// Derive one service identifier from its canonical name.
     pub fn for_name(name: &str) -> Self {
-        Self(destack_core::stable_hash_text(name))
+        Self(tspp_core::stable_hash_text(name))
     }
 }
 

@@ -1,0 +1,157 @@
+import { HostError } from "tspp:error/host";
+import { SocketHandle } from "tspp:net/binding";
+
+import { IpAddress } from "./address.tspp";
+
+/// Any multicast interface selector.
+export struct MulticastInterfaceAny {
+    /// Selector discriminator.
+    kind: "any";
+}
+
+/// Address multicast interface selector.
+export struct MulticastInterfaceAddress {
+    /// Selector discriminator.
+    kind: "address";
+    /// Interface address.
+    address: IpAddress;
+}
+
+/// Indexed multicast interface selector.
+export struct MulticastInterfaceIndex {
+    /// Selector discriminator.
+    kind: "index";
+    /// Interface index.
+    index: uint32;
+}
+
+/// Multicast interface selector.
+@languageItem("net.binding.MulticastInterface")
+export newtype MulticastInterface =
+    | MulticastInterfaceAny
+    | MulticastInterfaceAddress
+    | MulticastInterfaceIndex;
+
+/// Multicast group membership.
+export struct MulticastGroup {
+    /// Multicast group address.
+    group: IpAddress;
+    /// Interface used for membership.
+    networkInterface: MulticastInterface;
+}
+
+/// Source-specific multicast group membership.
+export struct SourceMulticastGroup {
+    /// Multicast group address.
+    group: IpAddress;
+    /// Source address.
+    source: IpAddress;
+    /// Interface used for membership.
+    networkInterface: MulticastInterface;
+}
+
+/// UDP multicast option key.
+@languageItem("net.binding.MulticastOption")
+export enum MulticastOption {
+    /// Multicast loopback.
+    Loopback = 1,
+    /// Multicast time-to-live or hop limit.
+    HopLimit = 2,
+    /// Default multicast interface.
+    Interface = 3,
+}
+
+/// Multicast loopback option value.
+export struct MulticastOptionLoopback {
+    /// Option discriminator.
+    kind: "loopback";
+    /// Option value.
+    value: boolean;
+}
+
+/// Multicast hop limit option value.
+export struct MulticastOptionHopLimit {
+    /// Option discriminator.
+    kind: "hopLimit";
+    /// Hop limit.
+    value: uint32;
+}
+
+/// Multicast interface option value.
+export struct MulticastOptionInterface {
+    /// Option discriminator.
+    kind: "interface";
+    /// Interface selector.
+    value: MulticastInterface;
+}
+
+/// UDP multicast option value.
+@languageItem("net.binding.MulticastOptionValue")
+export newtype MulticastOptionValue =
+    | MulticastOptionLoopback
+    | MulticastOptionHopLimit
+    | MulticastOptionInterface;
+
+/// UDP binding family.
+@languageItem("net.binding.NetUdpBinding")
+export interface NetUdpBinding {
+    /// Join one multicast group.
+    @binding("tspp.net.udp.joinMulticast", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.multicast"],
+        families: ["windows", "unix"],
+    })
+    joinMulticast(socket: SocketHandle, group: MulticastGroup): Result<void, HostError>;
+
+    /// Leave one multicast group.
+    @binding("tspp.net.udp.leaveMulticast", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.multicast"],
+        families: ["windows", "unix"],
+    })
+    leaveMulticast(socket: SocketHandle, group: MulticastGroup): Result<void, HostError>;
+
+    /// Join one source-specific multicast group.
+    @binding("tspp.net.udp.joinSourceMulticast", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.multicast"],
+        families: ["windows", "unix"],
+    })
+    joinSourceMulticast(socket: SocketHandle, group: SourceMulticastGroup): Result<void, HostError>;
+
+    /// Leave one source-specific multicast group.
+    @binding("tspp.net.udp.leaveSourceMulticast", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.multicast"],
+        families: ["windows", "unix"],
+    })
+    leaveSourceMulticast(
+        socket: SocketHandle,
+        group: SourceMulticastGroup,
+    ): Result<void, HostError>;
+
+    /// Set one multicast option.
+    @binding("tspp.net.udp.setMulticastOption", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.multicast"],
+        families: ["windows", "unix"],
+    })
+    setMulticastOption(socket: SocketHandle, option: MulticastOptionValue): Result<void, HostError>;
+
+    /// Read one multicast option.
+    @binding("tspp.net.udp.getMulticastOption", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.multicast"],
+        families: ["windows", "unix"],
+    })
+    getMulticastOption(
+        socket: SocketHandle,
+        option: MulticastOption,
+    ): Result<MulticastOptionValue, HostError>;
+}

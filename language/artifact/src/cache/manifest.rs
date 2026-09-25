@@ -2,9 +2,9 @@ use std::fmt;
 use std::hash::Hash;
 use std::path::{Path, PathBuf};
 
-use destack_core::StableHasher;
-use destack_source::PackageId;
 use serde::{Deserialize, Serialize};
+use tspp_core::StableHasher;
+use tspp_source::PackageId;
 
 use crate::{ArtifactPack, ArtifactVersion, BuildId};
 
@@ -20,7 +20,7 @@ impl ArtifactPackVersion {
         versions.sort_unstable();
 
         let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(b"destack.artifact.pack.version.v2");
+        hasher.update_len_prefixed(b"tspp.artifact.pack.version.v2");
         ArtifactPack::FORMAT.hash(&mut hasher);
         versions.hash(&mut hasher);
 

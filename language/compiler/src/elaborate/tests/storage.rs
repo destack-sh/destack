@@ -1,4 +1,4 @@
-use destack_mir::{Space, Storage};
+use tspp_mir::{Space, Storage};
 
 use crate::tests::TestProgram;
 

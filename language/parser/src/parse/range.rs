@@ -1,6 +1,6 @@
 use crate::Parser;
-use destack_dir::{Expression, LocalNodeId, TypeExpression};
-use destack_source::ByteRange;
+use tspp_dir::{Expression, LocalNodeId, TypeExpression};
+use tspp_source::ByteRange;
 
 impl Parser {
     /// Return the source head range of one type expression.

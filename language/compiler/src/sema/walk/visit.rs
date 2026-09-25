@@ -1,6 +1,6 @@
-use destack_core::FxIndexSet;
-use destack_dir as dir;
-use destack_source::ModuleId;
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::sema::{
@@ -13,7 +13,7 @@ impl CheckState<'_> {
     /// Declare every declaration template in one module.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// class Box<T> {}
     /// ```
     pub(in crate::sema) fn declare_module_templates(
@@ -58,7 +58,7 @@ impl CheckState<'_> {
     /// Visit DIR and collect check constraints and obligations.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// export function value(): number { 1 }
     /// ```
     pub(in crate::sema) fn walk_module_bodies(&mut self, module: ModuleId) -> CompilerResult<()> {
@@ -372,7 +372,7 @@ impl CheckState<'_> {
     /// Visit DIR and collect check constraints and obligations.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// export function value(): number { 1 }
     /// ```
     pub(in crate::sema) fn walk_module(&mut self, module: ModuleId) -> CompilerResult<()> {

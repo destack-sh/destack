@@ -16,7 +16,7 @@ function diagonal(a: int32, b: int32): Point {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.diagonal",
         r#"
 type test.main.Point {
@@ -61,7 +61,7 @@ function sample(flag: boolean, weight: float64, count: int32): Sample {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.sample",
         r#"
 type test.main.Sample {
@@ -109,7 +109,7 @@ function identity(value: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.identity",
         r#"
 function test.main.identity(v0: int32): int32 {

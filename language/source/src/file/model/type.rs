@@ -1,15 +1,15 @@
 use std::path::Path;
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// The physical format of one file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
 pub enum FileType {
-    /// Destack source code.
-    Destack,
-    /// Destack declaration source code.
-    DestackDeclaration,
+    /// TS++ source code.
+    Tspp,
+    /// TS++ declaration source code.
+    TsppDeclaration,
     /// JavaScript source code.
     #[serde(rename = "javascript")]
     JavaScript,
@@ -41,16 +41,16 @@ pub enum FileType {
     Binary,
 }
 
-/// Destack file types tried during extensionless module resolution.
-pub const DESTACK_FILE_TYPES: &[FileType] = &[FileType::Destack, FileType::DestackDeclaration];
+/// TS++ file types tried during extensionless module resolution.
+pub const TSPP_FILE_TYPES: &[FileType] = &[FileType::Tspp, FileType::TsppDeclaration];
 
 impl FileType {
     /// Return the file type for one extension when recognized.
     pub fn from_extension(extension: &str) -> Option<Self> {
         let file_type = match extension {
             // code
-            "ds" => Self::Destack,
-            "d.ds" => Self::DestackDeclaration,
+            "tspp" => Self::Tspp,
+            "d.tspp" => Self::TsppDeclaration,
             "js" | "mjs" | "cjs" => Self::JavaScript,
 
             // data
@@ -86,8 +86,8 @@ impl FileType {
             Some(file_name) if file_name == ".env" || file_name.starts_with(".env.") => {
                 return Some(Self::Dotenv);
             }
-            Some(file_name) if file_name.ends_with(".d.ds") => {
-                return Some(Self::DestackDeclaration);
+            Some(file_name) if file_name.ends_with(".d.tspp") => {
+                return Some(Self::TsppDeclaration);
             }
             _ => {}
         }
@@ -105,8 +105,8 @@ impl FileType {
     /// Return the canonical extension when the format has one.
     pub fn extension(self) -> Option<&'static str> {
         let extension = match self {
-            Self::Destack => "ds",
-            Self::DestackDeclaration => "d.ds",
+            Self::Tspp => "tspp",
+            Self::TsppDeclaration => "d.tspp",
             Self::JavaScript => "js",
             Self::Text => "txt",
             Self::Toml => "toml",
@@ -139,8 +139,8 @@ mod tests {
     #[test]
     fn test_classify_file_paths() {
         let cases = [
-            ("source.ds", FileType::Destack),
-            ("types.d.ds", FileType::DestackDeclaration),
+            ("source.tspp", FileType::Tspp),
+            ("types.d.tspp", FileType::TsppDeclaration),
             ("output.js", FileType::JavaScript),
             ("output.mjs", FileType::JavaScript),
             ("output.cjs", FileType::JavaScript),
@@ -176,8 +176,8 @@ mod tests {
     #[test]
     fn test_roundtrip_canonical_extensions() {
         let file_types = [
-            FileType::Destack,
-            FileType::DestackDeclaration,
+            FileType::Tspp,
+            FileType::TsppDeclaration,
             FileType::JavaScript,
             FileType::Text,
             FileType::Toml,

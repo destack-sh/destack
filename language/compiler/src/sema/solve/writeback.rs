@@ -1,7 +1,7 @@
-use destack_core::{FxIndexMap, FxIndexSet};
-use destack_dir as dir;
-use destack_dir::{InstanceKeyVisit, TypeFold};
-use destack_source::ModuleId;
+use tspp_core::{FxIndexMap, FxIndexSet};
+use tspp_dir as dir;
+use tspp_dir::{InstanceKeyVisit, TypeFold};
+use tspp_source::ModuleId;
 
 use crate::sema::{CheckModuleState, CheckState, Origin, ProjectionMemo};
 use crate::{CompilerError, CompilerResult};

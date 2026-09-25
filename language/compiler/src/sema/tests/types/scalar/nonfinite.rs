@@ -12,7 +12,7 @@ const half: float32 = 1.0 / 0.0;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===

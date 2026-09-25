@@ -2,10 +2,10 @@ use std::fmt::{self, Display, Formatter};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 
-use destack_core::{TreapRoot, stable_hash_value_256};
-use destack_serde::Reflect;
 use parking_lot::{RwLock, RwLockWriteGuard};
 use serde::{Deserialize, Serialize};
+use tspp_core::{TreapRoot, stable_hash_value_256};
+use tspp_serde::Reflect;
 
 use crate::repository::{Repository, RepositoryError, RevisionCache};
 use crate::{ArtifactSelection, Environment};

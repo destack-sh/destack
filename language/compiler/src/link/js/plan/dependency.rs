@@ -1,9 +1,9 @@
 use std::collections::VecDeque;
 
-use destack_artifact::Script;
-use destack_repository::Target;
-use destack_source::{ModuleId, PackageId, Span, TargetId};
 use indexmap::{IndexMap, IndexSet};
+use tspp_artifact::Script;
+use tspp_repository::Target;
+use tspp_source::{ModuleId, PackageId, Span, TargetId};
 
 use crate::{CompilerError, LinkError, LinkResult};
 

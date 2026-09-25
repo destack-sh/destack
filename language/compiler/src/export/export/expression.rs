@@ -1,7 +1,7 @@
-use destack_artifact::DiagnosticBuilder;
-use destack_core::find_best_match;
-use destack_dir as dir;
-use destack_source::ModuleId;
+use tspp_artifact::DiagnosticBuilder;
+use tspp_core::find_best_match;
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use crate::export::state::ExportState;
 use crate::{

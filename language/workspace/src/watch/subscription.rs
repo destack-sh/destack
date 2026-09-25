@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_repository::{Commit, Repository, Revision, RevisionPin};
 use futures::StreamExt;
 use futures::channel::mpsc::{Receiver, Sender, channel};
 use parking_lot::Mutex;
+use tspp_repository::{Commit, Repository, Revision, RevisionPin};
 
 use super::WatchEvent;
 use crate::Error;

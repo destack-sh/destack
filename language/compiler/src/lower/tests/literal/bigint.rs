@@ -12,7 +12,7 @@ function big(): bigint {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.big",
         r#"
 @nocopy

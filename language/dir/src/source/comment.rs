@@ -1,9 +1,9 @@
 use std::borrow::Cow;
 use std::fmt::Debug;
 
-use destack_serde::Reflect;
-use destack_source::Span;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
+use tspp_source::Span;
 
 /// Indicates a line or block comment.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]

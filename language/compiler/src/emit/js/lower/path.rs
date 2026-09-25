@@ -1,8 +1,8 @@
 use crate::EmitError;
-use destack_core::StringId;
-use destack_dir as dir;
-use destack_js as js;
 use smallvec::SmallVec;
+use tspp_core::StringId;
+use tspp_dir as dir;
+use tspp_js as js;
 
 use crate::emit::js::ModuleLowerer;
 

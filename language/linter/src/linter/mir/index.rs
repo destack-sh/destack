@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use destack_artifact::EnvironmentBound;
-use destack_core::{FxIndexMap, StringPool};
-use destack_repository::{ArtifactReader, ProfileId, ProviderError, Repository, Revision};
-use destack_source::{ModuleId, TargetId};
+use tspp_artifact::EnvironmentBound;
+use tspp_core::{FxIndexMap, StringPool};
+use tspp_repository::{ArtifactReader, ProfileId, ProviderError, Repository, Revision};
+use tspp_source::{ModuleId, TargetId};
 
 use super::MirModule;
 

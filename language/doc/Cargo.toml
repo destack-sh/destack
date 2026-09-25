@@ -1,6 +1,6 @@
 [package]
-name = "destack_doc"
-description = "Destack Documentation"
+name = "tspp_doc"
+description = "TS++ Documentation"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,12 +13,12 @@ doctest = false
 
 [dependencies]
 # language
-destack_artifact = { workspace = true }
-destack_core = { workspace = true }
-destack_dir = { workspace = true }
-destack_repository = { workspace = true }
-destack_serde = { workspace = true }
-destack_source = { workspace = true }
+tspp_artifact = { workspace = true }
+tspp_core = { workspace = true }
+tspp_dir = { workspace = true }
+tspp_repository = { workspace = true }
+tspp_serde = { workspace = true }
+tspp_source = { workspace = true }
 
 # general
 rustc-hash = { workspace = true }

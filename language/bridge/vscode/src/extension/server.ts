@@ -8,7 +8,7 @@ import * as tar from "tar";
 import * as vscode from "vscode";
 import type { Executable } from "vscode-languageclient/node";
 
-const COMMAND_NAME = "destack";
+const COMMAND_NAME = "tspp";
 const RELEASE_REPOSITORY = "destack-sh/destack";
 const DOWNLOAD_TIMEOUT_MILLISECONDS = 60_000;
 
@@ -22,7 +22,7 @@ type ReleaseTarget = {
     executableName: string;
 };
 
-/** The resolved Destack language server command. */
+/** The resolved TS++ language server command. */
 export class ServerCommand {
     /** Executable command. */
     readonly command: string;
@@ -45,7 +45,7 @@ export class ServerCommand {
     /** Resolve the language server command for one extension session. */
     static async resolve(context: vscode.ExtensionContext): Promise<ServerCommand> {
         const workspaceFolder = vscode.workspace.workspaceFolders?.[0];
-        const configuration = vscode.workspace.getConfiguration("destack", workspaceFolder?.uri);
+        const configuration = vscode.workspace.getConfiguration("tspp", workspaceFolder?.uri);
         const workingDirectory = this.workingDirectory(configuration, workspaceFolder);
         const configuredCommand = configuration.get<string>("server.command")?.trim();
         const arguments_ = configuration.get<string[]>("server.args") ?? [];
@@ -122,7 +122,7 @@ export class ServerCommand {
         }
 
         const root = workspaceFolder.uri.fsPath;
-        const executableName = process.platform === "win32" ? "destack.exe" : COMMAND_NAME;
+        const executableName = process.platform === "win32" ? "tspp.exe" : COMMAND_NAME;
         const candidates = [
             path.join(root, "target", "release", executableName),
             path.join(root, "target", "debug", executableName),
@@ -162,7 +162,7 @@ export class ServerCommand {
     ): Promise<ServerCommand> {
         const version = context.extension.packageJSON.version;
         if (typeof version !== "string" || version.length === 0) {
-            throw new Error("Destack extension manifest has no version");
+            throw new Error("TS++ extension manifest has no version");
         }
 
         const target = this.releaseTarget();
@@ -321,7 +321,7 @@ export class ServerCommand {
             return {
                 triple: "x86_64-pc-windows-msvc",
                 archiveExtension: "zip",
-                executableName: "destack.exe",
+                executableName: "tspp.exe",
             };
         }
 
@@ -368,7 +368,7 @@ export class ServerCommand {
             return value;
         }
         if (!directory) {
-            throw new Error(`relative Destack path requires a workspace or server.cwd: ${value}`);
+            throw new Error(`relative TS++ path requires a workspace or server.cwd: ${value}`);
         }
 
         return path.resolve(directory, value);
@@ -398,7 +398,7 @@ export class ServerCommand {
         return undefined;
     }
 
-    /** Return command arguments with the Destack LSP subcommand when required. */
+    /** Return command arguments with the TS++ LSP subcommand when required. */
     private static withLspSubcommand(command: string, arguments_: string[]): string[] {
         const executableName = path
             .basename(command)

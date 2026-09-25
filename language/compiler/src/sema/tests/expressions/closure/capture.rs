@@ -13,7 +13,7 @@ function make(): () => int64 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_capture(),
         r#"
 === annotated ===
@@ -86,7 +86,7 @@ function run(): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_capture(),
         r#"
 === annotated ===
@@ -236,7 +236,7 @@ function make(): () => int64 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_capture(),
         r#"
 === annotated ===
@@ -339,7 +339,7 @@ function connect(): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_capture(),
         r#"
 === annotated ===
@@ -481,7 +481,7 @@ function make(): () => Promise<string> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_capture(),
         r#"
 === annotated ===
@@ -589,7 +589,7 @@ class Counter {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_capture(),
         r#"
 === annotated ===
@@ -647,7 +647,7 @@ const reset = () => ({ value: 1 });
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -675,7 +675,7 @@ const reset = () => ({ value: (current = 0) });
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

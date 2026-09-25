@@ -2,8 +2,8 @@ use crate::{
     Function, FunctionBuilder, FunctionId, InstructionBuilder, Label, Opcode, ParseError,
     ParseResult, Parser, RegisterId, RegisterSpan, RelocationTag, Token, TokenType,
 };
-use destack_core::Optional;
-use destack_source::Span;
+use tspp_core::Optional;
+use tspp_source::Span;
 
 /// Parser state for one physical bytecode function.
 #[derive(Debug)]

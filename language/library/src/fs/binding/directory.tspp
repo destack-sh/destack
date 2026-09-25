@@ -1,0 +1,122 @@
+import { HostError } from "tspp:error/host";
+import { ResourceId } from "tspp:runtime/resource";
+
+import { Entry } from "./entry.tspp";
+import { PathBuffer, PathSpan } from "./path.tspp";
+import { FileMode } from "./status.tspp";
+
+/// Handle for an open directory.
+@languageItem("fs.binding.DirectoryHandle")
+export newtype DirectoryHandle = ResourceId;
+
+/// File type for directory entries.
+@languageItem("fs.binding.DirectoryEntryKind")
+export enum DirectoryEntryKind {
+    /// An unknown file type.
+    Unknown = 0,
+    /// A FIFO or pipe.
+    Fifo = 1,
+    /// A character device.
+    CharacterDevice = 2,
+    /// A directory.
+    Directory = 4,
+    /// A block device.
+    BlockDevice = 6,
+    /// A regular file.
+    File = 8,
+    /// A symbolic link.
+    Symlink = 10,
+    /// A socket.
+    Socket = 12,
+    /// A whiteout entry.
+    Whiteout = 14,
+}
+
+/// Directory entry metadata.
+export struct DirectoryEntry {
+    /// Entry name span inside the path output buffer.
+    name: PathSpan;
+    /// Entry kind.
+    kind: DirectoryEntryKind;
+}
+
+/// Directory entries written by one read operation.
+export struct DirectoryBatch {
+    /// Number of entries written into the output slice.
+    count: uint64;
+    /// Path buffer length consumed by entry names.
+    pathLength: uint64;
+    /// Whether the directory stream reached the end.
+    hasEnded: boolean;
+}
+
+/// Filesystem directory binding family.
+@languageItem("fs.binding.DirectoryBinding")
+export interface DirectoryBinding {
+    /// Create one directory entry.
+    @binding("tspp.fs.directory.create", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.write"],
+        families: ["windows", "unix"],
+    })
+    create(entry: &readonly Entry, mode: FileMode): Result<void, HostError>;
+
+    /// Remove one empty directory entry.
+    @binding("tspp.fs.directory.remove", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.write"],
+        families: ["windows", "unix"],
+    })
+    remove(entry: &readonly Entry): Result<void, HostError>;
+
+    /// Open one directory stream.
+    @binding("tspp.fs.directory.open", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.read"],
+        families: ["windows", "unix"],
+    })
+    open(entry: &readonly Entry): Result<DirectoryHandle, HostError>;
+
+    /// Close one open directory handle.
+    @binding("tspp.fs.directory.close", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.read"],
+        families: ["windows", "unix"],
+    })
+    close(directory: DirectoryHandle): Result<void, HostError>;
+
+    /// Read directory entries into an output slice.
+    @binding("tspp.fs.directory.read", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.read"],
+        families: ["windows", "unix"],
+    })
+    read(
+        directory: DirectoryHandle,
+        entries: &[DirectoryEntry],
+        names: &PathBuffer,
+    ): Result<DirectoryBatch, HostError>;
+
+    /// Reset a directory stream to the first entry.
+    @binding("tspp.fs.directory.rewind", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.read"],
+        families: ["windows", "unix"],
+    })
+    rewind(directory: DirectoryHandle): Result<void, HostError>;
+
+    /// Create one unique directory from a caller supplied template.
+    @binding("tspp.fs.directory.temporary", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.temp"],
+        families: ["windows", "unix"],
+    })
+    createTemporary(template: &readonly Entry): Result<Entry, HostError>;
+}

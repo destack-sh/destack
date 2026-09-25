@@ -15,7 +15,7 @@ const ok: InlineBuffer<uint8, 16> = InlineBuffer<uint8, 16> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
@@ -69,7 +69,7 @@ type TooLarge = InlineBuffer<uint8, 4097>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_statics(),
         r#"
 === annotated ===

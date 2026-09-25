@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use destack_artifact::DirParsedFile;
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{File, FilePatch, Span};
-use destack_unicode::UnicodeWidthChar;
+use tspp_artifact::DirParsedFile;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{File, FilePatch, Span};
+use tspp_unicode::UnicodeWidthChar;
 
 use super::DirModule;
 

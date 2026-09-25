@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_source::ModuleId;
 use smallvec::SmallVec;
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use crate::sema::{
     BodyCheck, Check, CheckState, Expectation, FlowState, InferMode, Origin, Settle, Verdict,

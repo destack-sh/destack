@@ -137,7 +137,7 @@ main() {
         bash "${DESTACK_INSTALL_SCRIPT_PATH}"
 
     "${install_directory}/destack" --version >/dev/null
-    "${install_directory}/ds" --version >/dev/null
+    "${install_directory}/tspp" --version >/dev/null
 }
 
 main "$@"

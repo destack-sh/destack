@@ -6,7 +6,7 @@ Range subscripts use index-expression spacing.
 
 ### range indexing
 
-```ds
+```tspp
 const middle = items[ 1 .. count ]
 const through = items[ 1 ..= count ]
 const tail = items[ start .. ]
@@ -15,7 +15,7 @@ const prefix = items[ ..= end ]
 const all = items[ .. ]
 ```
 
-```ds expected
+```tspp expected
 const middle = items[1..count];
 const through = items[1..=count];
 const tail = items[start..];
@@ -28,14 +28,14 @@ const all = items[..];
 
 Comments around range index operators keep readable operator boundaries.
 
-```ds
+```tspp
 const middle = items[start /* start */ .. /* end */ end]
 const head = items[.. /* end */ end]
 const tail = items[start /* start */ ..]
 const all = items[.. /* all */]
 ```
 
-```ds expected
+```tspp expected
 const middle = items[start /* start */ .. /* end */ end];
 const head = items[.. /* end */ end];
 const tail = items[start /* start */ ..];

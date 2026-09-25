@@ -1,18 +1,18 @@
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
-use destack_artifact::{
+use futures::executor::block_on;
+use tspp_artifact::{
     ArtifactKey, BuildId, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded,
     DirExported, DirImported, DirParsed, DirResolved, DirView,
 };
-use destack_core::StringPool;
-use destack_repository::{
+use tspp_core::StringPool;
+use tspp_repository::{
     ArtifactReader, DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host,
     Repository, Revision, RevisionPin, Settings,
 };
-use destack_session::{ArtifactPriority, Executor, Session};
-use destack_source::{File, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
-use futures::executor::block_on;
+use tspp_session::{ArtifactPriority, Executor, Session};
+use tspp_source::{File, FileSystem, MemoryFileSystem, ModuleId, ProfileId, TargetId};
 
 use crate::{ModuleContext, ProgramContext};
 
@@ -21,7 +21,7 @@ const TEST_MANIFEST: &str = r#"{
   "name": "test",
   "targets": {
     "default": {
-      "include": ["**/*.ds"]
+      "include": ["**/*.tspp"]
     }
   },
   "defaultTarget": "default"
@@ -51,7 +51,7 @@ impl TestProgram {
             .pin(revision)
             .expect("checked test revision should remain live");
         let revision = retained_revision.revision();
-        let source_path = program.root.join("main.ds");
+        let source_path = program.root.join("main.tspp");
         let paths = std::iter::once(source_path.clone())
             .chain(dependencies.iter().map(|(path, _)| program.root.join(path)))
             .collect::<Vec<_>>();
@@ -147,7 +147,7 @@ impl TestProgram {
             .expect("test source Blob should store");
         let mut edits = vec![
             Edit::set_file("destack.json", manifest),
-            Edit::set_file("main.ds", source),
+            Edit::set_file("main.tspp", source),
         ];
         for (path, source) in dependencies {
             let blob = self
@@ -216,6 +216,6 @@ fn executor() -> Arc<Executor> {
 }
 
 /// Fail one test DIR read.
-fn read<T>(error: destack_repository::ProviderError) -> T {
+fn read<T>(error: tspp_repository::ProviderError) -> T {
     panic!("read test DIR: {error}")
 }

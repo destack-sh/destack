@@ -1,6 +1,6 @@
 use std::num::NonZeroU32;
 
-use destack_unicode::UnicodeWidthChar;
+use tspp_unicode::UnicodeWidthChar;
 
 use super::{
     ArenaVec, FormatElement, Instruction, InstructionIter, InstructionSlice, InstructionTag, Opcode,

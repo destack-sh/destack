@@ -1,10 +1,10 @@
 use std::cmp::Ordering;
 
 use crate::TraceView;
-use destack_core::{Optional, SectionEntry};
-use destack_mir::{TraceId, TraceMap};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::{Optional, SectionEntry};
+use tspp_mir::{TraceId, TraceMap};
+use tspp_serde::Reflect;
 
 use crate::{
     DropCardinality, DropId, DropPlan, HeapConfigurationError, HeapError, HeapRepresentationError,

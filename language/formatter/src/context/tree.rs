@@ -1,6 +1,6 @@
-use super::context::DestackFormatContext;
-use destack_dir::{Expression, LocalNodeId, Node, NodeType, TokenSpan, TokenType, Tree, TreeStore};
-use destack_source::Span;
+use super::context::TsppFormatContext;
+use tspp_dir::{Expression, LocalNodeId, Node, NodeType, TokenSpan, TokenType, Tree, TreeStore};
+use tspp_source::Span;
 
 /// Return whether a token contributes non-whitespace content.
 #[inline]
@@ -34,7 +34,7 @@ fn token_stream_has_non_whitespace_content(tokens: &[TokenSpan], span: Span) -> 
     false
 }
 
-impl<'a> DestackFormatContext<'a> {
+impl<'a> TsppFormatContext<'a> {
     /// Get a span from the tree.
     #[inline]
     pub fn span<T>(&self, node_id: LocalNodeId<T>) -> Span

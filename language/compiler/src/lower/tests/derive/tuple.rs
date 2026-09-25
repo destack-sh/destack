@@ -11,7 +11,7 @@ function same(left: &immutable (int32, boolean), right: &immutable (int32, boole
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.same", r#"
+    session.assert_mir_function("main.tspp", "test.main.same", r#"
 @nocopy
 @languageItem("ops.PartialEqual")
 type PartialEqual<T>;
@@ -35,7 +35,7 @@ entry(v0: ref<(int32, boolean), borrowed, 'a, immutable>, v1: ref<(int32, boolea
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.PartialEqual.equal<(int32, boolean)>",
         r#"
 function test.main.PartialEqual.equal<(int32, boolean), 'a, 'b>(v0: ref<(int32, boolean), borrowed, 'a, immutable>, v1: ref<(int32, boolean), borrowed, 'b, immutable>): boolean {

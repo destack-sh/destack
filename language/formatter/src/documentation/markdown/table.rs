@@ -1,5 +1,5 @@
-use destack_fir::format::{FormatError, FormatResult};
 use markdown::mdast::{AlignKind, Node, Table};
+use tspp_fir::format::{FormatError, FormatResult};
 
 use super::super::line::LineBuffer;
 use super::MarkdownFormatter;

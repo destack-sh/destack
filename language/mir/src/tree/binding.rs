@@ -1,6 +1,6 @@
-use destack_core::StringId;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::StringId;
+use tspp_serde::Reflect;
 
 /// One runtime binding declaration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -82,7 +82,7 @@ impl BindingEffect {
 pub enum BindingProvider {
     /// Host platform implementation.
     Host,
-    /// Destack runtime implementation.
+    /// TS++ runtime implementation.
     Runtime,
 }
 

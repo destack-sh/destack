@@ -49,7 +49,7 @@ fn test_rewrite_imported_namespace_symbol() {
         "$CALLEE($VALUE)",
         "client.fetch($VALUE)",
         r#"
-import * as net from "./net.ds";
+import * as net from "./net.tspp";
 
 const request = net.fetch;
 
@@ -58,7 +58,7 @@ request("second");
 "#,
     )
     .file(
-        "net.ds",
+        "net.tspp",
         r#"
 export function fetch(value: string): string {
     return value;
@@ -68,7 +68,7 @@ export function fetch(value: string): string {
     .guard("$CALLEE == net.fetch")
     .assert(
         r#"
-import * as net from "./net.ds";
+import * as net from "./net.tspp";
 
 const request = net.fetch;
 

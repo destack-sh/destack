@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use destack_artifact::{
+use tspp_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirBound, DirExpanded, DirImported,
     DirParsed, DirView,
 };
-use destack_repository::{ProfileId, ProviderContext};
-use destack_source::ModuleId;
+use tspp_repository::{ProfileId, ProviderContext};
+use tspp_source::ModuleId;
 
 use crate::export::state::ExportState;
 use crate::{Compiler, CompilerError, CompilerResult, ExportError};

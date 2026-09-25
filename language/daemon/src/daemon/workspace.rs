@@ -3,14 +3,14 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactPayload, BuildId};
-use destack_core::Blob;
-use destack_repository as repository;
-use destack_repository::{Commit, DestackLayoutOverride, Host, Repository, Revision, Settings};
-use destack_rpc::{Code, Request, Response, ResponseSender, Status};
-use destack_session::Executor;
-use destack_workspace as workspace;
 use parking_lot::RwLock;
+use tspp_artifact::{ArtifactPayload, BuildId};
+use tspp_core::Blob;
+use tspp_repository as repository;
+use tspp_repository::{Commit, DestackLayoutOverride, Host, Repository, Revision, Settings};
+use tspp_rpc::{Code, Request, Response, ResponseSender, Status};
+use tspp_session::Executor;
+use tspp_workspace as workspace;
 use workspace::{ProgressEvent, WatchEvent, Workspace, WorkspaceService};
 
 use super::{DaemonError, WorkspaceWatch};

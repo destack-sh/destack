@@ -1,6 +1,6 @@
-use destack_core::StringId;
-use destack_mir as mir;
-use destack_mir::Substitution;
+use tspp_core::StringId;
+use tspp_mir as mir;
+use tspp_mir::Substitution;
 
 use crate::instantiate::state::InstantiateState;
 use crate::{CompilerError, CompilerResult};

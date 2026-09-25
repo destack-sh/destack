@@ -1,6 +1,6 @@
-use destack_lsp_server::jsonrpc;
-use destack_lsp_types as lsp;
-use destack_query as query;
+use tspp_lsp_server::jsonrpc;
+use tspp_lsp_types as lsp;
+use tspp_query as query;
 
 use super::{Document, DocumentSet, IntoLsp};
 use crate::server::internal_error;

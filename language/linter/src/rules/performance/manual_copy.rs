@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -290,7 +290,7 @@ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[manual-copy]: index loop copies corresponding collection elements
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
 2 │     for (let index: isize = 0; index < source.length; index++) {
@@ -322,7 +322,7 @@ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[manual-copy]: index loop copies corresponding collection elements
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
 2 │     for (const index of 0..source.length) {
@@ -354,7 +354,7 @@ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[manual-copy]: index loop copies corresponding collection elements
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
 2 │     for (let index: isize = 0; index < source.length; index++) {
@@ -386,7 +386,7 @@ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[manual-copy]: index loop copies corresponding collection elements
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
 2 │     for (let index: isize = 2; index < source.length; index++) {
@@ -418,7 +418,7 @@ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[manual-copy]: index loop copies corresponding collection elements
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function copy(target: &exclusive int32[], source: &readonly int32[]): void {
 2 │     for (const index of 2..=source.length - 2) {
@@ -455,7 +455,7 @@ function copy(
         session.assert_diagnostics(
             r#"
 warning[manual-copy]: index loop copies corresponding collection elements
-  ──▶ main.ds:6:5
+  ──▶ main.tspp:6:5
    │
  4 │     source: &readonly int32[],
  5 │ ): void {

@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -160,7 +160,7 @@ function source(name: string): string {
         session.assert_diagnostics(
             r#"
 warning[no-template-curly-in-string]: regular string contains interpolation syntax
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function source(name: string): string {
 2 │     return "`${name}`";
@@ -186,7 +186,7 @@ function source(name: string): string {
         session.assert_diagnostics(
             r#"
 warning[no-template-curly-in-string]: regular string contains interpolation syntax
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function source(name: string): string {
 2 │     return "\\\\${name}";
@@ -195,8 +195,8 @@ warning[no-template-curly-in-string]: regular string contains interpolation synt
   │
 
  = suggestion: use a template literal (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function source(name: string): string {
 -   2│     return "\\\\${name}";

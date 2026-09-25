@@ -1,0 +1,238 @@
+import { From } from "tspp:convert";
+import { todo } from "tspp:error";
+import { Extend, FromIterator, Iterable, Iterator } from "tspp:iter";
+import { Borrowed, Copy, Default, MaybeUninit } from "tspp:memory";
+
+import { Array } from "./array.tspp";
+import { Sequence } from "./sequence.tspp";
+
+/// Key for one linked list node.
+newtype LinkedListNodeKey = uint32;
+
+/// One linked list node.
+struct LinkedListNode<T> {
+    /// The previous node key.
+    previous: LinkedListNodeKey | undefined = undefined;
+
+    /// The next node key.
+    next: LinkedListNodeKey | undefined = undefined;
+
+    /// The next free node key.
+    nextFree: LinkedListNodeKey | undefined = undefined;
+
+    /// The node value storage.
+    value: MaybeUninit<T>;
+
+    /// True when this node currently holds a value.
+    isOccupied: boolean = true;
+}
+
+/// A linked list.
+@languageItem("collections.LinkedList")
+export class LinkedList<T> {
+    /// The first node key.
+    private head: LinkedListNodeKey | undefined = undefined;
+
+    /// The last node key.
+    private tail: LinkedListNodeKey | undefined = undefined;
+
+    /// The node storage.
+    private nodes: ^Array<LinkedListNode<T>> = [];
+
+    /// The first free node key.
+    private firstFree: LinkedListNodeKey | undefined = undefined;
+
+    /// The number of nodes.
+    private count: isize = 0;
+}
+
+export extension<T> of ^LinkedList<T> implements Iterable<T>, Sequence {
+    /// The owned sequence produced by a rest pattern.
+    type Rest = ^LinkedList<T>;
+
+    /// Move the elements from `start..end` for a rest pattern.
+    rest(this, start: isize, end?: isize): ^LinkedList<T> {
+        todo("LinkedList.rest")
+    }
+
+    /// Consume this list into owned values.
+    iterator(this): this.Iterator {
+        todo("LinkedList.iterator")
+    }
+}
+
+export extension<T: Copy> of LinkedList<T> implements Iterable<T>, Sequence {
+    /// The copied sequence produced by a rest pattern.
+    type Rest = ^LinkedList<T>;
+
+    /// Copy the elements from `start..end` for a rest pattern.
+    rest(start: isize, end?: isize): ^LinkedList<T> {
+        todo("LinkedList.rest")
+    }
+
+    /// Return an iterator over copied values.
+    iterator(): this.Iterator {
+        todo("LinkedList.iterator")
+    }
+
+    /// Return the copied front element.
+    front(&readonly this): T | undefined {
+        todo("LinkedList.front")
+    }
+
+    /// Return the copied back element.
+    back(&readonly this): T | undefined {
+        todo("LinkedList.back")
+    }
+}
+
+export extension<T, 'a, const A: "immutable" | "exclusive"> of Borrowed<LinkedList<T>, 'a, A>
+    implements Iterable<Borrowed<T, 'a, A>>, Sequence
+{
+    /// The borrowed sequence produced by a rest pattern.
+    type Rest = ^LinkedList<Borrowed<T, 'a, A>>;
+
+    /// Borrow the elements from `start..end` for a rest pattern.
+    rest(this, start: isize, end?: isize): ^LinkedList<Borrowed<T, 'a, A>> {
+        todo("LinkedList.rest")
+    }
+
+    /// Return an iterator over borrowed values.
+    iterator(this): this.Iterator {
+        todo("LinkedList.iterator")
+    }
+
+    /// Borrow the front element.
+    front(this): Borrowed<T, 'a, A> | undefined {
+        todo("LinkedList.front")
+    }
+
+    /// Borrow the back element.
+    back(this): Borrowed<T, 'a, A> | undefined {
+        todo("LinkedList.back")
+    }
+}
+
+export extension<T> of LinkedList<T> implements Default, Extend<T, "mutable"> {
+    /// Create an empty list.
+    static new(): ^LinkedList<T> {
+        todo("LinkedList.new")
+    }
+
+    /// Create a list with room for at least `capacity` nodes.
+    static withCapacity(capacity: usize): ^LinkedList<T> {
+        todo("LinkedList.withCapacity")
+    }
+
+    /// Create a list from values.
+    static from(values: Iterable<T>): ^LinkedList<T> {
+        todo("LinkedList.from")
+    }
+
+    /// Create a linked list from `values`.
+    static fromIterator<I: Iterable<T>>(values: I): ^LinkedList<T> {
+        todo("LinkedList.fromIterator")
+    }
+
+    /// Create the default linked list.
+    static default(): ^LinkedList<T> {
+        LinkedList.new()
+    }
+
+    /// Return the number of elements.
+    get length(&readonly this): isize {
+        this.count
+    }
+
+    /// Return the number of elements.
+    get size(&readonly this): isize {
+        this.count
+    }
+
+    /// Return whether this list has no elements.
+    get isEmpty(&readonly this): boolean {
+        this.count == 0
+    }
+
+    /// Push `value` to the back.
+    pushBack(&this, value: T): void {
+        todo("LinkedList.pushBack");
+    }
+
+    /// Push `value` to the front.
+    pushFront(&this, value: T): void {
+        todo("LinkedList.pushFront");
+    }
+
+    /// Append all `values` to the back.
+    extend<I: Iterable<T>>(&this, values: I): void {
+        todo("LinkedList.extend");
+    }
+
+    /// Remove and return the back element.
+    popBack(&this): T | undefined {
+        todo("LinkedList.popBack")
+    }
+
+    /// Remove and return the front element.
+    popFront(&this): T | undefined {
+        todo("LinkedList.popFront")
+    }
+
+    /// Remove all elements.
+    clear(&this): void {
+        todo("LinkedList.clear");
+    }
+
+    /// Retain only elements accepted by `predicate`.
+    retain(&exclusive this, predicate: (value: &immutable T, index: isize) => boolean): void {
+        todo("LinkedList.retain");
+    }
+
+    /// Remove all elements and return them.
+    drain(&this): Iterator<T> {
+        todo("LinkedList.drain")
+    }
+
+    /// Remove elements accepted by `predicate` and return them.
+    extractIf(
+        &exclusive this,
+        predicate: (value: &immutable T, index: isize) => boolean,
+    ): Iterator<T> {
+        todo("LinkedList.extractIf")
+    }
+
+    /// Reserve room for at least `additional` more nodes.
+    reserve(&this, additional: usize): void {
+        todo("LinkedList.reserve");
+    }
+
+    /// Shrink node storage to fit the current length.
+    shrinkToFit(&this): void {
+        todo("LinkedList.shrinkToFit");
+    }
+}
+
+export extension<T> of LinkedList<T> implements From<Iterable<T>>, FromIterator<T> {
+    /// Create a managed linked list from `values`.
+    static from(values: Iterable<T>): LinkedList<T> {
+        LinkedList.from(values)
+    }
+
+    /// Create a managed linked list from `values`.
+    static fromIterator<I: Iterable<T>>(values: I): LinkedList<T> {
+        LinkedList.fromIterator(values)
+    }
+}
+
+export extension<T> of ^LinkedList<T> implements From<Iterable<T>>, FromIterator<T> {
+    /// Create an owned linked list from values.
+    static from(values: Iterable<T>): ^LinkedList<T> {
+        LinkedList.from(values)
+    }
+
+    /// Create an owned linked list from values.
+    static fromIterator<I: Iterable<T>>(values: I): ^LinkedList<T> {
+        LinkedList.fromIterator(values)
+    }
+}

@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -205,7 +205,7 @@ function depth(remaining: int32, unused: int32): int32 {
         session.assert_diagnostics(
             r#"
 warning[only-used-in-recursion]: parameter only contributes to its recursive argument
- ──▶ main.ds:1:34
+ ──▶ main.tspp:1:34
   │
 1 │ function depth(remaining: int32, unused: int32): int32 {
   │                                  ^^^^^^
@@ -296,7 +296,7 @@ class Counter {
         session.assert_diagnostics(
             r#"
 warning[only-used-in-recursion]: parameter only contributes to its recursive argument
- ──▶ main.ds:2:29
+ ──▶ main.tspp:2:29
   │
 1 │ class Counter {
 2 │     depth(remaining: int32, unused: int32): int32 {

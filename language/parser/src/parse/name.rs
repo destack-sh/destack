@@ -1,10 +1,10 @@
 use crate::lex::decode_unicode_escape;
 use crate::parse::{AwaitKeyword, YieldKeyword};
 use crate::{Parser, ParserError, ParserResult};
-use destack_core::StringId;
-use destack_dir::{Keyword, Literal, Name, Token, TokenLiteral, TokenType};
-use destack_source::ByteRange;
 use std::str::FromStr;
+use tspp_core::StringId;
+use tspp_dir::{Keyword, Literal, Name, Token, TokenLiteral, TokenType};
+use tspp_source::ByteRange;
 
 impl Parser {
     /// Eat one identifier or boolean member name and its byte range.

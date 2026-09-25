@@ -1,13 +1,13 @@
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{AssignOperator, BinaryOperator, UnaryOperator};
-use destack_fir::format::{Format, FormatResult};
-use destack_fir::prelude::token;
-use destack_fir::write;
+use crate::{TsppFormatContext, TsppFormatter};
+use tspp_dir::{AssignOperator, BinaryOperator, UnaryOperator};
+use tspp_fir::format::{Format, FormatResult};
+use tspp_fir::prelude::token;
+use tspp_fir::write;
 
 /// Format unary operators as source tokens.
-impl<'ast> Format<'ast, DestackFormatContext<'ast>> for UnaryOperator {
+impl<'ast> Format<'ast, TsppFormatContext<'ast>> for UnaryOperator {
     /// Write the token form of the unary operator.
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             UnaryOperator::PostIncrement => token("++"),
             UnaryOperator::PostDecrement => token("--"),
@@ -25,9 +25,9 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for UnaryOperator {
 }
 
 /// Format binary operators as source tokens.
-impl<'ast> Format<'ast, DestackFormatContext<'ast>> for BinaryOperator {
+impl<'ast> Format<'ast, TsppFormatContext<'ast>> for BinaryOperator {
     /// Write the token form of the binary operator.
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         let token = match self {
             BinaryOperator::Multiply => token("*"),
             BinaryOperator::Exponent => token("**"),
@@ -59,9 +59,9 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for BinaryOperator {
 }
 
 /// Format assignment operators as source tokens.
-impl<'ast> Format<'ast, DestackFormatContext<'ast>> for AssignOperator {
+impl<'ast> Format<'ast, TsppFormatContext<'ast>> for AssignOperator {
     /// Write the token form of the assignment operator.
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         let token = token(match self {
             AssignOperator::Assign => "=",
             AssignOperator::AddAssign => "+=",

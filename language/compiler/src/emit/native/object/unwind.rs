@@ -1,13 +1,13 @@
 use cranelift_codegen::isa::TargetIsa;
 use cranelift_codegen::isa::unwind::UnwindInfo;
 use cranelift_codegen::{CompiledCode, FinalizedMachExceptionHandler};
-use destack_native as native;
-use destack_source::ModuleId;
 use gimli::constants::{DW_EH_PE_absptr, DW_EH_PE_pcrel, DW_EH_PE_sdata4, DW_EH_PE_udata4};
 use gimli::write::{
     Address, EhFrame, EndianVec, FrameTable, RelocateWriter, Relocation, RelocationTarget,
 };
 use gimli::{RunTimeEndian, constants};
+use tspp_native as native;
+use tspp_source::ModuleId;
 
 use crate::EmitError;
 

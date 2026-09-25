@@ -1,11 +1,11 @@
-use destack_dir::{
+use std::sync::Arc;
+use tspp_dir::{
     AssignPattern, Block, Expression, LocalNodeId, Node, NodeType, NumberBase, TokenLiteral,
     TokenType, Tree, TypeExpression,
 };
-use std::sync::Arc;
 
-use destack_core::StringId;
-use destack_source::{File, FileId, FileType, LanguageType, ModuleId, PackageId, Uri};
+use tspp_core::StringId;
+use tspp_source::{File, FileId, FileType, LanguageType, ModuleId, PackageId, Uri};
 
 use crate::{CommentRetention, ParseOptions, Parser, SourceForm};
 
@@ -19,14 +19,14 @@ pub(crate) struct TestParser {
 }
 
 impl TestParser {
-    /// Create a parser test for `.ds` source.
+    /// Create a parser test for `.tspp` source.
     pub(crate) fn new(input: &str) -> Self {
-        Self::with_language(input, LanguageType::Destack)
+        Self::with_language(input, LanguageType::Tspp)
     }
 
-    /// Create a parser test for `.d.ds` source.
+    /// Create a parser test for `.d.tspp` source.
     pub(crate) fn declaration(input: &str) -> Self {
-        Self::with_language(input, LanguageType::DestackDeclaration)
+        Self::with_language(input, LanguageType::TsppDeclaration)
     }
 
     /// Create a parser test for one source form.
@@ -316,7 +316,7 @@ macro_rules! assert_parenthesized {
         let node_id = $id;
         let parentheses = $tree.get_side_range(
             node_id,
-            destack_source::NodeSpanType::Region(destack_source::NodeSpanRegion::Parentheses),
+            tspp_source::NodeSpanType::Region(tspp_source::NodeSpanRegion::Parentheses),
         );
         assert!(parentheses.is_some(), "expected written parentheses");
     }};
@@ -324,7 +324,7 @@ macro_rules! assert_parenthesized {
         let node_id = $id;
         let parentheses = $tree.get_side_range(
             node_id,
-            destack_source::NodeSpanType::Region(destack_source::NodeSpanRegion::Parentheses),
+            tspp_source::NodeSpanType::Region(tspp_source::NodeSpanRegion::Parentheses),
         );
         assert!(parentheses.is_some(), "expected written parentheses");
         let $binding = &node_id;
@@ -383,7 +383,7 @@ macro_rules! assert_node {
 #[macro_export]
 macro_rules! assert_string {
     ($parser:expr, $id:expr, $expected:expr) => {{
-        let maybe_id: Option<destack_core::StringId> = ::core::convert::Into::into($id);
+        let maybe_id: Option<tspp_core::StringId> = ::core::convert::Into::into($id);
         let got = maybe_id
             .map(|string_id| $parser.strings.get(string_id).to_string())
             .unwrap_or_default();

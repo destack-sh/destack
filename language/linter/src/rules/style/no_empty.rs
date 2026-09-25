@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -100,7 +100,7 @@ if (ready()) {}
         session.assert_diagnostics(
             r#"
 warning[no-empty]: block is empty
- ──▶ main.ds:3:14
+ ──▶ main.tspp:3:14
   │
 1 │ declare function ready(): boolean;
 2 │
@@ -171,7 +171,7 @@ while (ready()) {}
         session.assert_diagnostics(
             r#"
 warning[no-empty]: block is empty
- ──▶ main.ds:3:17
+ ──▶ main.tspp:3:17
   │
 1 │ declare function ready(): boolean;
 2 │

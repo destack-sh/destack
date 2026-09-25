@@ -1,8 +1,8 @@
 use std::path::Path;
 
-use destack_repository as repository;
-use destack_repository::{Change, Commit, Revision, RevisionPin, Trace};
-use destack_source::{Edit, FileId, FilePatch, ModuleId, Patch, Span, TextPatch, apply_file_patch};
+use tspp_repository as repository;
+use tspp_repository::{Change, Commit, Revision, RevisionPin, Trace};
+use tspp_source::{Edit, FileId, FilePatch, ModuleId, Patch, Span, TextPatch, apply_file_patch};
 
 use crate::Error;
 use crate::file::normalize_path;

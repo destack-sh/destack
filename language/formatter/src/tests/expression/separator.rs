@@ -1,19 +1,17 @@
 use crate::expression::expression_needs_parentheses_in_parent;
 use crate::{
-    DestackFormatOptions, TestFormatter, assert_format_program_roundtrip_with_file_type,
+    TestFormatter, TsppFormatOptions, assert_format_program_roundtrip_with_file_type,
     parse_first_expression,
 };
-use destack_dir::{
-    CommentAnchor, CommentKind, Declaration, Declarator, Expression, TypeExpression,
-};
-use destack_source::FileType;
+use tspp_dir::{CommentAnchor, CommentKind, Declaration, Declarator, Expression, TypeExpression};
+use tspp_source::FileType;
 
 /// Derive statement source extents from wrappers and semantic tokens.
 #[test]
 fn test_derive_expression_statement_source_extent() {
     let (formatter, expression_id) =
         TestFormatter::parse("(() => value);", parse_first_expression).unwrap();
-    let context = formatter.context(DestackFormatOptions::default());
+    let context = formatter.context(TsppFormatOptions::default());
     let span = context.expression_statement_extent(expression_id);
 
     assert_eq!(context.span_str(span), "(() => value);");
@@ -27,8 +25,8 @@ fn test_format_computed_member_separator_comments() {
 "#,
         r#"const value = source /* before-index */[key];
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -40,8 +38,8 @@ fn test_format_template_member_separator_comments() {
 "#,
         r#"const value = `${source /* member-note */.name}`;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -51,8 +49,8 @@ fn test_format_parenthesized_trailing_comment() {
     assert_format_program_roundtrip_with_file_type(
         "code || (!escapeless && (true /* 1 */ || false /* 2 */))\n",
         "code || (!escapeless && (true /* 1 */ || false) /* 2 */);\n",
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -64,8 +62,8 @@ fn test_format_nested_parentheses_comments() {
     assert_format_program_roundtrip_with_file_type(
         input,
         "const value = /* outer */ /* inner */ (source /* inner-tail */ /* outer-tail */);\n",
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -77,8 +75,8 @@ fn test_format_unary_negative_separator_block_comments() {
 "#,
         r#"const value = -(/* unary-note */ 1);
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -90,11 +88,11 @@ fn test_unary_negative_separator_comment_attaches_before_operand_token() {
     let comment_end = comment_start + "/* unary-note */".len() as u32;
     let literal_start = input.find('1').unwrap() as u32;
     let (test, expression_id) =
-        TestFormatter::parse_with_file_type(input, FileType::Destack, |parser| {
+        TestFormatter::parse_with_file_type(input, FileType::Tspp, |parser| {
             parse_first_expression(parser)
         })
         .unwrap();
-    let context = test.context(DestackFormatOptions::default_with_line_width(100));
+    let context = test.context(TsppFormatOptions::default_with_line_width(100));
 
     let Expression::Unary { right, .. } = context.tree.get(expression_id) else {
         panic!("expected unary expression");
@@ -118,11 +116,11 @@ fn test_unary_negative_initializer_separator_comment_attaches_before_operand_tok
     let comment_end = comment_start + "/* unary-note */".len() as u32;
     let literal_start = input.rfind('1').unwrap() as u32;
     let (test, expression_id) =
-        TestFormatter::parse_with_file_type(input, FileType::Destack, |parser| {
+        TestFormatter::parse_with_file_type(input, FileType::Tspp, |parser| {
             parse_first_expression(parser)
         })
         .unwrap();
-    let context = test.context(DestackFormatOptions::default_with_line_width(100));
+    let context = test.context(TsppFormatOptions::default_with_line_width(100));
 
     let Expression::Let { declarators, .. } = context.tree.get(expression_id) else {
         panic!("expected let expression");
@@ -148,14 +146,14 @@ fn test_unary_negative_initializer_separator_comment_attaches_before_operand_tok
 fn test_format_unary_negative_expression_separator_block_comments() {
     let (test, expression_id) = TestFormatter::parse_with_file_type(
         "-/* unary-note */ 1",
-        FileType::Destack,
+        FileType::Tspp,
         parse_first_expression,
     )
     .unwrap();
 
     let formatted = test.format(
         &expression_id,
-        DestackFormatOptions::default_with_line_width(100),
+        TsppFormatOptions::default_with_line_width(100),
     );
 
     assert_eq!(formatted, "-(/* unary-note */ 1)");
@@ -169,8 +167,8 @@ fn test_format_parenthesized_scalar_separator_block_comments() {
 "#,
         r#"const value = -(/* unary-note */ 1);
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -188,8 +186,8 @@ fn test_format_parenthesized_scalar_separator_line_comments() {
     1
 );
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -204,8 +202,8 @@ fn test_format_parenthesized_scalar_separator_mixed_comments() {
     /* keep */ // comment
     (a as unknown) + 1;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -220,11 +218,11 @@ fn test_parenthesized_scalar_separator_mixed_comments_attach_as_inner_leading_sl
     let line_end = 22;
     let inner_start = 27;
     let (test, expression_id) =
-        TestFormatter::parse_with_file_type(input, FileType::Destack, |parser| {
+        TestFormatter::parse_with_file_type(input, FileType::Tspp, |parser| {
             parse_first_expression(parser)
         })
         .unwrap();
-    let context = test.context(DestackFormatOptions::default_with_line_width(100));
+    let context = test.context(TsppFormatOptions::default_with_line_width(100));
 
     let Expression::Binary { left, .. } = context.tree.get(expression_id) else {
         panic!("expected binary expression");
@@ -273,11 +271,11 @@ fn test_format_inner_assertion_with_parenthesized_scalar_separator_mixed_comment
     let input = r#"(/* keep */ // comment
     a as unknown) + 1"#;
     let (test, expression_id) =
-        TestFormatter::parse_with_file_type(input, FileType::Destack, |parser| {
+        TestFormatter::parse_with_file_type(input, FileType::Tspp, |parser| {
             parse_first_expression(parser)
         })
         .unwrap();
-    let context = test.context(DestackFormatOptions::default_with_line_width(100));
+    let context = test.context(TsppFormatOptions::default_with_line_width(100));
 
     let inner_expression_id = match context.tree.get(expression_id) {
         Expression::Binary { left, .. } => *left,
@@ -286,7 +284,7 @@ fn test_format_inner_assertion_with_parenthesized_scalar_separator_mixed_comment
 
     let formatted = test.format(
         &inner_expression_id,
-        DestackFormatOptions::default_with_line_width(100),
+        TsppFormatOptions::default_with_line_width(100),
     );
 
     assert_eq!(
@@ -308,8 +306,8 @@ fn test_format_unary_negative_separator_line_comments() {
     1
 );
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -327,8 +325,8 @@ start: while (true) {
     break start;
 }
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -340,8 +338,8 @@ fn test_format_ternary_alternate_block_separator_comments() {
 "#,
         r#"const x = condition ? /* then */ valueA : /* else */ valueB;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -357,8 +355,8 @@ valueB
     : // else-note
       valueB;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -370,8 +368,8 @@ fn test_format_tagged_template_expression_preserves_generic_arguments() {
 "#,
         r#"const value = sql<Type>`select * from t`;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -383,11 +381,11 @@ fn test_format_type_template_remap_comment_stays_on_remap_boundary() {
     `get${Capitalize<K & string>}`]: () => T[K]
 }"#;
     let (test, expression_id) =
-        TestFormatter::parse_with_file_type(input, FileType::Destack, |parser| {
+        TestFormatter::parse_with_file_type(input, FileType::Tspp, |parser| {
             parse_first_expression(parser)
         })
         .unwrap();
-    let context = test.context(DestackFormatOptions::default_with_line_width(100));
+    let context = test.context(TsppFormatOptions::default_with_line_width(100));
 
     let Expression::Declaration(declaration_id) = context.tree.get(expression_id) else {
         panic!("expected type declaration");
@@ -417,7 +415,7 @@ fn test_format_type_template_remap_comment_stays_on_remap_boundary() {
         context.comments_after_previous_token(generic_arguments[0]);
     let formatted_expression = test.format(
         &expression_id,
-        DestackFormatOptions::default_with_line_width(100),
+        TsppFormatOptions::default_with_line_width(100),
     );
 
     assert!(

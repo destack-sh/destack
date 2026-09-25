@@ -1,7 +1,7 @@
-use destack_core::StringId;
-use destack_dir::{Expression, LocalNodeId, Path, TokenSpan, TokenType};
-use destack_source::ByteRange;
 use smallvec::SmallVec;
+use tspp_core::StringId;
+use tspp_dir::{Expression, LocalNodeId, Path, TokenSpan, TokenType};
+use tspp_source::ByteRange;
 
 use crate::{Parser, ParserError, ParserResult};
 
@@ -24,7 +24,7 @@ impl Parser {
     /// Parse one standalone regular path.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// network.http.Client
     /// ```
     pub fn parse_path(&mut self) -> ParserResult<Path> {

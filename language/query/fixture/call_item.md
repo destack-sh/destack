@@ -5,7 +5,7 @@
 
 A function name and every direct call identify the same callable declaration.
 
-```ds main.ds
+```tspp main.tspp
 function callee(): void {}
 ^^^^^^^^^^^^^^^^^^^^^^^^^^ declaration
          ^^^^^^ name
@@ -14,19 +14,19 @@ callee();
 ^^^^^^ call
 ```
 
-```query call_item main.ds#name
-@call_item.item name=callee kind=function signature="callee(): void" location=main.ds#declaration selection=main.ds#name symbol=main.ds#callee@1
+```query call_item main.tspp#name
+@call_item.item name=callee kind=function signature="callee(): void" location=main.tspp#declaration selection=main.tspp#name symbol=main.tspp#callee@1
 ```
 
-```query call_item main.ds#call
-@call_item.item name=callee kind=function signature="callee(): void" location=main.ds#declaration selection=main.ds#name symbol=main.ds#callee@1
+```query call_item main.tspp#call
+@call_item.item name=callee kind=function signature="callee(): void" location=main.tspp#declaration selection=main.tspp#name symbol=main.tspp#callee@1
 ```
 
 ### Resolve the current call target
 
 A call identifies the function selected after each edit.
 
-```ds main.ds
+```tspp main.tspp
 function first(): void {}
 ^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:first
          ^^^^^ name:first
@@ -39,11 +39,11 @@ first();
 ^^^^^ call
 ```
 
-```query call_item main.ds#call
-@call_item.item name=first kind=function signature="first(): void" location=main.ds#declaration:first selection=main.ds#name:first symbol=main.ds#first@1
+```query call_item main.tspp#call
+@call_item.item name=first kind=function signature="first(): void" location=main.tspp#declaration:first selection=main.tspp#name:first symbol=main.tspp#first@1
 ```
 
-```ds main.ds change
+```tspp main.tspp change
 function first(): void {}
 ^^^^^^^^^^^^^^^^^^^^^^^^^ declaration:first
          ^^^^^ name:first
@@ -56,8 +56,8 @@ second();
 ^^^^^^ call
 ```
 
-```query call_item main.ds#call
-@call_item.item name=second kind=function signature="second(): void" location=main.ds#declaration:second selection=main.ds#name:second symbol=main.ds#second@2
+```query call_item main.tspp#call
+@call_item.item name=second kind=function signature="second(): void" location=main.tspp#declaration:second selection=main.tspp#name:second symbol=main.tspp#second@2
 ```
 
 ## Methods
@@ -66,7 +66,7 @@ second();
 
 A method name and its calls identify the same qualified declaration.
 
-```ds main.ds
+```tspp main.tspp
 class Service {
     run(): void {}
     ^^^^^^^^^^^^^^ declaration
@@ -78,12 +78,12 @@ service.run();
         ^^^ call
 ```
 
-```query call_item main.ds#name
-@call_item.item name=run kind=method signature="Service.run(): void" location=main.ds#declaration selection=main.ds#name symbol=main.ds#run@2
+```query call_item main.tspp#name
+@call_item.item name=run kind=method signature="Service.run(): void" location=main.tspp#declaration selection=main.tspp#name symbol=main.tspp#run@2
 ```
 
-```query call_item main.ds#call
-@call_item.item name=run kind=method signature="Service.run(): void" location=main.ds#declaration selection=main.ds#name symbol=main.ds#run@2
+```query call_item main.tspp#call
+@call_item.item name=run kind=method signature="Service.run(): void" location=main.tspp#declaration selection=main.tspp#name symbol=main.tspp#run@2
 ```
 
 ## Imports
@@ -92,15 +92,15 @@ service.run();
 
 Imported names, local aliases, and calls through those aliases identify the function in its defining module.
 
-```ds library.ds
+```tspp library.tspp
 export function target(): void {}
 ^ declaration:start
                                  ^ declaration:end
                 ^^^^^^ name
 ```
 
-```ds main.ds
-import { target as localTarget } from "./library.ds";
+```tspp main.tspp
+import { target as localTarget } from "./library.tspp";
          ^^^^^^ imported_name
                    ^^^^^^^^^^^ local_name
 
@@ -108,16 +108,16 @@ localTarget();
 ^^^^^^^^^^^ call
 ```
 
-```query call_item main.ds#imported_name
-@call_item.item name=target kind=function signature="target(): void" location=library.ds#declaration selection=library.ds#name symbol=library.ds#target@1
+```query call_item main.tspp#imported_name
+@call_item.item name=target kind=function signature="target(): void" location=library.tspp#declaration selection=library.tspp#name symbol=library.tspp#target@1
 ```
 
-```query call_item main.ds#local_name
-@call_item.item name=target kind=function signature="target(): void" location=library.ds#declaration selection=library.ds#name symbol=library.ds#target@1
+```query call_item main.tspp#local_name
+@call_item.item name=target kind=function signature="target(): void" location=library.tspp#declaration selection=library.tspp#name symbol=library.tspp#target@1
 ```
 
-```query call_item main.ds#call
-@call_item.item name=target kind=function signature="target(): void" location=library.ds#declaration selection=library.ds#name symbol=library.ds#target@1
+```query call_item main.tspp#call
+@call_item.item name=target kind=function signature="target(): void" location=library.tspp#declaration selection=library.tspp#name symbol=library.tspp#target@1
 ```
 
 ## Overloads
@@ -126,7 +126,7 @@ localTarget();
 
 Each call identifies the overload that accepts its argument.
 
-```ds main.ds
+```tspp main.tspp
 function parse(value: int32): int32 {
 ^ integer_declaration:start
          ^^^^^ integer_name
@@ -147,12 +147,12 @@ const stringValue = parse("ok");
                     ^^^^^ string_call
 ```
 
-```query call_item main.ds#integer_call
-@call_item.item name=parse kind=function signature="parse(value: int32): int32" location=main.ds#integer_declaration selection=main.ds#integer_name symbol=main.ds#parse@1
+```query call_item main.tspp#integer_call
+@call_item.item name=parse kind=function signature="parse(value: int32): int32" location=main.tspp#integer_declaration selection=main.tspp#integer_name symbol=main.tspp#parse@1
 ```
 
-```query call_item main.ds#string_call
-@call_item.item name=parse kind=function signature="parse(value: string): string" location=main.ds#string_declaration selection=main.ds#string_name symbol=main.ds#parse@3
+```query call_item main.tspp#string_call
+@call_item.item name=parse kind=function signature="parse(value: string): string" location=main.tspp#string_declaration selection=main.tspp#string_name symbol=main.tspp#parse@3
 ```
 
 ## Generic Functions
@@ -161,7 +161,7 @@ const stringValue = parse("ok");
 
 A generic declaration and an applied call identify the same generic callable item.
 
-```ds main.ds
+```tspp main.tspp
 function identity<T>(value: T): T {
 ^ declaration:start
          ^^^^^^^^ name
@@ -173,12 +173,12 @@ const result = identity<string>("value");
                ^^^^^^^^ call
 ```
 
-```query call_item main.ds#name
-@call_item.item name=identity kind=function signature="identity<T>(value: T): T" location=main.ds#declaration selection=main.ds#name symbol=main.ds#identity@1
+```query call_item main.tspp#name
+@call_item.item name=identity kind=function signature="identity<T>(value: T): T" location=main.tspp#declaration selection=main.tspp#name symbol=main.tspp#identity@1
 ```
 
-```query call_item main.ds#call
-@call_item.item name=identity kind=function signature="identity<T>(value: T): T" location=main.ds#declaration selection=main.ds#name symbol=main.ds#identity@1
+```query call_item main.tspp#call
+@call_item.item name=identity kind=function signature="identity<T>(value: T): T" location=main.tspp#declaration selection=main.tspp#name symbol=main.tspp#identity@1
 ```
 
 ## Extensions
@@ -187,7 +187,7 @@ const result = identity<string>("value");
 
 An extension call identifies its method declaration.
 
-```ds main.ds
+```tspp main.tspp
 struct Calculator {}
 
 extension of Calculator {
@@ -204,12 +204,12 @@ calculator.add(1, 2);
            ^^^ call
 ```
 
-```query call_item main.ds#name
-@call_item.item name=add kind=method signature="Calculator.add(left: int32, right: int32): int32" location=main.ds#declaration selection=main.ds#name symbol=main.ds#add@3
+```query call_item main.tspp#name
+@call_item.item name=add kind=method signature="Calculator.add(left: int32, right: int32): int32" location=main.tspp#declaration selection=main.tspp#name symbol=main.tspp#add@3
 ```
 
-```query call_item main.ds#call
-@call_item.item name=add kind=method signature="Calculator.add(left: int32, right: int32): int32" location=main.ds#declaration selection=main.ds#name symbol=main.ds#add@3
+```query call_item main.tspp#call
+@call_item.item name=add kind=method signature="Calculator.add(left: int32, right: int32): int32" location=main.tspp#declaration selection=main.tspp#name symbol=main.tspp#add@3
 ```
 
 ## Class Constructors
@@ -218,7 +218,7 @@ calculator.add(1, 2);
 
 A constructor declaration and its constructions identify the same constructor member.
 
-```ds main.ds
+```tspp main.tspp
 class User {
     constructor(name: string) {}
     ^ declaration:start
@@ -230,19 +230,19 @@ const user = new User("Ada");
                  ^^^^ call
 ```
 
-```query call_item main.ds#name
-@call_item.item name=constructor kind=constructor signature="User.constructor(name: string)" location=main.ds#declaration selection=main.ds#name symbol=main.ds#symbol@2
+```query call_item main.tspp#name
+@call_item.item name=constructor kind=constructor signature="User.constructor(name: string)" location=main.tspp#declaration selection=main.tspp#name symbol=main.tspp#symbol@2
 ```
 
-```query call_item main.ds#call
-@call_item.item name=constructor kind=constructor signature="User.constructor(name: string)" location=main.ds#declaration selection=main.ds#name symbol=main.ds#symbol@2
+```query call_item main.tspp#call
+@call_item.item name=constructor kind=constructor signature="User.constructor(name: string)" location=main.tspp#declaration selection=main.tspp#name symbol=main.tspp#symbol@2
 ```
 
 ### Return the class item for a default constructor
 
 A class without a constructor declaration owns its default construction item.
 
-```ds main.ds
+```tspp main.tspp
 class User {}
 ^^^^^^^^^^^^^ declaration
       ^^^^ name
@@ -251,12 +251,12 @@ const user = new User();
                  ^^^^ call
 ```
 
-```query call_item main.ds#name
-@call_item.item name=User kind=constructor signature="User(): User" location=main.ds#declaration selection=main.ds#name symbol=main.ds#User@1
+```query call_item main.tspp#name
+@call_item.item name=User kind=constructor signature="User(): User" location=main.tspp#declaration selection=main.tspp#name symbol=main.tspp#User@1
 ```
 
-```query call_item main.ds#call
-@call_item.item name=User kind=constructor signature="User(): User" location=main.ds#declaration selection=main.ds#name symbol=main.ds#User@1
+```query call_item main.tspp#call
+@call_item.item name=User kind=constructor signature="User(): User" location=main.tspp#declaration selection=main.tspp#name symbol=main.tspp#User@1
 ```
 
 ## Newtype Constructors
@@ -265,21 +265,21 @@ const user = new User();
 
 A newtype declaration identifies its constructor.
 
-```ds main.ds
+```tspp main.tspp
 newtype UserId = string;
 ^^^^^^^^^^^^^^^^^^^^^^^ declaration
         ^^^^^^ name
 ```
 
-```query call_item main.ds#name
-@call_item.item name=UserId kind=constructor signature="UserId(string): UserId" location=main.ds#declaration selection=main.ds#name symbol=main.ds#UserId@1
+```query call_item main.tspp#name
+@call_item.item name=UserId kind=constructor signature="UserId(string): UserId" location=main.tspp#declaration selection=main.tspp#name symbol=main.tspp#UserId@1
 ```
 
 ### Return a newtype constructor from its construction
 
 A newtype construction identifies its constructor.
 
-```ds main.ds
+```tspp main.tspp
 newtype UserId = string;
 ^^^^^^^^^^^^^^^^^^^^^^^ declaration
         ^^^^^^ name
@@ -288,8 +288,8 @@ const userId = UserId("user-1");
                ^^^^^^ call
 ```
 
-```query call_item main.ds#call
-@call_item.item name=UserId kind=constructor signature="UserId(string): UserId" location=main.ds#declaration selection=main.ds#name symbol=main.ds#UserId@1
+```query call_item main.tspp#call
+@call_item.item name=UserId kind=constructor signature="UserId(string): UserId" location=main.tspp#declaration selection=main.tspp#name symbol=main.tspp#UserId@1
 ```
 
 ## Indirect Calls
@@ -298,7 +298,7 @@ const userId = UserId("user-1");
 
 Calling through a variable does not identify a declaration-backed item.
 
-```ds main.ds
+```tspp main.tspp
 function callee(): void {}
 
 const callback = callee;
@@ -306,7 +306,7 @@ callback();
 ^^^^^^^^ call
 ```
 
-```query call_item main.ds#call
+```query call_item main.tspp#call
 @call_item.none
 ```
 
@@ -316,7 +316,7 @@ callback();
 
 A union receiver can select a finite set of methods, but it does not identify one hierarchy item.
 
-```ds main.ds
+```tspp main.tspp
 class Alpha {
     run(): void {}
 }
@@ -331,7 +331,7 @@ function start(service: Alpha | Beta): void {
 }
 ```
 
-```query call_item main.ds#call
+```query call_item main.tspp#call
 @call_item.none
 ```
 
@@ -341,12 +341,12 @@ function start(service: Alpha | Beta): void {
 
 A non-callable symbol has no call hierarchy item.
 
-```ds main.ds
+```tspp main.tspp
 const value = 1;
       ^^^^^ value
 ```
 
-```query call_item main.ds#value
+```query call_item main.tspp#value
 @call_item.none
 ```
 
@@ -354,13 +354,13 @@ const value = 1;
 
 An enum member is a value rather than a callable constructor.
 
-```ds main.ds
+```tspp main.tspp
 enum Status {
     Ready,
     ^^^^^ value
 }
 ```
 
-```query call_item main.ds#value
+```query call_item main.tspp#value
 @call_item.none
 ```

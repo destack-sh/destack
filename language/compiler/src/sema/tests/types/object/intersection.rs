@@ -18,7 +18,7 @@ export function pick(value: Round): int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -65,7 +65,7 @@ export function pick(value: Round): int32 {
 fn test_reduce_imported_alias_intersection() {
     let session = TestSession::builder()
         .module(
-            "options.ds",
+            "options.tspp",
             r#"
 export type Precision = {
     digits?: int32;
@@ -77,9 +77,9 @@ export type Calendar = {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Calendar, Precision } from "./options.ds";
+import { Calendar, Precision } from "./options.tspp";
 
 export type Both = Precision & Calendar;
 
@@ -91,11 +91,11 @@ export function pick(value: Both): int32 {
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Calendar, Precision } from "./options.ds";
+import { Calendar, Precision } from "./options.tspp";
 
 export type Both = Precision & Calendar;
 
@@ -104,7 +104,7 @@ export function pick(value: Both): int32 {
 }
 
 === dir ===
-import { Calendar, Precision } from "./options.ds";
+import { Calendar, Precision } from "./options.tspp";
 
 export type Both = Precision & Calendar;
 /// @type.symbol symbol=Both source="export type Both = Precision & Calendar" type={ digits?: int32; calendarName?: int32 }
@@ -128,9 +128,9 @@ export function pick(value: Both): int32 {
 fn test_reduce_cyclic_alias_intersection() {
     let session = TestSession::builder()
         .module(
-            "plain.ds",
+            "plain.tspp",
             r#"
-import { Zoned } from "./zoned.ds";
+import { Zoned } from "./zoned.tspp";
 
 export type PlainLike = {
     day?: int32;
@@ -140,9 +140,9 @@ export declare function toZoned(value: PlainLike): Zoned;
 "#,
         )
         .module(
-            "zoned.ds",
+            "zoned.tspp",
             r#"
-import { PlainLike } from "./plain.ds";
+import { PlainLike } from "./plain.tspp";
 
 export type ZonedLike = PlainLike & {
     offset?: int32;
@@ -158,11 +158,11 @@ export class Zoned {
         .build();
 
     session.assert_dir(
-        "zoned.ds",
+        "zoned.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { PlainLike } from "./plain.ds";
+import { PlainLike } from "./plain.tspp";
 
 export type ZonedLike = PlainLike & {
     offset?: int32;
@@ -175,7 +175,7 @@ export class Zoned {
 }
 
 === dir ===
-import { PlainLike } from "./plain.ds";
+import { PlainLike } from "./plain.tspp";
 
 export type ZonedLike = PlainLike & {
 /// @type.symbol symbol=ZonedLike type={ day?: int32; offset?: int32 }
@@ -228,7 +228,7 @@ export declare function pick(value: Narrowed): int32;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -297,7 +297,7 @@ export function configure(options: SignalOptions & MemoOptions): int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

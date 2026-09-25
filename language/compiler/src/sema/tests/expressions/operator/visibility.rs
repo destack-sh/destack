@@ -4,9 +4,9 @@ use crate::tests::{DirRows, TestSession};
 fn test_exported_extension_overloads_imported_type() {
     let session = TestSession::builder()
         .module(
-            "force.ds",
+            "force.tspp",
             r#"
-import { Multiply } from "destack:ops";
+import { Multiply } from "tspp:ops";
 
 export struct Force {
     value: float64;
@@ -22,9 +22,9 @@ export extension of Force implements Multiply<float64> {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Force } from "./force.ds";
+import { Force } from "./force.tspp";
 
 declare const force: Force;
 const scaled = force * 2.0;
@@ -33,17 +33,17 @@ const scaled = force * 2.0;
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Force } from "./force.ds";
+import { Force } from "./force.tspp";
 
 declare const force: Force;
 const scaled: Force = force * 2.0;
 
 === dir ===
-import { Force } from "./force.ds";
+import { Force } from "./force.tspp";
 
 declare const force: Force;
 /// @type.symbol symbol=force source=force type=force.Force
@@ -67,9 +67,9 @@ const scaled = force * 2.0;
 fn test_local_extension_stays_module_private() {
     let session = TestSession::builder()
         .module(
-            "force.ds",
+            "force.tspp",
             r#"
-import { Multiply } from "destack:ops";
+import { Multiply } from "tspp:ops";
 
 export struct Force {
     value: float64;
@@ -88,9 +88,9 @@ export const doubled: Force = inside * 2.0;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Force } from "./force.ds";
+import { Force } from "./force.tspp";
 
 declare const force: Force;
 const scaled = force * 2.0;
@@ -100,11 +100,11 @@ const scaled = force * 2.0;
 
     // resolve the operator inside the declaring module
     session.assert_dir(
-        "force.ds",
+        "force.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Multiply } from "destack:ops";
+import { Multiply } from "tspp:ops";
 
 export struct Force {
     value: float64;
@@ -122,7 +122,7 @@ declare const inside: Force;
 export const doubled: Force = inside * 2.0;
 
 === dir ===
-import { Multiply } from "destack:ops";
+import { Multiply } from "tspp:ops";
 
 export struct Force {
 /// @type.symbol symbol=Force type=Force
@@ -192,17 +192,17 @@ export const doubled: Force = inside * 2.0;
 
     // reject the operator outside the declaring module
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Force } from "./force.ds";
+import { Force } from "./force.tspp";
 
 declare const force: Force;
 const scaled = force * 2.0;
 
 === dir ===
-import { Force } from "./force.ds";
+import { Force } from "./force.tspp";
 
 declare const force: Force;
 /// @type.symbol symbol=force source=force type=force.Force
@@ -228,7 +228,7 @@ const scaled = force * 2.0;
 fn test_using_module_extension_overloads_foreign_type() {
     let session = TestSession::builder()
         .module(
-            "force.ds",
+            "force.tspp",
             r#"
 export struct Force {
     value: float64;
@@ -236,10 +236,10 @@ export struct Force {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Multiply } from "destack:ops";
-import { Force } from "./force.ds";
+import { Multiply } from "tspp:ops";
+import { Force } from "./force.tspp";
 
 extension of Force implements Multiply<float64> {
     type Output = Force;
@@ -256,13 +256,13 @@ const scaled = force * 2.0;
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Multiply } from "destack:ops";
+import { Multiply } from "tspp:ops";
 
-import { Force } from "./force.ds";
+import { Force } from "./force.tspp";
 
 extension of Force implements Multiply<float64> {
     type Output = Force;
@@ -276,8 +276,8 @@ declare const force: Force;
 const scaled: Force = force * 2.0;
 
 === dir ===
-import { Multiply } from "destack:ops";
-import { Force } from "./force.ds";
+import { Multiply } from "tspp:ops";
+import { Force } from "./force.tspp";
 
 extension of Force implements Multiply<float64> {
 /// @generic.instance id=Multiply<float64> template=Multiply arguments=(float64)
@@ -339,7 +339,7 @@ const scaled = force * 2.0;
 fn test_imported_named_extension_overloads_foreign_type() {
     let session = TestSession::builder()
         .module(
-            "force.ds",
+            "force.tspp",
             r#"
 export struct Force {
     value: float64;
@@ -347,10 +347,10 @@ export struct Force {
 "#,
         )
         .module(
-            "scaling.ds",
+            "scaling.tspp",
             r#"
-import { Multiply } from "destack:ops";
-import { Force } from "./force.ds";
+import { Multiply } from "tspp:ops";
+import { Force } from "./force.tspp";
 
 export extension Scaling of Force implements Multiply<float64> {
     type Output = Force;
@@ -362,10 +362,10 @@ export extension Scaling of Force implements Multiply<float64> {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Force } from "./force.ds";
-import { Scaling } from "./scaling.ds";
+import { Force } from "./force.tspp";
+import { Scaling } from "./scaling.tspp";
 
 declare const force: Force;
 const scaled = force * 2.0;
@@ -374,19 +374,19 @@ const scaled = force * 2.0;
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Force } from "./force.ds";
-import { Scaling } from "./scaling.ds";
+import { Force } from "./force.tspp";
+import { Scaling } from "./scaling.tspp";
 
 declare const force: Force;
 const scaled: Force = force * 2.0;
 
 === dir ===
-import { Force } from "./force.ds";
-import { Scaling } from "./scaling.ds";
+import { Force } from "./force.tspp";
+import { Scaling } from "./scaling.tspp";
 
 declare const force: Force;
 /// @type.symbol symbol=force source=force type=force.Force

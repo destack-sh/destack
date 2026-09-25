@@ -1,10 +1,10 @@
-use destack_artifact::{DiagnosticAnchor, DiagnosticBuilder, DirExported, ProfileKey};
-use destack_core::StringPool;
-use destack_dir as dir;
-use destack_repository::{Environment, Module, Package};
-use destack_source::ModuleId;
 use indexmap::{IndexMap, IndexSet};
 use smallvec::{SmallVec, smallvec};
+use tspp_artifact::{DiagnosticAnchor, DiagnosticBuilder, DirExported, ProfileKey};
+use tspp_core::StringPool;
+use tspp_dir as dir;
+use tspp_repository::{Environment, Module, Package};
+use tspp_source::ModuleId;
 
 use crate::export::stats::ExportStats;
 use crate::{ExportError, ExportResult};

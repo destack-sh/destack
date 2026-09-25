@@ -1,11 +1,11 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependencySet, SourceDependency};
-use destack_repository::{
+use tspp_artifact::{ArtifactDependencySet, SourceDependency};
+use tspp_repository::{
     DestackFile, Environment, Module, Package, Profile, ProviderContext, Revision, Target,
 };
-use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, TargetId, Uri};
+use tspp_source::{File, FileId, ModuleId, PackageId, ProfileId, TargetId, Uri};
 
 use crate::{Compiler, CompilerError, CompilerResult};
 

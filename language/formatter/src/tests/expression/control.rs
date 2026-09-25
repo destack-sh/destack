@@ -1,9 +1,9 @@
 use crate::{
-    DestackFormatOptions, assert_format, assert_format_program,
+    TsppFormatOptions, assert_format, assert_format_program,
     assert_format_program_reference_widths, assert_format_program_roundtrip_with_file_type,
     parse_first_expression,
 };
-use destack_source::FileType;
+use tspp_source::FileType;
 
 #[test]
 fn test_format_match_expression_cases() {
@@ -14,7 +14,7 @@ fn test_format_match_expression_cases() {
 	3 => 4
 }"#,
         parse_first_expression,
-        DestackFormatOptions::default_tab()
+        TsppFormatOptions::default_tab()
     );
 }
 
@@ -28,7 +28,7 @@ fn test_format_yield_member_separator_comment() {
     .run();
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -59,7 +59,7 @@ fn test_format_for_assignment_slots() {
         r#"for (i = 0; foo = bar; i += 1) {}"#,
         r#"for (i = 0; (foo = bar); i += 1) {}
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -69,7 +69,7 @@ fn test_format_for_condition_groups_independently() {
     assert_format_program_reference_widths(
         r#"for (let lane: usize = firstLaneOffsetThatForcesTheInitializerToBreak(); lane < N; lane += strideThatForcesTheUpdateToBreak()) {}
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[(
             80,
             r#"for (
@@ -91,7 +91,7 @@ fn test_format_while_binding_condition() {
     process(value);
 }
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -104,7 +104,7 @@ fn test_format_grouped_while_binding_condition_operand() {
     process(value);
 }
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -118,7 +118,7 @@ fn test_format_match_with_block_case_and_guard() {
 	}
 }"#,
         parse_first_expression,
-        DestackFormatOptions::default_tab()
+        TsppFormatOptions::default_tab()
     );
 }
 
@@ -131,7 +131,7 @@ fn test_format_match_binding_guard() {
     text if ((ready || retry) && let parsed! = parse(text) && parsed > 0) => parsed
 }
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -146,7 +146,7 @@ fn test_format_switch_expression_cases() {
 		4;
 }"#,
         parse_first_expression,
-        DestackFormatOptions::default_tab()
+        TsppFormatOptions::default_tab()
     );
 }
 
@@ -161,7 +161,7 @@ fn test_format_switch_with_default_case() {
 		"other";
 }"#,
         parse_first_expression,
-        DestackFormatOptions::default_tab()
+        TsppFormatOptions::default_tab()
     );
 }
 
@@ -175,7 +175,7 @@ fn test_format_switch_with_block() {
 	}
 }"#,
         parse_first_expression,
-        DestackFormatOptions::default_tab()
+        TsppFormatOptions::default_tab()
     );
 }
 
@@ -190,7 +190,7 @@ fn test_format_match_with_annotated_arm() {
     Ok(v) => v
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -207,7 +207,7 @@ else if (false) {}
 
 else {}
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -253,8 +253,8 @@ fn test_format_if_else_block_boundary_comment() {
     stop()
 }
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 }
 
@@ -272,8 +272,8 @@ else {
     stop()
 }
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 }
 
@@ -287,8 +287,8 @@ else stop()
         r#"if (ready) run(); // keep-run
 else stop();
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 }
 
@@ -303,8 +303,8 @@ else stop()
         r#"if (ready) run();
 /* keep-boundary */ else stop();
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 }
 
@@ -320,8 +320,8 @@ else stop()
 // keep-boundary
 else stop();
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 }
 
@@ -397,7 +397,7 @@ function *t11() {
     ) + 1;
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -571,6 +571,6 @@ const d = outer: loop {
     break outer: "done";
 };
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }

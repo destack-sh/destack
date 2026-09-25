@@ -1,0 +1,471 @@
+import { Result, todo } from "tspp:error";
+import { IntlError, Locales, NumberFormatOptions, ToLocaleString } from "tspp:intl";
+import { Clone, Concrete, Copy } from "tspp:memory";
+import { PartialEqual } from "tspp:ops";
+
+import { One, Zero } from "./identity.tspp";
+import { Integer } from "./integer.tspp";
+
+/// Marker for float literals and builtin float types.
+@languageItem("math.FloatDomain")
+export newtype interface FloatDomain {}
+
+/// Marker for the builtin float formats of any width.
+@languageItem("math.Float")
+export newtype interface Float extends Concrete, Copy, FloatDomain, Zero, One {}
+
+/// Methods shared by every builtin float format.
+export extension<T: Float> of T implements Clone, PartialEqual<T>, ToLocaleString {
+    /// Return this number as a string.
+    toString(this, radix?: number): ^string {
+        todo("Number.toString")
+    }
+
+    /// Return this number in fixed-point notation.
+    toFixed(this, fractionDigits?: number): ^string {
+        todo("Number.toFixed")
+    }
+
+    /// Return this number in exponential notation.
+    toExponential(this, fractionDigits?: number): ^string {
+        todo("Number.toExponential")
+    }
+
+    /// Return this number with the requested precision.
+    toPrecision(this, precision?: number): ^string {
+        todo("Number.toPrecision")
+    }
+
+    /// Return this number as a locale-aware string.
+    toLocaleString(this): ^string {
+        todo("Number.toLocaleStringDefault")
+    }
+
+    /// Return this number as a locale-aware string with explicit locales.
+    toLocaleString(this, locales: &readonly Locales): Result<string, IntlError> {
+        todo("Number.toLocaleStringLocales")
+    }
+
+    /// Return this number as a locale-aware string with explicit options.
+    toLocaleString(
+        this,
+        locales?: &readonly Locales,
+        options?: &readonly NumberFormatOptions,
+    ): Result<string, IntlError> {
+        todo("Number.toLocaleString")
+    }
+
+    /// Return a copy of this value.
+    clone(&immutable this): ^this {
+        *this
+    }
+
+    /// Return whether this value equals `other`, every NaN unequal to itself.
+    equal(&immutable this, other: &immutable T): boolean {
+        *this === *other
+    }
+
+    /// Return the midpoint without avoidable overflow or underflow.
+    ///
+    /// Returns NaN when either value is NaN or the values are opposite infinities.
+    midpoint(this, other: T): T {
+        midpoint(this, other)
+    }
+
+    /// Clamp this value between ordered bounds.
+    ///
+    /// Traps when the bounds are inverted or either bound is NaN.
+    clamp(this, minimum: T, maximum: T): T {
+        clamp(this, minimum, maximum)
+    }
+
+    /// Return whether this value is finite.
+    isFinite(this): boolean {
+        isFinite(this)
+    }
+
+    /// Return whether this value is NaN.
+    isNaN(this): boolean {
+        this != this
+    }
+
+    /// Return whether this value is infinite.
+    isInfinite(this): boolean {
+        isInfinite(this)
+    }
+
+    /// Return whether this value is subnormal.
+    isSubnormal(this): boolean {
+        todo("Float.isSubnormal")
+    }
+
+    /// Return whether this value has a negative sign bit.
+    isSignNegative(this): boolean {
+        todo("Float.isSignNegative")
+    }
+
+    /// Return whether this value has a positive sign bit.
+    isSignPositive(this): boolean {
+        todo("Float.isSignPositive")
+    }
+
+    /// Return the square root.
+    sqrt(this): T {
+        sqrt(this)
+    }
+
+    /// Return the cube root.
+    cbrt(this): T {
+        cbrt(this)
+    }
+
+    /// Return the absolute value.
+    abs(this): T {
+        abs(this)
+    }
+
+    /// Return the sine.
+    sin(this): T {
+        sin(this)
+    }
+
+    /// Return the cosine.
+    cos(this): T {
+        cos(this)
+    }
+
+    /// Return the tangent.
+    tan(this): T {
+        tan(this)
+    }
+
+    /// Return the hyperbolic sine.
+    sinh(this): T {
+        // preserve small inputs and delay overflow until the result overflows
+        let magnitude = this.abs();
+        let two = T.one() + T.one();
+        let result = if (magnitude <= T.one()) {
+            let delta = magnitude.expm1();
+
+            delta * (T.one() + T.one() / (delta + T.one())) / two
+        } else {
+            let half = (magnitude / two).exp();
+
+            half / two * half - T.one() / half / two / half
+        };
+
+        result.copySign(this)
+    }
+
+    /// Return the hyperbolic cosine.
+    cosh(this): T {
+        // split the exponential so its intermediate value does not overflow early
+        let magnitude = this.abs();
+        let two = T.one() + T.one();
+        let half = (magnitude / two).exp();
+
+        half / two * half + (-magnitude).exp() / two
+    }
+
+    /// Return the hyperbolic tangent.
+    tanh(this): T {
+        // use a bounded exponential and preserve the input sign
+        let two = T.one() + T.one();
+        let delta = (-two * this.abs()).expm1();
+        let magnitude = -delta / (two + delta);
+
+        magnitude.copySign(this)
+    }
+
+    /// Return the arc sine.
+    asin(this): T {
+        asin(this)
+    }
+
+    /// Return the arc cosine.
+    acos(this): T {
+        acos(this)
+    }
+
+    /// Return the arc tangent.
+    atan(this): T {
+        atan(this)
+    }
+
+    /// Return the inverse hyperbolic sine.
+    asinh(this): T {
+        // avoid cancellation near zero and squaring large inputs
+        let magnitude = this.abs();
+        let result = if (magnitude <= T.one()) {
+            let square = magnitude * magnitude;
+
+            (magnitude + square / (T.one() + (T.one() + square).sqrt())).log1p()
+        } else {
+            let inverse = T.one() / magnitude;
+
+            magnitude.log() + (T.one() + inverse * inverse).sqrt().log1p()
+        };
+
+        result.copySign(this)
+    }
+
+    /// Return the inverse hyperbolic cosine.
+    acosh(this): T {
+        // preserve the distance from one and avoid squaring large inputs
+        if (this <= T.one() + T.one()) {
+            let distance = this - T.one();
+
+            (distance + (distance * (this + T.one())).sqrt()).log1p()
+        } else {
+            let inverse = T.one() / this;
+
+            this.log() + ((T.one() - inverse) * (T.one() + inverse)).sqrt().log1p()
+        }
+    }
+
+    /// Return the inverse hyperbolic tangent.
+    atanh(this): T {
+        // preserve small inputs without subtracting nearly equal logarithms
+        let magnitude = this.abs();
+        let two = T.one() + T.one();
+        let result = (two * magnitude / (T.one() - magnitude)).log1p() / two;
+
+        result.copySign(this)
+    }
+
+    /// Return the natural exponential.
+    exp(this): T {
+        exp(this)
+    }
+
+    /// Return the natural exponential minus one.
+    expm1(this): T {
+        expm1(this)
+    }
+
+    /// Return the base-2 exponential.
+    exp2(this): T {
+        exp2(this)
+    }
+
+    /// Return the natural logarithm.
+    log(this): T {
+        log(this)
+    }
+
+    /// Return the natural logarithm of one plus this value.
+    log1p(this): T {
+        log1p(this)
+    }
+
+    /// Return the base-2 logarithm.
+    log2(this): T {
+        log2(this)
+    }
+
+    /// Return the base-10 logarithm.
+    log10(this): T {
+        log10(this)
+    }
+
+    /// Round toward negative infinity.
+    floor(this): T {
+        floor(this)
+    }
+
+    /// Round toward positive infinity.
+    ceil(this): T {
+        ceil(this)
+    }
+
+    /// Round toward zero.
+    trunc(this): T {
+        trunc(this)
+    }
+
+    /// Round to the nearest integer, breaking ties toward positive infinity.
+    round(this): T {
+        round(this)
+    }
+
+    /// Round to the nearest integer, breaking ties toward even integers.
+    roundTiesEven(this): T {
+        roundTiesEven(this)
+    }
+
+    /// Round to the nearest integer, breaking ties away from zero.
+    roundTiesAway(this): T {
+        roundTiesAway(this)
+    }
+
+    /// Convert to `U`, saturating into the destination range.
+    saturate<U: Integer>(this): U {
+        saturateFloat<T, U>(this)
+    }
+
+    /// Return the angle from the positive x-axis to this y-coordinate and `x`.
+    atan2(this, x: T): T {
+        atan2(this, x)
+    }
+
+    /// Raise this value to `exponent`.
+    pow(this, exponent: T): T {
+        pow(this, exponent)
+    }
+
+    /// Copy the sign of `sign` onto this magnitude.
+    copySign(this, sign: T): T {
+        copySign(this, sign)
+    }
+
+    /// Return the smaller value, propagating NaN and preferring negative zero.
+    min(this, other: T): T {
+        min(this, other)
+    }
+
+    /// Return the larger value, propagating NaN and preferring positive zero.
+    max(this, other: T): T {
+        max(this, other)
+    }
+
+    /// Return this value times `multiplier` plus `addend` with one rounding.
+    fma(this, multiplier: T, addend: T): T {
+        fma(this, multiplier, addend)
+    }
+}
+
+/// Compute a floating-point midpoint without avoidable overflow or underflow.
+///
+/// Returns NaN when either value is NaN or the values are opposite infinities.
+@intrinsic("math.arithmetic.midpoint")
+declare function midpoint<T: Float>(left: T, right: T): T;
+
+/// Clamp one floating-point value between ordered bounds.
+///
+/// Traps when the bounds are inverted or either bound is NaN.
+@intrinsic("math.arithmetic.clamp")
+declare function clamp<T: Float>(value: T, minimum: T, maximum: T): T;
+
+/// Convert one floating-point value to an integer, saturating into the destination range.
+@intrinsic("math.cast.floatToInt.saturating")
+declare function saturateFloat<T: Float, U: Integer>(value: T): U;
+
+/// Test whether a floating-point value is finite.
+@intrinsic("math.float.isFinite")
+declare function isFinite<T: Float>(value: T): boolean;
+
+/// Test whether a floating-point value is infinite.
+@intrinsic("math.float.isInfinite")
+declare function isInfinite<T: Float>(value: T): boolean;
+
+/// Compute a floating-point square root.
+@intrinsic("math.float.sqrt")
+declare function sqrt<T: Float>(value: T): T;
+
+/// Compute a floating-point cube root.
+@intrinsic("math.float.cbrt")
+declare function cbrt<T: Float>(value: T): T;
+
+/// Compute a floating-point absolute value.
+@intrinsic("math.float.abs")
+declare function abs<T: Float>(value: T): T;
+
+/// Compute a floating-point sine.
+@intrinsic("math.float.sin")
+declare function sin<T: Float>(value: T): T;
+
+/// Compute a floating-point cosine.
+@intrinsic("math.float.cos")
+declare function cos<T: Float>(value: T): T;
+
+/// Compute a floating-point tangent.
+@intrinsic("math.float.tan")
+declare function tan<T: Float>(value: T): T;
+
+/// Compute a floating-point arc sine.
+@intrinsic("math.float.asin")
+declare function asin<T: Float>(value: T): T;
+
+/// Compute a floating-point arc cosine.
+@intrinsic("math.float.acos")
+declare function acos<T: Float>(value: T): T;
+
+/// Compute a floating-point arc tangent.
+@intrinsic("math.float.atan")
+declare function atan<T: Float>(value: T): T;
+
+/// Compute a floating-point natural exponential.
+@intrinsic("math.float.exp")
+declare function exp<T: Float>(value: T): T;
+
+/// Compute a floating-point natural exponential minus one.
+@intrinsic("math.float.expm1")
+declare function expm1<T: Float>(value: T): T;
+
+/// Compute a floating-point base-2 exponential.
+@intrinsic("math.float.exp2")
+declare function exp2<T: Float>(value: T): T;
+
+/// Compute a floating-point natural logarithm.
+@intrinsic("math.float.log")
+declare function log<T: Float>(value: T): T;
+
+/// Compute a floating-point natural logarithm after adding one.
+@intrinsic("math.float.log1p")
+declare function log1p<T: Float>(value: T): T;
+
+/// Compute a floating-point base-2 logarithm.
+@intrinsic("math.float.log2")
+declare function log2<T: Float>(value: T): T;
+
+/// Compute a floating-point base-10 logarithm.
+@intrinsic("math.float.log10")
+declare function log10<T: Float>(value: T): T;
+
+/// Round a floating-point value toward negative infinity.
+@intrinsic("math.float.floor")
+declare function floor<T: Float>(value: T): T;
+
+/// Round a floating-point value toward positive infinity.
+@intrinsic("math.float.ceil")
+declare function ceil<T: Float>(value: T): T;
+
+/// Round a floating-point value toward zero.
+@intrinsic("math.float.trunc")
+declare function trunc<T: Float>(value: T): T;
+
+/// Round a floating-point value to the nearest integer, breaking ties toward positive infinity.
+@intrinsic("math.float.round")
+declare function round<T: Float>(value: T): T;
+
+/// Round a floating-point value to the nearest integer, breaking ties toward even integers.
+@intrinsic("math.float.roundTiesEven")
+declare function roundTiesEven<T: Float>(value: T): T;
+
+/// Round a floating-point value to the nearest integer, breaking ties away from zero.
+@intrinsic("math.float.roundTiesAway")
+declare function roundTiesAway<T: Float>(value: T): T;
+
+/// Compute a floating-point arc tangent from `y` and `x`.
+@intrinsic("math.float.atan2")
+declare function atan2<T: Float>(y: T, x: T): T;
+
+/// Raise a floating-point base to an exponent.
+@intrinsic("math.float.pow")
+declare function pow<T: Float>(base: T, exponent: T): T;
+
+/// Copy one floating-point sign onto another magnitude.
+@intrinsic("math.float.copySign")
+declare function copySign<T: Float>(magnitude: T, sign: T): T;
+
+/// Return the smaller floating-point value, propagating NaN and preferring negative zero.
+@intrinsic("math.float.min")
+declare function min<T: Float>(left: T, right: T): T;
+
+/// Return the larger floating-point value, propagating NaN and preferring positive zero.
+@intrinsic("math.float.max")
+declare function max<T: Float>(left: T, right: T): T;
+
+/// Compute a fused floating-point multiply-add.
+@intrinsic("math.float.fma")
+declare function fma<T: Float>(value: T, multiplier: T, addend: T): T;

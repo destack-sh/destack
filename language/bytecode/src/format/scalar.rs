@@ -1,4 +1,4 @@
-use destack_fir::format::{FormatError, FormatResult};
+use tspp_fir::format::{FormatError, FormatResult};
 
 use crate::{
     BooleanOperation, CastOperation, IntegerOperation, Opcode, Operand, RegisterSpan, Scalar,

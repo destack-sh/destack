@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::{ModuleId, ProfileId};
+use tspp_dir as dir;
+use tspp_source::{ModuleId, ProfileId};
 
 use crate::source::{ImportBinding, is_simple_identifier};
 use crate::{Module, ProgramQueryContext, QueryError, QueryResult, match_quality};

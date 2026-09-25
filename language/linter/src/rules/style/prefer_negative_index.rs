@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -115,7 +115,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
-    extent: destack_source::Span,
+    extent: tspp_source::Span,
     offset: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let offset_span = module.source_extent(offset.into_any())?;
@@ -218,7 +218,7 @@ function read(values: int32[]): int32 | undefined {
         session.assert_diagnostics(
             r#"
 warning[prefer-negative-index]: at index is expressed relative to array length
- ──▶ main.ds:2:22
+ ──▶ main.tspp:2:22
   │
 1 │ function read(values: int32[]): int32 | undefined {
 2 │     return values.at((values.length as isize) - (1 + 1));
@@ -227,8 +227,8 @@ warning[prefer-negative-index]: at index is expressed relative to array length
   │
 
  = fix: use a negative index
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function read(values: int32[]): int32 | undefined {
 -   2│     return values.at((values.length as isize) - (1 + 1));
@@ -260,7 +260,7 @@ function read(values: int32[]): int32 | undefined {
         session.assert_diagnostics(
             r#"
 warning[prefer-negative-index]: at index is expressed relative to array length
- ──▶ main.ds:2:22
+ ──▶ main.tspp:2:22
   │
 1 │ function read(values: int32[]): int32 | undefined {
 2 │     return values.at((values.length as isize) - /* retain */ 2);

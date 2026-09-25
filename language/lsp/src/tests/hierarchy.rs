@@ -1,4 +1,4 @@
-use destack_lsp_types as lsp;
+use tspp_lsp_types as lsp;
 
 use super::tests::{TestServer, position, range};
 
@@ -10,9 +10,12 @@ function source(): void {
     target();
 }
 "#;
-    let (mut server, document) =
-        TestServer::open_workspace("call-hierarchy", &[("src/main.ds", source)], "src/main.ds")
-            .await;
+    let (mut server, document) = TestServer::open_workspace(
+        "call-hierarchy",
+        &[("src/main.tspp", source)],
+        "src/main.tspp",
+    )
+    .await;
 
     // prepare both ends of the call edge
     let target = server
@@ -81,9 +84,12 @@ async fn test_follow_type_hierarchy() {
     let source = r#"class Base {}
 class Derived extends Base {}
 "#;
-    let (mut server, document) =
-        TestServer::open_workspace("type-hierarchy", &[("src/main.ds", source)], "src/main.ds")
-            .await;
+    let (mut server, document) = TestServer::open_workspace(
+        "type-hierarchy",
+        &[("src/main.tspp", source)],
+        "src/main.tspp",
+    )
+    .await;
 
     // prepare both ends of the inheritance edge
     let base = server

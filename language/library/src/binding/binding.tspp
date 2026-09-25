@@ -1,0 +1,10 @@
+import { ContextVar } from "tspp:context";
+import { Dynamic, DynamicSafe } from "tspp:memory";
+
+/// One dynamically scoped binding family.
+export class Binding<T: DynamicSafe> extends ContextVar<Dynamic<T>> {
+    /// Create one binding family resolved through the seeded context.
+    constructor(name: string) {
+        super(name);
+    }
+}

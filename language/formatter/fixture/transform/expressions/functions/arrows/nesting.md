@@ -6,11 +6,11 @@
 
 Nested arrows each get parentheses added.
 
-```ds
+```tspp
 const f = x => y => x + y
 ```
 
-```ds expected
+```tspp expected
 const f = (x) => (y) => x + y;
 ```
 
@@ -18,11 +18,11 @@ const f = (x) => (y) => x + y;
 
 Any depth of nesting gets consistent parentheses.
 
-```ds
+```tspp
 const f = a => b => c => a + b + c
 ```
 
-```ds expected
+```tspp expected
 const f = (a) => (b) => (c) => a + b + c;
 ```
 
@@ -30,10 +30,10 @@ const f = (a) => (b) => (c) => a + b + c;
 
 Already-parenthesized curried functions are preserved.
 
-```ds
+```tspp
 const f = (a) => (b) => (c) => a + b + c
 ```
 
-```ds expected
+```tspp expected
 const f = (a) => (b) => (c) => a + b + c;
 ```

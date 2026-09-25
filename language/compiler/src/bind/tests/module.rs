@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_bind_module_scopes() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { dep as local, TypeDep } from "dep";
 
@@ -33,7 +33,7 @@ type Pick<T> = {
         .build();
 
     compiler.assert_dir_bound(
-        "main.ds",
+        "main.tspp",
         DirRows::binding().with_summaries(),
         r#"
 import { dep as local, TypeDep } from "dep";
@@ -105,7 +105,7 @@ type Pick<T> = {
 fn test_bind_module_directive_namespace() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 module {
     let renderer: Renderer = createRenderer();
@@ -117,7 +117,7 @@ let renderer: string = "local";
         .build();
 
     compiler.assert_dir_bound(
-        "main.ds",
+        "main.tspp",
         DirRows::binding().with_summaries(),
         r#"
 module {

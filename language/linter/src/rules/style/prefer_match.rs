@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -156,7 +156,7 @@ function describe(value: int32): string {
         session.assert_diagnostics(
             r#"
 warning[prefer-match]: repeated equality chain can use match
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function describe(value: int32): string {
 2 │     if (value === 0) {
@@ -232,7 +232,7 @@ function classify(value: int32): string {
         session.assert_diagnostics(
             r#"
 warning[prefer-match]: switch statement can use match
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function classify(value: int32): string {
 2 │     switch (value) {

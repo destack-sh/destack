@@ -11,7 +11,7 @@ function firstPositive(values: (int32 | undefined)[]): int32 | undefined {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -79,7 +79,7 @@ function schedule(callback: (ready: boolean) => void): void {}
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 function schedule(callback: (ready: boolean) => void): void {}
 
@@ -104,7 +104,7 @@ const value = add(1, 2);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked()
             .with_node_types()
             .without_reference_types(),
@@ -149,7 +149,7 @@ const value = add(1, 2);
 fn test_imported_function_call_selects_exported_symbol() {
     let compiler = TestSession::builder()
         .module(
-            "math.ds",
+            "math.tspp",
             r#"
 export function add(left: int32, right: int32): int32 {
     return left + right;
@@ -157,9 +157,9 @@ export function add(left: int32, right: int32): int32 {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { add } from "./math.ds";
+import { add } from "./math.tspp";
 
 const value = add(1, 2);
 "#,
@@ -167,18 +167,18 @@ const value = add(1, 2);
         .build();
 
     compiler.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked()
             .with_node_types()
             .without_reference_types(),
         r#"
 === annotated ===
-import { add } from "./math.ds";
+import { add } from "./math.tspp";
 
 const value: int32 = add(1, 2);
 
 === dir ===
-import { add } from "./math.ds";
+import { add } from "./math.tspp";
 
 const value = add(1, 2);
 /// @type.symbol symbol=value source=value type=int32
@@ -209,7 +209,7 @@ use(source);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -255,7 +255,7 @@ const value = map(() => 1);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -303,7 +303,7 @@ let long = greet("compiler");
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===

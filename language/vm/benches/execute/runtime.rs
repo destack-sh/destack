@@ -1,22 +1,22 @@
 use std::sync::Arc;
 
 use bytecode::{CodeBuilder, Parser, RelocationTag};
-use destack_bytecode as bytecode;
-use destack_core::{StringId, StringPool};
-use destack_heap::{
+use tspp_bytecode as bytecode;
+use tspp_core::{StringId, StringPool};
+use tspp_heap::{
     AllocationCache, AllocationPlan, Heap, HeapLimits, HeapOptions, SharedHeap, SharedHeapLimits,
     SharedHeapOptions, SharedMarkWorker,
 };
-use destack_memory::{MemoryMap, MemoryRange};
-use destack_mir::{TraceMap, TraceTable};
-use destack_program as program;
-use destack_program::{
+use tspp_memory::{MemoryMap, MemoryRange};
+use tspp_mir::{TraceMap, TraceTable};
+use tspp_program as program;
+use tspp_program::{
     FrameTableBuilder, FunctionBuilder, FunctionId, FunctionTableBuilder, LayoutBuilder, LayoutId,
     LayoutShapeBuilder, ProgramBuilder, ScalarFormat, Signature, SignatureId, SiteTableBuilder,
     Symbol, TypeDescriptorBuilder, TypeFingerprint, TypeId, TypeTableBuilder, Value, Word,
 };
-use destack_source::FileId;
-use destack_vm::{Error, Machine, MachineLimits, Result};
+use tspp_source::FileId;
+use tspp_vm::{Error, Machine, MachineLimits, Result};
 
 /// Reserved address-space byte length for direct benchmark execution.
 const MEMORY_BYTES: usize = 512 * 1024 * 1024;
@@ -28,7 +28,7 @@ pub(crate) struct Runtime {
     /// Immutable Program retained by the activation.
     program: Arc<program::Program>,
     /// Reusable execution fiber under measurement.
-    fiber: destack_vm::Fiber,
+    fiber: tspp_vm::Fiber,
     /// Bytecode machine under measurement.
     machine: Machine,
     /// Runtime allocation plans indexed by Program allocation site id.

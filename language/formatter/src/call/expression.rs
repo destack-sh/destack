@@ -5,16 +5,16 @@ use crate::expression::{
     format_expression, format_generic_argument_list, write_expression_without_trailing_comments,
 };
 use crate::file::node_has_ignore_directive;
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{Argument, Expression, GenericArgument, LocalNodeId, NodeType, PostfixPosition};
-use destack_fir::format::{FormatError, FormatResult};
-use destack_fir::prelude::{format_with, group, space, token};
-use destack_fir::write;
+use crate::{TsppFormatContext, TsppFormatter};
+use tspp_dir::{Argument, Expression, GenericArgument, LocalNodeId, NodeType, PostfixPosition};
+use tspp_fir::format::{FormatError, FormatResult};
+use tspp_fir::prelude::{format_with, group, space, token};
+use tspp_fir::write;
 
 /// Format a call expression.
 #[inline]
 pub(crate) fn format_call_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let Expression::Call {
@@ -32,7 +32,7 @@ pub(crate) fn format_call_expression<'ast>(
 
     let callee_id = call_callee_expression_id(f.context(), *left);
 
-    let format_inner = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+    let format_inner = format_with(move |f: &mut TsppFormatter<'ast, '_>| {
         let callee_span_end = f.context().span(callee_id).end;
         let optional_marker = is_optional.then_some(*position);
         let call_parent_is_decorator = f
@@ -97,7 +97,7 @@ pub(crate) fn format_call_expression<'ast>(
 
 /// Return the callee expression without one optional-call wrapper.
 fn call_callee_expression_id(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     left_id: LocalNodeId<Expression>,
 ) -> LocalNodeId<Expression> {
     let Expression::Maybe { left, .. } = context.tree.get(left_id) else {
@@ -110,7 +110,7 @@ fn call_callee_expression_id(
 /// Format an instantiation expression.
 #[inline]
 pub(crate) fn format_instantiation_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let Expression::Instantiation {
@@ -131,7 +131,7 @@ pub(crate) fn format_instantiation_expression<'ast>(
 
 /// Format a `new` expression.
 pub(crate) fn format_new_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     left: LocalNodeId<Expression>,
     generic_arguments: &[LocalNodeId<GenericArgument>],

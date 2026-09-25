@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, EnvironmentBound};
-use destack_repository::{ProfileId, ProviderContext, ProviderError, ProviderResult, Revision};
-use destack_source::{ModuleId, TargetId};
+use tspp_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, EnvironmentBound};
+use tspp_repository::{ProfileId, ProviderContext, ProviderError, ProviderResult, Revision};
+use tspp_source::{ModuleId, TargetId};
 
 use super::Linter;
 

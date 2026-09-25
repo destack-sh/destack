@@ -1,28 +1,28 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
 
-use destack_artifact::{
+use futures::executor::block_on;
+use tspp_artifact::{
     ArtifactKey, BuildId, DiagnosticAnchor, DiagnosticContext, DiagnosticDisplay, DiagnosticError,
     DiagnosticLike, DiagnosticRecord, MirLowered, ToDiagnostic,
 };
-use destack_mir as mir;
-use destack_repository::{
+use tspp_mir as mir;
+use tspp_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, ProviderContext,
     Repository, Revision, RevisionPin, Settings,
 };
-use destack_session::{ArtifactPriority, Executor, Session};
-use destack_source::{
+use tspp_session::{ArtifactPriority, Executor, Session};
+use tspp_source::{
     Applicability, Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticSeverity,
     DiagnosticTarget, DiffOptions, File, FileId, FilePatch, FileType, MemoryFileSystem, ModuleId,
     PackageId, PrintOptions, ProfileId, TargetId, Uri, apply_file_patch, format_diff,
     print_diagnostics,
 };
-use futures::executor::block_on;
 
 use crate::{Fixability, Lint, LintCheck, LintTier, Linter, MirModule};
 
-const SOURCE_PATH: &str = "main.ds";
-const WARMUP_PATH: &str = "__warm.ds";
+const SOURCE_PATH: &str = "main.tspp";
+const WARMUP_PATH: &str = "__warm.tspp";
 const TARGET_NAME: &str = "native";
 const DEFAULT_DESTACK_JSON: &str = r#"{
   "name": "@test/app"
@@ -464,10 +464,7 @@ impl LintFixture {
     }
 
     /// Resolve and require the selected lint's complete dependency set.
-    fn require_lint_dependencies(
-        &self,
-        linter: &Linter,
-    ) -> destack_artifact::ArtifactDependencySet {
+    fn require_lint_dependencies(&self, linter: &Linter) -> tspp_artifact::ArtifactDependencySet {
         loop {
             let mut dependencies = linter
                 .collect(self)

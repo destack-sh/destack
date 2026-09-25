@@ -1,0 +1,35 @@
+import { IteratorResult } from "tspp:iter";
+import { Copy } from "tspp:memory";
+
+import { Promise } from "./promise.tspp";
+
+/// Protocol for asynchronously producing values.
+@languageItem("async.AsyncIterator")
+export newtype interface AsyncIterator<T: Copy> {
+    /// The completion value produced when the sequence ends.
+    type Return: Copy = void;
+
+    /// Advance and return the next yield or completion.
+    next(&this): Promise<IteratorResult<T, this.Return>>;
+}
+
+/// Value that can produce an async iterator.
+@languageItem("async.AsyncIterable")
+export newtype interface AsyncIterable<T: Copy> {
+    /// The asynchronous iterator produced by this value.
+    type Iterator: AsyncIterator<T> = AsyncIterator<T>;
+
+    /// Return an asynchronous iterator over this value.
+    asyncIterator(this): this.Iterator;
+}
+
+/// Every async iterator is trivially async-iterable as itself.
+export extension<T: Copy, I: AsyncIterator<T>> of I implements AsyncIterable<T> {
+    /// The asynchronous iterator itself.
+    type Iterator = I;
+
+    /// Return this async iterator.
+    asyncIterator(this): I {
+        this
+    }
+}

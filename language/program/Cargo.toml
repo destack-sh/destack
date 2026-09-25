@@ -1,6 +1,6 @@
 [package]
-name = "destack_program"
-description = "Destack program format"
+name = "tspp_program"
+description = "TS++ program format"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,15 +13,15 @@ doctest = false
 
 [dependencies]
 # language
-destack_bytecode = { workspace = true }
-destack_core = { workspace = true }
-destack_heap = { workspace = true }
-destack_memory = { workspace = true }
-destack_mir = { workspace = true }
-destack_native = { workspace = true }
-destack_serde = { workspace = true }
-destack_source = { workspace = true }
-destack_webassembly = { workspace = true }
+tspp_bytecode = { workspace = true }
+tspp_core = { workspace = true }
+tspp_heap = { workspace = true }
+tspp_memory = { workspace = true }
+tspp_mir = { workspace = true }
+tspp_native = { workspace = true }
+tspp_serde = { workspace = true }
+tspp_source = { workspace = true }
+tspp_webassembly = { workspace = true }
 
 # general
 serde = { workspace = true, features = ["derive", "rc"] }

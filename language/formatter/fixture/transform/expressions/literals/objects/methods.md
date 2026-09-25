@@ -6,11 +6,11 @@
 
 Methods expand the object to multiple lines.
 
-```ds
+```tspp
 const x = { foo() { return 1 } }
 ```
 
-```ds expected
+```tspp expected
 const x = {
     foo() {
         return 1;
@@ -22,11 +22,11 @@ const x = {
 
 Method parameters follow function formatting rules.
 
-```ds
+```tspp
 const x = { add(a, b) { return a + b } }
 ```
 
-```ds expected
+```tspp expected
 const x = {
     add(a, b) {
         return a + b;
@@ -38,11 +38,11 @@ const x = {
 
 Async methods use the `async` keyword before the name.
 
-```ds
+```tspp
 const x = { async fetch() { return await data } }
 ```
 
-```ds expected
+```tspp expected
 const x = {
     async fetch() {
         return await data;
@@ -54,11 +54,11 @@ const x = {
 
 Generator methods use `*` before the name.
 
-```ds
+```tspp
 const x = { *items() { yield 1; yield 2 } }
 ```
 
-```ds expected
+```tspp expected
 const x = {
     *items() {
         yield 1;
@@ -71,11 +71,11 @@ const x = {
 
 Getters use `get` keyword before the property name.
 
-```ds
+```tspp
 const x = { get value() { return this._value } }
 ```
 
-```ds expected
+```tspp expected
 const x = {
     get value() {
         return this._value;
@@ -87,11 +87,11 @@ const x = {
 
 Setters use `set` keyword and take one parameter.
 
-```ds
+```tspp
 const x = { set value(v) { this._value = v } }
 ```
 
-```ds expected
+```tspp expected
 const x = {
     set value(v) {
         this._value = v;
@@ -103,11 +103,11 @@ const x = {
 
 Value-returning object methods keep terminal expressions semicolonless.
 
-```ds
+```tspp
 const x = { value(): number { this.current } }
 ```
 
-```ds expected
+```tspp expected
 const x = {
     value(): number {
         this.current
@@ -119,11 +119,11 @@ const x = {
 
 Short object methods expand nested control-flow tails.
 
-```ds
+```tspp
 const x = { value(next: number): number { const doubled = next * 2; if (doubled > this.limit) { this.limit } else { doubled } } }
 ```
 
-```ds expected
+```tspp expected
 const x = {
     value(next: number): number {
         const doubled = next * 2;
@@ -140,11 +140,11 @@ const x = {
 
 Object methods preserve expression tails through nested control flow.
 
-```ds
+```tspp
 const x = { value(next: number): number { const doubled = next * 2; if (doubled > this.limit) { const capped = this.limit - 1; capped } else { const returned = doubled + 1; returned } } }
 ```
 
-```ds expected
+```tspp expected
 const x = {
     value(next: number): number {
         const doubled = next * 2;

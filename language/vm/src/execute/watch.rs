@@ -1,10 +1,6 @@
-use destack_bytecode::{
-    Address, AtomicOperation, CodeOffset, Instruction, MemoryOperation, Scalar,
-};
-use destack_mir::{Space, Storage};
-use destack_program::{
-    GlobalLocation, MemoryAccess, MemoryRange, Outcome, Runtime, StopReason, Word,
-};
+use tspp_bytecode::{Address, AtomicOperation, CodeOffset, Instruction, MemoryOperation, Scalar};
+use tspp_mir::{Space, Storage};
+use tspp_program::{GlobalLocation, MemoryAccess, MemoryRange, Outcome, Runtime, StopReason, Word};
 
 use crate::diagnostic::{Error, Result};
 use crate::machine::{Activation, Frame};

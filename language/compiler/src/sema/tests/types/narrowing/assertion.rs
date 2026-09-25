@@ -14,7 +14,7 @@ function first(value: int32 | undefined): int32 {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_node_types(), r#"
 === annotated ===
 function first(value: int32 | undefined): int32 {
     if (value !== (undefined as int32 | undefined)) {
@@ -65,7 +65,7 @@ function first(value: int32 | undefined): int32 {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_node_types(), r#"
 === annotated ===
 function first(value: int32 | undefined): int32 {
     if (value !== ((undefined satisfies int32 | undefined) as int32 | undefined)) {
@@ -116,7 +116,7 @@ function keep(value: int32 | undefined, other: int32 | undefined): int32 {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 function keep(value: int32 | undefined, other: int32 | undefined): int32 {
     if (value !== (other as int32 | undefined)) {
@@ -174,7 +174,7 @@ function render(message: string | (() => string) | undefined): string {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 function render(message: string | (() => string) | undefined): string {
     if (message is () => string) {
@@ -231,7 +231,7 @@ function render(message: Message | undefined): string {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -296,7 +296,7 @@ function pick(value: string | Nothing): string {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -341,7 +341,7 @@ function isLowercase(character: char): boolean {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -387,7 +387,7 @@ function describe(): { reason: string } {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -431,7 +431,7 @@ function decorated(): boolean {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -476,7 +476,7 @@ function classify(character: char): boolean {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -529,7 +529,7 @@ function double(value: int32): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -594,7 +594,7 @@ function incrementCount(source: string): Result<int32, string> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -660,7 +660,7 @@ function unwrap(result: Result<int32, string>): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -729,7 +729,7 @@ function prepare(values: [int32]): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_flows(),
         r#"
 === annotated ===
@@ -781,7 +781,7 @@ function feed(output: Array<int32>, values: [int32]): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

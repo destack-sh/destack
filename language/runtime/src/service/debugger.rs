@@ -1,8 +1,8 @@
-use destack_memory::MemoryRange;
-use destack_program as program;
-use destack_rpc::service;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_memory::MemoryRange;
+use tspp_program as program;
+use tspp_rpc::service;
+use tspp_serde::Reflect;
 
 use crate::debugger::{
     Allocation, AllocationId, Breakpoint, EvaluationLimits, EvaluationMode, EvaluationOutcome,
@@ -16,7 +16,7 @@ use crate::world::{Moment, RunOutcome};
 use super::WorldId;
 
 /// RPC operations over hosted World debuggers.
-#[service(name = "destack.world.Debugger")]
+#[service(name = "tspp.world.Debugger")]
 pub trait DebuggerService {
     // =============================================================================
     // Execution

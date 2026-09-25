@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::Patch;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::Patch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -122,9 +122,9 @@ fn select_infinity_equality(
 fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
-    span: destack_source::Span,
+    span: tspp_source::Span,
     value: dir::LocalNodeId<dir::Expression>,
-) -> Result<Option<destack_source::DiagnosticSuggestion>, ProviderError> {
+) -> Result<Option<tspp_source::DiagnosticSuggestion>, ProviderError> {
     let value_span = module.source_extent(value.into_any())?;
     if module.has_unretained_comment(span, &[value_span])? {
         return Ok(None);
@@ -188,7 +188,7 @@ function repeated(value: float64): boolean {
         let session = TestSession::dir(
             &MANUAL_IS_INFINITE,
             r#"
-import { PartialEqual } from "destack:ops";
+import { PartialEqual } from "tspp:ops";
 
 struct Measure {}
 extension of Measure implements PartialEqual<float64> {

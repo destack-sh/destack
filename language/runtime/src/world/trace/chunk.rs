@@ -1,6 +1,6 @@
-use destack_core::{FNV_OFFSET_BASIS_64, fnv1a_64_update};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use tspp_core::{FNV_OFFSET_BASIS_64, fnv1a_64_update};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::trace::{Trace, TraceTag};
@@ -194,7 +194,7 @@ impl TraceChunk {
     where
         T: DeserializeOwned,
     {
-        let payload = destack_serde::from_slice(encoded)
+        let payload = tspp_serde::from_slice(encoded)
             .map_err(|_| RuntimeError::trace_decode_failed(name.to_string()).boxed())?;
 
         Ok(payload)

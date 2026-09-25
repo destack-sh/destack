@@ -1,8 +1,8 @@
-use destack_core::FxIndexMap;
+use tspp_core::FxIndexMap;
 
 use cranelift_module::{DataDescription, DataId, Linkage, Module, ModuleResult};
 use cranelift_object::ObjectModule;
-use destack_native as native;
+use tspp_native as native;
 
 /// Object-local symbols referenced by generated native code.
 #[derive(Debug, Default)]

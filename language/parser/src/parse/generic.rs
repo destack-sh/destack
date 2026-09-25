@@ -1,9 +1,9 @@
 use crate::parse::error::ParserResultExt;
-use destack_dir::{
+use tspp_dir::{
     Expression, GenericArgument, GenericParameter, Keyword, LocalNodeId, NodeType, TokenType,
     TypeExpression, VarianceModifier,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::parse::expression::operator::ExpressionOperator;
 use crate::parse::{ExpressionPosition, ExpressionStop, TokenMode, TypePosition, TypeStop};
@@ -431,7 +431,7 @@ impl Parser {
     /// Parse type generic arguments, including the angle tokens.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// <T>
     /// <K, V>
     /// <<T>() => T>

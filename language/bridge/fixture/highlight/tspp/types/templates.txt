@@ -1,0 +1,14 @@
+// SYNTAX TEST "source.tspp"
+
+// types / templates / literals
+type EventName<T: string> = `evt:${T}`;
+// <- keyword.declaration.type.tspp
+
+// types / templates / infer
+type EventPayload<T> = T extends `evt:${infer Name}` ? Name : never;
+// <- keyword.declaration.type.tspp
+
+// types / templates / remap
+type PayloadMap<T> = { [K in keyof T as `payload:${K}`]: T[K] };
+// <- keyword.declaration.type.tspp
+

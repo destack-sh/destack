@@ -22,7 +22,7 @@ const writer: NamedWriter = Buffer {};
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -109,7 +109,7 @@ export const CREATE: Mask = Mask(1 << 0);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

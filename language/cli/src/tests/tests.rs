@@ -6,14 +6,14 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use destack_artifact::BuildId;
-use destack_repository::{
+use futures::executor::block_on;
+use serde_json::{Value, json};
+use tspp_artifact::BuildId;
+use tspp_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Host, Repository, Revision,
     RevisionPin, Settings,
 };
-use destack_source::{File, FileSystem, MemoryFileSystem};
-use futures::executor::block_on;
-use serde_json::{Value, json};
+use tspp_source::{File, FileSystem, MemoryFileSystem};
 
 use crate::common::{FileSystemOverride, InputArgs, ProgramArgs};
 

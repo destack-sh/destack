@@ -1,6 +1,6 @@
-use destack_mir as mir;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_mir as mir;
+use tspp_serde::Reflect;
 
 use super::FramePoint;
 

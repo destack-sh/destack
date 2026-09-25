@@ -1,8 +1,8 @@
 use std::path::Path;
 
-use destack_dir as dir;
-use destack_repository::{Repository, Revision};
-use destack_source::{ModuleId, PackageId, PathExt};
+use tspp_dir as dir;
+use tspp_repository::{Repository, Revision};
+use tspp_source::{ModuleId, PackageId, PathExt};
 
 use super::ExportDeclaration;
 use crate::source::{directory_distance, path_depth};

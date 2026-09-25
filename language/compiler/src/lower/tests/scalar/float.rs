@@ -11,7 +11,7 @@ function scale(x: float64, factor: float64): float64 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.scale",
         r#"
 function test.main.scale(v0: float64, v1: float64): float64 {
@@ -45,7 +45,7 @@ function hotter(x: float32, limit: float32): boolean {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.hotter",
         r#"
 function test.main.hotter(v0: float32, v1: float32): boolean {

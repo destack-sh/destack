@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -183,7 +183,7 @@ function equals(left: Point, right: Point): boolean {
         session.assert_diagnostics(
             r#"
 warning[suspicious-operand-grouping]: comparison pairs inconsistent members
- ──▶ main.ds:8:12
+ ──▶ main.tspp:8:12
   │
 6 │
 7 │ function equals(left: Point, right: Point): boolean {

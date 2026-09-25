@@ -6,11 +6,11 @@
 
 Boolean true is preserved.
 
-```ds
+```tspp
 const x = true
 ```
 
-```ds expected
+```tspp expected
 const x = true;
 ```
 
@@ -18,10 +18,10 @@ const x = true;
 
 Boolean false is preserved.
 
-```ds
+```tspp
 const x = false
 ```
 
-```ds expected
+```tspp expected
 const x = false;
 ```

@@ -1,0 +1,54 @@
+// SYNTAX TEST "source.tspp"
+
+// expressions / control / if switch and match
+if (let Some(value) = maybe) {
+// <- keyword.control.conditional.tspp
+    value
+} else {
+    0
+}
+
+switch (kind) {
+// <- keyword.control.conditional.tspp
+    case "a":
+        break;
+    default:
+        break;
+}
+
+match (result) {
+// <- keyword.control.conditional.tspp
+    Ok(value) if (value > 0) => value
+    Err(error) => panic("unhandled error")
+}
+
+// expressions / control / loops breaks and continues
+const loopValue = loop {
+//                ^^^^ keyword.control.loop.tspp
+    break 1;
+};
+
+const labeledValue = outer: loop {
+    break outer: 1;
+//  ^^^^^ keyword.control.flow.tspp
+};
+
+for (const item of items) {
+// <- keyword.control.loop.tspp
+    continue;
+}
+
+while (ready()) {
+// <- keyword.control.loop.tspp
+    break;
+}
+
+// expressions / control / try catch
+try {
+// <- keyword.control.exception.tspp
+    read()?
+} catch match (failure) {
+    IOError(error) => recover(error)
+} finally {
+    cleanup();
+}

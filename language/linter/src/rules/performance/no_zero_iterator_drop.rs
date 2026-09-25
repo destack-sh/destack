@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -16,14 +16,14 @@ Instead, you SHOULD use the original Iterator directly.
 "#,
         example: {
             reported: r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function retain(values: Iterator<int32>): Iterator<int32> {
     return values.drop(0);
 }
 "#,
             accepted: r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function retain(values: Iterator<int32>): Iterator<int32> {
     return values;
@@ -109,7 +109,7 @@ mod tests {
         let session = TestSession::dir(
             &NO_ZERO_ITERATOR_DROP,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function tail(values: Iterator<int32>): Iterator<int32> {
     return values.drop(1);
@@ -126,7 +126,7 @@ function tail(values: Iterator<int32>): Iterator<int32> {
         let session = TestSession::dir(
             &NO_ZERO_ITERATOR_DROP,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function tail(values: Iterator<int32>, count: isize): Iterator<int32> {
     return values.drop(count);
@@ -143,7 +143,7 @@ function tail(values: Iterator<int32>, count: isize): Iterator<int32> {
         let session = TestSession::dir(
             &NO_ZERO_ITERATOR_DROP,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function empty(values: Iterator<int32>): Iterator<int32> {
     return values.take(0);

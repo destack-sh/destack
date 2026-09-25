@@ -1,6 +1,6 @@
-use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId};
+use tspp_serde::Reflect;
 
 /// Section-backed program string table.
 #[repr(C)]

@@ -1,0 +1,51 @@
+import { Result, todo } from "tspp:error";
+import { MaybeUninit } from "tspp:memory";
+
+import { Atomic } from "./atomic.tspp";
+
+/// One-time execution state.
+@languageItem("sync.Once")
+export shared class Once {
+    /// The execution state.
+    private state: Atomic<uint32> = Atomic.new(0);
+
+    /// Run `body` once.
+    call(body: () => void): void {
+        todo("Once.call");
+    }
+
+    /// Return true after the body has completed.
+    isCompleted(&readonly this): boolean {
+        todo("Once.isCompleted")
+    }
+}
+
+/// One-time initialized cell.
+@languageItem("sync.OnceCell")
+export shared class OnceCell<T> {
+    /// The initialization state.
+    private state: Atomic<uint32> = Atomic.new(0);
+
+    /// The stored value.
+    private value: MaybeUninit<T> = MaybeUninit.uninit();
+
+    /// Get the initialized value.
+    get<'a>(&'a readonly this): &'a immutable T | undefined {
+        todo("OnceCell.get")
+    }
+
+    /// Set the value once.
+    set(&readonly this, value: T): Result<void, T> {
+        todo("OnceCell.set")
+    }
+
+    /// Get the value or initialize it.
+    getOrInit<'a>(&'a readonly this, init: () => T): &'a immutable T {
+        todo("OnceCell.getOrInit")
+    }
+
+    /// Move the value out when initialized.
+    take(&exclusive this): T | undefined {
+        todo("OnceCell.take")
+    }
+}

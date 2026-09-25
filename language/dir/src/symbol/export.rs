@@ -1,8 +1,8 @@
-use destack_core::{StringId, StringPool};
-use destack_serde::Reflect;
-use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+use tspp_core::{StringId, StringPool};
+use tspp_serde::Reflect;
+use tspp_source::ModuleId;
 
 use crate::{
     DependencyItem, GlobalSymbolId, LocalNodeId, LocalSymbolId, Name, ReferenceTarget, StaticKey,

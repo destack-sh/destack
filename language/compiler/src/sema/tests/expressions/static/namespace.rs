@@ -4,16 +4,16 @@ use crate::tests::{DirRows, TestSession};
 fn test_static_true_namespace_export_is_available() {
     let session = TestSession::builder()
         .module(
-            "dep.ds",
+            "dep.tspp",
             r#"
 @if(true)
 export const value = 1;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import * as dep from "./dep.ds";
+import * as dep from "./dep.tspp";
 
 const result = dep.value;
 "#,
@@ -21,10 +21,10 @@ const result = dep.value;
         .build();
 
     session.assert_dir_many(
-        &["dep.ds", "main.ds"],
+        &["dep.tspp", "main.tspp"],
         DirRows::checked().with_reference_types(),
         r#"
-=== dep.ds ===
+=== dep.tspp ===
 
 === annotated ===
 @if(true)
@@ -37,15 +37,15 @@ export const value = 1;
 /// @resolution.pattern source=value kind=binding target=value
 /// @type.node source=1 type=1
 
-=== main.ds ===
+=== main.tspp ===
 
 === annotated ===
-import * as dep from "./dep.ds";
+import * as dep from "./dep.tspp";
 
 const result: 1 = dep.value;
 
 === dir ===
-import * as dep from "./dep.ds";
+import * as dep from "./dep.tspp";
 
 const result = dep.value;
 /// @type.symbol symbol=result source=result type=1
@@ -61,16 +61,16 @@ const result = dep.value;
 fn test_static_false_namespace_export_is_unavailable() {
     let session = TestSession::builder()
         .module(
-            "dep.ds",
+            "dep.tspp",
             r#"
 @if(false)
 export const value = 1;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import * as dep from "./dep.ds";
+import * as dep from "./dep.tspp";
 
 dep.value;
 "#,
@@ -78,16 +78,16 @@ dep.value;
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import * as dep from "./dep.ds";
+import * as dep from "./dep.tspp";
 
 dep.value;
 
 === dir ===
-import * as dep from "./dep.ds";
+import * as dep from "./dep.tspp";
 
 dep.value;
 /// @type.node source=dep.value type=<error>

@@ -1,15 +1,15 @@
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use destack_core::{StringId, StringPool};
-use destack_heap::DropId;
-use destack_mir as mir;
-use destack_program::{
+use tspp_core::{StringId, StringPool};
+use tspp_heap::DropId;
+use tspp_mir as mir;
+use tspp_program::{
     AllocationSiteId, CounterId, DropEntry, DynamicTableId, EntryPoint, FunctionId, GlobalId,
     LayoutId, Object, Program, ProgramBuilder, SamplerId, Signature, SignatureId, TypeId,
     VirtualTableId,
 };
-use destack_source::{ModuleId, PackageId};
+use tspp_source::{ModuleId, PackageId};
 
 use crate::{LinkError, LinkResult};
 

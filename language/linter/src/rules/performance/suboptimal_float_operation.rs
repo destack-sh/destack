@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -246,7 +246,7 @@ fn select_natural_log_receiver(
 fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
-    extent: destack_source::Span,
+    extent: tspp_source::Span,
     operation: &FloatOperation,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let (retained, replacement, method) = match operation {
@@ -344,7 +344,7 @@ function root(value: float64): float64 {
         session.assert_diagnostics(
             r#"
 warning[suboptimal-float-operation]: general exponentiation computes a square root
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function root(value: float64): float64 {
 2 │     return value ** 0.5;
@@ -353,8 +353,8 @@ warning[suboptimal-float-operation]: general exponentiation computes a square ro
   │
 
  = suggestion: call `.sqrt()` (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function root(value: float64): float64 {
 -   2│     return value ** 0.5;
@@ -490,7 +490,7 @@ function calculate(value: float64, multiplier: float64): float64 {
         session.assert_diagnostics(
             r#"
 warning[suboptimal-float-operation]: multiplication followed by addition uses two rounding steps
- ──▶ main.ds:4:12
+ ──▶ main.tspp:4:12
   │
 2 │
 3 │ function calculate(value: float64, multiplier: float64): float64 {

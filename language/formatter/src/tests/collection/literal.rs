@@ -1,9 +1,9 @@
 use crate::{
-    DestackFormatOptions, assert_format, assert_format_program, assert_format_roundtrip,
+    TsppFormatOptions, assert_format, assert_format_program, assert_format_roundtrip,
     assert_format_roundtrip_with_file_type, parse_first_expression,
 };
-use destack_repository::TrailingComma;
-use destack_source::FileType;
+use tspp_repository::TrailingComma;
+use tspp_source::FileType;
 
 /// Character literals should keep their single-quoted spelling.
 #[test]
@@ -11,9 +11,9 @@ fn test_format_character_literal_keeps_single_quotes() {
     assert_format_roundtrip_with_file_type(
         r#"'a'"#,
         r#"'a'"#,
-        FileType::Destack,
+        FileType::Tspp,
         parse_first_expression,
-        DestackFormatOptions::default(),
+        TsppFormatOptions::default(),
     );
 }
 
@@ -23,21 +23,21 @@ fn test_format_string_literal_escapes_embedded_target_quote() {
     assert_format_roundtrip_with_file_type(
         r#""\"1\"""#,
         r#""\"1\"""#,
-        FileType::Destack,
+        FileType::Tspp,
         parse_first_expression,
-        DestackFormatOptions::default(),
+        TsppFormatOptions::default(),
     );
 }
 
-/// Destack strings should not use character literal quotes.
+/// TS++ strings should not use character literal quotes.
 #[test]
 fn test_format_destack_string_literal_keeps_double_quotes() {
     assert_format_roundtrip_with_file_type(
         r#""say \"hello\"""#,
         r#""say \"hello\"""#,
-        FileType::Destack,
+        FileType::Tspp,
         parse_first_expression,
-        DestackFormatOptions::default(),
+        TsppFormatOptions::default(),
     );
 }
 
@@ -57,7 +57,7 @@ fn test_format_template_literal_ternary_interpolation_stays_inline_roundtrip() {
     assert_format_roundtrip!(
         r#"`"${isSSR ? "------------------------------------------------------------------------------" : false}" TEST`"#,
         r#"`"${isSSR ? "------------------------------------------------------------------------------" : false}" TEST`"#,
-        FileType::Destack,
+        FileType::Tspp,
         parse_first_expression,
     );
 }
@@ -69,7 +69,7 @@ fn test_format_long_string_not_broken() {
         r#""This is a very long string that exceeds the line width but should not be broken""#,
         r#""This is a very long string that exceeds the line width but should not be broken""#,
         parse_first_expression,
-        DestackFormatOptions::default_with_line_width(40)
+        TsppFormatOptions::default_with_line_width(40)
     );
 }
 
@@ -77,10 +77,10 @@ fn test_format_long_string_not_broken() {
 #[test]
 fn test_format_path_multiple_segments() {
     assert_format!(
-        r#"destack.geometry.math"#,
-        r#"destack.geometry.math"#,
+        r#"tspp.geometry.math"#,
+        r#"tspp.geometry.math"#,
         |p| p.parse_path(),
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -92,7 +92,7 @@ fn test_format_singleton_tuple_literal() {
 "#,
         r#"const value = (1,);
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -110,7 +110,7 @@ const repeated = [, , value];
 const middle = [first, , third];
 const trailing = [first, ,];
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -120,10 +120,10 @@ fn test_format_sparse_array_requires_closing_elision_comma() {
     assert_format_program!(
         "const values=[first,,]\n",
         "const values = [first, ,];\n",
-        FileType::Destack,
-        DestackFormatOptions {
+        FileType::Tspp,
+        TsppFormatOptions {
             trailing_comma: TrailingComma::None,
-            ..DestackFormatOptions::default()
+            ..TsppFormatOptions::default()
         },
     );
 }
@@ -144,7 +144,7 @@ fn test_format_multiline_sparse_array() {
     third,
 ];
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -165,6 +165,6 @@ const multiline = [
     third,
 ];
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }

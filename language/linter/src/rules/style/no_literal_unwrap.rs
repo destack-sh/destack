@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::Patch;
+use tspp_dir as dir;
+use tspp_source::Patch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -207,7 +207,7 @@ const value: int32 = Result<int32, string>.ok(/* retained */ 42).unwrap();
         session.assert_diagnostics(
             r#"
 warning[no-literal-unwrap]: result is unwrapped immediately after construction
- ──▶ main.ds:1:22
+ ──▶ main.tspp:1:22
   │
 1 │ const value: int32 = Result<int32, string>.ok(/* retained */ 42).unwrap();
   │                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -21,7 +21,7 @@ function removeAll(values: &exclusive int32[]): int32[] {
 }
 "#,
             accepted: r#"
-import { take } from "destack:memory";
+import { take } from "tspp:memory";
 
 function removeAll(values: &exclusive int32[]): int32[] {
     return take(values);
@@ -123,7 +123,7 @@ function removeAll(values: &exclusive int32[]): int32[] {
         session.assert_diagnostics(
             r#"
 warning[drain-collect]: complete drain is collected into the same collection type
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function removeAll(values: &exclusive int32[]): int32[] {
 2 │     return values.drain().toArray();
@@ -151,7 +151,7 @@ function removeAll(values: &exclusive int32[]): int32[] {
         session.assert_diagnostics(
             r#"
 warning[drain-collect]: complete drain is collected into the same collection type
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function removeAll(values: &exclusive int32[]): int32[] {
 2 │     return values.drain().collect<^int32[]>();
@@ -170,7 +170,7 @@ warning[drain-collect]: complete drain is collected into the same collection typ
         let session = TestSession::dir(
             &DRAIN_COLLECT,
             r#"
-import { ConcurrentSet } from "destack:collections";
+import { ConcurrentSet } from "tspp:collections";
 
 function removeAll(values: &ConcurrentSet<int32>): ^ConcurrentSet<int32> {
     return values.drain().collect();
@@ -206,7 +206,7 @@ function removeAll(values: &exclusive int32[]): int64[] {
         let session = TestSession::dir(
             &DRAIN_COLLECT,
             r#"
-import { Set } from "destack:collections";
+import { Set } from "tspp:collections";
 
 function removeAll(values: &exclusive int32[]): Set<int32> {
     return values.drain().collect();

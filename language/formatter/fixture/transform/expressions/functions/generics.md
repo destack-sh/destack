@@ -6,11 +6,11 @@
 
 Type parameters appear in angle brackets after the function name.
 
-```ds
+```tspp
 function identity<T>(x: T): T { return x }
 ```
 
-```ds expected
+```tspp expected
 function identity<T>(x: T): T {
     return x;
 }
@@ -20,11 +20,11 @@ function identity<T>(x: T): T {
 
 Type constraints use colon syntax: `T: Constraint`.
 
-```ds
+```tspp
 function process<T: Comparable>(a: T, b: T): boolean { return a < b }
 ```
 
-```ds expected
+```tspp expected
 function process<T: Comparable>(a: T, b: T): boolean {
     return a < b;
 }
@@ -34,11 +34,11 @@ function process<T: Comparable>(a: T, b: T): boolean {
 
 Multiple type parameters are separated by commas with no trailing comma.
 
-```ds
+```tspp
 function merge<T, U>(a: T, b: U): T & U { return { ...a, ...b } }
 ```
 
-```ds expected
+```tspp expected
 function merge<T, U>(a: T, b: U): T & U {
     return { ...a, ...b };
 }
@@ -48,11 +48,11 @@ function merge<T, U>(a: T, b: U): T & U {
 
 Default type parameters use `= Type` syntax.
 
-```ds
+```tspp
 function create<T = any>(): T[] { return [] }
 ```
 
-```ds expected
+```tspp expected
 function create<T = any>(): T[] {
     return [];
 }
@@ -62,11 +62,11 @@ function create<T = any>(): T[] {
 
 Const parameters keep the keyword in the parameter list.
 
-```ds
+```tspp
 function repeat<const N: int>(value: string): string { return value }
 ```
 
-```ds expected
+```tspp expected
 function repeat<const N: int>(value: string): string {
     return value;
 }
@@ -76,11 +76,11 @@ function repeat<const N: int>(value: string): string {
 
 Where-clause equality predicates keep the equality operator.
 
-```ds
+```tspp
 function project<T,U>():T where T.Output==U { return value }
 ```
 
-```ds expected
+```tspp expected
 function project<T, U>(): T where T.Output == U {
     return value;
 }

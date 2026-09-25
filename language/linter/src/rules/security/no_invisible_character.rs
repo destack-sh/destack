@@ -1,5 +1,5 @@
-use destack_repository::ProviderError;
-use destack_source::Span;
+use tspp_repository::ProviderError;
+use tspp_source::Span;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -158,7 +158,7 @@ mod tests {
         let expected = format!(
             r#"
 warning[no-invisible-character]: text-direction control U+202E appears in source
- ──▶ main.ds:1:11
+ ──▶ main.tspp:1:11
   │
 1 │ // hidden {direction}
   │           ^
@@ -179,7 +179,7 @@ warning[no-invisible-character]: text-direction control U+202E appears in source
         let expected = format!(
             r#"
 warning[no-invisible-character]: text-direction control U+202E appears in source
- ──▶ main.ds:1:16
+ ──▶ main.tspp:1:16
   │
 1 │ const value = "{direction}";
   │                ^
@@ -207,7 +207,7 @@ const wordJoiner = "word{word_joiner}joiner";"#,
         let expected = format!(
             r#"
 warning[no-invisible-character]: invisible character U+00AD appears in source
- ──▶ main.ds:1:25
+ ──▶ main.tspp:1:25
   │
 1 │ const softHyphen = "soft{soft_hyphen}hyphen";
   │                         ^
@@ -216,7 +216,7 @@ warning[no-invisible-character]: invisible character U+00AD appears in source
   │
 
 warning[no-invisible-character]: invisible character U+200B appears in source
- ──▶ main.ds:3:29
+ ──▶ main.tspp:3:29
   │
 1 │ const softHyphen = "soft{soft_hyphen}hyphen";
 2 │
@@ -227,7 +227,7 @@ warning[no-invisible-character]: invisible character U+200B appears in source
   │
 
 warning[no-invisible-character]: invisible character U+2060 appears in source
- ──▶ main.ds:5:25
+ ──▶ main.tspp:5:25
   │
 3 │ const zeroWidthSpace = "zero{zero_width_space}width";
 4 │

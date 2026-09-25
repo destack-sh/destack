@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_mir as mir;
+use tspp_dir as dir;
+use tspp_mir as mir;
 
 use crate::lower::{FunctionLowerer, GenericScope, ModuleInitializer, ModuleLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};
@@ -359,11 +359,11 @@ impl ModuleLowerer<'_> {
                 is_signed: true,
             },
             (dir::Literal::Integer(value), mir::Type::Float(format)) => mir::Constant::Float {
-                bits: destack_core::float_to_bits(format.format(), value as f64),
+                bits: tspp_core::float_to_bits(format.format(), value as f64),
                 format: *format,
             },
             (dir::Literal::Float(value), mir::Type::Float(format)) => mir::Constant::Float {
-                bits: destack_core::float_to_bits(format.format(), value),
+                bits: tspp_core::float_to_bits(format.format(), value),
                 format: *format,
             },
             // reject a literal outside its lowered representation

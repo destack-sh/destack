@@ -1,8 +1,8 @@
 use crate::parse::{ExpressionPosition, ExpressionStop};
-use destack_dir::{
+use tspp_dir::{
     Asynchrony, FunctionRole, Keyword, LocalNodeId, NodeType, TokenType, TypeKind, TypeMember,
 };
-use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
 use crate::parse::member::Method;
 use crate::parse::{
@@ -51,7 +51,7 @@ impl Parser {
     /// Parse one object type literal (including the surrounding braces).
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// { name: string; read(): string }
     /// ```
     pub(crate) fn parse_type_object_literal(
@@ -611,7 +611,7 @@ impl Parser {
     /// Parse a plain type field member when the head is unambiguous.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// name: string
     /// name?: string
     /// "kind": "ready"

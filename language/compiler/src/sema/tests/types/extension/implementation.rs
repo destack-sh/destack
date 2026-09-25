@@ -25,7 +25,7 @@ extension of User implements Show {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -121,7 +121,7 @@ extension of User implements Show {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -186,7 +186,7 @@ extension of User implements Show {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -287,7 +287,7 @@ const ok = compare(Badge {}, Badge {});
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -419,7 +419,7 @@ extension of User implements NotInterface {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -468,7 +468,7 @@ extension of User implements Alias {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -548,7 +548,7 @@ extension of User implements Show | Debug {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -637,7 +637,7 @@ extension of int32 implements Doubling {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 interface Doubling {
     type Output;
@@ -722,7 +722,7 @@ extension<T> of Box<T> implements Container {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -840,7 +840,7 @@ extension<T> of Box<T> implements Container<T> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -993,7 +993,7 @@ extension<T, E> of Result<T, E> implements Source<E>, Representation {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1116,7 +1116,7 @@ extension of int32 implements Halving {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 interface Halving {
     type Output;
@@ -1215,7 +1215,7 @@ extension of Cell implements Writing {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1361,7 +1361,7 @@ extension of Channel implements Emits<int32>, Emits<string> {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1415,7 +1415,7 @@ requireMine(badge);
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 newtype interface Mine<out T, out U = string> {}
 
@@ -1501,7 +1501,7 @@ export extension<T: Eq<T>> of Pack<T> implements Has<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1628,7 +1628,7 @@ export extension<T> of Pack<T> implements Has<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1738,7 +1738,7 @@ export extension<T> of Pack<T> implements Has<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1822,9 +1822,9 @@ export extension<T> of Pack<T> implements Has<T> {
 fn test_conform_borrowed_entry_iterables_through_one_shared_lifetime() {
     let session = TestSession::single(
         r#"
-import { Iterable, Iterator } from "destack:iter";
-import { Access, WithAccess } from "destack:memory";
-import { todo } from "destack:error";
+import { Iterable, Iterator } from "tspp:iter";
+import { Access, WithAccess } from "tspp:memory";
+import { todo } from "tspp:error";
 
 export struct Entry<K, V> {
     key: K;
@@ -1854,13 +1854,13 @@ export extension<K, V, 'a> of Bag<K, V>
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { todo } from "destack:error";
-import { Iterable, Iterator } from "destack:iter";
-import { Access, WithAccess } from "destack:memory";
+import { todo } from "tspp:error";
+import { Iterable, Iterator } from "tspp:iter";
+import { Access, WithAccess } from "tspp:memory";
 
 export struct Entry<out K, out V> {
     key: K;
@@ -1887,9 +1887,9 @@ export extension<K, V, 'a> of Bag<K, V>
 }
 
 === dir ===
-import { Iterable, Iterator } from "destack:iter";
-import { Access, WithAccess } from "destack:memory";
-import { todo } from "destack:error";
+import { Iterable, Iterator } from "tspp:iter";
+import { Access, WithAccess } from "tspp:memory";
+import { todo } from "tspp:error";
 
 export struct Entry<K, V> {
 /// @generic.template symbol=Entry parameters=(out K#1, out V#1)
@@ -2048,7 +2048,7 @@ const greeter: Greeter = robot;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2139,7 +2139,7 @@ extension Int16Show of int16 implements Show {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -2205,7 +2205,7 @@ extension SecondShow of int8 implements Show {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -2254,7 +2254,7 @@ extension SecondShow of int8 implements Show {
 fn test_reject_an_implementation_overlapping_a_bounded_blanket() {
     let session = TestSession::single(
         r#"
-import { Integer } from "destack:math";
+import { Integer } from "tspp:math";
 
 newtype interface Show {
     show(&readonly this): string;
@@ -2275,11 +2275,11 @@ extension IntShow of int16 implements Show {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Integer } from "destack:math";
+import { Integer } from "tspp:math";
 
 newtype interface Show {
     show(&readonly this): string;
@@ -2298,7 +2298,7 @@ extension IntShow of int16 implements Show {
 }
 
 === dir ===
-import { Integer } from "destack:math";
+import { Integer } from "tspp:math";
 
 newtype interface Show {
 /// @generic.template symbol=Show parameters=(this: Show)
@@ -2381,7 +2381,7 @@ extension ToInt32 of int8 implements Convert<int32> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -2452,7 +2452,7 @@ extension<T, R, Q, I: It<T, R>, J: It<T, Q>> of Chain<I, J, T> implements It<T> 
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_node_types(), r#"
 === annotated ===
 newtype interface It<out T, out R = void> {
     next(this): R {
@@ -2604,7 +2604,7 @@ extension of Box implements Sized {}
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_node_types(), r#"
 === annotated ===
 newtype interface Sized {
     size(this): isize;
@@ -2686,7 +2686,7 @@ extension of Box implements Sized {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_node_types(),
         r#"
 === annotated ===
@@ -2741,7 +2741,7 @@ extension of Box implements Sized {}
 fn test_reject_implementations_meeting_across_modules() {
     let session = TestSession::builder()
         .module(
-            "bell.ds",
+            "bell.tspp",
             r#"
 export newtype interface Quiet {
     whisper(this): string;
@@ -2751,9 +2751,9 @@ export struct Bell {}
 "#,
         )
         .module(
-            "first.ds",
+            "first.tspp",
             r#"
-import { Bell, Quiet } from "./bell.ds";
+import { Bell, Quiet } from "./bell.tspp";
 
 export extension FirstQuiet of Bell implements Quiet {
     whisper(this): string {
@@ -2763,9 +2763,9 @@ export extension FirstQuiet of Bell implements Quiet {
 "#,
         )
         .module(
-            "second.ds",
+            "second.tspp",
             r#"
-import { Bell, Quiet } from "./bell.ds";
+import { Bell, Quiet } from "./bell.tspp";
 
 export extension SecondQuiet of Bell implements Quiet {
     whisper(this): string {
@@ -2777,11 +2777,11 @@ export extension SecondQuiet of Bell implements Quiet {
         .build();
 
     session.assert_dir_and_diagnostics(
-        "second.ds",
+        "second.tspp",
         DirRows::none(),
         r#"
 === annotated ===
-import { Bell, Quiet } from "./bell.ds";
+import { Bell, Quiet } from "./bell.tspp";
 
 export extension SecondQuiet of Bell implements Quiet {
     whisper(this): string {
@@ -2790,7 +2790,7 @@ export extension SecondQuiet of Bell implements Quiet {
 }
 
 === dir ===
-import { Bell, Quiet } from "./bell.ds";
+import { Bell, Quiet } from "./bell.tspp";
 
 export extension SecondQuiet of Bell implements Quiet {
     whisper(this): string {
@@ -2801,7 +2801,7 @@ export extension SecondQuiet of Bell implements Quiet {
         r#"
 /// @diagnostic.error id=conflicting-implementation message="conflicting implementations of interface 'Quiet' for type 'Bell'"
 /// @diagnostic.label line=4 column=18 span="SecondQuiet" line_source="export extension SecondQuiet of Bell implements Quiet {"
-/// @diagnostic.related file="first.ds" line=4 column=18 span="FirstQuiet" line_source="export extension FirstQuiet of Bell implements Quiet {" message="conflicting implementation"
+/// @diagnostic.related file="first.tspp" line=4 column=18 span="FirstQuiet" line_source="export extension FirstQuiet of Bell implements Quiet {" message="conflicting implementation"
 "#,
     );
 }
@@ -2810,7 +2810,7 @@ export extension SecondQuiet of Bell implements Quiet {
 fn test_satisfy_a_bound_through_an_unimported_implementation() {
     let session = TestSession::builder()
         .module(
-            "bell.ds",
+            "bell.tspp",
             r#"
 export newtype interface Quiet {
     whisper(this): string;
@@ -2820,9 +2820,9 @@ export struct Bell {}
 "#,
         )
         .module(
-            "first.ds",
+            "first.tspp",
             r#"
-import { Bell, Quiet } from "./bell.ds";
+import { Bell, Quiet } from "./bell.tspp";
 
 export extension FirstQuiet of Bell implements Quiet {
     whisper(this): string {
@@ -2832,9 +2832,9 @@ export extension FirstQuiet of Bell implements Quiet {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Bell, Quiet } from "./bell.ds";
+import { Bell, Quiet } from "./bell.tspp";
 
 declare function hush<T: Quiet>(value: T): string;
 
@@ -2844,18 +2844,18 @@ const sound = hush(Bell {});
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Bell, Quiet } from "./bell.ds";
+import { Bell, Quiet } from "./bell.tspp";
 
 declare function hush<T: Quiet>(value: T): string;
 
 const sound: string = hush<Bell>(Bell {});
 
 === dir ===
-import { Bell, Quiet } from "./bell.ds";
+import { Bell, Quiet } from "./bell.tspp";
 
 declare function hush<T: Quiet>(value: T): string;
 /// @generic.template symbol=hush parameters=(T: bell.Quiet)
@@ -2905,7 +2905,7 @@ const bounded = measure(pair);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -3016,9 +3016,9 @@ const bounded = measure(pair);
 fn test_foreign_extension_implementation_warns_as_non_local() {
     let session = TestSession::single(
         r#"
-import { todo } from "destack:error";
-import { Zero } from "destack:math";
-import { Duration } from "destack:time";
+import { todo } from "tspp:error";
+import { Zero } from "tspp:math";
+import { Duration } from "tspp:time";
 
 extension of Duration implements Zero {
     static zero(): Duration {
@@ -3028,11 +3028,11 @@ extension of Duration implements Zero {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { todo } from "destack:error";
-import { Zero } from "destack:math";
-import { Duration } from "destack:time";
+import { todo } from "tspp:error";
+import { Zero } from "tspp:math";
+import { Duration } from "tspp:time";
 
 extension of Duration implements Zero {
     static zero(): Duration {
@@ -3041,9 +3041,9 @@ extension of Duration implements Zero {
 }
 
 === dir ===
-import { todo } from "destack:error";
-import { Zero } from "destack:math";
-import { Duration } from "destack:time";
+import { todo } from "tspp:error";
+import { Zero } from "tspp:math";
+import { Duration } from "tspp:time";
 
 extension of Duration implements Zero {
 /// @definition.extension symbol=<module>#2 form=local target=Duration
@@ -3091,7 +3091,7 @@ extension of Counter implements Tally {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -3187,7 +3187,7 @@ extension of Counter implements Tally {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -3265,7 +3265,7 @@ extension of Counter implements Tally {
 fn test_reject_a_literal_demand_under_an_access_generic_promise() {
     let session = TestSession::single(
         r#"
-import { Access, WithAccess } from "destack:memory";
+import { Access, WithAccess } from "tspp:memory";
 
 struct Buffer {
     x: int32;
@@ -3284,11 +3284,11 @@ extension of Buffer implements Viewable {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Access, WithAccess } from "destack:memory";
+import { Access, WithAccess } from "tspp:memory";
 
 struct Buffer {
     x: int32;
@@ -3305,7 +3305,7 @@ extension of Buffer implements Viewable {
 }
 
 === dir ===
-import { Access, WithAccess } from "destack:memory";
+import { Access, WithAccess } from "tspp:memory";
 
 struct Buffer {
 /// @type.symbol symbol=Buffer type=Buffer
@@ -3383,7 +3383,7 @@ extension of Dog implements Speak {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -3460,7 +3460,7 @@ extension of Num implements Adder {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

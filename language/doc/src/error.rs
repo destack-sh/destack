@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
-use destack_repository::{ProviderError, RepositoryError};
+use tspp_repository::{ProviderError, RepositoryError};
 
 /// A documentation generation failure.
 #[derive(Debug)]

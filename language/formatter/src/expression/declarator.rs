@@ -1,13 +1,13 @@
 use crate::annotation::{infix_or_postfix_annotations, prefix_annotations};
 use crate::operator::format_declarator_assignment;
-use crate::{DestackFormatter, FormatNode};
-use destack_dir::{Declarator, LocalNodeId, Tree};
-use destack_fir::format::FormatResult;
-use destack_fir::write;
+use crate::{FormatNode, TsppFormatter};
+use tspp_dir::{Declarator, LocalNodeId, Tree};
+use tspp_fir::format::FormatResult;
+use tspp_fir::write;
 
 /// Format one declarator through the shared assignment-like owner.
 pub(crate) fn format_declarator<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     _tree: &Tree,
     node_id: LocalNodeId<Declarator>,
 ) -> FormatResult<()> {
@@ -18,7 +18,7 @@ impl<'ast> FormatNode<'ast, Declarator> for Declarator {
     fn format_node(
         &self,
         node_id: LocalNodeId<Declarator>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [prefix_annotations(f.context(), node_id)])?;
 

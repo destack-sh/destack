@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -216,7 +216,7 @@ function containsPositive(values: int32[]): boolean {
         session.assert_diagnostics(
             r#"
 warning[unnecessary-fold]: boolean accumulator duplicates a terminal predicate
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function containsPositive(values: int32[]): boolean {
 2 │     return values.reduce((found, value) => found || value > 0, false);
@@ -225,8 +225,8 @@ warning[unnecessary-fold]: boolean accumulator duplicates a terminal predicate
   │
 
  = suggestion: express the reduction with `some` (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function containsPositive(values: int32[]): boolean {
 -   2│     return values.reduce((found, value) => found || value > 0, false);
@@ -270,7 +270,7 @@ function allPositive(values: isize[]): boolean {
         let session = TestSession::dir(
             &UNNECESSARY_FOLD,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function any(values: Iterator<boolean>): boolean {
     return values.reduce((found, value, index) => found || value && index > 0, false);
@@ -280,7 +280,7 @@ function any(values: Iterator<boolean>): boolean {
 
         session.assert_suggestions(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function any(values: Iterator<boolean>): boolean {
     return values.some((value, index) => value && index > 0);

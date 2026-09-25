@@ -2,9 +2,9 @@ use std::collections::HashSet;
 use std::path::Path;
 
 use clap::Args;
-use destack_parser::source_colorizer;
-use destack_source::{AnnotateOptions, AnnotateSpan, Span, Uri, annotate_file};
-use destack_workspace::{CommandRevision, QueryInput, QueryMatch, QueryPayload};
+use tspp_parser::source_colorizer;
+use tspp_source::{AnnotateOptions, AnnotateSpan, Span, Uri, annotate_file};
+use tspp_workspace::{CommandRevision, QueryInput, QueryMatch, QueryPayload};
 
 use crate::common::{
     CommandOptionsBuilder, CommandResult, DiagnosticFormat, FormatOptions, InputArgs, NodeTypeArg,
@@ -17,7 +17,7 @@ use crate::console;
 /// Arguments for the structural query command.
 #[derive(Args, Debug, Clone)]
 pub struct QueryArgs {
-    /// Structural Destack pattern.
+    /// Structural TS++ pattern.
     #[arg(value_name = "PATTERN")]
     pub pattern: String,
 

@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -210,7 +210,7 @@ declare function calculate(): int32;
         session.assert_diagnostics(
             r#"
 warning[prefer-expression-initialization]: binding is assigned immediately after its declaration
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function select(): int32 {
 2 │     let result: int32;
@@ -248,7 +248,7 @@ function select(condition: boolean): int32 {
         session.assert_diagnostics(
             r#"
 warning[prefer-expression-initialization]: binding is assigned immediately after its declaration
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function select(condition: boolean): int32 {
 2 │     let result: int32;
@@ -293,7 +293,7 @@ function describe(value: int32): string {
         session.assert_diagnostics(
             r#"
 warning[prefer-expression-initialization]: binding is assigned immediately after its declaration
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function describe(value: int32): string {
 2 │     let result: string;

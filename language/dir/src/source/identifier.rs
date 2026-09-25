@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use destack_unicode::xid::UnicodeXID;
+use tspp_unicode::xid::UnicodeXID;
 
 // Checks for ECMA 262 other identifier start characters.
 #[inline]

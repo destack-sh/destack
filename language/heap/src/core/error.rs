@@ -1,8 +1,8 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
-use destack_memory::MemoryError;
 use serde::{Deserialize, Serialize};
+use tspp_memory::MemoryError;
 
 use crate::{AccountingRegion, HeapReference, SharedHeapReference, TraceTableError};
 

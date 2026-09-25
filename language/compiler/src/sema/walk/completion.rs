@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::sema::CheckState;
 
@@ -6,7 +6,7 @@ impl CheckState<'_> {
     /// Return whether one block can complete normally.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// {
     ///     const value = 1;
     ///     value
@@ -33,7 +33,7 @@ impl CheckState<'_> {
     /// Return whether one expression can complete normally.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// if (condition) { value } else { return }
     /// ```
     pub(in crate::sema) fn expression_can_complete_normally(
@@ -156,7 +156,7 @@ impl CheckState<'_> {
     /// Return whether one match arm can complete normally.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// match (value) {
     ///     0 => "zero",
     ///     _ => "other",

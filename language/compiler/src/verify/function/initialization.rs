@@ -1,5 +1,5 @@
-use destack_core::{FxIndexMap, FxIndexSet};
-use destack_mir::{
+use tspp_core::{FxIndexMap, FxIndexSet};
+use tspp_mir::{
     BlockId, FunctionKind, Instruction, Place, PlaceOrigin, Projection, Terminator, Value,
 };
 

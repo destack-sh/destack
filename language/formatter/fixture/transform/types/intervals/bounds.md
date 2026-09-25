@@ -6,14 +6,14 @@ Interval type expressions use range spelling in type position.
 
 ### interval bounds
 
-```ds
+```tspp
 type Window = Start .. End
 type Inclusive = Start ..= End
 type From = Start ..
 type To = .. End
 ```
 
-```ds expected
+```tspp expected
 type Window = Start..End;
 type Inclusive = Start..=End;
 type From = Start..;
@@ -24,14 +24,14 @@ type To = ..End;
 
 Comments around interval bounds stay attached to the corresponding range side.
 
-```ds
+```tspp
 type Window = Start /* start */ .. /* end */ End
 type Inclusive = 0 /* min */ ..= /* max */ 255
 type From = Start .. /* open */
 type Full = .. /* all */
 ```
 
-```ds expected
+```tspp expected
 type Window = Start /* start */ .. /* end */ End;
 type Inclusive = 0 /* min */ ..= /* max */ 255;
 type From = Start .. /* open */;

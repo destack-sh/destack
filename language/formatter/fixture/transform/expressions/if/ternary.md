@@ -8,11 +8,11 @@ Ternary fixtures cover conditional expression wrapping, comments, and nested bra
 
 Ternary can be assigned to a variable.
 
-```ds
+```tspp
 const result = x > 0 ? "positive" : "non-positive"
 ```
 
-```ds expected
+```tspp expected
 const result = x > 0 ? "positive" : "non-positive";
 ```
 
@@ -20,11 +20,11 @@ const result = x > 0 ? "positive" : "non-positive";
 
 Ternary with identifier expressions stays on one line.
 
-```ds
+```tspp
 const value = isActive ? activeValue : inactiveValue
 ```
 
-```ds expected
+```tspp expected
 const value = isActive ? activeValue : inactiveValue;
 ```
 
@@ -32,11 +32,11 @@ const value = isActive ? activeValue : inactiveValue;
 
 Logical conditions remain inline when short.
 
-```ds
+```tspp
 const value = ready && valid ? ok : fail
 ```
 
-```ds expected
+```tspp expected
 const value = ready && valid ? ok : fail;
 ```
 
@@ -46,11 +46,11 @@ const value = ready && valid ? ok : fail;
 
 When a ternary exceeds line width, it breaks across lines.
 
-```ds line-width=30
+```tspp line-width=30
 const el = isLoading ? <Spinner /> : <Content data={data} />
 ```
 
-```ds expected
+```tspp expected
 const el = isLoading ? (
     <Spinner />
 ) : (
@@ -62,11 +62,11 @@ const el = isLoading ? (
 
 Long branches cause the ternary to break.
 
-```ds line-width=40
+```tspp line-width=40
 const x = condition ? longConsequentValue : longAlternateValue
 ```
 
-```ds expected
+```tspp expected
 const x = condition
     ? longConsequentValue
     : longAlternateValue;
@@ -76,11 +76,11 @@ const x = condition
 
 Nullish coalescing branches keep their parentheses and indentation.
 
-```ds:main.ds line-width=60
+```tspp:main.tspp line-width=60
 const value = options.singleRun ? "Infinity" : (options.cacheLifetime?.glob ?? DEFAULT_TSCONFIG_CACHE_DURATION_SECONDS)
 ```
 
-```ds expected
+```tspp expected
 const value = options.singleRun
     ? "Infinity"
     : (options.cacheLifetime?.glob
@@ -93,11 +93,11 @@ const value = options.singleRun
 
 Nested ternaries expand with stable indentation.
 
-```ds line-width=50
+```tspp line-width=50
 const x = a ? b : c ? d : e
 ```
 
-```ds expected
+```tspp expected
 const x = a ? b : c ? d : e;
 ```
 
@@ -105,11 +105,11 @@ const x = a ? b : c ? d : e;
 
 Nested ternaries break at all levels with same indentation.
 
-```ds line-width=50
+```tspp line-width=50
 const x = isFirst ? firstValue : isSecond ? secondValue : defaultValue
 ```
 
-```ds expected
+```tspp expected
 const x = isFirst
     ? firstValue
     : isSecond
@@ -123,11 +123,11 @@ const x = isFirst
 
 Function calls work in ternary branches.
 
-```ds
+```tspp
 const result = valid ? process(data) : handleError(err)
 ```
 
-```ds expected
+```tspp expected
 const result = valid ? process(data) : handleError(err);
 ```
 
@@ -135,7 +135,7 @@ const result = valid ? process(data) : handleError(err);
 
 Chained calls in ternary branches keep their indentation.
 
-```ds:main.ds line-width=80
+```tspp:main.tspp line-width=80
 const result = id === null
   ? null
   : internal.getSuspenseCache(client).getFragmentRef(
@@ -148,7 +148,7 @@ const result = id === null
     )
 ```
 
-```ds expected
+```tspp expected
 const result = id === null
     ? null
     : internal.getSuspenseCache(client).getFragmentRef(
@@ -165,11 +165,11 @@ const result = id === null
 
 Object literals can be ternary branches.
 
-```ds
+```tspp
 const config = isUser ? { type: "user" } : { type: "guest" }
 ```
 
-```ds expected
+```tspp expected
 const config = isUser ? { type: "user" } : { type: "guest" };
 ```
 
@@ -177,11 +177,11 @@ const config = isUser ? { type: "user" } : { type: "guest" };
 
 Ternary can be a function argument.
 
-```ds
+```tspp
 render(loading ? <Spinner /> : <Content />)
 ```
 
-```ds expected
+```tspp expected
 render(loading ? <Spinner /> : <Content />);
 ```
 
@@ -189,12 +189,12 @@ render(loading ? <Spinner /> : <Content />);
 
 Ternary expressions keep grouping when asserted as const.
 
-```ds
+```tspp
 const value = (true ? 1 : 2) as const
 const checked = (enabled ? value : fallback) satisfies number
 ```
 
-```ds expected
+```tspp expected
 const value = (true ? 1 : 2) as const;
 const checked = (enabled ? value : fallback) satisfies number;
 ```

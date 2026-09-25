@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -106,7 +106,7 @@ mod tests {
         let session = TestSession::dir(
             &NO_UNUSED_MAP_RESULT,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function append(values: Iterator<int32>, output: int32[]): void {
     values.map((value) => output.push(value));
@@ -116,7 +116,7 @@ function append(values: Iterator<int32>, output: int32[]): void {
 
         session.assert_diagnostics(
             r#"warning[no-unused-map-result]: mapped result is discarded
- ──▶ main.ds:4:5
+ ──▶ main.tspp:4:5
   │
 2 │
 3 │ function append(values: Iterator<int32>, output: int32[]): void {
@@ -151,7 +151,7 @@ function double(values: int32[]): int32[] {
         let session = TestSession::dir(
             &NO_UNUSED_MAP_RESULT,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function double(values: Iterator<int32>): Iterator<int32> {
     return values.map((value) => value * 2);

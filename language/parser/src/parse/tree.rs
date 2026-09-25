@@ -1,12 +1,12 @@
 use crate::lex::decode_html_entities;
 use crate::parse::{ExpressionPosition, ExpressionStop, RangedPath, TokenMode};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
-use destack_dir::{
+use smallvec::SmallVec;
+use tspp_dir::{
     Expression, GenericArgument, LocalNodeId, Name, NodeType, Path, StringId, TokenLiteral,
     TokenType, TreeAttribute, TreeAttributeValue, TreeChild,
 };
-use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
-use smallvec::SmallVec;
+use tspp_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 /// One open tree literal awaiting children.
 struct TreeFrame {
@@ -77,7 +77,7 @@ impl Parser {
     /// Parse one tree child and advance in the requested tree mode after delimiters.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// text
     /// {value}
     /// {...children}
@@ -201,7 +201,7 @@ impl Parser {
     /// Parse a tree literal attribute (e.g., `x=1` or `long-name=2` or `flag-is-set`).
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// x=1
     /// y
     /// {...args}
@@ -300,7 +300,7 @@ impl Parser {
     /// Parse a quoted tree attribute string literal.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// title="Hello"
     /// title='Hello'
     /// title="A&nbsp;B"
@@ -391,7 +391,7 @@ impl Parser {
     /// Parse a tree literal (including the `<` and `>` tokens).
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// <Entity />
     /// <Entity name="Alfred" active />
     /// <Level difficulty={3}>

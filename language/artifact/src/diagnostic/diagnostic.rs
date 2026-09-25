@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_source::Diagnostic;
+use tspp_source::Diagnostic;
 
 use crate::{DiagnosticContext, DiagnosticError};
 

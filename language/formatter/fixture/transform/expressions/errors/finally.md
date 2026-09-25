@@ -6,11 +6,11 @@
 
 Finally can be used without a catch block.
 
-```ds
+```tspp
 try { foo() } finally { cleanup() }
 ```
 
-```ds expected
+```tspp expected
 try {
     foo()
 } finally {
@@ -22,11 +22,11 @@ try {
 
 Finally blocks follow catch blocks.
 
-```ds
+```tspp
 try { foo() } catch (e) { handle(e) } finally { cleanup() }
 ```
 
-```ds expected
+```tspp expected
 try {
     foo()
 } catch (e) {
@@ -40,7 +40,7 @@ try {
 
 Keep comments before their clauses.
 
-```ds
+```tspp
 try { foo() }
 // recover
 catch (error) { handle(error) }
@@ -48,7 +48,7 @@ catch (error) { handle(error) }
 finally { cleanup() }
 ```
 
-```ds expected
+```tspp expected
 try {
     foo()
 }
@@ -66,13 +66,13 @@ finally {
 
 Keep the comment between the keyword and its body.
 
-```ds
+```tspp
 try { foo() } finally
 // clean up
 { cleanup() }
 ```
 
-```ds expected
+```tspp expected
 try {
     foo()
 } finally // clean up

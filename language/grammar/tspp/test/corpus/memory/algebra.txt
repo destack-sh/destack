@@ -1,0 +1,94 @@
+================================================================================
+Memory algebra syntax
+:language(tspp)
+================================================================================
+
+let view: shared (&readonly Packet) = packet;
+let owner: shared ^Packet = ^Packet.create();
+
+type Place = PlaceOf<shared ^Packet>;
+type Reborrowed = WithAccess<&Packet, "exclusive">;
+
+PlaceOf<shared Packet> satisfies "shared";
+PlaceOf<local Packet | shared Packet> satisfies "local" | "shared";
+WithAccess<&Packet, "exclusive"> satisfies &exclusive Packet;
+
+--------------------------------------------------------------------------------
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (placement_type
+          (parenthesized_type
+            (memory_type
+              (type_identifier)))))
+      (identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (placement_type
+          (memory_type
+            (type_identifier))))
+      (call_expression
+        (memory_expression
+          (member_expression
+            (identifier)
+            (property_identifier)))
+        (arguments))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (placement_type
+          (memory_type
+            (type_identifier))))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (memory_type
+          (type_identifier))
+        (literal_type
+          (string
+            (string_fragment))))))
+  (type_satisfies_statement
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (placement_type
+          (type_identifier))))
+    (literal_type
+      (string
+        (string_fragment))))
+  (type_satisfies_statement
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (union_type
+          (placement_type
+            (type_identifier))
+          (placement_type
+            (type_identifier)))))
+    (union_type
+      (literal_type
+        (string
+          (string_fragment)))
+      (literal_type
+        (string
+          (string_fragment)))))
+  (type_satisfies_statement
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (memory_type
+          (type_identifier))
+        (literal_type
+          (string
+            (string_fragment)))))
+    (memory_type
+      (type_identifier))))

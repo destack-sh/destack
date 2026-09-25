@@ -32,7 +32,7 @@ mod tree;
 mod tuple;
 mod variant;
 
-pub(in crate::sema) use destack_dir::MemberRole;
+pub(in crate::sema) use tspp_dir::MemberRole;
 
 pub(in crate::sema) use extension::{ExtensionHead, ExtensionMatch, OpenBounds, UnboundParameters};
 pub(in crate::sema) use lookup::{

@@ -12,7 +12,7 @@ declare const value: Actual;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -56,7 +56,7 @@ type Actual = Clone<{ readonly name: string; age?: int32 }>;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -95,7 +95,7 @@ type Actual = Loose<{ name: string; age: int32 }>;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -136,7 +136,7 @@ const missing: Value = undefined;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -183,7 +183,7 @@ const bad: Value = 1;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -234,7 +234,7 @@ type Actual = Strict<{ readonly name?: string }>;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -271,7 +271,7 @@ type Caps = { [K in "name" | "age" as Uppercase<K>]: boolean };
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -303,7 +303,7 @@ actual.value satisfies string | int32;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -359,7 +359,7 @@ type Actual = WithoutSecret<{ name: string; secret: string }>;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -400,7 +400,7 @@ type Actual = Locked<{ name: string; age: int32 }>;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -445,7 +445,7 @@ function build(): int64 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

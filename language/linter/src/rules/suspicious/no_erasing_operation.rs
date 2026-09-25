@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -103,7 +103,7 @@ function erase(value: int32): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-erasing-operation]: constant operand erases the other value
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function erase(value: int32): int32 {
 2 │     return 0 / value;
@@ -132,7 +132,7 @@ function erase(): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-erasing-operation]: constant operand erases the other value
- ──▶ main.ds:3:12
+ ──▶ main.tspp:3:12
   │
 1 │ declare function next(): int32;
 2 │ function erase(): int32 {
@@ -161,7 +161,7 @@ function erase(value: int32): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-erasing-operation]: constant operand erases the other value
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function erase(value: int32): int32 {
 2 │     return value % 1;
@@ -189,7 +189,7 @@ function erase(value: int32): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-erasing-operation]: constant operand erases the other value
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function erase(value: int32): int32 {
 2 │     return value % -1;
@@ -217,7 +217,7 @@ function erase(value: int32): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-erasing-operation]: constant operand erases the other value
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function erase(value: int32): int32 {
 2 │     return value ** 0;
@@ -245,7 +245,7 @@ function erase(value: int32): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-erasing-operation]: constant operand erases the other value
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function erase(value: int32): int32 {
 2 │     return value | -1;
@@ -273,7 +273,7 @@ function erase(value: uint8): uint8 {
         session.assert_diagnostics(
             r#"
 warning[no-erasing-operation]: constant operand erases the other value
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function erase(value: uint8): uint8 {
 2 │     return value | 255;

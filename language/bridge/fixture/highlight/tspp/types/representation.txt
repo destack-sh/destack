@@ -1,0 +1,50 @@
+// SYNTAX TEST "source.tspp"
+
+// types / representation / repr and layout attributes
+@repr("C")
+// <~---- entity.name.function.decorator.tspp
+struct Header {
+// <- keyword.declaration.type.tspp
+    tag: uint8;
+    size: uint32;
+}
+
+@repr("transparent")
+// <~---- entity.name.function.decorator.tspp
+newtype FileDescriptor = int32;
+// <- keyword.declaration.type.tspp
+
+@repr(uint8)
+// <~---- entity.name.function.decorator.tspp
+enum Color {
+// <- keyword.declaration.type.tspp
+    Red = 1,
+    Green = 2,
+}
+
+@repr({ align: 64 })
+// <~---- entity.name.function.decorator.tspp
+@repr({ packed: true })
+// <~---- entity.name.function.decorator.tspp
+struct WireHeader {
+    tag: uint8;
+    size: uint32;
+}
+
+// types / representation / layout intrinsics
+const size = const sizeOf<Header>();
+//           ^^^^^ storage.modifier.tspp
+//                 ^^^^^^ entity.name.function.call.tspp
+
+const alignment = const alignOf<Header>();
+//                      ^^^^^^^ entity.name.function.call.tspp
+
+const stride = const strideOf<Header>();
+//                   ^^^^^^^^ entity.name.function.call.tspp
+
+declare let bytes: [uint8; sizeOf<Header>()];
+
+type Slots<T, const N: usize = strideOf<T>()> = [uint8; N];
+
+declare let erased: Dynamic<Writer>;
+//                  ^^^^^^^ entity.name.type.tspp

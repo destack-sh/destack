@@ -1,10 +1,10 @@
-use destack_artifact::ConditionSet;
-use destack_core::Blob;
-use destack_program as program;
-use destack_repository::{Environment, RuntimeOptions};
-use destack_rpc::service;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_artifact::ConditionSet;
+use tspp_core::Blob;
+use tspp_program as program;
+use tspp_repository::{Environment, RuntimeOptions};
+use tspp_rpc::service;
+use tspp_serde::Reflect;
 
 use crate::machine::Entry;
 use crate::runtime::{self, RuntimeId};
@@ -15,7 +15,7 @@ use crate::world::{
 };
 
 /// RPC operations over hosted Worlds.
-#[service(name = "destack.world.World")]
+#[service(name = "tspp.world.World")]
 pub trait WorldService {
     // =============================================================================
     // World

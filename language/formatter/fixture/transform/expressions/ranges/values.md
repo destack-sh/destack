@@ -8,7 +8,7 @@ Range values use tight operator spacing.
 
 Range operators are attached to their bounds.
 
-```ds
+```tspp
 const halfOpen = 1 .. 10
 const inclusive = 1 ..= 10
 const from = 1 ..
@@ -17,7 +17,7 @@ const through = ..= 10
 const full = ..
 ```
 
-```ds expected
+```tspp expected
 const halfOpen = 1..10;
 const inclusive = 1..=10;
 const from = 1..;
@@ -32,13 +32,13 @@ const full = ..;
 
 Arithmetic endpoints stay inside the range.
 
-```ds
+```tspp
 const window = (start + 1) .. (end * 2)
 const nested = (1 .. 4) + count
 const negative = -3 .. 3
 ```
 
-```ds expected
+```tspp expected
 const window = start + 1..end * 2;
 const nested = (1..4) + count;
 const negative = -3..3;
@@ -48,7 +48,7 @@ const negative = -3..3;
 
 Comments around range operators keep readable operator boundaries.
 
-```ds
+```tspp
 const window = start /* start */ .. /* end */ end
 const inclusive = 0 /* min */ ..= /* max */ 255
 const from = start /* start */ ..
@@ -57,7 +57,7 @@ const to = .. /* end */ end
 const full = .. /* all */
 ```
 
-```ds expected
+```tspp expected
 const window = start /* start */ .. /* end */ end;
 const inclusive = 0 /* min */ ..= /* max */ 255;
 const from = start /* start */ ..;

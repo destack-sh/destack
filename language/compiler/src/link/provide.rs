@@ -2,10 +2,10 @@ use std::collections::HashSet;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, Bundle, Output};
-use destack_program::Object;
-use destack_repository::{ArtifactReader, ProviderContext, ProviderError, RepositoryError, Target};
-use destack_source::{ModuleId, PackageId, ProductId, TargetId};
+use tspp_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, Bundle, Output};
+use tspp_program::Object;
+use tspp_repository::{ArtifactReader, ProviderContext, ProviderError, RepositoryError, Target};
+use tspp_source::{ModuleId, PackageId, ProductId, TargetId};
 
 use crate::{Compiler, CompilerError, CompilerResult, LinkError};
 

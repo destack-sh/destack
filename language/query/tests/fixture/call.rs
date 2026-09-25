@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use destack_query::{CodeActionKind, CompletionTrigger, FileRename, QueryMethod};
+use tspp_query::{CodeActionKind, CompletionTrigger, FileRename, QueryMethod};
 
 use super::{FixturePosition, FixtureRange};
 

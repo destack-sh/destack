@@ -1,5 +1,5 @@
-pub use destack_artifact::{DiagnosticAnchor, DiagnosticFormat};
-pub use destack_source::DiagnosticDefinition;
+pub use tspp_artifact::{DiagnosticAnchor, DiagnosticFormat};
+pub use tspp_source::DiagnosticDefinition;
 
 use crate::{
     AnalyzeError, AnalyzeWarning, BindError, BindWarning, CheckError, CheckWarning, Compiler,
@@ -7,8 +7,8 @@ use crate::{
     ExportError, ExportWarning, ImportError, InstantiateError, LinkError, LinkWarning, LowerError,
     LowerWarning, MaterializeError, MaterializeWarning, ResolveError, ResolveWarning, VerifyError,
 };
-use destack_core::{NameMatch, NameMatchTier};
-use destack_source::{Applicability, DiagnosticSuggestion, FilePatch, Patch, PatchSet};
+use tspp_core::{NameMatch, NameMatchTier};
+use tspp_source::{Applicability, DiagnosticSuggestion, FilePatch, Patch, PatchSet};
 
 /// All compiler diagnostic definitions.
 const COMPILER_DIAGNOSTICS: &[&[DiagnosticDefinition]] = &[

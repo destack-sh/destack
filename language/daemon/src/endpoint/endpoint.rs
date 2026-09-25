@@ -4,9 +4,9 @@ use std::path::{Path, PathBuf};
 
 use base64::Engine;
 use base64::engine::general_purpose;
-use destack_core::stable_hash_bytes;
-use destack_rpc::ProtocolVersion;
 use fs2::FileExt;
+use tspp_core::stable_hash_bytes;
+use tspp_rpc::ProtocolVersion;
 
 use super::{DaemonEndpointError, DaemonMetadata};
 
@@ -14,7 +14,7 @@ use super::{DaemonEndpointError, DaemonMetadata};
 const DAEMON_DIRECTORY: &str = "daemon";
 
 /// Directory containing local daemon sockets.
-const SOCKET_DIRECTORY: &str = "destack-daemon";
+const SOCKET_DIRECTORY: &str = "tspp-daemon";
 
 /// Filesystem and network addresses for one daemon instance.
 #[derive(Debug, Clone)]

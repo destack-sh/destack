@@ -1,5 +1,5 @@
 use crate::parse::{DeclarationNesting, ExpressionPosition, ExpressionStop};
-use destack_dir::{Argument, Expression, LocalNodeId, NodeType, TokenType};
+use tspp_dir::{Argument, Expression, LocalNodeId, NodeType, TokenType};
 
 use crate::{Parser, ParserError, ParserResult};
 
@@ -7,7 +7,7 @@ impl Parser {
     /// Parse one standalone argument fragment.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// value
     /// ```
     pub fn parse_argument_fragment(&mut self) -> ParserResult<LocalNodeId<Argument>> {
@@ -38,7 +38,7 @@ impl Parser {
     /// Parse a positional or spread value argument.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// 2
     /// foo()
     /// ...args
@@ -133,7 +133,7 @@ impl Parser {
     /// Parse one positional argument list body.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// first, second
     /// first
     /// second

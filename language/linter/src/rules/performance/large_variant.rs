@@ -1,5 +1,5 @@
-use destack_mir as mir;
-use destack_repository::ProviderError;
+use tspp_mir as mir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{Lint, LintOutput, LintResult, MirModule};
@@ -25,7 +25,7 @@ struct Packet {
 newtype Message = int32 | Packet;
 "#,
             accepted: r#"
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 struct Packet {
     bytes: [uint8; 256];

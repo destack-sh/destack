@@ -6,11 +6,11 @@
 
 Simple type annotations stay inline in variable declarations.
 
-```ds
+```tspp
 const value: number = 1
 ```
 
-```ds expected
+```tspp expected
 const value: number = 1;
 ```
 
@@ -18,11 +18,11 @@ const value: number = 1;
 
 Decorator prefixed variable types stay inline after `:`.
 
-```ds
+```tspp
 const buffer: @addrspace("shared") &Buffer = value
 ```
 
-```ds expected
+```tspp expected
 const buffer: @addrspace("shared") &Buffer = value;
 ```
 
@@ -30,13 +30,13 @@ const buffer: @addrspace("shared") &Buffer = value;
 
 Decorator prefixed variable types stay inline after `:` under non-default formatter options.
 
-```ds:main.ds indent-width=2 line-width=80
+```tspp:main.tspp indent-width=2 line-width=80
 {
     const buffer: @addrspace("shared") &Buffer = value;
 }
 ```
 
-```ds expected
+```tspp expected
 {
   const buffer: @addrspace("shared") &Buffer = value;
 }
@@ -46,13 +46,13 @@ Decorator prefixed variable types stay inline after `:` under non-default format
 
 Trailing marker comments after typed declarations are preserved.
 
-```ds:main.ds
+```tspp:main.tspp
 declare const PAGE_PATH: string
   //<- marker
 ;(()=>{})()
 ```
 
-```ds expected
+```tspp expected
 declare const PAGE_PATH: string;
 //<- marker
 (() => {})();
@@ -62,11 +62,11 @@ declare const PAGE_PATH: string;
 
 Statement-level decorators stay above the decorated expression.
 
-```ds
+```tspp
 @trace run()
 ```
 
-```ds expected
+```tspp expected
 @trace
 run();
 ```
@@ -75,11 +75,11 @@ run();
 
 Statement-level decorators inside blocks stay above the decorated statement.
 
-```ds
+```tspp
 if (ready) { @trace run() } else { @fallback reset() }
 ```
 
-```ds expected
+```tspp expected
 if (ready) {
     @trace
     run()
@@ -93,11 +93,11 @@ if (ready) {
 
 Statement decorators stay above their statement inside nested value branches.
 
-```ds
+```tspp
 function run(): void { if (ready) { @trace work() } else { try { @fallback recover() } catch (error) { @report handle(error) } } }
 ```
 
-```ds expected
+```tspp expected
 function run(): void {
     if (ready) {
         @trace
@@ -118,11 +118,11 @@ function run(): void {
 
 Stacked statement decorators each stay on their own line.
 
-```ds
+```tspp
 @trace @measure run()
 ```
 
-```ds expected
+```tspp expected
 @trace
 @measure
 run();

@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use std::io;
 
-use destack_repository::{ProviderError, RepositoryError};
+use tspp_repository::{ProviderError, RepositoryError};
 
 /// A query failure.
 #[derive(Debug)]

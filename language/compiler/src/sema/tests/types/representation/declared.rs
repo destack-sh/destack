@@ -12,7 +12,7 @@ function keep<T>(value: T): unknown {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -48,7 +48,7 @@ function keep<T>(value: T): unknown {
 fn test_accept_a_dynamic_safe_parameter_returned_as_unknown() {
     let session = TestSession::single(
         r#"
-import { DynamicSafe } from "destack:memory";
+import { DynamicSafe } from "tspp:memory";
 
 function keep<T: DynamicSafe>(value: T): unknown {
     value
@@ -57,18 +57,18 @@ function keep<T: DynamicSafe>(value: T): unknown {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { DynamicSafe } from "destack:memory";
+import { DynamicSafe } from "tspp:memory";
 
 function keep<T: DynamicSafe>(value: T): unknown {
     value as unknown
 }
 
 === dir ===
-import { DynamicSafe } from "destack:memory";
+import { DynamicSafe } from "tspp:memory";
 
 function keep<T: DynamicSafe>(value: T): unknown {
 /// @generic.template symbol=keep parameters=(T: DynamicSafe)
@@ -112,7 +112,7 @@ rectangle.start.x satisfies int32;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -208,7 +208,7 @@ const rectangle = Rectangle {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -303,7 +303,7 @@ rectangle.end satisfies PointLike;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -467,7 +467,7 @@ first satisfies Shape;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -580,7 +580,7 @@ player.mode satisfies Mode;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -656,7 +656,7 @@ marker.position satisfies Point;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

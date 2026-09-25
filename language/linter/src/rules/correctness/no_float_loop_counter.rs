@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -154,7 +154,7 @@ for (let value: float64 = 0.0; value < 1.0; value += 0.1) {
         session.assert_diagnostics(
             r#"
 warning[no-float-loop-counter]: floating-point loop counter accumulates rounding error
- ──▶ main.ds:1:45
+ ──▶ main.tspp:1:45
   │
 1 │ for (let value: float64 = 0.0; value < 1.0; value += 0.1) {
   │                                             ^^^^^^^^^^^^

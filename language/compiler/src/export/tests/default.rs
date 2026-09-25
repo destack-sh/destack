@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_export_records_default_function() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 export default function main(): number {
     return 1;
@@ -14,7 +14,7 @@ export default function main(): number {
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::exports().with_summaries(),
         r#"
 export default function main(): number {
@@ -32,7 +32,7 @@ export default function main(): number {
 fn test_export_records_default_expression() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 export default 1;
 "#,
@@ -40,7 +40,7 @@ export default 1;
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::exports().with_summaries(),
         r#"
 export default 1;

@@ -1,9 +1,9 @@
 use cranelift_codegen::ir as cir;
 use cranelift_codegen::isa::{CallConv, TargetFrontendConfig, TargetIsa};
-use destack_artifact::MirOptimized;
-use destack_mir as mir;
-use destack_mir::TargetLayout;
-use destack_source::ModuleId;
+use tspp_artifact::MirOptimized;
+use tspp_mir as mir;
+use tspp_mir::TargetLayout;
+use tspp_source::ModuleId;
 
 use crate::EmitError;
 

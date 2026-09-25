@@ -1,7 +1,7 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
 
-use destack_source::FileId;
+use tspp_source::FileId;
 
 /// How one repository root is declared.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

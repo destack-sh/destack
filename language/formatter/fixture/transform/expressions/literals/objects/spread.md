@@ -6,11 +6,11 @@
 
 Spread copies properties from another object.
 
-```ds
+```tspp
 const x = { ...other }
 ```
 
-```ds expected
+```tspp expected
 const x = { ...other };
 ```
 
@@ -18,11 +18,11 @@ const x = { ...other };
 
 Multiple spreads merge properties in order.
 
-```ds
+```tspp
 const x = { ...a, ...b, ...c }
 ```
 
-```ds expected
+```tspp expected
 const x = { ...a, ...b, ...c };
 ```
 
@@ -30,11 +30,11 @@ const x = { ...a, ...b, ...c };
 
 Spread can appear between regular properties.
 
-```ds
+```tspp
 const x = { a: 1, ...middle, b: 2 }
 ```
 
-```ds expected
+```tspp expected
 const x = { a: 1, ...middle, b: 2 };
 ```
 
@@ -42,10 +42,10 @@ const x = { a: 1, ...middle, b: 2 };
 
 Spread and shorthand properties can mix.
 
-```ds
+```tspp
 const x = { a, ...rest, b: 2 }
 ```
 
-```ds expected
+```tspp expected
 const x = { a, ...rest, b: 2 };
 ```

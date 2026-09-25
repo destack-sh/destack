@@ -5,8 +5,8 @@ use crate::tests::{DirRows, TestSession};
 fn test_derive_the_auto_conformance_members_on_a_plain_struct() {
     let session = TestSession::single(
         r#"
-import { Clone, Default } from "destack:memory";
-import { Hash, Equal } from "destack:ops";
+import { Clone, Default } from "tspp:memory";
+import { Hash, Equal } from "tspp:ops";
 
 struct Point {
     x: int32;
@@ -30,12 +30,12 @@ const viaEqual = requireEqual(point);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Clone, Default } from "destack:memory";
-import { Equal, Hash } from "destack:ops";
+import { Clone, Default } from "tspp:memory";
+import { Equal, Hash } from "tspp:ops";
 
 struct Point {
     x: int32;
@@ -57,8 +57,8 @@ const viaHash: Point = requireHash<Point>(point);
 const viaEqual: Point = requireEqual<Point>(point);
 
 === dir ===
-import { Clone, Default } from "destack:memory";
-import { Hash, Equal } from "destack:ops";
+import { Clone, Default } from "tspp:memory";
+import { Hash, Equal } from "tspp:ops";
 
 struct Point {
 /// @type.symbol symbol=Point type=Point
@@ -192,7 +192,7 @@ const viaEqual = requireEqual(point);
 fn test_decide_zeroable_and_unpin_by_field_shape() {
     let session = TestSession::single(
         r#"
-import { Unpin, Zeroable, Pin } from "destack:memory";
+import { Unpin, Zeroable, Pin } from "tspp:memory";
 
 struct Scalars {
     x: int32;
@@ -218,11 +218,11 @@ const unpinHolder = requireUnpin(Holder { name: "a" });
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Pin, Unpin, Zeroable } from "destack:memory";
+import { Pin, Unpin, Zeroable } from "tspp:memory";
 
 struct Scalars {
     x: int32;
@@ -246,7 +246,7 @@ const unpinScalars: Scalars = requireUnpin<Scalars>(Scalars { x: 1, y: 2.0 });
 const unpinHolder: Holder = requireUnpin<Holder>(Holder { name: "a" });
 
 === dir ===
-import { Unpin, Zeroable, Pin } from "destack:memory";
+import { Unpin, Zeroable, Pin } from "tspp:memory";
 
 struct Scalars {
 /// @type.symbol symbol=Scalars type=Scalars
@@ -344,7 +344,7 @@ const unpinHolder = requireUnpin(Holder { name: "a" });
 fn test_clone_a_copy_value_through_the_blanket_clone() {
     let session = TestSession::single(
         r#"
-import { Clone } from "destack:memory";
+import { Clone } from "tspp:memory";
 
 declare function requireClone<T: Clone>(value: T): T;
 
@@ -357,11 +357,11 @@ const clonedText = text.clone();
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Clone } from "destack:memory";
+import { Clone } from "tspp:memory";
 
 declare function requireClone<T: Clone>(value: T): T;
 
@@ -372,7 +372,7 @@ const text: string = "a";
 const clonedText: ^string = text.clone<"managed">();
 
 === dir ===
-import { Clone } from "destack:memory";
+import { Clone } from "tspp:memory";
 
 declare function requireClone<T: Clone>(value: T): T;
 /// @generic.template symbol=requireClone parameters=(T: Clone)
@@ -429,7 +429,7 @@ const clonedText = text.clone();
 fn test_derive_copy_for_a_raw_pointer_field_only_on_request() {
     let session = TestSession::single(
         r#"
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Handle {
     pointer: *int32;
@@ -453,11 +453,11 @@ witness(cursor);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Handle {
     pointer: *int32;
@@ -479,7 +479,7 @@ witness<Handle>(handle);
 witness<Cursor>(cursor);
 
 === dir ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Handle {
     pointer: *int32;
@@ -513,7 +513,7 @@ witness(cursor);
 fn test_decide_copy_for_a_parameter_by_its_bounds() {
     let session = TestSession::single(
         r#"
-import { Clone, Copy } from "destack:memory";
+import { Clone, Copy } from "tspp:memory";
 
 function witness<T: Copy>(value: T): T {
     return value;
@@ -530,11 +530,11 @@ function cloning<T: Clone>(value: T): T {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
-import { Clone, Copy } from "destack:memory";
+import { Clone, Copy } from "tspp:memory";
 
 function witness<T: Copy>(value: T): T {
     return value;
@@ -549,7 +549,7 @@ function cloning<T: Clone>(value: T): T {
 }
 
 === dir ===
-import { Clone, Copy } from "destack:memory";
+import { Clone, Copy } from "tspp:memory";
 
 function witness<T: Copy>(value: T): T {
     return value;
@@ -588,7 +588,7 @@ witness(once);
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 function witness<T: Copy>(value: T): T {
     return value;
@@ -677,7 +677,7 @@ declare const held: Holder<Point>;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::none().with_copy(),
         r#"
 === annotated ===
@@ -743,7 +743,7 @@ function duplicate(value: int32): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

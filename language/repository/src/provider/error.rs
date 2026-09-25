@@ -1,7 +1,7 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
-use destack_artifact::{ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactVersion};
+use tspp_artifact::{ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactVersion};
 
 /// Error returned by one provider attempt.
 #[derive(Debug, Clone, PartialEq, Eq)]

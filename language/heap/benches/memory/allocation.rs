@@ -4,11 +4,11 @@ use std::thread;
 use std::time::{Duration, Instant};
 
 use criterion::{BenchmarkId, Criterion, Throughput};
-use destack_heap::{
+use tspp_heap::{
     AllocationPlan, AllocationShape, Heap, SharedHeap, SmallAllocationClass, SmallAllocationPlan,
     TraceView,
 };
-use destack_mir::TraceMap;
+use tspp_mir::TraceMap;
 
 use crate::config::{
     ALLOCATION_MATRIX_BYTES, LARGE_ALLOCATIONS, LARGE_BYTES, MATRIX_MAX_ALLOCATIONS,
@@ -24,7 +24,7 @@ pub(crate) fn bench_heap_allocation(criterion: &mut Criterion) {
 
     // build trace maps used by the specialized small paths
     let trace_map = TraceMap::Empty;
-    let mut source_traces = destack_mir::TraceTable::new();
+    let mut source_traces = tspp_mir::TraceTable::new();
     let local_trace_map = local_reference_trace_map();
     let shared_trace_map = shared_reference_trace_map();
     let local_trace_id = source_traces.insert(local_trace_map.clone());

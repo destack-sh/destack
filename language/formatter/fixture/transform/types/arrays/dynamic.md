@@ -6,11 +6,11 @@
 
 Dynamic array type syntax keeps the element type tight to the brackets.
 
-```ds
+```tspp
 type Values= int32[]
 ```
 
-```ds expected
+```tspp expected
 type Values = int32[];
 ```
 
@@ -18,10 +18,10 @@ type Values = int32[];
 
 Nested dynamic array suffixes stay compact.
 
-```ds
+```tspp
 type Matrix= string[][]
 ```
 
-```ds expected
+```tspp expected
 type Matrix = string[][];
 ```

@@ -1,7 +1,7 @@
 use crate::Key;
-use destack_fir::format::{Format, FormatResult};
-use destack_fir::prelude::*;
-use destack_fir::write;
+use tspp_fir::format::{Format, FormatResult};
+use tspp_fir::prelude::*;
+use tspp_fir::write;
 
 use crate::{Context, Formatter};
 

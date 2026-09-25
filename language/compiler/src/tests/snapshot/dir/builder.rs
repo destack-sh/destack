@@ -2,10 +2,10 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Debug;
 
-use destack_artifact::{DirBound, DirExpanded, DirExported, DirImported, DirResolved, DirView};
-use destack_core::{StringId, StringPool};
-use destack_dir as dir;
-use destack_source::ModuleId;
+use tspp_artifact::{DirBound, DirExpanded, DirExported, DirImported, DirResolved, DirView};
+use tspp_core::{StringId, StringPool};
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use super::name::BindingSnapshotName;
 use super::rows::DirRows;
@@ -1319,9 +1319,7 @@ impl<'a> DirSnapshotBuilder<'a> {
 
     /// Render one foreign symbol label.
     fn foreign_symbol_label(&self, symbol_id: dir::GlobalSymbolId) -> String {
-        let is_library = self
-            .module_path(symbol_id.module_id)
-            .starts_with("destack://");
+        let is_library = self.module_path(symbol_id.module_id).starts_with("tspp://");
         let module = self.module_label(symbol_id.module_id);
         let symbol = if let Some(symbol) = self.cached_foreign_symbol_label(symbol_id) {
             symbol
@@ -1361,8 +1359,8 @@ impl<'a> DirSnapshotBuilder<'a> {
     /// Render one module path as a compact qualifier.
     fn module_label(&self, module_id: ModuleId) -> String {
         let module = self.module_path(module_id);
-        let module = module.strip_prefix("destack://").unwrap_or(&module);
-        let module = module.strip_suffix(".ds").unwrap_or(module);
+        let module = module.strip_prefix("tspp://").unwrap_or(&module);
+        let module = module.strip_suffix(".tspp").unwrap_or(module);
         let module = module.trim_start_matches("./");
         let module = module.trim_start_matches(['/', '\\']);
         let module = module.replace(['/', '\\'], ".");

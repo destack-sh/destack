@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::{DiagnosticCollection, File, FilePatch, Patch, Span};
+use tspp_dir as dir;
+use tspp_source::{DiagnosticCollection, File, FilePatch, Patch, Span};
 
 use super::renderer::Renderer;
 use crate::{PatternMatch, Rewrite, RewriteError};

@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -242,7 +242,7 @@ function copy(values: &immutable Label[]): Label[] {
         session.assert_diagnostics(
             r#"
 warning[iter-cloned-collect]: collection is copied through its iterator
- ──▶ main.ds:6:12
+ ──▶ main.tspp:6:12
   │
 4 │
 5 │ function copy(values: &immutable Label[]): Label[] {
@@ -252,8 +252,8 @@ warning[iter-cloned-collect]: collection is copied through its iterator
   │
 
  = fix: copy the collection directly
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     5│ function copy(values: &immutable Label[]): Label[] {
 -   6│     return values.iterator().cloned().toArray();
@@ -407,7 +407,7 @@ function lengths(values: &immutable Label[]): isize[] {
         let session = TestSession::dir(
             &ITER_CLONED_COLLECT,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -470,7 +470,7 @@ function copy(values: &immutable Label[]): Label[] {
         session.assert_diagnostics(
             r#"
 warning[iter-cloned-collect]: collection is copied through its iterator
- ──▶ main.ds:6:12
+ ──▶ main.tspp:6:12
   │
 4 │
 5 │ function copy(values: &immutable Label[]): Label[] {

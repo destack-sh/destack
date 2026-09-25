@@ -1,6 +1,6 @@
-use destack_core::FxIndexSet;
-use destack_dir as dir;
-use destack_source::ModuleId;
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 /// Source location that produced one check operation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

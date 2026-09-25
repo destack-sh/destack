@@ -1,6 +1,6 @@
-use destack_bytecode::{RegisterId, RegisterSpan};
-use destack_mir::{Space, Storage};
-use destack_program::{DynamicEntry, FunctionId, MemoryAccess, StopReason, TypeId, WatchSet, Word};
+use tspp_bytecode::{RegisterId, RegisterSpan};
+use tspp_mir::{Space, Storage};
+use tspp_program::{DynamicEntry, FunctionId, MemoryAccess, StopReason, TypeId, WatchSet, Word};
 
 use super::{TestMachine, TestProgram};
 

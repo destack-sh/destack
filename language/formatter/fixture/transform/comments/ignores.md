@@ -6,12 +6,12 @@
 
 Prettier ignore keeps the next statement verbatim.
 
-```ds:main.ds
+```tspp:main.tspp
 // prettier-ignore
 Object . defineProperties    (    exports    , { } );
 ```
 
-```ds expected
+```tspp expected
 // prettier-ignore
 Object . defineProperties    (    exports    , { } );
 ```
@@ -20,12 +20,12 @@ Object . defineProperties    (    exports    , { } );
 
 Format ignore keeps the next statement verbatim.
 
-```ds:main.ds
+```tspp:main.tspp
 // format-ignore
 Object . defineProperties    (    exports    , { } );
 ```
 
-```ds expected
+```tspp expected
 // format-ignore
 Object . defineProperties    (    exports    , { } );
 ```
@@ -34,7 +34,7 @@ Object . defineProperties    (    exports    , { } );
 
 Block ignore comments keep the next expression unchanged.
 
-```ds:main.ds
+```tspp:main.tspp
 /* prettier-ignore */
 (() =>
   c +
@@ -43,7 +43,7 @@ Block ignore comments keep the next expression unchanged.
 );
 ```
 
-```ds expected
+```tspp expected
 /* prettier-ignore */
 (() =>
   c +
@@ -56,12 +56,12 @@ Block ignore comments keep the next expression unchanged.
 
 Biome ignore comments keep the next statement verbatim.
 
-```ds:main.ds
+```tspp:main.tspp
 // biome-ignore format: keep spacing
 foo ( 1 , 2 );
 ```
 
-```ds expected
+```tspp expected
 // biome-ignore format: keep spacing
 foo ( 1 , 2 );
 ```
@@ -70,12 +70,12 @@ foo ( 1 , 2 );
 
 Formatter-specific ignore comments keep the next statement verbatim.
 
-```ds:main.ds
+```tspp:main.tspp
 // oxfmt-ignore
 console . error( "hi" );
 ```
 
-```ds expected
+```tspp expected
 // oxfmt-ignore
 console . error( "hi" );
 ```
@@ -84,12 +84,12 @@ console . error( "hi" );
 
 Deno ignore comments keep the next statement verbatim.
 
-```ds:main.ds
+```tspp:main.tspp
 // deno-fmt-ignore
 console . error( "hi" );
 ```
 
-```ds expected
+```tspp expected
 // deno-fmt-ignore
 console . error( "hi" );
 ```
@@ -98,7 +98,7 @@ console . error( "hi" );
 
 Prettier ignore keeps a single property verbatim inside objects.
 
-```ds:main.ds
+```tspp:main.tspp
 const obj = {
     // prettier-ignore
     foo   :    bar,
@@ -106,7 +106,7 @@ const obj = {
 };
 ```
 
-```ds expected
+```tspp expected
 const obj = {
     // prettier-ignore
     foo   :    bar,
@@ -118,7 +118,7 @@ const obj = {
 
 Prettier ignore keeps a class member verbatim.
 
-```ds:main.ds
+```tspp:main.tspp
 class Foo {
     // prettier-ignore
     bar   :    number;
@@ -126,7 +126,7 @@ class Foo {
 }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     // prettier-ignore
     bar   :    number;
@@ -138,7 +138,7 @@ class Foo {
 
 Fmt ignore range keeps the statements between start and end verbatim.
 
-```ds:main.ds
+```tspp:main.tspp
 // fmt-ignore-start
 const foo   = 1;
 const bar=2;
@@ -146,7 +146,7 @@ const bar=2;
 const baz = 3;
 ```
 
-```ds expected
+```tspp expected
 // fmt-ignore-start
 const foo   = 1;
 const bar=2;
@@ -158,7 +158,7 @@ const baz = 3;
 
 Format ignore range keeps the statements between start and end verbatim.
 
-```ds:main.ds
+```tspp:main.tspp
 // format-ignore-start
 const left   = 1;
 const right=2;
@@ -166,7 +166,7 @@ const right=2;
 const done = true;
 ```
 
-```ds expected
+```tspp expected
 // format-ignore-start
 const left   = 1;
 const right=2;
@@ -178,7 +178,7 @@ const done = true;
 
 Format ignore range keeps object members verbatim.
 
-```ds:main.ds
+```tspp:main.tspp
 const obj = {
     foo: 1,
     // format-ignore-start
@@ -189,7 +189,7 @@ const obj = {
 };
 ```
 
-```ds expected
+```tspp expected
 const obj = {
     foo: 1,
     // format-ignore-start
@@ -204,7 +204,7 @@ const obj = {
 
 Format ignore range keeps class members verbatim.
 
-```ds:main.ds
+```tspp:main.tspp
 class Foo {
     bar: number;
     // format-ignore-start
@@ -215,7 +215,7 @@ class Foo {
 }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     bar: number;
     // format-ignore-start
@@ -230,7 +230,7 @@ class Foo {
 
 Format ignore range keeps array elements verbatim.
 
-```ds:main.ds
+```tspp:main.tspp
 const values = [
     1,
     // format-ignore-start
@@ -241,7 +241,7 @@ const values = [
 ]
 ```
 
-```ds expected
+```tspp expected
 const values = [
     1,
     // format-ignore-start
@@ -256,7 +256,7 @@ const values = [
 
 Format ignore range keeps call arguments verbatim.
 
-```ds:main.ds
+```tspp:main.tspp
 doThing(
     1,
     // format-ignore-start
@@ -267,7 +267,7 @@ doThing(
 )
 ```
 
-```ds expected
+```tspp expected
 doThing(
     1,
     // format-ignore-start

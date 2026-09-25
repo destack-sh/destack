@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::sema::{
     CauseKind, ElisionSite, GenericParameterId, GenericTemplateId, Origin, ValueUse, WalkState,
@@ -28,7 +28,7 @@ impl WalkState<'_, '_> {
     /// Open one generic parameter header.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// <T: Serializable = string>
     /// ```
     pub(in crate::sema) fn open_generic_parameter(
@@ -100,7 +100,7 @@ impl WalkState<'_, '_> {
     /// Walk one generic parameter's bounds.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// <T: Serializable = string>
     /// ```
     pub(in crate::sema) fn walk_generic_parameter(
@@ -184,7 +184,7 @@ impl WalkState<'_, '_> {
     /// Walk one runtime parameter.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// (value: T = defaultValue)
     /// ```
     pub(in crate::sema) fn walk_parameter(

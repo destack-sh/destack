@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use destack_artifact::{DiagnosticAnchor, EnvironmentBound, MirLowered, MirVerified};
-use destack_core::StringPool;
-use destack_dir as dir;
-use destack_mir as mir;
-use destack_repository::{ArtifactReader, ProfileId, ProviderError, Repository, Revision};
-use destack_source::{ModuleId, Span, TargetId};
+use tspp_artifact::{DiagnosticAnchor, EnvironmentBound, MirLowered, MirVerified};
+use tspp_core::StringPool;
+use tspp_dir as dir;
+use tspp_mir as mir;
+use tspp_repository::{ArtifactReader, ProfileId, ProviderError, Repository, Revision};
+use tspp_source::{ModuleId, Span, TargetId};
 
 use crate::Dir;
 

@@ -1,10 +1,10 @@
-use destack_program as program;
-use destack_rpc::{Request, Response, ResponseSender, Status};
-use destack_runtime::debugger::{
+use tspp_program as program;
+use tspp_rpc::{Request, Response, ResponseSender, Status};
+use tspp_runtime::debugger::{
     Allocation, Breakpoint, Frame, MemoryMap, Probe, ProbeId, Reference, Root, Watchpoint,
 };
-use destack_runtime::diagnostic::RuntimeError;
-use destack_runtime::service::{
+use tspp_runtime::diagnostic::RuntimeError;
+use tspp_runtime::service::{
     AddBreakpointRequest, AddProbeRequest, AddWatchpointRequest, DebuggerService, EvaluateRequest,
     Evaluation, ListAllocationsRequest, ListBreakpointsRequest, ListProbesRequest,
     ListReferencesRequest, ListRootsRequest, ListWatchpointsRequest, PauseRequest,
@@ -12,7 +12,7 @@ use destack_runtime::service::{
     RemoveProbeRequest, RemoveWatchpointRequest, ResumeRequest, StepRequest,
     UpdateBreakpointRequest, UpdateProbeRequest, UpdateWatchpointRequest,
 };
-use destack_runtime::world::RunOutcome;
+use tspp_runtime::world::RunOutcome;
 
 use super::WorldRegistry;
 use crate::service::BYTE_STREAM_CHUNK_BYTE_LEN;

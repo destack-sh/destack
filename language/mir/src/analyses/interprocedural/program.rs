@@ -1,9 +1,9 @@
 use std::fmt::{self, Display, Formatter};
 use std::sync::Arc;
 
-use destack_core::{FxIndexMap, StableHasher};
-use destack_serde::{Error, Reflect, hash_into};
 use serde::{Deserialize, Serialize};
+use tspp_core::{FxIndexMap, StableHasher};
+use tspp_serde::{Error, Reflect, hash_into};
 
 use crate::{
     CallComponentTable, ControlTable, EffectBody, EffectTable, EscapeBody, EscapeEffect,
@@ -332,7 +332,7 @@ impl ProgramEffectTable {
 mod tests {
     use std::sync::Arc;
 
-    use destack_serde::{from_slice, to_vec};
+    use tspp_serde::{from_slice, to_vec};
 
     use crate::analyses::tests::TestProgram;
     use crate::{

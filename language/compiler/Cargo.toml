@@ -1,6 +1,6 @@
 [package]
-name = "destack_compiler"
-description = "Destack Compiler"
+name = "tspp_compiler"
+description = "TS++ Compiler"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,24 +12,24 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-destack_bytecode = { workspace = true }
+tspp_bytecode = { workspace = true }
 # language
-destack_artifact = { workspace = true }
-destack_artifact_macros = { workspace = true }
-destack_core = { workspace = true }
-destack_dir = { workspace = true }
-destack_program = { workspace = true }
-destack_fir = { workspace = true }
-destack_formatter = { workspace = true }
-destack_heap = { workspace = true }
-destack_js = { workspace = true }
-destack_mir = { workspace = true }
-destack_native = { workspace = true }
-destack_parser = { workspace = true }
-destack_source = { workspace = true }
-destack_webassembly = { workspace = true }
-destack_repository = { path = "../repository", default-features = false }
-destack_serde = { workspace = true }
+tspp_artifact = { workspace = true }
+tspp_artifact_macros = { workspace = true }
+tspp_core = { workspace = true }
+tspp_dir = { workspace = true }
+tspp_program = { workspace = true }
+tspp_fir = { workspace = true }
+tspp_formatter = { workspace = true }
+tspp_heap = { workspace = true }
+tspp_js = { workspace = true }
+tspp_mir = { workspace = true }
+tspp_native = { workspace = true }
+tspp_parser = { workspace = true }
+tspp_source = { workspace = true }
+tspp_webassembly = { workspace = true }
+tspp_repository = { path = "../repository", default-features = false }
+tspp_serde = { workspace = true }
 
 # general
 dashmap = { workspace = true }
@@ -58,9 +58,9 @@ toml = { workspace = true }
 [dev-dependencies]
 clap = { workspace = true }
 criterion = { workspace = true }
-destack_formatter = { workspace = true }
-destack_memory = { workspace = true }
-destack_session = { workspace = true, features = ["native"] }
+tspp_formatter = { workspace = true }
+tspp_memory = { workspace = true }
+tspp_session = { workspace = true, features = ["native"] }
 futures = { workspace = true, features = ["executor"] }
 pprof = { workspace = true }
 
@@ -77,7 +77,7 @@ native = [
 deadlock-detection = ["parking_lot/deadlock_detection"]
 
 [[bench]]
-name = "destack_compile"
+name = "tspp_compile"
 harness = false
 
 [lints]

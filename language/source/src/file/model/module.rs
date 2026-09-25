@@ -1,12 +1,12 @@
-use destack_serde::Reflect;
 use std::path::Path;
+use tspp_serde::Reflect;
 
 use serde::{Deserialize, Serialize};
 
 use super::hash::{stable_source_id, stable_source_path};
 use crate::PackageId;
 
-const MODULE_DOMAIN: &[u8] = b"destack.source.module.v1";
+const MODULE_DOMAIN: &[u8] = b"tspp.source.module.v1";
 const MODULE_LOADER_DEFAULT: &[u8] = b"default";
 
 /// Stable key for one module within a package.

@@ -1,0 +1,264 @@
+================================================================================
+Borrow syntax
+:language(tspp)
+================================================================================
+
+let name: &readonly string = &readonly user.name;
+let writable: &exclusive Buffer = &exclusive buffer;
+let first = *pointer;
+
+--------------------------------------------------------------------------------
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (memory_type
+          (predefined_type)))
+      (memory_expression
+        (member_expression
+          (identifier)
+          (property_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (memory_type
+          (type_identifier)))
+      (memory_expression
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (memory_expression
+        (identifier)))))
+
+================================================================================
+Ownership forms and raw pointer conversions
+:language(tspp)
+================================================================================
+
+let user: User = new User();
+let owned: ^User = new User();
+
+let borrow: &User = &user;
+let view: &readonly User = &readonly user;
+let claim: &exclusive User = &exclusive user;
+let pointer: *User = borrow;
+
+let point = ^Point { x: 1, y: 2 };
+let readX = &readonly point.x;
+let writeX = &point.x;
+let writeY = &point.y;
+*writeX = 3;
+*writeY = 3;
+
+--------------------------------------------------------------------------------
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (new_expression
+        (identifier)
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (memory_type
+          (type_identifier)))
+      (new_expression
+        (identifier)
+        (arguments))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (memory_type
+          (type_identifier)))
+      (memory_expression
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (memory_type
+          (type_identifier)))
+      (memory_expression
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (memory_type
+          (type_identifier)))
+      (memory_expression
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (memory_type
+          (type_identifier)))
+      (identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (memory_expression
+        (struct_literal_expression
+          (identifier)
+          (object
+            (pair
+              (property_identifier)
+              (number))
+            (pair
+              (property_identifier)
+              (number)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (memory_expression
+        (member_expression
+          (identifier)
+          (property_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (memory_expression
+        (member_expression
+          (identifier)
+          (property_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (memory_expression
+        (member_expression
+          (identifier)
+          (property_identifier)))))
+  (dereference_assignment_statement
+    (identifier)
+    (number))
+  (dereference_assignment_statement
+    (identifier)
+    (number)))
+
+================================================================================
+Overwrite stability and managed rooting examples
+:language(tspp)
+================================================================================
+
+struct Frame {
+    pixels: ^Buffer;
+}
+
+let frame: ^Frame = Frame { pixels: Buffer.open() };
+let pixels = &frame.pixels;
+let alias = &frame;
+*alias = Frame { pixels: Buffer.open() };
+
+class Profile {
+    name: string;
+}
+
+class User {
+    profile: Profile;
+}
+
+let name = &user.profile.name;
+user.profile = new Profile("other");
+print(*name);
+
+--------------------------------------------------------------------------------
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (memory_type
+            (type_identifier))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (memory_type
+          (type_identifier)))
+      (struct_literal_expression
+        (identifier)
+        (object
+          (pair
+            (property_identifier)
+            (call_expression
+              (member_expression
+                (identifier)
+                (property_identifier))
+              (arguments)))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (memory_expression
+        (member_expression
+          (identifier)
+          (property_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (memory_expression
+        (identifier))))
+  (dereference_assignment_statement
+    (identifier)
+    (struct_literal_expression
+      (identifier)
+      (object
+        (pair
+          (property_identifier)
+          (call_expression
+            (member_expression
+              (identifier)
+              (property_identifier))
+            (arguments))))))
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (predefined_type)))))
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (memory_expression
+        (member_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (property_identifier)))))
+  (expression_statement
+    (assignment_expression
+      (member_expression
+        (identifier)
+        (property_identifier))
+      (new_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment))))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (memory_expression
+          (identifier))))))

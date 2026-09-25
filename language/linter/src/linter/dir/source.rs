@@ -1,9 +1,9 @@
 use std::borrow::Cow;
 
-use destack_artifact::DiagnosticAnchor;
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{File, FileId, NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Patch, Span};
+use tspp_artifact::DiagnosticAnchor;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{File, FileId, NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Patch, Span};
 
 use super::DirModule;
 

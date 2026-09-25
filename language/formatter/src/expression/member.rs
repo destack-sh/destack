@@ -7,18 +7,18 @@ use crate::operator::{assign_pattern_target_expression, write_postfix_base_expre
 use crate::template::{
     TemplateInterpolationIndentation, write_template_interpolation_with_indentation,
 };
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_core::StringId;
-use destack_dir::{
+use crate::{TsppFormatContext, TsppFormatter};
+use tspp_core::StringId;
+use tspp_dir::{
     Comment, Expression, GenericArgument, Literal, LocalNodeId, NodeType, PostfixPosition,
     TypeExpression,
 };
-use destack_fir::format::{FormatError, FormatLayout, FormatResult};
-use destack_fir::prelude::{
+use tspp_fir::format::{FormatError, FormatLayout, FormatResult};
+use tspp_fir::prelude::{
     dedent_to_root, format_with, group, indent, line_suffix_boundary, soft_block_indent,
     soft_line_break, token,
 };
-use destack_fir::{format_args, write};
+use tspp_fir::{format_args, write};
 
 #[derive(Clone, Copy)]
 enum TemplateInterpolationLayout {
@@ -28,7 +28,7 @@ enum TemplateInterpolationLayout {
 
 /// Return whether one type-template interpolation spans any surrounding newline trivia.
 fn type_template_interpolation_has_newline_in_range(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     let span = context.span(expression_id);
@@ -37,7 +37,7 @@ fn type_template_interpolation_has_newline_in_range(
 
 /// Format one type-template interpolation body with separator comments.
 fn format_type_template_interpolation_body<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<TypeExpression>,
 ) -> FormatResult<()> {
     let span = f.context().span(expression_id);
@@ -63,7 +63,7 @@ enum StaticMemberLayout {
 
 /// Return one receiver after absorbing a try marker into the member operator.
 fn optional_member_receiver(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     receiver_id: LocalNodeId<Expression>,
 ) -> (LocalNodeId<Expression>, bool) {
     let Expression::Maybe { left, .. } = context.tree.get(receiver_id) else {
@@ -75,7 +75,7 @@ fn optional_member_receiver(
 
 /// Write one static member operator.
 fn write_static_member_operator<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     has_try_receiver: bool,
     is_optional: bool,
 ) -> FormatResult<()> {
@@ -93,7 +93,7 @@ fn write_static_member_operator<'ast>(
 
 /// Return separator comments between one postfix receiver and its continuation.
 fn postfix_separator_comments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> Vec<Comment> {
     let receiver_id = match context.tree.get(node_id) {
@@ -108,7 +108,7 @@ fn postfix_separator_comments(
 
 /// Return whether one expression is a member-chain style receiver.
 fn expression_is_member_chain_receiver(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     matches!(
@@ -119,7 +119,7 @@ fn expression_is_member_chain_receiver(
 
 /// Return the first non-memberish parent ancestor for one member expression.
 fn first_non_memberish_parent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<Expression>> {
     let mut current_id = node_id;
@@ -148,7 +148,7 @@ fn first_non_memberish_parent(
 
 /// Select the shared layout for one static member expression.
 fn static_member_layout(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     receiver_id: LocalNodeId<Expression>,
 ) -> StaticMemberLayout {
@@ -238,7 +238,7 @@ fn static_member_layout(
 
 /// Write one static member continuation.
 fn write_static_member_continuation<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     has_try_receiver: bool,
     is_optional: bool,
     name: Option<StringId>,
@@ -256,7 +256,7 @@ fn write_static_member_continuation<'ast>(
 
 /// Write one static member expression.
 fn write_static_member_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     receiver_id: LocalNodeId<Expression>,
     name: Option<StringId>,
@@ -296,7 +296,7 @@ fn write_static_member_expression<'ast>(
                 f,
                 [group(&indent(&format_args![
                     soft_line_break(),
-                    format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    format_with(|f: &mut TsppFormatter<'ast, '_>| {
                         if f.context()
                             .comments()
                             .has_leading_own_line_comment(property_start)
@@ -326,7 +326,7 @@ fn write_static_member_expression<'ast>(
 
 /// Format a member expression.
 pub(crate) fn format_member_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     match f.context().tree.get(node_id) {
@@ -349,7 +349,7 @@ pub(crate) fn format_type_template_literal<'ast>(
     _node_id: LocalNodeId<TypeExpression>,
     strings: &[StringId],
     spans: &[LocalNodeId<TypeExpression>],
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     debug_assert_eq!(strings.len(), spans.len().saturating_add(1));
 
@@ -432,7 +432,7 @@ pub(crate) fn format_type_template_literal<'ast>(
 
 /// Format an index expression without considering chaining.
 pub(crate) fn write_index_access<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     index_id: LocalNodeId<Expression>,
     should_parenthesize: bool,
@@ -481,7 +481,7 @@ pub(crate) fn write_index_access<'ast>(
 /// Format an index expression without considering chaining.
 #[inline]
 pub(crate) fn format_index_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     if let Expression::Index {

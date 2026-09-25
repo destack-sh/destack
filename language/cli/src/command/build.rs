@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use destack_workspace::{BuildInput, BuildOutputs, BuildRequest, CommandRevision};
+use tspp_workspace::{BuildInput, BuildOutputs, BuildRequest, CommandRevision};
 
 use crate::common::{
     CommandOptionsBuilder, CommandResult, CommandSummary, DiagnosticFormat, FormatOptions,

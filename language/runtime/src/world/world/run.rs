@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 use std::thread;
 
-use destack_heap as heap;
-use destack_program as program;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_heap as heap;
+use tspp_program as program;
+use tspp_serde::Reflect;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host::poller::Poller;

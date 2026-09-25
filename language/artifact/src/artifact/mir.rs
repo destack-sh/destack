@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use destack_core::BitSet;
-use destack_mir::{self as mir, CallComponentTable, LinkSupergraph, LinkTable, Symbol};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::BitSet;
+use tspp_mir::{self as mir, CallComponentTable, LinkSupergraph, LinkTable, Symbol};
+use tspp_serde::Reflect;
 
 /// The declarations one module lowers ahead of its bodies: its types and its headers.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]

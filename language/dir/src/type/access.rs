@@ -1,6 +1,6 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+use tspp_serde::Reflect;
 
 use crate::{GlobalSymbolId, StaticKey};
 

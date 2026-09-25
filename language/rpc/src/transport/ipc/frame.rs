@@ -82,7 +82,7 @@ impl Frame {
 /// Failure to decode one IPC byte-stream frame.
 #[derive(Debug)]
 pub(super) enum FrameError {
-    /// Frame magic does not identify Destack RPC.
+    /// Frame magic does not identify TS++ RPC.
     InvalidMagic([u8; 4]),
     /// Frame version is not supported.
     UnsupportedVersion(u16),

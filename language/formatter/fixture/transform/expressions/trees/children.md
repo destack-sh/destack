@@ -8,11 +8,11 @@ Tree child fixtures cover text, expressions, fragments, and multiline children.
 
 Text and expression children stay inline when they fit.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <div>Hello {name}!</div>
 ```
 
-```ds expected
+```tspp expected
 const node = <div>Hello {name}!</div>;
 ```
 
@@ -20,11 +20,11 @@ const node = <div>Hello {name}!</div>;
 
 Expression child comments stay in source order around the expression child.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <List>{items.map((item) => <Item key={item.id}>{/* before */}{item.label}{/* after */}</Item>)}</List>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <List>
         {items.map((item) => (
@@ -42,11 +42,11 @@ const node = (
 
 Adjacent expression children break to one expression container per line.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <div>{first}{second}{third}</div>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <div>
         {first}
@@ -60,11 +60,11 @@ const node = (
 
 Whitespace inside text nodes collapses to single spaces.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <div>  Hello   World </div>
 ```
 
-```ds expected
+```tspp expected
 const node = <div> Hello World </div>;
 ```
 
@@ -72,13 +72,13 @@ const node = <div> Hello World </div>;
 
 Text and expression boundaries break cleanly when they exceed line width.
 
-```ds:main.ds line-width=40
+```tspp:main.tspp line-width=40
 const node = <p>Current usage for X is ${(() => {
   // comment
 })()}.</p>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <p>
         Current usage for X is $
@@ -93,11 +93,11 @@ const node = (
 
 Punctuation-only text after a wrapped child stays attached to the child.
 
-```ds:main.ds line-width=30
+```tspp:main.tspp line-width=30
 const node = <p>Start <b>bold</b>, then stop.</p>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <p>
         Start <b>bold</b>,
@@ -110,11 +110,11 @@ const node = (
 
 Mixed text, expressions, and tree children wrap as inline prose.
 
-```ds:main.ds line-width=45
+```tspp:main.tspp line-width=45
 const node = <p>Hello {name}, see <Link>docs</Link> for details.</p>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <p>
         Hello {name}, see <Link>docs</Link> for
@@ -127,11 +127,11 @@ const node = (
 
 Punctuation between expression and following text stays attached to the expression.
 
-```ds:main.ds line-width=35
+```tspp:main.tspp line-width=35
 const node = <p>Hello {name}, welcome back.</p>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <p>
         Hello {name}, welcome back.
@@ -143,12 +143,12 @@ const node = (
 
 Punctuation with leading source newline remains its own text line.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <p>{value}
 .</p>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <p>
         {value}
@@ -161,11 +161,11 @@ const node = (
 
 Punctuation with leading source space remains separated from the previous expression.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <p>Hello {name} .</p>
 ```
 
-```ds expected
+```tspp expected
 const node = <p>Hello {name} .</p>;
 ```
 
@@ -173,11 +173,11 @@ const node = <p>Hello {name} .</p>;
 
 Punctuation after an explicit tree whitespace container remains separated from the previous expression.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <p>Hello {name}{" "}.</p>
 ```
 
-```ds expected
+```tspp expected
 const node = <p>Hello {name} .</p>;
 ```
 
@@ -185,11 +185,11 @@ const node = <p>Hello {name} .</p>;
 
 Punctuation runs stay attached to the previous inline expression before wrapping prose.
 
-```ds:main.ds line-width=30
+```tspp:main.tspp line-width=30
 const node = <p>Hello {name}?! Really...</p>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <p>
         Hello {name}?!
@@ -202,11 +202,11 @@ const node = (
 
 Punctuation after a fragment child stays attached to the fragment.
 
-```ds:main.ds line-width=35
+```tspp:main.tspp line-width=35
 const node = <p>Start <>{value}</>, done.</p>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <p>
         Start <>{value}</>, done.
@@ -218,11 +218,11 @@ const node = (
 
 Punctuation after a multiline expression child stays attached when attributes force multiline layout.
 
-```ds:main.ds line-width=40
+```tspp:main.tspp line-width=40
 const node = <p title="Long title value" description="Long description value">{value}.</p>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <p
         title="Long title value"
@@ -237,11 +237,11 @@ const node = (
 
 Punctuation after a tree comment remains its own text child.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <p>{/* keep */}.</p>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <p>
         {/* keep */}
@@ -254,7 +254,7 @@ const node = (
 
 Template child interpolations hug their braces while inner comments stay indented from the template segment.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <div>{`
   color: ${theme?.activeColor[
     // selected mode
@@ -263,7 +263,7 @@ const node = <div>{`
 `}</div>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <div>{`
   color: ${theme?.activeColor[
@@ -278,11 +278,11 @@ const node = (
 
 Multiple element children break to one per line.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <section><Header /><Body /><Footer /></section>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <section>
         <Header />
@@ -296,11 +296,11 @@ const node = (
 
 A tree literal between expression children forces multiline formatting.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <div>{label}<Icon />{suffix}</div>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <div>
         {label}
@@ -314,7 +314,7 @@ const node = (
 
 Whitespace expression containers become tree text spacing in inline prose.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <T>
   Pro tip: See more{" "}
   <Link href="https://example.com">Docs</Link>{" "}
@@ -322,7 +322,7 @@ const node = <T>
 </T>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <T>
         Pro tip: See more <Link href="https://example.com">Docs</Link>
@@ -335,7 +335,7 @@ const node = (
 
 Inline elements inside text blocks use fill layout across lines.
 
-```ds:main.ds
+```tspp:main.tspp
 export default function ProTip() {
   return (
     <T>
@@ -350,7 +350,7 @@ export default function ProTip() {
 }
 ```
 
-```ds expected
+```tspp expected
 export default function ProTip() {
     return (
         <T>
@@ -371,11 +371,11 @@ export default function ProTip() {
 
 Inline map expressions break when they exceed line width.
 
-```ds:main.ds line-width=50
+```tspp:main.tspp line-width=50
 const node = <ul>{items.map((item) => <li key={item.id}>{item.name}</li>)}</ul>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <ul>
         {items.map((item) => (
@@ -389,11 +389,11 @@ const node = (
 
 Conditional expression children break with aligned operators.
 
-```ds:main.ds line-width=20
+```tspp:main.tspp line-width=20
 const node = <div>{ready ? <Ready /> : <Pending />}</div>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <div>
         {ready ? (
@@ -409,14 +409,14 @@ const node = (
 
 If values used as children expand element branches.
 
-```ds
+```tspp
 const node = <Panel>{if (ready) { <Ready label={`state: ${readyLabel}`} /> } else {
   // pending branch
   <Pending label={`state: ${pendingLabel}`} />
 }}</Panel>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <Panel>
         {if (ready) {
@@ -433,11 +433,11 @@ const node = (
 
 If-let values used as children expand element branches and pattern heads.
 
-```ds line-width=80
+```tspp line-width=80
 const node = <Panel>{if (let Some(item) = selected) { <Ready item={item} /> } else { <Pending /> }}</Panel>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <Panel>
         {if (let Some(item) = selected) {
@@ -453,11 +453,11 @@ const node = (
 
 If values without tree branches stay inline when they fit.
 
-```ds line-width=80
+```tspp line-width=80
 const node = <Panel>{if (ready) { label } else { fallback }}</Panel>
 ```
 
-```ds expected
+```tspp expected
 const node = <Panel>{if (ready) { label } else { fallback }}</Panel>;
 ```
 
@@ -465,14 +465,14 @@ const node = <Panel>{if (ready) { label } else { fallback }}</Panel>;
 
 Line comments in control heads expand the expression child.
 
-```ds line-width=80
+```tspp line-width=80
 const node = <Panel>{if (
   // ready state
   ready
 ) { <Ready /> } else { <Pending /> }}</Panel>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <Panel>
         {if (
@@ -491,11 +491,11 @@ const node = (
 
 Match values used as children keep each element arm attached to its pattern.
 
-```ds
+```tspp
 const node = <Panel>{match (state) { Ready(item) => <Ready item={item} />; Pending => <Pending />; Failed(error) => <Failed error={error} /> }}</Panel>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <Panel>
         {match (state) {
@@ -511,11 +511,11 @@ const node = (
 
 Match values expand when any branch returns a tree.
 
-```ds
+```tspp
 const node = <Panel>{match (state) { Ready(item) => <Ready item={item} />; Empty => "empty"; Failed(error) => <Failed error={error} /> }}</Panel>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <Panel>
         {match (state) {
@@ -531,11 +531,11 @@ const node = (
 
 Try values used as children expand result and recovery element branches.
 
-```ds
+```tspp
 const node = <Panel>{try { <Ready data={load()} /> } catch (error) { <Failed error={error} /> }}</Panel>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <Panel>
         {try {
@@ -551,11 +551,11 @@ const node = (
 
 Try values expand when the finally branch returns a tree.
 
-```ds
+```tspp
 const node = <Panel>{try { value } catch (error) { fallback } finally { <Cleanup /> }}</Panel>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <Panel>
         {try {
@@ -573,14 +573,14 @@ const node = (
 
 Logical expressions keep tree children grouped with comments.
 
-```ds:main.ds line-width=80
+```tspp:main.tspp line-width=80
 xxxxxxxxxxxx === "xxxxxxxxxxxxxxxxx" && (
   // test
   <div></div>
 )
 ```
 
-```ds expected
+```tspp expected
 xxxxxxxxxxxx === "xxxxxxxxxxxxxxxxx"
     && (
         // test
@@ -594,11 +594,11 @@ xxxxxxxxxxxx === "xxxxxxxxxxxxxxxxx"
 
 Fragments with multiple children break across lines.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <><A /><B /><C /></>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <>
         <A />
@@ -614,11 +614,11 @@ const node = (
 
 Elements can contain text content.
 
-```ds
+```tspp
 <Text>Hello World</Text>
 ```
 
-```ds expected
+```tspp expected
 <Text>Hello World</Text>;
 ```
 
@@ -626,11 +626,11 @@ Elements can contain text content.
 
 Text nodes collapse whitespace to single spaces.
 
-```ds
+```tspp
 <Text>  Hello   World </Text>
 ```
 
-```ds expected
+```tspp expected
 <Text> Hello World </Text>;
 ```
 
@@ -638,11 +638,11 @@ Text nodes collapse whitespace to single spaces.
 
 Whitespace-only text normalizes to a single preserved space.
 
-```ds
+```tspp
 <Text> </Text>
 ```
 
-```ds expected
+```tspp expected
 <Text> </Text>;
 ```
 
@@ -650,11 +650,11 @@ Whitespace-only text normalizes to a single preserved space.
 
 Whitespace expression containers normalize to inline text spacing.
 
-```ds
+```tspp
 <Text>{" "}Hello{" "}World{" "}</Text>
 ```
 
-```ds expected
+```tspp expected
 <Text> Hello World </Text>;
 ```
 
@@ -662,11 +662,11 @@ Whitespace expression containers normalize to inline text spacing.
 
 Elements can contain other elements.
 
-```ds
+```tspp
 <Container><Header /><Content /></Container>
 ```
 
-```ds expected
+```tspp expected
 <Container>
     <Header />
     <Content />
@@ -677,11 +677,11 @@ Elements can contain other elements.
 
 Deeply nested elements expand with stable indentation.
 
-```ds line-width=40
+```tspp line-width=40
 <Outer><Middle><Inner>content</Inner></Middle></Outer>
 ```
 
-```ds expected
+```tspp expected
 <Outer>
     <Middle>
         <Inner>content</Inner>
@@ -693,11 +693,11 @@ Deeply nested elements expand with stable indentation.
 
 Elements with mixed text and element children expand around fill-layout children.
 
-```ds
+```tspp
 <Paragraph>Hello <Strong>World</Strong>!</Paragraph>
 ```
 
-```ds expected
+```tspp expected
 <Paragraph>Hello <Strong>World</Strong>!</Paragraph>;
 ```
 
@@ -707,11 +707,11 @@ Elements with mixed text and element children expand around fill-layout children
 
 Ternary expressions work inside tree elements.
 
-```ds
+```tspp
 <Container>{isOpen ? <Panel /> : <Placeholder />}</Container>
 ```
 
-```ds expected
+```tspp expected
 <Container>{isOpen ? <Panel /> : <Placeholder />}</Container>;
 ```
 
@@ -719,11 +719,11 @@ Ternary expressions work inside tree elements.
 
 Spread operator passes all properties from an object.
 
-```ds
+```tspp
 <Button {...props} extra="value" />
 ```
 
-```ds expected
+```tspp expected
 <Button {...props} extra="value" />;
 ```
 
@@ -731,11 +731,11 @@ Spread operator passes all properties from an object.
 
 Callbacks can be passed as attributes.
 
-```ds
+```tspp
 <Button onClick={(e) => handleClick(e)} />
 ```
 
-```ds expected
+```tspp expected
 <Button onClick={(e) => handleClick(e)} />;
 ```
 
@@ -743,11 +743,11 @@ Callbacks can be passed as attributes.
 
 Fragment syntax groups elements without a wrapper.
 
-```ds
+```tspp
 <><Header /><Content /><Footer /></>
 ```
 
-```ds expected
+```tspp expected
 <>
     <Header />
     <Content />
@@ -761,11 +761,11 @@ Fragment syntax groups elements without a wrapper.
 
 Tree-returning callbacks in tree children break vertically.
 
-```ds line-width=50
+```tspp line-width=50
 <List>{items.map((item) => <Item key={item.id} />)}</List>
 ```
 
-```ds expected
+```tspp expected
 <List>
     {items.map((item) => (
         <Item key={item.id} />
@@ -778,11 +778,11 @@ Tree-returning callbacks in tree children break vertically.
 Map with block body breaks.
 Returned tree literals use parentheses when multiline.
 
-```ds line-width=40
+```tspp line-width=40
 <List>{items.map((item) => { return <Item key={item.id} name={item.name} /> })}</List>
 ```
 
-```ds expected
+```tspp expected
 <List>
     {items.map((item) => {
         return (
@@ -799,11 +799,11 @@ Returned tree literals use parentheses when multiline.
 
 Conditional expressions with tree children.
 
-```ds
+```tspp
 <div>{loading && <Spinner />}</div>
 ```
 
-```ds expected
+```tspp expected
 <div>{loading && <Spinner />}</div>;
 ```
 
@@ -811,11 +811,11 @@ Conditional expressions with tree children.
 
 Ternary with multi-attribute tree in branches.
 
-```ds line-width=50
+```tspp line-width=50
 <div>{loading ? <Spinner size="large" /> : <Content data={data} />}</div>
 ```
 
-```ds expected
+```tspp expected
 <div>
     {loading ? (
         <Spinner size="large" />
@@ -829,11 +829,11 @@ Ternary with multi-attribute tree in branches.
 
 Trailing tree branch comments format at conditional branch boundaries.
 
-```ds line-width=40
+```tspp line-width=40
 <div>{isVideo ? <Video /> /* keep-video */ : <Image /> /* keep-image */}</div>
 ```
 
-```ds expected
+```tspp expected
 <div>
     {isVideo ? (
         <Video /> /* keep-video */

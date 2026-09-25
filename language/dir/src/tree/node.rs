@@ -1,11 +1,11 @@
-use destack_serde::Reflect;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Formatter};
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
+use tspp_serde::Reflect;
 
-use destack_source::{ModuleId, ProfileId};
 use serde::{Deserialize, Serialize};
+use tspp_source::{ModuleId, ProfileId};
 
 use crate::Access;
 

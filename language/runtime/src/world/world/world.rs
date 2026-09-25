@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use parking_lot::RwLock;
 
-use destack_heap as heap;
-use destack_memory::MemoryMap;
-use destack_repository::{Environment, WorldOptions};
+use tspp_heap as heap;
+use tspp_memory::MemoryMap;
+use tspp_repository::{Environment, WorldOptions};
 
 use crate::binding::ReplayPayload;
 use crate::debugger::Debugger;
@@ -179,7 +179,7 @@ impl World {
         let collector_mode = WorldCollectorMode::from_execution_mode(execution_mode);
         let collector = WorldCollector::new(
             collector_mode,
-            format!("destack.collector.{}", branch_id.get()),
+            format!("tspp.collector.{}", branch_id.get()),
         )?;
 
         let lineage = Arc::new(RwLock::new(Lineage::new_root(
@@ -368,10 +368,9 @@ impl World {
     pub fn fill_secure_bytes(&self, buffer: &mut [u8]) -> RuntimeResult<()> {
         // runtime-owned randomness rejects secure host entropy by default
         if self.state.random.source() == RandomSource::Deterministic {
-            return Err(RuntimeError::from(HostError::not_supported(
-                "destack.random.secure.bytes",
-            ))
-            .boxed());
+            return Err(
+                RuntimeError::from(HostError::not_supported("tspp.random.secure.bytes")).boxed(),
+            );
         }
 
         self.host.fill_random_bytes(buffer)
@@ -382,7 +381,7 @@ impl World {
         // runtime-owned randomness rejects secure host entropy by default
         if self.state.random.source() == RandomSource::Deterministic {
             return Err(RuntimeError::from(HostError::not_supported(
-                "destack.random.secure.bytesTry",
+                "tspp.random.secure.bytesTry",
             ))
             .boxed());
         }

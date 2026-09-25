@@ -6,13 +6,13 @@
 
 Condensed if statements expand with normalized spacing and indentation.
 
-```ds
+```tspp
 if(x){foo()}
 ```
 
 The condition gets space around it, and the body is indented.
 
-```ds expected
+```tspp expected
 if (x) {
     foo()
 }
@@ -22,11 +22,11 @@ if (x) {
 
 Else clauses attach to the closing brace with spaces around `else`.
 
-```ds
+```tspp
 if(x){foo()}else{bar()}
 ```
 
-```ds expected
+```tspp expected
 if (x) {
     foo()
 } else {
@@ -38,11 +38,11 @@ if (x) {
 
 Chained else-if statements follow the same pattern.
 
-```ds
+```tspp
 if(a){foo()}else if(b){bar()}else{baz()}
 ```
 
-```ds expected
+```tspp expected
 if (a) {
     foo()
 } else if (b) {
@@ -56,7 +56,7 @@ if (a) {
 
 Comments before `else if` branches stay attached to the branch.
 
-```ds
+```tspp
 function escape(value: string): string {
     for (const ch of value) {
         if (ch == "\\") {
@@ -78,7 +78,7 @@ function escape(value: string): string {
 }
 ```
 
-```ds expected
+```tspp expected
 function escape(value: string): string {
     for (const ch of value) {
         if (ch == "\\") {
@@ -104,11 +104,11 @@ function escape(value: string): string {
 
 Complex conditions are preserved with their operators.
 
-```ds
+```tspp
 if (x > 0 && y < 10) { foo() }
 ```
 
-```ds expected
+```tspp expected
 if (x > 0 && y < 10) {
     foo()
 }
@@ -118,11 +118,11 @@ if (x > 0 && y < 10) {
 
 Single statement `if` bodies stay brace free.
 
-```ds
+```tspp
 if (x) foo()
 ```
 
-```ds expected
+```tspp expected
 if (x) foo();
 ```
 
@@ -130,11 +130,11 @@ if (x) foo();
 
 Simple if expressions used as values stay on one line.
 
-```ds
+```tspp
 const result = if (x > 0) { "positive" } else { "negative" }
 ```
 
-```ds expected
+```tspp expected
 const result = if (x > 0) { "positive" } else { "negative" };
 ```
 
@@ -142,11 +142,11 @@ const result = if (x > 0) { "positive" } else { "negative" };
 
 If expressions used as initializer values can stay compact.
 
-```ds
+```tspp
 const label = if (ready) { readyLabel } else { pendingLabel }
 ```
 
-```ds expected
+```tspp expected
 const label = if (ready) { readyLabel } else { pendingLabel };
 ```
 
@@ -154,12 +154,12 @@ const label = if (ready) { readyLabel } else { pendingLabel };
 
 If values stay compact in return and call argument positions when they fit.
 
-```ds
+```tspp
 function render(): View { return if (ready) { activeView } else { inactiveView } }
 renderDashboard(if (ready) { activeView } else { inactiveView })
 ```
 
-```ds expected
+```tspp expected
 function render(): View {
     return if (ready) { activeView } else { inactiveView };
 }
@@ -170,12 +170,12 @@ renderDashboard(if (ready) { activeView } else { inactiveView });
 
 If values keep required grouping in collection and spread positions.
 
-```ds
+```tspp
 const values = [if (ready) { readyValue } else { pendingValue }, ...(if (ready) { readyItems } else { pendingItems })]
 const envelope = { status: if (ready) { "ready" } else { "pending" }, ...(if (ready) { readyFields } else { pendingFields }) }
 ```
 
-```ds expected
+```tspp expected
 const values = [
     if (ready) { readyValue } else { pendingValue },
     ...(if (ready) { readyItems } else { pendingItems }),
@@ -190,11 +190,11 @@ const envelope = {
 
 Default parameters can use compact if values.
 
-```ds
+```tspp
 function render(view = if (ready) { readyView } else { pendingView }) { use(view) }
 ```
 
-```ds expected
+```tspp expected
 function render(view = if (ready) { readyView } else { pendingView }) {
     use(view)
 }
@@ -204,11 +204,11 @@ function render(view = if (ready) { readyView } else { pendingView }) {
 
 Compact if values stay inline inside template interpolations.
 
-```ds
+```tspp
 const label = `state: ${if (ready) { readyLabel } else { pendingLabel }}`
 ```
 
-```ds expected
+```tspp expected
 const label = `state: ${if (ready) { readyLabel } else { pendingLabel }}`;
 ```
 
@@ -216,11 +216,11 @@ const label = `state: ${if (ready) { readyLabel } else { pendingLabel }}`;
 
 If values keep required grouping as chain receivers.
 
-```ds
+```tspp
 const result = (if (ready) { readyBuilder } else { pendingBuilder }).build()
 ```
 
-```ds expected
+```tspp expected
 const result = (if (ready) { readyBuilder } else { pendingBuilder }).build();
 ```
 
@@ -228,11 +228,11 @@ const result = (if (ready) { readyBuilder } else { pendingBuilder }).build();
 
 If values keep required grouping as binary operands.
 
-```ds
+```tspp
 const total = (if (ready) { readyScore } else { pendingScore }) + bonus
 ```
 
-```ds expected
+```tspp expected
 const total = (if (ready) { readyScore } else { pendingScore }) + bonus;
 ```
 
@@ -240,11 +240,11 @@ const total = (if (ready) { readyScore } else { pendingScore }) + bonus;
 
 Long if initializer values expand all branch blocks.
 
-```ds line-width=80
+```tspp line-width=80
 const label = if(score > highWaterMark){const normalized=score-highWaterMark;formatLongLabel("high",normalized,metadata.currentUser.displayName)}else if(score < lowWaterMark){const normalized=lowWaterMark-score;formatLongLabel("low",normalized,metadata.currentUser.displayName)}else{"ok"}
 ```
 
-```ds expected
+```tspp expected
 const label = if (score > highWaterMark) {
     const normalized = score - highWaterMark;
     formatLongLabel("high", normalized, metadata.currentUser.displayName)
@@ -260,11 +260,11 @@ const label = if (score > highWaterMark) {
 
 Long if argument values expand all branch blocks.
 
-```ds line-width=80
+```tspp line-width=80
 renderDashboard(user.id, if (user.active) { buildActiveSummary(user, context.locale, context.timeZone) } else { buildInactiveSummary(user, context.locale, context.timeZone) })
 ```
 
-```ds expected
+```tspp expected
 renderDashboard(
     user.id,
     if (user.active) {
@@ -279,11 +279,11 @@ renderDashboard(
 
 Long if chain receiver values expand all branch blocks.
 
-```ds line-width=80
+```tspp line-width=80
 const result = (if (ready) { createReadyBuilder(context, source) } else { createPendingBuilder(context, source) }).build().finalize()
 ```
 
-```ds expected
+```tspp expected
 const result = (if (ready) {
     createReadyBuilder(context, source)
 } else {
@@ -297,13 +297,13 @@ const result = (if (ready) {
 
 Manually broken if initializer values keep all branch blocks expanded.
 
-```ds
+```tspp
 const label = if (ready) {
     readyLabel
 } else { pendingLabel }
 ```
 
-```ds expected
+```tspp expected
 const label = if (ready) {
     readyLabel
 } else {
@@ -315,13 +315,13 @@ const label = if (ready) {
 
 Manually broken if chain receiver values keep all branch blocks expanded.
 
-```ds
+```tspp
 const result = (if (ready) {
     readyBuilder
 } else { pendingBuilder }).build()
 ```
 
-```ds expected
+```tspp expected
 const result = (if (ready) {
     readyBuilder
 } else {
@@ -333,7 +333,7 @@ const result = (if (ready) {
 
 If expressions in tail position keep branch tails as values.
 
-```ds
+```tspp
 function absolute(value: number): number {
     if (value >= 0) {
         value
@@ -343,7 +343,7 @@ function absolute(value: number): number {
 }
 ```
 
-```ds expected
+```tspp expected
 function absolute(value: number): number {
     if (value >= 0) {
         value
@@ -357,7 +357,7 @@ function absolute(value: number): number {
 
 Nested value-capable blocks preserve the final expression at each level.
 
-```ds
+```tspp
 function compute(value: number): number {
     {
         const doubled = value * 2
@@ -372,7 +372,7 @@ function compute(value: number): number {
 }
 ```
 
-```ds expected
+```tspp expected
 function compute(value: number): number {
     {
         const doubled = value * 2;
@@ -391,7 +391,7 @@ function compute(value: number): number {
 
 Nested value-capable blocks preserve explicit terminal semicolons.
 
-```ds
+```tspp
 function compute(value: number): number {
     {
         const doubled = value * 2
@@ -402,7 +402,7 @@ function compute(value: number): number {
 }
 ```
 
-```ds expected
+```tspp expected
 function compute(value: number): number {
     {
         const doubled = value * 2;
@@ -417,14 +417,14 @@ function compute(value: number): number {
 
 Terminal semicolons keep block tails as statements.
 
-```ds
+```tspp
 function run(): void {
     prepare()
     finish();
 }
 ```
 
-```ds expected
+```tspp expected
 function run(): void {
     prepare();
     finish();
@@ -435,11 +435,11 @@ function run(): void {
 
 Nested statement-position if expressions expand explicit branch blocks.
 
-```ds
+```tspp
 if (a) { if (b) { foo() } }
 ```
 
-```ds expected
+```tspp expected
 if (a) {
     if (b) {
         foo()

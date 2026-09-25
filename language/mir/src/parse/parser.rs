@@ -1,5 +1,5 @@
-use destack_core::{Blob, FxIndexMap, FxIndexSet, StringPool};
-use destack_source::{
+use tspp_core::{Blob, FxIndexMap, FxIndexSet, StringPool};
+use tspp_source::{
     DiagnosticCollection, DiagnosticCollector, DiagnosticSeverity, File, FileId, ModuleId,
     NodeSpanList, NodeSpanType, PackageId, Span,
 };

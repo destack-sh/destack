@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_bind_global_scope() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { Process, Task } from "runtime";
 
@@ -21,7 +21,7 @@ let process: string = "local";
         )
         .build();
 
-    compiler.assert_dir_bound("main.ds", DirRows::binding().with_summaries(), r#"
+    compiler.assert_dir_bound("main.tspp", DirRows::binding().with_summaries(), r#"
 import { Process, Task } from "runtime";
 /// @binding.symbol symbol=Process role=local kind=import scope=<module>@1
 /// @binding.symbol symbol=Task role=local kind=import scope=<module>@2

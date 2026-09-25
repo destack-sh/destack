@@ -11,7 +11,7 @@ function build(values: int32[][]): (int32 | readonly int32[])[] {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.build", r#"
+    session.assert_mir_function("main.tspp", "test.main.build", r#"
 @nocopy
 @languageItem("collections.Array")
 type Array<T>;
@@ -168,7 +168,7 @@ function build(): ^(int32 | undefined)[] {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.build", r#"
+    session.assert_mir_function("main.tspp", "test.main.build", r#"
 @nocopy
 @languageItem("collections.Array")
 type Array<T>;
@@ -210,7 +210,7 @@ function build(): ^int32[] {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.build", r#"
+    session.assert_mir_function("main.tspp", "test.main.build", r#"
 @nocopy
 @languageItem("collections.Array")
 type Array<T>;
@@ -239,7 +239,7 @@ entry:
 fn test_lower_pushes_onto_an_owned_array() {
     let session = TestSession::single(
         r#"
-import { Array } from "destack:collections";
+import { Array } from "tspp:collections";
 
 function fill(): int32 {
     let values: ^Array<int32> = Array.new();
@@ -251,7 +251,7 @@ function fill(): int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.fill", r#"
+    session.assert_mir_function("main.tspp", "test.main.fill", r#"
 @nocopy
 @languageItem("collections.Array")
 type Array<T>;
@@ -310,7 +310,7 @@ function zeros(): [int32; 4] {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.zeros",
         r#"
 function test.main.zeros(): [int32; 4] {
@@ -327,7 +327,7 @@ entry:
 fn test_lower_a_range_to_its_language_family() {
     let session = TestSession::single(
         r#"
-import { Range } from "destack:range";
+import { Range } from "tspp:range";
 
 function span(start: isize, end: isize): Range<isize> {
     return start..end;
@@ -336,7 +336,7 @@ function span(start: isize, end: isize): Range<isize> {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.span",
         r#"
 @languageItem("range.Range")
@@ -373,7 +373,7 @@ function main(): Path {
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.main",
         r#"
 type test.main.Path {

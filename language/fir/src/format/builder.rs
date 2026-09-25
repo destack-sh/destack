@@ -1,5 +1,5 @@
-use destack_source::Span;
 use std::marker::PhantomData;
+use tspp_source::Span;
 
 use crate::format::{
     ArenaVec, Argument, Arguments, BestFittingMode, BestFittingVariants, Condition, DedentMode,
@@ -1155,7 +1155,7 @@ impl<'a, Context> Format<'a, Context> for BestFitting<'_, 'a, Context> {
 
 #[cfg(test)]
 mod tests {
-    use destack_source::{File, FileId, FileType, Span, Uri};
+    use tspp_source::{File, FileId, FileType, Span, Uri};
 
     use crate::format::{FormatError, IndentStyle, SimpleFormatContext, SimpleFormatOptions};
     use crate::prelude::*;
@@ -1210,7 +1210,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            File::empty_text(FileType::Destack),
+            File::empty_text(FileType::Tspp),
         );
 
         let nodes = format!(
@@ -1295,7 +1295,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            File::empty_text(FileType::Destack),
+            File::empty_text(FileType::Tspp),
         );
 
         let nodes = format!(
@@ -1324,7 +1324,7 @@ mod tests {
                 line_width: 30,
                 ..SimpleFormatOptions::default()
             },
-            File::empty_text(FileType::Destack),
+            File::empty_text(FileType::Tspp),
         );
 
         let nodes = format!(
@@ -1628,7 +1628,7 @@ mod tests {
                 line_width: 10,
                 ..SimpleFormatOptions::default()
             },
-            File::empty_text(FileType::Destack),
+            File::empty_text(FileType::Tspp),
         );
 
         let formatted = format!(
@@ -1715,7 +1715,7 @@ mod tests {
                 line_width: 20,
                 ..SimpleFormatOptions::default()
             },
-            File::empty_text(FileType::Destack),
+            File::empty_text(FileType::Tspp),
         );
 
         let formatted = format!(&allocator, context, [content]).unwrap();
@@ -1765,7 +1765,7 @@ mod tests {
                     line_width: 21,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text(FileType::Destack),
+                File::empty_text(FileType::Tspp),
             ),
             [content]
         )
@@ -1825,7 +1825,7 @@ mod tests {
                     line_width: 20,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text(FileType::Destack)
+                File::empty_text(FileType::Tspp)
             ),
             [document.clone()]
         )
@@ -1842,7 +1842,7 @@ mod tests {
                     line_width: 8,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text(FileType::Destack)
+                File::empty_text(FileType::Tspp)
             ),
             [document]
         )
@@ -1884,7 +1884,7 @@ mod tests {
             &allocator,
             SimpleFormatContext::new(
                 SimpleFormatOptions::default().with_line_width(80),
-                File::empty_text(FileType::Destack)
+                File::empty_text(FileType::Tspp)
             ),
             [format_with(|f| {
                 write!(
@@ -1913,7 +1913,7 @@ mod tests {
         let formatted = format!(&allocator,
             SimpleFormatContext::new(
                 SimpleFormatOptions::default().with_line_width(80),
-                File::empty_text(FileType::Destack)
+                File::empty_text(FileType::Tspp)
             ),
             [format_with(|f| {
                 write!(

@@ -1,8 +1,8 @@
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use destack_dir::Token;
-use destack_source::File;
+use tspp_dir::Token;
+use tspp_source::File;
 
 use super::comment::LexerComments;
 use super::tokenizer::Tokenizer;

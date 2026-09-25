@@ -1,5 +1,5 @@
-use destack_artifact::ArtifactKey;
-use destack_source::{ModuleId, ProfileId, TargetId};
+use tspp_artifact::ArtifactKey;
+use tspp_source::{ModuleId, ProfileId, TargetId};
 
 use crate::tests::TestSession;
 

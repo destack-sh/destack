@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload};
-use destack_repository::Revision;
-use destack_source::{File, FileId};
+use tspp_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload};
+use tspp_repository::Revision;
+use tspp_source::{File, FileId};
 
 use crate::{ProviderAttempt, SessionError, SessionState};
 

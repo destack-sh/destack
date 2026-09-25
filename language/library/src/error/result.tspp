@@ -1,0 +1,210 @@
+import { From } from "tspp:convert";
+import { Default } from "tspp:memory";
+import { ControlFlow, FromResidual, Try } from "tspp:ops";
+
+import { panic } from "./panic.tspp";
+
+/// Successful result variant.
+@languageItem("error.Ok")
+export struct Ok<T> {
+    /// The result tag.
+    kind: "Ok" = "Ok";
+
+    /// The success value.
+    value: T;
+}
+
+/// Failed result variant.
+@languageItem("error.Err")
+export struct Err<E> {
+    /// The result tag.
+    kind: "Err" = "Err";
+
+    /// The failure value.
+    error: E;
+}
+
+/// Recoverable success or failure.
+@languageItem("error.Result")
+export newtype Result<T, E> = Ok<T> | Err<E>;
+
+export extension<T, E> of Result<T, E> {
+    /// Create a successful result.
+    static ok(value: T): Result<T, E> {
+        Result(Ok { value })
+    }
+
+    /// Create a failed result.
+    static err(error: E): Result<T, E> {
+        Result(Err { error })
+    }
+
+    /// Return true when this result is successful.
+    isOk(&readonly this): boolean {
+        this.kind == "Ok"
+    }
+
+    /// Return true when this result contains an error.
+    isErr(&readonly this): boolean {
+        this.kind == "Err"
+    }
+
+    /// Return the success value or undefined.
+    ok(this): T | undefined {
+        match (this) {
+            Ok { value } => value
+            Err { error: _ } => undefined
+        }
+    }
+
+    /// Return the failure value or undefined.
+    err(this): E | undefined {
+        match (this) {
+            Ok { value: _ } => undefined
+            Err { error } => error
+        }
+    }
+
+    /// Return the success value or panic.
+    unwrap(this): T {
+        match (this) {
+            Ok { value } => value
+            Err { error: _ } => panic("called Result.unwrap() on Err")
+        }
+    }
+
+    /// Return the success value or `default`.
+    unwrapOr(this, default: T): T {
+        match (this) {
+            Ok { value } => value
+            Err { error: _ } => default
+        }
+    }
+
+    /// Return the success value or the default value.
+    unwrapOrDefault(this): T where T: Default {
+        match (this) {
+            Ok { value } => value
+            Err { error: _ } => T.default()
+        }
+    }
+
+    /// Return the success value or compute one from the error.
+    unwrapOrElse(this, f: (error: E) => T): T {
+        match (this) {
+            Ok { value } => value
+            Err { error } => f(error)
+        }
+    }
+
+    /// Return the failure value or panic.
+    unwrapErr(this): E {
+        match (this) {
+            Ok { value: _ } => panic("called Result.unwrapErr() on Ok")
+            Err { error } => error
+        }
+    }
+
+    /// Map the success value.
+    map<U>(this, f: (value: T) => U): Result<U, E> {
+        match (this) {
+            Ok { value } => Result.ok(f(value))
+            Err { error } => Result.err(error)
+        }
+    }
+
+    /// Map the failure value.
+    mapErr<F>(this, f: (error: E) => F): Result<T, F> {
+        match (this) {
+            Ok { value } => Result.ok(value)
+            Err { error } => Result.err(f(error))
+        }
+    }
+
+    /// Continue with another result-returning operation.
+    andThen<U, F>(this, f: (value: T) => Result<U, F>): Result<U, E | F> {
+        match (this) {
+            // rebuild the continuation result at the joined error type
+            Ok { value } => match (f(value)) {
+                Ok { value } => Result.ok(value)
+                Err { error } => Result.err(error)
+            }
+            Err { error } => Result.err(error)
+        }
+    }
+
+    /// Recover from a failure.
+    orElse<F>(this, f: (error: E) => Result<T, F>): Result<T, F> {
+        match (this) {
+            Ok { value } => Result.ok(value)
+            Err { error } => f(error)
+        }
+    }
+
+    /// Fold either result variant into one value.
+    match<U>(this, arms: { ok: (value: T) => U; err: (error: E) => U }): U {
+        match (this) {
+            Ok { value } => arms.ok(value)
+            Err { error } => arms.err(error)
+        }
+    }
+
+    /// Run a side effect on success and keep the original result.
+    tap(this, f: (value: &immutable T) => void): Result<T, E> {
+        match (this) {
+            Ok { value } => {
+                f(&immutable value);
+                Result.ok(value)
+            }
+            Err { error } => Result.err(error)
+        }
+    }
+
+    /// Run a side effect on failure and keep the original result.
+    tapErr(this, f: (error: &immutable E) => void): Result<T, E> {
+        match (this) {
+            Ok { value } => Result.ok(value)
+            Err { error } => {
+                f(&immutable error);
+                Result.err(error)
+            }
+        }
+    }
+}
+
+export extension<T, E, R> of Result<T, E>
+    implements FromResidual<Result<never, R>>
+    where E: From<R>
+{
+    /// Rebuild a failure from a propagated residual.
+    static fromResidual(residual: Result<never, R>): Result<T, E> {
+        match (residual) {
+            Ok { value } => value
+            Err { error } => Result.err(E.from(error))
+        }
+    }
+}
+
+export extension<T, E> of Result<T, E> implements Try {
+    /// The success value.
+    type Output = T;
+
+    /// The failure value in its own result shape.
+    type Residual = Result<never, E>;
+
+    /// The error a `catch` binds.
+    type Failure = E;
+
+    /// Create a successful result.
+    static fromOutput(output: T): Result<T, E> {
+        Result.ok(output)
+    }
+
+    /// Branch into success or failure control flow.
+    branch(this): ControlFlow<Result<never, E>, T> {
+        match (this) {
+            Ok { value } => ControlFlow.continue(value)
+            Err { error } => ControlFlow.break(Result.err(error))
+        }
+    }
+}

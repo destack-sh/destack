@@ -18,13 +18,13 @@ fn test_workspace_imports_declared_packages() {
 "#,
     );
     test.write_text("packages/app/destack.json", "{ \"name\": \"app\" }\n");
-    test.write_text("packages/app/src/main.ds", "export const main = 1;\n");
+    test.write_text("packages/app/src/main.tspp", "export const main = 1;\n");
     test.write_text(
         "unrelated/package/destack.json",
         "{ \"name\": \"other\" }\n",
     );
     test.write_text(
-        "unrelated/package/src/foreign.ds",
+        "unrelated/package/src/foreign.tspp",
         "export const foreign = 1;\n",
     );
 
@@ -46,7 +46,7 @@ fn test_workspace_imports_declared_packages() {
         vec![
             "destack.json".to_string(),
             "packages/app/destack.json".to_string(),
-            "packages/app/src/main.ds".to_string(),
+            "packages/app/src/main.tspp".to_string(),
         ]
     );
 }
@@ -67,12 +67,12 @@ fn test_check_selects_declared_workspace_packages() {
     );
     test.write_text("packages/app/destack.json", "{ \"name\": \"app\" }\n");
     test.write_text(
-        "packages/app/src/main.ds",
+        "packages/app/src/main.tspp",
         "export const answer: int32 = 42;\n",
     );
     test.write_text("packages/lib/destack.json", "{ \"name\": \"lib\" }\n");
     test.write_text(
-        "packages/lib/src/index.ds",
+        "packages/lib/src/index.tspp",
         "export const name = \"lib\";\n",
     );
     test.write_text(
@@ -80,7 +80,7 @@ fn test_check_selects_declared_workspace_packages() {
         "{ \"name\": \"other\" }\n",
     );
     test.write_text(
-        "unrelated/package/src/invalid.ds",
+        "unrelated/package/src/invalid.tspp",
         "export const invalid: string = 42;\n",
     );
 

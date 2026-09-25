@@ -1,7 +1,7 @@
 use crate::{Expression, LocalNodeId, Name, Node, NodeType, StringId};
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// A Pattern is a pattern to match something and unwrap it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]

@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use destack_artifact::MirOptimized;
-use destack_core::StringPool;
-use destack_mir as mir;
-use destack_program::{Object, Program};
-use destack_source::{File, FileId, FileType, ModuleId, PackageId, Uri};
+use tspp_artifact::MirOptimized;
+use tspp_core::StringPool;
+use tspp_mir as mir;
+use tspp_program::{Object, Program};
+use tspp_source::{File, FileId, FileType, ModuleId, PackageId, Uri};
 
 #[cfg(feature = "native")]
 use crate::NativeEmitter;
@@ -66,7 +66,7 @@ impl TestModule {
             module,
             &optimized,
             &object,
-            &destack_repository::Target::native(),
+            &tspp_repository::Target::native(),
         )
         .expect("native emitter should initialize")
         .emit()

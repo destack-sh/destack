@@ -1,7 +1,7 @@
-use destack_core::{FxIndexMap, StringId};
-use destack_dir as dir;
-use destack_mir as mir;
-use destack_mir::substitute_type;
+use tspp_core::{FxIndexMap, StringId};
+use tspp_dir as dir;
+use tspp_mir as mir;
+use tspp_mir::substitute_type;
 
 use crate::lower::{GenericScope, NominalField, TypeLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};

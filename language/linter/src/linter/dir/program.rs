@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::{EnvironmentBound, IndexKind};
-use destack_repository::{ArtifactReader, ProviderError, Repository, Revision};
-use destack_source::ModuleId;
+use tspp_artifact::{EnvironmentBound, IndexKind};
+use tspp_repository::{ArtifactReader, ProviderError, Repository, Revision};
+use tspp_source::ModuleId;
 
 use super::super::LintProgram;
 use super::{Dir, DirModule};

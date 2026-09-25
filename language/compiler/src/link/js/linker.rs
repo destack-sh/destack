@@ -1,9 +1,9 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_artifact::{Data, Script};
-use destack_repository::{ArtifactReader, Module, ProviderContext, Revision, Target};
-use destack_source::{File, FileId, ModuleId, PackageId, ProfileId, Span, TargetId};
+use tspp_artifact::{Data, Script};
+use tspp_repository::{ArtifactReader, Module, ProviderContext, Revision, Target};
+use tspp_source::{File, FileId, ModuleId, PackageId, ProfileId, Span, TargetId};
 
 use crate::{Compiler, CompilerError, LinkError, LinkResult};
 

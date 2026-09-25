@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use destack_core::{Capture, CaptureMode};
-use destack_memory::MemoryMap;
-use destack_program as program;
 use serde::{Deserialize, Serialize};
+use tspp_core::{Capture, CaptureMode};
+use tspp_memory::MemoryMap;
+use tspp_program as program;
 
 use super::fiber::{FiberTable, FiberTableImage};
 use super::timer::TimerQueue;

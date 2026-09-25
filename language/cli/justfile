@@ -4,9 +4,9 @@ set dotenv-load := true
 set dotenv-filename := "../../.env.local"
 
 # selected crates
-packages := "-p destack_language_cli"
-format-packages := "-p destack_language_cli"
-test-packages := "-p destack_language_cli"
+packages := "-p tspp_cli"
+format-packages := "-p tspp_cli"
+test-packages := "-p tspp_cli"
 
 _default:
     @just --list --unsorted
@@ -60,7 +60,7 @@ check-full:
 
 # generate schema
 generate-schema:
-    cargo run -p destack_language_cli --features schema --bin generate-cli-schema --release > generated/cli-report.schema.json
+    cargo run -p tspp_cli --features schema --bin generate-cli-schema --release > generated/cli-report.schema.json
 
 # --- release ---
 

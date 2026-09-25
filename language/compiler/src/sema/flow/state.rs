@@ -1,8 +1,8 @@
 use std::mem::take;
 
-use destack_core::{FxIndexMap, FxIndexSet};
-use destack_dir as dir;
 use smallvec::SmallVec;
+use tspp_core::{FxIndexMap, FxIndexSet};
+use tspp_dir as dir;
 
 use crate::sema::{
     Capture, ControlTarget, ControlTargetForm, FunctionFrame, Receiver, ReceiverBinding, TryTarget,

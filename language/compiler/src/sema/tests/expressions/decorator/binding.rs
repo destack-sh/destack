@@ -9,7 +9,7 @@ struct ResourceId {}
 struct IoControlRequest {}
 
 interface IoControlBinding {
-    @binding("destack.io.control", {
+    @binding("tspp.io.control", {
         provider: "host",
         effect: "external",
         requires: ["host.fs.metadata"],
@@ -21,7 +21,7 @@ interface IoControlBinding {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -30,7 +30,7 @@ struct ResourceId {}
 struct IoControlRequest {}
 
 interface IoControlBinding {
-    @binding("destack.io.control", {
+    @binding("tspp.io.control", {
         provider: "host",
         effect: "external",
         requires: ["host.fs.metadata"],
@@ -55,7 +55,7 @@ interface IoControlBinding {
 /// @definition.where symbol=IoControlBinding relation=satisfies left=this right=IoControlBinding
 /// @definition.method symbol=IoControlBinding.executeIoControl slot=executeIoControl type=(ResourceId, IoControlRequest) => IoControlRequest
 
-    @binding("destack.io.control", {
+    @binding("tspp.io.control", {
     /// @resolution.name source=binding target=binding
 
         provider: "host",

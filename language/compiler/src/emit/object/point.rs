@@ -1,9 +1,9 @@
 use std::iter;
 
-use destack_artifact::MirOptimized;
-use destack_core::FxIndexMap;
-use destack_mir as mir;
-use destack_program::object::Point;
+use tspp_artifact::MirOptimized;
+use tspp_core::FxIndexMap;
+use tspp_mir as mir;
+use tspp_program::object::Point;
 
 /// Object points keyed by MIR operation identity.
 #[derive(Debug)]

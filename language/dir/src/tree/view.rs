@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
-use destack_core::FxIndexSet as IndexSet;
-use destack_source::{FileId, NodeSpanType, Span};
 use smallvec::SmallVec;
+use tspp_core::FxIndexSet as IndexSet;
+use tspp_source::{FileId, NodeSpanType, Span};
 
 use crate::{
     Decorator, DirectChildCollector, Documentation, Expression, LocalNodeId, LocalNodeIdAny, Node,

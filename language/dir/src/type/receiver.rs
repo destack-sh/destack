@@ -1,12 +1,12 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use crate::{Dereference, GlobalSymbolId, GlobalTypeId, InstanceKey, InstanceKeyVisit, TypeFold};
 
 /// Receiver selected by contextual lookup, such as `this` or `super`.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// this.name      // declaration: the enclosing class, ty: its instance type
 /// super.render() // declaration: the enclosing class, ty: its superclass type
 /// ```
@@ -25,7 +25,7 @@ pub struct ReceiverDecision {
 /// Receiver syntax resolved by contextual lookup.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// this
 /// super
 /// ```
@@ -46,14 +46,14 @@ pub enum ReceiverKind {
     /// The active `this` receiver.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// this.name
     /// ```
     This,
     /// The active superclass receiver.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// super.render()
     /// ```
     Super,
@@ -165,7 +165,7 @@ pub struct DynamicDispatch {
 /// One implicit transformation applied before receiver selection.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// value.method()       // Borrow, when `this` expects a borrowed receiver
 /// box.value            // Dereference, when `Box<T>` exposes members of `T`
 /// userId.length        // NewtypePayload, when the backing string exposes `length`

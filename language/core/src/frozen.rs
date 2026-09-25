@@ -5,11 +5,11 @@ use std::mem::size_of;
 use std::ptr::{drop_in_place, null_mut};
 use std::sync::atomic::{AtomicPtr, AtomicUsize, Ordering};
 
-use destack_serde::{Reflect, Schema, Type};
 use parking_lot::Mutex;
 use serde::de::{Deserializer, SeqAccess, Visitor};
 use serde::ser::{SerializeSeq, Serializer};
 use serde::{Deserialize, Serialize};
+use tspp_serde::{Reflect, Schema, Type};
 
 /// The element count of the first chunk; each later chunk doubles it.
 const FIRST_CHUNK_LEN: usize = 64;

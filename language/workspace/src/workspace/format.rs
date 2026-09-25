@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_formatter::{format_source, format_source_range};
-use destack_repository::{FormatterOptions, Revision};
-use destack_source::{DiagnosticSeverity, File, Patch, Span, TextRange};
+use tspp_formatter::{format_source, format_source_range};
+use tspp_repository::{FormatterOptions, Revision};
+use tspp_source::{DiagnosticSeverity, File, Patch, Span, TextRange};
 
 use crate::Error;
 

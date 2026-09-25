@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{DiagnosticRecord, DirAnalyzed};
+use tspp_artifact::{DiagnosticRecord, DirAnalyzed};
 
 use crate::CompilerResult;
 use crate::sema::CheckState;

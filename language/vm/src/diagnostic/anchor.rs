@@ -1,7 +1,7 @@
-use destack_bytecode::CodeOffset;
-use destack_program::{FunctionId, ProgramPoint};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_bytecode::CodeOffset;
+use tspp_program::{FunctionId, ProgramPoint};
+use tspp_serde::Reflect;
 
 /// One executable location attached to a VM diagnostic.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]

@@ -1,7 +1,7 @@
 use clap::{Args, ValueEnum};
-use destack_repository::TraceSnapshot;
-use destack_serde as serde;
-use destack_workspace::CommandMessagePayload;
+use tspp_repository::TraceSnapshot;
+use tspp_serde as serde;
+use tspp_workspace::CommandMessagePayload;
 
 use ::serde::Serialize;
 use ::serde::de::DeserializeOwned;

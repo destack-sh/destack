@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, ArtifactPayload, ArtifactReference};
-use destack_program::ProgramBuilder;
-use destack_source::{PackageId, TargetId};
+use tspp_artifact::{ArtifactKey, ArtifactPayload, ArtifactReference};
+use tspp_program::ProgramBuilder;
+use tspp_source::{PackageId, TargetId};
 
 use crate::tests::harness::TestWorkspace;
 

@@ -1,6 +1,6 @@
-use destack_artifact::{DiagnosticRecord, DirDeclared};
-use destack_repository::ArtifactAttemptRecorder;
-use destack_source::ModuleId;
+use tspp_artifact::{DiagnosticRecord, DirDeclared};
+use tspp_repository::ArtifactAttemptRecorder;
+use tspp_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::sema::CheckState;

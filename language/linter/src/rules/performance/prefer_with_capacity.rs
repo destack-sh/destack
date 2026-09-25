@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, NodeSpanRegion};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch, NodeSpanRegion};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -291,7 +291,7 @@ function collect(capacity: usize): ^Set<int32> {
         let session = TestSession::dir(
             &PREFER_WITH_CAPACITY,
             r#"
-import { ByteBuffer } from "destack:bytes";
+import { ByteBuffer } from "tspp:bytes";
 
 function collect(capacity: usize): ^ByteBuffer {
     let value: ^ByteBuffer = ByteBuffer.new();
@@ -304,7 +304,7 @@ function collect(capacity: usize): ^ByteBuffer {
 
         session.assert_suggestions(
             r#"
-import { ByteBuffer } from "destack:bytes";
+import { ByteBuffer } from "tspp:bytes";
 
 function collect(capacity: usize): ^ByteBuffer {
     let value: ^ByteBuffer = ByteBuffer.withCapacity(capacity);
@@ -321,7 +321,7 @@ function collect(capacity: usize): ^ByteBuffer {
         let session = TestSession::dir(
             &PREFER_WITH_CAPACITY,
             r#"
-import { PathBuilder } from "destack:fs";
+import { PathBuilder } from "tspp:fs";
 
 function collect(capacity: usize): ^PathBuilder {
     let value: ^PathBuilder = PathBuilder.new();
@@ -334,7 +334,7 @@ function collect(capacity: usize): ^PathBuilder {
 
         session.assert_suggestions(
             r#"
-import { PathBuilder } from "destack:fs";
+import { PathBuilder } from "tspp:fs";
 
 function collect(capacity: usize): ^PathBuilder {
     let value: ^PathBuilder = PathBuilder.withCapacity(capacity);
@@ -377,7 +377,7 @@ function collect(capacity: usize): ^Deque<int32> {
         let session = TestSession::dir(
             &PREFER_WITH_CAPACITY,
             r#"
-import { StringBuilder } from "destack:string";
+import { StringBuilder } from "tspp:string";
 
 function collect(capacity: usize): ^StringBuilder {
     let value: ^StringBuilder = StringBuilder.new();
@@ -390,7 +390,7 @@ function collect(capacity: usize): ^StringBuilder {
 
         session.assert_suggestions(
             r#"
-import { StringBuilder } from "destack:string";
+import { StringBuilder } from "tspp:string";
 
 function collect(capacity: usize): ^StringBuilder {
     let value: ^StringBuilder = StringBuilder.withCapacity(capacity);

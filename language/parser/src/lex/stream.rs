@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_dir::{Comment, Token, TokenSpan, TokenType};
-use destack_source::File;
+use tspp_dir::{Comment, Token, TokenSpan, TokenType};
+use tspp_source::File;
 
 use super::comment::CommentDecision;
 use super::lexer::{CommentRetention, Lexer};

@@ -5,8 +5,8 @@ use crate::tests::{DirRows, TestSession};
 fn test_resolve_collection_membership() {
     let session = TestSession::single(
         r#"
-import { Array, Map, Set } from "destack:collections";
-import { StringSlice } from "destack:string";
+import { Array, Map, Set } from "tspp:collections";
+import { StringSlice } from "tspp:string";
 
 declare const integers: Array<int32>;
 declare const integer: int32;
@@ -27,10 +27,10 @@ stringSet.has(stringSlice);
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Array, Map, Set } from "destack:collections";
-import { StringSlice } from "destack:string";
+import { Array, Map, Set } from "tspp:collections";
+import { StringSlice } from "tspp:string";
 
 declare const integers: int32[];
 declare const integer: int32;
@@ -58,8 +58,8 @@ stringMap.has<string, int32, Equality<string>, StringSlice, "readonly", "managed
 stringSet.has<string, Equality<string>, StringSlice, "readonly", "managed", "static">(stringSlice);
 
 === dir ===
-import { Array, Map, Set } from "destack:collections";
-import { StringSlice } from "destack:string";
+import { Array, Map, Set } from "tspp:collections";
+import { StringSlice } from "tspp:string";
 
 declare const integers: Array<int32>;
 /// @type.symbol symbol=integers source=integers type=int32[]
@@ -195,7 +195,7 @@ function copy(values: &immutable Label[] | undefined): ^Label[] | undefined {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -256,7 +256,7 @@ function copy(values: &immutable Label[] | undefined): ^Label[] | undefined {
 fn test_clone_a_borrowed_iterator_into_an_array() {
     let session = TestSession::single(
         r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 declare function values(): Iterator<&immutable int32>;
 
@@ -266,11 +266,11 @@ copied satisfies int32[];
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 declare function values(): Iterator<&immutable int32>;
 
@@ -279,7 +279,7 @@ const copied: ^int32[] = values().cloned<&'managed immutable int32, int32, "mana
 copied satisfies int32[];
 
 === dir ===
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 declare function values(): Iterator<&immutable int32>;
 /// @type.symbol symbol=values source="declare function values(): Iterator<&immutable int32>" type=() => Iterator<&'managed immutable int32>
@@ -319,7 +319,7 @@ function copy(source: int32[]): int32[] {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

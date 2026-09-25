@@ -5,7 +5,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_recursive_member_dereference() {
     let session = TestSession::single(
         r#"
-import { Dereference } from "destack:ops";
+import { Dereference } from "tspp:ops";
 
 struct Recursive {}
 
@@ -24,11 +24,11 @@ const missing = value.missing;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Dereference } from "destack:ops";
+import { Dereference } from "tspp:ops";
 
 struct Recursive {}
 
@@ -45,7 +45,7 @@ declare const value: Recursive;
 const missing = value.missing;
 
 === dir ===
-import { Dereference } from "destack:ops";
+import { Dereference } from "tspp:ops";
 
 struct Recursive {}
 /// @type.symbol symbol=Recursive source="struct Recursive {}" type=Recursive
@@ -113,7 +113,7 @@ const x = point.x;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -174,7 +174,7 @@ const length = point.length();
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -245,7 +245,7 @@ const length = point.length();
 fn test_imported_struct_member_access_selects_exported_field() {
     let compiler = TestSession::builder()
         .module(
-            "geometry.ds",
+            "geometry.tspp",
             r#"
 export struct Point {
     x: int32;
@@ -253,9 +253,9 @@ export struct Point {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Point } from "./geometry.ds";
+import { Point } from "./geometry.tspp";
 
 const point = Point { x: 1 };
 const x = point.x;
@@ -264,17 +264,17 @@ const x = point.x;
         .build();
 
     compiler.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { Point } from "./geometry.ds";
+import { Point } from "./geometry.tspp";
 
 const point: Point = Point { x: 1 };
 const x: int32 = point.x;
 
 === dir ===
-import { Point } from "./geometry.ds";
+import { Point } from "./geometry.tspp";
 
 const point = Point { x: 1 };
 /// @type.symbol symbol=point source=point type=geometry.Point
@@ -307,7 +307,7 @@ const length = values.length;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -345,15 +345,15 @@ const length = values.length;
 fn test_imported_array_member_access_selects_length() {
     let session = TestSession::builder()
         .module(
-            "values.ds",
+            "values.tspp",
             r#"
 export const values: int32[] = [];
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { values } from "./values.ds";
+import { values } from "./values.tspp";
 
 const length = values.length;
 "#,
@@ -361,16 +361,16 @@ const length = values.length;
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { values } from "./values.ds";
+import { values } from "./values.tspp";
 
 const length: isize = values.length;
 
 === dir ===
-import { values } from "./values.ds";
+import { values } from "./values.tspp";
 
 const length = values.length;
 /// @type.symbol symbol=length source=length type=isize
@@ -407,7 +407,7 @@ const state = State { value: 1 };
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -467,7 +467,7 @@ values.push(1);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -507,7 +507,7 @@ values.push(1);
 fn test_member_on_never_reports_missing_member() {
     let session = TestSession::single(
         r#"
-import { todo } from "destack:error";
+import { todo } from "tspp:error";
 
 function pending(): int32 {
     let value = todo("later");
@@ -517,11 +517,11 @@ function pending(): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { todo } from "destack:error";
+import { todo } from "tspp:error";
 
 function pending(): int32 {
     let value: never = todo("later" as string | undefined);
@@ -529,7 +529,7 @@ function pending(): int32 {
 }
 
 === dir ===
-import { todo } from "destack:error";
+import { todo } from "tspp:error";
 
 function pending(): int32 {
 /// @type.symbol symbol=pending type=() => int32
@@ -570,7 +570,7 @@ const second = handler.run(2);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -655,7 +655,7 @@ const log = logger.log;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -718,7 +718,7 @@ const chosen = store.pick<int32>(3);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -787,7 +787,7 @@ function render(): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_node_types().without_reference_types(),
         r#"
 === annotated ===
@@ -835,7 +835,7 @@ function render(): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_node_types().without_reference_types(),
         r#"
 === annotated ===
@@ -887,7 +887,7 @@ function feed(): int64 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_node_types().without_reference_types(),
         r#"
 === annotated ===
@@ -946,7 +946,7 @@ function render(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

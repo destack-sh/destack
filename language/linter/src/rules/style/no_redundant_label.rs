@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -125,7 +125,7 @@ outer: loop {
         session.assert_diagnostics(
             r#"
 warning[no-redundant-label]: label does not change the control target
- ──▶ main.ds:2:11
+ ──▶ main.tspp:2:11
   │
 1 │ outer: loop {
 2 │     break outer;
@@ -134,8 +134,8 @@ warning[no-redundant-label]: label does not change the control target
   │
 
  = fix: remove the redundant label
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ outer: loop {
 -   2│     break outer;

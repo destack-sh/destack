@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use destack_repository::{
+use tspp_repository::{
     TraceSnapshot, TraceTimelineOptions, render_trace_duration, render_trace_timeline,
     trace_stage_color,
 };

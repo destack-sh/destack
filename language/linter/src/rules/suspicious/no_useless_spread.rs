@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -381,7 +381,7 @@ function point(x: int32, y: int32): { x: int32; y: int32 } {
         let session = TestSession::dir(
             &NO_USELESS_SPREAD,
             r#"
-import { Set } from "destack:collections";
+import { Set } from "tspp:collections";
 
 function unique(values: int32[]): Set<int32> {
     return Set.from([...values]);
@@ -391,7 +391,7 @@ function unique(values: int32[]): Set<int32> {
 
         session.assert_fixes(
             r#"
-import { Set } from "destack:collections";
+import { Set } from "tspp:collections";
 
 function unique(values: int32[]): Set<int32> {
     return Set.from(values);
@@ -430,7 +430,7 @@ function values(): int32[] {
         session.assert_diagnostics(
             r#"
 warning[no-useless-spread]: inline array is spread into an array literal
- ──▶ main.ds:2:16
+ ──▶ main.tspp:2:16
   │
 1 │ function values(): int32[] {
 2 │     return [1, ...[/* retain */], 2];
@@ -501,7 +501,7 @@ const value = { ...{ count: 1 }, count: 2 };
         session.assert_diagnostics(
             r#"
 warning[no-useless-spread]: inline object is spread into an object literal
- ──▶ main.ds:1:17
+ ──▶ main.tspp:1:17
   │
 1 │ const value = { ...{ count: 1 }, count: 2 };
   │                 ^^^^^^^^^^^^^^^
@@ -516,7 +516,7 @@ warning[no-useless-spread]: inline object is spread into an object literal
         let session = TestSession::dir(
             &NO_USELESS_SPREAD,
             r#"
-import { Set } from "destack:collections";
+import { Set } from "tspp:collections";
 
 function unique(values: int32[]): Set<int32> {
     return Set.from([/* retain */ ...values]);
@@ -527,7 +527,7 @@ function unique(values: int32[]): Set<int32> {
         session.assert_diagnostics(
             r#"
 warning[no-useless-spread]: iterable is copied before an iterable argument
- ──▶ main.ds:4:21
+ ──▶ main.tspp:4:21
   │
 2 │
 3 │ function unique(values: int32[]): Set<int32> {

@@ -3,11 +3,11 @@ use crate::parse::{
 };
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
-use destack_dir::{
+use tspp_dir::{
     Access, Asynchrony, BlockContext, Declarator, Expression, Keyword, LetKind, LocalNodeId,
     Mutability, NodeType, OperatorPrecedence, Pattern, TokenType,
 };
-use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
+use tspp_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 use super::DeclarationHeader;
 
@@ -50,7 +50,7 @@ impl Parser {
     /// Parse a let or const binding.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// const x = 1
     /// const x: int32 = 1
     /// let a: T1 = v1, b: T2  // multiple declarators
@@ -76,7 +76,7 @@ impl Parser {
     /// Parse a using binding (incl. `using` keyword and optional `await`).
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// using file = openFile(path)
     /// await using conn = openConnection()
     /// using a = openA(), b = openB()
@@ -340,7 +340,7 @@ impl Parser {
     /// Parse a single declarator with an optional value unless `require_value` is set.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// value
     /// value = 1
     /// { x, y }: Point = point
@@ -370,7 +370,7 @@ impl Parser {
                         | TokenType::End
                 );
 
-            // reserve mutability markers and the Destack wildcard for pattern parsing
+            // reserve mutability markers and the TS++ wildcard for pattern parsing
             let keyword = self.peek_keyword();
             let is_mutability_keyword = matches!(keyword, Some(Keyword::Const | Keyword::Let))
                 || keyword == Some(Keyword::Readonly);

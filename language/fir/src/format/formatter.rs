@@ -438,7 +438,7 @@ impl<'state, 'a, Context> Formatter<'state, 'a, Context> {
 
 #[cfg(test)]
 mod tests {
-    use destack_source::FileType;
+    use tspp_source::FileType;
 
     use crate::format::{
         FormatState, Formatted, IndentStyle, SimpleFormatContext, SimpleFormatOptions,
@@ -501,7 +501,7 @@ mod tests {
                     line_width: 80,
                     ..Default::default()
                 },
-                File::empty_text(FileType::Destack)
+                File::empty_text(FileType::Tspp)
             ),
             [format_with(|f| {
                 f.fill()
@@ -553,7 +553,7 @@ mod tests {
                     line_width: 80,
                     ..Default::default()
                 },
-                File::empty_text(FileType::Destack)
+                File::empty_text(FileType::Tspp)
             ),
             [format_with(|f| {
                 f.fill()

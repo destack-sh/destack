@@ -1,0 +1,22 @@
+// SYNTAX TEST "source.tspp"
+
+// types / arrays / dynamic slices fixed and tuples
+type Dynamic = uint8[];
+// <- keyword.declaration.type.tspp
+
+type Slice = [uint8];
+//           ^ punctuation.section.brackets.begin.tspp
+
+type Fixed<const N: uint> = [uint8; N];
+
+type Pair = (string, uint32);
+//          ^ punctuation.section.group.begin.tspp
+
+type One = (int32,);
+
+type Empty = ();
+//           ^ punctuation.section.group.begin.tspp
+
+// types / arrays / readonly
+type ReadonlyNames = readonly string[];
+// <- keyword.declaration.type.tspp

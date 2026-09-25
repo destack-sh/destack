@@ -11,7 +11,7 @@ function square<T: int32 | float64>(value: T): T {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -53,7 +53,7 @@ function scale<T>(left: T, right: T): T where T: int32 | float64 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -98,7 +98,7 @@ function offset<T: int8 | int64>(value: T): T {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -141,7 +141,7 @@ function offset<T: int8 | float64>(value: T): T where T: uint8 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -185,7 +185,7 @@ function ordered<T: int32 | float64>(left: T, right: T): boolean {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -228,7 +228,7 @@ function negate<T: int32 | float64>(value: T): T {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -267,7 +267,7 @@ function flip<T: int32 | int64>(value: T): T {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -306,7 +306,7 @@ function mix<T: int32 | float64, U: int32 | float64>(left: T, right: U): T {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -355,7 +355,7 @@ function double<T>(value: T): T {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -394,7 +394,7 @@ function double<T>(value: T): T {
 fn test_scalar_domain_parameter_rejects_arithmetic() {
     let session = TestSession::single(
         r#"
-import { IntegerDomain } from "destack:math";
+import { IntegerDomain } from "tspp:math";
 
 function double<T: IntegerDomain>(value: T): T {
     return value + value;
@@ -403,18 +403,18 @@ function double<T: IntegerDomain>(value: T): T {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { IntegerDomain } from "destack:math";
+import { IntegerDomain } from "tspp:math";
 
 function double<T: IntegerDomain>(value: T): T {
     return value + value;
 }
 
 === dir ===
-import { IntegerDomain } from "destack:math";
+import { IntegerDomain } from "tspp:math";
 
 function double<T: IntegerDomain>(value: T): T {
 /// @generic.template symbol=double parameters=(T: IntegerDomain)
@@ -452,7 +452,7 @@ const value = missing * 2;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -482,7 +482,7 @@ const doubled = value * value;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -512,7 +512,7 @@ const doubled = value * value;
 fn test_bounded_parameter_selects_overloaded_operator() {
     let session = TestSession::single(
         r#"
-import { Multiply } from "destack:ops";
+import { Multiply } from "tspp:ops";
 
 function square<T: Multiply<T>>(value: T): T.Output {
     return value * value;
@@ -520,16 +520,16 @@ function square<T: Multiply<T>>(value: T): T.Output {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Multiply } from "destack:ops";
+import { Multiply } from "tspp:ops";
 
 function square<T: Multiply<T>>(value: T): T.Output {
     return value * value;
 }
 
 === dir ===
-import { Multiply } from "destack:ops";
+import { Multiply } from "tspp:ops";
 
 function square<T: Multiply<T>>(value: T): T.Output {
 /// @generic.template symbol=square parameters=(T: Multiply<T>)
@@ -569,7 +569,7 @@ const kept = bits << 3;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -593,7 +593,7 @@ const kept = bits << 3;
 fn test_reject_a_literal_operand_at_a_rigid_parameter() {
     let session = TestSession::single(
         r#"
-import { Integer } from "destack:math";
+import { Integer } from "tspp:math";
 
 function decrement<T: Integer>(value: T): T {
     return value - 1;
@@ -602,18 +602,18 @@ function decrement<T: Integer>(value: T): T {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Integer } from "destack:math";
+import { Integer } from "tspp:math";
 
 function decrement<T: Integer>(value: T): T {
     return value - 1;
 }
 
 === dir ===
-import { Integer } from "destack:math";
+import { Integer } from "tspp:math";
 
 function decrement<T: Integer>(value: T): T {
 /// @generic.template symbol=decrement parameters=(T: Integer)
@@ -644,7 +644,7 @@ function decrement<T: Integer>(value: T): T {
 fn test_compare_generic_operands_through_their_bounds() {
     let session = TestSession::single(
         r#"
-import { Compare, Ordering } from "destack:ops";
+import { Compare, Ordering } from "tspp:ops";
 
 function before<T: Compare<U>, U>(left: &immutable T, right: &immutable U): boolean {
     return *left <= *right;
@@ -661,11 +661,11 @@ function isLess<T: Compare<U>, U>(left: &immutable T, right: &immutable U): bool
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Compare, Ordering } from "destack:ops";
+import { Compare, Ordering } from "tspp:ops";
 
 function before<T: Compare<U>, U, 'a, 'b>(left: &'a immutable T, right: &'b immutable U): boolean {
     return *left <= (*right as &'b immutable U);
@@ -680,7 +680,7 @@ function isLess<T: Compare<U>, U, 'a, 'b>(left: &'a immutable T, right: &'b immu
 }
 
 === dir ===
-import { Compare, Ordering } from "destack:ops";
+import { Compare, Ordering } from "tspp:ops";
 
 function before<T: Compare<U>, U>(left: &immutable T, right: &immutable U): boolean {
 /// @generic.template symbol=before parameters=(T#1: Compare<U#1>, U#1, 'a, 'b)

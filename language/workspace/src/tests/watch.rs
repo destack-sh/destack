@@ -1,7 +1,7 @@
 use futures::executor::block_on;
 
-use destack_repository::TraceLevel;
-use destack_source::{Edit, FileSystem};
+use tspp_repository::TraceLevel;
+use tspp_source::{Edit, FileSystem};
 
 use crate::tests::harness::TestWorkspace;
 use crate::{Error, WatchEvent};
@@ -10,7 +10,7 @@ use crate::{Error, WatchEvent};
 #[test]
 fn test_watch_emits_ready_and_commits() {
     let test = TestWorkspace::new("workspace-watch-commits");
-    let path = test.path_for("src/main.ds");
+    let path = test.path_for("src/main.tspp");
     let revision = test.workspace.revision().expect("read revision");
     let mut watch = test.workspace.watch().expect("open watch");
 
@@ -62,7 +62,7 @@ fn test_watch_selects_and_removes_branch() {
             &branch,
             physical,
             vec![Edit::SetText {
-                path: test.path_for("main.ds"),
+                path: test.path_for("main.tspp"),
                 text: "export const value = 1;\n".to_string(),
             }],
             trace.as_ref(),
@@ -89,7 +89,7 @@ fn test_watch_selects_and_removes_branch() {
 #[test]
 fn test_watch_retains_commit_revisions() {
     let test = TestWorkspace::new("workspace-watch-retains-revisions");
-    let path = test.path_for("src/main.ds");
+    let path = test.path_for("src/main.tspp");
     let mut watch = test.workspace.watch().expect("open watch");
     let _ready = block_on(watch.next()).expect("receive ready event");
 
@@ -125,8 +125,8 @@ fn test_watch_retains_commit_revisions() {
 #[test]
 fn test_watch_emits_move_commit() {
     let test = TestWorkspace::new("workspace-watch-move");
-    let from = test.write_text("from.ds", "export const value = 1;\n");
-    let to = test.path_for("nested/to.ds");
+    let from = test.write_text("from.tspp", "export const value = 1;\n");
+    let to = test.path_for("nested/to.tspp");
     test.apply_text(&from, "export const value = 1;\n");
     let mut watch = test.workspace.watch().expect("open watch");
     let _ready = block_on(watch.next()).expect("receive ready event");
@@ -141,8 +141,8 @@ fn test_watch_emits_move_commit() {
     assert_eq!(
         commit.changes,
         vec![
-            TestWorkspace::change("from.ds", Some("export const value = 1;\n"), None),
-            TestWorkspace::change("nested/to.ds", None, Some("export const value = 1;\n")),
+            TestWorkspace::change("from.tspp", Some("export const value = 1;\n"), None),
+            TestWorkspace::change("nested/to.tspp", None, Some("export const value = 1;\n")),
         ]
     );
     assert_eq!(
@@ -160,7 +160,7 @@ fn test_watch_emits_move_commit() {
 #[test]
 fn test_reload_emits_one_commit() {
     let test = TestWorkspace::new("workspace-watch-reload");
-    let path = test.path_for("src/main.ds");
+    let path = test.path_for("src/main.tspp");
     let mut watch = test.workspace.watch().expect("open watch");
     let _ready = block_on(watch.next()).expect("receive ready event");
 
@@ -176,7 +176,7 @@ fn test_reload_emits_one_commit() {
     assert_eq!(
         commit.changes,
         vec![TestWorkspace::change(
-            "src/main.ds",
+            "src/main.tspp",
             None,
             Some("export const value = 1;\n"),
         )]
@@ -195,8 +195,8 @@ fn test_reload_emits_one_commit() {
 #[test]
 fn test_reconcile_selects_paths() {
     let test = TestWorkspace::new("workspace-watch-reconcile");
-    let first = test.write_text("src/first.ds", "export const first = 1;\n");
-    let second = test.write_text("src/second.ds", "export const second = 1;\n");
+    let first = test.write_text("src/first.tspp", "export const first = 1;\n");
+    let second = test.write_text("src/second.tspp", "export const second = 1;\n");
     test.workspace
         .reload()
         .expect("reload initial files")
@@ -225,7 +225,7 @@ fn test_reconcile_selects_paths() {
     assert_eq!(
         commit.changes,
         vec![TestWorkspace::change(
-            "src/first.ds",
+            "src/first.tspp",
             Some("export const first = 1;\n"),
             Some("export const first = 2;\n"),
         )]
@@ -245,7 +245,7 @@ fn test_reconcile_selects_paths() {
     assert_eq!(
         commit.changes,
         vec![TestWorkspace::change(
-            "src/second.ds",
+            "src/second.tspp",
             Some("export const second = 1;\n"),
             Some("export const second = 2;\n"),
         )]
@@ -257,8 +257,8 @@ fn test_reconcile_selects_paths() {
 fn test_reconcile_deleted_directory() {
     let test = TestWorkspace::new("workspace-watch-deleted-directory");
     let directory = test.path_for("src/deleted");
-    test.write_text("src/deleted/first.ds", "export const first = 1;\n");
-    test.write_text("src/deleted/second.ds", "export const second = 1;\n");
+    test.write_text("src/deleted/first.tspp", "export const first = 1;\n");
+    test.write_text("src/deleted/second.tspp", "export const second = 1;\n");
     test.workspace
         .reload()
         .expect("reload initial directory")
@@ -275,12 +275,12 @@ fn test_reconcile_deleted_directory() {
         commit.changes,
         vec![
             TestWorkspace::change(
-                "src/deleted/first.ds",
+                "src/deleted/first.tspp",
                 Some("export const first = 1;\n"),
                 None,
             ),
             TestWorkspace::change(
-                "src/deleted/second.ds",
+                "src/deleted/second.tspp",
                 Some("export const second = 1;\n"),
                 None,
             ),
@@ -293,8 +293,8 @@ fn test_reconcile_deleted_directory() {
 fn test_reconcile_changed_directory() {
     let test = TestWorkspace::new("workspace-watch-changed-directory");
     let directory = test.path_for("src/generated");
-    test.write_text("src/generated/first.ds", "export const first = 1;\n");
-    test.write_text("src/generated/second.ds", "export const second = 1;\n");
+    test.write_text("src/generated/first.tspp", "export const first = 1;\n");
+    test.write_text("src/generated/second.tspp", "export const second = 1;\n");
 
     let commit = test
         .workspace
@@ -306,12 +306,12 @@ fn test_reconcile_changed_directory() {
         commit.changes,
         vec![
             TestWorkspace::change(
-                "src/generated/first.ds",
+                "src/generated/first.tspp",
                 None,
                 Some("export const first = 1;\n"),
             ),
             TestWorkspace::change(
-                "src/generated/second.ds",
+                "src/generated/second.tspp",
                 None,
                 Some("export const second = 1;\n"),
             ),
@@ -324,7 +324,7 @@ fn test_reconcile_changed_directory() {
 fn test_watch_reports_lag() {
     let test = TestWorkspace::new("workspace-watch-lag");
     let root = &test.root;
-    let path = test.path_for("main.ds");
+    let path = test.path_for("main.tspp");
     let mut watch = test.workspace.watch().expect("open watch");
     let _ready = block_on(watch.next()).expect("receive ready event");
 

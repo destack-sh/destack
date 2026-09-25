@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, NodeSpanRegion, Patch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, NodeSpanRegion, Patch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -334,13 +334,13 @@ export { version };
         let session = TestSession::dir(
             &NO_USELESS_RENAME,
             r#"
-import { Array as Array } from "destack:collections";
+import { Array as Array } from "tspp:collections";
 "#,
         );
 
         session.assert_suggestions(
             r#"
-import { Array } from "destack:collections";
+import { Array } from "tspp:collections";
 "#,
         );
     }
@@ -351,13 +351,13 @@ import { Array } from "destack:collections";
         let session = TestSession::dir(
             &NO_USELESS_RENAME,
             r#"
-import { "Array" as Array } from "destack:collections";
+import { "Array" as Array } from "tspp:collections";
 "#,
         );
 
         session.assert_suggestions(
             r#"
-import { Array } from "destack:collections";
+import { Array } from "tspp:collections";
 "#,
         );
     }
@@ -428,7 +428,7 @@ function name(user: { name: string }): string {
         session.assert_diagnostics(
             r#"
 warning[no-useless-rename]: destructured field repeats its source name
- ──▶ main.ds:2:13
+ ──▶ main.tspp:2:13
   │
 1 │ function name(user: { name: string }): string {
 2 │     const { name: /* retain */ name } = user;

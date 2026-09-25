@@ -1,5 +1,5 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use crate::{
     GlobalTypeId, InstanceKeyVisit, Literal, PrimitiveType, Projection, RangeEnd, RangeType,
@@ -9,7 +9,7 @@ use crate::{
 /// Executable predicate selected during checking.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// value is string       // Unary
 /// value.kind is "circle" // Unary over Discriminant
 /// "name" in value       // Membership
@@ -69,7 +69,7 @@ impl Predicate {
 /// Value tested by one executable predicate.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// value          // projection: none
 /// dynamic.type   // projection: DynamicType
 /// ```
@@ -104,7 +104,7 @@ impl PredicateOperand {
 /// Predicate test selected during checking.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// value is string       // Unary
 /// "name" in value       // Membership
 /// value is "a" | "b"    // Any
@@ -114,7 +114,7 @@ pub enum PredicateTest {
     /// Unary test over one input value.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// value is string
     /// match value { "ready" => true }
     /// ```
@@ -122,14 +122,14 @@ pub enum PredicateTest {
     /// Structural membership test over a receiver and key.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// "name" in value
     /// ```
     Membership(Box<PredicateMembershipTest>),
     /// Predicate that accepts when any alternative accepts.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// value is "yes" | "no"
     /// ```
     Any(Vec<Predicate>),
@@ -138,7 +138,7 @@ pub enum PredicateTest {
 /// Unary predicate over one input value.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// value is string       // input: value, condition: Primitive
 /// value.kind is "circle" // input: Discriminant, condition: Literal
 /// ```
@@ -153,7 +153,7 @@ pub struct PredicateUnaryTest {
 /// Condition applied to one predicate input.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// _                // Always
 /// never            // Never
 /// "ready"          // Literal
@@ -167,49 +167,49 @@ pub enum PredicateCondition {
     /// Condition that accepts any projected input.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// match value { _ => true }
     /// ```
     Always,
     /// Condition that rejects every projected input.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// match value { never => false }
     /// ```
     Never,
     /// Scalar literal condition, like `"ready"` or `0`.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// match status { "ready" => true }
     /// ```
     Literal(Literal),
     /// Scalar interval condition, like `0..=255`.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// match code { 200..=299 => true }
     /// ```
     Range(PredicateRange),
     /// Primitive tag condition, like `string` or `int32`.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// if (value is string) {}
     /// ```
     Primitive(PrimitiveType),
     /// Exact runtime type descriptor condition.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// if (value is UserId) {}
     /// ```
     Type(GlobalTypeId),
     /// Runtime subtype descriptor condition.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// if (value is Animal) {}
     /// ```
     Subtype(GlobalTypeId),
@@ -218,7 +218,7 @@ pub enum PredicateCondition {
 /// Structural membership predicate.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// "name" in value
 /// key in value
 /// ```
@@ -233,7 +233,7 @@ pub struct PredicateMembershipTest {
 /// Key tested by one structural membership predicate.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// "name" in value // Static
 /// key in value    // Dynamic
 /// ```
@@ -242,14 +242,14 @@ pub enum PredicateKey {
     /// Statically known property key.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// "name" in value
     /// ```
     Static(StaticKey),
     /// Runtime-computed property key.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// key in value
     /// ```
     Dynamic(PredicateOperand),
@@ -258,7 +258,7 @@ pub enum PredicateKey {
 /// Scalar interval condition.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// 0..=255
 /// "a".."z"
 /// ```

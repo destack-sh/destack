@@ -2,16 +2,16 @@ use crate::parse::DeclarationHeader;
 use crate::parse::error::ParserResultExt;
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
-use destack_dir::{
+use tspp_dir::{
     ClassDeclaration, Declaration, Keyword, LocalNodeId, NodeType, StructDeclaration, TokenType,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
     /// Parse one struct or class declaration.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// struct Point<T> { x: T; y: T }
     /// class Widget extends View {}
     /// ```

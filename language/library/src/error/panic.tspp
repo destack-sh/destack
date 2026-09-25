@@ -1,0 +1,85 @@
+import { Result } from "./result.tspp";
+import { SourceLocation, StackTrace } from "./stack.tspp";
+
+/// Panic observed by hooks, `catchUnwind`, and Worker supervisors.
+@languageItem("error.Panic")
+export struct Panic {
+    /// The panic message.
+    message: ^string;
+
+    /// Source location where the panic began.
+    location?: SourceLocation;
+
+    /// Captured stack trace when available.
+    stack?: StackTrace;
+}
+
+/// Types safe to retain across a panic boundary.
+@languageItem("error.UnwindSafe")
+export newtype interface UnwindSafe {}
+
+/// Types safe to observe through readonly references after unwinding.
+@languageItem("error.RefUnwindSafe")
+export newtype interface RefUnwindSafe {}
+
+/// Hook invoked before the current Worker starts unwinding.
+export type PanicHook = (panic: &readonly Panic) => void;
+
+/// Stop execution with a language panic.
+@languageItem("error.panic")
+@intrinsic("error.panic")
+export declare function panic(message: &readonly string): never;
+
+/// Run one callable behind a panic boundary.
+@languageItem("error.catchUnwind")
+@intrinsic("error.catchUnwind")
+export declare function catchUnwind<T>(
+    body: ^Function<(), T, "once"> & UnwindSafe,
+): Result<T, Panic>;
+
+/// Resume an existing panic without invoking the panic hook again.
+@languageItem("error.resumeUnwind")
+@intrinsic("error.resumeUnwind")
+export declare function resumeUnwind(panic: Panic): never;
+
+/// Explicitly assert that a value may cross a panic boundary.
+@languageItem("error.assertUnwindSafe")
+@intrinsic("error.assertUnwindSafe")
+export declare function assertUnwindSafe<T>(value: T): T & UnwindSafe;
+
+/// Install the current Worker's panic hook.
+@languageItem("error.setPanicHook")
+@binding("tspp.error.panic.hook.set", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+})
+export declare function setPanicHook(hook: PanicHook): void;
+
+/// Remove the current Worker's panic hook and return the previous hook.
+@languageItem("error.takePanicHook")
+@binding("tspp.error.panic.hook.take", {
+    provider: "runtime",
+    effect: "deterministic",
+    requires: [],
+})
+export declare function takePanicHook(): PanicHook;
+
+/// Stop execution with a low-level runtime trap.
+@intrinsic("error.trap")
+export declare function trap(message?: string): never;
+
+/// Stop execution immediately without unwinding or cleanup.
+@languageItem("error.abort")
+@intrinsic("error.abort")
+export declare function abort(message?: string): never;
+
+/// Stop execution because code is intentionally unfinished.
+@languageItem("error.todo")
+@intrinsic("error.todo")
+export declare function todo(message?: string): never;
+
+/// Mark this code path as unreachable.
+@languageItem("error.unreachable")
+@intrinsic("error.unreachable")
+export declare function unreachable(): never;

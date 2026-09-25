@@ -1,6 +1,6 @@
-use destack_core::{NameMatch, find_best_match};
-use destack_dir as dir;
-use destack_source::{DiagnosticSuggestion, ModuleId};
+use tspp_core::{NameMatch, find_best_match};
+use tspp_dir as dir;
+use tspp_source::{DiagnosticSuggestion, ModuleId};
 
 use crate::export::ExportLookup;
 use crate::sema::CheckState;

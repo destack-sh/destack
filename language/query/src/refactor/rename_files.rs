@@ -2,12 +2,12 @@ use std::collections::BTreeMap;
 use std::collections::btree_map::Entry;
 use std::path::PathBuf;
 
-use destack_artifact::{ArtifactKey, DirBound, DirExpanded, DirImported, DirParsed, DirView};
-use destack_dir as dir;
-use destack_repository::{ArtifactReader, Repository, Revision};
-use destack_serde::Reflect;
-use destack_source::{FileId, FilePatch, Patch, PatchSet, PathExt};
 use serde::{Deserialize, Serialize};
+use tspp_artifact::{ArtifactKey, DirBound, DirExpanded, DirImported, DirParsed, DirView};
+use tspp_dir as dir;
+use tspp_repository::{ArtifactReader, Repository, Revision};
+use tspp_serde::Reflect;
+use tspp_source::{FileId, FilePatch, Patch, PatchSet, PathExt};
 
 use super::specifier::{rename_specifier, renamed_target_path, workspace_path};
 use crate::{Module, QueryError, QueryResult};

@@ -2,11 +2,11 @@ use std::any::Any;
 use std::panic::{AssertUnwindSafe, catch_unwind};
 use std::sync::Arc;
 
-use destack_artifact::{
+use tspp_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactFailure, ArtifactKey, ArtifactOutcome,
     ArtifactPayload, ArtifactProvider, DiagnosticRecord,
 };
-use destack_repository::{
+use tspp_repository::{
     ArtifactAttemptOutcome, ArtifactAttemptRecorder, ArtifactBase, ArtifactPlan, PendingSet,
     ProviderError, ProviderResult, Repository, Revision,
 };

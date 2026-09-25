@@ -16,7 +16,7 @@ const mode: Mode = 1;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -97,7 +97,7 @@ const backing = mode as uint8;
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 @repr("uint8")
 enum Mode {
@@ -218,7 +218,7 @@ const undecided = mode as 1;
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 @repr("uint8")
 enum Mode {
@@ -328,7 +328,7 @@ function pick(kind?: Kind): Kind {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

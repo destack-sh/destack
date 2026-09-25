@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 use parking_lot::Mutex;
 
-use destack_heap::SharedHeapReference;
+use tspp_heap::SharedHeapReference;
 
 use crate::worker::WorkerId;
 

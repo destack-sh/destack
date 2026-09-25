@@ -11,7 +11,7 @@ class Document extends Base {}
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -50,7 +50,7 @@ class Derived extends Base {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -91,7 +91,7 @@ class Document extends Drawable {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -130,7 +130,7 @@ class Document extends Alias {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -173,7 +173,7 @@ class Document extends Base | Other {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -219,7 +219,7 @@ class Document implements Printable {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -277,7 +277,7 @@ class User implements Named {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -338,7 +338,7 @@ class Document implements Alias {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -402,7 +402,7 @@ class Point implements Drawable {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -466,7 +466,7 @@ class Point implements Drawable {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -540,7 +540,7 @@ class Right extends Left {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -580,7 +580,7 @@ class Document {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -622,7 +622,7 @@ class Document extends Base {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -682,7 +682,7 @@ class Document extends Base {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -738,7 +738,7 @@ class Header extends Packet {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -775,7 +775,7 @@ class Writer {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -815,7 +815,7 @@ class FileWriter extends Writer {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -861,7 +861,7 @@ const map: Map<string, int32> = record;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -902,7 +902,7 @@ new Writer();
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -946,7 +946,7 @@ class Parser extends Base {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1023,7 +1023,7 @@ class Child extends Base {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::none().with_definitions(),
         r#"
 === annotated ===
@@ -1081,7 +1081,7 @@ class Dog extends Animal {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1156,7 +1156,7 @@ class Dog extends Animal {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_capture(),
         r#"
 === annotated ===
@@ -1255,7 +1255,7 @@ function bump(derived: Derived): void {
     );
 
     session.assert_diagnostics(
-        session.dir_checked_key("main.ds"),
+        session.dir_checked_key("main.tspp"),
         r#"
 /// @diagnostic.error id=receiver-not-assignable message="receiver type 'Derived' is not assignable to the method's 'this' type '&Base'"
 /// @diagnostic.label line=21 column=5 span="derived.bump()" line_source="derived.bump();"

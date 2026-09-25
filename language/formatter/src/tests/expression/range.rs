@@ -1,5 +1,5 @@
 use crate::assert_format_program;
-use destack_source::FileType;
+use tspp_source::FileType;
 
 /// Format range expressions with tight operator spacing.
 #[test]
@@ -19,7 +19,7 @@ const d = ..10;
 const e = ..=10;
 const f = ..;
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -35,7 +35,7 @@ const negative = -3 .. 3
 const nested = (1..4) + count;
 const negative = -3..3;
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -53,7 +53,7 @@ const from = start .. /* open */;
 const line = start..; // open
 const full = .. /* all */;
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -75,7 +75,7 @@ const head = items[..end];
 const prefix = items[..=end];
 const all = items[..];
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -103,7 +103,7 @@ fn test_format_range_pattern() {
     _ => "other"
 };
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -123,6 +123,6 @@ type From = Start..;
 type To = ..End;
 type Full = ..;
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }

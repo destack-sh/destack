@@ -2,7 +2,7 @@ use crate::tests::TestParser;
 use crate::{
     ExpressionPosition, ExpressionStop, assert_expression_path, assert_node, assert_string,
 };
-use destack_dir::{
+use tspp_dir::{
     AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Declaration, Expression,
     FunctionDeclaration, FunctionForm, GenericArgument, GenericParameter, LetKind, Literal,
 };

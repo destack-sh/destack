@@ -8,11 +8,11 @@ Call pattern fixtures cover callbacks, nested calls, curried calls, and awaited 
 
 Method chains with callback arguments at each step.
 
-```ds line-width=50
+```tspp line-width=50
 data.filter((x) => x.active).map((x) => x.name).reduce((a, b) => a + b)
 ```
 
-```ds expected
+```tspp expected
 data.filter((x) => x.active)
     .map((x) => x.name)
     .reduce((a, b) => a + b);
@@ -22,11 +22,11 @@ data.filter((x) => x.active)
 
 When a callback has a block body, the chain continues after the closing brace.
 
-```ds line-width=40
+```tspp line-width=40
 items.map((item) => { return item.value }).filter((v) => v > 0)
 ```
 
-```ds expected
+```tspp expected
 items
     .map((item) => {
         return item.value;
@@ -38,11 +38,11 @@ items
 
 Chains inside callback bodies break when they exceed line width.
 
-```ds line-width=50
+```tspp line-width=50
 outer.map((x) => x.items.filter((y) => y.ok).map((y) => y.value))
 ```
 
-```ds expected
+```tspp expected
 outer.map((x) =>
     x.items
         .filter((y) => y.ok)
@@ -56,11 +56,11 @@ outer.map((x) =>
 
 Function calls with various argument types.
 
-```ds line-width=50
+```tspp line-width=50
 createEntity("user", 42, { role: "admin" }, ["read", "write"], (err) => handle(err))
 ```
 
-```ds expected
+```tspp expected
 createEntity(
     "user",
     42,
@@ -74,11 +74,11 @@ createEntity(
 
 Generic type arguments can get long.
 
-```ds line-width=50
+```tspp line-width=50
 fetchData<Response<User>, ErrorType, Options>(url, config)
 ```
 
-```ds expected
+```tspp expected
 fetchData<Response<User>, ErrorType, Options>(
     url,
     config,
@@ -89,11 +89,11 @@ fetchData<Response<User>, ErrorType, Options>(
 
 Deeply nested function calls.
 
-```ds
+```tspp
 outer(middle(inner(value)))
 ```
 
-```ds expected
+```tspp expected
 outer(middle(inner(value)));
 ```
 
@@ -101,11 +101,11 @@ outer(middle(inner(value)));
 
 When nested calls don't fit, they break appropriately.
 
-```ds line-width=30
+```tspp line-width=30
 outer(middle(inner(longValue)))
 ```
 
-```ds expected
+```tspp expected
 outer(
     middle(inner(longValue)),
 );
@@ -117,11 +117,11 @@ outer(
 
 Deeply nested callbacks within method chains.
 
-```ds line-width=50
+```tspp line-width=50
 fetch(url).then((res) => res.json()).then((data) => process(data)).catch((err) => handle(err))
 ```
 
-```ds expected
+```tspp expected
 fetch(url)
     .then((res) => res.json())
     .then((data) => process(data))
@@ -132,11 +132,11 @@ fetch(url)
 
 Callbacks passed as arguments to other callbacks.
 
-```ds line-width=50
+```tspp line-width=50
 outer((x) => inner((y) => transform(x, y)))
 ```
 
-```ds expected
+```tspp expected
 outer((x) => inner((y) => transform(x, y)));
 ```
 
@@ -144,11 +144,11 @@ outer((x) => inner((y) => transform(x, y)));
 
 Very deep nesting breaks appropriately.
 
-```ds line-width=40
+```tspp line-width=40
 a((x) => b((y) => c((z) => d(x, y, z))))
 ```
 
-```ds expected
+```tspp expected
 a((x) =>
     b((y) => c((z) => d(x, y, z))),
 );
@@ -160,11 +160,11 @@ a((x) =>
 
 Curried function application.
 
-```ds
+```tspp
 curry(a)(b)(c)
 ```
 
-```ds expected
+```tspp expected
 curry(a)(b)(c);
 ```
 
@@ -172,11 +172,11 @@ curry(a)(b)(c);
 
 Long curried calls break the inner tail before the final call when width runs out.
 
-```ds line-width=30
+```tspp line-width=30
 curriedFunction(firstArg)(secondArg)(thirdArg)
 ```
 
-```ds expected
+```tspp expected
 curriedFunction(firstArg)(
     secondArg,
 )(thirdArg);
@@ -186,11 +186,11 @@ curriedFunction(firstArg)(
 
 Curried calls keep simple tails together and break object tails.
 
-```ds line-width=40
+```tspp line-width=40
 configure({ mode: "dev" })({ debug: true })({ verbose: false })
 ```
 
-```ds expected
+```tspp expected
 configure({ mode: "dev" })({
     debug: true,
 })({ verbose: false });
@@ -202,11 +202,11 @@ configure({ mode: "dev" })({
 
 Await expressions format normally.
 
-```ds
+```tspp
 const data = await fetch(url)
 ```
 
-```ds expected
+```tspp expected
 const data = await fetch(url);
 ```
 
@@ -215,11 +215,11 @@ const data = await fetch(url);
 Await works with method chains.
 Long expressions use method chaining style.
 
-```ds line-width=40
+```tspp line-width=40
 const json = await fetch(url).then((r) => r.json())
 ```
 
-```ds expected
+```tspp expected
 const json = await fetch(url).then(
     (r) => r.json(),
 );
@@ -229,11 +229,11 @@ const json = await fetch(url).then(
 
 Multiple awaits in one expression.
 
-```ds
+```tspp
 const result = await process(await fetch(url))
 ```
 
-```ds expected
+```tspp expected
 const result = await process(await fetch(url));
 ```
 
@@ -241,11 +241,11 @@ const result = await process(await fetch(url));
 
 Async arrow functions.
 
-```ds
+```tspp
 const handler = async (event) => await processEvent(event)
 ```
 
-```ds expected
+```tspp expected
 const handler = async (event) => await processEvent(event);
 ```
 
@@ -253,11 +253,11 @@ const handler = async (event) => await processEvent(event);
 
 Async immediately invoked function expression.
 
-```ds
+```tspp
 (async () => { const data = await fetch(url); return data })()
 ```
 
-```ds expected
+```tspp expected
 (async () => {
     const data = await fetch(url);
     return data;

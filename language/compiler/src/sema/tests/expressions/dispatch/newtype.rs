@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_await_unwraps_the_newtype_backing() {
     let session = TestSession::single(
         r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 newtype Wrapper<T: Copy> = Promise<T>;
 
@@ -18,11 +18,11 @@ extension<T: Copy> of Wrapper<T> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 newtype Wrapper<out T: Copy> = Promise<T>;
 
@@ -34,7 +34,7 @@ extension<T: Copy> of Wrapper<T> {
 }
 
 === dir ===
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 newtype Wrapper<T: Copy> = Promise<T>;
 /// @generic.template symbol=Wrapper parameters=(out T#1: Copy)

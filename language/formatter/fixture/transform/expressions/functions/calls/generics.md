@@ -6,11 +6,11 @@
 
 Generic type arguments appear in angle brackets.
 
-```ds
+```tspp
 foo<number>(x)
 ```
 
-```ds expected
+```tspp expected
 foo<number>(x);
 ```
 
@@ -18,14 +18,14 @@ foo<number>(x);
 
 Comments inside multiline call type arguments keep the type arguments multiline.
 
-```ds:main.ds
+```tspp:main.tspp
 Math.random<
   // comment
   string | number | undefined
 >()
 ```
 
-```ds expected
+```tspp expected
 Math.random<
     // comment
     string | number | undefined
@@ -36,11 +36,11 @@ Math.random<
 
 Multiple type arguments are separated by comma and space.
 
-```ds
+```tspp
 foo<number, string, boolean>(x, y, z)
 ```
 
-```ds expected
+```tspp expected
 foo<number, string, boolean>(x, y, z);
 ```
 
@@ -49,10 +49,10 @@ foo<number, string, boolean>(x, y, z);
 Method calls can also have type arguments.
 Arrow function params get parentheses.
 
-```ds
+```tspp
 array.map<string>(x => x.toString())
 ```
 
-```ds expected
+```tspp expected
 array.map<string>((x) => x.toString());
 ```

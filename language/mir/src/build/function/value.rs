@@ -126,7 +126,7 @@ impl<'a> FunctionBuilder<'a> {
     /// Insert a floating point constant.
     pub fn fconst(&mut self, value: f64, float_type: FloatType) -> Value {
         let destination = self.allocate_value();
-        let bits = destack_core::float_to_bits(float_type.format(), value);
+        let bits = tspp_core::float_to_bits(float_type.format(), value);
         self.insert_instruction(Instruction::Const {
             destination,
             value: Constant::Float {

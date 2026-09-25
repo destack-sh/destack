@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_dir as dir;
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::{Bindings, MatchError, Matcher, PatternNodes};
 
@@ -98,8 +98,8 @@ impl Matcher<'_, '_> {
         nodes: &PatternNodes<'_>,
         pattern_owner: dir::LocalNodeIdAny,
         candidate_owner: dir::LocalNodeIdAny,
-        pattern: Option<destack_core::StringId>,
-        candidate: Option<destack_core::StringId>,
+        pattern: Option<tspp_core::StringId>,
+        candidate: Option<tspp_core::StringId>,
         bindings: &mut Bindings,
     ) -> Result<bool, MatchError> {
         match (pattern, candidate) {

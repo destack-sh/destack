@@ -2,8 +2,8 @@ use std::fmt::Debug;
 use std::hash::{Hash, Hasher};
 use std::mem::size_of;
 
-use destack_serde::{Reflect, Schema, Type};
 use serde::{Deserialize, Serialize};
+use tspp_serde::{Reflect, Schema, Type};
 
 /// Arena for storing elements and element like things.
 #[derive(Clone, Serialize, Deserialize)]

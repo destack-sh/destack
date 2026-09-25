@@ -1,4 +1,4 @@
-use destack_core::{DenseGraph, FxIndexSet};
+use tspp_core::{DenseGraph, FxIndexSet};
 
 use crate as mir;
 

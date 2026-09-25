@@ -1,5 +1,5 @@
-use destack_core::{BitSet, FxIndexMap, FxIndexSet};
 use smallvec::SmallVec;
+use tspp_core::{BitSet, FxIndexMap, FxIndexSet};
 
 use crate::{
     Analysis, Block, CastOperator, Constant, ConstantTable, ControlTable, DataflowTable,

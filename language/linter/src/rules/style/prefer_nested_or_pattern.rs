@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::Patch;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::Patch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -122,12 +122,12 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
             // require identical authored text around the varying child
             let alternative_extent = module.source_extent(alternative.into_any())?;
             let nested_extent = module.source_extent(nested.into_any())?;
-            let alternative_prefix = module.source(destack_source::Span::new(
+            let alternative_prefix = module.source(tspp_source::Span::new(
                 alternative_extent.file,
                 alternative_extent.start,
                 nested_extent.start,
             ))?;
-            let alternative_suffix = module.source(destack_source::Span::new(
+            let alternative_suffix = module.source(tspp_source::Span::new(
                 alternative_extent.file,
                 nested_extent.end,
                 alternative_extent.end,
@@ -156,12 +156,12 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
                 "shared nominal or-pattern has no retained nested pattern",
             ));
         };
-        retained.push(destack_source::Span::new(
+        retained.push(tspp_source::Span::new(
             first_extent.file,
             first_extent.start,
             first_nested.start,
         ));
-        retained.push(destack_source::Span::new(
+        retained.push(tspp_source::Span::new(
             first_extent.file,
             first_nested.end,
             first_extent.end,

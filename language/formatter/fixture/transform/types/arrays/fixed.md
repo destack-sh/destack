@@ -6,11 +6,11 @@
 
 Fixed array type syntax spaces the element and length separator.
 
-```ds
+```tspp
 type Pair=[int32;2]
 ```
 
-```ds expected
+```tspp expected
 type Pair = [int32; 2];
 ```
 
@@ -18,10 +18,10 @@ type Pair = [int32; 2];
 
 Nested fixed arrays keep each length with its own element type.
 
-```ds
+```tspp
 type Matrix=[[int32;2];2]
 ```
 
-```ds expected
+```tspp expected
 type Matrix = [[int32; 2]; 2];
 ```

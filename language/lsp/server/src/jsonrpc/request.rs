@@ -2,8 +2,8 @@ use std::borrow::Cow;
 use std::fmt::{self, Display, Formatter};
 use std::str::FromStr;
 
-use destack_lsp_types::LSPAny;
 use serde::{Deserialize, Deserializer, Serialize};
+use tspp_lsp_types::LSPAny;
 
 use super::{Id, Version};
 
@@ -53,11 +53,11 @@ impl Request {
     /// # Panics
     ///
     /// Panics if `params` could not be serialized into a [`serde_json::Value`]. Since the
-    /// [`destack_lsp_types::request::Request`] trait promises this invariant is upheld, this should never
+    /// [`tspp_lsp_types::request::Request`] trait promises this invariant is upheld, this should never
     /// happen in practice (unless the trait was implemented incorrectly).
     pub(crate) fn from_request<R>(id: Id, params: R::Params) -> Self
     where
-        R: destack_lsp_types::request::Request,
+        R: tspp_lsp_types::request::Request,
     {
         let params = serde_json::to_value(params).expect("request params cannot be serialized");
 
@@ -74,11 +74,11 @@ impl Request {
     /// # Panics
     ///
     /// Panics if `params` could not be serialized into a [`serde_json::Value`]. Since the
-    /// [`destack_lsp_types::notification::Notification`] trait promises this invariant is upheld, this
+    /// [`tspp_lsp_types::notification::Notification`] trait promises this invariant is upheld, this
     /// should never happen in practice (unless the trait was implemented incorrectly).
     pub(crate) fn from_notification<N>(params: N::Params) -> Self
     where
-        N: destack_lsp_types::notification::Notification,
+        N: tspp_lsp_types::notification::Notification,
     {
         let params =
             serde_json::to_value(params).expect("notification params cannot be serialized");

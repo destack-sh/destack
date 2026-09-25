@@ -1,6 +1,6 @@
 [package]
-name = "destack_bytecode"
-description = "Destack bytecode"
+name = "tspp_bytecode"
+description = "TS++ bytecode"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,10 +12,10 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-destack_core = { workspace = true }
-destack_fir = { workspace = true }
-destack_serde = { workspace = true }
-destack_source = { workspace = true }
+tspp_core = { workspace = true }
+tspp_fir = { workspace = true }
+tspp_serde = { workspace = true }
+tspp_source = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 
 [lints]

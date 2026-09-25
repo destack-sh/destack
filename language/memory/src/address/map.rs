@@ -4,10 +4,10 @@ use std::ptr::{copy_nonoverlapping, from_ref, write_bytes};
 use std::slice;
 use std::sync::Arc;
 
-use destack_serde::Reflect;
 use parking_lot::Mutex;
 use serde::ser::{SerializeSeq, SerializeTuple};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use tspp_serde::Reflect;
 
 use super::table::{PageState, PageTable};
 use crate::platform::{self, PageFrame, PageFrameAllocator, VirtualSpace, WriteWatchRegistration};
@@ -1988,9 +1988,9 @@ mod tests {
         );
 
         // restore through the exact public serialization boundary
-        let bytes = destack_serde::to_vec(&image).expect("memory image should serialize");
+        let bytes = tspp_serde::to_vec(&image).expect("memory image should serialize");
         let image: MemoryImage =
-            destack_serde::from_slice(&bytes).expect("memory image should deserialize");
+            tspp_serde::from_slice(&bytes).expect("memory image should deserialize");
         let restored = image.restore().expect("memory image should restore");
 
         assert_eq!(restored.byte_len(), memory.byte_len());

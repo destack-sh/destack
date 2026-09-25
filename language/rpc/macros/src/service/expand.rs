@@ -60,16 +60,16 @@ fn expand_service(service: Service) -> Tokens {
         impl #methods_name {
             /// Build this service's canonical schema and method descriptors.
             fn build() -> Result<
-                (::destack_rpc::ServiceSchema, Self),
-                ::destack_rpc::ServiceSchemaError,
+                (::tspp_rpc::ServiceSchema, Self),
+                ::tspp_rpc::ServiceSchemaError,
             > {
-                let mut types = ::destack_serde::Schema::default();
+                let mut types = ::tspp_serde::Schema::default();
                 let mut methods = Vec::new();
-                let service = ::destack_rpc::ServiceId::for_name(#name);
+                let service = ::tspp_rpc::ServiceId::for_name(#name);
 
                 #(#schema_methods)*
 
-                let schema = ::destack_rpc::ServiceSchema::new(#name, methods, types)?;
+                let schema = ::tspp_rpc::ServiceSchema::new(#name, methods, types)?;
                 let methods = Self {
                     #(#method_names,)*
                 };
@@ -82,9 +82,9 @@ fn expand_service(service: Service) -> Tokens {
         #[derive(Debug, Clone)]
         #visibility struct #client_name {
             /// Negotiated RPC connection.
-            connection: ::std::sync::Arc<::destack_rpc::Connection>,
+            connection: ::std::sync::Arc<::tspp_rpc::Connection>,
             /// Exact client service schema.
-            schema: ::std::sync::Arc<::destack_rpc::ServiceSchema>,
+            schema: ::std::sync::Arc<::tspp_rpc::ServiceSchema>,
             /// Exact typed method descriptors.
             methods: #methods_name,
         }
@@ -92,12 +92,12 @@ fn expand_service(service: Service) -> Tokens {
         impl #client_name {
             /// Connect this typed client through one RPC transport.
             pub fn connect(
-                transport: ::std::sync::Arc<dyn ::destack_rpc::Transport>,
-                options: ::destack_rpc::ConnectionOptions,
-            ) -> Result<Self, ::destack_rpc::ConnectError> {
+                transport: ::std::sync::Arc<dyn ::tspp_rpc::Transport>,
+                options: ::tspp_rpc::ConnectionOptions,
+            ) -> Result<Self, ::tspp_rpc::ConnectError> {
                 let (schema, methods) = #methods_name::build()?;
                 let schema = ::std::sync::Arc::new(schema);
-                let connection = ::destack_rpc::Connection::connect(
+                let connection = ::tspp_rpc::Connection::connect(
                     transport,
                     options,
                     vec![schema.id()],
@@ -113,8 +113,8 @@ fn expand_service(service: Service) -> Tokens {
 
             /// Create this typed client from one negotiated RPC connection.
             pub fn new(
-                connection: ::std::sync::Arc<::destack_rpc::Connection>,
-            ) -> Result<Self, ::destack_rpc::ConnectError> {
+                connection: ::std::sync::Arc<::tspp_rpc::Connection>,
+            ) -> Result<Self, ::tspp_rpc::ConnectError> {
                 let (schema, methods) = #methods_name::build()?;
                 let schema = ::std::sync::Arc::new(schema);
                 connection.bind(&schema)?;
@@ -127,14 +127,14 @@ fn expand_service(service: Service) -> Tokens {
             }
 
             /// Return this client's exact service schema.
-            pub fn schema(&self) -> &::destack_rpc::ServiceSchema {
+            pub fn schema(&self) -> &::tspp_rpc::ServiceSchema {
                 &self.schema
             }
 
             /// Build this client's canonical service schema.
             pub fn service_schema() -> Result<
-                ::destack_rpc::ServiceSchema,
-                ::destack_rpc::ServiceSchemaError,
+                ::tspp_rpc::ServiceSchema,
+                ::tspp_rpc::ServiceSchemaError,
             > {
                 #methods_name::build().map(|(schema, _)| schema)
             }
@@ -148,14 +148,14 @@ fn expand_service(service: Service) -> Tokens {
             /// Service implementation.
             service: T,
             /// Exact server service schema.
-            schema: ::destack_rpc::ServiceSchema,
+            schema: ::tspp_rpc::ServiceSchema,
             /// Exact typed method descriptors.
             methods: #methods_name,
         }
 
         impl<T: #trait_name> #server_name<T> {
             /// Create one typed service server.
-            pub fn new(service: T) -> Result<Self, ::destack_rpc::ServiceSchemaError> {
+            pub fn new(service: T) -> Result<Self, ::tspp_rpc::ServiceSchemaError> {
                 let (schema, methods) = #methods_name::build()?;
 
                 Ok(Self {
@@ -176,24 +176,24 @@ fn expand_service(service: Service) -> Tokens {
             }
         }
 
-        impl<T: #trait_name> ::destack_rpc::Service for #server_name<T> {
+        impl<T: #trait_name> ::tspp_rpc::Service for #server_name<T> {
             /// Return this server's canonical service schema.
-            fn schema(&self) -> &::destack_rpc::ServiceSchema {
+            fn schema(&self) -> &::tspp_rpc::ServiceSchema {
                 &self.schema
             }
 
             /// Dispatch one typed service request.
             fn call(
                 &self,
-                call: ::destack_rpc::ServerCall,
-            ) -> ::destack_rpc::ServiceFuture<'_> {
+                call: ::tspp_rpc::ServerCall,
+            ) -> ::tspp_rpc::ServiceFuture<'_> {
                 ::std::boxed::Box::pin(async move {
                     let mut call = call;
 
                     match call.method() {
                         #(#server_methods)*
-                        _ => Err(::destack_rpc::Status::new(
-                            ::destack_rpc::Code::Unimplemented,
+                        _ => Err(::tspp_rpc::Status::new(
+                            ::tspp_rpc::Code::Unimplemented,
                             "unknown RPC method",
                         ).into()),
                     }
@@ -236,21 +236,21 @@ fn expand_method(method: &Method, implementation: Tokens) -> Tokens {
     let request_stream = method
         .request_stream
         .as_ref()
-        .map(|stream| quote!(, requests: ::destack_rpc::RequestStream<#stream>));
+        .map(|stream| quote!(, requests: ::tspp_rpc::RequestStream<#stream>));
     let response_stream = method
         .response_stream
         .as_ref()
-        .map(|stream| quote!(, responses: ::destack_rpc::ResponseSender<#stream>));
+        .map(|stream| quote!(, responses: ::tspp_rpc::ResponseSender<#stream>));
 
     quote! {
         #(#attributes)*
         fn #name(
             &self,
-            request: ::destack_rpc::Request<#request>
+            request: ::tspp_rpc::Request<#request>
             #request_stream
             #response_stream
         ) -> impl ::std::future::Future<
-            Output = Result<::destack_rpc::Response<#response>, ::destack_rpc::Status>
+            Output = Result<::tspp_rpc::Response<#response>, ::tspp_rpc::Status>
         > + Send
         #implementation
     }
@@ -269,7 +269,7 @@ fn expand_schema_method(service: &syn::LitStr, method: &Method) -> Tokens {
 
     let constructor = match (&method.request_stream, &method.response_stream) {
         (None, None) => quote! {
-            ::destack_rpc::MethodSchema::unary(
+            ::tspp_rpc::MethodSchema::unary(
                 #service,
                 #name,
                 #request_schema,
@@ -278,7 +278,7 @@ fn expand_schema_method(service: &syn::LitStr, method: &Method) -> Tokens {
             )?
         },
         (None, Some(output)) => quote! {
-            ::destack_rpc::MethodSchema::server_streaming(
+            ::tspp_rpc::MethodSchema::server_streaming(
                 #service,
                 #name,
                 #request_schema,
@@ -288,7 +288,7 @@ fn expand_schema_method(service: &syn::LitStr, method: &Method) -> Tokens {
             )?
         },
         (Some(input), None) => quote! {
-            ::destack_rpc::MethodSchema::client_streaming(
+            ::tspp_rpc::MethodSchema::client_streaming(
                 #service,
                 #name,
                 #request_schema,
@@ -298,7 +298,7 @@ fn expand_schema_method(service: &syn::LitStr, method: &Method) -> Tokens {
             )?
         },
         (Some(input), Some(output)) => quote! {
-            ::destack_rpc::MethodSchema::bidirectional_streaming(
+            ::tspp_rpc::MethodSchema::bidirectional_streaming(
                 #service,
                 #name,
                 #request_schema,
@@ -337,7 +337,7 @@ fn expand_method_field(method: &Method) -> Tokens {
 
     quote! {
         /// Exact typed descriptor for this RPC method.
-        #name: ::destack_rpc::Method<#request, #response, #input, #output>,
+        #name: ::tspp_rpc::Method<#request, #response, #input, #output>,
     }
 }
 
@@ -356,9 +356,9 @@ fn expand_client_method(method: &Method) -> Tokens {
         |stream| quote!(#stream),
     );
     let return_type = if method.request_stream.is_none() && method.response_stream.is_none() {
-        quote!(::destack_rpc::Response<#response>)
+        quote!(::tspp_rpc::Response<#response>)
     } else {
-        quote!(::destack_rpc::Call<#response, #input, #output>)
+        quote!(::tspp_rpc::Call<#response, #input, #output>)
     };
     let invoke = if method.request_stream.is_none() && method.response_stream.is_none() {
         quote!(self.connection.call(method, request))
@@ -370,8 +370,8 @@ fn expand_client_method(method: &Method) -> Tokens {
         #(#attributes)*
         pub fn #rust_name(
             &self,
-            request: impl ::destack_rpc::IntoRequest<#request>,
-        ) -> Result<#return_type, ::destack_rpc::CallError> {
+            request: impl ::tspp_rpc::IntoRequest<#request>,
+        ) -> Result<#return_type, ::tspp_rpc::CallError> {
             let method = self.methods.#rust_name;
 
             #invoke
@@ -419,16 +419,16 @@ fn expand_server_method(method: &Method) -> Tokens {
 fn expand_method_constructor(method: &Method) -> Tokens {
     match (&method.request_stream, &method.response_stream) {
         (None, None) => quote! {
-            ::destack_rpc::Method::unary(service, schema.id(), schema.fingerprint())
+            ::tspp_rpc::Method::unary(service, schema.id(), schema.fingerprint())
         },
         (None, Some(_)) => quote! {
-            ::destack_rpc::Method::server_streaming(service, schema.id(), schema.fingerprint())
+            ::tspp_rpc::Method::server_streaming(service, schema.id(), schema.fingerprint())
         },
         (Some(_), None) => quote! {
-            ::destack_rpc::Method::client_streaming(service, schema.id(), schema.fingerprint())
+            ::tspp_rpc::Method::client_streaming(service, schema.id(), schema.fingerprint())
         },
         (Some(_), Some(_)) => quote! {
-            ::destack_rpc::Method::bidirectional_streaming(
+            ::tspp_rpc::Method::bidirectional_streaming(
                 service,
                 schema.id(),
                 schema.fingerprint(),
@@ -440,8 +440,8 @@ fn expand_method_constructor(method: &Method) -> Tokens {
 /// Generate one method idempotency value.
 fn expand_idempotency(idempotency: Idempotency) -> Tokens {
     match idempotency {
-        Idempotency::Unknown => quote!(::destack_rpc::Idempotency::Unknown),
-        Idempotency::Idempotent => quote!(::destack_rpc::Idempotency::Idempotent),
-        Idempotency::NoSideEffects => quote!(::destack_rpc::Idempotency::NoSideEffects),
+        Idempotency::Unknown => quote!(::tspp_rpc::Idempotency::Unknown),
+        Idempotency::Idempotent => quote!(::tspp_rpc::Idempotency::Idempotent),
+        Idempotency::NoSideEffects => quote!(::tspp_rpc::Idempotency::NoSideEffects),
     }
 }

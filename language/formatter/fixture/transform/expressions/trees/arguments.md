@@ -6,11 +6,11 @@
 
 Tree literals can be passed as function arguments.
 
-```ds
+```tspp
 render(<App />)
 ```
 
-```ds expected
+```tspp expected
 render(<App />);
 ```
 
@@ -19,11 +19,11 @@ render(<App />);
 Tree literals with attributes can appear in function arguments.
 Boolean expression attributes remain explicit.
 
-```ds
+```tspp
 createPortal(<Modal isOpen={true} />, document.body)
 ```
 
-```ds expected
+```tspp expected
 createPortal(<Modal isOpen={true} />, document.body);
 ```
 
@@ -31,11 +31,11 @@ createPortal(<Modal isOpen={true} />, document.body);
 
 Complex tree arguments break onto a new line.
 
-```ds line-width=40
+```tspp line-width=40
 render(<Container><Header /><Content /></Container>)
 ```
 
-```ds expected
+```tspp expected
 render(
     <Container>
         <Header />

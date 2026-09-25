@@ -1,5 +1,0 @@
-import { intrinsic } from "./intrinsic.ds";
-
-/// Derive provider dispatcher.
-@languageItem("decorator.derive")
-export newtype derive = intrinsic;

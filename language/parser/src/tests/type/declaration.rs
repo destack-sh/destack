@@ -1,11 +1,11 @@
 use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node, assert_path, assert_string};
-use destack_dir::{
+use tspp_dir::{
     Declaration, Expression, GenericArgument, GenericParameter, TypeDeclaration, TypeExpression,
     TypeLiteral,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 #[test]
 fn test_parse_conditional_type_alias_with_generics() {

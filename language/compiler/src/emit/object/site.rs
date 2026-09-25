@@ -1,9 +1,9 @@
-use destack_artifact::MirOptimized;
-use destack_mir as mir;
-use destack_program::object::{
+use tspp_artifact::MirOptimized;
+use tspp_mir as mir;
+use tspp_program::object::{
     AllocationSite, CallMode, CallSite, CounterSite, EdgeSite, MemorySite, Point, SampleSite,
 };
-use destack_source::ModuleId;
+use tspp_source::ModuleId;
 
 use crate::EmitError;
 

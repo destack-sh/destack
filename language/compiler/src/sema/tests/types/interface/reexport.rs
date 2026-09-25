@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_conform_through_reexported_interface_symbol() {
     let session = TestSession::builder()
         .module(
-            "shape.ds",
+            "shape.tspp",
             r#"
 export newtype interface Sized {
     size(): usize;
@@ -12,15 +12,15 @@ export newtype interface Sized {
 "#,
         )
         .module(
-            "reexport.ds",
+            "reexport.tspp",
             r#"
-export { Sized } from "./shape.ds";
+export { Sized } from "./shape.tspp";
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Sized } from "./reexport.ds";
+import { Sized } from "./reexport.tspp";
 
 struct Box implements Sized {
     size(): usize {
@@ -35,11 +35,11 @@ const sized: Sized = box;
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
-import { Sized } from "./reexport.ds";
+import { Sized } from "./reexport.tspp";
 
 struct Box implements Sized {
     size(): usize {
@@ -51,7 +51,7 @@ declare const box: Box;
 const sized: Sized = box as Sized;
 
 === dir ===
-import { Sized } from "./reexport.ds";
+import { Sized } from "./reexport.tspp";
 
 struct Box implements Sized {
     size(): usize {

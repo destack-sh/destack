@@ -1,4 +1,4 @@
-use destack_dir::{Declaration, Decorator, DecoratorPosition, Expression, ModuleDeclaration};
+use tspp_dir::{Declaration, Decorator, DecoratorPosition, Expression, ModuleDeclaration};
 
 use crate::{TestParser, assert_expression_path, assert_node};
 

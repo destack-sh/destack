@@ -1,6 +1,6 @@
 [package]
-name = "destack_artifact_macros"
-description = "Destack Artifact Macros"
+name = "tspp_artifact_macros"
+description = "TS++ Artifact Macros"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

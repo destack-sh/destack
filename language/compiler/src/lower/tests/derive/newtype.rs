@@ -13,7 +13,7 @@ function duplicate(steps: &immutable Steps): Steps {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.duplicate", r#"
+    session.assert_mir_function("main.tspp", "test.main.duplicate", r#"
 type test.main.Steps = newtype<Array<int32>>;
 
 @nocopy
@@ -31,7 +31,7 @@ entry(v0: ref<test.main.Steps, borrowed, 'a, immutable>):
 }
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.Clone.clone<test.main.Steps>", r#"
+    session.assert_mir_function("main.tspp", "test.main.Clone.clone<test.main.Steps>", r#"
 type test.main.Steps = newtype<Array<int32>>;
 
 @nocopy

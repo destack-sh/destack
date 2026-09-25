@@ -20,15 +20,15 @@ use crate::operator::r#type::{
     format_as_expression, format_is_expression, format_satisfies_expression,
 };
 use crate::operator::{write_postfix_base_expression, write_range_operator};
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{Expression, LocalNodeId, NodeType, PostfixPosition, RangeEnd, UnaryOperator};
-use destack_fir::format::{FormatError, FormatResult};
-use destack_fir::prelude::{format_with, group, soft_block_indent, space, token};
-use destack_fir::write;
+use crate::{TsppFormatContext, TsppFormatter};
+use tspp_dir::{Expression, LocalNodeId, NodeType, PostfixPosition, RangeEnd, UnaryOperator};
+use tspp_fir::format::{FormatError, FormatResult};
+use tspp_fir::prelude::{format_with, group, soft_block_indent, space, token};
+use tspp_fir::write;
 
 /// Return whether one expression is the callee or object for an await grouping context.
 fn expression_is_await_callee_or_object_context(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some(parent_id) = context.expression_parent(node_id) else {
@@ -44,7 +44,7 @@ fn expression_is_await_callee_or_object_context(
 
 /// Return the argument for one await-like expression.
 fn await_expression_argument(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<Expression>> {
     match context.tree.get(node_id) {
@@ -57,7 +57,7 @@ fn await_expression_argument(
 
 /// Return the nearest await-like expression ancestor.
 fn await_expression_ancestor(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<Expression>> {
     let mut current_id = node_id.id;
@@ -79,7 +79,7 @@ fn await_expression_ancestor(
 
 /// Return whether one await-like expression needs grouped object indentation.
 fn await_expression_groups_object_indent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some(ancestor_id) = await_expression_ancestor(context, node_id) else {
@@ -102,12 +102,12 @@ fn await_expression_groups_object_indent(
 
 /// Write one await-like expression.
 fn format_await_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     operand: LocalNodeId<Expression>,
     marker: Option<&'static str>,
 ) -> FormatResult<()> {
-    let format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_inner = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write!(f, [token("await")])?;
         if let Some(marker) = marker {
             write!(f, [token(marker)])?;
@@ -117,7 +117,7 @@ fn format_await_expression<'ast>(
 
     // callee or object indentation
     if expression_is_await_callee_or_object_context(f.context(), node_id) {
-        let indented = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let indented = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             write!(f, [soft_block_indent(&format_inner)])
         });
 
@@ -135,7 +135,7 @@ fn format_await_expression<'ast>(
 
 /// Return whether one operator expression serializes infix annotations as postfix-only annotations.
 pub(crate) fn operator_expression_uses_postfix_only_annotations(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> bool {
@@ -154,7 +154,7 @@ pub(crate) fn operator_expression_uses_postfix_only_annotations(
 
 /// Write trailing annotations for one operator expression.
 pub(crate) fn write_operator_expression_trailing_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> FormatResult<()> {
@@ -172,7 +172,7 @@ pub(crate) fn write_operator_expression_trailing_annotations<'ast>(
 
 /// Return whether one prefix expression operand needs grouping.
 fn prefix_expression_operand_needs_grouping(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     right: LocalNodeId<Expression>,
 ) -> bool {
@@ -188,7 +188,7 @@ fn prefix_expression_operand_needs_grouping(
 
 /// Return whether one symbolic unary prefix would merge with its operand token.
 fn prefix_unary_would_merge_with_operand(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     operator: &UnaryOperator,
     right: LocalNodeId<Expression>,
 ) -> bool {
@@ -215,14 +215,14 @@ fn prefix_unary_would_merge_with_operand(
 
 /// Write one prefix expression operand with grouped boundary comments.
 fn write_prefix_expression_operand<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     right: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     if prefix_expression_operand_needs_grouping(f.context(), node_id, right) {
         write!(
             f,
-            [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            [group(&format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 write!(f, [token("("), soft_block_indent(&right), token(")")])
             }))]
         )?;
@@ -235,7 +235,7 @@ fn write_prefix_expression_operand<'ast>(
 
 /// Write one range expression.
 fn format_range_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     start: Option<LocalNodeId<Expression>>,
     end: Option<LocalNodeId<Expression>>,
@@ -262,7 +262,7 @@ fn format_range_expression<'ast>(
 
 /// Format operator and chain expression variants.
 pub(crate) fn format_operator_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> FormatResult<bool> {
@@ -440,7 +440,7 @@ pub(crate) fn format_operator_expression<'ast>(
 
 /// Format a call expression or route to chain formatting.
 fn format_call_or_chain_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let Expression::Call {
@@ -469,7 +469,7 @@ fn format_call_or_chain_expression<'ast>(
 
 /// Format a must expression without chain routing.
 fn format_must_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     position: PostfixPosition,
     left: LocalNodeId<Expression>,
 ) -> FormatResult<()> {

@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::Patch;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::Patch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -74,7 +74,7 @@ fn statement_suggestion(
     lint: &Lint,
     declarator: dir::LocalNodeId<dir::Declarator>,
     initializer: dir::LocalNodeId<dir::Expression>,
-) -> Result<Option<destack_source::DiagnosticSuggestion>, ProviderError> {
+) -> Result<Option<tspp_source::DiagnosticSuggestion>, ProviderError> {
     let view = module.view();
     let Some(expression) = view.ancestor::<dir::Expression>(declarator.into_any()) else {
         return Ok(None);
@@ -120,7 +120,7 @@ const result = record();
         session.assert_diagnostics(
             r#"
 warning[no-unit-binding]: binding has unit type
- ──▶ main.ds:3:7
+ ──▶ main.tspp:3:7
   │
 1 │ function record(): void {}
 2 │
@@ -129,8 +129,8 @@ warning[no-unit-binding]: binding has unit type
   │
 
  = fix: evaluate the expression without a binding
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     2│
 -   3│ const result = record();
@@ -159,15 +159,15 @@ const unit = ();
         session.assert_diagnostics(
             r#"
 warning[no-unit-binding]: binding has unit type
- ──▶ main.ds:1:7
+ ──▶ main.tspp:1:7
   │
 1 │ const unit = ();
   │       ^^^^
   │
 
  = fix: evaluate the expression without a binding
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ const unit = ();
 +   1│ ();
@@ -195,7 +195,7 @@ const first = record(), second = record();
         session.assert_diagnostics(
             r#"
 warning[no-unit-binding]: binding has unit type
- ──▶ main.ds:3:7
+ ──▶ main.tspp:3:7
   │
 1 │ function record(): void {}
 2 │
@@ -204,7 +204,7 @@ warning[no-unit-binding]: binding has unit type
   │
 
 warning[no-unit-binding]: binding has unit type
- ──▶ main.ds:3:25
+ ──▶ main.tspp:3:25
   │
 1 │ function record(): void {}
 2 │

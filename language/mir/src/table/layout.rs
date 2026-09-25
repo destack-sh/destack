@@ -2,8 +2,8 @@ use std::num::NonZeroU32;
 
 use serde::{Deserialize, Serialize};
 
-use destack_core::{FxIndexMap, SectionEntry, StringId};
-use destack_serde::Reflect;
+use tspp_core::{FxIndexMap, SectionEntry, StringId};
+use tspp_serde::Reflect;
 
 use crate::{FloatType, TraceMap, TypeId};
 

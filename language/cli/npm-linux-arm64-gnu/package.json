@@ -6,7 +6,7 @@
     "os": ["linux"],
     "cpu": ["arm64"],
     "libc": ["glibc"],
-    "files": ["bin/destack", "bin/ds", "bin/dsc"],
+    "files": ["bin/destack", "bin/tspp", "bin/tsppc"],
     "scripts": {
         "prepublishOnly": "deno run -A ../npm/validate-platform-package.ts",
         "publish:dry": "npm publish --dry-run --access public",

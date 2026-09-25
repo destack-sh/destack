@@ -245,7 +245,7 @@ impl FileSystem for TemporaryPhysicalFileSystem {
 
 /// Decide whether to keep temporary roots based on the environment.
 fn should_keep_temp_root() -> bool {
-    let Ok(value) = env::var("DESTACK_TEST_KEEP_FS") else {
+    let Ok(value) = env::var("TSPP_TEST_KEEP_FS") else {
         return false;
     };
     matches!(value.as_str(), "1" | "true" | "TRUE" | "yes" | "YES")

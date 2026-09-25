@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use destack_artifact::ArtifactReference;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_artifact::ArtifactReference;
+use tspp_serde::Reflect;
 
 use crate::ExportInput;
 

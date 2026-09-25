@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirExpanded, DirParsed};
-use destack_dir as dir;
-use destack_source::ModuleId;
 use smallvec::SmallVec;
+use tspp_artifact::{DirExpanded, DirParsed};
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use crate::sema::{
     Cause, CauseKind, CheckState, ConditionBranch, ControlTargetForm, ElisionSite, Expectation,

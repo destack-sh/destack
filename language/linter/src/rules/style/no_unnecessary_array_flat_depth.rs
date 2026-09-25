@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, NodeSpanRegion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, NodeSpanRegion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -147,7 +147,7 @@ function flatten(values: (int32 | int32[])[]): void {
         session.assert_diagnostics(
             r#"
 warning[no-unnecessary-array-flat-depth]: flat call specifies its default depth
- ──▶ main.ds:2:30
+ ──▶ main.tspp:2:30
   │
 1 │ function flatten(values: (int32 | int32[])[]): void {
 2 │     values.flat(/* retain */ 1);

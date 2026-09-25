@@ -1,7 +1,7 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
-use destack_core::{BitSet, DenseGraph};
+use tspp_core::{BitSet, DenseGraph};
 
 use crate as mir;
 

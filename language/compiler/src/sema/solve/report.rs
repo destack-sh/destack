@@ -1,5 +1,5 @@
-use destack_core::{FxIndexMap, FxIndexSet};
-use destack_dir as dir;
+use tspp_core::{FxIndexMap, FxIndexSet};
+use tspp_dir as dir;
 
 use crate::sema::{
     BoundSide, Check, CheckOutcome, CheckState, FailedCheck, Origin, VariableKind, VariableState,

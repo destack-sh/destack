@@ -1,13 +1,13 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_artifact::ConditionSet;
-use destack_core::CaptureMode;
-use destack_heap as heap;
-use destack_memory::{MemoryMap, MemoryRange};
-use destack_program as program;
-use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
 use serde::{Deserialize, Serialize};
+use tspp_artifact::ConditionSet;
+use tspp_core::CaptureMode;
+use tspp_heap as heap;
+use tspp_memory::{MemoryMap, MemoryRange};
+use tspp_program as program;
+use tspp_repository::{Environment, ExecutionMode, RuntimeOptions};
 
 use crate::binding::ReplayPayload;
 use crate::diagnostic::{RuntimeError, RuntimeResult};

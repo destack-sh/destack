@@ -16,7 +16,7 @@ function main(): int32 {
     );
 
     session.assert_mir_elaborated(
-        "main.ds", r#"
+        "main.tspp", r#"
 @nocopy
 @languageItem("memory.Clone")
 type Clone { }

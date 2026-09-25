@@ -1,8 +1,8 @@
 {
-  "name": "tree-sitter-destack-bytecode",
+  "name": "tree-sitter-tspp-bytecode",
   "private": true,
   "version": "2026.9.0",
-  "description": "Destack Bytecode Assembly grammar for Tree-sitter",
+  "description": "TS++ Bytecode Assembly grammar for Tree-sitter",
   "license": "MIT",
   "type": "commonjs"
 }

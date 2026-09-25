@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_source::ModuleId;
 use rustc_hash::FxHashMap;
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use crate::sema::{
     Bound, BoundEntry, BoundIter, BoundList, BoundSide, EMPTY, OriginId, Variable, VariableKind,

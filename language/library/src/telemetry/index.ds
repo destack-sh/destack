@@ -1,7 +1,0 @@
-export { TelemetryBinding, telemetry } from "./binding/telemetry.ds";
-export * from "./field.ds";
-export * from "./log.ds";
-export * from "./metric.ds";
-export * from "./record.ds";
-export * from "./trace.ds";
-export * as binding from "./binding";

@@ -1,6 +1,6 @@
-use destack_core::FxIndexSet;
-use destack_mir as mir;
-use destack_repository::ProviderError;
+use tspp_core::FxIndexSet;
+use tspp_mir as mir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{Lint, LintOutput, LintResult, MirModule};
@@ -16,15 +16,15 @@ Instead, you SHOULD call `spinLoop` during bounded optimistic spinning or use a 
 "#,
         example: {
             reported: r#"
-import { Atomic, MemoryOrdering } from "destack:sync";
+import { Atomic, MemoryOrdering } from "tspp:sync";
 
 function wait(ready: &readonly Atomic<boolean>): void {
     while (!ready.load(MemoryOrdering.Acquire)) {}
 }
 "#,
             accepted: r#"
-import { spinLoop } from "destack:hint";
-import { Atomic, MemoryOrdering } from "destack:sync";
+import { spinLoop } from "tspp:hint";
+import { Atomic, MemoryOrdering } from "tspp:sync";
 
 function wait(ready: &readonly Atomic<boolean>): void {
     while (!ready.load(MemoryOrdering.Acquire)) {

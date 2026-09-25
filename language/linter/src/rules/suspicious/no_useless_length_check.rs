@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -127,7 +127,7 @@ fn array_predicate(
 fn fix(
     module: &DirModule<'_>,
     lint: &Lint,
-    extent: destack_source::Span,
+    extent: tspp_source::Span,
     predicate: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let retained = module.source_extent(predicate.into_any())?;
@@ -284,7 +284,7 @@ function accepted(values: int32[]): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-useless-length-check]: length guard repeats the array result
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function accepted(values: int32[]): boolean {
 2 │     return values.length === 0 /* retain */ || values.every((value) => value > 0);

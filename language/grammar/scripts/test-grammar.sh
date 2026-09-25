@@ -43,7 +43,7 @@ test_corpus() {
 
     # use the exported language name when it differs from the directory
     if [[ "${grammar}" == "bytecode" ]]; then
-        language="destack_bytecode"
+        language="tspp_bytecode"
     fi
 
     # compile the generated parser once for corpus and query tests
@@ -56,17 +56,17 @@ test_corpus() {
     )
 }
 
-test_destack_queries() {
-    local directory="${grammar_directory}/destack"
-    local example="${directory}/test/highlight/destack.ds"
-    local library="${build_directory}/destack.${library_extension}"
+test_tspp_queries() {
+    local directory="${grammar_directory}/tspp"
+    local example="${directory}/test/highlight/tspp.tspp"
+    local library="${build_directory}/tspp.${library_extension}"
 
-    # compile and execute every configured query against one Destack source file
+    # compile and execute every configured query against one TS++ source file
     while IFS= read -r query; do
         "${tree_sitter}" query \
             --config-path "${config_file}" \
             --lib-path "${library}" \
-            --lang-name destack \
+            --lang-name tspp \
             --quiet \
             "${directory}/${query}" \
             "${example}" \
@@ -87,9 +87,9 @@ main() {
 
     # reject unknown grammar names before writing generated files
     case "${grammar}" in
-    destack | mir | bytecode) ;;
+    tspp | mir | bytecode) ;;
     *)
-        echo "usage: $0 <destack|mir|bytecode>" >&2
+        echo "usage: $0 <tspp|mir|bytecode>" >&2
         exit 1
         ;;
     esac
@@ -97,9 +97,9 @@ main() {
     generate_grammar "${grammar}"
     test_corpus "${grammar}"
 
-    # Destack is the only grammar with editor queries beyond highlighting
-    if [[ "${grammar}" == "destack" ]]; then
-        test_destack_queries
+    # tspp is the only grammar with editor queries beyond highlighting
+    if [[ "${grammar}" == "tspp" ]]; then
+        test_tspp_queries
     fi
 }
 

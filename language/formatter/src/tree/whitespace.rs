@@ -1,9 +1,9 @@
-use crate::DestackFormatContext;
-use destack_dir::{Expression, Literal, LocalNodeId, TreeChild};
+use crate::TsppFormatContext;
+use tspp_dir::{Expression, Literal, LocalNodeId, TreeChild};
 
 /// Check whether a tree text child is whitespace-only.
 pub(crate) fn tree_text_is_whitespace_only(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     child_id: LocalNodeId<TreeChild>,
 ) -> Option<(bool, bool)> {
     let tree = context.tree;
@@ -63,7 +63,7 @@ pub(crate) fn tree_text_is_whitespace_only(
 
 /// Return the raw text for one tree text child.
 pub(crate) fn tree_text_child_text<'ast>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     child_id: LocalNodeId<TreeChild>,
 ) -> Option<&'ast str> {
     let TreeChild::Text { value } = context.tree.get(child_id) else {
@@ -75,7 +75,7 @@ pub(crate) fn tree_text_child_text<'ast>(
 
 /// Return whether one child is a braced string-space expression.
 pub(crate) fn tree_child_is_space_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     child_id: LocalNodeId<TreeChild>,
 ) -> bool {
     if context
@@ -97,7 +97,7 @@ pub(crate) fn tree_child_is_space_expression(
 
 /// Return whether source preserves an empty line between two tree children.
 pub(crate) fn tree_children_have_blank_line_between(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     previous_child_id: LocalNodeId<TreeChild>,
     next_child_id: LocalNodeId<TreeChild>,
 ) -> bool {

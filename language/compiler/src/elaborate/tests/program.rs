@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use destack_mir as mir;
+use tspp_mir as mir;
 
 use crate::elaborate::ElaborateState;
 use crate::optimize::optimize;
 use crate::tests::{TestProgram, assert_snapshot};
 use crate::verify::VerifyState;
-use destack_artifact::MirInstantiated;
+use tspp_artifact::MirInstantiated;
 
 impl TestProgram {
     /// Elaborate MIR and run the optimization pipeline.

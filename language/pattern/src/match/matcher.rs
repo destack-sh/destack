@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use super::nodes::PatternNodes;
 use super::relation::RelationIndex;

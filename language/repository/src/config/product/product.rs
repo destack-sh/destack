@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use destack_artifact::Stability;
 use serde::{Deserialize, Serialize};
+use tspp_artifact::Stability;
 
 use crate::Policy;
 

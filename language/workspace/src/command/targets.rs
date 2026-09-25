@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
-use destack_repository::{DestackFile, Target, TraceView};
-use destack_serde::Reflect;
-use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
+use tspp_repository::{DestackFile, Target, TraceView};
+use tspp_serde::Reflect;
+use tspp_source::DiagnosticCollection;
 
 use super::CommandResult;
 use super::common::{

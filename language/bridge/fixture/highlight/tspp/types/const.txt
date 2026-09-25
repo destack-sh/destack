@@ -1,0 +1,15 @@
+// SYNTAX TEST "source.tspp"
+
+// types / static / arrays associated guards imports and parameters
+type Buffer<const N: uint, const Tag: string = "default"> = [uint8; N];
+//          ^^^^^ storage.modifier.tspp
+
+declare let value: Buffer<4, "fast">;
+//                 ^^^^^^ entity.name.type.tspp
+
+declare let sized: Buffer<2 + 2, "sum">;
+
+type Tagged<const Tag: string> = { tag: Tag };
+
+type Shape<const ...Dims: usize> = [usize; Dims];
+//         ^^^^^ storage.modifier.tspp

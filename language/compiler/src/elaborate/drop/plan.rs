@@ -1,7 +1,7 @@
-use destack_core::FxIndexMap;
 use std::sync::Arc;
+use tspp_core::FxIndexMap;
 
-use destack_mir as mir;
+use tspp_mir as mir;
 
 /// Destruction of an initialized value or its emptied allocation.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

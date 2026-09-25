@@ -1,5 +1,5 @@
-use destack_program as program;
-use destack_program::{FunctionId, Memory, Word};
+use tspp_program as program;
+use tspp_program::{FunctionId, Memory, Word};
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::worker::Activation;
@@ -7,11 +7,11 @@ use crate::worker::Activation;
 use super::{Binding, BindingTable, ReplayPayload};
 
 /// Stable name of the fiber identity binding.
-pub const FIBER_CURRENT: &str = "destack.fiber.current";
+pub const FIBER_CURRENT: &str = "tspp.fiber.current";
 /// Stable name of the fiber wake binding.
-pub const FIBER_WAKE: &str = "destack.fiber.wake";
+pub const FIBER_WAKE: &str = "tspp.fiber.wake";
 /// Stable name of the microtask queue binding.
-pub const MICROTASK_QUEUE: &str = "destack.async.microtask.queue";
+pub const MICROTASK_QUEUE: &str = "tspp.async.microtask.queue";
 
 impl BindingTable {
     /// Register the runtime-provided fiber scheduling bindings.

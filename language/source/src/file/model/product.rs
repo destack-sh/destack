@@ -1,10 +1,10 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use super::hash::stable_source_id;
 use crate::PackageId;
 
-const PRODUCT_DOMAIN: &[u8] = b"destack.source.product.v1";
+const PRODUCT_DOMAIN: &[u8] = b"tspp.source.product.v1";
 
 /// Stable key for one product within a package.
 #[repr(transparent)]

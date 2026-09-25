@@ -1,6 +1,6 @@
-use destack_core::{FxIndexMap, FxIndexSet};
-use destack_dir as dir;
-use destack_mir as mir;
+use tspp_core::{FxIndexMap, FxIndexSet};
+use tspp_dir as dir;
+use tspp_mir as mir;
 
 use crate::lower::ModuleLowerer;
 use crate::{CompilerError, CompilerResult};
@@ -628,7 +628,7 @@ impl GenericScope {
     /// Return declarations for these lifetime slots.
     pub(in crate::lower) fn declarations(
         &self,
-        strings: &destack_core::StringPool,
+        strings: &tspp_core::StringPool,
     ) -> Vec<mir::LifetimeParameter> {
         self.names
             .iter()

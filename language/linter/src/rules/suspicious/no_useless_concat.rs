@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -89,7 +89,7 @@ function message(): string {
         session.assert_diagnostics(
             r#"
 warning[no-useless-concat]: adjacent string literals are concatenated
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function message(): string {
 2 │     return "hello, " + `world`;

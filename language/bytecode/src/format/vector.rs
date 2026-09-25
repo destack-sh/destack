@@ -1,4 +1,4 @@
-use destack_fir::format::{FormatError, FormatResult};
+use tspp_fir::format::{FormatError, FormatResult};
 
 use crate::{
     ConvertMode, FloatOperation, IntegerOperation, ReduceOperation, RegisterId, RegisterSpan,

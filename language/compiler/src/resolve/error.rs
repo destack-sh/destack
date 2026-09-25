@@ -1,6 +1,6 @@
 use crate::DiagnosticAnchor;
-use destack_artifact_macros::Diagnostic;
-use destack_source::ModuleId;
+use tspp_artifact_macros::Diagnostic;
+use tspp_source::ModuleId;
 
 /// Errors during the resolve phase.
 #[derive(Debug, Clone, PartialEq, Diagnostic)]
@@ -8,9 +8,9 @@ use destack_source::ModuleId;
 pub enum ResolveError {
     /// Import or re-export selects a name that is not exported by the target module.
     ///
-    /// ```ds
-    /// import { missing } from "./library.ds";
-    /// export { missing } from "./library.ds";
+    /// ```tspp
+    /// import { missing } from "./library.tspp";
+    /// export { missing } from "./library.tspp";
     /// ```
     #[diagnostic(
         id = "missing-export",
@@ -30,8 +30,8 @@ pub enum ResolveError {
 
     /// Import or re-export selects a name that exists in the target module without being exported.
     ///
-    /// ```ds
-    /// import { hidden } from "./library.ds";
+    /// ```tspp
+    /// import { hidden } from "./library.tspp";
     /// ```
     #[diagnostic(
         id = "not-exported",
@@ -48,10 +48,10 @@ pub enum ResolveError {
 
     /// Import or re-export selects a name that is re-exported by multiple star exports.
     ///
-    /// ```ds
-    /// export * from "./left.ds";
-    /// export * from "./right.ds";
-    /// import { shared } from "./barrel.ds";
+    /// ```tspp
+    /// export * from "./left.tspp";
+    /// export * from "./right.tspp";
+    /// import { shared } from "./barrel.tspp";
     /// ```
     #[diagnostic(
         id = "ambiguous-export",

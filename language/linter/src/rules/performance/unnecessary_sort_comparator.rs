@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -180,7 +180,7 @@ function order(values: int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[unnecessary-sort-comparator]: comparator reproduces natural ordering
- ──▶ main.ds:2:25
+ ──▶ main.tspp:2:25
   │
 1 │ function order(values: int32[]): void {
 2 │     values.sortUnstable((left, right) => left.compare(right));
@@ -189,8 +189,8 @@ warning[unnecessary-sort-comparator]: comparator reproduces natural ordering
   │
 
  = fix: use natural ordering
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function order(values: int32[]): void {
 -   2│     values.sortUnstable((left, right) => left.compare(right));

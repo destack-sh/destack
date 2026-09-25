@@ -6,13 +6,13 @@
 
 Extensions use `of` to specify the type being extended.
 
-```ds
+```tspp
 extension of  Vector2  { }
 ```
 
 Empty extension bodies stay on one line with internal spacing.
 
-```ds expected
+```tspp expected
 extension of Vector2 {}
 ```
 
@@ -20,13 +20,13 @@ extension of Vector2 {}
 
 Extensions can implement traits for the extended type.
 
-```ds
+```tspp
 extension of  Vector2  implements  Add < Vector2 >  { }
 ```
 
 Generic type arguments have no internal spacing.
 
-```ds expected
+```tspp expected
 extension of Vector2 implements Add<Vector2> {}
 ```
 
@@ -34,13 +34,13 @@ extension of Vector2 implements Add<Vector2> {}
 
 Long implements lists break before the keyword and indent each implemented type.
 
-```ds line-width=80
+```tspp line-width=80
 extension<T> of Deque<T> implements Index<number>, IndexSet<number, T>, Iterable<T>, Iterable<&readonly T>, Extend<T, "exclusive"> {
     index(index: number): T;
 }
 ```
 
-```ds expected
+```tspp expected
 extension<T> of Deque<T>
     implements
         Index<number>,
@@ -57,13 +57,13 @@ extension<T> of Deque<T>
 
 Long extension targets break after `of` and keep the target indented under the header.
 
-```ds line-width=100
+```tspp line-width=100
 extension<T, const Rank: int, F: TensorFormat, const ...Axes: ShardingAxis> of Tensor<T, Rank, F, Sharding<...Axes>> {
     get mesh(): Mesh;
 }
 ```
 
-```ds expected
+```tspp expected
 extension<T, const Rank: int, F: TensorFormat, const ...Axes: ShardingAxis> of
     Tensor<T, Rank, F, Sharding<...Axes>>
 {
@@ -75,13 +75,13 @@ extension<T, const Rank: int, F: TensorFormat, const ...Axes: ShardingAxis> of
 
 Long extension targets break before the implemented trait list.
 
-```ds line-width=80
+```tspp line-width=80
 extension<T: int | float, const Rank: int, F: TensorFormat, P: Placement> of Tensor<T, Rank, F, P> implements Add<Tensor<T, Rank, F, P>>, Subtract<Tensor<T, Rank, F, P>>, Multiply<Tensor<T, Rank, F, P>> {
     type Output = Tensor<T, Rank, F, P>;
 }
 ```
 
-```ds expected
+```tspp expected
 extension<T: int | float, const Rank: int, F: TensorFormat, P: Placement> of
     Tensor<T, Rank, F, P>
     implements
@@ -97,13 +97,13 @@ extension<T: int | float, const Rank: int, F: TensorFormat, P: Placement> of
 
 Where clauses on implemented types stay attached to the implemented type.
 
-```ds line-width=100
+```tspp line-width=100
 extension<T, const N: number, R: RangeBounds<usize>> of FixedArray<T, N> implements IndexSet<R, Slice<T>> where T: Copy {
     indexSet(&exclusive this, range: R, source: Slice<T>): void;
 }
 ```
 
-```ds expected
+```tspp expected
 extension<T, const N: number, R: RangeBounds<usize>> of FixedArray<T, N>
     implements IndexSet<R, Slice<T>>
     where T: Copy
@@ -116,11 +116,11 @@ extension<T, const N: number, R: RangeBounds<usize>> of FixedArray<T, N>
 
 Comments around `of`, `implements`, and `where` stay attached to the same header boundary.
 
-```ds line-width=120
+```tspp line-width=120
 extension<T> of /* target */ Box<T> implements /* iterable */ Iterable<T> where /* constrained */ T: /* copy */ Copy { clone(): Box<T> { return Box { value: this.value } } }
 ```
 
-```ds expected
+```tspp expected
 extension<T> of /* target */ Box<T> implements /* iterable */ Iterable<T> where /* constrained */ T: /* copy */ Copy {
     clone(): Box<T> {
         return Box { value: this.value };
@@ -132,13 +132,13 @@ extension<T> of /* target */ Box<T> implements /* iterable */ Iterable<T> where 
 
 Long extension headers break before `where` and keep fitting constraints inline as an indented continuation.
 
-```ds line-width=60
+```tspp line-width=60
 extension<T, U, V> of Table<T, U, V> where T: Copy, U: Clone, V: Comparable {
     compare(left: T, right: U): V;
 }
 ```
 
-```ds expected
+```tspp expected
 extension<T, U, V> of Table<T, U, V>
     where T: Copy, U: Clone, V: Comparable
 {
@@ -152,10 +152,10 @@ extension<T, U, V> of Table<T, U, V>
 
 Named extensions include the name before `of`.
 
-```ds
+```tspp
 extension  MathUtils  of  int32  { }
 ```
 
-```ds expected
+```tspp expected
 extension MathUtils of int32 {}
 ```

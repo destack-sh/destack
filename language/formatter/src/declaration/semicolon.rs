@@ -1,21 +1,21 @@
-use destack_core::StringId;
-use destack_dir::{
+use tspp_core::StringId;
+use tspp_dir::{
     Comment, Declaration, DependencyBinding, DependencyItem, Expression, FunctionForm, IfForm,
     LocalNodeId, WhileForm,
 };
-use destack_fir::format::{FormatResult, hard_line_break};
-use destack_fir::prelude::{block_indent, empty_line, format_with, line_suffix, space, token};
-use destack_fir::write;
+use tspp_fir::format::{FormatResult, hard_line_break};
+use tspp_fir::prelude::{block_indent, empty_line, format_with, line_suffix, space, token};
+use tspp_fir::write;
 
 use crate::annotation::format_comment;
 use crate::chain::expression_trivia_anchor_end;
 use crate::file::node_has_trailing_ignore_directive;
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_source::Span;
+use crate::{TsppFormatContext, TsppFormatter};
+use tspp_source::Span;
 
 /// Return trailing comments that follow one statement anchor.
 fn statement_trailing_comments_after(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     mut anchor_end: u32,
 ) -> Vec<Comment> {
     let comments = context.comments().comments_after(anchor_end);
@@ -58,7 +58,7 @@ fn statement_trailing_comments_after(
 
 /// Return trailing statement comments with one explicit following sibling start.
 fn statement_trailing_comments_between(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     anchor_end: u32,
     following_span_start: u32,
@@ -115,7 +115,7 @@ fn statement_trailing_comments_between(
 
 /// Return whether one variable declaration owns comments before its source semicolon.
 fn variable_statement_owns_comments_before_semicolon(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     following_span_start: u32,
 ) -> bool {
@@ -144,7 +144,7 @@ fn variable_statement_owns_comments_before_semicolon(
 
 /// Write one statement terminator after one explicit source anchor.
 pub(crate) fn write_statement_terminator_after_anchor<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     anchor_end: u32,
 ) -> FormatResult<()> {
     write!(f, [token(";")])?;
@@ -159,7 +159,7 @@ pub(crate) fn write_statement_terminator_after_anchor<'ast>(
 
 /// Write one statement terminator with one explicit following sibling start.
 pub(crate) fn write_statement_terminator_with_following_start<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     anchor_end: u32,
     following_span_start: u32,
@@ -181,7 +181,7 @@ pub(crate) fn write_statement_terminator_with_following_start<'ast>(
 
 /// Write trailing comments owned by one statement.
 fn write_statement_trailing_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     anchor_end: u32,
     comments: &[Comment],
     indent_own_line: bool,
@@ -200,7 +200,7 @@ fn write_statement_trailing_comments<'ast>(
 
     // keep own line comments in the statement flow
     if comment_is_on_own_line {
-        let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             for (index, comment) in comments.iter().copied().enumerate() {
                 format_comment(f, comment)?;
 
@@ -224,7 +224,7 @@ fn write_statement_trailing_comments<'ast>(
 
 /// Write same-line trailing statement comments.
 fn write_inline_statement_trailing_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     comments: &[Comment],
 ) -> FormatResult<()> {
     let source = f.context().source_text();
@@ -242,7 +242,7 @@ fn write_inline_statement_trailing_comments<'ast>(
             write!(
                 f,
                 [line_suffix(&format_with(
-                    move |f: &mut DestackFormatter<'ast, '_>| {
+                    move |f: &mut TsppFormatter<'ast, '_>| {
                         match lines_before {
                             0 => {
                                 if previous_comment.is_some_and(Comment::is_line) {
@@ -264,7 +264,7 @@ fn write_inline_statement_trailing_comments<'ast>(
                 ))]
             )?;
         } else {
-            let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+            let content = format_with(move |f: &mut TsppFormatter<'ast, '_>| {
                 write!(f, [space()])?;
                 format_comment(f, comment)
             });
@@ -284,7 +284,7 @@ fn write_inline_statement_trailing_comments<'ast>(
 
 /// Write trailing comments owned by a statement without a semicolon.
 pub(crate) fn write_semicolonless_statement_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     following_span_start: Option<u32>,
 ) -> FormatResult<()> {
@@ -315,7 +315,7 @@ pub(crate) fn write_semicolonless_statement_comments<'ast>(
 
 /// Return whether one export expression still needs the outer statement terminator.
 fn export_expression_needs_statement_terminator(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     items: &[LocalNodeId<DependencyItem>],
     target: Option<StringId>,
 ) -> bool {
@@ -337,7 +337,7 @@ fn export_expression_needs_statement_terminator(
 
 /// Return whether one block expression needs a trailing statement terminator.
 pub(crate) fn expression_needs_statement_terminator(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression: &Expression,
     is_expression_context_tail: bool,
 ) -> bool {
@@ -397,7 +397,7 @@ pub(crate) fn expression_needs_statement_terminator(
 
 /// Return whether one statement wrapper should keep its trailing semicolon.
 pub(crate) fn statement_wrapper_needs_semicolon(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let expression = context.tree.get(expression_id);
@@ -440,7 +440,7 @@ pub(crate) fn statement_wrapper_needs_semicolon(
 
 /// Return the source anchor where same-line statement trailing comments begin.
 pub(crate) fn statement_trailing_comment_anchor_end(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> u32 {
     let expression = context.tree.get(expression_id);
@@ -463,7 +463,7 @@ pub(crate) fn statement_trailing_comment_anchor_end(
 
 /// Write one statement terminator and its same-line trailing comments.
 pub(crate) fn write_statement_terminator<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     if node_has_trailing_ignore_directive(f.context(), expression_id) {

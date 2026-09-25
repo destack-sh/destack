@@ -8,14 +8,14 @@ Switch statement fixtures cover case bodies, default bodies, and statement tails
 
 Switch cases use case/colon syntax.
 
-```ds
+```tspp
 switch (x) {
     case 1: "one"
     case 2: "two"
 }
 ```
 
-```ds expected
+```tspp expected
 switch (x) {
     case 1:
         "one";
@@ -28,14 +28,14 @@ switch (x) {
 
 Default cases use the default keyword.
 
-```ds
+```tspp
 switch (value) {
     case 1: "one"
     default: "other"
 }
 ```
 
-```ds expected
+```tspp expected
 switch (value) {
     case 1:
         "one";
@@ -48,7 +48,7 @@ switch (value) {
 
 Switch works with string literal patterns.
 
-```ds
+```tspp
 switch (type) {
     case "static": handleStatic()
     case "dynamic": handleDynamic()
@@ -56,7 +56,7 @@ switch (type) {
 }
 ```
 
-```ds expected
+```tspp expected
 switch (type) {
     case "static":
         handleStatic();
@@ -71,14 +71,14 @@ switch (type) {
 
 Assignment statements in switch cases stay direct.
 
-```ds
+```tspp
 switch (type) {
     case "static": label = "static";
     default: label = "other";
 }
 ```
 
-```ds expected
+```tspp expected
 switch (type) {
     case "static":
         label = "static";

@@ -6,5 +6,5 @@ mod state;
 mod r#static;
 mod stats;
 
-pub(in crate::import) use destack_repository::ModulePathOutcome;
 pub(in crate::import) use state::*;
+pub(in crate::import) use tspp_repository::ModulePathOutcome;

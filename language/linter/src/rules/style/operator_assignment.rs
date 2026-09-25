@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -146,7 +146,7 @@ function advance(counter: Counter): void {
         session.assert_diagnostics(
             r#"
 warning[operator-assignment]: assignment repeats its target
- ──▶ main.ds:5:5
+ ──▶ main.tspp:5:5
   │
 3 │ }
 4 │ function advance(counter: Counter): void {
@@ -156,8 +156,8 @@ warning[operator-assignment]: assignment repeats its target
   │
 
  = fix: use compound assignment
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     4│ function advance(counter: Counter): void {
 -   5│     counter.value = counter.value * 2;
@@ -217,7 +217,7 @@ function advance(value: int32): int32 {
         let session = TestSession::dir(
             &OPERATOR_ASSIGNMENT,
             r#"
-import { Add } from "destack:ops";
+import { Add } from "tspp:ops";
 
 struct Counter {
     value: int32;
@@ -241,7 +241,7 @@ function advance(current: Counter, next: Counter): Counter {
         session.assert_diagnostics(
             r#"
 warning[operator-assignment]: assignment repeats its target
-  ──▶ main.ds:16:5
+  ──▶ main.tspp:16:5
    │
 14 │ function advance(current: Counter, next: Counter): Counter {
 15 │     let result = current;
@@ -252,8 +252,8 @@ warning[operator-assignment]: assignment repeats its target
    │
 
  = fix: use compound assignment
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
    15│     let result = current;
 -  16│     result = result + next;
@@ -263,7 +263,7 @@ warning[operator-assignment]: assignment repeats its target
         );
         session.assert_fixes(
             r#"
-import { Add } from "destack:ops";
+import { Add } from "tspp:ops";
 
 struct Counter {
     value: int32;

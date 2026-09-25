@@ -1,8 +1,8 @@
 use std::collections::BTreeSet;
 
-use destack_core::StableHasher;
-use destack_serde::{Field, Name, Payload, Schema, Type};
 use serde::Serialize;
+use tspp_core::StableHasher;
+use tspp_serde::{Field, Name, Payload, Schema, Type};
 
 use super::{Idempotency, MethodFingerprint, MethodId, MethodKind, ServiceFingerprint, ServiceId};
 
@@ -89,9 +89,9 @@ impl ServiceSchema {
 
         // fingerprint only canonical behavior, excluding the fingerprint itself
         let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(b"destack.rpc.service.v1");
+        hasher.update_len_prefixed(b"tspp.rpc.service.v1");
         let canonical_types = Self::canonical_types(&types);
-        destack_serde::hash_into(&(id, &name, &methods, canonical_types), &mut hasher)
+        tspp_serde::hash_into(&(id, &name, &methods, canonical_types), &mut hasher)
             .map_err(ServiceSchemaError::Encode)?;
         let fingerprint = ServiceFingerprint(hasher.finish_u128());
 
@@ -421,8 +421,8 @@ impl MethodSchema {
 
         // hash exact behavior independently from unrelated service methods
         let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(b"destack.rpc.method.v1");
-        destack_serde::hash_into(
+        hasher.update_len_prefixed(b"tspp.rpc.method.v1");
+        tspp_serde::hash_into(
             &(
                 id,
                 name,
@@ -542,7 +542,7 @@ pub enum ServiceSchemaError {
     /// One method references a named type absent from its service schema.
     MissingType(Name),
     /// Canonical schema encoding failed.
-    Encode(destack_serde::Error),
+    Encode(tspp_serde::Error),
 }
 
 impl std::fmt::Display for ServiceSchemaError {

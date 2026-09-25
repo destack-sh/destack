@@ -1,0 +1,113 @@
+==========================================================
+Type arguments in JSX
+:language(tspp)
+==========================================================
+
+<Element<T>>hi</Element>;
+<Element<T> />;
+<>fragment</>;
+
+---
+
+(program
+  (expression_statement
+    (jsx_element
+      (jsx_opening_element
+        (identifier)
+        (type_arguments
+          (type_identifier)))
+      (jsx_text)
+      (jsx_closing_element
+        (identifier))))
+  (expression_statement
+    (jsx_self_closing_element
+      (identifier)
+      (type_arguments
+        (type_identifier))))
+  (expression_statement
+    (jsx_element
+      (jsx_opening_element)
+      (jsx_text)
+      (jsx_closing_element))))
+
+==========================================================
+Tree literals with intrinsic and value tags
+:language(tspp)
+==========================================================
+
+<Wall id={1}>
+    <Block name="foo" color={Color.RED} />
+    <Block name="bar" color={Color.BLUE} />
+</Wall>;
+
+<Level difficulty={3}>
+    <Player position={spawn} />
+    {enemies.map(enemy => <Enemy {...enemy} />)}
+</Level>;
+
+---
+
+(program
+  (expression_statement
+    (jsx_element
+      (jsx_opening_element
+        (identifier)
+        (jsx_attribute
+          (property_identifier)
+          (jsx_expression
+            (number))))
+      (jsx_self_closing_element
+        (identifier)
+        (jsx_attribute
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (jsx_attribute
+          (property_identifier)
+          (jsx_expression
+            (member_expression
+              (identifier)
+              (property_identifier)))))
+      (jsx_self_closing_element
+        (identifier)
+        (jsx_attribute
+          (property_identifier)
+          (string
+            (string_fragment)))
+        (jsx_attribute
+          (property_identifier)
+          (jsx_expression
+            (member_expression
+              (identifier)
+              (property_identifier)))))
+      (jsx_closing_element
+        (identifier))))
+  (expression_statement
+    (jsx_element
+      (jsx_opening_element
+        (identifier)
+        (jsx_attribute
+          (property_identifier)
+          (jsx_expression
+            (number))))
+      (jsx_self_closing_element
+        (identifier)
+        (jsx_attribute
+          (property_identifier)
+          (jsx_expression
+            (identifier))))
+      (jsx_expression
+        (call_expression
+          (member_expression
+            (identifier)
+            (property_identifier))
+          (arguments
+            (arrow_function
+              (identifier)
+              (jsx_self_closing_element
+                (identifier)
+                (jsx_expression
+                  (spread_element
+                    (identifier))))))))
+      (jsx_closing_element
+        (identifier)))))

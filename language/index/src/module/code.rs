@@ -1,9 +1,9 @@
 use std::hash::Hasher;
 
-use destack_core::StableHasher;
-use destack_dir as dir;
-use destack_dir::NodeFold;
-use destack_repository::{ProviderError, ProviderResult};
+use tspp_core::StableHasher;
+use tspp_dir as dir;
+use tspp_dir::NodeFold;
+use tspp_repository::{ProviderError, ProviderResult};
 
 use super::ModuleIndexContext;
 
@@ -99,8 +99,8 @@ impl<'a, 'context> CodeIndexer<'a, 'context> {
 
         // hash the complete authored value without arena-specific child ids
         let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(b"destack.dir.code.v2");
-        destack_serde::hash_into(&value, &mut hasher).map_err(|error| {
+        hasher.update_len_prefixed(b"tspp.dir.code.v2");
+        tspp_serde::hash_into(&value, &mut hasher).map_err(|error| {
             ProviderError::internal(format!("failed to hash DIR node {node:?}: {error}"))
         })?;
         hasher.write_usize(children.len());

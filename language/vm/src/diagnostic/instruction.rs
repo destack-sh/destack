@@ -1,8 +1,8 @@
 use std::{error, fmt};
 
-use destack_program::FunctionId;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_program::FunctionId;
+use tspp_serde::Reflect;
 
 /// One bytecode instruction execution failure.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]

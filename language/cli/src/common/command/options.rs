@@ -1,7 +1,7 @@
-use destack_repository::TraceView;
-use destack_serde as serde;
-use destack_workspace::{CommandInput, CommandOptions, CommandTargetOverrides, ManifestOverride};
 use serde_json as json;
+use tspp_repository::TraceView;
+use tspp_serde as serde;
+use tspp_workspace::{CommandInput, CommandOptions, CommandTargetOverrides, ManifestOverride};
 
 use crate::common::ProgramArgs;
 use crate::common::program::{

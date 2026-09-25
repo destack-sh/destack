@@ -4,12 +4,12 @@ use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_daemon::DaemonConnection;
-use destack_repository::{Commit, Revision};
-use destack_rpc::{Call, CallError};
-use destack_serde::Codec;
-use destack_source::{DiagnosticCollection, File, FileId};
-use destack_workspace::{ProgressEvent, WatchEvent, WatchRequest, WorkspaceClient};
+use tspp_daemon::DaemonConnection;
+use tspp_repository::{Commit, Revision};
+use tspp_rpc::{Call, CallError};
+use tspp_serde::Codec;
+use tspp_source::{DiagnosticCollection, File, FileId};
+use tspp_workspace::{ProgressEvent, WatchEvent, WatchRequest, WorkspaceClient};
 
 use crate::common::format::{FormatOptions, LineWriter, format_diagnostics_with_writer};
 use crate::common::program::ProgramArgs;

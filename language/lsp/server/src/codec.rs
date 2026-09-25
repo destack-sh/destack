@@ -225,7 +225,7 @@ fn decode_headers(headers: &[httparse::Header<'_>]) -> Result<usize, ParseError>
 #[cfg(test)]
 mod tests {
     use bytes::BytesMut;
-    use destack_lsp_types::LSPAny;
+    use tspp_lsp_types::LSPAny;
 
     use super::*;
 

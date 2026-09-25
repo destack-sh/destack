@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -86,7 +86,7 @@ function calculate(): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-used-underscore-binding]: underscore-prefixed binding `_value` is used
- ──▶ main.ds:2:11
+ ──▶ main.tspp:2:11
   │
 1 │ function calculate(): int32 {
 2 │     const _value = 4;
@@ -113,7 +113,7 @@ function identity(_value: int32): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-used-underscore-binding]: underscore-prefixed binding `_value` is used
- ──▶ main.ds:1:19
+ ──▶ main.tspp:1:19
   │
 1 │ function identity(_value: int32): int32 {
   │                   ^^^^^^

@@ -1,7 +1,7 @@
-use destack_dir as dir;
-use destack_dir::{MemberRole, TypeFold};
-use destack_source::ModuleId;
 use smallvec::SmallVec;
+use tspp_dir as dir;
+use tspp_dir::{MemberRole, TypeFold};
+use tspp_source::ModuleId;
 
 use crate::sema::{
     CandidateOutcome, CheckState, DeclaredMember, ExtensionMatch, ImplementedInterface,

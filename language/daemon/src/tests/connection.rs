@@ -1,15 +1,15 @@
-use destack_artifact::{ConditionSet, Host, Platform, Runtime};
-use destack_core::Blob;
-use destack_program::ProgramBuilder;
-use destack_repository::Change;
-use destack_rpc::{CallError, Code};
-use destack_runtime::service::{
+use tspp_artifact::{ConditionSet, Host, Platform, Runtime};
+use tspp_core::Blob;
+use tspp_program::ProgramBuilder;
+use tspp_repository::Change;
+use tspp_rpc::{CallError, Code};
+use tspp_runtime::service::{
     CaptureRequest, ListRuntimesRequest, ReadMomentRequest, RemoveRuntimeRequest, RunRequest,
     SnapshotRequest, SpawnRuntimeRequest,
 };
-use destack_runtime::world::{Run, RunOutcome};
-use destack_source::{Edit, FileId};
-use destack_workspace::{EditRequest, RevisionRequest, WatchEvent, WatchRequest};
+use tspp_runtime::world::{Run, RunOutcome};
+use tspp_source::{Edit, FileId};
+use tspp_workspace::{EditRequest, RevisionRequest, WatchEvent, WatchRequest};
 
 use super::harness::TestDaemon;
 use crate::{
@@ -35,7 +35,7 @@ fn test_serve_workspace_connection() {
         .expect("revision should read")
         .value;
 
-    let path = root.join("main.ds");
+    let path = root.join("main.tspp");
     let commit = connection
         .workspace()
         .edit(EditRequest {
@@ -153,7 +153,7 @@ fn test_serve_world_connection() {
                 labels: Default::default(),
                 platform: Platform::Unknown,
                 host: Host::Native,
-                runtime: Runtime::Destack,
+                runtime: Runtime::Tspp,
             },
         })
         .expect("Runtime should spawn")
@@ -375,7 +375,7 @@ fn test_share_physical_workspace_commit_across_connections() {
     assert!(matches!(first_ready, WatchEvent::Ready { .. }));
 
     // write disk truth through the daemon owned host watch
-    daemon.write_text("src/main.ds", "export const answer = 42;\n");
+    daemon.write_text("src/main.tspp", "export const answer = 42;\n");
     let first_commit = first_watch
         .receive()
         .expect("first commit should receive")
@@ -392,8 +392,8 @@ fn test_share_physical_workspace_commit_across_connections() {
     assert_eq!(
         commit.changes,
         vec![Change {
-            file: FileId::from_logical_str("src/main.ds"),
-            path: "src/main.ds".to_string(),
+            file: FileId::from_logical_str("src/main.tspp"),
+            path: "src/main.tspp".to_string(),
             before: None,
             after: Some(Blob::for_bytes(b"export const answer = 42;\n")),
         }]

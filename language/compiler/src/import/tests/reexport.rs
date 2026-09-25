@@ -4,13 +4,13 @@ use crate::tests::{DirRows, TestSession};
 fn test_import_records_reexport_edge() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-export { Foo as Bar } from "./dep.ds";
+export { Foo as Bar } from "./dep.tspp";
 "#,
         )
         .module(
-            "dep.ds",
+            "dep.tspp",
             r#"
 export type Foo = string;
 "#,
@@ -18,11 +18,11 @@ export type Foo = string;
         .build();
 
     compiler.assert_dir_imported(
-        "main.ds",
+        "main.tspp",
         DirRows::modules().with_summaries(),
         r#"
-export { Foo as Bar } from "./dep.ds";
-/// @module.edge relation=re_export specifier=./dep.ds module=dep.ds
+export { Foo as Bar } from "./dep.tspp";
+/// @module.edge relation=re_export specifier=./dep.tspp module=dep.tspp
 
 /// @module.summary edges=1
 "#,
@@ -33,7 +33,7 @@ export { Foo as Bar } from "./dep.ds";
 fn test_import_records_reexport_loader_attribute() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 export { schema } from "./schema" with { type: "json" };
 "#,
@@ -49,7 +49,7 @@ export { schema } from "./schema" with { type: "json" };
         .build();
 
     compiler.assert_dir_imported(
-        "main.ds",
+        "main.tspp",
         DirRows::modules().with_summaries(),
         r#"
 export { schema } from "./schema" with { type: "json" };

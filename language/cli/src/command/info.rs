@@ -5,7 +5,7 @@ use crate::common::{
 };
 use crate::console;
 use clap::Args;
-use destack_workspace::{CommandRevision, InfoInput, InfoPayload, TargetEntry};
+use tspp_workspace::{CommandRevision, InfoInput, InfoPayload, TargetEntry};
 
 /// Arguments for the info command.
 #[derive(Args, Debug, Clone)]

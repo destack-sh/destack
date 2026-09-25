@@ -3,15 +3,16 @@ use std::fmt;
 use std::io::Cursor;
 use std::sync::Arc;
 
-use destack_core::{Blob, BlobStore, SectionStorage};
-use destack_program as program;
-use destack_repository::{Environment, WorldOptions};
-use destack_rpc::{Code, Request, Response, ResponseSender, Status};
-use destack_runtime::binding::BindingTable;
-use destack_runtime::debugger::Debugger;
-use destack_runtime::diagnostic::{EntityError, MachineError, RuntimeError};
-use destack_runtime::machine::Engine;
-use destack_runtime::service::{
+use parking_lot::{Mutex, RwLock};
+use tspp_core::{Blob, BlobStore, SectionStorage};
+use tspp_program as program;
+use tspp_repository::{Environment, WorldOptions};
+use tspp_rpc::{Code, Request, Response, ResponseSender, Status};
+use tspp_runtime::binding::BindingTable;
+use tspp_runtime::debugger::Debugger;
+use tspp_runtime::diagnostic::{EntityError, MachineError, RuntimeError};
+use tspp_runtime::machine::Engine;
+use tspp_runtime::service::{
     self, AddRuleRequest, CaptureRequest, ForkRequest, InvokeRequest, ListBranchesRequest,
     ListImagesRequest, ListObservationsRequest, ListRuntimesRequest, ObservationPage,
     ReadBranchRequest, ReadImageRequest, ReadMomentRequest, ReadPolicyRequest, ReadRuntimeRequest,
@@ -19,13 +20,12 @@ use destack_runtime::service::{
     ReplacePolicyRequest, ReplaceRuleRequest, RewindRequest, RunRequest, SnapshotRequest,
     SpawnRuntimeRequest, WatchObservationsRequest, WorldId, WorldService,
 };
-use destack_runtime::world::observation::ObservationEntry;
-use destack_runtime::world::{
+use tspp_runtime::world::observation::ObservationEntry;
+use tspp_runtime::world::{
     Branch, Image, Moment, Policy, RestoreContext, RunOutcome, Snapshot, World, WorldImage,
     WorldSnapshot,
 };
-use destack_vm::MachineLimits;
-use parking_lot::{Mutex, RwLock};
+use tspp_vm::MachineLimits;
 
 use crate::DaemonError;
 

@@ -1,10 +1,10 @@
 use std::ptr;
 
 use bytecode::{Initialization, Instruction, New, NewKind, RegisterSpan};
-use destack_bytecode as bytecode;
-use destack_heap::{AllocationPlan, HeapEdge, HeapError, Payload};
-use destack_mir as mir;
-use destack_program::{AllocationSiteId, LayoutId, LayoutShape, Runtime, VirtualTableId, Word};
+use tspp_bytecode as bytecode;
+use tspp_heap::{AllocationPlan, HeapEdge, HeapError, Payload};
+use tspp_mir as mir;
+use tspp_program::{AllocationSiteId, LayoutId, LayoutShape, Runtime, VirtualTableId, Word};
 
 use crate::diagnostic::{Error, ExecutionResult, Result};
 use crate::machine::Activation;

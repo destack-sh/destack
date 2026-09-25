@@ -1,5 +1,5 @@
-use destack_serde::{Codec, Reflect};
 use serde::{Deserialize, Serialize};
+use tspp_serde::{Codec, Reflect};
 
 /// Direction-local deferred payload identifier.
 #[repr(transparent)]
@@ -29,8 +29,8 @@ pub(crate) enum Payload {
 
 impl Payload {
     /// Encode one typed value into an inline payload.
-    pub(crate) fn encode<T: Codec>(value: &T) -> Result<Self, destack_serde::Error> {
-        let bytes = destack_serde::to_vec(value)?;
+    pub(crate) fn encode<T: Codec>(value: &T) -> Result<Self, tspp_serde::Error> {
+        let bytes = tspp_serde::to_vec(value)?;
 
         Ok(Self::Inline(bytes))
     }
@@ -41,7 +41,7 @@ impl Payload {
             return Err(PayloadError::Deferred);
         };
 
-        destack_serde::from_slice(bytes).map_err(PayloadError::Decode)
+        tspp_serde::from_slice(bytes).map_err(PayloadError::Decode)
     }
 
     /// Return the inline bytes when this payload is complete.
@@ -94,7 +94,7 @@ pub(crate) enum PayloadError {
     /// The payload has not been assembled yet.
     Deferred,
     /// The payload could not be decoded as its method type.
-    Decode(destack_serde::Error),
+    Decode(tspp_serde::Error),
 }
 
 impl std::fmt::Display for PayloadError {

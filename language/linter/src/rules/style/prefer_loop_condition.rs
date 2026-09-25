@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, NodeSpanRegion, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch, NodeSpanRegion, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -285,7 +285,7 @@ loop {
         session.assert_diagnostics(
             r#"
 warning[prefer-loop-condition]: loop begins with its continuation condition
-  ──▶ main.ds:6:5
+  ──▶ main.tspp:6:5
    │
  4 │ loop {
  5 │     // stop before starting another unit

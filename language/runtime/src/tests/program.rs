@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use destack_artifact::{MirLowered, MirOptimized};
-use destack_compiler::{BytecodeEmitter, NativeEmitter, ObjectEmitter, ProgramLinker};
-use destack_core::StringPool;
-use destack_mir as mir;
-use destack_program as program;
-use destack_source::{DiagnosticSeverity, File, FileId, FileType, ModuleId, PackageId, Uri};
+use tspp_artifact::{MirLowered, MirOptimized};
+use tspp_compiler::{BytecodeEmitter, NativeEmitter, ObjectEmitter, ProgramLinker};
+use tspp_core::StringPool;
+use tspp_mir as mir;
+use tspp_program as program;
+use tspp_source::{DiagnosticSeverity, File, FileId, FileType, ModuleId, PackageId, Uri};
 
 /// MIR program compiled for runtime execution tests.
 pub(crate) struct TestProgram {
@@ -23,8 +23,8 @@ impl TestProgram {
         let file_id = FileId::from_source_bytes(source.as_bytes());
         let file = File::from_text(
             file_id,
-            "<runtime-test.dsm>".to_string(),
-            Uri::from_string("<runtime-test.dsm>"),
+            "<runtime-test.tsppm>".to_string(),
+            Uri::from_string("<runtime-test.tsppm>"),
             None,
             FileType::Text,
             source.to_string(),
@@ -104,7 +104,7 @@ impl TestProgram {
                     module,
                     &optimized,
                     &emitter,
-                    &destack_repository::Target::native(),
+                    &tspp_repository::Target::native(),
                 )
                 .expect("runtime test native emitter should initialize")
                 .emit()

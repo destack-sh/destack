@@ -1,15 +1,15 @@
-use destack_dir::{
+use tspp_dir::{
     BinaryOperator, Block, CommentKind, ConditionOperand, Declarator, Expression, LetKind, Literal,
     MatchArm, Mutability, NodeType, Pattern, PatternField, SwitchCase, SwitchSelector, TokenType,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::{
     TestParser, assert_comment, assert_expression_path, assert_node, assert_string,
     block_expression_ids,
 };
 
-/// Keep repeated match-arm placeholders outside ordinary Destack grammar.
+/// Keep repeated match-arm placeholders outside ordinary TS++ grammar.
 #[test]
 fn test_reject_match_arm_placeholder_in_destack_grammar() {
     let test = TestParser::new("match (value) { $$$ARMS }");

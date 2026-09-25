@@ -1,4 +1,4 @@
-use destack_artifact_macros::Diagnostic;
+use tspp_artifact_macros::Diagnostic;
 
 use crate::DiagnosticAnchor;
 
@@ -8,9 +8,9 @@ use crate::DiagnosticAnchor;
 pub enum ResolveWarning {
     /// One file imports the same resolved module more than once.
     ///
-    /// ```ds
-    /// import { left } from "./values.ds";
-    /// import { right } from "./values.ds";
+    /// ```tspp
+    /// import { left } from "./values.tspp";
+    /// import { right } from "./values.tspp";
     /// ```
     #[diagnostic(
         id = "duplicate-import",

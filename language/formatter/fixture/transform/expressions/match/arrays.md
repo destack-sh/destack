@@ -6,11 +6,11 @@
 
 Arrays can be destructured in match patterns.
 
-```ds
+```tspp
 match (arr) { [] => "empty"; [a] => `one: ${a}`; [a, b] => `two: ${a}, ${b}`; _ => "many" }
 ```
 
-```ds expected
+```tspp expected
 match (arr) {
     [] => "empty"
     [a] => `one: ${a}`
@@ -23,11 +23,11 @@ match (arr) {
 
 Rest patterns capture remaining elements.
 
-```ds
+```tspp
 match (arr) { [first, ...rest] => first; [] => null }
 ```
 
-```ds expected
+```tspp expected
 match (arr) {
     [first, ...rest] => first
     [] => null
@@ -39,11 +39,11 @@ match (arr) {
 The `..` pattern matches elements in the middle.
 Multi-element tuple results do not need a trailing comma.
 
-```ds
+```tspp
 match (arr) { [first, ..., last] => (first, last); _ => null }
 ```
 
-```ds expected
+```tspp expected
 match (arr) {
     [first, ..., last] => (first, last)
     _ => null

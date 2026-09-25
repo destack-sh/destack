@@ -6,8 +6,8 @@ use crate::tests::TestSession;
 fn test_lower_builtin_operators_over_parameter_operands() {
     let session = TestSession::single(
         r#"
-import { Float, Numeric } from "destack:math";
-import { StrictEqual } from "destack:ops";
+import { Float, Numeric } from "tspp:math";
+import { StrictEqual } from "tspp:ops";
 
 function identical<T: StrictEqual<T>>(a: T, b: T): boolean {
     a === b
@@ -32,7 +32,7 @@ function origin<T: Numeric>(): T {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.identical",
         r#"
 function test.main.identical<T: StrictEqual<T>>(v0: T, v1: T): boolean {
@@ -50,7 +50,7 @@ entry(v0: T, v1: T):
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.widen",
         r#"
 function test.main.widen<T: Copy>(v0: T, v1: T): T {
@@ -68,7 +68,7 @@ entry(v0: T, v1: T):
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.nearly",
         r#"
 function test.main.nearly<T: Float>(v0: T, v1: T): boolean {
@@ -86,7 +86,7 @@ entry(v0: T, v1: T):
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.origin",
         r#"
 @nocopy
@@ -101,7 +101,7 @@ entry:
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.scaled",
         r#"
 function test.main.scaled<T: Float>(v0: T, v1: T): T {

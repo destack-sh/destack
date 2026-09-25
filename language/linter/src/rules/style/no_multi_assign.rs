@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -111,7 +111,7 @@ function reset(): void {
         session.assert_diagnostics(
             r#"
 warning[no-multi-assign]: assignment is chained
- ──▶ main.ds:5:5
+ ──▶ main.tspp:5:5
   │
 3 │     let second = 2;
 4 │     let third = 3;

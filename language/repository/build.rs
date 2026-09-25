@@ -3,11 +3,11 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::{env, fs, io};
 
-use destack_core::Blob;
-use destack_source::{File, FileId, ModuleId, PackageId, Uri};
 use serde::Deserialize;
+use tspp_core::Blob;
+use tspp_source::{File, FileId, ModuleId, PackageId, Uri};
 
-const BUILTIN_SCHEME: &str = "destack://";
+const BUILTIN_SCHEME: &str = "tspp://";
 const LIBRARY_DIRECTORY: &str = "../library";
 const LIBRARY_SOURCE_DIRECTORY: &str = "../library/src";
 const MANIFEST_FILE: &str = "destack.json";
@@ -117,7 +117,10 @@ fn collect_builtin_files_from_directory(
         let path = entry.path();
         if path.is_dir() {
             collect_builtin_files_from_directory(library_source_directory, &path, files)?;
-        } else if path.extension().is_some_and(|extension| extension == "ds") {
+        } else if path
+            .extension()
+            .is_some_and(|extension| extension == "tspp")
+        {
             println!("cargo:rerun-if-changed={}", path.display());
 
             let relative = path
@@ -143,7 +146,7 @@ fn render_builtin_table(
     source_directory: &Path,
     manifest_path: &Path,
 ) -> Result<String, Box<dyn Error>> {
-    let package_name = manifest.name.as_deref().unwrap_or("destack");
+    let package_name = manifest.name.as_deref().unwrap_or("tspp");
     let package_id = PackageId::from_uri(&Uri::from_string(package_name));
     let mut output = String::new();
     output.push_str("pub(crate) const BUILTINS: &[BuiltinFile] = &[\n");
@@ -282,7 +285,7 @@ fn render_builtin_export(output: &mut String, specifier: &str, export: &PackageE
 
 /// Return the canonical builtin module URI for one library path.
 fn builtin_uri(source: &str) -> String {
-    let source = source.strip_suffix(".ds").unwrap_or(source);
+    let source = source.strip_suffix(".tspp").unwrap_or(source);
     let source = source.strip_suffix("/index").unwrap_or(source);
 
     format!("{BUILTIN_SCHEME}{source}")

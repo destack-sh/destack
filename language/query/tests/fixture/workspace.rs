@@ -2,17 +2,17 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, BuildId, IndexKind};
-use destack_query::{QueryRequest, QueryResponse};
-use destack_repository::{
+use futures::executor::block_on;
+use indexmap::IndexMap;
+use tspp_artifact::{ArtifactKey, BuildId, IndexKind};
+use tspp_query::{QueryRequest, QueryResponse};
+use tspp_repository::{
     DestackLayoutOverride, Edit, Environment, Execution, Host, Repository, Revision, Settings,
     Trace, TraceLevel, TraceSnapshot, TraceView,
 };
-use destack_session::{ArtifactPriority, Executor, Session};
-use destack_source::{FileSystem, MemoryFileSystem, TargetId};
-use destack_workspace::{RevisionPolicy, RunQueryInput, Workspace};
-use futures::executor::block_on;
-use indexmap::IndexMap;
+use tspp_session::{ArtifactPriority, Executor, Session};
+use tspp_source::{FileSystem, MemoryFileSystem, TargetId};
+use tspp_workspace::{RevisionPolicy, RunQueryInput, Workspace};
 
 use super::{QueryChange, QueryFile};
 
@@ -21,7 +21,7 @@ const QUERY_MANIFEST: &str = r#"{
   "name": "@test/query",
   "targets": {
     "default": {
-      "include": ["**/*.ds"]
+      "include": ["**/*.tspp"]
     }
   },
   "defaultTarget": "default"
@@ -30,11 +30,11 @@ const QUERY_MANIFEST: &str = r#"{
 /// Logical path of the shared query package declaration.
 const QUERY_MANIFEST_PATH: &str = "destack.json";
 /// Temporary module used to resolve the shared query package profile.
-const WARM_ANCHOR_PATH: &str = "__warm.ds";
+const WARM_ANCHOR_PATH: &str = "__warm.tspp";
 /// Environment variable enabling detailed timing reports.
-const TIMINGS_ENV: &str = "DESTACK_TIMINGS";
+const TIMINGS_ENV: &str = "TSPP_TIMINGS";
 /// Environment variable selecting the query workspace worker count.
-const WORKERS_ENV: &str = "DESTACK_TEST_WORKERS";
+const WORKERS_ENV: &str = "TSPP_TEST_WORKERS";
 
 /// One workspace shared by isolated query fixture revisions.
 #[derive(Debug)]

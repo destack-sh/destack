@@ -1,9 +1,9 @@
 use cranelift_codegen::ir as cir;
 use cranelift_codegen::ir::InstBuilder;
 use cranelift_codegen::ir::condcodes::{FloatCC, IntCC};
-use destack_core::{FloatFormat, float_to_bits};
-use destack_mir as mir;
-use destack_native as native;
+use tspp_core::{FloatFormat, float_to_bits};
+use tspp_mir as mir;
+use tspp_native as native;
 
 use crate::EmitError;
 

@@ -3,20 +3,20 @@ use std::thread::{self, JoinHandle};
 use std::time::Instant;
 
 use crossbeam_channel::{Receiver, Sender, select, unbounded};
-use destack_core::BlobStore;
-use destack_rpc::{
+use tspp_core::BlobStore;
+use tspp_rpc::{
     IpcListener, Listener, Registry, Server, ServerError, Transport, TransportError,
     WebSocketListener,
 };
-use destack_runtime::service::{DebuggerServer, HostServer, WorldServer};
-use destack_workspace::{Workspace, WorkspaceServer};
+use tspp_runtime::service::{DebuggerServer, HostServer, WorldServer};
+use tspp_workspace::{Workspace, WorkspaceServer};
 
 use crate::{
     BlobServer, ConnectionActivity, ConnectionId, DaemonEndpoint, DaemonError, DaemonLifecycle,
     DaemonMetadata, DaemonOptions, DaemonPeer, DaemonServer, WorkspaceRegistry, WorldRegistry,
 };
 
-/// Persistent process serving Destack RPC services.
+/// Persistent process serving TS++ RPC services.
 #[derive(Debug, Clone)]
 pub struct Daemon {
     /// Discovery and transport addresses.

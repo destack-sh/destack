@@ -4,8 +4,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, AtomicU64, Ordering};
 
 use crossbeam_channel::{Sender, unbounded};
-use destack_serde::Codec;
 use parking_lot::Mutex;
+use tspp_serde::Codec;
 
 use super::{ConnectionError, MessageReceiver, MessageSender};
 use crate::call::{CallEvent, SendWindow};

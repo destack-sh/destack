@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-use destack_source::{FileId, PackageId};
+use tspp_source::{FileId, PackageId};
 
 use crate::DestackFile;
 use crate::repository::{Repository, RepositoryError, Revision};

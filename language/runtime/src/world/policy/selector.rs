@@ -4,14 +4,14 @@ use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::host;
 use crate::world::topology::LabelSet;
 use crate::world::{EdgeId, EntityId};
-use destack_program as program;
-use destack_repository::{
+use serde::{Deserialize, Serialize};
+use tspp_program as program;
+use tspp_repository::{
     ConditionGate, ConditionSelector, ConditionSet, ExecutionMode, PackageSelector,
     RuntimeIdentitySelector, RuntimeLabelOperator, RuntimeLabelRequirement, RuntimeLabelSelector,
 };
-use destack_serde::Reflect;
-use destack_source::matches;
-use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
+use tspp_source::matches;
 
 /// Selector clauses for policy subjects.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Default, Serialize, Deserialize, Reflect)]
@@ -543,7 +543,7 @@ fn binding_name<'a>(
 /// Return true when one Program string list matches one glob.
 fn matches_strings(
     program: &program::Program,
-    strings: &[destack_core::StringId],
+    strings: &[tspp_core::StringId],
     pattern: &str,
 ) -> RuntimeResult<bool> {
     for id in strings {

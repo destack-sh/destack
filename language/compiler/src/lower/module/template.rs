@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_mir as mir;
+use tspp_dir as dir;
+use tspp_mir as mir;
 
 use crate::lower::{FunctionDeclaration, GenericInstanceKey, GenericScope, ModuleLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};

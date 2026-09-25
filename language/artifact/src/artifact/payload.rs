@@ -1,11 +1,11 @@
 use std::borrow::Cow;
 use std::sync::Arc;
 
-use destack_core::Blob;
-use destack_program::{Object, Program};
-use destack_serde as serde;
-use destack_serde::Reflect;
-use destack_source::{ModuleId, PackageId, ProductId, ProfileId, TargetId};
+use tspp_core::Blob;
+use tspp_program::{Object, Program};
+use tspp_serde as serde;
+use tspp_serde::Reflect;
+use tspp_source::{ModuleId, PackageId, ProductId, ProfileId, TargetId};
 
 use crate::{
     ArtifactError, ArtifactKey, ArtifactProjectionFingerprint, ArtifactProjectionKey, Asset, Build,

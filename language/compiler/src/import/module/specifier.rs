@@ -1,4 +1,4 @@
-use destack_source::ModuleSpecifier;
+use tspp_source::ModuleSpecifier;
 
 /// Parsed import module specifier.
 pub(super) enum ImportSpecifier {
@@ -41,8 +41,7 @@ impl ImportSpecifier {
             Self::Private
         }
         // internal module
-        else if specifier_path.starts_with("destack:") || specifier_path.starts_with("destack://")
-        {
+        else if specifier_path.starts_with("tspp:") || specifier_path.starts_with("tspp://") {
             Self::Internal
         }
         // scheme specifier

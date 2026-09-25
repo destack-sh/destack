@@ -3,7 +3,7 @@ use crate::{
     ExpressionPosition, ExpressionStop, assert_expression_path, assert_name, assert_node,
     assert_string,
 };
-use destack_dir::{
+use tspp_dir::{
     Argument, AssignOperator, AssignPattern, AssignPatternField, BinaryOperator, Expression,
     IfForm, Literal, LocalNodeId, PostfixPosition, TypeExpression, TypeLiteral, UnaryOperator,
 };

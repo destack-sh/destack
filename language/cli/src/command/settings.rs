@@ -5,7 +5,7 @@ use crate::common::{
 };
 use crate::console;
 use clap::Args;
-use destack_workspace::{CommandRevision, SettingsInput, SettingsPayload};
+use tspp_workspace::{CommandRevision, SettingsInput, SettingsPayload};
 
 /// Arguments for the settings command.
 #[derive(Args, Debug, Clone)]

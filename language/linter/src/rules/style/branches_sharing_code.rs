@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::Span;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::Span;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -275,7 +275,7 @@ function finish(condition: boolean): void {
         session.assert_diagnostics(
             r#"
 warning[branches-sharing-code]: branch suffix repeats across alternatives
-  ──▶ main.ds:10:9
+  ──▶ main.tspp:10:9
    │
  5 │         record("left");
  6 │         record("again");
@@ -318,7 +318,7 @@ function finish(value: int32): void {
         session.assert_diagnostics(
             r#"
 warning[branches-sharing-code]: branch suffix repeats across alternatives
-  ──▶ main.ds:12:9
+  ──▶ main.tspp:12:9
    │
  4 │     if (value == 0) {
  5 │         record("zero");
@@ -363,7 +363,7 @@ function finish(condition: boolean): void {
         session.assert_diagnostics(
             r#"
 warning[branches-sharing-code]: branch suffix repeats across alternatives
-  ──▶ main.ds:9:9
+  ──▶ main.tspp:9:9
    │
  3 │     if (condition) {
  4 │         record(0);
@@ -409,7 +409,7 @@ function finish(value: boolean): int32 {
         session.assert_diagnostics(
             r#"
 warning[branches-sharing-code]: match arm suffix repeats across alternatives
-  ──▶ main.ds:10:13
+  ──▶ main.tspp:10:13
    │
  4 │         true => {
  5 │             record(1);
@@ -498,7 +498,7 @@ function finish(condition: boolean): void {
         session.assert_diagnostics(
             r#"
 warning[branches-sharing-code]: branch prefix repeats across alternatives
- ──▶ main.ds:6:9
+ ──▶ main.tspp:6:9
   │
 2 │ function finish(condition: boolean): void {
 3 │     if (condition) {
@@ -536,7 +536,7 @@ function finish(condition: boolean): void {
         session.assert_diagnostics(
             r#"
 warning[branches-sharing-code]: branch prefix repeats across alternatives
-  ──▶ main.ds:7:9
+  ──▶ main.tspp:7:9
    │
  2 │ function finish(condition: boolean): void {
  3 │     if (condition) {

@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::Patch;
+use tspp_dir as dir;
+use tspp_source::Patch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -214,7 +214,7 @@ function reset(values: Values): void {
         let session = TestSession::dir(
             &PREFER_CLEAR,
             r#"
-import { BinaryHeap } from "destack:collections";
+import { BinaryHeap } from "tspp:collections";
 
 function reset(values: BinaryHeap<int32>): void {
     values.drain();
@@ -224,7 +224,7 @@ function reset(values: BinaryHeap<int32>): void {
 
         session.assert_fixes(
             r#"
-import { BinaryHeap } from "destack:collections";
+import { BinaryHeap } from "tspp:collections";
 
 function reset(values: BinaryHeap<int32>): void {
     values.clear();
@@ -239,7 +239,7 @@ function reset(values: BinaryHeap<int32>): void {
         let session = TestSession::dir(
             &PREFER_CLEAR,
             r#"
-import { ConcurrentMap } from "destack:collections";
+import { ConcurrentMap } from "tspp:collections";
 
 function reset(values: ConcurrentMap<string, int32>): void {
     values.drain();
@@ -249,7 +249,7 @@ function reset(values: ConcurrentMap<string, int32>): void {
 
         session.assert_fixes(
             r#"
-import { ConcurrentMap } from "destack:collections";
+import { ConcurrentMap } from "tspp:collections";
 
 function reset(values: ConcurrentMap<string, int32>): void {
     values.clear();

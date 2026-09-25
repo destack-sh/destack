@@ -5,10 +5,10 @@ use crate::{
     DependencyAttributeClauseKind, ForInitialization, FormatNode, Formatter, Keyword, LocalNodeId,
     LocalNodeIdAny, Mutability, NodeType, Statement,
 };
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::*;
-use destack_fir::write;
-use destack_source::NodeSpanType;
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::*;
+use tspp_fir::write;
+use tspp_source::NodeSpanType;
 
 /// Format root-level statements with semicolons and trailing newline.
 pub fn format_roots<'a>(f: &mut Formatter<'a, '_>, roots: &[LocalNodeIdAny]) -> FormatResult<()> {

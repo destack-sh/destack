@@ -6,11 +6,11 @@
 
 Non-string attribute values use braces with normalized spacing.
 
-```ds
+```tspp
 <Entity  a = {1}  b = {2}  />
 ```
 
-```ds expected
+```tspp expected
 <Entity a={1} b={2} />;
 ```
 
@@ -18,11 +18,11 @@ Non-string attribute values use braces with normalized spacing.
 
 Attribute values can be expressions in braces.
 
-```ds
+```tspp
 <Button onClick={handleClick} disabled={isLoading} />
 ```
 
-```ds expected
+```tspp expected
 <Button onClick={handleClick} disabled={isLoading} />;
 ```
 
@@ -30,11 +30,11 @@ Attribute values can be expressions in braces.
 
 Fixed array repeat literals can be passed as attribute values.
 
-```ds
+```tspp
 <Buffer data={[0; count]} />
 ```
 
-```ds expected
+```tspp expected
 <Buffer data={[0; count]} />;
 ```
 
@@ -45,11 +45,11 @@ Fixed array repeat literals can be passed as attribute values.
 
 When an attribute value doesn't fit, the whole element breaks to multi-line format.
 
-```ds line-width=30
+```tspp line-width=30
 <Button style={{ color: "red", fontSize: 14 }} />
 ```
 
-```ds expected
+```tspp expected
 <Button
     style={{
         color: "red",
@@ -62,10 +62,10 @@ When an attribute value doesn't fit, the whole element breaks to multi-line form
 
 Boolean attributes can omit the value.
 
-```ds
+```tspp
 <Input disabled readonly />
 ```
 
-```ds expected
+```tspp expected
 <Input disabled readonly />;
 ```

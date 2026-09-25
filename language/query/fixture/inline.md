@@ -4,7 +4,7 @@
 
 A literal needs no extra parentheses in the surrounding expression.
 
-```ds main.ds
+```tspp main.tspp
 function total(): int32 {
     const offset = 10;
           ^^^^^^ target
@@ -12,10 +12,10 @@ function total(): int32 {
 }
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 function total(): int32 {
     return 10 + 1;
 }
@@ -25,16 +25,16 @@ function total(): int32 {
 
 The declaration and any of its references identify the same inline operation.
 
-```ds main.ds
+```tspp main.tspp
 const offset = 10;
 const total = offset + 1;
               ^^^^^^ target
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 const total = 10 + 1;
 ```
 
@@ -42,7 +42,7 @@ const total = 10 + 1;
 
 Each inline operation uses the source produced by the preceding edit.
 
-```ds main.ds
+```tspp main.tspp
 const first = 1;
       ^^^^^ target:first
 const firstResult = first;
@@ -51,20 +51,20 @@ const second = 2;
 const secondResult = second;
 ```
 
-```query inline main.ds#target:first apply
+```query inline main.tspp#target:first apply
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 const firstResult = 1;
 const second = 2;
       ^^^^^^ target:second
 const secondResult = second;
 ```
 
-```query inline main.ds#target:second
+```query inline main.tspp#target:second
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 const firstResult = 1;
 const secondResult = 2;
 ```
@@ -75,7 +75,7 @@ const secondResult = 2;
 
 An initializer receives parentheses only when its new parent requires them.
 
-```ds main.ds
+```tspp main.tspp
 function scale(left: int32, right: int32): int32 {
     const value = left + right;
           ^^^^^ target
@@ -83,10 +83,10 @@ function scale(left: int32, right: int32): int32 {
 }
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 function scale(left: int32, right: int32): int32 {
     return (left + right) * 2;
 }
@@ -98,16 +98,16 @@ function scale(left: int32, right: int32): int32 {
 
 A shorthand property expands to preserve its property name.
 
-```ds main.ds
+```tspp main.tspp
 const value = 1;
       ^^^^^ target
 const record = { value };
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 const record = { value: 1 };
 ```
 
@@ -117,7 +117,7 @@ const record = { value: 1 };
 
 A call cannot be duplicated across multiple references.
 
-```ds main.ds
+```tspp main.tspp
 function next(): int32 {
     return 1;
 }
@@ -127,7 +127,7 @@ const value = next();
 const total = value + value;
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 @inline.none
 ```
 
@@ -135,7 +135,7 @@ const total = value + value;
 
 Inlining must preserve the relative order of observable operations.
 
-```ds main.ds
+```tspp main.tspp
 function next(): int32 {
     return 1;
 }
@@ -148,7 +148,7 @@ observe();
 const result = value;
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 @inline.none
 ```
 
@@ -156,7 +156,7 @@ const result = value;
 
 Inlining must not make an unconditional initializer conditional.
 
-```ds main.ds
+```tspp main.tspp
 function next(): int32 {
     return 1;
 }
@@ -171,7 +171,7 @@ if (condition) {
 }
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 @inline.none
 ```
 
@@ -179,14 +179,14 @@ if (condition) {
 
 A binding with a later write cannot be replaced by its initializer.
 
-```ds main.ds
+```tspp main.tspp
 let value = 1;
     ^^^^^ target
 value = 2;
 const result = value;
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 @inline.none
 ```
 
@@ -194,7 +194,7 @@ const result = value;
 
 Inlining must not change which declaration a captured name resolves to.
 
-```ds main.ds
+```tspp main.tspp
 const offset = 1;
 const value = offset + 1;
       ^^^^^ target
@@ -205,7 +205,7 @@ function read(): int32 {
 }
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 @inline.none
 ```
 
@@ -215,16 +215,16 @@ function read(): int32 {
 
 Inlining removes the declaration annotation with its binding.
 
-```ds main.ds
+```tspp main.tspp
 const offset: int32 = 10;
       ^^^^^^ target
 const total = offset + 1;
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 const total = 10 + 1;
 ```
 
@@ -234,16 +234,16 @@ const total = 10 + 1;
 
 An object initializer remains grouped before member access.
 
-```ds main.ds
+```tspp main.tspp
 const configuration = { enabled: true };
       ^^^^^^^^^^^^^ target
 const enabled = configuration.enabled;
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 const enabled = ({ enabled: true }).enabled;
 ```
 
@@ -253,7 +253,7 @@ const enabled = ({ enabled: true }).enabled;
 
 One reference preserves the initializer's single evaluation.
 
-```ds main.ds
+```tspp main.tspp
 function next(): int32 {
     return 1;
 }
@@ -263,10 +263,10 @@ const value = next();
 const total = value;
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 function next(): int32 {
     return 1;
 }
@@ -280,16 +280,16 @@ const total = next();
 
 A mutable binding without any writes can still be inlined.
 
-```ds main.ds
+```tspp main.tspp
 let offset = 10;
     ^^^^^^ target
 const total = offset + 1;
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 const total = 10 + 1;
 ```
 
@@ -299,16 +299,16 @@ const total = 10 + 1;
 
 Inlining one declarator preserves its siblings.
 
-```ds main.ds
+```tspp main.tspp
 const base = 1, total = base + 2;
       ^^^^ target
 const result = base + total;
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 const total = 1 + 2;
 const result = 1 + total;
 ```
@@ -319,7 +319,7 @@ const result = 1 + total;
 
 Call arguments receive the initializer expression directly.
 
-```ds main.ds
+```tspp main.tspp
 function render(width: int32): void {}
 
 const width = 10;
@@ -327,10 +327,10 @@ const width = 10;
 render(width);
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 function render(width: int32): void {}
 
 render(10);
@@ -342,7 +342,7 @@ render(10);
 
 References inside control-flow conditions are ordinary inline sites.
 
-```ds main.ds
+```tspp main.tspp
 const enabled = true;
       ^^^^^^^ target
 
@@ -351,10 +351,10 @@ if (enabled) {
 }
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 if (true) {
     const value = 1;
 }
@@ -366,16 +366,16 @@ if (true) {
 
 Inlining preserves the interpolation around the replacement.
 
-```ds main.ds
+```tspp main.tspp
 const name = "World";
       ^^^^ target
 const message = `Hello, ${name}`;
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 const message = `Hello, ${"World"}`;
 ```
 
@@ -385,7 +385,7 @@ const message = `Hello, ${"World"}`;
 
 A class field reference receives the initializer value.
 
-```ds main.ds
+```tspp main.tspp
 const initial = 1;
       ^^^^^^^ target
 
@@ -394,10 +394,10 @@ class Counter {
 }
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 class Counter {
     value: int32 = 1;
 }
@@ -409,7 +409,7 @@ class Counter {
 
 A destructured binding becomes access through its source object.
 
-```ds main.ds
+```tspp main.tspp
 struct Point {
     x: int32;
     y: int32;
@@ -421,10 +421,10 @@ const { x } = point;
 const value = x + 1;
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 struct Point {
     x: int32;
     y: int32;
@@ -438,7 +438,7 @@ const value = point.x + 1;
 
 An aliased binding uses the source property name in its replacement.
 
-```ds main.ds
+```tspp main.tspp
 struct Point {
     x: int32;
 }
@@ -449,10 +449,10 @@ const { x: horizontal } = point;
 const value = horizontal + 1;
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 struct Point {
     x: int32;
 }
@@ -465,7 +465,7 @@ const value = point.x + 1;
 
 Inlining one name removes only that binding from the shared pattern.
 
-```ds main.ds
+```tspp main.tspp
 struct Point {
     x: int32;
     y: int32;
@@ -477,10 +477,10 @@ const { x, y } = point;
 const value = x + y;
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 struct Point {
     x: int32;
     y: int32;
@@ -497,13 +497,13 @@ const value = point.x + y;
 
 Inlining cannot remove a public declaration.
 
-```ds main.ds
+```tspp main.tspp
 export const value = 1;
              ^^^^^ target
 const total = value + 1;
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 @inline.none
 ```
 
@@ -511,18 +511,18 @@ const total = value + 1;
 
 Inlining cannot remove a declaration owned by another module.
 
-```ds library.ds
+```tspp library.tspp
 export const value = 1;
 ```
 
-```ds main.ds
-import { value } from "./library.ds";
+```tspp main.tspp
+import { value } from "./library.tspp";
          ^^^^^ target
 
 const total = value + 1;
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 @inline.none
 ```
 
@@ -530,17 +530,17 @@ const total = value + 1;
 
 A namespace binding has no local initializer to inline.
 
-```ds library.ds
+```tspp library.tspp
 export const value = 1;
 ```
 
-```ds main.ds
-import * as library from "./library.ds";
+```tspp main.tspp
+import * as library from "./library.tspp";
             ^^^^^^^ target
 
 const value = library.value;
 ```
 
-```query inline main.ds#target
+```query inline main.tspp#target
 @inline.none
 ```

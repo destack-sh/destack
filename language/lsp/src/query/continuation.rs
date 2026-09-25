@@ -2,11 +2,11 @@ use std::path::{Path, PathBuf};
 
 use base64::Engine;
 use base64::engine::general_purpose::URL_SAFE_NO_PAD;
-use destack_lsp_server::jsonrpc;
-use destack_repository::Revision;
-use destack_serde::{Codec, Reflect, from_slice, to_vec};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tspp_lsp_server::jsonrpc;
+use tspp_repository::Revision;
+use tspp_serde::{Codec, Reflect, from_slice, to_vec};
 
 use crate::server::internal_error;
 

@@ -1,39 +1,39 @@
-// SYNTAX TEST "source.dsa"
+// SYNTAX TEST "source.tsppa"
 
 // imported declaration
-// <- comment.line.double-slash.dsa
+// <- comment.line.double-slash.tsppa
 function imported
-// <- keyword.declaration.function.dsa
-//       ^^^^^^^^ entity.name.function.dsa
+// <- keyword.declaration.function.tsppa
+//       ^^^^^^^^ entity.name.function.tsppa
 
 function dispatch {
     constant.int128 r0, -1
-//  ^^^^^^^^^^^^^^^ keyword.operator.instruction.dsa
-//                  ^^ variable.other.register.dsa
-//                      ^^ constant.numeric.dsa
+//  ^^^^^^^^^^^^^^^ keyword.operator.instruction.tsppa
+//                  ^^ variable.other.register.tsppa
+//                      ^^ constant.numeric.tsppa
     call.virtual r5, f0, ref<managed, local>, 0, 0, r0:r2
-//  ^^^^^^^^^^^^ keyword.operator.instruction.dsa
-//               ^^ variable.other.register.dsa
-//                   ^^ entity.name.function.dsa
-//                                                  ^^ variable.other.register.dsa
-//                                                     ^^ variable.other.register.dsa
+//  ^^^^^^^^^^^^ keyword.operator.instruction.tsppa
+//               ^^ variable.other.register.tsppa
+//                   ^^ entity.name.function.tsppa
+//                                                  ^^ variable.other.register.tsppa
+//                                                     ^^ variable.other.register.tsppa
     switch r0 { 0 => b0, default => b1 }
-//  ^^^^^^ keyword.control.flow.dsa
-//         ^^ variable.other.register.dsa
-//              ^ constant.numeric.dsa
-//                   ^^ entity.name.label.dsa
-//                       ^^^^^^^ constant.language.dsa
-//                                  ^^ entity.name.label.dsa
+//  ^^^^^^ keyword.control.flow.tsppa
+//         ^^ variable.other.register.tsppa
+//              ^ constant.numeric.tsppa
+//                   ^^ entity.name.label.tsppa
+//                       ^^^^^^^ constant.language.tsppa
+//                                  ^^ entity.name.label.tsppa
 b0:
-// <- entity.name.label.dsa
+// <- entity.name.label.tsppa
     continuation.resume r7:r8, r9, r10:r11, r6, r5 => b2 | b3 | b4
-//  ^^^^^^^^^^^^^^^^^^^ keyword.operator.instruction.dsa
-//                      ^^ variable.other.register.dsa
-//                         ^^ variable.other.register.dsa
-//                                                    ^^ entity.name.label.dsa
+//  ^^^^^^^^^^^^^^^^^^^ keyword.operator.instruction.tsppa
+//                      ^^ variable.other.register.tsppa
+//                         ^^ variable.other.register.tsppa
+//                                                    ^^ entity.name.label.tsppa
 b1:return r0
-// <- entity.name.label.dsa
-//^ punctuation.separator.dsa
-// ^^^^^^ keyword.control.flow.dsa
-//        ^^ variable.other.register.dsa
+// <- entity.name.label.tsppa
+//^ punctuation.separator.tsppa
+// ^^^^^^ keyword.control.flow.tsppa
+//        ^^ variable.other.register.tsppa
 }

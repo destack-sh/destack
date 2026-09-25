@@ -1,7 +1,7 @@
 use std::time::SystemTimeError;
 use std::{fmt, io};
 
-use destack_rpc::{CallError, ConnectError, IpcError};
+use tspp_rpc::{CallError, ConnectError, IpcError};
 
 /// Failure to discover or change one daemon endpoint.
 #[derive(Debug)]

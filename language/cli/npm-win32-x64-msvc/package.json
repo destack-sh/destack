@@ -5,7 +5,7 @@
     "description": "Destack CLI binaries for win32 x64 msvc",
     "os": ["win32"],
     "cpu": ["x64"],
-    "files": ["bin/destack.exe", "bin/ds.exe", "bin/dsc.exe"],
+    "files": ["bin/destack.exe", "bin/tspp.exe", "bin/tsppc.exe"],
     "scripts": {
         "prepublishOnly": "deno run -A ../npm/validate-platform-package.ts",
         "publish:dry": "npm publish --dry-run --access public",

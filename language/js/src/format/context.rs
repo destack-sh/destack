@@ -3,12 +3,12 @@ use crate::{
     Declaration, Declarator, DependencyItem, Expression, LocalNodeId, LocalNodeIdAny, Member, Node,
     NodeType, Parameter, Pattern, PatternField, Property, Statement, SwitchCase, Tree, TreeImpl,
 };
-use destack_core::StringPool;
-use destack_dir as dir;
-use destack_fir::format::{self, Format, FormatResult};
-use destack_fir::prelude::{hard_line_break, source_position};
-use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions as FirPrintOptions};
-use destack_source::{File, IndentStyle, LineEnding, NodeSpanType, Span};
+use tspp_core::StringPool;
+use tspp_dir as dir;
+use tspp_fir::format::{self, Format, FormatResult};
+use tspp_fir::prelude::{hard_line_break, source_position};
+use tspp_fir::print::{MAX_OUTPUT_BYTES, PrintOptions as FirPrintOptions};
+use tspp_source::{File, IndentStyle, LineEnding, NodeSpanType, Span};
 
 /// The formatter for one JavaScript formatting pass.
 pub type Formatter<'context, 'state> = format::Formatter<'state, 'context, Context<'context>>;

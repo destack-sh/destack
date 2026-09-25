@@ -1,7 +1,7 @@
 use memchr::memchr_iter;
 use smallvec::SmallVec;
 
-use destack_dir::{
+use tspp_dir::{
     Comment, CommentAnchor, CommentKind, CommentNewlines, CommentRole, TokenSpan, TokenType,
 };
 
@@ -11,7 +11,7 @@ use super::CommentRetention;
 #[derive(Debug, Copy, Clone)]
 struct PendingComment {
     /// The source span of the raw comment, including delimiters.
-    span: destack_source::Span,
+    span: tspp_source::Span,
     /// The kind of the comment.
     kind: CommentKind,
     /// The newline shape around the comment.

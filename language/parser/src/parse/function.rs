@@ -5,13 +5,13 @@ use crate::parse::{
 };
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
-use destack_core::StringId;
-use destack_dir::{
+use tspp_core::StringId;
+use tspp_dir::{
     Asynchrony, BlockContext, ConstructorType, Declaration, Expression, FunctionDeclaration,
     FunctionForm, FunctionPhase, FunctionRole, FunctionSignature, FunctionTypeExpression,
     GenericParameter, Keyword, LocalNodeId, Name, NodeType, Parameter, TokenType, TypeExpression,
 };
-use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
+use tspp_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 /// The interpretation of `yield` in one function position.
 #[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
@@ -173,7 +173,7 @@ impl Parser {
     /// Parse a function or lambda declaration.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// function parse<T>(value: T): T {
     ///     return value;
     /// }

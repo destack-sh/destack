@@ -1,7 +1,7 @@
 use crate::{GlobalSymbolId, LocalNodeIdAny, MemberKind, Mutability, Postings, SymbolKind};
-use destack_serde::Reflect;
-use destack_source::Span;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
+use tspp_source::Span;
 
 /// Indexed declared symbols.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]

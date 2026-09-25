@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
-use destack_artifact::{Host, Platform, ProfileKey, Runtime, Stability};
 use indexmap::{IndexMap, IndexSet};
+use tspp_artifact::{Host, Platform, ProfileKey, Runtime, Stability};
 
 use crate::{
     CompilerOptions, Condition, ConditionAxis, ConditionCatalog, ConditionSelection, ConditionSet,
@@ -9,7 +9,7 @@ use crate::{
 };
 
 /// The builtin prelude global grounding every profile.
-const PRELUDE_GLOBAL: &str = "destack:prelude";
+const PRELUDE_GLOBAL: &str = "tspp:prelude";
 
 /// Build one profile key for one target.
 pub(crate) fn profile_key_for_target(

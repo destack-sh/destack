@@ -16,7 +16,7 @@ interface Interface {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
@@ -73,7 +73,7 @@ interface Interface {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
@@ -137,7 +137,7 @@ declare const lane: Segment<string>.Lane;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
@@ -194,7 +194,7 @@ function readHeader<T: RegisterBlock<const Width = 16>>(block: T): [uint8; 16] {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
@@ -261,7 +261,7 @@ extension of Matrix implements Shape {}
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_statics(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_statics(), r#"
 === annotated ===
 interface Shape {
     const Rank: usize = 2;

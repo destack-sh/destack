@@ -2,24 +2,24 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_lsp_server::{UriExt, jsonrpc};
-use destack_lsp_types as lsp;
-use destack_repository::Revision;
-use destack_source::{File, FileId, PatchSet, Span, TextChange, TextPosition, TextRange, Uri};
-use destack_workspace::{FileEdit, Workspace};
+use tspp_lsp_server::{UriExt, jsonrpc};
+use tspp_lsp_types as lsp;
+use tspp_repository::Revision;
+use tspp_source::{File, FileId, PatchSet, Span, TextChange, TextPosition, TextRange, Uri};
+use tspp_workspace::{FileEdit, Workspace};
 
-use crate::server::{DESTACK_URI_SCHEME, ProjectId, internal_error, workspace_error};
+use crate::server::{ProjectId, TSPP_URI_SCHEME, internal_error, workspace_error};
 
-/// Convert one LSP value into a Destack source value.
+/// Convert one LSP value into a TS++ source value.
 pub(crate) trait IntoSource {
-    /// The converted Destack source value.
+    /// The converted TS++ source value.
     type Source;
 
     /// Convert this value.
     fn into_source(self) -> Self::Source;
 }
 
-/// Convert one Destack value into an LSP value.
+/// Convert one TS++ value into an LSP value.
 pub(crate) trait IntoLsp {
     /// The converted LSP value.
     type Lsp;
@@ -113,7 +113,7 @@ impl Document {
 
     /// Build the document URI.
     pub(crate) fn uri(&self, project: ProjectId) -> jsonrpc::Result<lsp::Uri> {
-        if self.file.uri.scheme() == Some(DESTACK_URI_SCHEME) {
+        if self.file.uri.scheme() == Some(TSPP_URI_SCHEME) {
             return project.qualify(&self.file.uri);
         }
 

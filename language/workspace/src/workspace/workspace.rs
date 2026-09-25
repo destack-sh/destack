@@ -2,15 +2,13 @@ use std::collections::HashMap;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::{
-    ArtifactKey, ArtifactPayload, ArtifactReference, Bundle, BundleFile, Product,
-};
-use destack_core::Blob;
-use destack_repository::{Repository, Revision, RootKind, Trace, TraceLevel};
-use destack_session::{Executor, Session};
-use destack_source::{File, FileId};
 use futures::future::BoxFuture;
 use parking_lot::Mutex;
+use tspp_artifact::{ArtifactKey, ArtifactPayload, ArtifactReference, Bundle, BundleFile, Product};
+use tspp_core::Blob;
+use tspp_repository::{Repository, Revision, RootKind, Trace, TraceLevel};
+use tspp_session::{Executor, Session};
+use tspp_source::{File, FileId};
 
 use super::{BackgroundRun, Lifecycle, State, WorkspacePin};
 use crate::{
@@ -24,7 +22,7 @@ use crate::{
     WatchState,
 };
 
-/// One live Destack workspace rooted at one repository path.
+/// One live TS++ workspace rooted at one repository path.
 pub struct Workspace {
     /// Canonical workspace root.
     pub(crate) root: PathBuf,

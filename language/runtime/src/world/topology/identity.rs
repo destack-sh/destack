@@ -1,8 +1,8 @@
 use std::borrow::Borrow;
 use std::fmt;
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use crate::runtime::RuntimeId;
 use crate::worker::WorkerId;

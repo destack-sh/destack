@@ -9,19 +9,19 @@ fn test_resolve_ignores_unreferenced_profile_global_symbols() {
 {
     "name": "test",
     "compiler": {
-        "globals": ["globals.ds"]
+        "globals": ["globals.tspp"]
     }
 }
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let local = 1;
 "#,
         )
         .module(
-            "globals.ds",
+            "globals.tspp",
             r#"
 global {
     let process: string;
@@ -31,7 +31,7 @@ global {
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 let local = 1;
@@ -50,19 +50,19 @@ fn test_resolve_records_profile_global_symbol_names() {
 {
     "name": "test",
     "compiler": {
-        "globals": ["globals.ds"]
+        "globals": ["globals.tspp"]
     }
 }
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 const value = answer;
 "#,
         )
         .module(
-            "globals.ds",
+            "globals.tspp",
             r#"
 global {
     const answer: int32 = 42;
@@ -72,7 +72,7 @@ global {
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 const value = answer;
@@ -95,28 +95,28 @@ fn test_resolve_records_profile_global_references() {
 {
     "name": "test",
     "compiler": {
-        "globals": ["globals.ds"]
+        "globals": ["globals.tspp"]
     }
 }
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let value = Function;
 let projected: Function.Member;
 "#,
         )
         .module(
-            "globals.ds",
+            "globals.tspp",
             r#"
 global {
-    export { Function, Option as Maybe } from "./types.ds";
+    export { Function, Option as Maybe } from "./types.tspp";
 }
 "#,
         )
         .module(
-            "types.ds",
+            "types.tspp",
             r#"
 export type Function = () => void;
 export type Option = string;
@@ -125,7 +125,7 @@ export type Option = string;
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 let value = Function;
@@ -152,27 +152,27 @@ fn test_resolve_records_profile_global_namespace_reexports() {
 {
     "name": "test",
     "compiler": {
-        "globals": ["globals.ds"]
+        "globals": ["globals.tspp"]
     }
 }
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let local = api;
 "#,
         )
         .module(
-            "globals.ds",
+            "globals.tspp",
             r#"
 global {
-    export * as api from "./api.ds";
+    export * as api from "./api.tspp";
 }
 "#,
         )
         .module(
-            "api.ds",
+            "api.tspp",
             r#"
 export const value = 1;
 "#,
@@ -180,14 +180,14 @@ export const value = 1;
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 let local = api;
 /// @reference.declaration source=api kind=bound targets=[globals.api]
-/// @reference.target source=api kind=namespace module=api.ds
+/// @reference.target source=api kind=namespace module=api.tspp
 
-/// @import.global key=api declarations=[globals.api] targets=[api.ds]
+/// @import.global key=api declarations=[globals.api] targets=[api.tspp]
 
 /// @import.summary globals=1
 /// @reference.summary references=1 declarations=1
@@ -204,27 +204,27 @@ fn test_resolve_records_profile_global_namespace_paths() {
 {
     "name": "test",
     "compiler": {
-        "globals": ["globals.ds"]
+        "globals": ["globals.tspp"]
     }
 }
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let local = api.value;
 "#,
         )
         .module(
-            "globals.ds",
+            "globals.tspp",
             r#"
 global {
-    export * as api from "./api.ds";
+    export * as api from "./api.tspp";
 }
 "#,
         )
         .module(
-            "api.ds",
+            "api.tspp",
             r#"
 export const value = 1;
 "#,
@@ -232,12 +232,12 @@ export const value = 1;
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 let local = api.value;
 /// @reference.declaration source=api kind=bound targets=[globals.api]
-/// @reference.target source=api kind=namespace module=api.ds
+/// @reference.target source=api kind=namespace module=api.tspp
 /// @reference.target source=api.value kind=bound targets=[api.value]
 
 /// @import.language item=collections.Array symbol=Array
@@ -246,7 +246,7 @@ let local = api.value;
 /// @import.language item=math.BigInt symbol=BigInt
 /// @import.language item=math.Number symbol=Number
 /// @import.language item=string.String symbol=String
-/// @import.global key=api declarations=[globals.api] targets=[api.ds]
+/// @import.global key=api declarations=[globals.api] targets=[api.tspp]
 
 /// @import.summary globals=1 language=6
 /// @reference.summary references=2 declarations=1
@@ -263,27 +263,27 @@ fn test_resolve_records_referenced_type_profile_globals() {
 {
     "name": "test",
     "compiler": {
-        "globals": ["globals.ds"]
+        "globals": ["globals.tspp"]
     }
 }
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let promise: Promise<string>;
 "#,
         )
         .module(
-            "globals.ds",
+            "globals.tspp",
             r#"
 global {
-    export { Promise } from "./async.ds";
+    export { Promise } from "./async.tspp";
 }
 "#,
         )
         .module(
-            "async.ds",
+            "async.tspp",
             r#"
 export class Promise<T> {}
 "#,
@@ -291,7 +291,7 @@ export class Promise<T> {}
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 let promise: Promise<string>;
@@ -310,7 +310,7 @@ let promise: Promise<string>;
 fn test_resolve_records_referenced_prelude_symbols() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let promise: Promise<string>;
 "#,
@@ -318,7 +318,7 @@ let promise: Promise<string>;
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 let promise: Promise<string>;
@@ -337,7 +337,7 @@ let promise: Promise<string>;
 fn test_resolve_records_async_function_language_item() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 const load = async () => 1;
 "#,
@@ -345,7 +345,7 @@ const load = async () => 1;
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 const load = async () => 1;
@@ -361,7 +361,7 @@ const load = async () => 1;
 fn test_resolve_keeps_async_language_item_separate_from_local_promise() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 class Promise {}
 const load = async () => 1;
@@ -370,7 +370,7 @@ const load = async () => 1;
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 class Promise {}
@@ -387,7 +387,7 @@ const load = async () => 1;
 fn test_resolve_records_import_meta_language_item() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 const runtime = import.meta.runtime;
 "#,
@@ -395,7 +395,7 @@ const runtime = import.meta.runtime;
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 const runtime = import.meta.runtime;
@@ -417,7 +417,7 @@ const runtime = import.meta.runtime;
 fn test_resolve_records_operator_language_item() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 const left = 1;
 const right = 2;
@@ -427,7 +427,7 @@ const value = left + right;
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 const left = 1;
@@ -448,7 +448,7 @@ const value = left + right;
 fn test_resolve_records_strict_equality_language_item() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 declare const left: int32;
 declare const right: int32;
@@ -459,7 +459,7 @@ const different = left !== right;
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 declare const left: int32;
@@ -489,20 +489,20 @@ fn test_resolve_does_not_import_shadowed_profile_globals() {
 {
     "name": "test",
     "compiler": {
-        "globals": ["globals.ds"]
+        "globals": ["globals.tspp"]
     }
 }
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 const answer = 1;
 const value = answer;
 "#,
         )
         .module(
-            "globals.ds",
+            "globals.tspp",
             r#"
 global {
     const answer: int32 = 42;
@@ -512,7 +512,7 @@ global {
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 const answer = 1;
@@ -534,13 +534,13 @@ fn test_resolve_does_not_import_nested_shadowed_profile_globals() {
 {
     "name": "test",
     "compiler": {
-        "globals": ["globals.ds"]
+        "globals": ["globals.tspp"]
     }
 }
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 function read() {
     const answer = 1;
@@ -549,7 +549,7 @@ function read() {
 "#,
         )
         .module(
-            "globals.ds",
+            "globals.tspp",
             r#"
 global {
     const answer: int32 = 42;
@@ -559,7 +559,7 @@ global {
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 function read() {
@@ -584,28 +584,28 @@ fn test_resolve_does_not_resolve_shadowed_profile_global_namespace_paths() {
 {
     "name": "test",
     "compiler": {
-        "globals": ["globals.ds"]
+        "globals": ["globals.tspp"]
     }
 }
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 const api = {};
 const value = api.value;
 "#,
         )
         .module(
-            "globals.ds",
+            "globals.tspp",
             r#"
 global {
-    export * as api from "./api.ds";
+    export * as api from "./api.tspp";
 }
 "#,
         )
         .module(
-            "api.ds",
+            "api.tspp",
             r#"
 export const value = 1;
 "#,
@@ -613,7 +613,7 @@ export const value = 1;
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
 const api = {};
@@ -637,13 +637,13 @@ const value = api.value;
 fn test_resolve_side_effect_import_does_not_import_globals() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import "./dep.ds";
+import "./dep.tspp";
 "#,
         )
         .module(
-            "dep.ds",
+            "dep.tspp",
             r#"
 global {
     let process: string;
@@ -653,10 +653,10 @@ global {
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
-import "./dep.ds";
+import "./dep.tspp";
 
 /// @import.summary
 "#,
@@ -667,13 +667,13 @@ import "./dep.ds";
 fn test_resolve_named_import_does_not_import_globals() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { value } from "./dep.ds";
+import { value } from "./dep.tspp";
 "#,
         )
         .module(
-            "dep.ds",
+            "dep.tspp",
             r#"
 export let value = 1;
 
@@ -685,10 +685,10 @@ global {
         .build();
 
     compiler.assert_dir_resolved(
-        "main.ds",
+        "main.tspp",
         DirRows::imports().with_summaries(),
         r#"
-import { value } from "./dep.ds";
+import { value } from "./dep.tspp";
 /// @import.resolved symbol=value declarations=[dep.value] targets=[dep.value]
 /// @reference.target source=value kind=bound targets=[dep.value]
 

@@ -2,15 +2,15 @@ use crate::parse::lookahead::DelimiterDepth;
 use crate::parse::{TypePosition, TypeStop};
 use crate::{Parser, ParserResult, TokenProbe};
 
-use destack_core::StringId;
-use destack_dir::{InferForm, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
-use destack_source::ByteRange;
+use tspp_core::StringId;
+use tspp_dir::{InferForm, Keyword, LocalNodeId, NodeType, TokenType, TypeExpression};
+use tspp_source::ByteRange;
 
 impl Parser {
     /// Parse one `infer` type expression.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// infer T
     /// infer T extends U
     /// infer T extends (U extends V ? X : Y)
@@ -42,7 +42,7 @@ impl Parser {
     /// Parse an infer binding name.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// T
     /// _
     /// Result
@@ -59,7 +59,7 @@ impl Parser {
     /// Parse an infer constraint when present.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// extends string
     /// extends keyof T
     /// extends { id: string }
@@ -84,7 +84,7 @@ impl Parser {
     /// Parse the type after `infer T extends`.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// string
     /// readonly string[]
     /// T extends U ? A : B

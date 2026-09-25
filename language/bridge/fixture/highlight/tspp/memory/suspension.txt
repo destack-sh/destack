@@ -1,0 +1,12 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / suspension / borrows across awaits
+async function read(user: ^User): Promise<string> {
+    const name = &readonly user.name;
+//  ^^^^^ keyword.declaration.variable.tspp
+
+    await tick();
+//        ^^^^ entity.name.function.call.tspp
+
+    return `${name}`;
+}

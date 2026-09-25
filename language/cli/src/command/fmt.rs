@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use clap::Args;
-use destack_source::FileType;
-use destack_workspace::{CommandRevision, FormatInput, FormatMode, FormatPayload, FormatSource};
+use tspp_source::FileType;
+use tspp_workspace::{CommandRevision, FormatInput, FormatMode, FormatPayload, FormatSource};
 
 use crate::common::{
     CommandOptionsBuilder, CommandResult, ProgramArgs, ReportArgs, command_error,
@@ -62,7 +62,7 @@ pub async fn run(args: &FmtArgs) -> i32 {
             let source = match eval {
                 Some(content) => FormatSource::Text {
                     name: "<eval>".to_string(),
-                    file_type: FileType::Destack,
+                    file_type: FileType::Tspp,
                     text: content,
                 },
                 None => FormatSource::Files(files),

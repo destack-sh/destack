@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -277,7 +277,7 @@ function append(target: int32[], source: int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[manual-extend]: loop inserts every source value
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function append(target: int32[], source: int32[]): void {
 2 │     for (const value of source) {
@@ -290,8 +290,8 @@ warning[manual-extend]: loop inserts every source value
   │
 
  = suggestion: extend the collection (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function append(target: int32[], source: int32[]): void {
 -   2│     for (const value of source) {
@@ -420,7 +420,7 @@ function append(target: Map<string, int32>, source: (string, int32)[]): void {
         let session = TestSession::dir(
             &MANUAL_EXTEND,
             r#"
-import { Deque } from "destack:collections";
+import { Deque } from "tspp:collections";
 
 function append(target: Deque<int32>, source: int32[]): void {
     for (const value of source) {
@@ -432,7 +432,7 @@ function append(target: Deque<int32>, source: int32[]): void {
 
         session.assert_suggestions(
             r#"
-import { Deque } from "destack:collections";
+import { Deque } from "tspp:collections";
 
 function append(target: Deque<int32>, source: int32[]): void {
     target.extend(source);

@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_artifact::ArtifactKey;
-use destack_query::{Module, QueryError, QueryPosition, QueryRange, QueryRequest, QueryResponse};
-use destack_repository::{ProviderError, Revision, Trace, TraceLevel};
-use destack_serde::Reflect;
-use destack_session::{ArtifactPriority, ArtifactRun, ArtifactRunId};
-use destack_source::{File, ProfileId, Span, Uri};
 use serde::{Deserialize, Serialize};
+use tspp_artifact::ArtifactKey;
+use tspp_query::{Module, QueryError, QueryPosition, QueryRange, QueryRequest, QueryResponse};
+use tspp_repository::{ProviderError, Revision, Trace, TraceLevel};
+use tspp_serde::Reflect;
+use tspp_session::{ArtifactPriority, ArtifactRun, ArtifactRunId};
+use tspp_source::{File, ProfileId, Span, Uri};
 
 use crate::Error;
 

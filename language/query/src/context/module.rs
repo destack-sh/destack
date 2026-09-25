@@ -1,14 +1,14 @@
 use std::fmt::{self, Debug, Formatter};
 use std::sync::{Arc, OnceLock};
 
-use destack_artifact::{
+use tspp_artifact::{
     ArtifactKey, DirAnalyzed, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded,
     DirImported, DirMaterialized, DirParsed, DirParsedFile, DirResolved, DirView,
 };
-use destack_core::StringPool;
-use destack_dir as dir;
-use destack_repository::{ArtifactReader, ProviderError, Repository, Revision};
-use destack_source::{File, FileId, ModuleId, ProfileId, SourceIndex, Span};
+use tspp_core::StringPool;
+use tspp_dir as dir;
+use tspp_repository::{ArtifactReader, ProviderError, Repository, Revision};
+use tspp_source::{File, FileId, ModuleId, ProfileId, SourceIndex, Span};
 
 use crate::{Module, QueryError, QueryResult};
 

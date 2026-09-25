@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_core::{FxIndexMap, FxIndexSet};
-use destack_serde::Reflect;
-use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
+use tspp_core::{FxIndexMap, FxIndexSet};
+use tspp_serde::Reflect;
+use tspp_source::ModuleId;
 
 use crate::{AccessPath, GlobalSymbolId, LocalNodeIdAny, LocalSymbolId, SegmentView};
 

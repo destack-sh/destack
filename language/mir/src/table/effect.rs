@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use destack_serde::Reflect;
+use tspp_serde::Reflect;
 
 use crate::{Binding, BindingEffect, Function, LocalNodeId, Point, StorageSet};
 

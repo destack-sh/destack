@@ -2,10 +2,10 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_dir::Tree;
-use destack_parser::{CommentRetention, ParseOptions, Parser, source_colorizer};
-use destack_repository::FormatterOptions;
-use destack_source::{
+use tspp_dir::Tree;
+use tspp_parser::{CommentRetention, ParseOptions, Parser, source_colorizer};
+use tspp_repository::FormatterOptions;
+use tspp_source::{
     DiffOptions, File, FileId, FileType, LanguageType, ModuleId, PackageId, PrintOptions, Uri,
     print_diagnostics, print_diff,
 };
@@ -53,7 +53,7 @@ fn library_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../library")
 }
 
-/// Collect every checked-in library `.ds` source file.
+/// Collect every checked-in library `.tspp` source file.
 fn library_sources(root: &Path) -> Vec<PathBuf> {
     let mut paths = Vec::new();
     collect_library_sources(root, &mut paths);
@@ -61,7 +61,7 @@ fn library_sources(root: &Path) -> Vec<PathBuf> {
     paths
 }
 
-/// Collect every checked-in library `.ds` source file.
+/// Collect every checked-in library `.tspp` source file.
 fn collect_library_sources(root: &Path, paths: &mut Vec<PathBuf>) {
     let mut entries = fs::read_dir(root)
         .expect("expected library directory")
@@ -75,7 +75,10 @@ fn collect_library_sources(root: &Path, paths: &mut Vec<PathBuf>) {
             collect_library_sources(&path, paths);
         }
         // collect source files
-        else if path.extension().is_some_and(|extension| extension == "ds") {
+        else if path
+            .extension()
+            .is_some_and(|extension| extension == "tspp")
+        {
             paths.push(path);
         }
     }
@@ -104,7 +107,7 @@ fn library_file(path: &Path, logical_path: &Path, source: &str) -> File {
         file_name,
         Uri::from_string(path_text.as_ref()),
         Some(path.to_path_buf()),
-        FileType::Destack,
+        FileType::Tspp,
         source.to_string(),
     )
     .expect("library source should load")
@@ -174,7 +177,7 @@ fn print_parse_diagnostics(path: &Path, logical_path: &Path, source: &str) {
     let module_id = ModuleId::new(PackageId::new(0), file.id.0);
     let parser = Parser::new(
         file.clone(),
-        LanguageType::Destack,
+        LanguageType::Tspp,
         Tree::new(module_id),
         ParseOptions {
             comment_retention: CommentRetention::All,
@@ -246,7 +249,7 @@ fn test_format_library() -> Result<(), String> {
         };
 
         // rewrite the checked-in corpus when explicitly requested
-        if std::env::var_os("DESTACK_FORMAT_UPDATE").is_some() {
+        if std::env::var_os("TSPP_FORMAT_UPDATE").is_some() {
             if formatted != source {
                 fs::write(&path, &formatted).expect("expected to write library source");
             }

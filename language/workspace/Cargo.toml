@@ -1,5 +1,5 @@
 [package]
-name = "destack_workspace"
+name = "tspp_workspace"
 description = "Destack Workspace"
 version.workspace = true
 edition.workspace = true
@@ -13,23 +13,23 @@ doctest = false
 
 [dependencies]
 # language
-destack_artifact = { workspace = true }
-destack_compiler = { workspace = true, default-features = false }
-destack_core = { workspace = true }
-destack_dir = { workspace = true }
-destack_doc = { workspace = true }
-destack_fir = { workspace = true }
-destack_formatter = { workspace = true }
-destack_json = { workspace = true }
-destack_mir = { workspace = true }
-destack_parser = { workspace = true }
-destack_pattern = { workspace = true }
-destack_query = { workspace = true }
-destack_session = { workspace = true, default-features = false }
-destack_serde = { workspace = true }
-destack_source = { workspace = true }
-destack_repository = { path = "../repository", default-features = false }
-destack_rpc = { workspace = true }
+tspp_artifact = { workspace = true }
+tspp_compiler = { workspace = true, default-features = false }
+tspp_core = { workspace = true }
+tspp_dir = { workspace = true }
+tspp_doc = { workspace = true }
+tspp_fir = { workspace = true }
+tspp_formatter = { workspace = true }
+tspp_json = { workspace = true }
+tspp_mir = { workspace = true }
+tspp_parser = { workspace = true }
+tspp_pattern = { workspace = true }
+tspp_query = { workspace = true }
+tspp_session = { workspace = true, default-features = false }
+tspp_serde = { workspace = true }
+tspp_source = { workspace = true }
+tspp_repository = { path = "../repository", default-features = false }
+tspp_rpc = { workspace = true }
 
 # general
 crossbeam-channel = { workspace = true }
@@ -45,15 +45,15 @@ fs2 = { workspace = true }
 
 [dev-dependencies]
 # language
-destack_program = { workspace = true }
+tspp_program = { workspace = true }
 
 [build-dependencies]
 blake3 = { workspace = true }
 
 [features]
 default = ["native"]
-native = ["destack_compiler/native", "destack_session/native"]
-deadlock-detection = ["destack_compiler/deadlock-detection"]
+native = ["tspp_compiler/native", "tspp_session/native"]
+deadlock-detection = ["tspp_compiler/deadlock-detection"]
 
 [lints]
 workspace = true

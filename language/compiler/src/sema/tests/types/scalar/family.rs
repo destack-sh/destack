@@ -5,7 +5,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_scalar_markers_admit_every_width() {
     let session = TestSession::single(
         r#"
-import { Numeric } from "destack:math";
+import { Numeric } from "tspp:math";
 
 struct Vector<T: Numeric> {
     x: T;
@@ -17,11 +17,11 @@ const floats = Vector { x: 1.5 as float32 };
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Numeric } from "destack:math";
+import { Numeric } from "tspp:math";
 
 struct Vector<out T: Numeric> {
     x: T;
@@ -31,7 +31,7 @@ const ints: Vector<int32> = Vector<int32> { x: 1 as int32 };
 const floats: Vector<float32> = Vector<float32> { x: 1.5 as float32 };
 
 === dir ===
-import { Numeric } from "destack:math";
+import { Numeric } from "tspp:math";
 
 struct Vector<T: Numeric> {
 /// @generic.template symbol=Vector parameters=(out T: Numeric)
@@ -77,7 +77,7 @@ const narrow = Index { value: 1 as int32 };
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -138,7 +138,7 @@ const index: usize = key;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_node_types(),
         r#"
 === annotated ===
@@ -202,7 +202,7 @@ function shrink<const Rank: int>(tensor: Tensor<Rank>): Tensor<Rank - 1> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -259,7 +259,7 @@ declare const value: u32;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===

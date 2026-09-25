@@ -1,6 +1,6 @@
-use destack_core::FNV_PRIME_128;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::FNV_PRIME_128;
+use tspp_serde::Reflect;
 
 use crate::Postings;
 

@@ -1,10 +1,10 @@
 use crate::parse::error::ParserResultExt;
 use crate::{ParseStart, Parser, ParserResult};
 
-use destack_dir::{
+use tspp_dir::{
     BlockContext, BlockForm, Declaration, GlobalDeclaration, LocalNodeId, NodeType, TokenType,
 };
-use destack_source::ByteRange;
+use tspp_source::ByteRange;
 
 use super::DeclarationHeader;
 
@@ -12,7 +12,7 @@ impl Parser {
     /// Parse a global declaration after its `global` head.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// global { interface Window {} }
     /// ```
     pub(crate) fn parse_global(

@@ -1,0 +1,46 @@
+// SYNTAX TEST "source.tspp"
+
+// declarations / entities / structs classes enums and unions
+struct Packet {
+// <- keyword.declaration.type.tspp
+    sequence: int32;
+}
+
+class Client {
+// <- keyword.declaration.type.tspp
+    readonly id: string;
+    constructor(id: string) {
+        this.id = id;
+    }
+}
+
+enum State {
+// <- keyword.declaration.type.tspp
+    Ready,
+    Failed = 2,
+}
+
+newtype Payload =
+// <- keyword.declaration.type.tspp
+    | { kind: "Text"; text: string }
+    | { kind: "Bytes"; bytes: [uint8] };
+
+// declarations / entities / interfaces and extensions
+interface Reader<T> {
+// <- keyword.declaration.type.tspp
+    read(): T;
+}
+
+extension ReaderExtras of Reader<string> {
+// <- keyword.declaration.type.tspp
+    label(): string {
+        "reader"
+    }
+}
+
+// declarations / entities / type aliases and newtypes
+type Name = string;
+// <- keyword.declaration.type.tspp
+
+newtype UserId = uint64;
+// <- keyword.declaration.type.tspp

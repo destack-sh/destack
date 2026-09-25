@@ -1,6 +1,6 @@
-use destack_core::SectionEntry;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::SectionEntry;
+use tspp_serde::Reflect;
 
 use crate::{Scalar, TypeId, VectorType};
 
@@ -281,9 +281,9 @@ impl ValueTag {
     pub const UINT128: Self = Self(2);
     /// One dense runtime type id.
     pub const TYPE_ID: Self = Self(3);
-    /// One initialized Destack reference.
+    /// One initialized TS++ reference.
     pub const REFERENCE: Self = Self(4);
-    /// One uninitialized Destack reference token.
+    /// One uninitialized TS++ reference token.
     pub const UNINIT_REFERENCE: Self = Self(5);
     /// One unowned native pointer.
     pub const POINTER: Self = Self(6);

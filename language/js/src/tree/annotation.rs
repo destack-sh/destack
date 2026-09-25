@@ -1,7 +1,7 @@
 use crate::{Node, NodeType, StringId};
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 /// The position of a JS annotation.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum AnnotationPosition {

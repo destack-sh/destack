@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 /// One capture directive and its decorator source.
 #[derive(Debug, Clone, PartialEq, Eq)]

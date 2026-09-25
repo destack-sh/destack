@@ -3,11 +3,11 @@ use crate::parse::error::ParserResultExt;
 use crate::parse::{DeclarationHeader, DeclarationNesting, ExpressionPosition, ExpressionStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
-use destack_dir::{
+use tspp_dir::{
     Declaration, EnumDeclaration, EnumField, Keyword, LocalNodeId, Member, Name, NodeType,
     TemplateLiteral, TokenLiteral, TokenType,
 };
-use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
+use tspp_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 /// The fields and members of one enum body.
 struct EnumBody {
@@ -21,7 +21,7 @@ impl Parser {
     /// Parse one enum declaration.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// enum Result<T, E> { Ok(T); Error(E) }
     /// ```
     pub(crate) fn parse_enum(

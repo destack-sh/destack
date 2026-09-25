@@ -1,6 +1,6 @@
-use destack_serde::Reflect;
-use destack_source::{FileId, Span};
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
+use tspp_source::{FileId, Span};
 
 use crate::{Module, ModuleQueryContext, QueryError, QueryResult};
 

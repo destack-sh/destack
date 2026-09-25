@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use base64::Engine as _;
-use destack_artifact::{BundleFile, BundleSection};
-use destack_repository::{JsAssetMode, Module, Target};
-use destack_source::{File, FileType, ModuleId, Uri};
 use indexmap::{IndexMap, IndexSet};
+use tspp_artifact::{BundleFile, BundleSection};
+use tspp_repository::{JsAssetMode, Module, Target};
+use tspp_source::{File, FileType, ModuleId, Uri};
 
 use super::super::JsLinker;
 use crate::link::{OutputFileNameValues, OutputLocation, TargetLocation};

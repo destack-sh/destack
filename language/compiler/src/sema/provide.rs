@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use destack_artifact::{
+use tspp_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirDeclared, EnvironmentBound,
     EnvironmentDeclared,
 };
-use destack_dir as dir;
-use destack_repository::{ArtifactAttemptRecorder, ProfileId, ProviderContext, ProviderError};
-use destack_source::ModuleId;
+use tspp_dir as dir;
+use tspp_repository::{ArtifactAttemptRecorder, ProfileId, ProviderContext, ProviderError};
+use tspp_source::ModuleId;
 
 pub(crate) use super::state::Pass;
 use crate::sema::{CheckModuleState, CheckState, ExternalModuleTable};

@@ -1,8 +1,8 @@
 use crate::{Keyword, Name};
-use destack_core::StringId;
-use destack_fir::format::{Format, FormatResult, text};
-use destack_fir::prelude::*;
-use destack_fir::write;
+use tspp_core::StringId;
+use tspp_fir::format::{Format, FormatResult, text};
+use tspp_fir::prelude::*;
+use tspp_fir::write;
 
 use crate::{Context, Formatter};
 

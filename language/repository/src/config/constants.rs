@@ -8,7 +8,7 @@ pub(crate) const DEFAULT_VENDOR_DIRECTORY: &str = "vendor";
 pub(crate) const DEFAULT_SOURCE_INCLUDE: &[&str] = &["src/**"];
 /// Default package source exclude patterns.
 pub(crate) const DEFAULT_SOURCE_EXCLUDE: &[&str] = &[
-    "**/.destack/**",
+    "**/.tspp/**",
     "**/.git/**",
     "**/docs/**",
     "**/node_modules/**",

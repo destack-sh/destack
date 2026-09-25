@@ -1,5 +1,5 @@
-use destack_program::{BindingAffinity, BindingEffect, BindingId, BindingProvider, BindingReplay};
-use destack_source::{ModuleId, PackageId};
+use tspp_program::{BindingAffinity, BindingEffect, BindingId, BindingProvider, BindingReplay};
+use tspp_source::{ModuleId, PackageId};
 
 use crate::ProgramLinker;
 use crate::link::tests::TestModule;
@@ -77,7 +77,7 @@ entry:
         program
             .bytecode()
             .function(program.sections(), function.index())
-            .and_then(destack_bytecode::Function::code)
+            .and_then(tspp_bytecode::Function::code)
             .is_some()
     );
 }

@@ -1,11 +1,11 @@
 use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
 use crate::{CommentRetention, assert_comment, assert_expression_path, assert_node};
-use destack_dir::{
+use tspp_dir::{
     CommentKind, Declaration, Declarator, Decorator, DecoratorPosition, Expression, TokenType,
     TypeDeclaration, TypeExpression, TypeLiteral,
 };
-use destack_source::{NodeSpanBoundary, NodeSpanType};
+use tspp_source::{NodeSpanBoundary, NodeSpanType};
 
 #[test]
 fn test_parse_type_union_line_comment_on_rhs_separator_owner() {

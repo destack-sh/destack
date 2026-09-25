@@ -1,6 +1,6 @@
-use destack_artifact::BuildId;
-use destack_repository::TraceLevel;
-use destack_source::{Edit, FileSystem};
+use tspp_artifact::BuildId;
+use tspp_repository::TraceLevel;
+use tspp_source::{Edit, FileSystem};
 
 use crate::CommandRevision;
 
@@ -14,7 +14,7 @@ fn test_restart_reuses_exact_artifacts() {
   "name": "test",
   "targets": {
     "default": {
-      "entry": ["main.ds"]
+      "entry": ["main.tspp"]
     }
   },
   "defaultTarget": "default"
@@ -23,7 +23,7 @@ fn test_restart_reuses_exact_artifacts() {
     let config = test.write_text("destack.json", config_source);
     test.apply_text(&config, config_source);
     let main_source = "export const answer: int32 = 42;\n";
-    let main = test.write_text("main.ds", main_source);
+    let main = test.write_text("main.tspp", main_source);
     test.apply_text(&main, main_source);
 
     // build and persist one complete physical check
@@ -107,7 +107,7 @@ fn test_restart_reuses_exact_artifacts() {
 fn test_restart_invalidates_changed_source() {
     let test = TestWorkspace::persistent("artifact-cache-edit");
     let main_source = "export struct Position {}\n";
-    let main = test.write_text("main.ds", main_source);
+    let main = test.write_text("main.tspp", main_source);
     test.apply_text(&main, main_source);
 
     // persist one complete source generation
@@ -160,7 +160,7 @@ fn test_restart_invalidates_changed_source() {
 fn test_restart_ignores_branch_selection() {
     let test = TestWorkspace::persistent("artifact-cache-branch");
     let main_source = "export const answer: int32 = 42;\n";
-    let main = test.write_text("main.ds", main_source);
+    let main = test.write_text("main.tspp", main_source);
     test.apply_text(&main, main_source);
 
     // persist the complete physical selection

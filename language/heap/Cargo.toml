@@ -1,6 +1,6 @@
 [package]
-name = "destack_heap"
-description = "Destack Heap"
+name = "tspp_heap"
+description = "TS++ Heap"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,10 +13,10 @@ doctest = false
 
 [dependencies]
 # language
-destack_core = { workspace = true }
-destack_mir = { workspace = true }
-destack_memory = { workspace = true }
-destack_serde = { workspace = true }
+tspp_core = { workspace = true }
+tspp_mir = { workspace = true }
+tspp_memory = { workspace = true }
+tspp_serde = { workspace = true }
 crossbeam-deque = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive", "rc"] }

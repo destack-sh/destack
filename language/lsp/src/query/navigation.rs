@@ -1,9 +1,9 @@
 use std::path::Path;
 
-use destack_lsp_server::jsonrpc;
-use destack_lsp_types as lsp;
-use destack_query as query;
-use destack_repository::Revision;
+use tspp_lsp_server::jsonrpc;
+use tspp_lsp_types as lsp;
+use tspp_query as query;
+use tspp_repository::Revision;
 
 use super::{Document, DocumentSet, IntoLsp, QueryContinuation};
 use crate::server::internal_error;

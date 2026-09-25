@@ -26,7 +26,7 @@ function read(state: State): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 type test.main.State = newtype<variant<uint1> { 0uint1 = test.main.Off; 1uint1 = test.main.On; }>;
@@ -98,7 +98,7 @@ function classify(state: State): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.classify",
         r#"
 type test.main.State = newtype<variant<uint1> { 0uint1 = test.main.Off; 1uint1 = test.main.On; }>;
@@ -165,7 +165,7 @@ function observe(state: State, sink: (value: int32) => void): void {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.observe", r#"
+    session.assert_mir_function("main.tspp", "test.main.observe", r#"
 type test.main.State = newtype<variant<uint1> { 0uint1 = test.main.Off; 1uint1 = test.main.On; }>;
 
 function test.main.observe(v0: test.main.State, v1: function<(int32) => void, repeatable, managed, mutable, local>): void {
@@ -234,7 +234,7 @@ function classify(phase: Phase): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.classify",
         r#"
 type test.main.Phase = newtype<variant<uint1> { 0uint1 = test.main.Pending; 1uint1 = test.main.Done; }>;
@@ -313,7 +313,7 @@ function read(state: State): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 type test.main.State = newtype<variant<uint1> { 0uint1 = test.main.Off; 1uint1 = test.main.On; }>;
@@ -381,7 +381,7 @@ function grade(score: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.grade",
         r#"
 function test.main.grade(v0: int32): int32 {
@@ -488,7 +488,7 @@ function read(state: State, all: boolean): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 type test.main.State = newtype<variant<uint1> { 0uint1 = test.main.Off; 1uint1 = test.main.On; }>;
@@ -549,7 +549,7 @@ b7:
 fn test_lower_a_match_through_a_borrowed_scrutinee_to_field_borrows() {
     let session = TestSession::single(
         r#"
-import { Equal } from "destack:ops";
+import { Equal } from "tspp:ops";
 
 struct Ok<T> {
     value: T;
@@ -580,7 +580,7 @@ function same<T: Equal<T>, E: Equal<E>>(left: &immutable Outcome<T, E>, right: &
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.same", r#"
+    session.assert_mir_function("main.tspp", "test.main.same", r#"
 type test.main.Outcome<T, E> = newtype<variant<uint1> { 0uint1 = test.main.Ok<T>; 1uint1 = test.main.Err<E>; }>;
 
 @nocopy

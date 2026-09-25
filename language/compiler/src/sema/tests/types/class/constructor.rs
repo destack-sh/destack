@@ -14,7 +14,7 @@ const create = Writer;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -63,7 +63,7 @@ const version = create.version;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -121,7 +121,7 @@ const box = new create();
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -175,7 +175,7 @@ const user = new Constructors.user();
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -233,7 +233,7 @@ const user = new factory.user();
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -296,7 +296,7 @@ const user = new constructors[0]();
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -345,7 +345,7 @@ const user = new create("Ada");
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -392,7 +392,7 @@ const box = new create();
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -452,7 +452,7 @@ const second = new stringBox();
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -540,7 +540,7 @@ const ctor: typeof User = User;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -585,7 +585,7 @@ const otherPosition = position { x: 1 };
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -666,7 +666,7 @@ const user = new ctor("Ada");
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -719,7 +719,7 @@ class User {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -759,7 +759,7 @@ class User {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -808,7 +808,7 @@ class User {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -848,7 +848,7 @@ const counter = new Counter();
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -900,7 +900,7 @@ const derived = new Derived(1);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -985,7 +985,7 @@ const counter = new Counter(1);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1067,7 +1067,7 @@ const number = new Box(1);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1186,7 +1186,7 @@ new Box(true);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1292,7 +1292,7 @@ declare class Box {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1338,7 +1338,7 @@ class Box {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1391,7 +1391,7 @@ const dog = new Dog("rex", 3);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1498,7 +1498,7 @@ const dog = new Dog("rex", 3);
 fn test_forward_a_base_constructor_across_modules() {
     let session = TestSession::builder()
         .module(
-            "base.ds",
+            "base.tspp",
             r#"
 export class Animal<T> {
     tag: T;
@@ -1510,9 +1510,9 @@ export class Animal<T> {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Animal } from "./base.ds";
+import { Animal } from "./base.tspp";
 
 class Dog extends Animal<string> {}
 
@@ -1522,18 +1522,18 @@ const dog = new Dog("rex");
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Animal } from "./base.ds";
+import { Animal } from "./base.tspp";
 
 class Dog extends Animal<string> {}
 
 const dog: Dog = new Dog("rex");
 
 === dir ===
-import { Animal } from "./base.ds";
+import { Animal } from "./base.tspp";
 
 class Dog extends Animal<string> {}
 /// @type.symbol symbol=Dog source="class Dog extends Animal<string> {}" type=typeof Dog
@@ -1570,7 +1570,7 @@ const broken: new (value: int32) => Counter = build;
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 class Counter {
     value: int32;
@@ -1666,7 +1666,7 @@ class Holder {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1770,7 +1770,7 @@ const box = new Box(value);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1864,7 +1864,7 @@ const box = new Box();
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1942,7 +1942,7 @@ class Point {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2017,7 +2017,7 @@ function invalid(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2136,7 +2136,7 @@ function invalid(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2273,7 +2273,7 @@ function read(machine: &readonly Machine): Status {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2412,7 +2412,7 @@ class User {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -2451,7 +2451,7 @@ class Admin extends User {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::none(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::none(), r#"
 === annotated ===
 class User {
     constructor() {}
@@ -2499,7 +2499,7 @@ class Admin extends User {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::none(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::none(), r#"
 === annotated ===
 class User {
     constructor() {}
@@ -2539,7 +2539,7 @@ class Admin extends User {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::none(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::none(), r#"
 === annotated ===
 class User {
     constructor() {}
@@ -2592,7 +2592,7 @@ class Admin extends User {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===

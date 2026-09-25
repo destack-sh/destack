@@ -8,11 +8,11 @@ Parentheses fixtures cover removable grouping and semantically required parenthe
 
 Redundant grouping parentheses are removed rather than preserved.
 
-```ds
+```tspp
 ( 1 + 2 )
 ```
 
-```ds expected
+```tspp expected
 1 + 2;
 ```
 
@@ -22,60 +22,60 @@ These tests document the cases where parentheses still matter semantically and m
 
 ### await inside maybe preserves parentheses
 
-```ds
+```tspp
 (await foo())?
 ```
 
-```ds expected
+```tspp expected
 (await foo())?;
 ```
 
 ### unary inside maybe preserves parentheses
 
-```ds
+```tspp
 (-x)?
 ```
 
-```ds expected
+```tspp expected
 (-x)?;
 ```
 
 ### postfix inside maybe needs no extra parentheses
 
-```ds
+```tspp
 foo()?.bar?
 ```
 
-```ds expected
+```tspp expected
 foo()?.bar?;
 ```
 
 ### call inside maybe needs no parentheses
 
-```ds
+```tspp
 foo()?
 ```
 
-```ds expected
+```tspp expected
 foo()?;
 ```
 
 ### binary inside maybe preserves parentheses
 
-```ds
+```tspp
 (a + b)?
 ```
 
-```ds expected
+```tspp expected
 (a + b)?;
 ```
 
 ### ternary inside maybe preserves parentheses
 
-```ds
+```tspp
 (cond ? a : b)?
 ```
 
-```ds expected
+```tspp expected
 (cond ? a : b)?;
 ```

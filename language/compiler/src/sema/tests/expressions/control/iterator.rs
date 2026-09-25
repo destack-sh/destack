@@ -17,7 +17,7 @@ function copy(values: [int32]): int32[] {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 function copy(values: [int32]): int32[] {
     values.iterator<int32, "managed">();
@@ -92,7 +92,7 @@ for (const value of values) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -155,7 +155,7 @@ for (const value of 1) {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -197,7 +197,7 @@ function visit(values: int32[]): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -258,7 +258,7 @@ function total(values: int32[]): int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

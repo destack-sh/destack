@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use destack_core::StringPool;
-use destack_mir as mir;
-use destack_program::{
+use tspp_core::StringPool;
+use tspp_mir as mir;
+use tspp_program::{
     FunctionBuilder, FunctionExport, FunctionId, FunctionTableBuilder, Object, Signature,
     SignatureId, Symbol, TypeId, object,
 };
 
-use destack_source::{ModuleId, PackageId};
+use tspp_source::{ModuleId, PackageId};
 
 use crate::{LinkError, LinkResult};
 

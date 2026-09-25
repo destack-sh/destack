@@ -6,11 +6,11 @@
 
 Slice type syntax has no separator after the element type.
 
-```ds
+```tspp
 type Values=[int32]
 ```
 
-```ds expected
+```tspp expected
 type Values = [int32];
 ```
 
@@ -18,11 +18,11 @@ type Values = [int32];
 
 Slice annotations format the same way in parameter and return positions.
 
-```ds
+```tspp
 function take(values:[string]):[string]{values}
 ```
 
-```ds expected
+```tspp expected
 function take(values: [string]): [string] {
     values
 }

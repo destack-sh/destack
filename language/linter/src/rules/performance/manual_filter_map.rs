@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -133,7 +133,7 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
         session.assert_diagnostics(
             r#"
 warning[manual-filter-map]: mapped array is filtered only for defined values
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
 2 │     return values.map((value) => value).filter((value) => value !== undefined);
@@ -142,8 +142,8 @@ warning[manual-filter-map]: mapped array is filtered only for defined values
   │
 
  = suggestion: map and keep defined values together (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
 -   2│     return values.map((value) => value).filter((value) => value !== undefined);

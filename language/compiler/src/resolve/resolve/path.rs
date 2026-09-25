@@ -1,5 +1,5 @@
-use destack_dir as dir;
 use smallvec::{SmallVec, smallvec};
+use tspp_dir as dir;
 
 use crate::export::ExportLookup;
 use crate::resolve::state::{PathReference, ResolveState};

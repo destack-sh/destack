@@ -1,7 +1,7 @@
 use crate::parse::expression::operator::ExpressionOperator;
 use crate::{Parser, ParserError, ParserResult};
-use destack_dir::{Expression, LocalNodeId, RangeEnd, TypeExpression};
-use destack_source::ByteRange;
+use tspp_dir::{Expression, LocalNodeId, RangeEnd, TypeExpression};
+use tspp_source::ByteRange;
 
 impl Parser {
     /// Promote one reference-shaped value expression into type space.

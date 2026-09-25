@@ -1,11 +1,11 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use destack_repository::{Commit, Revision, RevisionPin, Trace};
-use destack_session::{
+use parking_lot::MutexGuard;
+use tspp_repository::{Commit, Revision, RevisionPin, Trace};
+use tspp_session::{
     ArtifactCancellation, ArtifactPriority, ArtifactRun, Session, SessionEventHandler,
 };
-use parking_lot::MutexGuard;
 
 use crate::{Error, Watch, Workspace};
 

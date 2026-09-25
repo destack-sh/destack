@@ -5,7 +5,7 @@
 
 An identifier expands through its expression, statement, body, and declaration.
 
-```ds main.ds
+```tspp main.tspp
 function compute(value: int32): int32 {
                                       ^ body:start
 ^ declaration:start
@@ -20,21 +20,21 @@ function compute(value: int32): int32 {
 ^ declaration:end
 ```
 
-```query selection_ranges main.ds#cursor
-@selection_ranges.range selection=0 depth=0 range=main.ds#cursor
-@selection_ranges.range selection=0 depth=1 range=main.ds#sum
-@selection_ranges.range selection=0 depth=2 range=main.ds#parentheses
-@selection_ranges.range selection=0 depth=3 range=main.ds#product
-@selection_ranges.range selection=0 depth=4 range=main.ds#return
-@selection_ranges.range selection=0 depth=5 range=main.ds#body
-@selection_ranges.range selection=0 depth=6 range=main.ds#declaration
+```query selection_ranges main.tspp#cursor
+@selection_ranges.range selection=0 depth=0 range=main.tspp#cursor
+@selection_ranges.range selection=0 depth=1 range=main.tspp#sum
+@selection_ranges.range selection=0 depth=2 range=main.tspp#parentheses
+@selection_ranges.range selection=0 depth=3 range=main.tspp#product
+@selection_ranges.range selection=0 depth=4 range=main.tspp#return
+@selection_ranges.range selection=0 depth=5 range=main.tspp#body
+@selection_ranges.range selection=0 depth=6 range=main.tspp#declaration
 ```
 
 ### Preserve expression ancestry after preceding text changes
 
 Selection ranges follow the selected expression after its offsets move.
 
-```ds main.ds
+```tspp main.tspp
 function compute(value: int32): int32 {
                                       ^ body:start
 ^ declaration:start
@@ -49,17 +49,17 @@ function compute(value: int32): int32 {
 ^ declaration:end
 ```
 
-```query selection_ranges main.ds#cursor
-@selection_ranges.range selection=0 depth=0 range=main.ds#cursor
-@selection_ranges.range selection=0 depth=1 range=main.ds#sum
-@selection_ranges.range selection=0 depth=2 range=main.ds#parentheses
-@selection_ranges.range selection=0 depth=3 range=main.ds#product
-@selection_ranges.range selection=0 depth=4 range=main.ds#return
-@selection_ranges.range selection=0 depth=5 range=main.ds#body
-@selection_ranges.range selection=0 depth=6 range=main.ds#declaration
+```query selection_ranges main.tspp#cursor
+@selection_ranges.range selection=0 depth=0 range=main.tspp#cursor
+@selection_ranges.range selection=0 depth=1 range=main.tspp#sum
+@selection_ranges.range selection=0 depth=2 range=main.tspp#parentheses
+@selection_ranges.range selection=0 depth=3 range=main.tspp#product
+@selection_ranges.range selection=0 depth=4 range=main.tspp#return
+@selection_ranges.range selection=0 depth=5 range=main.tspp#body
+@selection_ranges.range selection=0 depth=6 range=main.tspp#declaration
 ```
 
-```ds main.ds change
+```tspp main.tspp change
 // keep this calculation explicit
 function compute(value: int32): int32 {
                                       ^ body:start
@@ -75,14 +75,14 @@ function compute(value: int32): int32 {
 ^ declaration:end
 ```
 
-```query selection_ranges main.ds#cursor
-@selection_ranges.range selection=0 depth=0 range=main.ds#cursor
-@selection_ranges.range selection=0 depth=1 range=main.ds#sum
-@selection_ranges.range selection=0 depth=2 range=main.ds#parentheses
-@selection_ranges.range selection=0 depth=3 range=main.ds#product
-@selection_ranges.range selection=0 depth=4 range=main.ds#return
-@selection_ranges.range selection=0 depth=5 range=main.ds#body
-@selection_ranges.range selection=0 depth=6 range=main.ds#declaration
+```query selection_ranges main.tspp#cursor
+@selection_ranges.range selection=0 depth=0 range=main.tspp#cursor
+@selection_ranges.range selection=0 depth=1 range=main.tspp#sum
+@selection_ranges.range selection=0 depth=2 range=main.tspp#parentheses
+@selection_ranges.range selection=0 depth=3 range=main.tspp#product
+@selection_ranges.range selection=0 depth=4 range=main.tspp#return
+@selection_ranges.range selection=0 depth=5 range=main.tspp#body
+@selection_ranges.range selection=0 depth=6 range=main.tspp#declaration
 ```
 
 ## Type Annotations
@@ -91,7 +91,7 @@ function compute(value: int32): int32 {
 
 A type name expands through its declarator and declaration.
 
-```ds main.ds
+```tspp main.tspp
 struct Point {
     x: int32;
     y: int32;
@@ -106,11 +106,11 @@ const point: Point = Point { x: 1, y: 2 };
                                         ^ declaration:end
 ```
 
-```query selection_ranges main.ds#cursor
-@selection_ranges.range selection=0 depth=0 range=main.ds#cursor
-@selection_ranges.range selection=0 depth=1 range=main.ds#type_annotation
-@selection_ranges.range selection=0 depth=2 range=main.ds#declarator
-@selection_ranges.range selection=0 depth=3 range=main.ds#declaration
+```query selection_ranges main.tspp#cursor
+@selection_ranges.range selection=0 depth=0 range=main.tspp#cursor
+@selection_ranges.range selection=0 depth=1 range=main.tspp#type_annotation
+@selection_ranges.range selection=0 depth=2 range=main.tspp#declarator
+@selection_ranges.range selection=0 depth=3 range=main.tspp#declaration
 ```
 
 ## Object Literals
@@ -119,7 +119,7 @@ const point: Point = Point { x: 1, y: 2 };
 
 An object property value expands through its property, object, binding, and declaration.
 
-```ds main.ds
+```tspp main.tspp
 const object = {
                ^ object:start
       ^ declarator:start
@@ -134,13 +134,13 @@ const object = {
 ^ declaration:end
 ```
 
-```query selection_ranges main.ds#value
-@selection_ranges.range selection=0 depth=0 range=main.ds#value
-@selection_ranges.range selection=0 depth=1 range=main.ds#field_value
-@selection_ranges.range selection=0 depth=2 range=main.ds#field
-@selection_ranges.range selection=0 depth=3 range=main.ds#object
-@selection_ranges.range selection=0 depth=4 range=main.ds#declarator
-@selection_ranges.range selection=0 depth=5 range=main.ds#declaration
+```query selection_ranges main.tspp#value
+@selection_ranges.range selection=0 depth=0 range=main.tspp#value
+@selection_ranges.range selection=0 depth=1 range=main.tspp#field_value
+@selection_ranges.range selection=0 depth=2 range=main.tspp#field
+@selection_ranges.range selection=0 depth=3 range=main.tspp#object
+@selection_ranges.range selection=0 depth=4 range=main.tspp#declarator
+@selection_ranges.range selection=0 depth=5 range=main.tspp#declaration
 ```
 
 ## Member Access
@@ -149,7 +149,7 @@ const object = {
 
 A field name expands through its access expression, statement, body, and declaration.
 
-```ds main.ds
+```tspp main.tspp
 struct User {
     name: string;
 }
@@ -166,12 +166,12 @@ function read(user: User): string {
 ^ declaration:end
 ```
 
-```query selection_ranges main.ds#name
-@selection_ranges.range selection=0 depth=0 range=main.ds#name
-@selection_ranges.range selection=0 depth=1 range=main.ds#member
-@selection_ranges.range selection=0 depth=2 range=main.ds#return
-@selection_ranges.range selection=0 depth=3 range=main.ds#body
-@selection_ranges.range selection=0 depth=4 range=main.ds#declaration
+```query selection_ranges main.tspp#name
+@selection_ranges.range selection=0 depth=0 range=main.tspp#name
+@selection_ranges.range selection=0 depth=1 range=main.tspp#member
+@selection_ranges.range selection=0 depth=2 range=main.tspp#return
+@selection_ranges.range selection=0 depth=3 range=main.tspp#body
+@selection_ranges.range selection=0 depth=4 range=main.tspp#declaration
 ```
 
 ## Calls
@@ -180,7 +180,7 @@ function read(user: User): string {
 
 An argument expands through its argument list, call, declarator, and declaration.
 
-```ds main.ds
+```tspp main.tspp
 declare function add(left: int32, right: int32): int32;
 const first = 1;
 const second = 2;
@@ -196,19 +196,19 @@ const total = add(first, second);
                                ^ declaration:end
 ```
 
-```query selection_ranges main.ds#argument
-@selection_ranges.range selection=0 depth=0 range=main.ds#argument
-@selection_ranges.range selection=0 depth=1 range=main.ds#arguments
-@selection_ranges.range selection=0 depth=2 range=main.ds#call
-@selection_ranges.range selection=0 depth=3 range=main.ds#declarator
-@selection_ranges.range selection=0 depth=4 range=main.ds#declaration
+```query selection_ranges main.tspp#argument
+@selection_ranges.range selection=0 depth=0 range=main.tspp#argument
+@selection_ranges.range selection=0 depth=1 range=main.tspp#arguments
+@selection_ranges.range selection=0 depth=2 range=main.tspp#call
+@selection_ranges.range selection=0 depth=3 range=main.tspp#declarator
+@selection_ranges.range selection=0 depth=4 range=main.tspp#declaration
 ```
 
 ### Expand a constructor argument
 
 A constructor argument expands through the argument list, construction, declarator, and declaration.
 
-```ds main.ds
+```tspp main.tspp
 class Box {
     constructor(value: int32) {}
 }
@@ -221,12 +221,12 @@ const boxed = new Box(1);
 ^^^^^^^^^^^^^^^^^^^^^^^^ declaration
 ```
 
-```query selection_ranges main.ds#argument
-@selection_ranges.range selection=0 depth=0 range=main.ds#argument
-@selection_ranges.range selection=0 depth=1 range=main.ds#arguments
-@selection_ranges.range selection=0 depth=2 range=main.ds#construction
-@selection_ranges.range selection=0 depth=3 range=main.ds#declarator
-@selection_ranges.range selection=0 depth=4 range=main.ds#declaration
+```query selection_ranges main.tspp#argument
+@selection_ranges.range selection=0 depth=0 range=main.tspp#argument
+@selection_ranges.range selection=0 depth=1 range=main.tspp#arguments
+@selection_ranges.range selection=0 depth=2 range=main.tspp#construction
+@selection_ranges.range selection=0 depth=3 range=main.tspp#declarator
+@selection_ranges.range selection=0 depth=4 range=main.tspp#declaration
 ```
 
 ## Patterns
@@ -235,7 +235,7 @@ const boxed = new Box(1);
 
 A binding expands through its pattern, match arm, match expression, declarator, and declaration.
 
-```ds main.ds
+```tspp main.tspp
 declare const pair: (int32, int32);
 
 const total = match (pair) {
@@ -252,13 +252,13 @@ const total = match (pair) {
 ^ declaration:end
 ```
 
-```query selection_ranges main.ds#binding
-@selection_ranges.range selection=0 depth=0 range=main.ds#binding
-@selection_ranges.range selection=0 depth=1 range=main.ds#pattern
-@selection_ranges.range selection=0 depth=2 range=main.ds#arm
-@selection_ranges.range selection=0 depth=3 range=main.ds#match
-@selection_ranges.range selection=0 depth=4 range=main.ds#declarator
-@selection_ranges.range selection=0 depth=5 range=main.ds#declaration
+```query selection_ranges main.tspp#binding
+@selection_ranges.range selection=0 depth=0 range=main.tspp#binding
+@selection_ranges.range selection=0 depth=1 range=main.tspp#pattern
+@selection_ranges.range selection=0 depth=2 range=main.tspp#arm
+@selection_ranges.range selection=0 depth=3 range=main.tspp#match
+@selection_ranges.range selection=0 depth=4 range=main.tspp#declarator
+@selection_ranges.range selection=0 depth=5 range=main.tspp#declaration
 ```
 
 ## Strings and Comments
@@ -267,7 +267,7 @@ const total = match (pair) {
 
 A position inside a string selects the complete literal before its declaration.
 
-```ds main.ds
+```tspp main.tspp
 const greeting = "hello";
                   ^^^^^ string_content
                  ^^^^^^^ string
@@ -277,25 +277,25 @@ const greeting = "hello";
                        ^ declaration:end
 ```
 
-```query selection_ranges main.ds#string_content
-@selection_ranges.range selection=0 depth=0 range=main.ds#string
-@selection_ranges.range selection=0 depth=1 range=main.ds#declarator
-@selection_ranges.range selection=0 depth=2 range=main.ds#declaration
+```query selection_ranges main.tspp#string_content
+@selection_ranges.range selection=0 depth=0 range=main.tspp#string
+@selection_ranges.range selection=0 depth=1 range=main.tspp#declarator
+@selection_ranges.range selection=0 depth=2 range=main.tspp#declaration
 ```
 
 ### Select a complete comment
 
 A position inside a comment selects the complete comment.
 
-```ds main.ds
+```tspp main.tspp
 // explain the value
 ^^^^^^^^^^^^^^^^^^^^ comment
                ^^^^^ comment_word
 const value = 1;
 ```
 
-```query selection_ranges main.ds#comment_word
-@selection_ranges.range selection=0 depth=0 range=main.ds#comment
+```query selection_ranges main.tspp#comment_word
+@selection_ranges.range selection=0 depth=0 range=main.tspp#comment
 ```
 
 ## Whitespace
@@ -304,14 +304,14 @@ const value = 1;
 
 Whitespace begins at its enclosing source range.
 
-```ds main.ds
+```tspp main.tspp
 const value = 1;
 ^^^^^^^^^^^^^^^ declaration
      ^ whitespace
 ```
 
-```query selection_ranges main.ds#whitespace
-@selection_ranges.range selection=0 depth=0 range=main.ds#declaration
+```query selection_ranges main.tspp#whitespace
+@selection_ranges.range selection=0 depth=0 range=main.tspp#declaration
 ```
 
 ## Multiple Positions
@@ -320,7 +320,7 @@ const value = 1;
 
 Each requested position returns its own ordered selection chain.
 
-```ds main.ds
+```tspp main.tspp
 const first = 1;
               ^ first
       ^^^^^^^^^ first_declarator
@@ -331,11 +331,11 @@ const second = 2;
 ^^^^^^^^^^^^^^^^ second_declaration
 ```
 
-```query selection_ranges main.ds#first main.ds#second
-@selection_ranges.range selection=0 depth=0 range=main.ds#first
-@selection_ranges.range selection=0 depth=1 range=main.ds#first_declarator
-@selection_ranges.range selection=0 depth=2 range=main.ds#first_declaration
-@selection_ranges.range selection=1 depth=0 range=main.ds#second
-@selection_ranges.range selection=1 depth=1 range=main.ds#second_declarator
-@selection_ranges.range selection=1 depth=2 range=main.ds#second_declaration
+```query selection_ranges main.tspp#first main.tspp#second
+@selection_ranges.range selection=0 depth=0 range=main.tspp#first
+@selection_ranges.range selection=0 depth=1 range=main.tspp#first_declarator
+@selection_ranges.range selection=0 depth=2 range=main.tspp#first_declaration
+@selection_ranges.range selection=1 depth=0 range=main.tspp#second
+@selection_ranges.range selection=1 depth=1 range=main.tspp#second_declarator
+@selection_ranges.range selection=1 depth=2 range=main.tspp#second_declaration
 ```

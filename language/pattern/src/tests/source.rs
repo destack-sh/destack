@@ -1,9 +1,9 @@
 use std::sync::{Arc, Mutex};
 
-use destack_core::StringPool;
-use destack_dir as dir;
-use destack_parser::{CommentRetention, ParseOptions, Parser};
-use destack_source::{
+use tspp_core::StringPool;
+use tspp_dir as dir;
+use tspp_parser::{CommentRetention, ParseOptions, Parser};
+use tspp_source::{
     DiagnosticCollection, File, FileId, FileType, LanguageType, ModuleId, PackageId, PrintOptions,
     Span, Uri, print_diagnostics,
 };
@@ -39,7 +39,7 @@ impl TestSource {
         let module_id = ModuleId::new(PackageId::new(0), file.id.0);
         let parser = Parser::new(
             file.clone(),
-            LanguageType::Destack,
+            LanguageType::Tspp,
             dir::Tree::new(module_id),
             ParseOptions {
                 comment_retention: CommentRetention::Ignore,
@@ -173,9 +173,9 @@ pub(crate) fn test_file(name: &str, text: impl Into<String>) -> Arc<File> {
         File::from_text(
             FileId::from_logical_str(name),
             name.to_string(),
-            Uri::from_string(format!("destack:{uri_name}")),
+            Uri::from_string(format!("tspp:{uri_name}")),
             None,
-            FileType::Destack,
+            FileType::Tspp,
             text.into(),
         )
         .expect("test source should load"),

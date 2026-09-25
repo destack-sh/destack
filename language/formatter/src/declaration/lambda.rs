@@ -16,16 +16,16 @@ use crate::expression::{
     ExpressionLeftPath, expression_is_multiline_template_starting_on_same_line,
 };
 use crate::operator::AssignmentLikeLayout;
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{
+use crate::{TsppFormatContext, TsppFormatter};
+use tspp_dir::{
     Declaration, ExportKind, Expression, FunctionDeclaration, FunctionForm, FunctionSignature,
     IfForm, LocalNodeId, Name, NodeType, Parameter, TemplateLiteral, TreeAttribute, TreeChild,
 };
-use destack_fir::format::{FormatError, FormatResult, without_soft_lines};
-use destack_fir::prelude::*;
-use destack_fir::{format_args, write};
-use destack_repository::TrailingComma;
-use destack_source::Span;
+use tspp_fir::format::{FormatError, FormatResult, without_soft_lines};
+use tspp_fir::prelude::*;
+use tspp_fir::{format_args, write};
+use tspp_repository::TrailingComma;
+use tspp_source::Span;
 
 /// The grouped call-argument layout shared with lambda formatting.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -76,13 +76,13 @@ struct FormatMaybeCachedLambdaBody {
     cache_mode: FunctionCacheMode,
 }
 
-impl<'ast> Format<'ast, DestackFormatContext<'ast>> for FormatMaybeCachedLambdaBody {
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<'ast, TsppFormatContext<'ast>> for FormatMaybeCachedLambdaBody {
+    fn format(&self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         let body_id = self.body_id;
         let body_span = f.context().span(body_id);
 
         // body content
-        let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+        let content = format_with(move |f: &mut TsppFormatter<'ast, '_>| {
             let body_expression = f.context().tree.get(body_id);
 
             // block body
@@ -99,7 +99,7 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for FormatMaybeCachedLambdaB
 
 /// Return whether one lambda declaration appears in statement context.
 fn lambda_declaration_is_statement_context(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
 ) -> bool {
     let Some((declaration_expression_id, parent_type)) = context.parent(node_id) else {
@@ -119,7 +119,7 @@ fn lambda_declaration_is_statement_context(
 
 /// Write one lambda arrow token with separator comments and local infix spacing.
 pub(crate) fn write_lambda_arrow_with_infix_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     _cache_mode: FunctionCacheMode,
 ) -> FormatResult<()> {
@@ -133,7 +133,7 @@ pub(crate) fn write_lambda_arrow_with_infix_annotations<'ast>(
 }
 /// Return whether one lambda declaration needs a trailing semicolon.
 fn lambda_declaration_needs_trailing_semicolon(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
     export: Option<ExportKind>,
 ) -> bool {
@@ -142,7 +142,7 @@ fn lambda_declaration_needs_trailing_semicolon(
 
 /// Return the lambda declaration for one declaration id.
 fn lambda_declaration<'ast>(
-    context: &'ast DestackFormatContext<'_>,
+    context: &'ast TsppFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
 ) -> Option<&'ast FunctionDeclaration> {
     let Declaration::Function(function) = context.tree.get(node_id) else {
@@ -154,7 +154,7 @@ fn lambda_declaration<'ast>(
 
 /// Return whether one parameter is simple enough for inline arrow chains.
 fn lambda_parameter_is_simple(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parameter_id: LocalNodeId<Parameter>,
     allow_type_annotations: bool,
 ) -> bool {
@@ -170,7 +170,7 @@ fn lambda_parameter_is_simple(
 
 /// Return whether one lambda has only simple parameters.
 fn lambda_has_only_simple_parameters(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     signature: &FunctionSignature,
     allow_type_annotations: bool,
 ) -> bool {
@@ -181,7 +181,7 @@ fn lambda_has_only_simple_parameters(
 
 /// Return whether one lambda chain should break at its signatures.
 fn lambda_chain_should_break(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     signature: &FunctionSignature,
 ) -> bool {
     if !signature.generic_parameters.is_empty() {
@@ -197,7 +197,7 @@ fn lambda_chain_should_break(
 
 /// Return the next lambda declaration in one chain body.
 fn next_lambda_chain_declaration(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     declaration_id: LocalNodeId<Declaration>,
     options: FormatLambdaDeclarationOptions,
 ) -> Option<LocalNodeId<Declaration>> {
@@ -225,7 +225,7 @@ fn next_lambda_chain_declaration(
 
 /// Return whether one lambda declaration sits in call-like callee position.
 fn lambda_declaration_is_call_like_callee(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     declaration_id: LocalNodeId<Declaration>,
 ) -> bool {
     let Some((declaration_expression_id, parent_type)) = context.parent(declaration_id) else {
@@ -253,7 +253,7 @@ fn lambda_declaration_is_call_like_callee(
 
 /// Return the tree node span that contains one lambda declaration.
 fn lambda_declaration_tree_node_span(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     declaration_id: LocalNodeId<Declaration>,
 ) -> Option<Span> {
     let (declaration_expression_id, parent_type) = context.parent(declaration_id)?;
@@ -292,7 +292,7 @@ fn lambda_declaration_tree_node_span(
 
 /// Return whether one tree expression-container lambda should add a soft closing line.
 fn lambda_declaration_tree_node_should_add_soft_line(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     declaration_id: LocalNodeId<Declaration>,
 ) -> bool {
     let Some(tree_node_span) = lambda_declaration_tree_node_span(context, declaration_id) else {
@@ -308,7 +308,7 @@ fn lambda_declaration_tree_node_should_add_soft_line(
 
 /// Return whether one lambda body has one own-line comment after the arrow.
 fn lambda_body_has_leading_own_line_comment(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     body_id: LocalNodeId<Expression>,
 ) -> bool {
     let body_span = context.span(body_id);
@@ -320,7 +320,7 @@ fn lambda_body_has_leading_own_line_comment(
 
 /// Return whether one lambda body should keep its own break strategy.
 fn lambda_body_has_soft_line_break(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     body_id: LocalNodeId<Expression>,
     body_expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -350,7 +350,7 @@ fn lambda_body_has_soft_line_break(
 
 /// Return whether a tree callback body should force multiline tree formatting.
 fn lambda_tree_body_should_expand_in_tree_context(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     body_expression_id: LocalNodeId<Expression>,
 ) -> bool {
     matches!(
@@ -361,7 +361,7 @@ fn lambda_tree_body_should_expand_in_tree_context(
 
 /// Return whether one lambda body needs parentheses in flat mode.
 fn lambda_body_needs_parentheses(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     body_expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let body_expression = context.tree.get(body_expression_id);
@@ -388,7 +388,7 @@ fn lambda_body_needs_parentheses(
 
 /// Return whether one lambda chain tail body should break onto its own line.
 fn lambda_chain_tail_body_is_separate_line(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     tail_id: LocalNodeId<Declaration>,
 ) -> bool {
     let Some(function) = lambda_declaration(context, tail_id) else {
@@ -422,7 +422,7 @@ enum LambdaLayout {
 impl LambdaLayout {
     /// Return the layout for one lambda declaration.
     fn for_declaration(
-        context: &DestackFormatContext<'_>,
+        context: &TsppFormatContext<'_>,
         declaration_id: LocalNodeId<Declaration>,
         options: FormatLambdaDeclarationOptions,
     ) -> FormatResult<Self> {
@@ -490,7 +490,7 @@ impl LambdaChain {
 
 /// Write one lambda declaration body as one standalone arrow expression.
 fn write_single_lambda_layout<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     declaration_id: LocalNodeId<Declaration>,
     options: FormatLambdaDeclarationOptions,
 ) -> FormatResult<()> {
@@ -502,7 +502,7 @@ fn write_single_lambda_layout<'ast>(
     let signature = function.signature.clone();
     let body = function.body;
 
-    let formatted_signature = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let formatted_signature = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_lambda_head(f, declaration_id, &signature, &body, options, true)?;
         write_lambda_arrow_with_infix_annotations(f, declaration_id, options.cache_mode)
     });
@@ -573,7 +573,7 @@ fn write_single_lambda_layout<'ast>(
 
 /// Write one chain of nested lambda declarations.
 fn write_lambda_chain_layout<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     chain: &LambdaChain,
 ) -> FormatResult<()> {
     let Some(tail_function) = lambda_declaration(f.context(), chain.tail) else {
@@ -598,8 +598,8 @@ fn write_lambda_chain_layout<'ast>(
             .is_some_and(|layout| layout != AssignmentLikeLayout::BreakAfterOperator);
     let group_id = f.group_id();
 
-    let format_signatures = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-        let join_signatures = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_signatures = format_with(|f: &mut TsppFormatter<'ast, '_>| {
+        let join_signatures = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             let mut is_first = true;
 
             for declaration_id in chain.declarations() {
@@ -610,11 +610,11 @@ fn write_lambda_chain_layout<'ast>(
                 };
                 let signature = function.signature.clone();
                 let body = function.body;
-                let formatted_signature = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                let formatted_signature = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                     let declaration_start = f.context().span(declaration_id).start;
                     let declaration_comment_key =
                         Span::new(f.context().file.id, declaration_start, declaration_start);
-                    let leading_comments = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    let leading_comments = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                         if !is_first
                             && f.context()
                                 .comments()
@@ -687,7 +687,7 @@ fn write_lambda_chain_layout<'ast>(
         )
     });
 
-    let format_tail_body_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_tail_body_inner = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         let Some(body_id) = tail_body else {
             return Ok(());
         };
@@ -713,7 +713,7 @@ fn write_lambda_chain_layout<'ast>(
         }
     });
 
-    let format_tail_body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_tail_body = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         let should_add_soft_line = is_tree_node;
 
         if body_on_separate_line {
@@ -731,7 +731,7 @@ fn write_lambda_chain_layout<'ast>(
         Ok(())
     });
 
-    let format_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_inner = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         if has_initial_indent {
             write!(
                 f,
@@ -773,7 +773,7 @@ fn write_lambda_chain_layout<'ast>(
 
 /// Write one lambda body and trailing semicolon.
 fn write_lambda_body_and_terminator<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     export: Option<ExportKind>,
     body: &Option<LocalNodeId<Expression>>,
@@ -803,7 +803,7 @@ fn write_lambda_body_and_terminator<'ast>(
 
 /// Write one lambda head before the body.
 fn write_lambda_head<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     signature: &FunctionSignature,
     body: &Option<LocalNodeId<Expression>>,
@@ -821,7 +821,7 @@ fn write_lambda_head<'ast>(
     );
 
     // signature content
-    let signature_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let signature_content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         if options.call_argument_layout.is_some() && !is_first_in_chain {
             write!(f, [space()])?;
         }
@@ -846,7 +846,7 @@ fn write_lambda_head<'ast>(
     });
 
     // signature head
-    let head = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let head = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_function_header_prefix(f, signature, true, false)?;
 
         if options.call_argument_layout.is_some() && !is_first_in_chain {
@@ -861,7 +861,7 @@ fn write_lambda_head<'ast>(
     let head = group(&head);
     let cache_key = parameter_container_span;
     let head = FormatContentWithCacheMode::new(cache_key, head, options.cache_mode);
-    let comments_before_arrow = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+    let comments_before_arrow = format_with(move |f: &mut TsppFormatter<'ast, '_>| {
         let comments_before_arrow = f
             .context()
             .comments()
@@ -901,7 +901,7 @@ fn write_lambda_head<'ast>(
 
 /// Format one lambda declaration with explicit options.
 pub(crate) fn format_lambda_declaration_with_options<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     export: Option<ExportKind>,
     is_ambient: bool,
@@ -925,7 +925,7 @@ pub(crate) fn format_lambda_declaration_with_options<'ast>(
 
 /// Format one lambda declaration.
 pub(crate) fn format_lambda_declaration<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     export: Option<ExportKind>,
     is_ambient: bool,

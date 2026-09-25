@@ -1,5 +1,5 @@
 use clap::Args;
-use destack_workspace::{CommandRevision, DocInput, DocPayload};
+use tspp_workspace::{CommandRevision, DocInput, DocPayload};
 
 use crate::common::{
     CommandOptionsBuilder, CommandResult, ProgramArgs, ReportArgs, command_error,

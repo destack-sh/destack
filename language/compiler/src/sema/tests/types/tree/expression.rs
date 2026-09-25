@@ -5,7 +5,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_check_a_tree_fragment_against_the_contextual_builder() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -39,11 +39,11 @@ function render(): Panel {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -80,7 +80,7 @@ function render(): Panel {
 }
 
 === dir ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
 /// @type.symbol symbol=Panel type=typeof Panel
@@ -198,7 +198,7 @@ function render(): Panel {
 fn test_check_text_and_expression_tree_children() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -232,11 +232,11 @@ function render(title: string): Panel {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -273,7 +273,7 @@ function render(title: string): Panel {
 }
 
 === dir ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
 /// @type.symbol symbol=Panel type=typeof Panel
@@ -394,7 +394,7 @@ function render(title: string): Panel {
 fn test_reject_an_unknown_tree_tag() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -428,11 +428,11 @@ function render(): Panel {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -464,7 +464,7 @@ function render(): Panel {
 }
 
 === dir ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
 /// @type.symbol symbol=Panel type=typeof Panel
@@ -577,7 +577,7 @@ function render(): Panel {
 fn test_reject_an_unknown_tree_attribute() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -610,9 +610,9 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -644,7 +644,7 @@ function render(): Panel {
 }
 
 === dir ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
 /// @type.symbol symbol=Panel type=typeof Panel
@@ -755,7 +755,7 @@ function render(): Panel {
 fn test_require_a_missing_tree_attribute() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -789,11 +789,11 @@ function render(): Panel {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -825,7 +825,7 @@ function render(): Panel {
 }
 
 === dir ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
 /// @type.symbol symbol=Panel type=typeof Panel
@@ -938,7 +938,7 @@ function render(): Panel {
 fn test_reject_a_mismatched_tree_attribute_value() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -971,9 +971,9 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -1005,7 +1005,7 @@ function render(): Panel {
 }
 
 === dir ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
 /// @type.symbol symbol=Panel type=typeof Panel
@@ -1118,7 +1118,7 @@ function render(): Panel {
 fn test_spread_tree_attributes_into_the_declared_row() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -1153,11 +1153,11 @@ function render(): Panel {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -1190,7 +1190,7 @@ function render(): Panel {
 }
 
 === dir ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
 /// @type.symbol symbol=Panel type=typeof Panel
@@ -1309,7 +1309,7 @@ function render(): Panel {
 fn test_check_a_component_tree_tag_with_props() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -1347,11 +1347,11 @@ function render(): Panel {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -1387,7 +1387,7 @@ function render(): Panel {
 }
 
 === dir ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
 /// @type.symbol symbol=Panel type=typeof Panel
@@ -1513,7 +1513,7 @@ function render(): Panel {
 fn test_splat_spread_tree_children_from_a_tuple() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -1548,11 +1548,11 @@ function render(): Panel {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -1585,7 +1585,7 @@ function render(): Panel {
 }
 
 === dir ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
 /// @type.symbol symbol=Panel type=typeof Panel
@@ -1712,7 +1712,7 @@ function render(): Panel {
 fn test_reject_spread_tree_children_from_a_dynamic_array() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -1745,9 +1745,9 @@ function render(items: Panel[]): Panel {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -1779,7 +1779,7 @@ function render(items: Panel[]): Panel {
 }
 
 === dir ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
 /// @type.symbol symbol=Panel type=typeof Panel
@@ -1895,7 +1895,7 @@ function render(items: Panel[]): Panel {
 fn test_check_component_children_through_the_children_prop() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -1933,11 +1933,11 @@ function render(): Panel {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -1977,7 +1977,7 @@ function render(): Panel {
 }
 
 === dir ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
 /// @type.symbol symbol=Panel type=typeof Panel
@@ -2108,7 +2108,7 @@ function render(): Panel {
 fn test_reject_component_children_without_a_children_prop() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -2145,9 +2145,9 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -2187,7 +2187,7 @@ function render(): Panel {
 }
 
 === dir ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
 /// @type.symbol symbol=Panel type=typeof Panel
@@ -2314,7 +2314,7 @@ function render(): Panel {
 fn test_construct_a_class_component_through_its_constructor() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -2356,11 +2356,11 @@ function render(): Panel {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -2404,7 +2404,7 @@ function render(): Panel {
 }
 
 === dir ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
 /// @type.symbol symbol=Panel type=typeof Panel
@@ -2553,7 +2553,7 @@ function render(): Panel {
 fn test_construct_a_struct_component_through_its_field_form() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -2591,11 +2591,11 @@ function render(): Panel {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -2635,7 +2635,7 @@ function render(): Panel {
 }
 
 === dir ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
 /// @type.symbol symbol=Panel type=typeof Panel
@@ -2761,7 +2761,7 @@ function render(): Panel {
 fn test_require_a_missing_struct_component_field() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -2798,9 +2798,9 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -2840,7 +2840,7 @@ function render(): Panel {
 }
 
 === dir ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
 /// @type.symbol symbol=Panel type=typeof Panel
@@ -2968,15 +2968,15 @@ fn test_check_a_tree_literal_through_the_default_builder() {
 {
     "name": "test",
     "compiler": {
-        "tree": "panel.ds#Panel"
+        "tree": "panel.tspp#Panel"
     }
 }
 "#,
         )
         .module(
-            "panel.ds",
+            "panel.tspp",
             r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 export class Panel {
     label: string = "";
@@ -3002,9 +3002,9 @@ export extension of Panel implements TreeBuilder {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Panel } from "./panel.ds";
+import { Panel } from "./panel.tspp";
 
 function render(): Panel {
     const page = <span/>;
@@ -3015,11 +3015,11 @@ function render(): Panel {
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Panel } from "./panel.ds";
+import { Panel } from "./panel.tspp";
 
 function render(): Panel {
     const page: Panel = <span />;
@@ -3027,7 +3027,7 @@ function render(): Panel {
 }
 
 === dir ===
-import { Panel } from "./panel.ds";
+import { Panel } from "./panel.tspp";
 
 function render(): Panel {
 /// @type.symbol symbol=render type=() => panel.Panel
@@ -3055,7 +3055,7 @@ function render(): Panel {
 fn test_check_tree_elements_with_required_attributes() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -3095,11 +3095,11 @@ function render(): Panel {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         crate::tests::DirRows::checked(),
         r#"
 === annotated ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -3141,7 +3141,7 @@ function render(): Panel {
 }
 
 === dir ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
 /// @type.symbol symbol=Panel type=typeof Panel

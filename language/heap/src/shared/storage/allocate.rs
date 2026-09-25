@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_mir::TraceMap;
 use parking_lot::RwLock;
+use tspp_mir::TraceMap;
 
 use super::{
     AllocationCache, HeapPlace, HeapState, HeapStorage, LargeBlock, LargeBlockId, PageOwner,
@@ -11,7 +11,7 @@ use crate::{
     Allocation, DropPlan, HeapAllocationError, HeapError, HeapRepresentationError, HeapResult,
     Payload, SharedHeapReference, Slot, SmallAllocationClass, SmallSpanClass,
 };
-use destack_memory::MemoryRange;
+use tspp_memory::MemoryRange;
 
 impl HeapStorage {
     /// Allocate one shared heap block.

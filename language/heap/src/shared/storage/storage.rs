@@ -2,8 +2,8 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 
-use destack_memory::{MemoryMap, MemoryRange};
 use parking_lot::RwLock;
+use tspp_memory::{MemoryMap, MemoryRange};
 
 use super::{AllocationCache, HeapPlace, LargeBlock, PageOwner, SmallSpan};
 use crate::shared::gc::CollectorState;

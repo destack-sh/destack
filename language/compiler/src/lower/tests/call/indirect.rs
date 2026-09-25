@@ -20,7 +20,7 @@ function run(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.double",
         r#"
 function test.main.double(v0: int32): int32 {
@@ -36,7 +36,7 @@ entry(v0: int32):
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.apply", r#"
+    session.assert_mir_function("main.tspp", "test.main.apply", r#"
 function test.main.apply(v0: function<(int32) => int32, repeatable, managed, mutable, local>, v1: int32): int32 {
     local l0: function<(int32) => int32, repeatable, managed, mutable, local>
     local l1: int32
@@ -52,7 +52,7 @@ entry(v0: function<(int32) => int32, repeatable, managed, mutable, local>, v1: i
 }
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.run", r#"
+    session.assert_mir_function("main.tspp", "test.main.run", r#"
 function test.main.run(): int32 {
 entry:
     v0: ptr<void, readonly> = null

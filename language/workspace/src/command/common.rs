@@ -2,15 +2,15 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use destack_serde::{Reflect, Value, ValueError};
-use destack_session::{SessionEvent, SessionEventHandler};
 use futures::StreamExt;
 use futures::channel::mpsc::{Receiver, Sender, channel};
 use parking_lot::Mutex;
+use tspp_serde::{Reflect, Value, ValueError};
+use tspp_session::{SessionEvent, SessionEventHandler};
 
-use destack_repository::{Revision, Target, TraceView};
-use destack_source::{FileType, TargetId};
 use serde::{Deserialize, Serialize};
+use tspp_repository::{Revision, Target, TraceView};
+use tspp_source::{FileType, TargetId};
 
 use super::DEFAULT_PROGRESS_INTERVAL;
 
@@ -99,17 +99,17 @@ pub struct ManifestOverride {
 
 impl ManifestOverride {
     /// Convert this override into a repository manifest override.
-    pub fn to_repository(&self) -> Result<destack_repository::ManifestOverride, ValueError> {
-        Ok(destack_repository::ManifestOverride {
+    pub fn to_repository(&self) -> Result<tspp_repository::ManifestOverride, ValueError> {
+        Ok(tspp_repository::ManifestOverride {
             path: self.path.clone(),
             value: self.value.clone().into_json()?,
         })
     }
 }
 
-impl From<destack_repository::ManifestOverride> for ManifestOverride {
+impl From<tspp_repository::ManifestOverride> for ManifestOverride {
     /// Convert a repository manifest override into a command manifest override.
-    fn from(value: destack_repository::ManifestOverride) -> Self {
+    fn from(value: tspp_repository::ManifestOverride) -> Self {
         Self {
             path: value.path,
             value: Value::from(value.value),

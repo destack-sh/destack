@@ -1,0 +1,13 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / polymorphism / access overloads
+declare function process(user: User): "managed";
+//      ^^^^^^^^ keyword.declaration.function.tspp
+declare function process(user: &readonly User): "readonly";
+declare function process(user: &User): "mutable";
+declare function process(user: &exclusive User): "exclusive";
+
+// memory / polymorphism / dispatch by access
+const kind = process(&readonly user);
+// <- keyword.declaration.variable.tspp
+//           ^^^^^^^ entity.name.function.call.tspp

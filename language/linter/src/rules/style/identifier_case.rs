@@ -1,6 +1,6 @@
-use destack_core::FxIndexSet;
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -379,7 +379,7 @@ function load(): void {
         session.assert_diagnostics(
             r#"
 warning[identifier-case]: value name `User_name` must use camelCase
- ──▶ main.ds:2:11
+ ──▶ main.tspp:2:11
   │
 1 │ function load(): void {
 2 │     const User_name = "Ada";
@@ -422,7 +422,7 @@ OuterLoop: loop {
         session.assert_diagnostics(
             r#"
 warning[identifier-case]: label name `OuterLoop` must use camelCase
- ──▶ main.ds:1:1
+ ──▶ main.tspp:1:1
   │
 1 │ OuterLoop: loop {
   │ ^^^^^^^^^
@@ -474,15 +474,15 @@ function toJSON(value: GPUBuffer): string {
     fn test_accepts_namespace_aliases() {
         let session = TestSession::dir_files(
             &IDENTIFIER_CASE,
-            "main.ds",
+            "main.tspp",
             r#"
-export * as Now from "./now.ds";
+export * as Now from "./now.tspp";
 
-export * as utilities from "./utilities.ds";
+export * as utilities from "./utilities.tspp";
 "#,
             &[
-                ("now.ds", "export const instant = 1;"),
-                ("utilities.ds", "export const value = 1;"),
+                ("now.tspp", "export const instant = 1;"),
+                ("utilities.tspp", "export const value = 1;"),
             ],
         );
 
@@ -535,7 +535,7 @@ function load(): void {
         session.assert_diagnostics(
             r#"
 warning[identifier-case]: value name `DEFAULT_LIMIT` must use camelCase
- ──▶ main.ds:1:14
+ ──▶ main.tspp:1:14
   │
 1 │ export const DEFAULT_LIMIT = 64;
   │              ^^^^^^^^^^^^^
@@ -544,7 +544,7 @@ warning[identifier-case]: value name `DEFAULT_LIMIT` must use camelCase
   │
 
 warning[identifier-case]: value name `MAX_SIZE` must use camelCase
- ──▶ main.ds:4:21
+ ──▶ main.tspp:4:21
   │
 2 │
 3 │ struct Limits {
@@ -555,7 +555,7 @@ warning[identifier-case]: value name `MAX_SIZE` must use camelCase
   │
 
 warning[identifier-case]: value name `LOCAL_LIMIT` must use camelCase
- ──▶ main.ds:8:11
+ ──▶ main.tspp:8:11
   │
 6 │
 7 │ function load(): void {
@@ -655,7 +655,7 @@ extension of Value implements ForeignProtocol {}
         session.assert_diagnostics(
             r#"
 warning[identifier-case]: value name `snake_name` must use camelCase
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ newtype interface ForeignProtocol {
 2 │     snake_name(): void {}
@@ -682,7 +682,7 @@ struct Box<value_type> {
         session.assert_diagnostics(
             r#"
 warning[identifier-case]: type name `value_type` must use PascalCase
- ──▶ main.ds:1:12
+ ──▶ main.tspp:1:12
   │
 1 │ struct Box<value_type> {
   │            ^^^^^^^^^^
@@ -708,7 +708,7 @@ enum Mode {
         session.assert_diagnostics(
             r#"
 warning[identifier-case]: type name `read_only` must use PascalCase
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ enum Mode {
 2 │     read_only = 1,
@@ -734,7 +734,7 @@ struct User {
         session.assert_diagnostics(
             r#"
 warning[identifier-case]: value name `display_name` must use camelCase
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ struct User {
 2 │     display_name: string;
@@ -760,7 +760,7 @@ export { load as Load };
         session.assert_diagnostics(
             r#"
 warning[identifier-case]: value name `Load` must use camelCase
- ──▶ main.ds:3:18
+ ──▶ main.tspp:3:18
   │
 1 │ function load(): void {}
 2 │

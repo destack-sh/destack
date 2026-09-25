@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -179,7 +179,7 @@ function firstPair(values: int32[]): int32 | undefined {
         session.assert_diagnostics(
             r#"
 warning[prefer-slice-pattern]: length guard precedes fixed sequence indexing
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function firstPair(values: int32[]): int32 | undefined {
 2 │     if (values.length >= 2) {
@@ -229,7 +229,7 @@ function firstPair(values: int32[]): int32 | undefined {
         session.assert_diagnostics(
             r#"
 warning[prefer-slice-pattern]: length guard precedes fixed sequence indexing
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function firstPair(values: int32[]): int32 | undefined {
 2 │     if (2 === values.length) {

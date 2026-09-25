@@ -1,5 +1,5 @@
-use destack_dir::{GlobalSymbolId, ReferenceTarget};
-use destack_source::{
+use tspp_dir::{GlobalSymbolId, ReferenceTarget};
+use tspp_source::{
     Diagnostic, DiagnosticHelp, DiagnosticNote, DiagnosticSuggestion, DiagnosticTag,
 };
 

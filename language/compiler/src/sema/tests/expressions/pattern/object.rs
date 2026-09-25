@@ -15,7 +15,7 @@ y satisfies string;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -70,7 +70,7 @@ let { x }: { x: int32 } = source;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -112,7 +112,7 @@ let { value } = 1;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -149,7 +149,7 @@ const result = match (state) {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 type State = { inner: { kind: "a"; value: int32 } } | { inner: { kind: "b"; flag: boolean } };
 
@@ -237,7 +237,7 @@ const result = match (state) {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Pending {
     kind: "pending";
@@ -358,7 +358,7 @@ const result = match (frame) {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Header {
     version: 1;
@@ -487,7 +487,7 @@ const result = match (envelope) {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Alpha {
     kind: "a" = "a";
@@ -643,7 +643,7 @@ const result = match (state) {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Pending {
     kind: "pending";

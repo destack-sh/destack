@@ -1,0 +1,22 @@
+// SYNTAX TEST "source.tspp"
+
+// declarations / modules / imports and exports
+import { User as ImportedUser } from "./user.tspp" with { mode: "static" };
+// <- keyword.declaration.import.tspp
+
+export default function run(): void {}
+// <- keyword.declaration.import.tspp
+
+export { ImportedUser as User };
+// <- keyword.declaration.import.tspp
+
+// declarations / modules / metadata and globals
+module {
+// <- keyword.declaration.type.tspp
+    const enabled = true;
+}
+
+global {
+// <- keyword.declaration.type.tspp
+    const process: Process;
+}

@@ -1,4 +1,4 @@
-use destack_mir as mir;
+use tspp_mir as mir;
 
 /// Body of one generated MIR destructor.
 pub(super) struct DestructorBody<'a, 'b> {

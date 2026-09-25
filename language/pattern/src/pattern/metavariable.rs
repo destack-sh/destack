@@ -1,6 +1,6 @@
-use destack_core::{Arena, StringId};
-use destack_dir as dir;
-use destack_source::{NodeSpanType, Span};
+use tspp_core::{Arena, StringId};
+use tspp_dir as dir;
+use tspp_source::{NodeSpanType, Span};
 
 /// The index of a metavariable in a pattern.
 #[repr(transparent)]

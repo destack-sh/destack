@@ -1,7 +1,7 @@
 use std::fmt::{self, Display, Formatter};
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// One named trace event with ordered fields.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]

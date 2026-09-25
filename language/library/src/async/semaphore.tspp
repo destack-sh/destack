@@ -1,0 +1,68 @@
+import { todo } from "tspp:error";
+import { Copy, Dispose } from "tspp:memory";
+import { Atomic } from "tspp:sync";
+
+import { Task } from "./task.tspp";
+
+/// Asynchronous counting semaphore.
+@languageItem("async.AsyncSemaphore")
+export class AsyncSemaphore {
+    /// The available permit count.
+    private state: Atomic<isize>;
+
+    /// Create an async semaphore with `permits` available permits.
+    constructor(permits: usize) {
+        this.state = Atomic.new(permits.truncate<isize>());
+    }
+
+    /// Return the number of immediately available permits.
+    get availablePermits(&readonly this): usize {
+        todo("AsyncSemaphore.availablePermits")
+    }
+
+    /// Acquire one permit by suspending the current task if needed.
+    acquire(): Task<AsyncSemaphorePermit> {
+        todo("AsyncSemaphore.acquire")
+    }
+
+    /// Try to acquire one permit without suspending.
+    tryAcquire(): AsyncSemaphorePermit | undefined {
+        todo("AsyncSemaphore.tryAcquire")
+    }
+
+    /// Acquire `count` permits by suspending the current task if needed.
+    acquireMany(count: usize): Task<AsyncSemaphorePermit> {
+        todo("AsyncSemaphore.acquireMany")
+    }
+
+    /// Try to acquire `count` permits without suspending.
+    tryAcquireMany(count: usize): AsyncSemaphorePermit | undefined {
+        todo("AsyncSemaphore.tryAcquireMany")
+    }
+
+    /// Release `count` permits.
+    release(count: usize = 1): void {
+        todo("AsyncSemaphore.release");
+    }
+}
+
+/// Active async semaphore permit.
+export struct AsyncSemaphorePermit implements !SharedSafe {
+    /// The semaphore that issued this permit.
+    private semaphore: AsyncSemaphore;
+
+    /// The number of acquired permits.
+    private count: usize;
+}
+
+export extension of AsyncSemaphorePermit implements Dispose, !Copy {
+    /// Release this permit.
+    dispose(this): void {
+        todo("AsyncSemaphorePermit.dispose");
+    }
+
+    /// Consume this permit without releasing it.
+    forget(this): void {
+        todo("AsyncSemaphorePermit.forget");
+    }
+}

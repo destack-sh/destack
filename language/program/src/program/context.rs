@@ -1,6 +1,6 @@
-use destack_heap::HeapReference;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_heap::HeapReference;
+use tspp_serde::Reflect;
 
 /// One immutable dynamically scoped execution context.
 #[repr(transparent)]

@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_repository::{Package, Revision};
-use destack_source::Edit;
+use tspp_repository::{Package, Revision};
+use tspp_source::Edit;
 
 use crate::Error;
 use crate::file::normalize_path;

@@ -14,7 +14,7 @@ function max(a: int32, b: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.max",
         r#"
 function test.main.max(v0: int32, v1: int32): int32 {
@@ -56,7 +56,7 @@ function pick(flag: boolean, a: int32, b: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.pick",
         r#"
 function test.main.pick(v0: boolean, v1: int32, v2: int32): int32 {
@@ -97,7 +97,7 @@ function clamp(value: float32, limit: float32): float32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.clamp",
         r#"
 function test.main.clamp(v0: float32, v1: float32): float32 {
@@ -144,7 +144,7 @@ function clamp(count: isize): isize {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.clamp",
         r#"
 function test.main.clamp(v0: isize): isize {
@@ -192,7 +192,7 @@ function checked(count: isize): isize {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.checked",
         r#"
 function test.main.checked(v0: isize): isize {
@@ -239,7 +239,7 @@ function pick(flag: boolean): isize {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.pick",
         r#"
 function test.main.pick(v0: boolean): isize {

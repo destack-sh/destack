@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, NodeSpanRegion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, NodeSpanRegion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -157,7 +157,7 @@ function classify(value: int32): string {
         session.assert_diagnostics(
             r#"
 warning[no-redundant-match-guard]: equality guard can be expressed by the pattern
- ──▶ main.ds:3:21
+ ──▶ main.tspp:3:21
   │
 1 │ function classify(value: int32): string {
 2 │     return match (value) {
@@ -168,8 +168,8 @@ warning[no-redundant-match-guard]: equality guard can be expressed by the patter
   │
 
  = fix: match the literal directly
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     2│     return match (value) {
 -   3│         matched if (1 === matched) => "one"

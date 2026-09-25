@@ -5,7 +5,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_register_suites_and_matchers_through_the_test_api() {
     let session = TestSession::single(
         r#"
-import { beforeEach, describe, expect, test } from "destack:test";
+import { beforeEach, describe, expect, test } from "tspp:test";
 
 describe("arithmetic", () => {
     beforeEach(() => {});
@@ -24,11 +24,11 @@ describe("arithmetic", () => {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
-import { beforeEach, describe, expect, test } from "destack:test";
+import { beforeEach, describe, expect, test } from "tspp:test";
 
 describe("arithmetic", ((): void => {
     beforeEach((): BodyResult => {});
@@ -52,7 +52,7 @@ describe("arithmetic", ((): void => {
 }) as SuiteBody | undefined);
 
 === dir ===
-import { beforeEach, describe, expect, test } from "destack:test";
+import { beforeEach, describe, expect, test } from "tspp:test";
 
 describe("arithmetic", () => {
     beforeEach(() => {});

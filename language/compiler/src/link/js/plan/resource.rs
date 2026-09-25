@@ -1,12 +1,12 @@
 use crate::emit::js;
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
-use destack_artifact::{Data, DirBound, Script};
-use destack_core::StringPool;
-use destack_dir as dir;
-use destack_repository::Module;
-use destack_serde::Value;
-use destack_source::{Loader, ModuleId};
+use tspp_artifact::{Data, DirBound, Script};
+use tspp_core::StringPool;
+use tspp_dir as dir;
+use tspp_repository::Module;
+use tspp_serde::Value;
+use tspp_source::{Loader, ModuleId};
 
 use crate::link::TargetLocation;
 use crate::{LinkError, LinkResult};

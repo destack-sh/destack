@@ -1,7 +1,7 @@
 use std::ffi::OsString;
 use std::path::{Component, Path, PathBuf};
 
-use destack_source::PathExt;
+use tspp_source::PathExt;
 
 use crate::{QueryError, QueryResult};
 
@@ -83,7 +83,7 @@ pub(crate) fn path_text(path: &Path) -> QueryResult<String> {
 
 /// Remove one supported code module extension.
 pub(crate) fn strip_module_extension(path: &str) -> String {
-    for extension in [".d.ds", ".ds"] {
+    for extension in [".d.tspp", ".tspp"] {
         if let Some(stripped) = path.strip_suffix(extension) {
             return stripped.to_string();
         }

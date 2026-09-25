@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -102,7 +102,7 @@ function same(left: float64, right: float64): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-floating-point-equality]: floating-point values are compared exactly
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function same(left: float64, right: float64): boolean {
 2 │     return left === right;
@@ -141,7 +141,7 @@ function classify(value: float64): boolean {
         let session = TestSession::dir(
             &NO_FLOATING_POINT_EQUALITY,
             r#"
-import { PartialEqual } from "destack:ops";
+import { PartialEqual } from "tspp:ops";
 
 struct Measure {
     value: float64;

@@ -4,27 +4,27 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, OnceLock};
 use std::time::Instant;
 
-use destack_artifact::ArtifactCache;
-use destack_lsp_server::{Client, LanguageServer, LogRecord, LspService, Server, UriExt, jsonrpc};
-use destack_lsp_types as lsp;
-use destack_query as query;
-use destack_repository::{
+use serde_json::to_value;
+use tspp_artifact::ArtifactCache;
+use tspp_lsp_server::{Client, LanguageServer, LogRecord, LspService, Server, UriExt, jsonrpc};
+use tspp_lsp_types as lsp;
+use tspp_query as query;
+use tspp_repository::{
     Clock, DestackLayout, Environment, Execution, Host, Revision, Settings, Trace, TraceLevel,
     TraceReport, TraceSnapshot, TraceView,
 };
-use destack_session::{
+use tspp_session::{
     ArtifactPriority, ArtifactRunEvent, Executor, SessionEvent, SessionEventHandler,
 };
-use destack_source::{FileId, FileSystem, PatchSet, PhysicalFileSystem, TextRange};
-use destack_workspace::{
+use tspp_source::{FileId, FileSystem, PatchSet, PhysicalFileSystem, TextRange};
+use tspp_workspace::{
     DiagnosticOutcome, DiagnosticRun, FileEdit, QueryFile, QueryRun, RevisionPolicy, RunQueryInput,
     RunQueryResponse, Workspace,
 };
-use serde_json::to_value;
 
 use super::{
-    ClientCapabilities, DESTACK_URI_SCHEME, ProjectId, ServerSession, ServerSettings,
-    internal_error, workspace_error,
+    ClientCapabilities, ProjectId, ServerSession, ServerSettings, TSPP_URI_SCHEME, internal_error,
+    workspace_error,
 };
 use crate::query::{
     CodeActionContext, DiagnosticDelivery, DiagnosticPublisher, Document, DocumentSet, IntoLsp,
@@ -37,9 +37,9 @@ const TRACE_SLOW_ATTEMPTS: usize = 12;
 /// Files tracked by the language server.
 const TRACKED_FILE_GLOBS: [&str; 1] = ["**/*"];
 
-/// The Destack language server.
+/// The TS++ language server.
 #[derive(Debug)]
-pub struct DestackLanguageServer {
+pub struct TsppLanguageServer {
     /// The client connection.
     pub(super) client: Client,
     /// Host capabilities shared by every project.
@@ -51,7 +51,7 @@ pub struct DestackLanguageServer {
 }
 
 #[allow(clippy::too_many_arguments)]
-impl DestackLanguageServer {
+impl TsppLanguageServer {
     /// Create a new language server instance.
     pub fn new(client: Client, host: Host, executor: Arc<Executor>) -> Self {
         Self {
@@ -172,7 +172,7 @@ impl DestackLanguageServer {
 
     /// Return whether one URI identifies server-owned Builtin Package source.
     fn is_builtin_uri(uri: &lsp::Uri) -> bool {
-        uri.scheme().as_str() == DESTACK_URI_SCHEME
+        uri.scheme().as_str() == TSPP_URI_SCHEME
     }
 
     /// Format one LSP document or selected text range.
@@ -402,7 +402,7 @@ impl DestackLanguageServer {
         let options = lsp::DidChangeWatchedFilesRegistrationOptions { watchers };
         let register_options = Some(to_value(options).map_err(internal_error)?);
         let registration = lsp::Registration {
-            id: "destack.watch".to_string(),
+            id: "tspp.watch".to_string(),
             method: "workspace/didChangeWatchedFiles".to_string(),
             register_options,
         };
@@ -899,7 +899,7 @@ impl DestackLanguageServer {
 // LIFECYCLE
 // ----------------------------------------------------------------------------
 
-impl LanguageServer for DestackLanguageServer {
+impl LanguageServer for TsppLanguageServer {
     async fn initialize(
         &self,
         params: lsp::InitializeParams,
@@ -1043,7 +1043,7 @@ impl LanguageServer for DestackLanguageServer {
             ),
             diagnostic_provider: supports_pull_diagnostics.then_some(
                 lsp::DiagnosticServerCapabilities::Options(lsp::DiagnosticOptions {
-                    identifier: Some("destack".to_string()),
+                    identifier: Some("tspp".to_string()),
                     inter_file_dependencies: true,
                     workspace_diagnostics: true,
                     markup_message_support: None,
@@ -1086,7 +1086,7 @@ impl LanguageServer for DestackLanguageServer {
             call_hierarchy_provider: Some(lsp::CallHierarchyServerCapability::Simple(true)),
             type_hierarchy_provider: Some(lsp::OneOf::Left(true)),
             execute_command_provider: Some(lsp::ExecuteCommandOptions {
-                commands: vec!["destack.reload".to_string()],
+                commands: vec!["tspp.reload".to_string()],
                 work_done_progress_options: Default::default(),
             }),
             workspace: Some(lsp::WorkspaceServerCapabilities {
@@ -1109,7 +1109,7 @@ impl LanguageServer for DestackLanguageServer {
                     will_delete: None,
                 }),
                 text_document_content: Some(lsp::TextDocumentContentOptions {
-                    schemes: vec![DESTACK_URI_SCHEME.to_string()],
+                    schemes: vec![TSPP_URI_SCHEME.to_string()],
                 }),
             }),
             ..Default::default()
@@ -1118,7 +1118,7 @@ impl LanguageServer for DestackLanguageServer {
         Ok(lsp::InitializeResult {
             capabilities,
             server_info: Some(lsp::ServerInfo {
-                name: "destack".to_string(),
+                name: "tspp".to_string(),
                 version: Some(env!("CARGO_PKG_VERSION").to_string()),
             }),
             offset_encoding: None,
@@ -1550,7 +1550,7 @@ impl LanguageServer for DestackLanguageServer {
         params: lsp::ExecuteCommandParams,
     ) -> jsonrpc::Result<Option<lsp::LSPAny>> {
         match params.command.as_str() {
-            "destack.reload" => {
+            "tspp.reload" => {
                 self.reload_workspace()?;
                 self.prime_workspaces()?;
                 self.schedule_workspace_diagnostics()?;

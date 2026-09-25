@@ -1,8 +1,8 @@
 use std::fmt;
 use std::str::FromStr;
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// Binary arithmetic/logic operator.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]

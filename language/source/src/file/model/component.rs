@@ -1,10 +1,10 @@
-use destack_core::StableHasher;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::StableHasher;
+use tspp_serde::Reflect;
 
 use crate::{ModuleId, ProfileId};
 
-const COMPONENT_DOMAIN: &[u8] = b"destack.source.component.v1";
+const COMPONENT_DOMAIN: &[u8] = b"tspp.source.component.v1";
 
 /// Stable identifier for one source component.
 #[repr(transparent)]

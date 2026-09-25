@@ -1,6 +1,6 @@
 use std::num::NonZeroU32;
 
-use destack_source::{File, FileType};
+use tspp_source::{File, FileType};
 
 use crate::format::{
     Allocator, ConditionalGroup, FitsExpanded, FitsExpandedIndex, FitsExpandedState, FormatOptions,
@@ -136,7 +136,7 @@ impl SimpleFormatContext {
     pub fn empty_destack() -> Self {
         Self {
             options: SimpleFormatOptions::default(),
-            file: File::empty_text(FileType::Destack),
+            file: File::empty_text(FileType::Tspp),
         }
     }
 }

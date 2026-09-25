@@ -5,7 +5,7 @@
 
 Highlights distinguish writes from reads of one local symbol.
 
-```ds main.ds
+```tspp main.tspp
 let foo = 1;
     ^^^ occurrence:definition
 
@@ -16,30 +16,30 @@ const bar = foo + foo;
                   ^^^ occurrence:second
 ```
 
-```query highlight main.ds#occurrence:definition
-@highlight.range range=main.ds#occurrence:definition kind=write
-@highlight.range range=main.ds#occurrence:write kind=write
-@highlight.range range=main.ds#occurrence:first kind=read
-@highlight.range range=main.ds#occurrence:second kind=read
+```query highlight main.tspp#occurrence:definition
+@highlight.range range=main.tspp#occurrence:definition kind=write
+@highlight.range range=main.tspp#occurrence:write kind=write
+@highlight.range range=main.tspp#occurrence:first kind=read
+@highlight.range range=main.tspp#occurrence:second kind=read
 ```
 
 ### Highlight current references
 
 Highlights include the current declaration and references.
 
-```ds main.ds
+```tspp main.tspp
 const value = 1;
       ^^^^^ occurrence:definition
 const first = value;
               ^^^^^ occurrence:first
 ```
 
-```query highlight main.ds#occurrence:first
-@highlight.range range=main.ds#occurrence:definition kind=write
-@highlight.range range=main.ds#occurrence:first kind=read
+```query highlight main.tspp#occurrence:first
+@highlight.range range=main.tspp#occurrence:definition kind=write
+@highlight.range range=main.tspp#occurrence:first kind=read
 ```
 
-```ds main.ds change
+```tspp main.tspp change
 const value = 1;
       ^^^^^ occurrence:definition
 const first = value;
@@ -48,10 +48,10 @@ const second = value;
                ^^^^^ occurrence:second
 ```
 
-```query highlight main.ds#occurrence:first
-@highlight.range range=main.ds#occurrence:definition kind=write
-@highlight.range range=main.ds#occurrence:first kind=read
-@highlight.range range=main.ds#occurrence:second kind=read
+```query highlight main.tspp#occurrence:first
+@highlight.range range=main.tspp#occurrence:definition kind=write
+@highlight.range range=main.tspp#occurrence:first kind=read
+@highlight.range range=main.tspp#occurrence:second kind=read
 ```
 
 ## Functions
@@ -60,7 +60,7 @@ const second = value;
 
 A function includes its declaration and every call.
 
-```ds main.ds
+```tspp main.tspp
 function add(x: int32, y: int32): int32 {
          ^^^ occurrence:definition
     return x + y;
@@ -71,10 +71,10 @@ const result = add(1, 2) + add(3, 4);
                            ^^^ occurrence:second
 ```
 
-```query highlight main.ds#occurrence:first
-@highlight.range range=main.ds#occurrence:definition kind=text
-@highlight.range range=main.ds#occurrence:first kind=text
-@highlight.range range=main.ds#occurrence:second kind=text
+```query highlight main.tspp#occurrence:first
+@highlight.range range=main.tspp#occurrence:definition kind=text
+@highlight.range range=main.tspp#occurrence:first kind=text
+@highlight.range range=main.tspp#occurrence:second kind=text
 ```
 
 ## Parameters
@@ -83,7 +83,7 @@ const result = add(1, 2) + add(3, 4);
 
 A parameter includes its declaration and references.
 
-```ds main.ds
+```tspp main.tspp
 function greet(name: string): string {
                ^^^^ occurrence:definition
     return name;
@@ -91,9 +91,9 @@ function greet(name: string): string {
 }
 ```
 
-```query highlight main.ds#occurrence:reference
-@highlight.range range=main.ds#occurrence:definition kind=write
-@highlight.range range=main.ds#occurrence:reference kind=read
+```query highlight main.tspp#occurrence:reference
+@highlight.range range=main.tspp#occurrence:definition kind=write
+@highlight.range range=main.tspp#occurrence:reference kind=read
 ```
 
 ## Struct Fields
@@ -102,7 +102,7 @@ function greet(name: string): string {
 
 A field includes its declaration and every access.
 
-```ds main.ds
+```tspp main.tspp
 struct Point {
     x: int32;
     ^ occurrence:definition
@@ -118,11 +118,11 @@ function main(point: Point) {
 }
 ```
 
-```query highlight main.ds#occurrence:first
-@highlight.range range=main.ds#occurrence:definition kind=text
-@highlight.range range=main.ds#occurrence:first kind=read
-@highlight.range range=main.ds#occurrence:second kind=read
-@highlight.range range=main.ds#occurrence:third kind=read
+```query highlight main.tspp#occurrence:first
+@highlight.range range=main.tspp#occurrence:definition kind=text
+@highlight.range range=main.tspp#occurrence:first kind=read
+@highlight.range range=main.tspp#occurrence:second kind=read
+@highlight.range range=main.tspp#occurrence:third kind=read
 ```
 
 ## Shadowing
@@ -131,7 +131,7 @@ function main(point: Point) {
 
 Shadowed bindings remain separate symbols.
 
-```ds main.ds
+```tspp main.tspp
 const value = 1;
       ^^^^^ occurrence:outer
 
@@ -143,9 +143,9 @@ function read(): int32 {
 }
 ```
 
-```query highlight main.ds#occurrence:inner_definition
-@highlight.range range=main.ds#occurrence:inner_definition kind=write
-@highlight.range range=main.ds#occurrence:inner_reference kind=read
+```query highlight main.tspp#occurrence:inner_definition
+@highlight.range range=main.tspp#occurrence:inner_definition kind=write
+@highlight.range range=main.tspp#occurrence:inner_reference kind=read
 ```
 
 ## Methods
@@ -154,7 +154,7 @@ function read(): int32 {
 
 A method includes its declaration and calls.
 
-```ds main.ds
+```tspp main.tspp
 class Service {
     run(): void {}
     ^^^ occurrence:definition
@@ -168,17 +168,17 @@ function start(service: Service): void {
 }
 ```
 
-```query highlight main.ds#occurrence:first
-@highlight.range range=main.ds#occurrence:definition kind=text
-@highlight.range range=main.ds#occurrence:first kind=text
-@highlight.range range=main.ds#occurrence:second kind=text
+```query highlight main.tspp#occurrence:first
+@highlight.range range=main.tspp#occurrence:definition kind=text
+@highlight.range range=main.tspp#occurrence:first kind=text
+@highlight.range range=main.tspp#occurrence:second kind=text
 ```
 
 ### Highlight every method reached through a union
 
 A union member access combines the local occurrences of every reachable method.
 
-```ds main.ds
+```tspp main.tspp
 class Alpha {
     run(): void {}
     ^^^ occurrence:alpha_definition
@@ -195,10 +195,10 @@ function start(service: Alpha | Beta): void {
 }
 ```
 
-```query highlight main.ds#occurrence:reference
-@highlight.range range=main.ds#occurrence:alpha_definition kind=text
-@highlight.range range=main.ds#occurrence:beta_definition kind=text
-@highlight.range range=main.ds#occurrence:reference kind=text
+```query highlight main.tspp#occurrence:reference
+@highlight.range range=main.tspp#occurrence:alpha_definition kind=text
+@highlight.range range=main.tspp#occurrence:beta_definition kind=text
+@highlight.range range=main.tspp#occurrence:reference kind=text
 ```
 
 ## Enum Members
@@ -207,7 +207,7 @@ function start(service: Alpha | Beta): void {
 
 An enum member includes its declaration and accesses.
 
-```ds main.ds
+```tspp main.tspp
 enum Color {
     Red,
     ^^^ occurrence:definition
@@ -219,10 +219,10 @@ const second = Color.Red;
                      ^^^ occurrence:second
 ```
 
-```query highlight main.ds#occurrence:first
-@highlight.range range=main.ds#occurrence:definition kind=text
-@highlight.range range=main.ds#occurrence:first kind=text
-@highlight.range range=main.ds#occurrence:second kind=text
+```query highlight main.tspp#occurrence:first
+@highlight.range range=main.tspp#occurrence:definition kind=text
+@highlight.range range=main.tspp#occurrence:first kind=text
+@highlight.range range=main.tspp#occurrence:second kind=text
 ```
 
 ## Import Aliases
@@ -231,12 +231,12 @@ const second = Color.Red;
 
 An explicit local alias remains separate from its exported symbol.
 
-```ds library.ds
+```tspp library.tspp
 export function greet(): void {}
 ```
 
-```ds main.ds
-import { greet as welcome } from "./library.ds";
+```tspp main.tspp
+import { greet as welcome } from "./library.tspp";
                   ^^^^^^^ occurrence:definition
 
 welcome();
@@ -245,10 +245,10 @@ welcome();
 ^^^^^^^ occurrence:second
 ```
 
-```query highlight main.ds#occurrence:first
-@highlight.range range=main.ds#occurrence:definition kind=write
-@highlight.range range=main.ds#occurrence:first kind=read
-@highlight.range range=main.ds#occurrence:second kind=read
+```query highlight main.tspp#occurrence:first
+@highlight.range range=main.tspp#occurrence:definition kind=write
+@highlight.range range=main.tspp#occurrence:first kind=read
+@highlight.range range=main.tspp#occurrence:second kind=read
 ```
 
 ## Nominal Types
@@ -257,7 +257,7 @@ welcome();
 
 Type declarations and references are textual occurrences rather than value reads or writes.
 
-```ds main.ds
+```tspp main.tspp
 class User {}
       ^^^^ occurrence:definition
 
@@ -267,10 +267,10 @@ const created = new User();
                     ^^^^ occurrence:construction_reference
 ```
 
-```query highlight main.ds#occurrence:type_reference
-@highlight.range range=main.ds#occurrence:definition kind=text
-@highlight.range range=main.ds#occurrence:type_reference kind=text
-@highlight.range range=main.ds#occurrence:construction_reference kind=text
+```query highlight main.tspp#occurrence:type_reference
+@highlight.range range=main.tspp#occurrence:definition kind=text
+@highlight.range range=main.tspp#occurrence:type_reference kind=text
+@highlight.range range=main.tspp#occurrence:construction_reference kind=text
 ```
 
 ## Labels
@@ -279,7 +279,7 @@ const created = new User();
 
 A label declaration and its targeted breaks share one identity.
 
-```ds main.ds
+```tspp main.tspp
 function choose(): int32 {
     outer: loop {
     ^^^^^ occurrence:definition
@@ -289,9 +289,9 @@ function choose(): int32 {
 }
 ```
 
-```query highlight main.ds#occurrence:reference
-@highlight.range range=main.ds#occurrence:definition kind=text
-@highlight.range range=main.ds#occurrence:reference kind=text
+```query highlight main.tspp#occurrence:reference
+@highlight.range range=main.tspp#occurrence:definition kind=text
+@highlight.range range=main.tspp#occurrence:reference kind=text
 ```
 
 ## Empty Results
@@ -300,11 +300,11 @@ function choose(): int32 {
 
 A literal has no symbol occurrences.
 
-```ds main.ds
+```tspp main.tspp
 const value = 42;
               ^^ literal
 ```
 
-```query highlight main.ds#literal
+```query highlight main.tspp#literal
 @highlight.none
 ```

@@ -1,6 +1,6 @@
-use destack_dir as dir;
 use dir::NodeVisitor as _;
 use smallvec::SmallVec;
+use tspp_dir as dir;
 
 use crate::CompilerResult;
 use crate::sema::{BoundSide, CheckState, Origin, Value, VariableKind};

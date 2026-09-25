@@ -1,13 +1,13 @@
 use std::fmt;
 use std::hash::{Hash, Hasher};
 
-use destack_core::{BlobId, StableHasher};
-use destack_dir::GlobalSymbolId;
-use destack_mir::Symbol;
-use destack_serde as serde;
-use destack_serde::Reflect;
-use destack_source::{FileId, ModuleId, PackageId};
 use siphasher::sip128::Hasher128;
+use tspp_core::{BlobId, StableHasher};
+use tspp_dir::GlobalSymbolId;
+use tspp_mir::Symbol;
+use tspp_serde as serde;
+use tspp_serde::Reflect;
+use tspp_source::{FileId, ModuleId, PackageId};
 
 use crate::{ArtifactKey, ArtifactVersion};
 
@@ -28,7 +28,7 @@ impl ModuleSetFingerprint {
         modules.dedup();
 
         let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(b"destack.artifact.modules.v1");
+        hasher.update_len_prefixed(b"tspp.artifact.modules.v1");
         modules.hash(&mut hasher);
 
         Self(hasher.finish_u128())
@@ -50,7 +50,7 @@ impl PackageSetFingerprint {
         packages.dedup();
 
         let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(b"destack.artifact.packages.v1");
+        hasher.update_len_prefixed(b"tspp.artifact.packages.v1");
         packages.hash(&mut hasher);
 
         Self(hasher.finish_u128())
@@ -123,7 +123,7 @@ impl ArtifactProjectionFingerprint {
     pub fn new<T: Hash + ?Sized>(value: &T) -> Self {
         let mut hasher = StableHasher::new();
 
-        hasher.update_len_prefixed(b"destack.artifact.projection.v1");
+        hasher.update_len_prefixed(b"tspp.artifact.projection.v1");
         value.hash(&mut hasher);
 
         Self(hasher.finish_u128())
@@ -133,7 +133,7 @@ impl ArtifactProjectionFingerprint {
     pub fn from_serialized_payload<T: Serialize>(value: &T) -> Result<Self, serde::Error> {
         // stream the canonical encoding straight into the hasher
         let mut hasher = siphasher::sip128::SipHasher13::new();
-        Hasher::write(&mut hasher, b"destack.artifact.projection.payload.v2");
+        Hasher::write(&mut hasher, b"tspp.artifact.projection.payload.v2");
         serde::hash_into(value, &mut hasher)?;
         let hash = hasher.finish128();
 
@@ -276,7 +276,7 @@ impl SourceDependency {
     /// Build one module path probe dependency.
     pub fn module_path(file: FileId, module: Option<ModuleId>) -> Self {
         let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(b"destack.artifact.module-path.v1");
+        hasher.update_len_prefixed(b"tspp.artifact.module-path.v1");
         module.hash(&mut hasher);
 
         Self::ModulePath {

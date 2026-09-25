@@ -1,5 +1,5 @@
-use destack_core::{StringId, StringPool};
-use destack_source::ModuleId;
+use tspp_core::{StringId, StringPool};
+use tspp_source::ModuleId;
 
 use crate::{
     Function, FunctionKind, FunctionParameter, GenericArgument, GenericParameter, Lifetime,

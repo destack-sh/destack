@@ -1,7 +1,7 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
-use destack_core::{FloatFormat, roundtrip_float};
+use tspp_core::{FloatFormat, roundtrip_float};
 
 use crate::{LanguageItem, Literal, Ownership, RangeType, ScalarDomain, StringId};
 

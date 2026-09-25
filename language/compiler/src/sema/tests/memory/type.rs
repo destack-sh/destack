@@ -20,7 +20,7 @@ exclusiveBorrow satisfies Borrowed<Cell, "static", "mutable">;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -106,7 +106,7 @@ borrow satisfies Borrowed<Cell, "static", "readonly">;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

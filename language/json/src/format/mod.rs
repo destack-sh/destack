@@ -3,12 +3,12 @@ mod object;
 mod trivia;
 mod value;
 
-use destack_fir::format::{
+use tspp_fir::format::{
     Format, FormatContext, FormatError, FormatOptions, FormatResult, Formatter,
 };
-use destack_fir::print::{MAX_OUTPUT_BYTES, PrintOptions};
-use destack_repository::FormatterOptions;
-use destack_source::{File, FileType, IndentStyle, LineEnding};
+use tspp_fir::print::{MAX_OUTPUT_BYTES, PrintOptions};
+use tspp_repository::FormatterOptions;
+use tspp_source::{File, FileType, IndentStyle, LineEnding};
 
 use crate::JsonDocument;
 
@@ -153,9 +153,9 @@ impl FormatContext for JsonFormatContext {
 
 /// Format one JSON document.
 pub fn format_json(document: &JsonDocument, options: &JsonFormatOptions) -> FormatResult<String> {
-    let allocator = destack_fir::format::Allocator::default();
+    let allocator = tspp_fir::format::Allocator::default();
     let context = JsonFormatContext::new(*options);
-    let formatted = destack_fir::format!(&allocator, context, [document])?;
+    let formatted = tspp_fir::format!(&allocator, context, [document])?;
     let printed = formatted.print().map_err(FormatError::from)?;
 
     Ok(printed.into_str())

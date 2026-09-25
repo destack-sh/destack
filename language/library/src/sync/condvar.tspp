@@ -1,0 +1,36 @@
+import { todo } from "tspp:error";
+
+import { MutexGuard } from "./mutex.tspp";
+
+/// Condition variable paired with a mutex.
+@languageItem("sync.Condvar")
+export shared class Condvar {
+    /// Create a condition variable.
+    constructor() {
+        // no initialization required
+    }
+
+    /// Wait and reacquire the mutex before returning.
+    wait<'a, T>(&readonly this, guard: MutexGuard<'a, T>): MutexGuard<'a, T> {
+        todo("Condvar.wait")
+    }
+
+    /// Wait while `condition` returns true.
+    waitWhile<'a, T>(
+        &readonly this,
+        guard: MutexGuard<'a, T>,
+        condition: (value: &immutable T) => boolean,
+    ): MutexGuard<'a, T> {
+        todo("Condvar.waitWhile")
+    }
+
+    /// Wake one waiting worker.
+    notifyOne(&readonly this): void {
+        todo("Condvar.notifyOne");
+    }
+
+    /// Wake all waiting workers.
+    notifyAll(&readonly this): void {
+        todo("Condvar.notifyAll");
+    }
+}

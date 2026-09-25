@@ -2,10 +2,10 @@ use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::{Arc, Weak};
 use std::time::Instant;
 
-use destack_artifact::ArtifactKey;
-use destack_repository::{Revision, Trace};
 use futures::task::AtomicWaker;
 use parking_lot::Mutex;
+use tspp_artifact::ArtifactKey;
+use tspp_repository::{Revision, Trace};
 
 use super::executor::Executor;
 use super::scheduler::Scheduler;

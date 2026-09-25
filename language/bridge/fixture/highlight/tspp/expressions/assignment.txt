@@ -1,0 +1,21 @@
+// SYNTAX TEST "source.tspp"
+
+// expressions / assignment / declarations
+const id: UserId = UserId(1);
+// <- keyword.declaration.variable.tspp
+
+let count = 0;
+// <- keyword.declaration.variable.tspp
+
+// expressions / assignment / destructuring
+const { name, profile: { age } } = user;
+// <- keyword.declaration.variable.tspp
+
+let [head, ...tail] = items;
+// <- keyword.declaration.variable.tspp
+
+// expressions / assignment / updates
+count += 1;
+//    ^^ keyword.operator.assignment.addition.tspp
+
+user.name = "Ada";

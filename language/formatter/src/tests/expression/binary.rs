@@ -1,5 +1,5 @@
 use crate::{assert_format_program, assert_format_program_reference_widths};
-use destack_source::FileType;
+use tspp_source::FileType;
 
 /// Logical chains should place each operator before its continuation operand.
 #[test]
@@ -7,7 +7,7 @@ fn test_format_logical_chain_indents_tail_operands() {
     assert_format_program_reference_widths(
         r#"a && b && c && d
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[(
             12,
             r#"a
@@ -36,7 +36,7 @@ fn test_format_logical_expression_breaks_before_multiline_operand() {
         { kind: "unbounded" } => true
     });
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -61,7 +61,7 @@ fn test_format_logical_block_tail_breaks_before_multiline_operand() {
         })
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -71,7 +71,7 @@ fn test_format_arithmetic_chain_uses_leading_operators() {
     assert_format_program_reference_widths(
         r#"const determinant = this.x.x * (this.y.y * zw - this.y.z * yw + this.y.w * yz) - this.x.y * (this.y.x * zw - this.y.z * xw + this.y.w * xz) + this.x.z * (this.y.x * yw - this.y.y * xw + this.y.w * xy) - this.x.w * (this.y.x * yz - this.y.y * xz + this.y.z * xy)
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[(
             100,
             r#"const determinant = this.x.x * (this.y.y * zw - this.y.z * yw + this.y.w * yz)
@@ -89,7 +89,7 @@ fn test_format_coalescing_expression_uses_leading_operator() {
     assert_format_program_reference_widths(
         r#"return getContextValue<VeryLongContextValueName>(currentContext, variable.identifier) ?? panic("missing context variable")
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[(
             80,
             r#"return getContextValue<VeryLongContextValueName>(
@@ -110,7 +110,7 @@ fn test_format_binary_expression_drops_redundant_grouping_parentheses() {
 "#,
         r#"a + b * c && d - e / f;
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -128,7 +128,7 @@ a / (b * c);
 a ** b ** c;
 (a ** b) ** c;
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -140,7 +140,7 @@ fn test_format_binary_expression_keeps_mixed_bitwise_precedence_explicit() {
 "#,
         r#"(flags & mask) | other;
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -159,7 +159,7 @@ fn test_format_logical_expression_in_object_property_breaks_after_colon() {
             || thirdVeryLongThingThatKeepsGoingAndGoingAndGoing,
 };
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -178,7 +178,7 @@ fn test_format_logical_expression_in_class_field_initializer_breaks_after_equals
             || thirdVeryLongThingThatKeepsGoingAndGoingAndGoing;
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -194,6 +194,6 @@ fn test_format_logical_expression_in_ternary_assignment_stays_beside_equals() {
     ? undefined
     : fallbackValue;
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }

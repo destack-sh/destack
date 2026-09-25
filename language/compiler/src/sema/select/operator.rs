@@ -1,6 +1,6 @@
 use std::iter;
 
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::sema::{
     Cause, CauseId, CauseKind, CheckOutcome, CheckState, Expectation, FailedCheck, FlowSite,

@@ -1,7 +1,7 @@
 use std::slice;
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use crate::{
     AdjustedReceiver, ArgumentBinding, ArgumentSource, BinaryOperator, ClassConstructor, Coercion,
@@ -61,7 +61,7 @@ impl<T> OperationResolution<T> {
 /// Overloaded names select every declaration; call sites narrow later.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// print(value)   // `print` selects its one declared symbol
 /// parse(input)   // an overloaded `parse` selects every overload
 /// int32.maximum()   // `int32` denotes the builtin type itself
@@ -127,7 +127,7 @@ impl NameResolution {
 /// One statically selected aggregate field.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// point.x
 /// tuple[0]
 /// user.name
@@ -147,7 +147,7 @@ pub struct FieldResolution {
 /// One computed structural index selected during checking.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// bag[key]
 /// record[field]
 /// ```
@@ -177,7 +177,7 @@ pub enum IndexTarget {
 /// Stored field selected during checking.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// point.x                 // Structural(point, "x")
 /// tuple[0]                // Structural(tuple, 0)
 /// user.name               // Member(User.name) for nominal stored fields
@@ -200,7 +200,7 @@ pub enum FieldTarget {
     /// Structurally declared field.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// declare const point: { x: int32 };
     /// point.x
     ///
@@ -216,7 +216,7 @@ pub enum FieldTarget {
     /// Declaration-backed nominal stored member.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// struct Point { x: int32; y: int32 }
     /// point.x // selects the Point.x field symbol, not only the key "x"
     /// ```
@@ -240,7 +240,7 @@ impl FieldTarget {
 /// One enum case selected during checking.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// Mode.Read  // variant: Read, key: Read
 /// Mode.Write // variant: Write, key: Write
 /// ```
@@ -259,7 +259,7 @@ pub struct VariantCase {
 /// Receiver member selected at a usage site.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// user.name      // receiver: User, target: the selected member
 /// tuple[0]       // receiver: tuple, target: the selected element
 /// ```
@@ -357,7 +357,7 @@ pub enum MemberTarget {
     /// Structural field selected from a shape type.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// declare const point: { x: int32 };
     /// point.x        // a field key on a shape, not a declaration
     /// ```
@@ -367,7 +367,7 @@ pub enum MemberTarget {
     /// Computed structural index selected from a shape type.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// declare const bag: { [key: string]: int32 };
     /// bag["name"]
     /// ```
@@ -375,7 +375,7 @@ pub enum MemberTarget {
     /// Exactly one symbol-backed member selected at compile time.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// user.rename(name)   // `rename` has exactly one declaration
     /// ```
     Symbol(MemberCandidate),
@@ -383,7 +383,7 @@ pub enum MemberTarget {
     /// A call is valid when one candidate accepts it.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// values.push(1)
     /// // `push(value: T)` and `push(...values: T[])` stay candidates
     /// // until the call site selects one
@@ -392,7 +392,7 @@ pub enum MemberTarget {
     /// Simultaneous member requirements contributed by an intersection receiver.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// declare const value: { item: Readable } & { item: Writable };
     /// value.item
     /// ```
@@ -481,7 +481,7 @@ impl MemberTarget {
 /// One member candidate after receiver lookup.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// values.push(1)
 /// // one candidate per matching declaration, its type already
 /// // applied to the Array<int32> receiver
@@ -509,7 +509,7 @@ pub struct MemberCandidate {
 /// Callable selected at a call site.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// print("hi")    // parameters: (string), return: void
 /// ```
 #[derive(
@@ -773,7 +773,7 @@ pub enum DynamicFunction {
 /// Subscript selected at an index expression or destructuring field.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// values[index]
 /// const { [key]: value } = object;
 /// ```
@@ -917,7 +917,7 @@ impl OperationResolution<Dereference> {
 /// Operator implementation selected at a usage site.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// left + right  // Builtin
 /// left == right // Call, when selected through PartialEqual.equal
 /// ```
@@ -1176,7 +1176,7 @@ impl OperationResolution<OperatorApplication> {
 /// Addressable storage selected by one expression.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// value
 /// object.field
 /// values[index]
@@ -1218,7 +1218,7 @@ pub struct Narrowing {
 /// Read and write operations selected for one assignment target.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// value = next
 /// object.field += next
 /// values[index] = next
@@ -1339,7 +1339,7 @@ impl WriteResolution {
 /// Guard expression selected during checking.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// value is string
 /// value instanceof User
 /// "name" in value
@@ -1349,21 +1349,21 @@ pub enum GuardDecision {
     /// `is` guard, like `value is T`.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// value is string
     /// ```
     Is(IsGuardDecision),
     /// `instanceof` guard, like `value instanceof User`.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// value instanceof User
     /// ```
     InstanceOf(InstanceOfGuardDecision),
     /// `in` guard, like `"name" in value`.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// "name" in value
     /// ```
     In(InGuardDecision),
@@ -1383,7 +1383,7 @@ impl GuardDecision {
 /// `is` guard selected during checking.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// if (value is string) {
 ///     value.length;
 /// }
@@ -1401,7 +1401,7 @@ pub struct IsGuardDecision {
 /// `instanceof` guard selected during checking.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// if (value instanceof User) {
 ///     value.name;
 /// }
@@ -1421,7 +1421,7 @@ pub struct InstanceOfGuardDecision {
 /// `in` guard selected during checking.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// if ("name" in value) {
 ///     value.name;
 /// }
@@ -1439,7 +1439,7 @@ pub struct InGuardDecision {
 /// One declaration-backed function selected for a call.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// values.push(1) // `push#1` applied to the Array<int32> receiver
 /// ```
 #[derive(
@@ -1457,7 +1457,7 @@ pub struct FunctionTarget {
 /// One construction.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// new User(name)
 /// UserId(raw)
 /// ```
@@ -1501,7 +1501,7 @@ pub enum ConstructTarget {
     /// Class construction selected at compile time.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// new User("ada")    // selects User and its matching constructor
     /// ```
     Class {
@@ -1515,7 +1515,7 @@ pub enum ConstructTarget {
     /// Newtype wrapper constructor selected at compile time.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// newtype UserId = string;
     /// UserId("u-1")      // wraps the raw value in the newtype
     /// ```
@@ -1580,7 +1580,7 @@ impl InstanceKeyVisit for ConstructTarget {
 /// Pattern meaning selected during checking.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// _                         // Ignore
 /// value                     // Bind
 /// value!                    // Must
@@ -1596,42 +1596,42 @@ pub enum PatternDecision {
     /// Pattern that accepts the input without binding, like `_`.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// match value { _ => true }
     /// ```
     Ignore,
     /// Pattern that binds a symbol, like `value`.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// match value { name => name }
     /// ```
     Bind(PatternBindingResolution),
     /// Pattern that requires a successful nested match, like `value!`.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// const value! = maybe;
     /// ```
     Must(PatternMustResolution),
     /// Pattern that uses a default value when the selected value is undefined.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// const { name = "anonymous" } = user;
     /// ```
     Default(PatternDefaultResolution),
     /// Pattern that tests one executable predicate.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// match value { "ready" => true }
     /// ```
     Test(Box<PatternPredicateResolution>),
     /// Pattern that selects one declared variant.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// match mode { Mode.Read => read() }
     /// match mode { Mode.Write => write() }
     /// ```
@@ -1639,21 +1639,21 @@ pub enum PatternDecision {
     /// Pattern that projects the input before matching, like `*Point { x, y }`.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// match box { *Point { x, y } => x + y }
     /// ```
     Project(Box<PatternProjectionResolution>),
     /// Pattern that destructures projected child values.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// const Point { x, y } = point;
     /// ```
     Destructure(Box<PatternDestructureResolution>),
     /// Pattern that accepts one of several branches, like `0 | 1 | 2`.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// match value { 0 | 1 | 2 => true }
     /// ```
     Or(PatternOrResolution),
@@ -1679,7 +1679,7 @@ impl PatternDecision {
 /// Symbol binding introduced by one pattern.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// match value { name => name }
 /// match value { name @ "ready" => name }
 /// ```
@@ -1696,7 +1696,7 @@ pub struct PatternBindingResolution {
 /// Required nested pattern selected during checking.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// const value! = maybe;
 /// ```
 #[derive(
@@ -1712,7 +1712,7 @@ pub struct PatternMustResolution {
 /// Defaulted nested pattern selected during checking.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// const { name = "anonymous" } = user;
 /// ```
 #[derive(
@@ -1728,7 +1728,7 @@ pub struct PatternDefaultResolution {
 /// Executable predicate selected by one pattern.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// match value { "ready" => true }
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
@@ -1740,7 +1740,7 @@ pub struct PatternPredicateResolution {
 /// Projection selected by one pattern.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// match box { *Point { x, y } => x + y }
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
@@ -1754,7 +1754,7 @@ pub struct PatternProjectionResolution {
 /// Destructuring selected by one pattern.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// const (count, label) = pair;
 /// const { name } = user;
 /// const Point { x, y } = point;
@@ -1765,28 +1765,28 @@ pub enum PatternDestructureResolution {
     /// Tuple-shaped destructuring, like `(x, y)`.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// const (count, label) = pair;
     /// ```
     Tuple(PatternTupleDestructureResolution),
     /// Object-shaped destructuring, like `{ name }`.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// const { name, age } = user;
     /// ```
     Object(PatternObjectDestructureResolution),
     /// Symbol-backed nominal destructuring, like `Point { x, y }`.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// const Point { x, y } = point;
     /// ```
     Nominal(PatternNominalDestructureResolution),
     /// Sequence destructuring, like `[head, ...tail]`.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// const [head, ...tail] = values;
     /// ```
     Sequence(PatternSequenceDestructureResolution),
@@ -1795,7 +1795,7 @@ pub enum PatternDestructureResolution {
 /// Tuple destructuring selected by one pattern.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// const (count, label) = pair;
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
@@ -1807,7 +1807,7 @@ pub struct PatternTupleDestructureResolution {
 /// Object destructuring selected by one pattern.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// const { name, age } = user;
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
@@ -1823,7 +1823,7 @@ pub struct PatternObjectDestructureResolution {
 /// Nominal destructuring selected by one pattern.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// const Point { x, y } = point;
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
@@ -1841,7 +1841,7 @@ pub struct PatternNominalDestructureResolution {
 /// Sequence destructuring selected by one pattern.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// const [head, ...tail] = values;
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
@@ -1857,7 +1857,7 @@ pub struct PatternSequenceDestructureResolution {
 /// Arity requirement introduced by one sequence pattern.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// const [head, second] = values; // minimum: 2, maximum: 2
 /// const [head, ...tail] = values; // minimum: 1, maximum: none
 /// ```
@@ -1874,7 +1874,7 @@ pub struct PatternSequenceArity {
 /// Enum variant selected by one pattern.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// match mode { Mode.Read => read() }
 /// match mode { Mode.Write => write() }
 /// ```
@@ -1889,7 +1889,7 @@ pub struct PatternVariantResolution {
 /// Or-pattern branches selected during checking.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// match value { "yes" | "no" => true }
 /// ```
 #[derive(
@@ -1903,7 +1903,7 @@ pub struct PatternOrResolution {
 /// One destructured pattern field.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// const { name } = user;
 /// const [head] = values;
 /// ```

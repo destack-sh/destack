@@ -3,17 +3,17 @@ use super::groups::{
 };
 use crate::expression::should_preserve_source_parentheses;
 use crate::operator::{is_chain_expression, write_postfix_base_expression};
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{
+use crate::{TsppFormatContext, TsppFormatter};
+use tspp_dir::{
     Declarator, Expression, IfForm, Literal, LocalNodeId, NodeType, PostfixPosition, Tree,
 };
-use destack_fir::format::{FormatError, FormatResult};
-use destack_fir::prelude::token;
-use destack_fir::write;
+use tspp_fir::format::{FormatError, FormatResult};
+use tspp_fir::prelude::token;
+use tspp_fir::write;
 
 /// Format a maybe expression without considering chaining.
 pub(crate) fn format_maybe_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     if let Expression::Maybe { left, position } = f.context().tree.get(node_id) {
@@ -132,7 +132,7 @@ pub(crate) fn chain_node_left_id(
 
 /// Collect all chain nodes from root to leaf.
 pub(crate) fn chain_nodes(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> Vec<LocalNodeId<Expression>> {
     let tree = context.tree;
@@ -159,7 +159,7 @@ pub(crate) fn chain_nodes(
 
 /// Return whether one expression has a ternary expression ancestor.
 pub(crate) fn expression_has_ternary_ancestor(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let mut current_id = node_id;
@@ -188,7 +188,7 @@ pub(crate) fn expression_has_ternary_ancestor(
 
 /// Build the normalized chain, base, and tail groups for one chain expression.
 pub(super) fn build_member_chain_parts(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<(
     Vec<LocalNodeId<Expression>>,
@@ -229,7 +229,7 @@ pub(super) fn build_member_chain_parts(
 
 /// Check whether source contains a comment between two expression nodes.
 pub(crate) fn has_comment_between_expressions(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     left_id: LocalNodeId<Expression>,
     right_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -246,7 +246,7 @@ pub(crate) fn has_comment_between_expressions(
 
 /// Check whether an optional index is numerically inline.
 pub(crate) fn is_numeric_index(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     index: &Option<LocalNodeId<Expression>>,
 ) -> bool {
     let Some(index_id) = *index else {
@@ -264,7 +264,7 @@ pub(crate) fn is_numeric_index(
 
 /// Return an expression end anchor used for trivia checks.
 pub(crate) fn expression_trivia_anchor_end(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> u32 {
     let expression = context.tree.get(expression_id);
@@ -289,7 +289,7 @@ pub(crate) fn expression_trivia_anchor_end(
 
 /// Return the property token start for one member-like expression.
 pub(crate) fn member_property_start(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> Option<u32> {
     context.tree.get_main_span(node_id).map(|span| span.start)
@@ -297,7 +297,7 @@ pub(crate) fn member_property_start(
 
 /// Check if a member access has an intervening comment between receiver and property.
 pub(crate) fn member_has_intervening_comment(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some(property_start) = member_property_start(context, node_id) else {
@@ -414,7 +414,7 @@ pub(crate) fn access_marker_position(
 
 /// Return whether the normalized chain contains at least one call-like operation.
 pub(crate) fn chain_has_call_like_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let tree = context.tree;
@@ -431,7 +431,7 @@ pub(crate) fn chain_has_call_like_expression(
 
 /// Walk upward through transparent wrappers to find an assignment-like parent rhs.
 pub(crate) fn assignment_like_parent(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> Option<(NodeType, u32)> {
     let mut current_id = node_id.id;
@@ -480,7 +480,7 @@ pub(crate) fn assignment_like_parent(
 
 /// Unwrap transparent wrappers around an expression for classification.
 pub(crate) fn transparent_inner_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> LocalNodeId<Expression> {
     let mut current_id = node_id;

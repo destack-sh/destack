@@ -1,6 +1,6 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
+use tspp_serde::Reflect;
 
 use crate::{
     BinaryOperator, Block, BlockId, BlockParameter, Call, CallDispatch, Edge, FunctionId,
@@ -1105,7 +1105,7 @@ impl Terminator {
 
 #[cfg(test)]
 mod tests {
-    use destack_core::FxIndexMap;
+    use tspp_core::FxIndexMap;
 
     use crate::parse::{ParseOptions, Parser, test_file};
     use crate::{BlockId, Edge, Function, Successor, Terminator, Tree, Type, Value};

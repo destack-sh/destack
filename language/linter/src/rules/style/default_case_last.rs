@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -94,7 +94,7 @@ function classify(value: int32): string {
         session.assert_diagnostics(
             r#"
 warning[default-case-last]: default case precedes another case
- ──▶ main.ds:3:9
+ ──▶ main.tspp:3:9
   │
 1 │ function classify(value: int32): string {
 2 │     switch (value) {

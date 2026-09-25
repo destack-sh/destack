@@ -1,4 +1,4 @@
-use destack_source::{DiagnosticLabel, ModuleId, PackageId, TargetId};
+use tspp_source::{DiagnosticLabel, ModuleId, PackageId, TargetId};
 
 use crate::{DiagnosticAnchor, DiagnosticError};
 

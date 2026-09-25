@@ -8,11 +8,11 @@ Yield fixtures cover generator yield values, delegation, comments, and member ch
 
 Yield expressions keep a space before the value.
 
-```ds
+```tspp
 function* gen() { yield 1 }
 ```
 
-```ds expected
+```tspp expected
 function* gen() {
     yield 1;
 }
@@ -22,11 +22,11 @@ function* gen() {
 
 Yielding a generator uses `yield*` without extra spacing.
 
-```ds
+```tspp
 function* gen() { yield* other() }
 ```
 
-```ds expected
+```tspp expected
 function* gen() {
     yield* other();
 }

@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_infer_a_callback_parameter_from_the_receiver_before_the_result() {
     let session = TestSession::single(
         r#"
-import { Result, Ok } from "destack:error";
+import { Result, Ok } from "tspp:error";
 
 declare const parsed: Result<int32, string>;
 
@@ -16,11 +16,11 @@ const unwrapped = parsed.andThen((value) => Ok { value });
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Ok, Result } from "destack:error";
+import { Ok, Result } from "tspp:error";
 
 declare const parsed: Result<int32, string>;
 
@@ -32,7 +32,7 @@ const named: Result<int32, string> = parsed.map<int32, string, int32>(
 const unwrapped = parsed.andThen((value: int32) => Ok<int32> { value });
 
 === dir ===
-import { Result, Ok } from "destack:error";
+import { Result, Ok } from "tspp:error";
 
 declare const parsed: Result<int32, string>;
 /// @type.symbol symbol=parsed source=parsed type=Result<int32, string>
@@ -143,7 +143,7 @@ each([(1,)])("closed", (value: int32) => {});
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -250,7 +250,7 @@ each([(1,)])("closed", (value: int32) => {});
 fn test_type_a_callback_parameter_before_its_body_under_an_open_result() {
     let session = TestSession::single(
         r#"
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 function normalize(result: Result<int32, string>): Result<int32, string> {
     return result.andThen((value) => {
@@ -265,11 +265,11 @@ function normalize(result: Result<int32, string>): Result<int32, string> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 function normalize(result: Result<int32, string>): Result<int32, string> {
     return result.andThen<int32, string, int32, string>((value: int32): Result<int32, string> => {
@@ -282,7 +282,7 @@ function normalize(result: Result<int32, string>): Result<int32, string> {
 }
 
 === dir ===
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 function normalize(result: Result<int32, string>): Result<int32, string> {
 /// @type.symbol symbol=normalize type=(Result<int32, string>) => Result<int32, string>
@@ -340,7 +340,7 @@ function normalize(result: Result<int32, string>): Result<int32, string> {
 fn test_infer_parameterized_test_closures_from_their_case_tuples() {
     let session = TestSession::single(
         r#"
-import { describe, test } from "destack:test";
+import { describe, test } from "tspp:test";
 
 test.each([(1,)]).only("parameterized case", (value: int32) => {});
 test.for([1]).only("table case", (value: &readonly int64) => {});
@@ -353,11 +353,11 @@ test.each([("a", 2)])("pairs", (text, count) => {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { describe, test } from "destack:test";
+import { describe, test } from "tspp:test";
 
 test.each<{}, {}, {}, (int32,)>([(1,)] as Iterable<(int32,)>).only(
     "parameterized case",
@@ -382,7 +382,7 @@ test.each<{}, {}, {}, (string, int64)>([("a", 2)] as Iterable<(string, int64)>)(
 }) as Function<(string, int64), BodyResult> | undefined);
 
 === dir ===
-import { describe, test } from "destack:test";
+import { describe, test } from "tspp:test";
 
 test.each([(1,)]).only("parameterized case", (value: int32) => {});
 /// @resolution.name source=test target=test
@@ -492,7 +492,7 @@ function widen(result: Result<string, string>): Result<int32, string> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -613,7 +613,7 @@ iterTable([1])("iter table", (value: &readonly int32) => {});
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -822,7 +822,7 @@ each([(2,)])("typed again", (count: int32) => {});
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -971,7 +971,7 @@ function choose(result: Result<string, string>): Result<int32, string> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

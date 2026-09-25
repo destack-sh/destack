@@ -1,4 +1,4 @@
-use destack_artifact_macros::Diagnostic;
+use tspp_artifact_macros::Diagnostic;
 
 /// Warnings during source binding.
 #[derive(Debug, Clone, PartialEq, Diagnostic)]

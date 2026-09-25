@@ -8,11 +8,11 @@ Assignment fixtures cover operator spacing, chaining, patterns, comments, and as
 
 Simple assignments keep spaces around the operator.
 
-```ds
+```tspp
 value = 1
 ```
 
-```ds expected
+```tspp expected
 value = 1;
 ```
 
@@ -20,11 +20,11 @@ value = 1;
 
 Chained assignments stay right-associative.
 
-```ds
+```tspp
 first = second = third
 ```
 
-```ds expected
+```tspp expected
 first = second = third;
 ```
 
@@ -32,11 +32,11 @@ first = second = third;
 
 Poorly breakable call chains should break after `=`.
 
-```ds:main.ds line-width=20
+```tspp:main.tspp line-width=20
 result = api.namespace.member().tail()
 ```
 
-```ds expected
+```tspp expected
 result =
     api.namespace
         .member()
@@ -47,11 +47,11 @@ result =
 
 Long call initializers break after `=`.
 
-```ds:main.ds line-width=30
+```tspp:main.tspp line-width=30
 const veryLongPackageBindingName = loadPackage(jestPath)
 ```
 
-```ds expected
+```tspp expected
 const veryLongPackageBindingName =
     loadPackage(jestPath);
 ```
@@ -60,11 +60,11 @@ const veryLongPackageBindingName =
 
 Interpolated template arguments should not trigger the poorly breakable shortcut.
 
-```ds:main.ds line-width=30
+```tspp:main.tspp line-width=30
 const veryLongBindingName = namespace.foo(`hello ${name}`)
 ```
 
-```ds expected
+```tspp expected
 const veryLongBindingName =
     namespace.foo(
         `hello ${name}`,
@@ -75,12 +75,12 @@ const veryLongBindingName =
 
 Long left-hand sides with string RHS values should break after `=`.
 
-```ds:main.ds line-width=20
+```tspp:main.tspp line-width=20
 const veryLongVariableName = "value"
 veryLongVariableName = "value"
 ```
 
-```ds expected
+```tspp expected
 const veryLongVariableName =
     "value";
 veryLongVariableName =
@@ -93,11 +93,11 @@ veryLongVariableName =
 
 Compound assignments keep spaces around the operator.
 
-```ds
+```tspp
 count += 1
 ```
 
-```ds expected
+```tspp expected
 count += 1;
 ```
 
@@ -105,11 +105,11 @@ count += 1;
 
 Logical assignment operators format with spaces.
 
-```ds
+```tspp
 value ||= fallback
 ```
 
-```ds expected
+```tspp expected
 value ||= fallback;
 ```
 
@@ -117,11 +117,11 @@ value ||= fallback;
 
 Logical and assignment operators format with spaces.
 
-```ds
+```tspp
 value &&= compute()
 ```
 
-```ds expected
+```tspp expected
 value &&= compute();
 ```
 
@@ -129,11 +129,11 @@ value &&= compute();
 
 Nullish coalescing assignment keeps spaces around the operator.
 
-```ds:main.ds
+```tspp:main.tspp
 value ??= fallback
 ```
 
-```ds expected
+```tspp expected
 value ??= fallback;
 ```
 
@@ -141,11 +141,11 @@ value ??= fallback;
 
 Bitwise assignments keep spaces around the operator.
 
-```ds
+```tspp
 flags |= mask
 ```
 
-```ds expected
+```tspp expected
 flags |= mask;
 ```
 
@@ -153,11 +153,11 @@ flags |= mask;
 
 Shift assignments keep spaces around the operator.
 
-```ds
+```tspp
 flags <<= 1
 ```
 
-```ds expected
+```tspp expected
 flags <<= 1;
 ```
 
@@ -165,11 +165,11 @@ flags <<= 1;
 
 Non-null assertions do not require parentheses on assignment.
 
-```ds:main.ds
+```tspp:main.tspp
 (pendingSetRef.flags!) |= SchedulerJobFlags.DISPOSED
 ```
 
-```ds expected
+```tspp expected
 pendingSetRef.flags! |= SchedulerJobFlags.DISPOSED;
 ```
 
@@ -177,12 +177,12 @@ pendingSetRef.flags! |= SchedulerJobFlags.DISPOSED;
 
 `as` and `satisfies` assertions keep parentheses when used as assignment targets.
 
-```ds:main.ds
+```tspp:main.tspp
 (pendingSetRef.flags as T) |= SchedulerJobFlags.DISPOSED
 (pendingSetRef.flags satisfies T) |= SchedulerJobFlags.DISPOSED
 ```
 
-```ds expected
+```tspp expected
 (pendingSetRef.flags as T) |= SchedulerJobFlags.DISPOSED;
 (pendingSetRef.flags satisfies T) |= SchedulerJobFlags.DISPOSED;
 ```
@@ -193,11 +193,11 @@ pendingSetRef.flags! |= SchedulerJobFlags.DISPOSED;
 
 Array rest patterns format with spread in assignment.
 
-```ds:main.ds
+```tspp:main.tspp
 [...rest] = arr
 ```
 
-```ds expected
+```tspp expected
 [...rest] = arr;
 ```
 
@@ -205,11 +205,11 @@ Array rest patterns format with spread in assignment.
 
 Object assignment targets keep shorthand and property defaults.
 
-```ds
+```tspp
 ({ x = fallback, y: z = other, [key]: target, ...rest } = value)
 ```
 
-```ds expected
+```tspp expected
 ({ x = fallback, y: z = other, [key]: target, ...rest } = value);
 ```
 
@@ -217,11 +217,11 @@ Object assignment targets keep shorthand and property defaults.
 
 Array assignment targets keep elisions, defaults, and rest.
 
-```ds
+```tspp
 [first, , second = fallback, ...rest] = value
 ```
 
-```ds expected
+```tspp expected
 [first, , second = fallback, ...rest] = value;
 ```
 
@@ -229,11 +229,11 @@ Array assignment targets keep elisions, defaults, and rest.
 
 Defaults inside nested object and array targets stay assignable.
 
-```ds
+```tspp
 ({ a: { b = c } = d, e: [f = g] } = h)
 ```
 
-```ds expected
+```tspp expected
 ({
     a: { b = c } = d,
     e: [f = g],
@@ -244,11 +244,11 @@ Defaults inside nested object and array targets stay assignable.
 
 Object assignment targets keep member and index targets.
 
-```ds
+```tspp
 ({ value: object.property, [key]: target[index] } = source)
 ```
 
-```ds expected
+```tspp expected
 ({ value: object.property, [key]: target[index] } = source);
 ```
 
@@ -256,11 +256,11 @@ Object assignment targets keep member and index targets.
 
 Nested assignment targets keep aliases, defaults, computed keys, and rest fields.
 
-```ds:main.ds
+```tspp:main.tspp
 ({ a, b: { c = d }, [key]: target[index], ...rest } = source)
 ```
 
-```ds expected
+```tspp expected
 ({
     a,
     b: { c = d },
@@ -273,10 +273,10 @@ Nested assignment targets keep aliases, defaults, computed keys, and rest fields
 
 Array assignment targets keep elisions, defaults, nested targets, and rest fields.
 
-```ds:main.ds
+```tspp:main.tspp
 [first, , second = fallback, { value: object.property }, ...rest] = source
 ```
 
-```ds expected
+```tspp expected
 [first, , second = fallback, { value: object.property }, ...rest] = source;
 ```

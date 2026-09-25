@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -144,7 +144,7 @@ fn report_block_input(
 fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
-    extent: destack_source::Span,
+    extent: tspp_source::Span,
     value: dir::LocalNodeId<dir::Expression>,
     minimum_precedence: dir::OperatorPrecedence,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
@@ -198,7 +198,7 @@ function wait(isReady: boolean): void {
         session.assert_diagnostics(
             r#"
 warning[no-block-in-condition]: control-flow input is a block expression
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function wait(isReady: boolean): void {
 2 │     while (do { isReady }) {}
@@ -207,8 +207,8 @@ warning[no-block-in-condition]: control-flow input is a block expression
   │
 
  = fix: use the expression directly
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function wait(isReady: boolean): void {
 -   2│     while (do { isReady }) {}
@@ -240,7 +240,7 @@ function wait(value: { ready: boolean | undefined } | null): void {
         session.assert_diagnostics(
             r#"
 warning[no-block-in-condition]: control-flow input is a block expression
- ──▶ main.ds:2:37
+ ──▶ main.tspp:2:37
   │
 1 │ function wait(value: { ready: boolean | undefined } | null): void {
 2 │     while (let { ready } = value && do { ready ?? false }) {}
@@ -249,8 +249,8 @@ warning[no-block-in-condition]: control-flow input is a block expression
   │
 
  = fix: use the expression directly
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function wait(value: { ready: boolean | undefined } | null): void {
 -   2│     while (let { ready } = value && do { ready ?? false }) {}
@@ -287,7 +287,7 @@ function choose(isReady: boolean): string {
         session.assert_diagnostics(
             r#"
 warning[no-block-in-condition]: control-flow input is a block expression
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function choose(isReady: boolean): string {
 2 │     return do {
@@ -322,7 +322,7 @@ function choose(value: int32): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-block-in-condition]: control-flow input is a block expression
- ──▶ main.ds:2:19
+ ──▶ main.tspp:2:19
   │
 1 │ function choose(value: int32): int32 {
 2 │     return match (do { value }) {
@@ -332,8 +332,8 @@ warning[no-block-in-condition]: control-flow input is a block expression
   │
 
  = fix: use the expression directly
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function choose(value: int32): int32 {
 -   2│     return match (do { value }) {
@@ -372,7 +372,7 @@ function choose(value: int32): void {
         session.assert_diagnostics(
             r#"
 warning[no-block-in-condition]: control-flow input is a block expression
- ──▶ main.ds:2:13
+ ──▶ main.tspp:2:13
   │
 1 │ function choose(value: int32): void {
 2 │     switch (do { value }) {
@@ -382,8 +382,8 @@ warning[no-block-in-condition]: control-flow input is a block expression
   │
 
  = fix: use the expression directly
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function choose(value: int32): void {
 -   2│     switch (do { value }) {
@@ -420,7 +420,7 @@ function choose(isReady: boolean, hasValue: boolean): string {
         session.assert_diagnostics(
             r#"
 warning[no-block-in-condition]: control-flow input is a block expression
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function choose(isReady: boolean, hasValue: boolean): string {
 2 │     return do { isReady ? hasValue : false } ? "ready" : "waiting";
@@ -429,8 +429,8 @@ warning[no-block-in-condition]: control-flow input is a block expression
   │
 
  = fix: use the expression directly
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function choose(isReady: boolean, hasValue: boolean): string {
 -   2│     return do { isReady ? hasValue : false } ? "ready" : "waiting";
@@ -462,7 +462,7 @@ function choose(isReady: boolean, hasValue: boolean): string {
         session.assert_diagnostics(
             r#"
 warning[no-block-in-condition]: control-flow input is a block expression
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function choose(isReady: boolean, hasValue: boolean): string {
 2 │     return do { (isReady && hasValue) } ? "ready" : "waiting";
@@ -471,8 +471,8 @@ warning[no-block-in-condition]: control-flow input is a block expression
   │
 
  = fix: use the expression directly
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function choose(isReady: boolean, hasValue: boolean): string {
 -   2│     return do { (isReady && hasValue) } ? "ready" : "waiting";
@@ -504,7 +504,7 @@ function count(): void {
         session.assert_diagnostics(
             r#"
 warning[no-block-in-condition]: control-flow input is a block expression
- ──▶ main.ds:2:25
+ ──▶ main.tspp:2:25
   │
 1 │ function count(): void {
 2 │     for (let index = 0; do { index < 3 }; index++) {}
@@ -513,8 +513,8 @@ warning[no-block-in-condition]: control-flow input is a block expression
   │
 
  = fix: use the expression directly
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function count(): void {
 -   2│     for (let index = 0; do { index < 3 }; index++) {}
@@ -549,7 +549,7 @@ function positive(value: int32): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-block-in-condition]: control-flow input is a block expression
- ──▶ main.ds:3:19
+ ──▶ main.tspp:3:19
   │
 1 │ function positive(value: int32): int32 {
 2 │     return match (value) {
@@ -560,8 +560,8 @@ warning[no-block-in-condition]: control-flow input is a block expression
   │
 
  = fix: use the expression directly
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     2│     return match (value) {
 -   3│         value if (do { value > 0 }) => value
@@ -599,7 +599,7 @@ function positive(value: (int32, boolean) | null): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-block-in-condition]: control-flow input is a block expression
- ──▶ main.ds:3:48
+ ──▶ main.tspp:3:48
   │
 1 │ function positive(value: (int32, boolean) | null): int32 {
 2 │     return match (value) {
@@ -610,8 +610,8 @@ warning[no-block-in-condition]: control-flow input is a block expression
   │
 
  = fix: use the expression directly
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     2│     return match (value) {
 -   3│         pair if (let (number, ready) = pair && do { ready }) => number

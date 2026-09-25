@@ -1,7 +1,7 @@
-use destack_dir as dir;
-use destack_repository::{Repository, Revision};
-use destack_source::{ModuleId, ProfileId};
 use rustc_hash::FxHashMap;
+use tspp_dir as dir;
+use tspp_repository::{Repository, Revision};
+use tspp_source::{ModuleId, ProfileId};
 
 use crate::{DocError, DocResult};
 

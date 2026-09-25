@@ -2,11 +2,11 @@ use std::cmp::Ordering;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
 
-use destack_artifact::{
+use tspp_artifact::{
     Artifact, ArtifactDependency, ArtifactKey, ArtifactOutcome, ArtifactProjection,
     ArtifactProjectionDependency, ArtifactProjectionKey, ArtifactRequirement, ArtifactVersion,
 };
-use destack_source::PackageId;
+use tspp_source::PackageId;
 
 use crate::provider::{ProviderContext, ProviderError};
 use crate::repository::{Repository, Revision};

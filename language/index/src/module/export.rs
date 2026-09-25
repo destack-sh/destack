@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirExported, DirResolved};
-use destack_core::{FxIndexMap, FxIndexSet, StringPool};
-use destack_dir as dir;
-use destack_repository::{ProviderError, ProviderResult};
-use destack_source::ModuleId;
+use tspp_artifact::{DirExported, DirResolved};
+use tspp_core::{FxIndexMap, FxIndexSet, StringPool};
+use tspp_dir as dir;
+use tspp_repository::{ProviderError, ProviderResult};
+use tspp_source::ModuleId;
 
 /// Builder for one module export index.
 pub(crate) struct ExportIndexer<'a> {

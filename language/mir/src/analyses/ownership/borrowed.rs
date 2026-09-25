@@ -1,4 +1,4 @@
-use destack_core::FxIndexSet;
+use tspp_core::FxIndexSet;
 
 use crate::{
     BorrowedPath, GenericArgument, Lifetime, Path, Projection, Reference, Substitution, Tree, Type,

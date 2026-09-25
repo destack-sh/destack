@@ -1,0 +1,75 @@
+import { Task } from "tspp:async";
+import { Result, todo } from "tspp:error";
+import { Access, Borrowed, Copy, Region, SharedSafe } from "tspp:memory";
+import { Dereference } from "tspp:ops";
+
+import { ReceiveError, SendError } from "./channel.tspp";
+
+/// Stable readonly snapshot of one watched value.
+export class WatchRef<T> implements Dereference<"readonly"> {
+    /// The pointee type.
+    type Target = T;
+
+    /// The retained value.
+    private readonly value: T;
+
+    /// Retain one watched value.
+    private constructor(value: T) {
+        this.value = value;
+    }
+
+    /// The access supplied by the pointer.
+    const OutputAccess: Access = "immutable";
+
+    /// Borrow the retained value.
+    dereference<const R: Region>(
+        this: Borrowed<this, R, "readonly">,
+    ): Borrowed<this.Target, R, "immutable"> {
+        todo("WatchRef.dereference")
+    }
+}
+
+/// Sender for the latest watched value.
+@languageItem("channel.watch.WatchSender")
+export interface WatchSender<T> {
+    /// Replace the watched value.
+    send(value: T): Result<void, SendError<T>>;
+
+    /// Replace the watched value and return a copy of the old value.
+    sendReplace(value: T): T where T: Copy;
+
+    /// Return whether all receivers are closed.
+    isClosed(): boolean;
+
+    /// Close this sender.
+    close(): void;
+}
+
+/// Receiver for the latest watched value.
+@languageItem("channel.watch.WatchReceiver")
+export interface WatchReceiver<T> {
+    /// Borrow the latest value as a stable snapshot.
+    borrow(): WatchRef<T>;
+
+    /// Borrow the latest value and mark it as observed.
+    borrowAndUpdate(): WatchRef<T>;
+
+    /// Return whether an unobserved value is available.
+    hasChanged(): Result<boolean, ReceiveError>;
+
+    /// Wait for a changed value.
+    changed(): Task<Result<void, ReceiveError>>;
+
+    /// Close this receiver.
+    close(): void;
+}
+
+/// Create a local watch channel.
+export function channel<T>(value: T): (WatchSender<T>, WatchReceiver<T>) {
+    todo("watch.channel")
+}
+
+/// Create a shared watch channel.
+export function sharedChannel<T: SharedSafe>(value: T): (WatchSender<T>, WatchReceiver<T>) {
+    todo("watch.sharedChannel")
+}

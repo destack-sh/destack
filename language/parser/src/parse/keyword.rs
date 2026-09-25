@@ -1,5 +1,5 @@
 use crate::{Parser, ParserError, ParserResult};
-use destack_dir::{Keyword, Token, TokenType};
+use tspp_dir::{Keyword, Token, TokenType};
 
 impl Parser {
     /// Return true when the current token is the given keyword.

@@ -1,0 +1,24 @@
+// SYNTAX TEST "source.tspp"
+
+// types / constraints / parameter
+function copy<T: Clone>(value: T): T {
+//            ^ entity.name.type.parameter.tspp
+    value.clone()
+}
+
+// types / constraints / where
+function merge<T, U>(left: T, right: U): T where (T: Merge<U>, U: Clone) {
+// <- keyword.declaration.function.tspp
+    left.merge(right.clone())
+}
+
+// types / constraints / where equality
+function project<T, U>(): T where (
+// <- keyword.declaration.function.tspp
+    T.Output == U,
+//           ^^ keyword.operator.comparison.tspp
+    Box<T>.Count == SizeOf<T>(),
+//               ^^ keyword.operator.comparison.tspp
+) {
+    return value;
+}

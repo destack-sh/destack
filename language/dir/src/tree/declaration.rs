@@ -1,5 +1,5 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use crate::{
     ExportKind, Expression, FunctionSignature, GenericParameter, LocalNodeId, Member, Mutability,

@@ -1,6 +1,6 @@
 use crate::emit::js;
-use destack_repository::Target;
-use destack_source::ModuleId;
+use tspp_repository::Target;
+use tspp_source::ModuleId;
 
 use super::super::{OutputGraph, OutputId, OutputLayout};
 use crate::{Compiler, JsLinker, LinkError, LinkResult};

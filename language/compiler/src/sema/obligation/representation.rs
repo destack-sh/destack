@@ -1,7 +1,7 @@
-use destack_core::{FxIndexSet, ensure_sufficient_stack};
-use destack_dir as dir;
-use destack_source::ModuleId;
 use smallvec::SmallVec;
+use tspp_core::{FxIndexSet, ensure_sufficient_stack};
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use crate::sema::auto::DecisionKey;
 use crate::sema::{

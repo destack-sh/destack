@@ -1,6 +1,6 @@
 use std::fmt;
 
-use destack_source::Span;
+use tspp_source::Span;
 
 /// One bytecode text parse error.
 #[derive(Clone, Debug, PartialEq, Eq)]

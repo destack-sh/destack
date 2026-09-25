@@ -1,5 +1,5 @@
-use destack_dir as dir;
 use smallvec::SmallVec;
+use tspp_dir as dir;
 
 use super::InferMode;
 use crate::sema::{
@@ -871,7 +871,7 @@ impl CheckState<'_> {
     /// Decide the bound qualifier segments of one reference chain.
     pub(in crate::sema) fn decide_qualifier_segments(
         &mut self,
-        module: destack_source::ModuleId,
+        module: tspp_source::ModuleId,
         left: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<()> {
         // walk the qualifier chain outward

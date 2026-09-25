@@ -9,13 +9,13 @@ use cranelift_codegen::settings::{self, Configurable};
 use cranelift_codegen::{Context, ir as cir};
 use cranelift_module::{DataId, FuncId, Linkage, Module, ModuleReloc, ModuleRelocTarget};
 use cranelift_object::{ObjectBuilder, ObjectModule};
-use destack_artifact::MirOptimized;
-use destack_core::{FxIndexMap, FxIndexSet};
-use destack_mir as mir;
-use destack_native as native;
-use destack_repository::{OptimizeLevel, Target};
-use destack_source::ModuleId;
 use target_lexicon::{Endianness, Triple};
+use tspp_artifact::MirOptimized;
+use tspp_core::{FxIndexMap, FxIndexSet};
+use tspp_mir as mir;
+use tspp_native as native;
+use tspp_repository::{OptimizeLevel, Target};
+use tspp_source::ModuleId;
 
 use crate::{EmitError, ObjectEmitter};
 
@@ -91,7 +91,7 @@ impl<'a> NativeEmitter<'a> {
         // create the native object module
         let builder = ObjectBuilder::new(
             isa.clone(),
-            format!("destack_{module}"),
+            format!("tspp_{module}"),
             cranelift_module::default_libcall_names(),
         )
         .map_err(|error| Self::internal(module, error.to_string()))?;

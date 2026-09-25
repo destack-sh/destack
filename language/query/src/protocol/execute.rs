@@ -1,6 +1,6 @@
-use destack_artifact::ArtifactKey;
-use destack_repository::{Repository, Revision};
-use destack_source::ProfileId;
+use tspp_artifact::ArtifactKey;
+use tspp_repository::{Repository, Revision};
+use tspp_source::ProfileId;
 
 use crate::{
     CodeActionKind, ProgramQueryContext, QueryError, QueryRequest, QueryResponse, QueryResult,

@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::{FileId, FileType, Span};
+use tspp_dir as dir;
+use tspp_source::{FileId, FileType, Span};
 
 use crate::FileImage;
 use crate::command::{
@@ -12,7 +12,7 @@ const ENTRY_CONFIG: &str = r#"{
   "name": "test",
   "targets": {
     "default": {
-      "entry": ["main.ds"]
+      "entry": ["main.tspp"]
     }
   },
   "defaultTarget": "default"
@@ -24,7 +24,7 @@ const INCLUDE_CONFIG: &str = r#"{
   "name": "test",
   "targets": {
     "default": {
-      "include": ["**/*.ds"]
+      "include": ["**/*.tspp"]
     }
   },
   "defaultTarget": "default"
@@ -35,11 +35,11 @@ const INCLUDE_CONFIG: &str = r#"{
 #[test]
 fn test_query_source_pattern() {
     let source = "fetch(\"/a\");\nfetch(\"/b\", options);\n";
-    let test = TestPattern::new("query-source-pattern").input("main.ds", source);
+    let test = TestPattern::new("query-source-pattern").input("main.tspp", source);
     let output = test.query("fetch($URL, $$$ARGUMENTS)").run();
-    let main = test.path("main.ds");
-    let file = FileId::from_logical_str("main.ds");
-    let uri = test.uri("main.ds");
+    let main = test.path("main.tspp");
+    let file = FileId::from_logical_str("main.tspp");
+    let uri = test.uri("main.tspp");
 
     assert_eq!(
         output.data,
@@ -101,10 +101,10 @@ fn test_query_source_pattern() {
 #[test]
 fn test_query_authored_builtin_package() {
     let config_source = r#"{
-  "name": "destack",
+  "name": "tspp",
   "targets": {
     "default": {
-      "include": ["src/**/*.ds"]
+      "include": ["src/**/*.tspp"]
     }
   },
   "defaultTarget": "default"
@@ -113,7 +113,7 @@ fn test_query_authored_builtin_package() {
     let source = "panic(\"failed\");\n";
     let test = TestPattern::new("query-authored-builtin-package")
         .file("destack.json", config_source)
-        .input("src/main.ds", source);
+        .input("src/main.tspp", source);
     let output = test.query("panic($MESSAGE)").include_sources().run();
     let matches = output
         .data
@@ -126,11 +126,11 @@ fn test_query_authored_builtin_package() {
     assert_eq!(
         output.files,
         [FileImage {
-            id: FileId::from_logical_str("src/main.ds"),
-            name: "main.ds".to_string(),
-            uri: test.uri("src/main.ds"),
-            path: Some(test.path("src/main.ds")),
-            file_type: FileType::Destack,
+            id: FileId::from_logical_str("src/main.tspp"),
+            name: "main.tspp".to_string(),
+            uri: test.uri("src/main.tspp"),
+            path: Some(test.path("src/main.tspp")),
+            file_type: FileType::Tspp,
             content: Some(source.to_string()),
         }]
     );
@@ -140,7 +140,7 @@ fn test_query_authored_builtin_package() {
 #[test]
 fn test_query_orders_nested_matches_by_source() {
     let source = "outer(inner(value));\n";
-    let test = TestPattern::new("query-nested-source-order").input("main.ds", source);
+    let test = TestPattern::new("query-nested-source-order").input("main.tspp", source);
     let output = test.query("$CALLEE($VALUE)").run();
     let matches = output
         .data
@@ -155,14 +155,14 @@ fn test_query_orders_nested_matches_by_source() {
 /// Resolve qualified predicate symbols through the checked program closure.
 #[test]
 fn test_query_symbol_predicate() {
-    let package_source = "export * as net from \"./net.ds\";\n";
+    let package_source = "export * as net from \"./net.tspp\";\n";
     let net_source = r#"
 export function fetch(value: string): string {
     return value;
 }
 "#;
     let source = r#"
-import * as myPackage from "./package.ds";
+import * as myPackage from "./package.tspp";
 
 function fetch(value: string): string {
     return value;
@@ -173,9 +173,9 @@ myPackage.net.fetch("first");
 "#;
     let test = TestPattern::new("query-symbol-predicate")
         .file("destack.json", ENTRY_CONFIG)
-        .file("package.ds", package_source)
-        .file("net.ds", net_source)
-        .input("main.ds", source);
+        .file("package.tspp", package_source)
+        .file("net.tspp", net_source)
+        .input("main.tspp", source);
     let output = test
         .query("$CALLEE($VALUE)")
         .where_("$CALLEE == myPackage.net.fetch")
@@ -194,7 +194,7 @@ myPackage.net.fetch("first");
 #[test]
 fn test_rewrite_source_pattern_diff() {
     let source = "fetch(\"/a\");\nkeep();\n";
-    let test = TestPattern::new("rewrite-source-pattern-diff").input("main.ds", source);
+    let test = TestPattern::new("rewrite-source-pattern-diff").input("main.tspp", source);
     let output = test
         .rewrite("fetch($URL)", "client.fetch($URL)")
         .mode(RewriteMode::Diff)
@@ -213,17 +213,17 @@ fn test_rewrite_source_pattern_diff() {
     );
     assert_eq!(
         text,
-        "--- a/main.ds\n+++ b/main.ds\n\n-   1│ fetch(\"/a\");\n+   1│ client.fetch(\"/a\");\n    2│ keep();\n"
+        "--- a/main.tspp\n+++ b/main.tspp\n\n-   1│ fetch(\"/a\");\n+   1│ client.fetch(\"/a\");\n    2│ keep();\n"
     );
     assert!(output.data.commit.is_none());
-    assert_eq!(test.source("main.ds"), source);
+    assert_eq!(test.source("main.tspp"), source);
 }
 
 /// Fail check mode exactly when a rewrite would change source.
 #[test]
 fn test_rewrite_checks_required_changes() {
     let source = "fetch(\"/a\");\nkeep();\n";
-    let test = TestPattern::new("rewrite-check").input("main.ds", source);
+    let test = TestPattern::new("rewrite-check").input("main.tspp", source);
     let required = test
         .rewrite("fetch($URL)", "client.fetch($URL)")
         .mode(RewriteMode::Check)
@@ -234,7 +234,7 @@ fn test_rewrite_checks_required_changes() {
     assert_eq!(required.data.changes.len(), 1);
     assert!(required.data.commit.is_none());
     assert!(required.output.is_empty());
-    assert_eq!(test.source("main.ds"), source);
+    assert_eq!(test.source("main.tspp"), source);
 
     let clean = test
         .rewrite("missing($URL)", "client.fetch($URL)")
@@ -250,7 +250,7 @@ fn test_rewrite_checks_required_changes() {
 #[test]
 fn test_rewrite_source_pattern_write() {
     let source = "fetch(\"/a\");\nfetch(\"/b\");\n";
-    let test = TestPattern::new("rewrite-source-pattern-write").input("main.ds", source);
+    let test = TestPattern::new("rewrite-source-pattern-write").input("main.tspp", source);
     let before = test.revision();
 
     let output = test
@@ -260,7 +260,7 @@ fn test_rewrite_source_pattern_write() {
 
     assert_eq!(output.data.replacements, 2);
     assert_eq!(
-        test.source("main.ds"),
+        test.source("main.tspp"),
         "client.fetch(\"/a\");\nclient.fetch(\"/b\");\n"
     );
     let after = test.revision();
@@ -283,7 +283,7 @@ fn test_rewrite_source_pattern_write() {
 #[test]
 fn test_query_and_rewrite_match_arm() {
     let source = "match (result) { Err(error) => recover(error); Ok(value) => value }\n";
-    let test = TestPattern::new("query-rewrite-match-arm").input("main.ds", source);
+    let test = TestPattern::new("query-rewrite-match-arm").input("main.tspp", source);
     let output = test
         .query("match (value) { Err($ERROR) => $BODY }")
         .kind(dir::NodeType::MatchArm)
@@ -310,7 +310,7 @@ fn test_query_and_rewrite_match_arm() {
 
     assert_eq!(output.data.replacements, 1);
     assert_eq!(
-        test.source("main.ds"),
+        test.source("main.tspp"),
         "match (result) { Err(error) => log(recover(error)); Ok(value) => value }\n"
     );
 }
@@ -319,7 +319,7 @@ fn test_query_and_rewrite_match_arm() {
 #[test]
 fn test_query_reports_pattern_diagnostics() {
     let source = "fetch(\"/a\");\n";
-    let test = TestPattern::new("query-pattern-diagnostics").input("main.ds", source);
+    let test = TestPattern::new("query-pattern-diagnostics").input("main.tspp", source);
     let output = test.query("$$$VALUES").run();
 
     assert_eq!(output.exit_code, 1);
@@ -332,7 +332,7 @@ fn test_query_reports_pattern_diagnostics() {
         ["invalid-repeated-metavariable"]
     );
     assert_eq!(output.files.len(), 1);
-    assert_eq!(output.files[0].name, "pattern.ds-pattern");
+    assert_eq!(output.files[0].name, "pattern.tspp-pattern");
     assert_eq!(output.files[0].content.as_deref(), Some("$$$VALUES"));
     assert!(output.data.matches.is_empty());
 }
@@ -343,8 +343,8 @@ fn test_rewrite_discards_complete_change_set_after_overlap() {
     let first_source = "call(value);\n";
     let second_source = "outer(inner(value));\n";
     let test = TestPattern::new("rewrite-overlapping-files")
-        .input("first.ds", first_source)
-        .input("second.ds", second_source);
+        .input("first.tspp", first_source)
+        .input("second.tspp", second_source);
     let output = test
         .rewrite("$CALLEE($VALUE)", "wrap($CALLEE($VALUE))")
         .mode(RewriteMode::Write)
@@ -362,8 +362,8 @@ fn test_rewrite_discards_complete_change_set_after_overlap() {
     assert_eq!(output.data.replacements, 0);
     assert!(output.data.changes.is_empty());
     assert!(output.output.is_empty());
-    assert_eq!(test.source("first.ds"), first_source);
-    assert_eq!(test.source("second.ds"), second_source);
+    assert_eq!(test.source("first.tspp"), first_source);
+    assert_eq!(test.source("second.tspp"), second_source);
 }
 
 /// Apply semantic symbol selection to rewrites as well as read-only queries.
@@ -383,7 +383,7 @@ send("second");
 "#;
     let test = TestPattern::new("rewrite-symbol-predicate")
         .file("destack.json", ENTRY_CONFIG)
-        .input("main.ds", source);
+        .input("main.tspp", source);
     let output = test
         .rewrite("$CALLEE($VALUE)", "client.fetch($VALUE)")
         .where_("$CALLEE == fetch")
@@ -392,7 +392,7 @@ send("second");
 
     assert_eq!(output.data.replacements, 1);
     assert_eq!(
-        test.source("main.ds"),
+        test.source("main.tspp"),
         r#"
 function fetch(value: string): string {
     return value;
@@ -419,7 +419,7 @@ consume(42);
 "#;
     let test = TestPattern::new("query-type-predicate")
         .file("destack.json", ENTRY_CONFIG)
-        .input("main.ds", source);
+        .input("main.tspp", source);
     let output = test
         .query("consume($VALUE)")
         .where_("$VALUE satisfies string")
@@ -445,8 +445,8 @@ consume("text");
     let invalid = "const invalid: int32 = \"text\";\n";
     let test = TestPattern::new("pattern-check-selected-modules")
         .file("destack.json", INCLUDE_CONFIG)
-        .input("main.ds", source)
-        .input("invalid.ds", invalid);
+        .input("main.tspp", source)
+        .input("invalid.tspp", invalid);
 
     let query = test
         .query("consume($VALUE)")
@@ -467,7 +467,7 @@ consume("text");
     assert_eq!(rewrite.exit_code, 1);
     assert!(rewrite.diagnostics.is_empty());
     assert_eq!(rewrite.data.replacements, 1);
-    assert_eq!(test.source("invalid.ds"), invalid);
+    assert_eq!(test.source("invalid.tspp"), invalid);
 }
 
 /// Allow structural results and suppress semantic results over invalid checked source.
@@ -483,7 +483,7 @@ fetch("first");
 "#;
     let test = TestPattern::new("pattern-invalid-checked-program")
         .file("destack.json", ENTRY_CONFIG)
-        .input("main.ds", source);
+        .input("main.tspp", source);
     let structural = test.query("fetch($VALUE)").run();
 
     assert_eq!(
@@ -539,5 +539,5 @@ fetch("first");
     assert_eq!(rewrite.data.replacements, 0);
     assert!(rewrite.data.changes.is_empty());
     assert!(rewrite.output.is_empty());
-    assert_eq!(test.source("main.ds"), source);
+    assert_eq!(test.source("main.tspp"), source);
 }

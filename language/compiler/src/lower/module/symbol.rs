@@ -1,8 +1,8 @@
 use std::hash::Hasher;
 
-use destack_core::StableHasher;
-use destack_dir as dir;
-use destack_source::Span;
+use tspp_core::StableHasher;
+use tspp_dir as dir;
+use tspp_source::Span;
 
 use crate::lower::{LowerError, ModuleLowerer};
 use crate::{CompilerError, CompilerResult};
@@ -36,7 +36,7 @@ impl ModuleLowerer<'_> {
     pub(in crate::lower) fn symbol_name(
         &mut self,
         symbol: dir::GlobalSymbolId,
-    ) -> CompilerResult<Option<destack_core::StringId>> {
+    ) -> CompilerResult<Option<tspp_core::StringId>> {
         let bindings = &self.state(symbol.module_id)?.bindings;
 
         Ok(bindings.get_symbol(symbol.local_id).name())
@@ -45,7 +45,7 @@ impl ModuleLowerer<'_> {
     /// Return the stable identity bits of one declared symbol.
     pub(in crate::lower) fn symbol_identity(symbol: dir::GlobalSymbolId) -> u64 {
         let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(b"destack.lower.symbol.v1");
+        hasher.update_len_prefixed(b"tspp.lower.symbol.v1");
         hasher.write_u64(symbol.module_id.package_id.0);
         hasher.write_u64(symbol.module_id.module_key.0);
         hasher.write_u64(u64::from(symbol.local_id.id));
@@ -120,13 +120,13 @@ impl ModuleLowerer<'_> {
     /// Qualify one name under its module path, keeping standard library names bare.
     pub(in crate::lower) fn qualified_name(
         &mut self,
-        module: destack_source::ModuleId,
+        module: tspp_source::ModuleId,
         name: &str,
     ) -> CompilerResult<String> {
         let path = &self.state(module)?.path;
 
         // keep standard library names bare
-        if path == "destack" || path.starts_with("destack.") {
+        if path == "tspp" || path.starts_with("tspp.") {
             return Ok(name.to_string());
         }
 
@@ -213,7 +213,7 @@ impl ModuleLowerer<'_> {
     /// Return whether one definition's template writes a type parameter of its own.
     pub(in crate::lower) fn definition_has_written_parameters(
         &mut self,
-        module: destack_source::ModuleId,
+        module: tspp_source::ModuleId,
         definition: &dir::Definition,
     ) -> CompilerResult<bool> {
         let Some(template) = definition.template() else {
@@ -233,7 +233,7 @@ impl ModuleLowerer<'_> {
     /// Return whether one definition's representation ranges over any parameter.
     pub(in crate::lower) fn definition_is_parameterized(
         &mut self,
-        module: destack_source::ModuleId,
+        module: tspp_source::ModuleId,
         definition: &dir::Definition,
     ) -> CompilerResult<bool> {
         let Some(template) = definition.template() else {

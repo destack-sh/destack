@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use destack_artifact::{MirDeclared, MirInstantiated, MirLowered, MirVerified};
-use destack_core::{FxIndexMap, StringPool};
-use destack_mir as mir;
-use destack_repository::{ArtifactReader, ProfileId};
-use destack_source::{ModuleId, TargetId};
+use tspp_artifact::{MirDeclared, MirInstantiated, MirLowered, MirVerified};
+use tspp_core::{FxIndexMap, StringPool};
+use tspp_mir as mir;
+use tspp_repository::{ArtifactReader, ProfileId};
+use tspp_source::{ModuleId, TargetId};
 
 use crate::instantiate::function::Specialization;
 use crate::verify::VerifyState;

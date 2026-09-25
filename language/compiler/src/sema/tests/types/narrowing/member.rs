@@ -5,7 +5,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_find_an_owner_member_on_a_narrowed_variant() {
     let session = TestSession::single(
         r#"
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 declare const result: Result<int32, string>;
 
@@ -19,11 +19,11 @@ function run(): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 declare const result: Result<int32, string>;
 
@@ -35,7 +35,7 @@ function run(): int32 {
 }
 
 === dir ===
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 declare const result: Result<int32, string>;
 /// @type.symbol symbol=result source=result type=Result<int32, string>
@@ -105,7 +105,7 @@ function run(value: Base): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -212,7 +212,7 @@ function value(result: Result<int32, string>): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -287,7 +287,7 @@ function pick(values: Array<Result<int32, string>>): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

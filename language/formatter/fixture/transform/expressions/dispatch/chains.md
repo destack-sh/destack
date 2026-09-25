@@ -8,11 +8,11 @@ Chain fixtures cover member access, calls, optional chains, instantiation, and c
 
 Short head groups stay on the first line when breaking chains.
 
-```ds line-width=30
+```tspp line-width=30
 const result = api.getClient().getService().fetchAll().map((x) => x.id)
 ```
 
-```ds expected
+```tspp expected
 const result = api
     .getClient()
     .getService()
@@ -24,11 +24,11 @@ const result = api
 
 Long generic calls break their argument list and keep the chain head intact.
 
-```ds:main.ds line-width=60
+```tspp:main.tspp line-width=60
 const defaultColorDecoratorsEnablement = accessor.get(IConfigurationService).getValue<"auto" | "always" | "never">("longlonglonglonglonglonglonglonglong")
 ```
 
-```ds expected
+```tspp expected
 const defaultColorDecoratorsEnablement = accessor
     .get(IConfigurationService)
     .getValue<"auto" | "always" | "never">(
@@ -42,11 +42,11 @@ const defaultColorDecoratorsEnablement = accessor
 
 Optional chains break with the `?.` operator leading each line.
 
-```ds line-width=35
+```tspp line-width=35
 const value = dataSource?.getClient()?.getUser(id)?.profile?.name
 ```
 
-```ds expected
+```tspp expected
 const value = dataSource
     ?.getClient()
     ?.getUser(id)?.profile?.name;
@@ -56,11 +56,11 @@ const value = dataSource
 
 Optional chaining keeps computed access tight.
 
-```ds
+```tspp
 const value = api?.users?.[0]?.profile?.["full-name"]
 ```
 
-```ds expected
+```tspp expected
 const value = api?.users?.[0]?.profile?.["full-name"];
 ```
 
@@ -68,11 +68,11 @@ const value = api?.users?.[0]?.profile?.["full-name"];
 
 Multiple optional chaining operators stay compact when they fit.
 
-```ds
+```tspp
 const value = obj?.nested?.deeply?.value
 ```
 
-```ds expected
+```tspp expected
 const value = obj?.nested?.deeply?.value;
 ```
 
@@ -80,7 +80,7 @@ const value = obj?.nested?.deeply?.value;
 
 Trailing comments stay attached to the chain segment they follow.
 
-```ds line-width=60
+```tspp line-width=60
 this.getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */
   ?.();
 
@@ -96,7 +96,7 @@ getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */
   ?.();
 ```
 
-```ds expected
+```tspp expected
 this
     .getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */
     ?.();
@@ -118,11 +118,11 @@ getParameters /* xxxxxxxxxxxxxxxxxxxxxxxxxxxx */?.();
 
 Instantiation expressions stay attached to the member expression they instantiate.
 
-```ds:main.ds
+```tspp:main.tspp
 const factory = api.getFactory<number>
 ```
 
-```ds expected
+```tspp expected
 const factory = api.getFactory<number>;
 ```
 
@@ -130,11 +130,11 @@ const factory = api.getFactory<number>;
 
 Instantiation expressions after computed access keep type arguments attached.
 
-```ds:main.ds
+```tspp:main.tspp
 const factory = providers["main"]<Factory>
 ```
 
-```ds expected
+```tspp expected
 const factory = providers["main"]<Factory>;
 ```
 
@@ -142,11 +142,11 @@ const factory = providers["main"]<Factory>;
 
 Member instantiation chains break at this fixture width while keeping the type arguments attached.
 
-```ds:main.ds line-width=25
+```tspp:main.tspp line-width=25
 const value = api.getService().getFactory<number>
 ```
 
-```ds expected
+```tspp expected
 const value =
     api.getService()
         .getFactory<number>;
@@ -158,11 +158,11 @@ const value =
 
 Non-null assertions keep tight spacing.
 
-```ds
+```tspp
 const value = maybe!.nested!.value
 ```
 
-```ds expected
+```tspp expected
 const value = maybe!.nested!.value;
 ```
 
@@ -170,11 +170,11 @@ const value = maybe!.nested!.value;
 
 Non-null assertions inside static-member chains keep the following member path intact.
 
-```ds:main.ds
+```tspp:main.tspp
 compoundConfigurationsSchema.items.oneOf![1].properties!.folder.enum = folderNames
 ```
 
-```ds expected
+```tspp expected
 compoundConfigurationsSchema.items.oneOf![1].properties!.folder.enum = folderNames;
 ```
 
@@ -184,11 +184,11 @@ compoundConfigurationsSchema.items.oneOf![1].properties!.folder.enum = folderNam
 
 Computed member access stays inline when short.
 
-```ds
+```tspp
 const value = client.users[0]["full-name"].toString()
 ```
 
-```ds expected
+```tspp expected
 const value = client.users[0]["full-name"].toString();
 ```
 
@@ -198,7 +198,7 @@ const value = client.users[0]["full-name"].toString();
 
 Inline comments stay attached to their chain segment.
 
-```ds line-width=80
+```tspp line-width=80
 wow /* do something weird here */
   .omg! /* do something weird here */
   .map((x) => x.name) /* do something weird here */
@@ -206,7 +206,7 @@ wow /* do something weird here */
   .sort((a, b) => a.length - b.length)
 ```
 
-```ds expected
+```tspp expected
 wow /* do something weird here */
     .omg! /* do something weird here */
     .map((x) => x.name) /* do something weird here */
@@ -218,7 +218,7 @@ wow /* do something weird here */
 
 Blank lines between chain segments are preserved.
 
-```ds:main.ds
+```tspp:main.tspp
 Promise.all(writeIconFiles)
   // TO DO -- END
   .then(() => writeRegistry())
@@ -234,7 +234,7 @@ Promise.all(writeIconFiles)
   .then(() => writeRegistry())
 ```
 
-```ds expected
+```tspp expected
 Promise.all(writeIconFiles)
     // TO DO -- END
     .then(() => writeRegistry());

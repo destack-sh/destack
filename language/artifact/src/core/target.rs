@@ -1,5 +1,5 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// Artifact produced by one build target.
 #[derive(
@@ -22,7 +22,7 @@ pub enum Output {
     /// Linked JavaScript files and resources.
     #[default]
     Bundle,
-    /// One Destack Program.
+    /// One TS++ Program.
     Program,
 }
 
@@ -43,7 +43,7 @@ impl Output {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum Code {
-    /// Destack bytecode.
+    /// TS++ bytecode.
     Bytecode,
     /// Native machine code.
     Native,
@@ -80,9 +80,9 @@ impl Code {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "kebab-case")]
 pub enum Runtime {
-    /// Destack native runtime.
+    /// TS++ native runtime.
     #[default]
-    Destack,
+    Tspp,
     /// JavaScript host runtime.
     Js,
 }
@@ -92,7 +92,7 @@ impl std::str::FromStr for Runtime {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "destack" => Ok(Self::Destack),
+            "tspp" => Ok(Self::Tspp),
             "js" | "javascript" => Ok(Self::Js),
             _ => Err(()),
         }
@@ -103,7 +103,7 @@ impl Runtime {
     /// Return the canonical lowercase tag for this runtime.
     pub fn canonical_tag(&self) -> &'static str {
         match self {
-            Self::Destack => "destack",
+            Self::Tspp => "tspp",
             Self::Js => "js",
         }
     }
@@ -142,7 +142,7 @@ pub enum BuildProfile {
     Full,
     /// Smaller Destack build with optional services omitted when possible.
     Minimal,
-    /// Freestanding output without the normal Destack runtime contract.
+    /// Freestanding output without the normal TS++ runtime contract.
     Freestanding,
 }
 
@@ -184,7 +184,7 @@ impl BuildProfile {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum BuildLinkage {
-    /// Ship a portable Destack payload consumed by a runtime.
+    /// Ship a portable TS++ payload consumed by a runtime.
     #[default]
     Portable,
     /// Link the build payload into the produced platform binary.

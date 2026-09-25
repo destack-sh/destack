@@ -6,13 +6,13 @@
 
 Extra whitespace in class declarations should be normalized.
 
-```ds
+```tspp
 class   Foo   {   }
 ```
 
 Empty class bodies stay on one line with internal spacing.
 
-```ds expected
+```tspp expected
 class Foo {}
 ```
 
@@ -20,11 +20,11 @@ class Foo {}
 
 The `extends` clause should have single spaces around it.
 
-```ds
+```tspp
 class   Foo   extends   Bar   {   }
 ```
 
-```ds expected
+```tspp expected
 class Foo extends Bar {}
 ```
 
@@ -32,7 +32,7 @@ class Foo extends Bar {}
 
 Comments inside class heritage type arguments keep the type arguments multiline.
 
-```ds:main.ds
+```tspp:main.tspp
 export class ClassTest extends Modal<
   // comment
   string | number | undefined
@@ -40,7 +40,7 @@ export class ClassTest extends Modal<
 }
 ```
 
-```ds expected
+```tspp expected
 export class ClassTest extends Modal<
     // comment
     string | number | undefined
@@ -52,11 +52,11 @@ export class ClassTest extends Modal<
 
 Multiple implemented interfaces are separated by comma and space.
 
-```ds
+```tspp
 class   Foo   implements   Bar  ,  Baz   {   }
 ```
 
-```ds expected
+```tspp expected
 class Foo implements Bar, Baz {}
 ```
 
@@ -64,11 +64,11 @@ class Foo implements Bar, Baz {}
 
 Generic type parameters have no internal spacing.
 
-```ds
+```tspp
 class   Foo  <  T  >   {   }
 ```
 
-```ds expected
+```tspp expected
 class Foo<T> {}
 ```
 
@@ -76,11 +76,11 @@ class Foo<T> {}
 
 Classes with members expand to multiple lines with fields ending in semicolons.
 
-```ds
+```tspp
 class Foo { x: number }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     x: number;
 }
@@ -90,11 +90,11 @@ class Foo {
 
 Each field goes on its own line with a trailing semicolon.
 
-```ds
+```tspp
 class Foo { x: number; y: string; z: boolean }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     x: number;
     y: string;
@@ -106,11 +106,11 @@ class Foo {
 
 Methods expand their bodies to multiple lines when they contain statements.
 
-```ds
+```tspp
 class Foo { bar() { return 1 } }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     bar() {
         return 1;
@@ -122,11 +122,11 @@ class Foo {
 
 Value-returning methods keep terminal expressions semicolonless.
 
-```ds
+```tspp
 class Foo { value(): number { this.current } }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     value(): number {
         this.current
@@ -138,11 +138,11 @@ class Foo {
 
 Constructors and setters keep terminal expressions as statements.
 
-```ds
+```tspp
 class Foo { constructor() { initialize() } set value(next: number) { this.current = next } }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     constructor() {
         initialize();
@@ -157,11 +157,11 @@ class Foo {
 
 Short value-returning methods expand nested control-flow tails.
 
-```ds
+```tspp
 class Foo { value(next: number): number { const doubled = next * 2; if (doubled > this.limit) { this.limit } else { doubled } } }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     value(next: number): number {
         const doubled = next * 2;
@@ -178,11 +178,11 @@ class Foo {
 
 Value-returning methods preserve expression tails through nested control flow.
 
-```ds
+```tspp
 class Foo { value(next: number): number { const doubled = next * 2; if (doubled > this.limit) { const capped = this.limit - 1; capped } else { const returned = doubled + 1; returned } } }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     value(next: number): number {
         const doubled = next * 2;
@@ -201,11 +201,11 @@ class Foo {
 
 Constructor bodies follow the same rules as method bodies.
 
-```ds
+```tspp
 class Foo { constructor(x: number) { this.x = x } }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     constructor(x: number) {
         this.x = x;
@@ -219,11 +219,11 @@ class Foo {
 
 Class fields use semicolons instead of commas.
 
-```ds:main.ds
+```tspp:main.tspp
 class Foo { x: number; y: string }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     x: number;
     y: string;
@@ -234,11 +234,11 @@ class Foo {
 
 Optional field suffixes stay attached to the field name.
 
-```ds:main.ds
+```tspp:main.tspp
 class Foo { maybe?: string }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     maybe?: string;
 }
@@ -248,11 +248,11 @@ class Foo {
 
 Accessor fields keep the `accessor` keyword and use semicolons.
 
-```ds:main.ds
+```tspp:main.tspp
 class Box { accessor value = 1 }
 ```
 
-```ds expected
+```tspp expected
 class Box {
     accessor value = 1;
 }
@@ -262,11 +262,11 @@ class Box {
 
 Quoted class members preserve required quotes and remove unnecessary keyword quotes.
 
-```ds:main.ds
+```tspp:main.tspp
 class Config { "normal" = 1; "data-id" = 2; "default"() { } }
 ```
 
-```ds expected
+```tspp expected
 class Config {
     "normal" = 1;
     "data-id" = 2;
@@ -274,15 +274,15 @@ class Config {
 }
 ```
 
-### Destack class quoted members
+### TS++ class quoted members
 
 Quoted class members preserve required quotes and remove unnecessary keyword quotes.
 
-```ds
+```tspp
 class Config { "normal" = 1; "data-id" = 2; "default"() { } }
 ```
 
-```ds expected
+```tspp expected
 class Config {
     "normal" = 1;
     "data-id" = 2;
@@ -294,11 +294,11 @@ class Config {
 
 Unicode method names stay quoted and normalize quote style.
 
-```ds:main.ds
+```tspp:main.tspp
 class A { 'x・'() {} 'x･'() {} }
 ```
 
-```ds expected
+```tspp expected
 class A {
     "x・"() {}
     "x･"() {}
@@ -309,11 +309,11 @@ class A {
 
 Abstract classes keep the `abstract` modifier.
 
-```ds:main.ds
+```tspp:main.tspp
 abstract class Foo { abstract bar(): void }
 ```
 
-```ds expected
+```tspp expected
 abstract class Foo {
     abstract bar(): void;
 }
@@ -323,12 +323,12 @@ abstract class Foo {
 
 Override methods keep the `override` modifier.
 
-```ds:main.ds
+```tspp:main.tspp
 class Base { greet(): void { } }
 class Child extends Base { override greet(): void { } }
 ```
 
-```ds expected
+```tspp expected
 class Base {
     greet(): void {}
 }
@@ -341,12 +341,12 @@ class Child extends Base {
 
 Abstract override methods keep both modifiers.
 
-```ds:main.ds
+```tspp:main.tspp
 abstract class Base { abstract greet(): void }
 abstract class Child extends Base { abstract override greet(): void }
 ```
 
-```ds expected
+```tspp expected
 abstract class Base {
     abstract greet(): void;
 }
@@ -359,11 +359,11 @@ abstract class Child extends Base {
 
 `final` prints before the class keyword.
 
-```ds
+```tspp
 final class Service { start(): void {} }
 ```
 
-```ds expected
+```tspp expected
 final class Service {
     start(): void {}
 }
@@ -373,11 +373,11 @@ final class Service {
 
 `virtual` prints before the method key.
 
-```ds
+```tspp
 class Widget { virtual render(): void {} }
 ```
 
-```ds expected
+```tspp expected
 class Widget {
     virtual render(): void {}
 }
@@ -387,11 +387,11 @@ class Widget {
 
 Declaration class signatures end with semicolons.
 
-```ds:main.d.ds
+```tspp:main.d.tspp
 declare class Foo { bar(): void }
 ```
 
-```ds expected
+```tspp expected
 declare class Foo {
     bar(): void;
 }
@@ -403,11 +403,11 @@ declare class Foo {
 
 The `export` keyword precedes the class declaration.
 
-```ds
+```tspp
 export class Foo { }
 ```
 
-```ds expected
+```tspp expected
 export class Foo {}
 ```
 
@@ -415,11 +415,11 @@ export class Foo {}
 
 Default exports use `export default` before the class.
 
-```ds
+```tspp
 export default class Handler { }
 ```
 
-```ds expected
+```tspp expected
 export default class Handler {}
 ```
 
@@ -427,11 +427,11 @@ export default class Handler {}
 
 Exported class decorators stay after `export` when they start after the export keyword.
 
-```ds:main.ds
+```tspp:main.tspp
 export @logged class Handler {}
 ```
 
-```ds expected
+```tspp expected
 export
 @logged
 class Handler {}
@@ -441,11 +441,11 @@ class Handler {}
 
 Leading decorators stay before `export` when they start before the export keyword.
 
-```ds:main.ds
+```tspp:main.tspp
 @logged export class Handler {}
 ```
 
-```ds expected
+```tspp expected
 @logged
 export class Handler {}
 ```
@@ -456,13 +456,13 @@ export class Handler {}
 
 When type parameters exceed the line width, they break to multiple lines.
 
-```ds line-width=40
+```tspp line-width=40
 class Container<VeryLongType, AnotherType, ThirdType> { }
 ```
 
 Each type parameter goes on its own line with a trailing comma.
 
-```ds expected
+```tspp expected
 class Container<
     VeryLongType,
     AnotherType,
@@ -475,11 +475,11 @@ class Container<
 
 Long `implements` clauses break across lines without wrapper parentheses.
 
-```ds line-width=50
+```tspp line-width=50
 class MyClass implements FirstInterface, SecondInterface, ThirdInterface { }
 ```
 
-```ds expected
+```tspp expected
 class MyClass
     implements
         FirstInterface,
@@ -494,11 +494,11 @@ class MyClass
 
 Fields use trailing semicolons, and methods expand as full declarations.
 
-```ds
+```tspp
 class Person { name: string; constructor(name: string) { this.name = name } greet(): string { return `Hello, ${this.name}` } }
 ```
 
-```ds expected
+```tspp expected
 class Person {
     name: string;
     constructor(name: string) {
@@ -514,11 +514,11 @@ class Person {
 
 Single-statement static blocks stay on one line.
 
-```ds
+```tspp
 class Config { static { Config.init() } static init() { } }
 ```
 
-```ds expected
+```tspp expected
 class Config {
     static {
         Config.init();
@@ -533,12 +533,12 @@ class Config {
 
 Doc comments are preserved above the class declaration.
 
-```ds
+```tspp
 /// A point in 2D space.
 class Point { x: number; y: number }
 ```
 
-```ds expected
+```tspp expected
 /// A point in 2D space.
 class Point {
     x: number;
@@ -550,14 +550,14 @@ class Point {
 
 Doc comments before fields remain attached.
 
-```ds
+```tspp
 class Point {
     /// The x coordinate.
     x: number
 }
 ```
 
-```ds expected
+```tspp expected
 class Point {
     /// The x coordinate.
     x: number;
@@ -572,7 +572,7 @@ Combined declaration fixtures cover documentation, decorators, heritage clauses,
 
 Documentation, decorators, exports, heritage clauses, and decorated members keep their relative order.
 
-```ds:main.ds line-width=80
+```tspp:main.tspp line-width=80
 /**
  * Stores values.
  * @typeParam T value type
@@ -588,7 +588,7 @@ export class Store<T> extends Base<T> implements Reader<T> {
 }
 ```
 
-```ds expected
+```tspp expected
 /// Stores values.
 ///
 /// @typeParam T - value type

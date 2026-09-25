@@ -1,0 +1,66 @@
+import { todo } from "tspp:error";
+import { HostError } from "tspp:error/host";
+import * as runtime from "tspp:runtime";
+
+import { random } from "./binding/random.tspp";
+
+/// Deterministic random stream seed.
+@languageItem("random.RandomSeed")
+export type RandomSeed = runtime.RandomSeed;
+
+/// Deterministic random generator.
+@languageItem("random.Random")
+export class Random {
+    /// The runtime stream handle.
+    handle: runtime.RandomHandle;
+
+    /// Wrap an open runtime random stream.
+    constructor(handle: runtime.RandomHandle) {
+        this.handle = handle;
+    }
+}
+
+export extension of Random {
+    /// Open a deterministic random generator in `world`.
+    static open(
+        world: runtime.WorldHandle,
+        seed?: &readonly RandomSeed,
+    ): Result<Random, HostError> {
+        runtime.openRandom(world, seed).map((handle) => new Random(handle))
+    }
+
+    /// Open a deterministic random generator seeded from host entropy.
+    static fromEntropy(world: runtime.WorldHandle): Result<Random, HostError> {
+        todo("Random.fromEntropy")
+    }
+
+    /// Return a split generator.
+    split(): Result<Random, HostError> {
+        runtime.splitRandom(this.handle).map((handle) => new Random(handle))
+    }
+
+    /// Fill `buffer` from this generator.
+    fill(buffer: &[uint8]): Result<void, HostError> {
+        runtime.fillRandom(this.handle, buffer)
+    }
+
+    /// Close this generator.
+    close(): Result<void, HostError> {
+        runtime.closeRandom(this.handle)
+    }
+
+    /// Return the next unsigned 64-bit value.
+    nextUint64(): Result<uint64, HostError> {
+        todo("Random.nextUint64")
+    }
+
+    /// Return the next floating-point value in [0, 1).
+    nextFloat64(): Result<float64, HostError> {
+        todo("Random.nextFloat64")
+    }
+}
+
+/// Fill a buffer with host-provided random bytes.
+export function fillBytes(buffer: &[uint8]): Result<void, HostError> {
+    random.get().entropy.fillRandomBytes(buffer)
+}

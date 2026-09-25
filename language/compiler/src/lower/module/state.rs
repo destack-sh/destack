@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use destack_artifact::{
+use tspp_artifact::{
     DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported, DirMaterialized,
     DirParsed, DirResolved, DirView, MirDeclared,
 };
-use destack_core::{FxIndexMap, FxIndexSet};
-use destack_dir as dir;
-use destack_mir as mir;
-use destack_repository::{ArtifactReader, ProfileId, ProviderContext};
-use destack_source::ModuleId;
+use tspp_core::{FxIndexMap, FxIndexSet};
+use tspp_dir as dir;
+use tspp_mir as mir;
+use tspp_repository::{ArtifactReader, ProfileId, ProviderContext};
+use tspp_source::ModuleId;
 
 use crate::lower::ModuleLowerer;
 use crate::{Compiler, CompilerError, CompilerResult, LowerError};

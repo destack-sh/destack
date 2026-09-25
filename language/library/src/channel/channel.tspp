@@ -1,0 +1,114 @@
+import { Task } from "tspp:async";
+import { Error, Result } from "tspp:error";
+
+/// Channel send failure kind.
+@languageItem("channel.SendErrorKind")
+export enum SendErrorKind {
+    /// The receiver endpoint is closed.
+    Closed,
+    /// The bounded channel is full.
+    Full,
+}
+
+/// Channel receive failure kind.
+@languageItem("channel.ReceiveErrorKind")
+export enum ReceiveErrorKind {
+    /// The sender endpoint is closed.
+    Closed,
+    /// The channel has no message available.
+    Empty,
+    /// The receiver skipped messages.
+    Lagged,
+}
+
+/// Failed send operation.
+@languageItem("channel.SendError")
+export struct SendError<T> {
+    /// The failure kind.
+    kind: SendErrorKind;
+
+    /// The value that was not sent.
+    value: T;
+}
+
+export extension<T> of SendError<T> implements Error {
+    /// Format this error for users.
+    display(&immutable this): ^string {
+        "channel send failed"
+    }
+}
+
+/// Failed receive operation.
+@languageItem("channel.ReceiveError")
+export struct ReceiveError {
+    /// The failure kind.
+    kind: ReceiveErrorKind;
+
+    /// The number of skipped messages for lagged broadcast receivers.
+    skipped?: usize;
+}
+
+export extension of ReceiveError implements Error {
+    /// Format this error for users.
+    display(&immutable this): ^string {
+        "channel receive failed"
+    }
+}
+
+/// Channel buffer options.
+export interface ChannelOptions {
+    /// The bounded channel capacity.
+    capacity?: usize;
+}
+
+/// Synchronous sender endpoint.
+@languageItem("channel.Sender")
+export interface Sender<T> {
+    /// Send one value.
+    send(value: T): Result<void, SendError<T>>;
+
+    /// Try to send one value without blocking.
+    trySend(value: T): Result<void, SendError<T>>;
+
+    /// Close this sender.
+    close(): void;
+}
+
+/// Synchronous receiver endpoint.
+@languageItem("channel.Receiver")
+export interface Receiver<T> {
+    /// Receive one value.
+    receive(): Result<T, ReceiveError>;
+
+    /// Try to receive one value without blocking.
+    tryReceive(): Result<T, ReceiveError>;
+
+    /// Close this receiver.
+    close(): void;
+}
+
+/// Asynchronous sender endpoint.
+@languageItem("channel.AsyncSender")
+export interface AsyncSender<T> {
+    /// Send one value.
+    send(value: T): Task<Result<void, SendError<T>>>;
+
+    /// Try to send one value without suspending.
+    trySend(value: T): Result<void, SendError<T>>;
+
+    /// Close this sender.
+    close(): void;
+}
+
+/// Asynchronous receiver endpoint.
+@languageItem("channel.AsyncReceiver")
+export interface AsyncReceiver<T> {
+    /// Receive one value.
+    receive(): Task<Result<T, ReceiveError>>;
+
+    /// Try to receive one value without suspending.
+    tryReceive(): Result<T, ReceiveError>;
+
+    /// Close this receiver.
+    close(): void;
+}

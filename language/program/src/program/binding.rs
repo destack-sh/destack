@@ -1,11 +1,11 @@
 use std::mem::size_of;
 
-use destack_core::{
+use serde::{Deserialize, Serialize};
+use tspp_core::{
     EntryRange, EntryStore, SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId,
     fnv1a_128,
 };
-use destack_serde::Reflect;
-use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use super::FunctionId;
 
@@ -349,7 +349,7 @@ pub enum BindingEffect {
 pub enum BindingProvider {
     /// Host platform implementation.
     Host = 0,
-    /// Destack runtime implementation.
+    /// TS++ runtime implementation.
     Runtime = 1,
 }
 

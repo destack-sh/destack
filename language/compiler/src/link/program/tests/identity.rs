@@ -1,4 +1,4 @@
-use destack_source::{ModuleId, PackageId};
+use tspp_source::{ModuleId, PackageId};
 
 use crate::link::tests::TestModule;
 use crate::{LinkError, ProgramLinker};

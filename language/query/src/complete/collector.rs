@@ -1,6 +1,6 @@
-use destack_core::FxIndexMap;
-use destack_dir as dir;
 use rustc_hash::FxHashSet;
+use tspp_core::FxIndexMap;
+use tspp_dir as dir;
 
 use super::builtin::{keyword_completions, primitive_type_completions};
 use super::{CompletionContext, CompletionPosition, CompletionReceiver};

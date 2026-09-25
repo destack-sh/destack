@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use destack_core::{FxIndexMap as IndexMap, StringId};
-use destack_serde::Reflect;
-use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+use tspp_core::{FxIndexMap as IndexMap, StringId};
+use tspp_serde::Reflect;
+use tspp_source::ModuleId;
 
 use crate::{
     AutoInterface, EnumBackingType, EnumVariantValue, FunctionRole, GlobalNodeIdAny,
@@ -338,8 +338,8 @@ impl Definition {
     /// Return whether this declaration's own shape admits one representation family.
     pub fn is_representable(&self, kind: RepresentationKind) -> bool {
         match (self, kind) {
-            (Self::Struct(_), RepresentationKind::Destack | RepresentationKind::C)
-            | (Self::Class(_), RepresentationKind::Destack) => true,
+            (Self::Struct(_), RepresentationKind::Tspp | RepresentationKind::C)
+            | (Self::Class(_), RepresentationKind::Tspp) => true,
             (Self::Class(definition), RepresentationKind::C) => {
                 !definition.declares_virtual_dispatch()
             }
@@ -357,15 +357,13 @@ impl Definition {
                     .count()
                     == 1
             }
-            (Self::Enum(_), RepresentationKind::Destack) => true,
+            (Self::Enum(_), RepresentationKind::Tspp) => true,
             (Self::Enum(definition), RepresentationKind::C) => {
                 matches!(definition.backing, EnumBackingType::Integer(_))
             }
             (
                 Self::Newtype(_),
-                RepresentationKind::Destack
-                | RepresentationKind::C
-                | RepresentationKind::Transparent,
+                RepresentationKind::Tspp | RepresentationKind::C | RepresentationKind::Transparent,
             ) => true,
             (Self::TypeAlias(_) | Self::Interface(_) | Self::Extension(_), _)
             | (Self::Struct(_), RepresentationKind::Integer(_))
@@ -1276,9 +1274,9 @@ pub struct Representation {
 /// Runtime representation family for one nominal declaration.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize, Reflect, TypeFold)]
 pub enum RepresentationKind {
-    /// The native Destack layout.
+    /// The native TS++ layout.
     #[default]
-    Destack,
+    Tspp,
     /// The target C ABI layout.
     C,
     /// The single-field backing layout without a wrapper.
@@ -1293,7 +1291,7 @@ impl<'a> TryFrom<&'a str> for RepresentationKind {
     /// Convert one standard name into a representation family.
     fn try_from(name: &'a str) -> Result<Self, Self::Error> {
         let integer = match name {
-            "destack" => return Ok(Self::Destack),
+            "tspp" => return Ok(Self::Tspp),
             "C" => return Ok(Self::C),
             "transparent" => return Ok(Self::Transparent),
             "int" => IntegerType::Fixed {

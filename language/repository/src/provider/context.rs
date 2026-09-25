@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{
+use tspp_artifact::{
     Artifact, ArtifactDependency, ArtifactEntry, ArtifactKey, ArtifactPayload, ArtifactVersion,
     DiagnosticContext, DiagnosticError, DiagnosticLike, DiagnosticRecord,
 };

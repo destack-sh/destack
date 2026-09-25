@@ -19,7 +19,7 @@ function build(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 function test.main.read(v0: ref<{ x: int32 }, managed, mutable, local>): int32 {
@@ -38,7 +38,7 @@ entry(v0: ref<{ x: int32 }, managed, mutable, local>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.build",
         r#"
 function test.main.build(): int32 {
@@ -81,7 +81,7 @@ function build(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.pick",
         r#"
 function test.main.pick(v0: ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested: variant<uint1> { 0uint1 = type@4; 1uint1 = void; } }, managed, mutable, local>): int32 {
@@ -96,7 +96,7 @@ entry(v0: ref<{ depth: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, nested
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.build",
         r#"
 function test.main.build(): int32 {
@@ -138,7 +138,7 @@ function build(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.build",
         r#"
 function test.main.build(): int32 {
@@ -178,7 +178,7 @@ export function trace(name: &readonly string, fields?: Fields): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.trace",
         r#"
 @nocopy
@@ -220,7 +220,7 @@ entry(v0: ref<String, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = dyn
 /// @layout.case owner=type@21 index=1 discriminant=1 payload_offset=0
 "#,
     );
-    session.assert_mir_function("main.ds", "test.main.log", r#"
+    session.assert_mir_function("main.tspp", "test.main.log", r#"
 @nocopy
 @languageItem("string.String")
 type String;
@@ -253,7 +253,7 @@ entry(v0: ref<String, borrowed, 'a, readonly>, v1: variant<uint1> { 0uint1 = ref
 /// @layout.case owner=type@15 index=1 discriminant=1 payload_offset=0
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.trace", r#"
+    session.assert_mir_function("main.tspp", "test.main.trace", r#"
 @nocopy
 @languageItem("string.String")
 type String;
@@ -328,7 +328,7 @@ class Logger {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Logger.log",
         r#"
 @nocopy
@@ -412,7 +412,7 @@ class Counter {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Counter.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
 type test.main.Counter {
     count: int32;

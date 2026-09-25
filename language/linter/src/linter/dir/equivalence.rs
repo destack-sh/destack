@@ -1,8 +1,8 @@
 use std::hash::Hash;
 
-use destack_core::FxIndexMap;
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_core::FxIndexMap;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use super::{Dir, DirModule};
 

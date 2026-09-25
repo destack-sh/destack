@@ -1,7 +1,7 @@
 use crate::parse::lookahead::DelimiterDepth;
 use crate::parse::{DeclarationHeader, ExpressionPosition, TypeKeywordHeader};
 use crate::{ParseStart, Parser, ParserError, ParserResult, TokenProbe};
-use destack_dir::{
+use tspp_dir::{
     Asynchrony, Declaration, ExportKind, Expression, Keyword, LocalNodeId, TokenType, TypeKind,
 };
 

@@ -1,5 +1,5 @@
-use destack_bytecode as bytecode;
-use destack_mir as mir;
+use tspp_bytecode as bytecode;
+use tspp_mir as mir;
 
 use crate::{EmitError, ObjectEmitter};
 

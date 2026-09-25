@@ -1,6 +1,6 @@
 use std::collections::VecDeque;
 
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::{Bindings, MatchError, Matcher, NthChild, Relation, RelationStop};
 

@@ -1,0 +1,121 @@
+import { Result, todo } from "tspp:error";
+import { Iterable, Iterator, IteratorResult } from "tspp:iter";
+
+import { LocaleIdentifier, LocaleMatcher, Locales, SupportedLocalesOptions } from "./common.tspp";
+import { IntlError } from "./error.tspp";
+
+/// A text segmentation granularity.
+export type SegmentGranularity = "grapheme" | "word" | "sentence";
+
+/// Options for creating a text segmenter.
+export interface SegmenterOptions {
+    /// The locale selection algorithm.
+    localeMatcher?: LocaleMatcher;
+
+    /// The text segmentation granularity.
+    granularity?: SegmentGranularity;
+}
+
+/// The resolved text segmenter options.
+export struct ResolvedSegmenterOptions {
+    /// The resolved locale identifier.
+    locale: LocaleIdentifier;
+
+    /// The text segmentation granularity.
+    granularity: SegmentGranularity;
+}
+
+/// One segment of an input string.
+export struct Segment {
+    /// The segmented text.
+    segment: string;
+
+    /// The UTF-16 code-unit index where this segment begins.
+    index: usize;
+
+    /// The complete input string.
+    input: string;
+
+    /// Whether a word segment resembles a word.
+    isWordLike?: boolean;
+}
+
+/// The segments produced from one input string.
+@languageItem("intl.Segments")
+export class Segments {
+    /// Construct segments internally.
+    private constructor() {
+        todo("Segments.constructor");
+    }
+
+    /// Return the segment containing the UTF-16 code unit at `index`.
+    containing(&readonly this, index?: isize): Segment | undefined {
+        todo("Segments.containing")
+    }
+}
+
+/// An iterator over segmented text.
+@languageItem("intl.SegmentIterator")
+export class SegmentIterator {
+    /// Construct a segment iterator internally.
+    private constructor() {
+        todo("SegmentIterator.constructor");
+    }
+}
+
+export extension of SegmentIterator implements Iterator<Segment> {
+    /// Advance and return the next segment.
+    next(&this): IteratorResult<Segment> {
+        todo("SegmentIterator.next")
+    }
+}
+
+export extension of Segments implements Iterable<Segment> {
+    /// The iterator produced by this value.
+    type Iterator = SegmentIterator;
+
+    /// Return an iterator over the segments.
+    iterator(): SegmentIterator {
+        todo("Segments.iterator")
+    }
+}
+
+/// A locale-sensitive Unicode text segmenter.
+@languageItem("intl.Segmenter")
+export class Segmenter {
+    /// Create a text segmenter for the default locale.
+    static create(): Segmenter {
+        todo("Segmenter.createDefault")
+    }
+
+    /// Create a text segmenter.
+    static create(
+        locales?: &readonly Locales,
+        options?: &readonly SegmenterOptions,
+    ): Result<Segmenter, IntlError> {
+        todo("Segmenter.create")
+    }
+
+    /// Return the supported requested locales.
+    static supportedLocalesOf(
+        locales: &readonly Locales,
+        options?: &readonly SupportedLocalesOptions,
+    ): Result<^string[], IntlError> {
+        todo("Segmenter.supportedLocalesOf")
+    }
+
+    /// Construct a validated text segmenter internally.
+    private constructor() {
+        todo("Segmenter.constructor");
+    }
+
+    /// Segment an input string.
+    segment(&readonly this, input: &readonly string): Segments {
+        todo("Segmenter.segment")
+    }
+
+    /// Return the resolved options.
+    resolvedOptions(&readonly this): ResolvedSegmenterOptions {
+        todo("Segmenter.resolvedOptions")
+    }
+}

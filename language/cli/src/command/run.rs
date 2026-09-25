@@ -2,16 +2,16 @@ use std::sync::Arc;
 use std::time::Instant;
 
 use clap::Args;
-use destack_artifact::{ArtifactPayload, ConditionSet, Host, Platform, Runtime};
-use destack_program::Program;
-use destack_repository::{Environment, RuntimeOptions, WorldOptions};
-use destack_runtime::binding::BindingTable;
-use destack_runtime::diagnostic::RuntimeResult;
-use destack_runtime::machine::Engine;
-use destack_runtime::world::World;
-use destack_vm::MachineLimits;
-use destack_workspace::{BuildInput, BuildOutputs, CommandRevision, Output};
 use serde::Serialize;
+use tspp_artifact::{ArtifactPayload, ConditionSet, Host, Platform, Runtime};
+use tspp_program::Program;
+use tspp_repository::{Environment, RuntimeOptions, WorldOptions};
+use tspp_runtime::binding::BindingTable;
+use tspp_runtime::diagnostic::RuntimeResult;
+use tspp_runtime::machine::Engine;
+use tspp_runtime::world::World;
+use tspp_vm::MachineLimits;
+use tspp_workspace::{BuildInput, BuildOutputs, CommandRevision, Output};
 
 use crate::common::{
     CommandOptionsBuilder, CommandResult, CommandSummary, DiagnosticFormat, FormatOptions,
@@ -187,7 +187,7 @@ fn run_program(program: Arc<Program>, target: Option<&str>) -> RuntimeResult<usi
         labels: Default::default(),
         platform: Platform::Unknown,
         host: Host::Native,
-        runtime: Runtime::Destack,
+        runtime: Runtime::Tspp,
     };
     let bindings = Arc::new(BindingTable::new().with_fiber_bindings());
     let runtime_id = world.spawn_runtime(

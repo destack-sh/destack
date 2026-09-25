@@ -28,7 +28,7 @@ function combine(): int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Vector.add", r#"
+    session.assert_mir_function("main.tspp", "test.main.Vector.add", r#"
 type test.main.Vector {
     x: int32;
     y: int32;
@@ -58,7 +58,7 @@ entry(v0: ref<test.main.Vector, borrowed, 'a, readonly>, v1: test.main.Vector):
 /// @layout.field owner=test.main.Vector index=1 name=y offset=4 size=4 align=4
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.combine", r#"
+    session.assert_mir_function("main.tspp", "test.main.combine", r#"
 type test.main.Vector {
     x: int32;
     y: int32;
@@ -116,7 +116,7 @@ function invert(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Charge.negate",
         r#"
 type test.main.Charge {
@@ -140,7 +140,7 @@ entry(v0: ref<test.main.Charge, borrowed, 'a, readonly>):
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.invert", r#"
+    session.assert_mir_function("main.tspp", "test.main.invert", r#"
 type test.main.Charge {
     amount: int32;
 }
@@ -170,7 +170,7 @@ entry:
 fn test_compare_through_dereferenced_borrows_by_reborrowing_them() {
     let session = TestSession::single(
         r#"
-import { Compare, PartialCompare } from "destack:ops";
+import { Compare, PartialCompare } from "tspp:ops";
 
 function isBefore<T: PartialCompare<T>>(left: &immutable T, right: &immutable T): boolean {
     return *left < *right;
@@ -182,7 +182,7 @@ function isAtMost<T: Compare<T>>(left: &immutable T, right: &immutable T): boole
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.isAtMost", r#"
+    session.assert_mir_function("main.tspp", "test.main.isAtMost", r#"
 @languageItem("ops.Ordering")
 type Ordering;
 
@@ -210,7 +210,7 @@ entry(v0: ref<?T, borrowed, 'a, immutable>, v1: ref<?T, borrowed, 'b, immutable>
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.isBefore",
         r#"
 @nocopy

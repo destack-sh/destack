@@ -6,11 +6,11 @@
 
 Object type annotations use the same brace syntax.
 
-```ds
+```tspp
 const x: { a: number } = { a: 1 }
 ```
 
-```ds expected
+```tspp expected
 const x: { a: number } = { a: 1 };
 ```
 
@@ -18,11 +18,11 @@ const x: { a: number } = { a: 1 };
 
 `satisfies` checks type without changing inference.
 
-```ds
+```tspp
 const x = { a: 1 } satisfies Record<string, number>
 ```
 
-```ds expected
+```tspp expected
 const x = { a: 1 } satisfies Record<string, number>;
 ```
 
@@ -32,10 +32,10 @@ const x = { a: 1 } satisfies Record<string, number>;
 
 `as const` keeps the object literal inline when it fits.
 
-```ds:main.ds
+```tspp:main.tspp
 const settings = { retries: 3, verbose: false } as const
 ```
 
-```ds expected
+```tspp expected
 const settings = { retries: 3, verbose: false } as const;
 ```

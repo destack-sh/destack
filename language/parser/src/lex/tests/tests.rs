@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use crate::{CommentRetention, Lexer, ParseOptions, Parser, Tokenizer};
-pub(in crate::lex) use destack_dir::{NumberBase, Token, TokenLiteral, TokenSpan, TokenType};
-use destack_dir::{Tree, render_tokens};
-use destack_source::{File, FileId, FileType, LanguageType, ModuleId, PackageId, Span, Uri};
+pub(in crate::lex) use tspp_dir::{NumberBase, Token, TokenLiteral, TokenSpan, TokenType};
+use tspp_dir::{Tree, render_tokens};
+use tspp_source::{File, FileId, FileType, LanguageType, ModuleId, PackageId, Span, Uri};
 
 /// The lexer entry point used by a roundtrip assertion.
 #[derive(Debug, Clone, Copy)]
@@ -22,7 +22,7 @@ pub(in crate::lex) fn lex_source(input: &str) -> (Vec<TokenSpan>, Vec<TokenSpan>
         "<string>".to_string(),
         Uri::from_string("<string>"),
         None,
-        FileType::Destack,
+        FileType::Tspp,
         input.to_string(),
     )
     .expect("test source should load");
@@ -167,7 +167,7 @@ pub(in crate::lex) fn lex_source_with_tree_literals(
         "<string>".to_string(),
         Uri::from_string("<string>"),
         None,
-        FileType::Destack,
+        FileType::Tspp,
         input.to_string(),
     )
     .expect("test source should load");
@@ -183,7 +183,7 @@ pub(in crate::lex) fn lex_source_with_tree_literals(
     let module_id = ModuleId::new(PackageId::new(0), file.id.0);
     let mut parser = Parser::new(
         file.clone(),
-        LanguageType::Destack,
+        LanguageType::Tspp,
         Tree::new(module_id),
         ParseOptions {
             comment_retention: CommentRetention::All,

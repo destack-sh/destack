@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 
-use destack_fir::format::{Format, FormatResult};
-use destack_fir::prelude::*;
-use destack_fir::write;
+use tspp_fir::format::{Format, FormatResult};
+use tspp_fir::prelude::*;
+use tspp_fir::write;
 
 use super::trivia::{
     write_inline_comment_after, write_node_leading_comments,

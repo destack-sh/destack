@@ -5,7 +5,7 @@
 
 References follow source order, with the declaration included only when requested.
 
-```ds main.ds
+```tspp main.tspp
 const value = 1;
       ^^^^^ declaration
 const first = value;
@@ -14,22 +14,22 @@ const second = value;
                ^^^^^ second_reference
 ```
 
-```query find_references main.ds#first_reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#value@1
-@find_references.reference location=main.ds#first_reference symbol=main.ds#value@1
-@find_references.reference location=main.ds#second_reference symbol=main.ds#value@1
+```query find_references main.tspp#first_reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#value@1
+@find_references.reference location=main.tspp#first_reference symbol=main.tspp#value@1
+@find_references.reference location=main.tspp#second_reference symbol=main.tspp#value@1
 ```
 
-```query find_references main.ds#first_reference
-@find_references.reference location=main.ds#first_reference symbol=main.ds#value@1
-@find_references.reference location=main.ds#second_reference symbol=main.ds#value@1
+```query find_references main.tspp#first_reference
+@find_references.reference location=main.tspp#first_reference symbol=main.tspp#value@1
+@find_references.reference location=main.tspp#second_reference symbol=main.tspp#value@1
 ```
 
 ### Find read and write occurrences
 
 Assignments and reads share one lexical identity.
 
-```ds main.ds
+```tspp main.tspp
 let value = 0;
     ^^^^^ declaration
 
@@ -40,29 +40,29 @@ const result = value;
                ^^^^^ read
 ```
 
-```query find_references main.ds#read include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#value@1
-@find_references.reference location=main.ds#write symbol=main.ds#value@1
-@find_references.reference location=main.ds#read symbol=main.ds#value@1
+```query find_references main.tspp#read include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#value@1
+@find_references.reference location=main.tspp#write symbol=main.tspp#value@1
+@find_references.reference location=main.tspp#read symbol=main.tspp#value@1
 ```
 
 ### Return current references
 
 References include every current occurrence in source order.
 
-```ds main.ds
+```tspp main.tspp
 const value = 1;
       ^^^^^ declaration
 const first = value;
               ^^^^^ first
 ```
 
-```query find_references main.ds#first include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#value@1
-@find_references.reference location=main.ds#first symbol=main.ds#value@1
+```query find_references main.tspp#first include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#value@1
+@find_references.reference location=main.tspp#first symbol=main.tspp#value@1
 ```
 
-```ds main.ds change
+```tspp main.tspp change
 const value = 1;
       ^^^^^ declaration
 const first = value;
@@ -71,10 +71,10 @@ const second = value;
                ^^^^^ second
 ```
 
-```query find_references main.ds#first include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#value@1
-@find_references.reference location=main.ds#first symbol=main.ds#value@1
-@find_references.reference location=main.ds#second symbol=main.ds#value@1
+```query find_references main.tspp#first include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#value@1
+@find_references.reference location=main.tspp#first symbol=main.tspp#value@1
+@find_references.reference location=main.tspp#second symbol=main.tspp#value@1
 ```
 
 ## Modules
@@ -83,15 +83,15 @@ const second = value;
 
 Cross-module references follow the exported symbol through its import.
 
-```ds library.ds
+```tspp library.tspp
 export function greet(name: string): string {
                 ^^^^^ declaration
     return name;
 }
 ```
 
-```ds main.ds
-import { greet } from "./library.ds";
+```tspp main.tspp
+import { greet } from "./library.tspp";
          ^^^^^ import
 
 const first = greet("one");
@@ -100,29 +100,29 @@ const second = greet("two");
                ^^^^^ second_reference
 ```
 
-```query find_references library.ds#declaration include_declaration=true
-@find_references.reference location=library.ds#declaration symbol=library.ds#greet@1
-@find_references.reference location=main.ds#import symbol=library.ds#greet@1
-@find_references.reference location=main.ds#first_reference symbol=library.ds#greet@1
-@find_references.reference location=main.ds#second_reference symbol=library.ds#greet@1
+```query find_references library.tspp#declaration include_declaration=true
+@find_references.reference location=library.tspp#declaration symbol=library.tspp#greet@1
+@find_references.reference location=main.tspp#import symbol=library.tspp#greet@1
+@find_references.reference location=main.tspp#first_reference symbol=library.tspp#greet@1
+@find_references.reference location=main.tspp#second_reference symbol=library.tspp#greet@1
 ```
 
 ### Find builtin references from user source
 
 Builtin declarations and physical uses share one reference identity.
 
-```ds main.ds
-import { log } from "destack:console";
+```tspp main.tspp
+import { log } from "tspp:console";
          ^^^ import
 
 log("ready");
 ^^^ reference
 ```
 
-```query find_references main.ds#reference include_declaration=true
-@find_references.reference location=destack://console/console:105:17-105:20 symbol=destack://console/console#log@61
-@find_references.reference location=main.ds#import symbol=destack://console/console#log@61
-@find_references.reference location=main.ds#reference symbol=destack://console/console#log@61
+```query find_references main.tspp#reference include_declaration=true
+@find_references.reference location=tspp://console/console:105:17-105:20 symbol=tspp://console/console#log@61
+@find_references.reference location=main.tspp#import symbol=tspp://console/console#log@61
+@find_references.reference location=main.tspp#reference symbol=tspp://console/console#log@61
 ```
 
 ## Members
@@ -131,7 +131,7 @@ log("ready");
 
 Field references include the declaration and every access.
 
-```ds main.ds
+```tspp main.tspp
 struct Point {
     x: int32;
     ^ declaration
@@ -143,9 +143,9 @@ function read(point: Point): int32 {
 }
 ```
 
-```query find_references main.ds#reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#x@2
-@find_references.reference location=main.ds#reference symbol=main.ds#x@2
+```query find_references main.tspp#reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#x@2
+@find_references.reference location=main.tspp#reference symbol=main.tspp#x@2
 ```
 
 ## Import Aliases
@@ -154,12 +154,12 @@ function read(point: Point): int32 {
 
 An explicit local alias has its own declaration and reference set.
 
-```ds library.ds
+```tspp library.tspp
 export function greet(): void {}
 ```
 
-```ds main.ds
-import { greet as welcome } from "./library.ds";
+```tspp main.tspp
+import { greet as welcome } from "./library.tspp";
                   ^^^^^^^ declaration
 
 welcome();
@@ -168,33 +168,33 @@ welcome();
 ^^^^^^^ second_reference
 ```
 
-```query find_references main.ds#first_reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#welcome@1
-@find_references.reference location=main.ds#first_reference symbol=main.ds#welcome@1
-@find_references.reference location=main.ds#second_reference symbol=main.ds#welcome@1
+```query find_references main.tspp#first_reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#welcome@1
+@find_references.reference location=main.tspp#first_reference symbol=main.tspp#welcome@1
+@find_references.reference location=main.tspp#second_reference symbol=main.tspp#welcome@1
 ```
 
 ### Find references from the imported side of an alias
 
 The imported name follows the exported declaration while the explicit alias remains locally renameable.
 
-```ds library.ds
+```tspp library.tspp
 export function greet(): void {}
                 ^^^^^ declaration
 ```
 
-```ds main.ds
-import { greet as welcome } from "./library.ds";
+```tspp main.tspp
+import { greet as welcome } from "./library.tspp";
          ^^^^^ imported_name
 
 welcome();
 ^^^^^^^ reference
 ```
 
-```query find_references main.ds#imported_name include_declaration=true
-@find_references.reference location=library.ds#declaration symbol=library.ds#greet@1
-@find_references.reference location=main.ds#imported_name symbol=library.ds#greet@1
-@find_references.reference location=main.ds#reference symbol=library.ds#greet@1
+```query find_references main.tspp#imported_name include_declaration=true
+@find_references.reference location=library.tspp#declaration symbol=library.tspp#greet@1
+@find_references.reference location=main.tspp#imported_name symbol=library.tspp#greet@1
+@find_references.reference location=main.tspp#reference symbol=library.tspp#greet@1
 ```
 
 ## Shadowing
@@ -203,7 +203,7 @@ welcome();
 
 Shadowed names have separate reference identities.
 
-```ds main.ds
+```tspp main.tspp
 const value = 1;
 
 function inner(): int32 {
@@ -216,9 +216,9 @@ function inner(): int32 {
 const outer = value;
 ```
 
-```query find_references main.ds#reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#value@3
-@find_references.reference location=main.ds#reference symbol=main.ds#value@3
+```query find_references main.tspp#reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#value@3
+@find_references.reference location=main.tspp#reference symbol=main.tspp#value@3
 ```
 
 ## Methods
@@ -227,7 +227,7 @@ const outer = value;
 
 Method references include the declaration and every call.
 
-```ds main.ds
+```tspp main.tspp
 class Service {
     run(): void {}
     ^^^ declaration
@@ -241,17 +241,17 @@ function start(service: Service): void {
 }
 ```
 
-```query find_references main.ds#first_reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#run@2
-@find_references.reference location=main.ds#first_reference symbol=main.ds#run@2
-@find_references.reference location=main.ds#second_reference symbol=main.ds#run@2
+```query find_references main.tspp#first_reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#run@2
+@find_references.reference location=main.tspp#first_reference symbol=main.tspp#run@2
+@find_references.reference location=main.tspp#second_reference symbol=main.tspp#run@2
 ```
 
 ### Find extension method occurrences
 
 Extension calls belong to their extension method.
 
-```ds main.ds
+```tspp main.tspp
 struct Calculator {}
 
 extension of Calculator {
@@ -268,17 +268,17 @@ function total(calculator: Calculator): int32 {
 }
 ```
 
-```query find_references main.ds#first_reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#add@3
-@find_references.reference location=main.ds#first_reference symbol=main.ds#add@3
-@find_references.reference location=main.ds#second_reference symbol=main.ds#add@3
+```query find_references main.tspp#first_reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#add@3
+@find_references.reference location=main.tspp#first_reference symbol=main.tspp#add@3
+@find_references.reference location=main.tspp#second_reference symbol=main.tspp#add@3
 ```
 
 ### Find associated constant occurrences
 
 Associated constant accesses belong to their member declaration.
 
-```ds main.ds
+```tspp main.tspp
 struct Buffer {
     const Width: uint64 = 8;
           ^^^^^ declaration
@@ -290,17 +290,17 @@ const second = Buffer.Width;
                       ^^^^^ second_reference
 ```
 
-```query find_references main.ds#first_reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#Width@2
-@find_references.reference location=main.ds#first_reference symbol=main.ds#Width@2
-@find_references.reference location=main.ds#second_reference symbol=main.ds#Width@2
+```query find_references main.tspp#first_reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#Width@2
+@find_references.reference location=main.tspp#first_reference symbol=main.tspp#Width@2
+@find_references.reference location=main.tspp#second_reference symbol=main.tspp#Width@2
 ```
 
 ### Find every target of a union member access
 
 A union member access belongs to every member declaration it can reach.
 
-```ds main.ds
+```tspp main.tspp
 class Alpha {
     run(): void {}
     ^^^ alpha_declaration
@@ -317,20 +317,20 @@ function start(service: Alpha | Beta): void {
 }
 ```
 
-```query find_references main.ds#alpha_declaration include_declaration=true
-@find_references.reference location=main.ds#alpha_declaration symbol=main.ds#run@2
-@find_references.reference location=main.ds#reference symbol=main.ds#run@2
+```query find_references main.tspp#alpha_declaration include_declaration=true
+@find_references.reference location=main.tspp#alpha_declaration symbol=main.tspp#run@2
+@find_references.reference location=main.tspp#reference symbol=main.tspp#run@2
 ```
 
-```query find_references main.ds#beta_declaration include_declaration=true
-@find_references.reference location=main.ds#beta_declaration symbol=main.ds#run@5
-@find_references.reference location=main.ds#reference symbol=main.ds#run@5
+```query find_references main.tspp#beta_declaration include_declaration=true
+@find_references.reference location=main.tspp#beta_declaration symbol=main.tspp#run@5
+@find_references.reference location=main.tspp#reference symbol=main.tspp#run@5
 ```
 
-```query find_references main.ds#reference include_declaration=true
-@find_references.reference location=main.ds#alpha_declaration symbol=main.ds#run@2
-@find_references.reference location=main.ds#beta_declaration symbol=main.ds#run@5
-@find_references.reference location=main.ds#reference symbols=main.ds#run@2,main.ds#run@5
+```query find_references main.tspp#reference include_declaration=true
+@find_references.reference location=main.tspp#alpha_declaration symbol=main.tspp#run@2
+@find_references.reference location=main.tspp#beta_declaration symbol=main.tspp#run@5
+@find_references.reference location=main.tspp#reference symbols=main.tspp#run@2,main.tspp#run@5
 ```
 
 ## Enum Members
@@ -339,7 +339,7 @@ function start(service: Alpha | Beta): void {
 
 Enum member references belong to their variant declaration.
 
-```ds main.ds
+```tspp main.tspp
 enum Color {
     Red,
     ^^^ declaration
@@ -351,10 +351,10 @@ const second = Color.Red;
                      ^^^ second_reference
 ```
 
-```query find_references main.ds#first_reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#Red@2
-@find_references.reference location=main.ds#first_reference symbol=main.ds#Red@2
-@find_references.reference location=main.ds#second_reference symbol=main.ds#Red@2
+```query find_references main.tspp#first_reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#Red@2
+@find_references.reference location=main.tspp#first_reference symbol=main.tspp#Red@2
+@find_references.reference location=main.tspp#second_reference symbol=main.tspp#Red@2
 ```
 
 ## Nominal Types
@@ -363,7 +363,7 @@ const second = Color.Red;
 
 A nominal declaration has one identity across type annotations, values, and construction.
 
-```ds main.ds
+```tspp main.tspp
 class User {}
       ^^^^ declaration
 
@@ -373,10 +373,10 @@ const created = new User();
                     ^^^^ construction_reference
 ```
 
-```query find_references main.ds#type_reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#User@1
-@find_references.reference location=main.ds#type_reference symbol=main.ds#User@1
-@find_references.reference location=main.ds#construction_reference symbol=main.ds#User@1
+```query find_references main.tspp#type_reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#User@1
+@find_references.reference location=main.tspp#type_reference symbol=main.tspp#User@1
+@find_references.reference location=main.tspp#construction_reference symbol=main.tspp#User@1
 ```
 
 ## Overloads
@@ -385,7 +385,7 @@ const created = new User();
 
 Each overload declaration owns only the calls that match it.
 
-```ds main.ds
+```tspp main.tspp
 function parse(value: int32): int32 {
          ^^^^^ integer_declaration
     return value;
@@ -402,14 +402,14 @@ const stringValue = parse("one");
                     ^^^^^ string_reference
 ```
 
-```query find_references main.ds#integer_reference include_declaration=true
-@find_references.reference location=main.ds#integer_declaration symbol=main.ds#parse@1
-@find_references.reference location=main.ds#integer_reference symbol=main.ds#parse@1
+```query find_references main.tspp#integer_reference include_declaration=true
+@find_references.reference location=main.tspp#integer_declaration symbol=main.tspp#parse@1
+@find_references.reference location=main.tspp#integer_reference symbol=main.tspp#parse@1
 ```
 
-```query find_references main.ds#string_reference include_declaration=true
-@find_references.reference location=main.ds#string_declaration symbol=main.ds#parse@3
-@find_references.reference location=main.ds#string_reference symbol=main.ds#parse@3
+```query find_references main.tspp#string_reference include_declaration=true
+@find_references.reference location=main.tspp#string_declaration symbol=main.tspp#parse@3
+@find_references.reference location=main.tspp#string_reference symbol=main.tspp#parse@3
 ```
 
 ## Generic Parameters
@@ -418,7 +418,7 @@ const stringValue = parse("one");
 
 A generic parameter includes its declaration and every type-position reference.
 
-```ds main.ds
+```tspp main.tspp
 function identity<T>(value: T): T {
                   ^ declaration
                             ^ first_reference
@@ -427,32 +427,32 @@ function identity<T>(value: T): T {
 }
 ```
 
-```query find_references main.ds#first_reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#T@2
-@find_references.reference location=main.ds#first_reference symbol=main.ds#T@2
-@find_references.reference location=main.ds#second_reference symbol=main.ds#T@2
+```query find_references main.tspp#first_reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#T@2
+@find_references.reference location=main.tspp#first_reference symbol=main.tspp#T@2
+@find_references.reference location=main.tspp#second_reference symbol=main.tspp#T@2
 ```
 
 ### Find a type parameter inside a template literal type
 
 Template literal types include their generic parameter references.
 
-```ds main.ds
+```tspp main.tspp
 type Route<T: string> = `api:${T}`;
            ^ declaration
                                ^ reference
 ```
 
-```query find_references main.ds#reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#T@2
-@find_references.reference location=main.ds#reference symbol=main.ds#T@2
+```query find_references main.tspp#reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#T@2
+@find_references.reference location=main.tspp#reference symbol=main.tspp#T@2
 ```
 
 ### Find a const function parameter
 
 A const parameter has one lexical identity inside the function body.
 
-```ds main.ds
+```tspp main.tspp
 function createBuffer<const size: int32>(): int32 {
                             ^^^^ declaration
     return size;
@@ -460,24 +460,24 @@ function createBuffer<const size: int32>(): int32 {
 }
 ```
 
-```query find_references main.ds#reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#size@2
-@find_references.reference location=main.ds#reference symbol=main.ds#size@2
+```query find_references main.tspp#reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#size@2
+@find_references.reference location=main.tspp#reference symbol=main.tspp#size@2
 ```
 
 ### Find a const type parameter
 
 A const parameter has one lexical identity inside the declared type.
 
-```ds main.ds
+```tspp main.tspp
 type Buffer<const size: usize> = [uint8; size];
                   ^^^^ declaration
                                          ^^^^ reference
 ```
 
-```query find_references main.ds#reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#size@2
-@find_references.reference location=main.ds#reference symbol=main.ds#size@2
+```query find_references main.tspp#reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#size@2
+@find_references.reference location=main.tspp#reference symbol=main.tspp#size@2
 ```
 
 ## Pattern Bindings
@@ -486,7 +486,7 @@ type Buffer<const size: usize> = [uint8; size];
 
 A destructured binding has its own lexical reference set.
 
-```ds main.ds
+```tspp main.tspp
 const pair = { left: 1, right: 2 };
 const { left } = pair;
         ^^^^ declaration
@@ -495,16 +495,16 @@ const value = left;
               ^^^^ reference
 ```
 
-```query find_references main.ds#reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#left@2
-@find_references.reference location=main.ds#reference symbol=main.ds#left@2
+```query find_references main.tspp#reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#left@2
+@find_references.reference location=main.tspp#reference symbol=main.tspp#left@2
 ```
 
 ### Find match binding occurrences
 
 A match-arm binding includes only references inside its arm.
 
-```ds main.ds
+```tspp main.tspp
 declare const pair: (int32, int32);
 
 const total = match (pair) {
@@ -514,9 +514,9 @@ const total = match (pair) {
 };
 ```
 
-```query find_references main.ds#reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#left@2
-@find_references.reference location=main.ds#reference symbol=main.ds#left@2
+```query find_references main.tspp#reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#left@2
+@find_references.reference location=main.tspp#reference symbol=main.tspp#left@2
 ```
 
 ## Labels
@@ -525,7 +525,7 @@ const total = match (pair) {
 
 A control label includes its declaration and each targeted break.
 
-```ds main.ds
+```tspp main.tspp
 function choose(value: boolean): int32 {
     outer: loop {
     ^^^^^ declaration
@@ -540,10 +540,10 @@ function choose(value: boolean): int32 {
 }
 ```
 
-```query find_references main.ds#first_reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#outer@3
-@find_references.reference location=main.ds#first_reference symbol=main.ds#outer@3
-@find_references.reference location=main.ds#second_reference symbol=main.ds#outer@3
+```query find_references main.tspp#first_reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#outer@3
+@find_references.reference location=main.tspp#first_reference symbol=main.tspp#outer@3
+@find_references.reference location=main.tspp#second_reference symbol=main.tspp#outer@3
 ```
 
 ## Calls
@@ -552,7 +552,7 @@ function choose(value: boolean): int32 {
 
 A tag function includes ordinary and tagged-template calls.
 
-```ds main.ds
+```tspp main.tspp
 function sql(parts: string[], ...values: int32[]): string {
          ^^^ declaration
     return "";
@@ -564,17 +564,17 @@ const second = sql(["select"], 2);
                ^^^ second_reference
 ```
 
-```query find_references main.ds#first_reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#sql@1
-@find_references.reference location=main.ds#first_reference symbol=main.ds#sql@1
-@find_references.reference location=main.ds#second_reference symbol=main.ds#sql@1
+```query find_references main.tspp#first_reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#sql@1
+@find_references.reference location=main.tspp#first_reference symbol=main.tspp#sql@1
+@find_references.reference location=main.tspp#second_reference symbol=main.tspp#sql@1
 ```
 
 ### Find const call occurrences
 
 Const and runtime calls share the same function identity.
 
-```ds main.ds
+```tspp main.tspp
 function scale(value: int32): int32 {
          ^^^^^ declaration
     return value * 2;
@@ -586,17 +586,17 @@ const second = scale(3);
                ^^^^^ second_reference
 ```
 
-```query find_references main.ds#first_reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#scale@1
-@find_references.reference location=main.ds#first_reference symbol=main.ds#scale@1
-@find_references.reference location=main.ds#second_reference symbol=main.ds#scale@1
+```query find_references main.tspp#first_reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#scale@1
+@find_references.reference location=main.tspp#first_reference symbol=main.tspp#scale@1
+@find_references.reference location=main.tspp#second_reference symbol=main.tspp#scale@1
 ```
 
 ### Do not attribute an indirect call to the assigned function
 
 Assigning a function creates a reference, but calling the binding does not create another reference to it.
 
-```ds main.ds
+```tspp main.tspp
 function callee(): void {}
          ^^^^^^ declaration
 
@@ -605,9 +605,9 @@ const callback = callee;
 callback();
 ```
 
-```query find_references main.ds#declaration include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#callee@1
-@find_references.reference location=main.ds#reference symbol=main.ds#callee@1
+```query find_references main.tspp#declaration include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#callee@1
+@find_references.reference location=main.tspp#reference symbol=main.tspp#callee@1
 ```
 
 ## Decorators
@@ -616,7 +616,7 @@ callback();
 
 A decorator includes its declaration and every application.
 
-```ds main.ds
+```tspp main.tspp
 newtype tracked = ();
         ^^^^^^^ declaration
 
@@ -629,17 +629,17 @@ class Service {}
 function start(): void {}
 ```
 
-```query find_references main.ds#first_reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#tracked@1
-@find_references.reference location=main.ds#first_reference symbol=main.ds#tracked@1
-@find_references.reference location=main.ds#second_reference symbol=main.ds#tracked@1
+```query find_references main.tspp#first_reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#tracked@1
+@find_references.reference location=main.tspp#first_reference symbol=main.tspp#tracked@1
+@find_references.reference location=main.tspp#second_reference symbol=main.tspp#tracked@1
 ```
 
 ### Find decorator occurrences across attachment positions
 
 A decorator has one identity across every supported attachment position.
 
-```ds main.ds
+```tspp main.tspp
 newtype tracked = ();
         ^^^^^^^ declaration
 
@@ -674,13 +674,13 @@ switch (input) {
 for (let index = 0; index < 1; index++) {}
 ```
 
-```query find_references main.ds#member_reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#tracked@1
-@find_references.reference location=main.ds#member_reference symbol=main.ds#tracked@1
-@find_references.reference location=main.ds#parameter_reference symbol=main.ds#tracked@1
-@find_references.reference location=main.ds#arm_reference symbol=main.ds#tracked@1
-@find_references.reference location=main.ds#case_reference symbol=main.ds#tracked@1
-@find_references.reference location=main.ds#statement_reference symbol=main.ds#tracked@1
+```query find_references main.tspp#member_reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#tracked@1
+@find_references.reference location=main.tspp#member_reference symbol=main.tspp#tracked@1
+@find_references.reference location=main.tspp#parameter_reference symbol=main.tspp#tracked@1
+@find_references.reference location=main.tspp#arm_reference symbol=main.tspp#tracked@1
+@find_references.reference location=main.tspp#case_reference symbol=main.tspp#tracked@1
+@find_references.reference location=main.tspp#statement_reference symbol=main.tspp#tracked@1
 ```
 
 ## Using Bindings
@@ -689,7 +689,7 @@ for (let index = 0; index < 1; index++) {}
 
 A using binding participates in ordinary lexical reference lookup.
 
-```ds main.ds
+```tspp main.tspp
 declare function openSession(): Dispose;
 
 using session = openSession();
@@ -701,17 +701,17 @@ const second = session;
                ^^^^^^^ second_reference
 ```
 
-```query find_references main.ds#first_reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#session@2
-@find_references.reference location=main.ds#first_reference symbol=main.ds#session@2
-@find_references.reference location=main.ds#second_reference symbol=main.ds#session@2
+```query find_references main.tspp#first_reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#session@2
+@find_references.reference location=main.tspp#first_reference symbol=main.tspp#session@2
+@find_references.reference location=main.tspp#second_reference symbol=main.tspp#session@2
 ```
 
 ### Find an await-using binding
 
 An await-using declaration introduces an async lexical resource binding.
 
-```ds main.ds
+```tspp main.tspp
 declare function openResource(): AsyncDispose;
 
 async function run(): void {
@@ -723,16 +723,16 @@ async function run(): void {
 }
 ```
 
-```query find_references main.ds#reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#resource@3
-@find_references.reference location=main.ds#reference symbol=main.ds#resource@3
+```query find_references main.tspp#reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#resource@3
+@find_references.reference location=main.tspp#reference symbol=main.tspp#resource@3
 ```
 
 ### Find a for-using binding
 
 A for-using declaration has one lexical identity inside the loop body.
 
-```ds main.ds
+```tspp main.tspp
 declare function values(): Dispose[];
 
 for (using item of values()) {
@@ -742,16 +742,16 @@ for (using item of values()) {
 }
 ```
 
-```query find_references main.ds#reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#item@2
-@find_references.reference location=main.ds#reference symbol=main.ds#item@2
+```query find_references main.tspp#reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#item@2
+@find_references.reference location=main.tspp#reference symbol=main.tspp#item@2
 ```
 
 ### Find an exported using binding
 
 An exported using declaration keeps its local lexical identity.
 
-```ds main.ds
+```tspp main.tspp
 declare function openCache(): Dispose;
 
 export using cache = openCache();
@@ -761,9 +761,9 @@ const value = cache;
               ^^^^^ reference
 ```
 
-```query find_references main.ds#reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#cache@2
-@find_references.reference location=main.ds#reference symbol=main.ds#cache@2
+```query find_references main.tspp#reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#cache@2
+@find_references.reference location=main.tspp#reference symbol=main.tspp#cache@2
 ```
 
 ## Import Forms
@@ -772,15 +772,15 @@ const value = cache;
 
 A type includes its plain import and annotation occurrences.
 
-```ds library.ds
+```tspp library.tspp
 export type Options = {
             ^^^^^^^ declaration
     enabled: boolean,
 };
 ```
 
-```ds main.ds
-import { Options } from "./library.ds";
+```tspp main.tspp
+import { Options } from "./library.tspp";
          ^^^^^^^ import
 
 declare const first: Options;
@@ -789,23 +789,23 @@ declare const second: Options;
                       ^^^^^^^ second_reference
 ```
 
-```query find_references library.ds#declaration include_declaration=true
-@find_references.reference location=library.ds#declaration symbol=library.ds#Options@1
-@find_references.reference location=main.ds#import symbol=library.ds#Options@1
-@find_references.reference location=main.ds#first_reference symbol=library.ds#Options@1
-@find_references.reference location=main.ds#second_reference symbol=library.ds#Options@1
+```query find_references library.tspp#declaration include_declaration=true
+@find_references.reference location=library.tspp#declaration symbol=library.tspp#Options@1
+@find_references.reference location=main.tspp#import symbol=library.tspp#Options@1
+@find_references.reference location=main.tspp#first_reference symbol=library.tspp#Options@1
+@find_references.reference location=main.tspp#second_reference symbol=library.tspp#Options@1
 ```
 
 ### Find namespace import alias occurrences
 
 A namespace import alias has a local declaration and receiver references.
 
-```ds library.ds
+```tspp library.tspp
 export function ping(): void {}
 ```
 
-```ds main.ds
-import * as api from "./library.ds";
+```tspp main.tspp
+import * as api from "./library.tspp";
             ^^^ declaration
 
 api.ping();
@@ -814,23 +814,23 @@ api.ping();
  ^^^ second_reference
 ```
 
-```query find_references main.ds#first_reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#api@1
-@find_references.reference location=main.ds#first_reference symbol=main.ds#api@1
-@find_references.reference location=main.ds#second_reference symbol=main.ds#api@1
+```query find_references main.tspp#first_reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#api@1
+@find_references.reference location=main.tspp#first_reference symbol=main.tspp#api@1
+@find_references.reference location=main.tspp#second_reference symbol=main.tspp#api@1
 ```
 
 ### Find a namespace segment in a qualified type reference
 
 A namespace segment written in a type path references its import declaration.
 
-```ds library.ds
+```tspp library.tspp
 export type Handler = () => void;
 export function ping(): void {}
 ```
 
-```ds main.ds
-import * as api from "./library.ds";
+```tspp main.tspp
+import * as api from "./library.tspp";
             ^^^ declaration
 
 const handler: api.Handler = api.ping;
@@ -838,22 +838,22 @@ const handler: api.Handler = api.ping;
                              ^^^ value_reference
 ```
 
-```query find_references main.ds#declaration include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#api@1
-@find_references.reference location=main.ds#type_reference symbol=main.ds#api@1
-@find_references.reference location=main.ds#value_reference symbol=main.ds#api@1
+```query find_references main.tspp#declaration include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#api@1
+@find_references.reference location=main.tspp#type_reference symbol=main.tspp#api@1
+@find_references.reference location=main.tspp#value_reference symbol=main.tspp#api@1
 ```
 
 ### Find default import binding occurrences
 
 A default import binding remains a local alias in the importing module.
 
-```ds library.ds
+```tspp library.tspp
 export default function greet(): void {}
 ```
 
-```ds main.ds
-import welcome from "./library.ds";
+```tspp main.tspp
+import welcome from "./library.tspp";
        ^^^^^^^ declaration
 
 welcome();
@@ -862,87 +862,87 @@ welcome();
 ^^^^^^^ second_reference
 ```
 
-```query find_references main.ds#first_reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#welcome@1
-@find_references.reference location=main.ds#first_reference symbol=main.ds#welcome@1
-@find_references.reference location=main.ds#second_reference symbol=main.ds#welcome@1
+```query find_references main.tspp#first_reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#welcome@1
+@find_references.reference location=main.tspp#first_reference symbol=main.tspp#welcome@1
+@find_references.reference location=main.tspp#second_reference symbol=main.tspp#welcome@1
 ```
 
 ### Find references through a default re-export
 
 References include each re-export, import, and call occurrence.
 
-```ds library.ds
+```tspp library.tspp
 export default function buildWidget(): int32 {
                         ^^^^^^^^^^^ declaration
     return 1;
 }
 ```
 
-```ds public.ds
-export { default as buildWidget } from "./library.ds";
+```tspp public.tspp
+export { default as buildWidget } from "./library.tspp";
                     ^^^^^^^^^^^ reexport
 ```
 
-```ds main.ds
-import { buildWidget } from "./public.ds";
+```tspp main.tspp
+import { buildWidget } from "./public.tspp";
          ^^^^^^^^^^^ import
 
 const value = buildWidget();
               ^^^^^^^^^^^ reference
 ```
 
-```query find_references library.ds#declaration include_declaration=true
-@find_references.reference location=library.ds#declaration symbol=library.ds#buildWidget@1
-@find_references.reference location=public.ds#reexport symbol=library.ds#buildWidget@1
-@find_references.reference location=main.ds#import symbol=library.ds#buildWidget@1
-@find_references.reference location=main.ds#reference symbol=library.ds#buildWidget@1
+```query find_references library.tspp#declaration include_declaration=true
+@find_references.reference location=library.tspp#declaration symbol=library.tspp#buildWidget@1
+@find_references.reference location=public.tspp#reexport symbol=library.tspp#buildWidget@1
+@find_references.reference location=main.tspp#import symbol=library.tspp#buildWidget@1
+@find_references.reference location=main.tspp#reference symbol=library.tspp#buildWidget@1
 ```
 
 ### Find references through a named re-export
 
 A named export preserves the original symbol through the re-export, import, and call.
 
-```ds library.ds
+```tspp library.tspp
 export function greet(): void {}
                 ^^^^^ declaration
 ```
 
-```ds barrel.ds
-export { greet } from "./library.ds";
+```tspp barrel.tspp
+export { greet } from "./library.tspp";
          ^^^^^ reexport
 ```
 
-```ds main.ds
-import { greet } from "./barrel.ds";
+```tspp main.tspp
+import { greet } from "./barrel.tspp";
          ^^^^^ import
 
 greet();
 ^^^^^ reference
 ```
 
-```query find_references library.ds#declaration include_declaration=true
-@find_references.reference location=library.ds#declaration symbol=library.ds#greet@1
-@find_references.reference location=barrel.ds#reexport symbol=library.ds#greet@1
-@find_references.reference location=main.ds#import symbol=library.ds#greet@1
-@find_references.reference location=main.ds#reference symbol=library.ds#greet@1
+```query find_references library.tspp#declaration include_declaration=true
+@find_references.reference location=library.tspp#declaration symbol=library.tspp#greet@1
+@find_references.reference location=barrel.tspp#reexport symbol=library.tspp#greet@1
+@find_references.reference location=main.tspp#import symbol=library.tspp#greet@1
+@find_references.reference location=main.tspp#reference symbol=library.tspp#greet@1
 ```
 
 ### Find a namespace re-export alias
 
 A namespace re-export alias has one identity through imports and local uses.
 
-```ds base.ds
+```tspp base.tspp
 export function ping(): void {}
 ```
 
-```ds barrel.ds
-export * as api from "./base.ds";
+```tspp barrel.tspp
+export * as api from "./base.tspp";
             ^^^ declaration
 ```
 
-```ds main.ds
-import { api } from "./barrel.ds";
+```tspp main.tspp
+import { api } from "./barrel.tspp";
          ^^^ import
 
 api.ping();
@@ -952,27 +952,27 @@ const same = api;
              ^^^ second_reference
 ```
 
-```query find_references main.ds#import include_declaration=true
-@find_references.reference location=barrel.ds#declaration symbol=barrel.ds#api@1
-@find_references.reference location=main.ds#import symbol=barrel.ds#api@1
-@find_references.reference location=main.ds#first_reference symbol=barrel.ds#api@1
-@find_references.reference location=main.ds#second_reference symbol=barrel.ds#api@1
+```query find_references main.tspp#import include_declaration=true
+@find_references.reference location=barrel.tspp#declaration symbol=barrel.tspp#api@1
+@find_references.reference location=main.tspp#import symbol=barrel.tspp#api@1
+@find_references.reference location=main.tspp#first_reference symbol=barrel.tspp#api@1
+@find_references.reference location=main.tspp#second_reference symbol=barrel.tspp#api@1
 ```
 
 ### Find a nested namespace in type paths
 
 A namespace re-export has the same reference identity in each qualified type path.
 
-```ds model.ds
+```tspp model.tspp
 export struct Packet {}
 ```
 
-```ds library.ds
+```tspp library.tspp
 export * as models from "./model";
             ^^^^^^ declaration
 ```
 
-```ds main.ds
+```tspp main.tspp
 import * as library from "./library";
 
 declare const first: library.models.Packet;
@@ -982,10 +982,10 @@ declare const second: library.models.Packet;
                               ^^^^^^ second
 ```
 
-```query find_references main.ds#first include_declaration=true
-@find_references.reference location=library.ds#declaration symbol=library.ds#models@1
-@find_references.reference location=main.ds#first symbol=library.ds#models@1
-@find_references.reference location=main.ds#second symbol=library.ds#models@1
+```query find_references main.tspp#first include_declaration=true
+@find_references.reference location=library.tspp#declaration symbol=library.tspp#models@1
+@find_references.reference location=main.tspp#first symbol=library.tspp#models@1
+@find_references.reference location=main.tspp#second symbol=library.tspp#models@1
 ```
 
 ## Associated Types
@@ -994,7 +994,7 @@ declare const second: library.models.Packet;
 
 An associated declaration includes each type projection that names it.
 
-```ds main.ds
+```tspp main.tspp
 interface Envelope<T: string> {
     type Label<U: string> = `${T}:${U}`;
          ^^^^^ declaration
@@ -1006,9 +1006,9 @@ type EventLabel = Message<"orders">.Label<"created">;
                                     ^^^^^ reference
 ```
 
-```query find_references main.ds#reference include_declaration=true
-@find_references.reference location=main.ds#declaration symbol=main.ds#Label@3
-@find_references.reference location=main.ds#reference symbol=main.ds#Label@3
+```query find_references main.tspp#reference include_declaration=true
+@find_references.reference location=main.tspp#declaration symbol=main.tspp#Label@3
+@find_references.reference location=main.tspp#reference symbol=main.tspp#Label@3
 ```
 
 ## Missing Symbols
@@ -1017,13 +1017,13 @@ type EventLabel = Message<"orders">.Label<"created">;
 
 An unresolved occurrence has no reference identity.
 
-```ds main.ds
+```tspp main.tspp
 function main(): void {
     missingValue;
     ^^^^^^^^^^^^ reference
 }
 ```
 
-```query find_references main.ds#reference include_declaration=true
+```query find_references main.tspp#reference include_declaration=true
 @find_references.none
 ```

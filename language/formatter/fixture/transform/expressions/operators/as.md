@@ -8,11 +8,11 @@ Type binary fixtures cover `as`, `satisfies`, non-null assertions, and assertion
 
 Cast operators keep spaces around `as`.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = input as Foo
 ```
 
-```ds expected
+```tspp expected
 const value = input as Foo;
 ```
 
@@ -20,11 +20,11 @@ const value = input as Foo;
 
 Satisfies operators keep spaces around `satisfies`.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = input satisfies Foo
 ```
 
-```ds expected
+```tspp expected
 const value = input satisfies Foo;
 ```
 
@@ -34,11 +34,11 @@ const value = input satisfies Foo;
 
 Type binary arguments stay grouped in calls.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = call(input as Foo, other satisfies Bar)
 ```
 
-```ds expected
+```tspp expected
 const value = call(input as Foo, other satisfies Bar);
 ```
 
@@ -46,11 +46,11 @@ const value = call(input as Foo, other satisfies Bar);
 
 Comparison casts inside logical expressions keep grouping parentheses.
 
-```ds:main.ds
+```tspp:main.tspp
 const ok = i < 0 || i >= length as number
 ```
 
-```ds expected
+```tspp expected
 const ok = i < 0 || ((i >= length) as number);
 ```
 
@@ -58,11 +58,11 @@ const ok = i < 0 || ((i >= length) as number);
 
 Casts on the left side of arithmetic stay grouped.
 
-```ds:main.ds
+```tspp:main.tspp
 const last = length as number - 1
 ```
 
-```ds expected
+```tspp expected
 const last = (length as number) - 1;
 ```
 
@@ -70,11 +70,11 @@ const last = (length as number) - 1;
 
 Satisfies expressions on the left side of arithmetic stay grouped.
 
-```ds:main.ds
+```tspp:main.tspp
 const last = (length satisfies number) - 1
 ```
 
-```ds expected
+```tspp expected
 const last = (length satisfies number) - 1;
 ```
 
@@ -82,11 +82,11 @@ const last = (length satisfies number) - 1;
 
 Cast expressions used as call callees keep grouping parentheses.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = (value as Fn)()
 ```
 
-```ds expected
+```tspp expected
 const value = (value as Fn)();
 ```
 
@@ -94,11 +94,11 @@ const value = (value as Fn)();
 
 Cast expressions used as member objects keep grouping parentheses.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = (value as Box).property
 ```
 
-```ds expected
+```tspp expected
 const value = (value as Box).property;
 ```
 
@@ -106,11 +106,11 @@ const value = (value as Box).property;
 
 Nested assertion chains stay direct when no parent context needs grouping.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = input as unknown as Result
 ```
 
-```ds expected
+```tspp expected
 const value = input as unknown as Result;
 ```
 
@@ -118,11 +118,11 @@ const value = input as unknown as Result;
 
 Nested assertions keep grouping when the inner target is a union.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = ("ok" as string | number) as string
 ```
 
-```ds expected
+```tspp expected
 const value = ("ok" as string | number) as string;
 ```
 
@@ -130,11 +130,11 @@ const value = ("ok" as string | number) as string;
 
 Assertions in ternary tests keep grouping parentheses.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = (input as boolean) ? yes : no
 ```
 
-```ds expected
+```tspp expected
 const value = (input as boolean) ? yes : no;
 ```
 
@@ -144,10 +144,10 @@ const value = (input as boolean) ? yes : no;
 
 Runtime type guard comments stay on the side of the operator they describe.
 
-```ds
+```tspp
 const ok = value /* checked value */ is /* expected type */ string
 ```
 
-```ds expected
+```tspp expected
 const ok = value /* checked value */ is /* expected type */ string;
 ```

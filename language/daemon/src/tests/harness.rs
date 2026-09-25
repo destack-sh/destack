@@ -3,13 +3,11 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
-use destack_artifact::BuildId;
-use destack_repository::{
-    DestackLayoutOverride, Environment, Execution, Host, Repository, Settings,
-};
-use destack_session::Executor;
-use destack_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
-use destack_workspace::Workspace;
+use tspp_artifact::BuildId;
+use tspp_repository::{DestackLayoutOverride, Environment, Execution, Host, Repository, Settings};
+use tspp_session::Executor;
+use tspp_source::{FileSystem, PhysicalFileSystem, TemporaryPhysicalFileSystem};
+use tspp_workspace::Workspace;
 
 use crate::{
     Daemon, DaemonConnectOptions, DaemonConnection, DaemonEndpoint, DaemonError, DaemonOptions,

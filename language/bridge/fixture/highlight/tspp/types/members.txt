@@ -1,0 +1,32 @@
+// SYNTAX TEST "source.tspp"
+
+// types / members / classes constructors and accessors
+class Counter {
+// <- keyword.declaration.type.tspp
+    public readonly value: int32;
+    readonly label: string;
+    static new(): Counter { return Counter("zero"); }
+//         ^^^ entity.name.function.definition.tspp
+    constructor(label: string) {
+        this.label = label;
+    }
+    get count(): int32 { return this.value; }
+}
+
+// types / members / interfaces objects and index signatures
+interface Dictionary {
+// <- keyword.declaration.type.tspp
+    readonly [key: string]: string;
+    name?: string;
+    (key: string): string;
+}
+
+// types / members / enums structs and newtypes
+struct Point {
+// <- keyword.declaration.type.tspp
+    x: float64;
+    y: float64;
+}
+
+newtype NonEmptyString = string;
+// <- keyword.declaration.type.tspp

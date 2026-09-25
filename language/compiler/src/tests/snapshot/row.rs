@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 use std::fmt::Display;
 
-use destack_source::Span;
+use tspp_source::Span;
 
 /// One table row rendered into an annotated source snapshot.
 #[derive(Debug, Clone, PartialEq, Eq)]

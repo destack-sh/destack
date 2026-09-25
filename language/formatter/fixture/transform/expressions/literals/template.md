@@ -6,11 +6,11 @@
 
 Template literals use backticks.
 
-```ds
+```tspp
 const x = `hello`
 ```
 
-```ds expected
+```tspp expected
 const x = `hello`;
 ```
 
@@ -18,11 +18,11 @@ const x = `hello`;
 
 Interpolations use `${...}` syntax.
 
-```ds
+```tspp
 const x = `hello ${name}`
 ```
 
-```ds expected
+```tspp expected
 const x = `hello ${name}`;
 ```
 
@@ -30,11 +30,11 @@ const x = `hello ${name}`;
 
 Expressions can be interpolated.
 
-```ds
+```tspp
 const x = `result: ${a + b}`
 ```
 
-```ds expected
+```tspp expected
 const x = `result: ${a + b}`;
 ```
 
@@ -42,11 +42,11 @@ const x = `result: ${a + b}`;
 
 Multiple interpolations can appear in one template.
 
-```ds
+```tspp
 const x = `${a} + ${b} = ${a + b}`
 ```
 
-```ds expected
+```tspp expected
 const x = `${a} + ${b} = ${a + b}`;
 ```
 
@@ -54,11 +54,11 @@ const x = `${a} + ${b} = ${a + b}`;
 
 Templates can be nested within interpolations.
 
-```ds
+```tspp
 const x = `outer ${`inner ${value}`} end`
 ```
 
-```ds expected
+```tspp expected
 const x = `outer ${`inner ${value}`} end`;
 ```
 
@@ -66,13 +66,13 @@ const x = `outer ${`inner ${value}`} end`;
 
 Multiline templates preserve line breaks.
 
-```ds
+```tspp
 const x = `line1
 line2
 line3`
 ```
 
-```ds expected
+```tspp expected
 const x = `line1
 line2
 line3`;
@@ -82,11 +82,11 @@ line3`;
 
 Function calls can be interpolated.
 
-```ds
+```tspp
 const x = `result: ${getValue()}`
 ```
 
-```ds expected
+```tspp expected
 const x = `result: ${getValue()}`;
 ```
 
@@ -94,11 +94,11 @@ const x = `result: ${getValue()}`;
 
 Ternary expressions can be interpolated.
 
-```ds
+```tspp
 const x = `status: ${active ? "on" : "off"}`
 ```
 
-```ds expected
+```tspp expected
 const x = `status: ${active ? "on" : "off"}`;
 ```
 
@@ -106,7 +106,7 @@ const x = `status: ${active ? "on" : "off"}`;
 
 Long chained expressions inside template literals break cleanly.
 
-```ds:main.ds line-width=80
+```tspp:main.tspp line-width=80
 const A = {
   "--theme-primary": `hsl(${theme?.activeColor[
     mode === "dark" ? "dark" : "light"
@@ -114,7 +114,7 @@ const A = {
 };
 ```
 
-```ds expected
+```tspp expected
 const A = {
     "--theme-primary": `hsl(${theme?.activeColor[
         mode === "dark" ? "dark" : "light"
@@ -126,7 +126,7 @@ const A = {
 
 Interpolations hug their braces while inner comments stay indented from the template segment.
 
-```ds:main.ds
+```tspp:main.tspp
 const css = `
   color: ${theme?.activeColor[
     // selected mode
@@ -135,7 +135,7 @@ const css = `
 `;
 ```
 
-```ds expected
+```tspp expected
 const css = `
   color: ${theme?.activeColor[
       // selected mode
@@ -148,7 +148,7 @@ const css = `
 
 Each interpolation derives indentation from the preceding template segment.
 
-```ds:main.ds
+```tspp:main.tspp
 const css = `
   color: ${theme?.activeColor[
     // selected mode
@@ -161,7 +161,7 @@ const css = `
 `;
 ```
 
-```ds expected
+```tspp expected
 const css = `
   color: ${theme?.activeColor[
       // selected mode
@@ -180,11 +180,11 @@ const css = `
 
 Tagged templates apply a function to the template.
 
-```ds
+```tspp
 sql`SELECT * FROM users`
 ```
 
-```ds expected
+```tspp expected
 sql`SELECT * FROM users`;
 ```
 
@@ -192,11 +192,11 @@ sql`SELECT * FROM users`;
 
 Tagged templates can include interpolations.
 
-```ds
+```tspp
 sql`SELECT * FROM ${table} WHERE id = ${id}`
 ```
 
-```ds expected
+```tspp expected
 sql`SELECT * FROM ${table} WHERE id = ${id}`;
 ```
 
@@ -204,11 +204,11 @@ sql`SELECT * FROM ${table} WHERE id = ${id}`;
 
 HTML tagged templates are common for rendering.
 
-```ds
+```tspp
 html`<div class="${className}">${content}</div>`
 ```
 
-```ds expected
+```tspp expected
 html`<div class="${className}">${content}</div>`;
 ```
 
@@ -216,10 +216,10 @@ html`<div class="${className}">${content}</div>`;
 
 CSS tagged templates are common for styling.
 
-```ds
+```tspp
 css`color: ${color}; font-size: ${size}px;`
 ```
 
-```ds expected
+```tspp expected
 css`color: ${color}; font-size: ${size}px;`;
 ```

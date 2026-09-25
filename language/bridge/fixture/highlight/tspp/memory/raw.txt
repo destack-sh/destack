@@ -1,0 +1,14 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / raw / raw pointer types
+let pointer: *uint8 = &bytes[0];
+//           ^ keyword.operator.pointer.tspp
+
+let byte = *pointer;
+//         ^ keyword.operator.pointer.tspp
+
+@unsafe
+// <~------ entity.name.function.decorator.tspp
+function readRaw(pointer: *uint8): uint8 {
+    read(pointer)
+}

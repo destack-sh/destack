@@ -1,7 +1,7 @@
-use destack_dir as dir;
-use destack_serde::Reflect;
-use destack_source::Span;
 use serde::{Deserialize, Serialize};
+use tspp_dir as dir;
+use tspp_serde::Reflect;
+use tspp_source::Span;
 
 use crate::{
     Formatter, ModuleQueryContext, ProgramQueryContext, QueryPosition, QueryResult, Target,
@@ -10,7 +10,7 @@ use crate::{
 /// Hover content for one declaration.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]
 pub struct HoverItem {
-    /// The declaration rendered as Destack source.
+    /// The declaration rendered as TS++ source.
     pub declaration: String,
     /// The distinct type selected at the hovered occurrence.
     pub selected_type: Option<String>,

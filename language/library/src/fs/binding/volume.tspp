@@ -1,0 +1,92 @@
+import { HostError } from "tspp:error/host";
+import { FileHandle } from "tspp:fs/binding";
+
+import { Entry } from "./entry.tspp";
+
+/// Volume mount flags.
+@languageItem("fs.binding.FileVolumeFlags")
+export newtype FileVolumeFlags = uint64;
+
+/// Volume status field mask.
+@languageItem("fs.binding.FileVolumeMask")
+export newtype FileVolumeMask = uint32;
+
+export extension of FileVolumeMask {
+    /// Request transfer size fields.
+    const transfer = FileVolumeMask(0x0003);
+
+    /// Request block count fields.
+    const blocks = FileVolumeMask(0x001c);
+
+    /// Request file node count fields.
+    const files = FileVolumeMask(0x0060);
+
+    /// Request volume identifier.
+    const id = FileVolumeMask(0x0080);
+
+    /// Request mount flags.
+    const flags = FileVolumeMask(0x0100);
+
+    /// Request maximum filename length.
+    const nameLength = FileVolumeMask(0x0200);
+
+    /// Request all fields the host can provide.
+    const all = FileVolumeMask(0x03ff);
+}
+
+/// Volume status returned by host metadata operations.
+export struct FileVolumeStatus {
+    /// Mask of fields populated by the host.
+    mask: FileVolumeMask;
+    /// Preferred transfer block size.
+    blockSize: uint64;
+    /// Fragment block size.
+    fragmentSize: uint64;
+    /// Total data block count.
+    blocks: uint64;
+    /// Free data block count.
+    blocksFree: uint64;
+    /// Free data block count available to unprivileged users.
+    blocksAvailable: uint64;
+    /// Total file node count.
+    files: uint64;
+    /// Free file node count.
+    filesFree: uint64;
+    /// Volume identifier.
+    id: uint64;
+    /// Volume mount flags.
+    flags: FileVolumeFlags;
+    /// Maximum filename length.
+    nameLength: uint64;
+}
+
+/// Filesystem volume binding family.
+@languageItem("fs.binding.VolumeBinding")
+export interface VolumeBinding {
+    /// Read status for the volume containing an entry.
+    @binding("tspp.fs.volume.entry", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.metadata"],
+        families: ["windows", "unix"],
+    })
+    readEntry(entry: &readonly Entry): Result<FileVolumeStatus, HostError>;
+
+    /// Read status for the volume containing an open file.
+    @binding("tspp.fs.volume.file", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.metadata"],
+        families: ["windows", "unix"],
+    })
+    readFile(file: FileHandle): Result<FileVolumeStatus, HostError>;
+
+    /// Synchronize the volume containing an open file.
+    @binding("tspp.fs.volume.sync", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.sync"],
+        families: ["windows", "unix"],
+    })
+    syncFile(file: FileHandle): Result<void, HostError>;
+}

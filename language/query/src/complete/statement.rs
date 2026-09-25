@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::EnclosingSpan;
+use tspp_dir as dir;
+use tspp_source::EnclosingSpan;
 
 use super::CompletionPosition;
 use crate::cursor::Cursor;

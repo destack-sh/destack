@@ -24,7 +24,7 @@ const narrowMeta = segment.narrow;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_statics(),
         r#"
 === annotated ===
@@ -118,7 +118,7 @@ segment.wide;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_statics(),
         r#"
 === annotated ===
@@ -210,7 +210,7 @@ class Packet<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_statics(),
         r#"
 === annotated ===

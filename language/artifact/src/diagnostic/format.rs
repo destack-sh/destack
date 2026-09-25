@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_dir::LanguageItem;
-use destack_source::{FileType, ModuleId, PackageId, ProductId, ProfileId, TargetId, Uri};
+use tspp_dir as dir;
+use tspp_dir::LanguageItem;
+use tspp_source::{FileType, ModuleId, PackageId, ProductId, ProfileId, TargetId, Uri};
 
 use crate::{Code, DiagnosticContext, DiagnosticDisplay, DiagnosticError};
 
@@ -171,8 +171,8 @@ impl DiagnosticFormat for FileType {
         _formatter: &DiagnosticFormatter<'_>,
     ) -> Result<String, DiagnosticError> {
         let name = match self {
-            FileType::Destack => "ds",
-            FileType::DestackDeclaration => "d.ds",
+            FileType::Tspp => "tspp",
+            FileType::TsppDeclaration => "d.tspp",
             FileType::JavaScript => "JavaScript",
             FileType::Text => "txt",
             FileType::Toml => "TOML",

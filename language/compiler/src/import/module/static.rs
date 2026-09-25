@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::r#static::{StaticError, StaticEvaluator, StaticGuard, StaticGuardError};
 use crate::{CompilerResult, ImportError};

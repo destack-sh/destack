@@ -1,9 +1,9 @@
 use std::collections::hash_map::Entry;
 
-use destack_core::{FxIndexMap, StringId};
-use destack_dir as dir;
-use destack_source::{FileId, ModuleId, NodeSpanRegion, NodeSpanType, Span};
 use rustc_hash::{FxHashMap, FxHashSet};
+use tspp_core::{FxIndexMap, StringId};
+use tspp_dir as dir;
+use tspp_source::{FileId, ModuleId, NodeSpanRegion, NodeSpanType, Span};
 
 use crate::cursor::Cursor;
 use crate::source::token_text;
@@ -569,7 +569,7 @@ impl PartialImportPath {
         // select the directory or package prefix preceding the editable name
         let slash_count = text.bytes().filter(|byte| *byte == b'/').count();
         let root_is_incomplete = text.starts_with('@') && slash_count <= 1;
-        let separator = if text.starts_with("destack:") {
+        let separator = if text.starts_with("tspp:") {
             text.rfind([':', '/'])
         } else if root_is_incomplete {
             None
@@ -614,8 +614,8 @@ impl PartialImportPath {
         }
 
         // project the builtin root before its public subpaths
-        if specifier.starts_with("destack:") {
-            return self.package_completion("destack:", specifier);
+        if specifier.starts_with("tspp:") {
+            return self.package_completion("tspp:", specifier);
         }
 
         // project an external package root before its public subpaths

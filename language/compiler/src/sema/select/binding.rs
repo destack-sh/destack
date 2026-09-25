@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use destack_core::{FxIndexMap, FxIndexSet};
-use destack_dir as dir;
-use destack_dir::TypeFold;
 use smallvec::SmallVec;
+use tspp_core::{FxIndexMap, FxIndexSet};
+use tspp_dir as dir;
+use tspp_dir::TypeFold;
 
 use crate::CompilerResult;
 use crate::sema::{

@@ -3,13 +3,13 @@ use std::collections::hash_map::Entry;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::{ModuleSetFingerprint, SourceDependency};
-use destack_source::{
-    DESTACK_FILE_TYPES, FileId, FileType, LanguageType, Loader, ModuleId, PackageId, Uri,
-};
 use im::OrdMap;
 use indexmap::IndexMap;
 use rustc_hash::FxHashMap;
+use tspp_artifact::{ModuleSetFingerprint, SourceDependency};
+use tspp_source::{
+    FileId, FileType, LanguageType, Loader, ModuleId, PackageId, TSPP_FILE_TYPES, Uri,
+};
 
 use crate::repository::{FileEntry, Repository, RepositoryError, Revision};
 use crate::{
@@ -633,7 +633,7 @@ fn module_candidate_paths(path: PathBuf, loader: Option<Loader>) -> Vec<PathBuf>
     }
     // try each source extension
     else {
-        DESTACK_FILE_TYPES
+        TSPP_FILE_TYPES
             .iter()
             .filter_map(|file_type| file_type.extension())
             .map(|extension| append_extension(&path, extension))
@@ -672,8 +672,8 @@ mod tests {
 
         // preserve suffix order and declaration rank
         let file_aliases = Repository::condition_aliases_for_path(
-            Path::new("src/user.test.browser.ds"),
-            FileType::Destack,
+            Path::new("src/user.test.browser.tspp"),
+            FileType::Tspp,
             &aliases,
         );
         let names = file_aliases
@@ -695,8 +695,8 @@ mod tests {
 
         // recognize target environment suffixes without package aliases
         let file_aliases = Repository::condition_aliases_for_path(
-            Path::new("src/user.browser.js.ds"),
-            FileType::Destack,
+            Path::new("src/user.browser.js.tspp"),
+            FileType::Tspp,
             &aliases,
         );
         let names = file_aliases
@@ -734,20 +734,20 @@ mod tests {
 
         // strip aliases before preserving the compound declaration extension
         let base_path = Repository::condition_base_path(
-            Path::new("src/user.test.d.ds"),
-            FileType::DestackDeclaration,
+            Path::new("src/user.test.d.tspp"),
+            FileType::TsppDeclaration,
             &aliases,
         );
 
-        assert_eq!(base_path, Some(PathBuf::from("src/user.d.ds")));
+        assert_eq!(base_path, Some(PathBuf::from("src/user.d.tspp")));
     }
 
     #[test]
     fn test_skip_unknown_condition_suffixes() {
         let aliases = IndexMap::new();
         let file_aliases = Repository::condition_aliases_for_path(
-            Path::new("src/user.preview.ds"),
-            FileType::Destack,
+            Path::new("src/user.preview.tspp"),
+            FileType::Tspp,
             &aliases,
         );
 

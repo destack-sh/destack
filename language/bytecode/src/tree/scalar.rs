@@ -1,6 +1,6 @@
-use destack_core::{FloatFormat, float_from_bits, float_to_bits};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::{FloatFormat, float_from_bits, float_to_bits};
+use tspp_serde::Reflect;
 
 use crate::ValueType;
 

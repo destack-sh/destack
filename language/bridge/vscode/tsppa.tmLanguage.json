@@ -1,0 +1,185 @@
+{
+    "name": "TS++ Bytecode Assembly",
+    "scopeName": "source.tsppa",
+    "fileTypes": [
+        "tsppa"
+    ],
+    "patterns": [
+        {
+            "include": "#comment"
+        },
+        {
+            "include": "#function"
+        },
+        {
+            "include": "#inline-control"
+        },
+        {
+            "include": "#inline-instruction"
+        },
+        {
+            "include": "#label"
+        },
+        {
+            "include": "#control"
+        },
+        {
+            "include": "#instruction"
+        },
+        {
+            "include": "#identity"
+        },
+        {
+            "include": "#literal"
+        },
+        {
+            "include": "#operator"
+        }
+    ],
+    "repository": {
+        "comment": {
+            "patterns": [
+                {
+                    "name": "comment.line.double-slash.tsppa",
+                    "match": "//.*$"
+                }
+            ]
+        },
+        "function": {
+            "patterns": [
+                {
+                    "name": "meta.function.tsppa",
+                    "match": "(?m)^(function)\\s+([A-Za-z_][A-Za-z0-9_.]*)",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.declaration.function.tsppa"
+                        },
+                        "2": {
+                            "name": "entity.name.function.tsppa"
+                        }
+                    }
+                }
+            ]
+        },
+        "label": {
+            "patterns": [
+                {
+                    "name": "entity.name.label.tsppa",
+                    "match": "\\bb[0-9]+(?=\\s*:)"
+                }
+            ]
+        },
+        "inline-control": {
+            "patterns": [
+                {
+                    "match": "(?x)^\\s*(b[0-9]+)(:)(?:\\s*)(await|branch|check(?:\\.[A-Za-z_][A-Za-z0-9_.]*)?|invoke(?:\\.[A-Za-z_][A-Za-z0-9_.]*)?|jump|panic|return|switch|trap|unreachable|yield)\\b",
+                    "captures": {
+                        "1": {
+                            "name": "entity.name.label.tsppa"
+                        },
+                        "2": {
+                            "name": "punctuation.separator.tsppa"
+                        },
+                        "3": {
+                            "name": "keyword.control.flow.tsppa"
+                        }
+                    }
+                }
+            ]
+        },
+        "inline-instruction": {
+            "patterns": [
+                {
+                    "match": "(?x)^\\s*(b[0-9]+)(:)(?:\\s*)([A-Za-z_][A-Za-z0-9_.]*)(?=\\s|$)",
+                    "captures": {
+                        "1": {
+                            "name": "entity.name.label.tsppa"
+                        },
+                        "2": {
+                            "name": "punctuation.separator.tsppa"
+                        },
+                        "3": {
+                            "name": "keyword.operator.instruction.tsppa"
+                        }
+                    }
+                }
+            ]
+        },
+        "control": {
+            "patterns": [
+                {
+                    "match": "(?x)^\\s*(await|branch|check(?:\\.[A-Za-z_][A-Za-z0-9_.]*)?|invoke(?:\\.[A-Za-z_][A-Za-z0-9_.]*)?|jump|panic|return|switch|trap|unreachable|yield)\\b",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.control.flow.tsppa"
+                        }
+                    }
+                }
+            ]
+        },
+        "instruction": {
+            "patterns": [
+                {
+                    "match": "(?x)^\\s*([A-Za-z_][A-Za-z0-9_.]*)(?=\\s|$)",
+                    "captures": {
+                        "1": {
+                            "name": "keyword.operator.instruction.tsppa"
+                        }
+                    }
+                }
+            ]
+        },
+        "identity": {
+            "patterns": [
+                {
+                    "name": "variable.other.register.tsppa",
+                    "match": "\\br[0-9]+\\b"
+                },
+                {
+                    "name": "entity.name.function.tsppa",
+                    "match": "\\bf[0-9]+\\b"
+                },
+                {
+                    "name": "entity.name.label.tsppa",
+                    "match": "\\bb[0-9]+\\b"
+                },
+                {
+                    "name": "entity.name.type.tsppa",
+                    "match": "\\bt[0-9]+\\b"
+                },
+                {
+                    "name": "constant.other.identity.tsppa",
+                    "match": "\\b[ladg][0-9]+\\b"
+                }
+            ]
+        },
+        "literal": {
+            "patterns": [
+                {
+                    "name": "constant.language.boolean.tsppa",
+                    "match": "\\b(?:true|false)\\b"
+                },
+                {
+                    "name": "constant.language.tsppa",
+                    "match": "(?<![A-Za-z0-9_.])(?:-?Infinity|default)\\b"
+                },
+                {
+                    "name": "constant.numeric.tsppa",
+                    "match": "(?<![A-Za-z0-9_.])-?(?:[0-9][0-9_]*\\.[0-9_]+(?:[eE][+-]?[0-9][0-9_]*)?|[0-9][0-9_]*[eE][+-]?[0-9][0-9_]*|[0-9][0-9A-Za-z_]*)(?![A-Za-z0-9_.])"
+                }
+            ]
+        },
+        "operator": {
+            "patterns": [
+                {
+                    "name": "keyword.operator.tsppa",
+                    "match": "->|=>|[|*=]"
+                },
+                {
+                    "name": "punctuation.separator.tsppa",
+                    "match": "[,:]"
+                }
+            ]
+        }
+    }
+}

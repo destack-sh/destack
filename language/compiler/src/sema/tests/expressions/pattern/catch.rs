@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_reject_catch_binding_shadowing_type() {
     let session = TestSession::single(
         r#"
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 struct Cancelled {
     reason: int32;
@@ -21,11 +21,11 @@ function read(value: Result<int32, Cancelled>): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 struct Cancelled {
     reason: int32;
@@ -40,7 +40,7 @@ function read(value: Result<int32, Cancelled>): int32 {
 }
 
 === dir ===
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 struct Cancelled {
 /// @type.symbol symbol=Cancelled type=Cancelled
@@ -98,7 +98,7 @@ try {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -181,7 +181,7 @@ try {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -248,7 +248,7 @@ try {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -324,7 +324,7 @@ try {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===

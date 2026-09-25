@@ -34,7 +34,7 @@ entry(v0: ref<T, borrowed, 'a, readonly>):
     program.assert_verify_errors(
         r#"
 error[move-out-of-reference]: cannot move out through a reference
- ──▶ <test.dsm>:4:5
+ ──▶ <test.tsppm>:4:5
   │
 2 │ function take<T, 'a>(v0: ref<T, borrowed, 'a, readonly>): T {
 3 │ entry(v0: ref<T, borrowed, 'a, readonly>):
@@ -44,7 +44,7 @@ error[move-out-of-reference]: cannot move out through a reference
 6 │ }
   │
 
-for more information about an error, run `destack explain move-out-of-reference`
+for more information about an error, run `tspp explain move-out-of-reference`
 "#,
     );
 }
@@ -113,7 +113,7 @@ entry(v0: ref<Slot<T>, borrowed, 'a, readonly>):
     program.assert_verify_errors(
         r#"
 error[move-out-of-reference]: cannot move out through a reference
-  ──▶ <test.dsm>:8:5
+  ──▶ <test.tsppm>:8:5
    │
  6 │ function take<T, 'a>(v0: ref<Slot<T>, borrowed, 'a, readonly>): Slot<T> {
  7 │ entry(v0: ref<Slot<T>, borrowed, 'a, readonly>):
@@ -123,7 +123,7 @@ error[move-out-of-reference]: cannot move out through a reference
 10 │ }
    │
 
-for more information about an error, run `destack explain move-out-of-reference`
+for more information about an error, run `tspp explain move-out-of-reference`
 "#,
     );
 }
@@ -154,7 +154,7 @@ entry(v0: ref<Slot<ref<int32, unique, mutable>>, borrowed, 'a, readonly>):
     program.assert_verify_errors(
         r#"
 error[move-out-of-reference]: cannot move out through a reference
-  ──▶ <test.dsm>:15:5
+  ──▶ <test.tsppm>:15:5
    │
 13 │ function moves<'a>(v0: ref<Slot<ref<int32, unique, mutable>>, borrowed, 'a, readonly>): Slot<ref<int··
 14 │ entry(v0: ref<Slot<ref<int32, unique, mutable>>, borrowed, 'a, readonly>):
@@ -164,7 +164,7 @@ error[move-out-of-reference]: cannot move out through a reference
 17 │ }
    │
 
-for more information about an error, run `destack explain move-out-of-reference`
+for more information about an error, run `tspp explain move-out-of-reference`
 "#,
     );
 }

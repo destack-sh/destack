@@ -1,7 +1,7 @@
 use crate::{Name, Node, NodeType, StringId};
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// How one dependency item binds into the local module or its exports.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]

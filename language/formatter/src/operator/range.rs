@@ -1,14 +1,14 @@
 use crate::annotation::FormatTrailingComments;
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{Comment, RangeEnd, TokenType};
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::{space, token};
-use destack_fir::write;
-use destack_source::{FileId, Span};
+use crate::{TsppFormatContext, TsppFormatter};
+use tspp_dir::{Comment, RangeEnd, TokenType};
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::{space, token};
+use tspp_fir::write;
+use tspp_source::{FileId, Span};
 
 /// Write one compact range operator with readable comment boundaries.
 pub(crate) fn write_range_operator(
-    f: &mut DestackFormatter<'_, '_>,
+    f: &mut TsppFormatter<'_, '_>,
     range_span: Span,
     start_end: Option<u32>,
     end_start: Option<u32>,
@@ -73,7 +73,7 @@ fn range_token_value(end_kind: RangeEnd) -> &'static str {
 
 /// Return the concrete range operator token span.
 fn range_operator_span(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     range_span: Span,
     token_type: TokenType,
     start_end: Option<u32>,
@@ -93,7 +93,7 @@ fn range_operator_span(
 
 /// Return whether comments touch one range operator boundary.
 fn range_operator_has_comment_boundary(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     operator_span: Span,
     start_end: Option<u32>,
     end_start: Option<u32>,
@@ -113,7 +113,7 @@ fn range_operator_has_comment_boundary(
 
 /// Return whether source comments exist between two offsets.
 fn source_has_comment_in_range(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     file: FileId,
     start: u32,
     end: u32,
@@ -129,7 +129,7 @@ fn source_has_comment_in_range(
 
 /// Return comments between the start bound and range operator.
 fn range_operator_left_comments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     operator_span: Span,
     start_end: Option<u32>,
 ) -> Option<Vec<Comment>> {
@@ -144,7 +144,7 @@ fn range_operator_left_comments(
 
 /// Return comments between the range operator and end bound.
 fn range_operator_right_comments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     operator_span: Span,
     end_start: Option<u32>,
 ) -> Option<Vec<Comment>> {
@@ -162,7 +162,7 @@ fn range_operator_right_comments(
 
 /// Return block comments immediately after a range operator with no end bound.
 fn range_operator_dangling_comments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     operator_span: Span,
 ) -> Vec<Comment> {
     let source = context.source_text();

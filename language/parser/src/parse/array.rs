@@ -1,6 +1,6 @@
 use crate::parse::error::ParserResultExt;
 use crate::parse::{ExpressionPosition, ExpressionStop};
-use destack_dir::{Argument, Expression, LocalNodeId, NodeType, TokenType};
+use tspp_dir::{Argument, Expression, LocalNodeId, NodeType, TokenType};
 
 use crate::{ParseStart, Parser, ParserResult};
 

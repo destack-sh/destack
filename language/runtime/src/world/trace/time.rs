@@ -1,6 +1,6 @@
 use crate::diagnostic::RuntimeResult;
 use crate::world::trace::{ClockTrace, EntropySubject, TraceLog, TraceResult, TraceTag};
-use destack_repository::ExecutionMode;
+use tspp_repository::ExecutionMode;
 
 impl TraceLog {
     /// Run one monotonic-clock read binding through the entropy replay channel.

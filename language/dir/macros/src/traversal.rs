@@ -56,10 +56,10 @@ fn expand_input(input: &DeriveInput, traversal: Traversal) -> syn::Result<TokenS
     let body = body(&input.data, traversal)?;
     let mut generics = input.generics.clone();
     let trait_ident = match traversal {
-        Traversal::TypeFold => quote!(destack_dir::TypeFold),
-        Traversal::TypeVisit => quote!(destack_dir::TypeVisit),
-        Traversal::NodeFold => quote!(destack_dir::NodeFold),
-        Traversal::InstanceKeyVisit => quote!(destack_dir::InstanceKeyVisit),
+        Traversal::TypeFold => quote!(tspp_dir::TypeFold),
+        Traversal::TypeVisit => quote!(tspp_dir::TypeVisit),
+        Traversal::NodeFold => quote!(tspp_dir::NodeFold),
+        Traversal::InstanceKeyVisit => quote!(tspp_dir::InstanceKeyVisit),
     };
 
     // require recursive support for each generic type parameter
@@ -73,10 +73,10 @@ fn expand_input(input: &DeriveInput, traversal: Traversal) -> syn::Result<TokenS
 
     let implementation = match traversal {
         Traversal::TypeVisit => quote! {
-            impl #impl_generics destack_dir::TypeVisit for #ident #type_generics #where_clause {
+            impl #impl_generics tspp_dir::TypeVisit for #ident #type_generics #where_clause {
                 fn visit_types<TypeVisitError>(
                     &self,
-                    visit: &mut impl FnMut(destack_dir::GlobalTypeId)
+                    visit: &mut impl FnMut(tspp_dir::GlobalTypeId)
                         -> ::core::result::Result<(), TypeVisitError>,
                 ) -> ::core::result::Result<(), TypeVisitError> {
                     #body
@@ -86,12 +86,12 @@ fn expand_input(input: &DeriveInput, traversal: Traversal) -> syn::Result<TokenS
             }
         },
         Traversal::TypeFold => quote! {
-            impl #impl_generics destack_dir::TypeFold for #ident #type_generics #where_clause {
+            impl #impl_generics tspp_dir::TypeFold for #ident #type_generics #where_clause {
                 fn map_types<TypeFoldError>(
                     &mut self,
                     map: &mut impl FnMut(
-                        destack_dir::GlobalTypeId,
-                    ) -> ::core::result::Result<destack_dir::GlobalTypeId, TypeFoldError>,
+                        tspp_dir::GlobalTypeId,
+                    ) -> ::core::result::Result<tspp_dir::GlobalTypeId, TypeFoldError>,
                 ) -> ::core::result::Result<(), TypeFoldError> {
                     #body
 
@@ -100,11 +100,11 @@ fn expand_input(input: &DeriveInput, traversal: Traversal) -> syn::Result<TokenS
             }
         },
         Traversal::NodeFold => quote! {
-            impl #impl_generics destack_dir::NodeFold for #ident #type_generics #where_clause {
+            impl #impl_generics tspp_dir::NodeFold for #ident #type_generics #where_clause {
                 fn map_nodes<NodeFoldError>(
                     &mut self,
                     map: &mut impl FnMut(
-                        destack_dir::LocalNodeIdAny,
+                        tspp_dir::LocalNodeIdAny,
                     ) -> ::core::result::Result<u32, NodeFoldError>,
                 ) -> ::core::result::Result<(), NodeFoldError> {
                     #body
@@ -114,12 +114,12 @@ fn expand_input(input: &DeriveInput, traversal: Traversal) -> syn::Result<TokenS
             }
         },
         Traversal::InstanceKeyVisit => quote! {
-            impl #impl_generics destack_dir::InstanceKeyVisit
+            impl #impl_generics tspp_dir::InstanceKeyVisit
                 for #ident #type_generics #where_clause
             {
                 fn visit_instance_keys(
                     &self,
-                    visit: &mut dyn FnMut(&destack_dir::InstanceKey),
+                    visit: &mut dyn FnMut(&tspp_dir::InstanceKey),
                 ) {
                     #body
                 }
@@ -167,7 +167,7 @@ fn body(data: &Data, traversal: Traversal) -> syn::Result<TokenStream2> {
         }
         Data::Union(data) => Err(syn::Error::new(
             data.union_token.span,
-            "Destack recursive derives do not support unions",
+            "TS++ recursive derives do not support unions",
         )),
     }
 }
@@ -199,11 +199,11 @@ fn bindings(fields: &Fields, names: &[Ident]) -> TokenStream2 {
 /// Apply one recursive operation to a field place.
 fn apply(place: TokenStream2, traversal: Traversal) -> TokenStream2 {
     match traversal {
-        Traversal::TypeFold => quote!(destack_dir::TypeFold::map_types(#place, map)?;),
-        Traversal::TypeVisit => quote!(destack_dir::TypeVisit::visit_types(#place, visit)?;),
-        Traversal::NodeFold => quote!(destack_dir::NodeFold::map_nodes(#place, map)?;),
+        Traversal::TypeFold => quote!(tspp_dir::TypeFold::map_types(#place, map)?;),
+        Traversal::TypeVisit => quote!(tspp_dir::TypeVisit::visit_types(#place, visit)?;),
+        Traversal::NodeFold => quote!(tspp_dir::NodeFold::map_nodes(#place, map)?;),
         Traversal::InstanceKeyVisit => {
-            quote!(destack_dir::InstanceKeyVisit::visit_instance_keys(#place, visit);)
+            quote!(tspp_dir::InstanceKeyVisit::visit_instance_keys(#place, visit);)
         }
     }
 }

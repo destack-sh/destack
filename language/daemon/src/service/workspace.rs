@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// Request to open one daemon workspace.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]

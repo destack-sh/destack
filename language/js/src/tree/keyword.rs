@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 macro_rules! keywords {
     ($($variant:ident => $text:literal, $is_reserved:literal;)*) => {

@@ -6,11 +6,11 @@
 
 Fixed array repeat literals keep Rust-style semicolon syntax.
 
-```ds
+```tspp
 const zeros: [uint8; 32] = [0; 32]
 ```
 
-```ds expected
+```tspp expected
 const zeros: [uint8; 32] = [0; 32];
 ```
 
@@ -18,11 +18,11 @@ const zeros: [uint8; 32] = [0; 32];
 
 Repeat values and lengths can be computed expressions.
 
-```ds
+```tspp
 const values = [factory(index + 1); width * height]
 ```
 
-```ds expected
+```tspp expected
 const values = [factory(index + 1); width * height];
 ```
 
@@ -30,11 +30,11 @@ const values = [factory(index + 1); width * height];
 
 Comments around the repeated value and length stay inside the repeat literal.
 
-```ds
+```tspp
 const values = [seed /* value */; /* length */ count]
 ```
 
-```ds expected
+```tspp expected
 const values = [seed /* value */; /* length */ count];
 ```
 
@@ -42,12 +42,12 @@ const values = [seed /* value */; /* length */ count];
 
 A line comment after the separator breaks the repeat length onto the next line.
 
-```ds
+```tspp
 const values = [seed; // length
 count]
 ```
 
-```ds expected
+```tspp expected
 const values = [
     seed; // length
     count

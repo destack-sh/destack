@@ -1,8 +1,8 @@
-use destack_core::StringId;
-use destack_dir as dir;
-use destack_serde::Reflect;
-use destack_source::{FilePatch, Patch, PatchSet, Span};
 use serde::{Deserialize, Serialize};
+use tspp_core::StringId;
+use tspp_dir as dir;
+use tspp_serde::Reflect;
+use tspp_source::{FilePatch, Patch, PatchSet, Span};
 
 use super::hoist::HoistSite;
 use crate::source::{is_simple_identifier, offset_line_start};
@@ -216,7 +216,7 @@ impl InlineTarget {
     /// Build the exact source value inserted at every reference.
     fn render_value(
         &self,
-        source: &destack_source::File,
+        source: &tspp_source::File,
         program: &ProgramQueryContext<'_>,
         module: &ModuleQueryContext<'_>,
     ) -> QueryResult<Option<InlineValue>> {

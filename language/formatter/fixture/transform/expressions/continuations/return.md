@@ -6,11 +6,11 @@
 
 Return without a value exits the function.
 
-```ds
+```tspp
 return
 ```
 
-```ds expected
+```tspp expected
 return;
 ```
 
@@ -18,11 +18,11 @@ return;
 
 Return with a value produces that value from the function.
 
-```ds
+```tspp
 return value
 ```
 
-```ds expected
+```tspp expected
 return value;
 ```
 
@@ -30,11 +30,11 @@ return value;
 
 Expressions can be returned directly.
 
-```ds
+```tspp
 return a + b
 ```
 
-```ds expected
+```tspp expected
 return a + b;
 ```
 
@@ -42,10 +42,10 @@ return a + b;
 
 Object literals can be returned directly.
 
-```ds
+```tspp
 return { x: 1, y: 2 }
 ```
 
-```ds expected
+```tspp expected
 return { x: 1, y: 2 };
 ```

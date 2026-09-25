@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use destack_fir::format::{FormatError, FormatResult};
+use tspp_fir::format::{FormatError, FormatResult};
 
 use crate::annotation::{
     FormatLeadingComments, block_infix_annotations, format_dangling_comments,
@@ -10,18 +10,18 @@ use crate::collection::{TrailingSeparator, separated_entries};
 use crate::context::CapturedFormat;
 use crate::declaration::write_access_prefix;
 use crate::operator::write_range_operator;
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_dir::{
+use crate::{FormatNode, TsppFormatContext, TsppFormatter};
+use tspp_dir::{
     Access, AssignPattern, AssignPatternField, Declarator, DecoratorPosition, Expression,
     LocalNodeId, Mutability, Node, NodeType, Parameter, Pattern, PatternField, RangeEnd, Tree,
     TreeStore, TypeExpression,
 };
-use destack_fir::prelude::*;
-use destack_fir::{format_args, write};
-use destack_repository::TrailingComma;
+use tspp_fir::prelude::*;
+use tspp_fir::{format_args, write};
+use tspp_repository::TrailingComma;
 
-impl<'ast> Format<'ast, DestackFormatContext<'ast>> for Mutability {
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<'ast, TsppFormatContext<'ast>> for Mutability {
+    fn format(&self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Mutability::Immutable => write!(f, [token("readonly")]),
             Mutability::Mutable => Ok(()),
@@ -147,7 +147,7 @@ impl<'a> ObjectPattern<'a> {
     }
 
     /// Return whether adjacent fields have source comments between them.
-    fn has_separator_comments(&self, context: &DestackFormatContext<'_>) -> bool {
+    fn has_separator_comments(&self, context: &TsppFormatContext<'_>) -> bool {
         match self {
             Self::Binding { fields, .. } => fields
                 .windows(2)
@@ -159,7 +159,7 @@ impl<'a> ObjectPattern<'a> {
     }
 
     /// Return whether a defaulting pattern owns this object pattern.
-    fn has_default_parent(&self, context: &DestackFormatContext<'_>) -> bool {
+    fn has_default_parent(&self, context: &TsppFormatContext<'_>) -> bool {
         match self {
             Self::Binding { node_id, .. } => {
                 let Some((parent_id, NodeType::Pattern)) = context.parent(*node_id) else {
@@ -187,7 +187,7 @@ impl<'a> ObjectPattern<'a> {
     }
 
     /// Return whether the parent requires this pattern to stay inline.
-    fn is_inline(&self, context: &DestackFormatContext<'_>) -> bool {
+    fn is_inline(&self, context: &TsppFormatContext<'_>) -> bool {
         match self {
             Self::Binding { node_id, .. } => binding_object_is_inline(context, *node_id),
             Self::Assignment { node_id, .. } => assignment_object_is_inline(context, *node_id),
@@ -195,7 +195,7 @@ impl<'a> ObjectPattern<'a> {
     }
 
     /// Select the object field layout.
-    fn layout(&self, context: &DestackFormatContext<'_>) -> ObjectPatternLayout {
+    fn layout(&self, context: &TsppFormatContext<'_>) -> ObjectPatternLayout {
         let should_expand = !self.has_default_parent(context)
             && (self.has_nested_pattern(context.tree) || self.has_separator_comments(context));
 
@@ -209,7 +209,7 @@ impl<'a> ObjectPattern<'a> {
     }
 
     /// Format an empty object with its interior annotations.
-    fn format_empty<'ast>(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format_empty<'ast>(&self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             Self::Binding { node_id, .. } => {
                 format_empty_pattern_delimiter_with_interior_annotations(f, *node_id, "{", "}")
@@ -223,7 +223,7 @@ impl<'a> ObjectPattern<'a> {
     /// Write the object fields.
     fn write_fields<'ast>(
         &self,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
         trailing_separator: TrailingSeparator,
     ) -> FormatResult<()> {
         match self {
@@ -246,7 +246,7 @@ impl<'a> ObjectPattern<'a> {
     }
 
     /// Format the complete object pattern.
-    fn format<'ast>(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format<'ast>(&self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         if let Self::Binding { ty: Some(ty), .. } = self {
             write!(f, [ty, space()])?;
         }
@@ -262,10 +262,9 @@ impl<'a> ObjectPattern<'a> {
         } else {
             TrailingSeparator::Allowed
         };
-        let fields = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-            self.write_fields(f, trailing_separator)
-        });
-        let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let fields =
+            format_with(|f: &mut TsppFormatter<'ast, '_>| self.write_fields(f, trailing_separator));
+        let body = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             if f.context().options.bracket_spacing {
                 write!(f, [soft_space_or_block_indent(&fields)])
             } else {
@@ -299,7 +298,7 @@ fn pattern_fields_disallow_trailing_separator(
 
 /// Format a prefix pattern like `&pattern` or `^pattern`.
 fn format_prefixed_pattern<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Pattern>,
     prefix: &'static str,
     right: LocalNodeId<Pattern>,
@@ -316,7 +315,7 @@ fn format_prefixed_pattern<'ast>(
 
 /// Return whether one prefix pattern operand needs spacing.
 fn prefix_pattern_operand_needs_spacing(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Pattern>,
     right: LocalNodeId<Pattern>,
 ) -> bool {
@@ -331,7 +330,7 @@ fn prefix_pattern_operand_needs_spacing(
 
 /// Write one prefix pattern operand with readable boundary comments.
 fn write_prefix_pattern_operand<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Pattern>,
     right: LocalNodeId<Pattern>,
     operand_has_space: bool,
@@ -347,7 +346,7 @@ fn write_prefix_pattern_operand<'ast>(
 
 /// Format one ordered range pattern.
 fn format_range_pattern<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Pattern>,
     start: Option<LocalNodeId<Expression>>,
     end: Option<LocalNodeId<Expression>>,
@@ -371,7 +370,7 @@ fn format_range_pattern<'ast>(
 
 /// Format one list-like pattern field collection with shared trailing-separator behavior.
 fn format_pattern_field_list<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Pattern>,
     open: &'static str,
     close: &'static str,
@@ -409,7 +408,7 @@ fn format_pattern_field_list<'ast>(
 
 /// Format one list-like assign-pattern field collection with shared trailing-separator behavior.
 fn format_assign_pattern_field_list<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<AssignPattern>,
     open: &'static str,
     close: &'static str,
@@ -467,7 +466,7 @@ fn newtype_object_payload(
 
 /// Format one object-backed newtype pattern.
 fn format_newtype_object_pattern<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     ty: LocalNodeId<TypeExpression>,
     payload: LocalNodeId<Pattern>,
 ) -> FormatResult<()> {
@@ -491,7 +490,7 @@ fn assign_pattern_fields_disallow_trailing_separator(
 
 /// Format one empty pattern delimiter pair with interior infix annotations.
 fn format_empty_pattern_delimiter_with_interior_annotations<'ast, T>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<T>,
     open: &'static str,
     close: &'static str,
@@ -546,7 +545,7 @@ where
 
 /// Return whether one binding object must stay inline in its parent.
 fn binding_object_is_inline(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Pattern>,
 ) -> bool {
     let Some((parent_id, parent_type)) = context.parent(node_id) else {
@@ -577,7 +576,7 @@ fn binding_object_is_inline(
 
 /// Return whether one assignment object is the direct target of an assignment.
 fn assignment_object_is_inline(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<AssignPattern>,
 ) -> bool {
     let Some((parent_id, NodeType::Expression)) = context.parent(node_id) else {
@@ -622,7 +621,7 @@ fn assign_pattern_is_destructuring(tree: &Tree, pattern_id: LocalNodeId<AssignPa
 
 /// Return whether two object fields have comments between them.
 fn object_field_gap_has_comments<T>(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     left_id: LocalNodeId<T>,
     right_id: LocalNodeId<T>,
 ) -> bool
@@ -641,7 +640,7 @@ where
 
 /// Format one binding assignment pattern in assignment-pattern order.
 fn format_pattern_assignment<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     pattern: LocalNodeId<Pattern>,
     value: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
@@ -669,7 +668,7 @@ fn format_pattern_assignment<'ast>(
 
 /// Format one assignment target default in assignment pattern order.
 fn format_assign_pattern_assignment<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     pattern: LocalNodeId<AssignPattern>,
     value: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
@@ -699,7 +698,7 @@ impl<'ast> FormatNode<'ast, Pattern> for Pattern {
     fn format_node(
         &self,
         node_id: LocalNodeId<Pattern>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         if let Pattern::Default { pattern, value } = self {
             format_pattern_assignment(f, *pattern, *value)?;
@@ -796,7 +795,7 @@ impl<'ast> FormatNode<'ast, PatternField> for PatternField {
     fn format_node(
         &self,
         node_id: LocalNodeId<PatternField>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [prefix_annotations(f.context(), node_id)])?;
 
@@ -858,7 +857,7 @@ impl<'ast> FormatNode<'ast, AssignPattern> for AssignPattern {
     fn format_node(
         &self,
         node_id: LocalNodeId<AssignPattern>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         if let AssignPattern::Default { pattern, value } = self {
             format_assign_pattern_assignment(f, *pattern, *value)?;
@@ -902,7 +901,7 @@ impl<'ast> FormatNode<'ast, AssignPatternField> for AssignPatternField {
     fn format_node(
         &self,
         node_id: LocalNodeId<AssignPatternField>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [prefix_annotations(f.context(), node_id)])?;
 
@@ -962,7 +961,7 @@ impl<'ast> FormatNode<'ast, AssignPatternField> for AssignPatternField {
 
 /// Write the value side of one shorthand assignment pattern.
 fn write_shorthand_assignment_value(
-    f: &mut DestackFormatter<'_, '_>,
+    f: &mut TsppFormatter<'_, '_>,
     pattern_id: LocalNodeId<Pattern>,
 ) -> FormatResult<()> {
     // shorthand defaults always lower to assignment wrappers
@@ -979,7 +978,7 @@ fn write_shorthand_assignment_value(
 
 /// Write the value side of one shorthand assignment target.
 fn write_shorthand_assign_pattern_value(
-    f: &mut DestackFormatter<'_, '_>,
+    f: &mut TsppFormatter<'_, '_>,
     pattern_id: LocalNodeId<AssignPattern>,
 ) -> FormatResult<()> {
     // shorthand defaults always lower to assignment wrappers

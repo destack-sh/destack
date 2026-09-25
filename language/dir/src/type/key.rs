@@ -1,9 +1,9 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 use smallvec::{Array, SmallVec};
+use tspp_serde::Reflect;
 
-use destack_core::StringId;
-use destack_source::ModuleId;
+use tspp_core::StringId;
+use tspp_source::ModuleId;
 
 use crate::{
     Access, AutoInterface, AwaitTarget, BinaryOperator, CaptureMode, CastOrigin, ClassConstructor,
@@ -18,7 +18,7 @@ use crate::{
 /// One declaration selected with its generic argument bindings.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// pick<float64>(30.5)  // symbol: pick, arguments: (float64)
 /// Box<int32>           // symbol: Box, arguments: (int32)
 /// ```

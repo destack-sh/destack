@@ -1,0 +1,60 @@
+import { Error } from "tspp:error";
+
+/// Allocation failed because the runtime could not reserve enough memory.
+export struct AllocationOutOfMemory {
+    /// Discriminant for allocation failure matching.
+    kind: "outOfMemory" = "outOfMemory";
+
+    /// Requested allocation size in bytes when known.
+    requestedBytes?: usize;
+
+    /// Human-readable diagnostic detail.
+    message?: string;
+}
+
+/// Allocation failed because the requested capacity cannot be represented.
+export struct AllocationCapacityOverflow {
+    /// Discriminant for allocation failure matching.
+    kind: "capacityOverflow" = "capacityOverflow";
+
+    /// Requested logical capacity when known.
+    requestedCapacity?: usize;
+
+    /// Element size in bytes when known.
+    elementSizeBytes?: usize;
+
+    /// Human-readable diagnostic detail.
+    message?: string;
+}
+
+/// Allocation failed because the runtime does not support the requested operation.
+export struct AllocationUnsupported {
+    /// Discriminant for allocation failure matching.
+    kind: "unsupported" = "unsupported";
+
+    /// Unsupported allocation operation when known.
+    operation?: string;
+
+    /// Human-readable diagnostic detail.
+    message?: string;
+}
+
+/// Allocation failure returned by typed fallible allocation APIs.
+@languageItem("memory.AllocationError")
+export newtype AllocationError =
+    | AllocationOutOfMemory
+    | AllocationCapacityOverflow
+    | AllocationUnsupported;
+
+export extension of AllocationError implements Error {
+    /// Format this error for users.
+    display(&immutable this): ^string {
+        match (this) {
+            AllocationOutOfMemory { message } => (message ?? "out of memory").clone()
+            AllocationCapacityOverflow { message } => (
+                message ?? "allocation capacity overflow"
+            ).clone()
+            AllocationUnsupported { message } => (message ?? "allocation unsupported").clone()
+        }
+    }
+}

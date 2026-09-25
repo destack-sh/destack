@@ -5,13 +5,13 @@ pub const DESTACK_HOME: &str = "DESTACK_HOME";
 /// Environment key used to override the package directory.
 pub const DESTACK_PACKAGE_DIR: &str = "DESTACK_PACKAGE_DIR";
 /// Environment key used to override the watch mode.
-pub const DESTACK_WATCH_MODE: &str = "DESTACK_WATCH_MODE";
+pub const TSPP_WATCH_MODE: &str = "TSPP_WATCH_MODE";
 /// Environment key used to override the watch poll interval in milliseconds.
-pub const DESTACK_WATCH_POLL_MS: &str = "DESTACK_WATCH_POLL_MS";
+pub const TSPP_WATCH_POLL_MS: &str = "TSPP_WATCH_POLL_MS";
 /// Environment key used to override the watch debounce interval in milliseconds.
-pub const DESTACK_WATCH_DEBOUNCE_MS: &str = "DESTACK_WATCH_DEBOUNCE_MS";
+pub const TSPP_WATCH_DEBOUNCE_MS: &str = "TSPP_WATCH_DEBOUNCE_MS";
 /// Environment key used to override the worker count.
-pub const DESTACK_WORKERS: &str = "DESTACK_WORKERS";
+pub const TSPP_WORKERS: &str = "TSPP_WORKERS";
 /// Environment key used to override the default target selection.
 pub const DESTACK_TARGET: &str = "DESTACK_TARGET";
 /// Environment key used to override the default product selection.

@@ -4,16 +4,16 @@ use std::ops::Range;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
-use destack_query::QueryMethod;
-use destack_repository::TraceReport;
 use libtest_mimic::{Failed, Trial};
+use tspp_query::QueryMethod;
+use tspp_repository::TraceReport;
 
 use crate::{QueryCase, QueryTrace, QueryWorkspace, parse_query_document};
 
 /// Environment variable enabling exact response replacement.
-const BLESS_ENV: &str = "DESTACK_BLESS";
+const BLESS_ENV: &str = "TSPP_BLESS";
 /// Environment variable selecting the number of slow artifacts in timing reports.
-const TRACE_SLOW_ARTIFACTS_ENV: &str = "DESTACK_TEST_TRACE_SLOW_ARTIFACTS";
+const TRACE_SLOW_ARTIFACTS_ENV: &str = "TSPP_TEST_TRACE_SLOW_ARTIFACTS";
 /// Default number of slow artifacts in timing reports.
 const DEFAULT_TRACE_SLOW_ARTIFACTS: usize = 8;
 

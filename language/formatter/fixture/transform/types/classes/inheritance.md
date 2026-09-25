@@ -6,11 +6,11 @@
 
 Subclasses use `extends` to inherit from a base class.
 
-```ds
+```tspp
 class Dog extends Animal { bark() { } }
 ```
 
-```ds expected
+```tspp expected
 class Dog extends Animal {
     bark() {}
 }
@@ -20,11 +20,11 @@ class Dog extends Animal {
 
 Classes use `implements` to satisfy interface contracts.
 
-```ds
+```tspp
 class Dog implements Animal { makeSound() { } }
 ```
 
-```ds expected
+```tspp expected
 class Dog implements Animal {
     makeSound() {}
 }
@@ -34,11 +34,11 @@ class Dog implements Animal {
 
 A class can both extend a base class and implement interfaces.
 
-```ds
+```tspp
 class Dog extends Pet implements Animal, Named { name: string }
 ```
 
-```ds expected
+```tspp expected
 class Dog extends Pet implements Animal, Named {
     name: string;
 }
@@ -48,11 +48,11 @@ class Dog extends Pet implements Animal, Named {
 
 Simple single-statement constructor bodies stay on one line.
 
-```ds
+```tspp
 class Dog extends Animal { constructor() { super() } }
 ```
 
-```ds expected
+```tspp expected
 class Dog extends Animal {
     constructor() {
         super();

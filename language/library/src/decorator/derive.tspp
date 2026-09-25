@@ -1,0 +1,5 @@
+import { intrinsic } from "./intrinsic.tspp";
+
+/// Derive provider dispatcher.
+@languageItem("decorator.derive")
+export newtype derive = intrinsic;

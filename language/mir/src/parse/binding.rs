@@ -1,4 +1,4 @@
-use destack_core::StringId;
+use tspp_core::StringId;
 
 use crate::source::TokenType;
 use crate::{

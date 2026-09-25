@@ -1,8 +1,8 @@
 use std::cell::Cell;
 use std::ptr::null_mut;
 
-use destack_native::abi;
-use destack_signal::Fault;
+use tspp_native::abi;
+use tspp_signal::Fault;
 
 use super::Call;
 

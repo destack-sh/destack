@@ -1,4 +1,4 @@
-use destack_mir::{
+use tspp_mir::{
     Lifetime, LocalNodeIdAny, Origin, Path, Terminator, TypeId, Value, type_borrowed_paths,
     type_contains_borrowed_refs, type_lifetime, type_origin_paths,
 };

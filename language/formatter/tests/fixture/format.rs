@@ -1,14 +1,14 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use destack_core::StringPool;
-use destack_dir::{NodeParentIndex, Tree};
-use destack_fir::format as fir_format;
-use destack_fir::format::Allocator;
-use destack_formatter::{DestackFormatContext, DestackFormatOptions, statement_list};
-use destack_parser::{CommentRetention, ParseOptions, Parser};
-use destack_repository::FormatterOptions;
-use destack_source::{
+use tspp_core::StringPool;
+use tspp_dir::{NodeParentIndex, Tree};
+use tspp_fir::format as fir_format;
+use tspp_fir::format::Allocator;
+use tspp_formatter::{TsppFormatContext, TsppFormatOptions, statement_list};
+use tspp_parser::{CommentRetention, ParseOptions, Parser};
+use tspp_repository::FormatterOptions;
+use tspp_source::{
     DiagnosticSeverity, File, FileId, FileType, LanguageType, ModuleId, PackageId, Uri,
 };
 
@@ -85,8 +85,8 @@ pub(super) fn format_source(
     let strings = StringPool::new();
     strings.extend(&parse.strings);
     let parents = NodeParentIndex::from_roots(&parse.tree, &parse.roots);
-    let options = DestackFormatOptions::from_formatter_options(options, language);
-    let context = DestackFormatContext::new(
+    let options = TsppFormatOptions::from_formatter_options(options, language);
+    let context = TsppFormatContext::new(
         options,
         &file,
         &parse.tree,

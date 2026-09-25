@@ -1,0 +1,746 @@
+==================================
+Generic calls
+:language(tspp)
+==================================
+
+f<T>(x)
+
+---
+
+(program
+  (expression_statement
+    (call_expression
+      (identifier)
+      (type_arguments
+        (type_identifier))
+      (arguments
+        (identifier)))))
+
+==================================
+Instantiation expressions
+:language(tspp)
+==================================
+
+const makeHammerBox = makeBox<Hammer>;
+const makeStringBox = makeBox<string>;
+const ErrorMap = Map<string, Error>;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (instantiation_expression
+        (identifier)
+        (type_arguments
+          (type_identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (instantiation_expression
+        (identifier)
+        (type_arguments
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (instantiation_expression
+        (identifier)
+        (type_arguments
+          (predefined_type)
+          (type_identifier))))))
+
+==================================
+Functions with typed parameters
+:language(tspp)
+==================================
+
+function greeter(person: string) {
+  return "Hello, " + person;
+}
+
+function foo<T>(x: T): T {
+
+}
+
+function foo<T, U>(a: T[], f: (x: T) => U): U[] {
+
+}
+
+function foo<T, U>(this: T[]): U[] {
+  return []
+}
+
+function foo<const T, const U: string>(x: T, y: U) {
+
+}
+
+---
+
+(program
+  (function_declaration
+    name: (identifier)
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (identifier)
+        type: (type_annotation
+          (predefined_type))))
+    body: (statement_block
+      (return_statement
+        (binary_expression
+          left: (string
+            (string_fragment))
+          right: (identifier)))))
+  (function_declaration
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (type_identifier)))
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (identifier)
+        type: (type_annotation
+          (type_identifier))))
+    return_type: (type_annotation
+      (type_identifier))
+    body: (statement_block))
+  (function_declaration
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (type_identifier))
+      (type_parameter
+        name: (type_identifier)))
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (identifier)
+        type: (type_annotation
+          (array_type
+            (type_identifier))))
+      (required_parameter
+        pattern: (identifier)
+        type: (type_annotation
+          (function_type
+            parameters: (formal_parameters
+              (required_parameter
+                pattern: (identifier)
+                type: (type_annotation
+                  (type_identifier))))
+            return_type: (type_identifier)))))
+    return_type: (type_annotation
+      (array_type
+        (type_identifier)))
+    body: (statement_block))
+  (function_declaration
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (type_identifier))
+      (type_parameter
+        name: (type_identifier)))
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (this)
+        type: (type_annotation
+          (array_type
+            (type_identifier)))))
+    return_type: (type_annotation
+      (array_type
+        (type_identifier)))
+    body: (statement_block
+      (return_statement
+        (array))))
+  (function_declaration
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (type_identifier))
+      (type_parameter
+        name: (type_identifier)
+        constraint: (constraint
+          (predefined_type))))
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (identifier)
+        type: (type_annotation
+          (type_identifier)))
+      (required_parameter
+        pattern: (identifier)
+        type: (type_annotation
+          (type_identifier))))
+    body: (statement_block)))
+
+==================================
+New object with type arguments
+:language(tspp)
+==================================
+
+const lines = new Array<DiffLine>()
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (new_expression
+        (identifier)
+        (type_arguments
+          (type_identifier))
+        (arguments)))))
+
+===================================================
+Function calls with array and tuple type arguments
+:language(tspp)
+===================================================
+
+a.b<[C]>();
+a<C.D[]>();
+
+---
+
+(program
+  (expression_statement
+    (call_expression
+      function: (member_expression
+        object: (identifier)
+        property: (property_identifier))
+      type_arguments: (type_arguments
+        (slice_type
+          (type_identifier)))
+      arguments: (arguments)))
+  (expression_statement
+    (call_expression
+      function: (identifier)
+      type_arguments: (type_arguments
+        (array_type
+          (nested_type_identifier
+            module: (identifier)
+            name: (type_identifier))))
+      arguments: (arguments))))
+
+=========================================================
+Function calls with optional chaining and type arguments
+:language(tspp)
+=========================================================
+
+A?.<B>();
+
+---
+
+(program
+  (expression_statement
+    (call_expression
+      (identifier)
+      (type_arguments
+        (type_identifier))
+      (arguments))))
+
+==================================
+Arrow functions and generators with call signatures
+:language(tspp)
+==================================
+
+<A>(amount, interestRate, duration): number => 2
+
+function* foo<A>(amount, interestRate, duration): number {
+	yield amount * interestRate * duration / 12
+}
+
+(module: unknown): number => 2
+
+---
+
+(program
+  (expression_statement
+    (arrow_function
+      type_parameters: (type_parameters
+        (type_parameter
+          name: (type_identifier)))
+      parameters: (formal_parameters
+        (required_parameter
+          pattern: (identifier))
+        (required_parameter
+          pattern: (identifier))
+        (required_parameter
+          pattern: (identifier)))
+      return_type: (type_annotation
+        (predefined_type))
+      body: (number)))
+  (generator_function_declaration
+    name: (identifier)
+    type_parameters: (type_parameters
+      (type_parameter
+        name: (type_identifier)))
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (identifier))
+      (required_parameter
+        pattern: (identifier))
+      (required_parameter
+        pattern: (identifier)))
+    return_type: (type_annotation
+      (predefined_type))
+    body: (statement_block
+      (expression_statement
+        (yield_expression
+          (binary_expression
+            left: (binary_expression
+              left: (binary_expression
+                left: (identifier)
+                right: (identifier))
+              right: (identifier))
+            right: (number))))))
+  (expression_statement
+    (arrow_function
+      parameters: (formal_parameters
+        (required_parameter
+          pattern: (identifier)
+          type: (type_annotation
+            (predefined_type))))
+      return_type: (type_annotation
+        (predefined_type))
+      body: (number))))
+
+==================================
+Arrow function with parameter named async
+:language(tspp)
+==================================
+
+const x = async => async;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (arrow_function
+        (identifier)
+        (identifier)))))
+
+==================
+Function signature
+:language(tspp)
+==================
+
+export default function foo(): bar
+
+---
+
+(program
+  (export_statement
+    (function_signature
+      (identifier)
+      (formal_parameters)
+      (type_annotation
+        (type_identifier)))))
+
+=============================================================
+Ambiguity between function signature and function declaration
+:language(tspp)
+=============================================================
+
+function foo()
+{}
+
+function foo(bar)
+function foo(bar): baz;
+function foo(bar)
+
+function foo(): () => { [key: foo]: bar }
+function foo(): () => { [key: foo]: bar } {}
+
+---
+
+(program
+  (function_declaration
+    name: (identifier)
+    parameters: (formal_parameters)
+    body: (statement_block))
+  (function_signature
+    name: (identifier)
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (identifier))))
+  (function_signature
+    name: (identifier)
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (identifier)))
+    return_type: (type_annotation
+      (type_identifier)))
+  (function_signature
+    name: (identifier)
+    parameters: (formal_parameters
+      (required_parameter
+        pattern: (identifier))))
+  (function_signature
+    name: (identifier)
+    parameters: (formal_parameters)
+    return_type: (type_annotation
+      (function_type
+        parameters: (formal_parameters)
+        return_type: (object_type
+          (index_signature
+            name: (identifier)
+            index_type: (type_identifier)
+            type: (type_annotation
+              (type_identifier)))))))
+  (function_declaration
+    name: (identifier)
+    parameters: (formal_parameters)
+    return_type: (type_annotation
+      (function_type
+        parameters: (formal_parameters)
+        return_type: (object_type
+          (index_signature
+            name: (identifier)
+            index_type: (type_identifier)
+            type: (type_annotation
+              (type_identifier))))))
+    body: (statement_block)))
+
+====================================================================================
+Ambiguity between function signature and function declaration: comments and newlines
+:language(tspp)
+====================================================================================
+
+function foo()
+  // above is a signature
+foo();
+
+function bar()
+  // above is a function declaration
+{}
+
+function foo()
+  : number;
+
+---
+
+(program
+  (function_signature
+    (identifier)
+    (formal_parameters))
+  (comment)
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments)))
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (comment)
+    (statement_block))
+  (function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (predefined_type))))
+
+======================================
+Functions with destructured parameters
+:language(tspp)
+======================================
+
+let foo: ({a}: Foo) => number
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (function_type
+          (formal_parameters
+            (required_parameter
+              (object_pattern
+                (shorthand_property_identifier_pattern))
+              (type_annotation
+                (type_identifier))))
+          (predefined_type))))))
+
+===============================================================================
+Declared generator functions are allowed
+:language(tspp)
+===============================================================================
+
+declare function* ids(): Generator<int32, void, unknown>;
+
+
+
+---
+
+(program
+  (declare_function_signature
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)
+          (predefined_type)
+          (predefined_type))))))
+
+===============================================================================
+Const function declarations
+:language(tspp)
+===============================================================================
+
+const function evaluate(value: T, maybe?: U = fallback, ...rest: Item[]): T {
+  return value;
+}
+
+const async function load(): Promise<T> {
+  return source;
+}
+
+const function* ids(): Iterable<uint> {
+  yield 1;
+}
+
+declare const function sizeOf<T>(): usize;
+declare const async function fetch<T>(): Promise<T>;
+
+-------------------------------------------------------------------------------
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier)))
+      (optional_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))
+        (identifier))
+      (required_parameter
+        (rest_pattern
+          (identifier))
+        (type_annotation
+          (array_type
+            (type_identifier)))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (generator_function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (statement_block
+      (expression_statement
+        (yield_expression
+          (number)))))
+  (declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters)
+    (type_annotation
+      (type_identifier)))
+  (declare_function_signature
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))))
+
+==================================
+Closures with capture policies
+:language(tspp)
+==================================
+
+let count = 0;
+
+@capture("borrow")
+let borrowed: &Function<(), int32> = () => count;
+
+@capture({
+    default: "copy",
+    socket: "move",
+    logger: "borrow",
+    this: "borrow",
+})
+const send = (message: string) => {
+    logger.info(message);
+    socket.write(message)
+};
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (number)))
+  (decorated_statement
+    (decorator
+      (call_expression
+        (identifier)
+        (arguments
+          (string
+            (string_fragment)))))
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (memory_type
+            (generic_type
+              (type_identifier)
+              (type_arguments
+                (tuple_type)
+                (type_identifier)))))
+        (arrow_function
+          (formal_parameters)
+          (identifier)))))
+  (decorated_statement
+    (decorator
+      (call_expression
+        (identifier)
+        (arguments
+          (object
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment)))
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment)))
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment)))
+            (pair
+              (property_identifier)
+              (string
+                (string_fragment)))))))
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (arrow_function
+          (formal_parameters
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type))))
+          (statement_block
+            (expression_statement
+              (call_expression
+                (member_expression
+                  (identifier)
+                  (property_identifier))
+                (arguments
+                  (identifier))))
+            (expression_statement
+              (call_expression
+                (member_expression
+                  (identifier)
+                  (property_identifier))
+                (arguments
+                  (identifier))))))))))
+
+==================================
+Async functions and generators
+:language(tspp)
+==================================
+
+async function read(user: User): Promise<string> {
+    await tick();
+    return user.name;
+}
+
+async function* stream(): AsyncGenerator<string, void, void> {
+    yield await readNext();
+}
+
+function* ids(): Generator<int32, void, void> {
+    yield 1;
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type))))
+    (statement_block
+      (expression_statement
+        (await_expression
+          (call_expression
+            (identifier)
+            (arguments))))
+      (return_statement
+        (member_expression
+          (identifier)
+          (property_identifier)))))
+  (generator_function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (predefined_type)
+          (predefined_type)
+          (predefined_type))))
+    (statement_block
+      (expression_statement
+        (yield_expression
+          (await_expression
+            (call_expression
+              (identifier)
+              (arguments)))))))
+  (generator_function_declaration
+    (identifier)
+    (formal_parameters)
+    (type_annotation
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)
+          (predefined_type)
+          (predefined_type))))
+    (statement_block
+      (expression_statement
+        (yield_expression
+          (number))))))

@@ -1,0 +1,173 @@
+import { HostError } from "tspp:error/host";
+
+import { BranchId, CheckpointId, RevisionId, TraceSequence } from "./lineage.tspp";
+import { ResourceId } from "./resource.tspp";
+import { WorldHandle } from "./world.tspp";
+
+/// Runtime trace cursor handle.
+@languageItem("runtime.TraceCursorHandle")
+export newtype TraceCursorHandle = ResourceId;
+
+/// Trace event class.
+@languageItem("runtime.TraceEventKind")
+export enum TraceEventKind {
+    /// Runtime entropy or nondeterministic decision.
+    Entropy = 1,
+    /// Recorded binding call.
+    BindingCall = 2,
+    /// Runtime or world control mutation.
+    Control = 3,
+    /// Explicit marker event.
+    Marker = 4,
+}
+
+/// Trace state for one world.
+@languageItem("runtime.Trace")
+export struct Trace {
+    /// Active branch.
+    branch: BranchId;
+    /// Current trace sequence boundary.
+    sequence: TraceSequence;
+}
+
+/// Open options for one trace cursor.
+export struct TraceCursorOptions {
+    /// Optional starting sequence.
+    start?: TraceSequence;
+}
+
+/// One trace record.
+@languageItem("runtime.TraceRecord")
+export struct TraceRecord {
+    /// Event sequence number.
+    sequence: TraceSequence;
+    /// Event class.
+    kind: TraceEventKind;
+    /// Optional encoded payload.
+    payload?: [uint8];
+}
+
+/// Trace record page.
+export struct TraceRecordPage {
+    /// Trace records in this page.
+    records: TraceRecord[];
+    /// Next trace sequence when more records exist.
+    next?: TraceSequence;
+}
+
+/// Describe one world's causal trace.
+@binding("tspp.runtime.trace.describe", {
+    effect: "deterministic",
+    requires: ["runtime.trace.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function traceDescribe(world: WorldHandle): Result<Trace, HostError>;
+
+/// Open one causal trace cursor.
+@binding("tspp.runtime.trace.open", {
+    effect: "deterministic",
+    requires: ["runtime.trace.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function traceOpen(
+    world: WorldHandle,
+    options?: TraceCursorOptions,
+): Result<TraceCursorHandle, HostError>;
+
+/// Close one causal trace cursor.
+@binding("tspp.runtime.trace.close", {
+    effect: "deterministic",
+    requires: ["runtime.trace.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function traceClose(cursor: TraceCursorHandle): Result<void, HostError>;
+
+/// Read the next batch of causal trace records.
+@binding("tspp.runtime.trace.next", {
+    effect: "deterministic",
+    requires: ["runtime.trace.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function traceNext(
+    cursor: TraceCursorHandle,
+    limit: uint32,
+): Result<TraceRecordPage, HostError>;
+
+/// Return the current sequence position of one causal trace cursor.
+@binding("tspp.runtime.trace.tell", {
+    effect: "deterministic",
+    requires: ["runtime.trace.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function traceTell(cursor: TraceCursorHandle): Result<TraceSequence, HostError>;
+
+/// Seek one causal trace cursor to one sequence.
+@binding("tspp.runtime.trace.seekSequence", {
+    effect: "deterministic",
+    requires: ["runtime.trace.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function traceSeekSequence(
+    cursor: TraceCursorHandle,
+    sequence: TraceSequence,
+): Result<void, HostError>;
+
+/// Seek one causal trace cursor to one revision boundary.
+@binding("tspp.runtime.trace.seekRevision", {
+    effect: "deterministic",
+    requires: ["runtime.trace.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function traceSeekRevision(
+    cursor: TraceCursorHandle,
+    revisionId: RevisionId,
+): Result<void, HostError>;
+
+/// Seek one causal trace cursor to one checkpoint boundary.
+@binding("tspp.runtime.trace.seekCheckpoint", {
+    effect: "deterministic",
+    requires: ["runtime.trace.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function traceSeekCheckpoint(
+    cursor: TraceCursorHandle,
+    checkpointId: CheckpointId,
+): Result<void, HostError>;
+
+/// Append one explicit trace marker.
+@binding("tspp.runtime.trace.mark", {
+    effect: "deterministic",
+    requires: ["runtime.trace.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function traceMark(
+    world: WorldHandle,
+    label: string,
+): Result<TraceSequence, HostError>;

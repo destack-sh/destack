@@ -1,0 +1,39 @@
+// SYNTAX TEST "source.tspp"
+
+// expressions / functions / declarations arrows and generators
+async function* stream<T>(source: Source<T>): AsyncGenerator<T, void, unknown> {
+// <- keyword.control.async.tspp
+//              ^^^^^^ entity.name.function.definition.tspp
+    yield await source.next();
+}
+
+const map = <T, U>(value: T, project: (value: T) => U): U => project(value);
+//    ^^^ variable.other.definition.tspp
+//          ^ punctuation.definition.typeparameters.begin.tspp
+
+const async function load<const Value: Input>(): Output {}
+// <- keyword.declaration.variable.tspp
+
+declare const function sizeOf<T>(): usize;
+//      ^^^^^ keyword.declaration.variable.tspp
+
+function allocate<T, const ...Shape: usize, const Count: uint>(allocator: Allocator): [T; Count] {}
+//                   ^^^^^ storage.modifier.tspp
+
+// expressions / functions / calls and type arguments
+const user = create<User, const 4>(input);
+//           ^^^^^^ entity.name.function.call.tspp
+
+const projected = a.b<[C]>();
+//                  ^ entity.name.function.call.tspp
+
+const value = object.method?.<Result<string>>(argument);
+
+// expressions / functions / decorators
+@derive(Debug, Clone)
+// <~------ entity.name.function.decorator.tspp
+struct Event {}
+
+@capture({ default: "move", logger: "borrow" })
+// <~------- entity.name.function.decorator.tspp
+const handler = () => logger.info("handled");

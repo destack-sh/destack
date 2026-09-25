@@ -6,11 +6,11 @@
 
 Nested objects stay on one line if short.
 
-```ds
+```tspp
 const x = { a: { b: 1 } }
 ```
 
-```ds expected
+```tspp expected
 const x = { a: { b: 1 } };
 ```
 
@@ -18,11 +18,11 @@ const x = { a: { b: 1 } };
 
 Any depth of nesting is preserved if short.
 
-```ds
+```tspp
 const x = { a: { b: { c: { d: 1 } } } }
 ```
 
-```ds expected
+```tspp expected
 const x = { a: { b: { c: { d: 1 } } } };
 ```
 
@@ -30,10 +30,10 @@ const x = { a: { b: { c: { d: 1 } } } };
 
 Arrays can be object property values.
 
-```ds
+```tspp
 const x = { items: [1, 2, 3] }
 ```
 
-```ds expected
+```tspp expected
 const x = { items: [1, 2, 3] };
 ```

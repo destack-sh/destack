@@ -1,6 +1,6 @@
-use destack_core::FxIndexSet;
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{Accessor, DirModule, Lint, LintOutput, LintResult};
@@ -129,7 +129,7 @@ declare class Store {
         session.assert_diagnostics(
             r#"
 warning[require-accessor-pair]: setter has no matching getter
- ──▶ main.ds:3:9
+ ──▶ main.tspp:3:9
   │
 1 │ declare class Store {
 2 │     static get value(): string;
@@ -171,7 +171,7 @@ const store = {
         session.assert_diagnostics(
             r#"
 warning[require-accessor-pair]: setter has no matching getter
- ──▶ main.ds:2:9
+ ──▶ main.tspp:2:9
   │
 1 │ const store = {
 2 │     set value(next: string): void {},
@@ -197,7 +197,7 @@ type Store = {
         session.assert_diagnostics(
             r#"
 warning[require-accessor-pair]: setter has no matching getter
- ──▶ main.ds:2:9
+ ──▶ main.tspp:2:9
   │
 1 │ type Store = {
 2 │     set value(next: string);

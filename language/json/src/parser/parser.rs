@@ -1,4 +1,4 @@
-use destack_source::{FileId, Span};
+use tspp_source::{FileId, Span};
 
 use crate::{
     JsonDocument, JsonElement, JsonLexer, JsonProperty, JsonString, JsonToken, JsonTokenKind,

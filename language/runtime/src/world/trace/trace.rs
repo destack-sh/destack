@@ -6,8 +6,8 @@ use crate::worker::{RunnableScope, WorkerId};
 use crate::world::Mutation;
 use crate::world::random::RandomStreamId;
 use crate::world::time::Instant;
-use destack_program as program;
 use serde::{Deserialize, Serialize};
+use tspp_program as program;
 
 use super::TraceSequence;
 

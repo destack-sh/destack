@@ -1,6 +1,6 @@
-use destack_js::Module;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_js::Module;
+use tspp_serde::Reflect;
 
 use crate::SourceMap;
 

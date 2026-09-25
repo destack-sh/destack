@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -146,7 +146,7 @@ class Service {
         session.assert_diagnostics(
             r#"
 warning[no-empty-function]: function body is empty
- ──▶ main.ds:2:24
+ ──▶ main.tspp:2:24
   │
 1 │ class Service {
 2 │     initialize(): void {}
@@ -172,7 +172,7 @@ newtype interface Service {
         session.assert_diagnostics(
             r#"
 warning[no-empty-function]: function body is empty
- ──▶ main.ds:2:24
+ ──▶ main.tspp:2:24
   │
 1 │ newtype interface Service {
 2 │     initialize(): void {}
@@ -198,7 +198,7 @@ const service = {
         session.assert_diagnostics(
             r#"
 warning[no-empty-function]: function body is empty
- ──▶ main.ds:2:24
+ ──▶ main.tspp:2:24
   │
 1 │ const service = {
 2 │     initialize(): void {},
@@ -222,7 +222,7 @@ const initialize: () => void = (): void => {};
         session.assert_diagnostics(
             r#"
 warning[no-empty-function]: function body is empty
- ──▶ main.ds:1:44
+ ──▶ main.tspp:1:44
   │
 1 │ const initialize: () => void = (): void => {};
   │                                            ^^

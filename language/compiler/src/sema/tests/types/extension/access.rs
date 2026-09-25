@@ -21,7 +21,7 @@ export extension<const A: Access = "readonly"> of Grid {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -131,7 +131,7 @@ function write(grid: &Grid): int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -255,7 +255,7 @@ export extension FixedArrayAccess<T, const N: usize, const A: Access = "readonly
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -341,7 +341,7 @@ export extension ArrayAccess<T, const A: Access = "readonly"> of Array<T> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -429,7 +429,7 @@ extension<Value, const A: Access = "readonly"> of Box<Value> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -529,7 +529,7 @@ function firstDefined(values: It<int32>): int32 | undefined {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_node_types(), r#"
 === annotated ===
 newtype interface It<in out T, out R = void> {
     next(this): R {

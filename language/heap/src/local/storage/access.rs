@@ -1,5 +1,5 @@
 use crate::TraceView;
-use destack_mir::TraceMap;
+use tspp_mir::TraceMap;
 
 use super::{HeapExtent, HeapPlace, HeapStorage};
 use crate::{

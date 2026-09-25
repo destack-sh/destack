@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
+use tspp_dir as dir;
+use tspp_source::{NodeSpanList, NodeSpanRegion, NodeSpanType, Span};
 
 use crate::cursor::Cursor;
 use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};

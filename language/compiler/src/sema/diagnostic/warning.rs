@@ -1,6 +1,6 @@
-use destack_core::FxIndexSet;
-use destack_dir as dir;
-use destack_source::ModuleId;
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::sema::{CheckState, CheckWarning};

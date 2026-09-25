@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::sema::WalkState;
 use crate::{CompilerError, CompilerResult};
@@ -10,7 +10,7 @@ impl WalkState<'_, '_> {
     /// catches, and parent pattern projections.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// Some({ name }) if name is string
     /// ```
     pub(in crate::sema) fn walk_pattern(
@@ -118,7 +118,7 @@ impl WalkState<'_, '_> {
     /// Walk one pattern field.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// { name: pattern }
     /// ```
     pub(in crate::sema) fn walk_pattern_field(

@@ -1,6 +1,6 @@
-use destack_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::{SectionBuilder, SectionEntry, SectionImage, SectionSlice};
+use tspp_serde::Reflect;
 
 use crate::FunctionId;
 

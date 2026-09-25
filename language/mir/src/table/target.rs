@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use destack_core::SectionEntry;
-use destack_serde::Reflect;
+use tspp_core::SectionEntry;
+use tspp_serde::Reflect;
 
 /// Byte order for target scalar memory operations.
 #[repr(u8)]

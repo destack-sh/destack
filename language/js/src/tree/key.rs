@@ -1,8 +1,8 @@
 use crate::{Expression, LocalNodeId};
-use destack_core::StringId;
+use tspp_core::StringId;
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 /// A Name is a regular or string identifier.
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Reflect)]
 pub enum Name {

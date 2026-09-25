@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -258,7 +258,7 @@ function copy(values: int32[], output: int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[prefer-for-of-over-for-each]: iteration uses a forEach callback
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function copy(values: int32[], output: int32[]): void {
 2 │     values.forEach((value) => {
@@ -271,8 +271,8 @@ warning[prefer-for-of-over-for-each]: iteration uses a forEach callback
   │
 
  = suggestion: use a for-of loop (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function copy(values: int32[], output: int32[]): void {
 -   2│     values.forEach((value) => {
@@ -451,7 +451,7 @@ function copy(values: int32[], output: int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[prefer-for-of-over-for-each]: iteration uses a forEach callback
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function copy(values: int32[], output: int32[]): void {
 2 │     values.forEach((value) => {
@@ -489,7 +489,7 @@ function copy(values: int32[], output: int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[prefer-for-of-over-for-each]: iteration uses a forEach callback
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function copy(values: int32[], output: int32[]): void {
 2 │     values.forEach((value = 0) => {
@@ -510,7 +510,7 @@ warning[prefer-for-of-over-for-each]: iteration uses a forEach callback
         let session = TestSession::dir(
             &PREFER_FOR_OF_OVER_FOR_EACH,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function copy(values: Iterator<int32>, output: int32[]): void {
     values.forEach((value) => {
@@ -522,7 +522,7 @@ function copy(values: Iterator<int32>, output: int32[]): void {
 
         session.assert_suggestions(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function copy(values: Iterator<int32>, output: int32[]): void {
     for (const value of values) {
@@ -573,7 +573,7 @@ function copy(values: int32[], output: int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[prefer-for-of-over-for-each]: iteration uses a forEach callback
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function copy(values: int32[], output: int32[]): void {
 2 │     values.forEach(async (value) => {

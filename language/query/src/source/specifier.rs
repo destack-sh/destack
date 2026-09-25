@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 
-use destack_artifact::{ExportTarget, PackageNode};
-use destack_repository::{
+use tspp_artifact::{ExportTarget, PackageNode};
+use tspp_repository::{
     ModulePathOutcome, ModulePathResolution, Repository, Revision, normalize_workspace_path,
 };
-use destack_source::{DESTACK_FILE_TYPES, FileId, ModuleId, PackageId};
+use tspp_source::{FileId, ModuleId, PackageId, TSPP_FILE_TYPES};
 
 use crate::source::{path_text, relative_path};
 use crate::{ProgramQueryContext, QueryError, QueryResult};
@@ -175,13 +175,13 @@ pub(crate) fn package_specifier(package_name: &str, export_key: &str) -> QueryRe
 pub(crate) fn builtin_specifier(export_key: &str) -> QueryResult<String> {
     // package root
     if export_key == "." {
-        Ok("destack:".to_string())
+        Ok("tspp:".to_string())
     }
     // package subpath
     else if let Some(export_path) = export_key.strip_prefix("./")
         && !export_path.is_empty()
     {
-        Ok(format!("destack:{export_path}"))
+        Ok(format!("tspp:{export_path}"))
     }
     // invalid public key
     else {
@@ -336,7 +336,7 @@ fn strip_module_extension_path(path: &Path) -> PathBuf {
     let Some(extension) = path.extension().and_then(|extension| extension.to_str()) else {
         return path.to_path_buf();
     };
-    let is_source = DESTACK_FILE_TYPES
+    let is_source = TSPP_FILE_TYPES
         .iter()
         .filter_map(|file_type| file_type.extension())
         .any(|candidate| candidate == extension);

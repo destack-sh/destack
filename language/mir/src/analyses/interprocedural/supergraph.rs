@@ -1,4 +1,4 @@
-use destack_core::{BitSet, FxIndexMap};
+use tspp_core::{BitSet, FxIndexMap};
 
 use crate::{CallComponentTable, LinkEdgeKind, LinkTable, Symbol};
 

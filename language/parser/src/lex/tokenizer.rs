@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_source::{File, FileId, Span};
+use tspp_source::{File, FileId, Span};
 
 use super::scanner::Scanner;
 

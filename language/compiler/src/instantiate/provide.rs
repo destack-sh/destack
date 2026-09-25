@@ -1,10 +1,10 @@
-use destack_artifact::{
+use tspp_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirMaterialized, MirLowered, MirVerified,
 };
-use destack_core::FxIndexSet;
-use destack_mir as mir;
-use destack_repository::{ProfileId, ProviderContext, ProviderError};
-use destack_source::{ModuleId, TargetId};
+use tspp_core::FxIndexSet;
+use tspp_mir as mir;
+use tspp_repository::{ProfileId, ProviderContext, ProviderError};
+use tspp_source::{ModuleId, TargetId};
 
 use crate::instantiate::InstantiateState;
 use crate::{Compiler, CompilerError, CompilerResult};

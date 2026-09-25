@@ -6,11 +6,11 @@
 
 Array type annotations use `T[]` syntax.
 
-```ds
+```tspp
 const x: number[] = [1, 2, 3]
 ```
 
-```ds expected
+```tspp expected
 const x: number[] = [1, 2, 3];
 ```
 
@@ -18,11 +18,11 @@ const x: number[] = [1, 2, 3];
 
 `as const` makes array literal readonly.
 
-```ds
+```tspp
 [1, 2, 3] as const
 ```
 
-```ds expected
+```tspp expected
 [1, 2, 3] as const;
 ```
 
@@ -30,11 +30,11 @@ const x: number[] = [1, 2, 3];
 
 `satisfies` checks type without changing it.
 
-```ds
+```tspp
 [1, 2, 3] satisfies number[]
 ```
 
-```ds expected
+```tspp expected
 [1, 2, 3] satisfies number[];
 ```
 
@@ -44,10 +44,10 @@ const x: number[] = [1, 2, 3];
 
 Const assertions stay on the same line as the array literal.
 
-```ds:main.ds
+```tspp:main.tspp
 const values = [1, 2, 3] as const
 ```
 
-```ds expected
+```tspp expected
 const values = [1, 2, 3] as const;
 ```

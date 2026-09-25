@@ -13,7 +13,7 @@ const bytes = take<4>([1, 2, 3, 4]);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -71,7 +71,7 @@ const value = choose(1);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -121,7 +121,7 @@ declare const read: Read;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
@@ -158,7 +158,7 @@ declare const flagged: Flagged<{ name: "search"; enabled: true }>;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -213,7 +213,7 @@ function f(a: usize, b: int64): boolean {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -258,7 +258,7 @@ function put<T>(destination: &[T], value: T): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -323,7 +323,7 @@ function put(destination: &[int32], value: int32): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -389,7 +389,7 @@ const function double(value: usize): usize {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===

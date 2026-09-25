@@ -17,7 +17,7 @@ function read(): Order {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 type literal.string.big { }
 
 type literal.string.little { }
@@ -113,7 +113,7 @@ function main(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.greet",
         r#"
 function test.main.greet(v0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }): int32 {
@@ -150,7 +150,7 @@ b3:
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.main", r#"
+    session.assert_mir_function("main.tspp", "test.main.main", r#"
 function test.main.main(): int32 {
 entry:
     v0: variant<uint1> { 0uint1 = int32; 1uint1 = void; } = variant.new 1
@@ -180,7 +180,7 @@ function main(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.greet",
         r#"
 function test.main.greet(v0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }): int32 {
@@ -217,7 +217,7 @@ b3:
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.main", r#"
+    session.assert_mir_function("main.tspp", "test.main.main", r#"
 function test.main.main(): int32 {
 entry:
     v0: int32 = 7
@@ -248,7 +248,7 @@ function main(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.greet",
         r#"
 function test.main.greet(v0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }): int32 {
@@ -285,7 +285,7 @@ b3:
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.main", r#"
+    session.assert_mir_function("main.tspp", "test.main.main", r#"
 function test.main.main(): int32 {
 entry:
     v0: void = zeroed

@@ -1,5 +1,5 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use crate::FileType;
 
@@ -8,8 +8,8 @@ use crate::FileType;
     Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, PartialOrd, Ord,
 )]
 pub enum Loader {
-    /// Destack code.
-    Destack,
+    /// TS++ code.
+    Tspp,
     /// JSON data.
     Json,
     /// TOML data.
@@ -33,7 +33,7 @@ impl TryFrom<FileType> for Loader {
     /// Try to convert one input file type into its default loader.
     fn try_from(file_type: FileType) -> Result<Self, Self::Error> {
         match file_type {
-            FileType::Destack | FileType::DestackDeclaration => Ok(Self::Destack),
+            FileType::Tspp | FileType::TsppDeclaration => Ok(Self::Tspp),
             FileType::Json => Ok(Self::Json),
             FileType::Toml => Ok(Self::Toml),
             FileType::Yaml => Ok(Self::Yaml),
@@ -53,7 +53,7 @@ impl TryFrom<FileType> for Loader {
 impl Loader {
     /// Return whether this loader produces code modules.
     pub fn is_code(self) -> bool {
-        matches!(self, Self::Destack)
+        matches!(self, Self::Tspp)
     }
 
     /// Return whether this loader produces data modules.
@@ -93,7 +93,7 @@ impl Loader {
     /// Return the stable loader name.
     pub fn as_str(self) -> &'static str {
         match self {
-            Self::Destack => "destack",
+            Self::Tspp => "tspp",
             Self::Json => "json",
             Self::Toml => "toml",
             Self::Yaml => "yaml",
@@ -117,7 +117,7 @@ impl Loader {
     /// Return the canonical extension for this loader when it has one.
     pub fn extension(self) -> Option<&'static str> {
         match self {
-            Self::Destack => Some("ds"),
+            Self::Tspp => Some("tspp"),
             Self::Json => Some("json"),
             Self::Toml => Some("toml"),
             Self::Yaml => Some("yaml"),

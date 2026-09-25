@@ -1,5 +1,5 @@
-use destack_artifact::ArtifactKey;
-use destack_repository::Revision;
+use tspp_artifact::ArtifactKey;
+use tspp_repository::Revision;
 
 /// Identity of one repository-specific artifact session.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

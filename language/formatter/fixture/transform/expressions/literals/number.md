@@ -6,11 +6,11 @@
 
 Integer literals are preserved.
 
-```ds
+```tspp
 const x = 42
 ```
 
-```ds expected
+```tspp expected
 const x = 42;
 ```
 
@@ -18,11 +18,11 @@ const x = 42;
 
 Negative numbers use unary minus.
 
-```ds
+```tspp
 const x = -42
 ```
 
-```ds expected
+```tspp expected
 const x = -42;
 ```
 
@@ -30,11 +30,11 @@ const x = -42;
 
 Floating point literals are preserved.
 
-```ds
+```tspp
 const x = 3.14
 ```
 
-```ds expected
+```tspp expected
 const x = 3.14;
 ```
 
@@ -42,11 +42,11 @@ const x = 3.14;
 
 Scientific notation is preserved.
 
-```ds
+```tspp
 const x = 1e10
 ```
 
-```ds expected
+```tspp expected
 const x = 1e10;
 ```
 
@@ -54,11 +54,11 @@ const x = 1e10;
 
 Hex literals use `0x` prefix.
 
-```ds
+```tspp
 const x = 0xFF
 ```
 
-```ds expected
+```tspp expected
 const x = 0xff;
 ```
 
@@ -66,11 +66,11 @@ const x = 0xff;
 
 Octal literals use `0o` prefix.
 
-```ds
+```tspp
 const x = 0o17
 ```
 
-```ds expected
+```tspp expected
 const x = 0o17;
 ```
 
@@ -78,11 +78,11 @@ const x = 0o17;
 
 Binary literals use `0b` prefix.
 
-```ds
+```tspp
 const x = 0b1010
 ```
 
-```ds expected
+```tspp expected
 const x = 0b1010;
 ```
 
@@ -90,11 +90,11 @@ const x = 0b1010;
 
 BigInt literals use `n` suffix.
 
-```ds
+```tspp
 const x = 42n
 ```
 
-```ds expected
+```tspp expected
 const x = 42n;
 ```
 
@@ -102,10 +102,10 @@ const x = 42n;
 
 Numeric separators improve readability.
 
-```ds
+```tspp
 const x = 1_000_000
 ```
 
-```ds expected
+```tspp expected
 const x = 1_000_000;
 ```

@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::FileId;
+use tspp_dir as dir;
+use tspp_source::FileId;
 
 use super::lexical::is_trivia_token;
 use crate::{ModuleQueryContext, QueryResult};

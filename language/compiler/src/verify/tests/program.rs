@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
-use destack_artifact::{DiagnosticBuilder, ToDiagnostic};
-use destack_source::{DiagnosticCollection, FileId, PrintOptions, print_diagnostics};
+use tspp_artifact::{DiagnosticBuilder, ToDiagnostic};
+use tspp_source::{DiagnosticCollection, FileId, PrintOptions, print_diagnostics};
 
 use crate::CompilerError;
 use crate::tests::TestProgram;

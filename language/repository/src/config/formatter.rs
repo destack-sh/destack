@@ -2,7 +2,7 @@ use std::fmt::{self, Display, Formatter};
 
 use serde::{Deserialize, Serialize};
 
-use destack_source::{IndentStyle, LineEnding};
+use tspp_source::{IndentStyle, LineEnding};
 
 /// Quote style for string literals.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
@@ -293,7 +293,7 @@ impl Default for FormatterOptions {
 }
 
 impl FormatterOptions {
-    /// Create options with the standard Destack defaults.
+    /// Create options with the standard TS++ defaults.
     pub fn new() -> Self {
         Self {
             // layout

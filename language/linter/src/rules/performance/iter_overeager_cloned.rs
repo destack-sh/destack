@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -20,7 +20,7 @@ Instead, you SHOULD apply `cloned` after filtering or limiting adapters and clon
 "#,
         example: {
             reported: r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -31,7 +31,7 @@ function prefix(values: Iterator<&immutable Label>, count: isize): Iterator<Labe
 }
 "#,
             accepted: r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -311,7 +311,7 @@ mod tests {
         let session = TestSession::dir(
             &ITER_OVEREAGER_CLONED,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -326,7 +326,7 @@ function prefix(values: Iterator<&immutable Label>, count: isize): Iterator<Labe
         session.assert_diagnostics(
             r#"
 warning[iter-overeager-cloned]: iterator cloning precedes an operation that can discard values
- ──▶ main.ds:8:12
+ ──▶ main.tspp:8:12
   │
 6 │
 7 │ function prefix(values: Iterator<&immutable Label>, count: isize): Iterator<Label> {
@@ -336,8 +336,8 @@ warning[iter-overeager-cloned]: iterator cloning precedes an operation that can 
   │
 
  = suggestion: clone only retained iterator values (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     7│ function prefix(values: Iterator<&immutable Label>, count: isize): Iterator<Label> {
 -   8│     return values.cloned().take(count);
@@ -347,7 +347,7 @@ warning[iter-overeager-cloned]: iterator cloning precedes an operation that can 
         );
         session.assert_suggestions(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -366,7 +366,7 @@ function prefix(values: Iterator<&immutable Label>, count: isize): Iterator<Labe
         let session = TestSession::dir(
             &ITER_OVEREAGER_CLONED,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -380,7 +380,7 @@ function suffix(values: Iterator<&immutable Label>, count: isize): Iterator<Labe
 
         session.assert_suggestions(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -399,7 +399,7 @@ function suffix(values: Iterator<&immutable Label>, count: isize): Iterator<Labe
         let session = TestSession::dir(
             &ITER_OVEREAGER_CLONED,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -420,7 +420,7 @@ function prefix(values: Iterator<&immutable Label>, count: isize): Iterator<Labe
         let session = TestSession::dir(
             &ITER_OVEREAGER_CLONED,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -442,7 +442,7 @@ function suffix(values: Iterator<&immutable Label>): Iterator<Label> {
 
         session.assert_suggestions(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -469,7 +469,7 @@ function suffix(values: Iterator<&immutable Label>): Iterator<Label> {
         let session = TestSession::dir(
             &ITER_OVEREAGER_CLONED,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -491,7 +491,7 @@ function find(values: Iterator<&immutable Label>): Label | undefined {
 
         session.assert_suggestions(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -518,7 +518,7 @@ function find(values: Iterator<&immutable Label>): Label | undefined {
         let session = TestSession::dir(
             &ITER_OVEREAGER_CLONED,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function prefix(values: Iterator<&immutable int32>): Iterator<int32> {
     return values.cloned().take(2);
@@ -560,7 +560,7 @@ function prefix(values: Values): Values {
         let session = TestSession::dir(
             &ITER_OVEREAGER_CLONED,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -575,7 +575,7 @@ function prefix(values: Iterator<&immutable Label>): Iterator<Label> {
         session.assert_diagnostics(
             r#"
 warning[iter-overeager-cloned]: iterator cloning precedes an operation that can discard values
- ──▶ main.ds:8:12
+ ──▶ main.tspp:8:12
   │
 6 │
 7 │ function prefix(values: Iterator<&immutable Label>): Iterator<Label> {

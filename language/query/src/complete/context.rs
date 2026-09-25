@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::{EnclosingSpan, FileId, ModuleId, NodeSpanRegion};
+use tspp_dir as dir;
+use tspp_source::{EnclosingSpan, FileId, ModuleId, NodeSpanRegion};
 
 use super::PartialImportPath;
 use crate::cursor::Cursor;

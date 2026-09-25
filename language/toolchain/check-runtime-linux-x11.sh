@@ -99,4 +99,4 @@ fi
 
 export DISPLAY="${runtime_display}"
 
-cargo test -p destack_runtime "${runtime_test_filter}" -- --nocapture
+cargo test -p tspp_runtime "${runtime_test_filter}" -- --nocapture

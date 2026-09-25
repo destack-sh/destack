@@ -1,0 +1,28 @@
+import { DirectoryHandle } from "tspp:fs/binding";
+
+import { Path } from "../path.tspp";
+
+/// Filesystem entry addressed by an optional directory root and host path.
+export struct Entry {
+    /// Directory root for relative resolution.
+    directory?: DirectoryHandle;
+    /// Host path payload.
+    path: Path;
+}
+
+export extension of Entry {
+    /// Build an entry resolved from the ambient process namespace.
+    static from(path: Path): Entry {
+        Entry {
+            path,
+        }
+    }
+
+    /// Build an entry resolved relative to a directory handle.
+    static at(directory: DirectoryHandle, path: Path): Entry {
+        Entry {
+            directory,
+            path,
+        }
+    }
+}

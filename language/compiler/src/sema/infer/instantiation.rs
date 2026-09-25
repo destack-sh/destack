@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_dir::TypeFold;
 use smallvec::SmallVec;
+use tspp_dir as dir;
+use tspp_dir::TypeFold;
 
 use crate::CompilerResult;
 use crate::sema::{CheckState, FlowSite, TypeSubstitution};

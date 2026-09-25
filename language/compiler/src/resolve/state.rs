@@ -1,10 +1,10 @@
-use destack_artifact::{DiagnosticAnchor, DiagnosticBuilder, DirResolved, EnvironmentBound};
-use destack_core::{NameMatch, StringPool, find_best_match};
-use destack_dir as dir;
-use destack_repository::ArtifactReader;
-use destack_source::{ModuleId, ProfileId};
 use indexmap::IndexSet;
 use smallvec::{SmallVec, smallvec};
+use tspp_artifact::{DiagnosticAnchor, DiagnosticBuilder, DirResolved, EnvironmentBound};
+use tspp_core::{NameMatch, StringPool, find_best_match};
+use tspp_dir as dir;
+use tspp_repository::ArtifactReader;
+use tspp_source::{ModuleId, ProfileId};
 
 use crate::export::{ExportLookup, ExportResolver};
 use crate::resolve::stats::ResolveStats;

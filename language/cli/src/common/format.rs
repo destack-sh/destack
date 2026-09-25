@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_parser::source_colorizer;
-use destack_source::{
+use serde::Serialize;
+use tspp_parser::source_colorizer;
+use tspp_source::{
     Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticRenderError, DiagnosticSeverity,
     File, FileId, PrintOptions, Span, print_diagnostics as print_diagnostics_impl,
 };
-use serde::Serialize;
 
 use crate::console;
 

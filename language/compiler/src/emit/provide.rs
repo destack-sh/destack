@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use destack_artifact::{
+use tspp_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, Asset, Code, DirResolved, MirOptimized,
     Output,
 };
-use destack_mir::ModuleCache;
-use destack_repository::{ProfileId, ProviderContext};
-use destack_source::{ModuleId, TargetId};
+use tspp_mir::ModuleCache;
+use tspp_repository::{ProfileId, ProviderContext};
+use tspp_source::{ModuleId, TargetId};
 
 use crate::{Compiler, CompilerError, CompilerResult, EmitError};
 

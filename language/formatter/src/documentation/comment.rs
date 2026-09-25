@@ -1,15 +1,15 @@
-use destack_dir::{Comment, Documentation};
-use destack_fir::format::{FormatError, FormatResult};
+use tspp_dir::{Comment, Documentation};
+use tspp_fir::format::{FormatError, FormatResult};
 
-use crate::{DestackFormatContext, DestackFormatter};
+use crate::{TsppFormatContext, TsppFormatter};
 
 use super::render::FormattedDocumentation;
 
 /// Format the valid documentation group beginning with one source comment.
 pub(crate) fn format_documentation_comment<'ast>(
-    formatter: &mut DestackFormatter<'ast, '_>,
+    formatter: &mut TsppFormatter<'ast, '_>,
     comment: Comment,
-) -> FormatResult<Option<destack_source::Span>> {
+) -> FormatResult<Option<tspp_source::Span>> {
     let Some(documentation) = documentation_for_comment(formatter.context(), comment)? else {
         return Ok(None);
     };
@@ -24,14 +24,14 @@ pub(crate) fn format_documentation_comment<'ast>(
         &formatter.context().options,
     )?;
     let span = documentation.span;
-    destack_fir::write!(formatter, [formatted])?;
+    tspp_fir::write!(formatter, [formatted])?;
 
     Ok(Some(span))
 }
 
 /// Return the documentation attached to one leading comment.
 fn documentation_for_comment<'a>(
-    context: &'a DestackFormatContext<'_>,
+    context: &'a TsppFormatContext<'_>,
     comment: Comment,
 ) -> FormatResult<Option<&'a Documentation>> {
     if !comment.is_documentation() || comment.is_legal() || !comment.is_leading() {
@@ -59,7 +59,7 @@ fn documentation_for_comment<'a>(
 }
 
 /// Return the documentation width available at its canonical indentation.
-fn documentation_width(context: &DestackFormatContext<'_>, comment: Comment) -> usize {
+fn documentation_width(context: &TsppFormatContext<'_>, comment: Comment) -> usize {
     // find the source line and its leading indentation
     let source = context.source_text().slice_to(comment.span.start);
     let line_start = match source.rfind(['\n', '\r']) {

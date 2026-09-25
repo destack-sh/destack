@@ -2,8 +2,8 @@ set shell := ["bash", "-cu"]
 set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 
 # selected crates
-packages := "-p destack_artifact -p destack_artifact_macros -p destack_compiler -p destack_core -p destack_daemon -p destack_dir -p destack_program -p destack_fir -p destack_formatter -p destack_heap -p destack_js -p destack_json -p destack_language_cli -p destack_linter -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_memory -p destack_mir -p destack_parser -p destack_query -p destack_runtime -p destack_workspace -p destack_session -p destack_source -p destack_unicode -p destack_vm -p destack_repository"
-packages-no-linter := "-p destack_artifact -p destack_artifact_macros -p destack_compiler -p destack_core -p destack_daemon -p destack_dir -p destack_program -p destack_fir -p destack_formatter -p destack_heap -p destack_js -p destack_json -p destack_language_cli -p destack_lsp -p destack_lsp_server -p destack_lsp_types -p destack_memory -p destack_mir -p destack_parser -p destack_query -p destack_runtime -p destack_workspace -p destack_session -p destack_source -p destack_unicode -p destack_vm -p destack_repository"
+packages := "-p tspp_artifact -p tspp_artifact_macros -p tspp_compiler -p tspp_core -p tspp_daemon -p tspp_dir -p tspp_program -p tspp_fir -p tspp_formatter -p tspp_heap -p tspp_js -p tspp_json -p tspp_cli -p tspp_linter -p tspp_lsp -p tspp_lsp_server -p tspp_lsp_types -p tspp_memory -p tspp_mir -p tspp_parser -p tspp_query -p tspp_runtime -p tspp_workspace -p tspp_session -p tspp_source -p tspp_unicode -p tspp_vm -p tspp_repository"
+packages-no-linter := "-p tspp_artifact -p tspp_artifact_macros -p tspp_compiler -p tspp_core -p tspp_daemon -p tspp_dir -p tspp_program -p tspp_fir -p tspp_formatter -p tspp_heap -p tspp_js -p tspp_json -p tspp_cli -p tspp_lsp -p tspp_lsp_server -p tspp_lsp_types -p tspp_memory -p tspp_mir -p tspp_parser -p tspp_query -p tspp_runtime -p tspp_workspace -p tspp_session -p tspp_source -p tspp_unicode -p tspp_vm -p tspp_repository"
 
 _default:
     @just --list --unsorted
@@ -56,9 +56,9 @@ check-runtime-linux-wayland:
 
 # check runtime macos rust
 check-runtime-macos-rust:
-    LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo check -p destack_runtime
-    LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo clippy -p destack_runtime --all-targets -- -D warnings
-    LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo test -p destack_runtime -- --nocapture
+    LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo check -p tspp_runtime
+    LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo clippy -p tspp_runtime --all-targets -- -D warnings
+    LC_ALL=C LANG=C LC_CTYPE=C CARGO_INCREMENTAL=0 cargo test -p tspp_runtime -- --nocapture
 
 # check runtime macos
 check-runtime-macos:
@@ -105,7 +105,7 @@ generate-unicode:
 
 # generate schema
 generate-schema:
-    cargo run -p destack_repository --features schema --bin generate-schema --release > bridge/vscode/destack.schema.json
+    cargo run -p tspp_repository --features schema --bin generate-schema --release > bridge/vscode/destack.schema.json
     @echo "generated bridge/vscode/destack.schema.json"
 
 # --- test ---
@@ -113,11 +113,11 @@ generate-schema:
 # test unit
 test-unit:
     cargo test --release --lib {{ packages-no-linter }}
-    cargo test --release --lib -p destack_linter
+    cargo test --release --lib -p tspp_linter
 
 # bless compiler
 bless-compiler filter="":
-    DESTACK_BLESS=1 cargo test -p destack_compiler {{filter}} -- --test-threads=1
+    TSPP_BLESS=1 cargo test -p tspp_compiler {{filter}} -- --test-threads=1
 
 # test
 test:
@@ -146,22 +146,22 @@ check-full:
 # test all
 test-all:
     cargo test --release --all-targets --no-fail-fast {{ packages-no-linter }}
-    cargo test --release --all-targets --no-fail-fast -p destack_linter
+    cargo test --release --all-targets --no-fail-fast -p tspp_linter
 
 # report heap overhead
 report-heap-overhead:
-    cargo run -p destack_heap --example overhead --quiet
+    cargo run -p tspp_heap --example overhead --quiet
 
 # test linter
 test-linter:
-    cargo test --release --all-targets --no-fail-fast -p destack_linter
+    cargo test --release --all-targets --no-fail-fast -p tspp_linter
 
 # test formatter
 test-formatter:
-    cargo test --release -p destack_formatter --test fixture
+    cargo test --release -p tspp_formatter --test fixture
 
 # test grammar destack
-test-grammar-destack:
+test-grammar-tspp:
     bash grammar/scripts/test-grammar.sh destack
 
 # test grammar mir
@@ -174,13 +174,13 @@ test-grammar-bytecode:
 
 # test grammar
 test-grammar:
-    just test-grammar-destack
+    just test-grammar-tspp
     just test-grammar-bytecode
     just test-grammar-mir
 
 # test query
 test-query:
-    cargo test --release -p destack_query --test fixture
+    cargo test --release -p tspp_query --test fixture
 
 # --- bench ---
 
@@ -192,31 +192,31 @@ bench:
 
 # bench compiler
 bench-compiler:
-    cargo bench -p destack_compiler -- destack_compile
+    cargo bench -p tspp_compiler -- tspp_compile
 
 # bench runtime footprint
 bench-runtime-footprint:
-    cargo bench -p destack_runtime --bench footprint
+    cargo bench -p tspp_runtime --bench footprint
 
 # bench compiler stats
 bench-compiler-stats args="--help":
-    cargo run -p destack_compiler --example bench_stats --features bench -- {{args}}
+    cargo run -p tspp_compiler --example bench_stats --features bench -- {{args}}
 
 # bench linter stats
 bench-linter-stats args="--help":
-    cargo run -p destack_linter --example bench_stats -- {{args}}
+    cargo run -p tspp_linter --example bench_stats -- {{args}}
 
 # bench lexer
 bench-lexer:
-    cargo bench -p destack_parser --bench destack_lex
+    cargo bench -p tspp_parser --bench tspp_lex
 
 # bench parser
 bench-parser:
-    cargo bench -p destack_parser --bench destack_parse
+    cargo bench -p tspp_parser --bench tspp_parse
 
 # bench parser corpus
 bench-parser-corpus corpus="library" trivia="documentation" stage="parse":
-    DESTACK_PARSE_CORPUS={{corpus}} DESTACK_PARSE_TRIVIA={{trivia}} DESTACK_PARSE_STAGE={{stage}} cargo bench -p destack_parser --bench destack_parse
+    TSPP_PARSE_CORPUS={{corpus}} TSPP_PARSE_TRIVIA={{trivia}} TSPP_PARSE_STAGE={{stage}} cargo bench -p tspp_parser --bench tspp_parse
 
 # --- fuzz ---
 

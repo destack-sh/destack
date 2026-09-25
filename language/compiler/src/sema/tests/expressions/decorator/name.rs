@@ -10,7 +10,7 @@ const value = 1;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -36,13 +36,13 @@ const value = 1;
 #[test]
 fn test_ambiguous_decorator_reports_error() {
     let session = TestSession::builder()
-        .module("first.ds", "export const mark = 1;\n")
-        .module("second.ds", "export const mark = 1;\n")
+        .module("first.tspp", "export const mark = 1;\n")
+        .module("second.tspp", "export const mark = 1;\n")
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { mark } from "./first.ds";
-import { mark } from "./second.ds";
+import { mark } from "./first.tspp";
+import { mark } from "./second.tspp";
 
 @mark
 const value = 1;
@@ -51,19 +51,19 @@ const value = 1;
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { mark } from "./first.ds";
-import { mark } from "./second.ds";
+import { mark } from "./first.tspp";
+import { mark } from "./second.tspp";
 
 @mark
 const value: 1 = 1;
 
 === dir ===
-import { mark } from "./first.ds";
-import { mark } from "./second.ds";
+import { mark } from "./first.tspp";
+import { mark } from "./second.tspp";
 
 @mark
 const value = 1;
@@ -74,8 +74,8 @@ const value = 1;
         r#"
 /// @diagnostic.error id=ambiguous-reference message="ambiguous reference 'mark'"
 /// @diagnostic.label line=5 column=2 span="mark" line_source="@mark"
-/// @diagnostic.related file="first.ds" line=1 column=14 span="mark" line_source="export const mark = 1;" message="one candidate is declared here"
-/// @diagnostic.related file="second.ds" line=1 column=14 span="mark" line_source="export const mark = 1;" message="one candidate is declared here"
+/// @diagnostic.related file="first.tspp" line=1 column=14 span="mark" line_source="export const mark = 1;" message="one candidate is declared here"
+/// @diagnostic.related file="second.tspp" line=1 column=14 span="mark" line_source="export const mark = 1;" message="one candidate is declared here"
 "#,
     );
 }
@@ -92,7 +92,7 @@ const value = 1;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -125,11 +125,11 @@ const value = 1;
 #[test]
 fn test_namespace_member_decorator_resolves() {
     let session = TestSession::builder()
-        .module("marks.ds", "export newtype mark = ();\n")
+        .module("marks.tspp", "export newtype mark = ();\n")
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import * as marks from "./marks.ds";
+import * as marks from "./marks.tspp";
 
 @marks.mark
 const value = 1;
@@ -138,17 +138,17 @@ const value = 1;
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
 === annotated ===
-import * as marks from "./marks.ds";
+import * as marks from "./marks.tspp";
 
 @marks.mark
 const value: 1 = 1;
 
 === dir ===
-import * as marks from "./marks.ds";
+import * as marks from "./marks.tspp";
 
 @marks.mark
 /// @decorator.node source=@marks.mark owner="const value = 1" expression=marks.mark target=marks.mark type=marks.mark kind=newtype parameters=() newtype=marks.mark backing=() value=marks.mark()

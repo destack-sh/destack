@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactCache, ArtifactCacheError, ArtifactTable, BuildId};
-use destack_core::{BlobStore, StringPool};
-use destack_source::FileSystem;
+use tspp_artifact::{ArtifactCache, ArtifactCacheError, ArtifactTable, BuildId};
+use tspp_core::{BlobStore, StringPool};
+use tspp_source::FileSystem;
 
 use super::{ArtifactCacheWriter, Clock, Environment};
 use crate::EmbeddedBuiltinPackage;

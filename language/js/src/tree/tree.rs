@@ -1,12 +1,12 @@
 use std::collections::HashMap;
 use std::fmt::{Debug, Formatter};
 
-use destack_core::Arena;
-use destack_dir as dir;
-use destack_dir::GlobalSymbolId;
-use destack_serde::Reflect;
-use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
+use tspp_core::Arena;
+use tspp_dir as dir;
+use tspp_dir::GlobalSymbolId;
+use tspp_serde::Reflect;
+use tspp_source::ModuleId;
 
 use crate::{
     Annotation, Argument, ArrayElement, AssignPattern, AssignPatternField, Block, CatchClause,

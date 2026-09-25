@@ -1,6 +1,6 @@
-use destack_repository::TraceView;
-use destack_source::{DiagnosticTarget, FileId, Span};
 use futures::executor::block_on;
+use tspp_repository::TraceView;
+use tspp_source::{DiagnosticTarget, FileId, Span};
 
 use crate::command::{CheckInput, CommandInput, CommandOptions, CommandRevision};
 use crate::tests::harness::TestWorkspace;
@@ -11,7 +11,7 @@ fn test_check_command_reports_check_errors() {
     let source = r#"
 const wrong: string = 1;
 "#;
-    let main = test.write_text("main.ds", source);
+    let main = test.write_text("main.tspp", source);
     test.apply_text(&main, source);
 
     let input = CheckInput::from((
@@ -41,14 +41,14 @@ fn test_check_command_renders_cross_file_labels() {
 export const helper: int32 = 1;
 export const sibling: int32 = 2;
 "#;
-    let util = test.write_text("util.ds", util_source);
+    let util = test.write_text("util.tspp", util_source);
     test.apply_text(&util, util_source);
     let main_source = r#"
-import { helper } from "./util.ds";
+import { helper } from "./util.tspp";
 
 const second = sibling;
 "#;
-    let main = test.write_text("main.ds", main_source);
+    let main = test.write_text("main.tspp", main_source);
     test.apply_text(&main, main_source);
 
     let input = CheckInput::from((
@@ -75,7 +75,7 @@ const second = sibling;
     assert_eq!(
         label.target,
         DiagnosticTarget::Span(Span::at(
-            FileId::from_logical_str("util.ds"),
+            FileId::from_logical_str("util.tspp"),
             declaration_start,
             7,
         ))
@@ -89,7 +89,7 @@ const second = sibling;
         .collect::<Vec<_>>();
     files.sort_unstable();
 
-    assert_eq!(files, ["main.ds", "util.ds"]);
+    assert_eq!(files, ["main.tspp", "util.tspp"]);
 }
 
 #[test]
@@ -99,7 +99,7 @@ fn test_check_command_requests_selected_module_and_program_lints() {
   "name": "test",
   "targets": {
     "default": {
-      "entry": ["main.ds"]
+      "entry": ["main.tspp"]
     }
   },
   "defaultTarget": "default",
@@ -111,10 +111,10 @@ fn test_check_command_requests_selected_module_and_program_lints() {
     let config = test.write_text("destack.json", config_source);
     test.apply_text(&config, config_source);
     let main_source = "export const value: int32 = 1;\n";
-    let main = test.write_text("main.ds", main_source);
+    let main = test.write_text("main.tspp", main_source);
     test.apply_text(&main, main_source);
     let selected_source = "debugger;\n";
-    let selected = test.write_text("selected.ds", selected_source);
+    let selected = test.write_text("selected.tspp", selected_source);
     test.apply_text(&selected, selected_source);
 
     let mut input = CheckInput::from((
@@ -148,7 +148,7 @@ fn test_check_command_requests_selected_module_and_program_lints() {
     assert_eq!(
         lint_artifacts,
         [
-            ("module.lint", Some("file://selected.ds")),
+            ("module.lint", Some("file://selected.tspp")),
             ("program.lint", None),
         ]
     );

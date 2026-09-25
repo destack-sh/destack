@@ -5,7 +5,7 @@
 
 A relative import follows the renamed file across edits, links, and definition navigation.
 
-```ds source/value.ds
+```tspp source/value.tspp
 export function greet(name: string): string {
 ^ declaration:start
                 ^^^^^ definition
@@ -14,7 +14,7 @@ export function greet(name: string): string {
 ^ declaration:end
 ```
 
-```ds main.ds
+```tspp main.tspp
 import { greet } from "./source/value";
                       ^^^^^^^^^^^^^^^^ specifier
 
@@ -22,15 +22,15 @@ const message = greet("World");
                 ^^^^^ reference
 ```
 
-```query goto_definition main.ds#reference
-@goto_definition.target origin=main.ds#reference location=source/value.ds#declaration selection=source/value.ds#definition symbol=source/value.ds#greet@1
+```query goto_definition main.tspp#reference
+@goto_definition.target origin=main.tspp#reference location=source/value.tspp#declaration selection=source/value.tspp#definition symbol=source/value.tspp#greet@1
 ```
 
 ```query rename_files apply
-source/value.ds -> source/result.ds
+source/value.tspp -> source/result.tspp
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 import { greet } from "./source/result";
                       ^^^^^^^^^^^^^^^^^ specifier
 
@@ -38,55 +38,55 @@ const message = greet("World");
                 ^^^^^ reference
 ```
 
-```move source/value.ds source/result.ds
+```move source/value.tspp source/result.tspp
 ```
 
-```query links main.ds
-@links.link range=main.ds#specifier path=source/result.ds
+```query links main.tspp
+@links.link range=main.tspp#specifier path=source/result.tspp
 ```
 
-```query goto_definition main.ds#reference
-@goto_definition.target origin=main.ds#reference location=source/result.ds#declaration selection=source/result.ds#definition symbol=source/result.ds#greet@1
+```query goto_definition main.tspp#reference
+@goto_definition.target origin=main.tspp#reference location=source/result.tspp#declaration selection=source/result.tspp#definition symbol=source/result.tspp#greet@1
 ```
 
 ### Rename an already renamed import
 
 Each rename uses the current file paths.
 
-```ds source/value.ds
+```tspp source/value.tspp
 export const value = 1;
 ```
 
-```ds main.ds
+```tspp main.tspp
 import { value } from "./source/value";
 
 const result = value;
 ```
 
 ```query rename_files
-source/value.ds -> source/result.ds
+source/value.tspp -> source/result.tspp
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 import { value } from "./source/result";
 
 const result = value;
 ```
 
-```move source/value.ds source/result.ds
+```move source/value.tspp source/result.tspp
 ```
 
-```ds main.ds change
+```tspp main.tspp change
 import { value } from "./source/result";
 
 const result = value;
 ```
 
 ```query rename_files
-source/result.ds -> source/final.ds
+source/result.tspp -> source/final.tspp
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 import { value } from "./source/final";
 
 const result = value;
@@ -98,22 +98,22 @@ const result = value;
 
 An explicit extension remains explicit.
 
-```ds source/value.ds
+```tspp source/value.tspp
 export const value = 1;
 ```
 
-```ds main.ds
-import { value } from "./source/value.ds";
+```tspp main.tspp
+import { value } from "./source/value.tspp";
 
 const result = value;
 ```
 
 ```query rename_files
-source/value.ds -> source/result.ds
+source/value.tspp -> source/result.tspp
 ```
 
-```ds main.ds after
-import { value } from "./source/result.ds";
+```tspp main.tspp after
+import { value } from "./source/result.tspp";
 
 const result = value;
 ```
@@ -122,21 +122,21 @@ const result = value;
 
 A dotted basename remains extensionless when the module extension was omitted.
 
-```ds source/value.generated.ds
+```tspp source/value.generated.tspp
 export const value = 1;
 ```
 
-```ds main.ds
+```tspp main.tspp
 import { value } from "./source/value.generated";
 
 const result = value;
 ```
 
 ```query rename_files
-source/value.generated.ds -> source/result.generated.ds
+source/value.generated.tspp -> source/result.generated.tspp
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 import { value } from "./source/result.generated";
 
 const result = value;
@@ -148,21 +148,21 @@ const result = value;
 
 A parent-relative import remains relative to the importing file.
 
-```ds shared/value.ds
+```tspp shared/value.tspp
 export const value = 1;
 ```
 
-```ds application/main.ds
+```tspp application/main.tspp
 import { value } from "../shared/value";
 
 const result = value;
 ```
 
 ```query rename_files
-shared/value.ds -> shared/result.ds
+shared/value.tspp -> shared/result.tspp
 ```
 
-```ds application/main.ds after
+```tspp application/main.tspp after
 import { value } from "../shared/result";
 
 const result = value;
@@ -174,29 +174,29 @@ const result = value;
 
 One edit updates every renamed file.
 
-```ds source/left.ds
+```tspp source/left.tspp
 export const left = 1;
 ```
 
-```ds source/right.ds
+```tspp source/right.tspp
 export const right = 2;
 ```
 
-```ds main.ds
+```tspp main.tspp
 import { left } from "./source/left";
-import { right } from "./source/right.ds";
+import { right } from "./source/right.tspp";
 
 const result = left + right;
 ```
 
 ```query rename_files
-source/left.ds -> source/west.ds
-source/right.ds -> source/east.ds
+source/left.tspp -> source/west.tspp
+source/right.tspp -> source/east.tspp
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 import { left } from "./source/west";
-import { right } from "./source/east.ds";
+import { right } from "./source/east.tspp";
 
 const result = left + right;
 ```
@@ -205,33 +205,33 @@ const result = left + right;
 
 Every resolved reference to the renamed target receives its own relative rewrite.
 
-```ds source/value.ds
+```tspp source/value.tspp
 export const value = 1;
 ```
 
-```ds application/first.ds
+```tspp application/first.tspp
 import { value } from "../source/value";
 
 export const first = value;
 ```
 
-```ds application/nested/second.ds
+```tspp application/nested/second.tspp
 import { value } from "../../source/value";
 
 export const second = value;
 ```
 
 ```query rename_files
-source/value.ds -> library/value.ds
+source/value.tspp -> library/value.tspp
 ```
 
-```ds application/first.ds after
+```tspp application/first.tspp after
 import { value } from "../library/value";
 
 export const first = value;
 ```
 
-```ds application/nested/second.ds after
+```tspp application/nested/second.tspp after
 import { value } from "../../library/value";
 
 export const second = value;
@@ -243,11 +243,11 @@ export const second = value;
 
 Every specifier below the renamed directory follows its new path.
 
-```ds source/value.ds
+```tspp source/value.tspp
 export const value = 1;
 ```
 
-```ds main.ds
+```tspp main.tspp
 import { value } from "./source/value";
 
 const result = value;
@@ -257,7 +257,7 @@ const result = value;
 source -> library
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 import { value } from "./library/value";
 
 const result = value;
@@ -267,11 +267,11 @@ const result = value;
 
 Moving an importer and its target together leaves their relative specifier unchanged.
 
-```ds source/value.ds
+```tspp source/value.tspp
 export const value = 1;
 ```
 
-```ds source/main.ds
+```tspp source/main.tspp
 import { value } from "./value";
 
 const result = value;
@@ -286,20 +286,20 @@ source -> library
 
 An explicit file rename takes precedence over a renamed parent directory.
 
-```ds source/value.ds
+```tspp source/value.tspp
 export const value = 1;
 ```
 
-```ds main.ds
+```tspp main.tspp
 import { value } from "./source/value";
 ```
 
 ```query rename_files
 source -> library
-source/value.ds -> special/value.ds
+source/value.tspp -> special/value.tspp
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 import { value } from "./special/value";
 ```
 
@@ -309,23 +309,23 @@ import { value } from "./special/value";
 
 File renames preserve the plain import and its declaration symbol space.
 
-```ds source/options.ds
+```tspp source/options.tspp
 export type Options = {
     enabled: boolean,
 };
 ```
 
-```ds main.ds
+```tspp main.tspp
 import { Options } from "./source/options";
 
 declare const options: Options;
 ```
 
 ```query rename_files
-source/options.ds -> source/configuration.ds
+source/options.tspp -> source/configuration.tspp
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 import { Options } from "./source/configuration";
 
 declare const options: Options;
@@ -337,19 +337,19 @@ declare const options: Options;
 
 File renames update re-export specifiers.
 
-```ds source/value.ds
+```tspp source/value.tspp
 export const value = 1;
 ```
 
-```ds barrel.ds
+```tspp barrel.tspp
 export { value } from "./source/value";
 ```
 
 ```query rename_files
-source/value.ds -> source/result.ds
+source/value.tspp -> source/result.tspp
 ```
 
-```ds barrel.ds after
+```tspp barrel.tspp after
 export { value } from "./source/result";
 ```
 
@@ -357,19 +357,19 @@ export { value } from "./source/result";
 
 Namespace re-exports follow the renamed module.
 
-```ds source/value.ds
+```tspp source/value.tspp
 export const value = 1;
 ```
 
-```ds barrel.ds
+```tspp barrel.tspp
 export * as values from "./source/value";
 ```
 
 ```query rename_files
-source/value.ds -> source/result.ds
+source/value.tspp -> source/result.tspp
 ```
 
-```ds barrel.ds after
+```tspp barrel.tspp after
 export * as values from "./source/result";
 ```
 
@@ -379,21 +379,21 @@ export * as values from "./source/result";
 
 Side-effect imports participate in module path rewrites.
 
-```ds source/register.ds
+```tspp source/register.tspp
 export const registered = true;
 ```
 
-```ds main.ds
+```tspp main.tspp
 import "./source/register";
 
 const label = "./source/register";
 ```
 
 ```query rename_files
-source/register.ds -> source/install.ds
+source/register.tspp -> source/install.tspp
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 import "./source/install";
 
 const label = "./source/register";
@@ -405,11 +405,11 @@ const label = "./source/register";
 
 An unresolved specifier has no indexed target and cannot be rewritten from its text.
 
-```ds main.ds
+```tspp main.tspp
 import { value } from "./source/missing";
 ```
 
-```ds source/other.ds
+```tspp source/other.tspp
 export const other = 1;
 ```
 
@@ -424,21 +424,21 @@ source -> library
 
 Moving an importing file rewrites its relative specifiers from the new directory.
 
-```ds source/value.ds
+```tspp source/value.tspp
 export const value = 1;
 ```
 
-```ds main.ds
+```tspp main.tspp
 import { value } from "./source/value";
 
 const result = value;
 ```
 
 ```query rename_files
-main.ds -> application/main.ds
+main.tspp -> application/main.tspp
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 import { value } from "../source/value";
 
 const result = value;
@@ -448,22 +448,22 @@ const result = value;
 
 The rewritten specifier uses both new file locations.
 
-```ds source/value.ds
+```tspp source/value.tspp
 export const value = 1;
 ```
 
-```ds main.ds
+```tspp main.tspp
 import { value } from "./source/value";
 
 const result = value;
 ```
 
 ```query rename_files
-source/value.ds -> library/value.ds
-main.ds -> application/main.ds
+source/value.tspp -> library/value.tspp
+main.tspp -> application/main.tspp
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 import { value } from "../library/value";
 
 const result = value;
@@ -475,21 +475,21 @@ const result = value;
 
 Specifier rewrites do not change the surrounding quote style.
 
-```ds source/value.ds
+```tspp source/value.tspp
 export const value = 1;
 ```
 
-```ds main.ds
+```tspp main.tspp
 import { value } from './source/value';
 
 const result = value;
 ```
 
 ```query rename_files
-source/value.ds -> source/result.ds
+source/value.tspp -> source/result.tspp
 ```
 
-```ds main.ds after
+```tspp main.tspp after
 import { value } from './source/result';
 
 const result = value;

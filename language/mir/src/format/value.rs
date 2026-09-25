@@ -1,7 +1,7 @@
-use destack_core::float_from_bits;
-use destack_fir::format::{Format, FormatError, FormatResult};
-use destack_fir::prelude::*;
-use destack_fir::write;
+use tspp_core::float_from_bits;
+use tspp_fir::format::{Format, FormatError, FormatResult};
+use tspp_fir::prelude::*;
+use tspp_fir::write;
 
 use super::r#type::{format_generic_arguments, format_parameter, format_type_expanded};
 

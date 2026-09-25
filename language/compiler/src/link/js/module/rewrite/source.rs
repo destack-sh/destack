@@ -2,10 +2,10 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::emit::js;
-use destack_artifact::DirBound;
-use destack_core::StringPool;
-use destack_dir as dir;
-use destack_source::ModuleId;
+use tspp_artifact::DirBound;
+use tspp_core::StringPool;
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use super::super::linker::OutputModule;
 use crate::{JsLinker, LinkError, LinkResult};

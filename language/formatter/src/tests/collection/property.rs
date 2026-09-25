@@ -1,5 +1,5 @@
-use crate::{DestackFormatOptions, assert_format, assert_format_program, parse_first_expression};
-use destack_source::FileType;
+use crate::{TsppFormatOptions, assert_format, assert_format_program, parse_first_expression};
+use tspp_source::FileType;
 
 /// Empty structs should collapse cleanly.
 #[test]
@@ -8,7 +8,7 @@ fn test_format_struct_empty() {
         r#"struct Foo { }"#,
         r#"struct Foo {}"#,
         parse_first_expression,
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -19,7 +19,7 @@ fn test_format_recovered_property() {
         "const value = { : 1, y: 2 }",
         "const value = { : 1, y: 2 }",
         parse_first_expression,
-        DestackFormatOptions::default(),
+        TsppFormatOptions::default(),
     );
 }
 
@@ -33,7 +33,7 @@ fn test_format_struct_with_fields() {
 	b: boolean;
 }"#,
         parse_first_expression,
-        DestackFormatOptions::default_tab()
+        TsppFormatOptions::default_tab()
     );
 }
 
@@ -46,7 +46,7 @@ fn test_format_class_with_abstract_override_field() {
 	abstract override bar: int32;
 }"#,
         parse_first_expression,
-        DestackFormatOptions::default_tab()
+        TsppFormatOptions::default_tab()
     );
 }
 
@@ -60,7 +60,7 @@ fn test_format_struct_with_decorated_field() {
 	name: string;
 }"#,
         parse_first_expression,
-        DestackFormatOptions::default_tab()
+        TsppFormatOptions::default_tab()
     );
 }
 
@@ -84,8 +84,8 @@ fn test_format_quoted_constructor_name() {
 ];
 "#
         .trim_start(),
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }
 
@@ -105,8 +105,8 @@ class C {
 }
 "#
         .trim_start(),
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }
 
@@ -128,8 +128,8 @@ extension<T> of Set<T> {
 }
 "#
         .trim_start(),
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }
 
@@ -144,7 +144,7 @@ fn test_format_class_string_keys_preserve_quotes() {
   "needs-quotes" = 2;
 }
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }

@@ -8,11 +8,11 @@ Import meta fixtures cover `import.meta` member chains.
 
 Import meta property access keeps dots tight.
 
-```ds:main.ds
+```tspp:main.tspp
 const url = import.meta.url
 ```
 
-```ds expected
+```tspp expected
 const url = import.meta.url;
 ```
 
@@ -20,10 +20,10 @@ const url = import.meta.url;
 
 Nested import meta property access stays as a normal chain.
 
-```ds:main.ds
+```tspp:main.tspp
 const mode = import.meta.env.MODE
 ```
 
-```ds expected
+```tspp expected
 const mode = import.meta.env.MODE;
 ```

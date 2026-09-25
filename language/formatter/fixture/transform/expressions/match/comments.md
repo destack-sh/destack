@@ -6,7 +6,7 @@
 
 Comments around selectors and arms stay on the same syntax boundaries.
 
-```ds
+```tspp
 match (
     // selected event
     event
@@ -21,7 +21,7 @@ match (
 }
 ```
 
-```ds expected
+```tspp expected
 match (
     // selected event
     event
@@ -40,11 +40,11 @@ match (
 
 Nested pattern comments stay inside their pattern containers.
 
-```ds
+```tspp
 match (value) { Result.Ok(Point { x: /* x */ x, y: /* y */ y }) => x + y; [first, /* middle */ ..., last] => first + last; _ => 0 }
 ```
 
-```ds expected
+```tspp expected
 match (value) {
     Result.Ok(Point { x: /* x */ x, y: /* y */ y }) => x + y
     [first, /* middle */ ..., last] => first + last
@@ -56,11 +56,11 @@ match (value) {
 
 Newtype object patterns keep aliases, defaults, rest fields, and guards structured.
 
-```ds
+```tspp
 match (shape) { Shape.Point({ x, y: renamed = 0, ...rest }) if (renamed > 0) => x + renamed; Shape.Line({ start: Point { x, y }, end }) => x + y; _ => 0 }
 ```
 
-```ds expected
+```tspp expected
 match (shape) {
     Shape.Point({ x, y: renamed = 0, ...rest }) if (renamed > 0) => x + renamed
     Shape.Line({
@@ -75,11 +75,11 @@ match (shape) {
 
 Tagged tuple patterns keep defaults, rests, and nested object patterns.
 
-```ds
+```tspp
 match (result) { Result.Ok(Point { x, y }, meta = defaultMeta) => x + y; Result.Err(error, ...context) => context.length; _ => 0 }
 ```
 
-```ds expected
+```tspp expected
 match (result) {
     Result.Ok(Point { x, y }, meta = defaultMeta) => x + y
     Result.Err(error, ...context) => context.length
@@ -91,11 +91,11 @@ match (result) {
 
 Array patterns keep leading, middle, and trailing rest forms distinct.
 
-```ds
+```tspp
 match (items) { [first, ..., last] => first + last; [head, ...tail] => tail.length; [] => 0 }
 ```
 
-```ds expected
+```tspp expected
 match (items) {
     [first, ..., last] => first + last
     [head, ...tail] => tail.length
@@ -107,11 +107,11 @@ match (items) {
 
 Comments inside complex patterns stay on the pattern side of the arrow.
 
-```ds
+```tspp
 match (result) { Result.Ok(/* point */ Point { x: /* x */ x, y }) => x + y; Result.Err(/* error */ error) => error.code }
 ```
 
-```ds expected
+```tspp expected
 match (result) {
     Result.Ok(/* point */ Point { x: /* x */ x, y }) => x + y
     Result.Err(/* error */ error) => error.code
@@ -122,11 +122,11 @@ match (result) {
 
 Comments around match guards stay between the pattern and branch body.
 
-```ds
+```tspp
 match (packet) { Packet.Data(data) /* pattern */ if /* guard */ (data.isValid()) => /* body */ handle(data); _ => fallback() }
 ```
 
-```ds expected
+```tspp expected
 match (packet) {
     Packet.Data(data) /* pattern */ if (/* guard */ data.isValid()) => /* body */ handle(data)
     _ => fallback()

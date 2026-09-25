@@ -1,8 +1,8 @@
 use crate::{
-    DestackFormatOptions, assert_format, assert_format_program,
+    TsppFormatOptions, assert_format, assert_format_program,
     assert_format_program_reference_widths, parse_first_expression,
 };
-use destack_source::FileType;
+use tspp_source::FileType;
 
 /// An empty enum formats without a space between its braces.
 #[test]
@@ -11,7 +11,7 @@ fn test_format_enum_empty() {
         "enum { }",
         "enum {}",
         parse_first_expression,
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -22,7 +22,7 @@ fn test_format_recovered_generic_argument() {
         "type Value=Container<>",
         "type Value = Container<>;",
         parse_first_expression,
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -33,7 +33,7 @@ fn test_format_recovered_type_member() {
         "interface Value {\n+\ny: int32\n}",
         "interface Value {\n    +;\n    y: int32;\n}",
         parse_first_expression,
-        DestackFormatOptions::default(),
+        TsppFormatOptions::default(),
     );
 }
 
@@ -63,7 +63,7 @@ enum Mode {
 }
 newtype TaskId = uint64;
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -77,7 +77,7 @@ fn test_format_enum_with_simple_fields() {
 	B,
 }"#,
         parse_first_expression,
-        DestackFormatOptions::default_tab()
+        TsppFormatOptions::default_tab()
     );
 }
 
@@ -92,7 +92,7 @@ fn test_format_enum_with_annotations() {
     Done,
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -109,7 +109,7 @@ fn test_format_enum_with_generic_parameters() {
         source,
         source,
         parse_first_expression,
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -137,7 +137,7 @@ fn test_format_enum_member_blank_lines() {
     u8 = 2,
 }
 "#,
-        FileType::DestackDeclaration,
+        FileType::TsppDeclaration,
     );
 }
 
@@ -161,7 +161,7 @@ fn test_format_class_extends_member_comments() {
     closed: boolean;
 }
 "#,
-        FileType::DestackDeclaration,
+        FileType::TsppDeclaration,
     );
 }
 
@@ -183,7 +183,7 @@ fn test_format_ignored_member_leading_doc_comment() {
     hgetex(key: KeyLike, fieldsKeyword: "FIELDS", numfields: number, ...fields: KeyLike[]): Promise<Array<string | null>>;
 }
 "#,
-        FileType::DestackDeclaration,
+        FileType::TsppDeclaration,
     );
 }
 
@@ -243,7 +243,7 @@ letlonglongRunningProvider4 = class
   implements languages.SignatureHelpProvider<Hello>
 {};
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -377,7 +377,7 @@ fn test_format_extension_implements_list_layout() {
     index(index: number): T;
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -412,7 +412,7 @@ fn test_format_extension_implements_generic_item_layout() {
     indexSet(coordinate: VeryLongCoordinateName<R>, value: VeryLongSliceName<R>): void;
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -445,7 +445,7 @@ fn test_format_extension_target_type_layout() {
         r#"extension<T, const Rank: int, F: TensorFormat, const ...Axes: ShardingAxis> of Tensor<T, Rank, F, Sharding<...Axes>> {
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 100,
@@ -478,7 +478,7 @@ fn test_format_class_decorator_layout() {
     onContextMenu() {}
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -496,7 +496,7 @@ fn test_format_member_decorator_comment_layout() {
   method() {}
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -535,7 +535,7 @@ fn test_format_borrow_lifetime_roundtrip() {
         "type View = &'a readonly Buffer;",
         "type View = &'a readonly Buffer;",
         parse_first_expression,
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -546,7 +546,7 @@ fn test_format_static_lifetime_roundtrip() {
         "type View = &'static Buffer;",
         "type View = &'static Buffer;",
         parse_first_expression,
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -557,7 +557,7 @@ fn test_format_bare_lifetime_parameter_roundtrip() {
         "function first<'a>(a: &'a Node, b: &Node): &'a Node {\n    return a;\n}",
         "function first<'a>(a: &'a Node, b: &Node): &'a Node {\n    return a;\n}",
         parse_first_expression,
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -568,7 +568,7 @@ fn test_format_const_lifetime_parameter_normalizes_bare() {
         "declare function only<const 'a: Lifetime>(value: Borrowed<Node, 'a>): Borrowed<Node, 'a>;",
         "declare function only<'a>(value: Borrowed<Node, 'a>): Borrowed<Node, 'a>;",
         parse_first_expression,
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -579,7 +579,7 @@ fn test_format_lifetime_union_roundtrip() {
         "type Joined = Borrowed<Node, 'a | 'b>;",
         "type Joined = Borrowed<Node, 'a | 'b>;",
         parse_first_expression,
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -590,7 +590,7 @@ fn test_format_region_meet_roundtrip() {
         "type Leaked = Borrowed<Node, 'static & S>;",
         "type Leaked = Borrowed<Node, 'static & S>;",
         parse_first_expression,
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -601,7 +601,7 @@ fn test_format_dynamic_region_roundtrip() {
         "type Confined = Dynamic<Printable & 'a>;",
         "type Confined = Dynamic<Printable & 'a>;",
         parse_first_expression,
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -612,6 +612,6 @@ fn test_format_where_outlives_roundtrip() {
         "declare function only<'a, 'b>(value: &'a Node): &'a Node where 'a: 'b;",
         "declare function only<'a, 'b>(value: &'a Node): &'a Node where 'a: 'b;",
         parse_first_expression,
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }

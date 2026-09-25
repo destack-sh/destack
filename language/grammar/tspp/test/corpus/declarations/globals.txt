@@ -1,0 +1,43 @@
+=======================================
+Global declarations
+:language(tspp)
+=======================================
+
+global {
+  const process: Process = runtime.process();
+}
+
+---
+
+(program
+  (global_declaration
+    (statement_block
+      (lexical_declaration
+        (variable_declarator
+          (identifier)
+          (type_annotation
+            (type_identifier))
+          (call_expression
+            (member_expression
+              (identifier)
+              (property_identifier))
+            (arguments)))))))
+
+==========================
+Shared lexical declaration
+:language(tspp)
+==========================
+
+shared const registry = new Registry();
+
+---
+
+(program
+  (shared_lexical_declaration
+    (placement_modifier)
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (new_expression
+          (identifier)
+          (arguments))))))

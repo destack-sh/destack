@@ -1,0 +1,59 @@
+import { Poll, PollOrValue, Promise, Task } from "tspp:async";
+import { todo } from "tspp:error";
+import { Copy } from "tspp:memory";
+
+import { Refreshable } from "./accessor.tspp";
+
+/// Value read through `latest`.
+type LatestValue<Output> = Output extends Poll<infer T> ? T : Output;
+
+/// Whether one `latest` expression may be pending.
+type LatestMayPend<Output> = Output extends Poll<unknown> ? true : false;
+
+/// Return selected from one `latest` expression.
+type LatestOutput<Output> = true extends LatestMayPend<Output> ? Poll<LatestValue<Output>> : Output;
+
+/// Run one body without recording its signal reads.
+export function untrack<T>(body: ^Function<(), T, "once">): T {
+    todo("signal.untrack")
+}
+
+/// Flush all scheduled signal work.
+export function flush(): void {
+    todo("signal.flush");
+}
+
+/// Run one body and flush all signal work that it schedules.
+export function flush<T>(body: ^Function<(), T, "once">): T {
+    todo("signal.flush")
+}
+
+/// Reevaluate a refreshable signal source.
+export function refresh<T: Refreshable>(source: &readonly T): void {
+    T.refresh(source);
+}
+
+/// Mark a signal source as pending until the current action settles.
+export function affects<T: Refreshable>(source: &readonly T): void {
+    todo("signal.affects");
+}
+
+/// Return whether any signal read by an expression is pending.
+export function isPending<T>(read: ^Function<(), T, "once">): boolean {
+    todo("signal.isPending")
+}
+
+/// Read an expression with its newest in-flight signal values.
+export function latest<Output>(read: ^Function<(), Output, "once">): LatestOutput<Output> {
+    todo("signal.latest")
+}
+
+/// Resolve the first ready copyable value observed by an expression.
+export function resolve<T: Copy>(read: ^Function<(), PollOrValue<T>>): Promise<T> {
+    todo("signal.resolve")
+}
+
+/// Resolve the first ready affine value observed by an expression.
+export function resolve<T>(read: ^Function<(), PollOrValue<T>>): Task<T> {
+    todo("signal.resolve")
+}

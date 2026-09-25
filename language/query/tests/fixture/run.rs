@@ -1,12 +1,13 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use destack_artifact::{
+use indexmap::IndexMap;
+use tspp_artifact::{
     DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirImported, DirParsed,
     DirResolved, DirView,
 };
-use destack_dir::{GlobalNodeIdAny, GlobalSymbolId, View};
-use destack_query::{
+use tspp_dir::{GlobalNodeIdAny, GlobalSymbolId, View};
+use tspp_query::{
     CallItem, CallItemRequest, CodeActionContext, CodeActionsRequest, CodeLensesRequest,
     CompletionDetailsMode, CompletionEntryDetails, CompletionRequest, DecoratorScope,
     DecoratorsRequest, ExtractVariableRequest, FindReferencesRequest, FoldingRangesRequest,
@@ -18,12 +19,11 @@ use destack_query::{
     SemanticTokensRequest, SignatureHelpRequest, SubtypesRequest, SupertypesRequest, TypeItem,
     TypeItemRequest,
 };
-use destack_repository::{ArtifactReader, Revision, TraceSnapshot};
-use destack_source::{
+use tspp_repository::{ArtifactReader, Revision, TraceSnapshot};
+use tspp_source::{
     DiagnosticLabel, DiagnosticReference, DiagnosticTarget, DiffOptions, FileId, PatchSet,
     ProfileId, Span, apply_file_patch, format_diff,
 };
-use indexmap::IndexMap;
 
 use super::{
     FixtureDiagnostic, FixturePosition, FixtureRange, QueryAssertion, QueryCall, QueryChange,
@@ -72,7 +72,7 @@ struct QueryFiles {
 /// The verified effects of one query assertion.
 struct AssertionResult {
     /// The executed query method.
-    method: destack_query::QueryMethod,
+    method: tspp_query::QueryMethod,
     /// One canonical response update for blessing.
     response_update: Option<ResponseUpdate>,
     /// The initial and unchanged-repeat traces when requested.
@@ -458,7 +458,7 @@ impl<'a> QueryRun<'a> {
         &self,
         position: &FixturePosition,
         entry: &str,
-        trigger: destack_query::CompletionTrigger,
+        trigger: tspp_query::CompletionTrigger,
         include_auto_imports: bool,
     ) -> Result<QueryRequest, String> {
         let completion = CompletionRequest {
@@ -727,7 +727,7 @@ impl<'a> QueryRun<'a> {
         let path = self.format_module(module)?;
         let artifacts = ArtifactReader::new(self.workspace.repository(), self.revision);
         let key = (symbol_id.module_id, profile_id);
-        let read = |error: destack_repository::ProviderError| {
+        let read = |error: tspp_repository::ProviderError| {
             format!("failed to read DIR for query symbol: {error}")
         };
         let view = DirView::checked(

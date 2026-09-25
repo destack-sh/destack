@@ -1,19 +1,19 @@
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::SourceDependency;
-use destack_core::{Blob, BlobId, BlobMemory, BlobStore};
-use destack_source::{
+use indexmap::IndexMap;
+use tspp_artifact::SourceDependency;
+use tspp_core::{Blob, BlobId, BlobMemory, BlobStore};
+use tspp_source::{
     File, FileId, FileMetadata, FileType, LanguageType, Loader, ModuleId, PackageId, TargetId, Uri,
 };
-use indexmap::IndexMap;
 
 use crate::config::{DestackFile, parse_jsonc_file};
 use crate::{
     ExportKind, Module, Package, PackageExport, PackageKind, Repository, RepositoryError, Revision,
 };
 
-const BUILTIN_PACKAGE_URI: &str = "destack://";
+const BUILTIN_PACKAGE_URI: &str = "tspp://";
 const BUILTIN_SOURCE_DIRECTORY: &str = "src";
 
 // NOTE: the builtin library package is generated at build time and auto included as raw strings here.
@@ -172,7 +172,7 @@ impl EmbeddedBuiltinPackage {
     pub fn module_uri_for_specifier(&self, specifier: &str) -> Option<Uri> {
         let path = specifier
             .strip_prefix(BUILTIN_PACKAGE_URI)
-            .or_else(|| specifier.strip_prefix("destack:"))?;
+            .or_else(|| specifier.strip_prefix("tspp:"))?;
 
         self.module_uri_for_export_key(&builtin_export_key(path))
     }
@@ -181,7 +181,7 @@ impl EmbeddedBuiltinPackage {
     pub fn module_uri_for_internal_specifier(&self, specifier: &str) -> Option<Uri> {
         let path = specifier
             .strip_prefix(BUILTIN_PACKAGE_URI)
-            .or_else(|| specifier.strip_prefix("destack:"))?;
+            .or_else(|| specifier.strip_prefix("tspp:"))?;
 
         Some(self.canonical_module_uri(canonical_builtin_path(path)))
     }
@@ -202,7 +202,7 @@ impl EmbeddedBuiltinPackage {
         specifier: &str,
     ) -> Option<Uri> {
         let base = match Self::builtin_file_for_uri(base_uri) {
-            Some(file) => file.path.strip_suffix(".ds").unwrap_or(file.path),
+            Some(file) => file.path.strip_suffix(".tspp").unwrap_or(file.path),
             None => base_uri.strip_prefix(BUILTIN_PACKAGE_URI)?,
         };
         let mut parts = base.split('/').collect::<Vec<_>>();
@@ -369,13 +369,13 @@ impl EmbeddedBuiltinPackage {
         }
 
         // resolve one extensionless source path
-        let file_path = format!("{path}.ds");
+        let file_path = format!("{path}.tspp");
         if let Ok(index) = BUILTINS.binary_search_by(|builtin| builtin.path.cmp(&file_path)) {
             return Some(BUILTINS[index]);
         }
 
         // resolve one extensionless index module
-        let index_path = format!("{path}/index.ds");
+        let index_path = format!("{path}/index.tspp");
         let index = BUILTINS
             .binary_search_by(|builtin| builtin.path.cmp(&index_path))
             .ok()?;
@@ -428,7 +428,7 @@ impl Repository {
     ) -> Result<Option<Uri>, RepositoryError> {
         let Some(path) = specifier
             .strip_prefix(BUILTIN_PACKAGE_URI)
-            .or_else(|| specifier.strip_prefix("destack:"))
+            .or_else(|| specifier.strip_prefix("tspp:"))
         else {
             return Ok(None);
         };
@@ -469,7 +469,7 @@ impl Repository {
     ) -> Result<Option<Uri>, RepositoryError> {
         let Some(path) = specifier
             .strip_prefix(BUILTIN_PACKAGE_URI)
-            .or_else(|| specifier.strip_prefix("destack:"))
+            .or_else(|| specifier.strip_prefix("tspp:"))
         else {
             return Ok(None);
         };
@@ -527,8 +527,8 @@ impl Repository {
         let path = canonical_builtin_path(path);
         let candidates = [
             path.to_string(),
-            format!("{path}.ds"),
-            format!("{path}/index.ds"),
+            format!("{path}.tspp"),
+            format!("{path}/index.tspp"),
         ];
         let source_root = package_root.join(BUILTIN_SOURCE_DIRECTORY);
 
@@ -566,8 +566,8 @@ impl BuiltinFile {
             Uri::from_string(format!("{BUILTIN_PACKAGE_URI}{}", self.path)),
             Some(PathBuf::from(self.path)),
             self.module_id.package_id,
-            Some(LanguageType::Destack),
-            Loader::Destack,
+            Some(LanguageType::Tspp),
+            Loader::Tspp,
         );
 
         (module.id, Arc::new(module))
@@ -587,7 +587,7 @@ impl BuiltinFile {
         let file_type = if self.path.ends_with(".json") {
             FileType::Json
         } else {
-            FileType::Destack
+            FileType::Tspp
         };
 
         // safety: include_str provides UTF-8 and the build script derives these line starts
@@ -650,7 +650,7 @@ fn builtin_export_key(path: &str) -> String {
 
 /// Return the canonical path part for one builtin module path.
 fn canonical_builtin_path(path: &str) -> &str {
-    let path = path.strip_suffix(".ds").unwrap_or(path);
+    let path = path.strip_suffix(".tspp").unwrap_or(path);
 
     path.strip_suffix("/index").unwrap_or(path)
 }

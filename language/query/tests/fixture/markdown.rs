@@ -273,7 +273,7 @@ fn parse_initial_file(language: &str) -> Result<Option<InitialFile<'_>>, String>
     let mut words = language.split_whitespace();
     let first = words.next().unwrap_or("");
     let (language, inline_path) = first.split_once(':').unwrap_or((first, ""));
-    let is_source = matches!(language.to_ascii_lowercase().as_str(), "ds" | "destack");
+    let is_source = matches!(language.to_ascii_lowercase().as_str(), "tspp");
     let is_data = matches!(
         language.to_ascii_lowercase().as_str(),
         "json" | "toml" | "yaml" | "yml" | "text" | "txt" | "env"
@@ -306,10 +306,10 @@ fn parse_initial_file(language: &str) -> Result<Option<InitialFile<'_>>, String>
         return Ok(None);
     }
 
-    // source blocks default to main.ds while data blocks require a path
+    // source blocks default to main.tspp while data blocks require a path
     let path = match (path, is_source) {
         (Some(path), _) => path,
-        (None, true) => "main.ds",
+        (None, true) => "main.tspp",
         (None, false) => return Err(format!("data block '{language}' requires a file path")),
     };
 

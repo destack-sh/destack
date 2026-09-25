@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, VecDeque};
 
-use destack_program as program;
-use destack_vm as vm;
+use tspp_program as program;
+use tspp_vm as vm;
 
 use super::fiber::FiberTable;
 use super::timer::TimerQueue;

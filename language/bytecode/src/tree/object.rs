@@ -1,17 +1,17 @@
 use std::fmt;
 
-use destack_core::{
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use tspp_core::{
     SectionEntry, SectionImage, SectionImageError, SectionLoader, SectionSlice, SectionStorage,
 };
-use destack_serde::Reflect;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use tspp_serde::Reflect;
 
 use crate::{
     CodeOffset, FrameMap, Function, FunctionId, Instruction, Instructions, RegisterSpan,
     Relocation, Result,
 };
 
-/// Relocatable Destack bytecode for one module.
+/// Relocatable TS++ bytecode for one module.
 #[derive(Clone, Debug, Reflect)]
 pub struct Object {
     /// Complete aligned object storage.
@@ -23,7 +23,7 @@ pub struct Object {
 pub enum ObjectLoadError {
     /// The physical section image is malformed.
     Image(SectionImageError),
-    /// The byte region does not contain Destack bytecode.
+    /// The byte region does not contain TS++ bytecode.
     InvalidMagic,
     /// The bytecode object version is not supported.
     UnsupportedVersion(u16),

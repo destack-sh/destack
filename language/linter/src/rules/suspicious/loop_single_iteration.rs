@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -94,7 +94,7 @@ while (ready()) {
         session.assert_diagnostics(
             r#"
 warning[loop-single-iteration]: loop cannot reach a second iteration
- ──▶ main.ds:4:1
+ ──▶ main.tspp:4:1
   │
 2 │ declare function process(): void;
 3 │
@@ -128,7 +128,7 @@ function first(): int32 {
         session.assert_diagnostics(
             r#"
 warning[loop-single-iteration]: loop cannot reach a second iteration
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function first(): int32 {
 2 │     loop {
@@ -193,7 +193,7 @@ outer: loop {
         session.assert_diagnostics(
             r#"
 warning[loop-single-iteration]: loop cannot reach a second iteration
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ outer: loop {
 2 │     loop {
@@ -226,7 +226,7 @@ function stop(): void {
         session.assert_diagnostics(
             r#"
 warning[loop-single-iteration]: loop cannot reach a second iteration
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function stop(): void {
 2 │     loop {
@@ -261,7 +261,7 @@ function stop(): void {
         session.assert_diagnostics(
             r#"
 warning[loop-single-iteration]: loop cannot reach a second iteration
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function stop(): void {
 2 │     loop {

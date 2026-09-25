@@ -1,5 +1,5 @@
 #[cfg(test)]
-extern crate self as destack_rpc;
+extern crate self as tspp_rpc;
 
 mod call;
 mod connection;
@@ -9,10 +9,10 @@ mod transport;
 
 pub use call::*;
 pub use connection::*;
-pub use destack_rpc_macros::service;
 pub use protocol::*;
 pub use service::*;
 pub use transport::*;
+pub use tspp_rpc_macros::service;
 
 #[cfg(test)]
 mod tests;

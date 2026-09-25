@@ -1,8 +1,8 @@
 use std::convert::Infallible;
 use std::marker::PhantomData;
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use super::ServiceId;
 
@@ -123,7 +123,7 @@ impl MethodId {
 
     /// Derive one method identifier from its service and method names.
     pub fn for_name(service: &str, method: &str) -> Self {
-        Self(destack_core::stable_hash_key_value(
+        Self(tspp_core::stable_hash_key_value(
             service.as_bytes(),
             method.as_bytes(),
         ))

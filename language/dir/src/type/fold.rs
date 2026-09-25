@@ -1,7 +1,7 @@
 use smallvec::{Array, SmallVec};
 
-use destack_core::StringId;
-use destack_source::ModuleId;
+use tspp_core::StringId;
+use tspp_source::ModuleId;
 
 use crate::{
     Access, AutoInterface, AwaitTarget, BinaryOperator, CaptureMode, CastOrigin, EnumBackingType,

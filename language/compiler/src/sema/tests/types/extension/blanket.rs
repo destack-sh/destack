@@ -33,7 +33,7 @@ sound satisfies string;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -196,7 +196,7 @@ extension of Bell implements Quiet {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -351,7 +351,7 @@ const sound = stone.whisper();
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -509,7 +509,7 @@ function label(value: int32): Outcome<Tag, string> {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Outcome<out T, out E> {
     value: T | undefined = undefined as T | undefined;
@@ -817,7 +817,7 @@ function label(value: int32): (Tag, string) {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 newtype interface Give<out T> {
     give(this): T;
@@ -1015,8 +1015,8 @@ function label(value: int32): (Tag, string) {
 fn test_default_associated_types_resolve_shadowing_imports() {
     let session = TestSession::single(
         r#"
-import { Error, Result } from "destack:error";
-import { TryFrom } from "destack:convert";
+import { Error, Result } from "tspp:error";
+import { TryFrom } from "tspp:convert";
 
 struct Token {}
 
@@ -1035,10 +1035,10 @@ failure satisfies Error;
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { TryFrom } from "destack:convert";
-import { Error, Result } from "destack:error";
+import { TryFrom } from "tspp:convert";
+import { Error, Result } from "tspp:error";
 
 struct Token {}
 
@@ -1056,8 +1056,8 @@ declare const failure: Error;
 failure satisfies Error;
 
 === dir ===
-import { Error, Result } from "destack:error";
-import { TryFrom } from "destack:convert";
+import { Error, Result } from "tspp:error";
+import { TryFrom } from "tspp:convert";
 
 struct Token {}
 /// @type.symbol symbol=Token source="struct Token {}" type=Token
@@ -1169,7 +1169,7 @@ extension of Bell implements Loud, Bright {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1345,7 +1345,7 @@ extension of Bell implements Loud, Bright {
 fn test_record_member_conformances_of_a_blanket_over_a_bounded_parameter() {
     let session = TestSession::single(
         r#"
-import { Integer } from "destack:math";
+import { Integer } from "tspp:math";
 
 newtype interface Dup {
     dup(&readonly this): ^this;
@@ -1362,11 +1362,11 @@ const copied = (1 as int32).dup();
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Integer } from "destack:math";
+import { Integer } from "tspp:math";
 
 newtype interface Dup {
     dup(&readonly this): ^this;
@@ -1381,7 +1381,7 @@ export extension<T: Integer> of T implements Dup {
 const copied: int32 = (1 as int32).dup<int32, "frame">();
 
 === dir ===
-import { Integer } from "destack:math";
+import { Integer } from "tspp:math";
 
 newtype interface Dup {
 /// @generic.template symbol=Dup parameters=(this: Dup)
@@ -1440,7 +1440,7 @@ const copied = (1 as int32).dup();
 fn test_close_a_static_requirement_through_a_parameter_on_its_argument() {
     let session = TestSession::single(
         r#"
-import { From } from "destack:convert";
+import { From } from "tspp:convert";
 
 function build<E: From<string>>(residual: string): E {
     return E.from(residual);
@@ -1451,11 +1451,11 @@ const built: string = build<string>("a");
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_witnesses(),
         r#"
 === annotated ===
-import { From } from "destack:convert";
+import { From } from "tspp:convert";
 
 function build<E: From<string>>(residual: string): E {
     return E.from<string>(residual);
@@ -1464,7 +1464,7 @@ function build<E: From<string>>(residual: string): E {
 const built: string = build<string>("a");
 
 === dir ===
-import { From } from "destack:convert";
+import { From } from "tspp:convert";
 
 function build<E: From<string>>(residual: string): E {
 /// @generic.template symbol=build parameters=(E: From<string>)

@@ -4,21 +4,21 @@ use crate::template::{
     TemplateInterpolationIndentation, write_template_interpolation_with_indentation,
 };
 use crate::tree::is_tree_whitespace_char;
-use crate::{DestackFormatContext, DestackFormatter};
+use crate::{TsppFormatContext, TsppFormatter};
 
-use destack_dir::{
+use tspp_dir::{
     Argument, Expression, FloatType, IntegerType, Literal, LocalNodeId, Path, TemplateChunk,
     TemplateLiteral, TokenLiteral, TypeLiteral,
 };
-use destack_fir::format::{Format, FormatLayout, FormatResult, token};
-use destack_fir::prelude::*;
-use destack_fir::{format_args, write};
-use destack_source::Span;
+use tspp_fir::format::{Format, FormatLayout, FormatResult, token};
+use tspp_fir::prelude::*;
+use tspp_fir::{format_args, write};
+use tspp_source::Span;
 
 /// Format a path with dot separated segments.
-impl<'ast> Format<'ast, DestackFormatContext<'ast>> for Path {
+impl<'ast> Format<'ast, TsppFormatContext<'ast>> for Path {
     /// Write every segment with `.` separators.
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         let mut segments = self.segments.iter().copied();
         let Some(first_segment) = segments.next() else {
             return Ok(());
@@ -36,7 +36,7 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for Path {
 
 /// Collect source data for one scalar literal span.
 fn scalar_literal_source_info(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     span: Span,
 ) -> (Option<String>, Option<TokenLiteral>) {
     let token = context.first_token_in_span(span);
@@ -104,7 +104,7 @@ fn push_escaped_char(escaped: &mut String, ch: char, quote_char: char) {
 pub(crate) fn format_scalar_literal<'ast>(
     scalar: &Literal,
     span: Span,
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     let (source_lexeme, literal_type) = scalar_literal_source_info(f.context(), span);
     let source_lexeme = source_lexeme.unwrap_or_default();
@@ -207,7 +207,7 @@ fn format_interpolated_template_literal<'ast>(
     chunks: &[TemplateChunk],
     arguments: &[LocalNodeId<Argument>],
     _template_span: Span,
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     debug_assert_eq!(chunks.len(), arguments.len().saturating_add(1));
 
@@ -304,9 +304,9 @@ enum TemplateElementLayout {
 
 /// Return the layout for one template interpolation argument.
 fn template_argument_layout(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
-    argument_element: Option<&destack_fir::format::FormatElement<'_>>,
+    argument_element: Option<&tspp_fir::format::FormatElement<'_>>,
 ) -> TemplateElementLayout {
     // preserve multiline interpolation expressions from source
     if template_argument_has_newline_in_range(context, argument_id) {
@@ -323,7 +323,7 @@ fn template_argument_layout(
 
 /// Return whether one interpolation argument spans a newline boundary in source.
 fn template_argument_has_newline_in_range(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
     let Some(expression_id) = template_argument_expression_id(context, argument_id) else {
@@ -340,7 +340,7 @@ fn template_argument_has_newline_in_range(
 
 /// Return whether one fit-layout interpolation should indent its body.
 fn template_argument_should_indent_fit_layout(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> bool {
     let Some(expression_id) = template_argument_expression_id(context, argument_id) else {
@@ -367,7 +367,7 @@ fn template_argument_should_indent_fit_layout(
 
 /// Return the unwrapped expression id for a template interpolation argument.
 fn template_argument_expression_id(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> Option<LocalNodeId<Expression>> {
     let value = match context.tree.get(argument_id) {
@@ -379,7 +379,7 @@ fn template_argument_expression_id(
 
 /// Unwrap a template interpolation argument into its underlying expression.
 fn unwrap_template_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> LocalNodeId<Expression> {
     let _ = context;
@@ -391,7 +391,7 @@ fn unwrap_template_expression(
 pub(crate) fn format_template_literal<'ast>(
     template: &TemplateLiteral,
     _span: Span,
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
 ) -> FormatResult<()> {
     match template {
         TemplateLiteral::String { chunk } => {
@@ -440,8 +440,8 @@ fn collapse_tree_whitespace_to_single_spaces(text: &str) -> Option<String> {
     (!collapsed.is_empty()).then_some(collapsed)
 }
 
-impl<'ast> Format<'ast, DestackFormatContext<'ast>> for TypeLiteral {
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<'ast, TsppFormatContext<'ast>> for TypeLiteral {
+    fn format(&self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         match self {
             TypeLiteral::Never => write!(f, [token("never")]),
             TypeLiteral::Undefined => write!(f, [token("undefined")]),
@@ -462,8 +462,8 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for TypeLiteral {
     }
 }
 
-impl<'ast> Format<'ast, DestackFormatContext<'ast>> for IntegerType {
-    fn format(&self, f: &mut Formatter<'_, 'ast, DestackFormatContext<'ast>>) -> FormatResult<()> {
+impl<'ast> Format<'ast, TsppFormatContext<'ast>> for IntegerType {
+    fn format(&self, f: &mut Formatter<'_, 'ast, TsppFormatContext<'ast>>) -> FormatResult<()> {
         match self {
             IntegerType::Fixed { width, is_signed } => {
                 if *is_signed {
@@ -483,8 +483,8 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for IntegerType {
     }
 }
 
-impl<'ast> Format<'ast, DestackFormatContext<'ast>> for FloatType {
-    fn format(&self, f: &mut Formatter<'_, 'ast, DestackFormatContext<'ast>>) -> FormatResult<()> {
+impl<'ast> Format<'ast, TsppFormatContext<'ast>> for FloatType {
+    fn format(&self, f: &mut Formatter<'_, 'ast, TsppFormatContext<'ast>>) -> FormatResult<()> {
         write!(f, [token(self.as_str())])
     }
 }

@@ -1,4 +1,4 @@
-use destack_source::{FilePatch, Patch, Span};
+use tspp_source::{FilePatch, Patch, Span};
 
 use crate::rules::declare_lint;
 use crate::{CommentSentence, CommentSentenceEnding, DirModule, Lint, LintOutput, LintResult};
@@ -371,7 +371,7 @@ const sessions = 1;
         session.assert_diagnostics(
             r#"
 warning[comment-style]: comment uses non-canonical delimiter spacing
- ──▶ main.ds:1:1
+ ──▶ main.tspp:1:1
   │
 1 │ //build the session index
   │ ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -380,8 +380,8 @@ warning[comment-style]: comment uses non-canonical delimiter spacing
 
  = help: separate comment prose from its delimiter with one space
  = fix: use canonical comment spacing
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ //build the session index
 +   1│ // build the session index
@@ -412,7 +412,7 @@ function sessions(): int32 {
         session.assert_diagnostics(
             r#"
 warning[comment-style]: comment uses non-canonical delimiter spacing
- ──▶ main.ds:1:1
+ ──▶ main.tspp:1:1
   │
 1 │ ///# Sessions
   │ ^^^^^^^^^^^^^
@@ -422,8 +422,8 @@ warning[comment-style]: comment uses non-canonical delimiter spacing
 
  = help: separate comment prose from its delimiter with one space
  = fix: use canonical comment spacing
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ ///# Sessions
 +   1│ /// # Sessions
@@ -455,7 +455,7 @@ const sessions = 1;
         session.assert_diagnostics(
             r#"
 warning[comment-style]: ordinary comment continuation is not indented
- ──▶ main.ds:2:1
+ ──▶ main.tspp:2:1
   │
 1 │ // build the session index from every configured source
 2 │ // before publishing the completed index
@@ -465,8 +465,8 @@ warning[comment-style]: ordinary comment continuation is not indented
 
  = help: indent the continued sentence by one additional space
  = fix: use canonical comment spacing
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ // build the session index from every configured source
 -   2│ // before publishing the completed index
@@ -497,7 +497,7 @@ const sessions = 1;
         session.assert_diagnostics(
             r#"
 warning[comment-style]: multiple comment sentences begin on one physical line
- ──▶ main.ds:1:1
+ ──▶ main.tspp:1:1
   │
 1 │ // build the session index. Return the completed index.
   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -506,8 +506,8 @@ warning[comment-style]: multiple comment sentences begin on one physical line
 
  = help: begin each comment sentence on its own physical line
  = fix: use canonical comment sentence layout
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ // build the session index. Return the completed index.
 +   1│ // build the session index.
@@ -538,7 +538,7 @@ const sessions = 1;
         session.assert_diagnostics(
             r#"
 warning[comment-style]: multiple comment sentences begin on one physical line
- ──▶ main.ds:1:1
+ ──▶ main.tspp:1:1
   │
 1 │ /* build the session index. Return the completed index. */
   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -565,7 +565,7 @@ const sessions = 1;
         session.assert_diagnostics(
             r#"
 warning[comment-style]: prose sentence begins with lowercase prose
- ──▶ main.ds:2:4
+ ──▶ main.tspp:2:4
   │
 1 │ // build the session index.
 2 │ // return the completed index.
@@ -575,8 +575,8 @@ warning[comment-style]: prose sentence begins with lowercase prose
 
  = help: begin the sentence with uppercase prose
  = fix: use canonical comment casing
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ // build the session index.
 -   2│ // return the completed index.
@@ -607,7 +607,7 @@ const sessions = 1;
         session.assert_diagnostics(
             r#"
 warning[comment-style]: ordinary comment begins with uppercase prose
- ──▶ main.ds:1:23
+ ──▶ main.tspp:1:23
   │
 1 │ // NOTE #Performance: Build this index once.
   │                       ^
@@ -616,15 +616,15 @@ warning[comment-style]: ordinary comment begins with uppercase prose
 
  = help: begin the comment with a lowercase action or label
  = fix: use canonical comment casing
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ // NOTE #Performance: Build this index once.
 +   1│ // NOTE #Performance: build this index once.
     2│ const sessions = 1;
 
 warning[comment-style]: comment uses non-canonical punctuation
- ──▶ main.ds:1:44
+ ──▶ main.tspp:1:44
   │
 1 │ // NOTE #Performance: Build this index once.
   │                                            ^
@@ -633,8 +633,8 @@ warning[comment-style]: comment uses non-canonical punctuation
 
  = help: remove the final period
  = fix: use canonical comment punctuation
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ // NOTE #Performance: Build this index once.
 +   1│ // NOTE #Performance: Build this index once
@@ -663,7 +663,7 @@ const sessions = 1;
         session.assert_diagnostics(
             r#"
 warning[comment-style]: comment uses non-canonical punctuation
- ──▶ main.ds:1:27
+ ──▶ main.tspp:1:27
   │
 1 │ // build the session index.
   │                           ^
@@ -672,8 +672,8 @@ warning[comment-style]: comment uses non-canonical punctuation
 
  = help: remove the final period
  = fix: use canonical comment punctuation
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ // build the session index.
 +   1│ // build the session index
@@ -720,7 +720,7 @@ function session(): int32 {
         session.assert_diagnostics(
             r#"
 warning[comment-style]: documentation summary is not separated from following prose
- ──▶ main.ds:2:1
+ ──▶ main.tspp:2:1
   │
 1 │ /// Return the active session.
 2 │ /// The caller owns the returned value.
@@ -731,8 +731,8 @@ warning[comment-style]: documentation summary is not separated from following pr
 
  = help: begin further documentation after an empty comment line
  = fix: use canonical comment sentence layout
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ /// Return the active session.
 +   2│ ///
@@ -767,7 +767,7 @@ function session(): int32 {
         session.assert_diagnostics(
             r#"
 warning[comment-style]: documentation summary is not separated from following prose
- ──▶ main.ds:1:1
+ ──▶ main.tspp:1:1
   │
 1 │ /// Return the active session. The caller owns the returned value.
   │ ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -777,8 +777,8 @@ warning[comment-style]: documentation summary is not separated from following pr
 
  = help: begin further documentation after an empty comment line
  = fix: use canonical comment sentence layout
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ /// Return the active session. The caller owns the returned value.
 +   1│ /// Return the active session.
@@ -852,7 +852,7 @@ function session(): int32 {
         session.assert_diagnostics(
             r#"
 warning[comment-style]: comment uses non-canonical punctuation
- ──▶ main.ds:1:30
+ ──▶ main.tspp:1:30
   │
 1 │ /// Return the active session:
   │                              ^
@@ -862,8 +862,8 @@ warning[comment-style]: comment uses non-canonical punctuation
 
  = help: end the sentence with a period
  = fix: use canonical comment punctuation
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ /// Return the active session:
 +   1│ /// Return the active session.
@@ -898,7 +898,7 @@ function authenticate(): int32 {
         session.assert_diagnostics(
             r#"
 warning[comment-style]: comment line exceeds 100 columns
- ──▶ main.ds:1:1
+ ──▶ main.tspp:1:1
   │
 1 │ ··uthenticated `Session<T>` after validating every configured policy for the current incoming request.
   │   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -908,8 +908,8 @@ warning[comment-style]: comment line exceeds 100 columns
 
  = help: wrap comment prose before visual column 100
  = fix: wrap the comment line
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ /// Return the authenticated `Session<T>` after validating every configured policy for the current incoming request.
 +   1│ /// Return the authenticated `Session<T>` after validating every configured policy for the current
@@ -944,7 +944,7 @@ function authenticate(): int32 {
         session.assert_diagnostics(
             r#"
 warning[comment-style]: comment line exceeds 100 columns
- ──▶ main.ds:1:1
+ ──▶ main.tspp:1:1
   │
 1 │ ··sion](https://example.com/session) after validating every configured policy for the current request.
   │   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -954,8 +954,8 @@ warning[comment-style]: comment line exceeds 100 columns
 
  = help: wrap comment prose before visual column 100
  = fix: wrap the comment line
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ /// Return [the authenticated session](https://example.com/session) after validating every configured policy for the current request.
 +   1│ /// Return [the authenticated session](https://example.com/session) after validating every
@@ -988,7 +988,7 @@ const sessions = 1;
         session.assert_diagnostics(
             r#"
 warning[comment-style]: comment line exceeds 100 columns
- ──▶ main.ds:1:1
+ ──▶ main.tspp:1:1
   │
 1 │ ··uthenticated session index after validating every configured policy for the current incoming request
   │   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -997,8 +997,8 @@ warning[comment-style]: comment line exceeds 100 columns
 
  = help: wrap comment prose before visual column 100
  = fix: wrap the comment line
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ // build the authenticated session index after validating every configured policy for the current incoming request
 +   1│ // build the authenticated session index after validating every configured policy for the current
@@ -1029,7 +1029,7 @@ const sessions = 1;
         session.assert_diagnostics(
             r#"
 warning[comment-style]: multiple comment sentences begin on one physical line
- ──▶ main.ds:1:1
+ ──▶ main.tspp:1:1
   │
 1 │ ··index after validating every configured policy for the incoming request. Return the completed index.
   │   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1038,8 +1038,8 @@ warning[comment-style]: multiple comment sentences begin on one physical line
 
  = help: begin each comment sentence on its own physical line
  = fix: use canonical comment sentence layout
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ // build the authenticated session index after validating every configured policy for the incoming request. Return the completed index.
 +   1│ // build the authenticated session index after validating every configured policy for the incoming request.
@@ -1047,7 +1047,7 @@ warning[comment-style]: multiple comment sentences begin on one physical line
     2│ const sessions = 1;
 
 warning[comment-style]: comment line exceeds 100 columns
- ──▶ main.ds:1:1
+ ──▶ main.tspp:1:1
   │
 1 │ ··index after validating every configured policy for the incoming request. Return the completed index.
   │   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1056,8 +1056,8 @@ warning[comment-style]: comment line exceeds 100 columns
 
  = help: wrap comment prose before visual column 100
  = fix: wrap the comment line
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ // build the authenticated session index after validating every configured policy for the incoming request. Return the completed index.
 +   1│ // build the authenticated session index after validating every configured policy for the incoming

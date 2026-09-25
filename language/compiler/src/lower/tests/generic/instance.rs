@@ -19,7 +19,7 @@ function choose(low: int32, high: int32, flag: boolean): float64 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.choose",
         r#"
 function test.main.choose(v0: int32, v1: int32, v2: boolean): float64 {
@@ -47,7 +47,7 @@ entry(v0: int32, v1: int32, v2: boolean):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.pick<int32>",
         r#"
 shared function test.main.pick<int32>(v0: int32, v1: int32, v2: boolean): int32;
@@ -55,7 +55,7 @@ shared function test.main.pick<int32>(v0: int32, v1: int32, v2: boolean): int32;
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.pick<float64>",
         r#"
 shared function test.main.pick<float64>(v0: float64, v1: float64, v2: boolean): float64;
@@ -63,11 +63,11 @@ shared function test.main.pick<float64>(v0: float64, v1: float64, v2: boolean): 
     );
 
     // concrete arguments distinguish both textual and persistent identities
-    let lowered = session.mir_lowered("main.ds");
+    let lowered = session.mir_lowered("main.tspp");
     let strings = session.repository().string_pool();
     let instances: Vec<_> = lowered
         .tree
-        .iter_nodes::<destack_mir::Function>()
+        .iter_nodes::<tspp_mir::Function>()
         .filter_map(|(_, function)| {
             (strings.get(function.name) == "test.main.pick" && function.generics.is_empty())
                 .then_some((&function.arguments, function.symbol))
@@ -92,7 +92,7 @@ function keep(value: (int32, boolean)): (int32, boolean) {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.keep", r#"
+    session.assert_mir_function("main.tspp", "test.main.keep", r#"
 function test.main.keep(v0: (int32, boolean)): (int32, boolean) {
     local l0: (int32, boolean)
 
@@ -109,7 +109,7 @@ entry(v0: (int32, boolean)):
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.identity<(int32, boolean)>",
         r#"
 shared function test.main.identity<(int32, boolean)>(v0: (int32, boolean)): (int32, boolean);
@@ -140,7 +140,7 @@ function readFloat(value: Box<float64>): float64 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.readInt",
         r#"
 type test.main.Box<T> {
@@ -162,7 +162,7 @@ entry(v0: test.main.Box<int32>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.readFloat",
         r#"
 type test.main.Box<T> {
@@ -184,11 +184,11 @@ entry(v0: test.main.Box<float64>):
     );
 
     // assert one template declares Box and two closed applications apply it
-    let lowered = session.mir_lowered("main.ds");
+    let lowered = session.mir_lowered("main.tspp");
     let strings = session.repository().string_pool();
     let templates: Vec<_> = lowered
         .tree
-        .iter_nodes::<destack_mir::TypeDeclaration>()
+        .iter_nodes::<tspp_mir::TypeDeclaration>()
         .filter(|(_, declaration)| {
             declaration
                 .name
@@ -204,11 +204,11 @@ entry(v0: test.main.Box<float64>):
     let [template] = templates.as_slice() else {
         panic!("Box declares one template, found {}", templates.len());
     };
-    let applications: destack_core::FxIndexSet<_> = lowered
+    let applications: tspp_core::FxIndexSet<_> = lowered
         .tree
         .types()
         .filter_map(|(id, ty)| match ty {
-            destack_mir::Type::Application {
+            tspp_mir::Type::Application {
                 base, arguments, ..
             } if *base == *template && !arguments.is_empty() => Some(id),
             _ => None,
@@ -239,7 +239,7 @@ function wide(flag: boolean): float64 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.narrow",
         r#"
 function test.main.narrow(v0: boolean): float64 {
@@ -257,7 +257,7 @@ entry(v0: boolean):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.wide",
         r#"
 function test.main.wide(v0: boolean): float64 {
@@ -275,7 +275,7 @@ entry(v0: boolean):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.pick<float64>",
         r#"
 shared function test.main.pick<float64>(v0: float64, v1: float64, v2: boolean): float64;
@@ -305,7 +305,7 @@ function settle(count: int32, limit: int32, flag: boolean): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.settle",
         r#"
 function test.main.settle(v0: int32, v1: int32, v2: boolean): int32 {
@@ -327,7 +327,7 @@ entry(v0: int32, v1: int32, v2: boolean):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.retry<int32>",
         r#"
 shared function test.main.retry<int32>(v0: int32, v1: int32, v2: boolean): int32;
@@ -339,7 +339,7 @@ shared function test.main.retry<int32>(v0: int32, v1: int32, v2: boolean): int32
 fn test_lower_imported_generic_calls_as_local_instance_copies() {
     let session = TestSession::builder()
         .module(
-            "lib.ds",
+            "lib.tspp",
             r#"
 export function pick<T>(chosen: T, other: T, flag: boolean): T {
     if (flag) {
@@ -350,7 +350,7 @@ export function pick<T>(chosen: T, other: T, flag: boolean): T {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { pick } from "./lib";
 
@@ -362,7 +362,7 @@ function choose(low: int32, high: int32, flag: boolean): int32 {
         .build();
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.choose",
         r#"
 function test.main.choose(v0: int32, v1: int32, v2: boolean): int32 {
@@ -384,7 +384,7 @@ entry(v0: int32, v1: int32, v2: boolean):
     );
 
     session.assert_mir_lowered(
-        "lib.ds",
+        "lib.tspp",
         r#"
 function test.lib.pick<T>(v0: T, v1: T, v2: boolean): T {
     local l0: T
@@ -414,7 +414,7 @@ b2:
 fn test_lower_transitive_imported_instances_through_foreign_bodies() {
     let session = TestSession::builder()
         .module(
-            "lib.ds",
+            "lib.tspp",
             r#"
 export function pick<T>(chosen: T, other: T, flag: boolean): T {
     if (flag) {
@@ -429,7 +429,7 @@ export function retry<T>(value: T, fallback: T, flag: boolean): T {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { retry } from "./lib";
 
@@ -441,7 +441,7 @@ function settle(count: int32, limit: int32, flag: boolean): int32 {
         .build();
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.settle",
         r#"
 function test.main.settle(v0: int32, v1: int32, v2: boolean): int32 {
@@ -463,7 +463,7 @@ entry(v0: int32, v1: int32, v2: boolean):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.lib.retry<int32>",
         r#"
 shared function test.lib.retry<int32>(v0: int32, v1: int32, v2: boolean): int32;
@@ -481,7 +481,7 @@ fn test_lower_instance_names_under_a_named_package() {
 }"#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 function pick<T>(chosen: T, other: T, flag: boolean): T {
     if (flag) {
@@ -498,7 +498,7 @@ function choose(low: int32, high: int32, flag: boolean): int32 {
         .build();
 
     session.assert_mir_lowered(
-        "main.ds",
+        "main.tspp",
         r#"
 function app.main.choose(v0: int32, v1: int32, v2: boolean): int32 {
     local l0: int32
@@ -560,7 +560,7 @@ function run(): int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.apply", r#"
+    session.assert_mir_function("main.tspp", "test.main.apply", r#"
 function test.main.apply(v0: function<(int32) => int32, repeatable, managed, mutable, local>, v1: int32): int32 {
     local l0: function<(int32) => int32, repeatable, managed, mutable, local>
     local l1: int32
@@ -576,7 +576,7 @@ entry(v0: function<(int32) => int32, repeatable, managed, mutable, local>, v1: i
 }
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.run", r#"
+    session.assert_mir_function("main.tspp", "test.main.run", r#"
 function test.main.run(): int32 {
 entry:
     v0: ptr<void, readonly> = null
@@ -588,7 +588,7 @@ entry:
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.identity<int32>",
         r#"
 shared function test.main.identity<int32>(v0: int32): int32;
@@ -600,7 +600,7 @@ shared function test.main.identity<int32>(v0: int32): int32;
 fn test_call_a_generic_method_at_its_argument_instance() {
     let session = TestSession::builder()
         .module(
-            "lib.ds",
+            "lib.tspp",
             r#"
 export class Channel {
     value: int32 = 0;
@@ -610,7 +610,7 @@ export class Channel {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { Channel } from "./lib";
 
@@ -621,7 +621,7 @@ function notify(channel: Channel): void {
         )
         .build();
 
-    session.assert_mir_function("main.ds", "test.main.notify", r#"
+    session.assert_mir_function("main.tspp", "test.main.notify", r#"
 @nocopy
 type test.lib.Channel;
 
@@ -637,7 +637,7 @@ entry(v0: ref<test.lib.Channel, managed, mutable, local>):
 }
 "#);
 
-    session.assert_mir_function("main.ds", "test.lib.Channel.send<int32>", r#"
+    session.assert_mir_function("main.tspp", "test.lib.Channel.send<int32>", r#"
 @nocopy
 type test.lib.Channel;
 
@@ -649,7 +649,7 @@ shared function test.lib.Channel.send<int32>(v0: ref<test.lib.Channel, managed, 
 fn test_call_a_generic_owner_method_at_its_instance() {
     let session = TestSession::builder()
         .module(
-            "lib.ds",
+            "lib.tspp",
             r#"
 export class Box<T> {
     value: T;
@@ -665,7 +665,7 @@ export class Box<T> {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { Box } from "./lib";
 
@@ -676,7 +676,7 @@ function unwrap(box: Box<int32>): int32 {
         )
         .build();
 
-    session.assert_mir_function("main.ds", "test.main.unwrap", r#"
+    session.assert_mir_function("main.tspp", "test.main.unwrap", r#"
 @nocopy
 type test.lib.Box<T>;
 
@@ -692,7 +692,7 @@ entry(v0: ref<test.lib.Box<int32>, managed, mutable, local>):
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.lib.Box.read<int32>",
         r#"
 @nocopy
@@ -707,7 +707,7 @@ shared function test.lib.Box.read<int32>(v0: ref<test.lib.Box<int32>, managed, m
 fn test_call_an_inherited_generic_method_at_the_base_instance() {
     let session = TestSession::builder()
         .module(
-            "lib.ds",
+            "lib.tspp",
             r#"
 export class Source<T> {
     value: T;
@@ -729,7 +729,7 @@ export class Tap<T> extends Source<T> {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { Tap } from "./lib";
 
@@ -740,7 +740,7 @@ function drain(tap: Tap<int32>): int32 {
         )
         .build();
 
-    session.assert_mir_function("main.ds", "test.main.drain", r#"
+    session.assert_mir_function("main.tspp", "test.main.drain", r#"
 @nocopy
 type test.lib.Tap<T>;
 
@@ -759,7 +759,7 @@ entry(v0: ref<test.lib.Tap<int32>, managed, mutable, local>):
 }
 "#);
 
-    session.assert_mir_function("main.ds", "test.lib.Source.read<int32>", r#"
+    session.assert_mir_function("main.tspp", "test.lib.Source.read<int32>", r#"
 @nocopy
 type test.lib.Source<T>;
 
@@ -771,7 +771,7 @@ shared function test.lib.Source.read<int32>(v0: ref<test.lib.Source<int32>, mana
 fn test_lower_isomorphic_newtype_instances_separately() {
     let session = TestSession::builder()
         .module(
-            "lib.ds",
+            "lib.tspp",
             r#"
 export newtype AId = int32;
 export newtype ARef = AId;
@@ -788,7 +788,7 @@ export function wrap<T>(value: T): Pair<T> {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { AId, ARef, BId, BRef, wrap } from "./lib";
 
@@ -801,7 +801,7 @@ function run(): int32 {
         )
         .build();
 
-    session.assert_mir_function("main.ds", "test.main.run", r#"
+    session.assert_mir_function("main.tspp", "test.main.run", r#"
 type test.lib.ARef;
 
 type test.lib.AId;
@@ -833,7 +833,7 @@ entry:
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.lib.wrap<test.lib.ARef>",
         r#"
 type test.lib.ARef;
@@ -845,7 +845,7 @@ shared function test.lib.wrap<test.lib.ARef>(v0: test.lib.ARef): test.lib.Pair<t
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.lib.wrap<test.lib.BRef>",
         r#"
 type test.lib.Pair<T>;
@@ -861,7 +861,7 @@ shared function test.lib.wrap<test.lib.BRef>(v0: test.lib.BRef): test.lib.Pair<t
 fn test_call_a_generic_extension_static_across_modules() {
     let session = TestSession::builder()
         .module(
-            "lib.ds",
+            "lib.tspp",
             r#"
 export struct Wrap<'a, T> {
     value: &'a readonly T;
@@ -877,7 +877,7 @@ export extension<'a, T> of Wrap<'a, T> {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { Wrap } from "./lib";
 
@@ -888,7 +888,7 @@ function build(message: &readonly int32): Wrap<int32> {
         )
         .build();
 
-    session.assert_mir_function("main.ds", "test.main.build", r#"
+    session.assert_mir_function("main.tspp", "test.main.build", r#"
 type test.lib.Wrap<'a, T>;
 
 function test.main.build<'a>(v0: ref<int32, borrowed, 'a, readonly>): test.lib.Wrap<'a, int32> {
@@ -907,7 +907,7 @@ entry(v0: ref<int32, borrowed, 'a, readonly>):
 fn test_call_a_witness_member_at_a_closed_newtype_argument() {
     let session = TestSession::single(
         r#"
-import { IoError } from "destack:error";
+import { IoError } from "tspp:error";
 
 interface Awaitable<T> {
     park(&this): T;
@@ -935,7 +935,7 @@ function take(reader: Reader): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.take",
         r#"
 @nocopy
@@ -994,7 +994,7 @@ struct Cell<T> {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Cell.index",
         r#"
 type test.main.Cell<T> {
@@ -1035,7 +1035,7 @@ export extension<T, 'a, const A: Access> of Borrowed<Cell<T>, 'a, A> {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Cell.index",
         r#"
 type test.main.Cell<T> {
@@ -1059,7 +1059,7 @@ entry(v0: ref<test.main.Cell<T>, borrowed, 'a, A>):
 fn test_copy_a_parameter_through_its_integer_bound() {
     let session = TestSession::single(
         r#"
-import { Integer } from "destack:math";
+import { Integer } from "tspp:math";
 
 export function twice<T: Integer>(value: &T): T {
     const first: T = *value;
@@ -1069,7 +1069,7 @@ export function twice<T: Integer>(value: &T): T {
 "#,
     );
     session.assert_mir_lowered(
-        "main.ds",
+        "main.tspp",
         r#"
 @nocopy
 @languageItem("math.Integer")
@@ -1136,7 +1136,7 @@ newtype interface Dup {
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Dup.dupFrom",
         r#"
 @nocopy
@@ -1163,7 +1163,7 @@ entry(v0: ref<?this, borrowed, 'a, mutable>, v1: ref<?this, borrowed, 'b, readon
 fn test_replace_through_an_exclusive_reference_at_an_open_type() {
     let session = TestSession::single(
         r#"
-import { replace } from "destack:memory";
+import { replace } from "tspp:memory";
 
 struct Cell<T> {
     value: T;
@@ -1181,7 +1181,7 @@ export extension<T> of Cell<T> {
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Cell.set",
         r#"
 type test.main.Cell<T> {
@@ -1211,8 +1211,8 @@ entry(v0: ref<test.main.Cell<T>, borrowed, 'a, exclusive>, v1: T):
 fn test_address_a_slice_element_at_the_slice_access() {
     let session = TestSession::single(
         r#"
-import { Slice } from "destack:collections";
-import { Copy } from "destack:memory";
+import { Slice } from "tspp:collections";
+import { Copy } from "tspp:memory";
 
 @unsafe
 @intrinsic("collections.slice.get")
@@ -1227,7 +1227,7 @@ extension<T> of Slice<T> {
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Slice.unsafeGet2",
         r#"
 function test.main.Slice.unsafeGet2<T: Copy, 'a>(v0: slice<T, borrowed, 'a, readonly>, v1: usize): T {
@@ -1267,7 +1267,7 @@ function fill<T: Default>(): Slot<T> {
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.fill",
         r#"
 type test.main.Slot<T> {
@@ -1306,7 +1306,7 @@ export extension<'a, T> of Holder<'a, T> {
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Holder.same",
         r#"
 type test.main.Holder<'a, T> {

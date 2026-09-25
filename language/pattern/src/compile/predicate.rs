@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_dir as dir;
-use destack_source::{DiagnosticCollection, File};
+use tspp_dir as dir;
+use tspp_source::{DiagnosticCollection, File};
 
 use super::compiler::Compiler;
 use super::marker::{Marker, MarkerError};
@@ -256,7 +256,7 @@ impl Compiler {
         tree: &dir::Tree,
         expression: dir::LocalNodeId<dir::Expression>,
         file: &File,
-    ) -> Result<destack_artifact::DiagnosticAnchor, DiagnosticCollection> {
+    ) -> Result<tspp_artifact::DiagnosticAnchor, DiagnosticCollection> {
         let Some(span) = tree.get_span_by_id(expression.id) else {
             let error = PredicateError::Internal {
                 anchor: file.id.into(),

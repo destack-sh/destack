@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::Patch;
+use tspp_dir as dir;
+use tspp_source::Patch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -128,7 +128,7 @@ class Token {
         session.assert_diagnostics(
             r#"
 warning[no-useless-constructor]: constructor repeats implicit construction
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ class Token {
 2 │     constructor() {}
@@ -137,8 +137,8 @@ warning[no-useless-constructor]: constructor repeats implicit construction
   │
 
  = fix: remove the unnecessary constructor
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ class Token {
 -   2│     constructor() {}

@@ -5,9 +5,7 @@ use crate::common::{
 };
 use crate::console;
 use clap::Args;
-use destack_workspace::{
-    CommandRevision, TaskAction, TaskEntry, TaskInput, TaskPayload, TaskResult,
-};
+use tspp_workspace::{CommandRevision, TaskAction, TaskEntry, TaskInput, TaskPayload, TaskResult};
 
 /// Arguments for the task command.
 #[derive(Args, Debug, Clone)]

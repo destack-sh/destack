@@ -1,6 +1,6 @@
 use std::mem::size_of;
 
-use destack_heap::DEFAULT_HEAP_PAGE_SIZE_BYTES;
+use tspp_heap::DEFAULT_HEAP_PAGE_SIZE_BYTES;
 
 /// The virtual memory range reserved by memory map benchmarks.
 pub(crate) const SPACE_SIZE_BYTES: usize = 16 * 1024 * 1024;

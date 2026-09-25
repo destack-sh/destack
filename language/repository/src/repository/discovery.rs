@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_source::{ModuleId, PackageId, TargetId, matches};
+use tspp_source::{ModuleId, PackageId, TargetId, matches};
 
 use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{DestackFile, Package, Target, TargetRoot};

@@ -1,0 +1,7 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / rc / reference counted handles
+let handle: Rc<User> = Rc.new(user);
+//          ^^ entity.name.type.tspp
+
+let clone = handle.clone();

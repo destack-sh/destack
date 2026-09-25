@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_overloaded_negate_selects_extension_method() {
     let session = TestSession::single(
         r#"
-import { Negate } from "destack:ops";
+import { Negate } from "tspp:ops";
 
 struct Charge {
     value: float64;
@@ -24,11 +24,11 @@ const flipped = -charge;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Negate } from "destack:ops";
+import { Negate } from "tspp:ops";
 
 struct Charge {
     value: float64;
@@ -46,7 +46,7 @@ declare const charge: Charge;
 const flipped: Charge = -charge;
 
 === dir ===
-import { Negate } from "destack:ops";
+import { Negate } from "tspp:ops";
 
 struct Charge {
 /// @type.symbol symbol=Charge type=Charge

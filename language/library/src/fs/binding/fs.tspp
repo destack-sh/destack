@@ -1,0 +1,37 @@
+import * as binding from "tspp:binding";
+
+import { AttributeBinding } from "./attribute.tspp";
+import { DirectoryBinding } from "./directory.tspp";
+import { FileBinding } from "./file.tspp";
+import { MountBinding } from "./mount.tspp";
+import { NamespaceBinding } from "./namespace.tspp";
+import { StatusBinding } from "./status.tspp";
+import { VolumeBinding } from "./volume.tspp";
+import { WatchBinding } from "./watch.tspp";
+import { XattrBinding } from "./xattr.tspp";
+
+/// Current filesystem binding family.
+export const fs: binding.Binding<Binding> = new binding.Binding<Binding>("fs");
+
+/// Filesystem binding family.
+@languageItem("fs.Binding")
+export interface Binding {
+    /// File attribute bindings.
+    readonly attribute: AttributeBinding;
+    /// Directory bindings.
+    readonly directory: DirectoryBinding;
+    /// File descriptor bindings.
+    readonly file: FileBinding;
+    /// Mount table bindings.
+    readonly mount: MountBinding;
+    /// Namespace bindings.
+    readonly namespace: NamespaceBinding;
+    /// Status bindings.
+    readonly status: StatusBinding;
+    /// Volume bindings.
+    readonly volume: VolumeBinding;
+    /// Watch bindings.
+    readonly watch: WatchBinding;
+    /// Extended attribute bindings.
+    readonly xattr: XattrBinding;
+}

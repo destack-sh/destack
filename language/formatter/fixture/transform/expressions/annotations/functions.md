@@ -6,11 +6,11 @@
 
 Parameter annotations stay attached to the parameter.
 
-```ds
+```tspp
 function process(@nonempty input: string) { return input }
 ```
 
-```ds expected
+```tspp expected
 function process(@nonempty input: string) {
     return input;
 }
@@ -20,11 +20,11 @@ function process(@nonempty input: string) {
 
 Decorator prefixed return types stay attached after `:`.
 
-```ds
+```tspp
 function build(value: Buffer): @addrspace("shared") &Buffer { return value }
 ```
 
-```ds expected
+```tspp expected
 function build(value: Buffer): @addrspace("shared") &Buffer {
     return value;
 }
@@ -34,13 +34,13 @@ function build(value: Buffer): @addrspace("shared") &Buffer {
 
 Decorator prefixed return types stay attached after `:` under non-default formatter options.
 
-```ds:main.ds indent-width=2 line-width=80
+```tspp:main.tspp indent-width=2 line-width=80
 {
     function build(value: Buffer): @addrspace("shared") &Buffer { return value; }
 }
 ```
 
-```ds expected
+```tspp expected
 {
   function build(value: Buffer): @addrspace("shared") &Buffer {
     return value;
@@ -52,7 +52,7 @@ Decorator prefixed return types stay attached after `:` under non-default format
 
 Comments between method signatures and bodies stay at the boundary.
 
-```ds:main.ds
+```tspp:main.tspp
 class Box {
   run(): number // method-body
   {
@@ -61,7 +61,7 @@ class Box {
 }
 ```
 
-```ds expected
+```tspp expected
 class Box {
     run(): number {
         // method-body

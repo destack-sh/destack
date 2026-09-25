@@ -1903,7 +1903,7 @@ extern "C" {
 #define TS_PUBLIC __attribute__((visibility("default")))
 #endif
 
-TS_PUBLIC const TSLanguage *tree_sitter_destack_bytecode(void) {
+TS_PUBLIC const TSLanguage *tree_sitter_tspp_bytecode(void) {
   static const TSLanguage language = {
     .abi_version = LANGUAGE_VERSION,
     .symbol_count = SYMBOL_COUNT,
@@ -1933,7 +1933,7 @@ TS_PUBLIC const TSLanguage *tree_sitter_destack_bytecode(void) {
     .keyword_lex_fn = ts_lex_keywords,
     .keyword_capture_token = sym_identifier,
     .primary_state_ids = ts_primary_state_ids,
-    .name = "destack_bytecode",
+    .name = "tspp_bytecode",
     .max_reserved_word_set_size = 0,
     .metadata = {
       .major_version = 0,

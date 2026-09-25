@@ -1,12 +1,12 @@
-use destack_runtime::service::WorldId;
+use tspp_runtime::service::WorldId;
 
 use super::{
     CloseWorkspaceRequest, CloseWorldRequest, CreateWorldRequest, OpenWorkspaceRequest,
     OpenWorkspaceResponse, RestoreWorldRequest,
 };
 
-/// RPC operations on one Destack daemon.
-#[destack_rpc::service(name = "destack.daemon.Daemon")]
+/// RPC operations on one TS++ daemon.
+#[tspp_rpc::service(name = "tspp.daemon.Daemon")]
 pub trait DaemonService {
     // =============================================================================
     // Workspace

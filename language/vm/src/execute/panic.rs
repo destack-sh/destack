@@ -1,5 +1,5 @@
-use destack_bytecode::{Instruction, Opcode};
-use destack_program::{Event, FrameEvent, Runtime, TypeId};
+use tspp_bytecode::{Instruction, Opcode};
+use tspp_program::{Event, FrameEvent, Runtime, TypeId};
 
 use crate::diagnostic::{Error, ExecutionResult, Panic, Trap};
 use crate::machine::{Activation, Return};

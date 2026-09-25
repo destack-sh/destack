@@ -9,17 +9,17 @@ use crate::expression::{
 };
 use crate::file::{node_has_ignore_directive, write_ignored_node};
 use crate::operator::{format_operator_expression, write_operator_expression_trailing_annotations};
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_core::ensure_sufficient_stack;
-use destack_dir::{Expression, LocalNodeId};
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::{format_with, token};
-use destack_fir::write;
-use destack_source::{NodeSpanRegion, NodeSpanType, Span};
+use crate::{FormatNode, TsppFormatContext, TsppFormatter};
+use tspp_core::ensure_sufficient_stack;
+use tspp_dir::{Expression, LocalNodeId};
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::{format_with, token};
+use tspp_fir::write;
+use tspp_source::{NodeSpanRegion, NodeSpanType, Span};
 
 /// Return the enclosing and preceding spans for trailing expression comments.
 fn expression_trailing_comment_spans(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> (Span, Span) {
     let expression_span = context.span(expression_id);
@@ -52,7 +52,7 @@ fn expression_trailing_comment_spans(
 
 /// Write one expression after prefix annotations are handled externally.
 fn write_expression_without_prefix_annotations_inner<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let expression = f.context().tree.get(expression_id);
@@ -62,7 +62,7 @@ fn write_expression_without_prefix_annotations_inner<'ast>(
 
 /// Write trailing annotations for one expression.
 fn write_expression_trailing_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> FormatResult<()> {
@@ -137,7 +137,7 @@ fn write_expression_trailing_annotations<'ast>(
 
 /// Write one expression's prefix annotations.
 fn write_expression_prefix_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let has_prefix_annotation = f.context().has_prefix_annotation(node_id);
@@ -152,7 +152,7 @@ fn write_expression_prefix_annotations<'ast>(
 
 /// Write one expression's prefix annotations and positional leading comments.
 fn write_expression_prefix_annotations_and_leading_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let expression_span = f.context().span(node_id);
@@ -169,7 +169,7 @@ fn write_expression_prefix_annotations_and_leading_comments<'ast>(
 
 /// Write one expression without derived parentheses.
 pub(crate) fn write_expression_without_derived_parentheses<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     write_expression_prefix_annotations_and_leading_comments(f, node_id)?;
@@ -180,7 +180,7 @@ pub(crate) fn write_expression_without_derived_parentheses<'ast>(
 
 /// Write trailing comments and annotations for one expression node.
 fn write_expression_trailing_node_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let expression = f.context().tree.get(expression_id);
@@ -208,7 +208,7 @@ fn write_expression_trailing_node_annotations<'ast>(
 
 /// Write one expression after prefix annotations are handled externally.
 pub(crate) fn write_expression_without_prefix_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     write_expression_body_and_trailing_annotations(f, expression_id)
@@ -216,7 +216,7 @@ pub(crate) fn write_expression_without_prefix_annotations<'ast>(
 
 /// Write one expression body and its trailing annotations with required parentheses.
 fn write_expression_body_and_trailing_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let preserves_source_parentheses =
@@ -248,7 +248,7 @@ fn write_expression_body_and_trailing_annotations<'ast>(
 
 /// Format one expression body without leading comments, prefix annotations, or trailing annotations.
 fn format_expression_body<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> FormatResult<()> {
@@ -257,7 +257,7 @@ fn format_expression_body<'ast>(
 
 /// Format one expression body.
 fn format_expression_body_inner<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> FormatResult<()> {
@@ -337,7 +337,7 @@ fn format_expression_body_inner<'ast>(
 
 /// Format an expression without prefix and postfix annotations.
 pub(crate) fn format_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     expression: &Expression,
     is_ignored: bool,
@@ -349,7 +349,7 @@ pub(crate) fn format_expression<'ast>(
 
     // derived parentheses
     if expression_needs_parentheses_in_parent(f.context(), node_id) {
-        let parenthesized_body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let parenthesized_body = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             write!(f, [token("(")])?;
             format_expression_body(f, node_id, expression)?;
             write!(f, [token(")")])
@@ -365,7 +365,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
     fn format_node(
         &self,
         node_id: LocalNodeId<Expression>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         // tree expressions own leading comments
         if matches!(self, Expression::TreeExpression { .. }) {
@@ -387,7 +387,7 @@ impl<'ast> FormatNode<'ast, Expression> for Expression {
 
 /// Write one expression without trailing comments.
 pub(crate) fn write_expression_without_trailing_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     if node_has_ignore_directive(f.context(), expression_id) {

@@ -1,5 +1,5 @@
 use clap::Args;
-use destack_linter as linter;
+use tspp_linter as linter;
 
 use super::check::{self, Format, Progress};
 use crate::common::{

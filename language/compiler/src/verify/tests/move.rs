@@ -24,7 +24,7 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
     program.assert_verify_errors(
         r#"
 error[use-after-move]: use of moved value
-  ──▶ <test.dsm>:11:5
+  ──▶ <test.tsppm>:11:5
    │
  8 │ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
  9 │     v2: Pair = aggregate (v0, v1)
@@ -36,7 +36,7 @@ error[use-after-move]: use of moved value
 13 │     return
    │
 
-for more information about an error, run `destack explain use-after-move`
+for more information about an error, run `tspp explain use-after-move`
 "#,
     );
 }
@@ -331,7 +331,7 @@ entry(v0: Value):
     program.assert_verify_errors(
         r#"
 error[use-after-move]: use of moved value
- ──▶ <test.dsm>:7:5
+ ──▶ <test.tsppm>:7:5
   │
 4 │ function test(v0: Value): void {
 5 │ entry(v0: Value):
@@ -343,7 +343,7 @@ error[use-after-move]: use of moved value
 9 │ }
   │
 
-for more information about an error, run `destack explain use-after-move`
+for more information about an error, run `tspp explain use-after-move`
 "#,
     );
 }
@@ -403,7 +403,7 @@ entry(v0: Pair):
     program.assert_verify_errors(
         r#"
 error[use-after-move]: use of moved value
-  ──▶ <test.dsm>:15:5
+  ──▶ <test.tsppm>:15:5
    │
 12 │     v1: ref<Pair, borrowed, 'frame, exclusive> = address l0
 13 │     v2: ref<ref<int32, unique, mutable>, borrowed, 'frame, exclusive> = address (*v1).0
@@ -415,7 +415,7 @@ error[use-after-move]: use of moved value
 17 │ }
    │
 
-for more information about an error, run `destack explain use-after-move`
+for more information about an error, run `tspp explain use-after-move`
 "#,
     );
 }
@@ -475,7 +475,8 @@ export function main(): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -540,7 +541,7 @@ export function disjointFields(): void {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#"
+    session.assert_mir_verified_diagnostics("main.tspp", r#"
 /// @diagnostic.error id=use-after-move message="use of moved value"
 /// @diagnostic.label line=22 column=10 span="&readonly x.b.id" line_source="read(&readonly x.b.id);"
 /// @diagnostic.related line=21 column=13 span="x.b" line_source="consume(x.b);" message="value moved here"
@@ -558,7 +559,7 @@ export function disjointFields(): void {
 fn test_reject_a_move_out_through_an_exclusive_borrow_parameter() {
     let session = TestSession::single(
         r#"
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 function take(source: &exclusive Box<int32>): Box<int32> {
     return *source;
@@ -567,7 +568,7 @@ function take(source: &exclusive Box<int32>): Box<int32> {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds",
+        "main.tspp",
         r#"
 /// @diagnostic.error id=move-out-of-reference message="cannot move out through a reference"
 /// @diagnostic.label line=5 column=12 span="*source" line_source="return *source;"
@@ -594,7 +595,7 @@ entry:
     program.assert_verify_errors(
         r#"
 error[move-out-of-reference]: cannot move out through a reference
- ──▶ <test.dsm>:7:5
+ ──▶ <test.tsppm>:7:5
   │
 5 │ entry:
 6 │     v0: ref<ref<int32, unique, mutable>, borrowed, 'static, exclusive> = address @slot
@@ -604,7 +605,7 @@ error[move-out-of-reference]: cannot move out through a reference
 9 │ }
   │
 
-for more information about an error, run `destack explain move-out-of-reference`
+for more information about an error, run `tspp explain move-out-of-reference`
 "#,
     );
 }
@@ -656,7 +657,7 @@ entry(v0: ref<Box, borrowed, 'a, exclusive>):
     program.assert_verify_errors(
         r#"
 error[move-out-of-reference]: cannot move out through a reference
-  ──▶ <test.dsm>:11:5
+  ──▶ <test.tsppm>:11:5
    │
  9 │ entry(v0: ref<Box, borrowed, 'a, exclusive>):
 10 │     store l0, v0
@@ -666,7 +667,7 @@ error[move-out-of-reference]: cannot move out through a reference
 13 │ }
    │
 
-for more information about an error, run `destack explain move-out-of-reference`
+for more information about an error, run `tspp explain move-out-of-reference`
 "#,
     );
 }
@@ -696,7 +697,7 @@ entry(v0: Box):
     program.assert_verify_errors(
         r#"
 error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
-  ──▶ <test.dsm>:12:5
+  ──▶ <test.tsppm>:12:5
    │
  9 │ entry(v0: Box):
 10 │     store l0, v0
@@ -708,7 +709,7 @@ error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
 14 │     return v2
    │
 
-for more information about an error, run `destack explain invalidation-of-borrowed-place`
+for more information about an error, run `tspp explain invalidation-of-borrowed-place`
 "#,
     );
 }

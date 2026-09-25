@@ -1,6 +1,6 @@
 use std::fs;
 
-use destack_lsp_types as lsp;
+use tspp_lsp_types as lsp;
 
 use super::tests::{MANIFEST, TestServer, range, replace, replace_document};
 
@@ -10,15 +10,15 @@ async fn test_move_diagnostic_labels_after_source_edits() {
     let library = r#"export const helper: int32 = 1;
 export const sibling: int32 = 2;
 "#;
-    let source = r#"import { helper } from "./library.ds";
+    let source = r#"import { helper } from "./library.tspp";
 
 const first = helper;
 const second = sibling;
 "#;
     let mut server = TestServer::new("cross-file-diagnostic-label");
     server.write("destack.json", MANIFEST);
-    let library_document = server.write("src/library.ds", library);
-    let document = server.write("src/main.ds", source);
+    let library_document = server.write("src/library.tspp", library);
+    let document = server.write("src/main.tspp", source);
     let capabilities = lsp::ClientCapabilities {
         text_document: Some(lsp::TextDocumentClientCapabilities {
             diagnostic: Some(lsp::DiagnosticClientCapabilities::default()),
@@ -98,7 +98,7 @@ class Foo {
 }
 "#;
     let mut server = TestServer::new("parser-diagnostics-before-check-failure");
-    let document = server.write("main.ds", valid);
+    let document = server.write("main.tspp", valid);
     server
         .initialize(lsp::ClientCapabilities::default(), None)
         .await
@@ -136,7 +136,7 @@ async fn test_return_workspace_diagnostics() {
     let source = r#"const value = missing;
 "#;
     let mut server = TestServer::new("workspace-diagnostics");
-    let document = server.write("main.ds", source);
+    let document = server.write("main.tspp", source);
     let capabilities = lsp::ClientCapabilities {
         text_document: Some(lsp::TextDocumentClientCapabilities {
             diagnostic: Some(lsp::DiagnosticClientCapabilities::default()),
@@ -243,7 +243,7 @@ async fn test_return_workspace_diagnostics() {
     server.close(&document).await;
     let request = server.workspace_diagnostics(Vec::new());
     server.assert_request(request, Ok(original)).await;
-    fs::remove_file(server.root().join("main.ds")).unwrap();
+    fs::remove_file(server.root().join("main.tspp")).unwrap();
     server
         .notify::<lsp::notification::DidChangeWatchedFiles>(lsp::DidChangeWatchedFilesParams {
             changes: vec![lsp::FileEvent {

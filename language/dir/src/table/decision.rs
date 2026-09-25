@@ -1,10 +1,10 @@
-use destack_serde::Reflect;
 use std::slice;
 use std::sync::Arc;
+use tspp_serde::Reflect;
 
-use destack_core::FxIndexMap as IndexMap;
-use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
+use tspp_core::FxIndexMap as IndexMap;
+use tspp_source::ModuleId;
 
 use crate::{
     AccessResolution, ArgumentBinding, AssignPatternDecision, AssignmentDecision, BindingUse, Call,
@@ -65,7 +65,7 @@ pub enum Decision {
 /// Iteration protocol calls selected for one for-of loop.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// for (const item of items) {}
 /// for await (const item of items) {}
 /// for (using const item of items) {}
@@ -99,7 +99,7 @@ pub struct IterationAwait {
 /// Protocol calls selected for one interpolated template.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// `n=${count}`   // Display.display per span, then the template join
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect, TypeFold, InstanceKeyVisit)]
@@ -113,7 +113,7 @@ pub struct TemplateDecision {
 /// Disposal protocol calls selected for one `using` binding.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// using file = open(path);          // Dispose.dispose at scope exit
 /// await using conn = connect(url);  // AsyncDispose.asyncDispose, its completion parked
 /// ```
@@ -139,7 +139,7 @@ pub enum AwaitTarget {
 /// Try protocol calls selected for one propagating operator.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// readFile(path)?          // Try.branch, then FromResidual.fromResidual at the target
 /// maybeValue?              // a nullish operand branches on its own absent case
 /// ```

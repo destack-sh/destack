@@ -9,7 +9,7 @@ const value = "hello";
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -33,7 +33,7 @@ let value = "hello";
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -57,7 +57,7 @@ const value: string = "hello";
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -81,7 +81,7 @@ const value = "";
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -105,7 +105,7 @@ const value: number = "hello";
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -129,7 +129,7 @@ const value: number = "hello";
 fn test_string_literal_resolves_class_member() {
     let session = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 const isEmpty = "".isEmpty;
 
@@ -139,7 +139,7 @@ isEmpty satisfies boolean;
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -171,7 +171,7 @@ isEmpty satisfies boolean;
 fn test_string_alias_resolves_class_member() {
     let session = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let value: string = "";
 const isEmpty = value.isEmpty;
@@ -182,7 +182,7 @@ isEmpty satisfies boolean;
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===

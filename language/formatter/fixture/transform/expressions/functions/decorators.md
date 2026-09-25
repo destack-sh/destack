@@ -6,12 +6,12 @@
 
 Function decorators appear on their own line above the function.
 
-```ds
+```tspp
 @deprecated("use newFoo")
 function oldFoo() { }
 ```
 
-```ds expected
+```tspp expected
 @deprecated("use newFoo")
 function oldFoo() {}
 ```
@@ -20,13 +20,13 @@ function oldFoo() {}
 
 Multiple decorators each get their own line, in order.
 
-```ds
+```tspp
 @log
 @memoize
 function compute(x: number): number { return x * 2 }
 ```
 
-```ds expected
+```tspp expected
 @log
 @memoize
 function compute(x: number): number {
@@ -38,12 +38,12 @@ function compute(x: number): number {
 
 Decorator arguments follow function call formatting rules.
 
-```ds
+```tspp
 @route("/api/users", { method: "GET" })
 async function getUsers() { }
 ```
 
-```ds expected
+```tspp expected
 @route("/api/users", { method: "GET" })
 async function getUsers() {}
 ```

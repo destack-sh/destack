@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -113,7 +113,7 @@ class Service {
         session.assert_diagnostics(
             r#"
 warning[no-this-alias]: binding aliases the current receiver
- ──▶ main.ds:3:13
+ ──▶ main.tspp:3:13
   │
 1 │ class Service {
 2 │     run(): void {

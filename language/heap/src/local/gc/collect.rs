@@ -1,5 +1,5 @@
 use crate::TraceView;
-use destack_mir::TraceMap;
+use tspp_mir::TraceMap;
 
 use crate::local::gc::{GC_METADATA_STEP_BYTES, MarkWork, Phase, ReclaimCursor};
 use crate::local::storage::{HeapExtent, HeapPlace, HeapStorage};

@@ -1,25 +1,25 @@
 use std::sync::Arc;
 
-use destack_artifact::{ConditionSet, Host, MirLowered, MirOptimized, Platform, Runtime};
-use destack_compiler::{BytecodeEmitter, ObjectEmitter, ProgramLinker};
-use destack_core::StringPool;
-use destack_heap::{
+use tspp_artifact::{ConditionSet, Host, MirLowered, MirOptimized, Platform, Runtime};
+use tspp_compiler::{BytecodeEmitter, ObjectEmitter, ProgramLinker};
+use tspp_core::StringPool;
+use tspp_heap::{
     AllocationCache, AllocationPlan, DEFAULT_HEAP_PAGE_SIZE_BYTES, DEFAULT_MEMORY_MAP_SIZE_BYTES,
     Heap, HeapLimits, HeapOptions, SharedHeap, SharedHeapLimits, SharedHeapOptions,
     SharedMarkWorker,
 };
-use destack_memory::{MemoryMap, MemoryRange};
-use destack_mir as mir;
-use destack_program as program;
-use destack_program::{Activation, FunctionId, Memory, Outcome, StaticSpace, Value};
-use destack_repository::{Environment, RuntimeOptions, WorldOptions};
-use destack_runtime::binding::BindingTable;
-use destack_runtime::machine::{Engine, Entry};
-use destack_runtime::runtime::RuntimeId;
-use destack_runtime::worker::WorkerOptions;
-use destack_runtime::world::{RunOutcome, World};
-use destack_source::{DiagnosticSeverity, File, FileId, FileType, ModuleId, PackageId, Uri};
-use destack_vm::{Error, Machine, MachineLimits, Result};
+use tspp_memory::{MemoryMap, MemoryRange};
+use tspp_mir as mir;
+use tspp_program as program;
+use tspp_program::{Activation, FunctionId, Memory, Outcome, StaticSpace, Value};
+use tspp_repository::{Environment, RuntimeOptions, WorldOptions};
+use tspp_runtime::binding::BindingTable;
+use tspp_runtime::machine::{Engine, Entry};
+use tspp_runtime::runtime::RuntimeId;
+use tspp_runtime::worker::WorkerOptions;
+use tspp_runtime::world::{RunOutcome, World};
+use tspp_source::{DiagnosticSeverity, File, FileId, FileType, ModuleId, PackageId, Uri};
+use tspp_vm::{Error, Machine, MachineLimits, Result};
 
 /// Exported entrypoint measured by the footprint benchmarks.
 const ENTRY: &str = "bench.entry";
@@ -53,7 +53,7 @@ pub(crate) struct VmMachine {
     /// Footprint entry function.
     entry: FunctionId,
     /// Reusable footprint execution fiber.
-    fiber: destack_vm::Fiber,
+    fiber: tspp_vm::Fiber,
     /// Machine under measurement.
     machine: Machine,
     /// Runtime allocation plans indexed by Program allocation site id.
@@ -95,7 +95,7 @@ impl RuntimeSetup {
                 labels: Default::default(),
                 platform: Platform::Unknown,
                 host: Host::Native,
-                runtime: Runtime::Destack,
+                runtime: Runtime::Tspp,
             }),
             environment: Arc::new(Environment::default()),
         }
@@ -331,8 +331,8 @@ impl VmSetup {
     fn build_mir(self) -> (MirOptimized, StringPool) {
         let file = File::from_text(
             FileId::from_source_bytes(PROGRAM.as_bytes()),
-            "<footprint.dsm>".to_string(),
-            Uri::from_string("<footprint.dsm>"),
+            "<footprint.tsppm>".to_string(),
+            Uri::from_string("<footprint.tsppm>"),
             None,
             FileType::Text,
             PROGRAM.to_string(),

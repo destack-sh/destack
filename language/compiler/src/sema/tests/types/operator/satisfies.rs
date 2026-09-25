@@ -15,7 +15,7 @@ handler.run(1) satisfies number;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -74,7 +74,7 @@ config.mode satisfies "dev";
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -117,7 +117,7 @@ const value = { a: 1, b: 2 } satisfies Shape;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -148,7 +148,7 @@ const value = { a: 1, b: 2 } satisfies Shape;
 fn test_satisfies_accepts_scalar_domains_and_representations() {
     let session = TestSession::single(
         r#"
-import { Float, FloatDomain, Integer, IntegerDomain, NumericDomain } from "destack:math";
+import { Float, FloatDomain, Integer, IntegerDomain, NumericDomain } from "tspp:math";
 
 1 satisfies IntegerDomain;
 1.5 satisfies FloatDomain;
@@ -162,11 +162,11 @@ import { Float, FloatDomain, Integer, IntegerDomain, NumericDomain } from "desta
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Float, FloatDomain, Integer, IntegerDomain, NumericDomain } from "destack:math";
+import { Float, FloatDomain, Integer, IntegerDomain, NumericDomain } from "tspp:math";
 
 1 satisfies IntegerDomain;
 1.5 satisfies FloatDomain;
@@ -178,7 +178,7 @@ import { Float, FloatDomain, Integer, IntegerDomain, NumericDomain } from "desta
 1.5 as float32 satisfies Float;
 
 === dir ===
-import { Float, FloatDomain, Integer, IntegerDomain, NumericDomain } from "destack:math";
+import { Float, FloatDomain, Integer, IntegerDomain, NumericDomain } from "tspp:math";
 
 1 satisfies IntegerDomain;
 /// @resolution.name source=IntegerDomain target=IntegerDomain
@@ -211,7 +211,7 @@ import { Float, FloatDomain, Integer, IntegerDomain, NumericDomain } from "desta
 fn test_satisfies_rejects_scalar_literals_as_representations() {
     let session = TestSession::single(
         r#"
-import { Float, Integer } from "destack:math";
+import { Float, Integer } from "tspp:math";
 
 1 satisfies Integer;
 1.5 satisfies Float;
@@ -219,17 +219,17 @@ import { Float, Integer } from "destack:math";
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Float, Integer } from "destack:math";
+import { Float, Integer } from "tspp:math";
 
 1 satisfies Integer;
 1.5 satisfies Float;
 
 === dir ===
-import { Float, Integer } from "destack:math";
+import { Float, Integer } from "tspp:math";
 
 1 satisfies Integer;
 /// @resolution.name source=Integer target=Integer

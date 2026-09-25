@@ -4,7 +4,7 @@ use crate::{
     ParserErrorKind, TypePosition, TypeStop, assert_expression_path, assert_name, assert_node,
     assert_path, assert_string,
 };
-use destack_dir::{
+use tspp_dir::{
     BinaryOperator, Declaration, Expression, InferForm, Literal, NodeType, TokenType, TupleElement,
     TupleForm, TypeDeclaration, TypeExpression, TypeLiteral,
 };

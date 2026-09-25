@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 
-use destack_dir as dir;
-use destack_source::{File, Span};
+use tspp_dir as dir;
+use tspp_source::{File, Span};
 
 use crate::{Binding, Fragment, MetavariableUse, PatternMatch, Replacement, Sequence};
 

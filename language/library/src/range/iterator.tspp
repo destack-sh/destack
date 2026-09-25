@@ -1,0 +1,21 @@
+import { todo } from "tspp:error";
+import { Iterator, IteratorResult } from "tspp:iter";
+
+import { Bound } from "./bound.tspp";
+import { Step } from "./step.tspp";
+
+/// Iterator over a stepped range.
+export struct RangeIterator<T: Step<T>> {
+    /// The next value to yield.
+    private current?: T;
+
+    /// The end bound.
+    private end: Bound<T>;
+}
+
+export extension<T: Step<T>> of RangeIterator<T> implements Iterator<T> {
+    /// Advance the iterator.
+    next(&this): IteratorResult<T> {
+        todo("RangeIterator.next")
+    }
+}

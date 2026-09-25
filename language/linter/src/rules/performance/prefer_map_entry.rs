@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -16,7 +16,7 @@ Instead, you SHOULD use `getOrInsertWith` to combine the lookup and conditional 
 "#,
         example: {
             reported: r#"
-import { Map } from "destack:collections";
+import { Map } from "tspp:collections";
 
 function ensureValue(values: Map<string, int32>, key: string): void {
     if (!values.has(key)) {
@@ -25,7 +25,7 @@ function ensureValue(values: Map<string, int32>, key: string): void {
 }
 "#,
             accepted: r#"
-import { Map } from "destack:collections";
+import { Map } from "tspp:collections";
 
 function ensureValue(values: Map<string, int32>, key: string): void {
     values.getOrInsertWith(key, () => 1);
@@ -154,7 +154,7 @@ fn select_guarded_insertion(
 fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
-    extent: destack_source::Span,
+    extent: tspp_source::Span,
     insertion: GuardedInsertion,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let map_extent = module.source_extent(insertion.map.into_any())?;
@@ -190,7 +190,7 @@ mod tests {
         let session = TestSession::dir(
             &PREFER_MAP_ENTRY,
             r#"
-import { Map } from "destack:collections";
+import { Map } from "tspp:collections";
 
 function ensureValue(values: Map<string, int32>, key: string): void {
     if (!values.has(key)) {
@@ -202,7 +202,7 @@ function ensureValue(values: Map<string, int32>, key: string): void {
 
         session.assert_suggestions(
             r#"
-import { Map } from "destack:collections";
+import { Map } from "tspp:collections";
 
 function ensureValue(values: Map<string, int32>, key: string): void {
     values.getOrInsertWith(key, () => 1);
@@ -217,7 +217,7 @@ function ensureValue(values: Map<string, int32>, key: string): void {
         let session = TestSession::dir(
             &PREFER_MAP_ENTRY,
             r#"
-import { Map } from "destack:collections";
+import { Map } from "tspp:collections";
 
 declare function inserted(): void;
 
@@ -239,7 +239,7 @@ function ensureValue(values: Map<string, int32>, key: string): void {
         let session = TestSession::dir(
             &PREFER_MAP_ENTRY,
             r#"
-import { Map } from "destack:collections";
+import { Map } from "tspp:collections";
 
 function ensureValue(values: Map<string, int32>, checked: string, inserted: string): void {
     if (!values.has(checked)) {

@@ -15,21 +15,21 @@ use crate::declaration::signature::{
     write_declaration_generic_parameters, write_declaration_where_clauses,
 };
 use crate::expression::{expression_needs_parentheses_in_parent, format_type_member_block_list};
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_dir::{
+use crate::{FormatNode, TsppFormatContext, TsppFormatter};
+use smallvec::SmallVec;
+use tspp_dir::{
     ClassDeclaration, Declaration, Decorator, EnumDeclaration, EnumField, Expression,
     InterfaceDeclaration, Keyword, LocalNodeId, LocalNodeIdAny, Member, NodeType,
     StructDeclaration, TokenSpan, TokenType, TypeExpression,
 };
-use destack_fir::format::{FormatError, FormatResult};
-use destack_fir::prelude::*;
-use destack_fir::{format_args, write};
-use destack_source::{NodeSpanRegion, NodeSpanType, Span};
-use smallvec::SmallVec;
+use tspp_fir::format::{FormatError, FormatResult};
+use tspp_fir::prelude::*;
+use tspp_fir::{format_args, write};
+use tspp_source::{NodeSpanRegion, NodeSpanType, Span};
 
 /// Write one class or interface heritage type list.
 fn write_heritage_type_list<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     enclosing_span: Span,
     types: &[LocalNodeId<TypeExpression>],
 ) -> FormatResult<()> {
@@ -67,7 +67,7 @@ fn write_heritage_type_list<'ast>(
 
 /// Return the opening brace token for one class body.
 fn class_body_open_brace_token<'ast>(
-    f: &DestackFormatter<'ast, '_>,
+    f: &TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     members: &[LocalNodeId<Member>],
 ) -> Option<TokenSpan> {
@@ -103,7 +103,7 @@ fn class_body_open_brace_token<'ast>(
 
 /// Write class header comments that appear before the body opening brace.
 fn write_class_body_leading_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     members: &[LocalNodeId<Member>],
 ) -> FormatResult<()> {
@@ -124,7 +124,7 @@ fn write_class_body_leading_comments<'ast>(
 
 /// Return whether one type expression contains generic arguments.
 fn type_expression_has_generic_arguments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     type_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     match context.tree.get(type_id) {
@@ -142,7 +142,7 @@ fn type_expression_has_generic_arguments(
 
 /// Return whether one type expression is a qualified heritage target without type arguments.
 fn type_is_qualified_without_type_arguments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     type_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     match context.tree.get(type_id) {
@@ -161,7 +161,7 @@ fn type_is_qualified_without_type_arguments(
 
 /// Return whether one class heritage layout should use group mode.
 fn class_heritage_should_group(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
     declaration_expression_id: Option<LocalNodeId<Expression>>,
     declaration: &ClassDeclaration,
@@ -232,7 +232,7 @@ fn class_heritage_should_group(
 
 /// Split class decorators around one export token.
 fn split_class_decorators(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
     export_start: u32,
 ) -> (
@@ -257,7 +257,7 @@ fn split_class_decorators(
 
 /// Return whether one interface heritage layout should use group mode.
 fn interface_heritage_should_group(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
     declaration: &InterfaceDeclaration,
 ) -> bool {
@@ -297,11 +297,11 @@ fn interface_heritage_should_group(
 
 /// Format one struct declaration.
 pub(crate) fn format_struct_declaration<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     declaration: &StructDeclaration,
 ) -> FormatResult<()> {
-    let header = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let header = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         // prefixes
         format_declaration_export_modifier(f, node_id, declaration.export)?;
         if declaration.is_ambient {
@@ -332,7 +332,7 @@ pub(crate) fn format_struct_declaration<'ast>(
 
 /// Write one class declaration header.
 fn write_class_header<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     declaration: &ClassDeclaration,
     heritage_group_mode: bool,
@@ -340,7 +340,7 @@ fn write_class_header<'ast>(
 ) -> FormatResult<()> {
     // head
     write!(f, [Keyword::Class])?;
-    let head = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let head = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         if let Some(name) = declaration.name {
             write!(f, [space(), name])?;
         }
@@ -388,18 +388,16 @@ fn write_class_header<'ast>(
             if comments.iter().any(|comment| comment.preceded_by_newline()) {
                 write!(
                     f,
-                    [indent(&format_with(
-                        |f: &mut DestackFormatter<'ast, '_>| {
-                            write!(f, [FormatTrailingComments::Comments(comments)])
-                        }
-                    ))]
+                    [indent(&format_with(|f: &mut TsppFormatter<'ast, '_>| {
+                        write!(f, [FormatTrailingComments::Comments(comments)])
+                    }))]
                 )?;
             }
         }
 
         Ok(())
     });
-    let heritage = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let heritage = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         if let Some(extends_type) = declaration.extends_type {
             let extends_comments = if !declaration.implements_types.is_empty() {
                 Vec::new()
@@ -414,8 +412,8 @@ fn write_class_header<'ast>(
             };
             let has_trailing_line_comments =
                 extends_comments.iter().any(|comment| comment.is_line());
-            let format_super = format_with(|f: &mut DestackFormatter<'ast, '_>| {
-                let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            let format_super = format_with(|f: &mut TsppFormatter<'ast, '_>| {
+                let content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                     if declaration.implements_types.is_empty() {
                         write!(f, [FormatNodeWithoutTrailingComments(extends_type)])?;
 
@@ -462,7 +460,7 @@ fn write_class_header<'ast>(
                     write!(f, [content])
                 }
             });
-            let format_extends = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            let format_extends = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 write!(f, [Keyword::Extends, space(), format_super])
             });
 
@@ -486,13 +484,13 @@ fn write_class_header<'ast>(
                     f,
                     [
                         soft_line_break_or_space(),
-                        format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                        format_with(|f: &mut TsppFormatter<'ast, '_>| {
                             write!(f, [FormatLeadingComments::Comments(leading_comments)])
                         }),
                         (!leading_comments.is_empty()).then_some(hard_line_break()),
                         Keyword::Implements,
                         group(&soft_line_indent_or_space(&format_with(
-                            |f: &mut DestackFormatter<'ast, '_>| {
+                            |f: &mut TsppFormatter<'ast, '_>| {
                                 write_heritage_type_list(
                                     f,
                                     f.context().span(node_id),
@@ -503,11 +501,11 @@ fn write_class_header<'ast>(
                     ]
                 )?;
             } else {
-                let format_implements = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                let format_implements = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                     write!(
                         f,
                         [
-                            format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                            format_with(|f: &mut TsppFormatter<'ast, '_>| {
                                 write!(f, [FormatLeadingComments::Comments(leading_comments)])
                             }),
                             Keyword::Implements,
@@ -546,7 +544,7 @@ fn write_class_header<'ast>(
 
 /// Format one class declaration.
 pub(crate) fn format_class_declaration<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     declaration_expression_id: Option<LocalNodeId<Expression>>,
     declaration: &ClassDeclaration,
@@ -573,7 +571,7 @@ pub(crate) fn format_class_declaration<'ast>(
         } else {
             (SmallVec::new(), SmallVec::new())
         };
-    let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         // decorator and export prefixes
         if declaration.export.is_some() {
             write!(f, [prefix_comments_before_decorators(f.context(), node_id)])?;
@@ -608,7 +606,7 @@ pub(crate) fn format_class_declaration<'ast>(
             write!(f, [Keyword::Final, space()])?;
         }
 
-        let header = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let header = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             write_class_header(
                 f,
                 node_id,
@@ -644,7 +642,7 @@ pub(crate) fn format_class_declaration<'ast>(
 
 /// Return the ordered enum body nodes.
 fn ordered_enum_body_nodes(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     fields: &[LocalNodeId<EnumField>],
     members: &[LocalNodeId<Member>],
 ) -> Vec<LocalNodeIdAny> {
@@ -667,7 +665,7 @@ fn ordered_enum_body_nodes(
 
 /// Return whether source preserves an empty line between two enum body nodes.
 fn enum_body_nodes_have_blank_line_between(
-    f: &DestackFormatter<'_, '_>,
+    f: &TsppFormatter<'_, '_>,
     previous_id: LocalNodeIdAny,
     next_id: LocalNodeIdAny,
 ) -> bool {
@@ -682,7 +680,7 @@ fn enum_body_nodes_have_blank_line_between(
 
 /// Write one enum body.
 fn write_enum_body<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     fields: &[LocalNodeId<EnumField>],
     members: &[LocalNodeId<Member>],
@@ -724,11 +722,11 @@ fn write_enum_body<'ast>(
 
 /// Format one enum declaration.
 pub(crate) fn format_enum_declaration<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     declaration: &EnumDeclaration,
 ) -> FormatResult<()> {
-    let header = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let header = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         // prefixes
         format_declaration_export_modifier(f, node_id, declaration.export)?;
         if declaration.is_ambient {
@@ -759,12 +757,12 @@ pub(crate) fn format_enum_declaration<'ast>(
 
 /// Format one interface declaration.
 pub(crate) fn format_interface_declaration<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     declaration: &InterfaceDeclaration,
 ) -> FormatResult<()> {
     let heritage_group_mode = interface_heritage_should_group(f.context(), node_id, declaration);
-    let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         // prefixes
         format_declaration_export_modifier(f, node_id, declaration.export)?;
         if declaration.is_ambient {
@@ -777,9 +775,9 @@ pub(crate) fn format_interface_declaration<'ast>(
             write!(f, [Keyword::Newtype, space()])?;
         }
 
-        let header = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let header = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             // head
-            let head = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            let head = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 write!(f, [Keyword::Interface])?;
                 if let Some(name) = declaration.name {
                     write!(f, [space(), name])?;
@@ -788,7 +786,7 @@ pub(crate) fn format_interface_declaration<'ast>(
                 write_declaration_generic_parameters(f, &declaration.generic_parameters)
             });
 
-            let heritage = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            let heritage = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 let Some(first_extends) = declaration.extends_types.first().copied() else {
                     return Ok(());
                 };
@@ -805,7 +803,7 @@ pub(crate) fn format_interface_declaration<'ast>(
                             soft_line_break_or_space(),
                             Keyword::Extends,
                             group(&soft_line_indent_or_space(&format_with(
-                                |f: &mut DestackFormatter<'ast, '_>| {
+                                |f: &mut TsppFormatter<'ast, '_>| {
                                     write_heritage_type_list(
                                         f,
                                         f.context().span(node_id),
@@ -816,7 +814,7 @@ pub(crate) fn format_interface_declaration<'ast>(
                         ]
                     )
                 } else {
-                    let format_extends = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                    let format_extends = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                         if !leading_comments.is_empty() {
                             write!(f, [FormatTrailingComments::Comments(leading_comments)])?;
                         }
@@ -866,7 +864,7 @@ impl<'ast> FormatNode<'ast, EnumField> for EnumField {
     fn format_node(
         &self,
         node_id: LocalNodeId<EnumField>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [prefix_comments_before_decorators(f.context(), node_id)])?;
         write!(f, [decorator_prefix_annotations(f.context(), node_id)])?;

@@ -1,8 +1,8 @@
 use std::slice;
 
-use destack_dir as dir;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_dir as dir;
+use tspp_serde::Reflect;
 
 use crate::{
     AppliedSignature, Formatter, ModuleQueryContext, ProgramQueryContext, QueryError,

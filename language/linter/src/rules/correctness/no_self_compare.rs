@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -118,7 +118,7 @@ function changed(value: int32): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-self-compare]: comparison has identical operands
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function changed(value: int32): boolean {
 2 │     return (value) !== (value);
@@ -147,7 +147,7 @@ function unchanged(point: Point): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-self-compare]: comparison has identical operands
- ──▶ main.ds:5:12
+ ──▶ main.tspp:5:12
   │
 3 │ }
 4 │ function unchanged(point: Point): boolean {
@@ -174,7 +174,7 @@ function unchanged(value: int32): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-self-compare]: comparison has identical operands
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function unchanged(value: int32): boolean {
 2 │     return value + 1 === value + 1;
@@ -200,7 +200,7 @@ function unchanged(value: int32): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-self-compare]: comparison has identical operands
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function unchanged(value: int32): boolean {
 2 │     return -value === -value;
@@ -226,7 +226,7 @@ function ordered(value: int32): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-self-compare]: comparison has identical operands
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function ordered(value: int32): boolean {
 2 │     return value < value;
@@ -252,7 +252,7 @@ function isNaN(value: float64): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-self-compare]: comparison has identical operands
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function isNaN(value: float64): boolean {
 2 │     return value !== value;
@@ -280,7 +280,7 @@ function isPresent(value: float64): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-self-compare]: comparison has identical operands
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function isPresent(value: float64): boolean {
 2 │     return value === value;
@@ -361,7 +361,7 @@ const unchanged = next() === next();
         let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
-import { Multiply } from "destack:ops";
+import { Multiply } from "tspp:ops";
 
 newtype Force = float64;
 
@@ -387,7 +387,7 @@ const unchanged = force * 2.0 === force * 2.0;
         let session = TestSession::dir(
             &NO_SELF_COMPARE,
             r#"
-import { PartialEqual } from "destack:ops";
+import { PartialEqual } from "tspp:ops";
 
 struct Badge {
     id: int32;
@@ -469,7 +469,7 @@ const unchanged = 1 === 1;
         session.assert_diagnostics(
             r#"
 warning[no-self-compare]: comparison has identical operands
- ──▶ main.ds:1:19
+ ──▶ main.tspp:1:19
   │
 1 │ const unchanged = 1 === 1;
   │                   ^^^^^^^
@@ -491,7 +491,7 @@ const unchanged = `value` === `value`;
         session.assert_diagnostics(
             r#"
 warning[no-self-compare]: comparison has identical operands
- ──▶ main.ds:1:19
+ ──▶ main.tspp:1:19
   │
 1 │ const unchanged = `value` === `value`;
   │                   ^^^^^^^^^^^^^^^^^^^

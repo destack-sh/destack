@@ -1,18 +1,18 @@
 use crate::parse::{ExpressionPosition, ExpressionStop, TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
-use destack_core::StringId;
-use destack_dir::{
+use smallvec::SmallVec;
+use tspp_core::StringId;
+use tspp_dir::{
     Expression, InferForm, Keyword, LocalNodeId, NodeType, Path, TokenType, TypeExpression,
     TypeLiteral,
 };
-use destack_source::{ByteRange, NodeSpanList, NodeSpanType};
-use smallvec::SmallVec;
+use tspp_source::{ByteRange, NodeSpanList, NodeSpanType};
 
 impl Parser {
     /// Parse one identifier primary in type space.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// T
     /// this
     /// infer U
@@ -41,10 +41,10 @@ impl Parser {
         self.parse_type_path_reference(start)
     }
 
-    /// Parse a Destack infer hole.
+    /// Parse a TS++ infer hole.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// _
     /// _[]
     /// Promise<_>
@@ -71,7 +71,7 @@ impl Parser {
     /// Parse type primary keywords that appear in identifier position.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// this
     /// infer T
     /// intrinsic
@@ -109,7 +109,7 @@ impl Parser {
     /// Parse a literal type primary when present.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// null
     /// undefined
     /// "open"
@@ -134,7 +134,7 @@ impl Parser {
     /// Parse a path reference type.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// User
     /// namespace.User
     /// Result<string, Error>
@@ -182,7 +182,7 @@ impl Parser {
     /// Parse a single-segment path reference type.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// User
     /// Result<T>
     /// Promise<string>
@@ -226,7 +226,7 @@ impl Parser {
     /// Parse type keyword dispatch.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// type Name = string
     /// interface Shape { id: string }
     /// typeof value
@@ -282,7 +282,7 @@ impl Parser {
     /// Parse a `typeof` type query.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// typeof value
     /// typeof namespace.value
     /// typeof infer T
@@ -301,7 +301,7 @@ impl Parser {
     /// Parse the value operand of a `typeof` type query.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// value
     /// namespace.value
     /// call().result
@@ -330,7 +330,7 @@ impl Parser {
     /// Parse an identifier or member path in a `typeof` type query.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// value
     /// namespace.value
     /// namespace.value.member
@@ -375,7 +375,7 @@ impl Parser {
     /// Eat an optional typeof member name after a dot.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// name
     /// default
     /// 0

@@ -1,5 +1,5 @@
-use destack_bytecode::{RegisterId, RegisterSpan};
-use destack_program::{MemoryAccess, StopReason, WatchSet, Word};
+use tspp_bytecode::{RegisterId, RegisterSpan};
+use tspp_program::{MemoryAccess, StopReason, WatchSet, Word};
 
 use super::{TestMachine, TestProgram};
 

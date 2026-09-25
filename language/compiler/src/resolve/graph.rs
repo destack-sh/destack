@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use destack_artifact::{
+use indexmap::{IndexMap, IndexSet};
+use rustc_hash::{FxHashMap, FxHashSet};
+use tspp_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload,
     ArtifactProjectionFingerprint, ArtifactProjectionKey, DirResolved, Implementation, ModuleGraph,
     SourceDependencyKey,
 };
-use destack_repository::{ArtifactReader, ProfileId, ProviderContext};
-use destack_source::{ModuleId, PackageId};
-use indexmap::{IndexMap, IndexSet};
-use rustc_hash::{FxHashMap, FxHashSet};
+use tspp_repository::{ArtifactReader, ProfileId, ProviderContext};
+use tspp_source::{ModuleId, PackageId};
 
 use crate::{Compiler, CompilerError, CompilerResult};
 

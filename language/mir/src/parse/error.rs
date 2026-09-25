@@ -1,7 +1,7 @@
 use std::fmt;
 
-use destack_core::Blob;
-use destack_source::{
+use tspp_core::Blob;
+use tspp_source::{
     Diagnostic, DiagnosticDefinition, DiagnosticLabel, DiagnosticTarget, FileId, Span,
 };
 

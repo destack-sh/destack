@@ -1,5 +1,5 @@
-use destack_bytecode::{Code, CodeRange, Function};
-use destack_program::{Binding, FunctionId, Program};
+use tspp_bytecode::{Code, CodeRange, Function};
+use tspp_program::{Binding, FunctionId, Program};
 
 use crate::diagnostic::{Error, Result};
 

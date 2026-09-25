@@ -5,7 +5,7 @@
 
 The outline follows declaration order and source ranges.
 
-```ds main.ds
+```tspp main.tspp
 struct Point {
 ^ point_range:start
        ^^^^^ point_selection
@@ -39,21 +39,21 @@ const answer = 42;
       ^^^^^^ answer_selection
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=Point kind=struct range=main.ds#point_range selection=main.ds#point_selection
-@outline.symbol depth=1 name=x kind=field detail=float32 range=main.ds#x_range selection=main.ds#x_selection
-@outline.symbol depth=1 name=y kind=field detail=float32 range=main.ds#y_range selection=main.ds#y_selection
-@outline.symbol depth=0 name=add kind=function detail="(left: int32, right: int32): int32" range=main.ds#add_range selection=main.ds#add_selection
-@outline.symbol depth=0 name=Animal kind=class range=main.ds#animal_range selection=main.ds#animal_selection
-@outline.symbol depth=1 name=name kind=field detail=string range=main.ds#name_range selection=main.ds#name_selection
-@outline.symbol depth=0 name=answer kind=constant detail=42 range=main.ds#answer_range selection=main.ds#answer_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=Point kind=struct range=main.tspp#point_range selection=main.tspp#point_selection
+@outline.symbol depth=1 name=x kind=field detail=float32 range=main.tspp#x_range selection=main.tspp#x_selection
+@outline.symbol depth=1 name=y kind=field detail=float32 range=main.tspp#y_range selection=main.tspp#y_selection
+@outline.symbol depth=0 name=add kind=function detail="(left: int32, right: int32): int32" range=main.tspp#add_range selection=main.tspp#add_selection
+@outline.symbol depth=0 name=Animal kind=class range=main.tspp#animal_range selection=main.tspp#animal_selection
+@outline.symbol depth=1 name=name kind=field detail=string range=main.tspp#name_range selection=main.tspp#name_selection
+@outline.symbol depth=0 name=answer kind=constant detail=42 range=main.tspp#answer_range selection=main.tspp#answer_selection
 ```
 
 ### Render unresolved class field types
 
 An unresolved field type keeps its class and renders as `<error>`.
 
-```ds main.ds
+```tspp main.tspp
 class Player {
 ^ player_range:start
       ^^^^^^ player_selection
@@ -64,12 +64,12 @@ class Player {
 ^ player_range:end
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=Player kind=class range=main.ds#player_range selection=main.ds#player_selection
-@outline.symbol depth=1 name=x kind=field detail=string range=main.ds#field_range selection=main.ds#field_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=Player kind=class range=main.tspp#player_range selection=main.tspp#player_selection
+@outline.symbol depth=1 name=x kind=field detail=string range=main.tspp#field_range selection=main.tspp#field_selection
 ```
 
-```diff main.ds
+```diff main.tspp
 @@ -1,8 +1,8 @@
  class Player {
  ^ player_range:start
@@ -83,26 +83,26 @@ class Player {
  ^ player_range:end
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=Player kind=class range=main.ds#player_range selection=main.ds#player_selection
-@outline.symbol depth=1 name=x kind=field detail="<error>" range=main.ds#field_range selection=main.ds#field_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=Player kind=class range=main.tspp#player_range selection=main.tspp#player_selection
+@outline.symbol depth=1 name=x kind=field detail="<error>" range=main.tspp#field_range selection=main.tspp#field_selection
 ```
 
 ### Render unresolved initializer types
 
 An unresolved initializer keeps its declaration and renders as `<error>`.
 
-```ds main.ds
+```tspp main.tspp
 const value = 1;
 ^^^^^^^^^^^^^^^ value_range
       ^^^^^ value_selection
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=value kind=constant detail=1 range=main.ds#value_range selection=main.ds#value_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=value kind=constant detail=1 range=main.tspp#value_range selection=main.tspp#value_selection
 ```
 
-```diff main.ds
+```diff main.tspp
 @@ -1,3 +1,3 @@
 -const value = 1;
 -^^^^^^^^^^^^^^^ value_range
@@ -111,19 +111,19 @@ const value = 1;
        ^^^^^ value_selection
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=value kind=constant detail="<error>" range=main.ds#value_range selection=main.ds#value_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=value kind=constant detail="<error>" range=main.tspp#value_range selection=main.tspp#value_selection
 ```
 
 ### Outline an incomplete declaration
 
 Show the outline after every inserted character.
 
-```ds main.ds
+```tspp main.tspp
 // module
 ```
 
-```ds main.ds type
+```tspp main.tspp type
 // module
 
 declare const x: Clone;
@@ -131,15 +131,15 @@ declare const x: Clone;
               ^ binding
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=x kind=constant detail=Clone range=main.ds#declaration selection=main.ds#binding
+```query outline main.tspp
+@outline.symbol depth=0 name=x kind=constant detail=Clone range=main.tspp#declaration selection=main.tspp#binding
 ```
 
 ### Outline current declarations
 
 The outline follows declarations added by each edit.
 
-```ds main.ds
+```tspp main.tspp
 function ping(): void {
 ^ ping_range:start
          ^^^^ ping_selection
@@ -147,11 +147,11 @@ function ping(): void {
 ^ ping_range:end
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=ping kind=function detail="(): void" range=main.ds#ping_range selection=main.ds#ping_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=ping kind=function detail="(): void" range=main.tspp#ping_range selection=main.tspp#ping_selection
 ```
 
-```ds main.ds change
+```tspp main.tspp change
 function ping(): void {
 ^ ping_range:start
          ^^^^ ping_selection
@@ -163,16 +163,16 @@ const answer = 42;
       ^^^^^^ answer_selection
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=ping kind=function detail="(): void" range=main.ds#ping_range selection=main.ds#ping_selection
-@outline.symbol depth=0 name=answer kind=constant detail=42 range=main.ds#answer_range selection=main.ds#answer_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=ping kind=function detail="(): void" range=main.tspp#ping_range selection=main.tspp#ping_selection
+@outline.symbol depth=0 name=answer kind=constant detail=42 range=main.tspp#answer_range selection=main.tspp#answer_selection
 ```
 
 ### Outline a statically absent declaration
 
 A false static gate remains in the authored outline without type detail.
 
-```ds main.ds
+```tspp main.tspp
 struct Position {
 ^ position_range:start
        ^^^^^^^^ position_selection
@@ -190,14 +190,14 @@ const position = Position { x: 1.0, y: 2.0 };
       ^^^^^^^^ value_selection
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=Position kind=struct range=main.ds#position_range selection=main.ds#position_selection
-@outline.symbol depth=1 name=x kind=field detail=float64 range=main.ds#x_range selection=main.ds#x_selection
-@outline.symbol depth=1 name=y kind=field detail=float64 range=main.ds#y_range selection=main.ds#y_selection
-@outline.symbol depth=0 name=position kind=constant detail=Position range=main.ds#value_range selection=main.ds#value_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=Position kind=struct range=main.tspp#position_range selection=main.tspp#position_selection
+@outline.symbol depth=1 name=x kind=field detail=float64 range=main.tspp#x_range selection=main.tspp#x_selection
+@outline.symbol depth=1 name=y kind=field detail=float64 range=main.tspp#y_range selection=main.tspp#y_selection
+@outline.symbol depth=0 name=position kind=constant detail=Position range=main.tspp#value_range selection=main.tspp#value_selection
 ```
 
-```diff main.ds
+```diff main.tspp
 @@ -13,3 +13,8 @@
  const position = Position { x: 1.0, y: 2.0 };
  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ value_range
@@ -209,12 +209,12 @@ const position = Position { x: 1.0, y: 2.0 };
 +      ^^^^^^^^ absent_selection
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=Position kind=struct range=main.ds#position_range selection=main.ds#position_selection
-@outline.symbol depth=1 name=x kind=field detail=float64 range=main.ds#x_range selection=main.ds#x_selection
-@outline.symbol depth=1 name=y kind=field detail=float64 range=main.ds#y_range selection=main.ds#y_selection
-@outline.symbol depth=0 name=position kind=constant detail=Position range=main.ds#value_range selection=main.ds#value_selection
-@outline.symbol depth=0 name=position kind=constant range=main.ds#absent_range selection=main.ds#absent_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=Position kind=struct range=main.tspp#position_range selection=main.tspp#position_selection
+@outline.symbol depth=1 name=x kind=field detail=float64 range=main.tspp#x_range selection=main.tspp#x_selection
+@outline.symbol depth=1 name=y kind=field detail=float64 range=main.tspp#y_range selection=main.tspp#y_selection
+@outline.symbol depth=0 name=position kind=constant detail=Position range=main.tspp#value_range selection=main.tspp#value_selection
+@outline.symbol depth=0 name=position kind=constant range=main.tspp#absent_range selection=main.tspp#absent_selection
 ```
 
 ## Members
@@ -223,7 +223,7 @@ const position = Position { x: 1.0, y: 2.0 };
 
 Fields and methods immediately follow their owner.
 
-```ds main.ds
+```tspp main.tspp
 struct Rectangle {
 ^ rectangle_range:start
        ^^^^^^^^^ rectangle_selection
@@ -244,18 +244,18 @@ struct Rectangle {
 ^ rectangle_range:end
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=Rectangle kind=struct range=main.ds#rectangle_range selection=main.ds#rectangle_selection
-@outline.symbol depth=1 name=width kind=field detail=float32 range=main.ds#width_range selection=main.ds#width_selection
-@outline.symbol depth=1 name=height kind=field detail=float32 range=main.ds#height_range selection=main.ds#height_selection
-@outline.symbol depth=1 name=area kind=method detail="(): float32" range=main.ds#area_range selection=main.ds#area_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=Rectangle kind=struct range=main.tspp#rectangle_range selection=main.tspp#rectangle_selection
+@outline.symbol depth=1 name=width kind=field detail=float32 range=main.tspp#width_range selection=main.tspp#width_selection
+@outline.symbol depth=1 name=height kind=field detail=float32 range=main.tspp#height_range selection=main.tspp#height_selection
+@outline.symbol depth=1 name=area kind=method detail="(): float32" range=main.tspp#area_range selection=main.tspp#area_selection
 ```
 
 ### Distinguish fields, constructors, accessors, and methods
 
 Fields, constructors, accessors, and methods use their matching kinds and signatures.
 
-```ds main.ds
+```tspp main.tspp
 class Counter {
 ^ counter_range:start
       ^^^^^^^ counter_selection
@@ -297,21 +297,21 @@ class Counter {
 ^ counter_range:end
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=Counter kind=class range=main.ds#counter_range selection=main.ds#counter_selection
-@outline.symbol depth=1 name=zero kind=field detail="static readonly int32" range=main.ds#zero_range selection=main.ds#zero_selection
-@outline.symbol depth=1 name=value kind=field detail=int32 range=main.ds#value_range selection=main.ds#value_selection
-@outline.symbol depth=1 name=constructor kind=constructor detail="(value: int32)" range=main.ds#constructor_range selection=main.ds#constructor_selection
-@outline.symbol depth=1 name=current kind=property detail="get (): int32" range=main.ds#current_get_range selection=main.ds#current_get_selection
-@outline.symbol depth=1 name=current kind=property detail="set (next: int32): void" range=main.ds#current_set_range selection=main.ds#current_set_selection
-@outline.symbol depth=1 name=create kind=method detail="static (): Counter" range=main.ds#create_range selection=main.ds#create_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=Counter kind=class range=main.tspp#counter_range selection=main.tspp#counter_selection
+@outline.symbol depth=1 name=zero kind=field detail="static readonly int32" range=main.tspp#zero_range selection=main.tspp#zero_selection
+@outline.symbol depth=1 name=value kind=field detail=int32 range=main.tspp#value_range selection=main.tspp#value_selection
+@outline.symbol depth=1 name=constructor kind=constructor detail="(value: int32)" range=main.tspp#constructor_range selection=main.tspp#constructor_selection
+@outline.symbol depth=1 name=current kind=property detail="get (): int32" range=main.tspp#current_get_range selection=main.tspp#current_get_selection
+@outline.symbol depth=1 name=current kind=property detail="set (next: int32): void" range=main.tspp#current_set_range selection=main.tspp#current_set_selection
+@outline.symbol depth=1 name=create kind=method detail="static (): Counter" range=main.tspp#create_range selection=main.tspp#create_selection
 ```
 
 ### Outline a method with a compile-time default
 
 Generic method details include their complete parameter header.
 
-```ds main.ds
+```tspp main.tspp
 type Access = "readonly" | "exclusive";
 
 struct List<T> {
@@ -330,12 +330,12 @@ extension<T> of List<T> {
 ^ extension_range:end
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=Access kind=type_alias detail="\"readonly\" | \"exclusive\"" range=main.ds:1:1-1:39 selection=main.ds:1:6-1:12
-@outline.symbol depth=0 name=List kind=struct range=main.ds:3:1-5:2 selection=main.ds:3:8-3:12
-@outline.symbol depth=1 name=value kind=field detail=T range=main.ds:4:5-4:13 selection=main.ds:4:5-4:10
-@outline.symbol depth=0 name="extension of List<T>" kind=extension range=main.ds#extension_range selection=main.ds:7:17-7:24
-@outline.symbol depth=1 name=read kind=method detail="<const A: Access = \"readonly\">(): T" range=main.ds#read_range selection=main.ds#read_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=Access kind=type_alias detail="\"readonly\" | \"exclusive\"" range=main.tspp:1:1-1:39 selection=main.tspp:1:6-1:12
+@outline.symbol depth=0 name=List kind=struct range=main.tspp:3:1-5:2 selection=main.tspp:3:8-3:12
+@outline.symbol depth=1 name=value kind=field detail=T range=main.tspp:4:5-4:13 selection=main.tspp:4:5-4:10
+@outline.symbol depth=0 name="extension of List<T>" kind=extension range=main.tspp#extension_range selection=main.tspp:7:17-7:24
+@outline.symbol depth=1 name=read kind=method detail="<const A: Access = \"readonly\">(): T" range=main.tspp#read_range selection=main.tspp#read_selection
 ```
 
 ## Enum Members
@@ -344,7 +344,7 @@ extension<T> of List<T> {
 
 Enum members remain children of their enum.
 
-```ds main.ds
+```tspp main.tspp
 enum Color {
 ^ color_range:start
      ^^^^^ color_selection
@@ -358,11 +358,11 @@ enum Color {
 ^ color_range:end
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=Color kind=enum range=main.ds#color_range selection=main.ds#color_selection
-@outline.symbol depth=1 name=Red kind=enum_member range=main.ds#red selection=main.ds#red
-@outline.symbol depth=1 name=Green kind=enum_member range=main.ds#green selection=main.ds#green
-@outline.symbol depth=1 name=Blue kind=enum_member range=main.ds#blue selection=main.ds#blue
+```query outline main.tspp
+@outline.symbol depth=0 name=Color kind=enum range=main.tspp#color_range selection=main.tspp#color_selection
+@outline.symbol depth=1 name=Red kind=enum_member range=main.tspp#red selection=main.tspp#red
+@outline.symbol depth=1 name=Green kind=enum_member range=main.tspp#green selection=main.tspp#green
+@outline.symbol depth=1 name=Blue kind=enum_member range=main.tspp#blue selection=main.tspp#blue
 ```
 
 ## Empty Modules
@@ -371,10 +371,10 @@ enum Color {
 
 An empty module has no outline entries.
 
-```ds main.ds
+```tspp main.tspp
 ```
 
-```query outline main.ds
+```query outline main.tspp
 @outline.none
 ```
 
@@ -384,7 +384,7 @@ An empty module has no outline entries.
 
 Module metadata and global declarations remain grouped under their declaration owners.
 
-```ds main.ds
+```tspp main.tspp
 module {
 ^ module_range:start
 ^^^^^^ module_selection
@@ -404,11 +404,11 @@ global {
 ^ global_range:end
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=module kind=module range=main.ds#module_range selection=main.ds#module_selection
-@outline.symbol depth=1 name=role kind=constant detail="\"editor\"" range=main.ds#role_range selection=main.ds#role_selection
-@outline.symbol depth=0 name=global kind=namespace range=main.ds#global_range selection=main.ds#global_selection
-@outline.symbol depth=1 name=version kind=constant detail=int32 range=main.ds#version_range selection=main.ds#version_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=module kind=module range=main.tspp#module_range selection=main.tspp#module_selection
+@outline.symbol depth=1 name=role kind=constant detail="\"editor\"" range=main.tspp#role_range selection=main.tspp#role_selection
+@outline.symbol depth=0 name=global kind=namespace range=main.tspp#global_range selection=main.tspp#global_selection
+@outline.symbol depth=1 name=version kind=constant detail=int32 range=main.tspp#version_range selection=main.tspp#version_selection
 ```
 
 ## Types
@@ -417,7 +417,7 @@ global {
 
 Interfaces contain their members, and type aliases remain top-level symbols.
 
-```ds main.ds
+```tspp main.tspp
 interface Drawable {
 ^ drawable_range:start
           ^^^^^^^^ drawable_selection
@@ -432,31 +432,31 @@ type UserId = string;
      ^^^^^^ type_selection
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=Drawable kind=interface range=main.ds#drawable_range selection=main.ds#drawable_selection
-@outline.symbol depth=1 name=draw kind=method detail="(): void" range=main.ds#draw_range selection=main.ds#draw_selection
-@outline.symbol depth=0 name=UserId kind=type_alias detail=string range=main.ds#type_range selection=main.ds#type_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=Drawable kind=interface range=main.tspp#drawable_range selection=main.tspp#drawable_selection
+@outline.symbol depth=1 name=draw kind=method detail="(): void" range=main.tspp#draw_range selection=main.tspp#draw_selection
+@outline.symbol depth=0 name=UserId kind=type_alias detail=string range=main.tspp#type_range selection=main.tspp#type_selection
 ```
 
 ### Outline an intrinsic newtype
 
 The outline shows the authored intrinsic value.
 
-```ds main.ds
+```tspp main.tspp
 newtype Buffer<T> = intrinsic;
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ buffer_range
         ^^^^^^ buffer_selection
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=Buffer kind=newtype detail=intrinsic range=main.ds#buffer_range selection=main.ds#buffer_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=Buffer kind=newtype detail=intrinsic range=main.tspp#buffer_range selection=main.tspp#buffer_selection
 ```
 
 ### Outline nominal types and extensions
 
 Newtypes, nominal interfaces, and named extensions use distinct kinds.
 
-```ds main.ds
+```tspp main.tspp
 newtype UserId = int64;
 ^^^^^^^^^^^^^^^^^^^^^^ user_id_range
         ^^^^^^ user_id_selection
@@ -489,14 +489,14 @@ extension Integer of int32 {
 ^ extension_range:end
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=UserId kind=newtype detail=int64 range=main.ds#user_id_range selection=main.ds#user_id_selection
-@outline.symbol depth=0 name=Measure kind=newtype_interface range=main.ds#measure_range selection=main.ds#measure_selection
-@outline.symbol depth=1 name=Unit kind=associated_type range=main.ds#unit_range selection=main.ds#unit_selection
-@outline.symbol depth=1 name=Scale kind=associated_const detail=uint64 range=main.ds#scale_range selection=main.ds#scale_selection
-@outline.symbol depth=1 name=measure kind=method detail="(): float64" range=main.ds#measure_method_range selection=main.ds#measure_method_selection
-@outline.symbol depth=0 name=Integer kind=extension range=main.ds#extension_range selection=main.ds#extension_selection
-@outline.symbol depth=1 name=doubled kind=method detail="(): int32" range=main.ds#doubled_range selection=main.ds#doubled_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=UserId kind=newtype detail=int64 range=main.tspp#user_id_range selection=main.tspp#user_id_selection
+@outline.symbol depth=0 name=Measure kind=newtype_interface range=main.tspp#measure_range selection=main.tspp#measure_selection
+@outline.symbol depth=1 name=Unit kind=associated_type range=main.tspp#unit_range selection=main.tspp#unit_selection
+@outline.symbol depth=1 name=Scale kind=associated_const detail=uint64 range=main.tspp#scale_range selection=main.tspp#scale_selection
+@outline.symbol depth=1 name=measure kind=method detail="(): float64" range=main.tspp#measure_method_range selection=main.tspp#measure_method_selection
+@outline.symbol depth=0 name=Integer kind=extension range=main.tspp#extension_range selection=main.tspp#extension_selection
+@outline.symbol depth=1 name=doubled kind=method detail="(): int32" range=main.tspp#doubled_range selection=main.tspp#doubled_selection
 ```
 
 ## Overloads
@@ -505,7 +505,7 @@ extension Integer of int32 {
 
 Each overload remains a separate symbol in source order.
 
-```ds main.ds
+```tspp main.tspp
 declare function parse(value: string): int32;
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ string_range
                  ^^^^^ string_selection
@@ -514,9 +514,9 @@ declare function parse(value: int32): int32;
                  ^^^^^ integer_selection
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=parse kind=function detail="(value: string): int32" range=main.ds#string_range selection=main.ds#string_selection
-@outline.symbol depth=0 name=parse kind=function detail="(value: int32): int32" range=main.ds#integer_range selection=main.ds#integer_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=parse kind=function detail="(value: string): int32" range=main.tspp#string_range selection=main.tspp#string_selection
+@outline.symbol depth=0 name=parse kind=function detail="(value: int32): int32" range=main.tspp#integer_range selection=main.tspp#integer_selection
 ```
 
 ## Anonymous Owners
@@ -525,7 +525,7 @@ declare function parse(value: int32): int32;
 
 An anonymous extension remains visible without inventing a symbol identity.
 
-```ds main.ds
+```tspp main.tspp
 extension of int32 {
 ^ extension_range:start
              ^^^^^ target_selection
@@ -539,9 +539,9 @@ extension of int32 {
 ^ extension_range:end
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name="extension of int32" kind=extension range=main.ds#extension_range selection=main.ds#target_selection
-@outline.symbol depth=1 name=doubled kind=method detail="(): int32" range=main.ds#doubled_range selection=main.ds#doubled_selection
+```query outline main.tspp
+@outline.symbol depth=0 name="extension of int32" kind=extension range=main.tspp#extension_range selection=main.tspp#target_selection
+@outline.symbol depth=1 name=doubled kind=method detail="(): int32" range=main.tspp#doubled_range selection=main.tspp#doubled_selection
 ```
 
 ## Bindings
@@ -550,7 +550,7 @@ extension of int32 {
 
 Each top-level binding is a symbol, including bindings introduced by one destructuring declaration.
 
-```ds main.ds
+```tspp main.tspp
 const pair = { left: 1, right: 2 };
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ pair_range
       ^^^^ pair_selection
@@ -565,11 +565,11 @@ let count = 0;
     ^^^^^ count_selection
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=pair kind=constant detail="{ left: int64; right: int64 }" range=main.ds#pair_range selection=main.ds#pair_selection
-@outline.symbol depth=0 name=left kind=constant detail=int64 range=main.ds#bindings_range selection=main.ds#left_selection
-@outline.symbol depth=0 name=vertical kind=constant detail=int64 range=main.ds#bindings_range selection=main.ds#vertical_selection
-@outline.symbol depth=0 name=count kind=variable detail=int64 range=main.ds#count_range selection=main.ds#count_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=pair kind=constant detail="{ left: int64; right: int64 }" range=main.tspp#pair_range selection=main.tspp#pair_selection
+@outline.symbol depth=0 name=left kind=constant detail=int64 range=main.tspp#bindings_range selection=main.tspp#left_selection
+@outline.symbol depth=0 name=vertical kind=constant detail=int64 range=main.tspp#bindings_range selection=main.tspp#vertical_selection
+@outline.symbol depth=0 name=count kind=variable detail=int64 range=main.tspp#count_range selection=main.tspp#count_selection
 ```
 
 ## Omitted Symbols
@@ -578,8 +578,8 @@ let count = 0;
 
 The outline includes document declarations but not dependencies, parameters, or local bindings.
 
-```ds main.ds
-import { source } from "./library.ds";
+```tspp main.tspp
+import { source } from "./library.tspp";
 
 function read(value: int32): int32 {
 ^ read_range:start
@@ -594,11 +594,11 @@ const exposed = 1;
       ^^^^^^^ exposed_selection
 ```
 
-```ds library.ds
+```tspp library.tspp
 export const source = 1;
 ```
 
-```query outline main.ds
-@outline.symbol depth=0 name=read kind=function detail="(value: int32): int32" range=main.ds#read_range selection=main.ds#read_selection
-@outline.symbol depth=0 name=exposed kind=constant detail=1 range=main.ds#exposed_range selection=main.ds#exposed_selection
+```query outline main.tspp
+@outline.symbol depth=0 name=read kind=function detail="(value: int32): int32" range=main.tspp#read_range selection=main.tspp#read_selection
+@outline.symbol depth=0 name=exposed kind=constant detail=1 range=main.tspp#exposed_range selection=main.tspp#exposed_selection
 ```

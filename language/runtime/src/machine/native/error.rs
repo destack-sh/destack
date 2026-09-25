@@ -1,9 +1,9 @@
 use std::fmt;
 
-use destack_native::abi;
-use destack_program as program;
-use destack_program::{TypeId, Value};
 use serde::{Deserialize, Serialize};
+use tspp_native::abi;
+use tspp_program as program;
+use tspp_program::{TypeId, Value};
 
 /// Native execution error.
 #[derive(Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -1,8 +1,8 @@
 use std::iter;
 
-use destack_core::Blob;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::Blob;
+use tspp_serde::Reflect;
 
 use crate::{
     DiagnosticHelp, DiagnosticLabel, DiagnosticNote, DiagnosticSeverity, DiagnosticSuggestion,

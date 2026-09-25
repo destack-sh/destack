@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_core::FxIndexMap;
 use smallvec::SmallVec;
+use tspp_core::FxIndexMap;
 
 use crate::{
     Analysis, BlockId, ConstantTable, DefinitionTable, DominatorTable, FunctionId, Instruction,

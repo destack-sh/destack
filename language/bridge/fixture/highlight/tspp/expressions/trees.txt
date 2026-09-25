@@ -1,0 +1,15 @@
+// SYNTAX TEST "source.tspp"
+
+// expressions / trees / jsx tags and attributes
+const view = <Panel title="Orders" count={items.length}>
+//            ^^^^^ entity.name.tag.tsx
+    <Row selected={true}>{item.name}</Row>
+</Panel>;
+
+// expressions / trees / generic arrows in attributes
+const view = <Widget onSelect={<T,>(value: T) => value} />;
+//            ^^^^^^ entity.name.tag.tsx
+
+// expressions / trees / generic calls near tags
+const value = make<Result>(input);
+//            ^^^^ entity.name.function.call.tspp

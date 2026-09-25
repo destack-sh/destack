@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 use std::cmp::Ordering;
 
-use destack_serde::Reflect;
-use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 use smallvec::{SmallVec, smallvec};
+use tspp_serde::Reflect;
+use tspp_source::ModuleId;
 
 use crate::{
     Asynchrony, BinaryOperator, GlobalGenericParameterId, GlobalGenericTemplateId, GlobalStaticId,
@@ -1064,7 +1064,7 @@ impl Lifetime {
 /// One declaration reference with its explicitly bound generic arguments.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// Box                 // static declaration receiver in `Box.empty`
 /// Box.Output          // owner of a static associated type projection
 /// ```
@@ -1090,7 +1090,7 @@ impl TypeReference {
 /// A non-generic reference is an application with no arguments.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// User                  // no arguments
 /// Map<string, User>     // two positional arguments
 /// ```
@@ -1105,7 +1105,7 @@ pub struct GenericApplication {
 /// Member type selected from an owner type.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// T.Output              // the associated type selected on T
 /// Ordering.Less         // the enum member selected on Ordering
 /// ```
@@ -1124,7 +1124,7 @@ pub struct MemberType {
 /// One associated member equality refining an applied type.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8;
 /// function stream<S: Source<type Chunk = string, type Error = E>>(source: S): E;
 /// ```
@@ -1141,7 +1141,7 @@ pub struct RefinedType {
 /// One selected enum variant type.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// Mode.Read
 /// Mode.Write
 /// ```
@@ -1251,7 +1251,7 @@ impl Form {
 /// Explicit runtime `Dynamic<T>` representation.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// Dynamic<Printable>    // a boxed value known to satisfy Printable
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
@@ -1400,7 +1400,7 @@ pub struct InstantiationType {
 /// Compiler-provided string mapping.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// Uppercase<"id">      // "ID"
 /// Capitalize<"name">   // "Name"
 /// ```
@@ -1469,7 +1469,7 @@ impl TryFrom<&str> for StringMapping {
 /// A conditional type.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// T extends string ? Text : Raw
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
@@ -1500,7 +1500,7 @@ pub struct NarrowType {
 /// A mapped type.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// { [K in keyof T]: T[K] }
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
@@ -1516,7 +1516,7 @@ pub struct MappedType {
 /// A mapped-type parameter.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// [K in keyof T]
 /// [K in "name" | "age" as Uppercase<K>]
 /// ```
@@ -1537,7 +1537,7 @@ pub struct MappedTypeParameter {
 /// Mapped-type modifiers.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// { [K in keyof T]?: T[K] }              // optional: Present
 /// { -readonly [K in keyof T]-?: T[K] }   // readonly and optional: Remove
 /// ```
@@ -1552,7 +1552,7 @@ pub struct MappedTypeModifiers {
 /// Indexed access type.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// User["name"]
 /// Pair[0]
 /// ```
@@ -1567,7 +1567,7 @@ pub struct IndexType {
 /// A template literal type.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// `get${Name}`
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -1581,7 +1581,7 @@ pub struct TemplateLiteralType {
 /// An infer binding inside a conditional type pattern.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// T extends Array<infer E> ? E : never
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
@@ -1597,7 +1597,7 @@ pub struct InferType {
 /// A unary type operator.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// keyof User
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
@@ -1609,7 +1609,7 @@ pub struct UnaryType {
 /// One static binary operation over singleton operands.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// N * 2
 /// Mode == "inline"
 /// ```
@@ -1918,7 +1918,7 @@ impl TryFrom<BinaryOperator> for StaticBinaryOperator {
 /// One static unary operation over one singleton operand.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// !Wide
 /// -Offset
 /// ```
@@ -1995,7 +1995,7 @@ impl TryFrom<UnaryOperator> for StaticUnaryOperator {
 /// A fixed-length array type.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// [uint8; 4]
 /// FixedArray<uint8, 4>
 /// ```
@@ -2010,7 +2010,7 @@ pub struct FixedArrayType {
 /// Compact discrete scalar interval type.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// 0..10
 /// 0..=255
 /// ```
@@ -2381,7 +2381,7 @@ impl RangeType {
 /// Runtime-length homogeneous view type.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// [uint8]
 /// Slice<uint8>
 /// ```
@@ -2394,7 +2394,7 @@ pub struct SliceType {
 /// A tuple type.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// (string, int32)
 /// ["id", 42]
 /// ```
@@ -2446,7 +2446,7 @@ impl TypeElement {
 /// The members one anonymous object type declares.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// { name: string; age?: int32 }
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -2473,7 +2473,7 @@ impl ObjectType {
 /// One property in a structural object type.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// {
 ///     readonly name: string;
 ///     get value(): string;
@@ -2601,7 +2601,7 @@ impl PropertyAccess {
 /// An index signature in an object type.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// { [key: string]: int32 }
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
@@ -2621,7 +2621,7 @@ pub struct TypeIndexSignature {
 /// A function signature type.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// (value: int32) => string
 /// async <T>(input: T) => Promise<T>
 /// ```
@@ -2650,7 +2650,7 @@ pub struct FunctionSignatureType {
 /// A runtime parameter in a function type.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// (value?: int32, ...rest: string[]) => void
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect, TypeFold)]
@@ -2677,7 +2677,7 @@ pub struct FunctionType {
 /// The ownership, access, and exclusion required to call a receiver.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// (x: T) => R                     // mutable aliasable receiver when elided
 /// (&readonly this, x: T) => R     // borrowed readonly
 /// ^Function<(), void, "once">     // owned, callable once
@@ -2751,7 +2751,7 @@ pub struct FunctionPointerType {
 /// A union type.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// string | int32
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]
@@ -2763,7 +2763,7 @@ pub struct UnionType {
 /// An intersection type.
 ///
 /// Examples:
-/// ```ds
+/// ```tspp
 /// Named & Aged
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]

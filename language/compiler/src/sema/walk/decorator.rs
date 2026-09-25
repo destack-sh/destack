@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::sema::{DecoratorApplication, DecoratorExpression, WalkState};
 use crate::{CompilerError, CompilerResult};
@@ -7,7 +7,7 @@ impl WalkState<'_, '_> {
     /// Walk one decorator application.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// @inline
     /// function f() {}
     /// ```
@@ -75,7 +75,7 @@ impl WalkState<'_, '_> {
     /// Walk one decorator target.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// @repr("C")
     /// struct Header {}
     /// ```

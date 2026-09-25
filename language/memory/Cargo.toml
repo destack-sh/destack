@@ -1,6 +1,6 @@
 [package]
-name = "destack_memory"
-description = "Destack Memory"
+name = "tspp_memory"
+description = "TS++ Memory"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,12 +12,12 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-destack_serde = { workspace = true }
+tspp_serde = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 
 [target.'cfg(unix)'.dependencies]
-destack_signal = { workspace = true }
+tspp_signal = { workspace = true }
 libc = { workspace = true }
 
 [target.'cfg(windows)'.dependencies]

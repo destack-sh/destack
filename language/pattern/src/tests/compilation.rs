@@ -1,8 +1,8 @@
 use std::fmt::Write;
 use std::sync::Arc;
 
-use destack_core::StringPool;
-use destack_source::{DiagnosticCollection, File, Span};
+use tspp_core::StringPool;
+use tspp_source::{DiagnosticCollection, File, Span};
 
 use super::{fixture_text, render_diagnostics};
 use crate::{Metavariable, MetavariableUse, Pattern, Predicate};

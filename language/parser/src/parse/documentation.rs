@@ -1,10 +1,10 @@
-use destack_core::StringId;
-use destack_dir::{
+use tspp_core::StringId;
+use tspp_dir::{
     Comment, Declaration, Documentation, DocumentationTag, GenericParameter, LocalNodeId,
     LocalNodeIdAny, Member, Node, NodeType, Parameter, Property, StaticKey, TypeExpression,
     TypeMember,
 };
-use destack_source::Span;
+use tspp_source::Span;
 
 use crate::{Parser, ParserError};
 

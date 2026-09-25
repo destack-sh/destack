@@ -2,7 +2,7 @@ use std::hint::black_box;
 use std::sync::Arc;
 
 use criterion::{BatchSize, Criterion, Throughput};
-use destack_heap::{Heap, HeapReference, TraceView};
+use tspp_heap::{Heap, HeapReference, TraceView};
 
 use crate::config::{REFERENCE_BYTES, WORKLOAD_MUTATIONS, WORKLOAD_OBJECTS};
 use crate::graph::{ObjectGraphWorkload, ReferenceArrayWorkload};

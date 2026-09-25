@@ -1,7 +1,7 @@
 use std::cmp::Ordering;
 
-use destack_bytecode::{Instruction, IntegerOperation, RegisterSpan, Scalar};
-use destack_program::{Runtime, Word};
+use tspp_bytecode::{Instruction, IntegerOperation, RegisterSpan, Scalar};
+use tspp_program::{Runtime, Word};
 
 use crate::diagnostic::{Error, Result, Trap};
 use crate::machine::Activation;

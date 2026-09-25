@@ -1,5 +1,5 @@
-use destack_mir as mir;
-use destack_program::{
+use tspp_mir as mir;
+use tspp_program::{
     BindingAffinity, BindingBuilder, BindingEffect, BindingId, BindingProvider, BindingReplay,
 };
 

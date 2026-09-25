@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use destack_mir as mir;
-use destack_native as native;
-use destack_program::Object;
-use destack_source::ModuleId;
+use tspp_mir as mir;
+use tspp_native as native;
+use tspp_program::Object;
+use tspp_source::ModuleId;
 
 use crate::LinkResult;
 

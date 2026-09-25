@@ -1,3 +1,0 @@
-export * from "./topology.ds";
-export * from "./edge.ds";
-export * from "./entity.ds";

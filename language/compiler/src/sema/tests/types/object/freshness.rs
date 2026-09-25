@@ -26,7 +26,7 @@ function run(argument?: Argument): void {}
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_node_types(),
         r#"
 === annotated ===

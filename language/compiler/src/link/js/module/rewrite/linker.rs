@@ -1,5 +1,5 @@
 use crate::emit::js;
-use destack_repository::Target;
+use tspp_repository::Target;
 
 use super::super::linker::OutputModule;
 use crate::{JsLinker, LinkResult};

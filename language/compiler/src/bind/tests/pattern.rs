@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_bind_pattern_defaults_declare_nested_bindings() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let { name = "Ada" } = {};
 "#,
@@ -12,7 +12,7 @@ let { name = "Ada" } = {};
         .build();
 
     compiler.assert_dir_bound(
-        "main.ds",
+        "main.tspp",
         DirRows::binding().with_binding_nodes().with_summaries(),
         r#"
 let { name = "Ada" } = {};
@@ -39,7 +39,7 @@ let { name = "Ada" } = {};
 fn test_bind_assignment_patterns_do_not_declare_storage() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let x: int32 = 0;
 let label: string = "";
@@ -51,7 +51,7 @@ declare const point: { x: int32; y: string };
         .build();
 
     compiler.assert_dir_bound(
-        "main.ds",
+        "main.tspp",
         DirRows::binding().with_binding_nodes().with_summaries(),
         r#"
 let x: int32 = 0;
@@ -111,7 +111,7 @@ declare const point: { x: int32; y: string };
 fn test_bind_destructuring_patterns() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let { id, name: displayName }: User = user;
 let [first, , ...rest]: Items = items;
@@ -125,7 +125,7 @@ function visit({ id }: User, [first]: Items) {
         .build();
 
     compiler.assert_dir_bound(
-        "main.ds",
+        "main.tspp",
         DirRows::binding().with_summaries(),
         r#"
 let { id, name: displayName }: User = user;
@@ -161,7 +161,7 @@ function visit({ id }: User, [first]: Items) {
 fn test_bind_union_pattern_reuses_shared_binding_symbols() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 declare const packet: { left: int32 } | { right: int32 };
 
@@ -173,7 +173,7 @@ if (let { left: value } | { right: value } = packet) {
         .build();
 
     compiler.assert_dir_bound(
-        "main.ds",
+        "main.tspp",
         DirRows::binding().with_binding_nodes().with_summaries(),
         r#"
 declare const packet: { left: int32 } | { right: int32 };
@@ -230,7 +230,7 @@ if (let { left: value } | { right: value } = packet) {
 fn test_bind_union_pattern_keeps_distinct_branch_symbols() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 declare const packet: { left: int32 } | { right: int32 };
 
@@ -243,7 +243,7 @@ if (let { left: value } | { right: other } = packet) {
         .build();
 
     compiler.assert_dir_bound(
-        "main.ds",
+        "main.tspp",
         DirRows::binding().with_summaries(),
         r#"
 declare const packet: { left: int32 } | { right: int32 };

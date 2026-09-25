@@ -1,11 +1,11 @@
 use std::fmt;
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 const BUILD_ID_BYTES: usize = 16;
 
-/// One Destack toolchain build.
+/// One TS++ toolchain build.
 #[derive(
     Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, Serialize, Deserialize, Reflect,
 )]

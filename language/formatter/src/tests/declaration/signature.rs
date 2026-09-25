@@ -1,8 +1,8 @@
 use crate::{
-    DestackFormatOptions, assert_format, assert_format_program_idempotent,
+    TsppFormatOptions, assert_format, assert_format_program_idempotent,
     assert_format_program_reference_widths, assert_format_program_roundtrip_with_file_type,
 };
-use destack_source::FileType;
+use tspp_source::FileType;
 
 #[test]
 fn test_format_parameter() {
@@ -10,7 +10,7 @@ fn test_format_parameter() {
         "x: int32",
         "x: int32",
         |p| p.parse_parameter_fragment(),
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -24,7 +24,7 @@ fn test_format_recovered_parameter() {
             let parameters = parser.parse_parameter_list_fragment()?;
             Ok(parameters[1])
         },
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -35,8 +35,8 @@ fn test_format_float_parameter_types() {
 "#,
         r#"function convert(a: float32, b: float64): void {}
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 }
 
@@ -46,7 +46,7 @@ fn test_format_parameter_with_default() {
         "x: int32 = 1",
         "x: int32 = 1",
         |p| p.parse_parameter_fragment(),
-        DestackFormatOptions::default()
+        TsppFormatOptions::default()
     );
 }
 
@@ -69,8 +69,8 @@ extension of Buffer {
     }
 }
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 }
 
@@ -83,8 +83,8 @@ function tensor<const ...Shape: readonly usize[]>(value: Tensor<...Shape>): void
         r#"type Callback<...Parameters, Return> = (...parameters: Parameters) => Return;
 function tensor<const ...Shape: readonly usize[]>(value: Tensor<...Shape>): void {}
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 }
 
@@ -106,8 +106,8 @@ fn test_format_pattern_parameter_default_comments() {
   sqrt = Math.sqrt,
 } = {}) => {};
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default().with_indent_width(2),
+        FileType::Tspp,
+        TsppFormatOptions::default().with_indent_width(2),
     );
 }
 
@@ -119,8 +119,8 @@ fn test_format_generic_parameter_colon_bounds() {
 "#,
         r#"type Value<T: string> = T;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 }
 
@@ -133,7 +133,7 @@ fn test_format_signature_trailing_separator_line_comment_is_idempotent() {
   // this deliberately long comment keeps the separator attachment in the broken layout
 ): number => {};
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -161,7 +161,7 @@ class X2 {
   }
 }
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -186,7 +186,7 @@ fn test_format_method_comments() {
   }
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -245,7 +245,7 @@ fn test_format_type_literal_parameter_layout() {
 }: { query?: Record<unknown, unknown> } = {}) {
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -273,16 +273,16 @@ fn test_format_mapped_type_bracket_spacing() {
         input,
         r#"export type Bar<T> = { [P in keyof T]: string };
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(80).with_indent_width(2),
     );
 
     assert_format_program_roundtrip_with_file_type(
         input,
         r#"export type Bar<T> = { [P in keyof T]: string };
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100).with_indent_width(2),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100).with_indent_width(2),
     );
 }
 
@@ -306,7 +306,7 @@ const arrow = (x /* c1 */ : number, y /* c2 */ : string) => {};
 function optional(x? /* comment */ : number) {}
 function optionalMultiple(a? /* c1 */ : string, b? /* c2 */ : number) {}
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -366,8 +366,8 @@ fn test_format_interface_method_parameter_separator_comment() {
     ): number;
 }
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 }
 
@@ -385,8 +385,8 @@ fn test_format_signature_return_separator_comment() {
     Promise<void>;
 }
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 }
 
@@ -444,7 +444,7 @@ const A5 = {
   ) { }
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -573,7 +573,7 @@ function parseTitle(
   }: { maxLength?: number } = {}
 ) {}
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -685,7 +685,7 @@ fn test_format_parameter_type_query_layout() {
     toastService.addToastItem(...args);
   });
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -724,7 +724,7 @@ fn test_format_interface_default_method_body_roundtrip() {
     }
 }
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 }

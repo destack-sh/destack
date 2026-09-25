@@ -1,4 +1,4 @@
-use destack_mir::Function;
+use tspp_mir::Function;
 
 use crate::tests::TestProgram;
 

@@ -15,14 +15,14 @@ fn test_resolve_counters_dedupe_repeated_global_references() {
 {
     "name": "test",
     "compiler": {
-        "globals": ["globals.ds"]
+        "globals": ["globals.tspp"]
     }
 }
 "#,
         )
-        .module("main.ds", &source)
+        .module("main.tspp", &source)
         .module(
-            "globals.ds",
+            "globals.tspp",
             r#"
 global {
     const answer: int32 = 42;
@@ -31,7 +31,7 @@ global {
         )
         .cold()
         .build();
-    let counters = compiler.artifact_counters(compiler.dir_resolved_key("main.ds"), "resolve.");
+    let counters = compiler.artifact_counters(compiler.dir_resolved_key("main.tspp"), "resolve.");
     let expected = format!(
         "resolve.roots={ITEMS}\n\
 resolve.expressions={}\n\
@@ -63,11 +63,11 @@ fn test_resolve_counters_cache_repeated_export_lookups() {
         .join(", ");
     let source = format!("import {{ {imports} }} from \"./dep\";");
     let compiler = TestSession::builder()
-        .module("main.ds", &source)
-        .module("dep.ds", "export const target = 1;")
+        .module("main.tspp", &source)
+        .module("dep.tspp", "export const target = 1;")
         .cold()
         .build();
-    let counters = compiler.artifact_counters(compiler.dir_resolved_key("main.ds"), "resolve.");
+    let counters = compiler.artifact_counters(compiler.dir_resolved_key("main.tspp"), "resolve.");
     let expected = format!(
         "resolve.roots=1\n\
 resolve.expressions=1\n\
@@ -103,11 +103,11 @@ fn test_resolve_counters_load_export_table_once_for_distinct_imports() {
         .join("\n");
     let source = format!("import {{ {imports} }} from \"./dep\";");
     let compiler = TestSession::builder()
-        .module("main.ds", &source)
-        .module("dep.ds", &exports)
+        .module("main.tspp", &source)
+        .module("dep.tspp", &exports)
         .cold()
         .build();
-    let counters = compiler.artifact_counters(compiler.dir_resolved_key("main.ds"), "resolve.");
+    let counters = compiler.artifact_counters(compiler.dir_resolved_key("main.tspp"), "resolve.");
     let expected = format!(
         "resolve.roots=1\n\
 resolve.expressions=1\n\
@@ -141,11 +141,11 @@ fn test_resolve_counters_cache_repeated_namespace_paths() {
 {references}"
     );
     let compiler = TestSession::builder()
-        .module("main.ds", &source)
-        .module("dep.ds", "export const target = 1;")
+        .module("main.tspp", &source)
+        .module("dep.tspp", "export const target = 1;")
         .cold()
         .build();
-    let counters = compiler.artifact_counters(compiler.dir_resolved_key("main.ds"), "resolve.");
+    let counters = compiler.artifact_counters(compiler.dir_resolved_key("main.tspp"), "resolve.");
     let expected = format!(
         "resolve.roots={}\n\
 resolve.expressions={}\n\
@@ -182,12 +182,12 @@ fn test_resolve_counters_cache_repeated_nested_namespace_paths() {
 {references}"
     );
     let compiler = TestSession::builder()
-        .module("main.ds", &source)
-        .module("dep.ds", "export * as api from \"./api\";")
-        .module("api.ds", "export const target = 1;")
+        .module("main.tspp", &source)
+        .module("dep.tspp", "export * as api from \"./api\";")
+        .module("api.tspp", "export const target = 1;")
         .cold()
         .build();
-    let counters = compiler.artifact_counters(compiler.dir_resolved_key("main.ds"), "resolve.");
+    let counters = compiler.artifact_counters(compiler.dir_resolved_key("main.tspp"), "resolve.");
     let expected = format!(
         "resolve.roots={}\n\
 resolve.expressions={}\n\

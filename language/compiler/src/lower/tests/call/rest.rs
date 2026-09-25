@@ -15,7 +15,7 @@ function forward(values: int32[]): void {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.forward", r#"
+    session.assert_mir_function("main.tspp", "test.main.forward", r#"
 @nocopy
 @languageItem("collections.Array")
 type Array<T>;
@@ -281,7 +281,7 @@ function forward(values: ^[int32]): isize {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.forward", r#"
+    session.assert_mir_function("main.tspp", "test.main.forward", r#"
 @nocopy
 @languageItem("iter.Iterator")
 type Iterator<T>;
@@ -435,7 +435,7 @@ function main(): isize {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.main",
         r#"
 function test.main.main(): isize {
@@ -475,7 +475,7 @@ function main(): isize {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.main",
         r#"
 function test.main.main(): isize {
@@ -512,7 +512,7 @@ function main(): isize {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.total", r#"
+    session.assert_mir_function("main.tspp", "test.main.total", r#"
 @nocopy
 @languageItem("collections.Array")
 type Array<T>;
@@ -529,7 +529,7 @@ entry(v0: ref<Array<int32>, managed, mutable, local>):
 }
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.main", r#"
+    session.assert_mir_function("main.tspp", "test.main.main", r#"
 @nocopy
 @languageItem("collections.Array")
 type Array<T>;
@@ -571,7 +571,7 @@ function forward(values: int32[]): isize {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.sum", r#"
+    session.assert_mir_function("main.tspp", "test.main.sum", r#"
 @nocopy
 @languageItem("collections.Array")
 type Array<T>;
@@ -589,7 +589,7 @@ entry(v0: ref<Array<int32>, managed, mutable, local>):
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.forward",
         r#"
 @nocopy

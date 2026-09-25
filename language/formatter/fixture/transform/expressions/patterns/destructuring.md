@@ -8,11 +8,11 @@ Destructuring pattern fixtures cover nested object and array targets in expressi
 
 Deeply nested destructuring patterns.
 
-```ds
+```tspp
 const { user: { profile: { name, avatar } } } = data
 ```
 
-```ds expected
+```tspp expected
 const {
     user: {
         profile: { name, avatar },
@@ -24,11 +24,11 @@ const {
 
 Destructuring with default values and renaming.
 
-```ds line-width=60
+```tspp line-width=60
 const { name = "default", count: total = 0, items: [...rest] } = config
 ```
 
-```ds expected
+```tspp expected
 const {
     name = "default",
     count: total = 0,
@@ -40,11 +40,11 @@ const {
 
 Array destructuring with rest patterns.
 
-```ds
+```tspp
 const [first, second, ...remaining] = items
 ```
 
-```ds expected
+```tspp expected
 const [first, second, ...remaining] = items;
 ```
 
@@ -54,11 +54,11 @@ const [first, second, ...remaining] = items;
 
 Multiple levels of nested object destructuring.
 
-```ds line-width=60
+```tspp line-width=60
 const { user: { profile: { settings: { theme, language } } } } = config
 ```
 
-```ds expected
+```tspp expected
 const {
     user: {
         profile: {
@@ -73,11 +73,11 @@ const {
 Defaults appear at several nesting levels.
 The pattern expands when over line width.
 
-```ds line-width=50
+```tspp line-width=50
 const { a: { b = 1, c: { d = 2 } = {} } = {} } = obj
 ```
 
-```ds expected
+```tspp expected
 const { a: { b = 1, c: { d = 2 } = {} } = {} } =
     obj;
 ```
@@ -86,11 +86,11 @@ const { a: { b = 1, c: { d = 2 } = {} } = {} } =
 
 Array elements containing object destructuring expand when needed.
 
-```ds line-width=50
+```tspp line-width=50
 const [{ name, id }, { name: secondName }] = items
 ```
 
-```ds expected
+```tspp expected
 const [{ name, id }, { name: secondName }] =
     items;
 ```
@@ -99,11 +99,11 @@ const [{ name, id }, { name: secondName }] =
 
 Complex pattern combining arrays and objects.
 
-```ds line-width=60
+```tspp line-width=60
 const { items: [first, { value: secondValue }, ...rest] } = data
 ```
 
-```ds expected
+```tspp expected
 const {
     items: [first, { value: secondValue }, ...rest],
 } = data;
@@ -114,11 +114,11 @@ const {
 Destructuring can appear in arrow function parameters.
 The parameter stays hugged while fields break.
 
-```ds line-width=50
+```tspp line-width=50
 const handler = ({ event: { target, type }, timestamp }) => process(target, type)
 ```
 
-```ds expected
+```tspp expected
 const handler = ({
     event: { target, type },
     timestamp,
@@ -129,12 +129,12 @@ const handler = ({
 
 Rest patterns at different levels.
 
-```ds
+```tspp
 const { a, ...rest } = obj
 const [first, ...remaining] = arr
 ```
 
-```ds expected
+```tspp expected
 const { a, ...rest } = obj;
 const [first, ...remaining] = arr;
 ```
@@ -143,11 +143,11 @@ const [first, ...remaining] = arr;
 
 Computed property names stay inside destructuring patterns.
 
-```ds
+```tspp
 const { [key]: value, [prefix + suffix]: other } = obj
 ```
 
-```ds expected
+```tspp expected
 const { [key]: value, [prefix + suffix]: other } = obj;
 ```
 
@@ -155,10 +155,10 @@ const { [key]: value, [prefix + suffix]: other } = obj;
 
 Destructuring patterns keep type annotations.
 
-```ds line-width=60
+```tspp line-width=60
 const { name, age }: { name: string, age: number } = person
 ```
 
-```ds expected
+```tspp expected
 const { name, age }: { name: string; age: number } = person;
 ```

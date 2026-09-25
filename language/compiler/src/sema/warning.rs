@@ -1,5 +1,5 @@
-use destack_artifact_macros::Diagnostic;
-use destack_source::ModuleId;
+use tspp_artifact_macros::Diagnostic;
+use tspp_source::ModuleId;
 
 use crate::DiagnosticAnchor;
 
@@ -39,7 +39,7 @@ pub enum CheckWarning {
     // -------------------------------------------------------------------------
     /// Cast does not change the expression's type.
     ///
-    /// ```ds
+    /// ```tspp
     /// const value = 1 as int32 as int32;
     /// ```
     #[diagnostic(id = "redundant-cast", message = "cast to '{ty}' has no effect")]
@@ -78,7 +78,7 @@ pub enum CheckWarning {
 
     /// Constant shift amount reaches past the shifted width.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const bits: int32;
     /// const spilled = bits << 32;
     /// ```
@@ -102,7 +102,7 @@ pub enum CheckWarning {
     // -------------------------------------------------------------------------
     /// Extension overload can never win against an earlier declaration.
     ///
-    /// ```ds
+    /// ```tspp
     /// extension of User {
     ///     show(): string {}
     ///     show(): string {}
@@ -153,7 +153,7 @@ pub enum CheckWarning {
     // -------------------------------------------------------------------------
     /// Code follows an expression that always transfers control.
     ///
-    /// ```ds
+    /// ```tspp
     /// function run(): void {
     ///     return;
     ///     process();
@@ -178,7 +178,7 @@ pub enum CheckWarning {
 
     /// Runtime condition is statically known.
     ///
-    /// ```ds
+    /// ```tspp
     /// if (true) {}
     /// ```
     #[diagnostic(id = "constant-condition", message = "condition is always {value}")]
@@ -286,7 +286,7 @@ pub enum CheckWarning {
     // -------------------------------------------------------------------------
     /// Implementation pairs a foreign interface with a foreign type.
     ///
-    /// ```ds
+    /// ```tspp
     /// extension of ForeignType implements ForeignInterface {}
     /// ```
     #[diagnostic(

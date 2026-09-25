@@ -5,7 +5,7 @@ use serde::de::{MapAccess, Visitor};
 use serde::ser::SerializeMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
-use destack_serde::{Reflect, Schema, Type};
+use tspp_serde::{Reflect, Schema, Type};
 
 /// One runtime label key-value pair.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]

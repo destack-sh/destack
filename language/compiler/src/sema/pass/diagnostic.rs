@@ -1,8 +1,8 @@
-use destack_artifact::{
+use tspp_artifact::{
     DiagnosticAnchor, DiagnosticBuilder, DiagnosticControlIndex, DiagnosticControlLevel,
     DiagnosticControlTable, DiagnosticRecord,
 };
-use destack_core::{StringId, StringPool};
+use tspp_core::{StringId, StringPool};
 
 use crate::sema::{Check, CheckError, CheckState, CheckWarning};
 use crate::{CompilerError, CompilerResult};

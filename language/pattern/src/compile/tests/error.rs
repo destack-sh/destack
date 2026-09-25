@@ -6,13 +6,13 @@ fn test_reject_sequence_root() {
     TestPattern::new("$$$VALUES").compile().assert_diagnostics(
         r#"
 error[invalid-repeated-metavariable]: repeated metavariable does not occupy a repeated DIR list
- ──▶ destack:pattern:1:1
+ ──▶ tspp:pattern:1:1
   │
 1 │ $$$VALUES
   │ ^^^^^^^^^
   │
 
-for more information about an error, run `destack explain invalid-repeated-metavariable`
+for more information about an error, run `tspp explain invalid-repeated-metavariable`
 "#,
     );
 }
@@ -25,13 +25,13 @@ fn test_reject_incompatible_uses() {
         .assert_diagnostics(
             r#"
 error[incompatible-pattern-metavariable]: metavariable 'VALUE' has incompatible uses
- ──▶ destack:pattern:1:8
+ ──▶ tspp:pattern:1:8
   │
 1 │ $VALUE.$VALUE
   │ ------ ^^^^^^ first used here
   │
 
-for more information about an error, run `destack explain incompatible-pattern-metavariable`
+for more information about an error, run `tspp explain incompatible-pattern-metavariable`
 "#,
         );
 }
@@ -44,13 +44,13 @@ fn test_reject_adjacent_sequences() {
         .assert_diagnostics(
             r#"
 error[ambiguous-repeated-metavariables]: adjacent repeated metavariables have no unique partition
- ──▶ destack:pattern:1:18
+ ──▶ tspp:pattern:1:18
   │
 1 │ consume($$$LEFT, $$$RIGHT)
   │                  ^^^^^^^^
   │
 
-for more information about an error, run `destack explain ambiguous-repeated-metavariables`
+for more information about an error, run `tspp explain ambiguous-repeated-metavariables`
 "#,
         );
 }
@@ -64,7 +64,7 @@ fn test_reject_multiple_roots() {
             r#"
 error[expected-pattern-root]: expected one pattern root, found 2
   ──▶ <pattern>
-for more information about an error, run `destack explain expected-pattern-root`
+for more information about an error, run `tspp explain expected-pattern-root`
 "#,
         );
 }
@@ -75,13 +75,13 @@ fn test_preserve_parser_diagnostics() {
     TestPattern::new("fetch(").compile().assert_diagnostics(
         r#"
 error[expected-expression]: expected expression
- ──▶ destack:pattern:1:7
+ ──▶ tspp:pattern:1:7
   │
 1 │ fetch(
   │       ^ expected expression, found End
   │
 
-for more information about an error, run `destack explain expected-expression`
+for more information about an error, run `tspp explain expected-expression`
 "#,
     );
 }

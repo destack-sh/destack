@@ -1,16 +1,16 @@
 use crate::parse::error::ParserResultExt;
 use crate::{ParseStart, Parser, ParserResult};
 
-use destack_dir::{
+use tspp_dir::{
     BlockContext, BlockForm, Declaration, LocalNodeId, ModuleDeclaration, NodeType, TokenType,
 };
-use destack_source::ByteRange;
+use tspp_source::ByteRange;
 
 impl Parser {
     /// Parse a module declaration after its `module` head.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// module {}
     /// ```
     pub(crate) fn parse_module(

@@ -3,12 +3,12 @@ use crate::{
     ExpressionPosition, ExpressionStop, assert_expression_path, assert_name, assert_node,
     assert_path, assert_string,
 };
-use destack_dir::{
+use tspp_dir::{
     Argument, BinaryOperator, Declaration, Expression, FunctionDeclaration, FunctionForm,
     GenericParameter, IfForm, Literal, NodeType, Parameter, Pattern, TreeAttribute,
     TreeAttributeValue, TreeChild, TypeExpression, TypeLiteral,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 /// Parse a constrained generic arrow whose body is a tree literal.
 #[test]

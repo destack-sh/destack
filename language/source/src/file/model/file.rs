@@ -2,15 +2,15 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::{error, fmt, str};
 
-use destack_core::{Blob, BlobMemory, SectionEntry};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::{Blob, BlobMemory, SectionEntry};
+use tspp_serde::Reflect;
 
 use super::hash::{stable_source_id, stable_source_path};
 use crate::{ByteRange, FileType, Span, Uri};
 
-const FILE_LOGICAL_DOMAIN: &[u8] = b"destack.source.file.logical.v1";
-const FILE_SOURCE_DOMAIN: &[u8] = b"destack.source.file.source.v1";
+const FILE_LOGICAL_DOMAIN: &[u8] = b"tspp.source.file.logical.v1";
+const FILE_SOURCE_DOMAIN: &[u8] = b"tspp.source.file.source.v1";
 
 /// The id of a File.
 #[repr(transparent)]

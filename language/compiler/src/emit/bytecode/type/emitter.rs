@@ -1,7 +1,7 @@
-use destack_artifact::MirOptimized;
-use destack_bytecode as bytecode;
-use destack_mir as mir;
-use destack_source::ModuleId;
+use tspp_artifact::MirOptimized;
+use tspp_bytecode as bytecode;
+use tspp_mir as mir;
+use tspp_source::ModuleId;
 
 use crate::{EmitError, ObjectEmitter};
 

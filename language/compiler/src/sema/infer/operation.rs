@@ -1,5 +1,5 @@
-use destack_dir as dir;
 use smallvec::SmallVec;
+use tspp_dir as dir;
 
 use super::InferMode;
 use crate::CompilerResult;
@@ -12,7 +12,7 @@ impl CheckState<'_> {
     /// Infer one binary expression, narrowing short-circuited right operands.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// value !== undefined && value > 0
     /// ```
     pub(in crate::sema) fn infer_binary_expression(

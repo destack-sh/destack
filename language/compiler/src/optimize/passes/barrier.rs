@@ -1,7 +1,7 @@
 use std::mem;
 
-use destack_artifact::MirOptimized;
-use destack_mir as mir;
+use tspp_artifact::MirOptimized;
+use tspp_mir as mir;
 
 use crate::optimize::pipeline::FunctionPass;
 use crate::{CompilerError, CompilerResult};

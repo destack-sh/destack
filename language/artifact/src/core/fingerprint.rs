@@ -1,8 +1,8 @@
 use std::hash::Hash;
 
-use destack_core::StableHasher;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::StableHasher;
+use tspp_serde::Reflect;
 
 use crate::{
     ArtifactDependency, ArtifactKey, ArtifactProjection, ArtifactProjectionFingerprint,
@@ -46,7 +46,7 @@ impl ArtifactFingerprint {
         // stable fingerprint stream
         let mut hasher = StableHasher::new();
 
-        hasher.update_len_prefixed(b"destack.artifact.inputs.v3");
+        hasher.update_len_prefixed(b"tspp.artifact.inputs.v3");
         key.hash(&mut hasher);
         hasher.update(build_id.as_bytes());
         hasher.update(&(dependencies.len() as u64).to_le_bytes());

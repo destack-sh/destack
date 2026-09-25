@@ -1,0 +1,65 @@
+// SYNTAX TEST "source.tspp"
+
+// expressions / errors / propagation
+const user = decode(raw)?;
+//           ^^^^^^ entity.name.function.call.tspp
+//                      ^ keyword.operator.postfix.tspp
+
+JSON.stringify(value)? satisfies string;
+//                   ^ keyword.operator.postfix.tspp
+//                     ^^^^^^^^^ keyword.operator.type.binary.tspp
+
+const text = encode()? satisfies string;
+//                   ^ keyword.operator.postfix.tspp
+//                     ^^^^^^^^^ keyword.operator.type.binary.tspp
+
+const total = encode()? + 1;
+//                    ^ keyword.operator.postfix.tspp
+//                      ^ keyword.operator.addition.tspp
+
+const ok = encode()? && ready;
+//                 ^ keyword.operator.postfix.tspp
+//                   ^^ keyword.operator.boolean.tspp
+
+const cast = encode()? as string;
+//                   ^ keyword.operator.postfix.tspp
+//                     ^^ keyword.operator.type.binary.tspp
+
+const coalesce = encode()? ?? fallback;
+//                       ^ keyword.operator.postfix.tspp
+//                         ^^ keyword.operator.boolean.tspp
+
+const call = encode()?();
+//                   ^ keyword.operator.postfix.tspp
+
+const index = encode()?[0];
+//                    ^ keyword.operator.postfix.tspp
+
+const member = (encode()?).field;
+//                      ^ keyword.operator.postfix.tspp
+
+const arg = f(encode()?, ready ? left : right);
+//                    ^ keyword.operator.postfix.tspp
+//                             ^ keyword.operator.ternary.tspp
+
+const value = maybe ?? fallback;
+//                  ^^ keyword.operator.boolean.tspp
+
+// expressions / errors / try catch finally
+try {
+// <- keyword.control.exception.tspp
+    read()?
+} catch (error: unknown) {
+    recover(error)
+} finally {
+    cleanup();
+}
+
+// expressions / errors / catch match
+try {
+// <- keyword.control.exception.tspp
+    read()?
+} catch match (failure) {
+    Missing(path) => create(path),
+    IOError(error) => panic("unhandled error")
+}

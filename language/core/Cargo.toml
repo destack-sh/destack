@@ -1,6 +1,6 @@
 [package]
-name = "destack_core"
-description = "Destack Core Primitives"
+name = "tspp_core"
+description = "TS++ Core Primitives"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,7 +13,7 @@ doctest = false
 
 [dependencies]
 blake3 = { workspace = true }
-destack_serde = { workspace = true }
+tspp_serde = { workspace = true }
 parking_lot = { workspace = true }
 indexmap = { workspace = true }
 rustc-hash = { workspace = true }

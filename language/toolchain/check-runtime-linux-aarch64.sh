@@ -27,6 +27,6 @@ run_linux_aarch64_command() {
 		"$@"
 }
 
-run_linux_aarch64_command cargo check -p destack_runtime --target aarch64-unknown-linux-gnu
-run_linux_aarch64_command cargo clippy -p destack_runtime --target aarch64-unknown-linux-gnu --no-deps -- -D warnings
-run_linux_aarch64_command cargo test -p destack_runtime --target aarch64-unknown-linux-gnu --no-run
+run_linux_aarch64_command cargo check -p tspp_runtime --target aarch64-unknown-linux-gnu
+run_linux_aarch64_command cargo clippy -p tspp_runtime --target aarch64-unknown-linux-gnu --no-deps -- -D warnings
+run_linux_aarch64_command cargo test -p tspp_runtime --target aarch64-unknown-linux-gnu --no-run

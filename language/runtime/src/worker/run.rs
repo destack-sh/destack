@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use destack_heap as heap;
-use destack_program as program;
-use destack_vm as vm;
 use program::{Outcome, Value};
+use tspp_heap as heap;
+use tspp_program as program;
+use tspp_vm as vm;
 
 use super::{Activation, Request, RunnableProgress, RunnableScope, Worker};
 use crate::diagnostic::{RuntimeError, RuntimeResult};

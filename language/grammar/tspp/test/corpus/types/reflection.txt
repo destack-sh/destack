@@ -1,0 +1,242 @@
+==================================
+Typeof types
+:language(tspp)
+==================================
+
+declare class Linter {
+    static findConfiguration: typeof findConfiguration;
+}
+
+---
+
+(program
+  (ambient_declaration
+    (class_declaration
+      (type_identifier)
+      (class_body
+        (public_field_definition
+          (property_identifier)
+          (type_annotation
+            (type_query
+              (identifier))))))))
+
+==================================
+Index type queries
+:language(tspp)
+==================================
+
+export type Extracted = keyof Pick<Base, "id">
+
+---
+
+(program
+  (export_statement
+    declaration: (type_alias_declaration
+      name: (type_identifier)
+      value: (index_type_query
+        (generic_type
+          name: (type_identifier)
+          type_arguments: (type_arguments
+            (type_identifier)
+            (literal_type
+              (string
+                (string_fragment)))))))))
+
+=======================================
+Type query and index type query types
+:language(tspp)
+=======================================
+
+type T = keyof Person;
+type T = keyof Person.P;
+type T = keyof Person<P>;
+type T = keyof (Person);
+
+type T = typeof Person;
+type T = typeof Person.P;
+
+type T = keyof typeof Person;
+
+type T = keyof U[number];
+type T = keyof U & V;
+
+type T = typeof array[number];
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (index_type_query
+      (type_identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (index_type_query
+      (nested_type_identifier
+        (identifier)
+        (type_identifier))))
+  (type_alias_declaration
+    (type_identifier)
+    (index_type_query
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier)))))
+  (type_alias_declaration
+    (type_identifier)
+    (index_type_query
+      (parenthesized_type
+        (type_identifier))))
+  (type_alias_declaration
+    (type_identifier)
+    (type_query
+      (identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (type_query
+      (member_expression
+        (identifier)
+        (property_identifier))))
+  (type_alias_declaration
+    (type_identifier)
+    (index_type_query
+      (type_query
+        (identifier))))
+  (type_alias_declaration
+    (type_identifier)
+    (index_type_query
+      (lookup_type
+        (type_identifier)
+        (predefined_type))))
+  (type_alias_declaration
+    (type_identifier)
+    (intersection_type
+      (index_type_query
+        (type_identifier))
+      (type_identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (lookup_type
+      (type_query
+        (identifier))
+      (predefined_type))))
+
+============================
+typeof in generic arguments
+:language(tspp)
+============================
+
+type T = Foo<Bar<typeof bar>>
+type T = Foo<Bar<typeof bar.baz>>
+type T = Foo<Bar<typeof bar["baz"]>>
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_query
+              (identifier)))))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_query
+              (member_expression
+                (identifier)
+                (property_identifier))))))))
+  (type_alias_declaration
+    (type_identifier)
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (lookup_type
+              (type_query
+                (identifier))
+              (literal_type
+                (string
+                  (string_fragment))))))))))
+
+=========================
+Typeof instantiation expressions
+:language(tspp)
+=========================
+
+// This is a special construct, different from both "typeof (f<T>)" and
+// "(typeof f)<T>" (which are both invalid)
+type T = typeof f<T>;
+
+---
+
+(program
+  (comment)
+  (comment)
+  (type_alias_declaration
+    (type_identifier)
+    (type_query
+      (instantiation_expression
+        (identifier)
+        (type_arguments
+          (type_identifier))))))
+
+=========================
+Typeof this
+:language(tspp)
+=========================
+
+class A {
+  colors: [ { color: "green", code: "#E5F8F2" } ]
+  color: (typeof this.colors)[number] = this.colors[0]
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (slice_type
+            (object_type
+              (property_signature
+                (property_identifier)
+                (type_annotation
+                  (literal_type
+                    (string
+                      (string_fragment)))))
+              (property_signature
+                (property_identifier)
+                (type_annotation
+                  (literal_type
+                    (string
+                      (string_fragment)))))))))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (lookup_type
+            (parenthesized_type
+              (type_query
+                (member_expression
+                  (this)
+                  (property_identifier))))
+            (predefined_type)))
+        (subscript_expression
+          (member_expression
+            (this)
+            (property_identifier))
+          (number))))))

@@ -16,7 +16,7 @@ function main(): int32 {
     );
 
     session.assert_mir_elaborated(
-        "main.ds",
+        "main.tspp",
         r#"
 function test.main.main(): int32 {
 entry:
@@ -44,7 +44,7 @@ entry(v0: int32):
 fn test_instantiate_an_imported_template_across_modules() {
     let session = TestSession::builder()
         .module(
-            "identity.ds",
+            "identity.tspp",
             r#"
 export function identity<T>(value: T): T {
     return value;
@@ -52,7 +52,7 @@ export function identity<T>(value: T): T {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { identity } from "./identity";
 
@@ -64,7 +64,7 @@ function main(): int32 {
         .build();
 
     session.assert_mir_elaborated(
-        "main.ds",
+        "main.tspp",
         r#"
 function test.main.main(): int32 {
 entry:
@@ -92,7 +92,7 @@ entry(v0: int32):
 fn test_refine_a_truncate_intent_at_the_specialized_formats() {
     let session = TestSession::single(
         r#"
-import { Integer } from "destack:math";
+import { Integer } from "tspp:math";
 
 @intrinsic("math.cast.int.truncate")
 declare function truncateInt<T: Integer, U: Integer>(value: T): U;
@@ -109,7 +109,7 @@ function main(): int32 {
     );
 
     session.assert_mir_elaborated(
-        "main.ds",
+        "main.tspp",
         r#"
 @nocopy
 @languageItem("math.Integer")
@@ -175,7 +175,7 @@ entry(v0: int8):
 fn test_specialize_a_nullish_test_at_a_tagged_variant_and_a_niched_reference() {
     let session = TestSession::single(
         r#"
-import { StrictEqual } from "destack:ops";
+import { StrictEqual } from "tspp:ops";
 
 class User {}
 
@@ -192,7 +192,7 @@ function main(): boolean {
     );
 
     session.assert_mir_elaborated(
-        "main.ds", r#"
+        "main.tspp", r#"
 @nocopy
 type test.main.User { }
 
@@ -276,7 +276,7 @@ entry(v0: variant<uint1> { 0uint1 = ref<test.main.User, managed, mutable, local>
 fn test_specialize_an_atomic_ordering_parameter() {
     let session = TestSession::single(
         r#"
-import { MemoryOrdering, AtomicScope, MemoryScope, MemoryRegionSet, atomicLoad } from "destack:sync";
+import { MemoryOrdering, AtomicScope, MemoryScope, MemoryRegionSet, atomicLoad } from "tspp:sync";
 
 function load<
     const Order:
@@ -301,7 +301,7 @@ export function relaxed(ptr: *int32): int32 {
     );
 
     session.assert_mir_elaborated(
-        "main.ds", r#"
+        "main.tspp", r#"
 @languageItem("sync.MemoryOrdering")
 type MemoryOrdering = variant<uint8> { 0uint8 = void; 1uint8 = void; 2uint8 = void; 3uint8 = void; 4uint8 = void; };
 

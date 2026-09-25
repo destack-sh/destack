@@ -10,7 +10,7 @@ const U128_VARINT_MAX_BYTES: usize = 19;
 /// Maximum final byte value for one encoded u128 varint.
 const U128_VARINT_LAST_BYTE_MAX: u8 = 0x03;
 
-/// Decode one value from canonical Destack binary bytes.
+/// Decode one value from canonical TS++ binary bytes.
 pub fn from_slice<'de, T>(bytes: &'de [u8]) -> Result<T>
 where
     T: Deserialize<'de>,

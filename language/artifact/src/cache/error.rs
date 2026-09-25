@@ -21,7 +21,7 @@ pub enum ArtifactCacheError {
         message: String,
     },
     /// One cache file failed to encode or decode.
-    Codec(destack_serde::Error),
+    Codec(tspp_serde::Error),
     /// One cache record violates its persistent invariants.
     Invalid(String),
     /// One running process is using this build cache.
@@ -97,8 +97,8 @@ impl ArtifactCacheError {
     }
 }
 
-impl From<destack_serde::Error> for ArtifactCacheError {
-    fn from(error: destack_serde::Error) -> Self {
+impl From<tspp_serde::Error> for ArtifactCacheError {
+    fn from(error: tspp_serde::Error) -> Self {
         Self::Codec(error)
     }
 }

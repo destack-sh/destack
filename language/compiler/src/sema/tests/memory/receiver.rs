@@ -35,7 +35,7 @@ class Counter {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -198,7 +198,7 @@ sharedBuffer.clear();
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -297,7 +297,7 @@ counter.increment();
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -415,7 +415,7 @@ function freeze(point: readonly Point): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -510,7 +510,7 @@ function inspect(counter: ^Counter): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -591,7 +591,7 @@ function measure(point: readonly Point): int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -667,7 +667,7 @@ struct Counter {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -727,7 +727,7 @@ function read(counter: readonly Counter): int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -807,7 +807,7 @@ function mutate(owned: ^Counter, managed: Counter, borrowed: &Counter, view: &re
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -936,7 +936,7 @@ declare function todo(): never;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1015,7 +1015,7 @@ declare function todo(): never;
 fn test_implement_an_imported_operator_interface_for_a_primitive() {
     let session = TestSession::builder()
         .module(
-            "ops.ds",
+            "ops.tspp",
             r#"
 export newtype interface Add<T = this> {
     type Output;
@@ -1025,9 +1025,9 @@ export newtype interface Add<T = this> {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Add } from "./ops.ds";
+import { Add } from "./ops.tspp";
 
 export extension StringAdd of string implements Add<string> {
     type Output = ^string;
@@ -1043,11 +1043,11 @@ declare function todo(): never;
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Add } from "./ops.ds";
+import { Add } from "./ops.tspp";
 
 export extension StringAdd of string implements Add<string> {
     type Output = ^string;
@@ -1060,7 +1060,7 @@ export extension StringAdd of string implements Add<string> {
 declare function todo(): never;
 
 === dir ===
-import { Add } from "./ops.ds";
+import { Add } from "./ops.tspp";
 
 export extension StringAdd of string implements Add<string> {
 /// @definition.extension symbol=StringAdd form=exported target=string
@@ -1135,7 +1135,7 @@ declare function todo(): never;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

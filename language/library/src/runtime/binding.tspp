@@ -1,0 +1,119 @@
+import { RuntimeAction } from "./action.tspp";
+
+/// Actions that touch host-provided facilities.
+@languageItem("runtime.HostAction")
+export type HostAction =
+    | "host.console.write"
+    | "host.fs.link"
+    | "host.fs.lock"
+    | "host.fs.metadata"
+    | "host.fs.mode"
+    | "host.fs.mount.list"
+    | "host.fs.node"
+    | "host.fs.open"
+    | "host.fs.owner"
+    | "host.fs.read"
+    | "host.fs.sync"
+    | "host.fs.temp"
+    | "host.fs.watch"
+    | "host.fs.write"
+    | "host.fs.xattr"
+    | "host.memory.advise"
+    | "host.memory.discard"
+    | "host.memory.execute"
+    | "host.memory.layout.read"
+    | "host.memory.lock"
+    | "host.memory.map"
+    | "host.memory.virtual"
+    | "host.net.accept"
+    | "host.net.close"
+    | "host.net.connect"
+    | "host.net.connectivity.read"
+    | "host.net.connectivity.watch"
+    | "host.net.dns"
+    | "host.net.interface"
+    | "host.net.listen"
+    | "host.net.multicast"
+    | "host.net.open"
+    | "host.net.option"
+    | "host.net.raw"
+    | "host.net.read"
+    | "host.net.route.read"
+    | "host.net.route.write"
+    | "host.net.status"
+    | "host.net.write"
+    | "host.random.bytes"
+    | "host.time.clock.read"
+    | "host.time.timer";
+
+/// Host backend availability status.
+@languageItem("runtime.HostBackendStatus")
+export enum HostBackendStatus {
+    /// The backend integration is available on the current host.
+    Available = 0,
+    /// The backend is not supported on the active target platform.
+    UnsupportedTarget = 1,
+    /// The backend was disabled in this runtime build.
+    DisabledByBuild = 2,
+    /// The backend exists for this target, but the host prerequisite is unavailable.
+    HostUnavailable = 3,
+}
+
+/// Actions for binding policy and sandboxing.
+@languageItem("runtime.Action")
+export type Action = HostAction | RuntimeAction;
+
+/// Platform tags accepted by runtime bindings.
+@languageItem("runtime.PlatformTag")
+export type PlatformTag =
+    | "windows"
+    | "macos"
+    | "linux"
+    | "freebsd"
+    | "openbsd"
+    | "netbsd"
+    | "dragonfly"
+    | "solaris"
+    | "illumos"
+    | "haiku"
+    | "fuchsia"
+    | "redox"
+    | "hermit";
+
+/// Platform family selectors accepted by runtime bindings.
+@languageItem("runtime.PlatformFamilyTag")
+export type PlatformFamilyTag = "windows" | "unix" | "wasm";
+
+/// Host tags accepted by runtime bindings.
+@languageItem("runtime.HostTag")
+export type HostTag = "native" | "browser" | "wasi" | "emscripten" | "freestanding";
+
+/// Binding implementation owner.
+@languageItem("runtime.BindingProvider")
+export type BindingProvider = "host" | "runtime";
+
+/// Options for runtime bindings.
+export type BindingOptions = {
+    /// Effect kind for the binding.
+    effect: "pure" | "deterministic" | "external";
+    /// Actions required by this binding.
+    requires: Action[];
+    /// Platform whitelist, omitted means all platforms.
+    platforms?: PlatformTag[];
+    /// Platform-family whitelist, omitted means all families.
+    families?: PlatformFamilyTag[];
+    /// Host whitelist, omitted means all hosts.
+    hosts?: HostTag[];
+    /// Provider that implements this binding.
+    provider: BindingProvider;
+    /// Replay override, omitted means replay follows the effect kind.
+    replay?: "forbidden";
+    /// Required execution affinity, omitted means any affinity.
+    affinity?: "worker" | "main";
+    /// Whether calls through this binding park the calling fiber.
+    park?: boolean;
+};
+
+/// Marks one declaration as a runtime binding.
+@languageItem("runtime.binding")
+export newtype binding = (string, BindingOptions);

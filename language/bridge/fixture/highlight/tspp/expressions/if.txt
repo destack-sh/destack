@@ -1,0 +1,50 @@
+// SYNTAX TEST "source.tspp"
+
+// expressions / if / branches
+const label = if (ready) {
+//            ^^ keyword.control.conditional.tspp
+    "ready"
+} else {
+    "waiting"
+};
+
+// expressions / if / if let
+if (let Some(value) = maybe) {
+// <- keyword.control.conditional.tspp
+    value
+} else {
+    fallback
+}
+
+// expressions / if / ternary
+const value = ready ? left : right;
+//                  ^ keyword.operator.ternary.tspp
+
+const named = ready ? satisfiesValue : fallback;
+//                  ^ keyword.operator.ternary.tspp
+
+const object = ready ? { value: 1 } : fallback;
+//                   ^ keyword.operator.ternary.tspp
+
+const array = ready ? [left] : right;
+//                  ^ keyword.operator.ternary.tspp
+
+const string = ready ? "left" : right;
+//                   ^ keyword.operator.ternary.tspp
+
+const template = ready ? `left` : right;
+//                     ^ keyword.operator.ternary.tspp
+
+const generic = ready ? build<Result, Error>() : fallback;
+//                    ^ keyword.operator.ternary.tspp
+
+const typed = ready ? value satisfies Record<string, number> : fallback;
+//                  ^ keyword.operator.ternary.tspp
+//                          ^^^^^^^^^ keyword.operator.type.binary.tspp
+
+const nested = ready ? left ? inner : middle : right;
+//                   ^ keyword.operator.ternary.tspp
+//                          ^ keyword.operator.ternary.tspp
+
+const argument = select(ready ? left : right, fallback);
+//                            ^ keyword.operator.ternary.tspp

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactOutcome};
+use tspp_artifact::{ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactOutcome};
 
 use crate::provider::{
     ArtifactAttemptOutcome, ArtifactAttemptRecorder, ArtifactBase, PendingSet, ProviderError,

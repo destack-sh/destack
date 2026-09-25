@@ -3,7 +3,7 @@ use crate::{
     AllocationShape, HeapAllocationError, HeapError, HeapOptions, HeapReference, Payload,
     SizeClassTable, test_aligned_layout, test_layout,
 };
-use destack_mir::{DiscriminantField, TraceMap, VariantEncoding, VariantTrace};
+use tspp_mir::{DiscriminantField, TraceMap, VariantEncoding, VariantTrace};
 
 use super::{TestHeapPlan, read_mapped_bytes, test_heap, test_storage, trace_view};
 

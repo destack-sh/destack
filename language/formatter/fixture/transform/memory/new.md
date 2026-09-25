@@ -8,11 +8,11 @@ New expression fixtures cover constructor calls, type arguments, tree arguments,
 
 Constructor calls keep tight parentheses.
 
-```ds
+```tspp
 const value = new Foo()
 ```
 
-```ds expected
+```tspp expected
 const value = new Foo();
 ```
 
@@ -20,11 +20,11 @@ const value = new Foo();
 
 Constructor arguments follow call formatting rules.
 
-```ds
+```tspp
 const value = new Foo(a, b, c)
 ```
 
-```ds expected
+```tspp expected
 const value = new Foo(a, b, c);
 ```
 
@@ -34,11 +34,11 @@ const value = new Foo(a, b, c);
 
 Long constructor argument lists expand like normal calls.
 
-```ds line-width=30
+```tspp line-width=30
 const value = new Foo(firstArg, secondArg, thirdArg)
 ```
 
-```ds expected
+```tspp expected
 const value = new Foo(
     firstArg,
     secondArg,
@@ -52,11 +52,11 @@ const value = new Foo(
 
 Type arguments keep tight spacing.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = new Box<Thing>(item)
 ```
 
-```ds expected
+```tspp expected
 const value = new Box<Thing>(item);
 ```
 
@@ -64,11 +64,11 @@ const value = new Box<Thing>(item);
 
 The inferred constructor marker formats like a type name.
 
-```ds
+```tspp
 const value = new _ ( item )
 ```
 
-```ds expected
+```tspp expected
 const value = new _(item);
 ```
 
@@ -76,11 +76,11 @@ const value = new _(item);
 
 Generic constructor arguments may contain inferred type holes.
 
-```ds
+```tspp
 const value = new Box < _ > ( item )
 ```
 
-```ds expected
+```tspp expected
 const value = new Box<_>(item);
 ```
 
@@ -90,7 +90,7 @@ const value = new Box<_>(item);
 
 Tree arguments do not keep extra parentheses.
 
-```ds:main.ds
+```tspp:main.tspp
 return new ImageResponse(
   (
     <div>
@@ -99,7 +99,7 @@ return new ImageResponse(
 )
 ```
 
-```ds expected
+```tspp expected
 return new ImageResponse(<div></div>);
 ```
 
@@ -109,11 +109,11 @@ return new ImageResponse(<div></div>);
 
 Member constructor names format without grouping.
 
-```ds:main.ds
+```tspp:main.tspp
 new (Foo.bar)(value)
 ```
 
-```ds expected
+```tspp expected
 new Foo.bar(value);
 ```
 
@@ -121,11 +121,11 @@ new Foo.bar(value);
 
 Chains after `new` stay on the same line when short.
 
-```ds:main.ds
+```tspp:main.tspp
 new Foo().bar()
 ```
 
-```ds expected
+```tspp expected
 new Foo().bar();
 ```
 
@@ -135,12 +135,12 @@ new Foo().bar();
 
 Indexing selects the constructor before its arguments.
 
-```ds
+```tspp
 new constructors [ 0 ] ( value )
 new constructors [ 0 ] < Item > ( value ).member
 ```
 
-```ds expected
+```tspp expected
 new constructors[0](value);
 new constructors[0]<Item>(value).member;
 ```
@@ -149,12 +149,12 @@ new constructors[0]<Item>(value).member;
 
 Parentheses separate the call that returns a constructor from the construction.
 
-```ds
+```tspp
 new ( selectConstructor ( ) ) ( value )
 new ( selectConstructor ( ).member ) ( value )
 ```
 
-```ds expected
+```tspp expected
 new (selectConstructor())(value);
 new (selectConstructor().member)(value);
 ```
@@ -163,10 +163,10 @@ new (selectConstructor().member)(value);
 
 Parentheses retain the complete conditional operand.
 
-```ds
+```tspp
 new ( enabled ? Primary : Secondary ) ( value )
 ```
 
-```ds expected
+```tspp expected
 new (enabled ? Primary : Secondary)(value);
 ```

@@ -1,10 +1,10 @@
 use std::{error, fmt};
 
-use destack_bytecode as bytecode;
-use destack_heap::HeapError;
-use destack_program as program;
-use destack_program::FunctionId;
 use serde::{Deserialize, Serialize};
+use tspp_bytecode as bytecode;
+use tspp_heap::HeapError;
+use tspp_program as program;
+use tspp_program::FunctionId;
 
 use super::{
     DiagnosticAnchor, ErrorReason, InstructionError, MachineError, Panic, ResourceError,

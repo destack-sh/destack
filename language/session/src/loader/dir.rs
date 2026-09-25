@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use destack_artifact::{
+use tspp_artifact::{
     ArtifactDependencySet, ArtifactPayload, DiagnosticRecord, DirParsed, DirParsedFile,
 };
-use destack_dir::{Expression, Literal, Tree};
-use destack_parser::{CommentRetention, ParseOptions, Parser};
-use destack_repository::{Module, ModuleFile, ProviderContext};
-use destack_source::{File, LanguageType, ModuleId, Span};
+use tspp_dir::{Expression, Literal, Tree};
+use tspp_parser::{CommentRetention, ParseOptions, Parser};
+use tspp_repository::{Module, ModuleFile, ProviderContext};
+use tspp_source::{File, LanguageType, ModuleId, Span};
 
 use crate::{ProviderAttempt, SessionError, SessionState};
 

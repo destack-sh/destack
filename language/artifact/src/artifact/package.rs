@@ -1,10 +1,10 @@
 use std::borrow::Cow;
 use std::path::PathBuf;
 
-use destack_serde::Reflect;
-use destack_source::PackageId;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
+use tspp_source::PackageId;
 
 /// One package in an active package graph.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]

@@ -1,4 +1,4 @@
-use destack_core::FxIndexMap;
+use tspp_core::FxIndexMap;
 
 use crate::build::FunctionBuilder;
 use crate::{Block, BlockParameter, Instruction, LocalNodeId, Terminator, Value, terminator_remap};

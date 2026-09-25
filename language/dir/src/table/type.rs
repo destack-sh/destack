@@ -1,16 +1,16 @@
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use destack_core::FxIndexMap as IndexMap;
-use destack_serde::Reflect;
 use rustc_hash::{FxHashMap, FxHasher};
 use serde::{Deserialize, Serialize};
 use siphasher::sip128::{Hasher128, SipHasher13};
 use smallvec::SmallVec;
+use tspp_core::FxIndexMap as IndexMap;
+use tspp_serde::Reflect;
 
-use destack_core::{Arena, PoolId, StringId, ValueInterner, ValuePool};
-use destack_source::ModuleId;
 use elsa::sync::FrozenVec;
+use tspp_core::{Arena, PoolId, StringId, ValueInterner, ValuePool};
+use tspp_source::ModuleId;
 
 use crate::{
     BorrowForm, BorrowFormId, Form, FunctionParameterType, FunctionSignatureId,
@@ -654,7 +654,7 @@ impl TypeSegment {
     /// Digest the segment content for artifact fingerprinting.
     pub fn content_digest(&self) -> u128 {
         let mut hasher = SipHasher13::new();
-        Hasher::write(&mut hasher, b"destack.dir.types.digest.v1");
+        Hasher::write(&mut hasher, b"tspp.dir.types.digest.v1");
         self.module_id.hash(&mut hasher);
         self.first_type_id.hash(&mut hasher);
 

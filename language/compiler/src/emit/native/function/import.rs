@@ -1,7 +1,7 @@
 use cranelift_codegen::ir as cir;
 use cranelift_codegen::ir::InstBuilder;
 use cranelift_module::{Linkage, Module};
-use destack_native as native;
+use tspp_native as native;
 
 use crate::EmitError;
 

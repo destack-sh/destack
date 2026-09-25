@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use destack_artifact::ArtifactKey;
-use destack_repository::Revision;
+use tspp_artifact::ArtifactKey;
+use tspp_repository::Revision;
 
 use crate::executor::{ArtifactPriority, ArtifactRunId};
 

@@ -1,0 +1,16 @@
+import { Binding } from "tspp:binding";
+
+import { TimeClockBinding } from "./clock.tspp";
+import { TimeTimerBinding } from "./timer.tspp";
+
+/// Time binding family.
+@languageItem("time.TimeBinding")
+export interface TimeBinding {
+    /// Clock bindings.
+    readonly clock: TimeClockBinding;
+    /// Timer bindings.
+    readonly timer: TimeTimerBinding;
+}
+
+/// Current time binding family.
+export const time: Binding<TimeBinding> = new Binding<TimeBinding>("time");

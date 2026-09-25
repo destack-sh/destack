@@ -6,11 +6,11 @@
 
 Multiple callbacks break element to multi-line.
 
-```ds line-width=50
+```tspp line-width=50
 <Button onClick={handleClick} onHover={handleHover} onFocus={handleFocus} />
 ```
 
-```ds expected
+```tspp expected
 <Button
     onClick={handleClick}
     onHover={handleHover}
@@ -22,11 +22,11 @@ Multiple callbacks break element to multi-line.
 
 Inline arrow functions as callbacks.
 
-```ds line-width=60
+```tspp line-width=60
 <Button onClick={() => setOpen(true)} onClose={() => setOpen(false)} />
 ```
 
-```ds expected
+```tspp expected
 <Button
     onClick={() => setOpen(true)}
     onClose={() => setOpen(false)}

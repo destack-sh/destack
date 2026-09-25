@@ -1,7 +1,7 @@
-use destack_core::{SectionEntry, StringId};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+use tspp_core::{SectionEntry, StringId};
+use tspp_serde::Reflect;
 
 /// One region parameter identified relative to its enclosing binder.
 #[derive(

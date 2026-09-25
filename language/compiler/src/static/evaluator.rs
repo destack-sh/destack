@@ -1,7 +1,7 @@
-use destack_artifact::ProfileKey;
-use destack_core::StringPool;
-use destack_dir as dir;
-use destack_repository::{Environment, Module, Package};
+use tspp_artifact::ProfileKey;
+use tspp_core::StringPool;
+use tspp_dir as dir;
+use tspp_repository::{Environment, Module, Package};
 
 /// A static expression evaluation failure.
 #[derive(Debug, Copy, Clone, PartialEq)]

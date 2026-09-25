@@ -14,7 +14,7 @@ function inspect(values: &immutable [int32]): void {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 function first<'a>(values: &'a immutable [int32]): &'a immutable int32 {
     return &immutable values[0];
@@ -68,7 +68,7 @@ function pick(left: &readonly int32, right: &readonly int32, takeLeft: boolean):
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 function pick<'a, 'b>(
     left: &'a readonly int32,
@@ -115,7 +115,7 @@ function fallback(): &readonly int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -161,7 +161,7 @@ class Store {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 class Store {
     value: int32 = 0;
@@ -217,7 +217,7 @@ function escape(): &readonly int32 {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 function first<'a>(values: &'a readonly [int32]): &'a readonly int32 {
     return &readonly values[0];
@@ -281,7 +281,7 @@ class Store {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 class Store {
     value: int32 = 0;
@@ -340,7 +340,7 @@ export extension of Own {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Own {
     message: string;
@@ -434,7 +434,7 @@ extension<T: Copy> of Pair<T> {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Pair<out T> {
     start: T;

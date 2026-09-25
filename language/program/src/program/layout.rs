@@ -1,13 +1,13 @@
 use std::num::NonZeroU32;
 
-use destack_bytecode as bytecode;
-use destack_core::{
+use serde::{Deserialize, Serialize};
+use tspp_bytecode as bytecode;
+use tspp_core::{
     EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
     StringId,
 };
-use destack_mir::{Access, Discriminant, FloatType, Reference, Space, TraceId, VariantEncoding};
-use destack_serde::Reflect;
-use serde::{Deserialize, Serialize};
+use tspp_mir::{Access, Discriminant, FloatType, Reference, Space, TraceId, VariantEncoding};
+use tspp_serde::Reflect;
 
 use super::{SignatureId, TypeId, Word};
 
@@ -839,8 +839,8 @@ impl VariantLayoutBuilder {
 
 #[cfg(test)]
 mod tests {
-    use destack_core::{SectionBuilder, SectionImage};
-    use destack_mir::{DiscriminantField, TraceId, VariantEncoding};
+    use tspp_core::{SectionBuilder, SectionImage};
+    use tspp_mir::{DiscriminantField, TraceId, VariantEncoding};
 
     use crate::{
         LayoutBuilder, LayoutId, LayoutShape, LayoutShapeBuilder, LayoutTable, TypeId,

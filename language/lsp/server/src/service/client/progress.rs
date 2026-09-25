@@ -3,8 +3,8 @@
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 
-use destack_lsp_types::notification::Progress as ProgressNotification;
-use destack_lsp_types::{
+use tspp_lsp_types::notification::Progress as ProgressNotification;
+use tspp_lsp_types::{
     ProgressParams, ProgressParamsValue, ProgressToken, WorkDoneProgress, WorkDoneProgressBegin,
     WorkDoneProgressReport,
 };
@@ -351,7 +351,7 @@ impl<B, C> OngoingProgress<B, C> {
             .send_notification::<ProgressNotification>(ProgressParams {
                 token: self.token,
                 value: ProgressParamsValue::WorkDone(WorkDoneProgress::End(
-                    destack_lsp_types::WorkDoneProgressEnd { message },
+                    tspp_lsp_types::WorkDoneProgressEnd { message },
                 )),
             })
             .await;

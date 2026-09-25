@@ -51,7 +51,7 @@ entry(v0: ref<Box, unique, mutable>):
     program.assert_verify_errors(
         r#"
 error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
-  ──▶ <test.dsm>:14:5
+  ──▶ <test.tsppm>:14:5
    │
 11 │ function test(v0: ref<Box, unique, mutable>): void {
 12 │ entry(v0: ref<Box, unique, mutable>):
@@ -63,7 +63,7 @@ error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
 16 │     return
    │
 
-for more information about an error, run `destack explain invalidation-of-borrowed-place`
+for more information about an error, run `tspp explain invalidation-of-borrowed-place`
 "#,
     );
 }
@@ -89,7 +89,7 @@ entry(v0: ref<Box, borrowed, 'a, mutable>):
     program.assert_verify_errors(
         r#"
 error[move-out-of-reference]: cannot move out through a reference
-  ──▶ <test.dsm>:9:5
+  ──▶ <test.tsppm>:9:5
    │
  7 │ entry(v0: ref<Box, borrowed, 'a, mutable>):
  8 │     v1: ref<ref<int32, unique, mutable>, borrowed, 'a, mutable> = address (*v0).0
@@ -99,7 +99,7 @@ error[move-out-of-reference]: cannot move out through a reference
 11 │ }
    │
 
-for more information about an error, run `destack explain move-out-of-reference`
+for more information about an error, run `tspp explain move-out-of-reference`
 "#,
     );
 }
@@ -150,7 +150,7 @@ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
     program.assert_verify_errors(
         r#"
 error[move-out-of-drop]: cannot move out of a value that implements Drop
-  ──▶ <test.dsm>:12:5
+  ──▶ <test.tsppm>:12:5
    │
 10 │ entry(v0: ref<int32, unique, mutable>, v1: ref<int32, unique, mutable>):
 11 │     v2: Row = aggregate (v0, v1)
@@ -160,7 +160,7 @@ error[move-out-of-drop]: cannot move out of a value that implements Drop
 14 │ }
    │
 
-for more information about an error, run `destack explain move-out-of-drop`
+for more information about an error, run `tspp explain move-out-of-drop`
 "#,
     );
 }
@@ -186,7 +186,7 @@ entry(v0: Value):
     program.assert_verify_errors(
         r#"
 error[move-out-of-drop]: cannot move out of a value that implements Drop
-  ──▶ <test.dsm>:8:5
+  ──▶ <test.tsppm>:8:5
    │
  6 │ function test(v0: Value): void {
  7 │ entry(v0: Value):
@@ -196,7 +196,7 @@ error[move-out-of-drop]: cannot move out of a value that implements Drop
 10 │ }
    │
 
-for more information about an error, run `destack explain move-out-of-drop`
+for more information about an error, run `tspp explain move-out-of-drop`
 "#,
     );
 }
@@ -246,7 +246,7 @@ entry(v0: ref<Box, unique, mutable>):
     program.assert_verify_errors(
         r#"
 error[use-after-move]: use of moved value
-  ──▶ <test.dsm>:9:5
+  ──▶ <test.tsppm>:9:5
    │
  6 │ function test(v0: ref<Box, unique, mutable>): Box {
  7 │ entry(v0: ref<Box, unique, mutable>):
@@ -258,7 +258,7 @@ error[use-after-move]: use of moved value
 11 │     release v3
    │
 
-for more information about an error, run `destack explain use-after-move`
+for more information about an error, run `tspp explain use-after-move`
 "#,
     );
 }
@@ -286,7 +286,7 @@ entry(v0: ref<Box, unique, mutable>):
     program.assert_verify_errors(
         r#"
 error[use-after-move]: use of moved value
-  ──▶ <test.dsm>:11:5
+  ──▶ <test.tsppm>:11:5
    │
  8 │     v1: Box = load (*v0)
  9 │     v2: ref<uninit<Box>, unique, mutable> = cast.bit v0 -> ref<uninit<Box>, unique, mutable>
@@ -298,7 +298,7 @@ error[use-after-move]: use of moved value
 13 │ }
    │
 
-for more information about an error, run `destack explain use-after-move`
+for more information about an error, run `tspp explain use-after-move`
 "#,
     );
 }
@@ -323,7 +323,7 @@ entry(v0: ref<Box, managed, mutable, local>):
     program.assert_verify_errors(
         r#"
 error[move-out-of-reference]: cannot move out through a reference
-  ──▶ <test.dsm>:8:5
+  ──▶ <test.tsppm>:8:5
    │
  6 │ function test(v0: ref<Box, managed, mutable, local>): Box {
  7 │ entry(v0: ref<Box, managed, mutable, local>):
@@ -333,7 +333,7 @@ error[move-out-of-reference]: cannot move out through a reference
 10 │ }
    │
 
-for more information about an error, run `destack explain move-out-of-reference`
+for more information about an error, run `tspp explain move-out-of-reference`
 "#,
     );
 }
@@ -364,7 +364,7 @@ export function main(): void {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#"
+    session.assert_mir_verified_diagnostics("main.tspp", r#"
 /// @diagnostic.error id=invalidation-of-borrowed-place message="cannot invalidate borrowed place"
 /// @diagnostic.label line=17 column=21 span="a" line_source="const S { x } = a;"
 /// @diagnostic.related line=16 column=16 span="&readonly a" line_source="const pb = &readonly a;" message="borrow starts here"
@@ -395,7 +395,7 @@ export function boxImm(): void {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#"
+    session.assert_mir_verified_diagnostics("main.tspp", r#"
 /// @diagnostic.error id=invalidation-of-borrowed-place message="cannot invalidate borrowed place"
 /// @diagnostic.label line=15 column=10 span="v" line_source="take(v);"
 /// @diagnostic.related line=14 column=15 span="&readonly v" line_source="const w = &readonly v;" message="borrow starts here"

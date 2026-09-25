@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -241,7 +241,7 @@ function discard(value: { user: { name: string } }): void {
         session.assert_diagnostics(
             r#"
 warning[no-empty-pattern]: destructuring pattern selects no values
- ──▶ main.ds:2:19
+ ──▶ main.tspp:2:19
   │
 1 │ function discard(value: { user: { name: string } }): void {
 2 │     const { user: {} } = value;
@@ -271,7 +271,7 @@ function discardInsideArm(value: { name: string }): void {
         session.assert_diagnostics(
             r#"
 warning[no-empty-pattern]: destructuring pattern selects no values
- ──▶ main.ds:4:19
+ ──▶ main.tspp:4:19
   │
 2 │     match (value) {
 3 │         _ => {
@@ -299,7 +299,7 @@ function discard(value: { name: string }): void {
         session.assert_diagnostics(
             r#"
 warning[no-empty-pattern]: destructuring pattern selects no values
- ──▶ main.ds:2:6
+ ──▶ main.tspp:2:6
   │
 1 │ function discard(value: { name: string }): void {
 2 │     ({} = value);

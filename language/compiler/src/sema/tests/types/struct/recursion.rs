@@ -14,7 +14,7 @@ const tree: TreeB = source;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -72,7 +72,7 @@ struct Right {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -121,9 +121,9 @@ struct Right {
 fn test_circular_class_fields_preserve_nominal_targets() {
     let compiler = TestSession::builder()
         .module(
-            "player.ds",
+            "player.tspp",
             r#"
-import { World } from "./world.ds";
+import { World } from "./world.tspp";
 
 export class Player {
     world: World;
@@ -135,9 +135,9 @@ export class Player {
 "#,
         )
         .module(
-            "world.ds",
+            "world.tspp",
             r#"
-import { Player } from "./player.ds";
+import { Player } from "./player.tspp";
 
 export class World {
     player: Player;
@@ -151,13 +151,13 @@ export class World {
         .build();
 
     compiler.assert_dir_many(
-        &["player.ds", "world.ds"],
+        &["player.tspp", "world.tspp"],
         DirRows::checked(),
         r#"
-=== player.ds ===
+=== player.tspp ===
 
 === annotated ===
-import { World } from "./world.ds";
+import { World } from "./world.tspp";
 
 export class Player {
     world: World;
@@ -168,7 +168,7 @@ export class Player {
 }
 
 === dir ===
-import { World } from "./world.ds";
+import { World } from "./world.tspp";
 
 export class Player {
 /// @type.symbol symbol=Player type=typeof Player
@@ -201,10 +201,10 @@ export class Player {
     }
 }
 
-=== world.ds ===
+=== world.tspp ===
 
 === annotated ===
-import { Player } from "./player.ds";
+import { Player } from "./player.tspp";
 
 export class World {
     player: Player;
@@ -215,7 +215,7 @@ export class World {
 }
 
 === dir ===
-import { Player } from "./player.ds";
+import { Player } from "./player.tspp";
 
 export class World {
 /// @type.symbol symbol=World type=typeof World

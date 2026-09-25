@@ -10,11 +10,11 @@ fn test_import_counters_ignore_function_body_size() {
         .join("\n");
     let source = format!("import {{ dep }} from \"./dep\";\n\nfunction heavy() {{\n{body}\n}}");
     let compiler = TestSession::builder()
-        .module("main.ds", &source)
-        .module("dep.ds", "export const dep = 1;")
+        .module("main.tspp", &source)
+        .module("dep.tspp", "export const dep = 1;")
         .cold()
         .build();
-    let counters = compiler.artifact_counters(compiler.dir_imported_key("main.ds"), "import.");
+    let counters = compiler.artifact_counters(compiler.dir_imported_key("main.tspp"), "import.");
     let expected = "import.roots=2\n\
 import.expressions=2\n\
 import.import_clauses=1\n\
@@ -38,11 +38,11 @@ fn test_import_counters_scale_with_many_module_clauses() {
         .collect::<Vec<_>>()
         .join("\n");
     let compiler = TestSession::builder()
-        .module("main.ds", &source)
-        .module("dep.ds", "export const dep = 1;")
+        .module("main.tspp", &source)
+        .module("dep.tspp", "export const dep = 1;")
         .cold()
         .build();
-    let counters = compiler.artifact_counters(compiler.dir_imported_key("main.ds"), "import.");
+    let counters = compiler.artifact_counters(compiler.dir_imported_key("main.tspp"), "import.");
     let expected = format!(
         "import.roots={ITEMS}\n\
 import.expressions={ITEMS}\n\

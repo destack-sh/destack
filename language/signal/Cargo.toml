@@ -1,6 +1,6 @@
 [package]
-name = "destack_signal"
-description = "Destack Signal"
+name = "tspp_signal"
+description = "TS++ Signal"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

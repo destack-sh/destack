@@ -1,17 +1,17 @@
 use crate::expression::format_expression;
 use crate::file::node_has_ignore_directive;
-use crate::{DestackFormatter, FormatNode};
-use destack_dir::{Decorator, Expression, LocalNodeId, Tree};
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::token;
-use destack_fir::write;
+use crate::{FormatNode, TsppFormatter};
+use tspp_dir::{Decorator, Expression, LocalNodeId, Tree};
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::token;
+use tspp_fir::write;
 
 impl<'ast> FormatNode<'ast, Decorator> for Decorator {
     /// Format one decorator annotation.
     fn format_node(
         &self,
         _node_id: LocalNodeId<Decorator>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write_decorator_expression(f, self.expression)
     }
@@ -19,7 +19,7 @@ impl<'ast> FormatNode<'ast, Decorator> for Decorator {
 
 /// Write one decorator by node id.
 pub(crate) fn write_decorator<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     decorator_id: LocalNodeId<Decorator>,
 ) -> FormatResult<()> {
     let expression_id = f.context().tree.get(decorator_id).expression;
@@ -29,7 +29,7 @@ pub(crate) fn write_decorator<'ast>(
 
 /// Write one decorator expression.
 fn write_decorator_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let tree = f.context().tree;

@@ -5,7 +5,7 @@ use crate::tests::TestSession;
 fn test_lower_a_derived_class_equality() {
     let session = TestSession::single(
         r#"
-import { PartialEqual } from "destack:ops";
+import { PartialEqual } from "tspp:ops";
 
 class Node {
     value: int32 = 0;
@@ -22,7 +22,7 @@ function compare(left: &immutable Node, right: &immutable Node): boolean {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Node.constructor",
         r#"
 @nocopy
@@ -46,7 +46,7 @@ entry(v0: ref<uninit<test.main.Node>, borrowed, 'a, exclusive>):
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.compare", r#"
+    session.assert_mir_function("main.tspp", "test.main.compare", r#"
 @nocopy
 type test.main.Node {
     value: int32;
@@ -69,7 +69,7 @@ entry(v0: ref<test.main.Node, borrowed, 'a, immutable>, v1: ref<test.main.Node, 
 /// @layout.field owner=test.main.Node index=0 name=value offset=0 size=4 align=4
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.same", r#"
+    session.assert_mir_function("main.tspp", "test.main.same", r#"
 @nocopy
 @languageItem("ops.PartialEqual")
 type PartialEqual<T>;
@@ -89,7 +89,7 @@ entry(v0: ref<?T, borrowed, 'a, immutable>, v1: ref<?T, borrowed, 'b, immutable>
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.PartialEqual.equal<ref<test.main.Node, managed, mutable, local>>",
         r#"
 @nocopy
@@ -142,7 +142,7 @@ function copy(value: &immutable Node): ^Node {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.copy", r#"
+    session.assert_mir_function("main.tspp", "test.main.copy", r#"
 @nocopy
 type test.main.Node {
     id: int32;
@@ -164,7 +164,7 @@ entry(v0: ref<test.main.Node, borrowed, 'a, immutable>):
 /// @layout.field owner=test.main.Node index=1 name=value offset=4 size=4 align=4
 "#);
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Clone.clone<ref<test.main.Node, managed, mutable, local>>",
         r#"
 @nocopy
@@ -200,7 +200,7 @@ entry(v0: ref<test.main.Node, borrowed, 'a, immutable>):
 fn test_lower_a_derived_class_hash_field_wise() {
     let session = TestSession::single(
         r#"
-import { Hasher } from "destack:ops";
+import { Hasher } from "tspp:ops";
 
 class Point {
     x: int32 = 0;
@@ -213,7 +213,7 @@ function digest(point: &immutable Point, state: &Hasher): void {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.digest", r#"
+    session.assert_mir_function("main.tspp", "test.main.digest", r#"
 @nocopy
 type test.main.Point {
     x: int32;

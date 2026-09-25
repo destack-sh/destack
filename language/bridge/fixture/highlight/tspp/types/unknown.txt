@@ -1,0 +1,8 @@
+// SYNTAX TEST "source.tspp"
+
+// types / unknown / safe erasure
+let value: unknown = input;
+//         ^^^^^^^ support.type.builtin.tspp
+
+value satisfies unknown;
+//    ^^^^^^^^^ keyword.operator.type.binary.tspp

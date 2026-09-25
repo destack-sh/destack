@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -284,7 +284,7 @@ function forward(result: Result<int32, string>): Result<int32, string> {
         session.assert_diagnostics(
             r#"
 warning[prefer-map-over-and-then]: Result chain only rebuilds the selected variant
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function forward(result: Result<int32, string>): Result<int32, string> {
 2 │     return result.andThen((value): Result<int32, string> => Result.ok(value));

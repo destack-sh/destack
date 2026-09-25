@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use destack_artifact::{
+use indexmap::IndexSet;
+use tspp_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirBound, DirExpanded, DirExported,
     DirImported, DirParsed, DirView, EnvironmentBound,
 };
-use destack_repository::{ArtifactReader, ProviderContext, ProviderError};
-use destack_source::{ModuleId, ProfileId};
-use indexmap::IndexSet;
+use tspp_repository::{ArtifactReader, ProviderContext, ProviderError};
+use tspp_source::{ModuleId, ProfileId};
 
 use crate::resolve::state::ResolveState;
 use crate::{Compiler, CompilerError, CompilerResult, ResolveError, ResolveWarning};

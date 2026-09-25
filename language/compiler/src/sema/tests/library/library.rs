@@ -2,8 +2,8 @@ use std::cmp::Reverse;
 use std::collections::BTreeMap;
 use std::time::Instant;
 
-use destack_artifact::ArtifactKey;
-use destack_source::TargetId;
+use tspp_artifact::ArtifactKey;
+use tspp_source::TargetId;
 
 use crate::tests::TestSession;
 

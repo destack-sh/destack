@@ -1,7 +1,7 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
-use destack_source::ByteRange;
+use tspp_source::ByteRange;
 
 use crate::format::{
     Allocator, ArenaVec, BestFittingMode, BestFittingVariants, FitsExpandedIndex, FormatTag,

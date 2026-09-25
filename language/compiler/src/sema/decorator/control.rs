@@ -1,7 +1,7 @@
-use destack_artifact::{DiagnosticControl, DiagnosticControlLevel, DiagnosticControlScope};
-use destack_core::StringPool;
-use destack_dir as dir;
-use destack_source::ModuleId;
+use tspp_artifact::{DiagnosticControl, DiagnosticControlLevel, DiagnosticControlScope};
+use tspp_core::StringPool;
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use crate::sema::{CheckState, DecoratorApplication, DecoratorObject};
 use crate::{CompilerError, CompilerResult};

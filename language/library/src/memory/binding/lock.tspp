@@ -1,0 +1,25 @@
+import { HostError } from "tspp:error/host";
+
+import { VirtualMemoryRange } from "./virtual.tspp";
+
+/// Lock binding family.
+@languageItem("memory.binding.MemoryLockBinding")
+export interface MemoryLockBinding {
+    /// Lock one memory range into physical memory.
+    @binding("tspp.memory.lock", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.memory.lock"],
+        families: ["windows", "unix"],
+    })
+    lockMemory(range: VirtualMemoryRange): Result<void, HostError>;
+
+    /// Unlock one memory range.
+    @binding("tspp.memory.unlock", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.memory.lock"],
+        families: ["windows", "unix"],
+    })
+    unlockMemory(range: VirtualMemoryRange): Result<void, HostError>;
+}

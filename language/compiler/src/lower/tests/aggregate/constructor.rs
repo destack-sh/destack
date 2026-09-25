@@ -13,7 +13,7 @@ function create(constructor: typeof Counter): Counter {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.create", r#"
+    session.assert_mir_function("main.tspp", "test.main.create", r#"
 @nocopy
 type test.main.Counter { }
 
@@ -47,7 +47,7 @@ function create(): new (...values: &readonly [int32]) => Counter {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 @nocopy
 type test.main.Counter { }
 
@@ -96,7 +96,7 @@ function create(): new (start: int32, ...values: ^[int32]) => Counter {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 @nocopy
 type test.main.Counter { }
 
@@ -172,7 +172,7 @@ function create(value: &readonly int32): Counter {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 @nocopy
 type test.main.Counter { }
 
@@ -245,7 +245,7 @@ function constrained<T: Value<U>, U>(): new (value: T) => Box<T> {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 @nocopy
 type test.main.Box<T> {
     value: T;
@@ -339,7 +339,7 @@ function third<T, U>(): new () => User {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 @nocopy
 type test.main.User { }
 
@@ -392,7 +392,7 @@ function pair(first: int32, second: int32): Counter {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.pair", r#"
+    session.assert_mir_function("main.tspp", "test.main.pair", r#"
 @nocopy
 type test.main.Counter { }
 
@@ -417,7 +417,7 @@ entry(v0: int32, v1: int32):
 /// @layout.struct name=test.main.Counter size=0 align=1
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.Counter.constructor.new", r#"
+    session.assert_mir_function("main.tspp", "test.main.Counter.constructor.new", r#"
 @nocopy
 type test.main.Counter { }
 
@@ -467,7 +467,7 @@ function direct(first: int32, second: int32): Counter {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.direct", r#"
+    session.assert_mir_function("main.tspp", "test.main.direct", r#"
 @nocopy
 type test.main.Counter { }
 
@@ -526,7 +526,7 @@ function spread(counts: (int32 | undefined)[]): Counter {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.spread", r#"
+    session.assert_mir_function("main.tspp", "test.main.spread", r#"
 @nocopy
 type test.main.Counter { }
 
@@ -682,7 +682,7 @@ b13:
 fn test_construct_qualified_class() {
     let session = TestSession::builder()
         .module(
-            "counter.ds",
+            "counter.tspp",
             r#"
 export class Counter<T> {
     value: T;
@@ -694,9 +694,9 @@ export class Counter<T> {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import * as counter from "./counter.ds";
+import * as counter from "./counter.tspp";
 
 function create(value: int32): counter.Counter<int32> {
     return new counter.Counter<int32>(value);
@@ -705,7 +705,7 @@ function create(value: int32): counter.Counter<int32> {
         )
         .build();
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 @nocopy
 type test.counter.Counter<T> {
     value: T;
@@ -756,7 +756,7 @@ function read(count: int32): int32 {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 @nocopy
 type test.main.Counter {
     count: int32;
@@ -833,7 +833,7 @@ function create(): Counter {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.create", r#"
+    session.assert_mir_function("main.tspp", "test.main.create", r#"
 @nocopy
 type test.main.Counter {
     count: int32;
@@ -874,7 +874,7 @@ function create(): Counter {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 @nocopy
 type test.main.Counter {
     count: int32;
@@ -964,7 +964,7 @@ function create<T>(value: T): Box<T> {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 @nocopy
 type test.main.Box<T> {
     value: T;
@@ -1029,7 +1029,7 @@ function create(count: int32): Counter {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 @nocopy
 type test.main.Counter {
     count: int32;
@@ -1122,7 +1122,7 @@ function create(count: int32): Counter | undefined {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 @nocopy
 type test.main.Counter {
     count: int32;

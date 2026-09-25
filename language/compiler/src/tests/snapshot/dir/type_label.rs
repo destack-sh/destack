@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::ModuleId;
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use super::DirSnapshotBuilder;
 
@@ -1115,7 +1115,7 @@ impl DirSnapshotBuilder<'_> {
     /// Return the generic table for one module.
     pub(super) fn generic_table(
         &self,
-        module: destack_source::ModuleId,
+        module: tspp_source::ModuleId,
     ) -> Option<&dir::GenericTable<'_>> {
         if module == self.tree.module_id {
             self.generics.as_ref()

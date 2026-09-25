@@ -14,30 +14,30 @@ use crate::annotation::{
     prefix_annotations,
 };
 use crate::call::{expression_is_long_curried_call, format_call_arguments, format_call_expression};
-use crate::context::{DestackFormatterSpeculationExt, with_following_span_start};
+use crate::context::{TsppFormatterSpeculationExt, with_following_span_start};
 use crate::expression::{
     format_generic_argument_list, format_generic_argument_list_with_relational_spacing,
     format_if_else_chain, write_index_access,
 };
 use crate::operator::{is_chain_expression, write_postfix_base_expression};
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_core::StringId;
-use destack_dir::{
+use crate::{TsppFormatContext, TsppFormatter};
+use smallvec::SmallVec;
+use tspp_core::StringId;
+use tspp_dir::{
     Comment, Declaration, DecoratorPosition, Expression, FunctionForm, IfForm, LocalNodeId, Member,
     NodeType, PostfixPosition,
 };
-use destack_fir::format::{Format, FormatError, FormatResult};
-use destack_fir::prelude::{
+use tspp_fir::format::{Format, FormatError, FormatResult};
+use tspp_fir::prelude::{
     empty_line, expand_parent, format_with, group, hard_line_break, indent, line_suffix_boundary,
     token,
 };
-use destack_fir::{best_fitting, format_args, write};
-use destack_source::Span;
-use smallvec::SmallVec;
+use tspp_fir::{best_fitting, format_args, write};
+use tspp_source::Span;
 
 /// Check whether an assignment chain ends in a nested lambda expression.
 pub(crate) fn is_assignment_chain_tail_lambda(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     assignment_id: LocalNodeId<Expression>,
     right_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -157,7 +157,7 @@ enum ChainTailGroupLayout {
 impl MemberChain {
     /// Build the normalized chain layout for one expression.
     fn from_expression(
-        context: &DestackFormatContext<'_>,
+        context: &TsppFormatContext<'_>,
         node_id: LocalNodeId<Expression>,
     ) -> FormatResult<Self> {
         let (chain, root_id, mut head, mut tail_groups) =
@@ -174,7 +174,7 @@ impl MemberChain {
 
     /// Return whether one normalized call chain has multiple tail groups.
     pub(crate) fn is_member_call_chain(
-        context: &DestackFormatContext<'_>,
+        context: &TsppFormatContext<'_>,
         node_id: LocalNodeId<Expression>,
     ) -> FormatResult<bool> {
         Self::from_expression(context, node_id)
@@ -182,7 +182,7 @@ impl MemberChain {
     }
 
     /// Return whether this chain's minimum width exceeds line width.
-    fn minimum_width_exceeds_line_width(&self, context: &DestackFormatContext<'_>) -> bool {
+    fn minimum_width_exceeds_line_width(&self, context: &TsppFormatContext<'_>) -> bool {
         let operation_count = self.chain.len().saturating_sub(1);
         let minimum_width = 1 + operation_count.saturating_mul(2);
 
@@ -192,11 +192,11 @@ impl MemberChain {
     /// Return whether the formatted head breaks.
     fn head_will_break<'ast>(
         &self,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
         formatted_root_id: LocalNodeId<Expression>,
     ) -> FormatResult<bool> {
         let start = f.context().expression_token_start(formatted_root_id);
-        let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             write_chain_head(
                 f,
                 formatted_root_id,
@@ -212,7 +212,7 @@ impl MemberChain {
     /// Measure every tail group's isolated layout.
     fn inspect_layout<'ast>(
         &self,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
         formatted_root_id: LocalNodeId<Expression>,
     ) -> FormatResult<MemberChainLayout> {
         let mut group_layouts = SmallVec::with_capacity(self.tail_groups.len());
@@ -226,7 +226,7 @@ impl MemberChain {
             };
             let following_group_first_member = groups.peek().and_then(|group| group.first());
             let start = f.context().expression_token_start(first_member.node_id());
-            let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            let content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 write_chain_group(
                     f,
                     formatted_root_id,
@@ -259,7 +259,7 @@ impl MemberChain {
 
     /// Return whether one call operation has a function-like argument.
     fn call_operation_has_function_like_argument(
-        context: &DestackFormatContext<'_>,
+        context: &TsppFormatContext<'_>,
         operation: &ChainMember,
     ) -> FormatResult<bool> {
         let ChainMember::Call { .. } = operation else {
@@ -290,7 +290,7 @@ impl MemberChain {
     fn groups_should_break(
         &self,
         layout: &MemberChainLayout,
-        context: &DestackFormatContext<'_>,
+        context: &TsppFormatContext<'_>,
         head_will_break: bool,
     ) -> FormatResult<bool> {
         let mut has_function_like_argument = false;
@@ -320,7 +320,7 @@ impl MemberChain {
     }
 
     /// Return whether any member operation owns a comment before its property.
-    fn has_member_comment(&self, context: &DestackFormatContext<'_>) -> bool {
+    fn has_member_comment(&self, context: &TsppFormatContext<'_>) -> bool {
         self.head
             .iter()
             .chain(self.tail_groups.iter().flat_map(|group| group.iter()))
@@ -336,7 +336,7 @@ impl MemberChain {
 
 /// Return whether one chain carries comments or blank lines that affect chain layout.
 fn chain_has_layout_trivia(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     formatted_root_id: LocalNodeId<Expression>,
 ) -> bool {
     let span = context.span(formatted_root_id);
@@ -346,7 +346,7 @@ fn chain_has_layout_trivia(
 
 /// Try to merge the first tail group into the chain head.
 fn maybe_merge_with_first_group(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     root_id: LocalNodeId<Expression>,
     head: &mut MemberChainGroup,
@@ -367,7 +367,7 @@ fn maybe_merge_with_first_group(
 
 /// Return whether the first tail group should merge into the head.
 fn should_merge_tail_with_head(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
     root_id: LocalNodeId<Expression>,
     head: &MemberChainGroup,
@@ -422,7 +422,7 @@ fn should_merge_tail_with_head(
 
 /// Return whether the first tail group member owns a separator comment.
 fn first_group_has_comment(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     first_group: &MemberChainGroup,
 ) -> bool {
     let Some(first_operation) = first_group.first() else {
@@ -437,7 +437,7 @@ fn first_group_has_comment(
 
 /// Return whether one expression is a standalone expression statement.
 fn expression_is_standalone_statement(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some((parent_id, parent_type)) = context.parent(expression_id) else {
@@ -482,7 +482,7 @@ fn expression_is_standalone_statement(
 }
 
 /// Return whether one identifier name follows the factory-style merge rule.
-fn is_factory_name(context: &DestackFormatContext<'_>, string_id: StringId) -> bool {
+fn is_factory_name(context: &TsppFormatContext<'_>, string_id: StringId) -> bool {
     let name = context.strings.get(string_id);
     let mut bytes = name.bytes();
 
@@ -500,7 +500,7 @@ fn has_short_name(name: &str, indent_width: u8) -> bool {
 
 /// Return whether source preserves an empty line before one tail group.
 fn chain_group_needs_empty_line_before(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     group: &MemberChainGroup,
 ) -> bool {
     let Some(first_operation) = group.first() else {
@@ -552,8 +552,8 @@ fn chain_group_needs_empty_line_before(
     false
 }
 
-impl<'ast> Format<'ast, DestackFormatContext<'ast>> for MemberChain {
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+impl<'ast> Format<'ast, TsppFormatContext<'ast>> for MemberChain {
+    fn format(&self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         let formatted_root_id = self.chain[self.chain.len() - 1];
         let chain_span_end = f.context().span(formatted_root_id).end;
         let minimum_width_exceeds_line_width = self.minimum_width_exceeds_line_width(f.context());
@@ -673,7 +673,7 @@ impl<'ast> Format<'ast, DestackFormatContext<'ast>> for MemberChain {
 
 /// Return the leading call expression in one normalized chain, if any.
 fn first_call_expression_id(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     root_id: LocalNodeId<Expression>,
     head: &MemberChainGroup,
     tail_groups: &TailChainGroups,
@@ -693,7 +693,7 @@ fn first_call_expression_id(
 
 /// Format a member/call/maybe/index chain with the standard breaking layout.
 pub(crate) fn format_expression_chain<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let chain = MemberChain::from_expression(f.context(), node_id)?;
@@ -702,7 +702,7 @@ pub(crate) fn format_expression_chain<'ast>(
 
 /// Write the one-line variant of one member chain.
 fn write_one_line_chain<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     formatted_root_id: LocalNodeId<Expression>,
     root_id: LocalNodeId<Expression>,
     head: &MemberChainGroup,
@@ -730,7 +730,7 @@ fn write_one_line_chain<'ast>(
 
 /// Write the expanded variant of one member chain.
 fn write_expanded_chain<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     formatted_root_id: LocalNodeId<Expression>,
     layout: ExpandedChainLayout,
     chain_layout: Option<&MemberChainLayout>,
@@ -765,7 +765,7 @@ fn write_expanded_chain<'ast>(
                     if operation.is_call_like()
                 )
             });
-    let format_groups = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_groups = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         let mut tail_groups = tail_groups.iter().enumerate().peekable();
 
         while let Some((group_index, tail_group)) = tail_groups.next() {
@@ -800,7 +800,7 @@ fn write_expanded_chain<'ast>(
 
             let following_group_first_member =
                 tail_groups.peek().and_then(|(_, group)| group.first());
-            let group_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            let group_content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 write_chain_group(
                     f,
                     formatted_root_id,
@@ -826,10 +826,7 @@ fn write_expanded_chain<'ast>(
 }
 
 /// Return the first token start that begins one chain operation.
-fn chain_operation_start(
-    context: &DestackFormatContext<'_>,
-    operation: &ChainMember,
-) -> Option<u32> {
+fn chain_operation_start(context: &TsppFormatContext<'_>, operation: &ChainMember) -> Option<u32> {
     match operation {
         ChainMember::Member { node_id, .. } => {
             return super::member::member_property_start(context, *node_id);
@@ -857,7 +854,7 @@ fn chain_operation_start(
 
 /// Return whether the following call owns the gap comments before its arguments.
 fn next_operation_owns_callee_gap_comments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     next_operation: Option<&ChainMember>,
 ) -> bool {
     let Some(ChainMember::Call { node_id, .. }) = next_operation else {
@@ -882,7 +879,7 @@ fn next_operation_owns_callee_gap_comments(
 
 /// Return structural trailing comments emitted after one chain segment.
 fn chain_structural_trailing_comments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     preceding_node_id: LocalNodeId<Expression>,
     next_operation: Option<&ChainMember>,
 ) -> Vec<Comment> {
@@ -937,7 +934,7 @@ fn chain_structural_trailing_comments(
 
 /// Write separator comments that start on their own line before one chain hop.
 fn write_chain_operation_leading_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     op: &ChainMember,
 ) -> FormatResult<()> {
     let node_id = match op {
@@ -963,7 +960,7 @@ fn write_chain_operation_leading_comments<'ast>(
 
 /// Write trailing comments between one formatted node and its following operation.
 fn write_chain_trailing_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     formatted_root_id: LocalNodeId<Expression>,
     preceding_node_id: LocalNodeId<Expression>,
     preceding_span: Span,
@@ -1003,7 +1000,7 @@ fn write_chain_trailing_comments<'ast>(
 
 /// Format the unwrapped base segment of a chain.
 fn write_chain_head<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     formatted_root_id: LocalNodeId<Expression>,
     root_id: LocalNodeId<Expression>,
     head: &MemberChainGroup,
@@ -1047,7 +1044,7 @@ fn write_chain_head<'ast>(
 
 /// Write one chain root expression.
 fn write_chain_root_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     expand_if_value_root: bool,
 ) -> FormatResult<()> {
@@ -1084,7 +1081,7 @@ fn write_chain_root_expression<'ast>(
 
 /// Advance the comment cursor past the head owner span.
 fn skip_comments_after_chain_head<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     root_id: LocalNodeId<Expression>,
     head: &MemberChainGroup,
 ) -> FormatResult<()> {
@@ -1104,7 +1101,7 @@ fn skip_comments_after_chain_head<'ast>(
 
 /// Advance the comment cursor past one chain group owner span.
 fn skip_comments_after_chain_group<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     group: &MemberChainGroup,
 ) -> FormatResult<()> {
     let Some(last_member) = group.last() else {
@@ -1134,7 +1131,7 @@ fn root_is_owned_by_start_call(head: &MemberChainGroup) -> bool {
 
 /// Return prefix and postfix emission flags for one chain operation.
 fn chain_operation_annotation_emit_flags(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     formatted_root_id: LocalNodeId<Expression>,
     operation: &ChainMember,
 ) -> (LocalNodeId<Expression>, bool, bool) {
@@ -1197,7 +1194,7 @@ fn chain_operation_annotation_emit_flags(
 
 /// Write prefix annotations for one chain operation when it owns them.
 fn write_chain_operation_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     emit_prefix_annotations: bool,
 ) -> FormatResult<()> {
@@ -1210,7 +1207,7 @@ fn write_chain_operation_prefix<'ast>(
 
 /// Write one absorbed optional-chain marker before its owning operation.
 fn write_chain_operation_optional_marker<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     _node_id: LocalNodeId<Expression>,
     optional_position: Option<PostfixPosition>,
 ) -> FormatResult<()> {
@@ -1228,7 +1225,7 @@ fn write_chain_operation_optional_marker<'ast>(
 
 /// Write postfix annotations for one chain operation when it owns them.
 fn write_chain_operation_postfix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     emit_postfix_annotations: bool,
     call_or_new_handles_empty_infix: bool,
@@ -1248,7 +1245,7 @@ fn write_chain_operation_postfix<'ast>(
 
 /// Format one chained operation.
 fn write_chain_operation<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     formatted_root_id: LocalNodeId<Expression>,
     op: &ChainMember,
     next_operation: Option<&ChainMember>,
@@ -1375,7 +1372,7 @@ fn write_chain_operation<'ast>(
 
 /// Format all operations for one chain line.
 fn write_chain_group<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     formatted_root_id: LocalNodeId<Expression>,
     ops: &[ChainMember],
     following_group_first_operation: Option<&ChainMember>,

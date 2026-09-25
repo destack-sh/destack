@@ -1,7 +1,7 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
-use destack_source::{ModuleId, PackageId, ProductId, ProfileId, TargetId};
+use tspp_source::{ModuleId, PackageId, ProductId, ProfileId, TargetId};
 
 use crate::IndexKind;
 

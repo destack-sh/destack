@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_receiver_projections_reduce_for_generic_extensions() {
     let session = TestSession::single(
         r#"
-import { Numeric } from "destack:math";
+import { Numeric } from "tspp:math";
 
 interface Doubles {
     type Output;
@@ -26,11 +26,11 @@ extension<T: Numeric> of Pair<T> implements Doubles {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_node_types(),
         r#"
 === annotated ===
-import { Numeric } from "destack:math";
+import { Numeric } from "tspp:math";
 
 interface Doubles {
     type Output;
@@ -50,7 +50,7 @@ extension<T: Numeric> of Pair<T> implements Doubles {
 }
 
 === dir ===
-import { Numeric } from "destack:math";
+import { Numeric } from "tspp:math";
 
 interface Doubles {
 /// @generic.template symbol=Doubles parameters=(this: Doubles)
@@ -166,7 +166,7 @@ export function run(): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -352,7 +352,7 @@ export function run(): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

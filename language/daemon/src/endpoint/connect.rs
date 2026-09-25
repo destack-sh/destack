@@ -3,9 +3,9 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Instant;
 
-use destack_rpc::{ConnectError, Connection, ConnectionError, IpcError, IpcTransport, Transport};
-use destack_runtime::service::{DebuggerClient, WorldClient};
-use destack_workspace::WorkspaceClient;
+use tspp_rpc::{ConnectError, Connection, ConnectionError, IpcError, IpcTransport, Transport};
+use tspp_runtime::service::{DebuggerClient, WorldClient};
+use tspp_workspace::WorkspaceClient;
 
 use super::{DaemonConnectOptions, DaemonEndpoint, DaemonEndpointError, DaemonLaunch};
 use crate::{BlobClient, DaemonClient};

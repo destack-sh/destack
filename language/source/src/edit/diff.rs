@@ -1,4 +1,4 @@
-use destack_core::Color;
+use tspp_core::Color;
 
 /// Options for diff output.
 #[derive(Debug, Clone)]

@@ -1,9 +1,9 @@
-use destack_serde::{Reflect, Schema, Type};
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::fmt::{self, Debug, Formatter};
 use std::mem::size_of;
+use tspp_serde::{Reflect, Schema, Type};
 
 use crate::{StableHasher, stable_hash_text};
 

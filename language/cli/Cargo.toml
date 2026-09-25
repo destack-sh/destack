@@ -1,12 +1,12 @@
 [package]
-name = "destack_language_cli"
-description = "Destack language CLI"
+name = "tspp_cli"
+description = "TS++ language CLI"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
 rust-version.workspace = true
-default-run = "destack"
+default-run = "tspp"
 
 [features]
 default = ["dev"]
@@ -24,30 +24,30 @@ required-features = ["schema"]
 
 [dependencies]
 # language
-destack_artifact = { workspace = true }
-destack_compiler = { workspace = true, features = ["native"] }
-destack_core = { workspace = true }
-destack_dir = { workspace = true }
-destack_fir = { workspace = true }
-destack_formatter = { workspace = true }
-destack_json = { workspace = true }
-destack_linter = { workspace = true }
-destack_mir = { workspace = true }
-destack_parser = { workspace = true }
-destack_program = { workspace = true }
-destack_query = { workspace = true }
-destack_repository = { workspace = true }
-destack_rpc = { workspace = true }
-destack_runtime = { workspace = true }
-destack_serde = { workspace = true }
-destack_session = { workspace = true, features = ["native"] }
-destack_source = { workspace = true }
+tspp_artifact = { workspace = true }
+tspp_compiler = { workspace = true, features = ["native"] }
+tspp_core = { workspace = true }
+tspp_dir = { workspace = true }
+tspp_fir = { workspace = true }
+tspp_formatter = { workspace = true }
+tspp_json = { workspace = true }
+tspp_linter = { workspace = true }
+tspp_mir = { workspace = true }
+tspp_parser = { workspace = true }
+tspp_program = { workspace = true }
+tspp_query = { workspace = true }
+tspp_repository = { workspace = true }
+tspp_rpc = { workspace = true }
+tspp_runtime = { workspace = true }
+tspp_serde = { workspace = true }
+tspp_session = { workspace = true, features = ["native"] }
+tspp_source = { workspace = true }
 
 # platform
-destack_daemon = { workspace = true }
-destack_lsp = { workspace = true }
-destack_vm = { workspace = true }
-destack_workspace = { workspace = true }
+tspp_daemon = { workspace = true }
+tspp_lsp = { workspace = true }
+tspp_vm = { workspace = true }
+tspp_workspace = { workspace = true }
 
 # general
 clap = { workspace = true, features = ["derive"] }

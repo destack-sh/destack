@@ -1,4 +1,4 @@
-use destack_program as program;
+use tspp_program as program;
 
 use crate::debugger::Debugger;
 use crate::diagnostic::{RuntimeError, RuntimeResult};

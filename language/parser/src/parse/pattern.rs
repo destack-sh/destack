@@ -2,11 +2,11 @@ use crate::parse::error::ParserResultExt;
 use crate::parse::{ExpressionPosition, ExpressionStop, RangedPath};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
-use destack_dir::{
+use tspp_dir::{
     Expression, Keyword, Literal, LocalNodeId, Name, NodeType, OperatorPrecedence, Pattern,
     PatternField, RangeEnd, TokenType, TypeExpression,
 };
-use destack_source::ByteRange;
+use tspp_source::ByteRange;
 
 /// Token ownership for one pattern operand.
 #[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
@@ -33,7 +33,7 @@ impl Parser {
     /// Parse one standalone pattern fragment.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// Vector2 { x: 0, y }
     /// ```
     pub fn parse_pattern_fragment(&mut self) -> ParserResult<LocalNodeId<Pattern>> {
@@ -43,7 +43,7 @@ impl Parser {
     /// Parse a pattern.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// _
     /// 1
     /// 2 | 3

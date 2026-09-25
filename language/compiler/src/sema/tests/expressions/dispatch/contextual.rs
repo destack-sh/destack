@@ -11,7 +11,7 @@ class Bag<T> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -59,7 +59,7 @@ function build(): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -102,7 +102,7 @@ function build(): void {
 fn test_construct_rigid_generic_fields_through_bound() {
     let session = TestSession::single(
         r#"
-import { Numeric } from "destack:math";
+import { Numeric } from "tspp:math";
 
 struct Pair<T> {
     x: T;
@@ -118,11 +118,11 @@ export extension<T: Numeric> of Pair<T> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { Numeric } from "destack:math";
+import { Numeric } from "tspp:math";
 
 struct Pair<out T> {
     x: T;
@@ -136,7 +136,7 @@ export extension<T: Numeric> of Pair<T> {
 }
 
 === dir ===
-import { Numeric } from "destack:math";
+import { Numeric } from "tspp:math";
 
 struct Pair<T> {
 /// @generic.template symbol=Pair parameters=(out T#1)
@@ -213,7 +213,7 @@ export extension<T> of Tag<T> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -280,7 +280,7 @@ function values(entries: { value: int32 }[]): int32[] {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -332,7 +332,7 @@ function unwrap(values: (int32 | undefined)[]): int32[] {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -392,7 +392,7 @@ function join<U, E, F>(first: Result<U, E>, second: Result<U, F>): Result<U, E |
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===

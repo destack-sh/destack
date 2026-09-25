@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -92,7 +92,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
-    extent: destack_source::Span,
+    extent: tspp_source::Span,
     result: dir::LocalNodeId<dir::Expression>,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let retained = module.source_extent(result.into_any())?;
@@ -119,7 +119,7 @@ mod tests {
         let session = TestSession::dir(
             &NEEDLESS_QUESTION_MARK,
             r#"
-import { From } from "destack:convert";
+import { From } from "tspp:convert";
 
 struct Failure {
     message: string;

@@ -1,11 +1,11 @@
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Weak};
 
-use destack_artifact::{ArtifactKey, IndexKind};
-use destack_query::Module;
-use destack_repository::{Package, Repository, RepositoryError, Revision, RevisionPin};
-use destack_session::{Session, SessionError};
-use destack_source::{File, FileId, ModuleId, ProfileId, TargetId};
+use tspp_artifact::{ArtifactKey, IndexKind};
+use tspp_query::Module;
+use tspp_repository::{Package, Repository, RepositoryError, Revision, RevisionPin};
+use tspp_session::{Session, SessionError};
+use tspp_source::{File, FileId, ModuleId, ProfileId, TargetId};
 
 use crate::Error;
 

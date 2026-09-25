@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_reject_cross_module_duplicate_single_slot_member() {
     let session = TestSession::builder()
         .module(
-            "widget.ds",
+            "widget.tspp",
             r#"
 export struct Widget {}
 
@@ -16,9 +16,9 @@ export extension of Widget {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Widget } from "./widget.ds";
+import { Widget } from "./widget.tspp";
 
 extension of Widget {
     get size(): usize {
@@ -30,11 +30,11 @@ extension of Widget {
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
-import { Widget } from "./widget.ds";
+import { Widget } from "./widget.tspp";
 
 extension of Widget {
     get size(): usize {
@@ -43,7 +43,7 @@ extension of Widget {
 }
 
 === dir ===
-import { Widget } from "./widget.ds";
+import { Widget } from "./widget.tspp";
 
 extension of Widget {
     get size(): usize {
@@ -82,7 +82,7 @@ const size = widget.size;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -134,15 +134,15 @@ const size = widget.size;
 fn test_reject_an_unnamed_exported_extension_of_a_nonlocal_type() {
     let session = TestSession::builder()
         .module(
-            "widget.ds",
+            "widget.tspp",
             r#"
 export struct Widget {}
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Widget } from "./widget.ds";
+import { Widget } from "./widget.tspp";
 
 export extension of Widget {
     get size(): usize {
@@ -154,11 +154,11 @@ export extension of Widget {
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
-import { Widget } from "./widget.ds";
+import { Widget } from "./widget.tspp";
 
 export extension of Widget {
     get size(): usize {
@@ -167,7 +167,7 @@ export extension of Widget {
 }
 
 === dir ===
-import { Widget } from "./widget.ds";
+import { Widget } from "./widget.tspp";
 
 export extension of Widget {
     get size(): usize {
@@ -186,7 +186,7 @@ export extension of Widget {
 fn test_select_static_members_across_form_qualified_extensions() {
     let session = TestSession::single(
         r#"
-import { Set } from "destack:collections";
+import { Set } from "tspp:collections";
 
 function build(values: [int32]): void {
     const owned: ^Set<int32> = Set.from([...values]);
@@ -197,11 +197,11 @@ function build(values: [int32]): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Set } from "destack:collections";
+import { Set } from "tspp:collections";
 
 function build(values: [int32]): void {
     const owned: ^Set<int32, Equality<int32>> = Set.from<int32, Equality<int32>>([
@@ -217,7 +217,7 @@ function build(values: [int32]): void {
 }
 
 === dir ===
-import { Set } from "destack:collections";
+import { Set } from "tspp:collections";
 
 function build(values: [int32]): void {
 /// @type.symbol symbol=build type=(Slice<int32>) => void

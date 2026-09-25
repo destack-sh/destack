@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_scalar_multiply_projects_output() {
     let session = TestSession::single(
         r#"
-import { Multiply } from "destack:ops";
+import { Multiply } from "tspp:ops";
 
 struct Force {
     value: float64;
@@ -24,11 +24,11 @@ const scaled = force * 2.0;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Multiply } from "destack:ops";
+import { Multiply } from "tspp:ops";
 
 struct Force {
     value: float64;
@@ -46,7 +46,7 @@ declare const force: Force;
 const scaled: Force = force * 2.0;
 
 === dir ===
-import { Multiply } from "destack:ops";
+import { Multiply } from "tspp:ops";
 
 struct Force {
 /// @type.symbol symbol=Force type=Force
@@ -118,7 +118,7 @@ const scaled = force * 2.0;
 fn test_newtype_selects_its_own_multiply() {
     let session = TestSession::single(
         r#"
-import { Multiply } from "destack:ops";
+import { Multiply } from "tspp:ops";
 
 newtype Meters = float64;
 
@@ -137,11 +137,11 @@ const area = width * height;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Multiply } from "destack:ops";
+import { Multiply } from "tspp:ops";
 
 newtype Meters = float64;
 
@@ -158,7 +158,7 @@ declare const height: Meters;
 const area: float64 = width * height;
 
 === dir ===
-import { Multiply } from "destack:ops";
+import { Multiply } from "tspp:ops";
 
 newtype Meters = float64;
 /// @type.symbol symbol=Meters source="newtype Meters = float64" type=Meters

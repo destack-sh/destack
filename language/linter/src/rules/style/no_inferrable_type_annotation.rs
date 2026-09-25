@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{NodeSpanRegion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{NodeSpanRegion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -145,15 +145,15 @@ const label: string = "one";
         session.assert_diagnostics(
             r#"
 warning[no-inferrable-type-annotation]: type annotation repeats scalar inference
- ──▶ main.ds:1:14
+ ──▶ main.tspp:1:14
   │
 1 │ const label: string = "one";
   │              ^^^^^^
   │
 
  = fix: remove the redundant type annotation
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ const label: string = "one";
 +   1│ const label = "one";

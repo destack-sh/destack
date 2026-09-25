@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_bind_generic_scopes() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 function wrap<T>(value: T): T {
     let value: T = value;
@@ -20,7 +20,7 @@ type Anonymous<T> = T extends infer _ ? true : false;
         .build();
 
     compiler.assert_dir_bound(
-        "main.ds",
+        "main.tspp",
         DirRows::binding().with_summaries(),
         r#"
 function wrap<T>(value: T): T {
@@ -79,7 +79,7 @@ type Anonymous<T> = T extends infer _ ? true : false;
 fn test_bind_shares_repeated_infer_binders() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 type Repeat<T> = T extends (infer A, infer A) ? A : never;
 "#,
@@ -88,7 +88,7 @@ type Repeat<T> = T extends (infer A, infer A) ? A : never;
 
     // both binders of one name bind one shared symbol in the conditional scope
     compiler.assert_dir_bound(
-        "main.ds",
+        "main.tspp",
         DirRows::binding().with_summaries(),
         r#"
 type Repeat<T> = T extends (infer A, infer A) ? A : never;

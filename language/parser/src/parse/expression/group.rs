@@ -1,7 +1,7 @@
 use crate::parse::decorator::Decorators;
 use crate::parse::{DeclarationHeader, ExpressionPosition, ExpressionStop};
 use crate::{ParseStart, Parser, ParserResult};
-use destack_dir::{Argument, Expression, LocalNodeId, NodeType, TokenType};
+use tspp_dir::{Argument, Expression, LocalNodeId, NodeType, TokenType};
 
 impl Parser {
     /// Parse one parenthesized expression, tuple, or arrow head.

@@ -1,6 +1,6 @@
-use destack_core::{EntryRange, SectionBuilder, SectionEntry, SectionImage, SectionSlice};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::{EntryRange, SectionBuilder, SectionEntry, SectionImage, SectionSlice};
+use tspp_serde::Reflect;
 
 use super::{Alignment, Import, RelocationKind, SymbolId};
 

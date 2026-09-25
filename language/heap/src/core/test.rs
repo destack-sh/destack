@@ -1,4 +1,4 @@
-use destack_mir::TraceMap;
+use tspp_mir::TraceMap;
 
 use crate::AllocationShape;
 

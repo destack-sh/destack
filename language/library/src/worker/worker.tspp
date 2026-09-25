@@ -1,0 +1,91 @@
+import { Promise, Task } from "tspp:async";
+import { Panic, todo } from "tspp:error";
+import { SharedSafe } from "tspp:memory";
+import { WorkerHandle, WorkerId } from "tspp:runtime/world";
+
+/// Isolated worker.
+@languageItem("worker.Worker")
+export class Worker<T, R> {
+    /// Opaque runtime worker handle.
+    private handle: WorkerHandle;
+
+    /// Create a worker over its runtime handle.
+    private constructor(handle: WorkerHandle) {
+        this.handle = handle;
+    }
+
+    /// Send one message and wait for a reply.
+    request(message: T): Task<Result<R, WorkerError>> {
+        todo("Worker.request")
+    }
+
+    /// Send one message without waiting for a reply.
+    post(message: T): void {
+        todo("Worker.post");
+    }
+
+    /// Observe this worker's exit.
+    ///
+    /// A worker is the panic boundary; its parent receives the termination and panic payload.
+    exit(): Promise<WorkerExit> {
+        todo("Worker.exit")
+    }
+
+    /// Request worker shutdown.
+    terminate(): Promise<void> {
+        todo("Worker.terminate")
+    }
+}
+
+/// Pool of homogeneous workers.
+@languageItem("worker.WorkerPool")
+export class WorkerPool<T, R> {
+    /// The workers in this pool.
+    workers: Worker<T, R>[] = [];
+
+    /// Send one request to an available worker.
+    request(message: T): Task<Result<R, WorkerError>> {
+        todo("WorkerPool.request")
+    }
+
+    /// Request shutdown for every worker.
+    terminate(): Promise<void> {
+        todo("WorkerPool.terminate")
+    }
+}
+
+/// Worker exit status observed by the supervising parent.
+@languageItem("worker.WorkerExit")
+export newtype WorkerExit =
+    | { kind: "completed" }
+    | { kind: "terminated" }
+    | { kind: "panicked"; panic: readonly Panic };
+
+/// Worker request failure.
+@languageItem("worker.WorkerError")
+export newtype WorkerError = { kind: "terminated" } | { kind: "panicked"; panic: readonly Panic };
+
+/// Entry function for a worker.
+export type WorkerEntry<T, R> = (message: T) => R | Task<R>;
+
+/// Worker spawn options.
+export interface WorkerOptions {
+    /// Human-readable worker name.
+    name?: string;
+
+    /// Initial stack size in bytes.
+    stackSize?: usize;
+}
+
+/// Spawn one worker.
+export function spawn<T: SharedSafe, R: SharedSafe>(
+    entry: WorkerEntry<T, R>,
+    options?: &readonly WorkerOptions,
+): Worker<T, R> {
+    todo("worker.spawn")
+}
+
+/// Return the current worker id.
+export function current(): WorkerId {
+    todo("worker.current")
+}

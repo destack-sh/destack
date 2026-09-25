@@ -1,6 +1,6 @@
-use destack_artifact::{DiagnosticError, DiagnosticFormat, DiagnosticFormatter};
-use destack_artifact_macros::Diagnostic;
-use destack_source::ModuleId;
+use tspp_artifact::{DiagnosticError, DiagnosticFormat, DiagnosticFormatter};
+use tspp_artifact_macros::Diagnostic;
+use tspp_source::ModuleId;
 
 use crate::DiagnosticAnchor;
 
@@ -38,7 +38,7 @@ pub enum CheckError {
     // -------------------------------------------------------------------------
     /// Inference could not determine a required type or static value.
     ///
-    /// ```ds
+    /// ```tspp
     /// const value = _;
     /// ```
     #[diagnostic(
@@ -55,7 +55,7 @@ pub enum CheckError {
 
     /// Declaration requires an explicit or contextual type annotation.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare function foo();
     /// ```
     #[diagnostic(id = "missing-type-annotation", message = "missing type annotation")]
@@ -68,7 +68,7 @@ pub enum CheckError {
 
     /// A parameter initializer on a signature without an implementation to run it.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare function read(count: int32 = 1): void;
     /// ```
     #[diagnostic(
@@ -98,7 +98,7 @@ pub enum CheckError {
 
     /// Export's type depends on another module and needs an annotation.
     ///
-    /// ```ds
+    /// ```tspp
     /// export const value = imported();
     /// ```
     #[diagnostic(
@@ -115,7 +115,7 @@ pub enum CheckError {
 
     /// Named function requires a written result type.
     ///
-    /// ```ds
+    /// ```tspp
     /// function scale(value: float64) { }
     /// ```
     #[diagnostic(
@@ -132,7 +132,7 @@ pub enum CheckError {
 
     /// Constructor declares a result type.
     ///
-    /// ```ds
+    /// ```tspp
     /// class User {
     ///     constructor(): this {}
     /// }
@@ -150,7 +150,7 @@ pub enum CheckError {
 
     /// Constructor declares a receiver other than a borrow.
     ///
-    /// ```ds
+    /// ```tspp
     /// class User {
     ///     constructor(this: User) {}
     /// }
@@ -168,7 +168,7 @@ pub enum CheckError {
 
     /// A derived class constructor reads this before calling super.
     ///
-    /// ```ds
+    /// ```tspp
     /// class Admin extends User {
     ///     constructor() { this.level = 1; super(); }
     /// }
@@ -186,7 +186,7 @@ pub enum CheckError {
 
     /// A derived class constructor returns without calling super.
     ///
-    /// ```ds
+    /// ```tspp
     /// class Admin extends User {
     ///     constructor() {}
     /// }
@@ -204,7 +204,7 @@ pub enum CheckError {
 
     /// A super call appears outside the constructor of a derived class.
     ///
-    /// ```ds
+    /// ```tspp
     /// class Admin extends User {
     ///     reset(this): void { super(); }
     /// }
@@ -222,7 +222,7 @@ pub enum CheckError {
 
     /// Constructor returns a value.
     ///
-    /// ```ds
+    /// ```tspp
     /// class User {
     ///     constructor() { return this; }
     /// }
@@ -240,7 +240,7 @@ pub enum CheckError {
 
     /// Exported binding requires a written type.
     ///
-    /// ```ds
+    /// ```tspp
     /// export const value = compute();
     /// ```
     #[diagnostic(
@@ -257,7 +257,7 @@ pub enum CheckError {
 
     /// Transparent type expansion reached the same type again.
     ///
-    /// ```ds
+    /// ```tspp
     /// type Loop = Loop;
     /// ```
     #[diagnostic(id = "circular-type", message = "type is circular")]
@@ -270,7 +270,7 @@ pub enum CheckError {
 
     /// Type instantiation nests past the depth the checker follows.
     ///
-    /// ```ds
+    /// ```tspp
     /// type Grow<T> = T extends [] ? never : Grow<[...T, T]>;
     /// type Forever = Grow<[1]>;
     /// ```
@@ -287,7 +287,7 @@ pub enum CheckError {
 
     /// An `infer` declaration appears outside the extends clause of a conditional type.
     ///
-    /// ```ds
+    /// ```tspp
     /// type Loose = infer T;
     /// ```
     #[diagnostic(
@@ -303,7 +303,7 @@ pub enum CheckError {
 
     /// Generic application supplies more arguments than the declaration takes.
     ///
-    /// ```ds
+    /// ```tspp
     /// Box<int32, string>;
     /// ```
     #[diagnostic(
@@ -325,7 +325,7 @@ pub enum CheckError {
 
     /// Type query operand is not a value reference path.
     ///
-    /// ```ds
+    /// ```tspp
     /// type T = typeof call();
     /// ```
     #[diagnostic(
@@ -344,7 +344,7 @@ pub enum CheckError {
     // -------------------------------------------------------------------------
     /// Source type is not assignable to target type.
     ///
-    /// ```ds
+    /// ```tspp
     /// let value: string = 1;
     /// ```
     #[diagnostic(
@@ -364,7 +364,7 @@ pub enum CheckError {
 
     /// Source type cannot be erased into an erased target.
     ///
-    /// ```ds
+    /// ```tspp
     /// function keep<T>(value: T): unknown {
     ///     value
     /// }
@@ -387,7 +387,7 @@ pub enum CheckError {
 
     /// Source type converts to more than one represented union case.
     ///
-    /// ```ds
+    /// ```tspp
     /// type Value = { x: int32 } | { x: int32; y?: int32 };
     /// declare const source: { x: int32; y: int32 };
     /// const value: Value = source;
@@ -410,7 +410,7 @@ pub enum CheckError {
 
     /// Type does not satisfy a required structural or generic constraint.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const value: {};
     ///
     /// value satisfies { name: string };
@@ -432,7 +432,7 @@ pub enum CheckError {
 
     /// Strict equality compares identity, so its operands must carry one.
     ///
-    /// ```ds
+    /// ```tspp
     /// struct Point {
     ///     x: int32;
     /// }
@@ -457,7 +457,7 @@ pub enum CheckError {
 
     /// An equality requirement has unequal normalized operands.
     ///
-    /// ```ds
+    /// ```tspp
     /// function same<T, U>(): void where T == U {}
     ///
     /// same<int32, string>();
@@ -479,7 +479,7 @@ pub enum CheckError {
 
     /// Type does not extend a required base type.
     ///
-    /// ```ds
+    /// ```tspp
     /// class User extends number {}
     /// ```
     #[diagnostic(
@@ -499,7 +499,7 @@ pub enum CheckError {
 
     /// Type does not implement a required interface.
     ///
-    /// ```ds
+    /// ```tspp
     /// interface Serializable {
     ///     serialize(): string;
     /// }
@@ -523,7 +523,7 @@ pub enum CheckError {
 
     /// Assignment target does not designate storage.
     ///
-    /// ```ds
+    /// ```tspp
     /// let value = 1;
     ///
     /// (value + 1) = 2;
@@ -541,7 +541,7 @@ pub enum CheckError {
 
     /// Direct object literal contains a property that the target cannot accept.
     ///
-    /// ```ds
+    /// ```tspp
     /// const value: { name: string } = { name: "Ada", extra: true };
     /// ```
     #[diagnostic(
@@ -561,7 +561,7 @@ pub enum CheckError {
 
     /// Struct literal contains a getter or setter instead of a field initializer.
     ///
-    /// ```ds
+    /// ```tspp
     /// struct Store {
     ///     value: () => string;
     /// }
@@ -581,7 +581,7 @@ pub enum CheckError {
 
     /// Type cannot be explicitly cast to the requested target type.
     ///
-    /// ```ds
+    /// ```tspp
     /// const value = "text" as int32;
     /// ```
     #[diagnostic(
@@ -601,7 +601,7 @@ pub enum CheckError {
 
     /// Intrinsic marker type appears outside a compiler-recognized language item.
     ///
-    /// ```ds
+    /// ```tspp
     /// let value: intrinsic;
     /// ```
     #[diagnostic(
@@ -617,7 +617,7 @@ pub enum CheckError {
 
     /// Const assertion marker appears outside an `as const` expression.
     ///
-    /// ```ds
+    /// ```tspp
     /// let value: const;
     /// ```
     #[diagnostic(id = "invalid-const-type", message = "const type is not valid here")]
@@ -630,7 +630,7 @@ pub enum CheckError {
 
     /// Argument type is not assignable to its parameter type.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare function parse(input: string): int32;
     ///
     /// parse(1);
@@ -652,7 +652,7 @@ pub enum CheckError {
 
     /// Returned type is not assignable to the declared result type.
     ///
-    /// ```ds
+    /// ```tspp
     /// function f(): string { 1 }
     /// ```
     #[diagnostic(
@@ -672,7 +672,7 @@ pub enum CheckError {
 
     /// Spread source has no fields to merge.
     ///
-    /// ```ds
+    /// ```tspp
     /// const merged = { ...1 };
     /// ```
     #[diagnostic(
@@ -690,7 +690,7 @@ pub enum CheckError {
 
     /// Assignment writes to an immutable binding.
     ///
-    /// ```ds
+    /// ```tspp
     /// const value = 1;
     /// value = 2;
     /// ```
@@ -710,8 +710,8 @@ pub enum CheckError {
 
     /// Assignment writes to an imported binding.
     ///
-    /// ```ds
-    /// import { value } from "./value.ds";
+    /// ```tspp
+    /// import { value } from "./value.tspp";
     /// value = 2;
     /// ```
     #[diagnostic(
@@ -729,7 +729,7 @@ pub enum CheckError {
 
     /// Assignment writes to a readonly member.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const value: { readonly count: int32 };
     ///
     /// value.count = 2;
@@ -749,7 +749,7 @@ pub enum CheckError {
 
     /// Assignment writes a computed key through a structural index signature.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const counts: { [key: string]: int32 };
     /// declare const key: string;
     ///
@@ -770,7 +770,7 @@ pub enum CheckError {
 
     /// Assigned object is missing a required property.
     ///
-    /// ```ds
+    /// ```tspp
     /// const value: { name: string } = {};
     /// ```
     #[diagnostic(
@@ -790,7 +790,7 @@ pub enum CheckError {
 
     /// Writable index signature requires `IndexSet` support.
     ///
-    /// ```ds
+    /// ```tspp
     /// type Bag = { [key: string]: int32 };
     /// declare function write(bag: Bag): void;
     /// declare const point: Point;
@@ -816,7 +816,7 @@ pub enum CheckError {
 
     /// Borrow expression requests access its source never grants.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const user: shared User;
     ///
     /// const view = &user;
@@ -838,7 +838,7 @@ pub enum CheckError {
 
     /// Callable body requires more receiver access than its slot takes.
     ///
-    /// ```ds
+    /// ```tspp
     /// const callback: Function<(), void, "readonly"> = () => { count += 1; };
     /// ```
     #[diagnostic(
@@ -861,7 +861,7 @@ pub enum CheckError {
     // -------------------------------------------------------------------------
     /// Receiver type does not contain a selected member.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const user: { name: string };
     ///
     /// user.missing;
@@ -886,7 +886,7 @@ pub enum CheckError {
 
     /// Value is not callable.
     ///
-    /// ```ds
+    /// ```tspp
     /// const value = 1;
     /// value();
     /// ```
@@ -902,7 +902,7 @@ pub enum CheckError {
 
     /// No overload matches the supplied arguments.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare function parse(input: string): int32;
     ///
     /// parse(1, 2, 3);
@@ -922,7 +922,7 @@ pub enum CheckError {
 
     /// No constructor matches the supplied arguments.
     ///
-    /// ```ds
+    /// ```tspp
     /// new User(true);
     /// ```
     #[diagnostic(
@@ -940,7 +940,7 @@ pub enum CheckError {
 
     /// A derive argument does not name a derivable interface.
     ///
-    /// ```ds
+    /// ```tspp
     /// @derive(ordinaryValue)
     /// newtype Shape = { kind: "shape" };
     /// ```
@@ -957,7 +957,7 @@ pub enum CheckError {
 
     /// A declaration selects the same derive interface more than once.
     ///
-    /// ```ds
+    /// ```tspp
     /// @derive(Clone, Clone)
     /// struct Point { x: int32 }
     /// ```
@@ -976,7 +976,7 @@ pub enum CheckError {
 
     /// Member selection has multiple valid targets.
     ///
-    /// ```ds
+    /// ```tspp
     /// value.name;
     /// ```
     #[diagnostic(id = "ambiguous-member", message = "member '{key}' is ambiguous")]
@@ -991,7 +991,7 @@ pub enum CheckError {
 
     /// Selected member is not accessible from the current scope.
     ///
-    /// ```ds
+    /// ```tspp
     /// class User {
     ///     private value: int32 = 0;
     /// }
@@ -1013,7 +1013,7 @@ pub enum CheckError {
 
     /// Newtype backing is not accessible from the current scope.
     ///
-    /// ```ds
+    /// ```tspp
     /// newtype Token = private string;
     /// ```
     #[diagnostic(
@@ -1033,7 +1033,7 @@ pub enum CheckError {
 
     /// Interface member has a written visibility modifier.
     ///
-    /// ```ds
+    /// ```tspp
     /// interface Reader {
     ///     private read(): string;
     /// }
@@ -1051,7 +1051,7 @@ pub enum CheckError {
 
     /// No operator overload matches the supplied operands.
     ///
-    /// ```ds
+    /// ```tspp
     /// 1 + true;
     /// ```
     #[diagnostic(
@@ -1071,7 +1071,7 @@ pub enum CheckError {
 
     /// Strict equality operands do not have identity-compatible types.
     ///
-    /// ```ds
+    /// ```tspp
     /// class User {}
     ///
     /// declare const user: User;
@@ -1095,7 +1095,7 @@ pub enum CheckError {
 
     /// Reference does not resolve to a visible symbol.
     ///
-    /// ```ds
+    /// ```tspp
     /// missing;
     /// ```
     #[diagnostic(
@@ -1116,7 +1116,7 @@ pub enum CheckError {
 
     /// Reference resolves to more than one visible symbol.
     ///
-    /// ```ds
+    /// ```tspp
     /// value;
     /// ```
     #[diagnostic(id = "ambiguous-reference", message = "ambiguous reference '{name}'")]
@@ -1131,7 +1131,7 @@ pub enum CheckError {
 
     /// Decorator target does not name one newtype declaration.
     ///
-    /// ```ds
+    /// ```tspp
     /// @value.field
     /// const decorated = 1;
     /// ```
@@ -1148,7 +1148,7 @@ pub enum CheckError {
 
     /// Decorator arguments do not select exactly one backing alternative.
     ///
-    /// ```ds
+    /// ```tspp
     /// newtype mark = (string,) | (`${string}`,);
     ///
     /// @mark("value")
@@ -1167,7 +1167,7 @@ pub enum CheckError {
 
     /// Decorator arguments match no backing alternative.
     ///
-    /// ```ds
+    /// ```tspp
     /// newtype mark = (string,) | (boolean,);
     ///
     /// @mark(1)
@@ -1186,7 +1186,7 @@ pub enum CheckError {
 
     /// A closure has more than one capture directive.
     ///
-    /// ```ds
+    /// ```tspp
     /// @capture("copy")
     /// @capture("move")
     /// const closure = () => value;
@@ -1204,7 +1204,7 @@ pub enum CheckError {
 
     /// A capture decorator does not annotate a declared function value.
     ///
-    /// ```ds
+    /// ```tspp
     /// @capture("copy")
     /// const value = 1;
     /// ```
@@ -1221,7 +1221,7 @@ pub enum CheckError {
 
     /// Member access reads through a possibly nullish value.
     ///
-    /// ```ds
+    /// ```tspp
     /// class User {
     ///     name: string = "";
     /// }
@@ -1245,7 +1245,7 @@ pub enum CheckError {
 
     /// Type cannot be constructed with `new`.
     ///
-    /// ```ds
+    /// ```tspp
     /// struct Point {}
     ///
     /// new Point();
@@ -1269,7 +1269,7 @@ pub enum CheckError {
 
     /// Declaration kind cannot nest in a function body.
     ///
-    /// ```ds
+    /// ```tspp
     /// function make(): void {
     ///     class Point {}
     /// }
@@ -1289,7 +1289,7 @@ pub enum CheckError {
 
     /// Type cannot be constructed through an inferred call head.
     ///
-    /// ```ds
+    /// ```tspp
     /// const value: string = _(1);
     /// ```
     #[diagnostic(
@@ -1307,7 +1307,7 @@ pub enum CheckError {
 
     /// Call supplies the wrong number of arguments.
     ///
-    /// ```ds
+    /// ```tspp
     /// function pair(a: int32, b: int32) {}
     /// pair(1);
     /// ```
@@ -1328,7 +1328,7 @@ pub enum CheckError {
 
     /// Value does not support indexed access.
     ///
-    /// ```ds
+    /// ```tspp
     /// type Value = int32["name"];
     /// ```
     #[diagnostic(
@@ -1346,7 +1346,7 @@ pub enum CheckError {
 
     /// Index key type is not valid for the receiver.
     ///
-    /// ```ds
+    /// ```tspp
     /// type User = { name: string };
     ///
     /// type Value = User["missing"];
@@ -1368,7 +1368,7 @@ pub enum CheckError {
 
     /// `instanceof` target is not a class declaration.
     ///
-    /// ```ds
+    /// ```tspp
     /// interface Named {}
     ///
     /// value instanceof Named;
@@ -1386,7 +1386,7 @@ pub enum CheckError {
 
     /// `instanceof` can never hold for the supplied value type.
     ///
-    /// ```ds
+    /// ```tspp
     /// class User {}
     ///
     /// declare const name: string;
@@ -1410,7 +1410,7 @@ pub enum CheckError {
 
     /// `is` can never hold for the supplied value type.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const value: string;
     ///
     /// value is int32;
@@ -1432,7 +1432,7 @@ pub enum CheckError {
 
     /// A template literal type expands past the member bound.
     ///
-    /// ```ds
+    /// ```tspp
     /// type Wide = `${0..=1000000}`;
     /// ```
     #[diagnostic(
@@ -1448,7 +1448,7 @@ pub enum CheckError {
 
     /// `is` target cannot be tested at runtime.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const value: unknown;
     ///
     /// value is &User;
@@ -1468,7 +1468,7 @@ pub enum CheckError {
 
     /// Member access reads an instance method as a value.
     ///
-    /// ```ds
+    /// ```tspp
     /// class Logger {
     ///     log(message: string): void {}
     /// }
@@ -1491,7 +1491,7 @@ pub enum CheckError {
 
     /// Member access reads a property that only has a setter.
     ///
-    /// ```ds
+    /// ```tspp
     /// interface Sink {
     ///     set value(next: int32);
     /// }
@@ -1514,7 +1514,7 @@ pub enum CheckError {
 
     /// Call receiver does not satisfy the method's declared `this` parameter.
     ///
-    /// ```ds
+    /// ```tspp
     /// extension of Buffer {
     ///     grow(this: &Buffer): void {}
     ///
@@ -1543,7 +1543,7 @@ pub enum CheckError {
     // -------------------------------------------------------------------------
     /// Runtime condition does not have boolean type.
     ///
-    /// ```ds
+    /// ```tspp
     /// if (1) {}
     /// ```
     #[diagnostic(
@@ -1561,7 +1561,7 @@ pub enum CheckError {
 
     /// Static condition could not be evaluated to a boolean value.
     ///
-    /// ```ds
+    /// ```tspp
     /// @if("test")
     /// const value = 1;
     /// ```
@@ -1578,7 +1578,7 @@ pub enum CheckError {
 
     /// Static inclusion condition could not be decided statically.
     ///
-    /// ```ds
+    /// ```tspp
     /// function f<const Enabled: boolean>() {
     ///     @if(Enabled)
     ///     const value = 1;
@@ -1597,7 +1597,7 @@ pub enum CheckError {
 
     /// Static value expression is not in the static subset.
     ///
-    /// ```ds
+    /// ```tspp
     /// type Value<const N: number = runtimeValue> = N;
     /// ```
     #[diagnostic(
@@ -1613,7 +1613,7 @@ pub enum CheckError {
 
     /// Value binding stands in type position.
     ///
-    /// ```ds
+    /// ```tspp
     /// const ZERO = 0;
     /// declare const broken: ZERO;
     /// ```
@@ -1632,7 +1632,7 @@ pub enum CheckError {
 
     /// Static guard is not invoked in its intrinsic form.
     ///
-    /// ```ds
+    /// ```tspp
     /// @if<boolean>(true)
     /// const value = 1;
     /// ```
@@ -1649,7 +1649,7 @@ pub enum CheckError {
 
     /// Break expression has no target.
     ///
-    /// ```ds
+    /// ```tspp
     /// break;
     /// ```
     #[diagnostic(
@@ -1665,7 +1665,7 @@ pub enum CheckError {
 
     /// Break carries a value outside a `loop`.
     ///
-    /// ```ds
+    /// ```tspp
     /// while (true) { break 1; }
     /// ```
     #[diagnostic(
@@ -1681,7 +1681,7 @@ pub enum CheckError {
 
     /// Declared generic parameter never occurs in its declaration.
     ///
-    /// ```ds
+    /// ```tspp
     /// class Tag<T> {}
     /// ```
     #[diagnostic(
@@ -1699,7 +1699,7 @@ pub enum CheckError {
 
     /// Declared variance conflicts with the parameter's derived use.
     ///
-    /// ```ds
+    /// ```tspp
     /// class Evil<out T> {
     ///     slot: T;
     /// }
@@ -1723,7 +1723,7 @@ pub enum CheckError {
 
     /// Pattern matching does not cover every possible value.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const value: true | false;
     ///
     /// match (value) {
@@ -1745,7 +1745,7 @@ pub enum CheckError {
 
     /// Local value is used before it is definitely assigned.
     ///
-    /// ```ds
+    /// ```tspp
     /// let value: int32;
     /// value + 1;
     /// ```
@@ -1764,7 +1764,7 @@ pub enum CheckError {
 
     /// Refutable pattern appears outside a matching context.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const state: "ready" | "error";
     ///
     /// let "ready" = state;
@@ -1784,7 +1784,7 @@ pub enum CheckError {
 
     /// Await expression appears outside an async context.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const promise: Promise<int32>;
     ///
     /// const value = await promise;
@@ -1802,7 +1802,7 @@ pub enum CheckError {
 
     /// Yield expression appears outside a generator.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const value: int32;
     ///
     /// yield value;
@@ -1820,7 +1820,7 @@ pub enum CheckError {
 
     /// Static operation could not be evaluated.
     ///
-    /// ```ds
+    /// ```tspp
     /// type Block = [uint8; 1 / 0];
     /// ```
     #[diagnostic(
@@ -1838,7 +1838,7 @@ pub enum CheckError {
 
     /// Try operator applies to a value that is neither Try nor nullish.
     ///
-    /// ```ds
+    /// ```tspp
     /// const value = 1?;
     /// ```
     #[diagnostic(
@@ -1858,7 +1858,7 @@ pub enum CheckError {
 
     /// Nominal pattern names a tag that is not a nominal type.
     ///
-    /// ```ds
+    /// ```tspp
     /// type Point = { x: int32; y: int32 };
     ///
     /// match (value) {
@@ -1880,7 +1880,7 @@ pub enum CheckError {
 
     /// Continue expression has no target loop.
     ///
-    /// ```ds
+    /// ```tspp
     /// continue;
     /// ```
     #[diagnostic(
@@ -1896,7 +1896,7 @@ pub enum CheckError {
 
     /// Return expression appears outside a function body.
     ///
-    /// ```ds
+    /// ```tspp
     /// return;
     /// ```
     #[diagnostic(
@@ -1912,7 +1912,7 @@ pub enum CheckError {
 
     /// This expression appears where no receiver is available.
     ///
-    /// ```ds
+    /// ```tspp
     /// const value = this;
     /// ```
     #[diagnostic(id = "this-outside-receiver", message = "'this' is not available here")]
@@ -1925,7 +1925,7 @@ pub enum CheckError {
 
     /// Super expression appears where no superclass receiver is available.
     ///
-    /// ```ds
+    /// ```tspp
     /// const value = super;
     /// ```
     #[diagnostic(id = "super-outside-class", message = "'super' is not available here")]
@@ -1938,7 +1938,7 @@ pub enum CheckError {
 
     /// Repeated array element cannot be copied into every slot.
     ///
-    /// ```ds
+    /// ```tspp
     /// const values = [owned; 4];
     /// ```
     #[diagnostic(
@@ -1954,7 +1954,7 @@ pub enum CheckError {
 
     /// Let-else fallback can complete normally.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const status: "ready" | "error";
     ///
     /// let "ready" = status else { 0 };
@@ -1972,7 +1972,7 @@ pub enum CheckError {
 
     /// Tree expression has no active builder.
     ///
-    /// ```ds
+    /// ```tspp
     /// <View />
     /// ```
     #[diagnostic(
@@ -1988,7 +1988,7 @@ pub enum CheckError {
 
     /// Tree tag is not declared by the builder's rows.
     ///
-    /// ```ds
+    /// ```tspp
     /// const page: Html = <blink/>;
     /// ```
     #[diagnostic(
@@ -2008,7 +2008,7 @@ pub enum CheckError {
 
     /// Tree attribute outside the declared attribute row.
     ///
-    /// ```ds
+    /// ```tspp
     /// const page: Html = <div misspelled="1"/>;
     /// ```
     #[diagnostic(
@@ -2028,7 +2028,7 @@ pub enum CheckError {
 
     /// Tree spread child over a dynamically sized operand.
     ///
-    /// ```ds
+    /// ```tspp
     /// const page: Html = <div>{...items}</div>;
     /// ```
     #[diagnostic(
@@ -2046,7 +2046,7 @@ pub enum CheckError {
 
     /// Tree expression missing one required attribute.
     ///
-    /// ```ds
+    /// ```tspp
     /// const page: Html = <img/>;
     /// ```
     #[diagnostic(
@@ -2066,7 +2066,7 @@ pub enum CheckError {
 
     /// Expression pattern did not close to a literal.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const settings: { ready: string };
     ///
     /// match (value) {
@@ -2086,7 +2086,7 @@ pub enum CheckError {
 
     /// A parking call appears outside `await`, `yield`, and the parking protocol's implementations.
     ///
-    /// ```ds
+    /// ```tspp
     /// function wait(): void {
     ///     Fiber.park();
     /// }
@@ -2104,7 +2104,7 @@ pub enum CheckError {
 
     /// Yield delegation has no delegated value.
     ///
-    /// ```ds
+    /// ```tspp
     /// yield*;
     /// ```
     #[diagnostic(
@@ -2120,7 +2120,7 @@ pub enum CheckError {
 
     /// Try propagation appears outside a function body.
     ///
-    /// ```ds
+    /// ```tspp
     /// 1?;
     /// ```
     #[diagnostic(
@@ -2136,7 +2136,7 @@ pub enum CheckError {
 
     /// A using resource implements no disposal protocol.
     ///
-    /// ```ds
+    /// ```tspp
     /// using value = 1;
     /// ```
     #[diagnostic(
@@ -2152,7 +2152,7 @@ pub enum CheckError {
 
     /// A template span value implements no display protocol.
     ///
-    /// ```ds
+    /// ```tspp
     /// const text = `${() => 1}`;
     /// ```
     #[diagnostic(
@@ -2168,7 +2168,7 @@ pub enum CheckError {
 
     /// An iteration source is not iterable.
     ///
-    /// ```ds
+    /// ```tspp
     /// for (const value of 1) {}
     /// ```
     #[diagnostic(id = "source-not-iterable", message = "source must be iterable")]
@@ -2181,7 +2181,7 @@ pub enum CheckError {
 
     /// An awaited value is not awaitable.
     ///
-    /// ```ds
+    /// ```tspp
     /// async function run(): Promise<void> {
     ///     await 1;
     /// }
@@ -2196,7 +2196,7 @@ pub enum CheckError {
 
     /// A rest pattern reads past what its sequence supports.
     ///
-    /// ```ds
+    /// ```tspp
     /// const [first, ...rest] = pair;
     /// ```
     #[diagnostic(
@@ -2212,7 +2212,7 @@ pub enum CheckError {
 
     /// An argument leaves a value-consumed const parameter unfixed.
     ///
-    /// ```ds
+    /// ```tspp
     /// type Buffer<const N: uint> = [uint8; N];
     /// declare const buffer: Buffer<uint>;
     /// ```
@@ -2244,7 +2244,7 @@ pub enum CheckError {
 
     /// A reference to an overload group materializes without a selecting call.
     ///
-    /// ```ds
+    /// ```tspp
     /// function parse(value: int32): int32 {}
     /// function parse(value: string): string {}
     ///
@@ -2265,7 +2265,7 @@ pub enum CheckError {
 
     /// Range endpoints carry different element types.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const low: float64;
     /// declare const high: int32;
     /// low..high;
@@ -2285,7 +2285,7 @@ pub enum CheckError {
 
     /// Pattern tries to destructure a value that has no object shape.
     ///
-    /// ```ds
+    /// ```tspp
     /// const { value } = 1;
     /// ```
     #[diagnostic(
@@ -2303,7 +2303,7 @@ pub enum CheckError {
 
     /// Pattern tries to destructure a value that has no tuple shape.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const value: { x: int32; y: int32 };
     ///
     /// const (left, right) = value;
@@ -2323,7 +2323,7 @@ pub enum CheckError {
 
     /// Pattern tries to destructure a value that has no sequence shape.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const value: { x: int32; y: int32 };
     ///
     /// const [head, ...tail] = value;
@@ -2343,7 +2343,7 @@ pub enum CheckError {
 
     /// Bare match arm pattern binds a name that resolves to a type in scope.
     ///
-    /// ```ds
+    /// ```tspp
     /// struct Cancelled {}
     ///
     /// declare const value: Cancelled | int32;
@@ -2368,7 +2368,7 @@ pub enum CheckError {
 
     /// Pattern names a field that does not exist on the matched type.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const value: { name: string };
     ///
     /// const { missing } = value;
@@ -2390,7 +2390,7 @@ pub enum CheckError {
 
     /// Nominal object pattern names a member that is not a field.
     ///
-    /// ```ds
+    /// ```tspp
     /// match (user) {
     ///     User { displayName } => displayName
     /// }
@@ -2412,7 +2412,7 @@ pub enum CheckError {
 
     /// Pattern repeats the same field in one destructuring shape.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const user: { name: string };
     ///
     /// const { name, name: alias } = user;
@@ -2432,7 +2432,7 @@ pub enum CheckError {
 
     /// Pattern binds the same name more than once.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const pair: { left: int32; right: int32 };
     ///
     /// const { left: value, right: value } = pair;
@@ -2452,7 +2452,7 @@ pub enum CheckError {
 
     /// Rest pattern appears before another field.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const values: int32[];
     ///
     /// const [head, ...middle, tail] = values;
@@ -2467,7 +2467,7 @@ pub enum CheckError {
 
     /// Pattern contains more than one rest field.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const values: int32[];
     ///
     /// const [head, ...tail, ...rest] = values;
@@ -2485,7 +2485,7 @@ pub enum CheckError {
 
     /// Computed pattern key is not valid for the matched source.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const key: string;
     /// declare const point: { x: int32 };
     ///
@@ -2504,7 +2504,7 @@ pub enum CheckError {
 
     /// Range pattern applies to a non-scalar domain.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const value: { min: int32; max: int32 };
     ///
     /// match (value) {
@@ -2526,7 +2526,7 @@ pub enum CheckError {
 
     /// Range pattern bound does not close to a valid scalar literal.
     ///
-    /// ```ds
+    /// ```tspp
     /// declare const start: int32;
     /// declare const end: int32;
     ///
@@ -2547,7 +2547,7 @@ pub enum CheckError {
 
     /// Union pattern alternatives bind incompatible names or forms.
     ///
-    /// ```ds
+    /// ```tspp
     /// match (result) {
     ///     Ok(value) | Err(error) => value
     /// }
@@ -2565,7 +2565,7 @@ pub enum CheckError {
 
     /// Refutable pattern appears as a catch binding.
     ///
-    /// ```ds
+    /// ```tspp
     /// try {
     ///     read()?
     /// } catch ("missing") {}
@@ -2585,7 +2585,7 @@ pub enum CheckError {
 
     /// Variant pattern belongs to a different nominal type.
     ///
-    /// ```ds
+    /// ```tspp
     /// match (status) {
     ///     Other.Done(value) => value
     /// }
@@ -2607,7 +2607,7 @@ pub enum CheckError {
 
     /// Variant pattern names a variant that does not exist.
     ///
-    /// ```ds
+    /// ```tspp
     /// match (status) {
     ///     Status.Done(value) => value
     /// }
@@ -2632,7 +2632,7 @@ pub enum CheckError {
     // -------------------------------------------------------------------------
     /// Type is not concrete and therefore has no layout.
     ///
-    /// ```ds
+    /// ```tspp
     /// function size<T>(): usize {
     ///     return const sizeOf<T>();
     /// }
@@ -2666,7 +2666,7 @@ pub enum CheckError {
 
     /// Interval type has no finite bounds.
     ///
-    /// ```ds
+    /// ```tspp
     /// type Values = 1..;
     /// ```
     #[diagnostic(
@@ -2682,7 +2682,7 @@ pub enum CheckError {
 
     /// Interval type uses a non-discrete scalar domain.
     ///
-    /// ```ds
+    /// ```tspp
     /// type Values = 0.0..1.0;
     /// ```
     #[diagnostic(
@@ -2698,7 +2698,7 @@ pub enum CheckError {
 
     /// Dynamic erasure requires a dynamic-safe constraint.
     ///
-    /// ```ds
+    /// ```tspp
     /// const value: Dynamic<<T>(T) => T>;
     /// ```
     #[diagnostic(
@@ -2716,7 +2716,7 @@ pub enum CheckError {
 
     /// Shared storage retains a safe reference into local storage.
     ///
-    /// ```ds
+    /// ```tspp
     /// shared struct State { user: local User }
     /// ```
     #[diagnostic(
@@ -2775,7 +2775,7 @@ pub enum CheckError {
     // -------------------------------------------------------------------------
     /// Override declaration does not match an inherited member.
     ///
-    /// ```ds
+    /// ```tspp
     /// class User {
     ///     override name() {}
     /// }
@@ -2795,7 +2795,7 @@ pub enum CheckError {
 
     /// Concrete type does not implement an abstract member.
     ///
-    /// ```ds
+    /// ```tspp
     /// abstract class Entity {
     ///     abstract id(): string;
     /// }
@@ -2817,7 +2817,7 @@ pub enum CheckError {
 
     /// Abstract type cannot be constructed.
     ///
-    /// ```ds
+    /// ```tspp
     /// abstract class AbstractUser {}
     ///
     /// new AbstractUser();
@@ -2837,7 +2837,7 @@ pub enum CheckError {
 
     /// Method uses an implicit receiver while implicit receivers are disabled.
     ///
-    /// ```ds
+    /// ```tspp
     /// class User {
     ///     name() {}
     /// }
@@ -2855,7 +2855,7 @@ pub enum CheckError {
 
     /// Two implementations claim the same interface for the same type.
     ///
-    /// ```ds
+    /// ```tspp
     /// newtype interface Show {}
     /// class User {}
     ///
@@ -2879,7 +2879,7 @@ pub enum CheckError {
 
     /// Blanket implementation over a bare parameter declared outside the interface's package.
     ///
-    /// ```ds
+    /// ```tspp
     /// newtype interface Equal {}
     /// newtype interface PartialEqual {}
     ///
@@ -2900,7 +2900,7 @@ pub enum CheckError {
 
     /// Extension target names no declaration to root at.
     ///
-    /// ```ds
+    /// ```tspp
     /// extension of Circle | Square {}
     /// ```
     #[diagnostic(
@@ -2918,7 +2918,7 @@ pub enum CheckError {
 
     /// Blanket extension member implements no declared interface member.
     ///
-    /// ```ds
+    /// ```tspp
     /// export extension<T: Display> of T {
     ///     shout(): string { ... }
     /// }
@@ -2938,7 +2938,7 @@ pub enum CheckError {
 
     /// Member shadows an inherited member without the override modifier.
     ///
-    /// ```ds
+    /// ```tspp
     /// class User {
     ///     show(): string {}
     /// }
@@ -2962,7 +2962,7 @@ pub enum CheckError {
 
     /// Override targets an inherited member that is not overridable.
     ///
-    /// ```ds
+    /// ```tspp
     /// class User {
     ///     show(): string {}
     /// }
@@ -2986,7 +2986,7 @@ pub enum CheckError {
 
     /// Class extends a final base class.
     ///
-    /// ```ds
+    /// ```tspp
     /// final class FinalUser {}
     ///
     /// class Admin extends FinalUser {}
@@ -3006,7 +3006,7 @@ pub enum CheckError {
 
     /// Abstract member is declared in a concrete class.
     ///
-    /// ```ds
+    /// ```tspp
     /// class User {
     ///     abstract show(): string;
     /// }
@@ -3026,7 +3026,7 @@ pub enum CheckError {
 
     /// Override declaration is not assignable to the inherited member.
     ///
-    /// ```ds
+    /// ```tspp
     /// class User {
     ///     virtual show(): string {}
     /// }
@@ -3054,7 +3054,7 @@ pub enum CheckError {
 
     /// Concrete callable declaration has no body.
     ///
-    /// ```ds
+    /// ```tspp
     /// function parse(input: string): int32;
     /// ```
     #[diagnostic(
@@ -3072,7 +3072,7 @@ pub enum CheckError {
 
     /// Where clause bounds no parameter of its declaration.
     ///
-    /// ```ds
+    /// ```tspp
     /// struct User {}
     /// extension of User where int32: Show {}
     /// ```
@@ -3089,7 +3089,7 @@ pub enum CheckError {
 
     /// One lifetime bound written as a union of lifetimes.
     ///
-    /// ```ds
+    /// ```tspp
     /// function hold<'a, 'b>(value: &'a int32) where 'a: 'a | 'b {}
     /// ```
     #[diagnostic(
@@ -3105,7 +3105,7 @@ pub enum CheckError {
 
     /// Extension member redeclares a member its root declaration already has.
     ///
-    /// ```ds
+    /// ```tspp
     /// class Bell {
     ///     ring(): string { return "inherent"; }
     /// }
@@ -3130,7 +3130,7 @@ pub enum CheckError {
 
     /// Declaration repeats a member in the same owner.
     ///
-    /// ```ds
+    /// ```tspp
     /// enum Status {
     ///     ready,
     ///     ready,
@@ -3154,7 +3154,7 @@ pub enum CheckError {
 
     /// Object type declares named properties beside an index or call signature.
     ///
-    /// ```ds
+    /// ```tspp
     /// type Row = { name: string; [key: string]: string };
     /// ```
     #[diagnostic(
@@ -3172,7 +3172,7 @@ pub enum CheckError {
 
     /// Class field is not definitely initialized.
     ///
-    /// ```ds
+    /// ```tspp
     /// class User {
     ///     name: string;
     /// }
@@ -3192,7 +3192,7 @@ pub enum CheckError {
 
     /// Static field requires an initializer.
     ///
-    /// ```ds
+    /// ```tspp
     /// class Counter {
     ///     static value: int32;
     /// }
@@ -3212,7 +3212,7 @@ pub enum CheckError {
 
     /// Interface inheritance names a non-interface declaration.
     ///
-    /// ```ds
+    /// ```tspp
     /// struct Shape {}
     /// interface Drawable extends Shape {}
     /// ```
@@ -3233,7 +3233,7 @@ pub enum CheckError {
 
     /// Negative implementation names an interface without a compiler rule.
     ///
-    /// ```ds
+    /// ```tspp
     /// interface Shape {}
     /// struct Point implements !Shape {}
     /// ```
@@ -3254,7 +3254,7 @@ pub enum CheckError {
 
     /// Implementation inheritance names a non-interface declaration.
     ///
-    /// ```ds
+    /// ```tspp
     /// struct Shape {}
     /// struct Point implements Shape {}
     /// ```
@@ -3275,7 +3275,7 @@ pub enum CheckError {
 
     /// Heritage reaches the same declaration with incompatible arguments.
     ///
-    /// ```ds
+    /// ```tspp
     /// interface Base<T> {}
     /// interface Left extends Base<string> {}
     /// interface Right extends Base<int32> {}
@@ -3298,7 +3298,7 @@ pub enum CheckError {
 
     /// Heritage reaches its own declaration again.
     ///
-    /// ```ds
+    /// ```tspp
     /// interface A extends B {}
     /// interface B extends A {}
     /// ```
@@ -3317,7 +3317,7 @@ pub enum CheckError {
 
     /// Elided lifetime inside a type declaration.
     ///
-    /// ```ds
+    /// ```tspp
     /// struct Entry { name: &string }
     /// ```
     #[diagnostic(
@@ -3336,7 +3336,7 @@ pub enum CheckError {
 
     /// Instantiation chain deeper than the limit, a polymorphic recursion.
     ///
-    /// ```ds
+    /// ```tspp
     /// function nest<T>(value: T): void { nest([value]); }
     /// ```
     #[diagnostic(
@@ -3373,7 +3373,7 @@ pub enum CheckError {
 
     /// Extension parameter left unconstrained by the target and its conformances.
     ///
-    /// ```ds
+    /// ```tspp
     /// extension<T, U> of Box<T> {}
     /// ```
     #[diagnostic(
@@ -3391,7 +3391,7 @@ pub enum CheckError {
 
     /// Exported nonlocal extension has no source name.
     ///
-    /// ```ds
+    /// ```tspp
     /// export extension of External {}
     /// ```
     #[diagnostic(
@@ -3409,7 +3409,7 @@ pub enum CheckError {
 
     /// A space modifier on a type alias, which has no identity to fix a space on.
     ///
-    /// ```ds
+    /// ```tspp
     /// shared type Config = { size: int32 };
     /// ```
     #[diagnostic(
@@ -3426,7 +3426,7 @@ pub enum CheckError {
 
     /// A declaration's heritage requires two spaces.
     ///
-    /// ```ds
+    /// ```tspp
     /// class Base {}
     /// shared interface Service {}
     /// class Invalid extends Base implements Service {}
@@ -3444,7 +3444,7 @@ pub enum CheckError {
 
     /// Enum variant value does not resolve to an integer or string constant.
     ///
-    /// ```ds
+    /// ```tspp
     /// enum Status { Ready = true }
     /// ```
     #[diagnostic(
@@ -3529,7 +3529,7 @@ pub enum CheckError {
 
     /// A diagnostic control overrides an enclosing forbid.
     ///
-    /// ```ds
+    /// ```tspp
     /// @forbid("constant-condition")
     /// @allow("constant-condition")
     /// if (true) {}

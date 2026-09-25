@@ -1,6 +1,6 @@
 use crate::{Decorator, DecoratorTarget, GlobalNodeId, GlobalNodeIdAny, Postings};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// Indexed decorator applications.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]

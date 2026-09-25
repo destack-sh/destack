@@ -1,15 +1,15 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_artifact::ArtifactKey;
-use destack_dir as dir;
-use destack_pattern::{Rewrite, Rewriter};
-use destack_repository::{Commit, TraceView};
-use destack_serde::Reflect;
-use destack_source::{
+use serde::{Deserialize, Serialize};
+use tspp_artifact::ArtifactKey;
+use tspp_dir as dir;
+use tspp_pattern::{Rewrite, Rewriter};
+use tspp_repository::{Commit, TraceView};
+use tspp_serde::Reflect;
+use tspp_source::{
     DiagnosticCollection, DiffOptions, Edit, File, FilePatch, Uri, apply_file_patch, format_diff,
 };
-use serde::{Deserialize, Serialize};
 
 use super::common::{
     CommandEnvVar, CommandInput, CommandOptions, CommandRevision, CommandTargetOverrides,
@@ -117,9 +117,9 @@ impl RewriteInput {
         &self,
         context: &mut CommandContext<'_>,
     ) -> CommandResult<Result<Rewrite, DiagnosticCollection>> {
-        let pattern = context.add_memory_file("rewrite/pattern.ds-pattern", &self.pattern)?;
+        let pattern = context.add_memory_file("rewrite/pattern.tspp-pattern", &self.pattern)?;
         let replacement =
-            context.add_memory_file("rewrite/replacement.ds-pattern", &self.replacement)?;
+            context.add_memory_file("rewrite/replacement.tspp-pattern", &self.replacement)?;
         let strings = context.repository.string_pool().clone();
         let rewrite = match self.kind {
             Some(kind) => Rewrite::parse_context(pattern, replacement, kind, strings),
@@ -133,7 +133,7 @@ impl RewriteInput {
 
         // compile every predicate against the search metavariable table
         for (index, predicate) in self.predicates.iter().enumerate() {
-            let path = format!("rewrite/predicate-{}.ds-pattern", index + 1);
+            let path = format!("rewrite/predicate-{}.tspp-pattern", index + 1);
             let file = context.add_memory_file(&path, predicate)?;
             if let Err(predicate_diagnostics) = rewrite.add_predicate(file) {
                 diagnostics.merge_from(&predicate_diagnostics);

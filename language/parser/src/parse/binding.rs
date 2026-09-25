@@ -1,4 +1,4 @@
-use destack_dir::{
+use tspp_dir::{
     Keyword, MethodAbstraction, Token, TokenLiteral, TokenType, VarianceModifier, Visibility,
 };
 

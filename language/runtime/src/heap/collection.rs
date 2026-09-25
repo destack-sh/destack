@@ -1,9 +1,9 @@
 use std::sync::{Arc, Weak};
 
-use destack_heap as heap;
-use destack_program as program;
 use heap::{GcPhase, SharedHeapReference, TraceView};
 use parking_lot::{Condvar, Mutex};
+use tspp_heap as heap;
+use tspp_program as program;
 
 use super::{WorldCollector, WorldCollectorMode};
 use crate::diagnostic::{RuntimeError, RuntimeResult};

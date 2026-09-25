@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -343,7 +343,7 @@ function runWhen(ready: boolean, enabled: boolean): void {
         session.assert_diagnostics(
             r#"
 warning[no-collapsible-if]: nested if conditions can be joined
-  ──▶ main.ds:6:9
+  ──▶ main.tspp:6:9
    │
  4 │     if (ready) {
  5 │         // explain the second condition

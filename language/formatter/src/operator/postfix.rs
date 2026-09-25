@@ -1,11 +1,11 @@
 use crate::expression::{
     should_preserve_source_parentheses, write_expression_without_derived_parentheses,
 };
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{Expression, Literal, LocalNodeId, NodeType, OperatorPrecedence, Tree};
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::{format_with, group, soft_block_indent, token};
-use destack_fir::{format_args, write};
+use crate::{TsppFormatContext, TsppFormatter};
+use tspp_dir::{Expression, Literal, LocalNodeId, NodeType, OperatorPrecedence, Tree};
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::{format_with, group, soft_block_indent, token};
+use tspp_fir::{format_args, write};
 
 /// Return whether postfix formatting requires parentheses.
 #[inline]
@@ -25,7 +25,7 @@ pub(crate) fn needs_parens_in_postfix_position(
 
 /// Format one expression as the receiver of a postfix operation.
 pub(crate) fn write_postfix_base_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let parent_expression_id = postfix_parent_expression_id(f.context(), expression_id);
@@ -57,7 +57,7 @@ pub(crate) fn write_postfix_base_expression<'ast>(
 
 /// Return one postfix parent expression id when this expression is used as a chain receiver.
 fn postfix_parent_expression_id(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<Expression>> {
     if let Some((parent_id, parent_type)) = context.parent(expression_id)

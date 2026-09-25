@@ -1,8 +1,8 @@
-use destack_dir::{
+use tspp_dir::{
     Access, Declaration, ExtensionDeclaration, GenericArgument, GenericParameter, IntegerType,
     Member, Parameter, ThisForm, TypeExpression, TypeLiteral, WhereClause,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::parse::DeclarationHeader;
 use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};

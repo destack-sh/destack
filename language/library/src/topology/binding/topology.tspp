@@ -1,0 +1,16 @@
+import { Binding } from "tspp:binding";
+
+import { TopologyEdgeBinding } from "./edge.tspp";
+import { TopologyEntityBinding } from "./entity.tspp";
+
+/// Topology binding family.
+@languageItem("topology.TopologyBinding")
+export interface TopologyBinding {
+    /// Edge bindings.
+    readonly edge: TopologyEdgeBinding;
+    /// Entity bindings.
+    readonly entity: TopologyEntityBinding;
+}
+
+/// Current topology binding family.
+export const topology: Binding<TopologyBinding> = new Binding<TopologyBinding>("topology");

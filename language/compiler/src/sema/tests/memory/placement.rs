@@ -27,7 +27,7 @@ const buffer = Buffer.make();
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -126,7 +126,7 @@ const buffer = Buffer.make();
 fn test_select_static_members_through_a_foreign_place_generic_extension() {
     let session = TestSession::builder()
         .module(
-            "buffer.ds",
+            "buffer.tspp",
             r#"
 export class Buffer {}
 
@@ -138,9 +138,9 @@ export extension of Buffer {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Buffer } from "./buffer.ds";
+import { Buffer } from "./buffer.tspp";
 
 const buffer = Buffer.make();
 "#,
@@ -148,16 +148,16 @@ const buffer = Buffer.make();
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Buffer } from "./buffer.ds";
+import { Buffer } from "./buffer.tspp";
 
 const buffer: Buffer = Buffer.make();
 
 === dir ===
-import { Buffer } from "./buffer.ds";
+import { Buffer } from "./buffer.tspp";
 
 const buffer = Buffer.make();
 /// @type.symbol symbol=buffer source=buffer type=buffer.Buffer
@@ -196,7 +196,7 @@ extension<T> of Holder<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -298,7 +298,7 @@ extension<T> of Holder<T> {
 fn test_call_foreign_extension_members_through_a_place_parametric_field() {
     let session = TestSession::builder()
         .module(
-            "item.ds",
+            "item.tspp",
             r#"
 export class Item<T> {}
 
@@ -310,9 +310,9 @@ export extension<T> of Item<T> {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Item } from "./item.ds";
+import { Item } from "./item.tspp";
 
 class Holder<T> {
     item: Item<T>;
@@ -328,11 +328,11 @@ extension<T> of Holder<T> {
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Item } from "./item.ds";
+import { Item } from "./item.tspp";
 
 class Holder<T> {
     item: Item<T>;
@@ -345,7 +345,7 @@ extension<T> of Holder<T> {
 }
 
 === dir ===
-import { Item } from "./item.ds";
+import { Item } from "./item.tspp";
 
 class Holder<T> {
 /// @generic.template symbol=Holder parameters=(T#1)
@@ -415,7 +415,7 @@ class Pile<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -496,7 +496,7 @@ function main(): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -555,7 +555,7 @@ function main(): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -616,7 +616,7 @@ function main(): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -665,7 +665,7 @@ function main(): int32 {
 fn test_call_slice_extension_members() {
     let session = TestSession::single(
         r#"
-import { Slice } from "destack:collections";
+import { Slice } from "tspp:collections";
 
 function first<T>(values: Slice<T>): Slice<T> {
     return values.subslice(0, 1);
@@ -674,18 +674,18 @@ function first<T>(values: Slice<T>): Slice<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Slice } from "destack:collections";
+import { Slice } from "tspp:collections";
 
 function first<T>(values: Slice<T>): Slice<T> {
     return values.subslice<T, "managed", "mutable">(0, 1);
 }
 
 === dir ===
-import { Slice } from "destack:collections";
+import { Slice } from "tspp:collections";
 
 function first<T>(values: Slice<T>): Slice<T> {
 /// @generic.template symbol=first parameters=(T)
@@ -728,7 +728,7 @@ function read<R: Region>(borrow: Borrowed<Cell, R, "readonly">): int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -787,7 +787,7 @@ const b = remote.draw();
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -885,7 +885,7 @@ const total = apply((item) => item.x);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -982,7 +982,7 @@ const total = apply((item) => item.x);
 fn test_bind_a_callee_place_from_a_generic_receiver_place() {
     let session = TestSession::single(
         r#"
-import { Clone } from "destack:memory";
+import { Clone } from "tspp:memory";
 
 function duplicate<T: Clone>(value: &immutable T): T {
     return value.clone();
@@ -991,18 +991,18 @@ function duplicate<T: Clone>(value: &immutable T): T {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Clone } from "destack:memory";
+import { Clone } from "tspp:memory";
 
 function duplicate<T: Clone, 'a>(value: &'a immutable T): T {
     return value.clone<'a>() as T;
 }
 
 === dir ===
-import { Clone } from "destack:memory";
+import { Clone } from "tspp:memory";
 
 function duplicate<T: Clone>(value: &immutable T): T {
 /// @generic.template symbol=duplicate parameters=(T: Clone, 'a)
@@ -1039,7 +1039,7 @@ function grow(items: int32[]): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1084,7 +1084,7 @@ function grow(items: &int64[]): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1122,11 +1122,11 @@ function grow(items: &int64[]): void {
 #[test]
 fn test_place_an_imported_alias_parameter_at_the_receiver_place() {
     let session = TestSession::builder()
-        .module("bytes.ds", "export type Bytes = readonly [uint8];\n")
+        .module("bytes.tspp", "export type Bytes = readonly [uint8];\n")
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Bytes } from "./bytes.ds";
+import { Bytes } from "./bytes.tspp";
 
 class Reader {
     bytes: Bytes;
@@ -1139,9 +1139,9 @@ class Reader {
         )
         .build();
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Bytes } from "./bytes.ds";
+import { Bytes } from "./bytes.tspp";
 
 class Reader {
     bytes: Bytes;
@@ -1152,7 +1152,7 @@ class Reader {
 }
 
 === dir ===
-import { Bytes } from "./bytes.ds";
+import { Bytes } from "./bytes.tspp";
 
 class Reader {
 /// @type.symbol symbol=Reader type=typeof Reader
@@ -1215,7 +1215,7 @@ export function inspect(slot: ^Payload | undefined): int32 {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Payload {
     value: int32;
@@ -1350,7 +1350,7 @@ extension<T: Copy> of Pair<T> {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Pair<out T> {
     start: T;
@@ -1433,7 +1433,7 @@ class Box<T: Copy> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1541,7 +1541,7 @@ class Holder<T: Copy> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1650,7 +1650,7 @@ function run(name: string): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1708,7 +1708,7 @@ function run(source: Source): Item {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1798,7 +1798,7 @@ newtype interface Cloneable {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1884,7 +1884,7 @@ class Reader<T: Copy> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2043,7 +2043,7 @@ class Node {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2106,7 +2106,7 @@ class Pool {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2169,7 +2169,7 @@ class Owner {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2316,7 +2316,7 @@ function run(fields: Fields): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2409,7 +2409,7 @@ function never(): never {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2568,7 +2568,7 @@ class Ready<T: Copy> implements Await<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2699,7 +2699,7 @@ class Queue {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2893,7 +2893,7 @@ class Registration {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -3026,7 +3026,7 @@ function evaluate(message: string | ^Function<(), string, "once">): string {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -3087,7 +3087,7 @@ function run(actual: string, expected: string): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -3158,7 +3158,7 @@ function evaluate(message: Message | undefined, fallback: string): string {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -3229,7 +3229,7 @@ function run(actual: string): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -3283,7 +3283,7 @@ function run(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -3328,15 +3328,15 @@ function run(): void {
 fn test_pass_a_string_literal_to_an_imported_ambient_parameter() {
     let session = TestSession::builder()
         .module(
-            "lib.ds",
+            "lib.tspp",
             r#"
 export declare function todo(message?: string): never;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { todo } from "./lib.ds";
+import { todo } from "./lib.tspp";
 
 declare function local_todo(message?: string): never;
 
@@ -3349,11 +3349,11 @@ function run(): void {
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { todo } from "./lib.ds";
+import { todo } from "./lib.tspp";
 
 declare function local_todo(message?: string): never;
 
@@ -3363,7 +3363,7 @@ function run(): void {
 }
 
 === dir ===
-import { todo } from "./lib.ds";
+import { todo } from "./lib.tspp";
 
 declare function local_todo(message?: string): never;
 /// @type.symbol symbol=local_todo source="declare function local_todo(message?: string): never" type=(string | undefined?) => never
@@ -3391,7 +3391,7 @@ function run(): void {
 fn test_pass_a_string_literal_to_the_library_todo() {
     let session = TestSession::single(
         r#"
-import { todo } from "destack:error";
+import { todo } from "tspp:error";
 
 function run(): never {
     todo("x")
@@ -3400,18 +3400,18 @@ function run(): never {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { todo } from "destack:error";
+import { todo } from "tspp:error";
 
 function run(): never {
     todo("x" as string | undefined)
 }
 
 === dir ===
-import { todo } from "destack:error";
+import { todo } from "tspp:error";
 
 function run(): never {
 /// @type.symbol symbol=run type=() => never
@@ -3433,9 +3433,9 @@ fn test_pass_a_string_literal_to_the_library_todo_in_a_cold_session() {
     let session = TestSession::builder()
         .cold()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { todo } from "destack:error";
+import { todo } from "tspp:error";
 
 function run(): never {
     todo("x")
@@ -3445,18 +3445,18 @@ function run(): never {
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { todo } from "destack:error";
+import { todo } from "tspp:error";
 
 function run(): never {
     todo("x" as string | undefined)
 }
 
 === dir ===
-import { todo } from "destack:error";
+import { todo } from "tspp:error";
 
 function run(): never {
 /// @type.symbol symbol=run type=() => never
@@ -3478,10 +3478,10 @@ fn test_check_the_library_utf8_module_as_a_user_module() {
     let session = TestSession::builder()
         .cold()
         .module(
-            "main.ds",
+            "main.tspp",
             r####"
-import { Bytes } from "destack:bytes";
-import { Error, Result, todo } from "destack:error";
+import { Bytes } from "tspp:bytes";
+import { Error, Result, todo } from "tspp:error";
 
 /// Byte decoding failure.
 @languageItem("string.Utf8DecodeError")
@@ -3518,12 +3518,12 @@ export function decodeUtf8(bytes: &readonly [uint8]): Result<^string, Utf8Decode
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Bytes } from "destack:bytes";
-import { Error, Result, todo } from "destack:error";
+import { Bytes } from "tspp:bytes";
+import { Error, Result, todo } from "tspp:error";
 
 /// Byte decoding failure.
 @languageItem("string.Utf8DecodeError")
@@ -3556,8 +3556,8 @@ export function decodeUtf8<'a>(bytes: &'a readonly [uint8]): Result<^string, Utf
 }
 
 === dir ===
-import { Bytes } from "destack:bytes";
-import { Error, Result, todo } from "destack:error";
+import { Bytes } from "tspp:bytes";
+import { Error, Result, todo } from "tspp:error";
 
 /// Byte decoding failure.
 @languageItem("string.Utf8DecodeError")
@@ -3659,7 +3659,7 @@ function run(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -3718,7 +3718,7 @@ function run(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -3754,13 +3754,13 @@ function run(): void {
 fn test_borrow_a_string_literal_for_an_imported_ambient_function() {
     let session = TestSession::builder()
         .module(
-            "show.ds",
+            "show.tspp",
             "export declare function show(message: &readonly string): never;\n",
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { show } from "./show.ds";
+import { show } from "./show.tspp";
 
 function run(): void {
     show("hello");
@@ -3770,18 +3770,18 @@ function run(): void {
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { show } from "./show.ds";
+import { show } from "./show.tspp";
 
 function run(): void {
     show<"managed">("hello" as &'managed readonly string);
 }
 
 === dir ===
-import { show } from "./show.ds";
+import { show } from "./show.tspp";
 
 function run(): void {
 /// @type.symbol symbol=run type=() => void
@@ -3826,7 +3826,7 @@ extension<T> of [T] {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -3952,7 +3952,7 @@ function evaluate(message: Message | undefined, fallback: string): string {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -4016,13 +4016,13 @@ function evaluate(message: Message | undefined, fallback: string): string {
 fn test_call_a_narrowed_once_callable_through_an_imported_alias() {
     let session = TestSession::builder()
         .module(
-            "message.ds",
+            "message.tspp",
             r#"
 export type Message = string | ^Function<(), string, "once">;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { Message } from "./message";
 
@@ -4038,7 +4038,7 @@ function evaluate(message: Message | undefined, fallback: string): string {
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -4099,7 +4099,7 @@ function evaluate(message: Message | undefined, fallback: string): string {
 fn test_implement_a_this_returning_requirement_on_a_shared_class() {
     let session = TestSession::single(
         r#"
-import { Iterable } from "destack:iter";
+import { Iterable } from "tspp:iter";
 
 interface Gather<T> {
     static gather<I: Iterable<T>>(values: I): this;
@@ -4120,11 +4120,11 @@ export extension<T> of Bucket<T> implements Gather<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Iterable } from "destack:iter";
+import { Iterable } from "tspp:iter";
 
 interface Gather<T> {
     static gather<I: Iterable<T>>(values: I): this;
@@ -4143,7 +4143,7 @@ export extension<T> of Bucket<T> implements Gather<T> {
 }
 
 === dir ===
-import { Iterable } from "destack:iter";
+import { Iterable } from "tspp:iter";
 
 interface Gather<T> {
 /// @generic.template symbol=Gather parameters=(T#1, this: Gather<T#1>)
@@ -4260,7 +4260,7 @@ class Deferred<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -4408,7 +4408,7 @@ class State<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -4603,7 +4603,7 @@ class Deferred<T: Copy> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -4925,7 +4925,7 @@ class State<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -5049,9 +5049,9 @@ class State<T> {
 fn test_store_an_owned_deque_in_a_cell_field_of_a_local_class() {
     let session = TestSession::single(
         r#"
-import { Ready } from "destack:async";
-import { Deque } from "destack:collections";
-import { Cell } from "destack:memory";
+import { Ready } from "tspp:async";
+import { Deque } from "tspp:collections";
+import { Cell } from "tspp:memory";
 
 class State<T> {
     private readonly values: Cell<Deque<Ready<T>>>;
@@ -5064,13 +5064,13 @@ class State<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Ready } from "destack:async";
-import { Deque } from "destack:collections";
-import { Cell } from "destack:memory";
+import { Ready } from "tspp:async";
+import { Deque } from "tspp:collections";
+import { Cell } from "tspp:memory";
 
 class State<in out T> {
     private readonly values: Cell<Deque<Ready<T>>>;
@@ -5081,9 +5081,9 @@ class State<in out T> {
 }
 
 === dir ===
-import { Ready } from "destack:async";
-import { Deque } from "destack:collections";
-import { Cell } from "destack:memory";
+import { Ready } from "tspp:async";
+import { Deque } from "tspp:collections";
+import { Cell } from "tspp:memory";
 
 class State<T> {
 /// @generic.template symbol=State parameters=(in out T)
@@ -5147,7 +5147,7 @@ function drop<T>(value: T): void {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -5227,7 +5227,7 @@ function drop<T>(value: T): void {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -5301,7 +5301,7 @@ export extension<T: Copy> of Source<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -5416,7 +5416,7 @@ function run(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -5461,7 +5461,7 @@ class Logger {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -5527,7 +5527,7 @@ function run(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -5605,7 +5605,7 @@ function run(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -5663,7 +5663,7 @@ function run<T>(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -5759,7 +5759,7 @@ class Box<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -5846,7 +5846,7 @@ function outer<T>(body: (span: Span) => T): T {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -5928,7 +5928,7 @@ export const tag: Tag = new Tag("fs");
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -6006,7 +6006,7 @@ function span<T>(name: string, body: (span: Span) => T): T {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -6109,7 +6109,7 @@ class Deferred<T: Copy> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -6195,7 +6195,7 @@ class Deferred<T: Copy> {
 fn test_hold_an_imported_generic_object_in_a_module_constant() {
     let session = TestSession::builder()
         .module(
-            "binding.ds",
+            "binding.tspp",
             r#"
 export class Binding<out B> {
     readonly name: string;
@@ -6207,7 +6207,7 @@ export class Binding<out B> {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import * as binding from "./binding";
 
@@ -6221,7 +6221,7 @@ export const fs: binding.Binding<Binding> = new binding.Binding<Binding>("fs");
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -6288,7 +6288,7 @@ class Reaction<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -6409,7 +6409,7 @@ function run(item: SharedItem): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -6492,7 +6492,7 @@ class Tag {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -6581,7 +6581,7 @@ export function counter(name: string, unit?: string): Counter {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -6688,7 +6688,7 @@ class Reader {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -6776,7 +6776,7 @@ class Meter {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -6928,7 +6928,7 @@ function outer(...values: unknown[]): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -6985,7 +6985,7 @@ export extension of Failure implements Display {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -7064,9 +7064,9 @@ export extension of Failure implements Display {
 fn test_replace_an_owned_deque_in_a_cell_field_through_a_readonly_receiver() {
     let session = TestSession::single(
         r#"
-import { Deque } from "destack:collections";
-import { Cell } from "destack:memory";
-import { Ready } from "destack:async";
+import { Deque } from "tspp:collections";
+import { Cell } from "tspp:memory";
+import { Ready } from "tspp:async";
 
 class State<T> {
     private readonly values: Cell<Deque<Ready<T>>>;
@@ -7085,13 +7085,13 @@ class State<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Ready } from "destack:async";
-import { Deque } from "destack:collections";
-import { Cell } from "destack:memory";
+import { Ready } from "tspp:async";
+import { Deque } from "tspp:collections";
+import { Cell } from "tspp:memory";
 
 class State<in out T> {
     private readonly values: Cell<Deque<Ready<T>>>;
@@ -7110,9 +7110,9 @@ class State<in out T> {
 }
 
 === dir ===
-import { Deque } from "destack:collections";
-import { Cell } from "destack:memory";
-import { Ready } from "destack:async";
+import { Deque } from "tspp:collections";
+import { Cell } from "tspp:memory";
+import { Ready } from "tspp:async";
 
 class State<T> {
 /// @generic.template symbol=State parameters=(in out T)

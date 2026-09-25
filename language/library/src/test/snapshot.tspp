@@ -1,0 +1,50 @@
+import { ArtifactId } from "./artifact.tspp";
+
+/// Snapshot update mode.
+@languageItem("test.SnapshotMode")
+export enum SnapshotMode {
+    /// Compare against existing snapshots.
+    Read = 1,
+    /// Create missing snapshots.
+    Create = 2,
+    /// Update changed snapshots.
+    Update = 3,
+    /// Reject all snapshot writes.
+    Reject = 4,
+}
+
+/// Snapshot assertion options.
+@languageItem("test.SnapshotOptions")
+export struct SnapshotOptions {
+    /// Snapshot update mode.
+    mode?: SnapshotMode;
+}
+
+/// Recorded snapshot value.
+@languageItem("test.Snapshot")
+export struct Snapshot<T = unknown> {
+    /// Snapshot name.
+    name: string;
+
+    /// Snapshot value.
+    value: T;
+
+    /// Persisted artifact when available.
+    artifact?: ArtifactId;
+}
+
+/// Snapshot comparison change.
+@languageItem("test.SnapshotChange")
+export struct SnapshotChange<T = unknown> {
+    /// Snapshot name.
+    name: string;
+
+    /// Expected value when available.
+    expected?: T;
+
+    /// Actual value.
+    actual: T;
+
+    /// Persisted artifact when available.
+    artifact?: ArtifactId;
+}

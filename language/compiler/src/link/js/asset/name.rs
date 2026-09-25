@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use destack_core::stable_hash_bytes;
+use tspp_core::stable_hash_bytes;
 
 /// Return the sanitized directory token for one asset module path.
 pub(super) fn directory_token(

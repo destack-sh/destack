@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_dir as dir;
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::cursor::{CallOccurrence, Cursor};
 use crate::{ModuleQueryContext, QueryResult};

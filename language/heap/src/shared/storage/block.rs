@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use destack_memory::MemoryRange;
-use destack_mir::TraceMap;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_memory::MemoryRange;
+use tspp_mir::TraceMap;
+use tspp_serde::Reflect;
 
 use crate::{DropPlan, HeapError, HeapRepresentationError, HeapResult};
 

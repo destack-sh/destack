@@ -1,8 +1,8 @@
 use std::collections::BTreeSet;
 
-use destack_fir::format::{FormatError, FormatResult};
-use destack_fir::prelude::*;
-use destack_fir::write;
+use tspp_fir::format::{FormatError, FormatResult};
+use tspp_fir::prelude::*;
+use tspp_fir::write;
 
 use crate::{
     BytecodeFormatContext, CodeOffset, CodeRange, Comparison, Label, Opcode, RegisterSpan, Scalar,

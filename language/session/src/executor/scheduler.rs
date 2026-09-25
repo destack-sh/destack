@@ -1,9 +1,9 @@
 use std::collections::{HashMap, HashSet, VecDeque};
 use std::sync::Arc;
 
-use destack_artifact::ArtifactStage;
-use destack_repository::PendingSet;
 use parking_lot::{Condvar, Mutex};
+use tspp_artifact::ArtifactStage;
+use tspp_repository::PendingSet;
 
 use super::run::{ArtifactPriority, ArtifactRunId, ArtifactRunState};
 use super::task::Task;

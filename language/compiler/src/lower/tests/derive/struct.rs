@@ -16,7 +16,7 @@ function same(left: &immutable Point, right: &immutable Point): boolean {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.same", r#"
+    session.assert_mir_function("main.tspp", "test.main.same", r#"
 type test.main.Point {
     x: int32;
     y: int32;
@@ -44,7 +44,7 @@ entry(v0: ref<test.main.Point, borrowed, 'a, immutable>, v1: ref<test.main.Point
 /// @layout.field owner=test.main.Point index=1 name=y offset=4 size=4 align=4
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.PartialEqual.equal<test.main.Point>", r#"
+    session.assert_mir_function("main.tspp", "test.main.PartialEqual.equal<test.main.Point>", r#"
 type test.main.Point {
     x: int32;
     y: int32;
@@ -102,7 +102,7 @@ function duplicate(path: &immutable Path): Path {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.duplicate", r#"
+    session.assert_mir_function("main.tspp", "test.main.duplicate", r#"
 type test.main.Path {
     steps: Array<int32>;
     weight: int32;
@@ -127,7 +127,7 @@ entry(v0: ref<test.main.Path, borrowed, 'a, immutable>):
 /// @layout.field owner=test.main.Path index=1 name=weight offset=32 size=4 align=4
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.Clone.clone<test.main.Path>", r#"
+    session.assert_mir_function("main.tspp", "test.main.Clone.clone<test.main.Path>", r#"
 type test.main.Path {
     steps: Array<int32>;
     weight: int32;
@@ -175,7 +175,7 @@ function duplicate(point: &immutable Point): Point {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.duplicate",
         r#"
 type test.main.Point {
@@ -209,7 +209,7 @@ entry(v0: ref<test.main.Point, borrowed, 'a, immutable>):
 fn test_lower_a_derived_struct_hash_field_wise() {
     let session = TestSession::single(
         r#"
-import { Hasher } from "destack:ops";
+import { Hasher } from "tspp:ops";
 
 struct Point {
     x: int32;
@@ -222,7 +222,7 @@ function digest(point: &immutable Point, state: &Hasher): void {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.digest", r#"
+    session.assert_mir_function("main.tspp", "test.main.digest", r#"
 type test.main.Point {
     x: int32;
     y: boolean;
@@ -254,7 +254,7 @@ entry(v0: ref<test.main.Point, borrowed, 'a, immutable>, v1: dynamic<Hasher, bor
 /// @layout.field owner=test.main.Point index=1 name=y offset=4 size=1 align=1
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.Hash.hash<test.main.Point>", r#"
+    session.assert_mir_function("main.tspp", "test.main.Hash.hash<test.main.Point>", r#"
 type test.main.Point {
     x: int32;
     y: boolean;

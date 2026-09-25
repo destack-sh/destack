@@ -1,0 +1,185 @@
+import { HostError } from "tspp:error/host";
+
+import { Action, BindingProvider } from "./binding.tspp";
+import { EdgeSelector, EntitySelector, Label, LabelSelector } from "./entity.tspp";
+import { WorldHandle } from "./world.tspp";
+
+/// Runtime policy rule cursor.
+@languageItem("runtime.PolicyRuleCursor")
+export newtype PolicyRuleCursor = uint64;
+
+/// Runtime policy decision.
+@languageItem("runtime.PolicyDecision")
+export enum PolicyDecision {
+    /// Allow matching operations.
+    Allow = 1,
+    /// Deny matching operations.
+    Deny = 2,
+}
+
+/// Runtime execution-mode selector.
+@languageItem("runtime.ExecutionSelector")
+export type ExecutionSelector = "strict" | "fast" | "record" | "replay";
+
+/// Runtime condition selector.
+@languageItem("runtime.ConditionSelector")
+export struct ConditionSelector {
+    /// Exact values that must be active.
+    includes?: [string];
+    /// Values that must not be active.
+    excludes?: [string];
+}
+
+/// Runtime identity selector.
+@languageItem("runtime.IdentitySelector")
+export struct IdentitySelector {
+    /// Optional exact name selector.
+    name?: string;
+    /// Optional label selector clauses.
+    labels?: [LabelSelector];
+}
+
+/// Runtime policy subject selector.
+@languageItem("runtime.SubjectSelector")
+export struct SubjectSelector {
+    /// Optional package selector.
+    package?: string;
+    /// Optional runtime selector.
+    runtime?: IdentitySelector;
+    /// Optional worker selector.
+    worker?: IdentitySelector;
+    /// Optional execution-mode selector.
+    execution?: [ExecutionSelector];
+    /// Optional active mode selector.
+    mode?: ConditionSelector;
+    /// Optional active role selector.
+    role?: ConditionSelector;
+    /// Optional active feature selector.
+    feature?: ConditionSelector;
+    /// Optional active tag selector.
+    tag?: ConditionSelector;
+    /// Optional active target selector.
+    target?: ConditionSelector;
+    /// Optional active product selector.
+    product?: ConditionSelector;
+}
+
+/// Runtime policy action selector.
+@languageItem("runtime.ActionSelector")
+export struct ActionSelector {
+    /// Optional binding-name glob.
+    binding?: string;
+    /// Optional required-action glob.
+    action?: string;
+    /// Optional binding component glob.
+    component?: string;
+    /// Optional binding module glob.
+    module?: string;
+    /// Optional binding engine selector.
+    engine?: "vm" | "native";
+    /// Optional target-platform globs.
+    platforms?: [string];
+    /// Optional binding provider selector.
+    provider?: BindingProvider;
+    /// Optional binding affinity selector.
+    affinity?: "worker" | "main";
+    /// Optional binding determinism selector.
+    determinism?: "pure" | "deterministic" | "external";
+}
+
+/// Runtime policy target selector.
+@languageItem("runtime.TargetSelector")
+export newtype TargetSelector =
+    | {
+          /// Match any target.
+          kind: "any";
+      }
+    | {
+          /// Match selected topology entities.
+          kind: "entity";
+          /// Entity selector.
+          selector: EntitySelector;
+      }
+    | {
+          /// Match selected topology edges.
+          kind: "edge";
+          /// Edge selector.
+          selector: EdgeSelector;
+      };
+
+/// Runtime policy rule.
+@languageItem("runtime.PolicyRule")
+export struct PolicyRule {
+    /// Subject selector.
+    subject: SubjectSelector;
+    /// Runtime or host action selector.
+    action: Action | ActionSelector;
+    /// Target selector.
+    target: TargetSelector;
+    /// Rule decision.
+    decision: PolicyDecision;
+    /// Rule labels.
+    labels?: [Label];
+}
+
+/// Runtime policy rule page.
+export struct PolicyRulePage {
+    /// Policy rules in this page.
+    rules: PolicyRule[];
+    /// Next rule cursor when more records exist.
+    next?: PolicyRuleCursor;
+}
+
+/// Runtime policy query.
+@languageItem("runtime.PolicyQuery")
+export struct PolicyQuery {
+    /// Subject selector.
+    subject: SubjectSelector;
+    /// Runtime or host action selector.
+    action: Action | ActionSelector;
+    /// Target selector.
+    target: TargetSelector;
+}
+
+/// Read one world's policy rules.
+@binding("tspp.runtime.policy.read", {
+    effect: "deterministic",
+    requires: ["runtime.policy.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function readPolicy(
+    world: WorldHandle,
+    limit: uint32,
+    after?: PolicyRuleCursor,
+): Result<PolicyRulePage, HostError>;
+
+/// Replace one world's policy rules.
+@binding("tspp.runtime.policy.replace", {
+    effect: "deterministic",
+    requires: ["runtime.policy.write"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function replacePolicy(
+    world: WorldHandle,
+    rules: &readonly [PolicyRule],
+): Result<void, HostError>;
+
+/// Test one policy query against one world.
+@binding("tspp.runtime.policy.test", {
+    effect: "deterministic",
+    requires: ["runtime.policy.test"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function testPolicy(
+    world: WorldHandle,
+    query: &readonly PolicyQuery,
+): Result<PolicyDecision, HostError>;

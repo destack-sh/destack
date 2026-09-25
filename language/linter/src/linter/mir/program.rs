@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::ProgramAnalysis;
-use destack_repository::{ArtifactReader, ProviderError, Repository, Revision};
-use destack_source::ModuleId;
+use tspp_artifact::ProgramAnalysis;
+use tspp_repository::{ArtifactReader, ProviderError, Repository, Revision};
+use tspp_source::ModuleId;
 
 use super::super::LintProgram;
 use super::{Mir, MirModule};

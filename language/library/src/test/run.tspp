@@ -1,0 +1,56 @@
+import { Instant } from "tspp:time";
+
+import { Artifact } from "./artifact.tspp";
+import { CaseId, RunId, SuiteId } from "./id.tspp";
+import { Issue } from "./issue.tspp";
+import { Replay } from "./replay.tspp";
+
+/// Test run target.
+export type RunTarget = { caseId: CaseId } | { suiteId: SuiteId };
+
+/// Test run outcome.
+@languageItem("test.Outcome")
+export enum Outcome {
+    /// The run has not started.
+    Pending = 1,
+    /// The run completed successfully.
+    Passed = 2,
+    /// The run found one or more issues.
+    Failed = 3,
+    /// The run was skipped.
+    Skipped = 4,
+    /// The run exceeded its deadline.
+    TimedOut = 5,
+    /// The run was cancelled.
+    Cancelled = 6,
+    /// The run definition was invalid.
+    Invalid = 7,
+}
+
+/// One execution of a test case or suite.
+@languageItem("test.Run")
+export struct Run {
+    /// Stable run identifier.
+    id: RunId;
+
+    /// Executed target.
+    target: RunTarget;
+
+    /// Run outcome.
+    outcome: Outcome;
+
+    /// Issues found during the run.
+    issues: [Issue];
+
+    /// Artifacts produced by the run.
+    artifacts: [Artifact];
+
+    /// Replay input when available.
+    replay?: Replay;
+
+    /// Start time when recorded.
+    startedAt?: Instant;
+
+    /// End time when recorded.
+    endedAt?: Instant;
+}

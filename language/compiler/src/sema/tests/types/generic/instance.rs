@@ -14,7 +14,7 @@ const chosen = pick(1.5);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -67,7 +67,7 @@ const other = pick("text");
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -138,7 +138,7 @@ const chosen = outer(true);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -210,7 +210,7 @@ function positive(values: int32[]): int32[] {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 function positive(values: int32[]): int32[] {
     return values.map<int32, int32, "managed">((value: int32): int32 => value + 1) as int32[];
@@ -261,7 +261,7 @@ const chosen = tag("name");
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 type Choice<T> = T extends string ? int32 : boolean;
 
@@ -331,7 +331,7 @@ const origin = Point { x: 0 };
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -365,7 +365,7 @@ const origin = Point { x: 0 };
 fn test_identical_calls_instantiate_identically_across_bodies() {
     let session = TestSession::single(
         r#"
-import * as assert from "destack:assert";
+import * as assert from "tspp:assert";
 
 function checkLeft(value: int32): void {
     assert.assertEqual(value, 1);
@@ -380,11 +380,11 @@ function checkRight(input: int32): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import * as assert from "destack:assert";
+import * as assert from "tspp:assert";
 
 function checkLeft(value: int32): void {
     assert.assertEqual<int32, int32, "frame", "frame">(
@@ -409,7 +409,7 @@ function checkRight(input: int32): void {
 }
 
 === dir ===
-import * as assert from "destack:assert";
+import * as assert from "tspp:assert";
 
 function checkLeft(value: int32): void {
 /// @type.symbol symbol=checkLeft type=(int32) => void
@@ -482,7 +482,7 @@ function start(): void {
 "#,
     );
 
-    session.assert_diagnostics(session.dir_materialized_key("main.ds"), r#"
+    session.assert_diagnostics(session.dir_materialized_key("main.tspp"), r#"
 /// @diagnostic.error id=instantiation-depth-exceeded message="instantiating 'nest' exceeds the depth limit of 128"
 /// @diagnostic.label line=12 column=9 span="nest(new Wrap(value), depth - 1)" line_source="nest(new Wrap(value), depth - 1);"
 /// @diagnostic.help message="make the recursion monomorphic, so every call instantiates the same arguments"

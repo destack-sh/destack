@@ -6,13 +6,13 @@
 
 Condensed match expressions are expanded with each arm on its own line.
 
-```ds
+```tspp
 match(x){1=>"one";2=>"two";_=>"other"}
 ```
 
 Space is added after `match` and around the scrutinee.
 
-```ds expected
+```tspp expected
 match (x) {
     1 => "one"
     2 => "two"
@@ -24,11 +24,11 @@ match (x) {
 
 Arms with block bodies have their blocks expanded to multiple lines.
 
-```ds
+```tspp
 match (x) { 1 => { process(); "one" }; 2 => { transform(); "two" }; _ => "other" }
 ```
 
-```ds expected
+```tspp expected
 match (x) {
     1 => {
         process();
@@ -46,11 +46,11 @@ match (x) {
 
 Match expressions used as values get a trailing semicolon.
 
-```ds
+```tspp
 const result = match (state) { Ready => "go"; Loading => "wait"; _ => "unknown" }
 ```
 
-```ds expected
+```tspp expected
 const result = match (state) {
     Ready => "go"
     Loading => "wait"
@@ -64,11 +64,11 @@ const result = match (state) {
 
 Literal values can be used as patterns.
 
-```ds
+```tspp
 match (n) { 0 => "zero"; 1 => "one"; 2 => "two"; _ => "many" }
 ```
 
-```ds expected
+```tspp expected
 match (n) {
     0 => "zero"
     1 => "one"
@@ -81,11 +81,11 @@ match (n) {
 
 String patterns normalize to the configured formatter quote style.
 
-```ds
+```tspp
 match (s) { "a" => 1; "b" => 2; _ => 0 }
 ```
 
-```ds expected
+```tspp expected
 match (s) {
     "a" => 1
     "b" => 2
@@ -97,11 +97,11 @@ match (s) {
 
 The underscore `_` matches any value.
 
-```ds
+```tspp
 match (x) { _ => "anything" }
 ```
 
-```ds expected
+```tspp expected
 match (x) {
     _ => "anything"
 }
@@ -111,11 +111,11 @@ match (x) {
 
 Identifiers in patterns bind the matched value to a variable.
 
-```ds
+```tspp
 match (x) { n => n * 2 }
 ```
 
-```ds expected
+```tspp expected
 match (x) {
     n => n * 2
 }
@@ -127,13 +127,13 @@ match (x) {
 
 Match arms can have decorators for optimization hints.
 
-```ds
+```tspp
 match (event) { @likely Click(pos) => handleClick(pos); @cold Error(e) => logError(e) }
 ```
 
 Body level arm decorators stay on their own line above the arm.
 
-```ds expected
+```tspp expected
 match (event) {
     @likely
     Click(pos) => handleClick(pos)
@@ -148,11 +148,11 @@ match (event) {
 
 Nested tagged, array, and object patterns compose with guards and block tail expressions.
 
-```ds line-width=120
+```tspp line-width=120
 const score = match (packet) { Event.Batch([first, ..., last], { meta: { id = fallbackId }, ...rest }) if (rest.valid) => { log(id); first + last + id }; Event.Single(Point { x, y }) => x + y; _ => 0 }
 ```
 
-```ds expected
+```tspp expected
 const score = match (packet) {
     Event.Batch(
         [first, ..., last],

@@ -1,12 +1,12 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
 
-use destack_artifact::{DiagnosticLike, EnvironmentBound, MirDeclared, MirLowered};
-use destack_core::{FxIndexMap, StringId, StringPool};
-use destack_dir as dir;
-use destack_mir as mir;
-use destack_repository::{ArtifactReader, ProfileId, ProviderContext};
-use destack_source::{ModuleId, TargetId};
+use tspp_artifact::{DiagnosticLike, EnvironmentBound, MirDeclared, MirLowered};
+use tspp_core::{FxIndexMap, StringId, StringPool};
+use tspp_dir as dir;
+use tspp_mir as mir;
+use tspp_repository::{ArtifactReader, ProfileId, ProviderContext};
+use tspp_source::{ModuleId, TargetId};
 
 use crate::lower::{
     DeclaredModule, DirModule, FunctionDeclaration, FunctionDefinition, FunctionLowerer,

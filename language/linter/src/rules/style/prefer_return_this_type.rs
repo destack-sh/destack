@@ -1,6 +1,6 @@
-use destack_core::FxIndexSet;
-use destack_dir as dir;
-use destack_source::{NodeSpanRegion, Patch};
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
+use tspp_source::{NodeSpanRegion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -135,7 +135,7 @@ class Builder {
         session.assert_diagnostics(
             r#"
 warning[prefer-return-this-type]: method only returns its receiver
- ──▶ main.ds:2:27
+ ──▶ main.tspp:2:27
   │
 1 │ class Builder {
 2 │     clear(flag: boolean): Builder {
@@ -145,8 +145,8 @@ warning[prefer-return-this-type]: method only returns its receiver
   │
 
  = fix: return this
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ class Builder {
 -   2│     clear(flag: boolean): Builder {

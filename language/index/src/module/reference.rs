@@ -1,9 +1,9 @@
 use std::mem;
 
-use destack_dir as dir;
-use destack_repository::{ProviderError, ProviderResult};
-use destack_source::{NodeSpanRegion, NodeSpanType, Span};
 use rustc_hash::{FxHashMap, FxHashSet};
+use tspp_dir as dir;
+use tspp_repository::{ProviderError, ProviderResult};
+use tspp_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use super::context::ModuleIndexContext;
 

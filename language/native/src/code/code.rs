@@ -1,6 +1,6 @@
-use destack_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId};
+use tspp_serde::Reflect;
 
 use crate::abi;
 
@@ -12,7 +12,7 @@ use super::{
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct Code {
-    /// Destack native ABI version required by this code.
+    /// TS++ native ABI version required by this code.
     pub abi_version: u32,
     /// Required executable image base alignment.
     pub alignment: Alignment,

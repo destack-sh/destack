@@ -1,13 +1,13 @@
 use std::collections::VecDeque;
 use std::sync::Arc;
 
-use destack_artifact::{
-    ArtifactDependency, ArtifactEntry, ArtifactInvalidation, ArtifactKey, ArtifactTable,
-    SourceDependency,
-};
 use im::OrdMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use smallvec::SmallVec;
+use tspp_artifact::{
+    ArtifactDependency, ArtifactEntry, ArtifactInvalidation, ArtifactKey, ArtifactTable,
+    SourceDependency,
+};
 
 use crate::RepositoryError;
 

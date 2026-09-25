@@ -1,6 +1,6 @@
 [package]
-name = "destack_serde"
-description = "Destack serialization"
+name = "tspp_serde"
+description = "TS++ serialization"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,7 +12,7 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-destack_serde_macros = { workspace = true }
+tspp_serde_macros = { workspace = true }
 im = { workspace = true }
 indexmap = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

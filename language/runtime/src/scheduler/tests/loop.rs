@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_memory::MemoryMap;
-use destack_program as program;
+use tspp_memory::MemoryMap;
+use tspp_program as program;
 
 use crate::host::poller::{
     PollerEvent, PollerEventFlags, PollerEventMask, PollerEventPayload, PollerEventSource,

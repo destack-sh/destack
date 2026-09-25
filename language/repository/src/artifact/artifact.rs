@@ -5,14 +5,14 @@ use crate::artifact::ArtifactReader;
 use crate::provider::ArtifactAttemptRecorder;
 use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{ArtifactBase, ArtifactResolution};
-use destack_artifact::{
+use rustc_hash::{FxHashSet, FxHasher};
+use tspp_artifact::{
     ArtifactDependency, ArtifactEntry, ArtifactFailure, ArtifactKey, ArtifactOutcome,
     ArtifactPayload, ArtifactVersion, DeferredDiagnosticLabel, DiagnosticRecord, DirBound,
     DirParsed,
 };
-use destack_core::Blob;
-use destack_source::{Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, FileId};
-use rustc_hash::{FxHashSet, FxHasher};
+use tspp_core::Blob;
+use tspp_source::{Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, FileId};
 
 impl Repository {
     /// Return a read-only artifact reader for one pinned revision.

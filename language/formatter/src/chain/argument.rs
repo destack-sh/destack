@@ -1,5 +1,5 @@
-use crate::DestackFormatContext;
-use destack_dir::{Argument, Declaration, Expression, FunctionForm, LocalNodeId, Tree};
+use crate::TsppFormatContext;
+use tspp_dir::{Argument, Declaration, Expression, FunctionForm, LocalNodeId, Tree};
 
 /// Get the value expression of any argument variant.
 pub(crate) fn argument_value_id_if_present(
@@ -14,7 +14,7 @@ pub(crate) fn argument_value_id_if_present(
 
 /// Check whether one expression is a lambda declaration.
 pub(crate) fn is_lambda_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let tree = context.tree;
@@ -31,7 +31,7 @@ pub(crate) fn is_lambda_expression(
 
 /// Check whether an expression is a lambda whose body is another lambda.
 pub(crate) fn is_nested_lambda_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let tree = context.tree;

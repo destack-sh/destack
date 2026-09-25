@@ -1,6 +1,6 @@
-use destack_core::FxIndexSet;
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -231,7 +231,7 @@ struct Buffer {
         session.assert_diagnostics(
             r#"
 warning[wrong-receiver-convention]: intoBytes should consume its receiver
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ struct Buffer {
 2 │     intoBytes(&readonly this): [uint8] {
@@ -241,7 +241,7 @@ warning[wrong-receiver-convention]: intoBytes should consume its receiver
   │
 
 warning[wrong-receiver-convention]: fromBytes should be static
- ──▶ main.ds:6:5
+ ──▶ main.tspp:6:5
   │
 4 │     }
 5 │
@@ -252,7 +252,7 @@ warning[wrong-receiver-convention]: fromBytes should be static
   │
 
 warning[wrong-receiver-convention]: asBytes should borrow its receiver
-  ──▶ main.ds:10:5
+  ──▶ main.tspp:10:5
    │
  8 │     }
  9 │
@@ -263,7 +263,7 @@ warning[wrong-receiver-convention]: asBytes should borrow its receiver
    │
 
 warning[wrong-receiver-convention]: toBytesMut should borrow its receiver with mutable access
-  ──▶ main.ds:14:5
+  ──▶ main.tspp:14:5
    │
 12 │     }
 13 │
@@ -338,7 +338,7 @@ extension of Buffer implements Into<int32> {
         let session = TestSession::dir(
             &WRONG_RECEIVER_CONVENTION,
             r#"
-import { Access, WithAccess } from "destack:memory";
+import { Access, WithAccess } from "tspp:memory";
 
 struct Buffer {}
 

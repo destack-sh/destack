@@ -17,7 +17,7 @@ const result = parse("id");
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked()
             .with_node_types()
             .without_reference_types(),
@@ -80,7 +80,7 @@ const result: int32 = choose("x");
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked()
             .with_node_types()
             .without_reference_types(),
@@ -143,7 +143,7 @@ parse(true);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked()
             .with_node_types()
             .without_reference_types(),
@@ -185,7 +185,7 @@ function parse(value: string): int32;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().without_reference_types(),
         r#"
 === annotated ===
@@ -220,7 +220,7 @@ extension of Buffer {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -287,7 +287,7 @@ const value = greet("hi");
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -341,7 +341,7 @@ const parser = parse;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -409,7 +409,7 @@ const text: (value: string) => string = render;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -473,7 +473,7 @@ const chosen: (value: boolean) => boolean = render;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -529,8 +529,8 @@ const chosen: (value: boolean) => boolean = render;
 fn test_select_generic_overload_with_block_closure_and_try() {
     let session = TestSession::single(
         r#"
-import { Iterator } from "destack:iter";
-import { Result } from "destack:error";
+import { Iterator } from "tspp:iter";
+import { Result } from "tspp:error";
 
 function sum(values: Iterator<int32>): Result<int32, string> {
     return values.reduce((result, value, index) => {
@@ -542,10 +542,10 @@ function sum(values: Iterator<int32>): Result<int32, string> {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_node_types(), r#"
 === annotated ===
-import { Result } from "destack:error";
-import { Iterator } from "destack:iter";
+import { Result } from "tspp:error";
+import { Iterator } from "tspp:iter";
 
 function sum(values: Iterator<int32>): Result<int32, string> {
     return values.reduce<int32, Result<int32, string>>(
@@ -559,8 +559,8 @@ function sum(values: Iterator<int32>): Result<int32, string> {
 }
 
 === dir ===
-import { Iterator } from "destack:iter";
-import { Result } from "destack:error";
+import { Iterator } from "tspp:iter";
+import { Result } from "tspp:error";
 
 function sum(values: Iterator<int32>): Result<int32, string> {
 /// @type.symbol symbol=sum type=(Iterator<int32>) => Result<int32, string>
@@ -687,7 +687,7 @@ function sum(values: It<int32>): Wrap<int32> {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_node_types(), r#"
 === annotated ===
 newtype interface It<in out T, out R = void> {
     next(this): R {
@@ -881,7 +881,7 @@ function append(values: int32[], more: ^int32[]): int32 {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_node_types(), r#"
 === annotated ===
 function total(...values: int32[]): int32 {
     return 0;
@@ -990,7 +990,7 @@ function fails(more: ^int32[]): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_node_types(),
         r#"
 === annotated ===
@@ -1079,7 +1079,7 @@ function finish(wrapped: Wrap<Counter>): boolean {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_node_types(), r#"
 === annotated ===
 newtype interface It<T> {
     type Return = void;
@@ -1272,7 +1272,7 @@ function forward(values: int32[][]): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

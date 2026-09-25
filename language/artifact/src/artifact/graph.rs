@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use destack_serde::Reflect;
-use destack_source::{ModuleId, PackageId, ProfileId};
 use indexmap::IndexMap;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
+use tspp_source::{ModuleId, PackageId, ProfileId};
 
-use destack_dir::GlobalSymbolId;
+use tspp_dir::GlobalSymbolId;
 
 use crate::{ArtifactProjectionFingerprint, ArtifactProjectionKey};
 

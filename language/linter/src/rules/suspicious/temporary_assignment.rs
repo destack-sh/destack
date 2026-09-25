@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -107,7 +107,7 @@ function discard(): void {
         session.assert_diagnostics(
             r#"
 warning[temporary-assignment]: assignment updates a discarded value
-  ──▶ main.ds:10:5
+  ──▶ main.tspp:10:5
    │
  8 │
  9 │ function discard(): void {
@@ -136,7 +136,7 @@ function discard(): void {
         session.assert_diagnostics(
             r#"
 warning[temporary-assignment]: assignment updates a discarded value
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function discard(): void {
 2 │     (1, 2)[0] = 3;

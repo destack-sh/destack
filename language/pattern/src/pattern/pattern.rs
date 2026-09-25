@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_core::{Arena, StringPool};
+use tspp_core::{Arena, StringPool};
 
 use crate::{
     Evaluator, Fragment, FragmentId, MatchError, MetavariableTable, ModuleContext, PatternMatch,

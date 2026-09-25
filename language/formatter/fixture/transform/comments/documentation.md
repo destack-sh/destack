@@ -8,27 +8,27 @@ Documentation is rendered from the parsed documentation attached to each DIR nod
 
 Documentation uses one line marker and separates prose from structured entries.
 
-```ds:main.ds line-width=80
+```tspp:main.tspp line-width=80
 /**
  * Map one value.
  * @typeParam T: The value type.
  * @param value The value to map.
  * @example
- * ```ds
+ * ```tspp
  * map(value)
  * ```
  */
 function map<T>(value: T): T { return value }
 ```
 
-```ds expected
+```tspp expected
 /// Map one value.
 ///
 /// @typeParam T - The value type.
 /// @param value - The value to map.
 ///
 /// @example
-/// ```ds
+/// ```tspp
 /// map(value);
 /// ```
 function map<T>(value: T): T {
@@ -40,7 +40,7 @@ function map<T>(value: T): T {
 
 Space, dash, and colon separators have one canonical output.
 
-```ds:main.ds line-width=80
+```tspp:main.tspp line-width=80
 /// Send one request.
 /// @param first The first request.
 /// @param second - The second request.
@@ -48,7 +48,7 @@ Space, dash, and colon separators have one canonical output.
 function send(first: Request, second: Request, third: Request) {}
 ```
 
-```ds expected
+```tspp expected
 /// Send one request.
 ///
 /// @param first - The first request.
@@ -61,12 +61,12 @@ function send(first: Request, second: Request, third: Request) {}
 
 Structured entries do not acquire a leading empty documentation line.
 
-```ds:main.ds line-width=80
+```tspp:main.tspp line-width=80
 /// @param request The request to send.
 function send(request: Request) {}
 ```
 
-```ds expected
+```tspp expected
 /// @param request - The request to send.
 function send(request: Request) {}
 ```
@@ -77,7 +77,7 @@ function send(request: Request) {}
 
 Markdown headings and paragraphs remain ordinary documentation content.
 
-```ds:main.ds line-width=80
+```tspp:main.tspp line-width=80
 /// Read one value.
 ///
 /// # Errors
@@ -86,7 +86,7 @@ Markdown headings and paragraphs remain ordinary documentation content.
 function read(): Result<Value, InvalidInput> {}
 ```
 
-```ds expected
+```tspp expected
 /// Read one value.
 ///
 /// # Errors
@@ -101,14 +101,14 @@ function read(): Result<Value, InvalidInput> {}
 
 Documentation remains attached through decorators.
 
-```ds:main.ds line-width=80
+```tspp:main.tspp line-width=80
 /** Read one binding. */
-@binding("destack.read")
+@binding("tspp.read")
 declare function readBinding(): string
 ```
 
-```ds expected
+```tspp expected
 /// Read one binding.
-@binding("destack.read")
+@binding("tspp.read")
 declare function readBinding(): string;
 ```

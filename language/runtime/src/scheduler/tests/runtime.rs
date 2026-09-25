@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_program as program;
-use destack_repository::{Environment, RuntimeOptions, WorldOptions};
-use destack_vm as vm;
+use tspp_program as program;
+use tspp_repository::{Environment, RuntimeOptions, WorldOptions};
+use tspp_vm as vm;
 
 use crate::binding::BindingTable;
 use crate::host::time::TimerClock;

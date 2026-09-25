@@ -1,7 +1,7 @@
 {
-    "name": "destack",
-    "displayName": "Destack",
-    "description": "Destack language and toolchain support for VS Code",
+    "name": "tspp",
+    "displayName": "TS++",
+    "description": "TS++ language and toolchain support for VS Code",
     "icon": "icon.png",
     "version": "2026.9.0",
     "license": "MIT",
@@ -26,7 +26,7 @@
         "url": "https://github.com/destack-sh/destack/issues"
     },
     "activationEvents": [
-        "onLanguage:destack-ds",
+        "onLanguage:tspp",
         "workspaceContains:destack.json"
     ],
     "extensionKind": [
@@ -35,23 +35,23 @@
     "capabilities": {
         "untrustedWorkspaces": {
             "supported": "limited",
-            "description": "Language support remains available through an installed or managed Destack toolchain. Workspace commands and workspace-built toolchains require trust.",
+            "description": "Language support remains available through an installed or managed TS++ toolchain. Workspace commands and workspace-built toolchains require trust.",
             "restrictedConfigurations": [
-                "destack.server.command",
-                "destack.server.args",
-                "destack.server.cwd"
+                "tspp.server.command",
+                "tspp.server.args",
+                "tspp.server.cwd"
             ]
         }
     },
     "main": "./out/extension.js",
     "files": [
         "out/extension.js",
-        "destack-ds.json",
-        "destack-ds.tmLanguage.json",
-        "destack-dsm.json",
-        "destack-dsm.tmLanguage.json",
-        "destack-dsa.json",
-        "destack-dsa.tmLanguage.json",
+        "tspp.json",
+        "tspp.tmLanguage.json",
+        "tsppm.json",
+        "tsppm.tmLanguage.json",
+        "tsppa.json",
+        "tsppa.tmLanguage.json",
         "destack.schema.json",
         "icon.png",
         "package.json",
@@ -59,14 +59,14 @@
     ],
     "contributes": {
         "configuration": {
-            "title": "Destack",
+            "title": "TS++",
             "properties": {
-                "destack.server.command": {
+                "tspp.server.command": {
                     "type": "string",
                     "default": "",
-                    "markdownDescription": "Command for the Destack language server. If empty, uses a workspace build, an installed `destack`, or the release matching this extension. Supports `~` and `${workspaceFolder}`."
+                    "markdownDescription": "Command for the TS++ language server. If empty, uses a workspace build, an installed `tspp`, or the release matching this extension. Supports `~` and `${workspaceFolder}`."
                 },
-                "destack.server.args": {
+                "tspp.server.args": {
                     "type": "array",
                     "items": {
                         "type": "string"
@@ -74,12 +74,12 @@
                     "default": [],
                     "description": "Additional arguments passed to the language server."
                 },
-                "destack.server.cwd": {
+                "tspp.server.cwd": {
                     "type": "string",
                     "default": "",
                     "markdownDescription": "Working directory for the language server. Supports `~` and `${workspaceFolder}`."
                 },
-                "destack.trace.server": {
+                "tspp.trace.server": {
                     "type": "string",
                     "enum": [
                         "off",
@@ -89,17 +89,17 @@
                     "default": "off",
                     "description": "Trace structured language server messages. Verbose tracing also includes message bodies and detailed artifact timings."
                 },
-                "destack.completion.autoImports": {
+                "tspp.completion.autoImports": {
                     "type": "boolean",
                     "default": true,
                     "markdownDescription": "Include auto import completions in the completion list."
                 },
-                "destack.inlayHints.parameterHints": {
+                "tspp.inlayHints.parameterHints": {
                     "type": "boolean",
                     "default": true,
                     "markdownDescription": "Show parameter name inlay hints for call arguments."
                 },
-                "destack.inlayHints.typeHints": {
+                "tspp.inlayHints.typeHints": {
                     "type": "boolean",
                     "default": true,
                     "markdownDescription": "Show inferred type inlay hints for local bindings."
@@ -108,69 +108,69 @@
         },
         "commands": [
             {
-                "command": "destack.restart",
+                "command": "tspp.restart",
                 "title": "Destack: Restart Server"
             },
             {
-                "command": "destack.reload",
+                "command": "tspp.reload",
                 "title": "Destack: Reload Workspace"
             },
             {
-                "command": "destack.showLogs",
+                "command": "tspp.showLogs",
                 "title": "Destack: Show Logs"
             }
         ],
         "languages": [
             {
-                "id": "destack-ds",
+                "id": "tspp",
                 "aliases": [
-                    "Destack",
-                    "ds"
+                    "TS++",
+                    "tspp"
                 ],
                 "extensions": [
-                    ".ds",
-                    ".d.ds"
+                    ".tspp",
+                    ".d.tspp"
                 ],
-                "configuration": "./destack-ds.json"
+                "configuration": "./tspp.json"
             },
             {
-                "id": "destack-dsm",
+                "id": "tsppm",
                 "aliases": [
-                    "Destack MIR",
-                    "dsm"
+                    "TS++ MIR",
+                    "tsppm"
                 ],
                 "extensions": [
-                    ".dsm"
+                    ".tsppm"
                 ],
-                "configuration": "./destack-dsm.json"
+                "configuration": "./tsppm.json"
             },
             {
-                "id": "destack-dsa",
+                "id": "tsppa",
                 "aliases": [
-                    "Destack Bytecode Assembly",
-                    "dsa"
+                    "TS++ Bytecode Assembly",
+                    "tsppa"
                 ],
                 "extensions": [
-                    ".dsa"
+                    ".tsppa"
                 ],
-                "configuration": "./destack-dsa.json"
+                "configuration": "./tsppa.json"
             }
         ],
         "grammars": [
             {
-                "language": "destack-ds",
-                "scopeName": "source.ds",
-                "path": "./destack-ds.tmLanguage.json"
+                "language": "tspp",
+                "scopeName": "source.tspp",
+                "path": "./tspp.tmLanguage.json"
             },
             {
-                "language": "destack-dsm",
-                "scopeName": "source.dsm",
-                "path": "./destack-dsm.tmLanguage.json"
+                "language": "tsppm",
+                "scopeName": "source.tsppm",
+                "path": "./tsppm.tmLanguage.json"
             },
             {
-                "language": "destack-dsa",
-                "scopeName": "source.dsa",
-                "path": "./destack-dsa.tmLanguage.json"
+                "language": "tsppa",
+                "scopeName": "source.tsppa",
+                "path": "./tsppa.tmLanguage.json"
             }
         ],
         "jsonValidation": [
@@ -189,7 +189,7 @@
         "vscode:prepublish": "deno task compile && deno task bundle",
         "package": "deno run -A npm:@vscode/vsce package --no-dependencies",
         "publish:live": "deno run -A npm:@vscode/vsce publish --no-dependencies",
-        "test:grammar": "deno run -A npm:vscode-tmgrammar-test --grammar destack-ds.tmLanguage.json \"../fixture/highlight/destack/**/*.txt\" && deno run -A npm:vscode-tmgrammar-test --grammar destack-dsm.tmLanguage.json \"../fixture/highlight/mir/*.txt\" && deno run -A npm:vscode-tmgrammar-test --grammar destack-dsa.tmLanguage.json \"../fixture/highlight/bytecode/*.txt\""
+        "test:grammar": "deno run -A npm:vscode-tmgrammar-test --grammar tspp.tmLanguage.json \"../fixture/highlight/tspp/**/*.txt\" && deno run -A npm:vscode-tmgrammar-test --grammar tsppm.tmLanguage.json \"../fixture/highlight/mir/*.txt\" && deno run -A npm:vscode-tmgrammar-test --grammar tsppa.tmLanguage.json \"../fixture/highlight/bytecode/*.txt\""
     },
     "dependencies": {
         "extract-zip": "^2.0.1",

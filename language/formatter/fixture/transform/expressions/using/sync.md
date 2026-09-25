@@ -6,11 +6,11 @@
 
 Using declarations keep spacing around `=`.
 
-```ds
+```tspp
 using resource=open()
 ```
 
-```ds expected
+```tspp expected
 using resource = open();
 ```
 
@@ -18,11 +18,11 @@ using resource = open();
 
 Using declarations preserve initializer call arguments.
 
-```ds
+```tspp
 using resource = open(path)
 ```
 
-```ds expected
+```tspp expected
 using resource = open(path);
 ```
 

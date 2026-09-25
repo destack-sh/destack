@@ -2,11 +2,11 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use dashmap::DashMap;
-use destack_artifact::{ArtifactCache, ArtifactTable, BuildId};
-use destack_core::{Blob, BlobMemory, BlobStore, StringPool, Treap, TreapRoot};
-use destack_source as source;
-use destack_source::{FileId, FileSystem, MemoryFileSystem};
 use rustc_hash::FxBuildHasher;
+use tspp_artifact::{ArtifactCache, ArtifactTable, BuildId};
+use tspp_core::{Blob, BlobMemory, BlobStore, StringPool, Treap, TreapRoot};
+use tspp_source as source;
+use tspp_source::{FileId, FileSystem, MemoryFileSystem};
 
 use crate::repository::{
     FileCache, FileEntry, RepositoryError, Revision, RevisionEntry, RevisionState,

@@ -2,8 +2,8 @@
 # fuzzer is in its own workspace
 
 [package]
-name = "destack_parser_fuzz"
-description = "Destack Parser Fuzzing"
+name = "tspp_parser_fuzz"
+description = "TS++ Parser Fuzzing"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
@@ -13,9 +13,9 @@ rust-version = "1.88.0"
 cargo-fuzz = true
 
 [dependencies]
-destack_core = { path = "../../core" }
-destack_parser = { path = ".." }
-destack_source = { path = "../../source" }
+tspp_core = { path = "../../core" }
+tspp_parser = { path = ".." }
+tspp_source = { path = "../../source" }
 libfuzzer-sys = "0.4.10"
 
 [[bin]]

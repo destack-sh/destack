@@ -2,11 +2,11 @@ use std::cmp::Reverse;
 use std::collections::BTreeMap;
 
 use clap::{Args, ValueEnum};
-use destack_linter as linter;
-use destack_session::diagnostic;
-use destack_source::{DiagnosticDefinition, DiagnosticSeverity};
 use serde::Serialize;
 use serde_json::Value;
+use tspp_linter as linter;
+use tspp_session::diagnostic;
+use tspp_source::{DiagnosticDefinition, DiagnosticSeverity};
 
 use crate::common::{
     CommandReport, ListEntry, ListGroup, ListPrinter, ListSpacing, ReportArgs,

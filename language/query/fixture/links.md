@@ -5,61 +5,61 @@
 
 Each resolved import specifier becomes a link in source order.
 
-```ds main.ds
-import { foo } from "./foo.ds";
+```tspp main.tspp
+import { foo } from "./foo.tspp";
                     ^^^^^^^^^^ foo_specifier
-import { bar } from "./bar.ds";
+import { bar } from "./bar.tspp";
                     ^^^^^^^^^^ bar_specifier
 ```
 
-```ds foo.ds
+```tspp foo.tspp
 export const foo = 1;
 ```
 
-```ds bar.ds
+```tspp bar.tspp
 export const bar = 2;
 ```
 
-```query links main.ds
-@links.link range=main.ds#foo_specifier path=foo.ds
-@links.link range=main.ds#bar_specifier path=bar.ds
+```query links main.tspp
+@links.link range=main.tspp#foo_specifier path=foo.tspp
+@links.link range=main.tspp#bar_specifier path=bar.tspp
 ```
 
 ### Resolve the current import target
 
 Links follow the resolved module path after each edit.
 
-```ds main.ds
-import { value } from "./library.ds";
+```tspp main.tspp
+import { value } from "./library.tspp";
                       ^^^^^^^^^^^^^^ specifier
 ```
 
-```query links main.ds
+```query links main.tspp
 @links.none
 ```
 
-```ds library.ds add
+```tspp library.tspp add
 export const value = 1;
 ```
 
-```query links main.ds
-@links.link range=main.ds#specifier path=library.ds
+```query links main.tspp
+@links.link range=main.tspp#specifier path=library.tspp
 ```
 
-```move library.ds moved.ds
+```move library.tspp moved.tspp
 ```
 
-```query links main.ds
+```query links main.tspp
 @links.none
 ```
 
-```ds main.ds change
-import { value } from "./moved.ds";
+```tspp main.tspp change
+import { value } from "./moved.tspp";
                       ^^^^^^^^^^^^ specifier
 ```
 
-```query links main.ds
-@links.link range=main.ds#specifier path=moved.ds
+```query links main.tspp
+@links.link range=main.tspp#specifier path=moved.tspp
 ```
 
 ## Re-Exports
@@ -68,17 +68,17 @@ import { value } from "./moved.ds";
 
 A resolved re-export specifier becomes a link.
 
-```ds main.ds
-export { foo } from "./foo.ds";
+```tspp main.tspp
+export { foo } from "./foo.tspp";
                     ^^^^^^^^^^ foo_specifier
 ```
 
-```ds foo.ds
+```tspp foo.tspp
 export const foo = 1;
 ```
 
-```query links main.ds
-@links.link range=main.ds#foo_specifier path=foo.ds
+```query links main.tspp
+@links.link range=main.tspp#foo_specifier path=foo.tspp
 ```
 
 ## Side Effects
@@ -87,17 +87,17 @@ export const foo = 1;
 
 A resolved side-effect import becomes a link.
 
-```ds main.ds
-import "./setup.ds";
+```tspp main.tspp
+import "./setup.tspp";
        ^^^^^^^^^^^^ setup_specifier
 ```
 
-```ds setup.ds
+```tspp setup.tspp
 export const ready = true;
 ```
 
-```query links main.ds
-@links.link range=main.ds#setup_specifier path=setup.ds
+```query links main.tspp
+@links.link range=main.tspp#setup_specifier path=setup.tspp
 ```
 
 ## Ordinary Strings
@@ -106,11 +106,11 @@ export const ready = true;
 
 Ordinary strings are not module links.
 
-```ds main.ds
-const path = "./foo.ds";
+```tspp main.tspp
+const path = "./foo.tspp";
 ```
 
-```query links main.ds
+```query links main.tspp
 @links.none
 ```
 
@@ -120,12 +120,12 @@ const path = "./foo.ds";
 
 An unresolved module has no target location to link.
 
-```ds main.ds
-import { missing } from "./missing.ds";
+```tspp main.tspp
+import { missing } from "./missing.tspp";
                         ^^^^^^^^^^^^^^ specifier
 ```
 
-```query links main.ds
+```query links main.tspp
 @links.none
 ```
 
@@ -135,15 +135,15 @@ import { missing } from "./missing.ds";
 
 A resolved export-star specifier becomes a link.
 
-```ds main.ds
-export * from "./library.ds";
+```tspp main.tspp
+export * from "./library.tspp";
               ^^^^^^^^^^^^^^ library_specifier
 ```
 
-```ds library.ds
+```tspp library.tspp
 export const value = 1;
 ```
 
-```query links main.ds
-@links.link range=main.ds#library_specifier path=library.ds
+```query links main.tspp
+@links.link range=main.tspp#library_specifier path=library.tspp
 ```

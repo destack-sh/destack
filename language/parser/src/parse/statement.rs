@@ -1,6 +1,6 @@
 use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::{Parser, ParserError, ParserResult};
-use destack_dir::{
+use tspp_dir::{
     BlockContext, Expression, LocalNodeId, NodeType, Token, TokenType, YieldCardinality,
 };
 
@@ -28,7 +28,7 @@ impl Parser {
     /// Parse a break expression.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// break
     /// break outer
     /// break found: value
@@ -89,7 +89,7 @@ impl Parser {
     /// Parse a continue expression.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// continue
     /// continue outer
     /// ```
@@ -128,7 +128,7 @@ impl Parser {
     /// Parse an await expression.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// await value
     /// await? value
     /// await! value
@@ -161,7 +161,7 @@ impl Parser {
     /// Parse a const evaluation expression.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// const expression
     /// const { statements }
     /// ```
@@ -183,7 +183,7 @@ impl Parser {
     /// Parse a yield expression.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// yield
     /// yield value
     /// yield* values
@@ -219,7 +219,7 @@ impl Parser {
     /// Parse a return expression.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// return
     /// return value
     /// ```

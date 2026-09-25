@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -23,7 +23,7 @@ function remove<T: Default>(initial: T): T {
 }
 "#,
             accepted: r#"
-import { take } from "destack:memory";
+import { take } from "tspp:memory";
 
 function remove<T: Default>(initial: T): T {
     let value = initial;
@@ -151,7 +151,7 @@ function remove<T: Default>(initial: T): T {
         session.assert_diagnostics(
             r#"
 warning[manual-take]: place is moved and then assigned its default
- ──▶ main.ds:3:5
+ ──▶ main.tspp:3:5
   │
 1 │ function remove<T: Default>(initial: T): T {
 2 │     let value = initial;

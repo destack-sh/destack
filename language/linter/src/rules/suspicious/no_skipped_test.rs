@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -14,14 +14,14 @@ Instead, you SHOULD restore the test or remove obsolete coverage.
 "#,
         example: {
             reported: r#"
-import { test } from "destack:test";
+import { test } from "tspp:test";
 
 test.skip("adds values", () => {
     // ...
 });
 "#,
             accepted: r#"
-import { test } from "destack:test";
+import { test } from "tspp:test";
 
 test("adds values", () => {
     // ...
@@ -78,7 +78,7 @@ mod tests {
         let session = TestSession::dir(
             &NO_SKIPPED_TEST,
             r#"
-import { describe as suite, test } from "destack:test";
+import { describe as suite, test } from "tspp:test";
 
 test.skip("direct", () => {
     // empty
@@ -92,9 +92,9 @@ suite.skip("nested", () => {
         session.assert_diagnostics(
             r#"
 warning[no-skipped-test]: skipped registration leaves coverage inactive
- ──▶ main.ds:3:6
+ ──▶ main.tspp:3:6
   │
-1 │ import { describe as suite, test } from "destack:test";
+1 │ import { describe as suite, test } from "tspp:test";
 2 │
 3 │ test.skip("direct", () => {
   │      ^^^^
@@ -103,7 +103,7 @@ warning[no-skipped-test]: skipped registration leaves coverage inactive
   │
 
 warning[no-skipped-test]: skipped registration leaves coverage inactive
- ──▶ main.ds:6:7
+ ──▶ main.tspp:6:7
   │
 4 │     // empty
 5 │ });
@@ -122,7 +122,7 @@ warning[no-skipped-test]: skipped registration leaves coverage inactive
         let session = TestSession::dir(
             &NO_SKIPPED_TEST,
             r#"
-import { test } from "destack:test";
+import { test } from "tspp:test";
 
 test("configured", { skip: true }, () => {
     // empty
@@ -133,9 +133,9 @@ test("configured", { skip: true }, () => {
         session.assert_diagnostics(
             r#"
 warning[no-skipped-test]: skipped registration leaves coverage inactive
- ──▶ main.ds:3:22
+ ──▶ main.tspp:3:22
   │
-1 │ import { test } from "destack:test";
+1 │ import { test } from "tspp:test";
 2 │
 3 │ test("configured", { skip: true }, () => {
   │                      ^^^^
@@ -152,7 +152,7 @@ warning[no-skipped-test]: skipped registration leaves coverage inactive
         let session = TestSession::dir(
             &NO_SKIPPED_TEST,
             r#"
-import { test } from "destack:test";
+import { test } from "tspp:test";
 
 test("active", { skip: false }, () => {
     // empty

@@ -1,7 +1,7 @@
 use std::path::{Component, Path, PathBuf};
 
-use destack_source::{FileType, LanguageType};
 use indexmap::IndexMap;
+use tspp_source::{FileType, LanguageType};
 
 use super::FixturePositionEdge;
 
@@ -140,8 +140,8 @@ impl QueryFile {
     /// Return whether one fixture language denotes this file type.
     pub(super) fn accepts_language(&self, language: &str) -> bool {
         match FileType::from_path(&self.path) {
-            Some(FileType::Destack | FileType::DestackDeclaration) => {
-                matches!(language, "ds" | "destack")
+            Some(FileType::Tspp | FileType::TsppDeclaration) => {
+                matches!(language, "tspp")
             }
             Some(FileType::Text) => matches!(language, "text" | "txt"),
             Some(FileType::Toml) => language == "toml",

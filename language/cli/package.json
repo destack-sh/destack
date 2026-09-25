@@ -6,8 +6,8 @@
     "description": "Destack command-line interface",
     "bin": {
         "destack": "npm/dist/bin/destack.js",
-        "ds": "npm/dist/bin/ds.js",
-        "dsc": "npm/dist/bin/dsc.js"
+        "tspp": "npm/dist/bin/tspp.js",
+        "tsppc": "npm/dist/bin/tsppc.js"
     },
     "exports": {
         "./launcher": "./npm/dist/index.js"

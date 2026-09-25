@@ -1,5 +1,5 @@
-use destack_artifact::{EnvironmentBound, LanguageEnvironment};
-use destack_dir as dir;
+use tspp_artifact::{EnvironmentBound, LanguageEnvironment};
+use tspp_dir as dir;
 
 use crate::resolve::state::ResolveState;
 use crate::{CompilerError, CompilerResult};
@@ -8,7 +8,7 @@ impl ResolveState<'_> {
     /// Resolve language items used by active roots.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// async function load() {
     ///     await task;
     /// }
@@ -30,7 +30,7 @@ impl ResolveState<'_> {
     /// Resolve one used language item to its symbol.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// const value = first + second;
     /// // `+` uses Add
     /// ```
@@ -52,7 +52,7 @@ impl ResolveState<'_> {
     /// Resolve globals selected by the active profile.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// console.log(value);
     /// // console resolves through the profile's global table
     /// ```

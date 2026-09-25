@@ -981,7 +981,7 @@
       }
     },
     "CompilerOptions": {
-      "description": "Normalized Destack compiler options.\n\n`.ds` semantics are always strict; these options only describe project,\nbuild, interop, and compile-time policy.",
+      "description": "Normalized TS++ compiler options.\n\n`.tspp` semantics are always strict; these options only describe project,\nbuild, interop, and compile-time policy.",
       "type": "object",
       "properties": {
         "module": {
@@ -2033,7 +2033,7 @@
           "const": "minimal"
         },
         {
-          "description": "Freestanding output without the normal Destack runtime contract.",
+          "description": "Freestanding output without the normal TS++ runtime contract.",
           "type": "string",
           "const": "freestanding"
         }
@@ -2043,7 +2043,7 @@
       "description": "Build payload linkage.",
       "oneOf": [
         {
-          "description": "Ship a portable Destack payload consumed by a runtime.",
+          "description": "Ship a portable TS++ payload consumed by a runtime.",
           "type": "string",
           "const": "portable"
         },
@@ -2994,7 +2994,7 @@
       }
     },
     "Entrypoint": {
-      "description": "User callable launched by a Destack target.",
+      "description": "User callable launched by a TS++ target.",
       "type": "object",
       "properties": {
         "module": {
@@ -3020,7 +3020,7 @@
           "const": "bundle"
         },
         {
-          "description": "One Destack Program.",
+          "description": "One TS++ Program.",
           "type": "string",
           "const": "program"
         }
@@ -3030,7 +3030,7 @@
       "description": "Executable representation included in one Program.",
       "oneOf": [
         {
-          "description": "Destack bytecode.",
+          "description": "TS++ bytecode.",
           "type": "string",
           "const": "bytecode"
         },
@@ -3474,7 +3474,7 @@
           "const": "o3"
         },
         {
-          "description": "Maximum Destack optimization level.",
+          "description": "Maximum TS++ optimization level.",
           "type": "string",
           "const": "o4"
         }

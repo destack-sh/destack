@@ -6,11 +6,11 @@
 
 Break statements exit the innermost loop.
 
-```ds
+```tspp
 break
 ```
 
-```ds expected
+```tspp expected
 break;
 ```
 
@@ -18,11 +18,11 @@ break;
 
 Break labels preserve their names.
 
-```ds
+```tspp
 break outer
 ```
 
-```ds expected
+```tspp expected
 break outer;
 ```
 
@@ -30,11 +30,11 @@ break outer;
 
 Bare identifier break values use parentheses to avoid label ambiguity.
 
-```ds
+```tspp
 break (value)
 ```
 
-```ds expected
+```tspp expected
 break (value);
 ```
 
@@ -42,11 +42,11 @@ break (value);
 
 Labeled break values use a colon before the value.
 
-```ds
+```tspp
 break outer: value
 ```
 
-```ds expected
+```tspp expected
 break outer: value;
 ```
 
@@ -54,11 +54,11 @@ break outer: value;
 
 Continue statements skip to the next iteration.
 
-```ds
+```tspp
 continue
 ```
 
-```ds expected
+```tspp expected
 continue;
 ```
 
@@ -66,10 +66,10 @@ continue;
 
 Continue labels preserve their names.
 
-```ds
+```tspp
 continue outer
 ```
 
-```ds expected
+```tspp expected
 continue outer;
 ```

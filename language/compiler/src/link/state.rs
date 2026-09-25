@@ -1,5 +1,5 @@
-use destack_repository::ProviderContext;
-use destack_source::{PackageId, TargetId};
+use tspp_repository::ProviderContext;
+use tspp_source::{PackageId, TargetId};
 
 /// State for one link phase provider run.
 pub(in crate::link) struct LinkState<'a> {

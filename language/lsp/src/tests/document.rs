@@ -1,4 +1,4 @@
-use destack_lsp_types as lsp;
+use tspp_lsp_types as lsp;
 
 use serde_json::json;
 
@@ -29,8 +29,8 @@ async fn test_return_document_structure() {
 "#;
     let (mut server, document) = TestServer::open_workspace(
         "document-structure",
-        &[("src/main.ds", source)],
-        "src/main.ds",
+        &[("src/main.tspp", source)],
+        "src/main.tspp",
     )
     .await;
 
@@ -127,15 +127,15 @@ async fn test_return_imported_semantic_tokens() {
     let dependency = r#"@deprecated
 export function oldFunction(): void {}
 "#;
-    let source = r#"import { oldFunction } from "./library.ds";
+    let source = r#"import { oldFunction } from "./library.tspp";
 export function useOld(): void {
     oldFunction();
 }
 "#;
     let (mut server, document) = TestServer::open_workspace(
         "imported-semantic-tokens",
-        &[("src/library.ds", dependency), ("src/main.ds", source)],
-        "src/main.ds",
+        &[("src/library.tspp", dependency), ("src/main.tspp", source)],
+        "src/main.tspp",
     )
     .await;
     let expected = Some(lsp::SemanticTokensResult::Tokens(lsp::SemanticTokens {
@@ -178,8 +178,8 @@ async fn test_classify_parameter_uses_as_parameter_tokens() {
 "#;
     let (mut server, document) = TestServer::open_workspace(
         "parameter-semantic-tokens",
-        &[("src/main.ds", source)],
-        "src/main.ds",
+        &[("src/main.tspp", source)],
+        "src/main.tspp",
     )
     .await;
     let expected = Some(lsp::SemanticTokensResult::Tokens(lsp::SemanticTokens {
@@ -223,21 +223,21 @@ async fn test_classify_parameter_uses_as_parameter_tokens() {
 /// Return exact target URIs for resolved module links.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_return_resolved_document_links() {
-    let source = r#"import { value } from "./library.ds";
+    let source = r#"import { value } from "./library.tspp";
 "#;
     let library = r#"export const value = 1;
 "#;
     let (mut server, document) = TestServer::open_workspace(
         "resolved-document-links",
-        &[("src/library.ds", library), ("src/main.ds", source)],
-        "src/main.ds",
+        &[("src/library.tspp", library), ("src/main.tspp", source)],
+        "src/main.tspp",
     )
     .await;
-    let library = server.document("src/library.ds");
+    let library = server.document("src/library.tspp");
 
     // link the authored specifier to its source file
     let expected = Some(vec![lsp::DocumentLink {
-        range: range(0, 22, 0, 36),
+        range: range(0, 22, 0, 38),
         target: Some(library.uri().clone()),
         tooltip: None,
         data: None,
@@ -248,7 +248,7 @@ async fn test_return_resolved_document_links() {
 /// Query builtin documents across physical and virtual sources.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_query_builtin_documents() {
-    let source = r#"import { log } from "destack:console";
+    let source = r#"import { log } from "tspp:console";
 
 log("ready");
 "#;
@@ -264,7 +264,7 @@ log("ready");
     let mut server = TestServer::new("builtin-module-links");
     server.write("destack.json", manifest);
     server.create_package("app");
-    let document = server.write("app/main.ds", source);
+    let document = server.write("app/main.tspp", source);
     server
         .initialize(lsp::ClientCapabilities::default(), None)
         .await
@@ -272,11 +272,11 @@ log("ready");
     server.initialized().await;
     server.open(&document, 1, source).await;
     server.assert_diagnostics(&document, 1, Vec::new()).await;
-    let target = server.builtin_uri("destack://console/index.ds");
+    let target = server.builtin_uri("tspp://console/index.tspp");
 
     // resolve the import through its builtin module identity
     let expected = Some(vec![lsp::DocumentLink {
-        range: range(0, 20, 0, 37),
+        range: range(0, 20, 0, 34),
         target: Some(target.clone()),
         tooltip: None,
         data: None,
@@ -284,7 +284,7 @@ log("ready");
     server.assert_request(document.links(), Ok(expected)).await;
 
     // navigate from physical source to the builtin declaration
-    let console = server.builtin_uri("destack://console/console.ds");
+    let console = server.builtin_uri("tspp://console/console.tspp");
     let expected = Some(lsp::GotoDefinitionResponse::Link(vec![lsp::LocationLink {
         origin_selection_range: Some(range(2, 0, 2, 3)),
         target_uri: console.clone(),
@@ -297,7 +297,7 @@ log("ready");
 
     // read the exact source exposed by the resolved link
     let expected = lsp::TextDocumentContentResult {
-        text: "export * from \"./console.ds\";\n".to_string(),
+        text: "export * from \"./console.tspp\";\n".to_string(),
     };
     let actual = server.virtual_document(target.clone()).await;
     assert_eq!(actual, expected);
@@ -307,7 +307,7 @@ log("ready");
     server.open(&index, 1, &expected.text).await;
     server.assert_document_diagnostics(&index, Vec::new()).await;
     let expected = Some(vec![lsp::DocumentLink {
-        range: range(0, 14, 0, 28),
+        range: range(0, 14, 0, 30),
         target: Some(console.clone()),
         tooltip: None,
         data: None,
@@ -361,13 +361,13 @@ log("ready");
 /// Keep builtin document identities distinct across editor workspace folders.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_distinguish_builtin_documents_by_project() {
-    let source = r#"import { log } from "destack:console";
+    let source = r#"import { log } from "tspp:console";
 "#;
     let mut server = TestServer::new_editor_folder("builtin-project-identity");
     server.create_package("first");
     server.create_package("second");
-    let first = server.write("first/main.ds", source);
-    let second = server.write("second/main.ds", source);
+    let first = server.write("first/main.tspp", source);
+    let second = server.write("second/main.tspp", source);
     let first_root = server.root().join("first");
     let second_root = server.root().join("second");
     server
@@ -376,9 +376,9 @@ async fn test_distinguish_builtin_documents_by_project() {
         .unwrap();
     server.initialized().await;
 
-    let first_target = server.builtin_uri_at(&first_root, "destack://console/index.ds");
-    let second_target = server.builtin_uri_at(&second_root, "destack://console/index.ds");
-    let link_range = range(0, 20, 0, 37);
+    let first_target = server.builtin_uri_at(&first_root, "tspp://console/index.tspp");
+    let second_target = server.builtin_uri_at(&second_root, "tspp://console/index.tspp");
+    let link_range = range(0, 20, 0, 34);
     let first_links = Some(vec![lsp::DocumentLink {
         range: link_range,
         target: Some(first_target.clone()),
@@ -400,7 +400,7 @@ async fn test_distinguish_builtin_documents_by_project() {
 
     // resolve each qualified URI through its exact project
     let expected = lsp::TextDocumentContentResult {
-        text: "export * from \"./console.ds\";\n".to_string(),
+        text: "export * from \"./console.tspp\";\n".to_string(),
     };
     let first_content = server.virtual_document(first_target).await;
     let second_content = server.virtual_document(second_target).await;
@@ -418,7 +418,7 @@ quartz();
 "#;
     let mut server = TestServer::new_editor_folder("workspace-symbols-and-lenses");
     server.create_package("package");
-    let document = server.write("package/main.ds", source);
+    let document = server.write("package/main.tspp", source);
     let options = Some(json!({ "codeLensCommands": ["references"] }));
     server
         .initialize(lsp::ClientCapabilities::default(), options)
@@ -448,7 +448,7 @@ quartz();
         range: range(0, 16, 0, 22),
         command: Some(lsp::Command {
             title: "1 reference".to_string(),
-            command: "destack.showReferences".to_string(),
+            command: "tspp.showReferences".to_string(),
             arguments: Some(vec![
                 serde_json::to_value(document.uri()).unwrap(),
                 serde_json::to_value(position(0, 16)).unwrap(),
@@ -467,7 +467,7 @@ async fn test_run_concurrent_document_queries() {
     let source = r#"export function answer(): number { return 1; }
 "#;
     let mut server = TestServer::new("concurrent-document-queries");
-    let document = server.write("main.ds", source);
+    let document = server.write("main.tspp", source);
     server
         .initialize(lsp::ClientCapabilities::default(), None)
         .await

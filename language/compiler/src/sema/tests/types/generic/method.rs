@@ -20,7 +20,7 @@ extension Arithmetic<T: Scalar> of T {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -102,7 +102,7 @@ extension Arithmetic<T: Scalar> of T {
 fn test_extension_method_forwards_to_unbounded_free_generic_function() {
     let session = TestSession::single(
         r#"
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 function choose<T>(a: T, b: T): T {
     a
@@ -121,11 +121,11 @@ extension Forward<T: Copy> of Pair<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 function choose<T>(a: T, b: T): T {
     a
@@ -142,7 +142,7 @@ extension Forward<T: Copy> of Pair<T> {
 }
 
 === dir ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 function choose<T>(a: T, b: T): T {
 /// @generic.template symbol=choose parameters=(T#1)
@@ -238,7 +238,7 @@ function read<T>(source: &readonly Box<T>): &readonly T {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===

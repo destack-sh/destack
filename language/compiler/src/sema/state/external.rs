@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactProjectionKey, DirResolved, DirView, ModuleGraph};
-use destack_core::FxIndexSet;
-use destack_dir as dir;
-use destack_source::ModuleId;
 use elsa::FrozenMap;
 use smallvec::SmallVec;
+use tspp_artifact::{ArtifactProjectionKey, DirResolved, DirView, ModuleGraph};
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use super::CheckState;
 use crate::{CompilerError, CompilerResult};

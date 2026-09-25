@@ -1,6 +1,6 @@
-use destack_core::{FxIndexMap, FxIndexSet};
-use destack_dir as dir;
 use rustc_hash::FxHashSet;
+use tspp_core::{FxIndexMap, FxIndexSet};
+use tspp_dir as dir;
 
 use crate::sema::{CheckState, Origin, TypeSubstitution};
 use crate::{CompilerError, CompilerResult};

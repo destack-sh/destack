@@ -42,7 +42,7 @@ entry(v0: ref<User, managed, mutable, shared>):
     program.assert_verify_errors(
         r#"
 error[mutable-borrow-from-shared-storage]: cannot borrow shared storage mutably
-  ──▶ <test.dsm>:8:5
+  ──▶ <test.tsppm>:8:5
    │
  6 │ function test(v0: ref<User, managed, mutable, shared>): int32 {
  7 │ entry(v0: ref<User, managed, mutable, shared>):
@@ -52,7 +52,7 @@ error[mutable-borrow-from-shared-storage]: cannot borrow shared storage mutably
 10 │     return v2
    │
 
-for more information about an error, run `destack explain mutable-borrow-from-shared-storage`
+for more information about an error, run `tspp explain mutable-borrow-from-shared-storage`
 "#,
     );
 }
@@ -76,7 +76,7 @@ entry:
     program.assert_verify_errors(
         r#"
 error[mutable-borrow-from-shared-storage]: cannot borrow shared storage mutably
- ──▶ <test.dsm>:6:5
+ ──▶ <test.tsppm>:6:5
   │
 4 │ function test(): int32 {
 5 │ entry:
@@ -86,7 +86,7 @@ error[mutable-borrow-from-shared-storage]: cannot borrow shared storage mutably
 8 │     return v1
   │
 
-for more information about an error, run `destack explain mutable-borrow-from-shared-storage`
+for more information about an error, run `tspp explain mutable-borrow-from-shared-storage`
 "#,
     );
 }
@@ -114,7 +114,7 @@ entry(v0: ref<User, managed, mutable, shared>):
     program.assert_verify_errors(
         r#"
 error[mutable-borrow-from-shared-storage]: cannot borrow shared storage mutably
-  ──▶ <test.dsm>:10:5
+  ──▶ <test.tsppm>:10:5
    │
  8 │ function test(v0: ref<User, managed, mutable, shared>): void {
  9 │ entry(v0: ref<User, managed, mutable, shared>):
@@ -124,7 +124,7 @@ error[mutable-borrow-from-shared-storage]: cannot borrow shared storage mutably
 12 │     return
    │
 
-for more information about an error, run `destack explain mutable-borrow-from-shared-storage`
+for more information about an error, run `tspp explain mutable-borrow-from-shared-storage`
 "#,
     );
 }
@@ -155,7 +155,7 @@ entry(v0: ref<Owner, unique, mutable>, v1: ref<View<'a>, managed, mutable, local
     program.assert_verify_errors(
         r#"
 error[borrow-outlives-origin]: borrow does not live long enough
-  ──▶ <test.dsm>:14:5
+  ──▶ <test.tsppm>:14:5
    │
 12 │     v2: ref<int32, borrowed, 'frame, readonly> = address (*v0).0
 13 │     v3: ref<ref<int32, borrowed, 'a, readonly>, borrowed, 'managed, mutable> = address (*v1).0
@@ -165,7 +165,7 @@ error[borrow-outlives-origin]: borrow does not live long enough
 16 │ }
    │
 
-for more information about an error, run `destack explain borrow-outlives-origin`
+for more information about an error, run `tspp explain borrow-outlives-origin`
 "#,
     );
 }

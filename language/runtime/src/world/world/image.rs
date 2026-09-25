@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_core::{CaptureMode, fnv1a_128};
-use destack_memory::MemoryImage;
-use destack_program as program;
-use destack_serde as serde;
+use tspp_core::{CaptureMode, fnv1a_128};
+use tspp_memory::MemoryImage;
+use tspp_program as program;
+use tspp_serde as serde;
 
 use ::serde::{Deserialize, Serialize};
 

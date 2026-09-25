@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -16,14 +16,14 @@ Instead, you MUST remove the focus modifier before committing the test.
 "#,
         example: {
             reported: r#"
-import { test } from "destack:test";
+import { test } from "tspp:test";
 
 test.only("adds values", () => {
     // ...
 });
 "#,
             accepted: r#"
-import { test } from "destack:test";
+import { test } from "tspp:test";
 
 test("adds values", () => {
     // ...
@@ -119,7 +119,7 @@ mod tests {
         let session = TestSession::dir(
             &NO_FOCUSED_TEST,
             r#"
-import { test as check } from "destack:test";
+import { test as check } from "tspp:test";
 
 const focused = check.only;
 
@@ -137,7 +137,7 @@ check.only.only("repeated", () => {
 
         session.assert_fixes(
             r#"
-import { test as check } from "destack:test";
+import { test as check } from "tspp:test";
 
 const focused = check;
 
@@ -160,7 +160,7 @@ check("repeated", () => {
         let session = TestSession::dir(
             &NO_FOCUSED_TEST,
             r#"
-import { describe, test } from "destack:test";
+import { describe, test } from "tspp:test";
 
 describe.only("suite", () => {
     test.concurrent.only("nested", () => {
@@ -172,7 +172,7 @@ describe.only("suite", () => {
 
         session.assert_fixes(
             r#"
-import { describe, test } from "destack:test";
+import { describe, test } from "tspp:test";
 
 describe("suite", () => {
     test.concurrent("nested", () => {
@@ -189,7 +189,7 @@ describe("suite", () => {
         let session = TestSession::dir(
             &NO_FOCUSED_TEST,
             r#"
-import { describe } from "destack:test";
+import { describe } from "tspp:test";
 
 const options = { only: false };
 
@@ -204,7 +204,7 @@ describe("spread configured", { ...options, only: true }, () => {
 
         session.assert_fixes(
             r#"
-import { describe } from "destack:test";
+import { describe } from "tspp:test";
 
 const options = { only: false };
 
@@ -224,7 +224,7 @@ describe("spread configured", { ...options, only: false }, () => {
         let session = TestSession::dir(
             &NO_FOCUSED_TEST,
             r#"
-import { describe, test } from "destack:test";
+import { describe, test } from "tspp:test";
 
 test.each([(1,)]).only("parameterized case", (value: int32) => {
     // empty
@@ -243,7 +243,7 @@ describe.for([1]).only("table suite", (value: int64) => {
 
         session.assert_fixes(
             r#"
-import { describe, test } from "destack:test";
+import { describe, test } from "tspp:test";
 
 test.each([(1,)])("parameterized case", (value: int32) => {
     // empty
@@ -267,7 +267,7 @@ describe.for([1])("table suite", (value: int64) => {
         let session = TestSession::dir(
             &NO_FOCUSED_TEST,
             r#"
-import { test } from "destack:test";
+import { test } from "tspp:test";
 
 test /* retain */ .only("focused", () => {
     // empty
@@ -278,9 +278,9 @@ test /* retain */ .only("focused", () => {
         session.assert_diagnostics(
             r#"
 warning[no-focused-test]: focused registration can exclude other tests
- ──▶ main.ds:3:20
+ ──▶ main.tspp:3:20
   │
-1 │ import { test } from "destack:test";
+1 │ import { test } from "tspp:test";
 2 │
 3 │ test /* retain */ .only("focused", () => {
   │                    ^^^^
@@ -297,7 +297,7 @@ warning[no-focused-test]: focused registration can exclude other tests
         let session = TestSession::dir(
             &NO_FOCUSED_TEST,
             r#"
-import { Test } from "destack:test";
+import { Test } from "tspp:test";
 
 function register(selected: Test | undefined): void {
     selected?.only("focused", () => {
@@ -310,7 +310,7 @@ function register(selected: Test | undefined): void {
         session.assert_diagnostics(
             r#"
 warning[no-focused-test]: focused registration can exclude other tests
- ──▶ main.ds:4:15
+ ──▶ main.tspp:4:15
   │
 2 │
 3 │ function register(selected: Test | undefined): void {
@@ -329,7 +329,7 @@ warning[no-focused-test]: focused registration can exclude other tests
         let session = TestSession::dir(
             &NO_FOCUSED_TEST,
             r#"
-import { test } from "destack:test";
+import { test } from "tspp:test";
 
 const options = { only: false };
 
@@ -351,7 +351,7 @@ test("spread override", { only: true, ...options }, () => {
         let session = TestSession::dir(
             &NO_FOCUSED_TEST,
             r#"
-import { test } from "destack:test";
+import { test } from "tspp:test";
 
 test.skipIf(true)("conditional", () => {
     // empty

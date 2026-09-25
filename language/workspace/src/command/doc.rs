@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, IndexKind};
-use destack_doc::{Generator, PackageReference};
-use destack_repository::{ConditionSet, ExportKind, Package, Revision, TraceView};
-use destack_serde::Reflect;
-use destack_source::{ModuleId, ProfileId};
 use serde::{Deserialize, Serialize};
+use tspp_artifact::{ArtifactKey, IndexKind};
+use tspp_doc::{Generator, PackageReference};
+use tspp_repository::{ConditionSet, ExportKind, Package, Revision, TraceView};
+use tspp_serde::Reflect;
+use tspp_source::{ModuleId, ProfileId};
 
 use super::common::{
     CommandEnvVar, CommandInput, CommandOptions, CommandRevision, CommandTargetOverrides,
@@ -269,7 +269,7 @@ fn package_specifier(name: &str, is_builtin: bool, key: &str) -> CommandResult<S
             )));
         }
     };
-    let separator = if is_builtin || name == "destack" {
+    let separator = if is_builtin || name == "tspp" {
         ":"
     } else {
         "/"

@@ -5,7 +5,7 @@
 
 Multiline declarations and their contiguous comments form folding ranges.
 
-```ds main.ds
+```tspp main.tspp
 function add(left: int32, right: int32): int32 {
     return left + right;
 }
@@ -15,7 +15,7 @@ function add(left: int32, right: int32): int32 {
 const value = 1;
 ```
 
-```query folding_ranges main.ds
+```query folding_ranges main.tspp
 @folding_ranges.range lines=0..2
 @folding_ranges.range lines=4..5 kind=comment
 ```
@@ -24,25 +24,25 @@ const value = 1;
 
 A declaration becomes foldable when its body spans multiple lines.
 
-```ds main.ds
+```tspp main.tspp
 function run(): void {}
 ```
 
-```query folding_ranges main.ds
+```query folding_ranges main.tspp
 @folding_ranges.none
 ```
 
-```ds main.ds change
+```tspp main.tspp change
 function run(): void {
     const value = 1;
 }
 ```
 
-```query folding_ranges main.ds
+```query folding_ranges main.tspp
 @folding_ranges.range lines=0..2
 ```
 
-```diff main.ds
+```diff main.tspp
 @@ -1,3 +1,3 @@
  function run(): void {
 -    const value = 1;
@@ -50,7 +50,7 @@ function run(): void {
  }
 ```
 
-```query folding_ranges main.ds
+```query folding_ranges main.tspp
 @folding_ranges.range lines=0..2
 ```
 
@@ -60,11 +60,11 @@ function run(): void {
 
 A one-line declaration has nothing to fold.
 
-```ds main.ds
+```tspp main.tspp
 function ping(): void {}
 ```
 
-```query folding_ranges main.ds
+```query folding_ranges main.tspp
 @folding_ranges.none
 ```
 
@@ -74,13 +74,13 @@ function ping(): void {}
 
 A multiline class body forms one folding range.
 
-```ds main.ds
+```tspp main.tspp
 class Box {
     value: int32;
 }
 ```
 
-```query folding_ranges main.ds
+```query folding_ranges main.tspp
 @folding_ranges.range lines=0..2
 ```
 
@@ -90,7 +90,7 @@ class Box {
 
 Module and global bodies use their declaration ranges.
 
-```ds main.ds
+```tspp main.tspp
 module {
     const local = 1;
 }
@@ -100,7 +100,7 @@ global {
 }
 ```
 
-```query folding_ranges main.ds
+```query folding_ranges main.tspp
 @folding_ranges.range lines=0..2
 @folding_ranges.range lines=4..6
 ```
@@ -111,7 +111,7 @@ global {
 
 Structs, interfaces, enums, and extensions expose their body ranges.
 
-```ds main.ds
+```tspp main.tspp
 struct Point {
     x: int32;
 }
@@ -129,7 +129,7 @@ extension of Point {
 }
 ```
 
-```query folding_ranges main.ds
+```query folding_ranges main.tspp
 @folding_ranges.range lines=0..2
 @folding_ranges.range lines=4..6
 @folding_ranges.range lines=8..10
@@ -142,19 +142,19 @@ extension of Point {
 
 A multiline import exposes its source extent as an import fold.
 
-```ds main.ds
+```tspp main.tspp
 import {
     alpha,
     beta,
-} from "./library.ds";
+} from "./library.tspp";
 ```
 
-```ds library.ds
+```tspp library.tspp
 export const alpha = 1;
 export const beta = 2;
 ```
 
-```query folding_ranges main.ds
+```query folding_ranges main.tspp
 @folding_ranges.range lines=0..3 kind=imports
 ```
 
@@ -162,27 +162,27 @@ export const beta = 2;
 
 Adjacent imports form one import fold without consuming the following declaration.
 
-```ds main.ds
-import { alpha } from "./alpha.ds";
-import { beta } from "./beta.ds";
-import { gamma } from "./gamma.ds";
+```tspp main.tspp
+import { alpha } from "./alpha.tspp";
+import { beta } from "./beta.tspp";
+import { gamma } from "./gamma.tspp";
 
 const value = alpha + beta + gamma;
 ```
 
-```ds alpha.ds
+```tspp alpha.tspp
 export const alpha = 1;
 ```
 
-```ds beta.ds
+```tspp beta.tspp
 export const beta = 2;
 ```
 
-```ds gamma.ds
+```tspp gamma.tspp
 export const gamma = 3;
 ```
 
-```query folding_ranges main.ds
+```query folding_ranges main.tspp
 @folding_ranges.range lines=0..2 kind=imports
 ```
 
@@ -192,7 +192,7 @@ export const gamma = 3;
 
 Nested statement blocks remain independently foldable.
 
-```ds main.ds
+```tspp main.tspp
 function choose(value: boolean): int32 {
     if (value) {
         return 1;
@@ -202,7 +202,7 @@ function choose(value: boolean): int32 {
 }
 ```
 
-```query folding_ranges main.ds
+```query folding_ranges main.tspp
 @folding_ranges.range lines=0..6
 @folding_ranges.range lines=1..3
 @folding_ranges.range lines=3..5
@@ -214,7 +214,7 @@ function choose(value: boolean): int32 {
 
 Multiline lists remain independently foldable inside their declaration and call.
 
-```ds main.ds
+```tspp main.tspp
 function add(
     left: int32,
     right: int32,
@@ -228,7 +228,7 @@ const total = add(
 );
 ```
 
-```query folding_ranges main.ds
+```query folding_ranges main.tspp
 @folding_ranges.range lines=0..5
 @folding_ranges.range lines=0..3
 @folding_ranges.range lines=7..10
@@ -238,7 +238,7 @@ const total = add(
 
 Arrays, objects, and structural types expose their own source ranges.
 
-```ds main.ds
+```tspp main.tspp
 const values = [
     1,
     2,
@@ -255,7 +255,7 @@ type Options = {
 };
 ```
 
-```query folding_ranges main.ds
+```query folding_ranges main.tspp
 @folding_ranges.range lines=0..3
 @folding_ranges.range lines=5..8
 @folding_ranges.range lines=10..13
@@ -267,7 +267,7 @@ type Options = {
 
 A multiline block comment forms one comment fold.
 
-```ds main.ds
+```tspp main.tspp
 /*
  * first line
  * second line
@@ -275,7 +275,7 @@ A multiline block comment forms one comment fold.
 const value = 1;
 ```
 
-```query folding_ranges main.ds
+```query folding_ranges main.tspp
 @folding_ranges.range lines=0..3 kind=comment
 ```
 
@@ -285,7 +285,7 @@ const value = 1;
 
 Region markers form one named editor fold.
 
-```ds main.ds
+```tspp main.tspp
 // #region setup
 const first = 1;
 const second = 2;
@@ -294,6 +294,6 @@ const second = 2;
 const result = first + second;
 ```
 
-```query folding_ranges main.ds
+```query folding_ranges main.tspp
 @folding_ranges.range lines=0..3 kind=region collapsed=setup
 ```

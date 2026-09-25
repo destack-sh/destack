@@ -1,5 +1,5 @@
-use destack_dir as dir;
 use rustc_hash::FxHashSet;
+use tspp_dir as dir;
 
 use crate::{CompletionCandidate, CompletionItemKind, CompletionOrigin};
 

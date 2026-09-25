@@ -11,7 +11,7 @@ function swap(pair: (int32, float64)): (float64, int32) {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.swap",
         r#"
 function test.main.swap(v0: (int32, float64)): (float64, int32) {
@@ -53,7 +53,7 @@ function corners(a: Point, b: Point): (Point, Point) {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.corners",
         r#"
 type test.main.Point {

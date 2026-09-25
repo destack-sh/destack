@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use super::CompletionCollector;
 use super::membership::{membership_member, membership_members};

@@ -1,6 +1,6 @@
-use destack_core::{StringId, StringPool};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::{StringId, StringPool};
+use tspp_serde::Reflect;
 
 /// Key for some static identifier or positional index.
 #[derive(

@@ -1,7 +1,7 @@
-use destack_repository::{Revision, TraceSnapshot};
-use destack_serde::Reflect;
-use destack_source::Diagnostic;
 use serde::{Deserialize, Serialize};
+use tspp_repository::{Revision, TraceSnapshot};
+use tspp_serde::Reflect;
+use tspp_source::Diagnostic;
 
 use crate::{CommandOutputChunk, CommandOutputFile, FileImage, Message, OutputStream};
 

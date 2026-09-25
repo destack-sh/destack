@@ -1,0 +1,405 @@
+=======================================
+Type parameter colon constraints
+:language(tspp)
+=======================================
+
+type HandlerFunction<T: Element> = void
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (predefined_type)))
+
+==================================
+Constructor type constraints
+:language(tspp)
+==================================
+
+type Foo<T: abstract new (...args: unknown) => unknown> = T;
+type Foo<T: new (...args: unknown) => unknown> = T;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (constructor_type
+            (formal_parameters
+              (required_parameter
+                (rest_pattern
+                  (identifier))
+                (type_annotation
+                  (predefined_type))))
+            (predefined_type)))))
+    (type_identifier))
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (constructor_type
+            (formal_parameters
+              (required_parameter
+                (rest_pattern
+                  (identifier))
+                (type_annotation
+                  (predefined_type))))
+            (predefined_type)))))
+    (type_identifier)))
+
+==========================================================
+Where accepts one constraint
+:language(tspp)
+==========================================================
+
+interface Readable {
+    read(): void;
+}
+
+function clone<T>(value: T): T where T: Readable {
+    return value;
+}
+
+const value: Readable = {
+    read() {},
+};
+clone<Readable>(value);
+
+
+
+---
+
+(program
+  (interface_declaration
+    (type_identifier)
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type)))))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (type_identifier))))
+    (type_annotation
+      (type_identifier))
+    (where_clause
+      (where_constraint
+        (type_identifier)
+        (type_identifier)))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (type_identifier))
+      (object
+        (method_definition
+          (property_identifier)
+          (formal_parameters)
+          (statement_block)))))
+  (expression_statement
+    (call_expression
+      (identifier)
+      (type_arguments
+        (type_identifier))
+      (arguments
+        (identifier)))))
+
+==========================================================
+Where accepts equality constraints
+:language(tspp)
+==========================================================
+
+function project<T, U>(): T where T.Output == U {
+    return value;
+}
+
+function projectBox<T, U>(): T where Box<T>.Output == U {
+    return value;
+}
+
+function projectThis<T, U>(): T where this.Output == U {
+    return value;
+}
+
+function projectSize<T, U>(): T where T.Output == SizeOf<T>() {
+    return value;
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters)
+    (type_annotation
+      (type_identifier))
+    (where_clause
+      (where_constraint
+        (nested_type_identifier
+          (identifier)
+          (type_identifier))
+        (type_identifier)))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters)
+    (type_annotation
+      (type_identifier))
+    (where_clause
+      (where_constraint
+        (associated_type_projection
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)))
+          (type_identifier))
+        (type_identifier)))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters)
+    (type_annotation
+      (type_identifier))
+    (where_clause
+      (where_constraint
+        (associated_type_projection
+          (this_type)
+          (type_identifier))
+        (type_identifier)))
+    (statement_block
+      (return_statement
+        (identifier))))
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters)
+    (type_annotation
+      (type_identifier))
+    (where_clause
+      (where_constraint
+        (nested_type_identifier
+          (identifier)
+          (type_identifier))
+        (static_value_argument
+          (call_expression
+            (identifier)
+            (type_arguments
+              (type_identifier))
+            (arguments)))))
+    (statement_block
+      (return_statement
+        (identifier)))))
+
+==========================================================
+Where attaches to declaration heads
+:language(tspp)
+==========================================================
+
+class Box<T> extends Base<T> implements Clone where T: Copy {
+    value: T;
+}
+
+struct Pair<T, U> implements Equal where T.Output == U {
+    left: T;
+    right: U;
+}
+
+interface Reader<T> extends Source<T> where T.Item == byte {
+    read(): T.Item;
+}
+
+enum State<T> extends uint8 implements Serializable where T.Tag == 1 {
+    Ready = 0,
+}
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (class_heritage
+      (extends_clause
+        (instantiation_expression
+          (identifier)
+          (type_arguments
+            (type_identifier))))
+      (implements_clause
+        (type_identifier)))
+    (where_clause
+      (where_constraint
+        (type_identifier)
+        (type_identifier)))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (struct_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (implements_clause
+      (type_identifier))
+    (where_clause
+      (where_constraint
+        (nested_type_identifier
+          (identifier)
+          (type_identifier))
+        (type_identifier)))
+    (class_body
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))))
+  (interface_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (extends_type_clause
+      (generic_type
+        (type_identifier)
+        (type_arguments
+          (type_identifier))))
+    (where_clause
+      (where_constraint
+        (nested_type_identifier
+          (identifier)
+          (type_identifier))
+        (type_identifier)))
+    (interface_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (nested_type_identifier
+            (identifier)
+            (type_identifier))))))
+  (enum_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (extends_type_clause
+      (type_identifier))
+    (implements_clause
+      (type_identifier))
+    (where_clause
+      (where_constraint
+        (nested_type_identifier
+          (identifier)
+          (type_identifier))
+        (literal_type
+          (number))))
+    (enum_body
+      (enum_assignment
+        (property_identifier)
+        (number)))))
+
+==========================================================
+Where accepts parenthesized relation lists
+:language(tspp)
+==========================================================
+
+function combine<T, U>(): T where (
+    T.Output == U,
+    U: Clone,
+    Box<T>.Count == SizeOf<T>(),
+) {
+    return value;
+}
+
+---
+
+(program
+  (function_declaration
+    (identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier))
+      (type_parameter
+        (type_identifier)))
+    (formal_parameters)
+    (type_annotation
+      (type_identifier))
+    (where_clause
+      (where_constraint
+        (nested_type_identifier
+          (identifier)
+          (type_identifier))
+        (type_identifier))
+      (where_constraint
+        (type_identifier)
+        (type_identifier))
+      (where_constraint
+        (associated_type_projection
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (type_identifier)))
+          (type_identifier))
+        (static_value_argument
+          (call_expression
+            (identifier)
+            (type_arguments
+              (type_identifier))
+            (arguments)))))
+    (statement_block
+      (return_statement
+        (identifier)))))

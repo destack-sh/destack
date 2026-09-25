@@ -1,0 +1,12 @@
+import { Error, RangeError, TypeError } from "tspp:error";
+
+/// Locale, formatting, collation, or segmentation failure.
+@languageItem("intl.IntlError")
+export newtype IntlError = RangeError | TypeError;
+
+export extension of IntlError implements Error {
+    /// Format this error for users.
+    display(this: &immutable this): ^string {
+        this.message.clone()
+    }
+}

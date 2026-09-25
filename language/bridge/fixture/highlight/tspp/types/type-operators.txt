@@ -1,0 +1,19 @@
+// SYNTAX TEST "source.tspp"
+
+// types / type-operators / unions intersections and conditionals
+type Input = string | bytes.Buffer;
+// <- keyword.declaration.type.tspp
+
+type Output = Named & Serializable;
+
+type Payload<T> = T extends string ? TextPayload : BinaryPayload;
+
+// types / type-operators / satisfies and implements
+type IsDrawable = Point implements Drawable;
+// <- keyword.declaration.type.tspp
+
+value satisfies Drawable;
+//    ^^^^^^^^^ keyword.operator.type.binary.tspp
+
+result satisfies { kind?: "ok"; value: string } | { kind: "err"; error: string };
+//     ^^^^^^^^^ keyword.operator.type.binary.tspp

@@ -1,6 +1,6 @@
 use crate::tests::TestParser;
 use crate::{assert_expression_path, assert_node};
-use destack_dir::{
+use tspp_dir::{
     Argument, Declaration, Declarator, Expression, InterfaceDeclaration, NodeType, TokenType,
     TypeExpression, TypeMember,
 };

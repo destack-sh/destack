@@ -1,9 +1,9 @@
 use crate::parse::ExpressionStop;
 use crate::parse::r#type::operator::{TypeOperator, TypeRelation};
 use crate::{Parser, ParserResult};
-use destack_dir::{LocalNodeId, NodeType, OperatorPrecedence, RangeEnd, TokenType, TypeExpression};
-use destack_source::{ByteRange, NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 use smallvec::SmallVec;
+use tspp_dir::{LocalNodeId, NodeType, OperatorPrecedence, RangeEnd, TokenType, TypeExpression};
+use tspp_source::{ByteRange, NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
 /// The source position of one type expression.
 #[derive(Debug, Copy, Clone, Default, Eq, PartialEq)]
@@ -78,7 +78,7 @@ impl Parser {
     /// Parse one complete type expression.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// Result<Value, Error> | none
     /// ```
     pub(crate) fn parse_type(

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_artifact::{MirAnalyzed, ProgramAnalysis};
-use destack_mir::{LinkSupergraph, ProgramEffectTable, Symbol};
+use tspp_artifact::{MirAnalyzed, ProgramAnalysis};
+use tspp_mir::{LinkSupergraph, ProgramEffectTable, Symbol};
 
 use crate::{CompilerError, CompilerResult};
 

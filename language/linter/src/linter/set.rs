@@ -1,7 +1,7 @@
-use destack_artifact::{DiagnosticAnchor, DiagnosticControlIndex, IndexKind};
-use destack_core::{FxIndexSet, StringId};
-use destack_repository::{LintLevel, LinterOptions};
-use destack_source::{DiagnosticSeverity, PackageId};
+use tspp_artifact::{DiagnosticAnchor, DiagnosticControlIndex, IndexKind};
+use tspp_core::{FxIndexSet, StringId};
+use tspp_repository::{LintLevel, LinterOptions};
+use tspp_source::{DiagnosticSeverity, PackageId};
 
 use super::{
     DirModuleCheck, DirProgramCheck, Lint, LintCheck, LintScope, LintTier, MirModuleCheck,

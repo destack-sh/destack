@@ -3,9 +3,9 @@ use std::num::NonZeroU32;
 use std::sync::Arc;
 use std::{fmt, mem, slice};
 
-pub use destack_serde::SectionEntry;
-use destack_serde::{Reflect, Schema, Type};
 use serde::{Deserialize, Serialize};
+pub use tspp_serde::SectionEntry;
+use tspp_serde::{Reflect, Schema, Type};
 
 use crate::{Blob, BlobMemory, StringId};
 

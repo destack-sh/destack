@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_core::{BitSet, FxIndexMap};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::{BitSet, FxIndexMap};
+use tspp_serde::Reflect;
 
 use crate as mir;
 use crate::{

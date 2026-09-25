@@ -3,20 +3,20 @@ use crate::collection::{FormatSeparatedIter, TrailingSeparator, separated_entrie
 use crate::expression::static_value_expression;
 use crate::file::any_ignore_range_for_nodes;
 use crate::operator::{assign_pattern_contains_expression, expression_generic_arguments};
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{
+use crate::{TsppFormatContext, TsppFormatter};
+use smallvec::SmallVec;
+use tspp_dir::{
     Argument, Expression, GenericArgument, LocalNodeId, NodeType, Pattern, PatternField, Property,
     TypeExpression,
 };
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::{
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::{
     block_indent, empty_line, format_with, group, hard_line_break, if_group_fits_on_line,
     soft_block_indent, soft_line_break_or_space, space, token,
 };
-use destack_fir::{format_args, write};
-use destack_repository::TrailingComma;
-use destack_source::Span;
-use smallvec::SmallVec;
+use tspp_fir::{format_args, write};
+use tspp_repository::TrailingComma;
+use tspp_source::Span;
 
 // object literal shape thresholds
 const SINGLE_PROPERTY_COUNT: usize = 1;
@@ -42,7 +42,7 @@ enum StructLiteralLayout {
 
 /// Return whether any property in one collection has annotations.
 fn properties_have_annotations(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     property_ids: &[LocalNodeId<Property>],
 ) -> bool {
     property_ids
@@ -53,7 +53,7 @@ fn properties_have_annotations(
 
 /// Return whether any property in one collection spans multiple source lines.
 fn properties_have_newline(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     property_ids: &[LocalNodeId<Property>],
 ) -> bool {
     property_ids
@@ -64,7 +64,7 @@ fn properties_have_newline(
 
 /// Return whether an expression is the value of a tree attribute argument.
 fn is_tree_attribute_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some((argument_id, parent_type)) = context.parent(node_id) else {
@@ -90,7 +90,7 @@ fn is_tree_attribute_expression(
 
 /// Return whether an expression is the type annotation of a parameter.
 pub(crate) fn is_parameter_type_annotation(
-    _context: &DestackFormatContext<'_>,
+    _context: &TsppFormatContext<'_>,
     _expression_id: LocalNodeId<Expression>,
 ) -> bool {
     false
@@ -98,7 +98,7 @@ pub(crate) fn is_parameter_type_annotation(
 
 /// Format arrays whose comments stay outside the element run.
 pub(crate) fn format_outer_comment_array<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     elements: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
     if elements.is_empty() {
@@ -107,7 +107,7 @@ pub(crate) fn format_outer_comment_array<'ast>(
     }
 
     let should_add_trailing_separator = f.context().options.trailing_comma != TrailingComma::None;
-    let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let body = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         for (index, element_id) in elements.iter().copied().enumerate() {
             if index > 0 {
                 write!(f, [token(","), space()])?;
@@ -134,7 +134,7 @@ pub(crate) fn format_outer_comment_array<'ast>(
 
 /// Format fill-candidate arrays with the shared fill layout.
 pub(crate) fn format_fill_array<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     elements: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
     if elements.is_empty() {
@@ -143,7 +143,7 @@ pub(crate) fn format_fill_array<'ast>(
     }
 
     let group_id = f.group_id();
-    let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let body = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         let trailing_separator = if f.context().options.trailing_comma == TrailingComma::None {
             TrailingSeparator::Omit
         } else {
@@ -152,12 +152,12 @@ pub(crate) fn format_fill_array<'ast>(
         let entries = FormatSeparatedIter::new(elements.iter().copied(), ",")
             .with_trailing_separator(trailing_separator)
             .with_group_id(Some(group_id));
-        let mut fill: destack_fir::format::FillBuilder<'_, '_, 'ast, DestackFormatContext<'ast>> =
+        let mut fill: tspp_fir::format::FillBuilder<'_, '_, 'ast, TsppFormatContext<'ast>> =
             f.fill();
 
         for (index, entry) in entries.enumerate() {
             let element_id = elements[index];
-            let separator = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            let separator = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 let element_span = f.context().span(element_id);
                 if f.context()
                     .source_text()
@@ -195,7 +195,7 @@ pub(crate) fn format_fill_array<'ast>(
 
 /// Whether an expression is used as the left side of an assignment.
 pub(crate) fn is_assignment_left_target(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let mut current_expression_id = expression_id;
@@ -225,7 +225,7 @@ pub(crate) fn is_assignment_left_target(
 
 /// Return whether one preserved parenthesized assignment target should expand.
 fn object_assignment_target_has_complex_destructuring(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     match context.tree.get(expression_id) {
@@ -246,7 +246,7 @@ fn object_assignment_target_has_complex_destructuring(
 
 /// Decide whether an object literal is the default value of a multiline pattern field.
 fn is_multiline_pattern_field_default_object(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     // assignment wrapper
@@ -295,7 +295,7 @@ fn is_multiline_pattern_field_default_object(
 
 /// Return whether an object literal has a source newline immediately after `{`.
 fn object_has_leading_newline_before_first_property(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     properties_ids: &[LocalNodeId<Property>],
 ) -> bool {
@@ -320,7 +320,7 @@ fn object_has_leading_newline_before_first_property(
 
 /// Resolve the source separator style for type-literal object members.
 fn type_member_separator(
-    _context: &DestackFormatContext<'_>,
+    _context: &TsppFormatContext<'_>,
     _properties_ids: &[LocalNodeId<Property>],
 ) -> &'static str {
     ";"
@@ -328,7 +328,7 @@ fn type_member_separator(
 
 /// Write one expanded object or struct literal body.
 fn write_expanded_struct_literal<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     properties_ids: &[LocalNodeId<Property>],
     separator: &'static str,
@@ -363,7 +363,7 @@ fn write_expanded_struct_literal<'ast>(
 
 /// Write one empty struct literal.
 fn write_empty_struct_literal<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let expression_span = f.context().span(expression_id);
@@ -386,7 +386,7 @@ fn write_empty_struct_literal<'ast>(
             f,
             [group(&format_args![
                 token("{"),
-                block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+                block_indent(&format_with(|f: &mut TsppFormatter<'ast, '_>| {
                     if f.context().has_infix_annotation(expression_id) {
                         write!(f, [block_infix_annotations(f.context(), expression_id)])?;
                     }
@@ -406,7 +406,7 @@ fn write_empty_struct_literal<'ast>(
 
 /// Write one inline single-property parameter type literal.
 fn write_inline_parameter_type_literal<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     property_id: LocalNodeId<Property>,
 ) -> FormatResult<()> {
     if f.context().options.bracket_spacing {
@@ -418,7 +418,7 @@ fn write_inline_parameter_type_literal<'ast>(
 
 /// Write one grouped object or struct literal body.
 fn write_grouped_struct_literal<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     properties_ids: &[LocalNodeId<Property>],
     separator: &'static str,
@@ -431,7 +431,7 @@ fn write_grouped_struct_literal<'ast>(
         f,
         [group(&format_args![
             token("{"),
-            soft_block_indent(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            soft_block_indent(&format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 if f.context().options.bracket_spacing {
                     write!(f, [if_group_fits_on_line(&space())])?;
                 }
@@ -466,7 +466,7 @@ fn write_grouped_struct_literal<'ast>(
 
 /// Return the separator for one struct literal in the current context.
 fn struct_literal_separator(
-    f: &DestackFormatter<'_, '_>,
+    f: &TsppFormatter<'_, '_>,
     in_type_context: bool,
     properties_ids: &[LocalNodeId<Property>],
 ) -> &'static str {
@@ -479,7 +479,7 @@ fn struct_literal_separator(
 
 /// Decide the top-level layout for one struct literal.
 fn struct_literal_layout(
-    f: &DestackFormatter<'_, '_>,
+    f: &TsppFormatter<'_, '_>,
     expression_id: LocalNodeId<Expression>,
     properties_ids: &[LocalNodeId<Property>],
 ) -> StructLiteralLayout {
@@ -623,7 +623,7 @@ fn struct_literal_layout(
 /// Format a struct literal expression.
 #[inline]
 pub(crate) fn format_struct_literal<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     ty: Option<LocalNodeId<TypeExpression>>,
     properties_ids: &[LocalNodeId<Property>],

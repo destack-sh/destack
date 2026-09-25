@@ -1,7 +1,7 @@
-use destack_dir as dir;
-use destack_serde::Reflect;
-use destack_source::{FilePatch, Patch, PatchSet, Span};
 use serde::{Deserialize, Serialize};
+use tspp_dir as dir;
+use tspp_serde::Reflect;
+use tspp_source::{FilePatch, Patch, PatchSet, Span};
 
 use super::hoist::HoistSite;
 use crate::source::{is_simple_identifier, offset_line_start};

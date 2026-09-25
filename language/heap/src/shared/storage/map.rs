@@ -1,6 +1,6 @@
 use super::{HeapExtent, HeapPlace, HeapState, HeapStorage, LargeBlockId, PageOwner};
 use crate::{SharedHeapReference, Slot};
-use destack_memory::MemoryRange;
+use tspp_memory::MemoryRange;
 
 impl HeapStorage {
     /// Return the owner of one logical page.

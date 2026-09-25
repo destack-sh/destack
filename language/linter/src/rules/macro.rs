@@ -1,7 +1,7 @@
 macro_rules! lint_example_source {
     ($source:literal) => {
         $crate::LintExampleSource {
-            path: std::borrow::Cow::Borrowed("main.ds"),
+            path: std::borrow::Cow::Borrowed("main.tspp"),
             source: std::borrow::Cow::Borrowed($source),
         }
     };
@@ -34,8 +34,8 @@ macro_rules! declare_lint {
             check: $check:ident($function:path),
         }
     ) => {
-        const _: destack_source::DiagnosticDefinition =
-            destack_source::DiagnosticDefinition::controllable_warning($id, $summary);
+        const _: tspp_source::DiagnosticDefinition =
+            tspp_source::DiagnosticDefinition::controllable_warning($id, $summary);
 
         $(#[$attribute])*
         $visibility static $name: $crate::Lint = $crate::Lint {
@@ -55,9 +55,9 @@ macro_rules! declare_lint {
                 ),*
             ],
             category: $crate::LintCategory::$category,
-            default_level: destack_repository::LintLevel::$level,
+            default_level: tspp_repository::LintLevel::$level,
             fixability: $crate::Fixability::$fixable,
-            module_indexes: &[$($(destack_artifact::IndexKind::$index),*)?],
+            module_indexes: &[$($(tspp_artifact::IndexKind::$index),*)?],
             check: $crate::LintCheck::$check($function),
             source_path: file!(),
             source_line: line!(),

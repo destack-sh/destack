@@ -1,8 +1,8 @@
-use destack_core::FxIndexMap;
-use destack_dir as dir;
-use destack_mir as mir;
+use tspp_core::FxIndexMap;
+use tspp_dir as dir;
+use tspp_mir as mir;
 
-use destack_source::ModuleId;
+use tspp_source::ModuleId;
 
 use crate::lower::{GenericInstanceKey, GenericScope, ModuleLowerer};
 use crate::{CompilerError, CompilerResult, LowerError};

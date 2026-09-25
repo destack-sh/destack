@@ -1,5 +1,5 @@
-use destack_lsp_server::jsonrpc;
-use destack_lsp_types as lsp;
+use tspp_lsp_server::jsonrpc;
+use tspp_lsp_types as lsp;
 
 use super::tests::{TestServer, markdown, position, range, replace, replace_document};
 
@@ -9,7 +9,7 @@ async fn test_open_nested_package() {
     let source = answer("float64", "1");
     let mut server = TestServer::new_editor_folder("nested-package");
     server.create_package("language/library");
-    let document = server.write("language/library/main.ds", &source);
+    let document = server.write("language/library/main.tspp", &source);
     server
         .initialize(lsp::ClientCapabilities::default(), None)
         .await
@@ -20,7 +20,7 @@ async fn test_open_nested_package() {
     server.open(&document, 1, &source).await;
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
-            "`main.ds:1:17`\n\n```ds\nexport function answer(): float64\n```",
+            "`main.tspp:1:17`\n\n```tspp\nexport function answer(): float64\n```",
         )),
         range: Some(range(0, 16, 0, 22)),
     };
@@ -39,7 +39,7 @@ async fn test_open_standalone_package_below_workspace() {
   }
 }
 "#;
-    let source = r#"import { log } from "destack:console";
+    let source = r#"import { log } from "tspp:console";
 
 export function answer(): float64 {
   log("answer");
@@ -54,7 +54,7 @@ declare const missing: MissingType;
     server.write("destack.json", manifest);
     server.create_package("member");
     server.create_package("standalone");
-    let document = server.write("standalone/main.ds", source);
+    let document = server.write("standalone/main.tspp", source);
     server
         .initialize(lsp::ClientCapabilities::default(), None)
         .await
@@ -65,7 +65,7 @@ declare const missing: MissingType;
     // query the source through its standalone package
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
-            "`main.ds:3:17`\n\n```ds\nexport function answer(): float64\n```",
+            "`main.tspp:3:17`\n\n```tspp\nexport function answer(): float64\n```",
         )),
         range: Some(range(2, 16, 2, 22)),
     };
@@ -76,10 +76,10 @@ declare const missing: MissingType;
     // resolve imports through the same project identity
     let target = server.builtin_uri_at(
         &server.root().join("standalone"),
-        "destack://console/index.ds",
+        "tspp://console/index.tspp",
     );
     let expected = Some(vec![lsp::DocumentLink {
-        range: range(0, 20, 0, 37),
+        range: range(0, 20, 0, 34),
         target: Some(target),
         tooltip: None,
         data: None,
@@ -103,7 +103,7 @@ async fn test_publish_latest_document_revision() {
     let third = answer("float64", "true");
     let fourth = answer("float64", "1");
     let mut server = TestServer::new("latest-document-revision");
-    let document = server.write("main.ds", &first);
+    let document = server.write("main.tspp", &first);
     server
         .initialize(lsp::ClientCapabilities::default(), None)
         .await
@@ -126,7 +126,7 @@ async fn test_publish_latest_document_revision() {
     // query the same current revision
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
-            "`main.ds:1:17`\n\n```ds\nexport function answer(): float64\n```",
+            "`main.tspp:1:17`\n\n```tspp\nexport function answer(): float64\n```",
         )),
         range: Some(range(0, 16, 0, 22)),
     };
@@ -144,8 +144,8 @@ async fn test_query_successive_typed_revisions() {
     let suffix = ": Clone;";
     let (mut server, document) = TestServer::open_workspace(
         "successive-typed-revisions",
-        &[("src/main.ds", initial)],
-        "src/main.ds",
+        &[("src/main.tspp", initial)],
+        "src/main.tspp",
     )
     .await;
     let (version, cursor) = server.type_text(&document, 1, position(1, 0), prefix).await;
@@ -194,7 +194,7 @@ async fn test_complete_constructor_receiver_after_typing() {
 
     // type the class through successive document revisions
     let mut server = TestServer::new("constructor-receiver-typing");
-    let document = server.write("main.ds", "");
+    let document = server.write("main.tspp", "");
     server
         .initialize(lsp::ClientCapabilities::default(), None)
         .await
@@ -218,7 +218,7 @@ async fn test_apply_incremental_document_changes() {
 }
 "#;
     let mut server = TestServer::new("incremental-document-changes");
-    let document = server.write("main.ds", source);
+    let document = server.write("main.tspp", source);
     server
         .initialize(lsp::ClientCapabilities::default(), None)
         .await
@@ -246,7 +246,7 @@ async fn test_apply_incremental_document_changes() {
     // observe the renamed parameter through a semantic query
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
-            "`main.ds:1:17`\n\n```ds\nexport function choose(input: string): string\n```",
+            "`main.tspp:1:17`\n\n```tspp\nexport function choose(input: string): string\n```",
         )),
         range: Some(range(0, 16, 0, 22)),
     };
@@ -261,7 +261,7 @@ async fn test_restore_file_after_closing_document() {
     let stored = answer("float64", "1");
     let opened = answer("boolean", "true");
     let mut server = TestServer::new("close-document");
-    let document = server.write("main.ds", &stored);
+    let document = server.write("main.tspp", &stored);
     server
         .initialize(lsp::ClientCapabilities::default(), None)
         .await
@@ -272,7 +272,7 @@ async fn test_restore_file_after_closing_document() {
     server.open(&document, 1, &opened).await;
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
-            "`main.ds:1:17`\n\n```ds\nexport function answer(): boolean\n```",
+            "`main.tspp:1:17`\n\n```tspp\nexport function answer(): boolean\n```",
         )),
         range: Some(range(0, 16, 0, 22)),
     };
@@ -284,7 +284,7 @@ async fn test_restore_file_after_closing_document() {
     server.close(&document).await;
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
-            "`main.ds:1:17`\n\n```ds\nexport function answer(): float64\n```",
+            "`main.tspp:1:17`\n\n```tspp\nexport function answer(): float64\n```",
         )),
         range: Some(range(0, 16, 0, 22)),
     };
@@ -300,7 +300,7 @@ async fn test_save_document_contents() {
     let opened = answer("boolean", "true");
     let saved = answer("string", r#""saved""#);
     let mut server = TestServer::new("save-document");
-    let document = server.write("main.ds", &stored);
+    let document = server.write("main.tspp", &stored);
     server
         .initialize(lsp::ClientCapabilities::default(), None)
         .await
@@ -309,14 +309,14 @@ async fn test_save_document_contents() {
 
     // update both the editor document and its physical file
     server.open(&document, 1, &opened).await;
-    server.write("main.ds", &saved);
+    server.write("main.tspp", &saved);
     server.save(&document, Some(&saved)).await;
 
     // return ownership to the saved physical source
     server.close(&document).await;
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
-            "`main.ds:1:17`\n\n```ds\nexport function answer(): string\n```",
+            "`main.tspp:1:17`\n\n```tspp\nexport function answer(): string\n```",
         )),
         range: Some(range(0, 16, 0, 22)),
     };
@@ -330,7 +330,7 @@ async fn test_save_document_contents() {
 async fn test_retain_project_for_open_document() {
     let source = answer("float64", "1");
     let mut server = TestServer::new("open-document-project");
-    let document = server.write("main.ds", &source);
+    let document = server.write("main.tspp", &source);
     server
         .initialize(lsp::ClientCapabilities::default(), None)
         .await
@@ -357,7 +357,7 @@ async fn test_retain_project_for_open_document() {
     // continue serving the open document from its retained project
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
-            "`main.ds:1:17`\n\n```ds\nexport function answer(): float64\n```",
+            "`main.tspp:1:17`\n\n```tspp\nexport function answer(): float64\n```",
         )),
         range: Some(range(0, 16, 0, 22)),
     };

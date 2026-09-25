@@ -2,7 +2,7 @@ use crate::emit::js::{
     Expression, Literal, LocalNodeId, Module, Node, NodeVisitor, Statement, Tree, walk_expression,
     walk_root, walk_statement,
 };
-use destack_source::ModuleId;
+use tspp_source::ModuleId;
 
 /// One JS dependency target.
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -131,7 +131,7 @@ const masked = 240 & value;
         session.assert_diagnostics(
             r#"
 warning[decimal-bitwise-operand]: decimal literal obscures a bit mask
- ──▶ main.ds:2:16
+ ──▶ main.tspp:2:16
   │
 1 │ declare const value: uint32;
 2 │ const masked = 240 & value;

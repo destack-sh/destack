@@ -1,0 +1,49 @@
+================================================================================
+Raw pointer syntax
+:language(tspp)
+================================================================================
+
+let pointer: *uint8 = &bytes[0];
+let byte = *pointer;
+
+@unsafe
+function readRaw(pointer: *uint8): uint8 {
+    read(pointer)
+}
+
+--------------------------------------------------------------------------------
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (memory_type
+          (type_identifier)))
+      (memory_expression
+        (subscript_expression
+          (identifier)
+          (number)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (memory_expression
+        (identifier))))
+  (function_declaration
+    (decorator
+      (identifier))
+    (identifier)
+    (formal_parameters
+      (required_parameter
+        (identifier)
+        (type_annotation
+          (memory_type
+            (type_identifier)))))
+    (type_annotation
+      (type_identifier))
+    (statement_block
+      (expression_statement
+        (call_expression
+          (identifier)
+          (arguments
+            (identifier)))))))

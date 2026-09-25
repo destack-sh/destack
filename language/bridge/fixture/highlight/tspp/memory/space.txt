@@ -1,0 +1,8 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / space / local shared and static storage
+let localBuffer: local Buffer = Buffer.allocate();
+//               ^^^^^ keyword.other.modifier.tspp
+
+let sharedBuffer: shared Buffer = Buffer.share(localBuffer);
+//                ^^^^^^ keyword.other.modifier.tspp

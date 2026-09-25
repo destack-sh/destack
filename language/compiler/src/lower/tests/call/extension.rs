@@ -23,7 +23,7 @@ function measure(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Point.double",
         r#"
 type test.main.Point {
@@ -48,7 +48,7 @@ entry(v0: ref<test.main.Point, borrowed, 'a, readonly>):
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.measure", r#"
+    session.assert_mir_function("main.tspp", "test.main.measure", r#"
 type test.main.Point {
     x: int32;
 }
@@ -92,7 +92,7 @@ function build(value: int32): Box<int32> {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.build",
         r#"
 type test.main.Box<T> {
@@ -115,7 +115,7 @@ entry(v0: int32):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Box.of<int32>",
         r#"
 type test.main.Box<T> {
@@ -152,7 +152,7 @@ function build(): Box<int32> {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.build",
         r#"
 type test.main.Box<T> {
@@ -172,7 +172,7 @@ entry:
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Box.of<int32>",
         r#"
 type test.main.Box<T> {
@@ -205,7 +205,7 @@ function greatest(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Number.top",
         r#"
 function test.main.Number.top(): int32 {
@@ -217,7 +217,7 @@ entry:
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.greatest",
         r#"
 function test.main.greatest(): int32 {

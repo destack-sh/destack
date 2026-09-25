@@ -1,10 +1,10 @@
 use std::path::Path;
 
-use destack_artifact::ArtifactDependency;
-use destack_dir as dir;
-use destack_repository::{ArtifactReader, ProfileId, ProviderContext};
-use destack_source::ModuleId;
 use indexmap::IndexMap;
+use tspp_artifact::ArtifactDependency;
+use tspp_dir as dir;
+use tspp_repository::{ArtifactReader, ProfileId, ProviderContext};
+use tspp_source::ModuleId;
 
 use crate::export::{ExportLookup, ExportResolver};
 use crate::{Compiler, CompilerError, CompilerResult};

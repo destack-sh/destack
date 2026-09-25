@@ -8,13 +8,13 @@ Export fixtures cover named exports, default exports, re-exports, and export com
 
 Export braces get internal spacing, like imports.
 
-```ds
+```tspp
 export {foo,bar,baz}
 ```
 
 Spaces are added after `{` and before `}`.
 
-```ds expected
+```tspp expected
 export { bar, baz, foo };
 ```
 
@@ -22,11 +22,11 @@ export { bar, baz, foo };
 
 Single exports also get internal spacing.
 
-```ds
+```tspp
 export { foo }
 ```
 
-```ds expected
+```tspp expected
 export { foo };
 ```
 
@@ -34,11 +34,11 @@ export { foo };
 
 Exports can rename values using `as`.
 
-```ds
+```tspp
 export { foo as bar }
 ```
 
-```ds expected
+```tspp expected
 export { foo as bar };
 ```
 
@@ -46,11 +46,11 @@ export { foo as bar };
 
 Multiple exports can each have aliases.
 
-```ds
+```tspp
 export { foo as f, bar as b, baz as z }
 ```
 
-```ds expected
+```tspp expected
 export { bar as b, foo as f, baz as z };
 ```
 
@@ -58,11 +58,11 @@ export { bar as b, foo as f, baz as z };
 
 Values can be exported as the default export.
 
-```ds
+```tspp
 export { foo as default }
 ```
 
-```ds expected
+```tspp expected
 export { foo as default };
 ```
 
@@ -70,11 +70,11 @@ export { foo as default };
 
 Re-exporting all keeps spacing and semicolons.
 
-```ds
+```tspp
 export * from "module"
 ```
 
-```ds expected
+```tspp expected
 export * from "module";
 ```
 
@@ -82,11 +82,11 @@ export * from "module";
 
 Namespace re-exports keep spacing and semicolons.
 
-```ds:main.ds
+```tspp:main.tspp
 export * as Utils from "module"
 ```
 
-```ds expected
+```tspp expected
 export * as Utils from "module";
 ```
 
@@ -96,11 +96,11 @@ export * as Utils from "module";
 
 Constants can be exported inline.
 
-```ds
+```tspp
 export const x = 1
 ```
 
-```ds expected
+```tspp expected
 export const x = 1;
 ```
 
@@ -108,11 +108,11 @@ export const x = 1;
 
 Mutable variables can be exported inline.
 
-```ds
+```tspp
 export let y = 2
 ```
 
-```ds expected
+```tspp expected
 export let y = 2;
 ```
 
@@ -120,11 +120,11 @@ export let y = 2;
 
 Functions can be exported inline.
 
-```ds
+```tspp
 export function foo() { }
 ```
 
-```ds expected
+```tspp expected
 export function foo() {}
 ```
 
@@ -132,11 +132,11 @@ export function foo() {}
 
 Classes can be exported inline.
 
-```ds
+```tspp
 export class Foo { }
 ```
 
-```ds expected
+```tspp expected
 export class Foo {}
 ```
 
@@ -144,11 +144,11 @@ export class Foo {}
 
 Interfaces with members expand to multiple lines.
 
-```ds
+```tspp
 export interface Foo { x: number }
 ```
 
-```ds expected
+```tspp expected
 export interface Foo {
     x: number;
 }
@@ -158,11 +158,11 @@ export interface Foo {
 
 Type aliases can be exported inline.
 
-```ds
+```tspp
 export type Foo = number
 ```
 
-```ds expected
+```tspp expected
 export type Foo = number;
 ```
 
@@ -170,11 +170,11 @@ export type Foo = number;
 
 Structs with fields expand to multiple lines.
 
-```ds
+```tspp
 export struct Point { x: number; y: number }
 ```
 
-```ds expected
+```tspp expected
 export struct Point {
     x: number;
     y: number;
@@ -185,11 +185,11 @@ export struct Point {
 
 Enums expand to multiple lines with trailing commas on variants.
 
-```ds
+```tspp
 export enum Status { Active; Inactive }
 ```
 
-```ds expected
+```tspp expected
 export enum Status {
     Active,
     Inactive,
@@ -202,11 +202,11 @@ export enum Status {
 
 Functions can be the default export.
 
-```ds
+```tspp
 export default function handler() { }
 ```
 
-```ds expected
+```tspp expected
 export default function handler() {}
 ```
 
@@ -214,11 +214,11 @@ export default function handler() {}
 
 Classes can be the default export.
 
-```ds
+```tspp
 export default class Handler { }
 ```
 
-```ds expected
+```tspp expected
 export default class Handler {}
 ```
 
@@ -226,11 +226,11 @@ export default class Handler {}
 
 Expressions can be the default export.
 
-```ds
+```tspp
 export default 42
 ```
 
-```ds expected
+```tspp expected
 export default 42;
 ```
 
@@ -238,11 +238,11 @@ export default 42;
 
 Object literals can be the default export.
 
-```ds
+```tspp
 export default { x: 1, y: 2 }
 ```
 
-```ds expected
+```tspp expected
 export default { x: 1, y: 2 };
 ```
 
@@ -250,11 +250,11 @@ export default { x: 1, y: 2 };
 
 Arrow functions can be the default export.
 
-```ds
+```tspp
 export default (x) => x * 2
 ```
 
-```ds expected
+```tspp expected
 export default (x) => x * 2;
 ```
 
@@ -264,13 +264,13 @@ export default (x) => x * 2;
 
 When exports exceed the line width, they break to multiple lines.
 
-```ds line-width=40
+```tspp line-width=40
 export { veryLongName, anotherLongName, thirdLongName }
 ```
 
 Each export goes on its own line with a trailing comma.
 
-```ds expected
+```tspp expected
 export {
     anotherLongName,
     thirdLongName,
@@ -282,11 +282,11 @@ export {
 
 When exports exceed the line width, they break to multiple lines.
 
-```ds line-width=30
+```tspp line-width=30
 export { a, b, c, d, e, f, g }
 ```
 
-```ds expected
+```tspp expected
 export {
     a,
     b,

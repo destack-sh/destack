@@ -1,8 +1,8 @@
-use destack_serde::Reflect;
 use std::hash::Hash;
+use tspp_serde::Reflect;
 
-use destack_core::StableHasher;
 use serde::{Deserialize, Serialize};
+use tspp_core::StableHasher;
 
 use crate::{ConditionSet, EnvironmentKey, Output, Stability, TargetAbi, TargetArch, TargetVendor};
 

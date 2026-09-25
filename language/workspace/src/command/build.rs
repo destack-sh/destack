@@ -1,11 +1,11 @@
 use std::collections::{BTreeSet, HashSet};
 use std::path::PathBuf;
 
-use destack_artifact::{ArtifactKey, ArtifactReference};
-use destack_repository::{Revision, TraceView};
-use destack_serde::Reflect;
-use destack_source::{ModuleId, PackageId, ProductId};
 use serde::{Deserialize, Serialize};
+use tspp_artifact::{ArtifactKey, ArtifactReference};
+use tspp_repository::{Revision, TraceView};
+use tspp_serde::Reflect;
+use tspp_source::{ModuleId, PackageId, ProductId};
 
 use super::CommandResult;
 use super::common::{
@@ -218,7 +218,7 @@ impl SelectedTarget {
         }
 
         // select the linked Program root
-        if self.target.output == destack_artifact::Output::Program {
+        if self.target.output == tspp_artifact::Output::Program {
             return ArtifactKey::program(self.id.package_id(), self.id);
         }
 

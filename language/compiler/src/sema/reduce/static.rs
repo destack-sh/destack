@@ -1,6 +1,6 @@
-use destack_core::FxIndexMap;
-use destack_dir as dir;
-use destack_source::ModuleId;
+use tspp_core::FxIndexMap;
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use crate::sema::CheckState;
 use crate::r#static::{StaticError, StaticEvaluator};

@@ -1,9 +1,9 @@
 use crate::{ExpressionPosition, ExpressionStop};
-use destack_dir::{
+use std::fmt::Write;
+use tspp_dir::{
     Argument, BinaryOperator, Declaration, Expression, FunctionDeclaration, GenericArgument,
     InferForm, Literal, LocalNodeId, NodeType, PostfixPosition, TokenType, TypeExpression,
 };
-use std::fmt::Write;
 
 use crate::{
     Parser, TestParser, assert_expression_path, assert_node, assert_path, assert_string,

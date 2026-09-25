@@ -1,10 +1,10 @@
 use std::fmt;
 
-use destack_heap as heap;
-use destack_memory as memory;
-use destack_program as program;
-use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use tspp_heap as heap;
+use tspp_memory as memory;
+use tspp_program as program;
+use tspp_vm as vm;
 
 use crate::diagnostic::HostError;
 use crate::machine::native;

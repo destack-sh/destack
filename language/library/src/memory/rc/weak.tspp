@@ -1,0 +1,66 @@
+import { todo } from "tspp:error";
+
+import { Clone, Copy } from "../capability.tspp";
+import { Drop } from "../drop.tspp";
+import { Owned } from "../owned.tspp";
+import { Rc, RcInner } from "./rc.tspp";
+
+/// Weak local reference-counted handle.
+@languageItem("memory.rc.Weak")
+export struct Weak<T> implements !SharedSafe {
+    /// The reference-counted allocation.
+    private inner: *RcInner<Owned<T>> | undefined;
+}
+
+export extension<T> of Weak<T> implements Clone, !Copy, Drop {
+    /// Clone this weak handle.
+    clone(this: &immutable this): ^this {
+        todo("Weak.clone")
+    }
+
+    /// Release this weak count and reclaim the block when no handles remain.
+    drop(&exclusive this): void {
+        todo("Weak.drop");
+    }
+
+    /// Create an empty weak handle.
+    static new(): Weak<T> {
+        Weak { inner: undefined }
+    }
+
+    /// Create a weak handle from a raw value pointer.
+    @unsafe
+    static fromRaw(pointer: *T): Weak<T> {
+        todo("Weak.fromRaw")
+    }
+
+    /// Try to upgrade this weak handle.
+    upgrade(&readonly this): Rc<T> | undefined {
+        todo("Weak.upgrade")
+    }
+
+    /// Return the raw pointer to the referenced value.
+    asPointer(&readonly this): *T | undefined {
+        todo("Weak.asPointer")
+    }
+
+    /// Move this handle into a raw value pointer.
+    intoRaw(this): *T | undefined {
+        todo("Weak.intoRaw")
+    }
+
+    /// Return whether this weak handle points to the same allocation as `other`.
+    pointerEquals(&readonly this, other: &readonly Weak<T>): boolean {
+        todo("Weak.pointerEquals")
+    }
+
+    /// Return the strong reference count.
+    strongCount(&readonly this): usize {
+        todo("Weak.strongCount")
+    }
+
+    /// Return the weak reference count.
+    weakCount(&readonly this): usize {
+        todo("Weak.weakCount")
+    }
+}

@@ -14,7 +14,7 @@ declare const value: Box<string>.Item;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
@@ -67,7 +67,7 @@ const size = Packet.Size;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -116,7 +116,7 @@ function nextByte<I: Iterator<type Item = uint8>>(iter: I): uint8 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -193,7 +193,7 @@ declare const made: Made<Factory>;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -292,7 +292,7 @@ function nextDefault<I: Iterator>(iter: I): uint8 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -352,7 +352,7 @@ function nextDefault<I: Iterator>(iter: I): uint8 {
 fn test_member_path_segments_resolve_through_an_imported_base() {
     let session = TestSession::builder()
         .module(
-            "geometry.ds",
+            "geometry.tspp",
             r#"
 export struct Slot {
     type Value = int32;
@@ -364,9 +364,9 @@ export struct Grid {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Grid } from "./geometry.ds";
+import { Grid } from "./geometry.tspp";
 
 declare const value: Grid.Cell.Value;
 "#,
@@ -374,16 +374,16 @@ declare const value: Grid.Cell.Value;
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
-import { Grid } from "./geometry.ds";
+import { Grid } from "./geometry.tspp";
 
 declare const value: int32;
 
 === dir ===
-import { Grid } from "./geometry.ds";
+import { Grid } from "./geometry.tspp";
 
 declare const value: Grid.Cell.Value;
 /// @type.symbol symbol=value source=value type=int32
@@ -410,7 +410,7 @@ type EventLabel = Message<"orders">.Label<"created">;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -466,7 +466,7 @@ type EventLabel = Message<"orders">.Label<"created">;
 fn test_resolve_an_imported_implemented_associated_type() {
     let session = TestSession::builder()
         .module(
-            "envelope.ds",
+            "envelope.tspp",
             r#"
 export interface Envelope<T: string> {
     type Label<U: string> = `${T}:${U}`;
@@ -474,9 +474,9 @@ export interface Envelope<T: string> {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Envelope } from "./envelope.ds";
+import { Envelope } from "./envelope.tspp";
 
 class Message<T: string> implements Envelope<T> {}
 
@@ -486,18 +486,18 @@ type EventLabel = Message<"orders">.Label<"created">;
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Envelope } from "./envelope.ds";
+import { Envelope } from "./envelope.tspp";
 
 class Message<in out T: string> implements Envelope<T> {}
 
 type EventLabel = Message<"orders">.Label<"created">;
 
 === dir ===
-import { Envelope } from "./envelope.ds";
+import { Envelope } from "./envelope.tspp";
 
 class Message<T: string> implements Envelope<T> {}
 /// @generic.template symbol=Message parameters=(in out T: string)
@@ -549,7 +549,7 @@ const taken = take(0, new Factory());
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -658,7 +658,7 @@ type Bad = Container<type Wrong = string>;
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 interface Container {
     type Item;

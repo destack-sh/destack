@@ -1,7 +1,7 @@
 use cranelift_codegen::ir as cir;
 use cranelift_codegen::ir::InstBuilder;
-use destack_native as native;
-use destack_program::object::{FramePlace, FramePoint};
+use tspp_native as native;
+use tspp_program::object::{FramePlace, FramePoint};
 
 use crate::EmitError;
 

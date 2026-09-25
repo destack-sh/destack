@@ -4,9 +4,9 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use destack_artifact::ArtifactKey;
-use destack_session::{ArtifactRunEvent, ArtifactRunId, SessionEvent, SessionEventHandler};
 use indicatif::{ProgressBar, ProgressStyle};
+use tspp_artifact::ArtifactKey;
+use tspp_session::{ArtifactRunEvent, ArtifactRunId, SessionEvent, SessionEventHandler};
 
 use crate::console;
 use crate::diagnostic::{ConsoleError, ConsoleResult};
@@ -324,8 +324,8 @@ fn module_to_short_name(path: &str) -> String {
 
     // strip extension if present
     if let Some(stem) = name
-        .strip_suffix(".d.ds")
-        .or_else(|| name.strip_suffix(".ds"))
+        .strip_suffix(".d.tspp")
+        .or_else(|| name.strip_suffix(".tspp"))
     {
         stem.to_string()
     } else {

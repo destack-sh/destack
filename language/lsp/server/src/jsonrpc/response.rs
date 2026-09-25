@@ -1,8 +1,8 @@
 use std::fmt::{self, Debug, Formatter};
 use std::str::FromStr;
 
-use destack_lsp_types::LSPAny;
 use serde::{Deserialize, Serialize};
+use tspp_lsp_types::LSPAny;
 
 use super::{Error, Id, Result, Version};
 

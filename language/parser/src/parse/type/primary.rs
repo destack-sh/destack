@@ -1,12 +1,12 @@
 use crate::parse::r#type::operator::{TypeOperator, TypePrefixOperator};
 use crate::parse::{DeclarationHeader, TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
-use destack_dir::{
+use smallvec::{SmallVec, smallvec};
+use tspp_dir::{
     Access, LocalNodeId, Mutability, NodeType, OperatorPrecedence, RangeEnd, TokenType,
     TypeExpression, VarianceBound,
 };
-use destack_source::{ByteRange, NodeSpanBoundary, NodeSpanType};
-use smallvec::{SmallVec, smallvec};
+use tspp_source::{ByteRange, NodeSpanBoundary, NodeSpanType};
 
 /// One consumed type prefix operation.
 #[derive(Debug, Copy, Clone)]

@@ -1,9 +1,9 @@
 use std::ptr;
 
-use destack_bytecode::{Instruction, Opcode};
-use destack_heap::{HeapEdge, HeapReference, Payload};
-use destack_mir as mir;
-use destack_program::{AllocationSiteId, Context, ContextNode, Runtime, Word};
+use tspp_bytecode::{Instruction, Opcode};
+use tspp_heap::{HeapEdge, HeapReference, Payload};
+use tspp_mir as mir;
+use tspp_program::{AllocationSiteId, Context, ContextNode, Runtime, Word};
 
 use crate::diagnostic::{Error, ExecutionResult, Result};
 use crate::machine::Activation;

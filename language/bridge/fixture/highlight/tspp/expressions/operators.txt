@@ -1,0 +1,50 @@
+// SYNTAX TEST "source.tspp"
+
+// expressions / operators / arithmetic comparison and boolean
+const value = (a +| b) *% c ** d <= limit && ready || fallback;
+
+const assigned = value ?? defaultValue;
+//                     ^^ keyword.operator.boolean.tspp
+
+const updated = counter += 1;
+//                      ^^ keyword.operator.assignment.addition.tspp
+
+const bits = (flags << 2) & mask | other ^ next;
+//                  ^^ keyword.operator.shift.tspp
+
+// expressions / operators / type assertions and predicates
+value satisfies string;
+//    ^^^^^^^^^ keyword.operator.type.binary.tspp
+
+value as Result<string>;
+//    ^^ keyword.operator.type.binary.tspp
+
+if (value is User) {
+//        ^^ keyword.operator.type.binary.tspp
+    value.name
+}
+
+// expressions / operators / ownership and ranges
+const owned = ^readonly value;
+//            ^ keyword.operator.owned.tspp
+
+const borrowed = &exclusive value;
+//               ^ keyword.operator.borrow.tspp
+
+const raw = *pointer;
+//          ^ keyword.operator.pointer.tspp
+
+const address = &value;
+//              ^ keyword.operator.borrow.tspp
+
+^owned;
+// <- keyword.operator.owned.tspp
+&borrowed;
+// <- keyword.operator.borrow.tspp
+*raw;
+// <- keyword.operator.pointer.tspp
+
+const range = start..=end;
+//                 ^^^ keyword.operator.range.tspp
+
+const item = values[index]?.field!;

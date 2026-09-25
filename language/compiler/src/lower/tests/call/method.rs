@@ -21,7 +21,7 @@ function measure(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Point.length",
         r#"
 type test.main.Point {
@@ -48,7 +48,7 @@ entry(v0: ref<test.main.Point, borrowed, 'a, readonly>):
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.measure", r#"
+    session.assert_mir_function("main.tspp", "test.main.measure", r#"
 type test.main.Point {
     x: int32;
     y: int32;
@@ -93,7 +93,7 @@ function tally(): int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Counter.bump", r#"
+    session.assert_mir_function("main.tspp", "test.main.Counter.bump", r#"
 type test.main.Counter {
     count: int32;
 }
@@ -117,7 +117,7 @@ entry(v0: ref<test.main.Counter, borrowed, 'a, mutable>, v1: int32):
 /// @layout.field owner=test.main.Counter index=0 name=count offset=0 size=4 align=4
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.tally", r#"
+    session.assert_mir_function("main.tspp", "test.main.tally", r#"
 type test.main.Counter {
     count: int32;
 }
@@ -160,7 +160,7 @@ function keep(user: User): User {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.User.constructor",
         r#"
 @nocopy
@@ -185,7 +185,7 @@ entry(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.User.identity",
         r#"
 @nocopy
@@ -207,7 +207,7 @@ entry(v0: ref<test.main.User, managed, mutable, local>):
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.keep", r#"
+    session.assert_mir_function("main.tspp", "test.main.keep", r#"
 @nocopy
 type test.main.User {
     id: int32;
@@ -248,7 +248,7 @@ function probe(status: Status): boolean {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Status.isActive",
         r#"
 type test.main.Status = variant<uint8> { 1uint8 = void; 2uint8 = void; };
@@ -274,7 +274,7 @@ entry(v0: ref<test.main.Status, borrowed, 'a, readonly>):
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.probe", r#"
+    session.assert_mir_function("main.tspp", "test.main.probe", r#"
 type test.main.Status = variant<uint8> { 1uint8 = void; 2uint8 = void; };
 
 function test.main.probe(v0: test.main.Status): boolean {
@@ -317,7 +317,7 @@ function open(): int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Box.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Box.constructor", r#"
 @nocopy
 type test.main.Box {
     weight: int32;
@@ -341,7 +341,7 @@ entry(v0: ref<uninit<test.main.Box>, borrowed, 'a, exclusive>, v1: int32):
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Box.unwrap",
         r#"
 @nocopy
@@ -364,7 +364,7 @@ entry(v0: test.main.Box):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.open",
         r#"
 @nocopy
@@ -413,7 +413,7 @@ function measure(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Point.origin",
         r#"
 function test.main.Point.origin(): int32 {
@@ -425,7 +425,7 @@ entry:
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.measure",
         r#"
 function test.main.measure(): int32 {
@@ -462,7 +462,7 @@ function resize(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Circle.diameter.get",
         r#"
 type test.main.Circle {
@@ -487,7 +487,7 @@ entry(v0: ref<test.main.Circle, borrowed, 'a, readonly>):
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Circle.diameter.set", r#"
+    session.assert_mir_function("main.tspp", "test.main.Circle.diameter.set", r#"
 type test.main.Circle {
     radius: int32;
 }
@@ -509,7 +509,7 @@ entry(v0: ref<test.main.Circle, borrowed, 'a, mutable>, v1: int32):
 /// @layout.field owner=test.main.Circle index=0 name=radius offset=0 size=4 align=4
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.resize", r#"
+    session.assert_mir_function("main.tspp", "test.main.resize", r#"
 type test.main.Circle {
     radius: int32;
 }
@@ -556,7 +556,7 @@ function read(counter: Counter): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 @nocopy
@@ -597,7 +597,7 @@ function view(text: string): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.view",
         r#"
 @nocopy

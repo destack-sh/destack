@@ -1,9 +1,9 @@
 use core::fmt;
 use std::error::Error;
 
-use destack_core::Blob;
-use destack_dir::{NodeType, Token, TokenSpan, TokenType};
-use destack_source::{
+use tspp_core::Blob;
+use tspp_dir::{NodeType, Token, TokenSpan, TokenType};
+use tspp_source::{
     ByteRange, Diagnostic, DiagnosticDefinition, DiagnosticLabel, DiagnosticSeverity,
     DiagnosticTarget, FileId, Span,
 };

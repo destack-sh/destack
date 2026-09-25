@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_accept_atomic_safe_storage_types() {
     let session = TestSession::single(
         r#"
-import { Atomic, AtomicSafe, MemoryOrdering } from "destack:sync";
+import { Atomic, AtomicSafe, MemoryOrdering } from "tspp:sync";
 
 declare const ready: Atomic<boolean>;
 declare const count: Atomic<uint32>;
@@ -18,11 +18,11 @@ function read<T: AtomicSafe>(value: &readonly Atomic<T>): T {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Atomic, AtomicSafe, MemoryOrdering } from "destack:sync";
+import { Atomic, AtomicSafe, MemoryOrdering } from "tspp:sync";
 
 declare const ready: Atomic<boolean>;
 declare const count: Atomic<uint32>;
@@ -34,7 +34,7 @@ function read<T: AtomicSafe, 'a>(value: &'a readonly Atomic<T>): T {
 }
 
 === dir ===
-import { Atomic, AtomicSafe, MemoryOrdering } from "destack:sync";
+import { Atomic, AtomicSafe, MemoryOrdering } from "tspp:sync";
 
 declare const ready: Atomic<boolean>;
 /// @type.symbol symbol=ready source=ready type=Atomic<boolean>
@@ -94,23 +94,23 @@ function read<T: AtomicSafe>(value: &readonly Atomic<T>): T {
 fn test_reject_unsupported_atomic_storage_type() {
     let session = TestSession::single(
         r#"
-import { Atomic } from "destack:sync";
+import { Atomic } from "tspp:sync";
 
 declare const wide: Atomic<uint128>;
 "#,
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Atomic } from "destack:sync";
+import { Atomic } from "tspp:sync";
 
 declare const wide: Atomic<uint128>;
 
 === dir ===
-import { Atomic } from "destack:sync";
+import { Atomic } from "tspp:sync";
 
 declare const wide: Atomic<uint128>;
 /// @type.symbol symbol=wide source=wide type=Atomic<uint128>
@@ -120,7 +120,7 @@ declare const wide: Atomic<uint128>;
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'uint128' does not satisfy 'AtomicSafe'"
 /// @diagnostic.label line=4 column=28 span="uint128" line_source="declare const wide: Atomic<uint128>;"
-/// @diagnostic.related file="atomic.ds" line=98 column=22 span="T" line_source="export struct Atomic<T: AtomicSafe> {" message="required by this bound on 'T'"
+/// @diagnostic.related file="atomic.tspp" line=98 column=22 span="T" line_source="export struct Atomic<T: AtomicSafe> {" message="required by this bound on 'T'"
 "#,
     );
 }
@@ -129,7 +129,7 @@ declare const wide: Atomic<uint128>;
 fn test_reject_unsafe_atomic_safe_implementation_for_unsupported_storage() {
     let session = TestSession::single(
         r#"
-import { AtomicSafe } from "destack:sync";
+import { AtomicSafe } from "tspp:sync";
 
 struct Word {
     bits: uint64;
@@ -141,11 +141,11 @@ extension of Word implements AtomicSafe {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_definitions().with_decorators(),
         r#"
 === annotated ===
-import { AtomicSafe } from "destack:sync";
+import { AtomicSafe } from "tspp:sync";
 
 struct Word {
     bits: uint64;
@@ -155,7 +155,7 @@ struct Word {
 extension of Word implements AtomicSafe {}
 
 === dir ===
-import { AtomicSafe } from "destack:sync";
+import { AtomicSafe } from "tspp:sync";
 
 struct Word {
 /// @type.symbol symbol=Word type=Word

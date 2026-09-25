@@ -1,5 +1,5 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// User-facing runtime entrypoint name.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]

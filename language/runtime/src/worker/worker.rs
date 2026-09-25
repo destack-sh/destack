@@ -1,14 +1,14 @@
 use std::fmt;
 use std::sync::Arc;
 
-use destack_artifact::ConditionSet;
-use destack_core::{Capture, CaptureMode};
-use destack_heap as heap;
-use destack_memory::MemoryRange;
-use destack_program as program;
-use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_artifact::ConditionSet;
+use tspp_core::{Capture, CaptureMode};
+use tspp_heap as heap;
+use tspp_memory::MemoryRange;
+use tspp_program as program;
+use tspp_repository::{Environment, ExecutionMode, RuntimeOptions};
+use tspp_serde::Reflect;
 
 use crate::binding::{BindingAccess, BindingTable, ReplayPayload};
 use crate::diagnostic::{DiagnosticImage, DiagnosticStore, RuntimeError, RuntimeResult};

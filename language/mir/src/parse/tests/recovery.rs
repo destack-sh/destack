@@ -2,7 +2,7 @@ use crate::{
     Block, Field, Function, Global, Instruction, Local, Terminator, Tree, Type, TypeDeclaration,
     TypeId, assert_node,
 };
-use destack_source::DiagnosticSeverity;
+use tspp_source::DiagnosticSeverity;
 
 use super::TestParser;
 

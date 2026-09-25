@@ -2,8 +2,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_dir::Tree;
-use destack_source::{
+use tspp_dir::Tree;
+use tspp_source::{
     File, FileId, FileType, LanguageType, ModuleId, PackageId, PrintOptions, Uri, print_diagnostics,
 };
 
@@ -14,7 +14,7 @@ fn library_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../library")
 }
 
-/// Collect every checked-in library `.ds` source file.
+/// Collect every checked-in library `.tspp` source file.
 fn library_sources(root: &Path) -> Vec<PathBuf> {
     let mut paths = Vec::new();
     collect_library_sources(root, &mut paths);
@@ -22,7 +22,7 @@ fn library_sources(root: &Path) -> Vec<PathBuf> {
     paths
 }
 
-/// Collect every checked-in library `.ds` source file.
+/// Collect every checked-in library `.tspp` source file.
 fn collect_library_sources(root: &Path, paths: &mut Vec<PathBuf>) {
     let mut entries = fs::read_dir(root)
         .expect("expected library directory")
@@ -36,7 +36,10 @@ fn collect_library_sources(root: &Path, paths: &mut Vec<PathBuf>) {
             collect_library_sources(&path, paths);
         }
         // collect source files
-        else if path.extension().is_some_and(|extension| extension == "ds") {
+        else if path
+            .extension()
+            .is_some_and(|extension| extension == "tspp")
+        {
             paths.push(path);
         }
     }
@@ -57,7 +60,7 @@ fn library_file(path: &Path, logical_path: &Path, source: String) -> Arc<File> {
             file_name,
             Uri::from_string(path_text.as_ref()),
             Some(path.to_path_buf()),
-            FileType::Destack,
+            FileType::Tspp,
             source,
         )
         .expect("test source should load"),
@@ -74,7 +77,7 @@ fn parse_library_source(path: &Path, root: &Path) -> Parse {
     let module_id = ModuleId::new(PackageId::new(0), file.id.0);
     let parser = Parser::new(
         file,
-        LanguageType::Destack,
+        LanguageType::Tspp,
         Tree::new(module_id),
         ParseOptions {
             comment_retention: CommentRetention::Documentation,

@@ -1,4 +1,4 @@
-use destack_program::Word;
+use tspp_program::Word;
 
 use crate::{ErrorReason, Trap};
 

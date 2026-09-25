@@ -13,7 +13,7 @@ export function pick(counts: Counts, key: string): int32 | undefined {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.pick", r#"
+    session.assert_mir_function("main.tspp", "test.main.pick", r#"
 @nocopy
 @languageItem("string.String")
 type String;
@@ -52,7 +52,7 @@ export function pick(counts: Counts, key: string): int32 | undefined {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.pick", r#"
+    session.assert_mir_function("main.tspp", "test.main.pick", r#"
 @nocopy
 @languageItem("string.String")
 type String;

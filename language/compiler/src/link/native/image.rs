@@ -1,8 +1,8 @@
 use std::collections::{BTreeSet, HashMap};
 
-use destack_native as native;
-use destack_source::ModuleId;
 use target_lexicon::{Architecture, Triple};
+use tspp_native as native;
+use tspp_source::ModuleId;
 
 use crate::LinkResult;
 

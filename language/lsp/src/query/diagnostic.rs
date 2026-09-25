@@ -6,17 +6,17 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 
-use destack_core::StableHasher;
-use destack_lsp_server::{Client, LogRecord, UriExt, jsonrpc};
-use destack_lsp_types as lsp;
-use destack_repository::Revision;
-use destack_session::ArtifactPriority;
-use destack_source::{
+use parking_lot::{Mutex, RwLock};
+use tspp_core::StableHasher;
+use tspp_lsp_server::{Client, LogRecord, UriExt, jsonrpc};
+use tspp_lsp_types as lsp;
+use tspp_repository::Revision;
+use tspp_session::ArtifactPriority;
+use tspp_source::{
     Diagnostic, DiagnosticLabel, DiagnosticReference, DiagnosticSeverity, DiagnosticTag,
     DiagnosticTarget,
 };
-use destack_workspace::{FileDiagnostics, Workspace};
-use parking_lot::{Mutex, RwLock};
+use tspp_workspace::{FileDiagnostics, Workspace};
 
 use super::{Document, DocumentSet};
 use crate::server::{ProjectId, ProjectSet, internal_error, workspace_error};
@@ -315,7 +315,7 @@ impl DiagnosticPublisher {
 }
 
 impl DocumentSet {
-    /// Encode one Destack diagnostic as an LSP diagnostic.
+    /// Encode one TS++ diagnostic as an LSP diagnostic.
     pub(crate) fn diagnostic(&self, diagnostic: &Diagnostic) -> jsonrpc::Result<lsp::Diagnostic> {
         let primary = diagnostic.primary_label();
         let primary_document = self.document(primary.target.file())?;
@@ -386,7 +386,7 @@ impl DocumentSet {
             severity,
             code: Some(lsp::NumberOrString::String(diagnostic.id.clone())),
             code_description: None,
-            source: Some("destack".to_string()),
+            source: Some("tspp".to_string()),
             message: diagnostic.message.clone(),
             related_information,
             tags,

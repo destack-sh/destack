@@ -8,11 +8,11 @@ Callback fixtures cover callback-last arguments.
 
 When the last argument is a callback, it should expand while keeping other args on the first line.
 
-```ds line-width=40
+```tspp line-width=40
 fetchData(url, options, (response) => { process(response) })
 ```
 
-```ds expected
+```tspp expected
 fetchData(url, options, (response) => {
     process(response)
 });
@@ -22,11 +22,11 @@ fetchData(url, options, (response) => {
 
 A single callback argument hugs the parentheses.
 
-```ds
+```tspp
 array.forEach((item) => { console.log(item) })
 ```
 
-```ds expected
+```tspp expected
 array.forEach((item) => {
     console.log(item)
 });
@@ -36,11 +36,11 @@ array.forEach((item) => {
 
 Multi-statement callbacks always expand.
 
-```ds
+```tspp
 items.map((item) => { const x = item.value; return x * 2 })
 ```
 
-```ds expected
+```tspp expected
 items.map((item) => {
     const x = item.value;
     return x * 2;
@@ -53,11 +53,11 @@ items.map((item) => {
 
 Object arguments expand when they exceed line width, hugging the parentheses.
 
-```ds line-width=30
+```tspp line-width=30
 configure({ debug: true, verbose: false })
 ```
 
-```ds expected
+```tspp expected
 configure({
     debug: true,
     verbose: false,
@@ -68,11 +68,11 @@ configure({
 
 Short arrays stay on one line when they fit.
 
-```ds line-width=40
+```tspp line-width=40
 process([1, 2, 3, 4, 5, 6])
 ```
 
-```ds expected
+```tspp expected
 process([1, 2, 3, 4, 5, 6]);
 ```
 
@@ -80,11 +80,11 @@ process([1, 2, 3, 4, 5, 6]);
 
 Long argument lists break to multiple lines.
 
-```ds line-width=40
+```tspp line-width=40
 createUser("john", "doe", { role: "admin", active: true })
 ```
 
-```ds expected
+```tspp expected
 createUser("john", "doe", {
     role: "admin",
     active: true,

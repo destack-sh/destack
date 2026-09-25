@@ -1,0 +1,8 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / arena / arena handles and allocated values
+let arena: Arena<User> = Arena.create();
+//         ^^^^^ entity.name.type.tspp
+
+let user: &readonly User = arena.allocate(User.create());
+//        ^ keyword.operator.borrow.tspp

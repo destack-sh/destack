@@ -1,6 +1,6 @@
 [package]
-name = "destack_fir"
-description = "Destack Formatting IR"
+name = "tspp_fir"
+description = "TS++ Formatting IR"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,8 +13,8 @@ doctest = false
 
 [dependencies]
 # language
-destack_source = { workspace = true }
-destack_unicode = { workspace = true }
+tspp_source = { workspace = true }
+tspp_unicode = { workspace = true }
 
 # general
 rustc-hash = { workspace = true }

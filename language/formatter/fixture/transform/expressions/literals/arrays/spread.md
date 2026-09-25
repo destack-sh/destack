@@ -6,11 +6,11 @@
 
 Spread elements stay tight with the ellipsis.
 
-```ds
+```tspp
 [head, ...rest]
 ```
 
-```ds expected
+```tspp expected
 [head, ...rest];
 ```
 
@@ -18,11 +18,11 @@ Spread elements stay tight with the ellipsis.
 
 Multiple spread elements keep spacing normalized.
 
-```ds
+```tspp
 [...left, middle, ...right]
 ```
 
-```ds expected
+```tspp expected
 [...left, middle, ...right];
 ```
 
@@ -33,11 +33,11 @@ Multiple spread elements keep spacing normalized.
 
 Spread operator expands iterables inline.
 
-```ds
+```tspp
 [...items]
 ```
 
-```ds expected
+```tspp expected
 [...items];
 ```
 
@@ -45,11 +45,11 @@ Spread operator expands iterables inline.
 
 Spread can be mixed with regular elements.
 
-```ds
+```tspp
 [1, ...items, 2]
 ```
 
-```ds expected
+```tspp expected
 [1, ...items, 2];
 ```
 
@@ -57,11 +57,11 @@ Spread can be mixed with regular elements.
 
 Multiple spreads can appear in one array.
 
-```ds
+```tspp
 [...a, ...b, ...c]
 ```
 
-```ds expected
+```tspp expected
 [...a, ...b, ...c];
 ```
 
@@ -69,11 +69,11 @@ Multiple spreads can appear in one array.
 
 Spread can appear at the beginning.
 
-```ds
+```tspp
 [...prefix, 1, 2, 3]
 ```
 
-```ds expected
+```tspp expected
 [...prefix, 1, 2, 3];
 ```
 
@@ -81,10 +81,10 @@ Spread can appear at the beginning.
 
 Spread can appear at the end.
 
-```ds
+```tspp
 [1, 2, 3, ...suffix]
 ```
 
-```ds expected
+```tspp expected
 [1, 2, 3, ...suffix];
 ```

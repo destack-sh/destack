@@ -1,7 +1,7 @@
 use std::hash::Hasher;
 
-use destack_core::{StableHasher, StringId};
-use destack_source::ModuleId;
+use tspp_core::{StableHasher, StringId};
+use tspp_source::ModuleId;
 
 use crate::{
     Access, Attribute, AttributeArgs, AttributeIdentifier, AttributeValue, Constant, Extent,
@@ -38,7 +38,7 @@ impl TypeHasher {
     ) -> Symbol {
         // identify the generated declaration independently from generic instantiation
         let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(b"destack.mir.generated.v1");
+        hasher.update_len_prefixed(b"tspp.mir.generated.v1");
         hasher.write_u64(base.raw());
         let mut hasher = Self { hasher };
 
@@ -80,7 +80,7 @@ impl TypeHasher {
     /// Derive one declaration symbol from its name and declaring identity.
     pub(super) fn declared(module: ModuleId, name: StringId, identity: u64) -> Symbol {
         let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(b"destack.mir.declaration.v1");
+        hasher.update_len_prefixed(b"tspp.mir.declaration.v1");
         hasher.write_u64(name.raw());
         hasher.write_u64(identity);
 
@@ -90,7 +90,7 @@ impl TypeHasher {
     /// Create a type fingerprint hasher.
     fn new() -> Self {
         let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(b"destack.mir.type.v1");
+        hasher.update_len_prefixed(b"tspp.mir.type.v1");
 
         Self { hasher }
     }
@@ -98,7 +98,7 @@ impl TypeHasher {
     /// Create a generic instance hasher.
     fn for_instance(base: Symbol) -> Self {
         let mut hasher = StableHasher::new();
-        hasher.update_len_prefixed(b"destack.mir.instance.v1");
+        hasher.update_len_prefixed(b"tspp.mir.instance.v1");
         hasher.write_u64(base.raw());
 
         Self { hasher }

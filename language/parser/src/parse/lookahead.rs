@@ -1,6 +1,6 @@
 use crate::parse::ExpressionStop;
 use crate::{Parser, TokenProbe};
-use destack_dir::{Keyword, Token, TokenType};
+use tspp_dir::{Keyword, Token, TokenType};
 
 /// Nested delimiters tracked during classification and recovery.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

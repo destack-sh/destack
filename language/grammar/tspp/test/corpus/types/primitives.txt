@@ -1,0 +1,172 @@
+=======================================
+Built-in types
+:language(tspp)
+=======================================
+
+let x: string = 'hi';
+let y: number;
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type))
+      (string
+        (string_fragment))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (predefined_type)))))
+
+=======================================
+Parenthesized types
+:language(tspp)
+=======================================
+
+let x: (string);
+let x: ({a: unknown});
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (parenthesized_type
+          (predefined_type)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (parenthesized_type
+          (object_type
+            (property_signature
+              (property_identifier)
+              (type_annotation
+                (predefined_type)))))))))
+
+=======================================
+Type annotations in parenthesized expressions
+:language(tspp)
+=======================================
+
+const range = (document: unknown).selection.createRange()
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (call_expression
+        (member_expression
+          (member_expression
+            (parenthesized_expression
+              (identifier)
+              (type_annotation
+                (predefined_type)))
+            (property_identifier))
+          (property_identifier))
+        (arguments)))))
+
+=======================================
+Type alias declarations
+:language(tspp)
+=======================================
+
+type FileMergeData = {
+  document: Doc,
+  headDocument: Doc,
+  baseDocument: Doc,
+  conflicts: ConflictInfo[]
+}
+
+type ConflictInfo = {
+  start?: LineHandle,
+  middle?: LineHandle,
+  end?: LineHandle
+}
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (array_type
+            (type_identifier))))))
+  (type_alias_declaration
+    (type_identifier)
+    (object_type
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier)))
+      (property_signature
+        (property_identifier)
+        (type_annotation
+          (type_identifier))))))
+
+=======================================
+Symbol as a type identifier
+:language(tspp)
+=======================================
+
+type Token = symbol;
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_identifier)))
+
+=======================================
+Predefined types as identifiers
+:language(tspp)
+=======================================
+
+let score: (string: string, query: string) => number
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (function_type
+          (formal_parameters
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type)))
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (predefined_type))))
+          (predefined_type))))))

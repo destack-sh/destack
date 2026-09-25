@@ -1,13 +1,13 @@
 use std::sync::{Arc, OnceLock};
 
-use destack_artifact::{
-    ArtifactKey, EnvironmentBound, IndexKind, ModuleIndex, PackageNode, ProgramIndex,
-};
-use destack_dir as dir;
-use destack_repository::{ArtifactReader, ProviderError, Repository, RepositoryError, Revision};
-use destack_source::{ModuleId, PackageId, ProfileId};
 use parking_lot::Mutex;
 use rustc_hash::FxHashMap;
+use tspp_artifact::{
+    ArtifactKey, EnvironmentBound, IndexKind, ModuleIndex, PackageNode, ProgramIndex,
+};
+use tspp_dir as dir;
+use tspp_repository::{ArtifactReader, ProviderError, Repository, RepositoryError, Revision};
+use tspp_source::{ModuleId, PackageId, ProfileId};
 
 use crate::{Module, ModuleQueryContext, QueryError, QueryResult};
 

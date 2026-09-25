@@ -1,17 +1,17 @@
 use crate::parse::{DeclarationHeader, TypeKeywordHeader, TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
-use destack_dir::{
+use tspp_dir::{
     Declaration, Keyword, LocalNodeId, Mutability, TokenType, TypeDeclaration, TypeExpression,
     TypeKind,
 };
-use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
+use tspp_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 impl Parser {
     /// Parse a type alias or expression.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// type T = int32
     /// type T = foo()
     /// type T = { a: int32, b: boolean } | true
@@ -79,7 +79,7 @@ impl Parser {
     /// Parse a named type alias declaration.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// Value = string
     /// Value<T> = Result<T, Error>
     /// Value = { id: string }
@@ -137,7 +137,7 @@ impl Parser {
     /// Parse a type keyword expression body.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// readonly string
     /// readonly string[]
     /// readonly { id: string }
@@ -166,7 +166,7 @@ impl Parser {
     /// Parse one type alias value.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// intrinsic
     /// string | number
     /// { id: string }

@@ -250,7 +250,7 @@ for target in targets:
         raise SystemExit(f"error: manifest archiveName missing for {target}")
     if not isinstance(archive_sha256, str) or not archive_sha256:
         raise SystemExit(f"error: manifest archiveSha256 missing for {target}")
-    if binaries != ["destack", "ds", "dsc"]:
+    if binaries != ["destack", "tspp", "tsppc"]:
         raise SystemExit(f"error: manifest binaries mismatch for {target}: {binaries}")
 
     checksum_value = checksum_map.get(archive_name)

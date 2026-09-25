@@ -1,5 +1,5 @@
-use destack_heap as heap;
-use destack_program as program;
+use tspp_heap as heap;
+use tspp_program as program;
 
 use super::EventLoop;
 use crate::diagnostic::{RuntimeError, RuntimeResult};

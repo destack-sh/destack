@@ -1,4 +1,4 @@
-use destack_source::Span;
+use tspp_source::Span;
 
 /// Trivia (comments, whitespace) in JSONC.
 #[derive(Debug, Clone, PartialEq)]

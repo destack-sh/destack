@@ -6,11 +6,11 @@
 
 Visibility modifiers are preserved before the field name.
 
-```ds
+```tspp
 class Foo { public x: number }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     public x: number;
 }
@@ -20,11 +20,11 @@ class Foo {
 
 Private fields use the `private` keyword.
 
-```ds
+```tspp
 class Foo { private x: number }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     private x: number;
 }
@@ -34,11 +34,11 @@ class Foo {
 
 Protected fields are accessible to subclasses.
 
-```ds
+```tspp
 class Foo { protected x: number }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     protected x: number;
 }
@@ -48,11 +48,11 @@ class Foo {
 
 The `readonly` modifier prevents field reassignment.
 
-```ds
+```tspp
 class Foo { readonly x: number }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     readonly x: number;
 }
@@ -62,11 +62,11 @@ class Foo {
 
 Static fields belong to the class rather than instances.
 
-```ds
+```tspp
 class Foo { static count: number = 0 }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     static count: number = 0;
 }
@@ -76,11 +76,11 @@ class Foo {
 
 Field initializers use `=` with spaces around it.
 
-```ds
+```tspp
 class Foo { x: number = 42 }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     x: number = 42;
 }
@@ -92,11 +92,11 @@ class Foo {
 
 Associated type modifiers are preserved.
 
-```ds
+```tspp
 abstract class Foo { abstract type Item override type Output = string }
 ```
 
-```ds expected
+```tspp expected
 abstract class Foo {
     abstract type Item;
     override type Output = string;
@@ -107,11 +107,11 @@ abstract class Foo {
 
 Associated constant modifiers are preserved.
 
-```ds
+```tspp
 abstract class Foo { abstract const Size: uint; override const Count: uint = 2 }
 ```
 
-```ds expected
+```tspp expected
 abstract class Foo {
     abstract const Size: uint;
     override const Count: uint = 2;
@@ -124,11 +124,11 @@ abstract class Foo {
 
 Simple single-statement method bodies stay on one line.
 
-```ds
+```tspp
 class Foo { bar(): void { console.log("hello") } }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     bar(): void {
         console.log("hello");
@@ -140,11 +140,11 @@ class Foo {
 
 Method parameters follow function parameter formatting rules.
 
-```ds
+```tspp
 class Foo { add(a: number, b: number): number { return a + b } }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     add(a: number, b: number): number {
         return a + b;
@@ -156,11 +156,11 @@ class Foo {
 
 Long method where constraints break under the `where` keyword.
 
-```ds line-width=72
+```tspp line-width=72
 class Store<K: Hash, V> { get<Q: Hash>(key: &readonly Q): V | undefined where K: VeryLongBorrow<Q>, Q: VeryLongEqual<Q>, V: VeryLongClone { return undefined } }
 ```
 
-```ds expected
+```tspp expected
 class Store<K: Hash, V> {
     get<Q: Hash>(key: &readonly Q): V | undefined
         where
@@ -176,11 +176,11 @@ class Store<K: Hash, V> {
 
 The `async` keyword precedes the method name.
 
-```ds
+```tspp
 class Foo { async fetch(): Promise<Data> { return await getData() } }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     async fetch(): Promise<Data> {
         return await getData();
@@ -192,11 +192,11 @@ class Foo {
 
 Static methods belong to the class rather than instances.
 
-```ds
+```tspp
 class Foo { static create(): Foo { return new Foo() } }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     static create(): Foo {
         return new Foo();
@@ -208,11 +208,11 @@ class Foo {
 
 Getters use the `get` keyword before the property name.
 
-```ds
+```tspp
 class Foo { get value(): number { return this._value } }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     get value(): number {
         return this._value;
@@ -224,11 +224,11 @@ class Foo {
 
 Setters use the `set` keyword and take exactly one parameter.
 
-```ds
+```tspp
 class Foo { set value(v: number) { this._value = v } }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     set value(v: number) {
         this._value = v;
@@ -240,11 +240,11 @@ class Foo {
 
 Getter and setter pairs are formatted as separate methods.
 
-```ds
+```tspp
 class Foo { get x(): number { return this._x } set x(v: number) { this._x = v } }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     get x(): number {
         return this._x;

@@ -1,9 +1,9 @@
 use crate::parse::ExpressionStop;
-use destack_dir::{
+use tspp_dir::{
     Argument, Expression, LocalNodeId, StringId, TemplateChunk, TemplateLiteral, Token, TokenSpan,
     TokenType, TypeExpression,
 };
-use destack_source::ByteRange;
+use tspp_source::ByteRange;
 
 use crate::lex::{InvalidEscape, cook};
 use crate::parse::{ExpressionPosition, TypePosition, TypeStop};
@@ -23,7 +23,7 @@ impl Parser {
     /// Parse a template literal.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// `hello`
     /// `hello ${name}`
     /// `SELECT * FROM users`
@@ -37,7 +37,7 @@ impl Parser {
     /// Parse a tagged template literal.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// sql`SELECT * FROM users WHERE id = ${id}`
     /// ```
     pub(crate) fn parse_tagged_template_literal(&mut self) -> ParserResult<TemplateLiteral> {
@@ -59,7 +59,7 @@ impl Parser {
     /// Parse a type template literal.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// `${K}`
     /// `foo-${Bar}`
     /// ```
@@ -205,7 +205,7 @@ impl Parser {
     /// Parse one template interpolation expression.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// value
     /// condition ? yes : no
     /// ```

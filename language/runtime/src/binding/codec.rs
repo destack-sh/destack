@@ -1,5 +1,5 @@
-use destack_core::fnv1a_128;
 use serde::{Deserialize, Serialize};
+use tspp_core::fnv1a_128;
 
 /// Default codec used for binding trace payloads.
 pub const DEFAULT_BINDING_CODEC: CodecId = CodecId::from_name("destack-serde-v1");

@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 /// One ordered DIR node sequence containing a pattern marker.
 pub(crate) struct Sequence {

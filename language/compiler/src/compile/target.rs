@@ -1,10 +1,10 @@
 use std::str::FromStr;
 
-use destack_artifact::{Output, TargetArch};
-use destack_mir::{Endian, TargetLayout};
-use destack_repository::Target;
-use destack_source::TargetId;
 use target_lexicon::{Endianness, HOST, Triple};
+use tspp_artifact::{Output, TargetArch};
+use tspp_mir::{Endian, TargetLayout};
+use tspp_repository::Target;
+use tspp_source::TargetId;
 
 use crate::Compiler;
 

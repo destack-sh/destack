@@ -38,6 +38,6 @@ pub fn run(args: &VersionArgs) -> i32 {
     }
 
     // emit minimal text output
-    console::info(&format!("destack {CLI_VERSION}"));
+    console::info(&format!("tspp {CLI_VERSION}"));
     0
 }

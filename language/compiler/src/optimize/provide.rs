@@ -1,6 +1,6 @@
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirElaborated};
-use destack_repository::{ProfileId, ProviderContext};
-use destack_source::{ModuleId, TargetId};
+use tspp_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirElaborated};
+use tspp_repository::{ProfileId, ProviderContext};
+use tspp_source::{ModuleId, TargetId};
 
 use crate::{Compiler, CompilerError, CompilerResult};
 

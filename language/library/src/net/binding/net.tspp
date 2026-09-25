@@ -1,0 +1,34 @@
+import { Binding } from "tspp:binding";
+
+import { NetConnectivityBinding } from "./connectivity.tspp";
+import { NetInterfaceBinding } from "./interface.tspp";
+import { NetOptionsBinding } from "./options.tspp";
+import { NetRawBinding } from "./raw.tspp";
+import { NetResolveBinding } from "./resolve.tspp";
+import { NetRouteBinding } from "./route.tspp";
+import { NetSocketBinding } from "./socket.tspp";
+import { NetUdpBinding } from "./udp.tspp";
+
+/// Network binding family.
+@languageItem("net.NetBinding")
+export interface NetBinding {
+    /// Connectivity bindings.
+    readonly connectivity: NetConnectivityBinding;
+    /// Network interface bindings.
+    readonly interface: NetInterfaceBinding;
+    /// Socket option bindings.
+    readonly options: NetOptionsBinding;
+    /// Raw socket and packet bindings.
+    readonly raw: NetRawBinding;
+    /// Name resolution bindings.
+    readonly resolve: NetResolveBinding;
+    /// Route table bindings.
+    readonly route: NetRouteBinding;
+    /// Socket bindings.
+    readonly socket: NetSocketBinding;
+    /// UDP multicast bindings.
+    readonly udp: NetUdpBinding;
+}
+
+/// Current network binding family.
+export const net: Binding<NetBinding> = new Binding<NetBinding>("net");

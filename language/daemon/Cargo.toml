@@ -1,5 +1,5 @@
 [package]
-name = "destack_daemon"
+name = "tspp_daemon"
 description = "Destack Daemon"
 version.workspace = true
 edition.workspace = true
@@ -13,17 +13,17 @@ doctest = false
 
 [dependencies]
 # language
-destack_artifact = { workspace = true }
-destack_core = { workspace = true }
-destack_program = { workspace = true }
-destack_repository = { workspace = true }
-destack_rpc = { workspace = true }
-destack_runtime = { workspace = true }
-destack_serde = { workspace = true }
-destack_session = { workspace = true }
-destack_source = { workspace = true }
-destack_vm = { workspace = true }
-destack_workspace = { workspace = true }
+tspp_artifact = { workspace = true }
+tspp_core = { workspace = true }
+tspp_program = { workspace = true }
+tspp_repository = { workspace = true }
+tspp_rpc = { workspace = true }
+tspp_runtime = { workspace = true }
+tspp_serde = { workspace = true }
+tspp_session = { workspace = true }
+tspp_source = { workspace = true }
+tspp_vm = { workspace = true }
+tspp_workspace = { workspace = true }
 
 # general
 base64 = { workspace = true }

@@ -1,6 +1,6 @@
 [package]
-name = "destack_vm"
-description = "Destack bytecode virtual machine"
+name = "tspp_vm"
+description = "TS++ bytecode virtual machine"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -16,20 +16,20 @@ default = []
 
 [dependencies]
 # language
-destack_bytecode = { workspace = true }
-destack_heap = { workspace = true }
-destack_memory = { workspace = true }
-destack_mir = { workspace = true }
-destack_program = { workspace = true }
-destack_serde = { workspace = true }
+tspp_bytecode = { workspace = true }
+tspp_heap = { workspace = true }
+tspp_memory = { workspace = true }
+tspp_mir = { workspace = true }
+tspp_program = { workspace = true }
+tspp_serde = { workspace = true }
 
 # util
 serde = { workspace = true, features = ["rc"] }
 
 [dev-dependencies]
 # language
-destack_core = { workspace = true }
-destack_source = { workspace = true }
+tspp_core = { workspace = true }
+tspp_source = { workspace = true }
 
 # util
 criterion = { workspace = true }

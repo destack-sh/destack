@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch, PatchSet};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -197,7 +197,7 @@ function active(value: boolean): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-boolean-literal-compare]: boolean literal comparison is unnecessary
- ──▶ main.ds:2:21
+ ──▶ main.tspp:2:21
   │
 1 │ function active(value: boolean): boolean {
 2 │     return value == true;
@@ -206,8 +206,8 @@ warning[no-boolean-literal-compare]: boolean literal comparison is unnecessary
   │
 
  = fix: remove the boolean literal comparison
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function active(value: boolean): boolean {
 -   2│     return value == true;
@@ -598,7 +598,7 @@ const active = !true;
         let session = TestSession::dir(
             &NO_BOOLEAN_LITERAL_COMPARE,
             r#"
-import { PartialEqual } from "destack:ops";
+import { PartialEqual } from "tspp:ops";
 
 struct Flag {
     value: boolean;
@@ -696,7 +696,7 @@ function active(value: boolean): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-boolean-literal-compare]: boolean literal comparison is unnecessary
- ──▶ main.ds:2:39
+ ──▶ main.tspp:2:39
   │
 1 │ function active(value: boolean): boolean {
 2 │     return value /* comparison */ === true;

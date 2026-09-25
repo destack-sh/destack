@@ -1,0 +1,11 @@
+import { IoError, Result } from "tspp:error";
+
+/// Byte writer.
+@languageItem("sync.Writer")
+export interface Writer {
+    /// Write bytes from `buffer`.
+    write(&this, buffer: &readonly [uint8]): Result<usize, IoError>;
+
+    /// Flush buffered writes.
+    flush(&this): Result<void, IoError>;
+}

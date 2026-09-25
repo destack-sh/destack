@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_artifact::ConditionSet;
-use destack_core::CaptureMode;
-use destack_program as program;
-use destack_repository::{Environment, ExecutionMode, RuntimeOptions};
+use tspp_artifact::ConditionSet;
+use tspp_core::CaptureMode;
+use tspp_program as program;
+use tspp_repository::{Environment, ExecutionMode, RuntimeOptions};
 
 use crate::binding::BindingTable;
 use crate::diagnostic::{RuntimeError, RuntimeResult};

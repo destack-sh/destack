@@ -1,9 +1,9 @@
 use std::borrow::Cow;
 use std::fmt;
 
-use destack_artifact::{DiagnosticAnchor, DiagnosticBuilder, IndexKind};
-use destack_repository::{LintLevel, ProviderError};
-use destack_source::{Applicability, DiagnosticSuggestion, PatchSet};
+use tspp_artifact::{DiagnosticAnchor, DiagnosticBuilder, IndexKind};
+use tspp_repository::{LintLevel, ProviderError};
+use tspp_source::{Applicability, DiagnosticSuggestion, PatchSet};
 
 use super::{DirModule, DirProgram, MirModule, MirProgram};
 use crate::LinterDiagnostic;

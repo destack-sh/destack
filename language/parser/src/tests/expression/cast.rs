@@ -3,12 +3,12 @@ use crate::{
     ExpressionPosition, ExpressionStop, assert_comment, assert_expression_path, assert_node,
     assert_path, assert_string, assert_value_expression_path,
 };
-use destack_dir::{
+use tspp_dir::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, CommentKind, Declaration,
     Expression, FunctionDeclaration, FunctionForm, GenericArgument, IfForm, Literal, NodeType,
     Parameter, TokenType, TypeDeclaration, TypeExpression, TypeLiteral,
 };
-use destack_source::DiagnosticSeverity;
+use tspp_source::DiagnosticSeverity;
 
 /// Type casts bind to the full addition expression on the left.
 #[test]

@@ -6,7 +6,7 @@
 
 Ambient declaration forms are parsed and formatted.
 
-```ds:main.ds
+```tspp:main.tspp
 declare type A = true;
 declare function b(): "hello";
 declare const foo: "bar";
@@ -16,7 +16,7 @@ declare interface Shape {}
 declare class Box {}
 ```
 
-```ds expected
+```tspp expected
 declare type A = true;
 declare function b(): "hello";
 declare const foo: "bar";
@@ -30,13 +30,13 @@ declare class Box {}
 
 Module declaration bodies are parsed and formatted.
 
-```ds
+```tspp
 module {
     const tree = HtmlTree
 }
 ```
 
-```ds expected
+```tspp expected
 module {
     const tree = HtmlTree;
 }
@@ -46,7 +46,7 @@ module {
 
 Overload signatures with optional and rest parameters are parsed.
 
-```ds:main.ds
+```tspp:main.tspp
 function fn4a(x?: number, y: string)
 function fn4a() {}
 
@@ -54,7 +54,7 @@ function fn5(x: string, y: string, ...rest: any[])
 function fn5() {}
 ```
 
-```ds expected
+```tspp expected
 function fn4a(x?: number, y: string);
 function fn4a() {}
 

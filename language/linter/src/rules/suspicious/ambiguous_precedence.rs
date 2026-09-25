@@ -1,10 +1,10 @@
-use destack_dir as dir;
-use destack_dir::OperatorPrecedence::{
+use tspp_dir as dir;
+use tspp_dir::OperatorPrecedence::{
     Addition, BitwiseAnd, BitwiseOr, BitwiseXor, Comparison, Equality, Exponentiation, LogicalAnd,
     LogicalOr, Multiplication, Shift,
 };
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -101,7 +101,7 @@ fn is_ambiguous(parent: dir::BinaryOperator, nested: dir::BinaryOperator) -> boo
 fn suggest_grouping(
     module: &DirModule<'_>,
     lint: &Lint,
-    span: destack_source::Span,
+    span: tspp_source::Span,
 ) -> Result<DiagnosticSuggestion, ProviderError> {
     let source = module.source(span)?;
     let patch = Patch::replace(span, format!("({source})"));
@@ -172,7 +172,7 @@ function ready(primary: boolean, backup: boolean, enabled: boolean): boolean {
         let session = TestSession::dir(
             &AMBIGUOUS_PRECEDENCE,
             r#"
-import { And, PartialEqual } from "destack:ops";
+import { And, PartialEqual } from "tspp:ops";
 
 struct Logic {
     value: boolean;
@@ -200,7 +200,7 @@ function combine(left: Logic, right: Logic, expected: Logic): boolean {
 
         session.assert_fixes(
             r#"
-import { And, PartialEqual } from "destack:ops";
+import { And, PartialEqual } from "tspp:ops";
 
 struct Logic {
     value: boolean;

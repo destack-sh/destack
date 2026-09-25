@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -101,7 +101,7 @@ fn append_template(
     module: &DirModule<'_>,
     expression: dir::LocalNodeId<dir::Expression>,
     template: &mut String,
-    retained: &mut Vec<destack_source::Span>,
+    retained: &mut Vec<tspp_source::Span>,
 ) -> Result<(bool, bool), ProviderError> {
     // flatten nested canonical string additions in evaluation order
     let node = module.view().get(expression);
@@ -164,8 +164,8 @@ fn append_template_text(source: &str, template: &mut String) {
 fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
-    extent: destack_source::Span,
-    retained: Vec<destack_source::Span>,
+    extent: tspp_source::Span,
+    retained: Vec<tspp_source::Span>,
     template: String,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     if module.has_unretained_comment(extent, &retained)? {
@@ -200,7 +200,7 @@ function greeting(name: string): string {
         session.assert_diagnostics(
             r#"
 warning[prefer-template]: string concatenation obscures a template
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function greeting(name: string): string {
 2 │     return name + " says hello";
@@ -209,8 +209,8 @@ warning[prefer-template]: string concatenation obscures a template
   │
 
  = fix: use a template literal
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function greeting(name: string): string {
 -   2│     return name + " says hello";
@@ -263,7 +263,7 @@ function describe(name: string): string {
         session.assert_diagnostics(
             r#"
 warning[prefer-template]: string concatenation obscures a template
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function describe(name: string): string {
 2 │     return "line\nliteral \${value}: " + name;
@@ -272,8 +272,8 @@ warning[prefer-template]: string concatenation obscures a template
   │
 
  = fix: use a template literal
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function describe(name: string): string {
 -   2│     return "line\nliteral \${value}: " + name;
@@ -320,7 +320,7 @@ function greet(name: string): string {
         session.assert_diagnostics(
             r#"
 warning[prefer-template]: string concatenation obscures a template
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function greet(name: string): string {
 2 │     return "hello, " + /* retain */ name;
@@ -346,7 +346,7 @@ function greeting(first: string, last: string): string {
         session.assert_diagnostics(
             r#"
 warning[prefer-template]: string concatenation obscures a template
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function greeting(first: string, last: string): string {
 2 │     return "hello, " + first + " " + last + "!";
@@ -355,8 +355,8 @@ warning[prefer-template]: string concatenation obscures a template
   │
 
  = fix: use a template literal
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function greeting(first: string, last: string): string {
 -   2│     return "hello, " + first + " " + last + "!";

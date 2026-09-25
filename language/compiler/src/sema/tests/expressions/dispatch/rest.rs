@@ -9,7 +9,7 @@ declare function collect(...values: [int32; 2]): void;
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 declare function collect(...values: [int32; 2]): void;
 
@@ -36,7 +36,7 @@ collect(1, 2);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -80,7 +80,7 @@ declare function collect(...values: (string, ...[int32; 2])): void;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -109,7 +109,7 @@ collect("Ada", 1, 2);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -148,7 +148,7 @@ const result = callback("Ada", 2);
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 type Rebuild<T> = T extends (...values: infer P) => infer R ? (...values: P) => R : never;
 
@@ -211,7 +211,7 @@ const instance = new constructor("Ada");
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 class User {
     constructor(name: string) {}
@@ -285,7 +285,7 @@ remaining("Ada", 2);
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 type Tail<T> = T extends (unknown, ...infer P) ? (...values: P) => void : never;
 
@@ -338,7 +338,7 @@ class Logger {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 type Callback = (...values: string) => void;
 
@@ -393,7 +393,7 @@ impossible(1);
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 declare function impossible(...values: never): void;
 
@@ -433,7 +433,7 @@ collect(1, 2);
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 declare function collect(...values: int32): void;
 
@@ -477,7 +477,7 @@ slice(1, 2);
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 declare function array(...values: int32[]): void;
 

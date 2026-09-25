@@ -22,7 +22,7 @@ if (let id(_) = id) {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -103,7 +103,7 @@ if (let UserId(value) = id) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -164,7 +164,7 @@ match (point) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -243,7 +243,7 @@ match (point) {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -319,7 +319,7 @@ match (user) {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -400,7 +400,7 @@ match (user) {
 fn test_bind_destructured_fields_through_a_borrowed_scrutinee() {
     let session = TestSession::single(
         r#"
-import { Equal } from "destack:ops";
+import { Equal } from "tspp:ops";
 
 struct Ok<T> {
     value: T;
@@ -432,11 +432,11 @@ function same<T: Equal<T>, E: Equal<E>>(left: &immutable Outcome<T, E>, right: &
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Equal } from "destack:ops";
+import { Equal } from "tspp:ops";
 
 struct Ok<out T> {
     value: T;
@@ -469,7 +469,7 @@ function same<T: Equal<T>, E: Equal<E>, 'a, 'b>(
 }
 
 === dir ===
-import { Equal } from "destack:ops";
+import { Equal } from "tspp:ops";
 
 struct Ok<T> {
 /// @generic.template symbol=Ok parameters=(out T#1)

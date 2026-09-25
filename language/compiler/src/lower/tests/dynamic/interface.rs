@@ -26,7 +26,7 @@ function run(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Console.greet",
         r#"
 @nocopy
@@ -46,7 +46,7 @@ entry(v0: ref<test.main.Console, managed, mutable, local>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.talk",
         r#"
 @nocopy
@@ -67,7 +67,7 @@ entry(v0: dynamic<test.main.Greeter, managed, mutable, local>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.run",
         r#"
 @nocopy
@@ -114,7 +114,7 @@ function write(sink: Sink | undefined): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.write",
         r#"
 @nocopy
@@ -184,7 +184,7 @@ function run(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Register.name",
         r#"
 @nocopy
@@ -204,7 +204,7 @@ entry(v0: ref<test.main.Register, managed, mutable, local>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Register.count",
         r#"
 @nocopy
@@ -224,7 +224,7 @@ entry(v0: ref<test.main.Register, managed, mutable, local>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 @nocopy
@@ -248,7 +248,7 @@ entry(v0: dynamic<test.main.Counted, managed, mutable, local>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.run",
         r#"
 @nocopy
@@ -291,7 +291,7 @@ function erase<T: Greeter>(value: T): Greeter {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.erase",
         r#"
 @nocopy

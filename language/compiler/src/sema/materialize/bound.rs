@@ -1,7 +1,7 @@
 use std::iter;
 
-use destack_dir as dir;
 use smallvec::SmallVec;
+use tspp_dir as dir;
 
 use super::instance::InstanceWorklist;
 use crate::sema::{CheckState, Origin, TypeSubstitution, Verdict};

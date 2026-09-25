@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use destack_core::StableHasher;
+use tspp_core::StableHasher;
 
 /// Hash one source id domain and length-prefixed components into a stable 128-bit id.
 pub(super) fn stable_source_id(domain: &[u8], parts: &[&[u8]]) -> u64 {

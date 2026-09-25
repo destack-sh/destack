@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -104,7 +104,7 @@ interface Client {
         session.assert_diagnostics(
             r#"
 warning[default-param-last]: required parameter follows an optional or defaulted parameter
- ──▶ main.ds:2:30
+ ──▶ main.tspp:2:30
   │
 1 │ interface Client {
 2 │     connect(timeout?: int32, retries: int32): void;
@@ -130,7 +130,7 @@ class Client {
         session.assert_diagnostics(
             r#"
 warning[default-param-last]: required parameter follows an optional or defaulted parameter
- ──▶ main.ds:2:34
+ ──▶ main.tspp:2:34
   │
 1 │ class Client {
 2 │     connect(timeout: int32 = 30, retries: int32): void {}
@@ -156,7 +156,7 @@ const client = {
         session.assert_diagnostics(
             r#"
 warning[default-param-last]: required parameter follows an optional or defaulted parameter
- ──▶ main.ds:2:34
+ ──▶ main.tspp:2:34
   │
 1 │ const client = {
 2 │     connect(timeout: int32 = 30, retries: int32): void {},
@@ -182,7 +182,7 @@ interface Callable {
         session.assert_diagnostics(
             r#"
 warning[default-param-last]: required parameter follows an optional or defaulted parameter
- ──▶ main.ds:2:23
+ ──▶ main.tspp:2:23
   │
 1 │ interface Callable {
 2 │     (timeout?: int32, retries: int32): void;
@@ -209,7 +209,7 @@ interface Constructor {
         session.assert_diagnostics(
             r#"
 warning[default-param-last]: required parameter follows an optional or defaulted parameter
- ──▶ main.ds:3:27
+ ──▶ main.tspp:3:27
   │
 1 │ class Client {}
 2 │ interface Constructor {
@@ -234,7 +234,7 @@ type Callable = (timeout?: int32, retries: int32) => void;
         session.assert_diagnostics(
             r#"
 warning[default-param-last]: required parameter follows an optional or defaulted parameter
- ──▶ main.ds:1:35
+ ──▶ main.tspp:1:35
   │
 1 │ type Callable = (timeout?: int32, retries: int32) => void;
   │                                   ^^^^^^^
@@ -257,7 +257,7 @@ type Constructor = new (timeout?: int32, retries: int32) => Client;
         session.assert_diagnostics(
             r#"
 warning[default-param-last]: required parameter follows an optional or defaulted parameter
- ──▶ main.ds:2:42
+ ──▶ main.tspp:2:42
   │
 1 │ class Client {}
 2 │ type Constructor = new (timeout?: int32, retries: int32) => Client;

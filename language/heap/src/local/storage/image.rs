@@ -1,9 +1,9 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_memory::{MemoryMap, MemoryRange};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_memory::{MemoryMap, MemoryRange};
+use tspp_serde::Reflect;
 
 use super::{
     HeapStorage, LargeBlock, LargeBlockId, LargeBlockImage, PageOwner, SmallSpan, SmallSpanImage,

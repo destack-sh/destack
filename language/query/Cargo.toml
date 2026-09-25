@@ -1,6 +1,6 @@
 [package]
-name = "destack_query"
-description = "Destack Query"
+name = "tspp_query"
+description = "TS++ Query"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,12 +13,12 @@ doctest = false
 
 [dependencies]
 # language
-destack_artifact = { workspace = true }
-destack_core = { workspace = true }
-destack_dir = { workspace = true }
-destack_source = { workspace = true }
-destack_serde = { workspace = true }
-destack_repository = { path = "../repository", default-features = false }
+tspp_artifact = { workspace = true }
+tspp_core = { workspace = true }
+tspp_dir = { workspace = true }
+tspp_source = { workspace = true }
+tspp_serde = { workspace = true }
+tspp_repository = { path = "../repository", default-features = false }
 
 # general
 parking_lot = { workspace = true }
@@ -27,8 +27,8 @@ serde = { workspace = true, features = ["derive"] }
 
 [dev-dependencies]
 # language
-destack_session = { workspace = true, features = ["native"] }
-destack_workspace = { workspace = true, features = ["native"] }
+tspp_session = { workspace = true, features = ["native"] }
+tspp_workspace = { workspace = true, features = ["native"] }
 
 # general
 futures = { workspace = true, features = ["executor"] }

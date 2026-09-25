@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -90,7 +90,7 @@ function require(active: boolean): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-diverging-subexpression]: diverging operand prevents later evaluation
- ──▶ main.ds:4:22
+ ──▶ main.tspp:4:22
   │
 2 │
 3 │ function require(active: boolean): boolean {
@@ -159,7 +159,7 @@ function require(active: boolean): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-diverging-subexpression]: diverging operand prevents later evaluation
- ──▶ main.ds:4:22
+ ──▶ main.tspp:4:22
   │
 2 │
 3 │ function require(active: boolean): boolean {

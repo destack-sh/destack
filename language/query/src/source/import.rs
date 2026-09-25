@@ -1,7 +1,7 @@
-use destack_artifact::PackageDependency;
-use destack_core::StringId;
-use destack_dir as dir;
-use destack_source::{FileId, ModuleId, Patch, Span};
+use tspp_artifact::PackageDependency;
+use tspp_core::StringId;
+use tspp_dir as dir;
+use tspp_source::{FileId, ModuleId, Patch, Span};
 
 use crate::source::{builtin_specifier, package_specifier, relative_module_specifier};
 use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryResult};

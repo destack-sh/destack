@@ -12,7 +12,7 @@ const id: UserId = 42;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -50,7 +50,7 @@ const raw: int64 = UserId(42);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -91,7 +91,7 @@ raw satisfies int64;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -141,7 +141,7 @@ target satisfies UserId;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -193,7 +193,7 @@ const order: OrderId = user;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -239,22 +239,22 @@ const order: OrderId = user;
 fn test_imported_newtypes_with_same_name_report_error() {
     let compiler = TestSession::builder()
         .module(
-            "left.ds",
+            "left.tspp",
             r#"
 export newtype UserId = int64;
 "#,
         )
         .module(
-            "right.ds",
+            "right.tspp",
             r#"
 export newtype UserId = int64;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { UserId as LeftUserId } from "./left.ds";
-import { UserId as RightUserId } from "./right.ds";
+import { UserId as LeftUserId } from "./left.tspp";
+import { UserId as RightUserId } from "./right.tspp";
 
 const id: LeftUserId = RightUserId(42);
 "#,
@@ -262,18 +262,18 @@ const id: LeftUserId = RightUserId(42);
         .build();
 
     compiler.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { UserId as LeftUserId } from "./left.ds";
-import { UserId as RightUserId } from "./right.ds";
+import { UserId as LeftUserId } from "./left.tspp";
+import { UserId as RightUserId } from "./right.tspp";
 
 const id: UserId = RightUserId(42);
 
 === dir ===
-import { UserId as LeftUserId } from "./left.ds";
-import { UserId as RightUserId } from "./right.ds";
+import { UserId as LeftUserId } from "./left.tspp";
+import { UserId as RightUserId } from "./right.tspp";
 
 const id: LeftUserId = RightUserId(42);
 /// @type.symbol symbol=id source=id type=left.UserId
@@ -302,7 +302,7 @@ const config: Config = { debug: true };
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

@@ -17,7 +17,7 @@ function origin(): Point {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.origin",
         r#"
 type test.main.Point {
@@ -57,7 +57,7 @@ function abscissa(point: Point): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.abscissa",
         r#"
 type test.main.Point {
@@ -103,7 +103,7 @@ function diagonal(size: int32): Segment {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.diagonal",
         r#"
 type test.main.Point {
@@ -157,7 +157,7 @@ function make(name: &[uint8]): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.make",
         r#"
 type test.main.Entry<'a> {
@@ -202,7 +202,7 @@ class Counter {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Counter.constructor",
         r#"
 @nocopy
@@ -227,7 +227,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'a, exclusive>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Counter.read",
         r#"
 @nocopy
@@ -251,7 +251,7 @@ entry(v0: ref<test.main.Counter, borrowed, 'a, readonly>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Counter.double",
         r#"
 @nocopy
@@ -294,7 +294,7 @@ function make(): Options {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.make",
         r#"
 type test.main.Options {
@@ -338,7 +338,7 @@ function make(): Counter {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.make",
         r#"
 type test.main.Counter {
@@ -366,7 +366,7 @@ entry:
 fn test_lower_imported_construction_evaluates_foreign_initializers() {
     let session = TestSession::builder()
         .module(
-            "counter.ds",
+            "counter.tspp",
             r#"
 export struct Counter {
     count: int32 = 3;
@@ -375,7 +375,7 @@ export struct Counter {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { Counter } from "./counter";
 
@@ -387,7 +387,7 @@ function make(): Counter {
         .build();
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.make",
         r#"
 type test.counter.Counter;
@@ -420,7 +420,7 @@ function fill(): Slot<int32> {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.fill",
         r#"
 type test.main.Slot<T> {
@@ -475,7 +475,7 @@ class Counter {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Counter.add",
         r#"
 @nocopy
@@ -546,7 +546,7 @@ b3:
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.write",
         r#"
 type test.main.Entry<'a> {
@@ -568,7 +568,7 @@ entry(v0: ref<test.main.Entry<'a>, borrowed, 'b, readonly>):
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Counter.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Counter.constructor", r#"
 @nocopy
 type test.main.Counter {
     name: ref<String, managed, mutable, local>;
@@ -606,7 +606,7 @@ entry(v0: ref<uninit<test.main.Counter>, borrowed, 'managed, mutable>, v1: ref<S
 /// @layout.case owner=type@9 index=1 discriminant=1 payload_offset=0
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.Counter.add", r#"
+    session.assert_mir_function("main.tspp", "test.main.Counter.add", r#"
 @nocopy
 type test.main.Counter {
     name: ref<String, managed, mutable, local>;
@@ -695,7 +695,7 @@ function main(pick: boolean, meter: Meter): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 type test.main.Meter {
@@ -718,7 +718,7 @@ entry(v0: ref<test.main.Meter, borrowed, 'a, readonly>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.main",
         r#"
 type test.main.Meter {
@@ -769,7 +769,7 @@ b3:
 fn test_lower_an_omitted_field_initializer_at_an_open_argument() {
     let session = TestSession::single(
         r#"
-import { Default, Phantom } from "destack:memory";
+import { Default, Phantom } from "tspp:memory";
 
 struct Equality<T> {
     private phantom: Phantom<T> = Phantom.new();
@@ -784,7 +784,7 @@ extension<T> of Equality<T> implements Default {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Equality.Default.default",
         r#"
 type test.main.Equality<T> {
@@ -823,7 +823,7 @@ function at(directory: Handle): Entry {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.at",
         r#"
 type test.main.Handle {
@@ -879,7 +879,7 @@ function at(fields: Fields): Entry {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.at",
         r#"
 type test.main.Entry {
@@ -928,7 +928,7 @@ function bound(entry: &Entry, limit: int32): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.bound",
         r#"
 type test.main.Entry {

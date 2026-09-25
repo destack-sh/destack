@@ -1,10 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use destack_artifact::{
-    Code, Host, Output, Platform, Runtime, TargetAbi, TargetArch, TargetVendor,
-};
-use destack_source::TargetId;
 use serde::{Deserialize, Serialize};
+use tspp_artifact::{Code, Host, Output, Platform, Runtime, TargetAbi, TargetArch, TargetVendor};
+use tspp_source::TargetId;
 
 use crate::{CompilerOptions, ExecutionOptions, Policy};
 
@@ -255,7 +253,7 @@ impl Target {
     pub fn runtime(&self) -> Runtime {
         match self.output {
             Output::Bundle => Runtime::Js,
-            Output::Program => Runtime::Destack,
+            Output::Program => Runtime::Tspp,
         }
     }
 

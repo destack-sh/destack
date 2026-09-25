@@ -1,5 +1,5 @@
 use super::*;
-use destack_repository::{RuntimeDiagnosticLevel, RuntimeDiagnosticOptions};
+use tspp_repository::{RuntimeDiagnosticLevel, RuntimeDiagnosticOptions};
 
 /// Record diagnostics at or above the configured severity threshold.
 #[test]
@@ -12,7 +12,7 @@ fn test_record_filters_by_level() {
     diagnostics.record(
         RuntimeDiagnosticLevel::Info,
         "fs",
-        "destack.fs.file.open",
+        "tspp.fs.file.open",
         "ignored diagnostic",
         None,
     );
@@ -20,7 +20,7 @@ fn test_record_filters_by_level() {
     diagnostics.record(
         RuntimeDiagnosticLevel::Warn,
         "fs",
-        "destack.fs.file.open",
+        "tspp.fs.file.open",
         "recorded diagnostic",
         Some(5),
     );

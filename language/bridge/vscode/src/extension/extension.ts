@@ -3,7 +3,7 @@ import { LanguageClient, type LanguageClientOptions } from "vscode-languageclien
 
 import { ServerCommand } from "./server";
 
-/** One source position carried by a Destack CodeLens command. */
+/** One source position carried by a TS++ CodeLens command. */
 type SourcePosition = {
     /** The zero-based source line. */
     line: number;
@@ -11,8 +11,8 @@ type SourcePosition = {
     character: number;
 };
 
-/** The active Destack VS Code extension. */
-export class DestackExtension {
+/** The active TS++ VS Code extension. */
+export class TsppExtension {
     /** Extension context. */
     private readonly context: vscode.ExtensionContext;
 
@@ -29,7 +29,7 @@ export class DestackExtension {
     constructor(context: vscode.ExtensionContext) {
         this.context = context;
 
-        this.log = vscode.window.createOutputChannel("Destack", { log: true });
+        this.log = vscode.window.createOutputChannel("TS++", { log: true });
         context.subscriptions.push(this.log);
     }
 
@@ -62,8 +62,8 @@ export class DestackExtension {
         this.log.info(`event=server.start executable=${JSON.stringify(command.command)}`);
 
         const client = new LanguageClient(
-            "destack",
-            "Destack",
+            "tspp",
+            "TS++",
             command.executable(),
             this.clientOptions(),
         );
@@ -75,8 +75,8 @@ export class DestackExtension {
     private clientOptions(): LanguageClientOptions {
         return {
             documentSelector: [
-                { language: "destack-ds", scheme: "file" },
-                { language: "destack-ds", scheme: "destack" },
+                { language: "tspp", scheme: "file" },
+                { language: "tspp", scheme: "tspp" },
             ],
             outputChannel: this.log,
             traceOutputChannel: this.log,
@@ -84,7 +84,7 @@ export class DestackExtension {
                 codeLensCommands: ["references", "implementations"],
             },
             synchronize: {
-                configurationSection: ["destack.completion", "destack.inlayHints"],
+                configurationSection: ["tspp.completion", "tspp.inlayHints"],
             },
         };
     }
@@ -110,16 +110,16 @@ export class DestackExtension {
     /** Register commands implemented by the extension. */
     private registerCommands(): void {
         this.context.subscriptions.push(
-            vscode.commands.registerCommand("destack.restart", async () => {
+            vscode.commands.registerCommand("tspp.restart", async () => {
                 await this.report("restart Destack", () => this.restart());
             }),
-            vscode.commands.registerCommand("destack.showLogs", () => {
+            vscode.commands.registerCommand("tspp.showLogs", () => {
                 this.log.show(true);
             }),
             vscode.commands.registerCommand(
-                "destack.showReferences",
+                "tspp.showReferences",
                 async (uri: string, position: SourcePosition) => {
-                    await this.report("show Destack references", async () =>
+                    await this.report("show TS++ references", async () =>
                         this.showLocations(
                             uri,
                             position,
@@ -130,9 +130,9 @@ export class DestackExtension {
                 },
             ),
             vscode.commands.registerCommand(
-                "destack.showImplementations",
+                "tspp.showImplementations",
                 async (uri: string, position: SourcePosition) => {
-                    await this.report("show Destack implementations", async () =>
+                    await this.report("show TS++ implementations", async () =>
                         this.showLocations(
                             uri,
                             position,
@@ -149,11 +149,11 @@ export class DestackExtension {
     private registerRestart(): void {
         this.context.subscriptions.push(
             vscode.workspace.onDidChangeConfiguration(async (event) => {
-                if (!event.affectsConfiguration("destack.server")) {
+                if (!event.affectsConfiguration("tspp.server")) {
                     return;
                 }
 
-                await this.report("apply Destack server settings", () => this.restart());
+                await this.report("apply TS++ server settings", () => this.restart());
             }),
             vscode.workspace.onDidGrantWorkspaceTrust(async () => {
                 await this.report("apply Destack workspace trust", () => this.restart());
@@ -173,7 +173,7 @@ export class DestackExtension {
             !Number.isInteger(positionValue?.line) ||
             !Number.isInteger(positionValue?.character)
         ) {
-            throw new TypeError("Destack CodeLens has invalid source coordinates");
+            throw new TypeError("TS++ CodeLens has invalid source coordinates");
         }
 
         const uri = vscode.Uri.parse(uriValue);

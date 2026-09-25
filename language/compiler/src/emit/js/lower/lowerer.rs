@@ -1,7 +1,7 @@
-use destack_core::StringPool;
-use destack_dir as dir;
-use destack_js as js;
-use destack_repository::Module;
+use tspp_core::StringPool;
+use tspp_dir as dir;
+use tspp_js as js;
+use tspp_repository::Module;
 
 use crate::emit::js::ScriptSymbolId;
 use crate::{DiagnosticAnchor, EmitError};

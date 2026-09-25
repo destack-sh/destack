@@ -1,5 +1,5 @@
 use clap::Args;
-use destack_workspace::{CommandRevision, RewriteInput, RewriteMode, RewritePayload};
+use tspp_workspace::{CommandRevision, RewriteInput, RewriteMode, RewritePayload};
 
 use crate::common::{
     CommandOptionsBuilder, CommandResult, DiagnosticFormat, FormatOptions, InputArgs, NodeTypeArg,
@@ -12,11 +12,11 @@ use crate::console;
 /// Arguments for the structural rewrite command.
 #[derive(Args, Debug, Clone)]
 pub struct RewriteArgs {
-    /// Structural Destack search pattern.
+    /// Structural TS++ search pattern.
     #[arg(value_name = "PATTERN")]
     pub pattern: String,
 
-    /// Structural Destack replacement.
+    /// Structural TS++ replacement.
     #[arg(value_name = "REPLACEMENT")]
     pub replacement: String,
 

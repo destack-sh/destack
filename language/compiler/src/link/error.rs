@@ -1,6 +1,6 @@
 use crate::DiagnosticAnchor;
-use destack_artifact_macros::Diagnostic;
-use destack_source::{PackageId, ProductId, TargetId};
+use tspp_artifact_macros::Diagnostic;
+use tspp_source::{PackageId, ProductId, TargetId};
 
 /// Errors during the link phase.
 #[derive(Debug, Clone, PartialEq, Diagnostic)]

@@ -1,7 +1,7 @@
 use crate::EmitError;
 
-use destack_dir as dir;
-use destack_js as js;
+use tspp_dir as dir;
+use tspp_js as js;
 
 use crate::emit::js::ModuleLowerer;
 

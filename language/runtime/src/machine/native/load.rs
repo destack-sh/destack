@@ -1,4 +1,4 @@
-use destack_program::Program;
+use tspp_program::Program;
 
 use super::{Code, Error};
 
@@ -14,5 +14,5 @@ pub trait Loader {
     }
 
     /// Map and prepare one durable native code image.
-    fn load_code(&self, program: &Program, code: &destack_native::Code) -> Result<Code, Error>;
+    fn load_code(&self, program: &Program, code: &tspp_native::Code) -> Result<Code, Error>;
 }

@@ -6,11 +6,11 @@
 
 Short binary expressions remain on a single line.
 
-```ds
+```tspp
 a + b + c + d
 ```
 
-```ds expected
+```tspp expected
 a + b + c + d;
 ```
 
@@ -18,11 +18,11 @@ a + b + c + d;
 
 Operator precedence is preserved without added parentheses.
 
-```ds
+```tspp
 a + b * c - d / e
 ```
 
-```ds expected
+```tspp expected
 a + b * c - d / e;
 ```
 
@@ -30,11 +30,11 @@ a + b * c - d / e;
 
 Long binary expressions break at operators with all operands at same indentation.
 
-```ds line-width=30
+```tspp line-width=30
 result = aLongVariableName + anotherLongName + thirdLongName
 ```
 
-```ds expected
+```tspp expected
 result = aLongVariableName
     + anotherLongName
     + thirdLongName;
@@ -44,11 +44,11 @@ result = aLongVariableName
 
 Long binary declarators also break after `=` when needed.
 
-```ds line-width=40
+```tspp line-width=40
 const sum = aLongVariableName + anotherLongName + thirdLongName
 ```
 
-```ds expected
+```tspp expected
 const sum = aLongVariableName
     + anotherLongName
     + thirdLongName;
@@ -58,11 +58,11 @@ const sum = aLongVariableName
 
 Logical operators break the same way.
 
-```ds line-width=40
+```tspp line-width=40
 const isValid = hasPermission && isActive && !isDisabled
 ```
 
-```ds expected
+```tspp expected
 const isValid = hasPermission
     && isActive
     && !isDisabled;

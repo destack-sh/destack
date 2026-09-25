@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use crossbeam_channel::Receiver;
-use destack_serde::Codec;
+use tspp_serde::Codec;
 
 use super::{CallError, CallId, Response};
 use crate::protocol::message::Completion;

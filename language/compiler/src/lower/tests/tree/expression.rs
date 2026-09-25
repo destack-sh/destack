@@ -4,7 +4,7 @@ use crate::tests::TestSession;
 fn test_lower_a_tree_fragment_with_struct_components() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 struct Panel {
     width: int32;
@@ -38,7 +38,7 @@ function render(): Panel {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.render",
         r#"
 type test.main.Panel {
@@ -72,7 +72,7 @@ entry:
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Panel.TreeBuilder.fragment<(test.main.Badge)>",
         r#"
 type test.main.Panel {

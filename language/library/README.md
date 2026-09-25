@@ -1,3 +1,3 @@
 # Standard Library
 
-Core APIs for Destack programs.
+Core APIs for TS++ programs.

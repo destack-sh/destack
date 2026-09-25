@@ -1,6 +1,6 @@
-use destack_artifact::{IndexKind, ModuleIndex, ProgramIndex};
-use destack_dir as dir;
-use destack_repository::{ProviderError, ProviderResult};
+use tspp_artifact::{IndexKind, ModuleIndex, ProgramIndex};
+use tspp_dir as dir;
+use tspp_repository::{ProviderError, ProviderResult};
 
 /// Builder for one program index from matching module indexes.
 pub(crate) struct ProgramIndexer<'a> {

@@ -1,12 +1,12 @@
 use crate::parse::{ExpressionPosition, ExpressionStop, TypePosition, TypeStop};
 use crate::{Parser, ParserResult};
-use destack_dir::{BlockContext, Catch, Expression, Keyword, LocalNodeId, NodeType, TokenType};
+use tspp_dir::{BlockContext, Catch, Expression, Keyword, LocalNodeId, NodeType, TokenType};
 
 impl Parser {
     /// Parse one try expression.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// try { work(); } catch (error) { handle(error); } finally { cleanup(); }
     /// ```
     pub(crate) fn parse_try(&mut self) -> ParserResult<LocalNodeId<Expression>> {

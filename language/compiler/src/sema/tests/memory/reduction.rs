@@ -14,7 +14,7 @@ declare const point: ^Point;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -57,7 +57,7 @@ declare const point: ^^Point;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -100,7 +100,7 @@ declare const point: ^readonly Point;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -143,7 +143,7 @@ declare const bag: ^Bag;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -177,7 +177,7 @@ declare const bag: ^Bag;
 fn test_collapse_a_substituted_owned_form_beneath_a_borrow() {
     let session = TestSession::builder()
         .module(
-            "dep.ds",
+            "dep.tspp",
             r#"
 export struct Point {
     x: int32;
@@ -187,9 +187,9 @@ export declare function share<T>(value: T): &'static ^T;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Point, share } from "./dep.ds";
+import { Point, share } from "./dep.tspp";
 
 declare const point: Point;
 const borrowed = share(point);
@@ -200,11 +200,11 @@ borrowed satisfies Borrowed<Point, "static", "mutable">;
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Point, share } from "./dep.ds";
+import { Point, share } from "./dep.tspp";
 
 declare const point: Point;
 const borrowed: &'static Point = share<Point>(point);
@@ -212,7 +212,7 @@ const borrowed: &'static Point = share<Point>(point);
 borrowed satisfies Borrowed<Point, "static", "mutable">;
 
 === dir ===
-import { Point, share } from "./dep.ds";
+import { Point, share } from "./dep.tspp";
 
 declare const point: Point;
 /// @type.symbol symbol=point source=point type=dep.Point
@@ -244,7 +244,7 @@ borrowed satisfies Borrowed<Point, "static", "mutable">;
 fn test_layer_stacked_raw_and_reborrow_stacked_borrows() {
     let session = TestSession::single(
         r#"
-import { Borrowed, Raw } from "destack:memory";
+import { Borrowed, Raw } from "tspp:memory";
 
 declare const nested: Borrowed<Borrowed<int32>>;
 declare const doubled: Raw<Raw<int32>>;
@@ -252,17 +252,17 @@ declare const doubled: Raw<Raw<int32>>;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Borrowed, Raw } from "destack:memory";
+import { Borrowed, Raw } from "tspp:memory";
 
 declare const nested: &'static int32;
 declare const doubled: **int32;
 
 === dir ===
-import { Borrowed, Raw } from "destack:memory";
+import { Borrowed, Raw } from "tspp:memory";
 
 declare const nested: Borrowed<Borrowed<int32>>;
 /// @type.symbol symbol=nested source=nested type=&'static int32

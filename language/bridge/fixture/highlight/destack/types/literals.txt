@@ -1,7 +1,0 @@
-// SYNTAX TEST "source.ds"
-
-// types / literals / bindings context and precision
-const value = { env: { mode: "dev" } } as const satisfies { env: { mode: string } };
-
-value.env.mode satisfies "dev";
-//             ^^^^^^^^^ keyword.operator.type.binary.ds

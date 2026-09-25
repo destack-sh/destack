@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::mem;
 
-use destack_program as program;
+use tspp_program as program;
 
 use crate::{Error, Result};
 

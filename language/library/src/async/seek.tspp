@@ -1,0 +1,11 @@
+import { IoError } from "tspp:error";
+import { SeekFrom } from "tspp:sync";
+
+import { Task } from "./task.tspp";
+
+/// Asynchronous seekable byte stream.
+@languageItem("async.AsyncSeeker")
+export interface AsyncSeeker {
+    /// Seek to a new stream position.
+    seek(&this, from: SeekFrom): Task<Result<uint64, IoError>>;
+}

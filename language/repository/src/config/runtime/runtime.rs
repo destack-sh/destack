@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 
-use destack_artifact::{BuildLinkage, BuildProfile};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_artifact::{BuildLinkage, BuildProfile};
+use tspp_serde::Reflect;
 
 use super::{HeapOptions, HostOptions, RuntimeDiagnosticOptions, WorkerOptions};
 

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_artifact::PackageNode;
-use destack_source::PackageId;
+use tspp_artifact::PackageNode;
+use tspp_source::PackageId;
 
 use crate::import::ImportState;
 use crate::{Compiler, CompilerError, CompilerResult};

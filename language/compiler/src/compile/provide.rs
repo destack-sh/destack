@@ -1,5 +1,5 @@
-use destack_artifact::{ArtifactDependencySet, ArtifactFailure, ArtifactKey, ArtifactPayload};
-use destack_repository::{ProviderContext, ProviderError, ProviderResult};
+use tspp_artifact::{ArtifactDependencySet, ArtifactFailure, ArtifactKey, ArtifactPayload};
+use tspp_repository::{ProviderContext, ProviderError, ProviderResult};
 
 use crate::sema::provide::Pass;
 use crate::{Compiler, CompilerError, CompilerResult};

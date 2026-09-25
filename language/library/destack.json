@@ -1,166 +1,166 @@
 {
     "id": "package-01a0c80b-614d-75a8-8cc9-9691e2dfd962",
-  "name": "destack",
+  "name": "tspp",
   "version": "2026.9.0",
   "stability": "experimental",
   "private": true,
-  "description": "Destack standard library.",
+  "description": "TS++ standard library.",
   "targets": {
     "default": {
       "output": "program",
       "include": [
-        "src/**/*.ds"
+        "src/**/*.tspp"
       ]
     }
   },
   "defaultTarget": "default",
   "exports": {
     ".": {
-      "path": "./src/index.ds"
+      "path": "./src/index.tspp"
     },
     "./assert": {
-      "path": "./src/assert/index.ds"
+      "path": "./src/assert/index.tspp"
     },
     "./async": {
-      "path": "./src/async/index.ds"
+      "path": "./src/async/index.tspp"
     },
     "./binding": {
-      "path": "./src/binding/index.ds"
+      "path": "./src/binding/index.tspp"
     },
     "./bytes": {
-      "path": "./src/bytes/index.ds"
+      "path": "./src/bytes/index.tspp"
     },
     "./channel": {
-      "path": "./src/channel/index.ds"
+      "path": "./src/channel/index.tspp"
     },
     "./collections": {
-      "path": "./src/collections/index.ds"
+      "path": "./src/collections/index.tspp"
     },
     "./console": {
-      "path": "./src/console/index.ds"
+      "path": "./src/console/index.tspp"
     },
     "./context": {
-      "path": "./src/context/index.ds"
+      "path": "./src/context/index.tspp"
     },
     "./convert": {
-      "path": "./src/convert/index.ds"
+      "path": "./src/convert/index.tspp"
     },
     "./debug": {
-      "path": "./src/debug/index.ds"
+      "path": "./src/debug/index.tspp"
     },
     "./decorator": {
-      "path": "./src/decorator/index.ds"
+      "path": "./src/decorator/index.tspp"
     },
     "./error": {
-      "path": "./src/error/index.ds"
+      "path": "./src/error/index.tspp"
     },
     "./fs": {
-      "path": "./src/fs/index.ds"
+      "path": "./src/fs/index.tspp"
     },
     "./fs/binding": {
-      "path": "./src/fs/binding/index.ds"
+      "path": "./src/fs/binding/index.tspp"
     },
     "./hint": {
-      "path": "./src/hint/index.ds"
+      "path": "./src/hint/index.tspp"
     },
     "./iter": {
-      "path": "./src/iter/index.ds"
+      "path": "./src/iter/index.tspp"
     },
     "./intl": {
-      "path": "./src/intl/index.ds"
+      "path": "./src/intl/index.tspp"
     },
     "./json": {
-      "path": "./src/json/index.ds"
+      "path": "./src/json/index.tspp"
     },
     "./math": {
-      "path": "./src/math/index.ds"
+      "path": "./src/math/index.tspp"
     },
     "./memory": {
-      "path": "./src/memory/index.ds"
+      "path": "./src/memory/index.tspp"
     },
     "./memory/binding": {
-      "path": "./src/memory/binding/index.ds"
+      "path": "./src/memory/binding/index.tspp"
     },
     "./module": {
-      "path": "./src/module/index.ds"
+      "path": "./src/module/index.tspp"
     },
     "./net": {
-      "path": "./src/net/index.ds"
+      "path": "./src/net/index.tspp"
     },
     "./net/binding": {
-      "path": "./src/net/binding/index.ds"
+      "path": "./src/net/binding/index.tspp"
     },
     "./ops": {
-      "path": "./src/ops/index.ds"
+      "path": "./src/ops/index.tspp"
     },
     "./profile": {
-      "path": "./src/profile/index.ds"
+      "path": "./src/profile/index.tspp"
     },
     "./prelude": {
-      "path": "./src/prelude.ds"
+      "path": "./src/prelude.tspp"
     },
     "./random": {
-      "path": "./src/random/index.ds"
+      "path": "./src/random/index.tspp"
     },
     "./random/binding": {
-      "path": "./src/random/binding/index.ds"
+      "path": "./src/random/binding/index.tspp"
     },
     "./range": {
-      "path": "./src/range/index.ds"
+      "path": "./src/range/index.tspp"
     },
     "./reflect": {
-      "path": "./src/reflect/index.ds"
+      "path": "./src/reflect/index.tspp"
     },
     "./regexp": {
-      "path": "./src/regexp/index.ds"
+      "path": "./src/regexp/index.tspp"
     },
     "./runtime": {
-      "path": "./src/runtime/index.ds"
+      "path": "./src/runtime/index.tspp"
     },
     "./serde": {
-      "path": "./src/serde/index.ds"
+      "path": "./src/serde/index.tspp"
     },
     "./signal": {
-      "path": "./src/signal/index.ds"
+      "path": "./src/signal/index.tspp"
     },
     "./stream": {
-      "path": "./src/stream/index.ds"
+      "path": "./src/stream/index.tspp"
     },
     "./string": {
-      "path": "./src/string/index.ds"
+      "path": "./src/string/index.tspp"
     },
     "./sync": {
-      "path": "./src/sync/index.ds"
+      "path": "./src/sync/index.tspp"
     },
     "./telemetry": {
-      "path": "./src/telemetry/index.ds"
+      "path": "./src/telemetry/index.tspp"
     },
     "./telemetry/binding": {
-      "path": "./src/telemetry/binding/index.ds"
+      "path": "./src/telemetry/binding/index.tspp"
     },
     "./test": {
-      "path": "./src/test/index.ds"
+      "path": "./src/test/index.tspp"
     },
     "./time": {
-      "path": "./src/time/index.ds"
+      "path": "./src/time/index.tspp"
     },
     "./time/binding": {
-      "path": "./src/time/binding/index.ds"
+      "path": "./src/time/binding/index.tspp"
     },
     "./topology": {
-      "path": "./src/topology/index.ds"
+      "path": "./src/topology/index.tspp"
     },
     "./topology/binding": {
-      "path": "./src/topology/binding/index.ds"
+      "path": "./src/topology/binding/index.tspp"
     },
     "./tree": {
-      "path": "./src/tree/index.ds"
+      "path": "./src/tree/index.tspp"
     },
     "./types": {
-      "path": "./src/types/index.ds"
+      "path": "./src/types/index.tspp"
     },
     "./worker": {
-      "path": "./src/worker/index.ds"
+      "path": "./src/worker/index.tspp"
     }
   }
 }

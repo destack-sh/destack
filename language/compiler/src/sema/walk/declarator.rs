@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::ModuleId;
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use crate::sema::{
     CheckState, ExpectedType, FlowPredicate, Obligation, PatternCoverage,
@@ -11,7 +11,7 @@ impl WalkState<'_, '_> {
     /// Walk one declarator.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// value: number = 1
     /// ```
     pub(in crate::sema) fn walk_declarator(
@@ -189,7 +189,7 @@ impl CheckState<'_> {
     /// Narrow flow from one matched declarator pattern.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// if let Some(value) = option { value }
     /// ```
     pub(in crate::sema) fn narrow_declarator_match(
@@ -202,7 +202,7 @@ impl CheckState<'_> {
     /// Narrow flow from one declarator pattern.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// if let Some(value) = option { value } else { option }
     /// ```
     pub(in crate::sema) fn narrow_declarator_pattern(
@@ -224,7 +224,7 @@ impl CheckState<'_> {
     /// Narrow one flow path from one pattern predicate.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// if let 1 | 2 = value { value } else { value }
     /// ```
     pub(in crate::sema) fn narrow_pattern(
@@ -299,7 +299,7 @@ impl CheckState<'_> {
     /// Narrow object field paths from matched field patterns.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// { name: string }
     /// ```
     fn narrow_pattern_field_match(

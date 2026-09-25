@@ -1,14 +1,14 @@
-use destack_serde::Reflect;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
+use tspp_serde::Reflect;
 
-use destack_source::{ByteRange, FileId, Span};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use tspp_source::{ByteRange, FileId, Span};
 
 use super::Keyword;
 
-pub use destack_unicode::UNICODE_VERSION;
+pub use tspp_unicode::UNICODE_VERSION;
 
 const TOKEN_TYPE_BITS: u32 = 0x0000_00ff;
 const TOKEN_LINE_BIT: u32 = 0x0000_0100;
@@ -70,7 +70,7 @@ struct TokenRecord {
 }
 
 impl Reflect for Token {
-    fn reflect(schema: &mut destack_serde::Schema) -> destack_serde::Type {
+    fn reflect(schema: &mut tspp_serde::Schema) -> tspp_serde::Type {
         TokenRecord::reflect(schema)
     }
 }

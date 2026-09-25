@@ -1,11 +1,11 @@
 use crate::parse::{TypePosition, TypeStop};
 use crate::{Parser, ParserResult};
 
-use destack_dir::{
+use tspp_dir::{
     Keyword, LocalNodeId, MappedTypeModifier, NodeType, TokenType, TypeExpression,
     TypeMappedParameter,
 };
-use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
+use tspp_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 /// One mapped type head.
 struct MappedTypeHead {
@@ -29,7 +29,7 @@ impl Parser {
     /// Parse one mapped type expression.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// { [K in keyof T]: T[K] }
     /// { readonly [K in keyof T]?: T[K] }
     /// { [K in keyof T as `get${K}`]: T[K] }
@@ -117,7 +117,7 @@ impl Parser {
     /// Parse a mapped type head.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// [K in keyof T]
     /// [K in keyof T as `get${K}`]
     /// [P in keyof Model as P]
@@ -159,7 +159,7 @@ impl Parser {
     /// Parse a mapped key remap when present.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// as K
     /// as `get${K}`
     /// as Exclude<K, "id">
@@ -188,7 +188,7 @@ impl Parser {
     /// Parse a mapped value type when present.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// : T[K]
     /// : readonly T[K]
     /// : T[K] | undefined
@@ -215,7 +215,7 @@ impl Parser {
     /// Parse one mapped readonly modifier.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// readonly [K in keyof T]
     /// +readonly [K in keyof T]
     /// -readonly [K in keyof T]
@@ -250,7 +250,7 @@ impl Parser {
     /// Parse one mapped optional modifier.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// [K in keyof T]?
     /// [K in keyof T]+?
     /// [K in keyof T]-?

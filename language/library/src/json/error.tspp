@@ -1,0 +1,44 @@
+import { Error } from "tspp:error";
+
+/// JSON error category.
+@languageItem("json.JsonErrorKind")
+export enum JsonErrorKind {
+    /// The input is not valid JSON.
+    Syntax,
+    /// The input exceeds the configured nesting depth.
+    Depth,
+    /// A number cannot be represented.
+    Number,
+    /// The value is unsupported by JSON.
+    Unsupported,
+    /// Encoding failed.
+    Encode,
+    /// Decoding failed.
+    Decode,
+}
+
+/// JSON object key or array index.
+export type JsonPathSegment = string | usize;
+
+/// JSON parse, stringify, encode, or decode error.
+@languageItem("json.JsonError")
+export struct JsonError {
+    /// The error category.
+    kind: JsonErrorKind;
+
+    /// The error message.
+    message: string;
+
+    /// The byte offset when known.
+    offset?: usize;
+
+    /// The decoded value path when known.
+    path?: readonly JsonPathSegment[];
+}
+
+export extension of JsonError implements Error {
+    /// Format this error for users.
+    display(&immutable this): ^string {
+        this.message.clone()
+    }
+}

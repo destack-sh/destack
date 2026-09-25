@@ -1,0 +1,42 @@
+import { HostError } from "tspp:error/host";
+
+import { VirtualMemoryRange } from "./virtual.tspp";
+
+/// Memory access pattern advice selector.
+@languageItem("memory.binding.MemoryAdvice")
+export enum MemoryAdvice {
+    /// No special access pattern.
+    Normal = 0,
+    /// Expect mostly sequential access.
+    Sequential = 1,
+    /// Expect mostly random access.
+    Random = 2,
+    /// Pages will be needed soon.
+    WillNeed = 3,
+    /// Pages will not be needed soon.
+    DontNeed = 4,
+}
+
+/// Advise binding family.
+@languageItem("memory.binding.MemoryAdviseBinding")
+export interface MemoryAdviseBinding {
+    /// Apply memory access advice.
+    @unsafe
+    @binding("tspp.memory.advise", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.memory.advise"],
+        families: ["windows", "unix"],
+    })
+    adviseMemory(range: VirtualMemoryRange, advice: MemoryAdvice): Result<void, HostError>;
+
+    /// Discard memory contents.
+    @unsafe
+    @binding("tspp.memory.discard", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.memory.discard"],
+        families: ["windows", "unix"],
+    })
+    discardMemory(range: VirtualMemoryRange): Result<void, HostError>;
+}

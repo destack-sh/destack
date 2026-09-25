@@ -1,0 +1,98 @@
+import { HostError } from "tspp:error/host";
+import { FileHandle } from "tspp:fs/binding";
+
+import { Entry } from "./entry.tspp";
+import { FileMode, FileOwner, FileTimes } from "./status.tspp";
+
+/// Access check bitset.
+@languageItem("fs.binding.FileAccessMask")
+export newtype FileAccessMask = uint32;
+
+export extension of FileAccessMask {
+    /// Check only for entry existence.
+    const exists = FileAccessMask(0);
+
+    /// Check for execute permission.
+    const execute = FileAccessMask(0x1);
+
+    /// Check for write permission.
+    const write = FileAccessMask(0x2);
+
+    /// Check for read permission.
+    const read = FileAccessMask(0x4);
+}
+
+/// Filesystem attribute binding family.
+@languageItem("fs.binding.AttributeBinding")
+export interface AttributeBinding {
+    /// Check access to a filesystem entry.
+    @binding("tspp.fs.attribute.checkAccess", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.metadata"],
+        families: ["windows", "unix"],
+    })
+    checkAccess(entry: &readonly Entry, access: FileAccessMask): Result<void, HostError>;
+
+    /// Set the permission mode for an entry.
+    @binding("tspp.fs.attribute.mode", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.mode"],
+        families: ["windows", "unix"],
+    })
+    setMode(entry: &readonly Entry, mode: FileMode, isFollowing: boolean): Result<void, HostError>;
+
+    /// Set the permission mode for an open file.
+    @binding("tspp.fs.attribute.fileMode", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.mode"],
+        families: ["windows", "unix"],
+    })
+    setOpenMode(file: FileHandle, mode: FileMode): Result<void, HostError>;
+
+    /// Set the owner for an entry.
+    @binding("tspp.fs.attribute.owner", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.owner"],
+        families: ["windows", "unix"],
+    })
+    setOwner(
+        entry: &readonly Entry,
+        owner: &readonly FileOwner,
+        isFollowing: boolean,
+    ): Result<void, HostError>;
+
+    /// Set the owner for an open file.
+    @binding("tspp.fs.attribute.fileOwner", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.owner"],
+        families: ["windows", "unix"],
+    })
+    setOpenOwner(file: FileHandle, owner: &readonly FileOwner): Result<void, HostError>;
+
+    /// Set access and modification times for an entry.
+    @binding("tspp.fs.attribute.times", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.metadata"],
+        families: ["windows", "unix"],
+    })
+    setTimes(
+        entry: &readonly Entry,
+        times: FileTimes,
+        isFollowing: boolean,
+    ): Result<void, HostError>;
+
+    /// Set access and modification times for an open file.
+    @binding("tspp.fs.attribute.fileTimes", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.metadata"],
+        families: ["windows", "unix"],
+    })
+    setOpenTimes(file: FileHandle, times: FileTimes): Result<void, HostError>;
+}

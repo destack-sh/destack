@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_memory::MemoryMap;
-use destack_mir::{TraceMap, TraceTable};
+use tspp_memory::MemoryMap;
+use tspp_mir::{TraceMap, TraceTable};
 
 use crate::{
     AllocationCache, AllocationShape, DEFAULT_GC_MINIMUM_WORK_BYTES, DropId, DropReference,

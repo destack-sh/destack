@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, NodeSpanRegion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, NodeSpanRegion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -16,7 +16,7 @@ Instead, you SHOULD write an element without children as one self-closing tag.
 "#,
         example: {
             reported: r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     id: int32 = 0;
@@ -43,7 +43,7 @@ function render(): Panel {
 }
 "#,
             accepted: r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     id: int32 = 0;
@@ -145,7 +145,7 @@ mod tests {
 
     /// A tree builder with one empty element and one element that accepts text.
     const BUILDER: &str = r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     id: int32 = 0;

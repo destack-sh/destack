@@ -1,10 +1,10 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use super::hash::stable_source_id;
 use crate::PackageId;
 
-const TARGET_DOMAIN: &[u8] = b"destack.source.target.v1";
+const TARGET_DOMAIN: &[u8] = b"tspp.source.target.v1";
 
 /// Stable key for one target within a package.
 #[repr(transparent)]

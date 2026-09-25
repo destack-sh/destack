@@ -1,0 +1,30 @@
+import { todo } from "tspp:error";
+import { SharedSafe } from "tspp:memory";
+
+import { AsyncReceiver, AsyncSender, ChannelOptions, Receiver, Sender } from "./channel.tspp";
+
+/// Create a local blocking multi-producer single-consumer channel.
+export function channel<T>(options?: &readonly ChannelOptions): (Sender<T>, Receiver<T>) {
+    todo("mpsc.channel")
+}
+
+/// Create a shared blocking multi-producer single-consumer channel.
+export function sharedChannel<T: SharedSafe>(
+    options?: &readonly ChannelOptions,
+): (Sender<T>, Receiver<T>) {
+    todo("mpsc.sharedChannel")
+}
+
+/// Create a local suspending multi-producer single-consumer channel.
+export function asyncChannel<T>(
+    options?: &readonly ChannelOptions,
+): (AsyncSender<T>, AsyncReceiver<T>) {
+    todo("mpsc.async")
+}
+
+/// Create a shared suspending multi-producer single-consumer channel.
+export function sharedAsyncChannel<T: SharedSafe>(
+    options?: &readonly ChannelOptions,
+): (AsyncSender<T>, AsyncReceiver<T>) {
+    todo("mpsc.sharedAsyncChannel")
+}

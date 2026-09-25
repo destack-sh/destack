@@ -1,7 +1,7 @@
 use crate::print::{PrintOptions, Printed};
 
-use destack_source::{File, Span};
-use destack_unicode::UnicodeWidthChar;
+use tspp_source::{File, Span};
+use tspp_unicode::UnicodeWidthChar;
 
 use crate::format::{
     ActualStart, BestFittingMode, BestFittingVariants, Condition, DecodedInstruction, DedentMode,
@@ -1874,7 +1874,7 @@ enum Text<'a> {
 
 #[cfg(test)]
 mod tests {
-    use destack_source::{File, FileId, FileType, Uri};
+    use tspp_source::{File, FileId, FileType, Uri};
 
     use crate::format::{
         Condition, Document, FormatElement, FormatState, IndentStyle, InvalidDocumentError,
@@ -1896,7 +1896,7 @@ mod tests {
         let formatted =
             crate::format!(allocator, SimpleFormatContext::empty_destack(), [root]).unwrap();
 
-        Printer::new(&File::empty_text(FileType::Destack), options)
+        Printer::new(&File::empty_text(FileType::Tspp), options)
             .print(formatted.document())
             .expect("Document to be valid")
     }
@@ -1913,7 +1913,7 @@ mod tests {
         .unwrap();
         let options = PrintOptions::default().with_max_output_bytes(3);
 
-        let error = Printer::new(&File::empty_text(FileType::Destack), options)
+        let error = Printer::new(&File::empty_text(FileType::Tspp), options)
             .print(formatted.document())
             .unwrap_err();
 
@@ -1940,12 +1940,9 @@ mod tests {
         let (_, groups, fits_expanded) = state.finish();
         let document = Document::new(instructions, groups, fits_expanded);
 
-        let error = Printer::new(
-            &File::empty_text(FileType::Destack),
-            PrintOptions::default(),
-        )
-        .print(&document)
-        .unwrap_err();
+        let error = Printer::new(&File::empty_text(FileType::Tspp), PrintOptions::default())
+            .print(&document)
+            .unwrap_err();
 
         assert_eq!(
             error,
@@ -1982,7 +1979,7 @@ mod tests {
         .unwrap();
         let options = PrintOptions::default().with_max_output_bytes(3);
 
-        let error = Printer::new(&File::empty_text(FileType::Destack), options)
+        let error = Printer::new(&File::empty_text(FileType::Tspp), options)
             .print(formatted.document())
             .unwrap_err();
 
@@ -2422,7 +2419,7 @@ two lines`,
         let document = Document::new(instructions, groups, fits_expanded);
 
         let printed = Printer::new(
-            &File::empty_text(FileType::Destack),
+            &File::empty_text(FileType::Tspp),
             PrintOptions::default().with_line_width(10),
         )
         .print(&document)

@@ -160,7 +160,7 @@ function Install-Binaries {
     param([string]$ExtractDirectory, [string]$InstallDirectory)
 
     New-Item -ItemType Directory -Path $InstallDirectory -Force | Out-Null
-    $binaryNames = @("destack.exe", "ds.exe", "dsc.exe")
+    $binaryNames = @("tspp.exe", "ds.exe", "dsc.exe")
 
     # copy each required executable
     foreach ($binaryName in $binaryNames) {

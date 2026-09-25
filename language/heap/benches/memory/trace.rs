@@ -1,5 +1,5 @@
-use destack_core::{SectionBuilder, SectionImage, SectionStorage};
-use destack_heap::{TraceTable, TraceView};
+use tspp_core::{SectionBuilder, SectionImage, SectionStorage};
+use tspp_heap::{TraceTable, TraceView};
 
 /// Section-backed trace table used by heap benchmarks.
 pub(crate) struct BenchTraceTable {
@@ -14,11 +14,11 @@ pub(crate) struct BenchTraceTable {
 impl BenchTraceTable {
     /// Build one empty benchmark trace table.
     pub(crate) fn new() -> Self {
-        Self::from_mir(&destack_mir::TraceTable::new())
+        Self::from_mir(&tspp_mir::TraceTable::new())
     }
 
     /// Build one benchmark trace table from MIR traces.
-    pub(crate) fn from_mir(source: &destack_mir::TraceTable) -> Self {
+    pub(crate) fn from_mir(source: &tspp_mir::TraceTable) -> Self {
         let mut sections = SectionBuilder::new();
         let trace_count = source.traces().len();
         let traces = TraceTable::pack(&mut sections, source);

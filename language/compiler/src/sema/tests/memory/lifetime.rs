@@ -20,7 +20,7 @@ function inspectFrame(): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -107,7 +107,7 @@ function first(a: &Node, b: &Node): &Node {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -161,7 +161,7 @@ function choose(a: &Node, b: &Node, flag: boolean): &Node {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -227,7 +227,7 @@ declare function choose<'a, 'b>(
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -287,7 +287,7 @@ struct WorldView<'a, 'b> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -344,7 +344,7 @@ struct WorldView<'a, 'b> {
 fn test_bind_elided_result_lifetime_and_place_to_receiver() {
     let session = TestSession::single(
         r#"
-import { todo } from "destack:error";
+import { todo } from "tspp:error";
 
 struct Cell { value: int32; }
 
@@ -357,11 +357,11 @@ extension of Cell {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { todo } from "destack:error";
+import { todo } from "tspp:error";
 
 struct Cell {
     value: int32;
@@ -374,7 +374,7 @@ extension of Cell {
 }
 
 === dir ===
-import { todo } from "destack:error";
+import { todo } from "tspp:error";
 
 struct Cell { value: int32; }
 /// @type.symbol symbol=Cell source="struct Cell { value: int32; }" type=Cell
@@ -406,7 +406,7 @@ extension of Cell {
 fn test_preserve_access_generic_on_receiver_borrow() {
     let session = TestSession::single(
         r#"
-import { Access, WithAccess } from "destack:memory";
+import { Access, WithAccess } from "tspp:memory";
 
 interface Viewing {
     type View;
@@ -419,11 +419,11 @@ interface Viewing {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Access, WithAccess } from "destack:memory";
+import { Access, WithAccess } from "tspp:memory";
 
 interface Viewing {
     type View;
@@ -432,7 +432,7 @@ interface Viewing {
 }
 
 === dir ===
-import { Access, WithAccess } from "destack:memory";
+import { Access, WithAccess } from "tspp:memory";
 
 interface Viewing {
 /// @generic.template symbol=Viewing parameters=(this: Viewing)
@@ -487,7 +487,7 @@ function warn(count?: int32, cause?: unknown): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -578,7 +578,7 @@ struct User {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -652,7 +652,7 @@ struct Pong {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -705,7 +705,7 @@ function inspect(user: &readonly User): int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -793,7 +793,7 @@ function first<'a>(a: &'a Node, b: &Node): &'a Node {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -848,7 +848,7 @@ declare const shared: &'static Node;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -894,7 +894,7 @@ function pick(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1011,7 +1011,7 @@ function pick(): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1090,7 +1090,7 @@ declare class Reader implements Source<Borrowed<Buffer, "readonly">> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1166,7 +1166,7 @@ declare function read(borrow: Borrowed<Buffer, "readonly">): int32;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1196,7 +1196,7 @@ declare function read(borrow: Borrowed<Buffer, "readonly">): int32;
 fn test_slide_access_arguments_past_const_region_parameters() {
     let session = TestSession::single(
         r#"
-import { Region, Access } from "destack:memory";
+import { Region, Access } from "tspp:memory";
 
 struct Pair<const R: Region, const A: Access = "mutable"> {
     size: int32;
@@ -1207,11 +1207,11 @@ declare function read(pair: Pair<"readonly">): int32;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Access, Region } from "destack:memory";
+import { Access, Region } from "tspp:memory";
 
 struct Pair<const R: Region, const A: Access = "mutable"> {
     size: int32;
@@ -1220,7 +1220,7 @@ struct Pair<const R: Region, const A: Access = "mutable"> {
 declare function read<'a>(pair: Pair<"readonly">): int32;
 
 === dir ===
-import { Region, Access } from "destack:memory";
+import { Region, Access } from "tspp:memory";
 
 struct Pair<const R: Region, const A: Access = "mutable"> {
 /// @generic.template symbol=Pair parameters=(const R: Region, const A: Access = "mutable")

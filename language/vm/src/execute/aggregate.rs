@@ -1,9 +1,9 @@
 use std::ops::Range;
 use std::ptr;
 
-use destack_bytecode::{Instruction, Opcode};
-use destack_mir::{DiscriminantField, VariantEncoding};
-use destack_program::{Layout, LayoutId, LayoutShape, Runtime, VariantLayout};
+use tspp_bytecode::{Instruction, Opcode};
+use tspp_mir::{DiscriminantField, VariantEncoding};
+use tspp_program::{Layout, LayoutId, LayoutShape, Runtime, VariantLayout};
 
 use crate::diagnostic::Result;
 use crate::machine::Activation;
@@ -228,11 +228,7 @@ impl<R: Runtime + ?Sized> Activation<'_, '_, R> {
     }
 
     /// Write one logical variant tag into its exact result range.
-    fn write_variant_tag(
-        &mut self,
-        result: destack_bytecode::RegisterSpan,
-        tag: u128,
-    ) -> Result<()> {
+    fn write_variant_tag(&mut self, result: tspp_bytecode::RegisterSpan, tag: u128) -> Result<()> {
         let result = self.register_byte_range(result)?;
         let bytes = tag.to_le_bytes();
 

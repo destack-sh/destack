@@ -8,11 +8,11 @@ Struct fixtures cover declaration heads, fields, methods, and const member block
 
 Structs format like nominal value types with semicolon-terminated members.
 
-```ds
+```tspp
 struct Point { x: number; y: number }
 ```
 
-```ds expected
+```tspp expected
 struct Point {
     x: number;
     y: number;
@@ -23,11 +23,11 @@ struct Point {
 
 Empty structs stay on one line.
 
-```ds
+```tspp
 struct Empty { }
 ```
 
-```ds expected
+```tspp expected
 struct Empty {}
 ```
 
@@ -35,11 +35,11 @@ struct Empty {}
 
 Struct field defaults keep spacing around `=`.
 
-```ds
+```tspp
 struct Settings { retries: int = 3; verbose: boolean = false }
 ```
 
-```ds expected
+```tspp expected
 struct Settings {
     retries: int = 3;
     verbose: boolean = false;
@@ -52,11 +52,11 @@ struct Settings {
 
 Struct methods format like class methods.
 
-```ds
+```tspp
 struct Vec2 { length(): float { return 0 } }
 ```
 
-```ds expected
+```tspp expected
 struct Vec2 {
     length(): float {
         return 0;
@@ -68,11 +68,11 @@ struct Vec2 {
 
 Body level struct member annotations stay on their own line above the member.
 
-```ds
+```tspp
 struct User { @validate(minLength(1)) name: string }
 ```
 
-```ds expected
+```tspp expected
 struct User {
     @validate(minLength(1))
     name: string;
@@ -83,11 +83,11 @@ struct User {
 
 Static fields keep the static keyword and trailing semicolons.
 
-```ds
+```tspp
 struct Versioned { static version: string = "1" }
 ```
 
-```ds expected
+```tspp expected
 struct Versioned {
     static version: string = "1";
 }
@@ -97,13 +97,13 @@ struct Versioned {
 
 Const blocks format like other blocks inside structs.
 
-```ds
+```tspp
 struct Buffer<const N: number> {
     const { const size = N }
 }
 ```
 
-```ds expected
+```tspp expected
 struct Buffer<const N: number> {
     const {
         const size = N;
@@ -115,11 +115,11 @@ struct Buffer<const N: number> {
 
 Const member blocks keep nested if branch tails semicolonless.
 
-```ds
+```tspp
 struct Buffer<const N: number> { const { if (N > 0) { assert(N) } else { fail() } } }
 ```
 
-```ds expected
+```tspp expected
 struct Buffer<const N: number> {
     const {
         if (N > 0) {
@@ -135,11 +135,11 @@ struct Buffer<const N: number> {
 
 Value-returning struct methods keep terminal expressions semicolonless.
 
-```ds
+```tspp
 struct Vec2 { length(): float { const squared = x * x + y * y; squared.sqrt() } }
 ```
 
-```ds expected
+```tspp expected
 struct Vec2 {
     length(): float {
         const squared = x * x + y * y;
@@ -154,11 +154,11 @@ struct Vec2 {
 
 Structs can be generic and implement interfaces.
 
-```ds
+```tspp
 struct Box<T> implements Iterable<T> { value: T }
 ```
 
-```ds expected
+```tspp expected
 struct Box<T> implements Iterable<T> {
     value: T;
 }
@@ -168,11 +168,11 @@ struct Box<T> implements Iterable<T> {
 
 Where clauses attach to the struct header.
 
-```ds
+```tspp
 struct Pair<T, U> where (T: Copy, U: Clone) { left: T; right: U }
 ```
 
-```ds expected
+```tspp expected
 struct Pair<T, U> where T: Copy, U: Clone {
     left: T;
     right: U;

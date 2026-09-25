@@ -1,0 +1,10 @@
+// SYNTAX TEST "source.tspp"
+
+// expressions / switch / cases and flow
+switch (state) {
+// <- keyword.control.conditional.tspp
+    case "ready":
+        return 1;
+    default:
+        return 0;
+}

@@ -1,0 +1,54 @@
+import { HostError } from "tspp:error/host";
+import { WorldHandle } from "tspp:runtime";
+
+import {
+    EntityId,
+    EntityKind,
+    EntityKindRecord,
+    EntityRecord,
+    EntitySelector,
+} from "../entity.tspp";
+
+/// Topology entity binding family.
+@languageItem("topology.binding.TopologyEntityBinding")
+export interface TopologyEntityBinding {
+    /// Define one runtime topology entity kind.
+    @binding("tspp.topology.entity.kind.define", {
+        provider: "runtime",
+        effect: "deterministic",
+        requires: ["runtime.topology.entity.kind.define"],
+    })
+    defineKind(world: WorldHandle, kind: EntityKindRecord): Result<void, HostError>;
+
+    /// Undefine one runtime topology entity kind.
+    @binding("tspp.topology.entity.kind.undefine", {
+        provider: "runtime",
+        effect: "deterministic",
+        requires: ["runtime.topology.entity.kind.undefine"],
+    })
+    undefineKind(world: WorldHandle, kind: EntityKind): Result<void, HostError>;
+
+    /// Upsert one runtime topology entity.
+    @binding("tspp.topology.entity.upsert", {
+        provider: "runtime",
+        effect: "deterministic",
+        requires: ["runtime.topology.entity.upsert"],
+    })
+    upsert(world: WorldHandle, entity: EntityRecord): Result<EntityId, HostError>;
+
+    /// Remove one runtime topology entity.
+    @binding("tspp.topology.entity.remove", {
+        provider: "runtime",
+        effect: "deterministic",
+        requires: ["runtime.topology.entity.remove"],
+    })
+    remove(world: WorldHandle, entity: EntityId): Result<boolean, HostError>;
+
+    /// Return runtime topology entities.
+    @binding("tspp.topology.entity.list", {
+        provider: "runtime",
+        effect: "deterministic",
+        requires: ["runtime.topology.entity.read"],
+    })
+    list(world: WorldHandle, selector?: EntitySelector): Result<[EntityRecord], HostError>;
+}

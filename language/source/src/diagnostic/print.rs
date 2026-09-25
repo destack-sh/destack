@@ -1,7 +1,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use destack_core::{Color, pluralize};
+use tspp_core::{Color, pluralize};
 
 use crate::{
     AnnotateOptions, AnnotateSpan, Applicability, DiagnosticCollection, DiagnosticLabel,
@@ -226,7 +226,7 @@ where
     ids.sort_unstable();
     ids.dedup();
     if let Some(first) = ids.first() {
-        let trailer = format!("for more information about an error, run `destack explain {first}`");
+        let trailer = format!("for more information about an error, run `tspp explain {first}`");
         write_line(&options, &color_text(&options, Color::White, &trailer));
     }
 
@@ -413,7 +413,7 @@ mod tests {
                 "<test>".to_string(),
                 Uri::from_string("<test>"),
                 None,
-                FileType::Destack,
+                FileType::Tspp,
                 "let value = 1;".to_string(),
             )
             .expect("test source should load"),
@@ -467,7 +467,7 @@ mod tests {
                 "<test>".to_string(),
                 Uri::from_string("<test>"),
                 None,
-                FileType::Destack,
+                FileType::Tspp,
                 "const overflows: int8 = 300;".to_string(),
             )
             .expect("test source should load"),
@@ -507,7 +507,7 @@ mod tests {
             "\n",
             " = note: `int8` holds values in -128..=127\n",
             " = help: widen the annotation or use a fitting value\n",
-            "for more information about an error, run `destack explain not-assignable`",
+            "for more information about an error, run `tspp explain not-assignable`",
         );
         assert_eq!(rendered, expected);
     }

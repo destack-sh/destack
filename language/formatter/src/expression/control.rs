@@ -16,26 +16,26 @@ use crate::declaration::{
 use crate::expression::ExpressionLeftPath;
 use crate::file::node_has_ignore_directive;
 use crate::tree::tree_literal_should_break;
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_core::{StringId, ensure_sufficient_stack};
-use destack_dir::{
+use crate::{FormatNode, TsppFormatContext, TsppFormatter};
+use tspp_core::{StringId, ensure_sufficient_stack};
+use tspp_dir::{
     Asynchrony, BindingKeyword, Block, BlockForm, Catch, Condition, ConditionOperand,
     DecoratorPosition, Expression, ForEachBinding, IfForm, Keyword, LetKind, LocalNodeId, MatchArm,
     Node, NodeType, Pattern, SwitchCase, SwitchSelector, Tree, TreeStore, TypeExpression,
     WhileForm, YieldCardinality,
 };
-use destack_fir::format::{Format, FormatError, FormatResult};
-use destack_fir::prelude::{
+use tspp_fir::format::{Format, FormatError, FormatResult};
+use tspp_fir::prelude::{
     block_indent, empty_line, expand_parent, format_with, group, hard_line_break,
     line_suffix_boundary, soft_block_indent, soft_line_break_or_space, soft_line_indent_or_space,
     space, token,
 };
-use destack_fir::{best_fitting, format_args, write};
-use destack_source::{NodeSpanRegion, NodeSpanType, Span};
+use tspp_fir::{best_fitting, format_args, write};
+use tspp_source::{NodeSpanRegion, NodeSpanType, Span};
 
 /// Write one condition expression before the closing `)`.
 fn write_condition_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     condition_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     write_expression_without_trailing_comments(f, condition_id)?;
@@ -61,15 +61,15 @@ fn write_condition_expression<'ast>(
 
 /// Format one grouped control head before the closing `)`.
 fn write_grouped_control_head<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    head: &impl Format<'ast, DestackFormatContext<'ast>>,
+    f: &mut TsppFormatter<'ast, '_>,
+    head: &impl Format<'ast, TsppFormatContext<'ast>>,
 ) -> FormatResult<()> {
     write!(f, [group(&soft_block_indent(head))])
 }
 
 /// Write comments that belong to one empty statement body before its semicolon.
 fn write_comments_for_empty_statement_body<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     body_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     if !is_empty_statement_block(f.context(), body_id) {
@@ -91,7 +91,7 @@ fn write_comments_for_empty_statement_body<'ast>(
 
 /// Format one control-flow body expression with statement-separator semantics.
 fn format_statement_body_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let expression = f.context().tree.get(expression_id);
@@ -128,7 +128,7 @@ fn format_statement_body_expression<'ast>(
 
 /// Write leading comments and prefix annotations for one match arm or switch case.
 fn write_case_prefix<'ast, T>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     case_id: LocalNodeId<T>,
 ) -> FormatResult<()>
 where
@@ -161,7 +161,7 @@ where
 
 /// Write one match arm guard.
 fn write_match_guard<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     arm_id: LocalNodeId<MatchArm>,
     pattern_id: LocalNodeId<Pattern>,
     guard: &Condition,
@@ -196,7 +196,7 @@ fn write_match_guard<'ast>(
 
 /// Format a statement body block, preserving wrapper semantics.
 pub(crate) fn format_statement_body_block<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     block_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     let block = f.context().tree.get(block_id);
@@ -237,7 +237,7 @@ pub(crate) fn format_statement_body_block<'ast>(
 
 /// Format one block-backed statement body after a control-flow head.
 fn format_statement_body_block_after_head<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     block_id: LocalNodeId<Block>,
     force_expanded_body: bool,
 ) -> FormatResult<()> {
@@ -248,7 +248,7 @@ fn format_statement_body_block_after_head<'ast>(
 
 /// Format one block-backed statement body.
 fn format_statement_body_block_after_head_inner<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     block_id: LocalNodeId<Block>,
     force_expanded_body: bool,
 ) -> FormatResult<()> {
@@ -300,7 +300,7 @@ fn format_statement_body_block_after_head_inner<'ast>(
 
 /// Return whether comments occur between a control head and its body.
 fn control_body_has_leading_comments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let expression_span = context.span(expression_id);
@@ -315,7 +315,7 @@ fn control_body_has_leading_comments(
 
 /// Return true when this block originated from a statement wrapper instead of braces.
 fn is_statement_wrapper_block<'ast>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     block_id: LocalNodeId<Block>,
 ) -> bool {
     let block = context.tree.get(block_id);
@@ -324,7 +324,7 @@ fn is_statement_wrapper_block<'ast>(
 
 /// Return true when this block is an empty statement wrapper.
 pub(crate) fn is_empty_statement_block<'ast>(
-    context: &DestackFormatContext<'ast>,
+    context: &TsppFormatContext<'ast>,
     block_id: LocalNodeId<Block>,
 ) -> bool {
     let block = context.tree.get(block_id);
@@ -333,7 +333,7 @@ pub(crate) fn is_empty_statement_block<'ast>(
 
 /// Format a for each binding pattern without repeating root mutability keywords.
 pub(crate) fn format_for_each_binding_pattern<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     pattern_id: LocalNodeId<Pattern>,
 ) -> FormatResult<()> {
     match f.context().tree.get(pattern_id) {
@@ -350,7 +350,7 @@ pub(crate) fn format_for_each_binding_pattern<'ast>(
 
 /// Return whether an if branch should include a space after the condition head.
 fn expression_has_block_prefix_annotation(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let annotations = context.annotation_ids(expression_id);
@@ -375,7 +375,7 @@ fn expression_has_block_prefix_annotation(
 
 /// Return the single statement expression inside one transparent control-body wrapper.
 fn transparent_control_body_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<Expression>> {
     let Expression::Block(block_id) = context.tree.get(expression_id) else {
@@ -396,7 +396,7 @@ fn transparent_control_body_expression(
 
 /// Return the empty implicit statement wrapper behind one transparent control body.
 fn transparent_empty_control_body(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<Block>> {
     let Expression::Block(block_id) = context.tree.get(expression_id) else {
@@ -417,7 +417,7 @@ fn transparent_empty_control_body(
 
 /// Format one transparent empty statement body after a control-flow head.
 fn format_empty_statement_body_after_head<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     block_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     write_statement_terminator_after_anchor(f, f.context().span(block_id).start)
@@ -425,7 +425,7 @@ fn format_empty_statement_body_after_head<'ast>(
 
 /// Format one non-block statement body after a control-flow head.
 fn format_statement_body_expression_after_head<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     force_expanded_body: bool,
 ) -> FormatResult<()> {
@@ -453,7 +453,7 @@ fn format_statement_body_expression_after_head<'ast>(
 
 /// Return whether one adjacent argument is nested directly inside `yield`.
 fn adjacent_statement_argument_is_inside_yield(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     ctx.parent(expression_id)
@@ -468,7 +468,7 @@ fn adjacent_statement_argument_is_inside_yield(
 
 /// Return whether one member gap has own-line or multiline comments.
 fn adjacent_statement_member_gap_has_comments(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let (left, property_start) = match ctx.tree.get(expression_id) {
@@ -498,7 +498,7 @@ fn adjacent_statement_member_gap_has_comments(
 
 /// Return whether one adjacent statement argument has leading comments.
 fn adjacent_statement_argument_has_leading_comments(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Expression>,
 ) -> bool {
     let is_inside_yield = adjacent_statement_argument_is_inside_yield(ctx, argument_id);
@@ -530,8 +530,8 @@ fn adjacent_statement_argument_has_leading_comments(
 
 /// Write one adjacent statement value inside explicit wrapping parentheses.
 fn write_wrapped_adjacent_statement_value<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    content: &impl Format<'ast, DestackFormatContext<'ast>>,
+    f: &mut TsppFormatter<'ast, '_>,
+    content: &impl Format<'ast, TsppFormatContext<'ast>>,
 ) -> FormatResult<()> {
     write!(
         f,
@@ -547,7 +547,7 @@ fn write_wrapped_adjacent_statement_value<'ast>(
 
 /// Write one wrapped adjacent statement expression, preserving ternary expansion.
 fn write_wrapped_adjacent_statement_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let leading_expression_id = ExpressionLeftPath::new(expression_id)
@@ -560,7 +560,7 @@ fn write_wrapped_adjacent_statement_expression<'ast>(
         leading_token_start,
         leading_token_start,
     );
-    let wrapped_value = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let wrapped_value = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write!(f, [format_leading_comments(leading_token_span)])?;
 
         if matches!(
@@ -581,7 +581,7 @@ fn write_wrapped_adjacent_statement_expression<'ast>(
 
 /// Write one expanded adjacent statement value, preserving ternary expansion.
 fn write_expanded_adjacent_statement_value<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     if matches!(
@@ -602,7 +602,7 @@ fn write_expanded_adjacent_statement_value<'ast>(
 
 /// Format one adjacent return or yield argument.
 pub(crate) fn format_adjacent_statement_argument<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     value_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let value_has_leading_comments =
@@ -618,7 +618,7 @@ pub(crate) fn format_adjacent_statement_argument<'ast>(
 
 /// Return whether expression has any prefix annotation.
 fn expression_has_effective_prefix_annotation(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let annotations = context.annotation_ids(expression_id);
@@ -636,7 +636,7 @@ fn expression_has_effective_prefix_annotation(
 
 /// Write one grouped `if (...) <body>` clause.
 fn write_if_clause<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     condition: &Condition,
     then_expression_id: LocalNodeId<Expression>,
     expand_branch_bodies: bool,
@@ -676,7 +676,7 @@ fn write_if_clause<'ast>(
 
 /// Write one condition.
 fn write_condition<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     condition: &Condition,
 ) -> FormatResult<()> {
     for (index, operand) in condition.operands.iter().enumerate() {
@@ -692,7 +692,7 @@ fn write_condition<'ast>(
 
 /// Write one condition operand.
 fn write_condition_operand<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     operand: &ConditionOperand,
 ) -> FormatResult<()> {
     match operand {
@@ -721,7 +721,7 @@ fn write_condition_operand<'ast>(
 
 /// Write one control branch after its head.
 pub(crate) fn write_control_branch_after_head<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     branch_expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     write_control_branch_after_head_expanding_body(f, branch_expression_id, false)
@@ -729,7 +729,7 @@ pub(crate) fn write_control_branch_after_head<'ast>(
 
 /// Write one control branch after its head.
 fn write_control_branch_after_head_expanding_body<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     branch_expression_id: LocalNodeId<Expression>,
     force_expanded_body: bool,
 ) -> FormatResult<()> {
@@ -781,7 +781,7 @@ fn write_control_branch_after_head_expanding_body<'ast>(
 
 /// Write spacing and comments between one `then` branch and its `else`.
 fn write_if_else_separator<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     if_expression_id: LocalNodeId<Expression>,
     then_expression_id: LocalNodeId<Expression>,
     else_expression_id: LocalNodeId<Expression>,
@@ -871,7 +871,7 @@ fn write_if_else_separator<'ast>(
 
 /// Format one `else` branch and return the next chained `if`, if any.
 fn format_if_else_alternate<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     if_expression_id: LocalNodeId<Expression>,
     then_expression_id: LocalNodeId<Expression>,
     else_expression_id: LocalNodeId<Expression>,
@@ -940,7 +940,7 @@ fn format_if_else_alternate<'ast>(
 
 /// Walk a chain of if expressions and collect the if/else if/else nodes.
 pub(crate) fn format_if_else_chain<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     expand_branch_bodies: bool,
 ) -> FormatResult<()> {
@@ -993,7 +993,7 @@ pub(crate) fn format_if_else_chain<'ast>(
 
 /// Format one return expression in statement position.
 pub(crate) fn format_return_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     _node_id: LocalNodeId<Expression>,
     value: Option<LocalNodeId<Expression>>,
 ) -> FormatResult<()> {
@@ -1047,7 +1047,7 @@ pub(crate) fn format_return_expression<'ast>(
 
 /// Format one yield expression in statement position.
 pub(crate) fn format_yield_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     _node_id: LocalNodeId<Expression>,
     cardinality: YieldCardinality,
     value: Option<LocalNodeId<Expression>>,
@@ -1068,7 +1068,7 @@ pub(crate) fn format_yield_expression<'ast>(
 
 /// Format one break expression in statement position.
 pub(crate) fn format_break_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     _node_id: LocalNodeId<Expression>,
     label: &Option<StringId>,
     value: &Option<LocalNodeId<Expression>>,
@@ -1101,7 +1101,7 @@ pub(crate) fn format_break_expression<'ast>(
 
 /// Return the lone identifier inside one break value.
 fn break_value_identifier(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     value_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<Expression>> {
     matches!(context.tree.get(value_id), Expression::Identifier { .. }).then_some(value_id)
@@ -1109,7 +1109,7 @@ fn break_value_identifier(
 
 /// Format one continue expression in statement position.
 pub(crate) fn format_continue_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     _node_id: LocalNodeId<Expression>,
     label: &Option<StringId>,
 ) -> FormatResult<()> {
@@ -1124,7 +1124,7 @@ pub(crate) fn format_continue_expression<'ast>(
 
 /// Return whether a control-flow statement body should be preceded by a space.
 fn statement_body_requires_head_space(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     body: LocalNodeId<Block>,
 ) -> bool {
     if is_empty_statement_block(context, body) {
@@ -1138,7 +1138,7 @@ fn statement_body_requires_head_space(
 
 /// Format a `while` or `do while` expression.
 pub(crate) fn format_while_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     form: WhileForm,
     condition: &Condition,
     body: LocalNodeId<Block>,
@@ -1199,7 +1199,7 @@ pub(crate) fn format_while_expression<'ast>(
 
 /// Format a `for each` expression.
 pub(crate) fn format_for_each_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     _node_id: LocalNodeId<Expression>,
     asynchrony: Asynchrony,
     binding: &ForEachBinding,
@@ -1263,7 +1263,7 @@ pub(crate) fn format_for_each_expression<'ast>(
 
 /// Format a classic `for` expression.
 pub(crate) fn format_for_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     initialization: Option<LocalNodeId<Expression>>,
     condition: Option<LocalNodeId<Expression>>,
     increment: Option<LocalNodeId<Expression>>,
@@ -1300,7 +1300,7 @@ pub(crate) fn format_for_expression<'ast>(
 
 /// Format a `loop` expression.
 pub(crate) fn format_loop_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     body: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     write!(f, [Keyword::Loop])?;
@@ -1312,7 +1312,7 @@ pub(crate) fn format_loop_expression<'ast>(
 
 /// Write a catch or finally keyword after its leading comments.
 fn write_try_clause_keyword<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     keyword: Keyword,
     start: u32,
 ) -> FormatResult<()> {
@@ -1334,7 +1334,7 @@ fn write_try_clause_keyword<'ast>(
 
 /// Write one catch parameter inside parentheses.
 fn write_catch_parameter<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     catch_pattern: LocalNodeId<Pattern>,
     catch_ty: Option<LocalNodeId<TypeExpression>>,
 ) -> FormatResult<()> {
@@ -1346,7 +1346,7 @@ fn write_catch_parameter<'ast>(
         .comments()
         .comments_before_character(parameter_end, b')')
         .to_vec();
-    let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+    let content = format_with(move |f: &mut TsppFormatter<'ast, '_>| {
         write!(f, [catch_pattern])?;
 
         if let Some(catch_ty) = catch_ty {
@@ -1364,7 +1364,7 @@ fn write_catch_parameter<'ast>(
 
 /// Format a `try` expression.
 pub(crate) fn format_try_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     body: LocalNodeId<Expression>,
     catch: Option<LocalNodeId<Catch>>,
     finally: Option<LocalNodeId<Expression>>,
@@ -1406,7 +1406,7 @@ impl<'ast> FormatNode<'ast, Catch> for Catch {
     fn format_node(
         &self,
         _node_id: LocalNodeId<Catch>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         write!(f, [Keyword::Catch])?;
         if let Some(pattern) = self.pattern {
@@ -1420,7 +1420,7 @@ impl<'ast> FormatNode<'ast, Catch> for Catch {
 
 /// Write one try, catch, or finally branch after its keyword.
 fn write_try_branch_after_keyword<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     branch_expression_id: LocalNodeId<Expression>,
     force_expanded_body: bool,
 ) -> FormatResult<()> {
@@ -1442,7 +1442,7 @@ fn write_try_branch_after_keyword<'ast>(
 
 /// Format one match arm.
 fn format_match_arm<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     arm_id: LocalNodeId<MatchArm>,
 ) -> FormatResult<()> {
     let arm = f.context().tree.get(arm_id);
@@ -1477,7 +1477,7 @@ impl<'ast> FormatNode<'ast, MatchArm> for MatchArm {
     fn format_node(
         &self,
         node_id: LocalNodeId<MatchArm>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         format_match_arm(f, node_id)
     }
@@ -1485,7 +1485,7 @@ impl<'ast> FormatNode<'ast, MatchArm> for MatchArm {
 
 /// Format one switch case.
 fn format_switch_case<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     case_id: LocalNodeId<SwitchCase>,
 ) -> FormatResult<()> {
     let case = f.context().tree.get(case_id);
@@ -1530,7 +1530,7 @@ impl<'ast> FormatNode<'ast, SwitchCase> for SwitchCase {
     fn format_node(
         &self,
         node_id: LocalNodeId<SwitchCase>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         format_switch_case(f, node_id)
     }
@@ -1538,7 +1538,7 @@ impl<'ast> FormatNode<'ast, SwitchCase> for SwitchCase {
 
 /// Format one match expression.
 pub(crate) fn format_match_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     value: LocalNodeId<Expression>,
     arms: &[LocalNodeId<MatchArm>],
@@ -1580,7 +1580,7 @@ pub(crate) fn format_match_expression<'ast>(
 
 /// Format one switch statement.
 pub(crate) fn format_switch_statement<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     value: LocalNodeId<Expression>,
     cases: &[LocalNodeId<SwitchCase>],

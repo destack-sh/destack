@@ -1,5 +1,5 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use super::{
     AllocationSite, BindingId, CallSite, EdgeSite, FunctionId, MemoryAccess, MemoryRange,

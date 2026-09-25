@@ -12,7 +12,7 @@ function* count(limit: int32): Generator<int32, void, void> {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 function* count(limit: int32): Generator<int32, void, void> {
     for (let value: int32 = 0; value < limit; value += 1) {

@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, EnvironmentBound};
-use destack_mir as mir;
-use destack_repository::{ProfileId, ProviderContext};
-use destack_source::{ModuleId, TargetId};
+use tspp_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, EnvironmentBound};
+use tspp_mir as mir;
+use tspp_repository::{ProfileId, ProviderContext};
+use tspp_source::{ModuleId, TargetId};
 
 use crate::lower::{LowerPhase, ModuleLowerer};
 use crate::{Compiler, CompilerError, CompilerResult, LowerError};
@@ -165,7 +165,7 @@ impl Compiler {
             .rsplit_once("://")
             .map(|(_, path)| path)
             .unwrap_or(path);
-        let path = path.strip_suffix(".ds").unwrap_or(path);
+        let path = path.strip_suffix(".tspp").unwrap_or(path);
         let path = path.trim_matches('/').replace('/', ".");
 
         // read the name the package namespaces its modules under

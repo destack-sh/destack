@@ -3,7 +3,7 @@ use proc_macro::TokenStream;
 mod reflect;
 mod section;
 
-/// Derive Destack reflection metadata.
+/// Derive TS++ reflection metadata.
 #[proc_macro_derive(Reflect, attributes(reflect))]
 pub fn derive_reflect(input: TokenStream) -> TokenStream {
     reflect::expand(input)

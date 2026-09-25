@@ -18,7 +18,7 @@ function read(value: Cancelled | int32): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -77,7 +77,7 @@ function read(value: Cancelled | int32): int32 {
 fn test_reject_bare_arm_shadowing_imported_struct() {
     let session = TestSession::builder()
         .module(
-            "library.ds",
+            "library.tspp",
             r#"
 export struct Cancelled {
     reason: int32;
@@ -85,9 +85,9 @@ export struct Cancelled {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Cancelled } from "./library.ds";
+import { Cancelled } from "./library.tspp";
 
 function read(value: Cancelled | int32): int32 {
     match (value) {
@@ -100,11 +100,11 @@ function read(value: Cancelled | int32): int32 {
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Cancelled } from "./library.ds";
+import { Cancelled } from "./library.tspp";
 
 function read(value: Cancelled | int32): int32 {
     match (value) {
@@ -114,7 +114,7 @@ function read(value: Cancelled | int32): int32 {
 }
 
 === dir ===
-import { Cancelled } from "./library.ds";
+import { Cancelled } from "./library.tspp";
 
 function read(value: Cancelled | int32): int32 {
 /// @type.symbol symbol=read type=(library.Cancelled | int32) => int32
@@ -159,7 +159,7 @@ function read(value: int32): int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -213,7 +213,7 @@ function read(value: int32): int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -268,7 +268,7 @@ switch (1) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -302,7 +302,7 @@ switch ("ready") {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -336,7 +336,7 @@ switch (1n) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -376,7 +376,7 @@ observed satisfies int32;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -450,7 +450,7 @@ function classify(value: int32): int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -502,7 +502,7 @@ const value = match (true) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -544,7 +544,7 @@ switch (0) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -595,7 +595,7 @@ switch (mode) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -715,7 +715,7 @@ switch (state) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -800,7 +800,7 @@ label satisfies "yes" | "no";
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -863,7 +863,7 @@ result satisfies never;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -914,7 +914,7 @@ label satisfies "go" | "stop";
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -977,7 +977,7 @@ const label = match (status) {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1031,7 +1031,7 @@ const label = match (status) {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1096,7 +1096,7 @@ result satisfies int32;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1179,7 +1179,7 @@ value;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1282,7 +1282,7 @@ match (config) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1355,7 +1355,7 @@ match (packet) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1463,7 +1463,7 @@ match (user) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1559,7 +1559,7 @@ match (values) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1631,7 +1631,7 @@ match (value) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1688,7 +1688,7 @@ const label = match (status) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1748,7 +1748,7 @@ function isSmall(count: Count): boolean {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1810,7 +1810,7 @@ function isSmall(count: Count): boolean {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

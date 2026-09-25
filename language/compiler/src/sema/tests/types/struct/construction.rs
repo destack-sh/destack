@@ -16,7 +16,7 @@ point satisfies Point;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -74,7 +74,7 @@ const store = Store {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Store {
     read: () => string;
@@ -142,7 +142,7 @@ function wrap<T>(value: T): Box<T> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -211,7 +211,7 @@ function make<T: Zero>(): Box<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -281,7 +281,7 @@ function make<T: Zero>(): Box<T> {
 fn test_generic_struct_literal_checks_field_with_scalar_operator() {
     let session = TestSession::single(
         r#"
-import { Float } from "destack:math";
+import { Float } from "tspp:math";
 
 struct Box<T: Float> {
     value: T;
@@ -294,11 +294,11 @@ function doubled<T: Float>(value: T): Box<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Float } from "destack:math";
+import { Float } from "tspp:math";
 
 struct Box<out T: Float> {
     value: T;
@@ -309,7 +309,7 @@ function doubled<T: Float>(value: T): Box<T> {
 }
 
 === dir ===
-import { Float } from "destack:math";
+import { Float } from "tspp:math";
 
 struct Box<T: Float> {
 /// @generic.template symbol=Box parameters=(out T#1: Float)
@@ -371,7 +371,7 @@ next satisfies Counter;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -448,7 +448,7 @@ const point = Point { x: 1 };
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -501,7 +501,7 @@ const point = Point { x: 1, y: 2, z: 3 };
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -555,7 +555,7 @@ const point = new Point(1, 2);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -616,7 +616,7 @@ next satisfies int32;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -713,7 +713,7 @@ const counter: Counter = { value: 1 };
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -770,7 +770,7 @@ function make(options?: Options): Entry {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -860,7 +860,7 @@ struct Expectation {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Expectation {
     message?: ^string;
@@ -920,7 +920,7 @@ function pair(): Pair {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Pair {
     left: int32;

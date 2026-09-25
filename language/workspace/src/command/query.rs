@@ -2,13 +2,13 @@ use std::cmp::Reverse;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_artifact::ArtifactKey;
-use destack_dir as dir;
-use destack_pattern::{Binding, Pattern, PatternMatch};
-use destack_repository::TraceView;
-use destack_serde::Reflect;
-use destack_source::{DiagnosticCollection, File, Span, Uri};
 use serde::{Deserialize, Serialize};
+use tspp_artifact::ArtifactKey;
+use tspp_dir as dir;
+use tspp_pattern::{Binding, Pattern, PatternMatch};
+use tspp_repository::TraceView;
+use tspp_serde::Reflect;
+use tspp_source::{DiagnosticCollection, File, Span, Uri};
 
 use super::common::{
     CommandEnvVar, CommandInput, CommandOptions, CommandRevision, CommandTargetOverrides,
@@ -198,7 +198,7 @@ impl QueryInput {
         &self,
         context: &mut CommandContext<'_>,
     ) -> CommandResult<Result<Pattern, DiagnosticCollection>> {
-        let file = context.add_memory_file("query/pattern.ds-pattern", &self.pattern)?;
+        let file = context.add_memory_file("query/pattern.tspp-pattern", &self.pattern)?;
         let strings = context.repository.string_pool().clone();
         let pattern = match self.kind {
             Some(kind) => Pattern::parse_context(file, kind, strings),
@@ -212,7 +212,7 @@ impl QueryInput {
 
         // compile every predicate against the structural metavariable table
         for (index, predicate) in self.predicates.iter().enumerate() {
-            let path = format!("query/predicate-{}.ds-pattern", index + 1);
+            let path = format!("query/predicate-{}.tspp-pattern", index + 1);
             let file = context.add_memory_file(&path, predicate)?;
             if let Err(predicate_diagnostics) = pattern.add_predicate(file) {
                 diagnostics.merge_from(&predicate_diagnostics);

@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use destack_source::{DiffOptions, format_diff};
+use tspp_source::{DiffOptions, format_diff};
 
-const BLESS_ENV: &str = "DESTACK_BLESS";
+const BLESS_ENV: &str = "TSPP_BLESS";
 
 /// Original file contents at first bless, keyed by file, anchoring caller lines.
 static BLESS_ORIGINALS: Mutex<Option<HashMap<PathBuf, String>>> = Mutex::new(None);

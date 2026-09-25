@@ -1,7 +1,7 @@
-use destack_core::FxIndexSet;
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch, Span};
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -309,7 +309,7 @@ function exclusive(value: &exclusive int32): int32 { return *value; }
         let session = TestSession::dir(
             &PREFER_WEAKEST_ACCESS,
             r#"
-import { todo } from "destack:error";
+import { todo } from "tspp:error";
 
 struct Counter {
     value: int32;

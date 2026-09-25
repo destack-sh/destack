@@ -1,8 +1,8 @@
 use std::error::Error;
 use std::fmt::{Display, Formatter};
 
-use destack_dir as dir;
-use destack_source::ModuleId;
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 /// A failure while evaluating a pattern against checked DIR.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

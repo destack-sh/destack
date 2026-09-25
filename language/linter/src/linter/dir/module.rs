@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use destack_artifact::{
+use tspp_artifact::{
     DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported, DirImported,
     DirMaterialized, DirParsed, DirResolved, DirView, IndexKind, ModuleIndex,
 };
-use destack_dir as dir;
-use destack_repository::{ArtifactReader, Module, ProfileId, ProviderError, Repository, Revision};
-use destack_source::{File, ModuleId};
+use tspp_dir as dir;
+use tspp_repository::{ArtifactReader, Module, ProfileId, ProviderError, Repository, Revision};
+use tspp_source::{File, ModuleId};
 
 use super::Dir;
 

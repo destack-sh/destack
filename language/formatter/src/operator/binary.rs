@@ -1,24 +1,24 @@
 use crate::chain::transparent_inner_expression;
-use crate::context::{DestackFormatterSpeculationExt, with_following_span_start};
+use crate::context::{TsppFormatterSpeculationExt, with_following_span_start};
 use crate::expression::is_control_expression;
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{
+use crate::{TsppFormatContext, TsppFormatter};
+use smallvec::SmallVec;
+use tspp_dir::{
     Argument, BinaryOperator, Expression, IfForm, LocalNodeId, Member, NodeType, Property,
 };
-use destack_fir::format::{Format, FormatResult, Formatter as FirFormatter};
-use destack_fir::prelude::{
+use tspp_fir::format::{Format, FormatResult, Formatter as FirFormatter};
+use tspp_fir::prelude::{
     format_with, group, soft_block_indent, soft_line_break_or_space, soft_line_indent_or_space,
     space,
 };
-use destack_fir::write;
-use destack_source::{NodeSpanBoundary, NodeSpanType, Span};
-use smallvec::SmallVec;
+use tspp_fir::write;
+use tspp_source::{NodeSpanBoundary, NodeSpanType, Span};
 
 type BinarySideList = SmallVec<[BinarySide; 8]>;
 
 /// Return the trailing trivia gap after one expression.
 fn binary_expression_postfix_gap(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> Option<Span> {
     let expression_span = context.span(expression_id);
@@ -42,7 +42,7 @@ fn binary_expression_postfix_gap(
 
 /// Return whether one expression ends with a line postfix comment.
 fn binary_expression_has_line_suffix_comment(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some(gap_span) = binary_expression_postfix_gap(context, expression_id) else {
@@ -58,7 +58,7 @@ fn binary_expression_has_line_suffix_comment(
 
 /// Return whether one expression ends with an inline block postfix comment.
 fn binary_expression_has_inline_block_postfix_comment(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some(gap_span) = binary_expression_postfix_gap(context, expression_id) else {
@@ -76,7 +76,7 @@ fn binary_expression_has_inline_block_postfix_comment(
 
 /// Return whether an internal line comment should keep the operator beside the left operand.
 fn binary_left_keeps_operator_inline(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     if matches!(context.tree.get(expression_id), Expression::Binary { .. }) {
@@ -99,7 +99,7 @@ fn binary_left_keeps_operator_inline(
 
 /// Return whether one operand is a control expression with an expanded body.
 fn binary_operand_is_control(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let expression_id = transparent_inner_expression(context, expression_id);
@@ -201,7 +201,7 @@ fn expression_is_same_binary_kind(expression: &Expression, operator: BinaryOpera
 
 /// Return whether an infix operator needs its own separator after the left operand.
 fn binary_operator_needs_separator(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     left: LocalNodeId<Expression>,
     operator: BinaryOperator,
 ) -> bool {
@@ -266,7 +266,7 @@ impl BinaryOperation {
     }
 
     /// Return the flattenable binary expression on the left.
-    fn flattened_left(self, context: &DestackFormatContext<'_>) -> Option<Self> {
+    fn flattened_left(self, context: &TsppFormatContext<'_>) -> Option<Self> {
         let Expression::Binary {
             left,
             operator,
@@ -281,7 +281,7 @@ impl BinaryOperation {
     }
 
     /// Return whether this expression is inside one test condition.
-    fn is_inside_condition(self, context: &DestackFormatContext<'_>) -> bool {
+    fn is_inside_condition(self, context: &TsppFormatContext<'_>) -> bool {
         let Some(parent_id) = context.expression_parent(self.node_id) else {
             return false;
         };
@@ -302,7 +302,7 @@ impl BinaryOperation {
     }
 
     /// Return whether a logical chain should keep its right side inline.
-    fn should_inline_logical_expression(self, context: &DestackFormatContext<'_>) -> bool {
+    fn should_inline_logical_expression(self, context: &TsppFormatContext<'_>) -> bool {
         if !is_logical_binary_operator(self.operator()) {
             return false;
         }
@@ -318,7 +318,7 @@ impl BinaryOperation {
 
     /// Return whether one ternary parent already owns indentation.
     fn ternary_parent_owns_indentation(
-        context: &DestackFormatContext<'_>,
+        context: &TsppFormatContext<'_>,
         ternary_expression_id: LocalNodeId<Expression>,
     ) -> bool {
         let Some((parent_id, parent_type)) = context.parent(ternary_expression_id) else {
@@ -369,7 +369,7 @@ impl BinaryOperation {
     }
 
     /// Return whether the parent already owns indentation.
-    fn should_not_indent_if_parent_indents(self, context: &DestackFormatContext<'_>) -> bool {
+    fn should_not_indent_if_parent_indents(self, context: &TsppFormatContext<'_>) -> bool {
         let Some(parent_id) = context.expression_parent(self.node_id) else {
             return false;
         };
@@ -424,7 +424,7 @@ enum BinarySide {
 
 impl BinarySide {
     /// Return whether this side is a tree expression.
-    fn is_tree(self, context: &DestackFormatContext<'_>) -> bool {
+    fn is_tree(self, context: &TsppFormatContext<'_>) -> bool {
         let expression_id = match self {
             Self::Left { parent } => parent.left(),
             Self::Right { parent, .. } => parent.right(),
@@ -437,8 +437,8 @@ impl BinarySide {
     }
 }
 
-impl<'a> Format<'a, DestackFormatContext<'a>> for BinarySide {
-    fn format(&self, f: &mut FirFormatter<'_, 'a, DestackFormatContext<'a>>) -> FormatResult<()> {
+impl<'a> Format<'a, TsppFormatContext<'a>> for BinarySide {
+    fn format(&self, f: &mut FirFormatter<'_, 'a, TsppFormatContext<'a>>) -> FormatResult<()> {
         match self {
             // left side
             Self::Left { parent } => {
@@ -508,7 +508,7 @@ impl<'a> Format<'a, DestackFormatContext<'a>> for BinarySide {
                 let right_is_control = binary_operand_is_control(f.context(), right);
                 let needs_separator = binary_operator_needs_separator(f.context(), left, operator);
                 let separator_can_break = !binary_left_keeps_operator_inline(f.context(), left);
-                let operator_and_right = format_with(|f: &mut DestackFormatter<'a, '_>| {
+                let operator_and_right = format_with(|f: &mut TsppFormatter<'a, '_>| {
                     write!(f, [operator, space()])?;
 
                     // inline logical rhs
@@ -569,7 +569,7 @@ impl<'a> Format<'a, DestackFormatContext<'a>> for BinarySide {
 fn collect_binary_chain_sides(
     binary: BinaryOperation,
     inside_condition: bool,
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     items: &mut BinarySideList,
 ) {
     let mut ancestors = SmallVec::<[BinaryOperation; 8]>::new();
@@ -599,7 +599,7 @@ fn collect_binary_chain_sides(
 
 /// Write one collected binary chain.
 fn write_binary_chain_sides<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     sides: &[BinarySide],
 ) -> FormatResult<()> {
     for side in sides {
@@ -611,7 +611,7 @@ fn write_binary_chain_sides<'ast>(
 
 /// Return whether this binary root is already owned by an outer indentation layout.
 fn binary_parent_inlines_flattened_layout(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some((parent_id, parent_type)) = context.parent(expression_id) else {
@@ -646,7 +646,7 @@ fn binary_parent_inlines_flattened_layout(
 
 /// Return whether the current expression sits in a parenthesized callee or object position.
 fn binary_expression_is_inside_parenthesis_context(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some(parent_id) = context.expression_parent(expression_id) else {
@@ -669,7 +669,7 @@ fn binary_expression_is_inside_parenthesis_context(
 
 /// Format one binary expression.
 pub(crate) fn format_binary_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     left: LocalNodeId<Expression>,
     operator: &BinaryOperator,
@@ -690,7 +690,7 @@ pub(crate) fn format_binary_expression<'ast>(
         return write!(
             f,
             [group(&soft_block_indent(&format_with(
-                |f: &mut DestackFormatter<'ast, '_>| { write_binary_chain_sides(f, &sides) }
+                |f: &mut TsppFormatter<'ast, '_>| { write_binary_chain_sides(f, &sides) }
             )))]
         );
     }
@@ -699,7 +699,7 @@ pub(crate) fn format_binary_expression<'ast>(
     if binary.should_not_indent_if_parent_indents(f.context()) {
         return write!(
             f,
-            [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            [group(&format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 write_binary_chain_sides(f, &sides)
             }))]
         );
@@ -716,7 +716,7 @@ pub(crate) fn format_binary_expression<'ast>(
     {
         return write!(
             f,
-            [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            [group(&format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 write_binary_chain_sides(f, &sides)
             }))]
         );
@@ -732,10 +732,10 @@ pub(crate) fn format_binary_expression<'ast>(
     let tail = &sides[1..tail_end];
     let group_id = f.group_id();
 
-    let format_non_tree_parts = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_non_tree_parts = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write!(
             f,
-            [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            [group(&format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 write!(f, [first])?;
 
                 for part in tail {
@@ -754,7 +754,7 @@ pub(crate) fn format_binary_expression<'ast>(
 
         return write!(
             f,
-            [group(&format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            [group(&format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 write!(f, [format_non_tree_parts])?;
                 write!(f, [soft_line_break_or_space(), tree_tail])?;
 

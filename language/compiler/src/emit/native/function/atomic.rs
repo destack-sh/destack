@@ -1,6 +1,6 @@
 use cranelift_codegen::ir as cir;
 use cranelift_codegen::ir::InstBuilder;
-use destack_mir as mir;
+use tspp_mir as mir;
 
 use crate::EmitError;
 

@@ -15,7 +15,7 @@ function advance(current: char): char {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.advance",
         r#"
 type literal.character.z { }

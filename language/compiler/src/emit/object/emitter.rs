@@ -1,15 +1,15 @@
-use destack_artifact::MirOptimized;
-use destack_bytecode as bytecode;
-use destack_core::StringId;
-use destack_mir as mir;
-use destack_native as native;
-use destack_program::object::{FrameState, Function, Global, Point, Type};
-use destack_program::{Object, ObjectBuilder};
-use destack_source::ModuleId;
-use destack_webassembly as wasm;
+use tspp_artifact::MirOptimized;
+use tspp_bytecode as bytecode;
+use tspp_core::StringId;
+use tspp_mir as mir;
+use tspp_native as native;
+use tspp_program::object::{FrameState, Function, Global, Point, Type};
+use tspp_program::{Object, ObjectBuilder};
+use tspp_source::ModuleId;
+use tspp_webassembly as wasm;
 
 #[cfg(all(feature = "native", not(target_arch = "wasm32")))]
-use destack_program::object::FramePoint;
+use tspp_program::object::FramePoint;
 
 use crate::EmitError;
 

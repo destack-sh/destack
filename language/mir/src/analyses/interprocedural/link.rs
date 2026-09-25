@@ -1,7 +1,7 @@
-use destack_serde::Reflect;
+use tspp_serde::Reflect;
 
-use destack_core::FxIndexMap;
 use serde::{Deserialize, Serialize};
+use tspp_core::FxIndexMap;
 
 use crate::{
     Analysis, CallTable, DropTable, EffectTable, Function, FunctionBehavior, FunctionId, Global,

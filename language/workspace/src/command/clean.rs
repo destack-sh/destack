@@ -1,10 +1,10 @@
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
-use destack_repository::{DestackFile, TraceView};
-use destack_serde::Reflect;
-use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
+use tspp_repository::{DestackFile, TraceView};
+use tspp_serde::Reflect;
+use tspp_source::DiagnosticCollection;
 
 use super::CommandResult;
 use super::common::{

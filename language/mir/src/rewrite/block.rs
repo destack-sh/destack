@@ -1,5 +1,5 @@
 use crate as mir;
-use destack_core::{FxIndexMap, FxIndexSet};
+use tspp_core::{FxIndexMap, FxIndexSet};
 
 use crate::{
     ControlTable, DefinitionTable, DominatorTable, UseTable, instruction_substitute_uses_in_tree,

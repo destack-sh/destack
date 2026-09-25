@@ -1,5 +1,5 @@
-use destack_core::BitSet;
 use smallvec::SmallVec;
+use tspp_core::BitSet;
 
 use crate::{
     Access, ConstantTable, FunctionId, LocalNodeIdAny, Path, Place, PlaceTable, StorageSet, Tree,

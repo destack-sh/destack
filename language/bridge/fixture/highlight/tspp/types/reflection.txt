@@ -1,0 +1,14 @@
+// SYNTAX TEST "source.tspp"
+
+// types / reflection / typeof
+type ConfigValue = typeof config.value;
+// <- keyword.declaration.type.tspp
+
+// types / reflection / keyof
+type UserKeys = keyof User;
+// <- keyword.declaration.type.tspp
+
+// types / reflection / indexed access
+type UserName = User["name"];
+// <- keyword.declaration.type.tspp
+

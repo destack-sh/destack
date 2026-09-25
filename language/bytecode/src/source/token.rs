@@ -1,6 +1,6 @@
-use destack_serde::Reflect;
-use destack_source::Span;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
+use tspp_source::Span;
 
 /// One lexical bytecode token.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]

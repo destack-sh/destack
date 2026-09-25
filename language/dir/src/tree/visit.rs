@@ -28,7 +28,7 @@ pub trait NodeVisitor {
         id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
-        destack_core::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+        tspp_core::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
     }
 
     /// Visit a TypeExpression.
@@ -38,7 +38,7 @@ pub trait NodeVisitor {
         id: LocalNodeId<TypeExpression>,
         type_expression: &TypeExpression,
     ) {
-        destack_core::ensure_sufficient_stack(|| {
+        tspp_core::ensure_sufficient_stack(|| {
             walk_type_expression(self, tree, id, type_expression)
         });
     }

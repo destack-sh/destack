@@ -1,5 +1,5 @@
-use destack_dir as dir;
 use smallvec::SmallVec;
+use tspp_dir as dir;
 
 use crate::CompilerResult;
 use crate::sema::WalkState;
@@ -21,7 +21,7 @@ impl WalkState<'_, '_> {
     /// Walk one runtime argument.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// f(name: value, ...rest)
     /// ```
     pub(in crate::sema) fn walk_argument(
@@ -48,7 +48,7 @@ impl WalkState<'_, '_> {
     /// Walk generic arguments into named or positional applied types.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// <T, U, const Size = 4>
     /// ```
     pub(in crate::sema) fn walk_generic_arguments(
@@ -69,7 +69,7 @@ impl WalkState<'_, '_> {
     /// Static values become singleton and operation types directly.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// <T>
     /// ```
     fn walk_generic_argument(

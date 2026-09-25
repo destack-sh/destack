@@ -1,7 +1,7 @@
 use std::ptr;
 
-use destack_bytecode::{Address, Instruction, Opcode};
-use destack_program::{DynamicTableId, MemoryAccess, Runtime, Word};
+use tspp_bytecode::{Address, Instruction, Opcode};
+use tspp_program::{DynamicTableId, MemoryAccess, Runtime, Word};
 
 use crate::diagnostic::Result;
 use crate::machine::Activation;

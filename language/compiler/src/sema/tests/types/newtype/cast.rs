@@ -15,7 +15,7 @@ function organisation(user: UserId): OrganisationId {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -69,7 +69,7 @@ function organisation(user: UserId): OrganisationId {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -124,7 +124,7 @@ function same(user: UserId): UserId {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -179,7 +179,7 @@ function wrap(raw: *int32): *UserId {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===

@@ -9,7 +9,7 @@ use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
 use smallvec::{Array, SmallVec};
 
-/// Type that can describe its Destack serialization schema.
+/// Type that can describe its TS++ serialization schema.
 pub trait Reflect {
     /// Register this type in one schema.
     fn reflect(schema: &mut Schema) -> Type;

@@ -24,7 +24,7 @@ entry(v0: ref<Box, borrowed, 'a, mutable>):
     program.assert_verify_errors(
         r#"
 error[drop-effect]: this drop may park
-  ──▶ <test.dsm>:9:1
+  ──▶ <test.tsppm>:9:1
    │
  7 │ external function effectful(): void
  8 │
@@ -42,7 +42,7 @@ error[drop-effect]: this drop may park
    │
 
  = help: move the parking work to an explicit dispose
-for more information about an error, run `destack explain drop-effect`
+for more information about an error, run `tspp explain drop-effect`
 "#,
     );
 }

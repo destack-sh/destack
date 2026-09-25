@@ -1,9 +1,9 @@
 use std::fmt;
 use std::ptr::{copy_nonoverlapping, null_mut};
 
-use destack_native as native;
-use destack_native::abi;
-use destack_program::Program;
+use tspp_native as native;
+use tspp_native::abi;
+use tspp_program::Program;
 
 use super::{Code, Error, LoadOperation, Loader, Mapping};
 

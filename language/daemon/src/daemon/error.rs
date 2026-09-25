@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 use std::{error, fmt};
 
-use destack_core::BlobStoreError;
-use destack_rpc::{
+use tspp_core::BlobStoreError;
+use tspp_rpc::{
     ConnectionError, IpcError, RegistryError, ServerError, ServiceSchemaError, TransportError,
     WebSocketError,
 };
-use destack_source::FileWatchError;
-use destack_workspace as workspace;
+use tspp_source::FileWatchError;
+use tspp_workspace as workspace;
 
 use crate::DaemonEndpointError;
 

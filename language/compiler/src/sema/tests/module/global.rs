@@ -9,14 +9,14 @@ fn test_global_binding_resolves_without_import() {
 {
     "name": "test",
     "compiler": {
-        "globals": ["globals.ds"]
+        "globals": ["globals.tspp"]
     }
 }
 
 "#,
         )
         .module(
-            "globals.ds",
+            "globals.tspp",
             r#"
 global {
     const answer: int32 = 42;
@@ -24,7 +24,7 @@ global {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 const value = answer;
 "#,
@@ -32,10 +32,10 @@ const value = answer;
         .build();
 
     session.assert_dir_many(
-        &["globals.ds", "main.ds"],
+        &["globals.tspp", "main.tspp"],
         DirRows::checked().with_reference_types(),
         r#"
-=== globals.ds ===
+=== globals.tspp ===
 
 === annotated ===
 global {
@@ -51,7 +51,7 @@ global {
 
 }
 
-=== main.ds ===
+=== main.tspp ===
 
 === annotated ===
 const value: int32 = answer;
@@ -71,17 +71,17 @@ const value = answer;
 fn test_reject_cyclic_inferred_bindings() {
     let session = TestSession::builder()
         .module(
-            "first.ds",
+            "first.tspp",
             r#"
-import { second } from "./second.ds";
+import { second } from "./second.tspp";
 
 export const first = second;
 "#,
         )
         .module(
-            "second.ds",
+            "second.tspp",
             r#"
-import { first } from "./first.ds";
+import { first } from "./first.tspp";
 
 export const second = first;
 "#,
@@ -89,16 +89,16 @@ export const second = first;
         .build();
 
     session.assert_dir_and_diagnostics(
-        "first.ds",
+        "first.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { second } from "./second.ds";
+import { second } from "./second.tspp";
 
 export const first = second;
 
 === dir ===
-import { second } from "./second.ds";
+import { second } from "./second.tspp";
 
 export const first = second;
 /// @type.symbol symbol=first source=first type=<error>

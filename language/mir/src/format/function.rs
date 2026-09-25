@@ -1,6 +1,6 @@
-use destack_fir::format::{FormatError, FormatResult};
-use destack_fir::prelude::*;
-use destack_fir::write;
+use tspp_fir::format::{FormatError, FormatResult};
+use tspp_fir::prelude::*;
+use tspp_fir::write;
 
 use super::attribute::{write_attribute, write_attributes};
 use super::r#type::{format_generic_argument, format_generic_parameter};

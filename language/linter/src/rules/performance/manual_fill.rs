@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -157,7 +157,7 @@ function clear(values: int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[manual-fill]: index loop assigns one value to every element
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function clear(values: int32[]): void {
 2 │     for (let index: isize = 0; index < values.length; index++) {
@@ -170,8 +170,8 @@ warning[manual-fill]: index loop assigns one value to every element
   │
 
  = suggestion: call fill directly (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function clear(values: int32[]): void {
 -   2│     for (let index: isize = 0; index < values.length; index++) {

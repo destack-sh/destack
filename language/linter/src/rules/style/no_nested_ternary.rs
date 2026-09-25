@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -115,7 +115,7 @@ function select(first: boolean, second: boolean): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-nested-ternary]: ternary is nested inside another ternary
- ──▶ main.ds:2:20
+ ──▶ main.tspp:2:20
   │
 1 │ function select(first: boolean, second: boolean): int32 {
 2 │     return first ? (second ? 1 : 2) : 3;
@@ -156,7 +156,7 @@ function select(first: boolean, second: boolean): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-nested-ternary]: ternary is nested inside another ternary
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function select(first: boolean, second: boolean): int32 {
 2 │     return (first ? second : false) ? 1 : 2;

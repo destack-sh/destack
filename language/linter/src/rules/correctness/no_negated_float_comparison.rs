@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -100,7 +100,7 @@ function isAtLeast(left: float64, right: float64): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-negated-float-comparison]: negated floating-point comparison accepts NaN
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function isAtLeast(left: float64, right: float64): boolean {
 2 │     return !(left < right);

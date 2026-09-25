@@ -9,7 +9,7 @@ const value = 1 + 2;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -55,7 +55,7 @@ const sum = left + right;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -222,7 +222,7 @@ const sum = left + right;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -330,7 +330,7 @@ const sum = left + right;
 fn test_compound_assignment_selects_extension_method() {
     let session = TestSession::single(
         r#"
-import { Add } from "destack:ops";
+import { Add } from "tspp:ops";
 
 struct Score {
     value: float64;
@@ -350,9 +350,9 @@ total += bonus;
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Add } from "destack:ops";
+import { Add } from "tspp:ops";
 
 struct Score {
     value: float64;
@@ -371,7 +371,7 @@ declare const bonus: Score;
 total += bonus;
 
 === dir ===
-import { Add } from "destack:ops";
+import { Add } from "tspp:ops";
 
 struct Score {
 /// @type.symbol symbol=Score type=Score
@@ -455,7 +455,7 @@ total += bonus;
 fn test_implements_argument_defaults_to_the_implementer() {
     let session = TestSession::single(
         r#"
-import { Add } from "destack:ops";
+import { Add } from "tspp:ops";
 
 struct Score {
     value: float64;
@@ -475,9 +475,9 @@ total += bonus;
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Add } from "destack:ops";
+import { Add } from "tspp:ops";
 
 struct Score {
     value: float64;
@@ -496,7 +496,7 @@ declare const bonus: Score;
 total += bonus;
 
 === dir ===
-import { Add } from "destack:ops";
+import { Add } from "tspp:ops";
 
 struct Score {
 /// @type.symbol symbol=Score type=Score
@@ -586,7 +586,7 @@ function wrap(text: string): string {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

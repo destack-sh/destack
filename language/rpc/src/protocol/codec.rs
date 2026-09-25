@@ -27,7 +27,7 @@ impl MessageCodec {
     /// Encode one RPC message.
     pub(crate) fn encode(&self, message: &Message) -> Result<Vec<u8>, CodecError> {
         self.validate_version()?;
-        let bytes = destack_serde::to_vec(message).map_err(CodecError::Encode)?;
+        let bytes = tspp_serde::to_vec(message).map_err(CodecError::Encode)?;
 
         // reject messages beyond the negotiated limit
         if bytes.len() > self.max_message_bytes {
@@ -52,7 +52,7 @@ impl MessageCodec {
             });
         }
 
-        destack_serde::from_slice(bytes).map_err(CodecError::Decode)
+        tspp_serde::from_slice(bytes).map_err(CodecError::Decode)
     }
 
     /// Reject wire grammars not implemented by this codec.
@@ -71,9 +71,9 @@ pub enum CodecError {
     /// The selected wire grammar is not implemented by this codec.
     UnsupportedVersion(ProtocolVersion),
     /// Message encoding failed.
-    Encode(destack_serde::Error),
+    Encode(tspp_serde::Error),
     /// Message decoding failed.
-    Decode(destack_serde::Error),
+    Decode(tspp_serde::Error),
     /// Encoded message exceeded the negotiated limit.
     TooLarge {
         /// Negotiated byte limit.

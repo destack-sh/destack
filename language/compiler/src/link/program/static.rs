@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use destack_core::{StringId, float_from_bits, float_to_bits};
-use destack_mir as mir;
-use destack_program as program;
-use destack_program::{
+use tspp_core::{StringId, float_from_bits, float_to_bits};
+use tspp_mir as mir;
+use tspp_program as program;
+use tspp_program::{
     Global, GlobalAllocator, GlobalId, GlobalLocation, GlobalTableBuilder, Object, StaticBytes,
     Symbol, TypeId,
 };
-use destack_source::{ModuleId, PackageId};
+use tspp_source::{ModuleId, PackageId};
 
 use crate::{LinkError, LinkResult};
 

@@ -6,11 +6,11 @@
 
 Null is preserved as-is.
 
-```ds
+```tspp
 const x = null
 ```
 
-```ds expected
+```tspp expected
 const x = null;
 ```
 
@@ -18,10 +18,10 @@ const x = null;
 
 Undefined is preserved as-is.
 
-```ds
+```tspp
 const x = undefined
 ```
 
-```ds expected
+```tspp expected
 const x = undefined;
 ```

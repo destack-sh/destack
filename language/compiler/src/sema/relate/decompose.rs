@@ -1,9 +1,9 @@
 use std::hash::{Hash, Hasher};
 
-use destack_dir as dir;
-use destack_source::ModuleId;
 use rustc_hash::FxHasher;
 use smallvec::SmallVec;
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use crate::CompilerResult;
 use crate::sema::{

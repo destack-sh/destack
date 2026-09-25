@@ -11,7 +11,7 @@ async function fetchCount(): Promise<int32> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -55,7 +55,7 @@ async function double(): Promise<int32> {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 async function fetchCount(): Promise<int32> {
     return 1;
@@ -136,7 +136,7 @@ async function sum(): Promise<int32> {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 async function* stream(): AsyncGenerator<int32, void, void> {
     yield 1;

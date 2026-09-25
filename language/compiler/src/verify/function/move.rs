@@ -1,4 +1,4 @@
-use destack_mir::{
+use tspp_mir::{
     Access, Block, Initialization, InitializationState, Instruction, LocalNodeId, LocalNodeIdAny,
     Place, PlaceOrigin, PlaceType, Projection, Reference, Terminator, Unavailability,
 };

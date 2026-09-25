@@ -1,0 +1,16 @@
+// SYNTAX TEST "source.tspp"
+
+// expressions / macros / decorators expansion materialization and serde
+newtype route = (string,);
+// <- keyword.declaration.type.tspp
+
+@route("/users")
+// <~----- entity.name.function.decorator.tspp
+function users(): string {
+    return "users";
+}
+
+const declaration = const eval<Declaration>(ds`
+//                  ^^^^^ storage.modifier.tspp
+    type RouteDefinition = { path: string; handler: unknown };
+`);

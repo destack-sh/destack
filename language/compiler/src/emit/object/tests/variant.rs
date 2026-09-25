@@ -1,5 +1,5 @@
-use destack_mir as mir;
-use destack_program::object::{MemorySite, Point};
+use tspp_mir as mir;
+use tspp_program::object::{MemorySite, Point};
 
 use crate::tests::TestProgram;
 

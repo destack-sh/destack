@@ -1,10 +1,10 @@
 use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
-use destack_dir::{
+use tspp_dir::{
     AssignOperator, AssignPattern, AssignPatternField, Expression, LocalNodeId, Name, NodeType,
     OperatorPrecedence, TokenType, UnaryOperator,
 };
-use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
+use tspp_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 impl Parser {
     /// Parse one destructuring assignment directly into its assignment pattern.

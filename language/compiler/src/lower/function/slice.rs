@@ -1,4 +1,4 @@
-use destack_mir as mir;
+use tspp_mir as mir;
 
 use crate::CompilerResult;
 use crate::lower::FunctionLowerer;

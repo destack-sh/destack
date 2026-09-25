@@ -1,5 +1,5 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use crate::{ScalarDomain, StaticKey, StringId, StringMapping, SymbolKind};
 
@@ -231,7 +231,7 @@ macro_rules! define_language_items {
 define_language_items! {
     /// Assertion functions.
     assert {
-        /// `destack:assert/assert`.
+        /// `tspp:assert/assert`.
         assert {
             /// Require one condition to hold.
             Assert => (Function, "assert/assert", "assert"),
@@ -240,7 +240,7 @@ define_language_items! {
 
     /// Async types.
     async {
-        /// `destack:async/abort`.
+        /// `tspp:async/abort`.
         abort {
             /// Asynchronous cancellation signal.
             AbortSignal => (NewtypeInterface, "async/abort", "AbortSignal"),
@@ -249,13 +249,13 @@ define_language_items! {
             AbortController => (Class, "async/abort", "AbortController"),
         }
 
-        /// `destack:async/awaitable`.
+        /// `tspp:async/awaitable`.
         awaitable {
             /// Awaitable value interface.
             Awaitable => (NewtypeInterface, "async/awaitable", "Awaitable"),
         }
 
-        /// `destack:async/fiber`.
+        /// `tspp:async/fiber`.
         fiber {
             /// Fiber identity struct.
             Fiber => (Struct, "async/fiber", "Fiber"),
@@ -267,7 +267,7 @@ define_language_items! {
             FiberResume => (Function, "async/fiber", "resumeFiber", "async.Fiber.resume"),
         }
 
-        /// `destack:async/generator`.
+        /// `tspp:async/generator`.
         generator {
             /// Async generator class.
             AsyncGenerator => (Class, "async/generator", "AsyncGenerator"),
@@ -317,7 +317,7 @@ define_language_items! {
             ),
         }
 
-        /// `destack:async/iterator`.
+        /// `tspp:async/iterator`.
         iterator {
             /// Async iterable interface.
             AsyncIterable => (NewtypeInterface, "async/iterator", "AsyncIterable"),
@@ -326,19 +326,19 @@ define_language_items! {
             AsyncIterator => (NewtypeInterface, "async/iterator", "AsyncIterator"),
         }
 
-        /// `destack:async/mutex`.
+        /// `tspp:async/mutex`.
         mutex {
             /// Asynchronous mutex.
             AsyncMutex => (Class, "async/mutex", "AsyncMutex"),
         }
 
-        /// `destack:async/notify`.
+        /// `tspp:async/notify`.
         notify {
             /// Asynchronous notification primitive.
             Notify => (Class, "async/notify", "Notify"),
         }
 
-        /// `destack:async/once`.
+        /// `tspp:async/once`.
         once {
             /// Asynchronous one-time initialization primitive.
             AsyncOnce => (Class, "async/once", "AsyncOnce"),
@@ -347,7 +347,7 @@ define_language_items! {
             AsyncOnceCell => (Class, "async/once", "AsyncOnceCell"),
         }
 
-        /// `destack:async/promise`.
+        /// `tspp:async/promise`.
         promise {
             /// Promise class.
             Promise => (Class, "async/promise", "Promise"),
@@ -362,31 +362,31 @@ define_language_items! {
             PromiseResolvers => (Struct, "async/promise", "PromiseResolvers"),
         }
 
-        /// `destack:async/reader`.
+        /// `tspp:async/reader`.
         reader {
             /// Asynchronous byte reader.
             AsyncReader => (Interface, "async/reader", "AsyncReader"),
         }
 
-        /// `destack:async/rwlock`.
+        /// `tspp:async/rwlock`.
         rwlock {
             /// Asynchronous reader-writer lock.
             AsyncRwLock => (Class, "async/rwlock", "AsyncRwLock"),
         }
 
-        /// `destack:async/seek`.
+        /// `tspp:async/seek`.
         seek {
             /// Asynchronous seeker.
             AsyncSeeker => (Interface, "async/seek", "AsyncSeeker"),
         }
 
-        /// `destack:async/semaphore`.
+        /// `tspp:async/semaphore`.
         semaphore {
             /// Asynchronous semaphore.
             AsyncSemaphore => (Class, "async/semaphore", "AsyncSemaphore"),
         }
 
-        /// `destack:async/task`.
+        /// `tspp:async/task`.
         task {
             /// Task struct.
             Task => (Struct, "async/task", "Task"),
@@ -407,7 +407,7 @@ define_language_items! {
             TaskScope => (Struct, "async/task", "TaskScope"),
         }
 
-        /// `destack:async/writer`.
+        /// `tspp:async/writer`.
         writer {
             /// Asynchronous byte writer.
             AsyncWriter => (Interface, "async/writer", "AsyncWriter"),
@@ -416,13 +416,13 @@ define_language_items! {
 
     /// Byte types.
     bytes {
-        /// `destack:bytes/buffer`.
+        /// `tspp:bytes/buffer`.
         buffer {
             /// Growable byte buffer.
             ByteBuffer => (Class, "bytes/buffer", "ByteBuffer"),
         }
 
-        /// `destack:bytes/bytes`.
+        /// `tspp:bytes/bytes`.
         bytes {
             /// Immutable byte sequence.
             Bytes => (Type, "bytes/bytes", "Bytes"),
@@ -431,7 +431,7 @@ define_language_items! {
             ByteOrder => (Type, "bytes/bytes", "ByteOrder"),
         }
 
-        /// `destack:bytes/reader`.
+        /// `tspp:bytes/reader`.
         reader {
             /// Sequential byte reader.
             ByteReader => (Class, "bytes/reader", "ByteReader"),
@@ -440,7 +440,7 @@ define_language_items! {
 
     /// Channel types.
     channel {
-        /// `destack:channel/channel`.
+        /// `tspp:channel/channel`.
         channel {
             /// Channel send error kind.
             SendErrorKind => (Enum, "channel/channel", "SendErrorKind"),
@@ -467,7 +467,7 @@ define_language_items! {
             AsyncChannelReceiver => (Interface, "channel/channel", "AsyncReceiver"),
         }
 
-        /// `destack:channel/watch`.
+        /// `tspp:channel/watch`.
         watch {
             /// Watch channel receiver.
             WatchReceiver => (
@@ -489,7 +489,7 @@ define_language_items! {
 
     /// Collection types.
     collections {
-        /// `destack:collections/array`.
+        /// `tspp:collections/array`.
         array {
             /// Dynamic array class.
             Array => (Class, "collections/array", "Array"),
@@ -509,67 +509,67 @@ define_language_items! {
             ),
         }
 
-        /// `destack:collections/concurrent-map`.
+        /// `tspp:collections/concurrent-map`.
         concurrent_map {
             /// Concurrent hash map.
             ConcurrentMap => (Class, "collections/concurrent-map", "ConcurrentMap"),
         }
 
-        /// `destack:collections/concurrent-queue`.
+        /// `tspp:collections/concurrent-queue`.
         concurrent_queue {
             /// Concurrent queue.
             ConcurrentQueue => (Class, "collections/concurrent-queue", "ConcurrentQueue"),
         }
 
-        /// `destack:collections/concurrent-set`.
+        /// `tspp:collections/concurrent-set`.
         concurrent_set {
             /// Concurrent hash set.
             ConcurrentSet => (Class, "collections/concurrent-set", "ConcurrentSet"),
         }
 
-        /// `destack:collections/deque`.
+        /// `tspp:collections/deque`.
         deque {
             /// Double-ended queue.
             Deque => (Class, "collections/deque", "Deque"),
         }
 
-        /// `destack:collections/heap`.
+        /// `tspp:collections/heap`.
         heap {
             /// Binary heap.
             BinaryHeap => (Struct, "collections/heap", "BinaryHeap"),
         }
 
-        /// `destack:collections/list`.
+        /// `tspp:collections/list`.
         list {
             /// Doubly linked list.
             LinkedList => (Class, "collections/list", "LinkedList"),
         }
 
-        /// `destack:collections/map`.
+        /// `tspp:collections/map`.
         map {
             /// Map class.
             Map => (Class, "collections/map", "Map"),
         }
 
-        /// `destack:collections/set`.
+        /// `tspp:collections/set`.
         set {
             /// Set class.
             Set => (Class, "collections/set", "Set"),
         }
 
-        /// `destack:collections/slice`.
+        /// `tspp:collections/slice`.
         slice {
             /// Slice type.
             Slice => (Newtype, "collections/slice", "Slice"),
         }
 
-        /// `destack:collections/sequence`.
+        /// `tspp:collections/sequence`.
         sequence {
             /// Finite ordered indexed collection protocol.
             Sequence => (NewtypeInterface, "collections/sequence", "Sequence"),
         }
 
-        /// `destack:collections/slab`.
+        /// `tspp:collections/slab`.
         slab {
             /// Generational slab key.
             SlabKey => (Newtype, "collections/slab", "SlabKey"),
@@ -578,19 +578,19 @@ define_language_items! {
             Slab => (Struct, "collections/slab", "Slab"),
         }
 
-        /// `destack:collections/small-array`.
+        /// `tspp:collections/small-array`.
         small_array {
             /// Inline-capacity array.
             SmallArray => (Struct, "collections/small-array", "SmallArray"),
         }
 
-        /// `destack:collections/sorted-map`.
+        /// `tspp:collections/sorted-map`.
         sorted_map {
             /// Sorted map.
             SortedMap => (Class, "collections/sorted-map", "SortedMap"),
         }
 
-        /// `destack:collections/sorted-set`.
+        /// `tspp:collections/sorted-set`.
         sorted_set {
             /// Sorted set.
             SortedSet => (Class, "collections/sorted-set", "SortedSet"),
@@ -599,7 +599,7 @@ define_language_items! {
 
     /// Console types.
     console {
-        /// `destack:console/console`.
+        /// `tspp:console/console`.
         console {
             /// Console output service.
             Console => (Class, "console/console", "Console"),
@@ -608,7 +608,7 @@ define_language_items! {
 
     /// Context types.
     context {
-        /// `destack:context/context`.
+        /// `tspp:context/context`.
         context {
             /// Immutable dynamically scoped execution context.
             Context => (Class, "context/context", "Context"),
@@ -636,7 +636,7 @@ define_language_items! {
             ),
         }
 
-        /// `destack:context/variable`.
+        /// `tspp:context/variable`.
         variable {
             /// Dynamically scoped execution variable.
             ContextVar => (Class, "context/variable", "ContextVar"),
@@ -645,13 +645,13 @@ define_language_items! {
 
     /// Conversion protocols.
     convert {
-        /// `destack:convert/reference`.
+        /// `tspp:convert/reference`.
         reference {
             /// Reference conversion protocol.
             As => (NewtypeInterface, "convert/reference", "As"),
         }
 
-        /// `destack:convert/borrow`.
+        /// `tspp:convert/borrow`.
         borrow {
             /// Borrow-equivalent conversion protocol.
             Borrow => (NewtypeInterface, "convert/borrow", "Borrow"),
@@ -660,7 +660,7 @@ define_language_items! {
             ToOwned => (NewtypeInterface, "convert/borrow", "ToOwned"),
         }
 
-        /// `destack:convert/from`.
+        /// `tspp:convert/from`.
         from {
             /// Infallible conversion protocol.
             From => (NewtypeInterface, "convert/from", "From"),
@@ -669,7 +669,7 @@ define_language_items! {
             TryFrom => (NewtypeInterface, "convert/from", "TryFrom"),
         }
 
-        /// `destack:convert/into`.
+        /// `tspp:convert/into`.
         into {
             /// Infallible target conversion protocol.
             Into => (NewtypeInterface, "convert/into", "Into"),
@@ -681,7 +681,7 @@ define_language_items! {
 
     /// Debugger types.
     debug {
-        /// `destack:debug/debug`.
+        /// `tspp:debug/debug`.
         debug {
             /// Debugger binding identity.
             DebugBindingId => (Newtype, "debug/debug", "BindingId"),
@@ -747,19 +747,19 @@ define_language_items! {
 
     /// Decorator types.
     decorator {
-        /// `destack:decorator/capture`.
+        /// `tspp:decorator/capture`.
         capture {
             /// `@capture` marker.
             Capture => (Newtype, "decorator/capture", "capture"),
         }
 
-        /// `destack:decorator/derive`.
+        /// `tspp:decorator/derive`.
         derive {
             /// `@derive` macro dispatcher.
             Derive => (Newtype, "decorator/derive", "derive"),
         }
 
-        /// `destack:decorator/diagnostic`.
+        /// `tspp:decorator/diagnostic`.
         diagnostic {
             /// `@allow` marker.
             Allow => (Newtype, "decorator/diagnostic", "allow"),
@@ -777,7 +777,7 @@ define_language_items! {
             Warn => (Newtype, "decorator/diagnostic", "warn"),
         }
 
-        /// `destack:decorator/intrinsic`.
+        /// `tspp:decorator/intrinsic`.
         intrinsic {
             /// `@intrinsic` marker.
             Intrinsic => (Newtype, "decorator/intrinsic", "intrinsic"),
@@ -786,13 +786,13 @@ define_language_items! {
             LanguageItem => (Newtype, "decorator/intrinsic", "languageItem"),
         }
 
-        /// `destack:decorator/representation`.
+        /// `tspp:decorator/representation`.
         representation {
             /// `@repr` marker.
             ReprDecorator => (Newtype, "decorator/representation", "repr"),
         }
 
-        /// `destack:decorator/restriction`.
+        /// `tspp:decorator/restriction`.
         restriction {
             /// `@noAliasingMutableBorrows` marker.
             NoAliasingMutableBorrows => (Newtype, "decorator/restriction", "noAliasingMutableBorrows"),
@@ -822,7 +822,7 @@ define_language_items! {
             NoUnwind => (Newtype, "decorator/restriction", "noUnwind"),
         }
 
-        /// `destack:decorator/stability`.
+        /// `tspp:decorator/stability`.
         stability {
             /// `@deprecated` marker.
             Deprecated => (Newtype, "decorator/stability", "deprecated"),
@@ -831,7 +831,7 @@ define_language_items! {
             Experimental => (Newtype, "decorator/stability", "experimental"),
         }
 
-        /// `destack:decorator/system`.
+        /// `tspp:decorator/system`.
         system {
             /// `@cold` hint.
             Cold => (Newtype, "decorator/system", "cold"),
@@ -864,7 +864,7 @@ define_language_items! {
             Unroll => (Newtype, "decorator/system", "unroll"),
         }
 
-        /// `destack:decorator/safety`.
+        /// `tspp:decorator/safety`.
         safety {
             /// `@safe` marker.
             Safe => (Newtype, "decorator/safety", "safe"),
@@ -876,7 +876,7 @@ define_language_items! {
 
     /// Error types.
     error {
-        /// `destack:error/error`.
+        /// `tspp:error/error`.
         error {
             /// Error interface for conventional error shapes.
             Error => (NewtypeInterface, "error/error", "Error"),
@@ -888,7 +888,7 @@ define_language_items! {
             TypeError => (Newtype, "error/error", "TypeError"),
         }
 
-        /// `destack:error/host`.
+        /// `tspp:error/host`.
         host {
             /// Portable host error code.
             HostErrorCode => (Enum, "error/host", "HostErrorCode"),
@@ -906,7 +906,7 @@ define_language_items! {
             HostSystemSource => (Newtype, "error/host", "HostSystemSource"),
         }
 
-        /// `destack:error/io`.
+        /// `tspp:error/io`.
         io {
             /// Portable I/O error kind.
             IoErrorKind => (Enum, "error/io", "IoErrorKind"),
@@ -918,7 +918,7 @@ define_language_items! {
             PathError => (Struct, "error/io", "PathError"),
         }
 
-        /// `destack:error/panic`.
+        /// `tspp:error/panic`.
         panic {
             /// Immediate abort function.
             Abort => (Function, "error/panic", "abort"),
@@ -957,13 +957,13 @@ define_language_items! {
             Unreachable => (Function, "error/panic", "unreachable"),
         }
 
-        /// `destack:error/report`.
+        /// `tspp:error/report`.
         report {
             /// Erased application error.
             Report => (Struct, "error/report", "Report"),
         }
 
-        /// `destack:error/result`.
+        /// `tspp:error/result`.
         result {
             /// Err variant.
             Err => (Struct, "error/result", "Err"),
@@ -975,7 +975,7 @@ define_language_items! {
             Result => (Newtype, "error/result", "Result"),
         }
 
-        /// `destack:error/stack`.
+        /// `tspp:error/stack`.
         stack {
             /// Source location in a stack trace.
             SourceLocation => (Type, "error/stack", "SourceLocation"),
@@ -994,7 +994,7 @@ define_language_items! {
 
     /// Filesystem types.
     fs {
-        /// `destack:fs/binding`.
+        /// `tspp:fs/binding`.
         binding {
             /// File attribute binding operations.
             AttributeBinding => (
@@ -1341,13 +1341,13 @@ define_language_items! {
             ),
         }
 
-        /// `destack:fs/binding/fs`.
+        /// `tspp:fs/binding/fs`.
         fs {
             /// Filesystem binding family.
             FsBinding => (Interface, "fs/binding/fs", "Binding", "fs.Binding"),
         }
 
-        /// `destack:fs/path`.
+        /// `tspp:fs/path`.
         path {
             /// Owned platform path.
             Path => (Newtype, "fs/path", "Path"),
@@ -1368,7 +1368,7 @@ define_language_items! {
 
     /// Iterator types.
     iter {
-        /// `destack:iter/iterator`.
+        /// `tspp:iter/iterator`.
         iterator {
             /// Collection extension protocol.
             Extend => (NewtypeInterface, "iter/iterator", "Extend"),
@@ -1395,73 +1395,73 @@ define_language_items! {
 
     /// Internationalization types.
     intl {
-        /// `destack:intl/collator`.
+        /// `tspp:intl/collator`.
         collator {
             /// Locale-sensitive string collator.
             IntlCollator => (Class, "intl/collator", "Collator"),
         }
 
-        /// `destack:intl/date-time-format`.
+        /// `tspp:intl/date-time-format`.
         date_time_format {
             /// Locale-sensitive date-time formatter.
             IntlDateTimeFormat => (Class, "intl/date-time-format", "DateTimeFormat"),
         }
 
-        /// `destack:intl/display-names`.
+        /// `tspp:intl/display-names`.
         display_names {
             /// Locale-sensitive display-name formatter.
             IntlDisplayNames => (Class, "intl/display-names", "DisplayNames"),
         }
 
-        /// `destack:intl/duration-format`.
+        /// `tspp:intl/duration-format`.
         duration_format {
             /// Locale-sensitive duration formatter.
             IntlDurationFormat => (Class, "intl/duration-format", "DurationFormat"),
         }
 
-        /// `destack:intl/error`.
+        /// `tspp:intl/error`.
         error {
             /// Internationalization failure.
             IntlError => (Newtype, "intl/error", "IntlError"),
         }
 
-        /// `destack:intl/format`.
+        /// `tspp:intl/format`.
         format {
             /// Locale-sensitive string representation protocol.
             IntlToLocaleString => (NewtypeInterface, "intl/format", "ToLocaleString"),
         }
 
-        /// `destack:intl/list-format`.
+        /// `tspp:intl/list-format`.
         list_format {
             /// Locale-sensitive list formatter.
             IntlListFormat => (Class, "intl/list-format", "ListFormat"),
         }
 
-        /// `destack:intl/locale`.
+        /// `tspp:intl/locale`.
         locale {
             /// Parsed and canonical locale identifier.
             IntlLocale => (Class, "intl/locale", "Locale"),
         }
 
-        /// `destack:intl/number-format`.
+        /// `tspp:intl/number-format`.
         number_format {
             /// Locale-sensitive number formatter.
             IntlNumberFormat => (Class, "intl/number-format", "NumberFormat"),
         }
 
-        /// `destack:intl/plural-rules`.
+        /// `tspp:intl/plural-rules`.
         plural_rules {
             /// Locale-sensitive plural selection rules.
             IntlPluralRules => (Class, "intl/plural-rules", "PluralRules"),
         }
 
-        /// `destack:intl/relative-time-format`.
+        /// `tspp:intl/relative-time-format`.
         relative_time_format {
             /// Locale-sensitive relative-time formatter.
             IntlRelativeTimeFormat => (Class, "intl/relative-time-format", "RelativeTimeFormat"),
         }
 
-        /// `destack:intl/segmenter`.
+        /// `tspp:intl/segmenter`.
         segmenter {
             /// Segments produced from one input string.
             IntlSegments => (Class, "intl/segmenter", "Segments"),
@@ -1476,7 +1476,7 @@ define_language_items! {
 
     /// JSON types.
     json {
-        /// `destack:json/codec`.
+        /// `tspp:json/codec`.
         codec {
             /// JSON serializer.
             JsonSerializer => (Class, "json/codec", "JsonSerializer"),
@@ -1485,7 +1485,7 @@ define_language_items! {
             JsonDeserializer => (Class, "json/codec", "JsonDeserializer"),
         }
 
-        /// `destack:json/error`.
+        /// `tspp:json/error`.
         error {
             /// JSON error kind.
             JsonErrorKind => (Enum, "json/error", "JsonErrorKind"),
@@ -1494,13 +1494,13 @@ define_language_items! {
             JsonError => (Struct, "json/error", "JsonError"),
         }
 
-        /// `destack:json/json`.
+        /// `tspp:json/json`.
         json {
             /// JSON codec class.
             JSON => (Class, "json/json", "JSON"),
         }
 
-        /// `destack:json/value`.
+        /// `tspp:json/value`.
         value {
             /// JSON value.
             Json => (Newtype, "json/value", "Json"),
@@ -1509,19 +1509,19 @@ define_language_items! {
 
     /// Math types.
     math {
-        /// `destack:math/bigint`.
+        /// `tspp:math/bigint`.
         bigint {
             /// BigInt class.
             BigInt => (Class, "math/bigint", "BigInt"),
         }
 
-        /// `destack:math/complex`.
+        /// `tspp:math/complex`.
         complex {
             /// Complex number type.
             Complex => (Struct, "math/complex", "Complex"),
         }
 
-        /// `destack:math/float`.
+        /// `tspp:math/float`.
         float {
             /// Float value domain marker.
             FloatDomain => (NewtypeInterface, "math/float", "FloatDomain"),
@@ -1530,7 +1530,7 @@ define_language_items! {
             Float => (NewtypeInterface, "math/float", "Float"),
         }
 
-        /// `destack:math/identity`.
+        /// `tspp:math/identity`.
         identity {
             /// Multiplicative identity protocol.
             One => (NewtypeInterface, "math/identity", "One"),
@@ -1539,7 +1539,7 @@ define_language_items! {
             Zero => (NewtypeInterface, "math/identity", "Zero"),
         }
 
-        /// `destack:math/integer`.
+        /// `tspp:math/integer`.
         integer {
             /// Integer value domain marker.
             IntegerDomain => (NewtypeInterface, "math/integer", "IntegerDomain"),
@@ -1551,7 +1551,7 @@ define_language_items! {
             Unsigned => (Type, "math/integer", "Unsigned"),
         }
 
-        /// `destack:math/linear`.
+        /// `tspp:math/linear`.
         linear {
             /// Two-dimensional vector.
             Vector2 => (Struct, "math/linear", "Vector2"),
@@ -1563,13 +1563,13 @@ define_language_items! {
             Vector4 => (Struct, "math/linear", "Vector4"),
         }
 
-        /// `destack:math/math`.
+        /// `tspp:math/math`.
         math {
             /// Math class.
             Math => (Class, "math/math", "Math"),
         }
 
-        /// `destack:math/matrix`.
+        /// `tspp:math/matrix`.
         matrix {
             /// Two-dimensional square matrix.
             Matrix2 => (Struct, "math/matrix", "Matrix2"),
@@ -1581,7 +1581,7 @@ define_language_items! {
             Matrix4 => (Struct, "math/matrix", "Matrix4"),
         }
 
-        /// `destack:math/number`.
+        /// `tspp:math/number`.
         number {
             /// The global `Infinity` constant.
             Infinity => (Variable, "math/number", "Infinity"),
@@ -1612,7 +1612,7 @@ define_language_items! {
             ),
         }
 
-        /// `destack:math/numeric`.
+        /// `tspp:math/numeric`.
         numeric {
             /// Numeric value type.
             Numeric => (Type, "math/numeric", "Numeric"),
@@ -1621,19 +1621,19 @@ define_language_items! {
             NumericDomain => (Type, "math/numeric", "NumericDomain"),
         }
 
-        /// `destack:math/quaternion`.
+        /// `tspp:math/quaternion`.
         quaternion {
             /// Quaternion rotation value.
             Quaternion => (Struct, "math/quaternion", "Quaternion"),
         }
 
-        /// `destack:math/vector`.
+        /// `tspp:math/vector`.
         vector {
             /// Vector type.
             Vector => (Newtype, "math/vector", "Vector"),
         }
 
-        /// `destack:math/wrapping`.
+        /// `tspp:math/wrapping`.
         wrapping {
             /// Integer with modular arithmetic.
             Wrapping => (Newtype, "math/wrapping", "Wrapping"),
@@ -1642,19 +1642,19 @@ define_language_items! {
 
     /// Memory types.
     memory {
-        /// `destack:memory/pointer`.
+        /// `tspp:memory/pointer`.
         pointer {
             /// Unchecked native machine address.
             Pointer => (Newtype, "memory/pointer", "Pointer"),
         }
 
-        /// `destack:memory/access`.
+        /// `tspp:memory/access`.
         access {
             /// Access mode for qualified storage.
             Access => (Type, "memory/access", "Access"),
         }
 
-        /// `destack:memory/arc`.
+        /// `tspp:memory/arc`.
         arc {
             /// Shared reference-counted ownership.
             Arc => (Struct, "memory/arc/arc", "Arc", "memory.arc.Arc"),
@@ -1666,13 +1666,13 @@ define_language_items! {
             ArcWeak => (Struct, "memory/arc/weak", "Weak", "memory.arc.Weak"),
         }
 
-        /// `destack:memory/arena/arena`.
+        /// `tspp:memory/arena/arena`.
         arena {
             /// Typed arena.
             Arena => (Struct, "memory/arena/arena", "Arena", "memory.arena.Arena"),
         }
 
-        /// `destack:memory/binding`.
+        /// `tspp:memory/binding`.
         binding {
             /// Virtual memory map flags.
             MappedMemoryFlags => (
@@ -1766,13 +1766,13 @@ define_language_items! {
             ),
         }
 
-        /// `destack:memory/borrow`.
+        /// `tspp:memory/borrow`.
         borrow {
             /// Borrowed access form.
             Borrowed => (Newtype, "memory/borrow", "Borrowed"),
         }
 
-        /// `destack:memory/box`.
+        /// `tspp:memory/box`.
         box {
             /// Boxed owned heap allocation.
             Box => (Newtype, "memory/box", "Box"),
@@ -1781,7 +1781,7 @@ define_language_items! {
             Unique => (Newtype, "memory/box", "Unique"),
         }
 
-        /// `destack:memory/capability`.
+        /// `tspp:memory/capability`.
         capability {
             /// Explicit clone capability.
             Clone => (NewtypeInterface, "memory/capability", "Clone"),
@@ -1808,7 +1808,7 @@ define_language_items! {
             Zeroable => (NewtypeInterface, "memory/capability", "Zeroable"),
         }
 
-        /// `destack:memory/cell/cell`.
+        /// `tspp:memory/cell/cell`.
         cell {
             /// Interior mutable copy storage.
             Cell => (Struct, "memory/cell/cell", "Cell"),
@@ -1825,13 +1825,13 @@ define_language_items! {
             UnsafeCell => (Newtype, "memory/cell/cell", "UnsafeCell"),
         }
 
-        /// `destack:memory/cow/cow`.
+        /// `tspp:memory/cow/cow`.
         cow {
             /// Copy-on-write value.
             Cow => (Newtype, "memory/cow/cow", "Cow"),
         }
 
-        /// `destack:memory/dispose`.
+        /// `tspp:memory/dispose`.
         dispose {
             /// Explicit asynchronous cleanup protocol.
             AsyncDispose => (NewtypeInterface, "memory/dispose", "AsyncDispose"),
@@ -1840,7 +1840,7 @@ define_language_items! {
             Dispose => (NewtypeInterface, "memory/dispose", "Dispose"),
         }
 
-        /// `destack:memory/drop`.
+        /// `tspp:memory/drop`.
         drop {
             /// Ownership finalization protocol.
             Drop => (NewtypeInterface, "memory/drop", "Drop"),
@@ -1852,55 +1852,55 @@ define_language_items! {
             ManuallyDrop => (Newtype, "memory/drop", "ManuallyDrop"),
         }
 
-        /// `destack:memory/dynamic`.
+        /// `tspp:memory/dynamic`.
         dynamic {
             /// Erased runtime value.
             Dynamic => (Type, "memory/dynamic", "Dynamic"),
         }
 
-        /// `destack:memory/error`.
+        /// `tspp:memory/error`.
         error {
             /// Allocation failure for fallible allocation.
             AllocationError => (Newtype, "memory/error", "AllocationError"),
         }
 
-        /// `destack:memory/init`.
+        /// `tspp:memory/init`.
         init {
             /// Possibly uninitialized storage.
             MaybeUninit => (Newtype, "memory/init", "MaybeUninit"),
         }
 
-        /// `destack:memory/region`.
+        /// `tspp:memory/region`.
         region {
             /// Reference region: one lifetime extent paired with one referent space.
             Region => (Newtype, "memory/region", "Region"),
         }
 
-        /// `destack:memory/owned`.
+        /// `tspp:memory/owned`.
         owned {
             /// Unique ownership form.
             Owned => (Newtype, "memory/owned", "Owned"),
         }
 
-        /// `destack:memory/phantom`.
+        /// `tspp:memory/phantom`.
         phantom {
             /// Zero-sized ownership marker.
             Phantom => (Newtype, "memory/phantom", "Phantom"),
         }
 
-        /// `destack:memory/pin`.
+        /// `tspp:memory/pin`.
         pin {
             /// Address-stable storage wrapper.
             Pin => (Newtype, "memory/pin", "Pin"),
         }
 
-        /// `destack:memory/raw`.
+        /// `tspp:memory/raw`.
         raw {
             /// Unsafe raw pointer form.
             Raw => (Newtype, "memory/raw", "Raw"),
         }
 
-        /// `destack:memory/rc`.
+        /// `tspp:memory/rc`.
         rc {
             /// Local reference-counted ownership.
             Rc => (Struct, "memory/rc/rc", "Rc", "memory.rc.Rc"),
@@ -1912,7 +1912,7 @@ define_language_items! {
             RcWeak => (Struct, "memory/rc/weak", "Weak", "memory.rc.Weak"),
         }
 
-        /// `destack:memory/type`.
+        /// `tspp:memory/type`.
         type {
             /// Project the access mode of a memory form.
             AccessOf => (Type, "memory/type", "AccessOf"),
@@ -1927,7 +1927,7 @@ define_language_items! {
 
     /// Module types.
     module {
-        /// `destack:module/config`.
+        /// `tspp:module/config`.
         config {
             /// Module derive configuration.
             ModuleDerive => (Type, "module/config", "Derive"),
@@ -1936,7 +1936,7 @@ define_language_items! {
             Module => (Interface, "module/config", "Module"),
         }
 
-        /// `destack:module/meta`.
+        /// `tspp:module/meta`.
         meta {
             /// Module host kind.
             ModuleHost => (Type, "module/meta", "Host"),
@@ -1969,7 +1969,7 @@ define_language_items! {
 
     /// Network types.
     net {
-        /// `destack:net/binding`.
+        /// `tspp:net/binding`.
         binding {
             /// Address lookup flags.
             AddressLookupFlags => (
@@ -2284,7 +2284,7 @@ define_language_items! {
             ),
         }
 
-        /// `destack:net/net`.
+        /// `tspp:net/net`.
         net {
             /// Owned stream connection.
             Connection => (Struct, "net/net", "Connection"),
@@ -2302,7 +2302,7 @@ define_language_items! {
 
     /// Operator interfaces.
     ops {
-        /// `destack:ops/bitwise`.
+        /// `tspp:ops/bitwise`.
         bitwise {
             /// `&` operator.
             And => (NewtypeInterface, "ops/bitwise", "And"),
@@ -2317,7 +2317,7 @@ define_language_items! {
             Xor => (NewtypeInterface, "ops/bitwise", "Xor"),
         }
 
-        /// `destack:ops/comparison`.
+        /// `tspp:ops/comparison`.
         comparison {
             /// Ordered comparison protocol.
             Compare => (NewtypeInterface, "ops/comparison", "Compare"),
@@ -2329,25 +2329,25 @@ define_language_items! {
             PartialCompare => (NewtypeInterface, "ops/comparison", "PartialCompare"),
         }
 
-        /// `destack:ops/dereference`.
+        /// `tspp:ops/dereference`.
         dereference {
             /// Dereference projection protocol.
             Dereference => (NewtypeInterface, "ops/dereference", "Dereference"),
         }
 
-        /// `destack:ops/divide`.
+        /// `tspp:ops/divide`.
         divide {
             /// Division operator protocol.
             Divide => (NewtypeInterface, "ops/divide", "Divide"),
         }
 
-        /// `destack:ops/equate`.
+        /// `tspp:ops/equate`.
         equate {
             /// Default comparison and hashing for stored values.
             DefaultEqual => (NewtypeInterface, "ops/equate", "DefaultEqual"),
         }
 
-        /// `destack:ops/equality`.
+        /// `tspp:ops/equality`.
         equality {
             /// Equality operator protocol.
             Equal => (NewtypeInterface, "ops/equality", "Equal"),
@@ -2359,7 +2359,7 @@ define_language_items! {
             StrictEqual => (NewtypeInterface, "ops/equality", "StrictEqual"),
         }
 
-        /// `destack:ops/format`.
+        /// `tspp:ops/format`.
         format {
             /// Debug formatting protocol.
             Debug => (NewtypeInterface, "ops/format", "Debug"),
@@ -2368,7 +2368,7 @@ define_language_items! {
             Display => (NewtypeInterface, "ops/format", "Display"),
         }
 
-        /// `destack:ops/hash`.
+        /// `tspp:ops/hash`.
         hash {
             /// A value that can feed itself into a hasher.
             Hash => (NewtypeInterface, "ops/hash", "Hash"),
@@ -2377,25 +2377,25 @@ define_language_items! {
             Hasher => (NewtypeInterface, "ops/hash", "Hasher"),
         }
 
-        /// `destack:ops/minus`.
+        /// `tspp:ops/minus`.
         minus {
             /// Subtraction operator protocol.
             Subtract => (NewtypeInterface, "ops/minus", "Subtract"),
         }
 
-        /// `destack:ops/multiply`.
+        /// `tspp:ops/multiply`.
         multiply {
             /// Multiplication operator protocol.
             Multiply => (NewtypeInterface, "ops/multiply", "Multiply"),
         }
 
-        /// `destack:ops/negate`.
+        /// `tspp:ops/negate`.
         negate {
             /// Negation operator protocol.
             Negate => (NewtypeInterface, "ops/negate", "Negate"),
         }
 
-        /// `destack:ops/plus`.
+        /// `tspp:ops/plus`.
         plus {
             /// Addition operator protocol.
             Add => (NewtypeInterface, "ops/plus", "Add"),
@@ -2404,19 +2404,19 @@ define_language_items! {
             Plus => (NewtypeInterface, "ops/plus", "Plus"),
         }
 
-        /// `destack:ops/power`.
+        /// `tspp:ops/power`.
         power {
             /// Exponentiation operator protocol.
             Power => (NewtypeInterface, "ops/power", "Power"),
         }
 
-        /// `destack:ops/remainder`.
+        /// `tspp:ops/remainder`.
         remainder {
             /// Remainder operator protocol.
             Remainder => (NewtypeInterface, "ops/remainder", "Remainder"),
         }
 
-        /// `destack:ops/shift`.
+        /// `tspp:ops/shift`.
         shift {
             /// Left-shift operator protocol.
             ShiftLeft => (NewtypeInterface, "ops/shift", "ShiftLeft"),
@@ -2428,7 +2428,7 @@ define_language_items! {
             ShiftRightUnsigned => (NewtypeInterface, "ops/shift", "ShiftRightUnsigned"),
         }
 
-        /// `destack:ops/subscript`.
+        /// `tspp:ops/subscript`.
         subscript {
             /// Index access protocol.
             Index => (NewtypeInterface, "ops/subscript", "Index"),
@@ -2437,7 +2437,7 @@ define_language_items! {
             IndexSet => (NewtypeInterface, "ops/subscript", "IndexSet"),
         }
 
-        /// `destack:ops/try`.
+        /// `tspp:ops/try`.
         try {
             /// Residual control flow.
             Break => (Struct, "ops/try", "Break"),
@@ -2458,7 +2458,7 @@ define_language_items! {
 
     /// Profiling types.
     profile {
-        /// `destack:profile/instrument`.
+        /// `tspp:profile/instrument`.
         instrument {
             /// Profile counter.
             ProfileCounter => (Newtype, "profile/instrument", "Counter"),
@@ -2489,7 +2489,7 @@ define_language_items! {
 
     /// Random types.
     random {
-        /// `destack:random/binding`.
+        /// `tspp:random/binding`.
         binding {
             /// Random entropy binding operations.
             RandomEntropyBinding => (
@@ -2503,7 +2503,7 @@ define_language_items! {
             RandomBinding => (Interface, "random/binding/random", "RandomBinding"),
         }
 
-        /// `destack:random/random`.
+        /// `tspp:random/random`.
         random {
             /// Deterministic random number generator.
             Random => (Class, "random/random", "Random"),
@@ -2515,7 +2515,7 @@ define_language_items! {
 
     /// Range types.
     range {
-        /// `destack:range/bound`.
+        /// `tspp:range/bound`.
         bound {
             /// Range endpoint.
             Bound => (Newtype, "range/bound", "Bound"),
@@ -2524,7 +2524,7 @@ define_language_items! {
             RangeBounds => (NewtypeInterface, "range/bound", "RangeBounds"),
         }
 
-        /// `destack:range/range`.
+        /// `tspp:range/range`.
         range {
             /// Half-open range.
             Range => (Struct, "range/range", "Range"),
@@ -2545,7 +2545,7 @@ define_language_items! {
             RangeToInclusive => (Struct, "range/range", "RangeToInclusive"),
         }
 
-        /// `destack:range/step`.
+        /// `tspp:range/step`.
         step {
             /// Steppable range value protocol.
             Step => (NewtypeInterface, "range/step", "Step"),
@@ -2554,7 +2554,7 @@ define_language_items! {
 
     /// Type values and layout queries.
     reflect {
-        /// `destack:reflect/type`.
+        /// `tspp:reflect/type`.
         type {
             /// Alignment query intrinsic.
             AlignOf => (Function, "reflect/type", "alignOf"),
@@ -2572,7 +2572,7 @@ define_language_items! {
 
     /// Regular expression types.
     regexp {
-        /// `destack:regexp/regexp`.
+        /// `tspp:regexp/regexp`.
         regexp {
             /// Regular expression class.
             RegExp => (Class, "regexp/regexp", "RegExp"),
@@ -2590,13 +2590,13 @@ define_language_items! {
 
     /// Runtime types.
     runtime {
-        /// `destack:runtime/action`.
+        /// `tspp:runtime/action`.
         action {
             /// Runtime-owned host action.
             RuntimeAction => (Type, "runtime/action", "RuntimeAction"),
         }
 
-        /// `destack:runtime/binding`.
+        /// `tspp:runtime/binding`.
         binding {
             /// Runtime or host action.
             Action => (Type, "runtime/binding", "Action"),
@@ -2623,7 +2623,7 @@ define_language_items! {
             PlatformTag => (Type, "runtime/binding", "PlatformTag"),
         }
 
-        /// `destack:runtime/control`.
+        /// `tspp:runtime/control`.
         control {
             /// Runtime control event.
             RuntimeControlEvent => (Struct, "runtime/control", "ControlEvent"),
@@ -2632,7 +2632,7 @@ define_language_items! {
             RuntimeControlEventKind => (Enum, "runtime/control", "ControlEventKind"),
         }
 
-        /// `destack:runtime/entity`.
+        /// `tspp:runtime/entity`.
         entity {
             /// Runtime edge.
             RuntimeEdge => (Struct, "runtime/entity", "Edge"),
@@ -2665,7 +2665,7 @@ define_language_items! {
             RuntimeLabelSelector => (Struct, "runtime/entity", "LabelSelector"),
         }
 
-        /// `destack:runtime/frame`.
+        /// `tspp:runtime/frame`.
         frame {
             /// Runtime stack frame.
             RuntimeFrame => (Struct, "runtime/frame", "Frame"),
@@ -2689,7 +2689,7 @@ define_language_items! {
             RuntimeFrameValue => (Struct, "runtime/frame", "FrameValue"),
         }
 
-        /// `destack:runtime/heap`.
+        /// `tspp:runtime/heap`.
         heap {
             /// Runtime heap edge.
             RuntimeHeapEdge => (Struct, "runtime/heap", "HeapEdge"),
@@ -2704,7 +2704,7 @@ define_language_items! {
             RuntimeHeapSummary => (Struct, "runtime/heap", "HeapSummary"),
         }
 
-        /// `destack:runtime/inspect`.
+        /// `tspp:runtime/inspect`.
         inspect {
             /// Runtime engine view.
             RuntimeEngineView => (Struct, "runtime/inspect", "EngineView"),
@@ -2716,7 +2716,7 @@ define_language_items! {
             RuntimeEventLoop => (Struct, "runtime/inspect", "EventLoop"),
         }
 
-        /// `destack:runtime/lineage`.
+        /// `tspp:runtime/lineage`.
         lineage {
             /// Runtime branch.
             RuntimeBranch => (Struct, "runtime/lineage", "Branch"),
@@ -2749,7 +2749,7 @@ define_language_items! {
             RuntimeTraceSequence => (Newtype, "runtime/lineage", "TraceSequence"),
         }
 
-        /// `destack:runtime/observation`.
+        /// `tspp:runtime/observation`.
         observation {
             /// Runtime observation event kind.
             RuntimeObservationEventKind => (Enum, "runtime/observation", "ObservationEventKind"),
@@ -2761,7 +2761,7 @@ define_language_items! {
             RuntimeObservationRecord => (Struct, "runtime/observation", "ObservationRecord"),
         }
 
-        /// `destack:runtime/policy`.
+        /// `tspp:runtime/policy`.
         policy {
             /// Runtime policy action selector.
             PolicyActionSelector => (Struct, "runtime/policy", "ActionSelector"),
@@ -2794,7 +2794,7 @@ define_language_items! {
             PolicyTargetSelector => (Newtype, "runtime/policy", "TargetSelector"),
         }
 
-        /// `destack:runtime/random`.
+        /// `tspp:runtime/random`.
         random {
             /// Runtime random stream handle.
             RuntimeRandomHandle => (Newtype, "runtime/random", "RandomHandle"),
@@ -2803,7 +2803,7 @@ define_language_items! {
             RuntimeRandomSeed => (Struct, "runtime/random", "RandomSeed"),
         }
 
-        /// `destack:runtime/resource`.
+        /// `tspp:runtime/resource`.
         resource {
             /// Runtime resource.
             RuntimeResource => (Struct, "runtime/resource", "Resource"),
@@ -2821,7 +2821,7 @@ define_language_items! {
             RuntimeTransferredHandle => (Newtype, "runtime/resource", "TransferredHandle"),
         }
 
-        /// `destack:runtime/snapshot`.
+        /// `tspp:runtime/snapshot`.
         snapshot {
             /// Runtime snapshot.
             RuntimeSnapshot => (Struct, "runtime/snapshot", "Snapshot"),
@@ -2833,7 +2833,7 @@ define_language_items! {
             RuntimeSnapshotId => (Newtype, "runtime/snapshot", "SnapshotId"),
         }
 
-        /// `destack:runtime/trace`.
+        /// `tspp:runtime/trace`.
         trace {
             /// Runtime trace.
             RuntimeTrace => (Struct, "runtime/trace", "Trace"),
@@ -2848,7 +2848,7 @@ define_language_items! {
             RuntimeTraceRecord => (Struct, "runtime/trace", "TraceRecord"),
         }
 
-        /// `destack:runtime/world`.
+        /// `tspp:runtime/world`.
         world {
             /// Runtime engine.
             RuntimeEngine => (Enum, "runtime/world", "Engine"),
@@ -2893,7 +2893,7 @@ define_language_items! {
 
     /// Serde types.
     serde {
-        /// `destack:serde/serde`.
+        /// `tspp:serde/serde`.
         serde {
             /// Value deserialization protocol.
             Deserialize => (NewtypeInterface, "serde/serde", "Deserialize"),
@@ -2911,7 +2911,7 @@ define_language_items! {
 
     /// Stream types.
     stream {
-        /// `destack:stream/stream`.
+        /// `tspp:stream/stream`.
         stream {
             /// Single-consumer stream interface.
             Stream => (NewtypeInterface, "stream/stream", "Stream"),
@@ -2920,13 +2920,13 @@ define_language_items! {
 
     /// String types.
     string {
-        /// `destack:string/builder`.
+        /// `tspp:string/builder`.
         builder {
             /// Mutable string builder.
             StringBuilder => (Class, "string/builder", "StringBuilder"),
         }
 
-        /// `destack:string/string`.
+        /// `tspp:string/string`.
         string {
             /// Template joining constructor.
             StringFromTemplate => (
@@ -2937,7 +2937,7 @@ define_language_items! {
             ),
         }
 
-        /// `destack:string/cstring`.
+        /// `tspp:string/cstring`.
         cstring {
             /// Borrowed C string.
             CStringSlice => (Struct, "string/cstring", "CStringSlice"),
@@ -2958,7 +2958,7 @@ define_language_items! {
             MissingNulError => (Struct, "string/cstring", "MissingNulError"),
         }
 
-        /// `destack:string/os`.
+        /// `tspp:string/os`.
         os {
             /// Borrowed platform-native string.
             OsStringSlice => (Struct, "string/os", "OsStringSlice"),
@@ -2976,19 +2976,19 @@ define_language_items! {
             OsStringIntoStringError => (Struct, "string/os", "OsStringIntoStringError"),
         }
 
-        /// `destack:string/slice`.
+        /// `tspp:string/slice`.
         slice {
             /// Borrowed sequence of ECMAScript UTF-16 code units.
             StringSlice => (Newtype, "string/slice", "StringSlice"),
         }
 
-        /// `destack:string/string`.
+        /// `tspp:string/string`.
         string {
             /// String class.
             String => (Class, "string/string", "String"),
         }
 
-        /// `destack:string/utf8`.
+        /// `tspp:string/utf8`.
         utf8 {
             /// UTF-8 decoding error.
             Utf8DecodeError => (Struct, "string/utf8", "Utf8DecodeError"),
@@ -2997,7 +2997,7 @@ define_language_items! {
 
     /// Synchronization types.
     sync {
-        /// `destack:sync/atomic`.
+        /// `tspp:sync/atomic`.
         atomic {
             /// Atomic synchronization scope.
             AtomicScope => (Enum, "sync/atomic", "AtomicScope"),
@@ -3018,25 +3018,25 @@ define_language_items! {
             MemoryScope => (Enum, "sync/atomic", "MemoryScope"),
         }
 
-        /// `destack:sync/barrier`.
+        /// `tspp:sync/barrier`.
         barrier {
             /// Thread barrier.
             Barrier => (Class, "sync/barrier", "Barrier"),
         }
 
-        /// `destack:sync/condvar`.
+        /// `tspp:sync/condvar`.
         condvar {
             /// Condition variable.
             Condvar => (Class, "sync/condvar", "Condvar"),
         }
 
-        /// `destack:sync/mutex`.
+        /// `tspp:sync/mutex`.
         mutex {
             /// Synchronous mutex.
             Mutex => (Class, "sync/mutex", "Mutex"),
         }
 
-        /// `destack:sync/once`.
+        /// `tspp:sync/once`.
         once {
             /// One-time initialization primitive.
             Once => (Class, "sync/once", "Once"),
@@ -3045,19 +3045,19 @@ define_language_items! {
             OnceCell => (Class, "sync/once", "OnceCell"),
         }
 
-        /// `destack:sync/reader`.
+        /// `tspp:sync/reader`.
         reader {
             /// Synchronous byte reader.
             Reader => (Interface, "sync/reader", "Reader"),
         }
 
-        /// `destack:sync/rwlock`.
+        /// `tspp:sync/rwlock`.
         rwlock {
             /// Synchronous reader-writer lock.
             RwLock => (Class, "sync/rwlock", "RwLock"),
         }
 
-        /// `destack:sync/seek`.
+        /// `tspp:sync/seek`.
         seek {
             /// Seek origin.
             SeekFrom => (Newtype, "sync/seek", "SeekFrom"),
@@ -3066,13 +3066,13 @@ define_language_items! {
             Seeker => (Interface, "sync/seek", "Seeker"),
         }
 
-        /// `destack:sync/semaphore`.
+        /// `tspp:sync/semaphore`.
         semaphore {
             /// Synchronous semaphore.
             Semaphore => (Class, "sync/semaphore", "Semaphore"),
         }
 
-        /// `destack:sync/writer`.
+        /// `tspp:sync/writer`.
         writer {
             /// Synchronous byte writer.
             Writer => (Interface, "sync/writer", "Writer"),
@@ -3081,13 +3081,13 @@ define_language_items! {
 
     /// Telemetry types.
     telemetry {
-        /// `destack:telemetry/binding`.
+        /// `tspp:telemetry/binding`.
         binding {
             /// Telemetry binding family.
             TelemetryBinding => (Interface, "telemetry/binding/telemetry", "TelemetryBinding"),
         }
 
-        /// `destack:telemetry/field`.
+        /// `tspp:telemetry/field`.
         field {
             /// Telemetry field value.
             FieldValue => (Type, "telemetry/field", "FieldValue"),
@@ -3096,13 +3096,13 @@ define_language_items! {
             Fields => (Type, "telemetry/field", "Fields"),
         }
 
-        /// `destack:telemetry/log`.
+        /// `tspp:telemetry/log`.
         log {
             /// Structured logger.
             Logger => (Class, "telemetry/log", "Logger"),
         }
 
-        /// `destack:telemetry/metric`.
+        /// `tspp:telemetry/metric`.
         metric {
             /// Telemetry counter.
             TelemetryCounter => (Class, "telemetry/metric", "Counter"),
@@ -3123,7 +3123,7 @@ define_language_items! {
             UpDownCounter => (Class, "telemetry/metric", "UpDownCounter"),
         }
 
-        /// `destack:telemetry/record`.
+        /// `tspp:telemetry/record`.
         record {
             /// Telemetry instrument kind.
             InstrumentKind => (Enum, "telemetry/record", "InstrumentKind"),
@@ -3162,7 +3162,7 @@ define_language_items! {
             TraceId => (Newtype, "telemetry/record", "TraceId"),
         }
 
-        /// `destack:telemetry/trace`.
+        /// `tspp:telemetry/trace`.
         trace {
             /// Active trace span.
             Span => (Class, "telemetry/trace", "Span"),
@@ -3177,7 +3177,7 @@ define_language_items! {
 
     /// Test registration types and functions.
     test {
-        /// `destack:test/artifact`.
+        /// `tspp:test/artifact`.
         artifact {
             /// Stable test artifact identifier.
             TestArtifactId => (Newtype, "test/artifact", "ArtifactId"),
@@ -3189,7 +3189,7 @@ define_language_items! {
             TestArtifact => (Struct, "test/artifact", "Artifact"),
         }
 
-        /// `destack:test/case`.
+        /// `tspp:test/case`.
         case {
             /// Callable test registration interface.
             Test => (NewtypeInterface, "test/case", "Test"),
@@ -3204,7 +3204,7 @@ define_language_items! {
             RegisteredCase => (Struct, "test/case", "Case"),
         }
 
-        /// `destack:test/context`.
+        /// `tspp:test/context`.
         context {
             /// Test output sink.
             TestOutput => (NewtypeInterface, "test/context", "Output"),
@@ -3219,7 +3219,7 @@ define_language_items! {
             TestSuiteContext => (NewtypeInterface, "test/context", "SuiteContext"),
         }
 
-        /// `destack:test/expect`.
+        /// `tspp:test/expect`.
         expect {
             /// Callable assertion interface.
             TestExpect => (NewtypeInterface, "test/expect", "Expect"),
@@ -3231,13 +3231,13 @@ define_language_items! {
             PanicExpectation => (Struct, "test/expect", "PanicExpectation"),
         }
 
-        /// `destack:test/fixture`.
+        /// `tspp:test/fixture`.
         fixture {
             /// Test fixture lifetime context.
             FixtureContext => (NewtypeInterface, "test/fixture", "FixtureContext"),
         }
 
-        /// `destack:test/hook`.
+        /// `tspp:test/hook`.
         hook {
             /// Register setup before all tests in the current suite.
             TestBeforeAll => (Function, "test/hook", "beforeAll"),
@@ -3258,7 +3258,7 @@ define_language_items! {
             TestAroundEach => (Function, "test/hook", "aroundEach"),
         }
 
-        /// `destack:test/id`.
+        /// `tspp:test/id`.
         id {
             /// Stable test case identifier.
             TestCaseId => (Newtype, "test/id", "CaseId"),
@@ -3270,7 +3270,7 @@ define_language_items! {
             TestRunId => (Newtype, "test/id", "RunId"),
         }
 
-        /// `destack:test/issue`.
+        /// `tspp:test/issue`.
         issue {
             /// Test issue kind.
             TestIssueKind => (Enum, "test/issue", "IssueKind"),
@@ -3279,7 +3279,7 @@ define_language_items! {
             TestIssue => (Struct, "test/issue", "Issue"),
         }
 
-        /// `destack:test/options`.
+        /// `tspp:test/options`.
         options {
             /// Test case kind.
             TestCaseKind => (Enum, "test/options", "CaseKind"),
@@ -3291,13 +3291,13 @@ define_language_items! {
             TestOptions => (Type, "test/options", "Options"),
         }
 
-        /// `destack:test/poll`.
+        /// `tspp:test/poll`.
         poll {
             /// Repeated asynchronous expectation.
             PollingExpectation => (Struct, "test/poll", "PollingExpectation"),
         }
 
-        /// `destack:test/replay`.
+        /// `tspp:test/replay`.
         replay {
             /// Stable replay identifier.
             TestReplayId => (Newtype, "test/replay", "ReplayId"),
@@ -3312,7 +3312,7 @@ define_language_items! {
             TestReplay => (Struct, "test/replay", "Replay"),
         }
 
-        /// `destack:test/run`.
+        /// `tspp:test/run`.
         run {
             /// Test run outcome.
             TestOutcome => (Enum, "test/run", "Outcome"),
@@ -3321,7 +3321,7 @@ define_language_items! {
             TestRun => (Struct, "test/run", "Run"),
         }
 
-        /// `destack:test/snapshot`.
+        /// `tspp:test/snapshot`.
         snapshot {
             /// Snapshot update mode.
             SnapshotMode => (Enum, "test/snapshot", "SnapshotMode"),
@@ -3336,7 +3336,7 @@ define_language_items! {
             SnapshotChange => (Struct, "test/snapshot", "SnapshotChange"),
         }
 
-        /// `destack:test/suite`.
+        /// `tspp:test/suite`.
         suite {
             /// Callable test suite registration interface.
             TestSuite => (NewtypeInterface, "test/suite", "TestSuite"),
@@ -3354,7 +3354,7 @@ define_language_items! {
 
     /// Time types.
     time {
-        /// `destack:time/binding`.
+        /// `tspp:time/binding`.
         binding {
             /// Host clock kind.
             TimeClock => (
@@ -3416,55 +3416,55 @@ define_language_items! {
             ),
         }
 
-        /// `destack:time/duration`.
+        /// `tspp:time/duration`.
         duration {
             /// Temporal duration.
             Duration => (Class, "time/duration", "Duration"),
         }
 
-        /// `destack:time/error`.
+        /// `tspp:time/error`.
         error {
             /// Date, time, calendar, or time-zone failure.
             TimeError => (Newtype, "time/error", "TimeError"),
         }
 
-        /// `destack:time/instant`.
+        /// `tspp:time/instant`.
         instant {
             /// Temporal instant.
             Instant => (Class, "time/instant", "Instant"),
         }
 
-        /// `destack:time/plain-date`.
+        /// `tspp:time/plain-date`.
         plain_date {
             /// Temporal plain date.
             PlainDate => (Class, "time/plain-date", "PlainDate"),
         }
 
-        /// `destack:time/plain-date-time`.
+        /// `tspp:time/plain-date-time`.
         plain_date_time {
             /// Temporal plain date and time.
             PlainDateTime => (Class, "time/plain-date-time", "PlainDateTime"),
         }
 
-        /// `destack:time/plain-month-day`.
+        /// `tspp:time/plain-month-day`.
         plain_month_day {
             /// Temporal plain month and day.
             PlainMonthDay => (Class, "time/plain-month-day", "PlainMonthDay"),
         }
 
-        /// `destack:time/plain-time`.
+        /// `tspp:time/plain-time`.
         plain_time {
             /// Temporal plain time.
             PlainTime => (Class, "time/plain-time", "PlainTime"),
         }
 
-        /// `destack:time/plain-year-month`.
+        /// `tspp:time/plain-year-month`.
         plain_year_month {
             /// Temporal plain year and month.
             PlainYearMonth => (Class, "time/plain-year-month", "PlainYearMonth"),
         }
 
-        /// `destack:time/zoned-date-time`.
+        /// `tspp:time/zoned-date-time`.
         zoned_date_time {
             /// Temporal zoned date and time.
             ZonedDateTime => (Class, "time/zoned-date-time", "ZonedDateTime"),
@@ -3473,7 +3473,7 @@ define_language_items! {
 
     /// Topology types.
     topology {
-        /// `destack:topology/binding`.
+        /// `tspp:topology/binding`.
         binding {
             /// Topology edge binding operations.
             TopologyEdgeBinding => (
@@ -3495,7 +3495,7 @@ define_language_items! {
             TopologyBinding => (Interface, "topology/binding/topology", "TopologyBinding"),
         }
 
-        /// `destack:topology/decorator`.
+        /// `tspp:topology/decorator`.
         decorator {
             /// Topology edge decorator.
             TopologyEdgeDecorator => (Newtype, "topology/decorator", "edge"),
@@ -3504,7 +3504,7 @@ define_language_items! {
             TopologyEntityDecorator => (Newtype, "topology/decorator", "entity"),
         }
 
-        /// `destack:topology/edge`.
+        /// `tspp:topology/edge`.
         edge {
             /// Topology edge direction.
             TopologyDirection => (Enum, "topology/edge", "Direction"),
@@ -3528,7 +3528,7 @@ define_language_items! {
             TopologyEdgeSelector => (Newtype, "topology/edge", "EdgeSelector"),
         }
 
-        /// `destack:topology/entity`.
+        /// `tspp:topology/entity`.
         entity {
             /// Topology entity protocol.
             TopologyEntity => (NewtypeInterface, "topology/entity", "Entity"),
@@ -3549,7 +3549,7 @@ define_language_items! {
             TopologyEntitySelector => (Newtype, "topology/entity", "EntitySelector"),
         }
 
-        /// `destack:topology/label`.
+        /// `tspp:topology/label`.
         label {
             /// Topology label selector.
             TopologyLabelSelector => (Struct, "topology/label", "LabelSelector"),
@@ -3558,7 +3558,7 @@ define_language_items! {
             TopologyLabelSet => (Type, "topology/label", "LabelSet"),
         }
 
-        /// `destack:topology/topology`.
+        /// `tspp:topology/topology`.
         topology {
             /// Topology edge reference.
             TopologyEdgeRef => (Newtype, "topology/topology", "EdgeRef"),
@@ -3576,7 +3576,7 @@ define_language_items! {
 
     /// Tree literal types.
     tree {
-        /// `destack:tree/builder`.
+        /// `tspp:tree/builder`.
         builder {
             /// Contextual builder for tree literals.
             TreeBuilder => (NewtypeInterface, "tree/builder", "TreeBuilder", "tree.Builder"),
@@ -3585,7 +3585,7 @@ define_language_items! {
 
     /// Type helpers.
     types {
-        /// `destack:types/function`.
+        /// `tspp:types/function`.
         function {
             /// Constructor parameter tuple alias.
             ConstructorParameters => (Type, "types/function", "ConstructorParameters"),
@@ -3614,7 +3614,7 @@ define_language_items! {
             ThisParameterType => (Type, "types/function", "ThisParameterType"),
         }
 
-        /// `destack:types/object`.
+        /// `tspp:types/object`.
         object {
             /// Awaited value alias.
             Awaited => (Type, "types/object", "Awaited"),
@@ -3656,7 +3656,7 @@ define_language_items! {
             ThisType => (NewtypeInterface, "types/object", "ThisType"),
         }
 
-        /// `destack:types/string`.
+        /// `tspp:types/string`.
         string {
             /// Capitalize string mapping alias.
             Capitalize => (Type, "types/string", "Capitalize"),
@@ -3674,7 +3674,7 @@ define_language_items! {
 
     /// Worker types.
     worker {
-        /// `destack:worker/worker`.
+        /// `tspp:worker/worker`.
         worker {
             /// Isolated worker.
             Worker => (Class, "worker/worker", "Worker"),

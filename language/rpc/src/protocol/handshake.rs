@@ -1,5 +1,5 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use super::{Code, CodecError, ProtocolVersion, Status};
 use crate::{
@@ -30,7 +30,7 @@ impl HandshakeCodec {
 
     /// Encode one connection negotiation message.
     pub(crate) fn encode(self, handshake: &Handshake) -> Result<Vec<u8>, CodecError> {
-        let bytes = destack_serde::to_vec(handshake).map_err(CodecError::Encode)?;
+        let bytes = tspp_serde::to_vec(handshake).map_err(CodecError::Encode)?;
         if bytes.len() > self.max_message_bytes {
             return Err(CodecError::TooLarge {
                 limit: self.max_message_bytes,
@@ -50,7 +50,7 @@ impl HandshakeCodec {
             });
         }
 
-        destack_serde::from_slice(bytes).map_err(CodecError::Decode)
+        tspp_serde::from_slice(bytes).map_err(CodecError::Decode)
     }
 
     /// Encode and send one connection handshake.

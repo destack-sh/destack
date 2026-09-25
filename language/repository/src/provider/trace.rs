@@ -4,11 +4,11 @@ use std::future::Future;
 use std::sync::Arc;
 use std::time::Duration;
 
-use destack_artifact::{ArtifactKey, ArtifactStage};
-use destack_serde::Reflect;
-use destack_source::TargetId;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use tspp_artifact::{ArtifactKey, ArtifactStage};
+use tspp_serde::Reflect;
+use tspp_source::TargetId;
 
 use crate::{Clock, Moment, Repository, RepositoryError, Revision};
 
@@ -1016,7 +1016,7 @@ pub struct TraceCriticalArtifactSnapshot {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use destack_source::{ModuleId, PackageId, ProfileId};
+    use tspp_source::{ModuleId, PackageId, ProfileId};
 
     /// Build one deterministic attempt for work and span tests.
     fn attempt(

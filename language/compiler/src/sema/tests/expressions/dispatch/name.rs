@@ -5,22 +5,22 @@ use crate::tests::{DirRows, TestSession};
 fn test_reference_type_aliases_as_values() {
     let session = TestSession::builder()
         .module(
-            "types.ds",
+            "types.tspp",
             r#"
 export type Count = int32;
 "#,
         )
         .module(
-            "namespace.ds",
+            "namespace.tspp",
             r#"
-export { Count } from "./types.ds";
+export { Count } from "./types.tspp";
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Count } from "./types.ds";
-import * as types from "./namespace.ds";
+import { Count } from "./types.tspp";
+import * as types from "./namespace.tspp";
 
 type LocalCount = int32;
 
@@ -34,12 +34,12 @@ const qualified = types.Count;
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import * as types from "./namespace.ds";
-import { Count } from "./types.ds";
+import * as types from "./namespace.tspp";
+import { Count } from "./types.tspp";
 
 type LocalCount = int32;
 
@@ -50,8 +50,8 @@ const imported = Count;
 const qualified = types.Count;
 
 === dir ===
-import { Count } from "./types.ds";
-import * as types from "./namespace.ds";
+import { Count } from "./types.tspp";
+import * as types from "./namespace.tspp";
 
 type LocalCount = int32;
 /// @type.symbol symbol=LocalCount source="type LocalCount = int32" type=int32
@@ -93,7 +93,7 @@ const copy = value;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -127,7 +127,7 @@ const copy = valeu;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -162,7 +162,7 @@ const copy = json;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -197,7 +197,7 @@ const same = value as int32;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -238,7 +238,7 @@ const size = point.lenght;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

@@ -1,11 +1,11 @@
-use destack_dir::{
+use tspp_dir::{
     Argument, Asynchrony, BinaryOperator, ClassDeclaration, CommentKind, Declaration, Decorator,
     DecoratorPosition, Expression, FunctionDeclaration, FunctionRole, GenericArgument,
     GenericParameter, IfForm, IntegerType, InterfaceDeclaration, Keyword, Literal, Member, Name,
     NodeType, Parameter, Pattern, PatternField, TokenType, TreeAttribute, TreeAttributeValue,
     TupleElement, TypeExpression, TypeLiteral, TypeMember,
 };
-use destack_source::{NodeSpanBoundary, NodeSpanType};
+use tspp_source::{NodeSpanBoundary, NodeSpanType};
 
 use crate::parse::BindingPosition;
 use crate::{

@@ -24,24 +24,24 @@ use crate::operator::{
     AssignmentLikeLayout, write_assignment_like_right,
     write_type_expression_with_inline_prefix_annotations,
 };
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_dir::{
+use crate::{FormatNode, TsppFormatContext, TsppFormatter};
+use tspp_dir::{
     Asynchrony, Comment, Declaration, Declarator, ExportKind, Expression, ExtensionDeclaration,
     FunctionDeclaration, FunctionForm, GlobalDeclaration, Keyword, LetKind, LocalNodeId,
     ModuleDeclaration, Mutability, Node, NodeType, TokenSpan, TypeDeclaration, TypeExpression,
 };
-use destack_fir::format::{
+use tspp_fir::format::{
     FormatError, FormatLayout, FormatResult, Formatter as FirFormatter, GroupId, InstructionTape,
 };
-use destack_fir::prelude::*;
-use destack_fir::{format_args, write};
-use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
+use tspp_fir::prelude::*;
+use tspp_fir::{format_args, write};
+use tspp_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType, Span};
 
 const MIN_OVERLAP_FOR_BREAK: u32 = 3;
 
 /// Return the `export` token for one declaration, if present.
 pub(crate) fn declaration_export_token(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
 ) -> Option<TokenSpan> {
     let declaration_span = context.span(node_id);
@@ -61,7 +61,7 @@ pub(crate) fn declaration_export_token(
 
 /// Return comments between `export` and the declaration head.
 fn declaration_export_head_comments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
     export: ExportKind,
 ) -> Vec<Comment> {
@@ -117,7 +117,7 @@ fn declaration_export_head_comments(
 
 /// Write comments between `export` and the declaration head.
 pub(crate) fn write_declaration_export_head_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     export: ExportKind,
 ) -> FormatResult<()> {
@@ -146,7 +146,7 @@ pub(crate) fn write_declaration_export_head_comments<'ast>(
 
 /// Write one export prefix.
 pub(crate) fn format_declaration_export_modifier<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     export: Option<ExportKind>,
 ) -> FormatResult<()> {
@@ -168,7 +168,7 @@ pub(crate) fn format_declaration_export_modifier<'ast>(
 
 /// Capture one type declaration head for layout selection.
 fn capture_type_declaration_left<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     declaration: &TypeDeclaration,
 ) -> FormatResult<(InstructionTape<'ast>, bool, bool)> {
@@ -211,7 +211,7 @@ fn capture_type_declaration_left<'ast>(
 
 /// Return whether one type expression counts as generic in one conditional head.
 fn type_expression_is_assignment_like_generic_condition(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     type_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     match context.tree.get(type_id) {
@@ -231,7 +231,7 @@ fn type_expression_is_assignment_like_generic_condition(
 
 /// Return whether documentation precedes a type declaration value.
 fn type_declaration_has_documentation_before_value(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     declaration: &TypeDeclaration,
 ) -> bool {
     let value_start = context.span(declaration.value).start;
@@ -256,7 +256,7 @@ fn type_declaration_has_documentation_before_value(
 
 /// Return whether one type declaration rhs should break after `=`.
 fn type_declaration_should_break_after_operator(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     declaration: &TypeDeclaration,
 ) -> bool {
     let value_start = context.span(declaration.value).start;
@@ -282,7 +282,7 @@ fn type_declaration_should_break_after_operator(
 
 /// Return whether one type alias has a complex generic head.
 fn type_declaration_has_complex_generic_head(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     declaration: &TypeDeclaration,
 ) -> bool {
     declaration.generic_parameters.len() > 1
@@ -297,7 +297,7 @@ fn type_declaration_has_complex_generic_head(
 
 /// Return one assignment-like layout for one type declaration.
 fn type_declaration_layout(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     declaration: &TypeDeclaration,
     is_left_short: bool,
     left_may_break: bool,
@@ -319,7 +319,7 @@ fn type_declaration_layout(
 
 /// Return the wrapper expression when one declaration appears in expression position.
 fn declaration_expression_id(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
 ) -> Option<LocalNodeId<Expression>> {
     let (parent_id, parent_type) = context.parent(node_id)?;
@@ -340,7 +340,7 @@ fn declaration_expression_id(
 
 /// Write one body made from statement expressions.
 fn write_expression_declaration_body<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     expressions: &[LocalNodeId<Expression>],
 ) -> FormatResult<()> {
@@ -408,14 +408,14 @@ fn write_expression_declaration_body<'ast>(
 
 /// Write one declaration member block without its leading separator.
 pub(crate) fn write_member_block<'ast, T, F>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     members: &[LocalNodeId<T>],
     write_members: F,
 ) -> FormatResult<()>
 where
     T: Node,
-    F: Copy + Fn(&mut DestackFormatter<'ast, '_>, &[LocalNodeId<T>]) -> FormatResult<()>,
+    F: Copy + Fn(&mut TsppFormatter<'ast, '_>, &[LocalNodeId<T>]) -> FormatResult<()>,
 {
     // empty body
     if members.is_empty() {
@@ -448,7 +448,7 @@ where
 
 /// Write the separator between one grouped declaration header and its body.
 pub(crate) fn write_declaration_body_separator<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     header_group_id: GroupId,
 ) -> FormatResult<()> {
     write!(
@@ -462,7 +462,7 @@ pub(crate) fn write_declaration_body_separator<'ast>(
 
 /// Format one super-type clause.
 pub(crate) fn format_super_type_clause<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     keyword: Keyword,
     types: &[LocalNodeId<TypeExpression>],
 ) -> FormatResult<()> {
@@ -493,7 +493,7 @@ pub(crate) fn format_super_type_clause<'ast>(
 
 /// Format one `let` or `const` statement.
 pub(crate) fn format_let_statement_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     kind: LetKind,
     export: Option<ExportKind>,
     is_ambient: bool,
@@ -564,7 +564,7 @@ pub(crate) fn format_let_statement_expression<'ast>(
 
 /// Format one `let else` statement.
 pub(crate) fn format_let_else_statement_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     kind: LetKind,
     declarator: LocalNodeId<Declarator>,
     else_branch: LocalNodeId<Expression>,
@@ -649,7 +649,7 @@ pub(crate) fn format_let_else_statement_expression<'ast>(
 
 /// Format one `using` statement.
 pub(crate) fn format_using_statement_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     asynchrony: Asynchrony,
     export: Option<ExportKind>,
     is_ambient: bool,
@@ -696,7 +696,7 @@ pub(crate) fn format_using_statement_expression<'ast>(
 
 /// Format one global augmentation declaration.
 fn format_global_declaration<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     declaration: &GlobalDeclaration,
 ) -> FormatResult<()> {
@@ -720,7 +720,7 @@ fn format_global_declaration<'ast>(
 
 /// Format one module declaration.
 fn format_module_declaration<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     declaration: &ModuleDeclaration,
 ) -> FormatResult<()> {
@@ -736,7 +736,7 @@ fn format_module_declaration<'ast>(
 
 /// Format one type alias declaration.
 fn format_type_declaration<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     declaration: &TypeDeclaration,
 ) -> FormatResult<()> {
@@ -745,7 +745,7 @@ fn format_type_declaration<'ast>(
     let layout = type_declaration_layout(f.context(), declaration, is_left_short, left_may_break);
 
     let left = left_instructions.collapse();
-    let left = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+    let left = format_with(move |f: &mut TsppFormatter<'ast, '_>| {
         if let Some(left) = &left {
             f.write_element(*left);
         }
@@ -753,7 +753,7 @@ fn format_type_declaration<'ast>(
         Ok(())
     });
 
-    let right = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let right = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         if matches!(
             f.context().tree.get(declaration.value),
             TypeExpression::Union { .. }
@@ -768,7 +768,7 @@ fn format_type_declaration<'ast>(
         }
     });
 
-    let inner_content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let inner_content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         // left side
         if left_may_break || layout == AssignmentLikeLayout::BreakLeftHandSide {
             write!(f, [left])?;
@@ -794,11 +794,11 @@ fn format_type_declaration<'ast>(
 
 /// Format one extension declaration.
 fn format_extension_declaration<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     declaration: &ExtensionDeclaration,
 ) -> FormatResult<()> {
-    let header = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let header = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         // prefixes
         format_declaration_export_modifier(f, node_id, declaration.export)?;
         write_keyword_prefix(f, Keyword::Declare, declaration.is_ambient)?;
@@ -814,7 +814,7 @@ fn format_extension_declaration<'ast>(
         write_declaration_generic_parameters(f, &declaration.generic_parameters)?;
         write!(f, [space(), Keyword::Of])?;
 
-        let target_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+        let target_type = format_with(|f: &mut TsppFormatter<'ast, '_>| {
             write_type_expression_with_inline_prefix_annotations(f, declaration.target_type)
         });
         write!(
@@ -848,7 +848,7 @@ impl<'ast> FormatNode<'ast, Declaration> for Declaration {
     fn format_node(
         &self,
         node_id: LocalNodeId<Declaration>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         // class declarations own their decorator placement relative to `export`
         if !matches!(self, Declaration::Class(_)) {

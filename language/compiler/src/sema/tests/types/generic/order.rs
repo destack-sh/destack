@@ -15,7 +15,7 @@ function use(): string {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 function pick<A, B>(second: B, first: A): A {
     return first;
@@ -78,7 +78,7 @@ function use(box: Box<int32>): string {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Box<out T> {
     value: T;

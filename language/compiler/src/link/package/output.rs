@@ -1,11 +1,11 @@
-use destack_repository::ProviderContext;
 use std::path::Path;
+use tspp_repository::ProviderContext;
 
 use crate::{Compiler, CompilerResult};
 
-use destack_artifact::{BuildManifest, Bundle, BundleFile, BundleMode, BundleSection, SourceMap};
-use destack_repository::{JsOutputMode, RepositoryError, Target};
-use destack_source::{FileType, ModuleId, Uri};
+use tspp_artifact::{BuildManifest, Bundle, BundleFile, BundleMode, BundleSection, SourceMap};
+use tspp_repository::{JsOutputMode, RepositoryError, Target};
+use tspp_source::{FileType, ModuleId, Uri};
 
 use super::layout::TargetLocation;
 

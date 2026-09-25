@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
 use dashmap::mapref::entry::Entry;
-use destack_artifact::{ArtifactDependency, SourceDependency};
-use destack_core::{Blob, TreapRoot};
-use destack_source::FileId;
+use tspp_artifact::{ArtifactDependency, SourceDependency};
+use tspp_core::{Blob, TreapRoot};
+use tspp_source::FileId;
 
 use crate::repository::{
     Change, Commit, Delta, Discovery, FileEntry, Repository, RepositoryError, Revision,

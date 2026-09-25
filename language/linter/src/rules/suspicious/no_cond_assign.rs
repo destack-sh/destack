@@ -1,5 +1,5 @@
-use destack_core::FxIndexSet;
-use destack_dir as dir;
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -139,7 +139,7 @@ function repeat(next: boolean): void {
         session.assert_diagnostics(
             r#"
 warning[no-cond-assign]: assignment is evaluated as a condition
- ──▶ main.ds:3:12
+ ──▶ main.tspp:3:12
   │
 1 │ function repeat(next: boolean): void {
 2 │     let active = false;
@@ -169,7 +169,7 @@ function repeat(value: boolean | undefined): void {
         session.assert_diagnostics(
             r#"
 warning[no-cond-assign]: assignment is evaluated as a condition
- ──▶ main.ds:3:36
+ ──▶ main.tspp:3:36
   │
 1 │ function repeat(value: boolean | undefined): void {
 2 │     let active = false;
@@ -199,7 +199,7 @@ function repeat(next: boolean): void {
         session.assert_diagnostics(
             r#"
 warning[no-cond-assign]: assignment is evaluated as a condition
- ──▶ main.ds:3:12
+ ──▶ main.tspp:3:12
   │
 1 │ function repeat(next: boolean): void {
 2 │     let active = false;
@@ -232,7 +232,7 @@ function select(value: int32, next: boolean): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-cond-assign]: assignment is evaluated as a condition
- ──▶ main.ds:4:15
+ ──▶ main.tspp:4:15
   │
 2 │     let active = false;
 3 │     return match (value) {
@@ -266,7 +266,7 @@ function select(value: (int32, boolean) | null, next: boolean): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-cond-assign]: assignment is evaluated as a condition
- ──▶ main.ds:4:48
+ ──▶ main.tspp:4:48
   │
 2 │     let active = false;
 3 │     return match (value) {

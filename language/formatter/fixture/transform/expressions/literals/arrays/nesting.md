@@ -6,11 +6,11 @@
 
 Nested arrays break with one nested element per line.
 
-```ds
+```tspp
 [[1, 2], [3, 4]]
 ```
 
-```ds expected
+```tspp expected
 [
     [1, 2],
     [3, 4],
@@ -21,11 +21,11 @@ Nested arrays break with one nested element per line.
 
 Any depth of nesting is preserved.
 
-```ds
+```tspp
 [[[1]]]
 ```
 
-```ds expected
+```tspp expected
 [[[1]]];
 ```
 
@@ -33,11 +33,11 @@ Any depth of nesting is preserved.
 
 Outer array breaks while inner arrays stay compact.
 
-```ds line-width=20
+```tspp line-width=20
 [[1, 2, 3], [4, 5, 6], [7, 8, 9]]
 ```
 
-```ds expected
+```tspp expected
 [
     [1, 2, 3],
     [4, 5, 6],
@@ -49,11 +49,11 @@ Outer array breaks while inner arrays stay compact.
 
 Nested arrays format with one row per line.
 
-```ds line-width=30
+```tspp line-width=30
 [[1, 0, 0], [0, 1, 0], [0, 0, 1]]
 ```
 
-```ds expected
+```tspp expected
 [
     [1, 0, 0],
     [0, 1, 0],
@@ -65,11 +65,11 @@ Nested arrays format with one row per line.
 
 Object elements break to one per line when they exceed width.
 
-```ds line-width=30
+```tspp line-width=30
 [{ a: 1, b: 2 }, { c: 3, d: 4 }]
 ```
 
-```ds expected
+```tspp expected
 [
     { a: 1, b: 2 },
     { c: 3, d: 4 },
@@ -82,11 +82,11 @@ Object elements break to one per line when they exceed width.
 
 Short object elements stay inline.
 
-```ds
+```tspp
 [{ a: 1 }, { a: 2 }]
 ```
 
-```ds expected
+```tspp expected
 [{ a: 1 }, { a: 2 }];
 ```
 
@@ -94,11 +94,11 @@ Short object elements stay inline.
 
 Complex objects break to separate lines.
 
-```ds line-width=40
+```tspp line-width=40
 [{ id: 1, name: "first" }, { id: 2, name: "second" }]
 ```
 
-```ds expected
+```tspp expected
 [
     { id: 1, name: "first" },
     { id: 2, name: "second" },
@@ -109,11 +109,11 @@ Complex objects break to separate lines.
 
 Deeply nested data structures expand with stable indentation.
 
-```ds line-width=40
+```tspp line-width=40
 const data = [{ user: { name: "Alice", settings: { theme: "dark" } } }]
 ```
 
-```ds expected
+```tspp expected
 const data = [
     {
         user: {
@@ -128,11 +128,11 @@ const data = [
 
 Nested array rows with objects break cleanly.
 
-```ds line-width=50
+```tspp line-width=50
 const grid = [[{ x: 0, y: 0 }, { x: 1, y: 0 }], [{ x: 0, y: 1 }, { x: 1, y: 1 }]]
 ```
 
-```ds expected
+```tspp expected
 const grid = [
     [
         { x: 0, y: 0 },

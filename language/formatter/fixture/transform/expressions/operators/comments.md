@@ -6,11 +6,11 @@
 
 Comments between logical operators can cause expansion when they add visual weight.
 
-```ds line-width=60
+```tspp line-width=60
 const valid = isActive() && /* must have permission */ hasPermission()
 ```
 
-```ds expected
+```tspp expected
 const valid = isActive()
     && /* must have permission */ hasPermission();
 ```
@@ -19,11 +19,11 @@ const valid = isActive()
 
 When logical chains break, comments stay with their operands.
 
-```ds line-width=40
+```tspp line-width=40
 const valid = isActive() && /* perm */ hasPermission() && /* not blocked */ !isBlocked()
 ```
 
-```ds expected
+```tspp expected
 const valid = isActive()
     && /* perm */ hasPermission()
     && /* not blocked */ !isBlocked();
@@ -33,11 +33,11 @@ const valid = isActive()
 
 Comments in nullish coalescing expressions.
 
-```ds
+```tspp
 const value = input ?? /* fallback */ defaultValue
 ```
 
-```ds expected
+```tspp expected
 const value = input ?? /* fallback */ defaultValue;
 ```
 
@@ -47,10 +47,10 @@ const value = input ?? /* fallback */ defaultValue;
 
 Comments in binary expressions keep normalized spacing.
 
-```ds line-width=100
+```tspp line-width=100
 const x = /* pre-A */ A /* A comment */ && B /* B comment */
 ```
 
-```ds expected
+```tspp expected
 const x = /* pre-A */ A /* A comment */ && B; /* B comment */
 ```

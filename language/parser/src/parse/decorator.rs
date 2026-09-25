@@ -1,10 +1,10 @@
 use crate::parse::lookahead::DelimiterDepth;
 use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::{Parser, ParserResult, TokenProbe};
-use destack_dir::{
+use smallvec::SmallVec;
+use tspp_dir::{
     Decorator, DecoratorPosition, Expression, LocalNodeId, OperatorPrecedence, TokenType,
 };
-use smallvec::SmallVec;
 
 /// Decorators awaiting attachment to the next owner at one parse site.
 pub(crate) type Decorators = SmallVec<[LocalNodeId<Decorator>; 2]>;
@@ -13,7 +13,7 @@ impl Parser {
     /// Parse a decorator prefix sequence if present at the current token.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// @sealed
     /// @route("/users")
     /// ```

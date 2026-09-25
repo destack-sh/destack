@@ -2,16 +2,16 @@ use super::argument::with_argument_following_span_start;
 use crate::annotation::{DanglingIndentMode, FormatDanglingComments, block_infix_annotations};
 use crate::collection::{TrailingSeparator, separated_entries};
 use crate::file::any_ignore_range_for_nodes;
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{Argument, Comment, DecoratorPosition, Expression, LocalNodeId, TokenType};
-use destack_fir::format::{FormatLayout, FormatResult, GroupId};
-use destack_fir::prelude::{
+use crate::{TsppFormatContext, TsppFormatter};
+use tspp_dir::{Argument, Comment, DecoratorPosition, Expression, LocalNodeId, TokenType};
+use tspp_fir::format::{FormatLayout, FormatResult, GroupId};
+use tspp_fir::prelude::{
     block_indent, empty_line, format_with, group, if_group_breaks, soft_block_indent,
     soft_line_break_or_space, space, token,
 };
-use destack_fir::{format_args, write};
-use destack_repository::TrailingComma;
-use destack_source::Span;
+use tspp_fir::{format_args, write};
+use tspp_repository::TrailingComma;
+use tspp_source::Span;
 
 /// The separator to emit for one call argument entry.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
@@ -37,7 +37,7 @@ enum CallArgumentBreak {
 
 /// Write the entries inside one call argument list.
 fn write_call_argument_entries<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     arguments: &[LocalNodeId<Argument>],
     argument_break: CallArgumentBreak,
     trailing_separator: CallArgumentSeparator,
@@ -73,7 +73,7 @@ fn write_call_argument_entries<'ast>(
 
 /// Return whether source text contains an empty line between adjacent arguments.
 pub(crate) fn arguments_have_empty_line(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     arguments: &[LocalNodeId<Argument>],
 ) -> bool {
     arguments.windows(2).any(|window| {
@@ -92,7 +92,7 @@ pub(crate) fn arguments_have_empty_line(
 
 /// Return the number of source lines before one call argument, including preceding comments.
 pub(crate) fn call_argument_lines_before(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_id: LocalNodeId<Argument>,
 ) -> usize {
     let argument_span = context.span(argument_id);
@@ -105,7 +105,7 @@ pub(crate) fn call_argument_lines_before(
 
 /// Format all call arguments in explicit broken-out layout.
 pub(crate) fn format_all_args_broken_out<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     _call_span: Span,
     arguments: &[LocalNodeId<Argument>],
     _group_id: GroupId,
@@ -124,7 +124,7 @@ pub(crate) fn format_all_args_broken_out<'ast>(
 
 /// Format arguments for one long curried call.
 pub(crate) fn format_long_curried_call_arguments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     _call_span: Span,
     arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
@@ -140,7 +140,7 @@ pub(crate) fn format_long_curried_call_arguments<'ast>(
 
 /// Format one expanded call argument list.
 fn format_expanded_call_arguments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     arguments: &[LocalNodeId<Argument>],
     line_break: CallArgumentBreak,
     write_trailing_separator: bool,
@@ -149,7 +149,7 @@ fn format_expanded_call_arguments<'ast>(
         f,
         [group(&format_args![
             token("("),
-            soft_block_indent(&format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+            soft_block_indent(&format_with(move |f: &mut TsppFormatter<'ast, '_>| {
                 let trailing_separator = if write_trailing_separator {
                     CallArgumentSeparator::Always
                 } else {
@@ -166,7 +166,7 @@ fn format_expanded_call_arguments<'ast>(
 
 /// Write one call argument entry.
 pub(crate) fn write_call_argument_in_list<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     argument_id: LocalNodeId<Argument>,
     following_span_start: Option<u32>,
     separator: CallArgumentSeparator,
@@ -179,7 +179,7 @@ pub(crate) fn write_call_argument_in_list<'ast>(
 
 /// Write one call-argument separator.
 fn write_call_argument_separator<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     separator: CallArgumentSeparator,
 ) -> FormatResult<()> {
     match separator {
@@ -197,7 +197,7 @@ fn write_call_argument_separator<'ast>(
 
 /// Write empty call arguments, preserving infix annotations.
 pub(crate) fn write_empty_call_arguments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     call_node_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
     let empty_argument_comments = empty_call_argument_comments(f.context(), call_node_id);
@@ -242,7 +242,7 @@ pub(crate) fn write_empty_call_arguments<'ast>(
 
 /// Return comments that belong inside one empty call argument list.
 fn empty_call_argument_comments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
 ) -> Vec<Comment> {
     let call_span = context.span(call_node_id);
@@ -260,7 +260,7 @@ fn empty_call_argument_comments(
 
 /// Write call arguments with the direct flat list layout.
 pub(crate) fn write_simple_call_argument_list<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     _call_span: Span,
     arguments: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
@@ -288,7 +288,7 @@ pub(crate) fn write_simple_call_argument_list<'ast>(
 
 /// Return whether one call argument list contains ignored ranges.
 pub(crate) fn call_arguments_have_ignored_ranges(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     arguments: &[LocalNodeId<Argument>],
 ) -> bool {
     if !context.has_ignore_directive_markers() {
@@ -301,7 +301,7 @@ pub(crate) fn call_arguments_have_ignored_ranges(
 
 /// Write call arguments with ignored ranges preserved as raw text.
 pub(crate) fn write_ignored_call_arguments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     arguments: &[LocalNodeId<Argument>],
     group_id: GroupId,
 ) -> FormatResult<()> {
@@ -324,7 +324,7 @@ pub(crate) fn write_ignored_call_arguments<'ast>(
 
 /// Return whether empty call infix annotations should expand across lines.
 fn empty_call_infix_requires_multiline(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     call_node_id: LocalNodeId<Expression>,
 ) -> bool {
     ctx.comments().has_comment_in_span(ctx.span(call_node_id))
@@ -343,7 +343,7 @@ fn empty_call_infix_requires_multiline(
 
 /// Format call arguments with the default list formatter.
 pub(crate) fn format_default_call_argument_list<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     _call_span: Span,
     _group_id: GroupId,
     arguments: &[LocalNodeId<Argument>],
@@ -359,12 +359,12 @@ pub(crate) fn format_default_call_argument_list<'ast>(
         }
     };
 
-    let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+    let content = format_with(move |f: &mut TsppFormatter<'ast, '_>| {
         write!(
             f,
             [
                 token("("),
-                soft_block_indent(&format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+                soft_block_indent(&format_with(move |f: &mut TsppFormatter<'ast, '_>| {
                     let trailing_separator = match trailing_separator {
                         TrailingSeparator::Allowed => CallArgumentSeparator::IfGroupBreaks,
                         TrailingSeparator::Mandatory => CallArgumentSeparator::Always,
@@ -389,13 +389,11 @@ pub(crate) fn format_default_call_argument_list<'ast>(
 
         write!(
             f,
-            [
-                group(&format_with(move |f: &mut DestackFormatter<'ast, '_>| {
-                    f.write_element(element);
-                    Ok(())
-                }))
-                .should_expand(should_expand)
-            ]
+            [group(&format_with(move |f: &mut TsppFormatter<'ast, '_>| {
+                f.write_element(element);
+                Ok(())
+            }))
+            .should_expand(should_expand)]
         )?;
     }
 

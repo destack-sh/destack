@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use destack_rpc::ConnectionOptions;
+use tspp_rpc::ConnectionOptions;
 
 /// Options for connecting to one daemon endpoint.
 #[derive(Debug, Clone)]
@@ -17,7 +17,7 @@ impl Default for DaemonConnectOptions {
     /// Create default daemon connection options.
     fn default() -> Self {
         Self {
-            rpc: ConnectionOptions::new("destack-daemon-client"),
+            rpc: ConnectionOptions::new("tspp-daemon-client"),
             retry_delay: Duration::from_millis(50),
             timeout: Duration::from_secs(3),
         }

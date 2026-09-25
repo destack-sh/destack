@@ -1,6 +1,6 @@
 use crate::parse::DeclarationNesting;
 use crate::{Parser, ParserError, ParserResult};
-use destack_dir::TokenType;
+use tspp_dir::TokenType;
 
 impl Parser {
     /// Return true when a token type closes one grouping delimiter.

@@ -1,11 +1,11 @@
 use std::fmt;
 use std::sync::Arc;
 
-use destack_bytecode::{Code, CodeRange, Function};
-use destack_memory::MemoryMap;
-use destack_mir as mir;
-use destack_program as program;
-use destack_program::{
+use tspp_bytecode::{Code, CodeRange, Function};
+use tspp_memory::MemoryMap;
+use tspp_mir as mir;
+use tspp_program as program;
+use tspp_program::{
     FunctionId, Outcome, Profile, Program, ResumeSkip, Runtime, StopSet, Value, WatchSet, Word,
 };
 
@@ -381,7 +381,7 @@ impl Machine {
     fn deliver_wake(
         &self,
         fiber: &mut Fiber,
-        wake_to: destack_bytecode::RegisterSpan,
+        wake_to: tspp_bytecode::RegisterSpan,
         value: &Value,
     ) -> Result<()> {
         let words = value.words();

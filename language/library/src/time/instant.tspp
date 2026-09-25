@@ -1,0 +1,154 @@
+import { RangeError, Result, todo } from "tspp:error";
+import { DateTimeFormatOptions, IntlError, Locales, ToLocaleString } from "tspp:intl";
+
+import { Duration, DurationLike } from "./duration.tspp";
+import { TimeError } from "./error.tspp";
+import { DifferenceOptions, InstantToStringOptions, RoundTo } from "./option.tspp";
+import { ComparisonResult } from "./unit.tspp";
+import { TimeZoneLike, ZonedDateTime } from "./zoned-date-time.tspp";
+
+/// Value convertible to a Temporal instant.
+export type InstantLike = Instant | ZonedDateTime | string;
+
+/// Temporal instant.
+@languageItem("time.Instant")
+export class Instant implements ToLocaleString {
+    /// Create an instant from epoch nanoseconds.
+    static create(epochNanoseconds: bigint): Result<Instant, RangeError> {
+        todo("Instant.create")
+    }
+
+    /// Create an instant from epoch milliseconds.
+    static fromEpochMilliseconds(epochMilliseconds: number): Result<Instant, RangeError> {
+        todo("Instant.fromEpochMilliseconds")
+    }
+
+    /// Create an instant from epoch nanoseconds.
+    static fromEpochNanoseconds(epochNanoseconds: bigint): Result<Instant, RangeError> {
+        todo("Instant.fromEpochNanoseconds")
+    }
+
+    /// Create an instant from another instant or string.
+    static from(item: &readonly InstantLike): Result<Instant, TimeError> {
+        todo("Instant.from")
+    }
+
+    /// Compare two instants.
+    static compare(
+        one: &readonly InstantLike,
+        two: &readonly InstantLike,
+    ): Result<ComparisonResult, TimeError> {
+        todo("Instant.compare")
+    }
+
+    /// Construct a validated instant internally.
+    private constructor() {
+        todo("Instant.constructor");
+    }
+
+    /// Epoch milliseconds.
+    get epochMilliseconds(&readonly this): number {
+        todo("Instant.epochMilliseconds")
+    }
+
+    /// Epoch nanoseconds.
+    get epochNanoseconds(&readonly this): bigint {
+        todo("Instant.epochNanoseconds")
+    }
+
+    /// Return true when this instant equals `other`.
+    equals(&readonly this, other: &readonly Instant): boolean {
+        todo("Instant.equalsInstant")
+    }
+
+    /// Parse `other` and return whether it equals this instant.
+    equals(&readonly this, other: &readonly InstantLike): Result<boolean, TimeError> {
+        todo("Instant.equals")
+    }
+
+    /// Add a time duration.
+    add(&readonly this, durationLike: &readonly DurationLike): Result<Instant, TimeError> {
+        todo("Instant.add")
+    }
+
+    /// Subtract a time duration.
+    subtract(&readonly this, durationLike: &readonly DurationLike): Result<Instant, TimeError> {
+        todo("Instant.subtract")
+    }
+
+    /// Return the duration until `other`.
+    until(
+        &readonly this,
+        other: &readonly InstantLike,
+        options?: &readonly DifferenceOptions<
+            "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
+        >,
+    ): Result<Duration, TimeError> {
+        todo("Instant.until")
+    }
+
+    /// Return the duration since `other`.
+    since(
+        &readonly this,
+        other: &readonly InstantLike,
+        options?: &readonly DifferenceOptions<
+            "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
+        >,
+    ): Result<Duration, TimeError> {
+        todo("Instant.since")
+    }
+
+    /// Round this instant.
+    round(
+        &readonly this,
+        roundTo: &readonly RoundTo<
+            "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
+        >,
+    ): Result<Instant, TimeError> {
+        todo("Instant.round")
+    }
+
+    /// Convert this instant into an ISO zoned date-time.
+    toZonedDateTimeISO(&readonly this, timeZone: TimeZoneLike): Result<ZonedDateTime, TimeError> {
+        todo("Instant.toZonedDateTimeISO")
+    }
+
+    /// Return a locale-aware string.
+    toLocaleString(&readonly this): ^string {
+        todo("Instant.toLocaleStringDefault")
+    }
+
+    /// Return a locale-aware string with explicit locales.
+    toLocaleString(&readonly this, locales: &readonly Locales): Result<string, IntlError> {
+        todo("Instant.toLocaleStringLocales")
+    }
+
+    /// Return a locale-aware string with explicit options.
+    toLocaleString(
+        &readonly this,
+        locales?: &readonly Locales,
+        options?: &readonly DateTimeFormatOptions,
+    ): Result<string, IntlError> {
+        todo("Instant.toLocaleString")
+    }
+
+    /// Return a JSON string.
+    toJSON(&readonly this): ^string {
+        todo("Instant.toJSON")
+    }
+
+    /// Return an ISO string.
+    toString(&readonly this): ^string {
+        todo("Instant.toString")
+    }
+
+    /// Return an ISO string with explicit rendering options.
+    toString(&readonly this, options: &readonly InstantToStringOptions): Result<string, TimeError> {
+        todo("Instant.toString")
+    }
+
+    /// Reject numeric coercion.
+    valueOf(&readonly this): never {
+        todo("Instant.valueOf")
+    }
+}

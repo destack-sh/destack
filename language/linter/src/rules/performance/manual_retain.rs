@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -147,7 +147,7 @@ function keepPositive(input: ^int32[]): ^int32[] {
         session.assert_diagnostics(
             r#"
 warning[manual-retain]: owned array is replaced by its own filtered values
- ──▶ main.ds:3:5
+ ──▶ main.tspp:3:5
   │
 1 │ function keepPositive(input: ^int32[]): ^int32[] {
 2 │     let values = input;
@@ -158,8 +158,8 @@ warning[manual-retain]: owned array is replaced by its own filtered values
   │
 
  = suggestion: retain matching values in place (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     2│     let values = input;
 -   3│     values = values.filter((value) => value > 0);

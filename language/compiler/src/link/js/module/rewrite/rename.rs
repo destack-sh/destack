@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::str::FromStr;
 
 use crate::emit::js;
-use destack_source::ModuleId;
+use tspp_source::ModuleId;
 
 use super::super::linker::OutputModule;
 use super::linker::Rewriter;

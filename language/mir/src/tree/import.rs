@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_core::FxIndexSet;
-use destack_source::ModuleId;
+use tspp_core::FxIndexSet;
+use tspp_source::ModuleId;
 
 use crate::{
     Field, Function, FunctionId, FunctionParameter, GenericArgument, GenericParameter,

@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -101,7 +101,7 @@ function run(): void {
         session.assert_diagnostics(
             r#"
 warning[no-lone-block]: nested block has no scoping effect
- ──▶ main.ds:4:5
+ ──▶ main.tspp:4:5
   │
 2 │
 3 │ function run(): void {

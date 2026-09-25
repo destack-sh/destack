@@ -2,24 +2,22 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_core::BlobId;
-use destack_lsp_server::{UriExt, jsonrpc};
-use destack_lsp_types as lsp;
-use destack_repository::{
-    Commit, DestackLayoutOverride, Host, Repository, Revision, Settings, Trace,
-};
-use destack_session::Executor;
-use destack_source::{Edit, FileId, TextChange, Uri, apply_text_changes};
-use destack_workspace::{FileSelection, QueryFile, Workspace};
+use tspp_core::BlobId;
+use tspp_lsp_server::{UriExt, jsonrpc};
+use tspp_lsp_types as lsp;
+use tspp_repository::{Commit, DestackLayoutOverride, Host, Repository, Revision, Settings, Trace};
+use tspp_session::Executor;
+use tspp_source::{Edit, FileId, TextChange, Uri, apply_text_changes};
+use tspp_workspace::{FileSelection, QueryFile, Workspace};
 
 use super::{internal_error, workspace_error};
 
 /// Private branch used for Language Server Protocol document state.
 const LSP_BRANCH: &str = "lsp";
 /// Canonical Builtin Package URI prefix.
-const DESTACK_URI_PREFIX: &str = "destack://";
-/// URI scheme served by the Destack virtual document provider.
-pub(crate) const DESTACK_URI_SCHEME: &str = "destack";
+const TSPP_URI_PREFIX: &str = "tspp://";
+/// URI scheme served by the TS++ virtual document provider.
+pub(crate) const TSPP_URI_SCHEME: &str = "tspp";
 
 /// Stable identity of one canonical LSP project root.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -35,9 +33,9 @@ impl ProjectId {
     pub(crate) fn qualify(self, uri: &Uri) -> jsonrpc::Result<lsp::Uri> {
         let source = uri
             .as_ref()
-            .strip_prefix(DESTACK_URI_PREFIX)
+            .strip_prefix(TSPP_URI_PREFIX)
             .ok_or_else(|| internal_error(format!("source URI is not a builtin URI: {uri}")))?;
-        let qualified = format!("{DESTACK_URI_SCHEME}://{}/{source}", self.0);
+        let qualified = format!("{TSPP_URI_SCHEME}://{}/{source}", self.0);
 
         qualified.parse().map_err(internal_error)
     }
@@ -463,14 +461,11 @@ impl ProjectSet {
     /// Resolve one physical or builtin source for queries.
     pub(super) fn resolve_query_file(&self, uri: &lsp::Uri) -> jsonrpc::Result<Option<QueryFile>> {
         // select builtin sources through their encoded project identity
-        let (project, source_uri) = if uri.scheme().as_str() == DESTACK_URI_SCHEME {
+        let (project, source_uri) = if uri.scheme().as_str() == TSPP_URI_SCHEME {
             // decode the project and canonical source path
-            let qualified = uri
-                .as_str()
-                .strip_prefix(DESTACK_URI_PREFIX)
-                .ok_or_else(|| {
-                    jsonrpc::Error::invalid_params(format!("unsupported source URI: {uri:?}"))
-                })?;
+            let qualified = uri.as_str().strip_prefix(TSPP_URI_PREFIX).ok_or_else(|| {
+                jsonrpc::Error::invalid_params(format!("unsupported source URI: {uri:?}"))
+            })?;
             let (project_id, source) = qualified.split_once('/').ok_or_else(|| {
                 jsonrpc::Error::invalid_params(format!("builtin URI has no source path: {uri:?}"))
             })?;
@@ -492,7 +487,7 @@ impl ProjectSet {
                 })?;
 
             // restore the repository source URI
-            let source_uri = Uri::from_string(format!("{DESTACK_URI_SCHEME}://{source}"));
+            let source_uri = Uri::from_string(format!("{TSPP_URI_SCHEME}://{source}"));
 
             (project, source_uri)
         }

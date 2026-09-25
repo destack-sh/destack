@@ -1,11 +1,11 @@
 use crate::{ExpressionPosition, ExpressionStop};
-use destack_dir::{
+use tspp_dir::{
     Argument, BinaryOperator, CommentKind, ConditionOperand, Declaration, Expression, FloatType,
     FunctionDeclaration, FunctionForm, GenericArgument, GenericParameter, IfForm, IntegerType,
     Literal, Name, NodeType, Parameter, Pattern, Property, ScalarAlias, TemplateLiteral, TokenType,
     TreeAttribute, TreeAttributeValue, TreeChild, TypeExpression, TypeLiteral,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::{
     TestParser, assert_comment, assert_expression_path, assert_node, assert_path, assert_string,
@@ -134,7 +134,7 @@ fn test_parse_single_quoted_character_literal() {
     assert_eq!(literal, Literal::Character('a'));
 }
 
-/// Parse escaped Destack single quoted literals as characters.
+/// Parse escaped TS++ single quoted literals as characters.
 #[test]
 fn test_parse_escaped_single_quoted_character_literal() {
     let test = TestParser::new(r#"'\n' '\'' '\u{41}'"#);

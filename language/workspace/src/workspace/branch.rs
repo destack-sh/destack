@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use destack_repository::Revision;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_repository::Revision;
+use tspp_serde::Reflect;
 
 use crate::{Error, Watch, Workspace};
 

@@ -1,6 +1,6 @@
 [package]
-name = "destack_repository"
-description = "Destack Repository"
+name = "tspp_repository"
+description = "TS++ Repository"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -18,18 +18,18 @@ required-features = ["schema"]
 
 [features]
 default = []
-schema = ["schemars", "destack_artifact/schema", "destack_source/schema"]
+schema = ["schemars", "tspp_artifact/schema", "tspp_source/schema"]
 
 [dependencies]
 # language
-destack_artifact = { workspace = true }
-destack_core = { workspace = true }
-destack_dir = { workspace = true }
-destack_program = { workspace = true }
-destack_heap = { workspace = true }
-destack_mir = { workspace = true }
-destack_serde = { workspace = true }
-destack_source = { workspace = true }
+tspp_artifact = { workspace = true }
+tspp_core = { workspace = true }
+tspp_dir = { workspace = true }
+tspp_program = { workspace = true }
+tspp_heap = { workspace = true }
+tspp_mir = { workspace = true }
+tspp_serde = { workspace = true }
+tspp_source = { workspace = true }
 
 # general
 blake3 = { workspace = true }
@@ -53,8 +53,8 @@ js-sys = "0.3.81"
 wasm-bindgen = { workspace = true }
 
 [build-dependencies]
-destack_core = { workspace = true }
-destack_source = { workspace = true }
+tspp_core = { workspace = true }
+tspp_source = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, features = ["preserve_order"] }
 

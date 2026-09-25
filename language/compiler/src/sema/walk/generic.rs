@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::sema::{GenericTemplateId, Receiver, WalkState};
 use crate::{CompilerError, CompilerResult};
@@ -80,7 +80,7 @@ impl WalkState<'_, '_> {
     /// Open one generic template header with its parameter identities.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// class Box<T> {}
     /// ```
     pub(in crate::sema) fn open_generic_template(

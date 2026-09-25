@@ -1,0 +1,7 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / statics / static members
+class Registry {
+// <- keyword.declaration.type.tspp
+    static Default: Registry = new Registry();
+}

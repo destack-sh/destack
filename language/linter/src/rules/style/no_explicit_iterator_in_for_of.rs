@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -116,7 +116,7 @@ function sum(values: int32[]): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-explicit-iterator-in-for-of]: for-of calls iterator explicitly
- ──▶ main.ds:3:25
+ ──▶ main.tspp:3:25
   │
 1 │ function sum(values: int32[]): int32 {
 2 │     let total: int32 = 0;
@@ -127,8 +127,8 @@ warning[no-explicit-iterator-in-for-of]: for-of calls iterator explicitly
   │
 
  = fix: iterate over the iterable directly
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     2│     let total: int32 = 0;
 -   3│     for (const value of values.iterator()) {
@@ -191,7 +191,7 @@ function visit(values: int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[no-explicit-iterator-in-for-of]: for-of calls iterator explicitly
- ──▶ main.ds:2:25
+ ──▶ main.tspp:2:25
   │
 1 │ function visit(values: int32[]): void {
 2 │     for (const value of values.iterator(/* retain */)) {
@@ -209,7 +209,7 @@ warning[no-explicit-iterator-in-for-of]: for-of calls iterator explicitly
         let session = TestSession::dir(
             &NO_EXPLICIT_ITERATOR_IN_FOR_OF,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function iterator(values: int32[]): Iterator<int32> {
     return values.iterator();

@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -166,7 +166,7 @@ function copy(values: int32[], output: int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[unused-enumerate-index]: indexed iteration index is unused
- ──▶ main.ds:2:17
+ ──▶ main.tspp:2:17
   │
 1 │ function copy(values: int32[], output: int32[]): void {
 2 │     for (const (_, value) of values.entries()) {
@@ -176,8 +176,8 @@ warning[unused-enumerate-index]: indexed iteration index is unused
   │
 
  = fix: iterate over values directly
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function copy(values: int32[], output: int32[]): void {
 -   2│     for (const (_, value) of values.entries()) {
@@ -227,7 +227,7 @@ function copy(values: int32[], output: int32[]): void {
         let session = TestSession::dir(
             &UNUSED_ENUMERATE_INDEX,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function copy(values: Iterator<int32>, output: int32[]): void {
     for (const (_, value) of values.enumerate()) {
@@ -239,7 +239,7 @@ function copy(values: Iterator<int32>, output: int32[]): void {
 
         session.assert_fixes(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function copy(values: Iterator<int32>, output: int32[]): void {
     for (const value of values) {

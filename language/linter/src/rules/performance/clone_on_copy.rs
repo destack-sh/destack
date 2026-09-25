@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -127,7 +127,7 @@ function duplicate<T: Copy>(value: T): T {
         let session = TestSession::dir(
             &CLONE_ON_COPY,
             r#"
-import { rc } from "destack:memory";
+import { rc } from "tspp:memory";
 
 function duplicate(value: rc.Rc<int32>): rc.Rc<int32> {
     return value.clone();
@@ -174,7 +174,7 @@ function duplicate(value: int32): int32 {
         session.assert_diagnostics(
             r#"
 warning[clone-on-copy]: Copy value is cloned explicitly
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function duplicate(value: int32): int32 {
 2 │     return value.clone(/* retain */);

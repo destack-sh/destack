@@ -1,8 +1,8 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+use tspp_serde::Reflect;
 
-use destack_core::StringId;
+use tspp_core::StringId;
 
 /// How one derived tree node came to be.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Reflect)]

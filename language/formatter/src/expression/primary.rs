@@ -12,22 +12,22 @@ use crate::collection::{TrailingSeparator, separated_entries};
 use crate::context::FormatNodeWithoutTrailingComments;
 use crate::operator::format_generic_argument_list;
 use crate::tree::format_tree_literal_expression;
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{
+use crate::{TsppFormatContext, TsppFormatter};
+use tspp_dir::{
     Argument, Expression, Keyword, LocalNodeId, TokenSpan, TokenType, Tree, TypeExpression,
 };
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::{
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::{
     block_indent, format_with, group, hard_line_break, soft_block_indent, soft_line_break_or_space,
     space, text, token,
 };
-use destack_fir::{format_args, write};
-use destack_repository::TrailingComma;
-use destack_source::Span;
+use tspp_fir::{format_args, write};
+use tspp_repository::TrailingComma;
+use tspp_source::Span;
 
 /// Return whether one argument collection is inline between its outer spans.
 fn argument_range_is_inline(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     argument_ids: &[LocalNodeId<Argument>],
 ) -> bool {
     let (Some(first_id), Some(last_id)) = (argument_ids.first(), argument_ids.last()) else {
@@ -68,7 +68,7 @@ fn type_value_needs_keyword(tree: &Tree, value: LocalNodeId<TypeExpression>) -> 
 
 /// Return whether one primary expression serializes empty infix annotations as postfix only.
 pub(crate) fn primary_expression_uses_postfix_only_annotations(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> bool {
@@ -85,7 +85,7 @@ pub(crate) fn primary_expression_uses_postfix_only_annotations(
 
 /// Write trailing annotations for one primary expression.
 pub(crate) fn write_primary_expression_trailing_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> FormatResult<()> {
@@ -103,7 +103,7 @@ pub(crate) fn write_primary_expression_trailing_annotations<'ast>(
 
 /// Format an array literal primary expression.
 pub(crate) fn format_primary_array_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     elements_ids: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
@@ -226,7 +226,7 @@ pub(crate) fn format_primary_array_expression<'ast>(
 
 /// Return the source semicolon separating one fixed array value and length.
 fn fixed_array_source_separator(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     value: LocalNodeId<Expression>,
     length: LocalNodeId<Expression>,
 ) -> Option<TokenSpan> {
@@ -243,11 +243,11 @@ fn fixed_array_source_separator(
 
 /// Format a fixed array repeat literal primary expression.
 fn format_primary_fixed_array_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     value: LocalNodeId<Expression>,
     length: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
-    let body = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let body = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         let context = f.context();
         let value_span = context.span(value);
         let value_anchor_end = context
@@ -331,7 +331,7 @@ fn array_expression_should_break(tree: &Tree, elements: &[LocalNodeId<Argument>]
 
 /// Format a tuple literal primary expression.
 pub(crate) fn format_primary_tuple_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     elements_ids: &[LocalNodeId<Argument>],
 ) -> FormatResult<()> {
@@ -377,7 +377,7 @@ pub(crate) fn format_primary_tuple_expression<'ast>(
 
 /// Format primary expression variants.
 pub(crate) fn format_primary_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Expression>,
     expression: &Expression,
 ) -> FormatResult<bool> {

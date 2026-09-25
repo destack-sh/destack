@@ -1,5 +1,5 @@
 use crate::source::TokenType;
-use destack_source::Span;
+use tspp_source::Span;
 
 use crate::{Constant, FloatType, Intrinsic, LayoutMeasure, StorageSet, Type, TypeId};
 
@@ -195,7 +195,7 @@ impl Parser {
                         .parse()
                         .map_err(|_| ParseError::invalid("float constant", token_start))?;
                     Ok(Constant::Float {
-                        bits: destack_core::float_to_bits(float_type.format(), value),
+                        bits: tspp_core::float_to_bits(float_type.format(), value),
                         format: float_type,
                     })
                 }
@@ -360,7 +360,7 @@ impl Parser {
         let value: f64 = digits.parse().ok()?;
 
         Some(Constant::Float {
-            bits: destack_core::float_to_bits(format.format(), value),
+            bits: tspp_core::float_to_bits(format.format(), value),
             format,
         })
     }

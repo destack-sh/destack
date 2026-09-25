@@ -1,5 +1,5 @@
-use destack_bytecode::CodeOffset;
-use destack_program::{Outcome, Runtime, StopReason, Word};
+use tspp_bytecode::CodeOffset;
+use tspp_program::{Outcome, Runtime, StopReason, Word};
 
 use crate::diagnostic::Result;
 use crate::machine::{Activation, Frame};

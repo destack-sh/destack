@@ -3,8 +3,8 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::task::{Context, Poll};
 use std::thread::{Builder, JoinHandle, available_parallelism};
 
-use destack_artifact::{ArtifactKey, ArtifactOutcome, ArtifactVersion};
-use destack_repository::{Execution, Revision, Trace, TraceLevel};
+use tspp_artifact::{ArtifactKey, ArtifactOutcome, ArtifactVersion};
+use tspp_repository::{Execution, Revision, Trace, TraceLevel};
 
 use super::run::{ArtifactPriority, ArtifactRun, ArtifactRunGoal, ArtifactRunId, ArtifactRunState};
 use super::scheduler::Scheduler;
@@ -51,7 +51,7 @@ impl Executor {
                     scheduler: scheduler.clone(),
                 };
                 let worker = Builder::new()
-                    .name(format!("destack-artifact-{worker_index}"))
+                    .name(format!("tspp-artifact-{worker_index}"))
                     .spawn(move || {
                         worker.run();
                     })

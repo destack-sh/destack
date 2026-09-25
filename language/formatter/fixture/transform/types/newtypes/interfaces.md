@@ -6,11 +6,11 @@
 
 Nominal interfaces use the `newtype interface` header.
 
-```ds
+```tspp
 newtype interface Add<T, R = this> { add(other: T): R }
 ```
 
-```ds expected
+```tspp expected
 newtype interface Add<T, R = this> {
     add(other: T): R;
 }
@@ -20,10 +20,10 @@ newtype interface Add<T, R = this> {
 
 Marker interfaces can be empty.
 
-```ds
+```tspp
 newtype interface Send { }
 ```
 
-```ds expected
+```tspp expected
 newtype interface Send {}
 ```

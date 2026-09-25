@@ -102,7 +102,7 @@ impl Entry {
             } => {
                 let validation = Self::expand_struct_validation(&identifier, &fields);
                 let needs_validation = quote!(
-                    false #(|| <#field_types as destack_core::SectionEntry>::NEEDS_VALIDATION)*
+                    false #(|| <#field_types as tspp_core::SectionEntry>::NEEDS_VALIDATION)*
                 );
 
                 (identifier, field_types, validation, needs_validation)
@@ -132,18 +132,18 @@ impl Entry {
                 );
             };
 
-            unsafe impl destack_core::SectionEntry for #identifier
+            unsafe impl tspp_core::SectionEntry for #identifier
             where
-                #(#field_types: destack_core::SectionEntry,)*
+                #(#field_types: tspp_core::SectionEntry,)*
             {
                 const NEEDS_VALIDATION: bool = #needs_validation;
 
                 fn validate(
                     bytes: &[u8],
-                    loader: destack_core::SectionLoader<'_>,
-                ) -> ::core::result::Result<(), destack_core::SectionImageError> {
+                    loader: tspp_core::SectionLoader<'_>,
+                ) -> ::core::result::Result<(), tspp_core::SectionImageError> {
                     if bytes.len() != ::core::mem::size_of::<Self>() {
-                        return Err(destack_core::SectionImageError::InvalidEntry);
+                        return Err(tspp_core::SectionImageError::InvalidEntry);
                     }
 
                     #validation
@@ -179,8 +179,8 @@ impl Entry {
                 {
                     let offset = ::core::mem::offset_of!(#identifier, #member);
                     let end = offset + ::core::mem::size_of::<#ty>();
-                    if <#ty as destack_core::SectionEntry>::NEEDS_VALIDATION {
-                        <#ty as destack_core::SectionEntry>::validate(
+                    if <#ty as tspp_core::SectionEntry>::NEEDS_VALIDATION {
+                        <#ty as tspp_core::SectionEntry>::validate(
                             &bytes[offset..end],
                             loader,
                         )?;
@@ -224,7 +224,7 @@ impl Entry {
 
                 match tag {
                     #(#arms,)*
-                    _ => Err(destack_core::SectionImageError::InvalidEntry),
+                    _ => Err(tspp_core::SectionImageError::InvalidEntry),
                 }
             };
         }
@@ -299,8 +299,8 @@ impl Entry {
                     {
                         let offset = #payload_offset + ::core::mem::offset_of!(#payload, #member);
                         let end = offset + ::core::mem::size_of::<#ty>();
-                        if <#ty as destack_core::SectionEntry>::NEEDS_VALIDATION {
-                            <#ty as destack_core::SectionEntry>::validate(
+                        if <#ty as tspp_core::SectionEntry>::NEEDS_VALIDATION {
+                            <#ty as tspp_core::SectionEntry>::validate(
                                 &bytes[offset..end],
                                 loader,
                             )?;
@@ -326,7 +326,7 @@ impl Entry {
             #tag_read
             match tag {
                 #(#arms,)*
-                _ => Err(destack_core::SectionImageError::InvalidEntry),
+                _ => Err(tspp_core::SectionImageError::InvalidEntry),
             }
         }
     }

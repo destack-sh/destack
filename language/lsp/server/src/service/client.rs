@@ -7,12 +7,12 @@ use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::task::{Context, Poll};
 use std::time::Instant;
 
-use destack_lsp_types::*;
 use futures::channel::mpsc::{self, Sender};
 use futures::future::BoxFuture;
 use futures::sink::SinkExt;
 use serde::Serialize;
 use tower::Service;
+use tspp_lsp_types::*;
 
 use self::pending::Pending;
 use self::progress::Progress;
@@ -173,7 +173,7 @@ impl Client {
         &self,
         registrations: Vec<Registration>,
     ) -> jsonrpc::Result<()> {
-        use destack_lsp_types::request::RegisterCapability;
+        use tspp_lsp_types::request::RegisterCapability;
         self.send_request::<RegisterCapability>(RegistrationParams { registrations })
             .await
     }
@@ -198,7 +198,7 @@ impl Client {
         &self,
         unregisterations: Vec<Unregistration>,
     ) -> jsonrpc::Result<()> {
-        use destack_lsp_types::request::UnregisterCapability;
+        use tspp_lsp_types::request::UnregisterCapability;
         self.send_request::<UnregisterCapability>(UnregistrationParams { unregisterations })
             .await
     }
@@ -211,7 +211,7 @@ impl Client {
     ///
     /// [`window/showMessage`]: https://microsoft.github.io/language-server-protocol/specification#window_showMessage
     pub async fn show_message<M: Display>(&self, typ: MessageType, message: M) {
-        use destack_lsp_types::notification::ShowMessage;
+        use tspp_lsp_types::notification::ShowMessage;
         self.send_notification_unchecked::<ShowMessage>(ShowMessageParams {
             typ,
             message: message.to_string(),
@@ -237,7 +237,7 @@ impl Client {
         message: M,
         actions: Option<Vec<MessageActionItem>>,
     ) -> jsonrpc::Result<Option<MessageActionItem>> {
-        use destack_lsp_types::request::ShowMessageRequest;
+        use tspp_lsp_types::request::ShowMessageRequest;
         self.send_request_unchecked::<ShowMessageRequest>(ShowMessageRequestParams {
             typ,
             message: message.to_string(),
@@ -304,7 +304,7 @@ impl Client {
     ///
     /// - The request to the client fails
     pub async fn show_document(&self, params: ShowDocumentParams) -> jsonrpc::Result<bool> {
-        use destack_lsp_types::request::ShowDocument;
+        use tspp_lsp_types::request::ShowDocument;
         let response = self.send_request::<ShowDocument>(params).await?;
         Ok(response.success)
     }
@@ -334,7 +334,7 @@ impl Client {
         &self,
         params: WorkDoneProgressCreateParams,
     ) -> jsonrpc::Result<()> {
-        use destack_lsp_types::request::WorkDoneProgressCreate;
+        use tspp_lsp_types::request::WorkDoneProgressCreate;
         self.send_request::<WorkDoneProgressCreate>(params).await
     }
 
@@ -344,7 +344,7 @@ impl Client {
     ///
     /// [`telemetry/event`]: https://microsoft.github.io/language-server-protocol/specification#telemetry_event
     pub async fn telemetry_event<S: Serialize>(&self, data: S) {
-        use destack_lsp_types::notification::TelemetryEvent;
+        use tspp_lsp_types::notification::TelemetryEvent;
         let Ok(value) = serde_json::to_value(data) else {
             return;
         };
@@ -386,7 +386,7 @@ impl Client {
     ///
     /// - The request to the client fails
     pub async fn code_lens_refresh(&self) -> jsonrpc::Result<()> {
-        use destack_lsp_types::request::CodeLensRefresh;
+        use tspp_lsp_types::request::CodeLensRefresh;
         self.send_request::<CodeLensRefresh>(()).await
     }
 
@@ -417,7 +417,7 @@ impl Client {
     ///
     /// - The request to the client fails
     pub async fn semantic_tokens_refresh(&self) -> jsonrpc::Result<()> {
-        use destack_lsp_types::request::SemanticTokensRefresh;
+        use tspp_lsp_types::request::SemanticTokensRefresh;
         self.send_request::<SemanticTokensRefresh>(()).await
     }
 
@@ -447,7 +447,7 @@ impl Client {
     ///
     /// - The request to the client fails
     pub async fn inline_value_refresh(&self) -> jsonrpc::Result<()> {
-        use destack_lsp_types::request::InlineValueRefreshRequest;
+        use tspp_lsp_types::request::InlineValueRefreshRequest;
         self.send_request::<InlineValueRefreshRequest>(()).await
     }
 
@@ -477,7 +477,7 @@ impl Client {
     ///
     /// - The request to the client fails
     pub async fn inlay_hint_refresh(&self) -> jsonrpc::Result<()> {
-        use destack_lsp_types::request::InlayHintRefreshRequest;
+        use tspp_lsp_types::request::InlayHintRefreshRequest;
         self.send_request::<InlayHintRefreshRequest>(()).await
     }
 
@@ -505,7 +505,7 @@ impl Client {
     ///
     /// - The request to the client fails
     pub async fn workspace_diagnostic_refresh(&self) -> jsonrpc::Result<()> {
-        use destack_lsp_types::request::WorkspaceDiagnosticRefresh;
+        use tspp_lsp_types::request::WorkspaceDiagnosticRefresh;
         self.send_request::<WorkspaceDiagnosticRefresh>(()).await
     }
 
@@ -524,7 +524,7 @@ impl Client {
         diags: Vec<Diagnostic>,
         version: Option<i32>,
     ) {
-        use destack_lsp_types::notification::PublishDiagnostics;
+        use tspp_lsp_types::notification::PublishDiagnostics;
         self.send_notification::<PublishDiagnostics>(PublishDiagnosticsParams::new(
             uri, diags, version,
         ))
@@ -562,7 +562,7 @@ impl Client {
         &self,
         items: Vec<ConfigurationItem>,
     ) -> jsonrpc::Result<Vec<LSPAny>> {
-        use destack_lsp_types::request::WorkspaceConfiguration;
+        use tspp_lsp_types::request::WorkspaceConfiguration;
         self.send_request::<WorkspaceConfiguration>(ConfigurationParams { items })
             .await
     }
@@ -591,7 +591,7 @@ impl Client {
     ///
     /// - The request to the client fails
     pub async fn workspace_folders(&self) -> jsonrpc::Result<Option<Vec<WorkspaceFolder>>> {
-        use destack_lsp_types::request::WorkspaceFoldersRequest;
+        use tspp_lsp_types::request::WorkspaceFoldersRequest;
         self.send_request::<WorkspaceFoldersRequest>(()).await
     }
 
@@ -616,7 +616,7 @@ impl Client {
         &self,
         edit: WorkspaceEdit,
     ) -> jsonrpc::Result<ApplyWorkspaceEditResponse> {
-        use destack_lsp_types::request::ApplyWorkspaceEdit;
+        use tspp_lsp_types::request::ApplyWorkspaceEdit;
         self.send_request::<ApplyWorkspaceEdit>(ApplyWorkspaceEditParams { edit, label: None })
             .await
     }
@@ -626,7 +626,7 @@ impl Client {
     /// This method also takes a `title` argument briefly describing the kind of operation being
     /// performed, e.g. "Indexing" or "Linking Dependencies".
     ///
-    /// [`ProgressToken`]: https://docs.rs/lsp-types/latest/destack_lsp_types/type.ProgressToken.html
+    /// [`ProgressToken`]: https://docs.rs/lsp-types/latest/tspp_lsp_types/type.ProgressToken.html
     ///
     /// # Initialization
     ///
@@ -635,7 +635,7 @@ impl Client {
     /// # Examples
     ///
     /// ```no_run
-    /// # use tower_lsp_server::{destack_lsp_types::*, Client};
+    /// # use tower_lsp_server::{tspp_lsp_types::*, Client};
     /// #
     /// # struct Mock {
     /// #     client: Client,
@@ -676,7 +676,7 @@ impl Client {
     /// This notification will only be sent if the server is initialized.
     pub async fn send_notification<N>(&self, params: N::Params)
     where
-        N: destack_lsp_types::notification::Notification,
+        N: tspp_lsp_types::notification::Notification,
     {
         if let State::Initialized | State::ShutDown = self.inner.state.get() {
             self.send_notification_unchecked::<N>(params).await;
@@ -685,7 +685,7 @@ impl Client {
 
     async fn send_notification_unchecked<N>(&self, params: N::Params)
     where
-        N: destack_lsp_types::notification::Notification,
+        N: tspp_lsp_types::notification::Notification,
     {
         let request = Request::from_notification::<N>(params);
         let _ = self.clone().call(request).await;
@@ -706,7 +706,7 @@ impl Client {
     /// - The client returns an error
     pub async fn send_request<R>(&self, params: R::Params) -> jsonrpc::Result<R::Result>
     where
-        R: destack_lsp_types::request::Request,
+        R: tspp_lsp_types::request::Request,
     {
         if let State::Initialized | State::ShutDown = self.inner.state.get() {
             self.send_request_unchecked::<R>(params).await
@@ -717,7 +717,7 @@ impl Client {
 
     async fn send_request_unchecked<R>(&self, params: R::Params) -> jsonrpc::Result<R::Result>
     where
-        R: destack_lsp_types::request::Request,
+        R: tspp_lsp_types::request::Request,
     {
         let id = self.next_request_id();
         let request = Request::from_request::<R>(id, params);
@@ -820,11 +820,11 @@ impl Service<Request> for Client {
 mod tests {
     use std::future::Future;
 
-    use destack_lsp_types::notification::{
-        LogMessage, PublishDiagnostics, ShowMessage, TelemetryEvent,
-    };
     use futures::stream::StreamExt;
     use serde_json::json;
+    use tspp_lsp_types::notification::{
+        LogMessage, PublishDiagnostics, ShowMessage, TelemetryEvent,
+    };
 
     use super::*;
 

@@ -1,10 +1,10 @@
-use destack_serde::Reflect;
 use std::fmt::Display;
+use tspp_serde::Reflect;
 
-use destack_core::FxIndexMap as IndexMap;
-use destack_source::ModuleId;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+use tspp_core::FxIndexMap as IndexMap;
+use tspp_source::ModuleId;
 
 use crate::{LocalSymbolId, StaticKey};
 

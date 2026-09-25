@@ -1,6 +1,6 @@
 use crate::tests::TestProgram;
-use destack_bytecode::{RegisterId, RegisterSpan};
-use destack_native::FrameSource;
+use tspp_bytecode::{RegisterId, RegisterSpan};
+use tspp_native::FrameSource;
 
 /// Map one runtime poll onto the exact live bytecode registers at its resume point.
 #[test]

@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_source::{FileId, PackageId, TargetId, Uri};
 use im::OrdMap;
 use indexmap::IndexMap;
+use tspp_source::{FileId, PackageId, TargetId, Uri};
 
 use crate::config::{
     ConditionGate, ConditionSet, Dependency, DestackFile, ExportKind, Target, Topology, Vendor,

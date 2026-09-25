@@ -27,7 +27,7 @@ function read<T>(state: State<T>): T {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Pending<out T> {
     kind: "pending" = "pending";
@@ -155,7 +155,7 @@ function read<T>(state: State<T>): T {
 fn test_narrow_imported_generic_newtype_discriminant() {
     let session = TestSession::builder()
         .module(
-            "state.ds",
+            "state.tspp",
             r#"
 export struct Pending<T> {
     kind: "pending" = "pending";
@@ -171,9 +171,9 @@ export newtype State<T> = Pending<T> | Ready<T>;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { State } from "./state.ds";
+import { State } from "./state.tspp";
 
 function read<T>(state: State<T>): T {
     if (state.kind === "ready") {
@@ -186,9 +186,9 @@ function read<T>(state: State<T>): T {
         )
         .build();
 
-    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
-import { State } from "./state.ds";
+import { State } from "./state.tspp";
 
 function read<T>(state: State<T>): T {
     if (state.kind === "ready") {
@@ -199,7 +199,7 @@ function read<T>(state: State<T>): T {
 }
 
 === dir ===
-import { State } from "./state.ds";
+import { State } from "./state.tspp";
 
 function read<T>(state: State<T>): T {
 /// @generic.template symbol=read parameters=(T)
@@ -273,7 +273,7 @@ function read(source: Source): "ready" {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -349,7 +349,7 @@ function read(values: ("pending" | "ready")[]): "ready" {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -421,7 +421,7 @@ function read(state: State): int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -559,7 +559,7 @@ function read(state: State): int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -701,7 +701,7 @@ function read(initial: State, next: State): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -895,7 +895,7 @@ class Cell<T> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1263,7 +1263,7 @@ class Child extends Base {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1387,7 +1387,7 @@ class Child extends Base {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 class Base {
     label: string | undefined = undefined as string | undefined;
@@ -1510,7 +1510,7 @@ class Child extends Base {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 class Base {
     label: string | undefined = undefined as string | undefined;
@@ -1633,7 +1633,7 @@ function read(this: Box): string {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 class Box {
     label: string | undefined = undefined as string | undefined;
@@ -1715,7 +1715,7 @@ function read(state: &readonly State): int32 {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Pending {
     kind: "pending" = "pending";
@@ -1846,7 +1846,7 @@ function read(frame: Frame): int32 {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Header {
     version: 1;
@@ -1976,7 +1976,7 @@ function read(outcome: Outcome): int32 {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Success {
     ok: true;
@@ -2106,7 +2106,7 @@ function read(state: State): int32 {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Pending {
     kind: "pending" = "pending";
@@ -2236,7 +2236,7 @@ function read(state: State): int32 {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Pending {
     kind: "pending" = "pending";
@@ -2367,7 +2367,7 @@ function read(state: &readonly State): int32 {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 struct Pending {
     kind: "pending";
@@ -2498,7 +2498,7 @@ function read(state: State): int32 {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 interface Pending {
     kind: "pending";
@@ -2633,7 +2633,7 @@ function radius(shape: &readonly Shape): float64 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

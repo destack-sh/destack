@@ -1,6 +1,6 @@
 use std::cmp::Reverse;
 
-use destack_core::StringId;
+use tspp_core::StringId;
 
 use crate::{LayoutField, Representation, ScalarField, TraceMap, TypeId};
 

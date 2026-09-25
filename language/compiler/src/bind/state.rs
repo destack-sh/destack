@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirBound, DirParsed};
-use destack_dir as dir;
-use destack_source::{ModuleId, StringId};
 use dir::NodeVisitor as _;
 use indexmap::IndexMap;
+use tspp_artifact::{DirBound, DirParsed};
+use tspp_dir as dir;
+use tspp_source::{ModuleId, StringId};
 
 use crate::Compiler;
 use crate::bind::stats::BindStats;

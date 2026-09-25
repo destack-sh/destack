@@ -3,7 +3,7 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-use destack_serde::Reflect;
+use tspp_serde::Reflect;
 
 /// Set of backing storage regions that an operation may access.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]

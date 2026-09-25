@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 
-use destack_artifact::{ModuleSetFingerprint, PackageSetFingerprint};
-use destack_source::{DiagnosticCollection, FileId, ProfileId};
 use im::OrdMap;
 use parking_lot::Mutex;
 use rustc_hash::{FxHashMap, FxHashSet};
+use tspp_artifact::{ModuleSetFingerprint, PackageSetFingerprint};
+use tspp_source::{DiagnosticCollection, FileId, ProfileId};
 
 use crate::repository::{FileEntry, RepositoryError};
 use crate::{ModuleIndex, PackageIndex, Profile, Root};

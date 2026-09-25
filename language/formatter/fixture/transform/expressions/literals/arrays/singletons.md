@@ -6,11 +6,11 @@
 
 When an array contains a single object that expands, the outer array also expands.
 
-```ds line-width=20
+```tspp line-width=20
 [{ a: 1, b: 2, c: 3 }]
 ```
 
-```ds expected
+```tspp expected
 [
     {
         a: 1,
@@ -24,11 +24,11 @@ When an array contains a single object that expands, the outer array also expand
 
 Nested arrays also expand when the single nested array element expands.
 
-```ds line-width=20
+```tspp line-width=20
 [[1, 2, 3, 4, 5, 6]]
 ```
 
-```ds expected
+```tspp expected
 [
     [
         1, 2, 3, 4,

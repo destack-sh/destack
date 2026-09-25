@@ -12,7 +12,7 @@ function greet(): string {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.greet",
         r#"
 @nocopy
@@ -41,7 +41,7 @@ function pair(): string {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.pair",
         r#"
 @nocopy
@@ -65,7 +65,7 @@ entry:
 fn test_lower_an_interpolated_template_through_its_join() {
     let session = TestSession::single(
         r#"
-import { Display } from "destack:ops";
+import { Display } from "tspp:ops";
 
 struct Point {
     x: int32;
@@ -83,7 +83,7 @@ function label(point: Point): string {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Point.Display.display", r#"
+    session.assert_mir_function("main.tspp", "test.main.Point.Display.display", r#"
 type test.main.Point {
     x: int32;
 }
@@ -107,7 +107,7 @@ entry(v0: ref<test.main.Point, borrowed, 'a, immutable>):
 /// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.label", r#"
+    session.assert_mir_function("main.tspp", "test.main.label", r#"
 type test.main.Point {
     x: int32;
 }
@@ -165,7 +165,7 @@ function name(): ^string {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.name",
         r#"
 @nocopy

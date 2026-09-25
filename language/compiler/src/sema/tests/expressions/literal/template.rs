@@ -10,7 +10,7 @@ const greeting = `hello ${name}`;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -48,7 +48,7 @@ const greeting: string = `hello`;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -72,7 +72,7 @@ const value: number = `hello`;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -96,8 +96,8 @@ const value: number = `hello`;
 fn test_render_template_arguments_through_display() {
     let session = TestSession::single(
         r#"
-import { todo } from "destack:error";
-import { Display } from "destack:ops";
+import { todo } from "tspp:error";
+import { Display } from "tspp:ops";
 
 struct Point {
     x: int32;
@@ -116,12 +116,12 @@ function label(point: Point): string {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { todo } from "destack:error";
-import { Display } from "destack:ops";
+import { todo } from "tspp:error";
+import { Display } from "tspp:ops";
 
 struct Point {
     x: int32;
@@ -138,8 +138,8 @@ function label(point: Point): string {
 }
 
 === dir ===
-import { todo } from "destack:error";
-import { Display } from "destack:ops";
+import { todo } from "tspp:error";
+import { Display } from "tspp:ops";
 
 struct Point {
 /// @type.symbol symbol=Point type=Point
@@ -212,7 +212,7 @@ function label(point: Point): string {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -268,7 +268,7 @@ const rendered = `x${count}`;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -317,7 +317,7 @@ const asserted = `x${count}` as const;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -369,7 +369,7 @@ const location: string = import.meta.url;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

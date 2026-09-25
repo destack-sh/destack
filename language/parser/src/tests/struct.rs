@@ -1,9 +1,9 @@
-use destack_dir::{
+use tspp_dir::{
     ClassDeclaration, CommentKind, Declaration, Expression, GenericParameter, IntegerType, Literal,
     Member, Name, Parameter, StructDeclaration, TypeExpression, TypeLiteral, Visibility,
     WhereClause,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::parse::DeclarationHeader;
 use crate::{

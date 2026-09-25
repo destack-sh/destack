@@ -1,0 +1,29 @@
+// SYNTAX TEST "source.tspp"
+
+// types / classes / constructors
+class Counter {
+// <- keyword.declaration.type.tspp
+    public readonly value: int32;
+    readonly label: string;
+    constructor(label: string) {
+        this.label = label;
+    }
+}
+
+// types / classes / inheritance and abstract members
+abstract class Logger {
+// <- meta.type.definition.tspp
+    abstract write(message: string): void;
+}
+
+// types / classes / overrides
+class ConsoleLogger extends Logger {
+// <- keyword.declaration.type.tspp
+    override write(message: string): void {}
+}
+
+class BufferedLogger extends Logger {
+// <- keyword.declaration.type.tspp
+    virtual write(message: string): void {}
+//  ^^^^^^^ keyword.other.modifier.tspp
+}

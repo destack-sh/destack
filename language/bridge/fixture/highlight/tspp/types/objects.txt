@@ -1,0 +1,14 @@
+// SYNTAX TEST "source.tspp"
+
+// types / objects / structural
+type UserRecord = { id: UserId; name: string };
+// <- keyword.declaration.type.tspp
+
+// types / objects / index signatures
+type Dictionary = { readonly [key: string]: string };
+// <- keyword.declaration.type.tspp
+
+// types / objects / mapped keys
+type Flags<T> = { readonly [K in keyof T]?: boolean };
+// <- keyword.declaration.type.tspp
+

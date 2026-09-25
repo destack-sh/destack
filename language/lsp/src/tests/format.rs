@@ -1,4 +1,4 @@
-use destack_lsp_types as lsp;
+use tspp_lsp_types as lsp;
 
 use super::tests::{TestServer, position, range};
 
@@ -9,8 +9,8 @@ async fn test_format_document_source() {
 "#;
     let (mut server, document) = TestServer::open_workspace(
         "document-formatting",
-        &[("src/main.ds", source)],
-        "src/main.ds",
+        &[("src/main.tspp", source)],
+        "src/main.tspp",
     )
     .await;
 

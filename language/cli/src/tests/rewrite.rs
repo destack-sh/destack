@@ -1,6 +1,6 @@
 use clap::Parser;
-use destack_source::FileSystem;
 use std::path::PathBuf;
+use tspp_source::FileSystem;
 
 use crate::app::{Cli, Command};
 use crate::command::rewrite::{RewriteArgs, run as run_rewrite};
@@ -12,11 +12,11 @@ use super::tests::{TestProgram, assert_success, execute, input_args_from_path};
 #[test]
 fn test_parse_rewrite_command() {
     let rewrite = Cli::try_parse_from([
-        "destack",
+        "tspp",
         "rewrite",
         "fetch($URL)",
         "client.fetch($URL)",
-        "src/main.ds",
+        "src/main.tspp",
         "--diff",
     ])
     .expect("parse rewrite command");
@@ -26,15 +26,15 @@ fn test_parse_rewrite_command() {
 
     assert_eq!(rewrite.pattern, "fetch($URL)");
     assert_eq!(rewrite.replacement, "client.fetch($URL)");
-    assert_eq!(rewrite.input.files, [PathBuf::from("src/main.ds")]);
+    assert_eq!(rewrite.input.files, [PathBuf::from("src/main.tspp")]);
     assert!(rewrite.diff);
 
     let check = Cli::try_parse_from([
-        "destack",
+        "tspp",
         "rewrite",
         "fetch($URL)",
         "client.fetch($URL)",
-        "src/main.ds",
+        "src/main.tspp",
         "--check",
     ])
     .expect("parse rewrite check command");
@@ -48,7 +48,7 @@ fn test_parse_rewrite_command() {
 #[test]
 fn test_rewrite_source_file() {
     let program = TestProgram::new("rewrite_source");
-    let path = program.write_text("main.ds", "fetch(\"/a\");\nkeep();\n");
+    let path = program.write_text("main.tspp", "fetch(\"/a\");\nkeep();\n");
     let args = RewriteArgs {
         pattern: "fetch($URL)".to_string(),
         replacement: "client.fetch($URL)".to_string(),
@@ -79,7 +79,7 @@ fn test_rewrite_source_file() {
 fn test_check_rewrite_source_file() {
     let program = TestProgram::new("check_rewrite_source");
     let source = "fetch(\"/a\");\nkeep();\n";
-    let path = program.write_text("main.ds", source);
+    let path = program.write_text("main.tspp", source);
     let args = RewriteArgs {
         pattern: "fetch($URL)".to_string(),
         replacement: "client.fetch($URL)".to_string(),

@@ -1,13 +1,13 @@
 use std::sync::Arc;
 
-use crate::{DestackFormatContext, DestackFormatOptions, format_file_source};
-use destack_core::StringPool;
-use destack_dir::{Comment, Expression, LocalNodeId, Node, NodeParentIndex, Path, TokenSpan, Tree};
-use destack_fir::format;
-use destack_fir::format::{Allocator, Format};
-use destack_parser::{CommentRetention, ParseOptions, Parser, ParserResult};
-use destack_repository::FormatterOptions;
-use destack_source::{
+use crate::{TsppFormatContext, TsppFormatOptions, format_file_source};
+use tspp_core::StringPool;
+use tspp_dir::{Comment, Expression, LocalNodeId, Node, NodeParentIndex, Path, TokenSpan, Tree};
+use tspp_fir::format;
+use tspp_fir::format::{Allocator, Format};
+use tspp_parser::{CommentRetention, ParseOptions, Parser, ParserResult};
+use tspp_repository::FormatterOptions;
+use tspp_source::{
     DiffOptions, File, FileId, FileType, LanguageType, ModuleId, MultiSpan, PackageId, Uri,
     print_diff,
 };
@@ -60,7 +60,7 @@ impl TestFormatter {
         F: FnOnce(&mut Parser) -> ParserResult<N>,
         N: IndexParents,
     {
-        Self::parse_with_file_type(input, FileType::Destack, parse_fn)
+        Self::parse_with_file_type(input, FileType::Tspp, parse_fn)
     }
 
     /// Parse one input with an explicit file type.
@@ -146,9 +146,9 @@ impl TestFormatter {
     }
 
     /// Format one parsed node.
-    pub(crate) fn format<N>(&self, n: &N, options: DestackFormatOptions) -> String
+    pub(crate) fn format<N>(&self, n: &N, options: TsppFormatOptions) -> String
     where
-        N: for<'a> Format<'a, DestackFormatContext<'a>>,
+        N: for<'a> Format<'a, TsppFormatContext<'a>>,
     {
         let allocator = Allocator::default();
         let context = self.context(options);
@@ -158,8 +158,8 @@ impl TestFormatter {
     }
 
     /// Build one formatter context for direct test inspection.
-    pub(crate) fn context(&self, options: DestackFormatOptions) -> DestackFormatContext<'_> {
-        DestackFormatContext::new(
+    pub(crate) fn context(&self, options: TsppFormatOptions) -> TsppFormatContext<'_> {
+        TsppFormatContext::new(
             options,
             &self.file,
             &self.tree,
@@ -185,16 +185,16 @@ pub(crate) fn parse_first_expression(parser: &mut Parser) -> ParserResult<LocalN
 
 /// Normalize test formatter options for one file type.
 fn normalize_test_options_for_file_type(
-    mut options: DestackFormatOptions,
+    mut options: TsppFormatOptions,
     file_type: FileType,
-) -> DestackFormatOptions {
+) -> TsppFormatOptions {
     options.language_type =
         LanguageType::try_from(file_type).expect("file type has no parser language");
     options
 }
 
 /// Convert formatter test options into workspace formatter options.
-fn workspace_test_options(options: DestackFormatOptions) -> FormatterOptions {
+fn workspace_test_options(options: TsppFormatOptions) -> FormatterOptions {
     FormatterOptions {
         line_ending: options.line_ending,
         indent_style: options.indent_style,
@@ -221,7 +221,7 @@ fn format_program_source(
     input: &str,
     file_name: &str,
     file_type: FileType,
-    options: DestackFormatOptions,
+    options: TsppFormatOptions,
 ) -> String {
     let file = test_file(input, file_name, file_type);
     let options = workspace_test_options(options);
@@ -247,10 +247,10 @@ pub(crate) fn assert_format_roundtrip_with_file_type<F, N>(
     expected: &str,
     file_type: FileType,
     parse_fn: F,
-    options: DestackFormatOptions,
+    options: TsppFormatOptions,
 ) where
     F: Fn(&mut Parser) -> ParserResult<N> + Copy,
-    N: IndexParents + for<'a> Format<'a, DestackFormatContext<'a>>,
+    N: IndexParents + for<'a> Format<'a, TsppFormatContext<'a>>,
 {
     let options = normalize_test_options_for_file_type(options, file_type);
 
@@ -272,7 +272,7 @@ pub(crate) fn assert_format_program_roundtrip_with_file_type(
     input: &str,
     expected: &str,
     file_type: FileType,
-    options: DestackFormatOptions,
+    options: TsppFormatOptions,
 ) {
     let file_name = "<string>";
     let options = normalize_test_options_for_file_type(options, file_type);
@@ -290,7 +290,7 @@ pub(crate) fn assert_format_program_roundtrip_with_file_name_and_type(
     expected: &str,
     file_name: &str,
     file_type: FileType,
-    options: DestackFormatOptions,
+    options: TsppFormatOptions,
 ) {
     let options = normalize_test_options_for_file_type(options, file_type);
 
@@ -308,8 +308,7 @@ pub(crate) fn assert_format_program_reference_widths(
     cases: &[(u16, &str)],
 ) {
     for (line_width, expected) in cases {
-        let options =
-            DestackFormatOptions::default_with_line_width(*line_width).with_indent_width(2);
+        let options = TsppFormatOptions::default_with_line_width(*line_width).with_indent_width(2);
         assert_format_program_roundtrip_with_file_type(input, expected, file_type, options);
     }
 }
@@ -318,7 +317,7 @@ pub(crate) fn assert_format_program_reference_widths(
 pub(crate) fn assert_format_program_idempotent_with_file_type(
     input: &str,
     file_type: FileType,
-    options: DestackFormatOptions,
+    options: TsppFormatOptions,
 ) {
     let file_name = "<string>";
     let options = normalize_test_options_for_file_type(options, file_type);
@@ -335,14 +334,14 @@ macro_rules! assert_format {
     // Format a statement.
     ($input:expr, $output:expr $(,)?) => {
         let (test, stmt_id) = $crate::TestFormatter::parse($input, |p| p.eat_statement()).unwrap();
-        let formatted = test.format(&stmt_id, $crate::DestackFormatOptions::default());
+        let formatted = test.format(&stmt_id, $crate::TsppFormatOptions::default());
         $crate::assert_format_output_eq($output, &formatted);
     };
 
     // Format an arbitrary node.
     ($input:expr, $output:expr, $parse_fn:expr $(,)?) => {
         let (test, node_id) = $crate::TestFormatter::parse($input, $parse_fn).unwrap();
-        let formatted = test.format(&node_id, $crate::DestackFormatOptions::default());
+        let formatted = test.format(&node_id, $crate::TsppFormatOptions::default());
         $crate::assert_format_output_eq($output, &formatted);
     };
 
@@ -363,7 +362,7 @@ macro_rules! assert_format_roundtrip {
             $output,
             $file_type,
             $parse_fn,
-            $crate::DestackFormatOptions::default(),
+            $crate::TsppFormatOptions::default(),
         );
     };
 
@@ -382,7 +381,7 @@ macro_rules! assert_format_program {
             $input,
             $output,
             $file_type,
-            $crate::DestackFormatOptions::default(),
+            $crate::TsppFormatOptions::default(),
         );
     };
 
@@ -400,7 +399,7 @@ macro_rules! assert_format_program_idempotent {
         $crate::assert_format_program_idempotent_with_file_type(
             $input,
             $file_type,
-            $crate::DestackFormatOptions::default(),
+            $crate::TsppFormatOptions::default(),
         );
     };
 

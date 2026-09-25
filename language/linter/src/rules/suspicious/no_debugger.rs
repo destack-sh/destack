@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -133,7 +133,7 @@ try {
         session.assert_diagnostics(
             r#"
 warning[no-debugger]: `debugger` statement is not allowed
- ──▶ main.ds:2:17
+ ──▶ main.tspp:2:17
   │
 1 │ try {
 2 │ } catch (error) debugger
@@ -141,8 +141,8 @@ warning[no-debugger]: `debugger` statement is not allowed
   │
 
  = fix: remove the debugger statement
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ try {
 -   2│ } catch (error) debugger

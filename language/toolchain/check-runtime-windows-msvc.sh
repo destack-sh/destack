@@ -48,4 +48,4 @@ command -v nasm >/dev/null
 runtime_run_full_runtime_crate_lane "${cargo_bin}"
 
 # run runtime smoke executable on host
-LC_ALL=C LANG=C CARGO_INCREMENTAL=0 "${cargo_bin}" run -p destack_runtime --bin runtime-smoke --quiet
+LC_ALL=C LANG=C CARGO_INCREMENTAL=0 "${cargo_bin}" run -p tspp_runtime --bin runtime-smoke --quiet

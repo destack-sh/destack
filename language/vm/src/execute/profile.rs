@@ -1,5 +1,5 @@
-use destack_bytecode::{Instruction, Opcode};
-use destack_program::{CounterId, Runtime, SamplerId};
+use tspp_bytecode::{Instruction, Opcode};
+use tspp_program::{CounterId, Runtime, SamplerId};
 
 use crate::diagnostic::Result;
 use crate::machine::Activation;

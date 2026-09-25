@@ -8,5 +8,5 @@ mod tests;
 
 pub(crate) use collection::*;
 pub use collector::*;
-pub use destack_heap::{GcState, GcStats};
 pub(crate) use root::*;
+pub use tspp_heap::{GcState, GcStats};

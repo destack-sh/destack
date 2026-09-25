@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_mir as mir;
+use tspp_dir as dir;
+use tspp_mir as mir;
 
 use crate::rules::declare_lint;
 use crate::{Lint, LintOutput, LintResult, MirModule};
@@ -15,14 +15,14 @@ Instead, you SHOULD move the original value when it is not used afterward.
 "#,
         example: {
             reported: r#"
-import { rc } from "destack:memory";
+import { rc } from "tspp:memory";
 
 function retain(value: rc.Rc<int32>): rc.Rc<int32> {
     return value.clone();
 }
 "#,
             accepted: r#"
-import { rc } from "destack:memory";
+import { rc } from "tspp:memory";
 
 function retain(value: rc.Rc<int32>): rc.Rc<int32> {
     return value;
@@ -175,7 +175,7 @@ mod tests {
         let session = TestSession::dir(
             &REDUNDANT_CLONE,
             r#"
-import { rc } from "destack:memory";
+import { rc } from "tspp:memory";
 
 function retain(value: rc.Rc<int32>): rc.Rc<int32> {
     return value.clone();
@@ -186,7 +186,7 @@ function retain(value: rc.Rc<int32>): rc.Rc<int32> {
         session.assert_diagnostics(
             r#"
 warning[redundant-clone]: owned value is cloned at its final use
- ──▶ main.ds:4:12
+ ──▶ main.tspp:4:12
   │
 2 │
 3 │ function retain(value: rc.Rc<int32>): rc.Rc<int32> {
@@ -206,7 +206,7 @@ warning[redundant-clone]: owned value is cloned at its final use
         let session = TestSession::dir(
             &REDUNDANT_CLONE,
             r#"
-import { rc } from "destack:memory";
+import { rc } from "tspp:memory";
 
 function retain(value: rc.Rc<int32>): (rc.Rc<int32>, rc.Rc<int32>) {
     const cloned = value.clone();
@@ -225,7 +225,7 @@ function retain(value: rc.Rc<int32>): (rc.Rc<int32>, rc.Rc<int32>) {
         let session = TestSession::dir(
             &REDUNDANT_CLONE,
             r#"
-import { rc } from "destack:memory";
+import { rc } from "tspp:memory";
 
 function retain(value: rc.Rc<int32>): (rc.Rc<int32>, usize) {
     const borrowed: &immutable rc.Rc<int32> = &immutable value;
@@ -245,7 +245,7 @@ function retain(value: rc.Rc<int32>): (rc.Rc<int32>, usize) {
         let session = TestSession::dir(
             &REDUNDANT_CLONE,
             r#"
-import { rc } from "destack:memory";
+import { rc } from "tspp:memory";
 
 function retain(value: &immutable rc.Rc<int32>): rc.Rc<int32> {
     return value.clone();

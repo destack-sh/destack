@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use destack_program as program;
+use tspp_program as program;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::RuntimeId;

@@ -2,12 +2,12 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use bytecode::{CodeBuilder, Parser, RelocationTag};
-use destack_bytecode as bytecode;
-use destack_core::{EntryRange, Optional, StringPool};
-use destack_heap::DropId;
-use destack_mir::{Space, Storage, TraceTable};
-use destack_program as program;
-use destack_program::{
+use tspp_bytecode as bytecode;
+use tspp_core::{EntryRange, Optional, StringPool};
+use tspp_heap::DropId;
+use tspp_mir::{Space, Storage, TraceTable};
+use tspp_program as program;
+use tspp_program::{
     BindingAffinity, BindingBuilder, BindingEffect, BindingId, BindingProvider, BindingReplay,
     DispatchTableBuilder, DropEntry, FrameLayoutBuilder, FrameLayoutId, FramePoint, FrameSlot,
     FrameState, FrameTableBuilder, FunctionBuilder, FunctionId, FunctionTableBuilder,
@@ -15,7 +15,7 @@ use destack_program::{
     ProgramPoint, SignatureId, StaticBytes, Symbol, TypeDescriptorBuilder, TypeFingerprint, TypeId,
     TypeTableBuilder, Word,
 };
-use destack_source::FileId;
+use tspp_source::FileId;
 
 use super::program::{TEST_GLOBAL_BYTES, TestLayout, TestProgram};
 
@@ -247,7 +247,7 @@ impl TestProgram {
         object: &bytecode::Object,
     ) -> (
         StringPool,
-        Vec<destack_core::StringId>,
+        Vec<tspp_core::StringId>,
         FunctionTableBuilder,
         Vec<BindingBuilder>,
     ) {

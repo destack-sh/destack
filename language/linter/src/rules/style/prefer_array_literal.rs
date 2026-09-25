@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -83,7 +83,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
-    extent: destack_source::Span,
+    extent: tspp_source::Span,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     if module.has_unretained_comment(extent, &[])? {
         return Ok(None);
@@ -145,7 +145,7 @@ function values(): int32[] {
         session.assert_diagnostics(
             r#"
 warning[prefer-array-literal]: empty array uses the Array.new factory
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function values(): int32[] {
 2 │     return Array.new(/* empty */);

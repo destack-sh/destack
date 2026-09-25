@@ -1,16 +1,16 @@
 use std::io::Write;
 use std::ops::Range;
 
-use destack_core::{Blob, BlobStore, BlobStoreError};
-use destack_rpc::{Code, Request, RequestStream, Response, ResponseSender, Status};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::{Blob, BlobStore, BlobStoreError};
+use tspp_rpc::{Code, Request, RequestStream, Response, ResponseSender, Status};
+use tspp_serde::Reflect;
 
 use crate::DaemonError;
 use crate::service::BYTE_STREAM_CHUNK_BYTE_LEN;
 
 /// RPC operations on shared Blobs.
-#[destack_rpc::service(name = "destack.blob.Blob")]
+#[tspp_rpc::service(name = "tspp.blob.Blob")]
 pub trait BlobService {
     // =============================================================================
     // Transfer

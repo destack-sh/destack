@@ -19,7 +19,7 @@ function shrink(kept: int32, tail: int32): Compact {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.shrink",
         r#"
 type test.main.Compact = newtype<{ kept: int32, tail: int32 }>;
@@ -68,7 +68,7 @@ function read(holder: Holder): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 type test.main.Holder {
@@ -106,7 +106,7 @@ function diagonal(value: int32): Pair {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.diagonal",
         r#"
 type test.main.Pair = newtype<{ x: int32, y: int32 }>;
@@ -161,7 +161,7 @@ export function run(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Cell.Greet.greet",
         r#"
 type test.main.Cell {
@@ -183,7 +183,7 @@ entry(v0: ref<test.main.Cell, borrowed, 'a, readonly>):
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.run", r#"
+    session.assert_mir_function("main.tspp", "test.main.run", r#"
 type test.main.Cell {
     value: int32;
 }
@@ -205,7 +205,7 @@ entry:
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.invoke<test.main.Cell>",
         r#"
 type test.main.Cell {

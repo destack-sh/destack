@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_mir as mir;
+use tspp_dir as dir;
+use tspp_mir as mir;
 
 use crate::lower::FunctionLowerer;
 use crate::lower::function::place::{Place, PlaceRoot};
@@ -257,7 +257,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Lower one loop into a destination, its valued breaks writing it.
     fn lower_loop_into(
         &mut self,
-        label: Option<destack_core::StringId>,
+        label: Option<tspp_core::StringId>,
         body: dir::LocalNodeId<dir::Block>,
         destination: &Place,
     ) -> CompilerResult<bool> {

@@ -5,7 +5,7 @@ use crate::tests::TestSession;
 fn test_dispose_using_resources_in_reverse_order_at_the_block_exit() {
     let session = TestSession::single(
         r#"
-import { Dispose } from "destack:memory";
+import { Dispose } from "tspp:memory";
 
 struct File implements Dispose {
     handle: int32;
@@ -21,7 +21,7 @@ function run(): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.File.dispose",
         r#"
 type test.main.File {
@@ -42,7 +42,7 @@ entry(v0: ref<test.main.File, borrowed, 'a, mutable>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.run",
         r#"
 type test.main.File {
@@ -78,7 +78,7 @@ entry:
 fn test_dispose_using_resources_before_an_early_return() {
     let session = TestSession::single(
         r#"
-import { Dispose } from "destack:memory";
+import { Dispose } from "tspp:memory";
 
 struct File implements Dispose {
     handle: int32;
@@ -97,7 +97,7 @@ function run(flag: boolean): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.File.dispose",
         r#"
 type test.main.File {
@@ -118,7 +118,7 @@ entry(v0: ref<test.main.File, borrowed, 'a, mutable>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.run",
         r#"
 type test.main.File {
@@ -161,7 +161,7 @@ b2:
 fn test_dispose_a_nullable_using_resource_before_a_break() {
     let session = TestSession::single(
         r#"
-import { Dispose } from "destack:memory";
+import { Dispose } from "tspp:memory";
 
 struct File implements Dispose {
     handle: int32;
@@ -179,7 +179,7 @@ function run(file: File | undefined): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.File.dispose",
         r#"
 type test.main.File {
@@ -200,7 +200,7 @@ entry(v0: ref<test.main.File, borrowed, 'a, mutable>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.run",
         r#"
 type test.main.File {
@@ -251,7 +251,7 @@ b5:
 fn test_dispose_a_for_of_using_resource_after_every_pass() {
     let session = TestSession::single(
         r#"
-import { Dispose } from "destack:memory";
+import { Dispose } from "tspp:memory";
 
 struct File implements Dispose {
     handle: int32;
@@ -271,7 +271,7 @@ function total(files: File[]): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.File.dispose",
         r#"
 type test.main.File {
@@ -291,7 +291,7 @@ entry(v0: ref<test.main.File, borrowed, 'a, mutable>):
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.total", r#"
+    session.assert_mir_function("main.tspp", "test.main.total", r#"
 type test.main.File {
     handle: int32;
 }
@@ -369,8 +369,8 @@ b3:
 fn test_park_an_asynchronous_disposal_at_the_scope_exit() {
     let session = TestSession::single(
         r#"
-import { Promise } from "destack:async";
-import { AsyncDispose } from "destack:memory";
+import { Promise } from "tspp:async";
+import { AsyncDispose } from "tspp:memory";
 
 struct Connection implements AsyncDispose {
     handle: int32;
@@ -384,7 +384,7 @@ async function run(): Promise<void> {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Connection.asyncDispose", r#"
+    session.assert_mir_function("main.tspp", "test.main.Connection.asyncDispose", r#"
 type test.main.Connection {
     handle: int32;
 }
@@ -412,7 +412,7 @@ entry(v0: ref<test.main.Connection, borrowed, 'a, mutable>):
 /// @layout.field owner=type@53 index=0 offset=0 size=8 align=8
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.Connection.asyncDispose.body", r#"
+    session.assert_mir_function("main.tspp", "test.main.Connection.asyncDispose.body", r#"
 type test.main.Connection {
     handle: int32;
 }
@@ -437,7 +437,7 @@ entry:
 /// @layout.field owner=type@53 index=0 offset=0 size=8 align=8
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.run", r#"
+    session.assert_mir_function("main.tspp", "test.main.run", r#"
 @nocopy
 @languageItem("async.Promise")
 type Promise<T: Copy>;
@@ -454,7 +454,7 @@ entry:
 /// @layout.struct name=type@9 size=0 align=1
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.run.body", r#"
+    session.assert_mir_function("main.tspp", "test.main.run.body", r#"
 type test.main.Connection {
     handle: int32;
 }

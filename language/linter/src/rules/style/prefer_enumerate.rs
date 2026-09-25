@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, IntegerStep, Lint, LintOutput, LintResult};
@@ -229,7 +229,7 @@ function indexes(values: int32[], output: isize[]): void {
         session.assert_diagnostics(
             r#"
 warning[prefer-enumerate]: iteration maintains its index manually
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function indexes(values: int32[], output: isize[]): void {
 2 │     let index: isize = 0;
@@ -239,8 +239,8 @@ warning[prefer-enumerate]: iteration maintains its index manually
   │
 
  = suggestion: use the indexed iterator (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function indexes(values: int32[], output: isize[]): void {
 -   2│     let index: isize = 0;
@@ -364,7 +364,7 @@ function count(values: int32[]): isize {
         session.assert_diagnostics(
             r#"
 warning[prefer-enumerate]: iteration maintains its index manually
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function count(values: int32[]): isize {
 2 │     let index: isize = 0;
@@ -394,7 +394,7 @@ function indexes(values: int32[], output: int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[prefer-enumerate]: iteration maintains its index manually
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function indexes(values: int32[], output: int32[]): void {
 2 │     let index: int32 = 0;
@@ -492,7 +492,7 @@ function count(values: Set<int32>, output: isize[]): void {
         let session = TestSession::dir(
             &PREFER_ENUMERATE,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function count(values: Iterator<int32>, output: isize[]): void {
     let index: isize = 0;
@@ -507,7 +507,7 @@ function count(values: Iterator<int32>, output: isize[]): void {
 
         session.assert_suggestions(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function count(values: Iterator<int32>, output: isize[]): void {
     for (const (index, value) of values.enumerate()) {

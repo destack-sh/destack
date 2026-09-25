@@ -1,8 +1,8 @@
 use super::tests::{TestProgram, assert_success, execute};
 use crate::command::clean::{CleanArgs, run};
 use crate::common::ReportArgs;
-use destack_source::FileSystem;
 use serde_json::json;
+use tspp_source::FileSystem;
 
 /// Cleans compiler output directories from destack.json.
 #[test]

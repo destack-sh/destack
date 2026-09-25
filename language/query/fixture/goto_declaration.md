@@ -5,7 +5,7 @@
 
 A local reference resolves to its declaration.
 
-```ds main.ds
+```tspp main.tspp
 const value = 1;
       ^^^^^ declaration:value
 
@@ -13,15 +13,15 @@ const other = value;
               ^^^^^ reference:value
 ```
 
-```query goto_declaration main.ds#reference:value
-@goto_declaration.target origin=main.ds#reference:value location=main.ds#declaration:value symbol=main.ds#value@1
+```query goto_declaration main.tspp#reference:value
+@goto_declaration.target origin=main.tspp#reference:value location=main.tspp#declaration:value symbol=main.tspp#value@1
 ```
 
 ### Resolve the current binding
 
 A reference resolves to the declaration selected after each edit.
 
-```ds main.ds
+```tspp main.tspp
 const first = 1;
       ^^^^^ declaration:first
 const second = 2;
@@ -30,11 +30,11 @@ const selected = first;
                  ^^^^^ reference
 ```
 
-```query goto_declaration main.ds#reference
-@goto_declaration.target origin=main.ds#reference location=main.ds#declaration:first symbol=main.ds#first@1
+```query goto_declaration main.tspp#reference
+@goto_declaration.target origin=main.tspp#reference location=main.tspp#declaration:first symbol=main.tspp#first@1
 ```
 
-```ds main.ds change
+```tspp main.tspp change
 const first = 1;
       ^^^^^ declaration:first
 const second = 2;
@@ -43,8 +43,8 @@ const selected = second;
                  ^^^^^^ reference
 ```
 
-```query goto_declaration main.ds#reference
-@goto_declaration.target origin=main.ds#reference location=main.ds#declaration:second symbol=main.ds#second@2
+```query goto_declaration main.tspp#reference
+@goto_declaration.target origin=main.tspp#reference location=main.tspp#declaration:second symbol=main.tspp#second@2
 ```
 
 ## Imports
@@ -53,36 +53,36 @@ const selected = second;
 
 An imported reference resolves to its local import.
 
-```ds library.ds
+```tspp library.tspp
 export function greet(name: string): string {
     return name;
 }
 ```
 
-```ds main.ds
-import { greet } from "./library.ds";
+```tspp main.tspp
+import { greet } from "./library.tspp";
          ^^^^^ declaration:import_greet
 
 const message = greet("World");
                 ^^^^^ reference:greet
 ```
 
-```query goto_declaration main.ds#reference:greet
-@goto_declaration.target origin=main.ds#reference:greet location=main.ds#declaration:import_greet symbol=main.ds#greet@1
+```query goto_declaration main.tspp#reference:greet
+@goto_declaration.target origin=main.tspp#reference:greet location=main.tspp#declaration:import_greet symbol=main.tspp#greet@1
 ```
 
 ### Resolve an aliased import declaration
 
 An aliased import resolves to its local alias.
 
-```ds alias_library.ds
+```tspp alias_library.tspp
 export function greet(name: string): string {
     return name;
 }
 ```
 
-```ds alias_main.ds
-import { greet as localGreet } from "./alias_library.ds";
+```tspp alias_main.tspp
+import { greet as localGreet } from "./alias_library.tspp";
          ^ target:import_local_greet:start
                   ^^^^^^^^^^ declaration:import_local_greet
                            ^ target:import_local_greet:end
@@ -91,23 +91,23 @@ const message = localGreet("World");
                 ^^^^^^^^^^ reference:local_greet
 ```
 
-```query goto_declaration alias_main.ds#reference:local_greet
-@goto_declaration.target origin=alias_main.ds#reference:local_greet location=alias_main.ds#target:import_local_greet selection=alias_main.ds#declaration:import_local_greet symbol=alias_main.ds#localGreet@1
+```query goto_declaration alias_main.tspp#reference:local_greet
+@goto_declaration.target origin=alias_main.tspp#reference:local_greet location=alias_main.tspp#target:import_local_greet selection=alias_main.tspp#declaration:import_local_greet symbol=alias_main.tspp#localGreet@1
 ```
 
 ### Keep the imported and local sides of an alias distinct
 
 The imported name resolves to the exported declaration while the local name resolves to its alias.
 
-```ds library.ds
+```tspp library.tspp
 export function greet(): void {}
 ^ target:exported_greet:start
                 ^^^^^ declaration:exported_greet
                                ^ target:exported_greet:end
 ```
 
-```ds main.ds
-import { greet as welcome } from "./library.ds";
+```tspp main.tspp
+import { greet as welcome } from "./library.tspp";
          ^ target:local_welcome:start
          ^^^^^ imported_name
                   ^^^^^^^ declaration:local_welcome
@@ -117,72 +117,72 @@ welcome();
 ^^^^^^^ reference:local_welcome
 ```
 
-```query goto_declaration main.ds#imported_name
-@goto_declaration.target origin=main.ds#imported_name location=library.ds#target:exported_greet selection=library.ds#declaration:exported_greet symbol=library.ds#greet@1
+```query goto_declaration main.tspp#imported_name
+@goto_declaration.target origin=main.tspp#imported_name location=library.tspp#target:exported_greet selection=library.tspp#declaration:exported_greet symbol=library.tspp#greet@1
 ```
 
-```query goto_declaration main.ds#reference:local_welcome
-@goto_declaration.target origin=main.ds#reference:local_welcome location=main.ds#target:local_welcome selection=main.ds#declaration:local_welcome symbol=main.ds#welcome@1
+```query goto_declaration main.tspp#reference:local_welcome
+@goto_declaration.target origin=main.tspp#reference:local_welcome location=main.tspp#target:local_welcome selection=main.tspp#declaration:local_welcome symbol=main.tspp#welcome@1
 ```
 
 ### Resolve a re-exported alias declaration
 
 A re-exported alias still resolves to its local import.
 
-```ds alias_base.ds
+```tspp alias_base.tspp
 export function greet(name: string): string {
     return name;
 }
 ```
 
-```ds alias_barrel.ds
-export { greet as greetAlias } from "./alias_base.ds";
+```tspp alias_barrel.tspp
+export { greet as greetAlias } from "./alias_base.tspp";
 ```
 
-```ds alias_main.ds
-import { greetAlias } from "./alias_barrel.ds";
+```tspp alias_main.tspp
+import { greetAlias } from "./alias_barrel.tspp";
          ^^^^^^^^^^ declaration:import_greet_alias
 
 const message = greetAlias("World");
                 ^^^^^^^^^^ reference:greet_alias
 ```
 
-```query goto_declaration alias_main.ds#reference:greet_alias
-@goto_declaration.target origin=alias_main.ds#reference:greet_alias location=alias_main.ds#declaration:import_greet_alias symbol=alias_main.ds#greetAlias@1
+```query goto_declaration alias_main.tspp#reference:greet_alias
+@goto_declaration.target origin=alias_main.tspp#reference:greet_alias location=alias_main.tspp#declaration:import_greet_alias symbol=alias_main.tspp#greetAlias@1
 ```
 
 ### Resolve an imported type declaration
 
 An imported type resolves to its local import.
 
-```ds types.ds
+```tspp types.tspp
 export struct Thing {
     value: int32;
 }
 ```
 
-```ds main.ds
-import { Thing } from "./types.ds";
+```tspp main.tspp
+import { Thing } from "./types.tspp";
          ^^^^^ declaration:import_thing
 
 const item: Thing = Thing { value: 1 };
             ^^^^^ reference:thing
 ```
 
-```query goto_declaration main.ds#reference:thing
-@goto_declaration.target origin=main.ds#reference:thing location=main.ds#declaration:import_thing symbol=main.ds#Thing@1
+```query goto_declaration main.tspp#reference:thing
+@goto_declaration.target origin=main.tspp#reference:thing location=main.tspp#declaration:import_thing symbol=main.tspp#Thing@1
 ```
 
 ### Resolve a namespace import declaration
 
 A namespace reference resolves to its local alias.
 
-```ds utilities.ds
+```tspp utilities.tspp
 export function ping(): void {}
 ```
 
-```ds main.ds
-import * as utilities from "./utilities.ds";
+```tspp main.tspp
+import * as utilities from "./utilities.tspp";
        ^ target:import_utilities:start
             ^^^^^^^^^ declaration:import_utilities
                     ^ target:import_utilities:end
@@ -191,15 +191,15 @@ utilities.ping();
 ^^^^^^^^^ reference:utilities
 ```
 
-```query goto_declaration main.ds#reference:utilities
-@goto_declaration.target origin=main.ds#reference:utilities location=main.ds#target:import_utilities selection=main.ds#declaration:import_utilities symbol=main.ds#utilities@1
+```query goto_declaration main.tspp#reference:utilities
+@goto_declaration.target origin=main.tspp#reference:utilities location=main.tspp#target:import_utilities selection=main.tspp#declaration:import_utilities symbol=main.tspp#utilities@1
 ```
 
 ### Resolve each segment of a namespace type path
 
 The namespace root resolves to its local import, while the type segment resolves to its declaration.
 
-```ds model.ds
+```tspp model.tspp
 export struct Settings {
 ^ target:settings:start
               ^^^^^^^^ declaration:settings
@@ -208,8 +208,8 @@ export struct Settings {
 ^ target:settings:end
 ```
 
-```ds main.ds
-import * as models from "./model.ds";
+```tspp main.tspp
+import * as models from "./model.tspp";
        ^ target:models:start
             ^^^^^^ declaration:models
                  ^ target:models:end
@@ -219,32 +219,32 @@ type Selected = models.Settings;
                        ^^^^^^^^ reference:settings
 ```
 
-```query goto_declaration main.ds#reference:models
-@goto_declaration.target origin=main.ds#reference:models location=main.ds#target:models selection=main.ds#declaration:models symbol=main.ds#models@1
+```query goto_declaration main.tspp#reference:models
+@goto_declaration.target origin=main.tspp#reference:models location=main.tspp#target:models selection=main.tspp#declaration:models symbol=main.tspp#models@1
 ```
 
-```query goto_declaration main.ds#reference:settings
-@goto_declaration.target origin=main.ds#reference:settings location=model.ds#target:settings selection=model.ds#declaration:settings symbol=model.ds#Settings@1
+```query goto_declaration main.tspp#reference:settings
+@goto_declaration.target origin=main.tspp#reference:settings location=model.tspp#target:settings selection=model.tspp#declaration:settings symbol=model.tspp#Settings@1
 ```
 
 ### Resolve a nested namespace type path
 
 Each namespace segment selects its authored import or re-export declaration.
 
-```ds model.ds
+```tspp model.tspp
 export struct Packet {}
 ^^^^^^^^^^^^^^^^^^^^^^^ packet
               ^^^^^^ name
 ```
 
-```ds library.ds
+```tspp library.tspp
 export * as models from "./model";
        ^ namespace:start
             ^^^^^^ name
                                 ^ namespace:end
 ```
 
-```ds main.ds
+```tspp main.tspp
 import * as library from "./library";
        ^ import:start
             ^^^^^^^ name
@@ -256,64 +256,64 @@ declare const packet: library.models.Packet;
                                      ^^^^^^ type
 ```
 
-```query goto_declaration main.ds#root
-@goto_declaration.target origin=main.ds#root location=main.ds#import selection=main.ds#name symbol=main.ds#library@1
+```query goto_declaration main.tspp#root
+@goto_declaration.target origin=main.tspp#root location=main.tspp#import selection=main.tspp#name symbol=main.tspp#library@1
 ```
 
-```query goto_declaration main.ds#namespace
-@goto_declaration.target origin=main.ds#namespace location=library.ds#namespace selection=library.ds#name symbol=library.ds#models@1
+```query goto_declaration main.tspp#namespace
+@goto_declaration.target origin=main.tspp#namespace location=library.tspp#namespace selection=library.tspp#name symbol=library.tspp#models@1
 ```
 
-```query goto_declaration main.ds#type
-@goto_declaration.target origin=main.ds#type location=model.ds#packet selection=model.ds#name symbol=model.ds#Packet@1
+```query goto_declaration main.tspp#type
+@goto_declaration.target origin=main.tspp#type location=model.tspp#packet selection=model.tspp#name symbol=model.tspp#Packet@1
 ```
 
 ### Resolve a re-exported import declaration
 
 A re-exported symbol resolves to its downstream import.
 
-```ds library.ds
+```tspp library.tspp
 export function greet(name: string): string {
     return name;
 }
 ```
 
-```ds barrel.ds
-export { greet } from "./library.ds";
+```tspp barrel.tspp
+export { greet } from "./library.tspp";
 ```
 
-```ds main.ds
-import { greet } from "./barrel.ds";
+```tspp main.tspp
+import { greet } from "./barrel.tspp";
          ^^^^^ declaration:import_greet
 
 const message = greet("World");
                 ^^^^^ reference:greet
 ```
 
-```query goto_declaration main.ds#reference:greet
-@goto_declaration.target origin=main.ds#reference:greet location=main.ds#declaration:import_greet symbol=main.ds#greet@1
+```query goto_declaration main.tspp#reference:greet
+@goto_declaration.target origin=main.tspp#reference:greet location=main.tspp#declaration:import_greet symbol=main.tspp#greet@1
 ```
 
 ### Resolve declarations for type and value imports
 
 Type and value references resolve to their respective imports.
 
-```ds types.ds
+```tspp types.tspp
 export type Settings = {
     enabled: boolean,
 };
 ```
 
-```ds values.ds
+```tspp values.tspp
 export function settings(): int32 {
     return 1;
 }
 ```
 
-```ds main.ds
-import { Settings } from "./types.ds";
+```tspp main.tspp
+import { Settings } from "./types.tspp";
          ^^^^^^^^ declaration:import_settings_type
-import { settings } from "./values.ds";
+import { settings } from "./values.tspp";
          ^^^^^^^^ declaration:import_settings_value
 
 const typed: Settings = { enabled: true };
@@ -322,26 +322,26 @@ const value = settings();
               ^^^^^^^^ reference:settings_value
 ```
 
-```query goto_declaration main.ds#reference:settings_type
-@goto_declaration.target origin=main.ds#reference:settings_type location=main.ds#declaration:import_settings_type symbol=main.ds#Settings@1
+```query goto_declaration main.tspp#reference:settings_type
+@goto_declaration.target origin=main.tspp#reference:settings_type location=main.tspp#declaration:import_settings_type symbol=main.tspp#Settings@1
 ```
 
-```query goto_declaration main.ds#reference:settings_value
-@goto_declaration.target origin=main.ds#reference:settings_value location=main.ds#declaration:import_settings_value symbol=main.ds#settings@2
+```query goto_declaration main.tspp#reference:settings_value
+@goto_declaration.target origin=main.tspp#reference:settings_value location=main.tspp#declaration:import_settings_value symbol=main.tspp#settings@2
 ```
 
 ### Resolve an imported type alias declaration
 
 An aliased type resolves to its local alias.
 
-```ds types_alias.ds
+```tspp types_alias.tspp
 export type Settings = {
     enabled: boolean,
 };
 ```
 
-```ds main_alias.ds
-import { Settings as ApplicationSettings } from "./types_alias.ds";
+```tspp main_alias.tspp
+import { Settings as ApplicationSettings } from "./types_alias.tspp";
          ^ target:import_application_settings:start
                      ^^^^^^^^^^^^^^^^^^^ declaration:import_application_settings
                                        ^ target:import_application_settings:end
@@ -350,82 +350,82 @@ const typed: ApplicationSettings = { enabled: true };
              ^^^^^^^^^^^^^^^^^^^ reference:application_settings
 ```
 
-```query goto_declaration main_alias.ds#reference:application_settings
-@goto_declaration.target origin=main_alias.ds#reference:application_settings location=main_alias.ds#target:import_application_settings selection=main_alias.ds#declaration:import_application_settings symbol=main_alias.ds#ApplicationSettings@1
+```query goto_declaration main_alias.tspp#reference:application_settings
+@goto_declaration.target origin=main_alias.tspp#reference:application_settings location=main_alias.tspp#target:import_application_settings selection=main_alias.tspp#declaration:import_application_settings symbol=main_alias.tspp#ApplicationSettings@1
 ```
 
 ### Resolve a re-exported type alias declaration
 
 A re-exported type alias resolves to its downstream import.
 
-```ds base_type.ds
+```tspp base_type.tspp
 export interface ServiceConfiguration {
     enabled: boolean;
 }
 ```
 
-```ds barrel_type.ds
-export { ServiceConfiguration as Configuration } from "./base_type.ds";
+```tspp barrel_type.tspp
+export { ServiceConfiguration as Configuration } from "./base_type.tspp";
 ```
 
-```ds main_reexport_type.ds
-import { Configuration } from "./barrel_type.ds";
+```tspp main_reexport_type.tspp
+import { Configuration } from "./barrel_type.tspp";
          ^^^^^^^^^^^^^ declaration:import_configuration
 
 const typed: Configuration = { enabled: true };
              ^^^^^^^^^^^^^ reference:configuration
 ```
 
-```query goto_declaration main_reexport_type.ds#reference:configuration
-@goto_declaration.target origin=main_reexport_type.ds#reference:configuration location=main_reexport_type.ds#declaration:import_configuration symbol=main_reexport_type.ds#Configuration@1
+```query goto_declaration main_reexport_type.tspp#reference:configuration
+@goto_declaration.target origin=main_reexport_type.tspp#reference:configuration location=main_reexport_type.tspp#declaration:import_configuration symbol=main_reexport_type.tspp#Configuration@1
 ```
 
 ### Resolve a default import declaration
 
 A default import resolves to its local binding.
 
-```ds default_library.ds
+```tspp default_library.tspp
 export default function createValue(): int32 {
     return 1;
 }
 ```
 
-```ds default_main.ds
-import buildValue from "./default_library.ds";
+```tspp default_main.tspp
+import buildValue from "./default_library.tspp";
        ^^^^^^^^^^ declaration:import_build_value
 
 const value = buildValue();
               ^^^^^^^^^^ reference:build_value
 ```
 
-```query goto_declaration default_main.ds#reference:build_value
-@goto_declaration.target origin=default_main.ds#reference:build_value location=default_main.ds#declaration:import_build_value symbol=default_main.ds#buildValue@1
+```query goto_declaration default_main.tspp#reference:build_value
+@goto_declaration.target origin=default_main.tspp#reference:build_value location=default_main.tspp#declaration:import_build_value symbol=default_main.tspp#buildValue@1
 ```
 
 ### Resolve declarations through default re-export alias chains
 
 A default re-export alias resolves to its downstream import.
 
-```ds library.ds
+```tspp library.tspp
 export default function buildWidget(): int32 {
     return 1;
 }
 ```
 
-```ds barrel.ds
-export { default as buildWidget } from "./library.ds";
+```tspp barrel.tspp
+export { default as buildWidget } from "./library.tspp";
 ```
 
-```ds main.ds
-import { buildWidget } from "./barrel.ds";
+```tspp main.tspp
+import { buildWidget } from "./barrel.tspp";
          ^^^^^^^^^^^ declaration:buildWidget
 
 const value = buildWidget();
               ^^^^^^^^^^^ reference:buildWidget
 ```
 
-```query goto_declaration main.ds#reference:buildWidget
-@goto_declaration.target origin=main.ds#reference:buildWidget location=main.ds#declaration:buildWidget symbol=main.ds#buildWidget@1
+```query goto_declaration main.tspp#reference:buildWidget
+@goto_declaration.target origin=main.tspp#reference:buildWidget location=main.tspp#declaration:buildWidget symbol=main.tspp#buildWidget@1
 ```
 
 ## Pattern Bindings
@@ -434,7 +434,7 @@ const value = buildWidget();
 
 A destructured reference resolves to the binding introduced by its pattern.
 
-```ds main.ds
+```tspp main.tspp
 const pair = { left: 1, right: 2 };
 const { left } = pair;
         ^^^^ declaration:left
@@ -443,8 +443,8 @@ const value = left;
               ^^^^ reference:left
 ```
 
-```query goto_declaration main.ds#reference:left
-@goto_declaration.target origin=main.ds#reference:left location=main.ds#declaration:left symbol=main.ds#left@2
+```query goto_declaration main.tspp#reference:left
+@goto_declaration.target origin=main.tspp#reference:left location=main.tspp#declaration:left symbol=main.tspp#left@2
 ```
 
 ## Generic Parameters
@@ -453,7 +453,7 @@ const value = left;
 
 A type parameter reference resolves to its owning generic declaration.
 
-```ds main.ds
+```tspp main.tspp
 function identity<T>(value: T): T {
                   ^ declaration:type_parameter
                                 ^ reference:type_parameter
@@ -461,8 +461,8 @@ function identity<T>(value: T): T {
 }
 ```
 
-```query goto_declaration main.ds#reference:type_parameter
-@goto_declaration.target origin=main.ds#reference:type_parameter location=main.ds#declaration:type_parameter symbol=main.ds#T@2
+```query goto_declaration main.tspp#reference:type_parameter
+@goto_declaration.target origin=main.tspp#reference:type_parameter location=main.tspp#declaration:type_parameter symbol=main.tspp#T@2
 ```
 
 ## Members
@@ -471,7 +471,7 @@ function identity<T>(value: T): T {
 
 A field access resolves to the member declaration.
 
-```ds main.ds
+```tspp main.tspp
 struct Point {
     x: int32;
     ^ declaration:field
@@ -484,15 +484,15 @@ function read(point: Point): int32 {
 }
 ```
 
-```query goto_declaration main.ds#reference:field
-@goto_declaration.target origin=main.ds#reference:field location=main.ds#target:field selection=main.ds#declaration:field symbol=main.ds#x@2
+```query goto_declaration main.tspp#reference:field
+@goto_declaration.target origin=main.tspp#reference:field location=main.tspp#target:field selection=main.tspp#declaration:field symbol=main.tspp#x@2
 ```
 
 ### Resolve every member declaration reached through a union
 
 A union receiver returns every member declaration available at that access.
 
-```ds main.ds
+```tspp main.tspp
 class Alpha {
     run(): void {}
     ^^^ declaration:alpha_run
@@ -511,9 +511,9 @@ function start(service: Alpha | Beta): void {
 }
 ```
 
-```query goto_declaration main.ds#reference
-@goto_declaration.target origin=main.ds#reference location=main.ds#target:alpha_run selection=main.ds#declaration:alpha_run symbol=main.ds#run@2
-@goto_declaration.target origin=main.ds#reference location=main.ds#target:beta_run selection=main.ds#declaration:beta_run symbol=main.ds#run@5
+```query goto_declaration main.tspp#reference
+@goto_declaration.target origin=main.tspp#reference location=main.tspp#target:alpha_run selection=main.tspp#declaration:alpha_run symbol=main.tspp#run@2
+@goto_declaration.target origin=main.tspp#reference location=main.tspp#target:beta_run selection=main.tspp#declaration:beta_run symbol=main.tspp#run@5
 ```
 
 ## Labels
@@ -522,7 +522,7 @@ function start(service: Alpha | Beta): void {
 
 A labeled break resolves to its enclosing label.
 
-```ds main.ds
+```tspp main.tspp
 function choose(): int32 {
     outer: loop {
     ^ target:outer:start
@@ -534,8 +534,8 @@ function choose(): int32 {
 }
 ```
 
-```query goto_declaration main.ds#reference:outer
-@goto_declaration.target origin=main.ds#reference:outer location=main.ds#target:outer selection=main.ds#declaration:outer symbol=main.ds#outer@2
+```query goto_declaration main.tspp#reference:outer
+@goto_declaration.target origin=main.tspp#reference:outer location=main.tspp#target:outer selection=main.tspp#declaration:outer symbol=main.tspp#outer@2
 ```
 
 ## Missing Symbols
@@ -544,13 +544,13 @@ function choose(): int32 {
 
 An unresolved occurrence has no declaration identity.
 
-```ds main.ds
+```tspp main.tspp
 function main(): void {
     missingValue;
     ^^^^^^^^^^^^ reference
 }
 ```
 
-```query goto_declaration main.ds#reference
+```query goto_declaration main.tspp#reference
 @goto_declaration.none
 ```

@@ -12,7 +12,7 @@ pub(crate) enum IntegerEncoding {
     Fixed,
 }
 
-/// Type that can use the Destack binary codec and describe its schema.
+/// Type that can use the TS++ binary codec and describe its schema.
 pub trait Codec: Serialize + DeserializeOwned + Reflect {}
 
 impl<T> Codec for T where T: Serialize + DeserializeOwned + Reflect {}

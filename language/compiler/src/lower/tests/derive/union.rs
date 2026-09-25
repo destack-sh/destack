@@ -5,7 +5,7 @@ use crate::tests::TestSession;
 fn test_lower_a_derived_union_equality() {
     let session = TestSession::single(
         r#"
-import { PartialEqual } from "destack:ops";
+import { PartialEqual } from "tspp:ops";
 
 struct Point {
     x: int32;
@@ -22,7 +22,7 @@ function compare(left: &immutable (Point | int32), right: &immutable (Point | in
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.compare", r#"
+    session.assert_mir_function("main.tspp", "test.main.compare", r#"
 type test.main.Point {
     x: int32;
     y: int32;
@@ -51,7 +51,7 @@ entry(v0: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = int32; }, borr
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.same",
         r#"
 @nocopy
@@ -74,7 +74,7 @@ entry(v0: ref<?T, borrowed, 'a, immutable>, v1: ref<?T, borrowed, 'b, immutable>
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.PartialEqual.equal<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = int32; }>",
         r#"
 type test.main.Point {
@@ -206,7 +206,7 @@ b18:
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.PartialEqual.equal<test.main.Point>", r#"
+    session.assert_mir_function("main.tspp", "test.main.PartialEqual.equal<test.main.Point>", r#"
 type test.main.Point {
     x: int32;
     y: int32;
@@ -253,7 +253,7 @@ b2:
 fn test_lower_a_derived_union_hash() {
     let session = TestSession::single(
         r#"
-import { Hash, Hasher } from "destack:ops";
+import { Hash, Hasher } from "tspp:ops";
 
 struct Point {
     x: int32;
@@ -270,7 +270,7 @@ function feed(value: &immutable (Point | null), state: &Hasher): void {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.feed", r#"
+    session.assert_mir_function("main.tspp", "test.main.feed", r#"
 type test.main.Point {
     x: int32;
     y: int32;
@@ -303,7 +303,7 @@ entry(v0: ref<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = null; }, borro
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.digest",
         r#"
 @nocopy
@@ -330,7 +330,7 @@ entry(v0: ref<?T, borrowed, 'a, immutable>, v1: dynamic<Hasher, borrowed, 'b, mu
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Hash.hash<variant<uint1> { 0uint1 = test.main.Point; 1uint1 = null; }>",
         r#"
 type test.main.Point {
@@ -409,7 +409,7 @@ b6:
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Hash.hash<test.main.Point>", r#"
+    session.assert_mir_function("main.tspp", "test.main.Hash.hash<test.main.Point>", r#"
 type test.main.Point {
     x: int32;
     y: int32;
@@ -462,7 +462,7 @@ function copy(value: &immutable (Path | int32)): Path | int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.copy", r#"
+    session.assert_mir_function("main.tspp", "test.main.copy", r#"
 type test.main.Path {
     steps: Array<int32>;
 }
@@ -486,7 +486,7 @@ entry(v0: ref<variant<uint1> { 0uint1 = test.main.Path; 1uint1 = int32; }, borro
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Clone.clone<variant<uint1> { 0uint1 = test.main.Path; 1uint1 = int32; }>",
         r#"
 type test.main.Path {

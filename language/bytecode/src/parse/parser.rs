@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use destack_source::{FileId, Span};
+use tspp_source::{FileId, Span};
 
 use crate::{Function, FunctionId, ObjectBuilder};
 

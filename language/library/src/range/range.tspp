@@ -1,0 +1,153 @@
+import { todo } from "tspp:error";
+import { Iterable } from "tspp:iter";
+
+import { Bound, RangeBounds } from "./bound.tspp";
+import { RangeIterator } from "./iterator.tspp";
+import { Step } from "./step.tspp";
+
+/// Half-open range `start..end`.
+@languageItem("range.Range")
+export struct Range<T> {
+    /// The included start value.
+    start: T;
+
+    /// The excluded end value.
+    end: T;
+}
+
+export extension<T: Step<T>> of Range<T> implements Iterable<T> {
+    /// The range iterator.
+    type Iterator = RangeIterator<T>;
+
+    /// Return an iterator over this range.
+    iterator(this): RangeIterator<T> {
+        todo("Range.iterator")
+    }
+}
+
+export extension<T: Copy> of Range<T> implements RangeBounds<T> {
+    /// Return the start bound.
+    startBound(&immutable this): Bound<&immutable T> {
+        Bound.included(&immutable this.start)
+    }
+
+    /// Return the end bound.
+    endBound(&immutable this): Bound<&immutable T> {
+        Bound.excluded(&immutable this.end)
+    }
+}
+
+/// Inclusive range `start..=end`.
+@languageItem("range.RangeInclusive")
+export struct RangeInclusive<T> {
+    /// The included start value.
+    start: T;
+
+    /// The included end value.
+    end: T;
+}
+
+export extension<T: Step<T>> of RangeInclusive<T> implements Iterable<T> {
+    /// The inclusive range iterator.
+    type Iterator = RangeIterator<T>;
+
+    /// Return an iterator over this range.
+    iterator(this): RangeIterator<T> {
+        todo("RangeInclusive.iterator")
+    }
+}
+
+export extension<T: Copy> of RangeInclusive<T> implements RangeBounds<T> {
+    /// Return the start bound.
+    startBound(&immutable this): Bound<&immutable T> {
+        Bound.included(&immutable this.start)
+    }
+
+    /// Return the end bound.
+    endBound(&immutable this): Bound<&immutable T> {
+        Bound.included(&immutable this.end)
+    }
+}
+
+/// Range from `start..`.
+@languageItem("range.RangeFrom")
+export struct RangeFrom<T> {
+    /// The included start value.
+    start: T;
+}
+
+export extension<T: Step<T>> of RangeFrom<T> implements Iterable<T> {
+    /// The unbounded range iterator.
+    type Iterator = RangeIterator<T>;
+
+    /// Return an iterator over this range.
+    iterator(this): RangeIterator<T> {
+        todo("RangeFrom.iterator")
+    }
+}
+
+export extension<T: Copy> of RangeFrom<T> implements RangeBounds<T> {
+    /// Return the start bound.
+    startBound(&immutable this): Bound<&immutable T> {
+        Bound.included(&immutable this.start)
+    }
+
+    /// Return the end bound.
+    endBound(&immutable this): Bound<&immutable T> {
+        Bound.unbounded()
+    }
+}
+
+/// Range to `..end`.
+@languageItem("range.RangeTo")
+export struct RangeTo<T> {
+    /// The excluded end value.
+    end: T;
+}
+
+export extension<T: Copy> of RangeTo<T> implements RangeBounds<T> {
+    /// Return the start bound.
+    startBound(&immutable this): Bound<&immutable T> {
+        Bound.unbounded()
+    }
+
+    /// Return the end bound.
+    endBound(&immutable this): Bound<&immutable T> {
+        Bound.excluded(&immutable this.end)
+    }
+}
+
+/// Inclusive range to `..=end`.
+@languageItem("range.RangeToInclusive")
+export struct RangeToInclusive<T> {
+    /// The included end value.
+    end: T;
+}
+
+export extension<T: Copy> of RangeToInclusive<T> implements RangeBounds<T> {
+    /// Return the start bound.
+    startBound(&immutable this): Bound<&immutable T> {
+        Bound.unbounded()
+    }
+
+    /// Return the end bound.
+    endBound(&immutable this): Bound<&immutable T> {
+        Bound.included(&immutable this.end)
+    }
+}
+
+/// Full range `..`.
+@languageItem("range.RangeFull")
+export struct RangeFull {}
+
+export extension<T> of RangeFull implements RangeBounds<T> {
+    /// Return the start bound.
+    startBound(&immutable this): Bound<&immutable T> {
+        Bound.unbounded()
+    }
+
+    /// Return the end bound.
+    endBound(&immutable this): Bound<&immutable T> {
+        Bound.unbounded()
+    }
+}

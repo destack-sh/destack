@@ -6,12 +6,12 @@
 
 Decorators appear on their own line before the class.
 
-```ds
+```tspp
 @Component
 class MyComponent { }
 ```
 
-```ds expected
+```tspp expected
 @Component
 class MyComponent {}
 ```
@@ -20,12 +20,12 @@ class MyComponent {}
 
 Decorator arguments follow function call formatting.
 
-```ds
+```tspp
 @Component({ selector: "my-component" })
 class MyComponent { }
 ```
 
-```ds expected
+```tspp expected
 @Component({ selector: "my-component" })
 class MyComponent {}
 ```
@@ -34,13 +34,13 @@ class MyComponent {}
 
 Decorator calls keep their empty parentheses.
 
-```ds
+```tspp
 @Injectable()
 @Singleton
 class Service { }
 ```
 
-```ds expected
+```tspp expected
 @Injectable()
 @Singleton
 class Service {}
@@ -50,7 +50,7 @@ class Service {}
 
 Complex decorator expressions use parentheses for clarity.
 
-```ds
+```tspp
 @factory().decorator
 @factory().decorator()
 @decorator().member
@@ -58,7 +58,7 @@ Complex decorator expressions use parentheses for clarity.
 class Service { }
 ```
 
-```ds expected
+```tspp expected
 @(factory().decorator)
 @(factory().decorator())
 @(decorator().member)
@@ -70,12 +70,12 @@ class Service {}
 
 Decorator instantiation expressions use parentheses.
 
-```ds
+```tspp
 @decorator<T>
 class Service { }
 ```
 
-```ds expected
+```tspp expected
 @(decorator<T>)
 class Service {}
 ```
@@ -84,11 +84,11 @@ class Service {}
 
 Field decorators appear on their own line above the field.
 
-```ds
+```tspp
 class Foo { @observable x: number }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     @observable
     x: number;
@@ -99,11 +99,11 @@ class Foo {
 
 Method decorators appear on their own line above the method.
 
-```ds
+```tspp
 class Foo { @memoize compute(): number { return 42 } }
 ```
 
-```ds expected
+```tspp expected
 class Foo {
     @memoize
     compute(): number {

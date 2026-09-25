@@ -1,8 +1,8 @@
 use clap::Parser;
 use std::path::PathBuf;
 
-use destack_source::{FileId, Span, Uri};
-use destack_workspace::{QueryCapture, QueryCaptureValue, QueryMatch, QueryPayload};
+use tspp_source::{FileId, Span, Uri};
+use tspp_workspace::{QueryCapture, QueryCaptureValue, QueryMatch, QueryPayload};
 
 use crate::app::{Cli, Command};
 use crate::command::query::QueryArgs;
@@ -12,10 +12,10 @@ use crate::common::{NodeTypeArg, ReportFormat};
 #[test]
 fn test_parse_query_command() {
     let query = Cli::try_parse_from([
-        "destack",
+        "tspp",
         "query",
         "$CALLEE($URL, $$$ARGUMENTS)",
-        "src/main.ds",
+        "src/main.tspp",
         "--where",
         "$CALLEE == net.fetch",
         "--kind",
@@ -32,7 +32,7 @@ fn test_parse_query_command() {
         panic!("expected query command");
     };
     assert_eq!(query.pattern, "$CALLEE($URL, $$$ARGUMENTS)");
-    assert_eq!(query.input.files, [PathBuf::from("src/main.ds")]);
+    assert_eq!(query.input.files, [PathBuf::from("src/main.tspp")]);
     assert_eq!(query.predicates, ["$CALLEE == net.fetch"]);
     assert_eq!(query.report.format(), ReportFormat::Text);
     assert_eq!(query.kind, Some(NodeTypeArg::Expression));
@@ -40,7 +40,7 @@ fn test_parse_query_command() {
     assert!(query.with_filename);
     assert!(query.one_line);
 
-    let count = Cli::try_parse_from(["destack", "query", "fetch($URL)", "src/main.ds", "--count"])
+    let count = Cli::try_parse_from(["tspp", "query", "fetch($URL)", "src/main.tspp", "--count"])
         .expect("parse count query command");
     let Command::Query(count) = count.command else {
         panic!("expected query command");
@@ -52,13 +52,13 @@ fn test_parse_query_command() {
 #[test]
 fn test_render_query_text() {
     let cwd = PathBuf::from("/workspace");
-    let file = FileId::from_logical_str("src/main.ds");
+    let file = FileId::from_logical_str("src/main.tspp");
     let payload = QueryPayload {
         captures: vec!["MESSAGE".to_string()],
         matches: vec![
             QueryMatch {
-                uri: Uri::from_string("file:///workspace/src/main.ds"),
-                path: Some(cwd.join("src/main.ds")),
+                uri: Uri::from_string("file:///workspace/src/main.tspp"),
+                path: Some(cwd.join("src/main.tspp")),
                 span: Span::new(file, 0, 13),
                 line: 1,
                 column: 1,
@@ -72,8 +72,8 @@ fn test_render_query_text() {
                 }],
             },
             QueryMatch {
-                uri: Uri::from_string("file:///workspace/src/main.ds"),
-                path: Some(cwd.join("src/main.ds")),
+                uri: Uri::from_string("file:///workspace/src/main.tspp"),
+                path: Some(cwd.join("src/main.tspp")),
                 span: Span::new(file, 15, 33),
                 line: 2,
                 column: 1,
@@ -99,8 +99,8 @@ fn test_render_query_text() {
     assert_eq!(
         roots,
         concat!(
-            "src/main.ds:1:1: todo(\"later\")\n",
-            "src/main.ds:2:1\n",
+            "src/main.tspp:1:1: todo(\"later\")\n",
+            "src/main.tspp:2:1\n",
             "todo(\n",
             "    message\n",
             ")\n",
@@ -109,9 +109,9 @@ fn test_render_query_text() {
     assert_eq!(
         one_line,
         concat!(
-            "src/main.ds:1:1: todo(\"later\")\n",
-            "src/main.ds:2:1: todo(\\n    message\\n)\n",
+            "src/main.tspp:1:1: todo(\"later\")\n",
+            "src/main.tspp:2:1: todo(\\n    message\\n)\n",
         )
     );
-    assert_eq!(captures, "src/main.ds:\"later\"\nsrc/main.ds:message\n");
+    assert_eq!(captures, "src/main.tspp:\"later\"\nsrc/main.tspp:message\n");
 }

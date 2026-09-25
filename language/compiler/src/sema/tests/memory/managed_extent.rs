@@ -24,7 +24,7 @@ function read(world: World): int32 {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Player {
     score: int32;
@@ -136,7 +136,7 @@ function name(): &readonly string {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Player {
     score: int32;

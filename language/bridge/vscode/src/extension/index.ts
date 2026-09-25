@@ -1,19 +1,19 @@
 import type * as vscode from "vscode";
 
-import { DestackExtension } from "./extension";
+import { TsppExtension } from "./extension";
 
 /** The active extension instance. */
-let extension: DestackExtension | undefined;
+let extension: TsppExtension | undefined;
 
-/** Activate the Destack VS Code extension. */
+/** Activate the TS++ VS Code extension. */
 export async function activate(context: vscode.ExtensionContext): Promise<void> {
-    const activeExtension = new DestackExtension(context);
+    const activeExtension = new TsppExtension(context);
     extension = activeExtension;
 
     await activeExtension.start();
 }
 
-/** Deactivate the Destack VS Code extension. */
+/** Deactivate the TS++ VS Code extension. */
 export async function deactivate(): Promise<void> {
     const activeExtension = extension;
     extension = undefined;

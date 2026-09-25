@@ -2,10 +2,10 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_rpc::{Code, Request, Response, Status};
-use destack_runtime::service::WorldId;
-use destack_workspace::Workspace;
 use parking_lot::RwLock;
+use tspp_rpc::{Code, Request, Response, Status};
+use tspp_runtime::service::WorldId;
+use tspp_workspace::Workspace;
 
 use crate::{
     CloseWorkspaceRequest, CloseWorldRequest, ConnectionId, CreateWorldRequest, Daemon,

@@ -1,5 +1,5 @@
-use crate::{DestackFormatOptions, assert_format, assert_format_roundtrip};
-use destack_source::FileType;
+use crate::{TsppFormatOptions, assert_format, assert_format_roundtrip};
+use tspp_source::FileType;
 
 #[test]
 fn test_format_pattern_wildcard() {
@@ -59,27 +59,27 @@ fn test_format_pattern_borrow_before_dereference() {
 
 #[test]
 fn test_format_pattern_borrow_chain_compact() {
-    assert_format_roundtrip!("& &item", "&&item", FileType::Destack, |p| p
+    assert_format_roundtrip!("& &item", "&&item", FileType::Tspp, |p| p
         .parse_pattern_fragment());
-    assert_format_roundtrip!("&&item", "&&item", FileType::Destack, |p| p
+    assert_format_roundtrip!("&&item", "&&item", FileType::Tspp, |p| p
         .parse_pattern_fragment());
 }
 
 #[test]
 fn test_format_pattern_move_chain_compact() {
-    assert_format_roundtrip!("^ ^item", "^^item", FileType::Destack, |p| p
+    assert_format_roundtrip!("^ ^item", "^^item", FileType::Tspp, |p| p
         .parse_pattern_fragment());
 }
 
 #[test]
 fn test_format_pattern_mixed_borrow_move_chain_compact() {
-    assert_format_roundtrip!("& ^item", "&^item", FileType::Destack, |p| p
+    assert_format_roundtrip!("& ^item", "&^item", FileType::Tspp, |p| p
         .parse_pattern_fragment());
 }
 
 #[test]
 fn test_format_pattern_mixed_move_borrow_chain_compact() {
-    assert_format_roundtrip!("^ &item", "^&item", FileType::Destack, |p| p
+    assert_format_roundtrip!("^ &item", "^&item", FileType::Tspp, |p| p
         .parse_pattern_fragment());
 }
 
@@ -88,13 +88,13 @@ fn test_format_pattern_prefix_comments() {
     assert_format_roundtrip!(
         "& /* borrowed */ item",
         "& /* borrowed */ item",
-        FileType::Destack,
+        FileType::Tspp,
         |p| p.parse_pattern_fragment()
     );
     assert_format_roundtrip!(
         "* &readonly /* read */ item",
         "*&readonly /* read */ item",
-        FileType::Destack,
+        FileType::Tspp,
         |p| p.parse_pattern_fragment()
     );
 }
@@ -146,7 +146,7 @@ fn test_format_newtype_object_pattern() {
     end,
 })"#,
         |p| p.parse_pattern_fragment(),
-        DestackFormatOptions::default_with_line_width(30)
+        TsppFormatOptions::default_with_line_width(30)
     );
 }
 
@@ -170,7 +170,7 @@ fn test_format_pattern_array_rest_disallows_trailing_comma() {
     ...rest
 ]"#,
         |p| p.parse_pattern_fragment(),
-        DestackFormatOptions::default_with_line_width(1)
+        TsppFormatOptions::default_with_line_width(1)
     );
 }
 
@@ -183,6 +183,6 @@ fn test_format_pattern_tuple_rest_disallows_trailing_comma() {
     ...rest
 )"#,
         |p| p.parse_pattern_fragment(),
-        DestackFormatOptions::default_with_line_width(1)
+        TsppFormatOptions::default_with_line_width(1)
     );
 }

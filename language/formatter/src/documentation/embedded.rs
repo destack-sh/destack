@@ -1,27 +1,27 @@
-use destack_fir::format::{FormatError, FormatResult};
-use destack_repository::FormatterOptions;
-use destack_source::{File, FileId, FileType, Uri};
+use tspp_fir::format::{FormatError, FormatResult};
+use tspp_repository::FormatterOptions;
+use tspp_source::{File, FileId, FileType, Uri};
 
-use crate::{DestackFormatOptions, format_file_source};
+use crate::{TsppFormatOptions, format_file_source};
 
 /// Resolve a fenced code block language to a source file type.
 pub(super) fn fenced_code_file_type(lang: &str) -> Option<FileType> {
     let lang = lang.trim().split_ascii_whitespace().next()?;
 
     let file_type = match lang {
-        "ds" | "destack" => FileType::Destack,
-        "d.ds" | "destack-declaration" => FileType::DestackDeclaration,
+        "tspp" => FileType::Tspp,
+        "d.tspp" => FileType::TsppDeclaration,
         _ => return None,
     };
 
     Some(file_type)
 }
 
-/// Format embedded Destack code.
+/// Format embedded TS++ code.
 pub(super) fn format_embedded_code(
     code: &str,
     print_width: usize,
-    format_options: &DestackFormatOptions,
+    format_options: &TsppFormatOptions,
     file_type: FileType,
 ) -> FormatResult<String> {
     let width = print_width.clamp(1, 320) as u16;
@@ -52,11 +52,11 @@ fn format_embedded_source(
         source.to_owned(),
     )
     .map_err(|_| FormatError::SyntaxError {
-        message: "embedded Destack documentation is too large",
+        message: "embedded TS++ documentation is too large",
     })?;
     let mut formatted =
         format_file_source(&file, file.text(), options).map_err(|_| FormatError::SyntaxError {
-            message: "embedded Destack documentation could not be formatted",
+            message: "embedded TS++ documentation could not be formatted",
         })?;
 
     let trimmed_length = formatted.trim_end().len();
@@ -66,7 +66,7 @@ fn format_embedded_source(
 }
 
 /// Build formatter options for an embedded snippet.
-fn embedded_options(format_options: &DestackFormatOptions, line_width: u16) -> FormatterOptions {
+fn embedded_options(format_options: &TsppFormatOptions, line_width: u16) -> FormatterOptions {
     FormatterOptions {
         line_ending: format_options.line_ending,
         indent_style: format_options.indent_style,

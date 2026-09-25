@@ -1,8 +1,8 @@
 use std::ops::Range;
 use std::sync::{Arc, OnceLock};
 
-use destack_core::{Blob, BlobStore, StringId, StringPool};
-use destack_source::PackageId;
+use tspp_core::{Blob, BlobStore, StringId, StringPool};
+use tspp_source::PackageId;
 
 use super::codec::{ArtifactPackDecoder, ArtifactPackEncoder};
 use crate::{
@@ -78,7 +78,7 @@ impl ArtifactPackRecord {
         let decoded = payload.decoded.get_or_init(|| {
             let bytes = &self.storage.bytes[payload.bytes.clone()];
 
-            destack_serde::from_slice_fixed(bytes).map_err(Into::into)
+            tspp_serde::from_slice_fixed(bytes).map_err(Into::into)
         });
 
         decoded.clone()
@@ -286,7 +286,7 @@ impl ArtifactPack {
         let mut payload_blobs = Vec::new();
         for _ in 0..entry_count {
             let version = reader.read_byte_slice()?;
-            let version: ArtifactVersion = destack_serde::from_slice_fixed(version)?;
+            let version: ArtifactVersion = tspp_serde::from_slice_fixed(version)?;
             let metadata_len = reader.read_len()?;
             let payload_len = reader.read_len()?;
             let payload_string_range = reader.read_string_ids(&mut payload_strings)?;
@@ -428,7 +428,7 @@ impl ArtifactPack {
         let entry = &self.entries[ordinal];
         let bytes = &self.storage.bytes[entry.metadata.clone()];
         let (dependencies, diagnostics): (Arc<[ArtifactDependency]>, Arc<[DiagnosticRecord]>) =
-            destack_serde::from_slice_fixed(bytes)?;
+            tspp_serde::from_slice_fixed(bytes)?;
         let record = ArtifactPackRecord::new(self.storage.clone(), ordinal as u32);
         let entry = artifacts.restore(entry.version, dependencies, record, diagnostics);
 

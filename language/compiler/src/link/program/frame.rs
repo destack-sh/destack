@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use destack_mir as mir;
-use destack_program::{object, program};
-use destack_source::ModuleId;
+use tspp_mir as mir;
+use tspp_program::{object, program};
+use tspp_source::ModuleId;
 
 use crate::LinkResult;
 

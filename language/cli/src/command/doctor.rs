@@ -1,5 +1,5 @@
 use clap::Args;
-use destack_workspace::{CommandRevision, DoctorInput, DoctorPayload, DoctorToolStatus};
+use tspp_workspace::{CommandRevision, DoctorInput, DoctorPayload, DoctorToolStatus};
 
 use crate::common::{
     CommandOptionsBuilder, CommandResult, ProgramArgs, ReportArgs, command_error,
@@ -57,7 +57,7 @@ pub async fn run(args: &DoctorArgs) -> i32 {
             report_from_payload("doctor", exit_code, Some(payload_value), None, None)
         },
         |_, payload| {
-            console::info(&format!("destack {}", payload.cli_version));
+            console::info(&format!("tspp {}", payload.cli_version));
             console::info(&format!("cwd: {}", payload.cwd));
             console::info(&format!("os: {}", payload.os));
             console::info(&format!("arch: {}", payload.arch));

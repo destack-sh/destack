@@ -1,6 +1,6 @@
-use destack_core::FxIndexMap;
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_core::FxIndexMap;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -135,7 +135,7 @@ function packetCode(v0: ^Packet): int32 {
         session.assert_diagnostics(
             r#"
 warning[needless-pass-by-value]: move-only parameter is never consumed
- ──▶ main.ds:3:21
+ ──▶ main.tspp:3:21
   │
 1 │ class Packet { code: int32 = 0; }
 2 │
@@ -168,7 +168,7 @@ function packetCode(v0: ^Packet, flag: boolean): int32 {
         session.assert_diagnostics(
             r#"
 warning[needless-pass-by-value]: move-only parameter is never consumed
- ──▶ main.ds:3:21
+ ──▶ main.tspp:3:21
   │
 1 │ class Packet { code: int32 = 0; }
 2 │
@@ -201,7 +201,7 @@ function packetCode(v0: ^Packet): int32 {
         session.assert_diagnostics(
             r#"
 warning[needless-pass-by-value]: move-only parameter is never consumed
- ──▶ main.ds:3:21
+ ──▶ main.tspp:3:21
   │
 1 │ class Packet { code: int32 = 0; }
 2 │

@@ -1,0 +1,28 @@
+// SYNTAX TEST "source.tspp"
+
+// types / extensions / anonymous
+extension of Point {
+// <- keyword.declaration.type.tspp
+    length(): float64 {
+        0.0
+    }
+}
+
+// types / extensions / named and implemented
+export extension PointAdd of Point implements Add<Point> {
+//     ^^^^^^^^^ keyword.declaration.type.tspp
+    type Output = Point;
+    add(other: Point): Point {
+        other
+    }
+}
+
+// types / extensions / generic
+extension<T> of Box<T> implements Dereference {
+// <- keyword.declaration.type.tspp
+    type Output = &T;
+    dereference(): this.Output {
+        &*this.ptr
+    }
+}
+

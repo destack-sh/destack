@@ -1,23 +1,23 @@
 {
   "grammars": [
     {
-      "name": "destack_bytecode",
-      "camelcase": "DestackBytecode",
-      "scope": "source.dsa",
+      "name": "tspp_bytecode",
+      "camelcase": "TsppBytecode",
+      "scope": "source.tsppa",
       "path": ".",
       "file-types": [
-        "dsa"
+        "tsppa"
       ],
       "highlights": [
         "queries/highlights.scm"
       ],
-      "injection-regex": "^(dsa|destack-bytecode)$"
+      "injection-regex": "^(tsppa|tspp-bytecode)$"
     }
   ],
   "metadata": {
     "version": "2026.9.0",
     "license": "MIT",
-    "description": "Destack Bytecode Assembly grammar for Tree-sitter",
+    "description": "TS++ Bytecode Assembly grammar for Tree-sitter",
     "authors": [
       {
         "name": "Destack"

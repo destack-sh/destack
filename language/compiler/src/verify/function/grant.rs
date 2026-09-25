@@ -1,4 +1,4 @@
-use destack_mir::{
+use tspp_mir::{
     Access, LocalNodeIdAny, Place, Reference, Substitution, Type, TypeId, Value, is_copy,
 };
 

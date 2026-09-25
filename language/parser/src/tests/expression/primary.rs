@@ -4,10 +4,8 @@ use crate::{
     CommentRetention, assert_expression_path, assert_node, assert_path, assert_string,
     assert_value_expression_path,
 };
-use destack_dir::{
-    Argument, Block, Expression, Literal, Name, Parameter, Property, TypeExpression,
-};
-use destack_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
+use tspp_dir::{Argument, Block, Expression, Literal, Name, Parameter, Property, TypeExpression};
+use tspp_source::{NodeSpanBoundary, NodeSpanRegion, NodeSpanType};
 
 /// Parse import meta as one dedicated expression root.
 #[test]

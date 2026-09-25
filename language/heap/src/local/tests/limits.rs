@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_mir::TraceMap;
+use tspp_mir::TraceMap;
 
 use crate::{AccountingRegion, HeapError, HeapLimits, HeapOptions, Payload, test_layout};
 

@@ -1,0 +1,46 @@
+import { Result, todo } from "tspp:error";
+import { MaybeUninit } from "tspp:memory";
+
+import { Promise } from "./promise.tspp";
+import { Task } from "./task.tspp";
+
+/// One-time async execution state.
+@languageItem("async.AsyncOnce")
+export class AsyncOnce {
+    /// Run `body` once.
+    call(body: () => Promise<void>): Promise<void> {
+        todo("AsyncOnce.call")
+    }
+
+    /// Return true after the body has completed.
+    isCompleted(&readonly this): boolean {
+        todo("AsyncOnce.isCompleted")
+    }
+}
+
+/// One-time async initialized cell.
+@languageItem("async.AsyncOnceCell")
+export class AsyncOnceCell<T> {
+    /// The stored value.
+    private value: MaybeUninit<T> = MaybeUninit.uninit();
+
+    /// Get the initialized value.
+    get<'a>(&'a readonly this): &'a immutable T | undefined {
+        todo("AsyncOnceCell.get")
+    }
+
+    /// Set the value once.
+    set(&readonly this, value: T): Result<void, T> {
+        todo("AsyncOnceCell.set")
+    }
+
+    /// Get the value or initialize it.
+    getOrInit<'a>(&'a readonly this, init: () => Task<T>): Task<&'a immutable T> {
+        todo("AsyncOnceCell.getOrInit")
+    }
+
+    /// Move the value out when initialized.
+    take(&exclusive this): T | undefined {
+        todo("AsyncOnceCell.take")
+    }
+}

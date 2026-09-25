@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_source::DiagnosticSeverity;
+use tspp_source::DiagnosticSeverity;
 
 use crate::{
     ArtifactDependency, ArtifactFailure, ArtifactPackRecord, ArtifactPayload, ArtifactVersion,

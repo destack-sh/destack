@@ -15,7 +15,7 @@ const value = if (enabled) {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -66,7 +66,7 @@ function pick(count: isize): isize {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
@@ -122,7 +122,7 @@ function add(left: int32, right: int32): int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===

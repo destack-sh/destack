@@ -6,10 +6,10 @@
 
 Comments inside arrays keep normalized spacing.
 
-```ds
+```tspp
 [/* first */ 1, /* second */ 2, /* third */ 3]
 ```
 
-```ds expected
+```tspp expected
 [/* first */ 1, /* second */ 2, /* third */ 3];
 ```

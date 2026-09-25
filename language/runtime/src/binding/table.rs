@@ -1,9 +1,9 @@
 use std::collections::HashMap;
 
-use destack_program as program;
-use destack_program::{BindingId, Memory, Program, Word};
-use destack_repository::ReplayPayloadMode;
 use serde::{Deserialize, Serialize};
+use tspp_program as program;
+use tspp_program::{BindingId, Memory, Program, Word};
+use tspp_repository::ReplayPayloadMode;
 
 use crate::binding::{CodecId, DEFAULT_BINDING_CODEC};
 use crate::diagnostic::{RuntimeError, RuntimeResult};

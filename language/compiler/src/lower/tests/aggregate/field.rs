@@ -16,7 +16,7 @@ function sum(point: Point): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.sum",
         r#"
 type test.main.Point {
@@ -63,7 +63,7 @@ function area(frame: Frame): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.area",
         r#"
 type test.main.Frame {
@@ -103,7 +103,7 @@ function read(meter: &readonly Meter): &readonly string {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.read", r#"
+    session.assert_mir_function("main.tspp", "test.main.read", r#"
 type test.main.Meter {
     name: ref<String, managed, mutable, local>;
 }
@@ -150,7 +150,7 @@ export extension of Box {
     );
 
     session.assert_mir_lowered(
-        "main.ds", r#"
+        "main.tspp", r#"
 type test.main.Box {
     message: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; };
 }
@@ -227,7 +227,7 @@ b3:
 /// @layout.field owner=type@9 index=0 name=message offset=0 size=8 align=8
 "#,
     );
-    session.assert_mir_function("main.ds", "test.main.Box.implicit", r#"
+    session.assert_mir_function("main.tspp", "test.main.Box.implicit", r#"
 type test.main.Box {
     message: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; };
 }
@@ -269,7 +269,7 @@ b3:
 /// @layout.case owner=type@8 index=1 discriminant=1 payload_offset=0
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.Box.explicit", r#"
+    session.assert_mir_function("main.tspp", "test.main.Box.explicit", r#"
 type test.main.Box {
     message: variant<uint1> { 0uint1 = ref<String, managed, mutable, local>; 1uint1 = void; };
 }

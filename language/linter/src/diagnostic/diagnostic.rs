@@ -1,9 +1,9 @@
 use std::borrow::Cow;
 
-use destack_artifact::{
+use tspp_artifact::{
     DiagnosticAnchor, DiagnosticContext, DiagnosticError, DiagnosticRecord, ToDiagnostic,
 };
-use destack_source::{Diagnostic, DiagnosticSeverity};
+use tspp_source::{Diagnostic, DiagnosticSeverity};
 
 use crate::Lint;
 

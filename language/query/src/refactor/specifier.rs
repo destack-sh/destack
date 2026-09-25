@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 
-use destack_source::PathExt;
+use tspp_source::PathExt;
 
 use crate::source::{path_text, relative_path, strip_module_extension};
 use crate::{QueryError, QueryResult};

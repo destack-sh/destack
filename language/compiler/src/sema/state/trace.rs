@@ -1,12 +1,12 @@
-use destack_dir as dir;
-use destack_repository::{ProviderContext, TraceEvent};
 use smallvec::SmallVec;
+use tspp_dir as dir;
+use tspp_repository::{ProviderContext, TraceEvent};
 
 use crate::CompilerResult;
 use crate::sema::{Bound, Check, CheckId, CheckState, EventFormatter, VariableKind};
 
 /// Environment variable naming the file check events stream into.
-const CHECK_EVENT_STREAM_ENV: &str = "DESTACK_CHECK_EVENT_STREAM";
+const CHECK_EVENT_STREAM_ENV: &str = "TSPP_CHECK_EVENT_STREAM";
 
 /// Work counters accumulated while checking one module.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]

@@ -1,8 +1,8 @@
-use destack_repository::TraceView;
-use destack_serde::Reflect;
-use destack_source::DiagnosticCollection;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use tspp_repository::TraceView;
+use tspp_serde::Reflect;
+use tspp_source::DiagnosticCollection;
 
 use super::CommandResult;
 use super::common::{

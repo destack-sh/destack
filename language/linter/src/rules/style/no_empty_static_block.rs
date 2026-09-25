@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::Patch;
+use tspp_dir as dir;
+use tspp_source::Patch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -111,15 +111,15 @@ class Registry { static {} }
         session.assert_diagnostics(
             r#"
 warning[no-empty-static-block]: static initialization block is empty
- ──▶ main.ds:1:18
+ ──▶ main.tspp:1:18
   │
 1 │ class Registry { static {} }
   │                  ^^^^^^^^^
   │
 
  = fix: remove the empty static block
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ class Registry { static {} }
 +   1│ class Registry { }

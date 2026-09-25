@@ -1,7 +1,7 @@
 use crate::EmitError;
 use crate::emit::js::{DependencyBinding, DependencyItem, LocalNodeId, ModuleLowerer};
-use destack_dir as dir;
-use destack_source::ModuleId;
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 impl ModuleLowerer<'_> {
     /// Return the concrete module target for one dependency node.

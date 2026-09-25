@@ -18,7 +18,7 @@ function shift(start: Point, by: int32): Point {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.shift",
         r#"
 type test.main.Point {
@@ -74,7 +74,7 @@ function widen(frame: Frame, by: int32): Frame {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.widen",
         r#"
 type test.main.Frame {
@@ -124,7 +124,7 @@ function tick(counter: Counter): Counter {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.tick",
         r#"
 type test.main.Counter {

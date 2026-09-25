@@ -1,6 +1,6 @@
 [package]
-name = "destack_lsp_types"
-description = "LSP types for the Destack language server"
+name = "tspp_lsp_types"
+description = "LSP types for the TS++ language server"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

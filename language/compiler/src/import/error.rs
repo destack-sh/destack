@@ -1,5 +1,5 @@
 use crate::DiagnosticAnchor;
-use destack_artifact_macros::Diagnostic;
+use tspp_artifact_macros::Diagnostic;
 
 /// Errors during the import phase.
 #[derive(Debug, Clone, PartialEq, Diagnostic)]
@@ -7,8 +7,8 @@ use destack_artifact_macros::Diagnostic;
 pub enum ImportError {
     /// Local module specifier does not resolve to a source module.
     ///
-    /// ```ds
-    /// import { User } from "./missing.ds";
+    /// ```tspp
+    /// import { User } from "./missing.tspp";
     /// ```
     #[diagnostic(
         id = "unresolved-module",
@@ -26,7 +26,7 @@ pub enum ImportError {
 
     /// Import attribute value is not a supported loader name.
     ///
-    /// ```ds
+    /// ```tspp
     /// import data from "./data.json" with { type: "binary" };
     /// ```
     #[diagnostic(
@@ -43,10 +43,10 @@ pub enum ImportError {
         suggestion: Option<String>,
     },
 
-    /// Module specifier is outside the supported Destack import model.
+    /// Module specifier is outside the supported TS++ import model.
     ///
-    /// ```ds
-    /// import { value } from "https://example.com/value.ds";
+    /// ```tspp
+    /// import { value } from "https://example.com/value.tspp";
     /// ```
     #[diagnostic(
         id = "unsupported-module-specifier",
@@ -61,7 +61,7 @@ pub enum ImportError {
 
     /// Extensionless local module specifier resolves to multiple source modules.
     ///
-    /// ```ds
+    /// ```tspp
     /// import { value } from "./config";
     /// ```
     #[diagnostic(
@@ -79,8 +79,8 @@ pub enum ImportError {
 
     /// Relative module specifier resolves outside the importing package.
     ///
-    /// ```ds
-    /// import { value } from "../other-package/value.ds";
+    /// ```tspp
+    /// import { value } from "../other-package/value.tspp";
     /// ```
     #[diagnostic(
         id = "cross-package-relative-import",
@@ -96,7 +96,7 @@ pub enum ImportError {
     /// Package export target resolves outside the exporting package.
     ///
     /// ```json
-    /// { "exports": { ".": "../other-package/mod.ds" } }
+    /// { "exports": { ".": "../other-package/mod.tspp" } }
     /// ```
     #[diagnostic(
         id = "cross-package-export",
@@ -111,7 +111,7 @@ pub enum ImportError {
 
     /// Package specifier names a package that is not declared as a dependency.
     ///
-    /// ```ds
+    /// ```tspp
     /// import { value } from "missing-package";
     /// ```
     #[diagnostic(
@@ -127,7 +127,7 @@ pub enum ImportError {
 
     /// Package specifier selects an export that is not active for this profile.
     ///
-    /// ```ds
+    /// ```tspp
     /// import { value } from "library/missing";
     /// ```
     #[diagnostic(
@@ -148,7 +148,7 @@ pub enum ImportError {
 
     /// Package export exists but does not point to a source module.
     ///
-    /// ```ds
+    /// ```tspp
     /// import asset from "library/style.css";
     /// ```
     #[diagnostic(
@@ -166,7 +166,7 @@ pub enum ImportError {
 
     /// Package dependency is declared but not loaded in the source graph.
     ///
-    /// ```ds
+    /// ```tspp
     /// import { value } from "library";
     /// ```
     #[diagnostic(
@@ -182,9 +182,9 @@ pub enum ImportError {
 
     /// Static import guard has no condition argument.
     ///
-    /// ```ds
+    /// ```tspp
     /// @if
-    /// import { debug } from "./debug.ds";
+    /// import { debug } from "./debug.tspp";
     /// ```
     #[diagnostic(
         id = "missing-static-import-condition",
@@ -197,9 +197,9 @@ pub enum ImportError {
 
     /// Static import guard has more than one condition argument.
     ///
-    /// ```ds
+    /// ```tspp
     /// @if(import.meta.profile == "test", true)
-    /// import { debug } from "./debug.ds";
+    /// import { debug } from "./debug.tspp";
     /// ```
     #[diagnostic(
         id = "multiple-static-import-conditions",
@@ -212,9 +212,9 @@ pub enum ImportError {
 
     /// Static import guard evaluates to a non-boolean value.
     ///
-    /// ```ds
+    /// ```tspp
     /// @if(import.meta.profile)
-    /// import { debug } from "./debug.ds";
+    /// import { debug } from "./debug.tspp";
     /// ```
     #[diagnostic(
         id = "non-boolean-static-import-condition",
@@ -227,9 +227,9 @@ pub enum ImportError {
 
     /// Static import guard depends on a value that is not available during import.
     ///
-    /// ```ds
+    /// ```tspp
     /// @if(enabled)
-    /// import { debug } from "./debug.ds";
+    /// import { debug } from "./debug.tspp";
     /// ```
     #[diagnostic(
         id = "non-static-import-condition",
@@ -242,9 +242,9 @@ pub enum ImportError {
 
     /// Static import guard is not invoked in its intrinsic form.
     ///
-    /// ```ds
+    /// ```tspp
     /// @if<boolean>(true)
-    /// import { debug } from "./debug.ds";
+    /// import { debug } from "./debug.tspp";
     /// ```
     #[diagnostic(
         id = "invalid-static-import-condition",

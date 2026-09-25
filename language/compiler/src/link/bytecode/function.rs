@@ -1,7 +1,7 @@
-use destack_bytecode as bytecode;
-use destack_core::{EntryRange, Optional};
-use destack_mir as mir;
-use destack_program::{Object, Word};
+use tspp_bytecode as bytecode;
+use tspp_core::{EntryRange, Optional};
+use tspp_mir as mir;
+use tspp_program::{Object, Word};
 
 use crate::LinkResult;
 

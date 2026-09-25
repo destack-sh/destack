@@ -2,8 +2,8 @@ use std::borrow::Cow;
 use std::fmt;
 use std::sync::Arc;
 
-use destack_core::Color;
-use destack_unicode::UnicodeWidthChar;
+use tspp_core::Color;
+use tspp_unicode::UnicodeWidthChar;
 
 use crate::{AnnotateError, File, LabeledSpan, Span};
 
@@ -405,7 +405,7 @@ struct PlacedLabel<'a> {
 /// The output contains underline rows for visible content and stacked rows for shared labels:
 ///
 /// ```text
-/// ──▶ file.ds:2:9
+/// ──▶ file.tspp:2:9
 ///   │
 /// 1 │ fn main() {
 /// 2 │     let variable: int8 = value;
@@ -880,7 +880,7 @@ mod tests {
             "<test>".to_string(),
             Uri::from_string("<test>"),
             None,
-            FileType::Destack,
+            FileType::Tspp,
             content.to_string(),
         )
         .expect("test source should load")

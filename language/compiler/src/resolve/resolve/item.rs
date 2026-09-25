@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::resolve::state::ResolveState;
 
@@ -6,7 +6,7 @@ impl ResolveState<'_> {
     /// Use language items implied by one function signature.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// async function load() {}
     /// function* ids() {}
     /// async function* events() {}
@@ -36,7 +36,7 @@ impl ResolveState<'_> {
     /// Use the language items `?` propagation implies.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// const value = parse()?;
     /// ```
     pub(in crate::resolve) fn use_try_language_items(&mut self) {
@@ -54,7 +54,7 @@ impl ResolveState<'_> {
     /// Use language items needed by sequence patterns.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// const [first, ...rest] = values;
     /// ```
     pub(in crate::resolve) fn use_sequence_pattern_language_items(&mut self) {
@@ -64,7 +64,7 @@ impl ResolveState<'_> {
     /// Use the iterable item implied by yield delegation.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// function* ids() {
     ///     yield* values;
     /// }
@@ -89,7 +89,7 @@ impl ResolveState<'_> {
     /// Use the range item implied by one range expression.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// const open = start..end;
     /// const closed = start..=end;
     /// ```
@@ -120,7 +120,7 @@ impl ResolveState<'_> {
     /// Use language items implied by one unary operator.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// const negated = -value;
     /// const dereferenced = *pointer;
     /// ```
@@ -152,7 +152,7 @@ impl ResolveState<'_> {
     /// Use language items implied by one binary operator.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// const total = left + right;
     /// const is_less = left < right;
     /// ```

@@ -3,7 +3,7 @@ use crate::tests::TestParser;
 use crate::{
     TypePosition, TypeStop, assert_expression_path, assert_node, assert_path, assert_string,
 };
-use destack_dir::{
+use tspp_dir::{
     Declaration, Expression, GenericArgument, TypeDeclaration, TypeExpression, TypeLiteral,
 };
 

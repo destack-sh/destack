@@ -13,21 +13,21 @@ DESTACK_VERSION_INPUT="${2:-${DESTACK_VERSION:-}}"
 
 # resolve repository paths from the script location
 DESTACK_SCRIPT_DIRECTORY="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DESTACK_ZED_DIRECTORY="$(cd "${DESTACK_SCRIPT_DIRECTORY}/.." && pwd)"
-DESTACK_PLATFORM_DIRECTORY="$(cd "${DESTACK_ZED_DIRECTORY}/.." && pwd)"
+TSPP_ZED_DIRECTORY="$(cd "${DESTACK_SCRIPT_DIRECTORY}/.." && pwd)"
+DESTACK_PLATFORM_DIRECTORY="$(cd "${TSPP_ZED_DIRECTORY}/.." && pwd)"
 DESTACK_REPOSITORY_ROOT="$(cd "${DESTACK_PLATFORM_DIRECTORY}/.." && pwd)"
 
 # configure zed registry defaults
-DESTACK_ZED_EXTENSION_ID="${DESTACK_ZED_EXTENSION_ID:-destack}"
-DESTACK_ZED_EXTENSION_SUBMODULE_PATH="${DESTACK_ZED_EXTENSION_SUBMODULE_PATH:-extensions/${DESTACK_ZED_EXTENSION_ID}}"
-DESTACK_ZED_EXTENSION_REPOSITORY="${DESTACK_ZED_EXTENSION_REPOSITORY:-https://github.com/destack-sh/destack.git}"
-DESTACK_ZED_EXTENSION_PATH="${DESTACK_ZED_EXTENSION_PATH:-language/bridge/zed}"
-DESTACK_ZED_REGISTRY_UPSTREAM="${DESTACK_ZED_REGISTRY_UPSTREAM:-zed-industries/extensions}"
-DESTACK_ZED_REGISTRY_PUSH_TO="${DESTACK_ZED_REGISTRY_PUSH_TO:-}"
-DESTACK_ZED_REGISTRY_BASE_BRANCH="${DESTACK_ZED_REGISTRY_BASE_BRANCH:-main}"
-DESTACK_ZED_SOURCE_REF="${DESTACK_ZED_SOURCE_REF:-HEAD}"
-DESTACK_ZED_COMMITTER_NAME="${DESTACK_ZED_COMMITTER_NAME:-destack-bot}"
-DESTACK_ZED_COMMITTER_EMAIL="${DESTACK_ZED_COMMITTER_EMAIL:-noreply@destack.sh}"
+TSPP_ZED_EXTENSION_ID="${TSPP_ZED_EXTENSION_ID:-destack}"
+TSPP_ZED_EXTENSION_SUBMODULE_PATH="${TSPP_ZED_EXTENSION_SUBMODULE_PATH:-extensions/${TSPP_ZED_EXTENSION_ID}}"
+TSPP_ZED_EXTENSION_REPOSITORY="${TSPP_ZED_EXTENSION_REPOSITORY:-https://github.com/destack-sh/destack.git}"
+TSPP_ZED_EXTENSION_PATH="${TSPP_ZED_EXTENSION_PATH:-language/bridge/zed}"
+TSPP_ZED_REGISTRY_UPSTREAM="${TSPP_ZED_REGISTRY_UPSTREAM:-zed-industries/extensions}"
+TSPP_ZED_REGISTRY_PUSH_TO="${TSPP_ZED_REGISTRY_PUSH_TO:-}"
+TSPP_ZED_REGISTRY_BASE_BRANCH="${TSPP_ZED_REGISTRY_BASE_BRANCH:-main}"
+TSPP_ZED_SOURCE_REF="${TSPP_ZED_SOURCE_REF:-HEAD}"
+TSPP_ZED_COMMITTER_NAME="${TSPP_ZED_COMMITTER_NAME:-destack-bot}"
+TSPP_ZED_COMMITTER_EMAIL="${TSPP_ZED_COMMITTER_EMAIL:-noreply@destack.sh}"
 
 # print an informational message
 info() {
@@ -113,7 +113,7 @@ update_registry_metadata() {
 	local registry_directory="$1"
 	local release_version="$2"
 
-	python3 - "${registry_directory}/extensions.toml" "${registry_directory}/.gitmodules" "${DESTACK_ZED_EXTENSION_ID}" "${DESTACK_ZED_EXTENSION_SUBMODULE_PATH}" "${DESTACK_ZED_EXTENSION_PATH}" "${release_version}" "${DESTACK_ZED_EXTENSION_REPOSITORY}" <<'PY'
+	python3 - "${registry_directory}/extensions.toml" "${registry_directory}/.gitmodules" "${TSPP_ZED_EXTENSION_ID}" "${TSPP_ZED_EXTENSION_SUBMODULE_PATH}" "${TSPP_ZED_EXTENSION_PATH}" "${release_version}" "${TSPP_ZED_EXTENSION_REPOSITORY}" <<'PY'
 import re
 import sys
 from pathlib import Path
@@ -207,10 +207,10 @@ render_pr_body() {
 	local release_version="$1"
 	local source_commit="$2"
 	cat <<EOF
-Update ${DESTACK_ZED_EXTENSION_ID} to ${release_version}.
+Update ${TSPP_ZED_EXTENSION_ID} to ${release_version}.
 
 This updates:
-- submodule \`${DESTACK_ZED_EXTENSION_SUBMODULE_PATH}\`
+- submodule \`${TSPP_ZED_EXTENSION_SUBMODULE_PATH}\`
 - \`extensions.toml\` version and path metadata
 
 Source commit:
@@ -238,8 +238,8 @@ if [ "${DESTACK_MANIFEST_VERSION}" != "${DESTACK_RELEASE_VERSION}" ]; then
 fi
 
 # resolve the source commit for the zed registry submodule pointer
-if ! DESTACK_SOURCE_COMMIT="$(git -C "${DESTACK_REPOSITORY_ROOT}" rev-parse "${DESTACK_ZED_SOURCE_REF}^{commit}" 2>/dev/null)"; then
-	fail "failed to resolve source ref: ${DESTACK_ZED_SOURCE_REF}"
+if ! DESTACK_SOURCE_COMMIT="$(git -C "${DESTACK_REPOSITORY_ROOT}" rev-parse "${TSPP_ZED_SOURCE_REF}^{commit}" 2>/dev/null)"; then
+	fail "failed to resolve source ref: ${TSPP_ZED_SOURCE_REF}"
 fi
 
 # clone the zed extension registry into a temporary workspace
@@ -247,32 +247,32 @@ DESTACK_TEMP_DIRECTORY="$(mktemp -d)"
 trap 'rm -rf "${DESTACK_TEMP_DIRECTORY}"' EXIT
 DESTACK_REGISTRY_DIRECTORY="${DESTACK_TEMP_DIRECTORY}/zed-extensions"
 
-git clone --filter=blob:none --branch "${DESTACK_ZED_REGISTRY_BASE_BRANCH}" "https://github.com/${DESTACK_ZED_REGISTRY_UPSTREAM}.git" "${DESTACK_REGISTRY_DIRECTORY}" >/dev/null
+git clone --filter=blob:none --branch "${TSPP_ZED_REGISTRY_BASE_BRANCH}" "https://github.com/${TSPP_ZED_REGISTRY_UPSTREAM}.git" "${DESTACK_REGISTRY_DIRECTORY}" >/dev/null
 
 # create a release branch in the registry clone
-DESTACK_RELEASE_BRANCH="update-${DESTACK_ZED_EXTENSION_ID}-${DESTACK_RELEASE_VERSION}"
+DESTACK_RELEASE_BRANCH="update-${TSPP_ZED_EXTENSION_ID}-${DESTACK_RELEASE_VERSION}"
 git -C "${DESTACK_REGISTRY_DIRECTORY}" switch --create "${DESTACK_RELEASE_BRANCH}" >/dev/null
 
 # add or initialize the extension submodule
-if [ ! -e "${DESTACK_REGISTRY_DIRECTORY}/${DESTACK_ZED_EXTENSION_SUBMODULE_PATH}" ]; then
-	git -C "${DESTACK_REGISTRY_DIRECTORY}" submodule add "${DESTACK_ZED_EXTENSION_REPOSITORY}" "${DESTACK_ZED_EXTENSION_SUBMODULE_PATH}" >/dev/null
+if [ ! -e "${DESTACK_REGISTRY_DIRECTORY}/${TSPP_ZED_EXTENSION_SUBMODULE_PATH}" ]; then
+	git -C "${DESTACK_REGISTRY_DIRECTORY}" submodule add "${TSPP_ZED_EXTENSION_REPOSITORY}" "${TSPP_ZED_EXTENSION_SUBMODULE_PATH}" >/dev/null
 fi
 
 # update the extension submodule pointer to the release commit
-git -C "${DESTACK_REGISTRY_DIRECTORY}" submodule sync -- "${DESTACK_ZED_EXTENSION_SUBMODULE_PATH}" >/dev/null
-git -C "${DESTACK_REGISTRY_DIRECTORY}" submodule update --init -- "${DESTACK_ZED_EXTENSION_SUBMODULE_PATH}" >/dev/null
-git -C "${DESTACK_REGISTRY_DIRECTORY}/${DESTACK_ZED_EXTENSION_SUBMODULE_PATH}" fetch --tags origin >/dev/null
-if ! git -C "${DESTACK_REGISTRY_DIRECTORY}/${DESTACK_ZED_EXTENSION_SUBMODULE_PATH}" fetch origin "${DESTACK_SOURCE_COMMIT}" >/dev/null 2>&1; then
-	fail "source commit ${DESTACK_SOURCE_COMMIT} is not on ${DESTACK_ZED_EXTENSION_REPOSITORY}, push it or set DESTACK_ZED_SOURCE_REF"
+git -C "${DESTACK_REGISTRY_DIRECTORY}" submodule sync -- "${TSPP_ZED_EXTENSION_SUBMODULE_PATH}" >/dev/null
+git -C "${DESTACK_REGISTRY_DIRECTORY}" submodule update --init -- "${TSPP_ZED_EXTENSION_SUBMODULE_PATH}" >/dev/null
+git -C "${DESTACK_REGISTRY_DIRECTORY}/${TSPP_ZED_EXTENSION_SUBMODULE_PATH}" fetch --tags origin >/dev/null
+if ! git -C "${DESTACK_REGISTRY_DIRECTORY}/${TSPP_ZED_EXTENSION_SUBMODULE_PATH}" fetch origin "${DESTACK_SOURCE_COMMIT}" >/dev/null 2>&1; then
+	fail "source commit ${DESTACK_SOURCE_COMMIT} is not on ${TSPP_ZED_EXTENSION_REPOSITORY}, push it or set TSPP_ZED_SOURCE_REF"
 fi
 
-git -C "${DESTACK_REGISTRY_DIRECTORY}/${DESTACK_ZED_EXTENSION_SUBMODULE_PATH}" checkout "${DESTACK_SOURCE_COMMIT}" >/dev/null
+git -C "${DESTACK_REGISTRY_DIRECTORY}/${TSPP_ZED_EXTENSION_SUBMODULE_PATH}" checkout "${DESTACK_SOURCE_COMMIT}" >/dev/null
 
 # upsert and sort registry metadata files
 update_registry_metadata "${DESTACK_REGISTRY_DIRECTORY}" "${DESTACK_RELEASE_VERSION}"
 
 # stage all registry changes for commit
-git -C "${DESTACK_REGISTRY_DIRECTORY}" add "${DESTACK_ZED_EXTENSION_SUBMODULE_PATH}" extensions.toml .gitmodules
+git -C "${DESTACK_REGISTRY_DIRECTORY}" add "${TSPP_ZED_EXTENSION_SUBMODULE_PATH}" extensions.toml .gitmodules
 
 # stop early when there is no registry delta
 if git -C "${DESTACK_REGISTRY_DIRECTORY}" diff --cached --quiet; then
@@ -281,9 +281,9 @@ if git -C "${DESTACK_REGISTRY_DIRECTORY}" diff --cached --quiet; then
 fi
 
 # commit the prepared registry delta
-git -C "${DESTACK_REGISTRY_DIRECTORY}" config user.name "${DESTACK_ZED_COMMITTER_NAME}"
-git -C "${DESTACK_REGISTRY_DIRECTORY}" config user.email "${DESTACK_ZED_COMMITTER_EMAIL}"
-git -C "${DESTACK_REGISTRY_DIRECTORY}" commit -m "Update ${DESTACK_ZED_EXTENSION_ID} to ${DESTACK_RELEASE_VERSION}" >/dev/null
+git -C "${DESTACK_REGISTRY_DIRECTORY}" config user.name "${TSPP_ZED_COMMITTER_NAME}"
+git -C "${DESTACK_REGISTRY_DIRECTORY}" config user.email "${TSPP_ZED_COMMITTER_EMAIL}"
+git -C "${DESTACK_REGISTRY_DIRECTORY}" commit -m "Update ${TSPP_ZED_EXTENSION_ID} to ${DESTACK_RELEASE_VERSION}" >/dev/null
 
 # print local commit details for dry mode
 if is_dry_run; then
@@ -296,36 +296,36 @@ fi
 require_command gh
 configure_live_auth
 
-if [ -z "${DESTACK_ZED_REGISTRY_PUSH_TO}" ]; then
-	fail "missing DESTACK_ZED_REGISTRY_PUSH_TO for live mode, expected <owner>/<repo>"
+if [ -z "${TSPP_ZED_REGISTRY_PUSH_TO}" ]; then
+	fail "missing TSPP_ZED_REGISTRY_PUSH_TO for live mode, expected <owner>/<repo>"
 fi
 
-if [[ "${DESTACK_ZED_REGISTRY_PUSH_TO}" != */* ]]; then
-	fail "invalid DESTACK_ZED_REGISTRY_PUSH_TO value: ${DESTACK_ZED_REGISTRY_PUSH_TO}"
+if [[ "${TSPP_ZED_REGISTRY_PUSH_TO}" != */* ]]; then
+	fail "invalid TSPP_ZED_REGISTRY_PUSH_TO value: ${TSPP_ZED_REGISTRY_PUSH_TO}"
 fi
 
 # configure the push remote for the operator fork
 if git -C "${DESTACK_REGISTRY_DIRECTORY}" remote get-url push-target >/dev/null 2>&1; then
-	git -C "${DESTACK_REGISTRY_DIRECTORY}" remote set-url push-target "https://github.com/${DESTACK_ZED_REGISTRY_PUSH_TO}.git"
+	git -C "${DESTACK_REGISTRY_DIRECTORY}" remote set-url push-target "https://github.com/${TSPP_ZED_REGISTRY_PUSH_TO}.git"
 else
-	git -C "${DESTACK_REGISTRY_DIRECTORY}" remote add push-target "https://github.com/${DESTACK_ZED_REGISTRY_PUSH_TO}.git"
+	git -C "${DESTACK_REGISTRY_DIRECTORY}" remote add push-target "https://github.com/${TSPP_ZED_REGISTRY_PUSH_TO}.git"
 fi
 
 # push the release branch to the operator fork
 git -C "${DESTACK_REGISTRY_DIRECTORY}" push --force-with-lease push-target "${DESTACK_RELEASE_BRANCH}:${DESTACK_RELEASE_BRANCH}"
 
 # create or reuse the upstream pull request
-DESTACK_HEAD_OWNER="${DESTACK_ZED_REGISTRY_PUSH_TO%%/*}"
+DESTACK_HEAD_OWNER="${TSPP_ZED_REGISTRY_PUSH_TO%%/*}"
 DESTACK_PR_HEAD="${DESTACK_HEAD_OWNER}:${DESTACK_RELEASE_BRANCH}"
-DESTACK_PR_TITLE="Update ${DESTACK_ZED_EXTENSION_ID} to ${DESTACK_RELEASE_VERSION}"
+DESTACK_PR_TITLE="Update ${TSPP_ZED_EXTENSION_ID} to ${DESTACK_RELEASE_VERSION}"
 DESTACK_PR_BODY="$(render_pr_body "${DESTACK_RELEASE_VERSION}" "${DESTACK_SOURCE_COMMIT}")"
 
-DESTACK_EXISTING_PR_URL="$(gh pr list --repo "${DESTACK_ZED_REGISTRY_UPSTREAM}" --base "${DESTACK_ZED_REGISTRY_BASE_BRANCH}" --head "${DESTACK_PR_HEAD}" --json url --jq '.[0].url')"
+DESTACK_EXISTING_PR_URL="$(gh pr list --repo "${TSPP_ZED_REGISTRY_UPSTREAM}" --base "${TSPP_ZED_REGISTRY_BASE_BRANCH}" --head "${DESTACK_PR_HEAD}" --json url --jq '.[0].url')"
 
 if [ -n "${DESTACK_EXISTING_PR_URL}" ] && [ "${DESTACK_EXISTING_PR_URL}" != "null" ]; then
 	info "zed registry pull request already exists: ${DESTACK_EXISTING_PR_URL}"
 	exit 0
 fi
 
-DESTACK_CREATED_PR_URL="$(gh pr create --repo "${DESTACK_ZED_REGISTRY_UPSTREAM}" --base "${DESTACK_ZED_REGISTRY_BASE_BRANCH}" --head "${DESTACK_PR_HEAD}" --title "${DESTACK_PR_TITLE}" --body "${DESTACK_PR_BODY}")"
+DESTACK_CREATED_PR_URL="$(gh pr create --repo "${TSPP_ZED_REGISTRY_UPSTREAM}" --base "${TSPP_ZED_REGISTRY_BASE_BRANCH}" --head "${DESTACK_PR_HEAD}" --title "${DESTACK_PR_TITLE}" --body "${DESTACK_PR_BODY}")"
 info "created zed registry pull request: ${DESTACK_CREATED_PR_URL}"

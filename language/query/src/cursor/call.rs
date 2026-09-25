@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::{EnclosingSpan, Span};
+use tspp_dir as dir;
+use tspp_source::{EnclosingSpan, Span};
 
 use crate::{ModuleQueryContext, QueryResult};
 

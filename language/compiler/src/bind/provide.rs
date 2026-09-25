@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use destack_artifact::{
+use dir::NodeVisitor as _;
+use tspp_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirParsed, EnvironmentBound,
 };
-use destack_dir as dir;
-use destack_repository::{ConditionSet, Module, ProviderContext};
-use destack_source::{ModuleId, ProfileId};
-use dir::NodeVisitor as _;
+use tspp_dir as dir;
+use tspp_repository::{ConditionSet, Module, ProviderContext};
+use tspp_source::{ModuleId, ProfileId};
 
 use super::state::BindState;
 

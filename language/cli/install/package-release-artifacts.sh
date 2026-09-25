@@ -15,7 +15,7 @@ DESTACK_RELEASE_CHANNEL_INPUT="${DESTACK_RELEASE_CHANNEL:-release}"
 DESTACK_RELEASE_STABILITY_INPUT="${DESTACK_RELEASE_STABILITY:-}"
 DESTACK_MANIFEST_NAME="manifest.json"
 read -r -a DESTACK_TARGETS <<< "${DESTACK_TARGETS_INPUT}"
-DESTACK_BINARY_NAMES=(destack ds dsc)
+DESTACK_BINARY_NAMES=(destack tspp tsppc)
 
 # print an error message and exit
 fail() {
@@ -270,7 +270,7 @@ write_manifest() {
             printf '      "archiveName": "%s",\n' "${archive_name}"
             printf '      "archiveFormat": "%s",\n' "${archive_format}"
             printf '      "archiveSha256": "%s",\n' "${archive_sha256}"
-            printf '      "binaries": ["destack", "ds", "dsc"]\n'
+            printf '      "binaries": ["destack", "tspp", "tsppc"]\n'
 
             if [ "${target_index}" -lt "${targets_count}" ]; then
                 printf '    },\n'

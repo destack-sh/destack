@@ -1,17 +1,17 @@
 use super::attribute::argument_transparent_value_id;
-use crate::DestackFormatContext;
+use crate::TsppFormatContext;
 use crate::chain::{
     chain_nodes, has_comment_between_expressions, member_has_intervening_comment,
     transparent_inner_expression,
 };
-use destack_dir::{
+use tspp_dir::{
     Block, BlockForm, Declaration, Expression, FunctionDeclaration, FunctionForm, IfForm, Literal,
     LocalNodeId, MatchArm, Node, NodeType, Tree, TreeChild, TreeStore,
 };
 
 /// Return whether one node span contains a line comment.
 pub(crate) fn node_has_line_comment<T>(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<T>,
 ) -> bool
 where
@@ -29,7 +29,7 @@ where
 
 /// Return whether one tree child has a line comment outside the value span.
 pub(crate) fn tree_child_has_outer_line_comment(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     child_id: LocalNodeId<TreeChild>,
     value_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -49,7 +49,7 @@ pub(crate) fn tree_child_has_outer_line_comment(
 
 /// Return whether one tree callback body forces multiline element layout.
 fn tree_callback_body_requires_break(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     declaration_id: LocalNodeId<Declaration>,
 ) -> bool {
     let Declaration::Function(FunctionDeclaration { body, .. }) = context.tree.get(declaration_id)
@@ -70,7 +70,7 @@ fn tree_callback_body_requires_break(
 
 /// Return whether one expression contains a callback body that forces tree breaks.
 pub(crate) fn tree_expression_contains_callback_break(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let expression_id = transparent_inner_expression(context, expression_id);
@@ -117,7 +117,7 @@ pub(crate) fn tree_expression_contains_callback_break(
 
 /// Check whether a tree child expression should stay inline inside `{ ... }`.
 pub(crate) fn tree_child_should_inline_braced_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     child_id: LocalNodeId<TreeChild>,
 ) -> bool {
     let TreeChild::Expression { value } = context.tree.get(child_id) else {
@@ -192,7 +192,7 @@ pub(crate) fn tree_child_should_inline_braced_expression(
 
 /// Return whether one expression chain has comments between its formatted hops.
 pub(crate) fn expression_chain_has_separator_comment(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let chain = chain_nodes(context, expression_id);
@@ -215,7 +215,7 @@ pub(crate) fn expression_chain_has_separator_comment(
 
 /// Return whether one expression has one prefix block-star comment.
 fn expression_has_prefix_star_comment(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let expression_span = context.span(expression_id);
@@ -234,7 +234,7 @@ fn expression_has_prefix_star_comment(
 
 /// Check whether a tree child forces the element to break.
 pub(crate) fn tree_child_breaks_element(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     child_id: LocalNodeId<TreeChild>,
 ) -> bool {
     if matches!(context.tree.get(child_id), TreeChild::Empty) {
@@ -304,7 +304,7 @@ pub(crate) fn tree_child_breaks_element(
 
 /// Return whether one tree child control value should expand like tree branch expressions.
 pub(crate) fn tree_control_child_should_expand(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some(child_id) = tree_child_control_child(context, expression_id) else {
@@ -346,7 +346,7 @@ pub(crate) fn tree_control_child_should_expand(
 
 /// Return the tree child that owns one control child expression.
 fn tree_child_control_child(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> Option<LocalNodeId<TreeChild>> {
     let (parent_id, parent_type) = context.parent(expression_id)?;
@@ -377,7 +377,7 @@ fn tree_child_control_child(
 
 /// Return the control expression owned by one tree child value.
 fn tree_child_control_expression(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> LocalNodeId<Expression> {
     let expression_id = transparent_inner_expression(context, expression_id);
@@ -400,7 +400,7 @@ fn tree_child_control_expression(
 
 /// Return whether one non-if control child has a tree-valued branch.
 fn tree_control_child_has_tree_branch(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     match context.tree.get(expression_id) {
@@ -433,7 +433,7 @@ fn tree_control_child_has_tree_branch(
 
 /// Return whether one expression branch is transparently tree-valued.
 fn expression_branch_has_tree_value(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let expression_id = transparent_inner_expression(context, expression_id);
@@ -445,7 +445,7 @@ fn expression_branch_has_tree_value(
 }
 
 /// Return whether one block branch is tree-valued.
-fn block_has_tree_value(context: &DestackFormatContext<'_>, block_id: LocalNodeId<Block>) -> bool {
+fn block_has_tree_value(context: &TsppFormatContext<'_>, block_id: LocalNodeId<Block>) -> bool {
     let block = context.tree.get(block_id);
     let expression_id = if let Some(tail_expression) = block.tail_expression {
         Some(tail_expression)

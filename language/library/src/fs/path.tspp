@@ -1,0 +1,555 @@
+import { As, Borrow, ToOwned } from "tspp:convert";
+import { Error, Result, todo } from "tspp:error";
+import { Iterator, IteratorResult } from "tspp:iter";
+import { AllocationError, Borrowed, Clone, Default, Region, WithAccess } from "tspp:memory";
+
+import { Compare, Equal, Hash, Hasher, Ordering, PartialCompare, PartialEqual } from "tspp:ops";
+import { OsString, OsStringBuilder, OsStringDecodeError, OsStringSlice } from "tspp:string";
+
+/// Borrowed platform path.
+@languageItem("fs.PathSlice")
+export newtype PathSlice = OsStringSlice;
+
+/// Immutable owned platform path.
+@languageItem("fs.Path")
+export newtype Path = OsString;
+
+/// Mutable platform path builder.
+@languageItem("fs.PathBuilder")
+export newtype PathBuilder = OsStringBuilder;
+
+/// One lexical path component.
+@languageItem("fs.PathComponent")
+export newtype PathComponent<'a> =
+    | PathPrefixComponent<'a>
+    | PathRootComponent
+    | PathCurrentComponent
+    | PathParentComponent
+    | PathNormalComponent<'a>;
+
+/// A platform-specific path prefix.
+export struct PathPrefixComponent<'a> {
+    /// The component discriminator.
+    kind: "prefix" = "prefix";
+
+    /// The prefix as native text.
+    value: &'a readonly OsStringSlice;
+
+    /// The parsed Windows prefix.
+    prefix: WindowsPathPrefix<'a>;
+}
+
+/// A path root separator.
+export struct PathRootComponent {
+    /// The component discriminator.
+    kind: "root" = "root";
+}
+
+/// A current-directory path component.
+export struct PathCurrentComponent {
+    /// The component discriminator.
+    kind: "current" = "current";
+}
+
+/// A parent-directory path component.
+export struct PathParentComponent {
+    /// The component discriminator.
+    kind: "parent" = "parent";
+}
+
+/// A regular path component.
+export struct PathNormalComponent<'a> {
+    /// The component discriminator.
+    kind: "normal" = "normal";
+
+    /// The component as native text.
+    value: &'a readonly OsStringSlice;
+}
+
+/// Parsed Windows path prefix.
+@languageItem("fs.WindowsPathPrefix")
+export newtype WindowsPathPrefix<'a> =
+    | WindowsPathVerbatimPrefix<'a>
+    | WindowsPathVerbatimUncPrefix<'a>
+    | WindowsPathVerbatimDiskPrefix
+    | WindowsPathDevicePrefix<'a>
+    | WindowsPathUncPrefix<'a>
+    | WindowsPathDiskPrefix;
+
+/// A verbatim Windows path prefix.
+export struct WindowsPathVerbatimPrefix<'a> {
+    /// The prefix discriminator.
+    kind: "verbatim" = "verbatim";
+
+    /// The verbatim prefix value.
+    value: &'a readonly OsStringSlice;
+}
+
+/// A verbatim Windows network path prefix.
+export struct WindowsPathVerbatimUncPrefix<'a> {
+    /// The prefix discriminator.
+    kind: "verbatimUnc" = "verbatimUnc";
+
+    /// The network server.
+    server: &'a readonly OsStringSlice;
+
+    /// The network share.
+    share: &'a readonly OsStringSlice;
+}
+
+/// A verbatim Windows disk path prefix.
+export struct WindowsPathVerbatimDiskPrefix {
+    /// The prefix discriminator.
+    kind: "verbatimDisk" = "verbatimDisk";
+
+    /// The ASCII disk letter.
+    disk: uint8;
+}
+
+/// A Windows device namespace path prefix.
+export struct WindowsPathDevicePrefix<'a> {
+    /// The prefix discriminator.
+    kind: "device" = "device";
+
+    /// The device name.
+    device: &'a readonly OsStringSlice;
+}
+
+/// A Windows network path prefix.
+export struct WindowsPathUncPrefix<'a> {
+    /// The prefix discriminator.
+    kind: "unc" = "unc";
+
+    /// The network server.
+    server: &'a readonly OsStringSlice;
+
+    /// The network share.
+    share: &'a readonly OsStringSlice;
+}
+
+/// A Windows disk path prefix.
+export struct WindowsPathDiskPrefix {
+    /// The prefix discriminator.
+    kind: "disk" = "disk";
+
+    /// The ASCII disk letter.
+    disk: uint8;
+}
+
+/// Iterator over one path's lexical components.
+export struct PathComponents<'a> {
+    /// The remaining path.
+    private remaining: &'a readonly PathSlice;
+}
+
+/// Iterator over one path and each successive parent.
+export struct PathAncestors<'a> {
+    /// The next ancestor.
+    private nextPath?: &'a readonly PathSlice;
+}
+
+/// A path without the requested leading path.
+export struct StripPrefixError {
+    /// The error discriminator.
+    kind: "prefixMismatch" = "prefixMismatch";
+}
+
+export extension of PathSlice implements ToOwned, Hash {
+    /// The owned value type.
+    type Owned = ^Path;
+
+    /// Borrow native text as a path.
+    static from(value: &readonly OsStringSlice): &readonly PathSlice {
+        todo("PathSlice.from")
+    }
+
+    /// Copy this path into owned storage.
+    toOwned(&immutable this): ^Path {
+        todo("PathSlice.toOwned")
+    }
+
+    /// Add this path's native representation to `state`.
+    hash(&immutable this, state: &Hasher): void {
+        this.as().hash(state);
+    }
+}
+
+export extension<const A: Access> of PathSlice
+    implements As<OsStringSlice, A>, Borrow<OsStringSlice, A>
+{
+    /// Borrow this path as native text.
+    as<const R: Region>(this: Borrowed<this, R, A>): Borrowed<OsStringSlice, R, A> {
+        todo("PathSlice.as")
+    }
+
+    /// Borrow this path as native text.
+    borrow<const R: Region>(this: Borrowed<this, R, A>): Borrowed<OsStringSlice, R, A> {
+        this.as()
+    }
+}
+
+export extension of Path implements Clone, Default, Hash {
+    /// Create an empty path.
+    static new(): ^Path {
+        todo("Path.new")
+    }
+
+    /// Create the default path.
+    static default(): ^Path {
+        Path.new()
+    }
+
+    /// Encode Unicode text as a path for the current platform.
+    static fromString(value: &readonly string): ^Path {
+        todo("Path.fromString")
+    }
+
+    /// Wrap owned native text as a path.
+    static from(value: ^OsString): ^Path {
+        todo("Path.from")
+    }
+
+    /// Copy borrowed native text into a path.
+    static from(value: &readonly OsStringSlice): ^Path {
+        todo("Path.from")
+    }
+
+    /// Clone this path.
+    clone(this: &immutable this): ^Path {
+        this.as().toOwned()
+    }
+
+    /// Add this path's native representation to `state`.
+    hash(this: &immutable this, state: &Hasher): void {
+        this.as().hash(state);
+    }
+
+    /// Move the native text out of this path.
+    intoOsString(^this): ^OsString {
+        todo("Path.intoOsString")
+    }
+}
+
+export extension<const A: Access> of Path implements As<PathSlice, A>, Borrow<PathSlice, A> {
+    /// Borrow this owned path as a path slice.
+    as<const R: Region>(this: Borrowed<this, R, A>): Borrowed<PathSlice, R, A> {
+        todo("Path.as")
+    }
+
+    /// Borrow this owned path as a path slice.
+    borrow<const R: Region>(this: Borrowed<this, R, A>): Borrowed<PathSlice, R, A> {
+        this.as()
+    }
+}
+
+export extension of PathBuilder implements Default, Hash {
+    /// Return the allocated opaque encoded byte count.
+    get capacity(&readonly this): usize {
+        todo("PathBuilder.capacity")
+    }
+
+    /// Create an empty path builder.
+    static new(): ^PathBuilder {
+        todo("PathBuilder.new")
+    }
+
+    /// Create a path builder with at least `capacity` opaque encoded bytes.
+    static withCapacity(capacity: usize): ^PathBuilder {
+        todo("PathBuilder.withCapacity")
+    }
+
+    /// Create the default path builder.
+    static default(): ^PathBuilder {
+        PathBuilder.new()
+    }
+
+    /// Create a path builder from Unicode text.
+    static fromString(value: &readonly string): ^PathBuilder {
+        todo("PathBuilder.fromString")
+    }
+
+    /// Create a path builder from an owned path.
+    static from(value: ^Path): ^PathBuilder {
+        todo("PathBuilder.from")
+    }
+
+    /// Wrap a native string builder as a path builder.
+    static from(value: ^OsStringBuilder): ^PathBuilder {
+        todo("PathBuilder.from")
+    }
+
+    /// Create a path builder by copying a path slice.
+    static from(value: &readonly PathSlice): ^PathBuilder {
+        todo("PathBuilder.from")
+    }
+
+    /// Add the current path's native representation to `state`.
+    hash(this: &immutable this, state: &Hasher): void {
+        this.as().hash(state);
+    }
+
+    /// Remove all path components.
+    clear(&this): void {
+        todo("PathBuilder.clear");
+    }
+
+    /// Reserve at least `additional` more opaque encoded bytes.
+    reserve(&this, additional: usize): void {
+        todo("PathBuilder.reserve");
+    }
+
+    /// Reserve exactly `additional` more opaque encoded bytes.
+    reserveExact(&this, additional: usize): void {
+        todo("PathBuilder.reserveExact");
+    }
+
+    /// Try to reserve at least `additional` more opaque encoded bytes.
+    tryReserve(&this, additional: usize): Result<void, AllocationError> {
+        todo("PathBuilder.tryReserve")
+    }
+
+    /// Release capacity beyond the current path.
+    shrinkToFit(&this): void {
+        todo("PathBuilder.shrinkToFit");
+    }
+
+    /// Append a path using the current platform's component rules.
+    push(&this, path: &readonly PathSlice): void {
+        todo("PathBuilder.push");
+    }
+
+    /// Remove the final path component.
+    pop(&this): boolean {
+        todo("PathBuilder.pop")
+    }
+
+    /// Replace the final path component.
+    setFileName(&this, name: &readonly OsStringSlice): void {
+        todo("PathBuilder.setFileName");
+    }
+
+    /// Replace the final path component extension.
+    setExtension(&this, extension: &readonly OsStringSlice): boolean {
+        todo("PathBuilder.setExtension")
+    }
+
+    /// Append an extension to the final path component.
+    addExtension(&this, extension: &readonly OsStringSlice): boolean {
+        todo("PathBuilder.addExtension")
+    }
+
+    /// Copy the current path into immutable owned storage.
+    toPath(&readonly this): ^Path {
+        todo("PathBuilder.toPath")
+    }
+
+    /// Consume this builder and return its immutable path.
+    intoPath(^this): ^Path {
+        todo("PathBuilder.intoPath")
+    }
+
+    /// Move the native string builder out of this path builder.
+    intoOsStringBuilder(^this): ^OsStringBuilder {
+        todo("PathBuilder.intoOsStringBuilder")
+    }
+}
+
+export extension<const A: Access> of PathBuilder implements As<PathSlice, A>, Borrow<PathSlice, A> {
+    /// Borrow the current path.
+    as<const R: Region>(this: Borrowed<this, R, A>): Borrowed<PathSlice, R, A> {
+        todo("PathBuilder.as")
+    }
+
+    /// Borrow the current path.
+    borrow<const R: Region>(this: Borrowed<this, R, A>): Borrowed<PathSlice, R, A> {
+        this.as()
+    }
+}
+
+export extension<P: Borrow<PathSlice>> of P {
+    /// Return the opaque encoded byte length.
+    get encodedLength(&readonly this): usize {
+        this.borrow().as().encodedLength
+    }
+
+    /// Return whether this path is empty.
+    get isEmpty(&readonly this): boolean {
+        this.borrow().as().isEmpty
+    }
+
+    /// Borrow this path as native text.
+    asOsString(&readonly this): &readonly OsStringSlice {
+        this.borrow().as()
+    }
+
+    /// Return whether this path is absolute for the current platform.
+    isAbsolute(&readonly this): boolean {
+        todo("Path.isAbsolute")
+    }
+
+    /// Return whether this path is relative for the current platform.
+    isRelative(&readonly this): boolean {
+        !this.isAbsolute()
+    }
+
+    /// Return whether this path has a root for the current platform.
+    hasRoot(&readonly this): boolean {
+        todo("Path.hasRoot")
+    }
+
+    /// Return the path without its final component.
+    parent(&readonly this): &readonly PathSlice | undefined {
+        todo("Path.parent")
+    }
+
+    /// Return the final path component.
+    fileName(&readonly this): &readonly OsStringSlice | undefined {
+        todo("Path.fileName")
+    }
+
+    /// Return the final path component without its extension.
+    fileStem(&readonly this): &readonly OsStringSlice | undefined {
+        todo("Path.fileStem")
+    }
+
+    /// Return the first non-empty portion of the final component.
+    filePrefix(&readonly this): &readonly OsStringSlice | undefined {
+        todo("Path.filePrefix")
+    }
+
+    /// Return the final path component extension.
+    extension(&readonly this): &readonly OsStringSlice | undefined {
+        todo("Path.extension")
+    }
+
+    /// Return whether this path starts with complete components from `base`.
+    startsWith(&readonly this, base: &readonly PathSlice): boolean {
+        todo("Path.startsWith")
+    }
+
+    /// Return whether this path ends with complete components from `child`.
+    endsWith(&readonly this, child: &readonly PathSlice): boolean {
+        todo("Path.endsWith")
+    }
+
+    /// Remove complete leading components from `base`.
+    stripPrefix(
+        &readonly this,
+        base: &readonly PathSlice,
+    ): Result<&readonly PathSlice, StripPrefixError> {
+        todo("Path.stripPrefix")
+    }
+
+    /// Join `child` to this path.
+    join(&readonly this, child: &readonly PathSlice): ^Path {
+        todo("Path.join")
+    }
+
+    /// Return this path with a different final component.
+    withFileName(&readonly this, name: &readonly OsStringSlice): ^Path {
+        todo("Path.withFileName")
+    }
+
+    /// Return this path with a different extension.
+    withExtension(&readonly this, extension: &readonly OsStringSlice): ^Path {
+        todo("Path.withExtension")
+    }
+
+    /// Return this path with an additional extension.
+    withAddedExtension(&readonly this, extension: &readonly OsStringSlice): ^Path {
+        todo("Path.withAddedExtension")
+    }
+
+    /// Iterate over the lexical path components.
+    components<'a>(this: &'a readonly P): PathComponents<'a> {
+        todo("Path.components")
+    }
+
+    /// Iterate over this path and each successive parent.
+    ancestors<'a>(this: &'a readonly P): PathAncestors<'a> {
+        todo("Path.ancestors")
+    }
+
+    /// Decode this path as Unicode text.
+    decode(&readonly this): Result<^string, OsStringDecodeError> {
+        this.borrow().as().decode()
+    }
+
+    /// Decode this path and replace invalid sequences.
+    decodeLossy(&readonly this): ^string {
+        this.borrow().as().decodeLossy()
+    }
+}
+
+export extension<Q: Borrow<PathSlice>> of PathSlice
+    implements PartialEqual<Q>, Equal<Q>, PartialCompare<Q>, Compare<Q>
+{
+    /// Return whether this path has the same native representation as `other`.
+    equal(this: &immutable this, other: &immutable Q): boolean {
+        todo("Path.equal")
+    }
+
+    /// Compare this path's native representation with `other`.
+    compare(this: &immutable this, other: &immutable Q): Ordering {
+        todo("Path.compare")
+    }
+
+    /// Partially compare this path's native representation with `other`.
+    partialCompare(this: &immutable this, other: &immutable Q): Ordering | null {
+        this.compare(other)
+    }
+}
+
+export extension<Q: Borrow<PathSlice>> of Path
+    implements PartialEqual<Q>, Equal<Q>, PartialCompare<Q>, Compare<Q>
+{
+    /// Return whether this path has the same native representation as `other`.
+    equal(this: &immutable this, other: &immutable Q): boolean {
+        todo("Path.equal")
+    }
+
+    /// Compare this path's native representation with `other`.
+    compare(this: &immutable this, other: &immutable Q): Ordering {
+        todo("Path.compare")
+    }
+
+    /// Partially compare this path's native representation with `other`.
+    partialCompare(this: &immutable this, other: &immutable Q): Ordering | null {
+        this.compare(other)
+    }
+}
+
+export extension<'a> of WindowsPathPrefix<'a> {
+    /// Return whether this prefix disables Windows path normalization.
+    get isVerbatim(&readonly this): boolean {
+        todo("WindowsPathPrefix.isVerbatim")
+    }
+}
+
+export extension<'a> of PathComponent<'a> {
+    /// Borrow this component as native text.
+    asOsString(&readonly this): &'a readonly OsStringSlice {
+        todo("PathComponent.asOsString")
+    }
+}
+
+export extension<'a> of PathComponents<'a> implements Iterator<PathComponent<'a>> {
+    /// Advance to the next path component.
+    next(&this): IteratorResult<PathComponent<'a>> {
+        todo("PathComponents.next")
+    }
+}
+
+export extension<'a> of PathAncestors<'a> implements Iterator<&'a readonly PathSlice> {
+    /// Advance to the next ancestor.
+    next(&this): IteratorResult<&'a readonly PathSlice> {
+        todo("PathAncestors.next")
+    }
+}
+
+export extension of StripPrefixError implements Error {
+    /// Format this error for users.
+    display(&immutable this): ^string {
+        todo("StripPrefixError.display")
+    }
+}

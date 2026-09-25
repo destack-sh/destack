@@ -8,11 +8,11 @@ Assignment wrapping fixtures cover assignment chains and long assignment targets
 
 When the right hand side is a chain, prefer breaking at the chain segments.
 
-```ds line-width=40
+```tspp line-width=40
 const result = someVeryLongChain().a().b().c()
 ```
 
-```ds expected
+```tspp expected
 const result = someVeryLongChain()
     .a()
     .b()
@@ -23,11 +23,11 @@ const result = someVeryLongChain()
 
 Even with a long left hand side, the chain should break cleanly.
 
-```ds line-width=50
+```tspp line-width=50
 const veryLongResultName = someVeryLongChain().a().b().c().d()
 ```
 
-```ds expected
+```tspp expected
 const veryLongResultName = someVeryLongChain()
     .a()
     .b()
@@ -41,11 +41,11 @@ const veryLongResultName = someVeryLongChain()
 
 Multiple assignments in one expression.
 
-```ds
+```tspp
 a = b = c = 1
 ```
 
-```ds expected
+```tspp expected
 a = b = c = 1;
 ```
 
@@ -53,11 +53,11 @@ a = b = c = 1;
 
 Chained assignments keep right associativity while breaking by assignment depth.
 
-```ds line-width=30
+```tspp line-width=30
 veryLongName = anotherLongName = thirdLongName = 42
 ```
 
-```ds expected
+```tspp expected
 veryLongName =
     anotherLongName =
     thirdLongName =

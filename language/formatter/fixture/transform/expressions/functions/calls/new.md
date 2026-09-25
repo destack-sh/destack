@@ -6,11 +6,11 @@
 
 Constructor calls use `new` followed by the class name.
 
-```ds
+```tspp
 new Foo(a, b, c)
 ```
 
-```ds expected
+```tspp expected
 new Foo(a, b, c);
 ```
 
@@ -18,11 +18,11 @@ new Foo(a, b, c);
 
 Empty parentheses are preserved on `new` expressions.
 
-```ds
+```tspp
 new Foo()
 ```
 
-```ds expected
+```tspp expected
 new Foo();
 ```
 
@@ -30,10 +30,10 @@ new Foo();
 
 Method chains can follow `new` expressions.
 
-```ds
+```tspp
 new Foo().bar().baz()
 ```
 
-```ds expected
+```tspp expected
 new Foo().bar().baz();
 ```

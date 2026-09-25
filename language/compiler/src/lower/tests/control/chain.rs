@@ -14,7 +14,7 @@ function read(options: Options | undefined): int32 | undefined {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.read", r#"
+    session.assert_mir_function("main.tspp", "test.main.read", r#"
 type test.main.Options {
     retries: int32;
 }
@@ -67,7 +67,7 @@ function read(counter: Counter | undefined): int32 | undefined {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Counter.total",
         r#"
 type test.main.Counter {
@@ -88,7 +88,7 @@ entry(v0: test.main.Counter):
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.read", r#"
+    session.assert_mir_function("main.tspp", "test.main.read", r#"
 type test.main.Counter {
     value: int32;
 }
@@ -148,7 +148,7 @@ function evaluate(message: Message | undefined): string | undefined {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.evaluate", r#"
+    session.assert_mir_function("main.tspp", "test.main.evaluate", r#"
 @nocopy
 @languageItem("string.String")
 type String;
@@ -222,7 +222,7 @@ b9:
 fn test_lower_a_try_projection_propagating_its_residual() {
     let session = TestSession::single(
         r#"
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 function read(): Result<int32, string> {
     return Result.ok(1);
@@ -236,7 +236,7 @@ function twice(): Result<int32, string> {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.read", r#"
+    session.assert_mir_function("main.tspp", "test.main.read", r#"
 @nocopy
 @languageItem("string.String")
 type String;
@@ -252,7 +252,7 @@ entry:
 }
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.twice", r#"
+    session.assert_mir_function("main.tspp", "test.main.twice", r#"
 @nocopy
 @languageItem("string.String")
 type String;

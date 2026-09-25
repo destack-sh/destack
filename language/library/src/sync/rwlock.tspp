@@ -1,0 +1,130 @@
+import { todo } from "tspp:error";
+import { Access, Borrowed, Copy, Default, Dispose, Region } from "tspp:memory";
+import { Dereference } from "tspp:ops";
+
+import { Atomic } from "./atomic.tspp";
+
+/// Reader-writer lock.
+@languageItem("sync.RwLock")
+export shared class RwLock<T> {
+    /// The lock state.
+    private state: Atomic<uint32> = Atomic.new(0);
+
+    /// The protected value.
+    private value: T;
+
+    /// Create a reader-writer lock protecting `value`.
+    constructor(&exclusive this, value: T) {
+        this.value = value;
+    }
+
+    /// Lock this value for shared reading.
+    read<'a>(&'a readonly this): RwLockReadGuard<'a, T> {
+        todo("RwLock.read")
+    }
+
+    /// Try to lock this value for shared reading.
+    tryRead<'a>(&'a readonly this): RwLockReadGuard<'a, T> | undefined {
+        todo("RwLock.tryRead")
+    }
+
+    /// Lock this value for exclusive writing.
+    write<'a>(&'a readonly this): RwLockWriteGuard<'a, T> {
+        todo("RwLock.write")
+    }
+
+    /// Try to lock this value for exclusive writing.
+    tryWrite<'a>(&'a readonly this): RwLockWriteGuard<'a, T> | undefined {
+        todo("RwLock.tryWrite")
+    }
+
+    /// Borrow the protected value without locking.
+    getExclusive(&exclusive this): &exclusive T {
+        todo("RwLock.getExclusive")
+    }
+
+    /// Consume this lock and return the protected value.
+    intoInner(^this): T {
+        todo("RwLock.intoInner")
+    }
+}
+
+export extension<T: Default> of RwLock<T> implements Default {
+    /// Create the default reader-writer lock.
+    static default(): ^RwLock<T> {
+        new RwLock(T.default())
+    }
+}
+
+/// Active readonly lock guard.
+export struct RwLockReadGuard<'a, T> implements !SharedSafe {
+    /// The locked value.
+    private lock: &'a readonly RwLock<T>;
+}
+
+export extension<'a, T> of RwLockReadGuard<'a, T>
+    implements Dispose, !Copy, Dereference<"readonly">
+{
+    /// The pointee type.
+    type Target = T;
+
+    /// The access supplied by the pointer.
+    const OutputAccess: Access = "immutable";
+
+    /// Release this guard.
+    dispose(this): void {
+        todo("RwLockReadGuard.dispose");
+    }
+
+    /// Borrow the protected value.
+    dereference<const R: Region>(
+        this: Borrowed<this, R, "readonly">,
+    ): Borrowed<this.Target, R, "immutable"> {
+        todo("RwLockReadGuard.dereference")
+    }
+}
+
+/// Active exclusive lock guard.
+export struct RwLockWriteGuard<'a, T> implements !SharedSafe {
+    /// The locked value.
+    private lock: &'a readonly RwLock<T>;
+}
+
+export extension<'a, T> of RwLockWriteGuard<'a, T>
+    implements Dispose, !Copy, Dereference<"exclusive">
+{
+    /// The pointee type.
+    type Target = T;
+
+    /// Release this guard.
+    dispose(this): void {
+        todo("RwLockWriteGuard.dispose");
+    }
+
+    /// Borrow the protected value.
+    dereference<const R: Region>(
+        this: Borrowed<this, R, "exclusive">,
+    ): Borrowed<this.Target, R, "exclusive"> {
+        todo("RwLockWriteGuard.dereference")
+    }
+
+    /// Downgrade this write guard to a read guard.
+    downgrade(this): RwLockReadGuard<'a, T> {
+        todo("RwLockWriteGuard.downgrade")
+    }
+}
+
+export extension<'a, T> of RwLockWriteGuard<'a, T> implements Dereference<"readonly"> {
+    /// The pointee type.
+    type Target = T;
+
+    /// The access supplied by the pointer.
+    const OutputAccess: Access = "immutable";
+
+    /// Borrow the protected value with readonly access.
+    dereference<const R: Region>(
+        this: Borrowed<this, R, "readonly">,
+    ): Borrowed<this.Target, R, "immutable"> {
+        todo("RwLockWriteGuard.dereference")
+    }
+}

@@ -1,0 +1,31 @@
+import { todo } from "tspp:error";
+import { NoInfer } from "tspp:types";
+
+import { SignalArgument } from "./accessor.tspp";
+
+import { DerivationValue } from "./derive.tspp";
+import { EffectOptions } from "./options.tspp";
+
+/// Untracked effect applied after one derived value settles.
+export type EffectFunction<T> = (
+    value: SignalArgument<T>,
+    previous: SignalArgument<T> | undefined,
+) => void | ^Function<(), void, "once">;
+
+/// Create an effect from one synchronous, polling, or asynchronous derivation.
+export function createEffect<Output>(
+    derive: ^Function<(SignalArgument<NoInfer<DerivationValue<Output>>> | undefined,), Output>,
+    apply: ^EffectFunction<DerivationValue<Output>>,
+    options?: EffectOptions,
+): void {
+    todo("signal.createEffect");
+}
+
+/// Create an effect whose apply function runs in the renderer phase.
+export function createRenderEffect<Output>(
+    derive: ^Function<(SignalArgument<NoInfer<DerivationValue<Output>>> | undefined,), Output>,
+    apply: ^EffectFunction<DerivationValue<Output>>,
+    options?: EffectOptions,
+): void {
+    todo("signal.createRenderEffect");
+}

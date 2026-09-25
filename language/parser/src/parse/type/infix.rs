@@ -1,7 +1,7 @@
 use crate::parse::r#type::operator::{TypeOperator, TypeRelation};
 use crate::{Parser, ParserResult};
-use destack_dir::{LocalNodeId, TypeExpression};
-use destack_source::ByteRange;
+use tspp_dir::{LocalNodeId, TypeExpression};
+use tspp_source::ByteRange;
 
 impl Parser {
     /// Insert one type infix expression.

@@ -1,7 +1,7 @@
 use std::num::NonZeroU64;
 
-use destack_program as program;
-use destack_repository::RuntimeOptions;
+use tspp_program as program;
+use tspp_repository::RuntimeOptions;
 
 use crate::debugger::{
     Breakpoint, EventFilter, MemoryFilter, PointFilter, Probe, ProbeAction, ProbeFilter, Watchpoint,

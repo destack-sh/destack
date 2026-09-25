@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -117,7 +117,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
-    extent: destack_source::Span,
+    extent: tspp_source::Span,
     key: dir::LocalNodeId<dir::TypeExpression>,
     set: &str,
     construction: Option<usize>,
@@ -160,7 +160,7 @@ function collect(): Map<string, void> {
         session.assert_diagnostics(
             r#"
 warning[prefer-set-over-unit-map]: Map value type carries no information
- ──▶ main.ds:1:33
+ ──▶ main.tspp:1:33
   │
 1 │ function collect(): Map<string, void> {
   │                                 ^^^^
@@ -169,15 +169,15 @@ warning[prefer-set-over-unit-map]: Map value type carries no information
   │
 
  = suggestion: use a Set (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ function collect(): Map<string, void> {
 +   1│ function collect(): Set<string> {
     2│     return new Map<string, void>();
 
 warning[prefer-set-over-unit-map]: Map value type carries no information
- ──▶ main.ds:2:28
+ ──▶ main.tspp:2:28
   │
 1 │ function collect(): Map<string, void> {
 2 │     return new Map<string, void>();
@@ -186,8 +186,8 @@ warning[prefer-set-over-unit-map]: Map value type carries no information
   │
 
  = suggestion: use a Set (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function collect(): Map<string, void> {
 -   2│     return new Map<string, void>();
@@ -217,15 +217,15 @@ declare function collect(): Map<string, ()>;
         session.assert_diagnostics(
             r#"
 warning[prefer-set-over-unit-map]: Map value type carries no information
- ──▶ main.ds:1:41
+ ──▶ main.tspp:1:41
   │
 1 │ declare function collect(): Map<string, ()>;
   │                                         ^^
   │
 
  = suggestion: use a Set (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ declare function collect(): Map<string, ()>;
 +   1│ declare function collect(): Set<string>;

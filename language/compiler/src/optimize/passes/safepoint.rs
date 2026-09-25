@@ -1,5 +1,5 @@
-use destack_artifact::MirOptimized;
-use destack_mir::{FunctionCache, FunctionId, Instruction, Mutation, Terminator};
+use tspp_artifact::MirOptimized;
+use tspp_mir::{FunctionCache, FunctionId, Instruction, Mutation, Terminator};
 
 use crate::CompilerResult;
 use crate::optimize::pipeline::FunctionPass;

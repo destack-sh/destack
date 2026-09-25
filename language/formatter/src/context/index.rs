@@ -1,7 +1,7 @@
 use crate::file::comment_text_has_ignore_directive_marker;
 
-use destack_dir::{Comment, Tree};
-use destack_source::File;
+use tspp_dir::{Comment, Tree};
+use tspp_source::File;
 
 /// Immutable source lookups for one formatter pass.
 #[derive(Debug)]

@@ -2,7 +2,7 @@ use crate::parse::error::ParserResultExt;
 use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::{Parser, ParserError, ParserResult};
 
-use destack_dir::{
+use tspp_dir::{
     Block, BlockContext, BlockForm, Expression, Keyword, LocalNodeId, NodeType, SwitchCase,
     SwitchSelector, TokenType,
 };

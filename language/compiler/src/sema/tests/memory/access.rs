@@ -19,7 +19,7 @@ function update(state: &State): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -109,7 +109,7 @@ function update(state: &State): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -195,7 +195,7 @@ function update(state: &State): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -261,7 +261,7 @@ function update(value: &int32): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -299,7 +299,7 @@ function update(value: &readonly int32): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -345,7 +345,7 @@ state.status = Status.Busy;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -412,7 +412,7 @@ state.count = 1;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -467,7 +467,7 @@ shared class Cell<T> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -527,7 +527,7 @@ items.push(1);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -569,7 +569,7 @@ items.push(1);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -620,7 +620,7 @@ function forward<'a>(counter: &'a Counter): &'a Counter {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_flows(),
         r#"
 === annotated ===
@@ -715,7 +715,7 @@ function grow(): int32[] {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -790,7 +790,7 @@ function bump(cell: Cell): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -894,7 +894,7 @@ function copy(values: int32[], output: int32[]): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_flows(),
         r#"
 === annotated ===
@@ -986,7 +986,7 @@ function observe(values: Iterator<^string>): Iterator<^string> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_flows(),
         r#"
 === annotated ===
@@ -1065,7 +1065,7 @@ function inspect(user: User): User {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_flows(),
         r#"
 === annotated ===
@@ -1127,7 +1127,7 @@ function grow(values: int32[]): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_flows(),
         r#"
 === annotated ===
@@ -1191,7 +1191,7 @@ function read(holder: Holder): int32 {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Payload {
     value: int32;
@@ -1322,7 +1322,7 @@ function peek(holder: Holder): isize {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Buffer {
     steps: ^int32[];
@@ -1438,7 +1438,7 @@ function peek(holder: Holder): isize {
 fn test_reject_an_exclusive_borrow_through_a_handle_of_an_object_holding_owned_storage() {
     let session = TestSession::single(
         r#"
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 class Bag {
     item: ^Box<int32> = Box.new(0);
@@ -1452,11 +1452,11 @@ function edit(bag: Bag): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 class Bag {
     item: Box<int32> = Box.new<int32, "readonly">(0);
@@ -1468,7 +1468,7 @@ function edit(bag: Bag): void {
 }
 
 === dir ===
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 class Bag {
 /// @type.symbol symbol=Bag type=typeof Bag
@@ -1524,7 +1524,7 @@ function edit(bag: Bag): void {
 fn test_reject_an_immutable_borrow_through_a_handle_of_an_object_holding_an_owned_case() {
     let session = TestSession::single(
         r#"
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 class Slot {
     value: ^Box<int32> | undefined = undefined;
@@ -1538,11 +1538,11 @@ function view(slot: Slot): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 class Slot {
     value: Box<int32> | undefined = undefined as Box<int32> | undefined;
@@ -1554,7 +1554,7 @@ function view(slot: Slot): void {
 }
 
 === dir ===
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 class Slot {
 /// @type.symbol symbol=Slot type=typeof Slot

@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use destack_artifact::DirExported;
-use destack_dir as dir;
-use destack_repository::ArtifactReader;
-use destack_source::{ModuleId, ProfileId};
+use tspp_artifact::DirExported;
+use tspp_dir as dir;
+use tspp_repository::ArtifactReader;
+use tspp_source::{ModuleId, ProfileId};
 
 use crate::{CompilerError, CompilerResult};
 
@@ -115,9 +115,9 @@ impl ExportResolver {
     /// Resolve one exported target through direct and indirect exports.
     ///
     /// Example:
-    /// ```ds
-    /// import { value } from "./dep.ds";
-    /// // value can come from dep.ds directly or through export { value } from "./inner.ds"
+    /// ```tspp
+    /// import { value } from "./dep.tspp";
+    /// // value can come from dep.tspp directly or through export { value } from "./inner.tspp"
     /// ```
     pub(crate) fn resolve_export_target(
         &mut self,
@@ -152,9 +152,9 @@ impl ExportResolver {
     /// Return the cached export lookup when it is already known.
     ///
     /// Example:
-    /// ```ds
-    /// import { value } from "./dep.ds";
-    /// import { value as other } from "./dep.ds";
+    /// ```tspp
+    /// import { value } from "./dep.tspp";
+    /// import { value as other } from "./dep.tspp";
     /// // the second lookup can reuse the first export result
     /// ```
     fn cached_export_lookup(&self, key: ExportLookupKey) -> Option<ExportLookup> {
@@ -171,9 +171,9 @@ impl ExportResolver {
     /// Resolve one exported target without consulting the lookup cache.
     ///
     /// Example:
-    /// ```ds
-    /// import { value } from "./dep.ds";
-    /// // dep.ds is loaded and searched directly on the first lookup
+    /// ```tspp
+    /// import { value } from "./dep.tspp";
+    /// // dep.tspp is loaded and searched directly on the first lookup
     /// ```
     fn resolve_export_target_uncached(
         &mut self,
@@ -193,9 +193,9 @@ impl ExportResolver {
     /// Return one exported module loaded through this provider run.
     ///
     /// Example:
-    /// ```ds
-    /// import { value } from "./dep.ds";
-    /// export { value } from "./dep.ds";
+    /// ```tspp
+    /// import { value } from "./dep.tspp";
+    /// export { value } from "./dep.tspp";
     /// // both clauses read the same exported module artifact
     /// ```
     pub(crate) fn exported_module(
@@ -279,10 +279,10 @@ impl ExportResolver {
     /// Resolve one concrete export entry.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// export { value };
-    /// export { inner as value } from "./dep.ds";
-    /// export * as api from "./api.ds";
+    /// export { inner as value } from "./dep.tspp";
+    /// export * as api from "./api.tspp";
     /// ```
     fn resolve_export_entry(
         &mut self,
@@ -306,9 +306,9 @@ impl ExportResolver {
     /// Resolve one named export through star exports.
     ///
     /// Example:
-    /// ```ds
-    /// export * from "./a.ds";
-    /// export * from "./b.ds";
+    /// ```tspp
+    /// export * from "./a.tspp";
+    /// export * from "./b.tspp";
     /// // importing { value } checks every visible star export
     /// ```
     fn resolve_star_export_target(

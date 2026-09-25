@@ -1,7 +1,7 @@
 use crate::{
-    DestackFormatOptions, assert_format_program, assert_format_program_roundtrip_with_file_type,
+    TsppFormatOptions, assert_format_program, assert_format_program_roundtrip_with_file_type,
 };
-use destack_source::FileType;
+use tspp_source::FileType;
 
 /// Binary ternary conditions should stay beside their assignment when they fit.
 #[test]
@@ -15,7 +15,7 @@ fn test_format_binary_ternary_condition_stays_with_assignment() {
     ? Vector3 { x: -from.y, y: from.x, z: T.zero() }
     : Vector3 { x: T.zero(), y: -from.z, z: from.y };
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -29,8 +29,8 @@ fn test_format_ternary_branch_separator_comments() {
     ? left /* left-note */
     : right; /* right-note */
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(40),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(40),
     );
 }
 
@@ -46,8 +46,8 @@ right
     : // alt-line
       right;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(30),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(30),
     );
 }
 
@@ -61,8 +61,8 @@ fn test_format_ternary_new_branch_separator_comments() {
     ? new Left() /* left-new */
     : new Right();
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(36),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(36),
     );
 }
 
@@ -74,8 +74,8 @@ fn test_format_tree_chain_null_branch_separator_block_comment() {
 "#,
         r#"const value = <>{condition ? null /* branch-note */ : other ? <A /> : <B />}</>;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -87,8 +87,8 @@ fn test_format_tree_chain_branch_separator_block_comment() {
 "#,
         r#"const node = <div>{isVideo ? <Video /> /* video-comment */ : <Image /> /* image-comment */}</div>;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100),
     );
 }
 
@@ -108,8 +108,8 @@ fn test_format_tree_chain_wrapped_branch_separator_comments() {
     </div>
 );
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(40),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(40),
     );
 }
 
@@ -131,7 +131,7 @@ fn test_format_tree_chain_alternate_line_comment() {
     </>
 );
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(40),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(40),
     );
 }

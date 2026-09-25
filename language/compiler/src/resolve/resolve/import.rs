@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::{FileId, ModuleId};
+use tspp_dir as dir;
+use tspp_source::{FileId, ModuleId};
 
 use crate::export::ExportLookup;
 use crate::resolve::state::ResolveState;
@@ -9,8 +9,8 @@ impl ResolveState<'_> {
     /// Resolve collected import clauses.
     ///
     /// Example:
-    /// ```ds
-    /// import { value } from "./dep.ds";
+    /// ```tspp
+    /// import { value } from "./dep.tspp";
     /// ```
     pub(in crate::resolve) fn resolve_imports(&mut self) -> CompilerResult<()> {
         let imports = std::mem::take(&mut self.import_expressions);
@@ -75,8 +75,8 @@ impl ResolveState<'_> {
     /// Resolve the target for one named import clause item.
     ///
     /// Example:
-    /// ```ds
-    /// import { value as local } from "./dep.ds";
+    /// ```tspp
+    /// import { value as local } from "./dep.tspp";
     /// // local is bound to the exported value target
     /// ```
     fn resolve_import_item(

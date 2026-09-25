@@ -3,8 +3,8 @@ use std::sync::Arc;
 use std::thread::{self, JoinHandle};
 
 use crossbeam_channel::{Sender, unbounded};
-use destack_source::{FileWatch, FileWatchError, FileWatchEvent};
-use destack_workspace::Workspace;
+use tspp_source::{FileWatch, FileWatchError, FileWatchEvent};
+use tspp_workspace::Workspace;
 
 use super::{DaemonError, WorkspaceWatchError};
 
@@ -170,7 +170,7 @@ impl Drop for WorkspaceWatch {
     /// Stop and join the physical watch worker.
     fn drop(&mut self) {
         if let Err(error) = self.stop() {
-            eprintln!("Destack workspace watch failed: {error}");
+            eprintln!("TS++ workspace watch failed: {error}");
         }
     }
 }

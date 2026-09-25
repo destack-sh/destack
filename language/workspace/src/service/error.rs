@@ -1,6 +1,6 @@
-use destack_query::QueryError;
-use destack_repository::RepositoryError;
-use destack_rpc::{Code, Status};
+use tspp_query::QueryError;
+use tspp_repository::RepositoryError;
+use tspp_rpc::{Code, Status};
 
 use crate::{CommandError, CommandErrorKind, Error};
 

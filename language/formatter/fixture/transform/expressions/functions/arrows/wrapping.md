@@ -6,11 +6,11 @@
 
 Long arrow functions break at the assignment when needed.
 
-```ds line-width=40
+```tspp line-width=40
 const processItem = (item) => transformAndValidate(item)
 ```
 
-```ds expected
+```tspp expected
 const processItem = (item) =>
     transformAndValidate(item);
 ```
@@ -19,11 +19,11 @@ const processItem = (item) =>
 
 Many parameters cause the param list to break.
 
-```ds line-width=40
+```tspp line-width=40
 const fn = (first, second, third, fourth) => first + second
 ```
 
-```ds expected
+```tspp expected
 const fn = (
     first,
     second,
@@ -36,11 +36,11 @@ const fn = (
 
 Complex return expressions break appropriately.
 
-```ds line-width=50
+```tspp line-width=50
 const handler = (event) => ({ type: event.type, target: event.target, timestamp: Date.now() })
 ```
 
-```ds expected
+```tspp expected
 const handler = (event) => ({
     type: event.type,
     target: event.target,
@@ -52,14 +52,14 @@ const handler = (event) => ({
 
 Chain returns in arrow bodies keep each chain segment on its own line.
 
-```ds:main.ds line-width=60
+```tspp:main.tspp line-width=60
 const normalize = (id) =>
   id
     .replace("@", resolve(__dirname, "./mods/"))
     .replace("#", resolve(__dirname, "../../"))
 ```
 
-```ds expected
+```tspp expected
 const normalize = (id) =>
     id
         .replace("@", resolve(__dirname, "./mods/"))

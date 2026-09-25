@@ -11,7 +11,7 @@ const text = transform(1);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked()
             .with_node_types()
             .without_reference_types(),
@@ -52,7 +52,7 @@ function invokeReadonly(run: &readonly Function<(), void>): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked()
             .with_node_types()
             .without_reference_types(),
@@ -100,7 +100,7 @@ borrowed();
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 declare const owned: ^(() => void);
 declare const handle: () => void;
@@ -170,7 +170,7 @@ const affine = affineKind();
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked()
             .with_node_types()
             .without_reference_types(),
@@ -251,7 +251,7 @@ const result = transform("value");
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked()
             .with_node_types()
             .without_reference_types(),
@@ -298,7 +298,7 @@ const result: "left" | "right" = transform(1);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked()
             .with_node_types()
             .without_reference_types(),
@@ -351,7 +351,7 @@ value();
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked()
             .with_node_types()
             .without_reference_types(),
@@ -394,7 +394,7 @@ const sum = add(1, 2);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -453,7 +453,7 @@ const counter = new factory(1);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -521,7 +521,7 @@ const add: Adder = (left: int32, right: int32): int32 => left + right;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -580,7 +580,7 @@ function total(values: int32[]): int32 {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 declare function visit(callback: Function<(int32,), void, "readonly">): void;
 
@@ -652,7 +652,7 @@ function total(values: int32[]): int32 {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 declare function visit(callback: (value: int32) => void): void;
 
@@ -719,7 +719,7 @@ const widened: (value: int32) => int32 | undefined = increment;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -773,7 +773,7 @@ const out = applyOpen(increment);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -835,7 +835,7 @@ const out: int32 | undefined = applyOpen((value: int32) => value + 1);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -887,7 +887,7 @@ const covariant: () => Animal = makeDog;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -940,7 +940,7 @@ const contravariant: (dog: Dog) => void = eatAnimal;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -994,7 +994,7 @@ const predicate: (animal: Animal) => boolean = isDog;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1050,7 +1050,7 @@ const erased: () => unknown = makeDog;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

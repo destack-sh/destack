@@ -1,5 +1,5 @@
 use crate::emit::js;
-use destack_repository::EsTarget;
+use tspp_repository::EsTarget;
 
 use super::linker::Rewriter;
 

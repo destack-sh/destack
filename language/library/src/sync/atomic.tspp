@@ -1,0 +1,598 @@
+import { todo } from "tspp:error";
+import { Float, Integer } from "tspp:math";
+import { Concrete, Copy, SharedSafe, UnsafeCell } from "tspp:memory";
+
+/// Memory reordering constraint for atomic operations.
+@languageItem("sync.MemoryOrdering")
+export enum MemoryOrdering {
+    /// Atomicity without synchronization ordering.
+    Relaxed,
+    /// Acquire ordering that prevents subsequent reads and writes from moving before a load.
+    Acquire,
+    /// Release ordering that prevents prior reads and writes from moving after a store.
+    Release,
+    /// Combined acquire and release ordering.
+    AcquireRelease,
+    /// Acquire-release ordering within one global total order.
+    SequentiallyConsistent,
+}
+
+/// Execution scope for atomic operations.
+@languageItem("sync.AtomicScope")
+export enum AtomicScope {
+    /// Single invocation or thread scope.
+    Invocation,
+    /// Subgroup or warp scope.
+    Subgroup,
+    /// Workgroup scope.
+    Workgroup,
+    /// Device scope.
+    Device,
+    /// Cross device scope.
+    CrossDevice,
+    /// Queue family scope.
+    QueueFamily,
+    /// Shader call group scope.
+    ShaderCallGroup,
+    /// System wide scope.
+    System,
+}
+
+/// Memory scope for atomic operations.
+@languageItem("sync.MemoryScope")
+export enum MemoryScope {
+    /// Single invocation or thread scope.
+    Invocation,
+    /// Subgroup or warp scope.
+    Subgroup,
+    /// Workgroup scope.
+    Workgroup,
+    /// Device scope.
+    Device,
+    /// Cross device scope.
+    CrossDevice,
+    /// Queue family scope.
+    QueueFamily,
+    /// Shader call group scope.
+    ShaderCallGroup,
+    /// System wide scope.
+    System,
+}
+
+/// Effect regions participating in an atomic operation.
+@languageItem("sync.MemoryRegionSet")
+export enum MemoryRegionSet {
+    /// No memory locations.
+    None = 0,
+    /// Memory reachable from pointer arguments.
+    Arguments = 1,
+    /// Heap allocated memory.
+    Heap = 2,
+    /// Stack memory.
+    Stack = 4,
+    /// Global or static memory.
+    Global = 8,
+    /// Shared or workgroup memory.
+    Shared = 16,
+    /// Target local or thread local memory.
+    Local = 32,
+    /// Target constant or read only memory.
+    Constant = 64,
+    /// Inaccessible memory that cannot be aliased.
+    Inaccessible = 128,
+    /// Memory mapped IO or other side channel memory.
+    Io = 256,
+    /// All memory locations.
+    Any = 511,
+}
+
+/// Result of waiting on an atomic value.
+@languageItem("sync.AtomicWaitResult")
+export type AtomicWaitResult = "notEqual" | "timedOut" | "woken";
+
+/// Values supported by atomic storage.
+@languageItem("sync.AtomicSafe")
+export newtype interface AtomicSafe extends Concrete, Copy, SharedSafe {}
+
+/// Atomic storage for one value.
+export struct Atomic<T: AtomicSafe> {
+    /// The atomically accessed value.
+    private storage: UnsafeCell<T>;
+}
+
+@unsafe
+export extension<T: AtomicSafe> of Atomic<T> implements SharedSafe {}
+
+export extension<T: AtomicSafe> of Atomic<T> {
+    /// Create atomic storage.
+    static new(value: T): Atomic<T> {
+        Atomic { storage: UnsafeCell.new(value) }
+    }
+
+    /// Load the current value.
+    @safe
+    load<
+        const Order:
+            | MemoryOrdering.Relaxed
+            | MemoryOrdering.Acquire
+            | MemoryOrdering.SequentiallyConsistent = MemoryOrdering.SequentiallyConsistent,
+    >(&readonly this, order?: Order): T {
+        atomicLoad(
+            this.storage.get(),
+            Order,
+            AtomicScope.Device,
+            MemoryScope.Device,
+            MemoryRegionSet.Any,
+            false,
+            false,
+            false,
+        )
+    }
+
+    /// Store a new value.
+    @safe
+    store<
+        const Order:
+            | MemoryOrdering.Relaxed
+            | MemoryOrdering.Release
+            | MemoryOrdering.SequentiallyConsistent = MemoryOrdering.SequentiallyConsistent,
+    >(&readonly this, value: T, order?: Order): void {
+        atomicStore(
+            this.storage.get(),
+            value,
+            Order,
+            AtomicScope.Device,
+            MemoryScope.Device,
+            MemoryRegionSet.Any,
+            false,
+            false,
+            false,
+        );
+    }
+
+    /// Replace the value and return the previous value.
+    @safe
+    exchange<const Order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent>(
+        &readonly this,
+        value: T,
+        order?: Order,
+    ): T {
+        atomicExchange(
+            this.storage.get(),
+            value,
+            Order,
+            AtomicScope.Device,
+            MemoryScope.Device,
+            MemoryRegionSet.Any,
+            false,
+            false,
+            false,
+        )
+    }
+
+    /// Compare with `expected` and replace with `desired` when equal.
+    @safe
+    compareExchange<const Order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent>(
+        &readonly this,
+        expected: T,
+        desired: T,
+        order?: Order,
+    ): (T, boolean) {
+        atomicCas(
+            this.storage.get(),
+            expected,
+            desired,
+            Order,
+            AtomicScope.Device,
+            MemoryScope.Device,
+            MemoryRegionSet.Any,
+            false,
+            false,
+            false,
+        )
+    }
+}
+
+export extension<T: Integer> of Atomic<T> where T: AtomicSafe {
+    /// Wait while the value is equal to `expected`.
+    wait<
+        const Order:
+            | MemoryOrdering.Relaxed
+            | MemoryOrdering.Acquire
+            | MemoryOrdering.SequentiallyConsistent = MemoryOrdering.SequentiallyConsistent,
+    >(&readonly this, expected: T, order?: Order, timeoutNanos?: uint64): AtomicWaitResult {
+        todo("Atomic.wait")
+    }
+
+    /// Wake workers waiting on this atomic value.
+    wake(&readonly this, count?: usize): usize {
+        todo("Atomic.wake")
+    }
+
+    /// Add `value` and return the previous value.
+    @safe
+    fetchAdd<const Order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent>(
+        &readonly this,
+        value: T,
+        order?: Order,
+    ): T {
+        atomicFetchAdd(
+            this.storage.get(),
+            value,
+            Order,
+            AtomicScope.Device,
+            MemoryScope.Device,
+            MemoryRegionSet.Any,
+            false,
+            false,
+            false,
+        )
+    }
+
+    /// Subtract `value` and return the previous value.
+    @safe
+    fetchSub<const Order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent>(
+        &readonly this,
+        value: T,
+        order?: Order,
+    ): T {
+        atomicFetchSub(
+            this.storage.get(),
+            value,
+            Order,
+            AtomicScope.Device,
+            MemoryScope.Device,
+            MemoryRegionSet.Any,
+            false,
+            false,
+            false,
+        )
+    }
+
+    /// Apply bitwise and and return the previous value.
+    @safe
+    fetchAnd<const Order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent>(
+        &readonly this,
+        value: T,
+        order?: Order,
+    ): T {
+        atomicFetchAnd(
+            this.storage.get(),
+            value,
+            Order,
+            AtomicScope.Device,
+            MemoryScope.Device,
+            MemoryRegionSet.Any,
+            false,
+            false,
+            false,
+        )
+    }
+
+    /// Apply bitwise or and return the previous value.
+    @safe
+    fetchOr<const Order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent>(
+        &readonly this,
+        value: T,
+        order?: Order,
+    ): T {
+        atomicFetchOr(
+            this.storage.get(),
+            value,
+            Order,
+            AtomicScope.Device,
+            MemoryScope.Device,
+            MemoryRegionSet.Any,
+            false,
+            false,
+            false,
+        )
+    }
+
+    /// Apply bitwise xor and return the previous value.
+    @safe
+    fetchXor<const Order: MemoryOrdering = MemoryOrdering.SequentiallyConsistent>(
+        &readonly this,
+        value: T,
+        order?: Order,
+    ): T {
+        atomicFetchXor(
+            this.storage.get(),
+            value,
+            Order,
+            AtomicScope.Device,
+            MemoryScope.Device,
+            MemoryRegionSet.Any,
+            false,
+            false,
+            false,
+        )
+    }
+}
+
+/// Load the value at `ptr` atomically.
+@intrinsic("sync.atomic.load")
+@unsafe
+export declare function atomicLoad<T: AtomicSafe>(
+    ptr: *T,
+    order: MemoryOrdering.Relaxed | MemoryOrdering.Acquire | MemoryOrdering.SequentiallyConsistent,
+    scope: AtomicScope,
+    memoryScope: MemoryScope,
+    regions: MemoryRegionSet,
+    isVolatile: boolean,
+    isMakeAvailable: boolean,
+    isMakeVisible: boolean,
+): T;
+
+/// Store `value` at `ptr` atomically.
+@intrinsic("sync.atomic.store")
+@unsafe
+export declare function atomicStore<T: AtomicSafe>(
+    ptr: *T,
+    value: T,
+    order: MemoryOrdering.Relaxed | MemoryOrdering.Release | MemoryOrdering.SequentiallyConsistent,
+    scope: AtomicScope,
+    memoryScope: MemoryScope,
+    regions: MemoryRegionSet,
+    isVolatile: boolean,
+    isMakeAvailable: boolean,
+    isMakeVisible: boolean,
+): void;
+
+/// Store `desired` when `*ptr` equals `expected`, returning the old value and success.
+@intrinsic("sync.atomic.cas")
+@unsafe
+export declare function atomicCas<T: AtomicSafe>(
+    ptr: *T,
+    expected: T,
+    desired: T,
+    order: MemoryOrdering,
+    scope: AtomicScope,
+    memoryScope: MemoryScope,
+    regions: MemoryRegionSet,
+    isVolatile: boolean,
+    isMakeAvailable: boolean,
+    isMakeVisible: boolean,
+): (T, boolean);
+
+/// Compare and swap like `atomicCas`, but permit spurious failure.
+@intrinsic("sync.atomic.cas.weak")
+@unsafe
+export declare function atomicCasWeak<T: AtomicSafe>(
+    ptr: *T,
+    expected: T,
+    desired: T,
+    order: MemoryOrdering,
+    scope: AtomicScope,
+    memoryScope: MemoryScope,
+    regions: MemoryRegionSet,
+    isVolatile: boolean,
+    isMakeAvailable: boolean,
+    isMakeVisible: boolean,
+): (T, boolean);
+
+/// Replace `*ptr` with `value` atomically and return the previous value.
+@intrinsic("sync.atomic.xchg")
+@unsafe
+export declare function atomicExchange<T: AtomicSafe>(
+    ptr: *T,
+    value: T,
+    order: MemoryOrdering,
+    scope: AtomicScope,
+    memoryScope: MemoryScope,
+    regions: MemoryRegionSet,
+    isVolatile: boolean,
+    isMakeAvailable: boolean,
+    isMakeVisible: boolean,
+): T;
+
+/// Add `value` to `*ptr` atomically and return the previous value.
+@intrinsic("sync.atomic.fetch.add")
+@unsafe
+export declare function atomicFetchAdd<T: Integer & AtomicSafe>(
+    ptr: *T,
+    value: T,
+    order: MemoryOrdering,
+    scope: AtomicScope,
+    memoryScope: MemoryScope,
+    regions: MemoryRegionSet,
+    isVolatile: boolean,
+    isMakeAvailable: boolean,
+    isMakeVisible: boolean,
+): T;
+
+/// Subtract `value` from `*ptr` atomically and return the previous value.
+@intrinsic("sync.atomic.fetch.sub")
+@unsafe
+export declare function atomicFetchSub<T: Integer & AtomicSafe>(
+    ptr: *T,
+    value: T,
+    order: MemoryOrdering,
+    scope: AtomicScope,
+    memoryScope: MemoryScope,
+    regions: MemoryRegionSet,
+    isVolatile: boolean,
+    isMakeAvailable: boolean,
+    isMakeVisible: boolean,
+): T;
+
+/// Apply bitwise AND with `value` to `*ptr` atomically and return the previous value.
+@intrinsic("sync.atomic.fetch.and")
+@unsafe
+export declare function atomicFetchAnd<T: Integer & AtomicSafe>(
+    ptr: *T,
+    value: T,
+    order: MemoryOrdering,
+    scope: AtomicScope,
+    memoryScope: MemoryScope,
+    regions: MemoryRegionSet,
+    isVolatile: boolean,
+    isMakeAvailable: boolean,
+    isMakeVisible: boolean,
+): T;
+
+/// Apply bitwise OR with `value` to `*ptr` atomically and return the previous value.
+@intrinsic("sync.atomic.fetch.or")
+@unsafe
+export declare function atomicFetchOr<T: Integer & AtomicSafe>(
+    ptr: *T,
+    value: T,
+    order: MemoryOrdering,
+    scope: AtomicScope,
+    memoryScope: MemoryScope,
+    regions: MemoryRegionSet,
+    isVolatile: boolean,
+    isMakeAvailable: boolean,
+    isMakeVisible: boolean,
+): T;
+
+/// Apply bitwise XOR with `value` to `*ptr` atomically and return the previous value.
+@intrinsic("sync.atomic.fetch.xor")
+@unsafe
+export declare function atomicFetchXor<T: Integer & AtomicSafe>(
+    ptr: *T,
+    value: T,
+    order: MemoryOrdering,
+    scope: AtomicScope,
+    memoryScope: MemoryScope,
+    regions: MemoryRegionSet,
+    isVolatile: boolean,
+    isMakeAvailable: boolean,
+    isMakeVisible: boolean,
+): T;
+
+/// Store the minimum of `*ptr` and `value` atomically and return the previous value.
+@intrinsic("sync.atomic.fetch.min")
+@unsafe
+export declare function atomicFetchMin<T: Integer & AtomicSafe>(
+    ptr: *T,
+    value: T,
+    order: MemoryOrdering,
+    scope: AtomicScope,
+    memoryScope: MemoryScope,
+    regions: MemoryRegionSet,
+    isVolatile: boolean,
+    isMakeAvailable: boolean,
+    isMakeVisible: boolean,
+): T;
+
+/// Store the maximum of `*ptr` and `value` atomically and return the previous value.
+@intrinsic("sync.atomic.fetch.max")
+@unsafe
+export declare function atomicFetchMax<T: Integer & AtomicSafe>(
+    ptr: *T,
+    value: T,
+    order: MemoryOrdering,
+    scope: AtomicScope,
+    memoryScope: MemoryScope,
+    regions: MemoryRegionSet,
+    isVolatile: boolean,
+    isMakeAvailable: boolean,
+    isMakeVisible: boolean,
+): T;
+
+/// Store the unsigned minimum of `*ptr` and `value` atomically and return the previous value.
+@intrinsic("sync.atomic.fetch.umin")
+@unsafe
+export declare function atomicFetchUmin<T: Integer & AtomicSafe>(
+    ptr: *T,
+    value: T,
+    order: MemoryOrdering,
+    scope: AtomicScope,
+    memoryScope: MemoryScope,
+    regions: MemoryRegionSet,
+    isVolatile: boolean,
+    isMakeAvailable: boolean,
+    isMakeVisible: boolean,
+): T;
+
+/// Store the unsigned maximum of `*ptr` and `value` atomically and return the previous value.
+@intrinsic("sync.atomic.fetch.umax")
+@unsafe
+export declare function atomicFetchUmax<T: Integer & AtomicSafe>(
+    ptr: *T,
+    value: T,
+    order: MemoryOrdering,
+    scope: AtomicScope,
+    memoryScope: MemoryScope,
+    regions: MemoryRegionSet,
+    isVolatile: boolean,
+    isMakeAvailable: boolean,
+    isMakeVisible: boolean,
+): T;
+
+/// Add `value` to floating-point `*ptr` atomically and return the previous value.
+@intrinsic("sync.atomic.fetch.fadd")
+@unsafe
+export declare function atomicFetchFadd<T: Float & AtomicSafe>(
+    ptr: *T,
+    value: T,
+    order: MemoryOrdering,
+    scope: AtomicScope,
+    memoryScope: MemoryScope,
+    regions: MemoryRegionSet,
+    isVolatile: boolean,
+    isMakeAvailable: boolean,
+    isMakeVisible: boolean,
+): T;
+
+/// Store the floating-point minimum of `*ptr` and `value` and return the previous value.
+@intrinsic("sync.atomic.fetch.fmin")
+@unsafe
+export declare function atomicFetchFmin<T: Float & AtomicSafe>(
+    ptr: *T,
+    value: T,
+    order: MemoryOrdering,
+    scope: AtomicScope,
+    memoryScope: MemoryScope,
+    regions: MemoryRegionSet,
+    isVolatile: boolean,
+    isMakeAvailable: boolean,
+    isMakeVisible: boolean,
+): T;
+
+/// Store the floating-point maximum of `*ptr` and `value` and return the previous value.
+@intrinsic("sync.atomic.fetch.fmax")
+@unsafe
+export declare function atomicFetchFmax<T: Float & AtomicSafe>(
+    ptr: *T,
+    value: T,
+    order: MemoryOrdering,
+    scope: AtomicScope,
+    memoryScope: MemoryScope,
+    regions: MemoryRegionSet,
+    isVolatile: boolean,
+    isMakeAvailable: boolean,
+    isMakeVisible: boolean,
+): T;
+
+/// Prevent memory accesses from moving across this fence according to `order`.
+@intrinsic("sync.atomic.fence")
+export declare function atomicFence(
+    order:
+        | MemoryOrdering.Acquire
+        | MemoryOrdering.Release
+        | MemoryOrdering.AcquireRelease
+        | MemoryOrdering.SequentiallyConsistent,
+    scope: AtomicScope,
+    memoryScope: MemoryScope,
+    regions: MemoryRegionSet,
+    isVolatile: boolean,
+    isMakeAvailable: boolean,
+    isMakeVisible: boolean,
+): void;
+
+/// Block or park the current worker while `*ptr` equals `expected`.
+@intrinsic("sync.atomic.wait")
+@unsafe
+export declare function atomicWait<T: Integer & AtomicSafe>(
+    ptr: *T,
+    expected: T,
+    order: MemoryOrdering.Relaxed | MemoryOrdering.Acquire | MemoryOrdering.SequentiallyConsistent,
+    timeoutNanos?: uint64,
+): AtomicWaitResult;
+
+/// Wake waiters blocked on an atomic integer location.
+@intrinsic("sync.atomic.wake")
+@unsafe
+export declare function atomicWake<T: Integer & AtomicSafe>(ptr: *T, count?: usize): usize;

@@ -15,7 +15,7 @@ function quad(x: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.double",
         r#"
 function test.main.double(v0: int32): int32 {
@@ -32,7 +32,7 @@ entry(v0: int32):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.quad",
         r#"
 function test.main.quad(v0: int32): int32 {
@@ -63,7 +63,7 @@ function run(x: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.noop",
         r#"
 function test.main.noop(): void {
@@ -74,7 +74,7 @@ entry:
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.run",
         r#"
 function test.main.run(v0: int32): int32 {

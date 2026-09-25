@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, ArtifactVersion};
-use destack_core::BlobId;
-use destack_source::{File, FileId, ModuleId, PackageId};
+use tspp_artifact::{ArtifactKey, ArtifactVersion};
+use tspp_core::BlobId;
+use tspp_source::{File, FileId, ModuleId, PackageId};
 
 use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{Module, Package, Root};
@@ -204,13 +204,13 @@ mod tests {
     use std::time::{SystemTime, UNIX_EPOCH};
     use std::{env, fs, process};
 
-    use destack_artifact::{
+    use tspp_artifact::{
         ArtifactDependency, ArtifactKey, ArtifactProjection, ArtifactProjectionKey,
         ArtifactVersion, BuildId, Bundle, BundleFile, BundleMode, BundleSection, DirExported,
         EnvironmentBound, SourceDependency,
     };
-    use destack_dir::{ExportTable, GlobalTable};
-    use destack_source::{
+    use tspp_dir::{ExportTable, GlobalTable};
+    use tspp_source::{
         FileSystem, FileType, ModuleId, PackageId, PhysicalFileSystem, ProfileId, TargetId, Uri,
     };
 
@@ -264,7 +264,7 @@ mod tests {
             .edit(
                 base_revision,
                 [Edit::add_file(
-                    "src/example.ds",
+                    "src/example.tspp",
                     repository
                         .retain_blob(b"export const value = 1")
                         .expect("source Blob should store"),
@@ -305,20 +305,20 @@ mod tests {
             revision,
             [
                 Edit::add_file("destack.json", configuration),
-                Edit::add_file("src/value.ds", source),
+                Edit::add_file("src/value.tspp", source),
             ],
         );
 
         // retain the source edit while configuration remains incomplete
         let replacement = repository.retain_blob(b"const value = 2;\n").unwrap();
-        let result = repository.edit(revision, [Edit::set_file("src/value.ds", replacement)]);
+        let result = repository.edit(revision, [Edit::set_file("src/value.tspp", replacement)]);
         fs::remove_dir_all(&root).unwrap();
         let commit = result.unwrap();
         assert_eq!(
             commit.changes,
             vec![Change {
-                file: repository.file_id(Path::new("src/value.ds")),
-                path: "src/value.ds".to_string(),
+                file: repository.file_id(Path::new("src/value.tspp")),
+                path: "src/value.tspp".to_string(),
                 before: Some(source),
                 after: Some(replacement),
             }],
@@ -345,7 +345,7 @@ mod tests {
             revision,
             [
                 Edit::add_file("destack.json", configuration),
-                Edit::add_file("main.ds", source),
+                Edit::add_file("main.tspp", source),
             ],
         );
         let modules = repository.module_ids(revision).unwrap();
@@ -373,9 +373,9 @@ mod tests {
         assert_eq!(repository.module_ids(broken).unwrap_err(), expected);
 
         // accept path edits while module discovery reports the invalid alias
-        let added = apply_edits(&repository, broken, [Edit::add_file("other.ds", source)]);
+        let added = apply_edits(&repository, broken, [Edit::add_file("other.tspp", source)]);
         assert_eq!(repository.module_ids(added).unwrap_err(), expected);
-        let removed = apply_edits(&repository, added, [Edit::remove_file("other.ds")]);
+        let removed = apply_edits(&repository, added, [Edit::remove_file("other.tspp")]);
         let repaired = apply_edits(
             &repository,
             removed,
@@ -429,7 +429,7 @@ mod tests {
         };
         assert_eq!(repository.package_ids(moved).unwrap_err(), expected);
         let source = repository.retain_blob(b"const value = 1;\n").unwrap();
-        let edited = apply_edits(&repository, moved, [Edit::add_file("main.ds", source)]);
+        let edited = apply_edits(&repository, moved, [Edit::add_file("main.tspp", source)]);
         assert_eq!(repository.package_ids(edited).unwrap_err(), expected);
 
         // resolve packages after restoring the referenced parent
@@ -528,7 +528,7 @@ mod tests {
         let revision = apply_edits(
             &repository,
             revision,
-            [Edit::add_file("src/temporary.ds", temporary)],
+            [Edit::add_file("src/temporary.tspp", temporary)],
         );
         let package = repository
             .package_by_name(revision, "app")
@@ -555,7 +555,7 @@ mod tests {
         let revision = apply_edits(
             &repository,
             revision,
-            [Edit::remove_file("src/temporary.ds")],
+            [Edit::remove_file("src/temporary.tspp")],
         );
 
         // preserve the selected result across consecutive module additions
@@ -563,7 +563,7 @@ mod tests {
             .retain_blob(b"export const value = 1;\n")
             .unwrap();
         let mut revision = revision;
-        for path in ["src/value.ds", "src/other.ds"] {
+        for path in ["src/value.tspp", "src/other.tspp"] {
             let path = package.path.as_ref().unwrap().join(path);
             revision = apply_edits(
                 &repository,
@@ -578,7 +578,7 @@ mod tests {
                 .current(key);
             assert_eq!(selected.map(|entry| entry.version), Some(version));
         }
-        let source_path = package.path.as_ref().unwrap().join("src/value.ds");
+        let source_path = package.path.as_ref().unwrap().join("src/value.tspp");
 
         // invalidate the result when its package configuration changes
         let config = repository
@@ -636,9 +636,9 @@ mod tests {
         let moved = apply_edits(
             &repository,
             edited,
-            [Edit::move_file(source_path, "moved.ds")],
+            [Edit::move_file(source_path, "moved.tspp")],
         );
-        let removed = apply_edits(&repository, moved, [Edit::remove_file("moved.ds")]);
+        let removed = apply_edits(&repository, moved, [Edit::remove_file("moved.tspp")]);
         let added = apply_edits(
             &repository,
             removed,
@@ -773,7 +773,7 @@ mod tests {
             repository.as_ref(),
             initial,
             [Edit::add_file(
-                "src/example.ds",
+                "src/example.tspp",
                 repository
                     .retain_blob(b"export const value = 1")
                     .expect("source Blob should store"),
@@ -783,14 +783,14 @@ mod tests {
             repository.as_ref(),
             revision_1,
             [Edit::set_file(
-                "src/example.ds",
+                "src/example.tspp",
                 repository
                     .retain_blob(b"export const value = 2")
                     .expect("source Blob should store"),
             )],
         );
         let _revision_pin = repository.pin(revision_2).expect("pin retained revision");
-        let file_id = repository.file_id(&root.join("src/example.ds"));
+        let file_id = repository.file_id(&root.join("src/example.tspp"));
 
         // retained revision
         let file = repository
@@ -824,13 +824,13 @@ mod tests {
             &repository,
             initial,
             [Edit::add_file(
-                "src/input.ds",
+                "src/input.tspp",
                 repository
                     .retain_blob(b"export const value = 1;")
                     .expect("source Blob should store"),
             )],
         );
-        let file_id = repository.file_id(&root.join("src/input.ds"));
+        let file_id = repository.file_id(&root.join("src/input.tspp"));
         let first_blob = repository
             .file_blob(first_revision, file_id)
             .expect("first source Blob should resolve")
@@ -881,7 +881,7 @@ mod tests {
             &repository,
             first_revision,
             [Edit::set_file(
-                "src/input.ds",
+                "src/input.tspp",
                 repository
                     .retain_blob(b"export const value = 2;")
                     .expect("source Blob should store"),
@@ -959,7 +959,7 @@ mod tests {
             &repository,
             second_revision,
             [Edit::set_file(
-                "src/input.ds",
+                "src/input.tspp",
                 repository
                     .retain_blob(b"export const value = 3;")
                     .expect("source Blob should store"),
@@ -1018,7 +1018,7 @@ mod tests {
             &repository,
             initial,
             [Edit::add_file(
-                "src/input.ds",
+                "src/input.tspp",
                 repository
                     .retain_blob(b"export const value = 1;")
                     .expect("source Blob should store"),
@@ -1028,7 +1028,7 @@ mod tests {
         let package = PackageId::new(1);
         let module = ModuleId::new(package, 1);
         let profile = ProfileId::new(1);
-        let file = repository.file_id(&root.join("src/input.ds"));
+        let file = repository.file_id(&root.join("src/input.tspp"));
         let first_blob = repository
             .file_blob(first_revision, file)
             .expect("first source Blob should resolve")
@@ -1088,7 +1088,7 @@ mod tests {
             &repository,
             first_revision,
             [Edit::set_file(
-                "src/input.ds",
+                "src/input.tspp",
                 repository
                     .retain_blob(b"export const value = 2;")
                     .expect("source Blob should store"),

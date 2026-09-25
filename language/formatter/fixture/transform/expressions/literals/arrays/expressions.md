@@ -6,11 +6,11 @@
 
 Function calls as elements are preserved.
 
-```ds
+```tspp
 [foo(), bar(), baz()]
 ```
 
-```ds expected
+```tspp expected
 [foo(), bar(), baz()];
 ```
 
@@ -18,11 +18,11 @@ Function calls as elements are preserved.
 
 Expressions as elements are preserved.
 
-```ds
+```tspp
 [a + b, c * d, e - f]
 ```
 
-```ds expected
+```tspp expected
 [a + b, c * d, e - f];
 ```
 
@@ -30,11 +30,11 @@ Expressions as elements are preserved.
 
 Ternary expressions as elements are preserved.
 
-```ds
+```tspp
 [x ? 1 : 2, y ? 3 : 4]
 ```
 
-```ds expected
+```tspp expected
 [x ? 1 : 2, y ? 3 : 4];
 ```
 
@@ -42,11 +42,11 @@ Ternary expressions as elements are preserved.
 
 Arrow functions get parentheses added to params.
 
-```ds
+```tspp
 [x => x, y => y * 2]
 ```
 
-```ds expected
+```tspp expected
 [(x) => x, (y) => y * 2];
 ```
 
@@ -54,11 +54,11 @@ Arrow functions get parentheses added to params.
 
 Template literals are preserved as-is.
 
-```ds
+```tspp
 [`a`, `b`, `c`]
 ```
 
-```ds expected
+```tspp expected
 [`a`, `b`, `c`];
 ```
 
@@ -68,11 +68,11 @@ Template literals are preserved as-is.
 
 Arrays can be passed directly as arguments.
 
-```ds
+```tspp
 foo([1, 2, 3])
 ```
 
-```ds expected
+```tspp expected
 foo([1, 2, 3]);
 ```
 
@@ -80,11 +80,11 @@ foo([1, 2, 3]);
 
 Arrays can be object property values.
 
-```ds
+```tspp
 const x = { items: [1, 2, 3] }
 ```
 
-```ds expected
+```tspp expected
 const x = { items: [1, 2, 3] };
 ```
 
@@ -92,11 +92,11 @@ const x = { items: [1, 2, 3] };
 
 Array destructuring extracts elements by position.
 
-```ds
+```tspp
 const [a, b, c] = [1, 2, 3]
 ```
 
-```ds expected
+```tspp expected
 const [a, b, c] = [1, 2, 3];
 ```
 
@@ -105,10 +105,10 @@ const [a, b, c] = [1, 2, 3];
 Method chains on array literals stay attached.
 Arrow params get parens.
 
-```ds
+```tspp
 [1, 2, 3].map(x => x * 2)
 ```
 
-```ds expected
+```tspp expected
 [1, 2, 3].map((x) => x * 2);
 ```

@@ -1,0 +1,78 @@
+import { todo } from "tspp:error";
+
+import { Copy, SharedSafe } from "../capability.tspp";
+
+/// Unsafe interior mutable storage.
+@languageItem("memory.UnsafeCell")
+export newtype UnsafeCell<T> = intrinsic;
+
+export extension<T> of UnsafeCell<T> implements !Copy, !SharedSafe {
+    /// Create unsafe interior mutable storage.
+    static new(value: T): UnsafeCell<T> {
+        todo("UnsafeCell.new")
+    }
+
+    /// Return a raw pointer to the stored value.
+    get(&readonly this): *T {
+        todo("UnsafeCell.get")
+    }
+
+    /// Borrow the stored value with mutable access.
+    getExclusive(&exclusive this): &exclusive T {
+        todo("UnsafeCell.getExclusive")
+    }
+
+    /// Move out the stored value.
+    intoInner(this): T {
+        todo("UnsafeCell.intoInner")
+    }
+}
+
+/// Aliased storage that transfers values without lending its contents.
+@languageItem("memory.Cell")
+export struct Cell<T> {
+    /// The stored value storage.
+    private storage: UnsafeCell<T>;
+}
+
+export extension<T> of Cell<T> {
+    /// Create a cell containing `value`.
+    static new(value: T): Cell<T> {
+        Cell { storage: UnsafeCell.new(value) }
+    }
+
+    /// Copy the stored value.
+    get(&readonly this): T where T: Copy {
+        todo("Cell.get")
+    }
+
+    /// Return a raw pointer to the stored value.
+    asPointer(&readonly this): *T {
+        todo("Cell.asPointer")
+    }
+
+    /// Borrow the stored value with mutable access.
+    getExclusive(&exclusive this): &exclusive T {
+        todo("Cell.getExclusive")
+    }
+
+    /// Replace the stored value.
+    set(&readonly this, value: T): void {
+        todo("Cell.set");
+    }
+
+    /// Replace the stored value and return the old value.
+    replace(&readonly this, value: T): T {
+        todo("Cell.replace")
+    }
+
+    /// Swap two cells.
+    swap(&readonly this, other: &readonly Cell<T>): void {
+        todo("Cell.swap");
+    }
+
+    /// Move out the stored value.
+    intoInner(this): T {
+        todo("Cell.intoInner")
+    }
+}

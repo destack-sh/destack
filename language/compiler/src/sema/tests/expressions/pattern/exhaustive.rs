@@ -24,7 +24,7 @@ function unwrapOr<T, E>(outcome: Outcome<T, E>, fallback: T): T {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -159,7 +159,7 @@ function unwrap<T, E>(outcome: Outcome<T, E>): T {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -273,7 +273,7 @@ function finish(value: (int32, boolean)): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -337,7 +337,7 @@ function finish(value: (int32, boolean)): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -403,7 +403,7 @@ function pick(value: ((int32, boolean), string)): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -473,7 +473,7 @@ function label(value: (int32, "on" | "off")): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -536,7 +536,7 @@ function pick(value: ((int32, boolean), string)): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

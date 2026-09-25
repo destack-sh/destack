@@ -1,8 +1,8 @@
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// The type of a node.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]

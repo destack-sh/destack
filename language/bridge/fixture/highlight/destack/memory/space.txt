@@ -1,8 +1,0 @@
-// SYNTAX TEST "source.ds"
-
-// memory / space / local shared and static storage
-let localBuffer: local Buffer = Buffer.allocate();
-//               ^^^^^ keyword.other.modifier.ds
-
-let sharedBuffer: shared Buffer = Buffer.share(localBuffer);
-//                ^^^^^^ keyword.other.modifier.ds

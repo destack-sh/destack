@@ -13,7 +13,7 @@ for (using resource of values) {}
     );
 
     compiler.assert_dir_bound(
-        "main.ds",
+        "main.tspp",
         DirRows::binding(),
         r#"
 declare const values: number[];
@@ -55,7 +55,7 @@ const result = match (packet) {
     );
 
     compiler.assert_dir_bound(
-        "main.ds",
+        "main.tspp",
         DirRows::binding().with_binding_nodes(),
         r#"
 declare const packet: { value: int32 };
@@ -121,7 +121,7 @@ switch (selected) {
     );
 
     compiler.assert_dir_bound(
-        "main.ds",
+        "main.tspp",
         DirRows::binding().with_binding_nodes(),
         r#"
 declare const selected: int32;
@@ -172,7 +172,7 @@ switch (selected) {
 fn test_bind_loop_and_if_let_scopes() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 for (let index: number = 0; index < 10; index = index + 1) {
     let index: number = index;
@@ -188,7 +188,7 @@ let output: number = if (let Some(value) = maybe) {
         .build();
 
     compiler.assert_dir_bound(
-        "main.ds",
+        "main.tspp",
         DirRows::binding().with_summaries(),
         r#"
 for (let index: number = 0; index < 10; index = index + 1) {
@@ -227,7 +227,7 @@ let output: number = if (let Some(value) = maybe) {
 fn test_bind_redeclaration_cursors() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let x: number = 1;
 let x: number = x;
@@ -236,7 +236,7 @@ let x: number = x;
         .build();
 
     compiler.assert_dir_bound(
-        "main.ds",
+        "main.tspp",
         DirRows::binding().with_binding_nodes().with_summaries(),
         r#"
 let x: number = 1;
@@ -268,7 +268,7 @@ let x: number = x;
 fn test_bind_declaration_context_stays_on_declared_pattern() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 export let result = try {
     fallback
@@ -280,7 +280,7 @@ export let result = try {
         .build();
 
     compiler.assert_dir_bound(
-        "main.ds",
+        "main.tspp",
         DirRows::binding(),
         r#"
 export let result = try {

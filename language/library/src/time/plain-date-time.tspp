@@ -1,0 +1,370 @@
+import { RangeError, Result, todo } from "tspp:error";
+import { DateTimeFormatOptions, IntlError, Locales, ToLocaleString } from "tspp:intl";
+
+import { Duration, DurationLike } from "./duration.tspp";
+import { TimeError } from "./error.tspp";
+import {
+    DifferenceOptions,
+    DisambiguationOptions,
+    OverflowOptions,
+    PlainDateTimeToStringOptions,
+    RoundTo,
+} from "./option.tspp";
+import { CalendarLike, PlainDate } from "./plain-date.tspp";
+import { PlainTime, PlainTimeLike } from "./plain-time.tspp";
+import { ComparisonResult } from "./unit.tspp";
+import { TimeZoneLike, ZonedDateTime } from "./zoned-date-time.tspp";
+
+/// Temporal plain date-time fields.
+export type PlainDateTimeFields = {
+    /// Calendar era.
+    era?: string;
+    /// Calendar era year.
+    eraYear?: number;
+    /// Calendar year.
+    year?: number;
+    /// Calendar month.
+    month?: number;
+    /// Calendar month code.
+    monthCode?: string;
+    /// Calendar day.
+    day?: number;
+    /// Hour.
+    hour?: number;
+    /// Minute.
+    minute?: number;
+    /// Second.
+    second?: number;
+    /// Millisecond.
+    millisecond?: number;
+    /// Microsecond.
+    microsecond?: number;
+    /// Nanosecond.
+    nanosecond?: number;
+};
+
+/// Temporal plain date-time fields used for conversion.
+export type PlainDateTimeInput = PlainDateTimeFields & {
+    /// Calendar day.
+    day: number;
+
+    /// Calendar.
+    calendar?: string;
+};
+
+/// Value convertible to a Temporal plain date-time.
+export type PlainDateTimeLike =
+    | PlainDateTime
+    | ZonedDateTime
+    | PlainDate
+    | PlainDateTimeInput
+    | string;
+
+/// Temporal plain date-time.
+@languageItem("time.PlainDateTime")
+export class PlainDateTime implements ToLocaleString {
+    /// Create an ISO plain date-time.
+    static create(
+        isoYear: number,
+        isoMonth: number,
+        isoDay: number,
+        hour?: number,
+        minute?: number,
+        second?: number,
+        millisecond?: number,
+        microsecond?: number,
+        nanosecond?: number,
+        calendar?: string,
+    ): Result<PlainDateTime, RangeError> {
+        todo("PlainDateTime.create")
+    }
+
+    /// Create a plain date-time.
+    static from(
+        item: &readonly PlainDateTimeLike,
+        options?: &readonly OverflowOptions,
+    ): Result<PlainDateTime, TimeError> {
+        todo("PlainDateTime.from")
+    }
+
+    /// Compare two plain date-times.
+    static compare(
+        one: &readonly PlainDateTimeLike,
+        two: &readonly PlainDateTimeLike,
+    ): Result<ComparisonResult, TimeError> {
+        todo("PlainDateTime.compare")
+    }
+
+    /// Construct a validated plain date-time internally.
+    private constructor() {
+        todo("PlainDateTime.constructor");
+    }
+
+    /// Calendar era.
+    get era(&readonly this): string | undefined {
+        todo("PlainDateTime.era")
+    }
+
+    /// Calendar era year.
+    get eraYear(&readonly this): number | undefined {
+        todo("PlainDateTime.eraYear")
+    }
+
+    /// Calendar year.
+    get year(&readonly this): number {
+        todo("PlainDateTime.year")
+    }
+
+    /// Calendar month.
+    get month(&readonly this): number {
+        todo("PlainDateTime.month")
+    }
+
+    /// Calendar month code.
+    get monthCode(&readonly this): ^string {
+        todo("PlainDateTime.monthCode")
+    }
+
+    /// Calendar day.
+    get day(&readonly this): number {
+        todo("PlainDateTime.day")
+    }
+
+    /// Hour.
+    get hour(&readonly this): number {
+        todo("PlainDateTime.hour")
+    }
+
+    /// Minute.
+    get minute(&readonly this): number {
+        todo("PlainDateTime.minute")
+    }
+
+    /// Second.
+    get second(&readonly this): number {
+        todo("PlainDateTime.second")
+    }
+
+    /// Millisecond.
+    get millisecond(&readonly this): number {
+        todo("PlainDateTime.millisecond")
+    }
+
+    /// Microsecond.
+    get microsecond(&readonly this): number {
+        todo("PlainDateTime.microsecond")
+    }
+
+    /// Nanosecond.
+    get nanosecond(&readonly this): number {
+        todo("PlainDateTime.nanosecond")
+    }
+
+    /// Calendar identifier.
+    get calendarId(&readonly this): ^string {
+        todo("PlainDateTime.calendarId")
+    }
+
+    /// Day of week.
+    get dayOfWeek(&readonly this): number {
+        todo("PlainDateTime.dayOfWeek")
+    }
+
+    /// Day of year.
+    get dayOfYear(&readonly this): number {
+        todo("PlainDateTime.dayOfYear")
+    }
+
+    /// Week of year.
+    get weekOfYear(&readonly this): number | undefined {
+        todo("PlainDateTime.weekOfYear")
+    }
+
+    /// Week-based year.
+    get yearOfWeek(&readonly this): number | undefined {
+        todo("PlainDateTime.yearOfWeek")
+    }
+
+    /// Days in this week.
+    get daysInWeek(&readonly this): number {
+        todo("PlainDateTime.daysInWeek")
+    }
+
+    /// Days in this year.
+    get daysInYear(&readonly this): number {
+        todo("PlainDateTime.daysInYear")
+    }
+
+    /// Days in this month.
+    get daysInMonth(&readonly this): number {
+        todo("PlainDateTime.daysInMonth")
+    }
+
+    /// Months in this year.
+    get monthsInYear(&readonly this): number {
+        todo("PlainDateTime.monthsInYear")
+    }
+
+    /// Whether this year is a leap year.
+    get inLeapYear(&readonly this): boolean {
+        todo("PlainDateTime.inLeapYear")
+    }
+
+    /// Return true when this date-time equals `other`.
+    equals(&readonly this, other: &readonly PlainDateTime): boolean {
+        todo("PlainDateTime.equalsPlainDateTime")
+    }
+
+    /// Convert `other` and return whether it equals this date-time.
+    equals(&readonly this, other: &readonly PlainDateTimeLike): Result<boolean, TimeError> {
+        todo("PlainDateTime.equals")
+    }
+
+    /// Return this date-time with updated fields.
+    with(
+        &readonly this,
+        dateTimeLike: &readonly PlainDateTimeFields,
+        options?: &readonly OverflowOptions,
+    ): Result<PlainDateTime, TimeError> {
+        todo("PlainDateTime.with")
+    }
+
+    /// Return this date-time with another time.
+    withPlainTime(
+        &readonly this,
+        time?: &readonly PlainTimeLike,
+    ): Result<PlainDateTime, TimeError> {
+        todo("PlainDateTime.withPlainTime")
+    }
+
+    /// Return this date-time in another calendar.
+    withCalendar(&readonly this, calendar: CalendarLike): Result<PlainDateTime, TimeError> {
+        todo("PlainDateTime.withCalendar")
+    }
+
+    /// Add a duration.
+    add(
+        &readonly this,
+        durationLike: &readonly DurationLike,
+        options?: &readonly OverflowOptions,
+    ): Result<PlainDateTime, TimeError> {
+        todo("PlainDateTime.add")
+    }
+
+    /// Subtract a duration.
+    subtract(
+        &readonly this,
+        durationLike: &readonly DurationLike,
+        options?: &readonly OverflowOptions,
+    ): Result<PlainDateTime, TimeError> {
+        todo("PlainDateTime.subtract")
+    }
+
+    /// Return the duration until `other`.
+    until(
+        &readonly this,
+        other: &readonly PlainDateTimeLike,
+        options?: &readonly DifferenceOptions<
+            | "year"
+            | "month"
+            | "week"
+            | "day"
+            | "hour"
+            | "minute"
+            | "second"
+            | "millisecond"
+            | "microsecond"
+            | "nanosecond"
+        >,
+    ): Result<Duration, TimeError> {
+        todo("PlainDateTime.until")
+    }
+
+    /// Return the duration since `other`.
+    since(
+        &readonly this,
+        other: &readonly PlainDateTimeLike,
+        options?: &readonly DifferenceOptions<
+            | "year"
+            | "month"
+            | "week"
+            | "day"
+            | "hour"
+            | "minute"
+            | "second"
+            | "millisecond"
+            | "microsecond"
+            | "nanosecond"
+        >,
+    ): Result<Duration, TimeError> {
+        todo("PlainDateTime.since")
+    }
+
+    /// Round this date-time.
+    round(
+        &readonly this,
+        roundTo: &readonly RoundTo<
+            "day" | "hour" | "minute" | "second" | "millisecond" | "microsecond" | "nanosecond"
+        >,
+    ): Result<PlainDateTime, TimeError> {
+        todo("PlainDateTime.round")
+    }
+
+    /// Convert this date-time into a zoned date-time.
+    toZonedDateTime(
+        &readonly this,
+        timeZone: TimeZoneLike,
+        options?: &readonly DisambiguationOptions,
+    ): Result<ZonedDateTime, TimeError> {
+        todo("PlainDateTime.toZonedDateTime")
+    }
+
+    /// Return the date part.
+    toPlainDate(&readonly this): PlainDate {
+        todo("PlainDateTime.toPlainDate")
+    }
+
+    /// Return the time part.
+    toPlainTime(&readonly this): PlainTime {
+        todo("PlainDateTime.toPlainTime")
+    }
+
+    /// Return a locale-aware string.
+    toLocaleString(&readonly this): ^string {
+        todo("PlainDateTime.toLocaleStringDefault")
+    }
+
+    /// Return a locale-aware string with explicit locales.
+    toLocaleString(&readonly this, locales: &readonly Locales): Result<string, IntlError> {
+        todo("PlainDateTime.toLocaleStringLocales")
+    }
+
+    /// Return a locale-aware string with explicit options.
+    toLocaleString(
+        &readonly this,
+        locales?: &readonly Locales,
+        options?: &readonly DateTimeFormatOptions,
+    ): Result<string, IntlError> {
+        todo("PlainDateTime.toLocaleString")
+    }
+
+    /// Return a JSON string.
+    toJSON(&readonly this): ^string {
+        todo("PlainDateTime.toJSON")
+    }
+
+    /// Return an ISO string.
+    toString(&readonly this): ^string {
+        todo("PlainDateTime.toString")
+    }
+
+    /// Return an ISO string with explicit rendering options.
+    toString(&readonly this, options: &readonly PlainDateTimeToStringOptions): ^string {
+        todo("PlainDateTime.toString")
+    }
+
+    /// Reject numeric coercion.
+    valueOf(&readonly this): never {
+        todo("PlainDateTime.valueOf")
+    }
+}

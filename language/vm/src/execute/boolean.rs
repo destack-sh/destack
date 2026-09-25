@@ -1,5 +1,5 @@
-use destack_bytecode::{BooleanOperation, Instruction};
-use destack_program::{Runtime, Word};
+use tspp_bytecode::{BooleanOperation, Instruction};
+use tspp_program::{Runtime, Word};
 
 use crate::diagnostic::Result;
 use crate::machine::Activation;

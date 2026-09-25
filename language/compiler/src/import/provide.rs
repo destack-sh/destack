@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirBound, DirParsed};
-use destack_dir as dir;
-use destack_repository::{ProfileId, ProviderContext};
-use destack_source::ModuleId;
+use tspp_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, DirBound, DirParsed};
+use tspp_dir as dir;
+use tspp_repository::{ProfileId, ProviderContext};
+use tspp_source::ModuleId;
 
 use crate::import::ImportState;
 use crate::{Compiler, CompilerError, CompilerResult};

@@ -1,7 +1,7 @@
 use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::{ParseStart, Parser, ParserResult};
-use destack_dir::{Condition, Expression, IfForm, Keyword, LocalNodeId, TokenType};
-use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
+use tspp_dir::{Condition, Expression, IfForm, Keyword, LocalNodeId, TokenType};
+use tspp_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 /// The head of one if expression.
 struct IfHead {
@@ -25,7 +25,7 @@ impl Parser {
     /// Parse one if expression.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// if (ready) run() else wait()
     /// ```
     pub(crate) fn parse_if(&mut self) -> ParserResult<LocalNodeId<Expression>> {

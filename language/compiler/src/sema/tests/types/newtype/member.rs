@@ -22,7 +22,7 @@ extension<T> of Sealed<T> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -105,7 +105,7 @@ extension<T> of Sealed<T> {
 fn test_imported_newtype_member_access_projects_generic_backing() {
     let session = TestSession::builder()
         .module(
-            "value.ds",
+            "value.tspp",
             r#"
 export class Wrapper<T> {
     open(): T {
@@ -121,9 +121,9 @@ export function value(): Sealed<int32> {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { value } from "./value.ds";
+import { value } from "./value.tspp";
 
 const number = value().open();
 number satisfies int32;
@@ -132,17 +132,17 @@ number satisfies int32;
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { value } from "./value.ds";
+import { value } from "./value.tspp";
 
 const number: int32 = value().open<int32>();
 number satisfies int32;
 
 === dir ===
-import { value } from "./value.ds";
+import { value } from "./value.tspp";
 
 const number = value().open();
 /// @type.symbol symbol=number source=number type=int32

@@ -1,0 +1,264 @@
+=======================================
+Array types
+:language(tspp)
+=======================================
+
+let x: X[];
+
+---
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (array_type
+          (type_identifier))))))
+
+=======================================
+TS++ sequence type forms
+:language(tspp)
+=======================================
+
+type Dynamic = uint8[];
+type Slice = [uint8];
+type Fixed = [uint8; 4];
+type Pair = (string, uint32);
+type One = (int32,);
+type Empty = ();
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (array_type
+      (type_identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (slice_type
+      (type_identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (fixed_array_type
+      (type_identifier)
+      (number)))
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type
+      (predefined_type)
+      (type_identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type
+      (type_identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type)))
+
+==================================
+Read-only arrays
+:language(tspp)
+==================================
+
+type t = a[]
+type t = readonly a[]
+type t = readonly a[][]
+type t = (readonly a[])[]
+type t = readonly (readonly a[]) []
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (array_type
+      (type_identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (readonly_type
+      (array_type
+        (type_identifier))))
+  (type_alias_declaration
+    (type_identifier)
+    (readonly_type
+      (array_type
+        (array_type
+          (type_identifier)))))
+  (type_alias_declaration
+    (type_identifier)
+    (array_type
+      (parenthesized_type
+        (readonly_type
+          (array_type
+            (type_identifier))))))
+  (type_alias_declaration
+    (type_identifier)
+    (readonly_type
+      (array_type
+        (parenthesized_type
+          (readonly_type
+            (array_type
+              (type_identifier))))))))
+
+==================================
+Tuple types
+:language(tspp)
+==================================
+
+type t = ()
+type t = (A,)
+type t = (A|B, C)
+type t = readonly (A[], B.C)
+
+// special optional and rest type syntax
+type t = (string?, ...B)
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type))
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type
+      (type_identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type
+      (union_type
+        (type_identifier)
+        (type_identifier))
+      (type_identifier)))
+  (type_alias_declaration
+    (type_identifier)
+    (readonly_type
+      (tuple_type
+        (array_type
+          (type_identifier))
+        (nested_type_identifier
+          (identifier)
+          (type_identifier)))))
+  (comment)
+  (type_alias_declaration
+    (type_identifier)
+    (tuple_type
+      (optional_type
+        (predefined_type))
+      (rest_type
+        (type_identifier)))))
+
+=======================================
+Static conditional array lengths
+:language(tspp)
+=======================================
+
+type Sized<const N: uint> = [uint8; N > 4 ? 2 : 5];
+
+---
+
+(program
+  (type_alias_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (fixed_array_type
+      (type_identifier)
+      (static_conditional
+        (static_comparison
+          (identifier)
+          (number))
+        (number)
+        (number)))))
+
+==================================
+Readonly variance views
+:language(tspp)
+==================================
+
+class Source<T> { take(): T }
+class Sink<T> { put(value: T): void }
+class Pipe<T> { take(): T; put(value: T): void }
+
+declare const circles: Circle[];
+
+const view: readonly Shape[] = circles;
+const copies: Shape[] = [...circles];
+
+---
+
+(program
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (class_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier)))))
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (class_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (predefined_type)))))
+  (class_declaration
+    (type_identifier)
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (class_body
+      (method_signature
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier)))
+      (method_signature
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (predefined_type)))))
+  (ambient_declaration
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (array_type
+            (type_identifier))))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (readonly_type
+          (array_type
+            (type_identifier))))
+      (identifier)))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (array_type
+          (type_identifier)))
+      (array
+        (spread_element
+          (identifier))))))

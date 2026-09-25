@@ -3,10 +3,10 @@
     {
       "name": "mir",
       "camelcase": "MIR",
-      "scope": "source.dsm",
+      "scope": "source.tsppm",
       "path": ".",
       "file-types": [
-        "dsm"
+        "tsppm"
       ],
       "highlights": [
         "queries/highlights.scm"
@@ -17,7 +17,7 @@
   "metadata": {
     "version": "2026.9.0",
     "license": "MIT",
-    "description": "Destack MIR grammar for tree-sitter",
+    "description": "TS++ MIR grammar for tree-sitter",
     "authors": [
       {
         "name": "Destack"

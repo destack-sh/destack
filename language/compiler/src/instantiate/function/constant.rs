@@ -1,5 +1,5 @@
-use destack_core::float_to_bits;
-use destack_mir as mir;
+use tspp_core::float_to_bits;
+use tspp_mir as mir;
 
 use crate::instantiate::function::Specialization;
 use crate::instantiate::module::Dispatch;

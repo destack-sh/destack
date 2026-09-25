@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -135,7 +135,7 @@ struct Options {
         session.assert_diagnostics(
             r#"
 warning[boolean-prefix]: boolean value `enabled` needs a predicate prefix
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ struct Options {
 2 │     enabled: boolean;
@@ -194,7 +194,7 @@ function visit(island: boolean): void {}
         session.assert_diagnostics(
             r#"
 warning[boolean-prefix]: boolean value `island` needs a predicate prefix
- ──▶ main.ds:1:16
+ ──▶ main.tspp:1:16
   │
 1 │ function visit(island: boolean): void {}
   │                ^^^^^^
@@ -216,7 +216,7 @@ const ready: boolean = true;
         session.assert_diagnostics(
             r#"
 warning[boolean-prefix]: boolean value `ready` needs a predicate prefix
- ──▶ main.ds:1:7
+ ──▶ main.tspp:1:7
   │
 1 │ const ready: boolean = true;
   │       ^^^^^
@@ -240,7 +240,7 @@ function choose<const enabled: boolean>(value: int32): int32 {
         session.assert_diagnostics(
             r#"
 warning[boolean-prefix]: boolean value `enabled` needs a predicate prefix
- ──▶ main.ds:1:23
+ ──▶ main.tspp:1:23
   │
 1 │ function choose<const enabled: boolean>(value: int32): int32 {
   │                       ^^^^^^^
@@ -264,7 +264,7 @@ function schedule(callback: (ready: boolean) => void): void {}
         session.assert_diagnostics(
             r#"
 warning[boolean-prefix]: boolean value `ready` needs a predicate prefix
- ──▶ main.ds:1:30
+ ──▶ main.tspp:1:30
   │
 1 │ function schedule(callback: (ready: boolean) => void): void {}
   │                              ^^^^^
@@ -279,7 +279,7 @@ warning[boolean-prefix]: boolean value `ready` needs a predicate prefix
         let session = TestSession::dir(
             &BOOLEAN_PREFIX,
             r#"
-import { Panic } from "destack:error";
+import { Panic } from "tspp:error";
 
 /// Worker exit status observed by the supervising parent.
 newtype WorkerExit =

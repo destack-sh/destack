@@ -1,6 +1,6 @@
-use destack_core::StringId;
-use destack_dir as dir;
-use destack_source::Span;
+use tspp_core::StringId;
+use tspp_dir as dir;
+use tspp_source::Span;
 
 use crate::{MatchError, Matcher, MetavariableId, MetavariableUse, Pattern};
 

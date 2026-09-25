@@ -1,4 +1,4 @@
-use destack_repository::TraceSnapshot;
+use tspp_repository::TraceSnapshot;
 
 /// One styled text table.
 #[derive(Debug, Default)]

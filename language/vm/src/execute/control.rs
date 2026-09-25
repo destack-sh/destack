@@ -1,6 +1,6 @@
-use destack_bytecode as bytecode;
-use destack_bytecode::{Comparison, Instruction, Opcode, Scalar, ScalarCheck};
-use destack_program::{Runtime, TypeId, Word};
+use tspp_bytecode as bytecode;
+use tspp_bytecode::{Comparison, Instruction, Opcode, Scalar, ScalarCheck};
+use tspp_program::{Runtime, TypeId, Word};
 
 use crate::diagnostic::{Error, Result, Trap};
 use crate::machine::Activation;

@@ -1,8 +1,8 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_memory::{MemoryMap, MemoryRange};
-use destack_mir::TraceMap;
+use tspp_memory::{MemoryMap, MemoryRange};
+use tspp_mir::TraceMap;
 
 use super::{HeapPlace, LargeBlock, LargeBlockId, PageOwner, SmallSpan};
 use crate::local::gc::CollectorState;

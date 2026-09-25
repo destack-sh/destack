@@ -1,6 +1,6 @@
-use destack_core::StringPool;
-use destack_dir as dir;
 use smallvec::{SmallVec, smallvec};
+use tspp_core::StringPool;
+use tspp_dir as dir;
 
 use crate::CompilerResult;
 use crate::sema::{CheckState, Origin, Protocol, Relation, Verdict};

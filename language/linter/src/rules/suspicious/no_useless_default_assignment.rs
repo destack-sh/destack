@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -231,7 +231,7 @@ function name(user: { name: string }): string {
         session.assert_diagnostics(
             r#"
 warning[no-useless-default-assignment]: default cannot be selected by this type
- ──▶ main.ds:2:13
+ ──▶ main.tspp:2:13
   │
 1 │ function name(user: { name: string }): string {
 2 │     const { name = /* retain */ "anonymous" } = user;

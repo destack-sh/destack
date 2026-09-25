@@ -1,12 +1,12 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use crate::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, Declaration,
     Literal, LocalNodeId, Node, NodeType, Parameter, Path, Property, StringId, TemplateLiteral,
     Tree, UnaryOperator,
 };
-use destack_source::ModuleId;
+use tspp_source::ModuleId;
 
 /// An Expression is value-producing JS form.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]

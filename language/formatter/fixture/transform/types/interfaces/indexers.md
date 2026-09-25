@@ -6,11 +6,11 @@
 
 String index signatures allow dictionary-like access.
 
-```ds
+```tspp
 interface Dict { [key: string]: number }
 ```
 
-```ds expected
+```tspp expected
 interface Dict {
     [key: string]: number;
 }
@@ -20,11 +20,11 @@ interface Dict {
 
 Number index signatures allow array-like access.
 
-```ds
+```tspp
 interface ArrayLike { [index: number]: string }
 ```
 
-```ds expected
+```tspp expected
 interface ArrayLike {
     [index: number]: string;
 }
@@ -34,11 +34,11 @@ interface ArrayLike {
 
 Index signatures can coexist with regular properties.
 
-```ds
+```tspp
 interface Dict { [key: string]: number; length: number }
 ```
 
-```ds expected
+```tspp expected
 interface Dict {
     [key: string]: number;
     length: number;

@@ -1,8 +1,8 @@
 use std::io;
 use std::path::{Component, Path, PathBuf};
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use crate::{File, FileId, FilePatch, FileSystem, FileType, Patch, Span, Uri, apply_file_patch};
 

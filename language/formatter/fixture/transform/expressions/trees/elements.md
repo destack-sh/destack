@@ -8,11 +8,11 @@ Tree literal fixtures cover elements, generic tags, attributes, expressions, and
 
 Text content stays inline when it fits.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <div>Hello</div>
 ```
 
-```ds expected
+```tspp expected
 const node = <div>Hello</div>;
 ```
 
@@ -20,11 +20,11 @@ const node = <div>Hello</div>;
 
 Member expression tags keep the dotted path.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <UI.Button label="Ok" />
 ```
 
-```ds expected
+```tspp expected
 const node = <UI.Button label="Ok" />;
 ```
 
@@ -32,11 +32,11 @@ const node = <UI.Button label="Ok" />;
 
 Whitespace in tree text collapses to single spaces.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <div>  Hello   World </div>
 ```
 
-```ds expected
+```tspp expected
 const node = <div> Hello World </div>;
 ```
 
@@ -44,11 +44,11 @@ const node = <div> Hello World </div>;
 
 Whitespace expression containers normalize to tree text spacing.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <div>{" "}Hello{" "}World{" "}</div>
 ```
 
-```ds expected
+```tspp expected
 const node = <div> Hello World </div>;
 ```
 
@@ -58,11 +58,11 @@ const node = <div> Hello World </div>;
 
 Generic tag parameters stay attached to the tag name.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <Component<any>></Component>
 ```
 
-```ds expected
+```tspp expected
 const node = <Component<any>></Component>;
 ```
 
@@ -70,11 +70,11 @@ const node = <Component<any>></Component>;
 
 Generic opening tags do not repeat parameters on closing tags.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <Widget<string>>Hello</Widget>
 ```
 
-```ds expected
+```tspp expected
 const node = <Widget<string>>Hello</Widget>;
 ```
 
@@ -82,11 +82,11 @@ const node = <Widget<string>>Hello</Widget>;
 
 Generic tags format with attributes normally.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <Select<Option> value={"ok"}  disabled={true}/>
 ```
 
-```ds expected
+```tspp expected
 const node = <Select<Option> value={"ok"} disabled={true} />;
 ```
 
@@ -94,11 +94,11 @@ const node = <Select<Option> value={"ok"} disabled={true} />;
 
 Nested generic tags keep paired angle closings.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <Component<Array<string>> />
 ```
 
-```ds expected
+```tspp expected
 const node = <Component<Array<string>> />;
 ```
 
@@ -106,11 +106,11 @@ const node = <Component<Array<string>> />;
 
 Long generic tags still break like normal.
 
-```ds:main.ds line-width=30
+```tspp:main.tspp line-width=30
 const node = <Panel<Props> title="Settings" description="Long description" />
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <Panel<Props>
         title="Settings"
@@ -125,11 +125,11 @@ const node = (
 
 Boolean expression attribute values remain explicit.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <Button disabled={true} primary={true} />
 ```
 
-```ds expected
+```tspp expected
 const node = <Button disabled={true} primary={true} />;
 ```
 
@@ -137,11 +137,11 @@ const node = <Button disabled={true} primary={true} />;
 
 Spread attributes keep braces and spacing.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <Button {...props} size="large" />
 ```
 
-```ds expected
+```tspp expected
 const node = <Button {...props} size="large" />;
 ```
 
@@ -151,11 +151,11 @@ const node = <Button {...props} size="large" />;
 
 Conditional tree expressions stay inline when they fit.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <div>{ready && <Spinner />}</div>
 ```
 
-```ds expected
+```tspp expected
 const node = <div>{ready && <Spinner />}</div>;
 ```
 
@@ -163,11 +163,11 @@ const node = <div>{ready && <Spinner />}</div>;
 
 Fragments with multiple children break across lines.
 
-```ds:main.ds
+```tspp:main.tspp
 const node = <><Header /><Body /><Footer /></>
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <>
         <Header />
@@ -183,11 +183,11 @@ const node = (
 
 Multiline tree in assignments is wrapped in parentheses.
 
-```ds:main.ds line-width=30
+```tspp:main.tspp line-width=30
 const node = <Panel title="Settings" description="Long description" />
 ```
 
-```ds expected
+```tspp expected
 const node = (
     <Panel
         title="Settings"

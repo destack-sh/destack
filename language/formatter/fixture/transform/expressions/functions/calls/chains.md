@@ -6,11 +6,11 @@
 
 Short method chains remain on a single line.
 
-```ds
+```tspp
 foo().bar().baz()
 ```
 
-```ds expected
+```tspp expected
 foo().bar().baz();
 ```
 
@@ -18,11 +18,11 @@ foo().bar().baz();
 
 When chains exceed line width, each method gets its own line with semicolon on last line.
 
-```ds line-width=30
+```tspp line-width=30
 data.filter(x => x.active).map(x => x.name).join(", ")
 ```
 
-```ds expected
+```tspp expected
 data.filter((x) => x.active)
     .map((x) => x.name)
     .join(", ");
@@ -32,11 +32,11 @@ data.filter((x) => x.active)
 
 Promise chains break nicely across lines with semicolon on last line.
 
-```ds line-width=40
+```tspp line-width=40
 fetch(url).then(r => r.json()).then(data => process(data)).catch(handleError)
 ```
 
-```ds expected
+```tspp expected
 fetch(url)
     .then((r) => r.json())
     .then((data) => process(data))
@@ -47,11 +47,11 @@ fetch(url)
 
 Method and property access can mix in chains.
 
-```ds
+```tspp
 obj.items.filter(x => x.valid).length
 ```
 
-```ds expected
+```tspp expected
 obj.items.filter((x) => x.valid).length;
 ```
 
@@ -59,10 +59,10 @@ obj.items.filter((x) => x.valid).length;
 
 Nested method chains format correctly.
 
-```ds
+```tspp
 outer.map(x => x.inner.filter(y => y.ok))
 ```
 
-```ds expected
+```tspp expected
 outer.map((x) => x.inner.filter((y) => y.ok));
 ```

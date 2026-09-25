@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirView, Output, Script};
-use destack_core::StringPool;
-use destack_repository::{Module, Target};
+use tspp_artifact::{DirView, Output, Script};
+use tspp_core::StringPool;
+use tspp_repository::{Module, Target};
 
 use crate::EmitError;
 

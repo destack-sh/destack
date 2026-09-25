@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_export_omits_static_if_false_declaration() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 @if(false)
 export let value: number = 1;
@@ -13,7 +13,7 @@ export let value: number = 1;
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::exports().with_summaries(),
         r#"
 @if(false)
@@ -28,7 +28,7 @@ export let value: number = 1;
 fn test_export_omits_static_if_false_clause() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let value = 1;
 
@@ -39,7 +39,7 @@ export { value };
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::exports().with_summaries(),
         r#"
 let value = 1;
@@ -56,7 +56,7 @@ export { value };
 fn test_export_omits_static_if_false_clause_item() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 let value = 1;
 export { @if(false) value };
@@ -65,7 +65,7 @@ export { @if(false) value };
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::exports().with_summaries(),
         r#"
 let value = 1;
@@ -80,7 +80,7 @@ export { @if(false) value };
 fn test_export_omits_static_if_false_global_declaration() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 @if(false)
 global {
@@ -91,7 +91,7 @@ global {
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::exports().with_summaries(),
         r#"
 @if(false)
@@ -108,23 +108,23 @@ global {
 fn test_export_omits_static_if_false_global_reexport() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 global {
     @if(false)
-    export { Foo } from "./missing.ds";
+    export { Foo } from "./missing.tspp";
 }
 "#,
         )
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::modules().with_export().with_summaries(),
         r#"
 global {
     @if(false)
-    export { Foo } from "./missing.ds";
+    export { Foo } from "./missing.tspp";
 }
 
 /// @module.summary edges=0
@@ -137,13 +137,13 @@ global {
 fn test_export_records_static_if_true_reexport_item() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-export { @if(false) Foo, @if(true) Bar } from "./dep.ds";
+export { @if(false) Foo, @if(true) Bar } from "./dep.tspp";
 "#,
         )
         .module(
-            "dep.ds",
+            "dep.tspp",
             r#"
 export let Foo = 1;
 export let Bar = 2;
@@ -152,12 +152,12 @@ export let Bar = 2;
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::modules().with_export().with_summaries(),
         r#"
-export { @if(false) Foo, @if(true) Bar } from "./dep.ds";
-/// @module.edge relation=re_export specifier=./dep.ds module=dep.ds
-/// @export.reexport key=Bar imported=Bar module=dep.ds
+export { @if(false) Foo, @if(true) Bar } from "./dep.tspp";
+/// @module.edge relation=re_export specifier=./dep.tspp module=dep.tspp
+/// @export.reexport key=Bar imported=Bar module=dep.tspp
 
 /// @module.summary edges=1
 /// @export.summary exports=1
@@ -169,7 +169,7 @@ export { @if(false) Foo, @if(true) Bar } from "./dep.ds";
 fn test_export_drops_generic_static_if_invocation() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 const value = 1;
 
@@ -181,7 +181,8 @@ export { value };
 
     // checking owns the guard diagnostics; export drops the gated root silently
     compiler.assert_dir_exported_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -191,7 +192,7 @@ export { value };
 fn test_export_reports_generic_static_if_invocation() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 const value = 1;
 
@@ -202,7 +203,7 @@ export { value };
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::exports().with_summaries(),
         r#"
 const value = 1;

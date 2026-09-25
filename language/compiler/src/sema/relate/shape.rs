@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_source::ModuleId;
 use smallvec::SmallVec;
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use crate::sema::{
     Cause, CauseId, CauseKind, CheckState, GenericParameterId, MemberRole, MemoryGrounding, Origin,

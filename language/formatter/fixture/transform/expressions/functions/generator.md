@@ -6,11 +6,11 @@
 
 The `*` attaches to the `function` keyword with no space.
 
-```ds
+```tspp
 function  *  foo  (  )   {   }
 ```
 
-```ds expected
+```tspp expected
 function* foo() {}
 ```
 
@@ -18,11 +18,11 @@ function* foo() {}
 
 Single-statement loops stay on one line.
 
-```ds
+```tspp
 function* range(start: number, end: number) { for (let i = start; i < end; i++) { yield i } }
 ```
 
-```ds expected
+```tspp expected
 function* range(start: number, end: number) {
     for (let i = start; i < end; i++) {
         yield i;
@@ -34,11 +34,11 @@ function* range(start: number, end: number) {
 
 String literals stay normalized inside async generators.
 
-```ds
+```tspp
 async function* items() { yield await fetch("a"); yield await fetch("b") }
 ```
 
-```ds expected
+```tspp expected
 async function* items() {
     yield await fetch("a");
     yield await fetch("b");

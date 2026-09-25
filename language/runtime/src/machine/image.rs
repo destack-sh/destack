@@ -1,5 +1,5 @@
-use destack_vm as vm;
 use serde::{Deserialize, Serialize};
+use tspp_vm as vm;
 
 /// Immutable state of one retained runtime machine.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

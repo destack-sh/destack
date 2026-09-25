@@ -11,7 +11,7 @@ function make(): (value: int32) => int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.make", r#"
+    session.assert_mir_function("main.tspp", "test.main.make", r#"
 function test.main.make(): function<(int32) => int32, repeatable, managed, mutable, local> {
 entry:
     v0: ptr<void, readonly> = null
@@ -21,7 +21,7 @@ entry:
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.make.closure#0",
         r#"
 function test.main.make.closure#0(v0: int32): int32 {
@@ -50,7 +50,7 @@ function make(): () => int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.make", r#"
+    session.assert_mir_function("main.tspp", "test.main.make", r#"
 function test.main.make(): function<() => int32, repeatable, managed, mutable, local> {
 entry:
     v0: int32 = 1
@@ -68,7 +68,7 @@ entry:
 /// @layout.field owner=type@5 index=0 offset=0 size=8 align=8
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.make.closure#0", r#"
+    session.assert_mir_function("main.tspp", "test.main.make.closure#0", r#"
 @environment(ref<{ ref<{ value: int32 }, managed, mutable, local> }, managed, mutable, local>)
 function test.main.make.closure#0(): int32 {
 entry:
@@ -104,7 +104,7 @@ function counter(): () => int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.counter", r#"
+    session.assert_mir_function("main.tspp", "test.main.counter", r#"
 function test.main.counter(): function<() => int32, repeatable, managed, mutable, local> {
     local l0: function<() => int32, repeatable, managed, mutable, local>
 
@@ -129,7 +129,7 @@ entry:
 /// @layout.field owner=type@5 index=0 offset=0 size=8 align=8
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.counter.closure#0", r#"
+    session.assert_mir_function("main.tspp", "test.main.counter.closure#0", r#"
 @environment(ref<{ ref<{ count: int32 }, managed, mutable, local> }, managed, mutable, local>)
 function test.main.counter.closure#0(): int32 {
 entry:
@@ -174,7 +174,7 @@ function chain(outer: Cell): () => () => int32 {
     );
 
     session.assert_mir_lowered(
-        "main.ds", r#"
+        "main.tspp", r#"
 @nocopy
 type test.main.Cell {
     value: int32;
@@ -263,7 +263,7 @@ entry:
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.chain.closure#0.closure#0",
         r#"
 @nocopy

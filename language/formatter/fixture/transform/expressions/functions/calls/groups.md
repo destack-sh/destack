@@ -6,11 +6,11 @@
 
 Arrow callbacks break to multiple lines when there are several.
 
-```ds:main.ds
+```tspp:main.tspp
 call(() => foo, () => bar)
 ```
 
-```ds expected
+```tspp expected
 call(
     () => foo,
     () => bar,
@@ -21,7 +21,7 @@ call(
 
 Block-bodied callbacks expand when paired with other arguments.
 
-```ds:main.ds
+```tspp:main.tspp
 setTimeout(
     () => {
         // ...
@@ -30,7 +30,7 @@ setTimeout(
 )
 ```
 
-```ds expected
+```tspp expected
 setTimeout(
     () => {
         // ...
@@ -43,7 +43,7 @@ setTimeout(
 
 Blank lines between arguments are preserved.
 
-```ds:main.ds
+```tspp:main.tspp
 call(
   () => {
     // ...
@@ -53,7 +53,7 @@ call(
 )
 ```
 
-```ds expected
+```tspp expected
 call(
     () => {
         // ...
@@ -67,7 +67,7 @@ call(
 
 Trailing comments stay attached to their argument.
 
-```ds:main.ds
+```tspp:main.tspp
 call(
   () => {
     // ...
@@ -76,7 +76,7 @@ call(
 )
 ```
 
-```ds expected
+```tspp expected
 call(
     () => {
         // ...
@@ -89,13 +89,13 @@ call(
 
 Template literal arguments keep their indentation.
 
-```ds:main.ds
+```tspp:main.tspp
 expect(genCode(createVNodeCall(null, "`div`", mockProps)))
   .toMatchInlineSnapshot(`
   `)
 ```
 
-```ds expected
+```tspp expected
 expect(genCode(createVNodeCall(null, "`div`", mockProps))).toMatchInlineSnapshot(`
   `);
 ```
@@ -104,12 +104,12 @@ expect(genCode(createVNodeCall(null, "`div`", mockProps))).toMatchInlineSnapshot
 
 Line comments between a callee and optional call stay on the full call expression.
 
-```ds:main.ds
+```tspp:main.tspp
 call // C4
 ?.()
 ```
 
-```ds expected
+```tspp expected
 call?.(); // C4
 ```
 
@@ -117,11 +117,11 @@ call?.(); // C4
 
 Block comments between the callee and `?.` stay before the optional operator.
 
-```ds:main.ds
+```tspp:main.tspp
 alert /* comment */?.("value")
 ```
 
-```ds expected
+```tspp expected
 alert /* comment */?.("value");
 ```
 
@@ -129,11 +129,11 @@ alert /* comment */?.("value");
 
 Inline block comments in empty optional call arguments stay inside `()`.
 
-```ds:main.ds
+```tspp:main.tspp
 call?.(/* argument comment */)
 ```
 
-```ds expected
+```tspp expected
 call?.(/* argument comment */);
 ```
 
@@ -141,13 +141,13 @@ call?.(/* argument comment */);
 
 Line comments in empty call arguments stay inside multiline `()`.
 
-```ds:main.ds
+```tspp:main.tspp
 call(
   // argument line comment
 )
 ```
 
-```ds expected
+```tspp expected
 call(
     // argument line comment
 );
@@ -157,12 +157,12 @@ call(
 
 Line comments in empty optional call arguments stay inside multiline `()`.
 
-```ds:main.ds
+```tspp:main.tspp
 call?.( // argument line comment
 )
 ```
 
-```ds expected
+```tspp expected
 call?.(
     // argument line comment
 );
@@ -172,7 +172,7 @@ call?.(
 
 Comments around the final callback control whether the call stays grouped.
 
-```ds:main.ds
+```tspp:main.tspp
 call(editor /* comment */, () => {
   //
 });
@@ -191,7 +191,7 @@ call(/* comment */
 );
 ```
 
-```ds expected
+```tspp expected
 call(editor /* comment */, () => {
     //
 });
@@ -213,11 +213,11 @@ call(
 
 Named function expressions break to multiple lines when repeated.
 
-```ds:main.ds
+```tspp:main.tspp
 call(function first() { return foo; }, function second() { return bar; })
 ```
 
-```ds expected
+```tspp expected
 call(
     function first() {
         return foo;

@@ -1,5 +1,5 @@
-use destack_bytecode::{AtomicOperation, MemoryOperation, Opcode, VectorOperation};
-use destack_program::{Event, EventKind, MemoryAccess, Outcome, Poll, Runtime, StopReason, Word};
+use tspp_bytecode::{AtomicOperation, MemoryOperation, Opcode, VectorOperation};
+use tspp_program::{Event, EventKind, MemoryAccess, Outcome, Poll, Runtime, StopReason, Word};
 
 use crate::diagnostic::{Error, ExecutionResult, Trap};
 use crate::machine::Activation;

@@ -1,6 +1,6 @@
 use futures::executor::block_on;
 
-use destack_doc::{DeclarationKind, PACKAGE_REFERENCE_SCHEMA_VERSION, TextRange};
+use tspp_doc::{DeclarationKind, PACKAGE_REFERENCE_SCHEMA_VERSION, TextRange};
 
 use crate::command::{CommandOptions, CommandRevision, DocInput};
 use crate::tests::harness::TestWorkspace;
@@ -16,17 +16,17 @@ fn test_doc_command_builds_checked_package_reference() {
   "license": "MIT",
   "targets": {
     "default": {
-      "entry": ["src/index.ds"]
+      "entry": ["src/index.tspp"]
     }
   },
   "defaultTarget": "default",
   "exports": {
     ".": {
-      "path": "./src/index.ds"
+      "path": "./src/index.tspp"
     },
-    "./direct": { "path": "./src/direct.ds" },
-    "./empty": { "path": "./src/empty.ds" },
-    "./nested/binding": { "path": "./src/nested/binding/index.ds" }
+    "./direct": { "path": "./src/direct.tspp" },
+    "./empty": { "path": "./src/empty.tspp" },
+    "./nested/binding": { "path": "./src/nested/binding/index.tspp" }
   }
 }
 "#;
@@ -72,12 +72,12 @@ export interface AsyncWriter {
     new <T>(value: T): AsyncWriter;
 }
 "#;
-    let source_path = test.write_text("src/index.ds", source);
+    let source_path = test.write_text("src/index.tspp", source);
     test.apply_text(&source_path, source);
 
     for (path, source) in [
-        ("src/empty.ds", ""),
-        ("src/nested/binding/index.ds", "export const value = 1;\n"),
+        ("src/empty.tspp", ""),
+        ("src/nested/binding/index.tspp", "export const value = 1;\n"),
     ] {
         let file = test.write_text(path, source);
         test.apply_text(&file, source);
@@ -85,12 +85,15 @@ export interface AsyncWriter {
 
     // document namespace-only modules without inventing public import paths
     for (path, source) in [
-        ("src/direct.ds", "export * as tools from \"./tools.ds\";"),
         (
-            "src/tools.ds",
-            "export * as nested from \"./nested-tool.ds\"; export * as parent from \"./direct.ds\"; export const answer = 42;",
+            "src/direct.tspp",
+            "export * as tools from \"./tools.tspp\";",
         ),
-        ("src/nested-tool.ds", "export const value = 1;"),
+        (
+            "src/tools.tspp",
+            "export * as nested from \"./nested-tool.tspp\"; export * as parent from \"./direct.tspp\"; export const answer = 42;",
+        ),
+        ("src/nested-tool.tspp", "export const value = 1;"),
     ] {
         let file = test.write_text(path, source);
         test.apply_text(&file, source);
@@ -115,13 +118,13 @@ export interface AsyncWriter {
     assert_eq!(reference.modules.len(), 4);
     assert!(reference.modules[2].exports.is_empty());
     assert_eq!(reference.modules[0].specifier, "relay");
-    assert_eq!(reference.modules[0].path.as_deref(), Some("src/index.ds"));
+    assert_eq!(reference.modules[0].path.as_deref(), Some("src/index.tspp"));
 
     assert_eq!(reference.namespaces.len(), 2);
     let tools = reference
         .namespaces
         .iter()
-        .find(|namespace| namespace.path.as_deref() == Some("src/tools.ds"))
+        .find(|namespace| namespace.path.as_deref() == Some("src/tools.tspp"))
         .expect("exported namespace");
     assert_eq!(
         tools
@@ -179,7 +182,7 @@ export interface AsyncWriter {
     );
     assert_eq!(
         exports[4].declarations[0].source.path.as_deref(),
-        Some("src/index.ds")
+        Some("src/index.tspp")
     );
     assert_eq!(exports[4].declarations[0].source.line, 2);
     assert_eq!(exports[4].declarations[0].source.end_line, 4);

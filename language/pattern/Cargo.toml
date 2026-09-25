@@ -1,6 +1,6 @@
 [package]
-name = "destack_pattern"
-description = "Destack source patterns"
+name = "tspp_pattern"
+description = "TS++ source patterns"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,18 +13,18 @@ doctest = false
 
 [dependencies]
 # language
-destack_artifact = { workspace = true }
-destack_artifact_macros = { workspace = true }
-destack_core = { workspace = true }
-destack_dir = { workspace = true }
-destack_parser = { workspace = true }
-destack_source = { workspace = true }
+tspp_artifact = { workspace = true }
+tspp_artifact_macros = { workspace = true }
+tspp_core = { workspace = true }
+tspp_dir = { workspace = true }
+tspp_parser = { workspace = true }
+tspp_source = { workspace = true }
 
 [dev-dependencies]
 # language
-destack_formatter = { workspace = true }
-destack_repository = { workspace = true }
-destack_session = { workspace = true, features = ["native"] }
+tspp_formatter = { workspace = true }
+tspp_repository = { workspace = true }
+tspp_session = { workspace = true, features = ["native"] }
 
 # general
 futures = { workspace = true, features = ["executor"] }

@@ -1,11 +1,11 @@
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_artifact::SourceDependency;
-use destack_core::stable_hash_value_128;
-use destack_source::{FileId, LanguageType, Loader, ModuleId, PackageId, Uri};
 use im::OrdMap;
 use rustc_hash::FxHashMap;
+use tspp_artifact::SourceDependency;
+use tspp_core::stable_hash_value_128;
+use tspp_source::{FileId, LanguageType, Loader, ModuleId, PackageId, Uri};
 
 use crate::{ConditionGate, ConditionSet};
 
@@ -220,9 +220,9 @@ mod tests {
     use std::collections::BTreeMap;
     use std::path::{Path, PathBuf};
 
-    use destack_artifact::{Host, Platform, Runtime};
-    use destack_source::{FileType, PackageId, Uri};
     use indexmap::IndexSet;
+    use tspp_artifact::{Host, Platform, Runtime};
+    use tspp_source::{FileType, PackageId, Uri};
 
     use super::*;
 
@@ -233,18 +233,18 @@ mod tests {
         let mut module = Module::blank(
             module_id,
             FileId::new(1),
-            Uri::from_path(Path::new("main.ds")),
-            Some(PathBuf::from("main.ds")),
+            Uri::from_path(Path::new("main.tspp")),
+            Some(PathBuf::from("main.tspp")),
             package_id,
-            Some(LanguageType::Destack),
-            Loader::Destack,
+            Some(LanguageType::Tspp),
+            Loader::Tspp,
         );
         let test_file = ModuleFile::new(
             FileId::new(2),
-            Uri::from_path(Path::new("main.test.ds")),
-            Some(PathBuf::from("main.test.ds")),
-            Some(LanguageType::Destack),
-            Loader::Destack,
+            Uri::from_path(Path::new("main.test.tspp")),
+            Some(PathBuf::from("main.test.tspp")),
+            Some(LanguageType::Tspp),
+            Loader::Tspp,
             vec!["test".to_string()],
             vec![ConditionGate::mode("test")],
         );
@@ -262,7 +262,7 @@ mod tests {
             labels: BTreeMap::new(),
             platform: Platform::Unknown,
             host: Host::Native,
-            runtime: Runtime::Destack,
+            runtime: Runtime::Tspp,
         };
         let files = module.files_for_conditions(&conditions);
         assert_eq!(files.len(), 1);
@@ -282,18 +282,18 @@ mod tests {
         let mut module = Module::blank(
             module_id,
             FileId::new(1),
-            Uri::from_path(Path::new("main.ds")),
-            Some(PathBuf::from("main.ds")),
+            Uri::from_path(Path::new("main.tspp")),
+            Some(PathBuf::from("main.tspp")),
             package_id,
-            Some(LanguageType::Destack),
-            Loader::Destack,
+            Some(LanguageType::Tspp),
+            Loader::Tspp,
         );
         module.push_condition_file(ModuleFile::new(
             FileId::new(2),
-            Uri::from_path(Path::new("main.test.ds")),
-            Some(PathBuf::from("main.test.ds")),
-            Some(LanguageType::try_from(FileType::Destack).unwrap()),
-            Loader::Destack,
+            Uri::from_path(Path::new("main.test.tspp")),
+            Some(PathBuf::from("main.test.tspp")),
+            Some(LanguageType::try_from(FileType::Tspp).unwrap()),
+            Loader::Tspp,
             vec!["test".to_string()],
             vec![ConditionGate::mode("test")],
         ));
@@ -314,11 +314,11 @@ mod tests {
         let module = Module::blank(
             module_id,
             FileId::new(1),
-            Uri::from_string("destack://types/function"),
+            Uri::from_string("tspp://types/function"),
             None,
             package_id,
-            Some(LanguageType::Destack),
-            Loader::Destack,
+            Some(LanguageType::Tspp),
+            Loader::Tspp,
         );
 
         // index the builtin URI without a physical path
@@ -326,7 +326,7 @@ mod tests {
         modules.insert(module_id, Arc::new(module));
         let index = ModuleIndex::new(modules);
 
-        let uri = Uri::from_string("destack://types/function");
+        let uri = Uri::from_string("tspp://types/function");
         assert_eq!(index.resolve_uri(&uri), Some((module_id, FileId::new(1))));
         assert_eq!(index.module_id_for_uri(&uri), Some(module_id));
     }

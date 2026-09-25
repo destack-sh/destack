@@ -1,6 +1,6 @@
-use destack_core::StringId;
-use destack_dir as dir;
-use destack_source::{NodeSpanType, Span};
+use tspp_core::StringId;
+use tspp_dir as dir;
+use tspp_source::{NodeSpanType, Span};
 
 use super::marker::{Marker, MarkerError};
 use crate::{Metavariable, MetavariableId, MetavariableUse, Sequence};

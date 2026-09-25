@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_core::CaptureMode;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::CaptureMode;
+use tspp_serde::Reflect;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::world::topology::LabelSet;

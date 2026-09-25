@@ -1,9 +1,9 @@
-use destack_core::CaptureMode;
-use destack_heap as heap;
-use destack_mir as mir;
-use destack_mir::TraceMap;
-use destack_program as program;
-use destack_repository::RuntimeOptions;
+use tspp_core::CaptureMode;
+use tspp_heap as heap;
+use tspp_mir as mir;
+use tspp_mir::TraceMap;
+use tspp_program as program;
+use tspp_repository::RuntimeOptions;
 
 use crate::binding::BindingTable;
 use crate::diagnostic::RuntimeError;

@@ -1,7 +1,7 @@
 use std::hint::black_box;
 use std::mem::size_of;
 
-use destack_memory::MemoryMap;
+use tspp_memory::MemoryMap;
 
 use crate::config::{PAGE_SIZE_BYTES, SPACE_SIZE_BYTES};
 

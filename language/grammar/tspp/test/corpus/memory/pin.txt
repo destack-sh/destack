@@ -1,0 +1,42 @@
+================================================================================
+Pin syntax
+:language(tspp)
+================================================================================
+
+let task: Pin<Box<Task>> = Box.pin(source);
+let handle: &readonly Pin<Box<Task>> = &readonly task;
+
+--------------------------------------------------------------------------------
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (generic_type
+              (type_identifier)
+              (type_arguments
+                (type_identifier))))))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (memory_type
+          (generic_type
+            (type_identifier)
+            (type_arguments
+              (generic_type
+                (type_identifier)
+                (type_arguments
+                  (type_identifier)))))))
+      (memory_expression
+        (identifier)))))

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_core::BitSet;
 use smallvec::SmallVec;
+use tspp_core::BitSet;
 
 use crate::{
     Analysis, Block, BlockTarget, Callee, CastOperator, ControlTable, DataflowTable, Edge,

@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use destack_heap::{
+use tspp_heap::{
     AllocationCache, DEFAULT_MEMORY_MAP_SIZE_BYTES, Heap, HeapLimits, HeapOptions, SharedHeap,
     SharedHeapLimits, SharedHeapOptions, SharedMarkWorker,
 };
-use destack_memory::MemoryMap;
+use tspp_memory::MemoryMap;
 
 /// One shared heap with one worker-local allocation cache.
 pub(crate) struct WorkerHeap {

@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -105,7 +105,7 @@ function bounded(value: float64): float64 {
         session.assert_diagnostics(
             r#"
 warning[no-invalid-clamp]: clamp lower bound exceeds its upper bound
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function bounded(value: float64): float64 {
 2 │     return value.clamp(1.0, -1.0);
@@ -135,7 +135,7 @@ function upper(value: float64): float64 {
         session.assert_diagnostics(
             r#"
 warning[no-invalid-clamp]: clamp bound is NaN
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function lower(value: float64): float64 {
 2 │     return value.clamp(Number.NaN, 1.0);
@@ -145,7 +145,7 @@ warning[no-invalid-clamp]: clamp bound is NaN
   │
 
 warning[no-invalid-clamp]: clamp bound is NaN
- ──▶ main.ds:6:12
+ ──▶ main.tspp:6:12
   │
 4 │
 5 │ function upper(value: float64): float64 {

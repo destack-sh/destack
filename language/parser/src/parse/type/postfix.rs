@@ -1,11 +1,11 @@
 use crate::parse::{ExpressionPosition, TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserResult};
-use destack_core::StringId;
-use destack_dir::{
+use tspp_core::StringId;
+use tspp_dir::{
     Expression, GenericArgument, LocalNodeId, NodeType, Path, PostfixPosition, TokenType,
     TypeExpression,
 };
-use destack_source::{ByteRange, NodeSpanList, NodeSpanType};
+use tspp_source::{ByteRange, NodeSpanList, NodeSpanType};
 
 /// One type head that can receive generic arguments.
 enum TypeGenericHead {

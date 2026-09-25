@@ -4,19 +4,19 @@ use crate::tests::{DirRows, TestSession};
 fn test_import_resolves_builtin_package_export() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Math } from "destack:math";
+import { Math } from "tspp:math";
 "#,
         )
         .build();
 
     compiler.assert_dir_imported(
-        "main.ds",
+        "main.tspp",
         DirRows::modules().with_summaries(),
         r#"
-import { Math } from "destack:math";
-/// @module.edge relation=import specifier=destack:math module=destack://math/index.ds
+import { Math } from "tspp:math";
+/// @module.edge relation=import specifier=tspp:math module=tspp://math/index.tspp
 
 /// @module.summary edges=1
 "#,
@@ -30,25 +30,25 @@ fn test_import_resolves_authored_builtin_modules() {
             "destack.json",
             r#"
 {
-    "name": "destack"
+    "name": "tspp"
 }
 "#,
         )
         .module(
-            "src/main.ds",
+            "src/main.tspp",
             r#"
-import { absolute } from "destack:absolute";
-import { relative } from "./relative.ds";
+import { absolute } from "tspp:absolute";
+import { relative } from "./relative.tspp";
 "#,
         )
         .module(
-            "src/absolute.ds",
+            "src/absolute.tspp",
             r#"
 export const absolute = 1;
 "#,
         )
         .module(
-            "src/relative.ds",
+            "src/relative.tspp",
             r#"
 export const relative = 2;
 "#,
@@ -56,14 +56,14 @@ export const relative = 2;
         .build();
 
     compiler.assert_dir_imported(
-        "src/main.ds",
+        "src/main.tspp",
         DirRows::modules().with_summaries(),
         r#"
-import { absolute } from "destack:absolute";
-/// @module.edge relation=import specifier=destack:absolute module=destack://absolute.ds
+import { absolute } from "tspp:absolute";
+/// @module.edge relation=import specifier=tspp:absolute module=tspp://absolute.tspp
 
-import { relative } from "./relative.ds";
-/// @module.edge relation=import specifier=./relative.ds module=destack://relative.ds
+import { relative } from "./relative.tspp";
+/// @module.edge relation=import specifier=./relative.tspp module=tspp://relative.tspp
 
 /// @module.summary edges=2
 "#,
@@ -74,18 +74,18 @@ import { relative } from "./relative.ds";
 fn test_import_reports_builtin_internal_subpath() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { HostError } from "destack:error/host";
+import { HostError } from "tspp:error/host";
 "#,
         )
         .build();
 
     compiler.assert_dir_imported_diagnostics(
-        "main.ds",
+        "main.tspp",
         r#"
-/// @diagnostic.error id=unsupported-module-specifier message="unsupported module specifier 'destack:error/host'"
-/// @diagnostic.label line=2 column=1 span="import { HostError } from \"destack:error/host\"" line_source="import { HostError } from \"destack:error/host\";"
+/// @diagnostic.error id=unsupported-module-specifier message="unsupported module specifier 'tspp:error/host'"
+/// @diagnostic.label line=2 column=1 span="import { HostError } from \"tspp:error/host\"" line_source="import { HostError } from \"tspp:error/host\";"
 "#,
     );
 }
@@ -94,7 +94,7 @@ import { HostError } from "destack:error/host";
 fn test_import_reports_private_specifier() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r##"
 import { value } from "#internal";
 "##,
@@ -102,7 +102,7 @@ import { value } from "#internal";
         .build();
 
     compiler.assert_dir_imported_diagnostics(
-        "main.ds",
+        "main.tspp",
         r##"
 /// @diagnostic.error id=unsupported-module-specifier message="unsupported module specifier '#internal'"
 /// @diagnostic.label line=2 column=1 span="import { value } from \"#internal\"" line_source="import { value } from \"#internal\";"
@@ -114,13 +114,13 @@ import { value } from "#internal";
 fn test_import_reports_absolute_specifier() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { value } from "/dep.ds";
+import { value } from "/dep.tspp";
 "#,
         )
         .module(
-            "dep.ds",
+            "dep.tspp",
             r#"
 export let value = 1;
 "#,
@@ -128,10 +128,10 @@ export let value = 1;
         .build();
 
     compiler.assert_dir_imported_diagnostics(
-        "main.ds",
+        "main.tspp",
         r#"
-/// @diagnostic.error id=unsupported-module-specifier message="unsupported module specifier '/dep.ds'"
-/// @diagnostic.label line=2 column=1 span="import { value } from \"/dep.ds\"" line_source="import { value } from \"/dep.ds\";"
+/// @diagnostic.error id=unsupported-module-specifier message="unsupported module specifier '/dep.tspp'"
+/// @diagnostic.label line=2 column=1 span="import { value } from \"/dep.tspp\"" line_source="import { value } from \"/dep.tspp\";"
 "#,
     );
 }
@@ -140,7 +140,7 @@ export let value = 1;
 fn test_import_reports_scheme_specifier() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { value } from "host:runtime";
 "#,
@@ -148,7 +148,7 @@ import { value } from "host:runtime";
         .build();
 
     compiler.assert_dir_imported_diagnostics(
-        "main.ds",
+        "main.tspp",
         r#"
 /// @diagnostic.error id=unsupported-module-specifier message="unsupported module specifier 'host:runtime'"
 /// @diagnostic.label line=2 column=1 span="import { value } from \"host:runtime\"" line_source="import { value } from \"host:runtime\";"
@@ -160,13 +160,13 @@ import { value } from "host:runtime";
 fn test_import_reports_local_query_specifier() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { value } from "./dep.ds?raw";
+import { value } from "./dep.tspp?raw";
 "#,
         )
         .module(
-            "dep.ds",
+            "dep.tspp",
             r#"
 export let value = 1;
 "#,
@@ -174,10 +174,10 @@ export let value = 1;
         .build();
 
     compiler.assert_dir_imported_diagnostics(
-        "main.ds",
+        "main.tspp",
         r#"
-/// @diagnostic.error id=unsupported-module-specifier message="unsupported module specifier './dep.ds?raw'"
-/// @diagnostic.label line=2 column=1 span="import { value } from \"./dep.ds?raw\"" line_source="import { value } from \"./dep.ds?raw\";"
+/// @diagnostic.error id=unsupported-module-specifier message="unsupported module specifier './dep.tspp?raw'"
+/// @diagnostic.label line=2 column=1 span="import { value } from \"./dep.tspp?raw\"" line_source="import { value } from \"./dep.tspp?raw\";"
 "#,
     );
 }
@@ -199,19 +199,19 @@ fn test_import_reports_conditional_file_specifier() {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { value } from "./user.preview.ds";
+import { value } from "./user.preview.tspp";
 "#,
         )
         .module(
-            "user.ds",
+            "user.tspp",
             r#"
 export let value = 1;
 "#,
         )
         .module(
-            "user.preview.ds",
+            "user.preview.tspp",
             r#"
 export let preview = true;
 "#,
@@ -219,10 +219,10 @@ export let preview = true;
         .build();
 
     compiler.assert_dir_imported_diagnostics(
-        "main.ds",
+        "main.tspp",
         r#"
-/// @diagnostic.error id=unsupported-module-specifier message="unsupported module specifier './user.preview.ds'"
-/// @diagnostic.label line=2 column=1 span="import { value } from \"./user.preview.ds\"" line_source="import { value } from \"./user.preview.ds\";"
+/// @diagnostic.error id=unsupported-module-specifier message="unsupported module specifier './user.preview.tspp'"
+/// @diagnostic.label line=2 column=1 span="import { value } from \"./user.preview.tspp\"" line_source="import { value } from \"./user.preview.tspp\";"
 "#,
     );
 }

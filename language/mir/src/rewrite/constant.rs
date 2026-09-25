@@ -1,4 +1,4 @@
-use destack_core::FxIndexMap;
+use tspp_core::FxIndexMap;
 
 use crate as mir;
 use crate::{instruction_substitute_uses_in_tree, terminator_substitute_uses};

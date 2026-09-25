@@ -1,7 +1,7 @@
 use std::fs;
 
-use destack_lsp_types as lsp;
 use serde_json::{Value, json, to_value};
+use tspp_lsp_types as lsp;
 
 use super::tests::{TestServer, markdown, position, range};
 
@@ -9,7 +9,7 @@ use super::tests::{TestServer, markdown, position, range};
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_initialize_minimal_client() {
     let mut server = TestServer::new("initialize-minimal-client");
-    server.write("main.ds", "export const value: float64 = 1;\n");
+    server.write("main.tspp", "export const value: float64 = 1;\n");
 
     let initialized = server
         .initialize(lsp::ClientCapabilities::default(), None)
@@ -25,7 +25,7 @@ async fn test_initialize_minimal_client() {
     assert_eq!(
         content,
         Some(lsp::TextDocumentContentOptions {
-            schemes: vec!["destack".to_string()],
+            schemes: vec!["tspp".to_string()],
         })
     );
 
@@ -36,7 +36,7 @@ async fn test_initialize_minimal_client() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_initialize_workspace_client() {
     let mut server = TestServer::new("initialize-workspace-client");
-    server.write("main.ds", "export const value: float64 = 1;\n");
+    server.write("main.tspp", "export const value: float64 = 1;\n");
     let capabilities = lsp::ClientCapabilities {
         workspace: Some(lsp::WorkspaceClientCapabilities {
             configuration: Some(true),
@@ -63,7 +63,7 @@ async fn test_initialize_workspace_client() {
         registration,
         lsp::RegistrationParams {
             registrations: vec![lsp::Registration {
-                id: "destack.watch".to_string(),
+                id: "tspp.watch".to_string(),
                 method: "workspace/didChangeWatchedFiles".to_string(),
                 register_options: Some(
                     to_value(lsp::DidChangeWatchedFilesRegistrationOptions {
@@ -94,11 +94,11 @@ async fn test_initialize_workspace_client() {
             items: vec![
                 lsp::ConfigurationItem {
                     scope_uri: None,
-                    section: Some("destack.completion".to_string()),
+                    section: Some("tspp.completion".to_string()),
                 },
                 lsp::ConfigurationItem {
                     scope_uri: None,
-                    section: Some("destack.inlayHints".to_string()),
+                    section: Some("tspp.inlayHints".to_string()),
                 },
             ],
         }
@@ -119,7 +119,7 @@ async fn test_initialize_workspace_client() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_reconcile_removed_nested_path() {
     let mut server = TestServer::new("removed-nested-path");
-    server.write("main.ds", "export const value: float64 = 1;\n");
+    server.write("main.tspp", "export const value: float64 = 1;\n");
     let removed = server.write("target/debug/incremental/working/output", "transient");
     server
         .initialize(lsp::ClientCapabilities::default(), None)
@@ -149,7 +149,7 @@ async fn test_reload_workspace_source() {
     let changed = r#"export function answer(): string { return "changed"; }
 "#;
     let mut server = TestServer::new("reload-workspace-source");
-    let document = server.write("main.ds", initial);
+    let document = server.write("main.tspp", initial);
     server
         .initialize(lsp::ClientCapabilities::default(), None)
         .await
@@ -157,14 +157,14 @@ async fn test_reload_workspace_source() {
     server.initialized().await;
 
     // replace the physical source before reloading the workspace
-    server.write("main.ds", changed);
+    server.write("main.tspp", changed);
     let request = server.reload();
     server.assert_request(request, Ok(None)).await;
 
     // observe the reloaded declaration through a semantic request
     let hover = Some(lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
-            "`main.ds:1:17`\n\n```ds\nexport function answer(): string\n```",
+            "`main.tspp:1:17`\n\n```tspp\nexport function answer(): string\n```",
         )),
         range: Some(range(0, 16, 0, 22)),
     });
@@ -179,8 +179,8 @@ async fn test_clear_renamed_file_diagnostics() {
     let source = r#"const value = missing;
 "#;
     let mut server = TestServer::new("renamed-file-diagnostics");
-    let renamed = server.write("renamed.ds", source);
-    let renamed_target = server.document("renamed-again.ds");
+    let renamed = server.write("renamed.tspp", source);
+    let renamed_target = server.document("renamed-again.tspp");
     let renamed_error = renamed.error(
         range(0, 14, 0, 21),
         "unresolved-reference",
@@ -220,7 +220,7 @@ async fn test_clear_deleted_file_diagnostics() {
     let source = r#"const value = missing;
 "#;
     let mut server = TestServer::new("deleted-file-diagnostics");
-    let deleted = server.write("deleted.ds", source);
+    let deleted = server.write("deleted.tspp", source);
     let deleted_error = deleted.error(
         range(0, 14, 0, 21),
         "unresolved-reference",

@@ -6,11 +6,11 @@
 
 Single param callbacks get parentheses added.
 
-```ds
+```tspp
 array.map(x => x * 2)
 ```
 
-```ds expected
+```tspp expected
 array.map((x) => x * 2);
 ```
 
@@ -18,11 +18,11 @@ array.map((x) => x * 2);
 
 Parentheses are preserved when already present.
 
-```ds
+```tspp
 array.map((x) => x * 2)
 ```
 
-```ds expected
+```tspp expected
 array.map((x) => x * 2);
 ```
 
@@ -30,11 +30,11 @@ array.map((x) => x * 2);
 
 Block bodies in callbacks expand to multiple lines.
 
-```ds
+```tspp
 array.forEach(item => { console.log(item) })
 ```
 
-```ds expected
+```tspp expected
 array.forEach((item) => {
     console.log(item)
 });
@@ -44,11 +44,11 @@ array.forEach((item) => {
 
 Each callback in a chain gets parentheses.
 
-```ds
+```tspp
 array.filter(x => x > 0).map(x => x * 2)
 ```
 
-```ds expected
+```tspp expected
 array.filter((x) => x > 0).map((x) => x * 2);
 ```
 
@@ -56,10 +56,10 @@ array.filter((x) => x > 0).map((x) => x * 2);
 
 Multi-param callbacks work with additional arguments.
 
-```ds
+```tspp
 array.reduce((acc, x) => acc + x, 0)
 ```
 
-```ds expected
+```tspp expected
 array.reduce((acc, x) => acc + x, 0);
 ```

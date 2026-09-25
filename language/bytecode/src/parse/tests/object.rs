@@ -1,6 +1,6 @@
 use std::mem::{offset_of, size_of};
 
-use destack_core::{SectionImageError, SectionStorage};
+use tspp_core::{SectionImageError, SectionStorage};
 
 use crate::{Function, FunctionId, Object, ObjectLoadError, Opcode, Scalar};
 

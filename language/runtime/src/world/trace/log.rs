@@ -1,4 +1,4 @@
-use destack_core::{Capture, CaptureMode, SnapshotCodec};
+use tspp_core::{Capture, CaptureMode, SnapshotCodec};
 
 use crate::binding::{Binding, ReplayPayload};
 use crate::diagnostic::{RuntimeError, RuntimeResult};
@@ -8,11 +8,11 @@ use crate::world::trace::{
     TraceCursorImage, TraceEntry, TraceHeader, TraceSequence, TraceStore, TraceTag,
 };
 use crate::world::{BranchId, Mutation};
-use destack_repository::ExecutionMode;
-use destack_serde::append_to_vec;
 use parking_lot::Mutex;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use tspp_repository::ExecutionMode;
+use tspp_serde::append_to_vec;
 
 use super::file::TraceFile;
 
@@ -628,7 +628,7 @@ impl TraceLog {
         let call = self.next_binding_call(binding, name)?;
 
         // decode the payload bytes
-        let payload = destack_serde::from_slice(&call.bytes)
+        let payload = tspp_serde::from_slice(&call.bytes)
             .map_err(|_| RuntimeError::trace_decode_failed(name.to_string()).boxed())?;
         Ok(payload)
     }

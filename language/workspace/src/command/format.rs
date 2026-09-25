@@ -2,17 +2,17 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_formatter::format_source;
-use destack_json::{JsonFormatOptions, format_json};
-use destack_parser::{colorize_source, source_colorizer};
-use destack_repository::{FormatterOptions, Repository, Revision, TraceView};
-use destack_serde::Reflect;
-use destack_source::{
+use parking_lot::Mutex;
+use serde::{Deserialize, Serialize};
+use tspp_formatter::format_source;
+use tspp_json::{JsonFormatOptions, format_json};
+use tspp_parser::{colorize_source, source_colorizer};
+use tspp_repository::{FormatterOptions, Repository, Revision, TraceView};
+use tspp_serde::Reflect;
+use tspp_source::{
     DiagnosticCollection, DiagnosticSeverity, File, FileId, FileSystem, FileType, IgnoreSet,
     PrintOptions, Uri, print_diagnostics,
 };
-use parking_lot::Mutex;
-use serde::{Deserialize, Serialize};
 
 use super::common::{
     CommandEnvVar, CommandInput, CommandOptions, CommandRevision, CommandTargetOverrides,
@@ -24,7 +24,7 @@ use super::output::OutputBuffer;
 use super::{CommandError, CommandResult};
 
 /// File types that the formatter can process.
-const FORMATTABLE_TYPES: &[FileType] = &[FileType::Destack, FileType::DestackDeclaration];
+const FORMATTABLE_TYPES: &[FileType] = &[FileType::Tspp, FileType::TsppDeclaration];
 
 /// Payload for format command output.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
@@ -666,7 +666,7 @@ fn format_single_file(
 /// Format JSON content.
 fn format_json_content(content: &str, formatter: FormatterOptions) -> CommandResult<String> {
     let file_id = FileId::from_logical_str("<json>");
-    let doc = destack_json::parse(content, file_id).map_err(|e| e.to_string())?;
+    let doc = tspp_json::parse(content, file_id).map_err(|e| e.to_string())?;
     let options: JsonFormatOptions = formatter.into();
 
     format_json(&doc, &options).map_err(|error| CommandError::internal(error.to_string()))
@@ -679,7 +679,7 @@ fn colorize_formatted_output(formatted: &str) -> CommandResult<String> {
         "<eval>".to_string(),
         Uri::from_string("<eval>"),
         None,
-        FileType::Destack,
+        FileType::Tspp,
         formatted.to_string(),
     )
     .map_err(|error| CommandError::internal(error.to_string()))?;

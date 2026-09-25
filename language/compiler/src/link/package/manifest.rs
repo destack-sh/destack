@@ -1,6 +1,6 @@
 use crate::Compiler;
-use destack_artifact::{BuildManifestFileType, BuildManifestLoader, BundleFile, BundleSection};
-use destack_source::FileType;
+use tspp_artifact::{BuildManifestFileType, BuildManifestLoader, BundleFile, BundleSection};
+use tspp_source::FileType;
 
 use super::layout::{OutputLocation, TargetLocation};
 

@@ -1,17 +1,15 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
-use destack_artifact::{
+use tspp_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactVersion,
     DirAnalyzed, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported,
     DirImported, DirMaterialized, DirParsed, DirResolved, DirView, IndexKind, ModuleIndex,
     ProgramIndex, SourceDependencyKey,
 };
-use destack_core::FxIndexMap;
-use destack_repository::{
-    ArtifactReader, ProviderContext, ProviderError, ProviderResult, Repository,
-};
-use destack_source::{ModuleId, ProfileId};
+use tspp_core::FxIndexMap;
+use tspp_repository::{ArtifactReader, ProviderContext, ProviderError, ProviderResult, Repository};
+use tspp_source::{ModuleId, ProfileId};
 
 use crate::module::{
     CallIndexer, CodeIndexer, DecoratorIndexer, ExportIndexer, HeritageIndexer, MemberIndexer,

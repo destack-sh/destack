@@ -14,7 +14,7 @@ function weigh(value: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.weigh",
         r#"
 function test.main.weigh(v0: int32): int32 {
@@ -44,7 +44,7 @@ function bend(value: int32): int32 {
     );
 
     session.assert_mir_diagnostics(
-        "main.ds",
+        "main.tspp",
         r#"
 /// @diagnostic.error id=unsupported-lower-construct message="unsupported construct: the 'time.warp' intrinsic"
 /// @diagnostic.label line=6 column=12 span="warp(value)" line_source="return warp(value);"
@@ -66,7 +66,7 @@ function halt(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.halt",
         r#"
 function test.main.halt(): int32 {
@@ -95,7 +95,7 @@ function pause(value: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.pause",
         r#"
 function test.main.pause(v0: int32): int32 {
@@ -125,7 +125,7 @@ function wait(): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.wait",
         r#"
 function test.main.wait(): void {
@@ -194,7 +194,7 @@ function publish(): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.publish",
         r#"
 function test.main.publish(): void {
@@ -220,7 +220,7 @@ function clamp(value: int32): int8 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.clamp",
         r#"
 function test.main.clamp(v0: int32): int8 {
@@ -293,7 +293,7 @@ function acquireAll(): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.acquireAll",
         r#"
 function test.main.acquireAll(): void {
@@ -322,7 +322,7 @@ function bump(pointer: *int32): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.bump",
         r#"
 function test.main.bump(v0: ptr<int32, mutable>): void {
@@ -357,7 +357,7 @@ function mirror(pointer: *int32): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.mirror",
         r#"
 function test.main.mirror(v0: ptr<int32, mutable>): void {
@@ -389,7 +389,7 @@ function exchange(pointer: *int32, value: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.exchange",
         r#"
 function test.main.exchange(v0: ptr<int32, mutable>, v1: int32): int32 {
@@ -423,7 +423,7 @@ function flip(first: *int32, second: *int32): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.flip",
         r#"
 function test.main.flip(v0: ptr<int32, mutable>, v1: ptr<int32, mutable>): void {
@@ -459,7 +459,7 @@ function destroy(pointer: *int32): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.destroy",
         r#"
 function test.main.destroy(v0: ptr<int32, mutable>): void {
@@ -501,7 +501,7 @@ function measure(): usize {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.measure",
         r#"
 type test.main.Pair {
@@ -540,7 +540,7 @@ function locate(value: &readonly int64): *int64 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.locate",
         r#"
 function test.main.locate<'a>(v0: ref<int64, borrowed, 'a, readonly>): ptr<int64, mutable> {
@@ -570,7 +570,7 @@ function empty(): *int64 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.empty",
         r#"
 function test.main.empty(): ptr<int64, mutable> {
@@ -600,7 +600,7 @@ function distance(pointer: *int32, origin: *int32): int {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.distance",
         r#"
 function test.main.distance(v0: ptr<int32, mutable>, v1: ptr<int32, mutable>): int64 {
@@ -631,7 +631,7 @@ entry(v0: ptr<int32, mutable>, v1: ptr<int32, mutable>):
 fn test_lower_storage_initialization_to_its_constants() {
     let session = TestSession::single(
         r#"
-import { MaybeUninit } from "destack:memory";
+import { MaybeUninit } from "tspp:memory";
 
 @intrinsic("memory.init.uninit")
 declare function initUninit<T>(): MaybeUninit<T>;
@@ -650,7 +650,7 @@ function build(): int64 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.build",
         r#"
 function test.main.build(): int64 {
@@ -668,7 +668,7 @@ entry:
 fn test_lower_manually_drop_conversions_to_transmutes() {
     let session = TestSession::single(
         r#"
-import { ManuallyDrop } from "destack:memory";
+import { ManuallyDrop } from "tspp:memory";
 
 @intrinsic("memory.manuallyDrop.new")
 declare function newManuallyDrop<T>(value: T): ManuallyDrop<T>;
@@ -683,7 +683,7 @@ function wrap(value: int64): int64 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.wrap",
         r#"
 function test.main.wrap(v0: int64): int64 {
@@ -730,7 +730,7 @@ function scope(variable: Variable, value: int32): int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.scope", r#"
+    session.assert_mir_function("main.tspp", "test.main.scope", r#"
 @nocopy
 type test.main.Context { }
 
@@ -779,7 +779,7 @@ entry(v0: ref<test.main.Variable, managed, mutable, local>, v1: int32):
 fn test_lower_profile_instruments_to_named_sites() {
     let session = TestSession::single(
         r#"
-import { counter, sampler } from "destack:profile";
+import { counter, sampler } from "tspp:profile";
 
 const requests = counter("requests");
 const latency = sampler("latency");
@@ -793,7 +793,7 @@ function observe(elapsed: number): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.observe",
         r#"
 function test.main.observe(v0: float64): void {
@@ -811,7 +811,7 @@ entry(v0: float64):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.@init",
         r#"
 type literal.string.requests { }
@@ -839,8 +839,8 @@ entry:
 fn test_lower_an_uninitialized_slice_allocation() {
     let session = TestSession::single(
         r#"
-import { Slice } from "destack:collections";
-import { MaybeUninit } from "destack:memory";
+import { Slice } from "tspp:collections";
+import { MaybeUninit } from "tspp:memory";
 
 function reserve(count: usize): ^[MaybeUninit<int32>] {
     const storage: ^[MaybeUninit<int32>] = Slice.uninit(count);
@@ -850,7 +850,7 @@ function reserve(count: usize): ^[MaybeUninit<int32>] {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.reserve", r#"
+    session.assert_mir_function("main.tspp", "test.main.reserve", r#"
 function test.main.reserve(v0: usize): slice<uninit<int32>, unique, mutable> {
     local l0: usize
     local l1: slice<uninit<int32>, unique, mutable>
@@ -881,7 +881,7 @@ const second = tick();
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.tick",
         r#"
 function test.main.tick(): int32 {
@@ -893,7 +893,7 @@ entry:
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.@init",
         r#"
 export function test.main.@init(): void {
@@ -914,7 +914,7 @@ entry:
 fn test_lower_memory_reinterpretation_intrinsics() {
     let session = TestSession::single(
         r#"
-import { ManuallyDrop, Phantom } from "destack:memory";
+import { ManuallyDrop, Phantom } from "tspp:memory";
 
 struct Point {
     x: int32;
@@ -934,7 +934,7 @@ function marker(): Phantom<Point> {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.wrap", r#"
+    session.assert_mir_function("main.tspp", "test.main.wrap", r#"
 type test.main.Point {
     x: int32;
 }
@@ -952,7 +952,7 @@ entry(v0: test.main.Point):
 /// @layout.struct name=test.main.Point size=4 align=4
 /// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
 "#);
-    session.assert_mir_function("main.ds", "test.main.unwrap", r#"
+    session.assert_mir_function("main.tspp", "test.main.unwrap", r#"
 type test.main.Point {
     x: int32;
 }
@@ -971,7 +971,7 @@ entry(v0: manual<test.main.Point>):
 /// @layout.field owner=test.main.Point index=0 name=x offset=0 size=4 align=4
 "#);
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.marker",
         r#"
 function test.main.marker(): void {
@@ -989,7 +989,7 @@ entry:
 fn test_lower_vector_intrinsics_to_lane_instructions() {
     let session = TestSession::single(
         r#"
-import { Vector, Mask, splat, extract, insert, select, convert, less, reduceAdd } from "destack:math";
+import { Vector, Mask, splat, extract, insert, select, convert, less, reduceAdd } from "tspp:math";
 
 function lanes(value: int32, index: uint32): int32 {
     const vector = splat<int32, 4>(value);
@@ -1016,7 +1016,7 @@ function total(a: Vector<int32, 4>): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.lanes",
         r#"
 function test.main.lanes(v0: int32, v1: uint32): int32 {
@@ -1043,7 +1043,7 @@ entry(v0: int32, v1: uint32):
 }
 "#,
     );
-    session.assert_mir_function("main.ds", "test.main.pick", r#"
+    session.assert_mir_function("main.tspp", "test.main.pick", r#"
 function test.main.pick(v0: vector<boolean, 4>, v1: vector<int32, 4>, v2: vector<int32, 4>): vector<int32, 4> {
     local l0: vector<boolean, 4>
     local l1: vector<int32, 4>
@@ -1061,7 +1061,7 @@ entry(v0: vector<boolean, 4>, v1: vector<int32, 4>, v2: vector<int32, 4>):
 }
 "#);
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.widen",
         r#"
 function test.main.widen(v0: vector<int32, 4>): vector<int64, 4> {
@@ -1076,7 +1076,7 @@ entry(v0: vector<int32, 4>):
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.below",
         r#"
 function test.main.below(v0: vector<int32, 4>, v1: vector<int32, 4>): vector<boolean, 4> {
@@ -1094,7 +1094,7 @@ entry(v0: vector<int32, 4>, v1: vector<int32, 4>):
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.total",
         r#"
 function test.main.total(v0: vector<int32, 4>): int32 {
@@ -1115,7 +1115,7 @@ entry(v0: vector<int32, 4>):
 fn test_lower_a_const_ordering_parameter_into_an_atomic_load() {
     let session = TestSession::single(
         r#"
-import { MemoryOrdering, AtomicScope, MemoryScope, MemoryRegionSet, atomicLoad } from "destack:sync";
+import { MemoryOrdering, AtomicScope, MemoryScope, MemoryRegionSet, atomicLoad } from "tspp:sync";
 
 function load<
     const Order:
@@ -1132,7 +1132,7 @@ function load<
     );
 
     session.assert_mir_lowered(
-        "main.ds", r#"
+        "main.tspp", r#"
 @languageItem("sync.MemoryOrdering")
 type MemoryOrdering = variant<uint8> { 0uint8 = void; 1uint8 = void; 2uint8 = void; 3uint8 = void; 4uint8 = void; };
 

@@ -1,14 +1,14 @@
-use destack_core::{FxIndexMap, FxIndexSet};
+use tspp_core::{FxIndexMap, FxIndexSet};
 
 use cranelift_codegen::ir as cir;
 use cranelift_codegen::ir::InstBuilder;
 use cranelift_frontend::FunctionBuilderContext;
 use cranelift_module::{FuncId, Module};
 use cranelift_object::ObjectModule;
-use destack_artifact::MirOptimized;
-use destack_mir as mir;
-use destack_native as native;
-use destack_source::ModuleId;
+use tspp_artifact::MirOptimized;
+use tspp_mir as mir;
+use tspp_native as native;
+use tspp_source::ModuleId;
 
 use crate::{EmitError, ObjectEmitter};
 

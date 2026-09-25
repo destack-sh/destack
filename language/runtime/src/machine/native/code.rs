@@ -1,11 +1,11 @@
 use std::panic::{AssertUnwindSafe, catch_unwind, resume_unwind};
 
-use destack_memory::MemoryMap;
-use destack_native as native;
-use destack_native::abi;
-use destack_program as program;
-use destack_program::{EntryPoint, FunctionId, Program, Value};
-use destack_vm as vm;
+use tspp_memory::MemoryMap;
+use tspp_native as native;
+use tspp_native::abi;
+use tspp_program as program;
+use tspp_program::{EntryPoint, FunctionId, Program, Value};
+use tspp_vm as vm;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::worker::Activation;
@@ -44,7 +44,7 @@ impl Code {
         native: &native::Code,
     ) -> Result<Self, Error> {
         // install the trap handler before any generated code can run
-        destack_signal::register(handle_trap).map_err(|error| Error::Signal {
+        tspp_signal::register(handle_trap).map_err(|error| Error::Signal {
             signal: error.signal,
             code: error.code,
         })?;
@@ -82,7 +82,7 @@ impl Code {
                 });
             }
             let entry_address = entry.start;
-            // SAFETY: the native linker emits every entry with the fixed Destack entry ABI.
+            // SAFETY: the native linker emits every entry with the fixed TS++ entry ABI.
             let entry = unsafe { std::mem::transmute::<usize, abi::Entry>(entry_address) };
             let function = Function::new(FunctionId(index as u32), entry)
                 .body(body, function.body.bytes.offset);

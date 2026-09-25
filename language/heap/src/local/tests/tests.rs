@@ -1,7 +1,7 @@
 use std::sync::{Arc, OnceLock};
 
-use destack_core::{SectionBuilder, SectionImage, SectionStorage};
-use destack_memory::MemoryMap;
+use tspp_core::{SectionBuilder, SectionImage, SectionStorage};
+use tspp_memory::MemoryMap;
 
 use crate::{TraceTable, TraceView};
 
@@ -120,11 +120,11 @@ pub(crate) fn trace_view() -> TraceView<'static> {
 impl TestTraceTable {
     /// Build one empty section-backed trace table.
     pub(crate) fn new() -> Self {
-        Self::from_mir(&destack_mir::TraceTable::new())
+        Self::from_mir(&tspp_mir::TraceTable::new())
     }
 
     /// Build one section-backed trace table from MIR traces.
-    pub(crate) fn from_mir(source: &destack_mir::TraceTable) -> Self {
+    pub(crate) fn from_mir(source: &tspp_mir::TraceTable) -> Self {
         let mut sections = SectionBuilder::new();
         let traces = TraceTable::pack(&mut sections, source);
         let storage = sections.build();

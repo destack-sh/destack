@@ -21,7 +21,7 @@ entry(v0: int32, v1: int32):
     program.assert_verify_errors(
         r#"
 error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
-  ──▶ <test.dsm>:8:5
+  ──▶ <test.tsppm>:8:5
    │
  5 │ entry(v0: int32, v1: int32):
  6 │     store l0, v0
@@ -33,7 +33,7 @@ error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
 10 │     return
    │
 
-for more information about an error, run `destack explain invalidation-of-borrowed-place`
+for more information about an error, run `tspp explain invalidation-of-borrowed-place`
 "#,
     );
 }
@@ -65,7 +65,7 @@ entry(v0: int32, v1: int32):
     program.assert_verify_errors(
         r#"
 error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
-  ──▶ <test.dsm>:13:5
+  ──▶ <test.tsppm>:13:5
    │
  9 │ entry(v0: int32, v1: int32):
 10 │     store l0, v0
@@ -78,7 +78,7 @@ error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
 15 │     v5: int32 = load (*v4)
    │
 
-for more information about an error, run `destack explain invalidation-of-borrowed-place`
+for more information about an error, run `tspp explain invalidation-of-borrowed-place`
 "#,
     );
 }
@@ -130,7 +130,7 @@ entry(v0: ref<int32, borrowed, 'a, readonly>, v1: int32):
     program.assert_verify_errors(
         r#"
 error[write-through-readonly-reference]: invalid MIR: cannot write through readonly reference
- ──▶ <test.dsm>:4:5
+ ──▶ <test.tsppm>:4:5
   │
 2 │ function test<'a>(v0: ref<int32, borrowed, 'a, readonly>, v1: int32): void {
 3 │ entry(v0: ref<int32, borrowed, 'a, readonly>, v1: int32):
@@ -140,7 +140,7 @@ error[write-through-readonly-reference]: invalid MIR: cannot write through reado
 6 │ }
   │
 
-for more information about an error, run `destack explain write-through-readonly-reference`
+for more information about an error, run `tspp explain write-through-readonly-reference`
 "#,
     );
 }
@@ -248,7 +248,7 @@ entry(v0: ref<Box, borrowed, 'a, readonly>):
     program.assert_verify_errors(
         r#"
 error[borrow-access-strengthening]: cannot strengthen borrowed access
-  ──▶ <test.dsm>:8:5
+  ──▶ <test.tsppm>:8:5
    │
  6 │ function test<'a>(v0: ref<Box, borrowed, 'a, readonly>): void {
  7 │ entry(v0: ref<Box, borrowed, 'a, readonly>):
@@ -258,7 +258,7 @@ error[borrow-access-strengthening]: cannot strengthen borrowed access
 10 │ }
    │
 
-for more information about an error, run `destack explain borrow-access-strengthening`
+for more information about an error, run `tspp explain borrow-access-strengthening`
 "#,
     );
 }
@@ -284,7 +284,7 @@ entry(v0: int32):
     program.assert_verify_errors(
         r#"
 error[use-of-exclusively-borrowed-place]: cannot use exclusively borrowed place
- ──▶ <test.dsm>:7:5
+ ──▶ <test.tsppm>:7:5
   │
 4 │ entry(v0: int32):
 5 │     store l0, v0
@@ -296,7 +296,7 @@ error[use-of-exclusively-borrowed-place]: cannot use exclusively borrowed place
 9 │     v4: int32 = add v2, v3
   │
 
-for more information about an error, run `destack explain use-of-exclusively-borrowed-place`
+for more information about an error, run `tspp explain use-of-exclusively-borrowed-place`
 "#,
     );
 }
@@ -317,7 +317,7 @@ entry(v0: ref<uint32, borrowed, 'a, readonly>, v1: uint32):
     program.assert_verify_errors(
         r#"
 error[write-through-readonly-reference]: invalid MIR: cannot write through readonly reference
- ──▶ <test.dsm>:4:5
+ ──▶ <test.tsppm>:4:5
   │
 2 │ function test<'a>(v0: ref<uint32, borrowed, 'a, readonly>, v1: uint32): void {
 3 │ entry(v0: ref<uint32, borrowed, 'a, readonly>, v1: uint32):
@@ -327,7 +327,7 @@ error[write-through-readonly-reference]: invalid MIR: cannot write through reado
 6 │ }
   │
 
-for more information about an error, run `destack explain write-through-readonly-reference`
+for more information about an error, run `tspp explain write-through-readonly-reference`
 "#,
     );
 }
@@ -355,7 +355,8 @@ export function main(): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -395,7 +396,8 @@ export function writeOnly(): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 
 "#,
     );
@@ -434,7 +436,8 @@ export function write(flag: boolean): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -468,7 +471,7 @@ export function borrowFieldAfterWholeMove(): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp", r#"
 /// @diagnostic.error id=use-after-move message="use of moved value"
 /// @diagnostic.label line=20 column=10 span="&readonly pair.a" line_source="read(&readonly pair.a);"
 /// @diagnostic.related line=19 column=13 span="pair" line_source="consume(pair);" message="value moved here"
@@ -528,7 +531,7 @@ entry(v0: int32, v1: int32, v6: Either):
     program.assert_verify_errors(
         r#"
 error[borrow-conflict]: borrow conflicts with active borrow
-  ──▶ <test.dsm>:11:5
+  ──▶ <test.tsppm>:11:5
    │
  8 │     store l0, v6
  9 │     v2: ref<Either, borrowed, 'frame, exclusive> = address l0
@@ -540,7 +543,7 @@ error[borrow-conflict]: borrow conflicts with active borrow
 13 │     store (*v4), v1
    │
 
-for more information about an error, run `destack explain borrow-conflict`
+for more information about an error, run `tspp explain borrow-conflict`
 "#,
     );
 }
@@ -568,7 +571,8 @@ extension of HostError {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -590,7 +594,8 @@ function view(user: User): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -620,7 +625,7 @@ extension of Failure {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 type test.main.Alpha = newtype<{ name: literal.string.Alpha, message: ref<String, managed, mutable, local> }>;
 
 type literal.string.Alpha { }
@@ -700,7 +705,8 @@ external function String.Clone.clone<'a>(ref<String, borrowed, 'a, immutable>): 
 /// @layout.case owner=type@18 index=1 discriminant=1 payload_offset=8
 "#);
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 
 "#,
     );
@@ -726,7 +732,7 @@ entry(v0: ref<Box, managed, readonly, local>):
     program.assert_verify_errors(
         r#"
 error[borrow-access-strengthening]: cannot strengthen borrowed access
-  ──▶ <test.dsm>:8:5
+  ──▶ <test.tsppm>:8:5
    │
  6 │ function test(v0: ref<Box, managed, readonly, local>): void {
  7 │ entry(v0: ref<Box, managed, readonly, local>):
@@ -736,7 +742,7 @@ error[borrow-access-strengthening]: cannot strengthen borrowed access
 10 │ }
    │
 
-for more information about an error, run `destack explain borrow-access-strengthening`
+for more information about an error, run `tspp explain borrow-access-strengthening`
 "#,
     );
 }
@@ -763,7 +769,7 @@ entry(v0: ref<Box, managed, mutable, local>):
     program.assert_verify_errors(
         r#"
 error[borrow-access-strengthening]: cannot strengthen borrowed access
-  ──▶ <test.dsm>:10:5
+  ──▶ <test.tsppm>:10:5
    │
  8 │ function test(v0: ref<Box, managed, mutable, local>): void {
  9 │ entry(v0: ref<Box, managed, mutable, local>):
@@ -773,7 +779,7 @@ error[borrow-access-strengthening]: cannot strengthen borrowed access
 12 │ }
    │
 
-for more information about an error, run `destack explain borrow-access-strengthening`
+for more information about an error, run `tspp explain borrow-access-strengthening`
 "#,
     );
 }
@@ -798,7 +804,7 @@ entry(v0: ref<Box, managed, mutable, local>):
     program.assert_verify_errors(
         r#"
 error[borrow-access-strengthening]: cannot strengthen borrowed access
-  ──▶ <test.dsm>:8:5
+  ──▶ <test.tsppm>:8:5
    │
  6 │ function test(v0: ref<Box, managed, mutable, local>): void {
  7 │ entry(v0: ref<Box, managed, mutable, local>):
@@ -808,7 +814,7 @@ error[borrow-access-strengthening]: cannot strengthen borrowed access
 10 │ }
    │
 
-for more information about an error, run `destack explain borrow-access-strengthening`
+for more information about an error, run `tspp explain borrow-access-strengthening`
 "#,
     );
 }
@@ -873,7 +879,7 @@ entry(v0: ref<Box, managed, readonly, local>):
     program.assert_verify_errors(
         r#"
 error[borrow-access-strengthening]: cannot strengthen borrowed access
-  ──▶ <test.dsm>:8:5
+  ──▶ <test.tsppm>:8:5
    │
  6 │ function test(v0: ref<Box, managed, readonly, local>): void {
  7 │ entry(v0: ref<Box, managed, readonly, local>):
@@ -883,7 +889,7 @@ error[borrow-access-strengthening]: cannot strengthen borrowed access
 10 │ }
    │
 
-for more information about an error, run `destack explain borrow-access-strengthening`
+for more information about an error, run `tspp explain borrow-access-strengthening`
 "#,
     );
 }
@@ -910,7 +916,7 @@ entry(v0: ref<Box, managed, mutable, local>):
     program.assert_verify_errors(
         r#"
 error[borrow-of-aliasable-variant]: cannot borrow an inline variant payload through aliasable access
-  ──▶ <test.dsm>:10:5
+  ──▶ <test.tsppm>:10:5
    │
  8 │ function test(v0: ref<Box, managed, mutable, local>): void {
  9 │ entry(v0: ref<Box, managed, mutable, local>):
@@ -920,7 +926,7 @@ error[borrow-of-aliasable-variant]: cannot borrow an inline variant payload thro
 12 │ }
    │
 
-for more information about an error, run `destack explain borrow-of-aliasable-variant`
+for more information about an error, run `tspp explain borrow-of-aliasable-variant`
 "#,
     );
 }
@@ -974,7 +980,7 @@ entry(v0: Either):
     program.assert_verify_errors(
         r#"
 error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
-  ──▶ <test.dsm>:12:5
+  ──▶ <test.tsppm>:12:5
    │
  9 │ entry(v0: Either):
 10 │     v1: ref<Box, managed, mutable, local> = new.zeroed Box, local
@@ -986,7 +992,7 @@ error[invalidation-of-borrowed-place]: cannot invalidate borrowed place
 14 │     return v3
    │
 
-for more information about an error, run `destack explain invalidation-of-borrowed-place`
+for more information about an error, run `tspp explain invalidation-of-borrowed-place`
 "#,
     );
 }
@@ -1013,7 +1019,7 @@ entry(v0: ref<Box, managed, mutable, local>):
     program.assert_verify_errors(
         r#"
 error[borrow-access-strengthening]: cannot strengthen borrowed access
-  ──▶ <test.dsm>:10:5
+  ──▶ <test.tsppm>:10:5
    │
  8 │ function test(v0: ref<Box, managed, mutable, local>): void {
  9 │ entry(v0: ref<Box, managed, mutable, local>):
@@ -1023,7 +1029,7 @@ error[borrow-access-strengthening]: cannot strengthen borrowed access
 12 │ }
    │
 
-for more information about an error, run `destack explain borrow-access-strengthening`
+for more information about an error, run `tspp explain borrow-access-strengthening`
 "#,
     );
 }
@@ -1052,7 +1058,7 @@ entry(v0: ref<Box, managed, mutable, local>):
     program.assert_verify_errors(
         r#"
 error[borrow-access-strengthening]: cannot strengthen borrowed access
-  ──▶ <test.dsm>:12:5
+  ──▶ <test.tsppm>:12:5
    │
 10 │ function test(v0: ref<Box, managed, mutable, local>): void {
 11 │ entry(v0: ref<Box, managed, mutable, local>):
@@ -1062,7 +1068,7 @@ error[borrow-access-strengthening]: cannot strengthen borrowed access
 14 │ }
    │
 
-for more information about an error, run `destack explain borrow-access-strengthening`
+for more information about an error, run `tspp explain borrow-access-strengthening`
 "#,
     );
 }
@@ -1087,7 +1093,7 @@ entry(v0: ref<Box, unique, readonly>):
     program.assert_verify_errors(
         r#"
 error[borrow-access-strengthening]: cannot strengthen borrowed access
-  ──▶ <test.dsm>:8:5
+  ──▶ <test.tsppm>:8:5
    │
  6 │ function test(v0: ref<Box, unique, readonly>): void {
  7 │ entry(v0: ref<Box, unique, readonly>):
@@ -1097,7 +1103,7 @@ error[borrow-access-strengthening]: cannot strengthen borrowed access
 10 │ }
    │
 
-for more information about an error, run `destack explain borrow-access-strengthening`
+for more information about an error, run `tspp explain borrow-access-strengthening`
 "#,
     );
 }

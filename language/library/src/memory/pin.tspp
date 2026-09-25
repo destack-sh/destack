@@ -1,0 +1,106 @@
+import { As, Borrow } from "tspp:convert";
+import { todo } from "tspp:error";
+import { Dereference } from "tspp:ops";
+
+import { Access } from "./access.tspp";
+
+import { Borrowed } from "./borrow.tspp";
+import { Unpin } from "./capability.tspp";
+import { Region } from "./region.tspp";
+
+/// A pointer that keeps its pointee at a stable location until destruction.
+@languageItem("memory.Pin")
+export newtype Pin<out P> = intrinsic;
+
+export extension<P> of Pin<P> {
+    /// Pin a pointer whose projections preserve its pointee's location until destruction.
+    @unsafe
+    static unchecked(pointer: P): Pin<P> {
+        todo("Pin.unchecked")
+    }
+}
+
+export extension<P, T, const O: "readonly" | "immutable", const A: "readonly" | "immutable"> of
+    Pin<P>
+    implements Dereference<A>
+    where
+        P: Dereference<type Target = T>,
+        P: Dereference<A, type Target = T, const OutputAccess = O>
+{
+    /// The pinned pointee type.
+    type Target = T;
+
+    /// The access supplied by the pointer.
+    const OutputAccess: Access = O;
+
+    /// Borrow the pinned pointee.
+    dereference<const R: Region>(
+        this: Borrowed<this, R, A>,
+    ): Borrowed<this.Target, R, this.OutputAccess> {
+        todo("Pin.dereference")
+    }
+
+    /// Borrow the pinned pointee with readonly access.
+    asReference<const R: Region>(
+        this: Borrowed<this, R, A>,
+    ): Borrowed<this.Target, R, this.OutputAccess> {
+        this.dereference()
+    }
+
+    /// Reborrow the pointer while preserving pinning.
+    asPinnedReference<const R: Region>(
+        this: Borrowed<this, R, A>,
+    ): Pin<Borrowed<this.Target, R, this.OutputAccess>> {
+        todo("Pin.asPinnedReference")
+    }
+}
+
+export extension<P: Dereference> of Pin<P> where ^P.Target: Unpin {
+    /// Pin a pointer to a movable pointee.
+    static new(pointer: P): Pin<P> {
+        todo("Pin.new")
+    }
+
+    /// Return the pointer when its pointee is movable.
+    intoInner(this): P {
+        todo("Pin.intoInner")
+    }
+}
+
+export extension<P, T> of Pin<P>
+    where
+        P: Dereference<type Target = T>,
+        P: Dereference<"exclusive", type Target = T, const OutputAccess = "exclusive">
+{
+    /// Reborrow the pointee with exclusive mutable access while preserving pinning.
+    asPinnedExclusive<const R: Region>(
+        this: Borrowed<this, R, "exclusive">,
+    ): Pin<Borrowed<T, R, "exclusive">> {
+        todo("Pin.asPinnedExclusive")
+    }
+}
+
+export extension<P, T> of Pin<P>
+    implements Dereference<"exclusive">
+    where
+        P: Dereference<type Target = T>,
+        P: Dereference<"exclusive", type Target = T, const OutputAccess = "exclusive">,
+        ^T: Unpin
+{
+    /// The pinned pointee type.
+    type Target = T;
+
+    /// Borrow the movable pointee with exclusive mutable access.
+    dereference<const R: Region>(
+        this: Borrowed<this, R, "exclusive">,
+    ): Borrowed<this.Target, R, "exclusive"> {
+        todo("Pin.dereference")
+    }
+
+    /// Borrow the movable pointee with exclusive mutable access.
+    asExclusive<const R: Region>(
+        this: Borrowed<this, R, "exclusive">,
+    ): Borrowed<this.Target, R, "exclusive"> {
+        this.dereference()
+    }
+}

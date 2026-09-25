@@ -24,7 +24,7 @@ function classify(value: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.classify",
         r#"
 function test.main.classify(v0: int32): int32 {
@@ -89,7 +89,7 @@ function select(value: int32, first: int32, second: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.select",
         r#"
 function test.main.select(v0: int32, v1: int32, v2: int32): int32 {
@@ -151,7 +151,7 @@ function isTwo(value: Meters): boolean {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.isTwo",
         r#"
 type test.main.Meters = newtype<int32>;
@@ -203,7 +203,7 @@ function isTwo(value: 1 | 2): boolean {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.isTwo",
         r#"
 function test.main.isTwo(v0: int64): boolean {
@@ -253,7 +253,7 @@ function isReady(state: Ready | Pending): boolean {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.isReady",
         r#"
 type test.main.Ready = newtype<literal.boolean.true>;

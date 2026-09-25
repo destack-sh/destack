@@ -1,0 +1,290 @@
+import { todo } from "tspp:error";
+import { Iterable } from "tspp:iter";
+import { Copy } from "tspp:memory";
+import { Duration } from "tspp:time";
+
+import { AroundHook, Body, BodyResult, HookBody } from "./body.tspp";
+import { CaseContext, SuiteContext } from "./context.tspp";
+import {
+    Fixture,
+    ModuleFixtureOptions,
+    TestFixtureOptions,
+    WorkerFixtureOptions,
+} from "./fixture.tspp";
+import { CaseId } from "./id.tspp";
+import { CaseKind, Options } from "./options.tspp";
+import { TestSuite } from "./suite.tspp";
+
+/// Test registration function.
+export const test: Test = createTest();
+
+/// Alias for `test`.
+export const it: Test = test;
+
+/// Callable test registration interface.
+@languageItem("test.Test")
+export newtype interface Test<TestValues = {}, ModuleValues = {}, WorkerValues = {}> {
+    /// Register one test.
+    (name: string, body?: Body<TestContext<TestValues, ModuleValues, WorkerValues>>): void;
+
+    /// Register one configured test.
+    (
+        name: string,
+        options: Options,
+        body?: Body<TestContext<TestValues, ModuleValues, WorkerValues>>,
+    ): void;
+
+    /// Register skipped tests.
+    readonly skip: Test<TestValues, ModuleValues, WorkerValues>;
+
+    /// Register focused tests.
+    readonly only: Test<TestValues, ModuleValues, WorkerValues>;
+
+    /// Register pending tests.
+    readonly todo: Test<TestValues, ModuleValues, WorkerValues>;
+
+    /// Register tests that must fail.
+    readonly fails: Test<TestValues, ModuleValues, WorkerValues>;
+
+    /// Register tests that may run concurrently.
+    readonly concurrent: Test<TestValues, ModuleValues, WorkerValues>;
+
+    /// Register tests when `condition` holds.
+    runIf(condition: boolean): Test<TestValues, ModuleValues, WorkerValues>;
+
+    /// Register skipped tests when `condition` holds.
+    skipIf(condition: boolean): Test<TestValues, ModuleValues, WorkerValues>;
+
+    /// Register one test for each parameter tuple.
+    each<P: (...unknown[],) & Copy>(values: Iterable<P>): ParameterizedTest<P>;
+
+    /// Register one test for each value without spreading arrays.
+    for<T>(values: Iterable<T>): TableTest<T, TestValues, ModuleValues, WorkerValues>;
+
+    /// Add one test-scoped fixture function.
+    extend<const Name: string, Value>(
+        name: Name,
+        fixture: Fixture<TestContext<Omit<TestValues, Name>, ModuleValues, WorkerValues>, Value>,
+    ): Test<Omit<TestValues, Name> & Record<Name, Value>, ModuleValues, WorkerValues>;
+
+    /// Add one test-scoped fixture value.
+    extend<const Name: string, Value: Copy>(
+        name: Name,
+        value: Value,
+    ): Test<Omit<TestValues, Name> & Record<Name, Value>, ModuleValues, WorkerValues>;
+
+    /// Add one configured test-scoped fixture function.
+    extend<const Name: string, Value>(
+        name: Name,
+        options: TestFixtureOptions,
+        fixture: Fixture<TestContext<Omit<TestValues, Name>, ModuleValues, WorkerValues>, Value>,
+    ): Test<Omit<TestValues, Name> & Record<Name, Value>, ModuleValues, WorkerValues>;
+
+    /// Add one configured test-scoped fixture value.
+    extend<const Name: string, Value: Copy>(
+        name: Name,
+        options: TestFixtureOptions,
+        value: Value,
+    ): Test<Omit<TestValues, Name> & Record<Name, Value>, ModuleValues, WorkerValues>;
+
+    /// Add one module-scoped fixture function.
+    extend<const Name: string, Value>(
+        name: Name,
+        options: ModuleFixtureOptions,
+        fixture: Fixture<WorkerValues & Omit<ModuleValues, Name>, Value>,
+    ): Test<TestValues, Omit<ModuleValues, Name> & Record<Name, Value>, WorkerValues>;
+
+    /// Add one module-scoped fixture value.
+    extend<const Name: string, Value: Copy>(
+        name: Name,
+        options: ModuleFixtureOptions,
+        value: Value,
+    ): Test<TestValues, Omit<ModuleValues, Name> & Record<Name, Value>, WorkerValues>;
+
+    /// Add one Worker-scoped fixture function.
+    extend<const Name: string, Value>(
+        name: Name,
+        options: WorkerFixtureOptions,
+        fixture: Fixture<Omit<WorkerValues, Name>, Value>,
+    ): Test<TestValues, ModuleValues, Omit<WorkerValues, Name> & Record<Name, Value>>;
+
+    /// Add one Worker-scoped fixture value.
+    extend<const Name: string, Value: Copy>(
+        name: Name,
+        options: WorkerFixtureOptions,
+        value: Value,
+    ): Test<TestValues, ModuleValues, Omit<WorkerValues, Name> & Record<Name, Value>>;
+
+    /// Override one test-scoped fixture function in the current suite.
+    override<const Name: keyof TestValues>(
+        name: Name,
+        fixture: Fixture<
+            TestContext<Omit<TestValues, Name>, ModuleValues, WorkerValues>,
+            TestValues[Name]
+        >,
+    ): Test<TestValues, ModuleValues, WorkerValues>;
+
+    /// Override one test-scoped fixture value in the current suite.
+    override<const Name: keyof TestValues>(
+        name: Name,
+        value: TestValues[Name] & Copy,
+    ): Test<TestValues, ModuleValues, WorkerValues>;
+
+    /// Override one module-scoped fixture function during top-level module registration.
+    override<const Name: keyof ModuleValues>(
+        name: Name,
+        options: { scope: "module" },
+        fixture: Fixture<WorkerValues & Omit<ModuleValues, Name>, ModuleValues[Name]>,
+    ): Test<TestValues, ModuleValues, WorkerValues>;
+
+    /// Override one module-scoped fixture value during top-level module registration.
+    override<const Name: keyof ModuleValues>(
+        name: Name,
+        options: { scope: "module" },
+        value: ModuleValues[Name] & Copy,
+    ): Test<TestValues, ModuleValues, WorkerValues>;
+
+    /// Override one Worker-scoped fixture function during top-level module registration.
+    override<const Name: keyof WorkerValues>(
+        name: Name,
+        options: { scope: "worker" },
+        fixture: Fixture<Omit<WorkerValues, Name>, WorkerValues[Name]>,
+    ): Test<TestValues, ModuleValues, WorkerValues>;
+
+    /// Override one Worker-scoped fixture value during top-level module registration.
+    override<const Name: keyof WorkerValues>(
+        name: Name,
+        options: { scope: "worker" },
+        value: WorkerValues[Name] & Copy,
+    ): Test<TestValues, ModuleValues, WorkerValues>;
+
+    /// Test suite registration scoped to this test function.
+    readonly describe: TestSuite;
+
+    /// Alias for `describe`.
+    readonly suite: TestSuite;
+
+    /// Register setup before each scoped test.
+    beforeEach(
+        body: HookBody<TestContext<TestValues, ModuleValues, WorkerValues>>,
+        timeout?: Duration,
+    ): void;
+
+    /// Register cleanup after each scoped test.
+    afterEach(
+        body: HookBody<TestContext<TestValues, ModuleValues, WorkerValues>>,
+        timeout?: Duration,
+    ): void;
+
+    /// Register a function around each scoped test.
+    aroundEach(
+        body: AroundHook<TestContext<TestValues, ModuleValues, WorkerValues>>,
+        timeout?: Duration,
+    ): void;
+
+    /// Register setup before all scoped tests.
+    beforeAll(body: HookBody<SuiteContext & WorkerValues & ModuleValues>, timeout?: Duration): void;
+
+    /// Register cleanup after all scoped tests.
+    afterAll(body: HookBody<SuiteContext & WorkerValues & ModuleValues>, timeout?: Duration): void;
+
+    /// Register a function around all scoped tests.
+    aroundAll(
+        body: AroundHook<SuiteContext & WorkerValues & ModuleValues>,
+        timeout?: Duration,
+    ): void;
+}
+
+/// Test registration over one parameter tuple.
+@languageItem("test.ParameterizedTest")
+export newtype interface ParameterizedTest<P: (...unknown[],) & Copy> {
+    /// Register one parameterized test.
+    (name: string, body?: Function<P, BodyResult>): void;
+
+    /// Register one configured parameterized test.
+    (name: string, options: Options, body?: Function<P, BodyResult>): void;
+
+    /// Register skipped parameterized tests.
+    readonly skip: ParameterizedTest<P>;
+
+    /// Register focused parameterized tests.
+    readonly only: ParameterizedTest<P>;
+
+    /// Register pending parameterized tests.
+    readonly todo: ParameterizedTest<P>;
+
+    /// Register parameterized tests that must fail.
+    readonly fails: ParameterizedTest<P>;
+
+    /// Register parameterized tests that may run concurrently.
+    readonly concurrent: ParameterizedTest<P>;
+}
+
+/// Test registration over one unspread table value.
+@languageItem("test.TableTest")
+export newtype interface TableTest<T, TestValues, ModuleValues, WorkerValues> {
+    /// Register one table test.
+    (
+        name: string,
+        body?: (
+            value: &readonly T,
+            context: &TestContext<TestValues, ModuleValues, WorkerValues>,
+        ) => BodyResult,
+    ): void;
+
+    /// Register one configured table test.
+    (
+        name: string,
+        options: Options,
+        body?: (
+            value: &readonly T,
+            context: &TestContext<TestValues, ModuleValues, WorkerValues>,
+        ) => BodyResult,
+    ): void;
+
+    /// Register skipped table tests.
+    readonly skip: TableTest<T, TestValues, ModuleValues, WorkerValues>;
+
+    /// Register focused table tests.
+    readonly only: TableTest<T, TestValues, ModuleValues, WorkerValues>;
+
+    /// Register pending table tests.
+    readonly todo: TableTest<T, TestValues, ModuleValues, WorkerValues>;
+
+    /// Register table tests that must fail.
+    readonly fails: TableTest<T, TestValues, ModuleValues, WorkerValues>;
+
+    /// Register table tests that may run concurrently.
+    readonly concurrent: TableTest<T, TestValues, ModuleValues, WorkerValues>;
+}
+
+/// Registered test case.
+@languageItem("test.Case")
+export struct Case {
+    /// Stable case identifier.
+    id: CaseId;
+
+    /// Case name.
+    name: string;
+
+    /// Case kind.
+    kind: CaseKind;
+
+    /// Case options.
+    options: Options;
+}
+
+/// Effective context for one extended test function.
+type TestContext<TestValues, ModuleValues, WorkerValues> = CaseContext &
+    WorkerValues &
+    ModuleValues &
+    TestValues;
+
+/// Create one test registration function.
+function createTest<TestValues = {}, ModuleValues = {}, WorkerValues = {}>(): Test<
+    TestValues,
+    ModuleValues,
+    WorkerValues
+> {
+    todo("test.createTest")
+}

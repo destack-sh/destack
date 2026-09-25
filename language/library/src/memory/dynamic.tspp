@@ -1,0 +1,28 @@
+import { Type } from "tspp:reflect/type";
+
+import { DynamicSafe } from "./capability.tspp";
+
+/// Runtime-erased value satisfying interface constraint `T`.
+@languageItem("memory.Dynamic")
+export type Dynamic<T: DynamicSafe> = intrinsic;
+
+export extension<T: DynamicSafe> of Dynamic<T> {
+    /// Return the runtime type carried by this erased value.
+    get type(&readonly this): Type<unknown> {
+        return dynamicType<T>(this);
+    }
+
+    /// Return the erased payload pointer.
+    @unsafe
+    get payload(&readonly this): *void {
+        return dynamicPayload<T>(this);
+    }
+}
+
+/// Return the runtime type carried by one erased value.
+@intrinsic("memory.dynamic.type")
+export declare function dynamicType<T: DynamicSafe>(value: &readonly Dynamic<T>): Type<unknown>;
+
+/// Return the erased payload pointer of one erased value.
+@intrinsic("memory.dynamic.payload")
+export declare function dynamicPayload<T: DynamicSafe>(value: &readonly Dynamic<T>): *void;

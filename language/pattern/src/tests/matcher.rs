@@ -1,8 +1,8 @@
 use std::fmt::Write;
 use std::sync::Arc;
 
-use destack_core::StringPool;
-use destack_dir as dir;
+use tspp_core::StringPool;
+use tspp_dir as dir;
 
 use super::{TestSource, fixture_text, test_file};
 use crate::{

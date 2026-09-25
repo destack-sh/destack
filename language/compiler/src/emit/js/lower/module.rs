@@ -1,7 +1,7 @@
-use destack_artifact::DirView;
-use destack_core::StringPool;
-use destack_js as js;
-use destack_repository::Module;
+use tspp_artifact::DirView;
+use tspp_core::StringPool;
+use tspp_js as js;
+use tspp_repository::Module;
 
 use crate::EmitError;
 

@@ -1,9 +1,9 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
-use destack_core::{Capture, CaptureMode};
-use destack_repository::{ExecutionMode, RandomOptions};
+use tspp_core::{Capture, CaptureMode};
+use tspp_repository::{ExecutionMode, RandomOptions};
 
 #[cfg(test)]
 use super::r#virtual::StreamStateDecodeError;

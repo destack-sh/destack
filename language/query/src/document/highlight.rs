@@ -1,10 +1,10 @@
 use std::collections::BTreeMap;
 
-use destack_dir as dir;
-use destack_serde::Reflect;
-use destack_source::{FileId, Span};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
+use tspp_dir as dir;
+use tspp_serde::Reflect;
+use tspp_source::{FileId, Span};
 
 use crate::{ModuleQueryContext, ProgramQueryContext, QueryError, QueryPosition, QueryResult};
 

@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -79,7 +79,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 /// Replace filterMap with map.
 fn suggestion(
     lint: &Lint,
-    member: destack_source::Span,
+    member: tspp_source::Span,
 ) -> Result<DiagnosticSuggestion, ProviderError> {
     let patch = Patch::replace(member, "map");
 
@@ -105,7 +105,7 @@ function increment(values: int32[]): int32[] {
         session.assert_diagnostics(
             r#"
 warning[unnecessary-filter-map]: filterMap callback always returns a defined value
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function increment(values: int32[]): int32[] {
 2 │     return values.filterMap((value) => value + 1);
@@ -114,8 +114,8 @@ warning[unnecessary-filter-map]: filterMap callback always returns a defined val
   │
 
  = suggestion: use an unconditional map (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function increment(values: int32[]): int32[] {
 -   2│     return values.filterMap((value) => value + 1);

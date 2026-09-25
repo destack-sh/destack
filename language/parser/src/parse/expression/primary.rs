@@ -5,14 +5,14 @@ use crate::parse::{
     YieldKeyword,
 };
 use crate::{ParseStart, Parser, ParserError, ParserResult};
-use destack_core::StringId;
-use destack_dir::{
+use smallvec::{SmallVec, smallvec};
+use tspp_core::StringId;
+use tspp_dir::{
     Access, BlockContext, Expression, InferForm, Keyword, Literal, LocalNodeId, NodeType,
     OperatorPrecedence, Path, RangeEnd, TokenLiteral, TokenType, TypeExpression, UnaryOperator,
     VarianceBound,
 };
-use destack_source::ByteRange;
-use smallvec::{SmallVec, smallvec};
+use tspp_source::ByteRange;
 
 /// One consumed value prefix operation.
 #[derive(Debug, Copy, Clone)]

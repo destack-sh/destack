@@ -1,9 +1,9 @@
 use std::slice::Iter;
 
 use crate::{GlobalNodeIdAny, GlobalSymbolId, Postings};
-use destack_serde::Reflect;
-use destack_source::Span;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
+use tspp_source::Span;
 
 /// Reference occurrence index.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]

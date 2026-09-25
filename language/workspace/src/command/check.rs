@@ -2,15 +2,15 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_artifact::ArtifactKey;
-use destack_core::FxIndexSet;
-use destack_repository::{Revision, TraceView};
-use destack_serde::Reflect;
-use destack_source::{
+use serde::{Deserialize, Serialize};
+use tspp_artifact::ArtifactKey;
+use tspp_core::FxIndexSet;
+use tspp_repository::{Revision, TraceView};
+use tspp_serde::Reflect;
+use tspp_source::{
     Applicability, DiagnosticCollection, DiffOptions, File, FileId, PatchSet, apply_patch_set,
     format_diff,
 };
-use serde::{Deserialize, Serialize};
 
 use super::CommandResult;
 use super::common::{

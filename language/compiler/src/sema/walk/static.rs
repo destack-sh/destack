@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::CompilerResult;
 use crate::sema::{CheckState, DecoratorExpression, Origin, VariableKind, WalkState};
@@ -10,7 +10,7 @@ impl CheckState<'_> {
     /// Decide the static gates attached to one decorated node.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// @if(import.meta.platform == "windows")
     /// function f() {}
     /// ```
@@ -76,7 +76,7 @@ impl CheckState<'_> {
     /// Decide whether one node is present under its static decorators.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// @if(import.meta.test)
     /// const value = 1;
     /// ```
@@ -129,7 +129,7 @@ impl CheckState<'_> {
     /// Evaluate one static gate expression.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// Enabled && Target.isShared
     /// ```
     fn evaluate_static_gate(
@@ -234,7 +234,7 @@ impl WalkState<'_, '_> {
     /// Returns the type level term produced by the expression.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// Mode == "inline"
     /// ```
     pub(in crate::sema) fn walk_static_term(

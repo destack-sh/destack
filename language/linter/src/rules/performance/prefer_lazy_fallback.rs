@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::FilePatch;
+use tspp_dir as dir;
+use tspp_source::FilePatch;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};

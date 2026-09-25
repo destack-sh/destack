@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_infer_method_type_argument_from_callback_result() {
     let session = TestSession::single(
         r#"
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 declare function first(): Result<int32, string>;
 declare function second(value: int32): Result<boolean, string>;
@@ -14,11 +14,11 @@ const result: Result<boolean, string> = first().andThen((value) => second(value)
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 declare function first(): Result<int32, string>;
 declare function second(value: int32): Result<boolean, string>;
@@ -28,7 +28,7 @@ const result: Result<boolean, string> = first().andThen<int32, string, boolean, 
 );
 
 === dir ===
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 declare function first(): Result<int32, string>;
 /// @type.symbol symbol=first source="declare function first(): Result<int32, string>" type=() => Result<int32, string>
@@ -79,7 +79,7 @@ const result: Result<boolean, string> = first().andThen((value) => second(value)
 fn test_call_selects_value_returning_promise_overload() {
     let session = TestSession::single(
         r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 declare const input: Promise<int32>;
 const result: Promise<string> = input.then(() => "done");
@@ -87,17 +87,17 @@ const result: Promise<string> = input.then(() => "done");
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 declare const input: Promise<int32>;
 const result: Promise<string> = input.then<int32, string>((): string => "done");
 
 === dir ===
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 declare const input: Promise<int32>;
 /// @type.symbol symbol=input source=input type=Promise<int32>
@@ -146,7 +146,7 @@ const result: Promise<string> = input.then(() => "done");
 fn test_call_selects_promise_returning_overload() {
     let session = TestSession::single(
         r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 declare const input: Promise<int32>;
 declare const next: Promise<string>;
@@ -155,18 +155,18 @@ const result: Promise<string> = input.then(() => next);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 declare const input: Promise<int32>;
 declare const next: Promise<string>;
 const result: Promise<string> = input.then<int32, string>((): Promise<string> => next);
 
 === dir ===
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 declare const input: Promise<int32>;
 /// @type.symbol symbol=input source=input type=Promise<int32>
@@ -228,7 +228,7 @@ const result: Promise<string> = input.then(() => next);
 fn test_call_contextualizes_nested_promise_overloads() {
     let session = TestSession::single(
         r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 declare const input: Promise<int32>;
 const result: Promise<string> = input.then((value) => {
@@ -238,11 +238,11 @@ const result: Promise<string> = input.then((value) => {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 declare const input: Promise<int32>;
 const result: Promise<string> = input.then<int32, string>((value: int32): Promise<string> => {
@@ -250,7 +250,7 @@ const result: Promise<string> = input.then<int32, string>((value: int32): Promis
 });
 
 === dir ===
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 declare const input: Promise<int32>;
 /// @type.symbol symbol=input source=input type=Promise<int32>
@@ -321,7 +321,7 @@ const result: Promise<string> = input.then((value) => {
 fn test_call_keeps_mixed_promise_result_nested() {
     let session = TestSession::single(
         r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 declare const input: Promise<int32>;
 declare const next: Promise<string>;
@@ -333,11 +333,11 @@ const result: Promise<string | Promise<string>> = input.then(() => {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 declare const input: Promise<int32>;
 declare const next: Promise<string>;
@@ -349,7 +349,7 @@ const result: Promise<string | Promise<string>> = input.then<int32, Promise<stri
 );
 
 === dir ===
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 declare const input: Promise<int32>;
 /// @type.symbol symbol=input source=input type=Promise<int32>
@@ -423,7 +423,7 @@ const result: Promise<string | Promise<string>> = input.then(() => {
 fn test_call_selects_promise_resolve_identity_overload() {
     let session = TestSession::single(
         r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 declare const input: Promise<string>;
 const result: Promise<string> = Promise.resolve(input);
@@ -431,17 +431,17 @@ const result: Promise<string> = Promise.resolve(input);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 declare const input: Promise<string>;
 const result: Promise<string> = Promise.resolve<string>(input);
 
 === dir ===
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 declare const input: Promise<string>;
 /// @type.symbol symbol=input source=input type=Promise<string>
@@ -482,7 +482,7 @@ const text = identity("x");
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -547,7 +547,7 @@ const values = identity([1, 2]);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -609,7 +609,7 @@ const value = first([1, 2]);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -682,7 +682,7 @@ const second = identity<2>(2);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -748,7 +748,7 @@ const text = identity<string>("x");
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -802,7 +802,7 @@ identity<int32>("x");
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -858,7 +858,7 @@ const asInt = identity<int32>;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -916,7 +916,7 @@ const parser = parse<int32>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -997,7 +997,7 @@ const overridden = pair(1, "x");
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1055,7 +1055,7 @@ const value = choose(1, 2);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1098,7 +1098,7 @@ const value = choose(1, 2);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1151,7 +1151,7 @@ const rejected = accept<int32>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1252,7 +1252,7 @@ function build(value: float64): Box<int32> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1349,7 +1349,7 @@ const kept = values
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1404,7 +1404,7 @@ const kept = values
 fn test_adapt_a_literal_argument_to_a_family_bounded_parameter() {
     let session = TestSession::single(
         r#"
-import { Arithmetic, Integer } from "destack:math";
+import { Arithmetic, Integer } from "tspp:math";
 
 function bump<T: Integer>(value: T): T | undefined {
     return value.checkedAdd(1);
@@ -1413,18 +1413,18 @@ function bump<T: Integer>(value: T): T | undefined {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
-import { Arithmetic, Integer } from "destack:math";
+import { Arithmetic, Integer } from "tspp:math";
 
 function bump<T: Integer>(value: T): T | undefined {
     return value.checkedAdd<T>(1);
 }
 
 === dir ===
-import { Arithmetic, Integer } from "destack:math";
+import { Arithmetic, Integer } from "tspp:math";
 
 function bump<T: Integer>(value: T): T | undefined {
     return value.checkedAdd(1);
@@ -1456,7 +1456,7 @@ const widened = pick(1.5, 2.5, true);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -1498,7 +1498,7 @@ const widened = pick(1.5, 2.5, true);
 fn test_adapt_a_literal_argument_inside_a_blanket_extension_method() {
     let session = TestSession::single(
         r#"
-import { Arithmetic, Integer } from "destack:math";
+import { Arithmetic, Integer } from "tspp:math";
 
 extension<T: Integer> of T {
     bump(this): T | undefined {
@@ -1509,11 +1509,11 @@ extension<T: Integer> of T {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
-import { Arithmetic, Integer } from "destack:math";
+import { Arithmetic, Integer } from "tspp:math";
 
 extension<T: Integer> of T {
     bump(this): T | undefined {
@@ -1522,7 +1522,7 @@ extension<T: Integer> of T {
 }
 
 === dir ===
-import { Arithmetic, Integer } from "destack:math";
+import { Arithmetic, Integer } from "tspp:math";
 
 extension<T: Integer> of T {
     bump(this): T | undefined {
@@ -1547,7 +1547,7 @@ const defined = values.map((value) => value).filter((value) => value !== undefin
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1617,7 +1617,7 @@ const twice = values.flat(2);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1729,7 +1729,7 @@ const twice: Element<int32, 2>[] = values.flat(2);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1837,7 +1837,7 @@ const defined = filterMap(values, (value) => {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1926,7 +1926,7 @@ const once: Element<int32 | int32[], 1>[] = values.flat(1);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2017,7 +2017,7 @@ const once: Element<int32 | int32[], 1>[] = values.flat(1);
 fn test_union_of_copyable_arms_satisfies_copy() {
     let session = TestSession::single(
         r#"
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 declare function requireCopy<T: Copy>(value: T): void;
 
@@ -2028,11 +2028,11 @@ requireCopy(value);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 declare function requireCopy<T: Copy>(value: T): void;
 
@@ -2041,7 +2041,7 @@ declare const value: int32 | int32[];
 requireCopy<int32 | int32[]>(value);
 
 === dir ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 declare function requireCopy<T: Copy>(value: T): void;
 /// @generic.template symbol=requireCopy parameters=(T: Copy)
@@ -2079,7 +2079,7 @@ function flatten(values: (int32 | int32[])[]): int32[] {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2133,7 +2133,7 @@ function flatten(): (int32 | int32[])[][] {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2235,7 +2235,7 @@ if (value != null) {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -2286,7 +2286,7 @@ const positive = values.filter((value) => value > 0);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2341,7 +2341,7 @@ const held: Holder<int32> = Holder<int32>.wrap(42);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2411,7 +2411,7 @@ for (const value of 0..10) {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2453,7 +2453,7 @@ const picked = pick(boxed);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -2530,7 +2530,7 @@ const doubled = collect(collect(starts, (start) => {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -2683,7 +2683,7 @@ extension<T, E> of AsyncResult<T, E> {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 declare class Promise<out T> {
     then<U>(onFulfilled: (value: T) => U | Promise<U>): Promise<U>;
@@ -2964,7 +2964,7 @@ function positive(values: int32[]): int32[] {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 function positive(values: int32[]): int32[] {
     return values.map<int32, int32, "managed">((value: int32): int32 => value + 1).filter<int32>(
@@ -3034,7 +3034,7 @@ function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 function defined(values: (int32 | undefined)[]): (int32 | undefined)[] {
     return values.map<int32 | undefined, int32 | undefined, "managed">(
@@ -3106,7 +3106,7 @@ function containsPositive(values: int32[]): boolean {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_node_types(), r#"
 === annotated ===
 function containsPositive(values: int32[]): boolean {
     return values.reduce<int32, boolean, "managed">(
@@ -3184,7 +3184,7 @@ function length(values: It<int32>): isize {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_node_types(), r#"
 === annotated ===
 newtype interface It<out T, out R = void> {
     next(this): R {
@@ -3286,7 +3286,7 @@ const result = fix((value) => [value]);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -3342,7 +3342,7 @@ struct Runner<R> {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 interface Safe {}
 
@@ -3428,7 +3428,7 @@ export extension<T> of Box<T> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

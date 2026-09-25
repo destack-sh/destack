@@ -1,0 +1,28 @@
+// SYNTAX TEST "source.tspp"
+
+// expressions / annotations / decorators
+@derive(Debug, Clone)
+// <- punctuation.definition.annotation.tspp
+// <~------ entity.name.function.decorator.tspp
+struct Event {}
+
+@route("/users/:id")
+// <~----- entity.name.function.decorator.tspp
+function loadUser(id: UserId): Result<User, Error> {
+    findUser(id)
+}
+
+// expressions / annotations / capture
+@capture({ default: "move", logger: "borrow" })
+// <~------- entity.name.function.decorator.tspp
+const handler = () => logger.info("handled");
+
+@unsafe
+// <~------ entity.name.function.decorator.tspp
+function readPointer(pointer: *uint8): uint8 {
+    read(pointer)
+}
+
+@safe
+// <~---- entity.name.function.decorator.tspp
+function checked(): void {}

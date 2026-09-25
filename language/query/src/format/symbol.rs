@@ -1,6 +1,6 @@
-use destack_core::StringPool;
-use destack_dir as dir;
 use rustc_hash::FxHashSet;
+use tspp_core::StringPool;
+use tspp_dir as dir;
 
 use crate::{QueryError, QueryResult};
 

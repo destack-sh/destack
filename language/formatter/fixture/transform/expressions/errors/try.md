@@ -6,11 +6,11 @@
 
 Try expressions used as statements end with semicolons.
 
-```ds
+```tspp
 try operation()
 ```
 
-```ds expected
+```tspp expected
 try operation();
 ```
 
@@ -18,11 +18,11 @@ try operation();
 
 Catch blocks align with the try block.
 
-```ds
+```tspp
 try { foo() } catch (e) { handle(e) }
 ```
 
-```ds expected
+```tspp expected
 try {
     foo()
 } catch (e) {
@@ -34,11 +34,11 @@ try {
 
 Catch parameters can have type annotations.
 
-```ds
+```tspp
 try { risky() } catch (error: Error) { handle(error) }
 ```
 
-```ds expected
+```tspp expected
 try {
     risky()
 } catch (error: Error) {
@@ -52,12 +52,12 @@ try {
 
 Postfix `?` binds before binary operators.
 
-```ds
+```tspp
 const size = encode()? + 1
 const ready = encode()? && isReady
 ```
 
-```ds expected
+```tspp expected
 const size = encode()? + 1;
 const ready = encode()? && isReady;
 ```
@@ -66,12 +66,12 @@ const ready = encode()? && isReady;
 
 Postfix `?` binds before type assertions.
 
-```ds
+```tspp
 const text = encode()? as string
 const valid = encode()? satisfies string
 ```
 
-```ds expected
+```tspp expected
 const text = encode()? as string;
 const valid = encode()? satisfies string;
 ```
@@ -80,12 +80,12 @@ const valid = encode()? satisfies string;
 
 Postfix `?` binds before member and index continuations.
 
-```ds
+```tspp
 const field = encode()?.field
 const item = encode()?[0]
 ```
 
-```ds expected
+```tspp expected
 const field = encode()?.field;
 const item = encode()?[0];
 ```
@@ -94,10 +94,10 @@ const item = encode()?[0];
 
 Ternaries require spaces around `?` to disambiguate them from postfix try propagation.
 
-```ds
+```tspp
 const value = a ? b : c
 ```
 
-```ds expected
+```tspp expected
 const value = a ? b : c;
 ```

@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_memory::MemoryMap;
-use destack_mir::TraceMap;
+use tspp_memory::MemoryMap;
+use tspp_mir::TraceMap;
 
 use crate::{
     AccountingRegion, HeapError, Payload, SharedHeap, SharedHeapLimits, SharedHeapOptions,

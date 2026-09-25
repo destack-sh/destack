@@ -1,9 +1,9 @@
 use crate::parse::{ExpressionPosition, ExpressionStop};
-use destack_dir::{
+use tspp_dir::{
     AssignOperator, AssignPattern, Asynchrony, Expression, FunctionRole, LocalNodeId, Name,
     NodeType, OperatorPrecedence, Property, TokenLiteral, TokenType,
 };
-use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
+use tspp_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 use crate::parse::member::{MemberHead, Method};
 use crate::parse::{BindingPosition, DeclarationNesting};
@@ -14,7 +14,7 @@ impl Parser {
     /// Parse an object literal (including the surrounding braces).
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// { }
     /// { a: 1, b }
     /// { a(x): void }
@@ -66,7 +66,7 @@ impl Parser {
     /// Parse an object literal body.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// key: value
     /// key
     /// ...other
@@ -127,7 +127,7 @@ impl Parser {
     /// Parse one object literal property.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// key: value
     /// key = fallback
     /// method() {}
@@ -183,7 +183,7 @@ impl Parser {
     /// Parse the simple object literal property forms.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// key: value
     /// key
     /// key = fallback
@@ -220,7 +220,7 @@ impl Parser {
     /// Parse one simple `key: value` object field.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// key: value
     /// "key": call()
     /// 0: first
@@ -256,7 +256,7 @@ impl Parser {
     /// Parse one simple `key = fallback` object field.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// key = fallback
     /// value = call()
     /// item = defaultItem
@@ -297,7 +297,7 @@ impl Parser {
     /// Parse one simple shorthand object field.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// key
     /// value
     /// item
@@ -339,7 +339,7 @@ impl Parser {
     /// Parse one simple object field value.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// value
     /// call()
     /// condition ? yes : no
@@ -360,7 +360,7 @@ impl Parser {
     /// Parse a property.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// // field
     /// x: int32
     /// x

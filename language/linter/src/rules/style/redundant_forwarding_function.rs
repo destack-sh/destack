@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -110,7 +110,7 @@ fn report_forwarding(
     signature: &dir::FunctionSignature,
     body: dir::LocalNodeId<dir::Expression>,
     output: &mut LintOutput,
-) -> Result<(), destack_repository::ProviderError> {
+) -> Result<(), tspp_repository::ProviderError> {
     let Some(call) = module.parameter_forwarding_call(signature, body)? else {
         return Ok(());
     };
@@ -147,7 +147,7 @@ function parseValue(source: string): int32 {
         session.assert_diagnostics(
             r#"
 warning[redundant-forwarding-function]: callable only forwards its parameters
- ──▶ main.ds:3:10
+ ──▶ main.tspp:3:10
   │
 1 │ declare function parse(source: string): int32;
 2 │

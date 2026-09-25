@@ -1,8 +1,8 @@
-use destack_fir::format::{FormatError, FormatResult};
 use markdown::mdast::Node;
 use markdown::{Constructs, ParseOptions, to_mdast};
+use tspp_fir::format::{FormatError, FormatResult};
 
-use crate::DestackFormatOptions;
+use crate::TsppFormatOptions;
 
 use super::super::line::LineBuffer;
 
@@ -11,12 +11,12 @@ pub(in crate::documentation) struct MarkdownFormatter<'a> {
     /// The available line width.
     pub(super) width: usize,
     /// The surrounding source formatter options.
-    pub(super) options: &'a DestackFormatOptions,
+    pub(super) options: &'a TsppFormatOptions,
 }
 
 impl<'a> MarkdownFormatter<'a> {
     /// Create one Markdown formatter.
-    pub(in crate::documentation) fn new(width: usize, options: &'a DestackFormatOptions) -> Self {
+    pub(in crate::documentation) fn new(width: usize, options: &'a TsppFormatOptions) -> Self {
         Self { width, options }
     }
 

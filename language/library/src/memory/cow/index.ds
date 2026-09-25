@@ -1,1 +1,0 @@
-export { Cow, CowBorrowed, CowOwned } from "./cow.ds";

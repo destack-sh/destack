@@ -1,5 +1,5 @@
-use destack_language_cli::common::CommandReport;
 use schemars::schema_for;
+use tspp_cli::common::CommandReport;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let schema = schema_for!(CommandReport);

@@ -2,9 +2,9 @@ use std::fmt;
 use std::mem::{ManuallyDrop, size_of};
 use std::sync::Arc;
 
-use destack_serde::{Field, Reflect, Schema, Type};
 use serde::ser::SerializeStruct;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use tspp_serde::{Field, Reflect, Schema, Type};
 
 use super::{TypeId, Word};
 

@@ -2,9 +2,9 @@
 
 use std::sync::Arc;
 
-use destack_dir::Tree;
-use destack_parser::{ParseOptions, Parser};
-use destack_source::{File, FileId, FileType, LanguageType, ModuleId, PackageId, Uri};
+use tspp_dir::Tree;
+use tspp_parser::{ParseOptions, Parser};
+use tspp_source::{File, FileId, FileType, LanguageType, ModuleId, PackageId, Uri};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
@@ -39,7 +39,7 @@ fuzz_target!(|data: &[u8]| {
 /// Select one parser file type and its canonical name.
 fn file_from_byte(byte: u8) -> (FileType, &'static str) {
     match byte % 2 {
-        0 => (FileType::Destack, "fuzz.ds"),
-        _ => (FileType::DestackDeclaration, "fuzz.d.ds"),
+        0 => (FileType::Tspp, "fuzz.tspp"),
+        _ => (FileType::TsppDeclaration, "fuzz.d.tspp"),
     }
 }

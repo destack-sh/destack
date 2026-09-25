@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -142,7 +142,7 @@ function classify(value: int32): string {
         session.assert_diagnostics(
             r#"
 warning[no-duplicate-else-if]: else-if condition cannot be reached after earlier branches
- ──▶ main.ds:4:16
+ ──▶ main.tspp:4:16
   │
 2 │     if (value > 0) {
 3 │         return "positive";
@@ -177,7 +177,7 @@ function classify(value: int32, isReady: boolean): string {
         session.assert_diagnostics(
             r#"
 warning[no-duplicate-else-if]: else-if condition cannot be reached after earlier branches
- ──▶ main.ds:4:16
+ ──▶ main.tspp:4:16
   │
 2 │     if (value > 0 && isReady) {
 3 │         return "first";
@@ -188,7 +188,7 @@ warning[no-duplicate-else-if]: else-if condition cannot be reached after earlier
   │
 
 warning[no-duplicate-else-if]: else-if condition cannot be reached after earlier branches
- ──▶ main.ds:6:16
+ ──▶ main.tspp:6:16
   │
 4 │     } else if (value > 0 && isReady) {
 5 │         return "duplicate";
@@ -221,7 +221,7 @@ function classify(value: int32): string {
         session.assert_diagnostics(
             r#"
 warning[no-duplicate-else-if]: else-if condition cannot be reached after earlier branches
- ──▶ main.ds:4:16
+ ──▶ main.tspp:4:16
   │
 2 │     if (value > 0) {
 3 │         return "positive";
@@ -254,7 +254,7 @@ function classify(value: int32): string {
         session.assert_diagnostics(
             r#"
 warning[no-duplicate-else-if]: else-if condition cannot be reached after earlier branches
- ──▶ main.ds:4:16
+ ──▶ main.tspp:4:16
   │
 2 │     if (value < 0 || value > 10) {
 3 │         return "outside";
@@ -289,7 +289,7 @@ function classify(isText: boolean, isNumber: boolean): string {
         session.assert_diagnostics(
             r#"
 warning[no-duplicate-else-if]: else-if condition cannot be reached after earlier branches
- ──▶ main.ds:6:16
+ ──▶ main.tspp:6:16
   │
 4 │     } else if (isNumber) {
 5 │         return "number";
@@ -324,7 +324,7 @@ function classify(a: boolean, b: boolean, c: boolean, d: boolean, e: boolean): s
         session.assert_diagnostics(
             r#"
 warning[no-duplicate-else-if]: else-if condition cannot be reached after earlier branches
- ──▶ main.ds:6:16
+ ──▶ main.tspp:6:16
   │
 4 │     } else if (b && c) {
 5 │         return "bc";

@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use destack_artifact::{DiagnosticBuilder, DiagnosticLike};
-use destack_core::StringPool;
-use destack_repository::{ArtifactReader, ProviderContext, Repository, Target};
-use destack_source::DiagnosticRegistry;
+use tspp_artifact::{DiagnosticBuilder, DiagnosticLike};
+use tspp_core::StringPool;
+use tspp_repository::{ArtifactReader, ProviderContext, Repository, Target};
+use tspp_source::DiagnosticRegistry;
 
 use crate::CompilerResult;
 

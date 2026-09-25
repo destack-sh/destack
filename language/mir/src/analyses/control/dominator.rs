@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_core::{FxIndexMap, FxIndexSet};
+use tspp_core::{FxIndexMap, FxIndexSet};
 
 use super::dominance::DominatorTree;
 use crate::{Analysis, Block, ControlTable, LocalNodeId, Mutation};

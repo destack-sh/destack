@@ -8,12 +8,12 @@ Expression annotation fixtures cover assertions, decorators, and boundary commen
 
 Line comments after `as` assertions stay attached to the same assertion.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = source as // as-tail
 number
 ```
 
-```ds expected
+```tspp expected
 const value = source as number; // as-tail
 ```
 
@@ -21,11 +21,11 @@ const value = source as number; // as-tail
 
 Nested `await` and `as` assertions keep stable grouping and attachment.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = (await load()) as Promise<Result<string, Error>>
 ```
 
-```ds expected
+```tspp expected
 const value = (await load()) as Promise<Result<string, Error>>;
 ```
 
@@ -33,11 +33,11 @@ const value = (await load()) as Promise<Result<string, Error>>;
 
 Boundary comments next to `as const` stay attached to the asserted expression.
 
-```ds:main.ds
+```tspp:main.tspp
 const values = [1, 2, 3] /* as-const */ as const
 ```
 
-```ds expected
+```tspp expected
 const values = [1, 2, 3] /* as-const */ as const;
 ```
 
@@ -45,12 +45,12 @@ const values = [1, 2, 3] /* as-const */ as const;
 
 Line comments around `satisfies` stay attached to the satisfies clause.
 
-```ds:main.ds line-width=50
+```tspp:main.tspp line-width=50
 const config = { retries: 3 } satisfies // sat-tail
 Record<string, number>
 ```
 
-```ds expected
+```tspp expected
 const config = { retries: 3 } satisfies Record< // sat-tail
     string,
     number
@@ -63,12 +63,12 @@ const config = { retries: 3 } satisfies Record< // sat-tail
 
 Inline comments after `as const` stay on the same assertion line.
 
-```ds:main.ds
+```tspp:main.tspp
 1 as const // const-tail
 ;
 ```
 
-```ds expected
+```tspp expected
 1 as const; // const-tail
 ```
 
@@ -76,12 +76,12 @@ Inline comments after `as const` stay on the same assertion line.
 
 Line comments between `as` and `const` stay attached to the assertion target.
 
-```ds:main.ds
+```tspp:main.tspp
 1 as // before-const
 const;
 ```
 
-```ds expected
+```tspp expected
 1 as const; // before-const
 ```
 
@@ -89,12 +89,12 @@ const;
 
 Block comments between `as` and target types stay attached to the assertion.
 
-```ds:main.ds
+```tspp:main.tspp
 1 as /* between */ Foo;
 1 satisfies /* sat-between */ Foo;
 ```
 
-```ds expected
+```tspp expected
 1 as /* between */ Foo;
 1 satisfies /* sat-between */ Foo;
 ```
@@ -103,12 +103,12 @@ Block comments between `as` and target types stay attached to the assertion.
 
 Trailing block comments on assertion chains stay attached before the following member call.
 
-```ds:main.ds indent-width=2 line-width=80
+```tspp:main.tspp indent-width=2 line-width=80
 (activeService as unknown as QuickInputController) /* TS fail */
   .pick();
 ```
 
-```ds expected
+```tspp expected
 (activeService as unknown as QuickInputController) /* TS fail */
   .pick();
 ```
@@ -117,7 +117,7 @@ Trailing block comments on assertion chains stay attached before the following m
 
 Multiline block comments before `const` stay attached to the assertion boundary.
 
-```ds:main.ds indent-width=2 line-width=80
+```tspp:main.tspp indent-width=2 line-width=80
 {
 1 as /*
 comment
@@ -125,7 +125,7 @@ comment
 }
 ```
 
-```ds expected
+```tspp expected
 {
   1 as const /*
 comment
@@ -137,14 +137,14 @@ comment
 
 Block comments between `as` and `satisfies` targets stay attached to the same operator boundary.
 
-```ds:main.ds indent-width=2 line-width=80
+```tspp:main.tspp indent-width=2 line-width=80
 {
 1 as /* between */ Foo;
 1 satisfies /* sat-between */ Foo;
 }
 ```
 
-```ds expected
+```tspp expected
 {
   1 as /* between */ Foo;
   1 satisfies /* sat-between */ Foo;
@@ -155,13 +155,13 @@ Block comments between `as` and `satisfies` targets stay attached to the same op
 
 Multiline block comments between `as` and `const` stay attached to `const` assertions.
 
-```ds:main.ds
+```tspp:main.tspp
 1 as /*
 block-comment
 */ const;
 ```
 
-```ds expected
+```tspp expected
 1 as const /*
 block-comment
 */;
@@ -171,7 +171,7 @@ block-comment
 
 Nested await chains with `as` assertions keep stable grouping.
 
-```ds:main.ds
+```tspp:main.tspp
 const count = (await
   ((await (
     await focusOnSection("bookmarks")
@@ -180,7 +180,7 @@ const count = (await
 ).length
 ```
 
-```ds expected
+```tspp expected
 const count = (
     await ((await (await focusOnSection("bookmarks")).findItem("mine")) as TreeItem).getChildren()
 ).length;
@@ -190,12 +190,12 @@ const count = (
 
 Assignments through parenthesized `as` assertion targets preserve assignment shape.
 
-```ds:main.ds
+```tspp:main.tspp
 (foo.bar as Baz) = value
 (foo.bar as any)++
 ```
 
-```ds expected
+```tspp expected
 (foo.bar as Baz) = value;
 (foo.bar as any)++;
 ```
@@ -206,12 +206,12 @@ Assignments through parenthesized `as` assertion targets preserve assignment sha
 
 Decorated class expressions keep stable wrapping before member access.
 
-```ds:main.ds
+```tspp:main.tspp
 (@deco
 class Foo {}).name
 ```
 
-```ds expected
+```tspp expected
 (
     @deco
     class Foo {}
@@ -222,12 +222,12 @@ class Foo {}).name
 
 Decorated anonymous class expressions keep stable wrapping before member access.
 
-```ds:main.ds
+```tspp:main.tspp
 (@deco
 class {}).name
 ```
 
-```ds expected
+```tspp expected
 (
     @deco
     class {}
@@ -240,11 +240,11 @@ class {}).name
 
 Decorated class expressions in argument positions keep stable wrapping and attachment.
 
-```ds:main.ds
+```tspp:main.tspp
 use((@decorator class {}))
 ```
 
-```ds expected
+```tspp expected
 use(
     @decorator
     class {},
@@ -257,11 +257,11 @@ use(
 
 Expression statement `satisfies` comments stay attached to the satisfies boundary.
 
-```ds:main.ds
+```tspp:main.tspp
 ({ value: 1 } satisfies Record<string, number>) // sat-expression
 ```
 
-```ds expected
+```tspp expected
 ({ value: 1 }) satisfies Record<string, number>; // sat-expression
 ```
 
@@ -269,11 +269,11 @@ Expression statement `satisfies` comments stay attached to the satisfies boundar
 
 Nested await chains with `satisfies` keep stable grouping and boundary comments.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = (await load()) satisfies // sat-await
 Promise<Result<string, Error>>
 ```
 
-```ds expected
+```tspp expected
 const value = (await load()) satisfies Promise<Result<string, Error>>; // sat-await
 ```

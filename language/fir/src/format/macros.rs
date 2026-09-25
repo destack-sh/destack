@@ -76,7 +76,7 @@ macro_rules! best_fitting {
 
 #[cfg(test)]
 mod tests {
-    use destack_source::FileType;
+    use tspp_source::FileType;
 
     use crate::format::{
         BestFittingMode, FormatState, Formatted, IndentStyle, SimpleFormatOptions,
@@ -184,7 +184,7 @@ mod tests {
             line_width: 10,
             ..SimpleFormatOptions::default()
         };
-        let context = SimpleFormatContext::new(options, File::empty_text(FileType::Destack));
+        let context = SimpleFormatContext::new(options, File::empty_text(FileType::Tspp));
 
         let formatted = format!(
             &allocator,
@@ -218,7 +218,7 @@ mod tests {
                     line_width: 80,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text(FileType::Destack)
+                File::empty_text(FileType::Tspp)
             ),
             [
                 token("aVeryLongIdentifier"),
@@ -423,7 +423,7 @@ mod tests {
                     line_width: 40,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text(FileType::Destack)
+                File::empty_text(FileType::Tspp)
             ),
             [document.clone()]
         )
@@ -443,7 +443,7 @@ mod tests {
                     line_width: 23,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text(FileType::Destack)
+                File::empty_text(FileType::Tspp)
             ),
             [document.clone()]
         )
@@ -462,7 +462,7 @@ mod tests {
                     line_width: 22,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text(FileType::Destack)
+                File::empty_text(FileType::Tspp)
             ),
             [document.clone()]
         )
@@ -485,7 +485,7 @@ mod tests {
                     line_width: 80,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text(FileType::Destack),
+                File::empty_text(FileType::Tspp),
             ),
             [best_fitting!(
                 // first variant - method call on line but break array
@@ -538,7 +538,7 @@ mod tests {
                     line_width: 80,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text(FileType::Destack),
+                File::empty_text(FileType::Tspp),
             ),
         )
         .print()
@@ -606,7 +606,7 @@ mod tests {
                     line_width: 30,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text(FileType::Destack),
+                File::empty_text(FileType::Tspp),
             ),
         )
         .print()
@@ -718,7 +718,7 @@ mod tests {
                     line_width: 30,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text(FileType::Destack),
+                File::empty_text(FileType::Tspp),
             ),
         )
         .print()
@@ -734,7 +734,7 @@ mod tests {
                     line_width: 30,
                     ..SimpleFormatOptions::default()
                 },
-                File::empty_text(FileType::Destack),
+                File::empty_text(FileType::Tspp),
             ),
         )
         .print()

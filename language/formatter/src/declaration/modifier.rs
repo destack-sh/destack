@@ -1,12 +1,12 @@
-use crate::DestackFormatter;
-use destack_dir::{Access, Keyword, Mutability, Visibility};
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::{space, token};
-use destack_fir::write;
+use crate::TsppFormatter;
+use tspp_dir::{Access, Keyword, Mutability, Visibility};
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::{space, token};
+use tspp_fir::write;
 
 /// Write one keyword prefix when present.
 pub(crate) fn write_keyword_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     keyword: Keyword,
     is_present: bool,
 ) -> FormatResult<()> {
@@ -19,7 +19,7 @@ pub(crate) fn write_keyword_prefix<'ast>(
 
 /// Write one token prefix when present.
 pub(crate) fn write_token_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     text: &'static str,
     is_present: bool,
 ) -> FormatResult<()> {
@@ -32,7 +32,7 @@ pub(crate) fn write_token_prefix<'ast>(
 
 /// Write one token suffix when present.
 pub(crate) fn write_token_suffix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     text: &'static str,
     is_present: bool,
 ) -> FormatResult<()> {
@@ -45,7 +45,7 @@ pub(crate) fn write_token_suffix<'ast>(
 
 /// Write one visibility prefix when present.
 pub(crate) fn write_visibility_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     visibility: Option<Visibility>,
 ) -> FormatResult<()> {
     let keyword = visibility.map(|visibility| match visibility {
@@ -63,7 +63,7 @@ pub(crate) fn write_visibility_prefix<'ast>(
 
 /// Write one mutability prefix when present.
 pub(crate) fn write_mutability_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     mutability: Option<Mutability>,
 ) -> FormatResult<()> {
     match mutability {
@@ -74,7 +74,7 @@ pub(crate) fn write_mutability_prefix<'ast>(
 
 /// Write one borrow access prefix when present.
 pub(crate) fn write_access_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     access: Option<Access>,
 ) -> FormatResult<()> {
     match access {

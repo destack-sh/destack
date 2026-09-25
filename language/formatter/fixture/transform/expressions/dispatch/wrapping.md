@@ -8,11 +8,11 @@ Chain wrapping fixtures cover member chains mixed with calls, constructors, inde
 
 Short chains fit on one line.
 
-```ds
+```tspp
 obj.method().result
 ```
 
-```ds expected
+```tspp expected
 obj.method().result;
 ```
 
@@ -20,11 +20,11 @@ obj.method().result;
 
 Property access chains stay on one line when possible.
 
-```ds line-width=50
+```tspp line-width=50
 very.long.deeply.nested.property.access
 ```
 
-```ds expected
+```tspp expected
 very.long.deeply.nested.property.access;
 ```
 
@@ -32,11 +32,11 @@ very.long.deeply.nested.property.access;
 
 Method chains with various argument lengths.
 
-```ds line-width=40
+```tspp line-width=40
 array.filter((x) => x > 0).map((x) => x * 2).reduce((a, b) => a + b, 0)
 ```
 
-```ds expected
+```tspp expected
 array
     .filter((x) => x > 0)
     .map((x) => x * 2)
@@ -47,11 +47,11 @@ array
 
 Chain starting with a function call.
 
-```ds line-width=35
+```tspp line-width=35
 getData().process().transform().result()
 ```
 
-```ds expected
+```tspp expected
 getData()
     .process()
     .transform()
@@ -62,11 +62,11 @@ getData()
 
 Chain starting with new expression.
 
-```ds line-width=40
+```tspp line-width=40
 new Builder().setName("test").setAge(25).build()
 ```
 
-```ds expected
+```tspp expected
 new Builder()
     .setName("test")
     .setAge(25)
@@ -77,11 +77,11 @@ new Builder()
 
 Ternary inside a chained method call.
 
-```ds line-width=50
+```tspp line-width=50
 data.filter((x) => isValid ? x.active : x.pending).map((x) => x.id)
 ```
 
-```ds expected
+```tspp expected
 data.filter((x) =>
     isValid ? x.active : x.pending,
 ).map((x) => x.id);
@@ -91,11 +91,11 @@ data.filter((x) =>
 
 Member chain including array indexing.
 
-```ds line-width=40
+```tspp line-width=40
 users[0].profile.settings.theme
 ```
 
-```ds expected
+```tspp expected
 users[0].profile.settings.theme;
 ```
 
@@ -104,11 +104,11 @@ users[0].profile.settings.theme;
 Mix of property access, indexing, and method calls.
 Chains break at member segments under narrow width.
 
-```ds line-width=35
+```tspp line-width=35
 obj.items[0].getValue().transform()
 ```
 
-```ds expected
+```tspp expected
 obj.items[0]
     .getValue()
     .transform();

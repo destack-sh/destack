@@ -4,23 +4,23 @@ use std::sync::{Arc, Mutex, OnceLock};
 use std::time::Instant;
 use std::{env, fs, thread};
 
-use destack_artifact::{
+use futures::executor::block_on;
+use tspp_artifact::{
     Artifact, ArtifactFailure, ArtifactKey, ArtifactPayload, ArtifactTable, ArtifactVersion,
     BuildId, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported,
     DirImported, DirMaterialized, DirParsed, DirResolved, DirView, EnvironmentBound, MirElaborated,
     MirLowered, ModuleGraph,
 };
-use destack_core::BlobStore;
-use destack_dir as dir;
-use destack_mir::{FormatOptions, Formatter};
-use destack_repository::{
+use tspp_core::BlobStore;
+use tspp_dir as dir;
+use tspp_mir::{FormatOptions, Formatter};
+use tspp_repository::{
     DestackLayout, DestackLayoutOverride, Edit, Environment, Execution, Host, Repository, Revision,
     RevisionPin, Settings, Trace, TraceAggregate, TraceLevel, TraceReport, TraceSnapshot,
     TraceView,
 };
-use destack_session::{ArtifactPriority, Executor, Session, SessionError};
-use destack_source::{MemoryFileSystem, ModuleId, PackageId, ProfileId, TargetId};
-use futures::executor::block_on;
+use tspp_session::{ArtifactPriority, Executor, Session, SessionError};
+use tspp_source::{MemoryFileSystem, ModuleId, PackageId, ProfileId, TargetId};
 
 use crate::Compiler;
 use crate::tests::snapshot::{
@@ -32,16 +32,16 @@ use super::module::{TestModule, parse_module, parsed_dependencies};
 const DEFAULT_DESTACK_JSON: &str = r#"{
   "name": "test"
 }"#;
-const WORKERS_ENV: &str = "DESTACK_TEST_WORKERS";
-const TRACE_ENV: &str = "DESTACK_TEST_TRACE";
-const TIMINGS_ENV: &str = "DESTACK_TIMINGS";
+const WORKERS_ENV: &str = "TSPP_TEST_WORKERS";
+const TRACE_ENV: &str = "TSPP_TEST_TRACE";
+const TIMINGS_ENV: &str = "TSPP_TIMINGS";
 const PROFILE_ENV: &str = "DESTACK_PROFILE";
-const TRACE_SLOW_ARTIFACTS_ENV: &str = "DESTACK_TEST_TRACE_SLOW_ARTIFACTS";
-const TRACE_SLOW_MS_ENV: &str = "DESTACK_TEST_TRACE_SLOW_MS";
+const TRACE_SLOW_ARTIFACTS_ENV: &str = "TSPP_TEST_TRACE_SLOW_ARTIFACTS";
+const TRACE_SLOW_MS_ENV: &str = "TSPP_TEST_TRACE_SLOW_MS";
 const DEFAULT_TRACE_SLOW_ARTIFACTS: usize = 8;
 const SLOW_RUN_TRACE_ATTEMPTS: usize = 24;
 /// Path of the module anchoring the anonymous workspace package.
-const WARM_ANCHOR_PATH: &str = "__warm.ds";
+const WARM_ANCHOR_PATH: &str = "__warm.tspp";
 
 /// A test session builder.
 #[derive(Debug, Default)]
@@ -131,7 +131,7 @@ impl TestSession {
 
     /// Build a single-module test session.
     pub(crate) fn single(source: &str) -> Self {
-        Self::builder().module("main.ds", source).build()
+        Self::builder().module("main.tspp", source).build()
     }
 
     /// Build one test session from source files.
@@ -169,7 +169,7 @@ impl TestSession {
         Self::seed_parsed_artifacts(repository.as_ref(), revision_id, &modules_by_path);
         let session = Session::new(repository.clone(), test_executor())
             .expect("compiler test session should start");
-        let diagnostics = destack_source::DiagnosticRegistry::new([]);
+        let diagnostics = tspp_source::DiagnosticRegistry::new([]);
         let compiler = Compiler::new(repository.clone(), Arc::new(diagnostics));
         let is_tracing = env::var_os(TRACE_ENV).is_some()
             || env::var_os(TIMINGS_ENV).is_some()
@@ -466,7 +466,7 @@ impl TestSession {
     }
 
     /// Return one successfully lowered MIR artifact.
-    pub(crate) fn mir_lowered(&self, path: &str) -> Arc<destack_artifact::MirLowered> {
+    pub(crate) fn mir_lowered(&self, path: &str) -> Arc<tspp_artifact::MirLowered> {
         let key = self.mir_lowered_key(path);
         let version = self
             .require_artifact_result(key)
@@ -502,9 +502,9 @@ impl TestSession {
     /// Render one function of a MIR tree by its formatted reference.
     fn render_function_snapshot(
         &self,
-        tree: &destack_mir::Tree,
-        target: destack_mir::TargetLayout,
-        layouts: &destack_mir::LayoutTable,
+        tree: &tspp_mir::Tree,
+        target: tspp_mir::TargetLayout,
+        layouts: &tspp_mir::LayoutTable,
         module: ModuleId,
         name: &str,
     ) -> String {
@@ -514,7 +514,7 @@ impl TestSession {
         let formatter = Formatter::new(tree, target, strings.as_ref(), FormatOptions::default());
         let mut names = Vec::new();
         let function = tree
-            .iter_nodes::<destack_mir::Function>()
+            .iter_nodes::<tspp_mir::Function>()
             .find_map(|(id, _)| {
                 let candidate = formatter
                     .format_function(id)
@@ -526,7 +526,7 @@ impl TestSession {
             .unwrap_or_else(|| panic!("missing MIR function {name}, the module has {names:?}"));
 
         // format the function and the layouts of the types it mentions
-        let types = destack_mir::mentioned_types(tree, &[function]);
+        let types = tspp_mir::mentioned_types(tree, &[function]);
         let formatted = Formatter::new(tree, target, strings.as_ref(), FormatOptions::default())
             .format_functions(&[function], module)
             .expect("test MIR should format");
@@ -539,7 +539,7 @@ impl TestSession {
             |ty| {
                 // an application belongs to its template's module
                 let owner = match tree.get(ty) {
-                    destack_mir::Type::Application { base, .. } => *base,
+                    tspp_mir::Type::Application { base, .. } => *base,
                     _ => ty,
                 };
                 let is_imported = tree
@@ -569,7 +569,7 @@ impl TestSession {
                 let mut failed = key;
                 let mut error = error;
                 while let SessionError::ArtifactFailed { failure, .. } = &error
-                    && let destack_artifact::ArtifactFailure::Requirement { key } = failure.as_ref()
+                    && let tspp_artifact::ArtifactFailure::Requirement { key } = failure.as_ref()
                 {
                     failed = *key;
                     let Err(cause) = self.require_artifact_result(failed) else {
@@ -646,10 +646,10 @@ impl TestSession {
     /// Render a MIR tree with its layouts and dispatch tables.
     fn render_mir_tree(
         &self,
-        tree: &destack_mir::Tree,
-        target: destack_mir::TargetLayout,
-        layouts: &destack_mir::LayoutTable,
-        dispatch: &destack_mir::DispatchTable,
+        tree: &tspp_mir::Tree,
+        target: tspp_mir::TargetLayout,
+        layouts: &tspp_mir::LayoutTable,
+        dispatch: &tspp_mir::DispatchTable,
     ) -> String {
         let strings = self.repository.string_pool();
 
@@ -668,8 +668,8 @@ impl TestSession {
 
     /// Render the dynamic dispatch rows of one MIR module.
     fn render_mir_dispatch(
-        dispatch: &destack_mir::DispatchTable,
-        strings: &destack_core::StringPool,
+        dispatch: &tspp_mir::DispatchTable,
+        strings: &tspp_core::StringPool,
     ) -> String {
         let mut rows = String::new();
 
@@ -681,10 +681,10 @@ impl TestSession {
             ));
             for slot in &shape.slots {
                 match slot {
-                    destack_mir::DynamicSlot::Field { name, .. } => {
+                    tspp_mir::DynamicSlot::Field { name, .. } => {
                         rows.push_str(&format!(" field={}", strings.get(*name)));
                     }
-                    destack_mir::DynamicSlot::Function { name, .. } => {
+                    tspp_mir::DynamicSlot::Function { name, .. } => {
                         let name = name.map_or("call", |name| strings.get(name));
                         rows.push_str(&format!(" function={name}"));
                     }
@@ -702,13 +702,13 @@ impl TestSession {
             ));
             for entry in &table.entries {
                 match entry {
-                    destack_mir::DynamicEntry::Field { offset } => {
+                    tspp_mir::DynamicEntry::Field { offset } => {
                         rows.push_str(&format!(" field+{offset}"));
                     }
-                    destack_mir::DynamicEntry::Function { function } => {
+                    tspp_mir::DynamicEntry::Function { function } => {
                         rows.push_str(&format!(" function@{}", function.id));
                     }
-                    destack_mir::DynamicEntry::Absent => {
+                    tspp_mir::DynamicEntry::Absent => {
                         rows.push_str(" absent");
                     }
                 }
@@ -721,12 +721,12 @@ impl TestSession {
 
     /// Render the aggregate layout rows of one MIR module.
     fn render_mir_layouts(
-        tree: &destack_mir::Tree,
-        target: destack_mir::TargetLayout,
-        layouts: &destack_mir::LayoutTable,
-        strings: &destack_core::StringPool,
-        function: Option<destack_mir::FunctionId>,
-        keeps: impl Fn(destack_mir::TypeId) -> bool,
+        tree: &tspp_mir::Tree,
+        target: tspp_mir::TargetLayout,
+        layouts: &tspp_mir::LayoutTable,
+        strings: &tspp_core::StringPool,
+        function: Option<tspp_mir::FunctionId>,
+        keeps: impl Fn(tspp_mir::TypeId) -> bool,
     ) -> String {
         let formatter = Formatter::new(tree, target, strings, FormatOptions::default());
         let format = |ty| match function {
@@ -737,7 +737,7 @@ impl TestSession {
         // order named layouts by their declarations
         let mut named_types = BTreeSet::new();
         let mut owners = Vec::new();
-        for (_, declaration) in tree.iter_nodes::<destack_mir::TypeDeclaration>() {
+        for (_, declaration) in tree.iter_nodes::<tspp_mir::TypeDeclaration>() {
             let ty = tree
                 .identified_type(declaration.symbol)
                 .expect("declaration has a type");
@@ -758,7 +758,7 @@ impl TestSession {
         anonymous.sort_by_key(|ty| ty.0);
         owners.extend(anonymous.into_iter().map(|ty| {
             let name = match tree.get(ty) {
-                destack_mir::Type::Application { .. } => {
+                tspp_mir::Type::Application { .. } => {
                     format(ty).expect("test MIR type should format")
                 }
                 _ => format!("type@{}", ty.0),
@@ -778,10 +778,10 @@ impl TestSession {
             // render an application through the definition it represents
             match (
                 &layout.shape,
-                tree.get(destack_mir::Substitution::resolve(ty, tree)),
+                tree.get(tspp_mir::Substitution::resolve(ty, tree)),
             ) {
                 // render one struct row followed by its fields
-                (destack_mir::LayoutShape::Struct(shape), destack_mir::Type::Struct { .. }) => {
+                (tspp_mir::LayoutShape::Struct(shape), tspp_mir::Type::Struct { .. }) => {
                     rows.push_str(&format!(
                         "/// @layout.struct name={name} size={size} align={alignment}\n"
                     ));
@@ -802,7 +802,7 @@ impl TestSession {
                     }
                 }
                 // render one tuple row followed by its elements
-                (destack_mir::LayoutShape::Tuple(shape), destack_mir::Type::Tuple { .. }) => {
+                (tspp_mir::LayoutShape::Tuple(shape), tspp_mir::Type::Tuple { .. }) => {
                     rows.push_str(&format!(
                         "/// @layout.tuple name={name} size={size} align={alignment}\n"
                     ));
@@ -816,20 +816,20 @@ impl TestSession {
                     }
                 }
                 // render one variant row followed by its encoding and cases
-                (destack_mir::LayoutShape::Variant(shape), destack_mir::Type::Variant { .. }) => {
+                (tspp_mir::LayoutShape::Variant(shape), tspp_mir::Type::Variant { .. }) => {
                     rows.push_str(&format!(
                         "/// @layout.variant name={name} size={size} align={alignment}\n"
                     ));
 
                     // render the physical discriminant encoding
                     match &shape.encoding {
-                        destack_mir::VariantEncoding::Direct { field } => {
+                        tspp_mir::VariantEncoding::Direct { field } => {
                             rows.push_str(&format!(
                                 "/// @layout.discriminant owner={name} kind=direct offset={} byte_len={} bit_offset={} bit_len={}\n",
                                 field.offset, field.byte_len, field.bit_offset, field.bit_len
                             ));
                         }
-                        destack_mir::VariantEncoding::Niche {
+                        tspp_mir::VariantEncoding::Niche {
                             field,
                             untagged_case,
                             niche_start,
@@ -1718,7 +1718,7 @@ impl TestSession {
             ArtifactKey::dir_declared(entry.module.id, entry.profile),
             ArtifactKey::dir_checked(entry.module.id, entry.profile),
         ];
-        let mut modules = destack_core::FxIndexSet::default();
+        let mut modules = tspp_core::FxIndexSet::default();
         for key in keys {
             let dependencies = self
                 .repository
@@ -2031,7 +2031,7 @@ fn test_executor() -> Arc<Executor> {
 }
 
 /// Return one rendered MIR type reference.
-fn mir_type_name(ty: destack_mir::TypeId) -> String {
+fn mir_type_name(ty: tspp_mir::TypeId) -> String {
     format!("type@{}", ty.0)
 }
 
@@ -2043,6 +2043,6 @@ fn shared_blob_store() -> Arc<BlobStore> {
 }
 
 /// Fail one test DIR read.
-fn read<T>(error: destack_repository::ProviderError) -> T {
+fn read<T>(error: tspp_repository::ProviderError) -> T {
     panic!("read test DIR: {error}")
 }

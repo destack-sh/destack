@@ -6,11 +6,11 @@
 
 Optional properties use `?` after the property name.
 
-```ds
+```tspp
 interface Foo { x?: number }
 ```
 
-```ds expected
+```tspp expected
 interface Foo {
     x?: number;
 }
@@ -18,13 +18,13 @@ interface Foo {
 
 ### optional method
 
-Destack uses `method?()` syntax for optional methods.
+TS++ uses `method?()` syntax for optional methods.
 
-```ds
+```tspp
 interface Foo { bar?(): void }
 ```
 
-```ds expected
+```tspp expected
 interface Foo {
     bar?(): void;
 }
@@ -36,11 +36,11 @@ interface Foo {
 
 The `readonly` modifier prevents property reassignment.
 
-```ds
+```tspp
 interface Foo { readonly x: number }
 ```
 
-```ds expected
+```tspp expected
 interface Foo {
     readonly x: number;
 }
@@ -52,11 +52,11 @@ interface Foo {
 
 Associated type modifiers are preserved.
 
-```ds
+```tspp
 interface Foo { abstract type Item override type Output = string }
 ```
 
-```ds expected
+```tspp expected
 interface Foo {
     abstract type Item;
     override type Output = string;
@@ -67,11 +67,11 @@ interface Foo {
 
 Associated constant modifiers are preserved.
 
-```ds
+```tspp
 interface Foo { abstract const Size: uint override const Count: uint = 2 }
 ```
 
-```ds expected
+```tspp expected
 interface Foo {
     abstract const Size: uint;
     override const Count: uint = 2;

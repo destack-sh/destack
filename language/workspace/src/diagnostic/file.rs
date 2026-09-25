@@ -2,13 +2,13 @@ use std::cmp::Ordering;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-use destack_artifact::ArtifactKey;
-use destack_query::Module;
-use destack_repository::Revision;
-use destack_serde::Reflect;
-use destack_session::{ArtifactPriority, ArtifactRun, ArtifactRunId};
-use destack_source::{Diagnostic, File, FileId};
 use serde::{Deserialize, Serialize};
+use tspp_artifact::ArtifactKey;
+use tspp_query::Module;
+use tspp_repository::Revision;
+use tspp_serde::Reflect;
+use tspp_session::{ArtifactPriority, ArtifactRun, ArtifactRunId};
+use tspp_source::{Diagnostic, File, FileId};
 
 use crate::Error;
 use crate::workspace::{Workspace, WorkspacePin};

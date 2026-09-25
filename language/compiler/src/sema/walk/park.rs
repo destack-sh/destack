@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_core::StringId;
-use destack_dir as dir;
+use tspp_core::StringId;
+use tspp_dir as dir;
 
 use crate::CompilerResult;
 use crate::sema::{CheckState, WalkState};

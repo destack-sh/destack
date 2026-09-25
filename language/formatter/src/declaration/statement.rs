@@ -1,11 +1,11 @@
-use destack_core::ensure_sufficient_stack;
-use destack_dir::{
+use tspp_core::ensure_sufficient_stack;
+use tspp_dir::{
     Block, BlockForm, Comment, Expression, LocalNodeId, Node, NodeType, Tree, TreeStore,
 };
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::*;
-use destack_fir::{format_args, write};
-use destack_source::Span;
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::*;
+use tspp_fir::{format_args, write};
+use tspp_source::Span;
 
 use crate::annotation::{
     FormatTrailingComments, block_infix_annotations, postfix_annotations, prefix_annotations,
@@ -16,13 +16,13 @@ use crate::declaration::sequence::{
     format_block_body_wide, program_statement_sequence,
 };
 use crate::file::{has_file_ignore_directive, write_source_span};
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
+use crate::{FormatNode, TsppFormatContext, TsppFormatter};
 
 /// Create a formatter for a list of expression statements.
 pub fn statement_list<'ast>(
     expressions: &'ast [LocalNodeId<Expression>],
-) -> impl Format<'ast, DestackFormatContext<'ast>> + 'ast {
-    format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+) -> impl Format<'ast, TsppFormatContext<'ast>> + 'ast {
+    format_with(move |f: &mut TsppFormatter<'ast, '_>| {
         // respect file-level ignore directives for top-level formatting
         if f.context().options.respect_file_ignore
             && statement_list_is_file_root(f.context(), expressions)
@@ -59,7 +59,7 @@ pub fn statement_list<'ast>(
 
 /// Return whether this statement list is the file root expression list.
 fn statement_list_is_file_root(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expressions: &[LocalNodeId<Expression>],
 ) -> bool {
     expressions
@@ -69,7 +69,7 @@ fn statement_list_is_file_root(
 
 /// Return own-line comments immediately before one block head.
 pub(crate) fn block_leading_line_comment_nodes(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     block_id: LocalNodeId<Block>,
 ) -> Vec<Comment> {
     let block_span = context.span(block_id);
@@ -98,7 +98,7 @@ pub(crate) fn block_leading_line_comment_nodes(
 
 /// Return comments immediately before one block close brace.
 pub(crate) fn block_trailing_comment_nodes(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     block_id: LocalNodeId<Block>,
 ) -> Vec<Comment> {
     let block = context.tree.get(block_id);
@@ -129,7 +129,7 @@ pub(crate) fn block_trailing_comment_nodes(
 
 /// Return whether one block carries internal comments that force expanded layout.
 pub(crate) fn block_has_internal_comments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     block_id: LocalNodeId<Block>,
 ) -> bool {
     let block = context.tree.get(block_id);
@@ -154,12 +154,12 @@ pub(crate) fn block_has_internal_comments(
 /// ```
 pub(crate) fn empty_block_with_infix_annotations<'ast, T>(
     node_id: LocalNodeId<T>,
-) -> impl Format<'ast, DestackFormatContext<'ast>>
+) -> impl Format<'ast, TsppFormatContext<'ast>>
 where
     T: Node + Clone + 'ast,
     Tree: TreeStore<T>,
 {
-    format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+    format_with(move |f: &mut TsppFormatter<'ast, '_>| {
         // keep empty blocks compact unless they carry infix annotations
         if !f.context().has_infix_annotation(node_id) {
             return write!(f, [token("{"), token("}")]);
@@ -182,7 +182,7 @@ where
 /// Return whether a block should stay inline.
 #[inline]
 pub(crate) fn should_inline_block<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     block_id: LocalNodeId<Block>,
 ) -> bool {
     let block = f.context().tree.get(block_id);
@@ -236,7 +236,7 @@ pub(crate) fn should_inline_block<'ast>(
 
 /// Return whether an empty block should keep expanded braces.
 fn empty_block_requires_expanded_layout(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     block_id: LocalNodeId<Block>,
 ) -> bool {
     let mut current_block_id = block_id;
@@ -270,7 +270,7 @@ fn empty_block_requires_expanded_layout(
 
 /// Return whether one empty block should expand inside its immediate expression container.
 fn empty_block_expands_in_expression_container(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     block_id: LocalNodeId<Block>,
     parent_expression_id: u32,
 ) -> bool {
@@ -320,7 +320,7 @@ fn empty_block_expands_in_expression_container(
 /// Format a block (without a nested group!).
 /// Format a block with opening and closing braces.
 pub(crate) fn write_block_body<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     ensure_sufficient_stack(|| write_block_body_inner(f, node_id))
@@ -328,7 +328,7 @@ pub(crate) fn write_block_body<'ast>(
 
 /// Write one block body.
 fn write_block_body_inner<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     if should_inline_block(f, node_id) {
@@ -341,7 +341,7 @@ fn write_block_body_inner<'ast>(
 /// Format a block (without a nested group!).
 /// Format a block with opening and closing braces.
 pub fn format_block<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     ensure_sufficient_stack(|| format_block_inner(f, node_id))
@@ -349,7 +349,7 @@ pub fn format_block<'ast>(
 
 /// Format a block.
 fn format_block_inner<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     let block_span_end = f.context().span(node_id).end;
@@ -368,7 +368,7 @@ fn format_block_inner<'ast>(
 
 /// Format one block with expanded contents.
 pub(crate) fn format_block_wide<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     ensure_sufficient_stack(|| format_block_wide_inner(f, node_id))
@@ -376,7 +376,7 @@ pub(crate) fn format_block_wide<'ast>(
 
 /// Format one expanded block.
 fn format_block_wide_inner<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     let block_span_end = f.context().span(node_id).end;
@@ -397,7 +397,7 @@ impl<'ast> FormatNode<'ast, Block> for Block {
     fn format_node(
         &self,
         node_id: LocalNodeId<Block>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let block_span_end = f.context().span(node_id).end;
 

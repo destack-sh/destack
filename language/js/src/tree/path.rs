@@ -1,9 +1,9 @@
 use std::fmt::Debug;
 
 use crate::StringId;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
+use tspp_serde::Reflect;
 
 /// A Path is a sequence of segments.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]

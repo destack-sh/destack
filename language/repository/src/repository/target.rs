@@ -1,4 +1,4 @@
-use destack_source::{PackageId, ProductId, TargetId};
+use tspp_source::{PackageId, ProductId, TargetId};
 
 use crate::repository::{Repository, RepositoryError, Revision};
 use crate::{Destack, Product, Target};

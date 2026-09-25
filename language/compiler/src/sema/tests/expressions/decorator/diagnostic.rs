@@ -11,7 +11,7 @@ if (true) {}
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked()
             .with_reference_types()
             .with_decorators(),
@@ -46,7 +46,7 @@ if (true) {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
 === annotated ===
@@ -83,7 +83,7 @@ if (true) {}
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked()
             .with_reference_types()
             .with_decorators(),
@@ -118,7 +118,7 @@ const value = 1;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
 === annotated ===
@@ -158,7 +158,7 @@ if (true) {}
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked()
             .with_reference_types()
             .with_decorators(),
@@ -200,7 +200,7 @@ if (true) {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
 === annotated ===
@@ -247,7 +247,7 @@ const value = 1;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
 === annotated ===
@@ -284,7 +284,7 @@ const value = 1;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_decorators(),
         r#"
 === annotated ===

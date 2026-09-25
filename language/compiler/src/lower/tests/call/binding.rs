@@ -4,7 +4,7 @@ use crate::tests::TestSession;
 fn test_lower_binding_call_to_a_dotted_host_extern() {
     let session = TestSession::single(
         r#"
-@binding("destack.clock.now", {
+@binding("tspp.clock.now", {
     provider: "host",
     effect: "external",
     replay: "forbidden",
@@ -23,12 +23,12 @@ function sample(): float64 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.sample",
         r#"
 function test.main.sample(): float64 {
 entry:
-    v0: float64 = call destack.clock.now(): () => float64
+    v0: float64 = call tspp.clock.now(): () => float64
     return v0
 }
 "#,
@@ -57,7 +57,7 @@ function read(value: &readonly User): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.User.constructor",
         r#"
 @nocopy
@@ -82,7 +82,7 @@ entry(v0: ref<uninit<test.main.User>, borrowed, 'a, exclusive>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 @nocopy
@@ -118,7 +118,7 @@ function run(): void {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.greet", r#"
+    session.assert_mir_function("main.tspp", "test.main.greet", r#"
 function test.main.greet(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }): void {
     local l0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }
 
@@ -133,7 +133,7 @@ entry(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }):
 /// @layout.case owner=type@3 index=1 discriminant=1 payload_offset=0
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.run", r#"
+    session.assert_mir_function("main.tspp", "test.main.run", r#"
 function test.main.run(): void {
 entry:
     v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; } = variant.new 1

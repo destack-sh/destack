@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -96,7 +96,7 @@ const reset: () => int32 = (): int32 => (current = 0);
         session.assert_diagnostics(
             r#"
 warning[no-return-assign]: return value is an assignment
- ──▶ main.ds:2:41
+ ──▶ main.tspp:2:41
   │
 1 │ let current = 1;
 2 │ const reset: () => int32 = (): int32 => (current = 0);
@@ -122,7 +122,7 @@ function reset(isActive: boolean): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-return-assign]: return value is an assignment
- ──▶ main.ds:3:23
+ ──▶ main.tspp:3:23
   │
 1 │ function reset(isActive: boolean): int32 {
 2 │     let current: int32 = 1;
@@ -148,7 +148,7 @@ const reset = () => ({ value: (current = 0) });
         session.assert_diagnostics(
             r#"
 warning[no-return-assign]: return value is an assignment
- ──▶ main.ds:2:31
+ ──▶ main.tspp:2:31
   │
 1 │ let current = 1;
 2 │ const reset = () => ({ value: (current = 0) });

@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use destack_program::Object;
+use tspp_program::Object;
 
-use destack_mir as mir;
-use destack_program::{
+use tspp_mir as mir;
+use tspp_program::{
     DispatchTableBuilder, DynamicEntry, DynamicNamedEntry, DynamicShapeBuilder, DynamicSlot,
     DynamicTableBuilder, DynamicTableId, TypeId, VirtualTableBuilder, VirtualTableId,
 };
-use destack_source::{ModuleId, PackageId};
+use tspp_source::{ModuleId, PackageId};
 
 use super::ProgramLinker;
 use crate::{LinkError, LinkResult};

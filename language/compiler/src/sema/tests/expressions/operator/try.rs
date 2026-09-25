@@ -5,7 +5,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_coalesce_ignores_unrelated_output_associated_type() {
     let session = TestSession::single(
         r#"
-import { Add } from "destack:ops";
+import { Add } from "tspp:ops";
 
 struct Token {}
 
@@ -24,11 +24,11 @@ const selected = token ?? fallback;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Add } from "destack:ops";
+import { Add } from "tspp:ops";
 
 struct Token {}
 
@@ -45,7 +45,7 @@ declare const fallback: Token;
 const selected: Token = token ?? fallback;
 
 === dir ===
-import { Add } from "destack:ops";
+import { Add } from "tspp:ops";
 
 struct Token {}
 /// @type.symbol symbol=Token source="struct Token {}" type=Token
@@ -106,7 +106,7 @@ const selected = token ?? fallback;
 fn test_coalesce_projects_try_output() {
     let session = TestSession::single(
         r#"
-import { ControlFlow, Try } from "destack:ops";
+import { ControlFlow, Try } from "tspp:ops";
 
 struct Attempt {
     value: int32;
@@ -135,11 +135,11 @@ const selected = attempt ?? 0;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { ControlFlow, Try } from "destack:ops";
+import { ControlFlow, Try } from "tspp:ops";
 
 struct Attempt {
     value: int32;
@@ -166,7 +166,7 @@ declare const attempt: Attempt;
 const selected: int32 = attempt ?? 0;
 
 === dir ===
-import { ControlFlow, Try } from "destack:ops";
+import { ControlFlow, Try } from "tspp:ops";
 
 struct Attempt {
 /// @type.symbol symbol=Attempt type=Attempt
@@ -270,7 +270,7 @@ const selected = attempt ?? 0;
 fn test_propagate_try_through_result_representations() {
     let session = TestSession::single(
         r#"
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 function passthrough(value: Result<int32, string>): Result<int32, string> {
     const total = value?;
@@ -280,9 +280,9 @@ function passthrough(value: Result<int32, string>): Result<int32, string> {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_node_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_node_types(), r#"
 === annotated ===
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 function passthrough(value: Result<int32, string>): Result<int32, string> {
     const total: int32 = value?;
@@ -291,7 +291,7 @@ function passthrough(value: Result<int32, string>): Result<int32, string> {
 }
 
 === dir ===
-import { Result } from "destack:error";
+import { Result } from "tspp:error";
 
 function passthrough(value: Result<int32, string>): Result<int32, string> {
 /// @type.symbol symbol=passthrough type=(Result<int32, string>) => Result<int32, string>
@@ -355,7 +355,7 @@ function value(maybe: int32 | undefined): int32 | undefined {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

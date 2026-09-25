@@ -1,12 +1,12 @@
 use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::tests::TestParser;
 use crate::{Parser, assert_expression_path, assert_name, assert_node, assert_path, assert_string};
-use destack_dir::{
+use tspp_dir::{
     Declaration, Expression, GenericArgument, GenericParameter, Literal, LocalNodeId,
     MappedTypeModifier, Name, NodeType, Parameter, TypeDeclaration, TypeExpression, TypeLiteral,
     TypeMember,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 /// Assert one plain type reference without generic arguments.
 fn assert_plain_type_reference(

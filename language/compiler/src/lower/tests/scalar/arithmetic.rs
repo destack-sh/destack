@@ -11,7 +11,7 @@ function add(a: int32, b: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.add",
         r#"
 function test.main.add(v0: int32, v1: int32): int32 {
@@ -41,7 +41,7 @@ function calc(a: int32, b: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.calc",
         r#"
 function test.main.calc(v0: int32, v1: int32): int32 {
@@ -79,7 +79,7 @@ function split(x: uint32, d: uint32): uint32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.split",
         r#"
 function test.main.split(v0: uint32, v1: uint32): uint32 {
@@ -113,7 +113,7 @@ function flip(x: int32): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.flip",
         r#"
 function test.main.flip(v0: int32): int32 {
@@ -140,7 +140,7 @@ function three(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.three",
         r#"
 function test.main.three(): int32 {

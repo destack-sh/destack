@@ -1,7 +1,7 @@
 use crate::{Declarator, FormatNode, Formatter, LocalNodeId};
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::*;
-use destack_fir::write;
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::*;
+use tspp_fir::write;
 
 impl<'ast> FormatNode<'ast, Declarator> for Declarator {
     fn format_node(

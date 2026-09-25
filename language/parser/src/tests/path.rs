@@ -1,28 +1,28 @@
 use crate::{TestParser, assert_path};
-use destack_dir::TokenType;
+use tspp_dir::TokenType;
 
 #[test]
 fn test_parse_simple_path_single_segment() {
-    let test = TestParser::new("destack");
+    let test = TestParser::new("tspp");
     let mut parser = test.prepare();
     let path = parser.parse_path().unwrap();
-    assert_path!(parser, path, "destack");
+    assert_path!(parser, path, "tspp");
 }
 
 #[test]
 fn test_parse_simple_path_multiple_segments() {
-    let test = TestParser::new("destack.geometry.math");
+    let test = TestParser::new("tspp.geometry.math");
     let mut parser = test.prepare();
     let path = parser.parse_path().unwrap();
-    assert_path!(parser, path, "destack.geometry.math");
+    assert_path!(parser, path, "tspp.geometry.math");
 }
 
 #[test]
 fn test_parse_simple_path_multiple_segments_with_newline() {
-    let test = TestParser::new("destack\n.geometry\n.math\n");
+    let test = TestParser::new("tspp\n.geometry\n.math\n");
     let mut parser = test.prepare();
     let path = parser.parse_path().unwrap();
-    assert_path!(parser, path, "destack.geometry.math");
+    assert_path!(parser, path, "tspp.geometry.math");
 }
 
 #[test]

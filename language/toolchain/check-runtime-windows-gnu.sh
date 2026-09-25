@@ -45,6 +45,6 @@ run_windows_gnu_command() {
 		"$@"
 }
 
-run_windows_gnu_command cargo check -p destack_runtime --target x86_64-pc-windows-gnu
-run_windows_gnu_command cargo clippy -p destack_runtime --target x86_64-pc-windows-gnu --no-deps -- -D warnings
-run_windows_gnu_command cargo test -p destack_runtime --target x86_64-pc-windows-gnu --no-run
+run_windows_gnu_command cargo check -p tspp_runtime --target x86_64-pc-windows-gnu
+run_windows_gnu_command cargo clippy -p tspp_runtime --target x86_64-pc-windows-gnu --no-deps -- -D warnings
+run_windows_gnu_command cargo test -p tspp_runtime --target x86_64-pc-windows-gnu --no-run

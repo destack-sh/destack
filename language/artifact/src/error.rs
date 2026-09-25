@@ -1,6 +1,6 @@
 use std::{error, fmt};
 
-use destack_serde as serde;
+use tspp_serde as serde;
 
 /// An invalid artifact result or payload representation.
 #[derive(Debug, Clone, PartialEq, Eq)]

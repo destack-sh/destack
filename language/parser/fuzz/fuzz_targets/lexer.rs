@@ -2,8 +2,8 @@
 
 use std::sync::Arc;
 
-use destack_parser::Lexer;
-use destack_source::{File, FileId, FileType, Uri};
+use tspp_parser::Lexer;
+use tspp_source::{File, FileId, FileType, Uri};
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
@@ -12,14 +12,14 @@ fuzz_target!(|data: &[u8]| {
     };
 
     // tokenize the input
-    let file_id = FileId::from_logical_str("fuzz.ds");
+    let file_id = FileId::from_logical_str("fuzz.tspp");
     let file = Arc::new(
         File::from_text(
             file_id,
-            "fuzz.ds".to_string(),
-            Uri::from_string("fuzz.ds"),
+            "fuzz.tspp".to_string(),
+            Uri::from_string("fuzz.tspp"),
             None,
-            FileType::Destack,
+            FileType::Tspp,
             input.to_string(),
         )
         .expect("fuzz source should load"),

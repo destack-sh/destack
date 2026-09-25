@@ -1,9 +1,9 @@
 use std::path::{Component, Path, PathBuf};
 
-use destack_artifact::PackageDependency;
-use destack_core::closest_string;
-use destack_dir as dir;
-use destack_source::{Loader, ModuleId, ModuleSpecifier, PackageId, Uri};
+use tspp_artifact::PackageDependency;
+use tspp_core::closest_string;
+use tspp_dir as dir;
+use tspp_source::{Loader, ModuleId, ModuleSpecifier, PackageId, Uri};
 
 use crate::import::ModulePathOutcome;
 use crate::{

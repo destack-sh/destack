@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use destack_core::{Optional, StringId};
-use destack_mir as mir;
-use destack_program::{
+use tspp_core::{Optional, StringId};
+use tspp_mir as mir;
+use tspp_program::{
     AllocationSite, AllocationSiteId, CallDispatch, CallMode, CallSite, CounterId, CounterSite,
     EdgeSite, MemoryAccess, MemorySite, Object, ProgramPoint, SampleSite, SamplerId,
     SiteTableBuilder, object,
 };
-use destack_source::{ModuleId, PackageId};
+use tspp_source::{ModuleId, PackageId};
 
 use super::ProgramLinker;
 use crate::{LinkError, LinkResult};

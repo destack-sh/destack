@@ -8,11 +8,11 @@ Operator wrapping fixtures cover ternaries, binary chains, mixed precedence, and
 
 Ternary branches containing function calls.
 
-```ds line-width=50
+```tspp line-width=50
 const result = isValid ? processSuccess(data) : handleFailure(error)
 ```
 
-```ds expected
+```tspp expected
 const result = isValid
     ? processSuccess(data)
     : handleFailure(error);
@@ -22,11 +22,11 @@ const result = isValid
 
 Object literals in ternary branches.
 
-```ds line-width=40
+```tspp line-width=40
 const config = isDev ? { debug: true, log: "verbose" } : { debug: false }
 ```
 
-```ds expected
+```tspp expected
 const config = isDev
     ? { debug: true, log: "verbose" }
     : { debug: false };
@@ -36,11 +36,11 @@ const config = isDev
 
 Ternary expressions as function arguments.
 
-```ds
+```tspp
 render(loading ? <Spinner /> : <Content data={data} />)
 ```
 
-```ds expected
+```tspp expected
 render(loading ? <Spinner /> : <Content data={data} />);
 ```
 
@@ -50,11 +50,11 @@ render(loading ? <Spinner /> : <Content data={data} />);
 
 Operators at the same precedence level flatten together when they don't fit.
 
-```ds line-width=20
+```tspp line-width=20
 const x = a + b + c + d + e
 ```
 
-```ds expected
+```tspp expected
 const x = a
     + b
     + c
@@ -66,11 +66,11 @@ const x = a
 
 Logical operators with function call operands.
 
-```ds line-width=40
+```tspp line-width=40
 const valid = isActive() && hasPermission() && !isBlocked()
 ```
 
-```ds expected
+```tspp expected
 const valid = isActive()
     && hasPermission()
     && !isBlocked();
@@ -80,11 +80,11 @@ const valid = isActive()
 
 Comparison expressions format cleanly.
 
-```ds
+```tspp
 const inRange = value >= min && value <= max
 ```
 
-```ds expected
+```tspp expected
 const inRange = value >= min && value <= max;
 ```
 
@@ -94,11 +94,11 @@ const inRange = value >= min && value <= max;
 
 Mixed arithmetic operators respect precedence.
 
-```ds
+```tspp
 const x = a + b * c - d / e
 ```
 
-```ds expected
+```tspp expected
 const x = a + b * c - d / e;
 ```
 
@@ -106,11 +106,11 @@ const x = a + b * c - d / e;
 
 Logical operators with comparisons.
 
-```ds
+```tspp
 const valid = x > 0 && x < 100 || y === 0
 ```
 
-```ds expected
+```tspp expected
 const valid = (x > 0 && x < 100) || y === 0;
 ```
 
@@ -118,11 +118,11 @@ const valid = (x > 0 && x < 100) || y === 0;
 
 Long expressions with mixed operators break appropriately.
 
-```ds line-width=30
+```tspp line-width=30
 const x = veryLongA + veryLongB * veryLongC
 ```
 
-```ds expected
+```tspp expected
 const x = veryLongA
     + veryLongB * veryLongC;
 ```
@@ -133,11 +133,11 @@ const x = veryLongA
 
 Optional chaining combined with nullish coalescing.
 
-```ds
+```tspp
 const name = user?.profile?.name ?? "Anonymous"
 ```
 
-```ds expected
+```tspp expected
 const name = user?.profile?.name ?? "Anonymous";
 ```
 
@@ -145,11 +145,11 @@ const name = user?.profile?.name ?? "Anonymous";
 
 Optional chaining with method invocation.
 
-```ds
+```tspp
 const result = obj?.method?.(arg1, arg2)
 ```
 
-```ds expected
+```tspp expected
 const result = obj?.method?.(arg1, arg2);
 ```
 
@@ -157,11 +157,11 @@ const result = obj?.method?.(arg1, arg2);
 
 Multiple optional accesses and calls.
 
-```ds
+```tspp
 data?.items?.[0]?.value?.toString()
 ```
 
-```ds expected
+```tspp expected
 data?.items?.[0]?.value?.toString();
 ```
 
@@ -171,11 +171,11 @@ data?.items?.[0]?.value?.toString();
 
 Long chain of additions.
 
-```ds line-width=30
+```tspp line-width=30
 const sum = a + b + c + d + e + f + g
 ```
 
-```ds expected
+```tspp expected
 const sum = a
     + b
     + c
@@ -189,11 +189,11 @@ const sum = a
 
 Chain of mixed && and || operators.
 
-```ds line-width=40
+```tspp line-width=40
 const ok = a && b || c && d || e && f
 ```
 
-```ds expected
+```tspp expected
 const ok = (a && b)
     || (c && d)
     || (e && f);
@@ -203,11 +203,11 @@ const ok = (a && b)
 
 Multiple nullish coalescing operators.
 
-```ds line-width=50
+```tspp line-width=50
 const value = first ?? second ?? third ?? fourth ?? fallback
 ```
 
-```ds expected
+```tspp expected
 const value = first
     ?? second
     ?? third
@@ -219,11 +219,11 @@ const value = first
 
 Comparison operators combined with logical.
 
-```ds line-width=35
+```tspp line-width=35
 const inBounds = x >= 0 && x < width && y >= 0 && y < height
 ```
 
-```ds expected
+```tspp expected
 const inBounds = x >= 0
     && x < width
     && y >= 0

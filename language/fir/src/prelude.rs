@@ -14,6 +14,6 @@ pub use crate::format::formatter::Formatter;
 pub use crate::format::options::FormatOptions;
 pub use crate::format::tag::{FormatTag, FormatTagKind};
 pub use crate::format::{FormatElement, InstructionSlice, InstructionTape, LineMode};
-pub use destack_source::{File, Span};
+pub use tspp_source::{File, Span};
 
 pub use crate::format::{Allocator, Format, Format as _, FormatResult, SimpleFormatContext};

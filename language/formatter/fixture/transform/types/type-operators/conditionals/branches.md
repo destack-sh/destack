@@ -6,11 +6,11 @@
 
 Conditional types format with spaces around `?` and `:`.
 
-```ds
+```tspp
 type Maybe<T> = T extends string ? T | null : T
 ```
 
-```ds expected
+```tspp expected
 type Maybe<T> = T extends string ? T | null : T;
 ```
 
@@ -18,7 +18,7 @@ type Maybe<T> = T extends string ? T | null : T;
 
 Conditional type branch comments stay attached to their original branch boundaries.
 
-```ds
+```tspp
 type Result<T> = T extends string // test-line
   ? // then-line
     StringValue
@@ -26,7 +26,7 @@ type Result<T> = T extends string // test-line
     OtherValue
 ```
 
-```ds expected
+```tspp expected
 type Result<T> = T extends string // test-line
     ? // then-line
       StringValue
@@ -38,11 +38,11 @@ type Result<T> = T extends string // test-line
 
 Tuple inference and function types compose inside conditional branches.
 
-```ds line-width=80
+```tspp line-width=80
 type ExtractRoute<T> = T extends (infer Head, ...infer Tail) ? (value: Head) => Tail[number] : never
 ```
 
-```ds expected
+```tspp expected
 type ExtractRoute<T> = T extends (infer Head, ...infer Tail)
     ? (value: Head) => Tail[number]
     : never;
@@ -52,11 +52,11 @@ type ExtractRoute<T> = T extends (infer Head, ...infer Tail)
 
 Ownership references inside tuple branches keep their operator grouping.
 
-```ds line-width=80
+```tspp line-width=80
 type BorrowedPair<T> = T extends (infer Left, infer Right) ? (&Left, &readonly Right) : never
 ```
 
-```ds expected
+```tspp expected
 type BorrowedPair<T> = T extends (infer Left, infer Right)
     ? (&Left, &readonly Right)
     : never;
@@ -66,11 +66,11 @@ type BorrowedPair<T> = T extends (infer Left, infer Right)
 
 Comments inside ownership-heavy conditional branches stay attached to their branch operands.
 
-```ds line-width=80
+```tspp line-width=80
 type BorrowedPair<T> = T extends (infer Left, infer Right) ? (& /* left */ Left, &readonly /* right */ Right) : ^ /* moved */ T
 ```
 
-```ds expected
+```tspp expected
 type BorrowedPair<T> = T extends (infer Left, infer Right)
     ? (&(/* left */ Left), &readonly (/* right */ Right))
     : ^(/* moved */ T);

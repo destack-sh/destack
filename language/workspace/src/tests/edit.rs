@@ -1,6 +1,6 @@
-use destack_core::Blob;
-use destack_repository::TraceLevel;
-use destack_source::{Edit, FileSystem};
+use tspp_core::Blob;
+use tspp_repository::TraceLevel;
+use tspp_source::{Edit, FileSystem};
 
 use crate::tests::harness::TestWorkspace;
 use crate::{Error, FileSelection};
@@ -10,7 +10,7 @@ use crate::{Error, FileSelection};
 fn test_edit_removes_file() {
     let test = TestWorkspace::new("workspace-remove-file");
     let source = "export const value = 1;\n";
-    let path = test.write_text("main.ds", source);
+    let path = test.write_text("main.tspp", source);
     test.apply_text(&path, source);
     let base = test.workspace.revision().expect("read physical revision");
 
@@ -21,7 +21,7 @@ fn test_edit_removes_file() {
 
     assert_eq!(
         commit.changes,
-        vec![TestWorkspace::change("main.ds", Some(source), None)]
+        vec![TestWorkspace::change("main.tspp", Some(source), None)]
     );
     assert!(!test.fs.exists(&path).expect("inspect removed file"));
 }
@@ -31,8 +31,8 @@ fn test_edit_removes_file() {
 fn test_edit_config_stays_direct() {
     let test = TestWorkspace::new("workspace-config-fanout");
     let config = test.write_text("destack.json", "{ \"name\": \"test\", \"compiler\": {} }\n");
-    let module_a = test.write_text("a.ds", "export const a = ;\n");
-    let module_b = test.write_text("b.ds", "export const b = ;\n");
+    let module_a = test.write_text("a.tspp", "export const a = ;\n");
+    let module_b = test.write_text("b.tspp", "export const b = ;\n");
     test.apply_text(&module_a, "export const a = ;\n");
     test.apply_text(&module_b, "export const b = ;\n");
     test.apply_text(&config, "{ \"name\": \"test\", \"compiler\": {} }\n");
@@ -54,8 +54,8 @@ fn test_edit_config_stays_direct() {
 #[test]
 fn test_edit_save_and_restore_branch() {
     let test = TestWorkspace::new("workspace-branch-save-restore");
-    let first = test.write_text("first.ds", "export const first = 1;\n");
-    let second = test.write_text("second.ds", "export const second = 1;\n");
+    let first = test.write_text("first.tspp", "export const first = 1;\n");
+    let second = test.write_text("second.tspp", "export const second = 1;\n");
     test.apply_text(&first, "export const first = 1;\n");
     test.apply_text(&second, "export const second = 1;\n");
     let physical = test.workspace.revision().expect("read physical revision");
@@ -140,7 +140,7 @@ fn test_edit_save_and_restore_branch() {
 #[test]
 fn test_edit_rejects_stale_revision() {
     let test = TestWorkspace::new("workspace-stale-write");
-    let path = test.write_text("main.ds", "export const value = 1;\n");
+    let path = test.write_text("main.tspp", "export const value = 1;\n");
     test.apply_text(&path, "export const value = 1;\n");
     let stale = test.workspace.revision().expect("read stale revision");
     test.apply_text(&path, "export const value = 2;\n");
@@ -174,7 +174,7 @@ fn test_edit_rejects_changed_physical_file() {
     let test = TestWorkspace::new("workspace-changed-physical-file");
     let before = "export const value = 1;\n";
     let changed = "export const value = 2;\n";
-    let path = test.write_text("main.ds", before);
+    let path = test.write_text("main.tspp", before);
     test.apply_text(&path, before);
     let physical = test.workspace.revision().expect("read physical revision");
     test.fs
@@ -229,7 +229,7 @@ fn test_edit_rejects_escaping_path() {
             &branch,
             physical,
             vec![Edit::SetText {
-                path: "../outside.ds".into(),
+                path: "../outside.tspp".into(),
                 text: "export const escaped = true;\n".to_string(),
             }],
             trace.as_ref(),
@@ -245,11 +245,11 @@ fn test_edit_restores_failed_batch() {
     let failed_source = "export const value = 4;\n";
     let test = TestWorkspace::new_with_write_failure(
         "workspace-write-failure",
-        "second.ds",
+        "second.tspp",
         failed_source,
     );
-    let first = test.write_text("first.ds", "export const value = 1;\n");
-    let second = test.write_text("second.ds", "export const value = 2;\n");
+    let first = test.write_text("first.tspp", "export const value = 1;\n");
+    let second = test.write_text("second.tspp", "export const value = 2;\n");
     test.apply_text(&first, "export const value = 1;\n");
     test.apply_text(&second, "export const value = 2;\n");
     let before = test.workspace.revision().expect("read physical revision");

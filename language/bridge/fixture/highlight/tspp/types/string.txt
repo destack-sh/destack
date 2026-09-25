@@ -1,0 +1,23 @@
+// SYNTAX TEST "source.tspp"
+
+// types / string / literals
+const text = "héllo";
+// <- keyword.declaration.variable.tspp
+//           ^^^^^^^ string.quoted.double.tspp
+
+// types / string / chars
+const initial: char = 'D';
+//             ^^^^ support.type.builtin.tspp
+//                    ^^^ constant.character.tspp
+
+// types / string / code point iteration
+for (const c of text) {
+// <- keyword.control.loop.tspp
+    c satisfies char;
+}
+
+// types / string / views
+const units = text.units();
+//                 ^^^^^ entity.name.function.call.tspp
+const bytes = text.bytes();
+//                 ^^^^^ entity.name.function.call.tspp

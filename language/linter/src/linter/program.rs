@@ -1,15 +1,15 @@
 use std::sync::Arc;
 
-use destack_artifact::{
+use tspp_artifact::{
     ArtifactDependencySet, ArtifactKey, ArtifactPayload, ArtifactProjectionKey,
     DiagnosticControlIndex, DirChecked, EnvironmentBound, ModuleGraph, ProgramLinted,
 };
-use destack_core::FxIndexSet;
-use destack_repository::{
+use tspp_core::FxIndexSet;
+use tspp_repository::{
     ArtifactReader, Package, Profile, ProfileId, ProviderContext, ProviderError, Repository,
     Revision,
 };
-use destack_source::{ModuleId, TargetId};
+use tspp_source::{ModuleId, TargetId};
 
 use super::{DirProgram, LintScope, LintSet, Linter, MirProgram};
 

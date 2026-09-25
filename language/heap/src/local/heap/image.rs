@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_memory::MemoryMap;
 use serde::{Deserialize, Serialize};
+use tspp_memory::MemoryMap;
 
 use super::Heap;
 use crate::local::storage::{HeapStorage, HeapStorageImage};

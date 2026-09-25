@@ -1,7 +1,7 @@
-use destack_bytecode::{CodeOffset, Instruction, Opcode, ReferenceType, RegisterId, Space};
-use destack_heap::{HeapEdge, HeapReference, Release, SharedHeapReference};
-use destack_mir as mir;
-use destack_program::{FunctionId, Runtime, Word};
+use tspp_bytecode::{CodeOffset, Instruction, Opcode, ReferenceType, RegisterId, Space};
+use tspp_heap::{HeapEdge, HeapReference, Release, SharedHeapReference};
+use tspp_mir as mir;
+use tspp_program::{FunctionId, Runtime, Word};
 
 use crate::diagnostic::{Error, ExecutionResult, Result};
 use crate::machine::{Activation, Released, Return};

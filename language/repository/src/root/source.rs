@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use destack_source::FileSystem;
+use tspp_source::FileSystem;
 
 use crate::{DestackFile, RepositoryError};
 

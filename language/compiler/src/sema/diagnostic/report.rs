@@ -1,7 +1,7 @@
-use destack_artifact::{DiagnosticBuilder, DiagnosticControl};
-use destack_core::{FxIndexSet, NameMatch};
-use destack_dir as dir;
-use destack_source::{
+use tspp_artifact::{DiagnosticBuilder, DiagnosticControl};
+use tspp_core::{FxIndexSet, NameMatch};
+use tspp_dir as dir;
+use tspp_source::{
     Applicability, DiagnosticSuggestion, FilePatch, ModuleId, Patch, PatchSet, Span,
 };
 

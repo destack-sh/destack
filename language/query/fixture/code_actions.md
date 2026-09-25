@@ -5,12 +5,12 @@
 
 Valid code has no applicable action.
 
-```ds main.ds
+```tspp main.tspp
 const value = 42;
       ^^^^^ range
 ```
 
-```query code_actions main.ds#range
+```query code_actions main.tspp#range
 @code_actions.none
 ```
 
@@ -20,11 +20,11 @@ const value = 42;
 
 An unresolved exported name offers an import action.
 
-```ds library.ds
+```tspp library.tspp
 export function greet(): void {}
 ```
 
-```ds main.ds
+```tspp main.tspp
 
 ^ insertion
 function main(): void {
@@ -33,21 +33,21 @@ function main(): void {
 }
 ```
 
-```query code_actions main.ds#range
-diagnostic unresolved-reference main.ds#range
+```query code_actions main.tspp#range
+diagnostic unresolved-reference main.tspp#range
 @code_actions.action index=0 title="Import greet from \"./library\"" kind=quick_fix applicability=automatic preferred=true
-@code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
-@code_actions.patch action=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
+@code_actions.diagnostic action=0 id=unresolved-reference location=main.tspp#range
+@code_actions.patch action=0 range=main.tspp#insertion text="import { greet } from \"./library\";\n"
 ```
 
-```query code_actions main.ds#range only=quick_fix
-diagnostic unresolved-reference main.ds#range
+```query code_actions main.tspp#range only=quick_fix
+diagnostic unresolved-reference main.tspp#range
 @code_actions.action index=0 title="Import greet from \"./library\"" kind=quick_fix applicability=automatic preferred=true
-@code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
-@code_actions.patch action=0 range=main.ds#insertion text="import { greet } from \"./library\";\n"
+@code_actions.diagnostic action=0 id=unresolved-reference location=main.tspp#range
+@code_actions.patch action=0 range=main.tspp#insertion text="import { greet } from \"./library\";\n"
 ```
 
-```query code_actions main.ds#range only=quick_fix
+```query code_actions main.tspp#range only=quick_fix
 diagnostics none
 @code_actions.none
 ```
@@ -56,68 +56,68 @@ diagnostics none
 
 A missing type reference offers every addressable declaration with the nearer source first.
 
-```ds library.ds
+```tspp library.tspp
 export type Options = {
     enabled: boolean,
 };
 ```
 
-```ds main.ds
+```tspp main.tspp
 
 ^ insertion
 declare const options: Options;
                        ^^^^^^^ range
 ```
 
-```query code_actions main.ds#range only=quick_fix
-diagnostic unresolved-reference main.ds#range
+```query code_actions main.tspp#range only=quick_fix
+diagnostic unresolved-reference main.tspp#range
 @code_actions.action index=0 title="Import Options from \"./library\"" kind=quick_fix applicability=automatic preferred=true
-@code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
-@code_actions.patch action=0 range=main.ds#insertion text="import { Options } from \"./library\";\n"
-@code_actions.action index=1 title="Import Options from \"destack:test\"" kind=quick_fix applicability=automatic
-@code_actions.diagnostic action=1 id=unresolved-reference location=main.ds#range
-@code_actions.patch action=1 range=main.ds#insertion text="import { Options } from \"destack:test\";\n"
+@code_actions.diagnostic action=0 id=unresolved-reference location=main.tspp#range
+@code_actions.patch action=0 range=main.tspp#insertion text="import { Options } from \"./library\";\n"
+@code_actions.action index=1 title="Import Options from \"tspp:test\"" kind=quick_fix applicability=automatic
+@code_actions.diagnostic action=1 id=unresolved-reference location=main.tspp#range
+@code_actions.patch action=1 range=main.tspp#insertion text="import { Options } from \"tspp:test\";\n"
 ```
 
 ### Return every import candidate
 
 Equal exported names produce stable actions, and only the first candidate is preferred.
 
-```ds alpha.ds
+```tspp alpha.tspp
 export function greet(): void {}
 ```
 
-```ds beta.ds
+```tspp beta.tspp
 export function greet(): void {}
 ```
 
-```ds main.ds
+```tspp main.tspp
 
 ^ insertion
 greet();
 ^^^^^ range
 ```
 
-```query code_actions main.ds#range only=quick_fix
-diagnostic unresolved-reference main.ds#range
+```query code_actions main.tspp#range only=quick_fix
+diagnostic unresolved-reference main.tspp#range
 @code_actions.action index=0 title="Import greet from \"./beta\"" kind=quick_fix applicability=automatic preferred=true
-@code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
-@code_actions.patch action=0 range=main.ds#insertion text="import { greet } from \"./beta\";\n"
+@code_actions.diagnostic action=0 id=unresolved-reference location=main.tspp#range
+@code_actions.patch action=0 range=main.tspp#insertion text="import { greet } from \"./beta\";\n"
 @code_actions.action index=1 title="Import greet from \"./alpha\"" kind=quick_fix applicability=automatic
-@code_actions.diagnostic action=1 id=unresolved-reference location=main.ds#range
-@code_actions.patch action=1 range=main.ds#insertion text="import { greet } from \"./alpha\";\n"
+@code_actions.diagnostic action=1 id=unresolved-reference location=main.tspp#range
+@code_actions.patch action=1 range=main.tspp#insertion text="import { greet } from \"./alpha\";\n"
 ```
 
 ### Extend an existing import
 
 An existing import from the target module receives the missing named specifier.
 
-```ds library.ds
+```tspp library.tspp
 export function alpha(): void {}
 export function beta(): void {}
 ```
 
-```ds main.ds
+```tspp main.tspp
 import { alpha } from "./library";
               ^ insertion
 
@@ -126,33 +126,33 @@ beta();
 ^^^^ range
 ```
 
-```query code_actions main.ds#range only=quick_fix
-diagnostic unresolved-reference main.ds#range
+```query code_actions main.tspp#range only=quick_fix
+diagnostic unresolved-reference main.tspp#range
 @code_actions.action index=0 title="Import beta from \"./library\"" kind=quick_fix applicability=automatic preferred=true
-@code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
-@code_actions.patch action=0 range=main.ds#insertion text=", beta"
+@code_actions.diagnostic action=0 id=unresolved-reference location=main.tspp#range
+@code_actions.patch action=0 range=main.tspp#insertion text=", beta"
 ```
 
 ### Import a default declaration
 
 A missing default export receives a default import.
 
-```ds library.ds
+```tspp library.tspp
 export default function greet(): void {}
 ```
 
-```ds main.ds
+```tspp main.tspp
 
 ^ insertion
 greet();
 ^^^^^ range
 ```
 
-```query code_actions main.ds#range only=quick_fix
-diagnostic unresolved-reference main.ds#range
+```query code_actions main.tspp#range only=quick_fix
+diagnostic unresolved-reference main.tspp#range
 @code_actions.action index=0 title="Import greet from \"./library\"" kind=quick_fix applicability=automatic preferred=true
-@code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
-@code_actions.patch action=0 range=main.ds#insertion text="import greet from \"./library\";\n"
+@code_actions.diagnostic action=0 id=unresolved-reference location=main.tspp#range
+@code_actions.patch action=0 range=main.tspp#insertion text="import greet from \"./library\";\n"
 ```
 
 ## Diagnostic Suggestions
@@ -161,34 +161,34 @@ diagnostic unresolved-reference main.ds#range
 
 An unambiguous case correction is safe to apply directly.
 
-```ds main.ds
+```tspp main.tspp
 const fixtureValue = 1;
 const copy = FixtureValue;
              ^^^^^^^^^^^^ range
 ```
 
-```query code_actions main.ds#range only=quick_fix
-diagnostic unresolved-reference main.ds#range
+```query code_actions main.tspp#range only=quick_fix
+diagnostic unresolved-reference main.tspp#range
 @code_actions.action index=0 title="rename to 'fixtureValue'" kind=quick_fix applicability=automatic preferred=true
-@code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
-@code_actions.patch action=0 range=main.ds#range text=fixtureValue
+@code_actions.diagnostic action=0 id=unresolved-reference location=main.tspp#range
+@code_actions.patch action=0 range=main.tspp#range text=fixtureValue
 ```
 
 ### Offer a correction that requires review
 
 A transposed name remains available without becoming the preferred action.
 
-```ds main.ds
+```tspp main.tspp
 const value = 1;
 const copy = valeu;
              ^^^^^ range
 ```
 
-```query code_actions main.ds#range only=quick_fix
-diagnostic unresolved-reference main.ds#range
+```query code_actions main.tspp#range only=quick_fix
+diagnostic unresolved-reference main.tspp#range
 @code_actions.action index=0 title="rename to 'value'" kind=quick_fix applicability=dangerous
-@code_actions.diagnostic action=0 id=unresolved-reference location=main.ds#range
-@code_actions.patch action=0 range=main.ds#range text=value
+@code_actions.diagnostic action=0 id=unresolved-reference location=main.tspp#range
+@code_actions.patch action=0 range=main.tspp#range text=value
 ```
 
 ## Extraction
@@ -197,43 +197,43 @@ diagnostic unresolved-reference main.ds#range
 
 A non-empty expression range offers its extraction edit.
 
-```ds main.ds
+```tspp main.tspp
 function total(): int32 {
     return 1 + 2;
            ^^^^^ selection
 }
 ```
 
-```query code_actions main.ds#selection only=refactor_extract
+```query code_actions main.tspp#selection only=refactor_extract
 @code_actions.action index=0 title="Extract constant" kind=refactor_extract
-@code_actions.patch action=0 range=main.ds:2:1 text="    const extracted = 1 + 2;\n"
-@code_actions.patch action=0 range=main.ds#selection text=extracted
+@code_actions.patch action=0 range=main.tspp:2:1 text="    const extracted = 1 + 2;\n"
+@code_actions.patch action=0 range=main.tspp#selection text=extracted
 ```
 
 ### Offer extraction for the current expression
 
 Code actions reflect the selected expression after each edit.
 
-```ds main.ds
+```tspp main.tspp
 const value = 42;
       ^^^^^ range
 ```
 
-```query code_actions main.ds#range only=refactor_extract
+```query code_actions main.tspp#range only=refactor_extract
 @code_actions.none
 ```
 
-```ds main.ds change
+```tspp main.tspp change
 function total(): int32 {
     return 1 + 2;
            ^^^^^ range
 }
 ```
 
-```query code_actions main.ds#range only=refactor_extract
+```query code_actions main.tspp#range only=refactor_extract
 @code_actions.action index=0 title="Extract constant" kind=refactor_extract
-@code_actions.patch action=0 range=main.ds:2:1 text="    const extracted = 1 + 2;\n"
-@code_actions.patch action=0 range=main.ds#range text=extracted
+@code_actions.patch action=0 range=main.tspp:2:1 text="    const extracted = 1 + 2;\n"
+@code_actions.patch action=0 range=main.tspp#range text=extracted
 ```
 
 ## Inline
@@ -242,17 +242,17 @@ function total(): int32 {
 
 A binding name offers the same complete edit as the inline refactoring.
 
-```ds main.ds
+```tspp main.tspp
 const offset = 10;
       ^^^^^^ target
 const total = offset + 1;
               ^^^^^^ reference
 ```
 
-```query code_actions main.ds#target only=refactor_inline
+```query code_actions main.tspp#target only=refactor_inline
 @code_actions.action index=0 title="Inline symbol" kind=refactor_inline
-@code_actions.patch action=0 range=main.ds:1:1-2:1 text=""
-@code_actions.patch action=0 range=main.ds#reference text=10
+@code_actions.patch action=0 range=main.tspp:1:1-2:1 text=""
+@code_actions.patch action=0 range=main.tspp#reference text=10
 ```
 
 ## Filtering
@@ -261,17 +261,17 @@ const total = offset + 1;
 
 Several requested kinds return every matching action in stable kind order.
 
-```ds main.ds
+```tspp main.tspp
 const offset = 10;
 const total = offset + 1;
               ^^^^^^ target
 ```
 
-```query code_actions main.ds#target only=refactor_extract,refactor_inline
+```query code_actions main.tspp#target only=refactor_extract,refactor_inline
 @code_actions.action index=0 title="Extract constant" kind=refactor_extract
-@code_actions.patch action=0 range=main.ds:2:1 text="const extracted = offset;\n"
-@code_actions.patch action=0 range=main.ds#target text=extracted
+@code_actions.patch action=0 range=main.tspp:2:1 text="const extracted = offset;\n"
+@code_actions.patch action=0 range=main.tspp#target text=extracted
 @code_actions.action index=1 title="Inline symbol" kind=refactor_inline
-@code_actions.patch action=1 range=main.ds:1:1-2:1 text=""
-@code_actions.patch action=1 range=main.ds#target text=10
+@code_actions.patch action=1 range=main.tspp:1:1-2:1 text=""
+@code_actions.patch action=1 range=main.tspp#target text=10
 ```

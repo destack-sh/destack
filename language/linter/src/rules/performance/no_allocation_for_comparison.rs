@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -16,14 +16,14 @@ Instead, you SHOULD compare the borrowed and owned representations directly.
 "#,
         example: {
             reported: r#"
-import { StringSlice } from "destack:string";
+import { StringSlice } from "tspp:string";
 
 function matches(value: &immutable StringSlice, expected: string): boolean {
     return value.toOwned() == expected;
 }
 "#,
             accepted: r#"
-import { StringSlice } from "destack:string";
+import { StringSlice } from "tspp:string";
 
 function matches(value: &immutable StringSlice, expected: string): boolean {
     return value == expected;
@@ -149,7 +149,7 @@ mod tests {
         let session = TestSession::dir(
             &NO_ALLOCATION_FOR_COMPARISON,
             r#"
-import { StringSlice } from "destack:string";
+import { StringSlice } from "tspp:string";
 
 function differs(value: string, expected: &immutable StringSlice): boolean {
     return value != expected.toOwned();
@@ -159,7 +159,7 @@ function differs(value: string, expected: &immutable StringSlice): boolean {
 
         session.assert_suggestions(
             r#"
-import { StringSlice } from "destack:string";
+import { StringSlice } from "tspp:string";
 
 function differs(value: string, expected: &immutable StringSlice): boolean {
     return value != expected;
@@ -174,7 +174,7 @@ function differs(value: string, expected: &immutable StringSlice): boolean {
         let session = TestSession::dir(
             &NO_ALLOCATION_FOR_COMPARISON,
             r#"
-import { StringSlice } from "destack:string";
+import { StringSlice } from "tspp:string";
 
 function copy(value: &immutable StringSlice): ^string {
     return value.toOwned();
@@ -216,7 +216,7 @@ function matches(value: &readonly Value, expected: Value): boolean {
         let session = TestSession::dir(
             &NO_ALLOCATION_FOR_COMPARISON,
             r#"
-import { CString, CStringSlice } from "destack:string";
+import { CString, CStringSlice } from "tspp:string";
 
 function matches(value: &immutable CStringSlice, expected: CString): boolean {
     return value.toOwned() == expected;
@@ -226,7 +226,7 @@ function matches(value: &immutable CStringSlice, expected: CString): boolean {
 
         session.assert_suggestions(
             r#"
-import { CString, CStringSlice } from "destack:string";
+import { CString, CStringSlice } from "tspp:string";
 
 function matches(value: &immutable CStringSlice, expected: CString): boolean {
     return value == expected;
@@ -241,7 +241,7 @@ function matches(value: &immutable CStringSlice, expected: CString): boolean {
         let session = TestSession::dir(
             &NO_ALLOCATION_FOR_COMPARISON,
             r#"
-import { OsString, OsStringSlice } from "destack:string";
+import { OsString, OsStringSlice } from "tspp:string";
 
 function matches(value: &immutable OsStringSlice, expected: OsString): boolean {
     return value.toOwned() == expected;
@@ -251,7 +251,7 @@ function matches(value: &immutable OsStringSlice, expected: OsString): boolean {
 
         session.assert_suggestions(
             r#"
-import { OsString, OsStringSlice } from "destack:string";
+import { OsString, OsStringSlice } from "tspp:string";
 
 function matches(value: &immutable OsStringSlice, expected: OsString): boolean {
     return value == expected;
@@ -266,7 +266,7 @@ function matches(value: &immutable OsStringSlice, expected: OsString): boolean {
         let session = TestSession::dir(
             &NO_ALLOCATION_FOR_COMPARISON,
             r#"
-import { Path, PathSlice } from "destack:fs";
+import { Path, PathSlice } from "tspp:fs";
 
 function matches(value: &immutable PathSlice, expected: Path): boolean {
     return value.toOwned() == expected;
@@ -276,7 +276,7 @@ function matches(value: &immutable PathSlice, expected: Path): boolean {
 
         session.assert_suggestions(
             r#"
-import { Path, PathSlice } from "destack:fs";
+import { Path, PathSlice } from "tspp:fs";
 
 function matches(value: &immutable PathSlice, expected: Path): boolean {
     return value == expected;

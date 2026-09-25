@@ -15,7 +15,7 @@ interface Drawable extends Named {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -70,7 +70,7 @@ interface Drawable extends Shape {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -117,7 +117,7 @@ interface Drawable extends Alias {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -164,7 +164,7 @@ interface Drawable extends Named | DrawableBase {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -217,7 +217,7 @@ interface Both extends Left, Right {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -288,7 +288,7 @@ interface Right extends Left {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -336,7 +336,7 @@ extension of Value implements Protocol {}
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===

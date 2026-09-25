@@ -5,7 +5,7 @@
 
 Signature help shows the callable and active parameter.
 
-```ds main.ds
+```tspp main.tspp
 function add(left: int32, right: int32): int32 {
     return left + right;
 }
@@ -14,7 +14,7 @@ const result = add(1, 2);
                       ^ argument
 ```
 
-```query signature_help main.ds#argument
+```query signature_help main.tspp#argument
 @signature_help.signature index=0 label="add(left: int32, right: int32): int32" active=true
 @signature_help.parameter signature=0 index=0 label="left: int32"
 @signature_help.parameter signature=0 index=1 label="right: int32" active=true
@@ -24,7 +24,7 @@ const result = add(1, 2);
 
 A cursor gap after a comma selects the next parameter.
 
-```ds main.ds
+```tspp main.tspp
 function add(left: int32, right: int32): int32 {
     return left + right;
 }
@@ -33,7 +33,7 @@ const result = add(1, );
                       ^ cursor
 ```
 
-```query signature_help main.ds#cursor
+```query signature_help main.tspp#cursor
 @signature_help.signature index=0 label="add(left: int32, right: int32): int32" active=true
 @signature_help.parameter signature=0 index=0 label="left: int32"
 @signature_help.parameter signature=0 index=1 label="right: int32" active=true
@@ -43,7 +43,7 @@ const result = add(1, );
 
 A call with no written arguments selects its first parameter.
 
-```ds main.ds
+```tspp main.tspp
 function add(left: int32, right: int32): int32 {
     return left + right;
 }
@@ -52,7 +52,7 @@ const result = add();
                    ^ cursor
 ```
 
-```query signature_help main.ds#cursor
+```query signature_help main.tspp#cursor
 @signature_help.signature index=0 label="add(left: int32, right: int32): int32" active=true
 @signature_help.parameter signature=0 index=0 label="left: int32" active=true
 @signature_help.parameter signature=0 index=1 label="right: int32"
@@ -62,14 +62,14 @@ const result = add();
 
 A callable without parameters still has signature help and no active parameter.
 
-```ds main.ds
+```tspp main.tspp
 function ping(): void {}
 
 ping();
      ^ cursor
 ```
 
-```query signature_help main.ds#cursor
+```query signature_help main.tspp#cursor
 @signature_help.signature index=0 label="ping(): void" active=true
 ```
 
@@ -77,7 +77,7 @@ ping();
 
 Every argument bound into a rest parameter selects that parameter.
 
-```ds main.ds
+```tspp main.tspp
 function sum(first: int32, ...rest: int32[]): int32 {
     return first;
 }
@@ -86,7 +86,7 @@ const result = sum(1, 2, 3);
                          ^ argument
 ```
 
-```query signature_help main.ds#argument
+```query signature_help main.tspp#argument
 @signature_help.signature index=0 label="sum(first: int32, ...rest: int32[]): int32" active=true
 @signature_help.parameter signature=0 index=0 label="first: int32"
 @signature_help.parameter signature=0 index=1 label="...rest: int32[]" active=true
@@ -96,7 +96,7 @@ const result = sum(1, 2, 3);
 
 Signature help reflects the current callable declaration.
 
-```ds main.ds
+```tspp main.tspp
 function format(value: string): string {
     return value;
 }
@@ -105,12 +105,12 @@ const result = format("ready");
                             ^ argument
 ```
 
-```query signature_help main.ds#argument
+```query signature_help main.tspp#argument
 @signature_help.signature index=0 label="format(value: string): string" active=true
 @signature_help.parameter signature=0 index=0 label="value: string" active=true
 ```
 
-```ds main.ds change
+```tspp main.tspp change
 function format(value: string, radix: int32): string {
     return value;
 }
@@ -119,7 +119,7 @@ const result = format("ready", 10);
                                 ^^ argument
 ```
 
-```query signature_help main.ds#argument
+```query signature_help main.tspp#argument
 @signature_help.signature index=0 label="format(value: string, radix: int32): string" active=true
 @signature_help.parameter signature=0 index=0 label="value: string"
 @signature_help.parameter signature=0 index=1 label="radix: int32" active=true
@@ -131,7 +131,7 @@ const result = format("ready", 10);
 
 Signature help reports the overload that accepts the arguments.
 
-```ds main.ds
+```tspp main.tspp
 function parse(value: int32): int32 {
     return value;
 }
@@ -144,7 +144,7 @@ const value = parse("one");
                     ^^^^^ argument
 ```
 
-```query signature_help main.ds#argument
+```query signature_help main.tspp#argument
 @signature_help.signature index=0 label="parse(value: string): string" active=true
 @signature_help.parameter signature=0 index=0 label="value: string" active=true
 ```
@@ -153,7 +153,7 @@ const value = parse("one");
 
 Signature help displays the callable type instantiated for the call.
 
-```ds main.ds
+```tspp main.tspp
 function identity<Value>(value: Value): Value {
     return value;
 }
@@ -163,7 +163,7 @@ const result = identity(name);
                         ^^^^ argument
 ```
 
-```query signature_help main.ds#argument
+```query signature_help main.tspp#argument
 @signature_help.signature index=0 label="identity<string>(value: string): string" active=true
 @signature_help.parameter signature=0 index=0 label="value: string" active=true
 ```
@@ -174,13 +174,13 @@ const result = identity(name);
 
 Signature help includes documentation from the declaration and its parameters.
 
-```ds main.ds
+```tspp main.tspp
 /// Add two values.
 /// @typeParam Value - The value type.
 /// @param left - The first value.
 /// @param right - The second value.
 /// @example
-/// ```ds
+/// ```tspp
 /// add(1, 2);
 /// ```
 function add<Value>(left: Value, right: Value): Value {
@@ -191,8 +191,8 @@ const result = add(1, 2);
                    ^ argument
 ```
 
-```query signature_help main.ds#argument
-@signature_help.signature index=0 label="add<int64>(left: int64, right: int64): int64" documentation="Add two values.\n\n## Type parameters\n\n- `Value`: The value type.\n\n## Examples\n\n```ds\nadd(1, 2);\n```" active=true
+```query signature_help main.tspp#argument
+@signature_help.signature index=0 label="add<int64>(left: int64, right: int64): int64" documentation="Add two values.\n\n## Type parameters\n\n- `Value`: The value type.\n\n## Examples\n\n```tspp\nadd(1, 2);\n```" active=true
 @signature_help.parameter signature=0 index=0 label="left: int64" documentation="The first value." active=true
 @signature_help.parameter signature=0 index=1 label="right: int64" documentation="The second value."
 ```
@@ -203,20 +203,20 @@ const result = add(1, 2);
 
 An imported call uses the declaration from its defining module.
 
-```ds math.ds
+```tspp math.tspp
 export function add(left: int32, right: int32): int32 {
     return left + right;
 }
 ```
 
-```ds main.ds
-import { add } from "./math.ds";
+```tspp main.tspp
+import { add } from "./math.tspp";
 
 const result = add(1, 2);
                    ^ argument
 ```
 
-```query signature_help main.ds#argument
+```query signature_help main.tspp#argument
 @signature_help.signature index=0 label="add(left: int32, right: int32): int32" active=true
 @signature_help.parameter signature=0 index=0 label="left: int32" active=true
 @signature_help.parameter signature=0 index=1 label="right: int32"
@@ -228,7 +228,7 @@ const result = add(1, 2);
 
 Method signature help uses the method declaration.
 
-```ds main.ds
+```tspp main.tspp
 class Calculator {
     add(left: int32, right: int32): int32 {
         return left + right;
@@ -241,7 +241,7 @@ function calculate(calculator: Calculator): int32 {
 }
 ```
 
-```query signature_help main.ds#argument
+```query signature_help main.tspp#argument
 @signature_help.signature index=0 label="add(left: int32, right: int32): int32" active=true
 @signature_help.parameter signature=0 index=0 label="left: int32"
 @signature_help.parameter signature=0 index=1 label="right: int32" active=true
@@ -251,7 +251,7 @@ function calculate(calculator: Calculator): int32 {
 
 Extension signature help uses the extension method declaration.
 
-```ds main.ds
+```tspp main.tspp
 struct Calculator {}
 
 extension of Calculator {
@@ -266,7 +266,7 @@ function total(calculator: Calculator): int32 {
 }
 ```
 
-```query signature_help main.ds#argument
+```query signature_help main.tspp#argument
 @signature_help.signature index=0 label="add(left: int32, right: int32): int32" active=true
 @signature_help.parameter signature=0 index=0 label="left: int32"
 @signature_help.parameter signature=0 index=1 label="right: int32" active=true
@@ -276,7 +276,7 @@ function total(calculator: Calculator): int32 {
 
 Method signature help includes documentation from the method declaration.
 
-```ds main.ds
+```tspp main.tspp
 class Calculator {
     /// Add two values.
     /// @param left - The first value.
@@ -292,7 +292,7 @@ function calculate(calculator: Calculator): int32 {
 }
 ```
 
-```query signature_help main.ds#argument
+```query signature_help main.tspp#argument
 @signature_help.signature index=0 label="add(left: int32, right: int32): int32" documentation="Add two values." active=true
 @signature_help.parameter signature=0 index=0 label="left: int32" documentation="The first value." active=true
 @signature_help.parameter signature=0 index=1 label="right: int32" documentation="The second value."
@@ -304,18 +304,18 @@ function calculate(calculator: Calculator): int32 {
 
 Namespace calls use the exported parameter names and types.
 
-```ds library.ds
+```tspp library.tspp
 export function paint(color: string, coats: int32): void {}
 ```
 
-```ds main.ds
-import * as library from "./library.ds";
+```tspp main.tspp
+import * as library from "./library.tspp";
 
 library.paint("blue", 2);
                        ^ argument
 ```
 
-```query signature_help main.ds#argument
+```query signature_help main.tspp#argument
 @signature_help.signature index=0 label="paint(color: string, coats: int32): void" active=true
 @signature_help.parameter signature=0 index=0 label="color: string"
 @signature_help.parameter signature=0 index=1 label="coats: int32" active=true
@@ -327,24 +327,24 @@ library.paint("blue", 2);
 
 Signature help follows the callable declaration through a re-export alias.
 
-```ds library.ds
+```tspp library.tspp
 export default function scale(value: int32, factor: int32): int32 {
     return value * factor;
 }
 ```
 
-```ds barrel.ds
-export { default as scale } from "./library.ds";
+```tspp barrel.tspp
+export { default as scale } from "./library.tspp";
 ```
 
-```ds main.ds
-import { scale } from "./barrel.ds";
+```tspp main.tspp
+import { scale } from "./barrel.tspp";
 
 const result = scale(2, 3);
                          ^ argument
 ```
 
-```query signature_help main.ds#argument
+```query signature_help main.tspp#argument
 @signature_help.signature index=0 label="scale(value: int32, factor: int32): int32" active=true
 @signature_help.parameter signature=0 index=0 label="value: int32"
 @signature_help.parameter signature=0 index=1 label="factor: int32" active=true
@@ -356,7 +356,7 @@ const result = scale(2, 3);
 
 Nested call lookup returns the innermost argument list.
 
-```ds main.ds
+```tspp main.tspp
 function pair(left: int32, right: int32): int32 {
     return left + right;
 }
@@ -369,7 +369,7 @@ const result = identity(pair(1, 2));
                                 ^ argument
 ```
 
-```query signature_help main.ds#argument
+```query signature_help main.tspp#argument
 @signature_help.signature index=0 label="pair(left: int32, right: int32): int32" active=true
 @signature_help.parameter signature=0 index=0 label="left: int32"
 @signature_help.parameter signature=0 index=1 label="right: int32" active=true
@@ -381,14 +381,14 @@ const result = identity(pair(1, 2));
 
 A binding with a declared function type supplies its own signature help.
 
-```ds main.ds
+```tspp main.tspp
 declare const callback: (value: string) => string;
 
 const result = callback("ready");
                         ^^^^^^^ argument
 ```
 
-```query signature_help main.ds#argument
+```query signature_help main.tspp#argument
 @signature_help.signature index=0 label="callback(value: string): string" active=true
 @signature_help.parameter signature=0 index=0 label="value: string" active=true
 ```
@@ -397,14 +397,14 @@ const result = callback("ready");
 
 A call through a function parameter shows its function type.
 
-```ds main.ds
+```tspp main.tspp
 function apply(callback: (value: string) => string): string {
     return callback("ready");
                      ^ cursor
 }
 ```
 
-```query signature_help main.ds#cursor
+```query signature_help main.tspp#cursor
 @signature_help.signature index=0 label="callback(value: string): string" active=true
 @signature_help.parameter signature=0 index=0 label="value: string" active=true
 ```
@@ -415,7 +415,7 @@ function apply(callback: (value: string) => string): string {
 
 Class construction reports its constructor parameters and nominal result.
 
-```ds main.ds
+```tspp main.tspp
 class User {
     constructor(name: string) {}
 }
@@ -424,7 +424,7 @@ const user = new User("Ada");
                       ^^^^^ argument
 ```
 
-```query signature_help main.ds#argument
+```query signature_help main.tspp#argument
 @signature_help.signature index=0 label="User(name: string): User" active=true
 @signature_help.parameter signature=0 index=0 label="name: string" active=true
 ```
@@ -433,14 +433,14 @@ const user = new User("Ada");
 
 A class without a constructor declaration reports its zero-parameter construction signature.
 
-```ds main.ds
+```tspp main.tspp
 class User {}
 
 const user = new User();
                       ^ cursor
 ```
 
-```query signature_help main.ds#cursor
+```query signature_help main.tspp#cursor
 @signature_help.signature index=0 label="User(): User" active=true
 ```
 
@@ -448,14 +448,14 @@ const user = new User();
 
 Newtype construction reports its backing argument and nominal result.
 
-```ds main.ds
+```tspp main.tspp
 newtype UserId = string;
 
 const userId = UserId("user-1");
                       ^^^^^^^^ argument
 ```
 
-```query signature_help main.ds#argument
+```query signature_help main.tspp#argument
 @signature_help.signature index=0 label="UserId(string): UserId" active=true
 @signature_help.parameter signature=0 index=0 label=string active=true
 ```
@@ -466,12 +466,12 @@ const userId = UserId("user-1");
 
 An unresolved callee has no signature.
 
-```ds main.ds
+```tspp main.tspp
 missing(1);
         ^ argument
 ```
 
-```query signature_help main.ds#argument
+```query signature_help main.tspp#argument
 @signature_help.none
 ```
 
@@ -479,7 +479,7 @@ missing(1);
 
 A callable reference outside an argument list has no signature-help result.
 
-```ds main.ds
+```tspp main.tspp
 function greet(name: string): string {
     return name;
 }
@@ -488,6 +488,6 @@ const callable = greet;
                  ^^^^^ reference
 ```
 
-```query signature_help main.ds#reference
+```query signature_help main.tspp#reference
 @signature_help.none
 ```

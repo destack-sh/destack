@@ -1,0 +1,43 @@
+================================================================================
+Cow syntax
+:language(tspp)
+================================================================================
+
+let name: Cow<string> = Cow.borrowed(source);
+let owned: Cow<string> = Cow.owned(source.clone());
+
+--------------------------------------------------------------------------------
+
+(program
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type))))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (identifier)))))
+  (lexical_declaration
+    (variable_declarator
+      (identifier)
+      (type_annotation
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type))))
+      (call_expression
+        (member_expression
+          (identifier)
+          (property_identifier))
+        (arguments
+          (call_expression
+            (member_expression
+              (identifier)
+              (property_identifier))
+            (arguments)))))))

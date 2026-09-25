@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -205,7 +205,7 @@ extension of Key implements Equal<Key> {
         session.assert_diagnostics(
             r#"
 warning[inconsistent-equality-implementation]: written equality conflicts with derived hashing
- ──▶ main.ds:6:29
+ ──▶ main.tspp:6:29
   │
 4 │ }
 5 │
@@ -239,7 +239,7 @@ extension of Key implements Equal<Key> {
         session.assert_diagnostics(
             r#"
 warning[inconsistent-equality-implementation]: written equality conflicts with derived hashing
- ──▶ main.ds:5:29
+ ──▶ main.tspp:5:29
   │
 3 │ }
 4 │
@@ -274,7 +274,7 @@ extension of Key implements Hash {
         session.assert_diagnostics(
             r#"
 warning[inconsistent-equality-implementation]: written hashing conflicts with derived equality
- ──▶ main.ds:6:29
+ ──▶ main.tspp:6:29
   │
 4 │ }
 5 │

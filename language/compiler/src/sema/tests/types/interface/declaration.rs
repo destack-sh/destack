@@ -12,7 +12,7 @@ interface User {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -55,7 +55,7 @@ extension of Value implements ForeignProtocol {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 declare interface ForeignProtocol {
     snake_name(): void;
@@ -113,7 +113,7 @@ interface Person {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -165,7 +165,7 @@ interface Serialize<S: Serializer> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -228,7 +228,7 @@ export newtype interface Table<T, Context> {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 export newtype interface Table<out T, in out Context> {
     (name: string, body?: (value: &readonly T, context: &Context) => void): void;
@@ -292,7 +292,7 @@ newtype interface Duplicate {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 newtype interface Duplicate {
     clone(&readonly this): ^this;
@@ -356,7 +356,7 @@ newtype interface Values<T> {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 newtype interface Values<out T> {
     first(this): T {

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::ProfileKey;
-use destack_source::{ModuleId, PackageId, ProfileId, TargetId};
 use im::OrdMap;
+use tspp_artifact::ProfileKey;
+use tspp_source::{ModuleId, PackageId, ProfileId, TargetId};
 
 use crate::repository::key::profile_key_for_target;
 use crate::{

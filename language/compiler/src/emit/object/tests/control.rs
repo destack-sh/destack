@@ -1,6 +1,6 @@
 use crate::tests::TestProgram;
-use destack_native::BlockId;
-use destack_native::abi::Trap;
+use tspp_native::BlockId;
+use tspp_native::abi::Trap;
 
 /// Transport block arguments through conditional edges.
 #[test]

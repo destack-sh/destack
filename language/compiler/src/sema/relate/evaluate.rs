@@ -2,9 +2,9 @@ use crate::CompilerResult;
 use crate::sema::{
     Cause, CauseId, CauseKind, CheckState, Cycle, InferSubstitution, Origin, Relation,
 };
-use destack_core::ensure_sufficient_stack;
-use destack_dir as dir;
 use smallvec::SmallVec;
+use tspp_core::ensure_sufficient_stack;
+use tspp_dir as dir;
 
 /// The outcome of deciding one relation, keeping ambiguity apart from failure.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

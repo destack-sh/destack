@@ -1,0 +1,133 @@
+import { Err, Ok, Result } from "tspp:error";
+import { Copy, Default } from "tspp:memory";
+import { FromResidual } from "tspp:ops";
+
+import { Poll } from "./poll.tspp";
+import { Promise } from "./promise.tspp";
+import { Task } from "./task.tspp";
+
+export extension PollResult<T, E> of Poll<Result<T, E>> implements FromResidual<Result<never, E>> {
+    /// Create an available failed result from a propagated residual.
+    static fromResidual(residual: Result<never, E>): Poll<Result<T, E>> {
+        match (residual) {
+            Ok { value } => value
+            Err { error } => Poll.ready(Result.err(error))
+        }
+    }
+}
+
+export extension TaskResult<T, E> of Task<Result<T, E>> implements FromResidual<Result<never, E>> {
+    /// Create a failed result task from a propagated residual.
+    static fromResidual(residual: Result<never, E>): Task<Result<T, E>> {
+        match (residual) {
+            Ok { value } => value
+            Err { error } => Task.resolve(Result.err(error))
+        }
+    }
+
+    /// Map the success value.
+    async map<U>(this, f: (value: T) => U): Task<Result<U, E>> {
+        const result = await this;
+
+        result.map(f)
+    }
+
+    /// Map the failure value.
+    async mapErr<F>(this, f: (error: E) => F): Task<Result<T, F>> {
+        const result = await this;
+
+        result.mapErr(f)
+    }
+
+    /// Continue with another async result-returning operation.
+    async andThen<U, F>(this, f: (value: T) => Task<Result<U, F>>): Task<Result<U, E | F>> {
+        const result = await this;
+
+        match (result) {
+            // rebuild the continuation result at the joined error type
+            Ok { value } => match (await f(value)) {
+                Ok { value } => Result.ok(value)
+                Err { error } => Result.err(error)
+            }
+            Err { error } => Result.err(error)
+        }
+    }
+
+    /// Continue with a synchronous result-returning operation.
+    async andThenSync<U, F>(this, f: (value: T) => Result<U, F>): Task<Result<U, E | F>> {
+        const result = await this;
+
+        result.andThen(f)
+    }
+
+    /// Recover from a failure with another async result.
+    async orElse<F>(this, f: (error: E) => Task<Result<T, F>>): Task<Result<T, F>> {
+        const result = await this;
+
+        match (result) {
+            Ok { value } => Result.ok(value)
+            Err { error } => await f(error)
+        }
+    }
+
+    /// Fold either result variant into one async value.
+    async match<U>(this, arms: { ok: (value: T) => U; err: (error: E) => U }): Task<U> {
+        const result = await this;
+
+        result.match(arms)
+    }
+
+    /// Run a side effect on success and keep the original result.
+    async tap(this, f: (value: &immutable T) => void): Task<Result<T, E>> {
+        const result = await this;
+
+        result.tap(f)
+    }
+
+    /// Run a side effect on failure and keep the original result.
+    async tapErr(this, f: (error: &immutable E) => void): Task<Result<T, E>> {
+        const result = await this;
+
+        result.tapErr(f)
+    }
+
+    /// Return a task for the success value or panic.
+    async unwrap(this): Task<T> {
+        const result = await this;
+
+        result.unwrap()
+    }
+
+    /// Return a task for the success value or `default`.
+    async unwrapOr(this, default: T): Task<T> {
+        const result = await this;
+
+        result.unwrapOr(default)
+    }
+
+    /// Return a task for the success value or the default value.
+    async unwrapOrDefault(this): Task<T> where T: Default {
+        const result = await this;
+
+        result.unwrapOrDefault()
+    }
+
+    /// Return a task for the success value or compute one from the error.
+    async unwrapOrElse(this, f: (error: E) => T): Task<T> {
+        const result = await this;
+
+        result.unwrapOrElse(f)
+    }
+}
+
+export extension PromiseResult<T: Copy, E: Copy> of Promise<Result<T, E>>
+    implements FromResidual<Result<never, E>>
+{
+    /// Create a failed result promise from a propagated residual.
+    static fromResidual(residual: Result<never, E>): Promise<Result<T, E>> {
+        match (residual) {
+            Ok { value } => value
+            Err { error } => Promise.resolve(Result.err(error))
+        }
+    }
+}

@@ -3,7 +3,7 @@
 #![allow(elided_lifetimes_in_paths)]
 #![allow(unreachable_pub)]
 
-pub use destack_lsp_types;
+pub use tspp_lsp_types;
 
 pub use self::server::LanguageServer;
 pub use self::service::progress::{

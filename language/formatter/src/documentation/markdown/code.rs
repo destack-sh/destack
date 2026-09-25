@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
-use destack_fir::format::FormatResult;
-use destack_source::FileType;
 use markdown::mdast::Code;
+use tspp_fir::format::FormatResult;
+use tspp_source::FileType;
 
 use super::super::embedded::{fenced_code_file_type, format_embedded_code};
 use super::super::line::LineBuffer;
@@ -15,7 +15,7 @@ impl MarkdownFormatter<'_> {
             lines.push_empty();
         }
 
-        // format known Destack code fences
+        // format known TS++ code fences
         let width = self.width.saturating_sub(4);
         let formatted = self.format_code_value(&code.value, code.lang.as_deref(), width)?;
 
@@ -44,7 +44,7 @@ impl MarkdownFormatter<'_> {
         language: Option<&str>,
         width: usize,
     ) -> FormatResult<Cow<'code, str>> {
-        // format a declared Destack language
+        // format a declared TS++ language
         let file_type = if let Some(language) = language {
             let Some(file_type) = fenced_code_file_type(language) else {
                 return Ok(Cow::Borrowed(code));

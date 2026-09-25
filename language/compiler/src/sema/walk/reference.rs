@@ -1,5 +1,5 @@
-use destack_dir as dir;
 use smallvec::smallvec;
+use tspp_dir as dir;
 
 use crate::sema::WalkState;
 use crate::{CompilerError, CompilerResult};
@@ -8,7 +8,7 @@ impl WalkState<'_, '_> {
     /// Walk one identifier expression.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// value
     /// ```
     pub(in crate::sema) fn walk_identifier_expression(
@@ -175,7 +175,7 @@ impl WalkState<'_, '_> {
     /// Walk one explicit instantiation expression.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// value<T>
     /// ```
     pub(in crate::sema) fn walk_instantiation_expression(

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_memory::MemoryMap;
-use destack_program::GlobalAddress;
-use destack_source::{ModuleId, PackageId};
+use tspp_memory::MemoryMap;
+use tspp_program::GlobalAddress;
+use tspp_source::{ModuleId, PackageId};
 
 use crate::ProgramLinker;
 use crate::link::tests::TestModule;

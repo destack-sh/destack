@@ -1,4 +1,4 @@
-use destack_repository::{TraceReport, TraceSnapshot};
+use tspp_repository::{TraceReport, TraceSnapshot};
 
 use super::{
     Cell, TestSession, TextTable, TraceCounts, artifact_counter, millis, stage_micros, time_micros,
@@ -54,7 +54,7 @@ impl ModuleGraph {
     fn edit_path(self) -> String {
         let module = self.edited_module();
 
-        format!("src/module-{module}.ds")
+        format!("src/module-{module}.tspp")
     }
 
     /// Return the module edited after the cold check.
@@ -127,7 +127,7 @@ fn generated_module_graph(graph: ModuleGraph) -> Vec<(String, String)> {
 
     for module in 0..graph.modules {
         files.push((
-            format!("src/module-{module}.ds"),
+            format!("src/module-{module}.tspp"),
             generated_module_source(graph, module, 1),
         ));
     }
@@ -237,13 +237,13 @@ fn test_measure_check_after_single_module_edit() {
         let test = TestSession::open_with_workers(&files, worker_count).unwrap();
         let edit_path = graph.edit_path();
 
-        let (_cold, cold_trace) = test.check("src/module-0.ds", "js");
+        let (_cold, cold_trace) = test.check("src/module-0.tspp", "js");
         let cold = CheckMeasurement::from_trace(&cold_trace);
 
         let edited_source = generated_module_source(graph, graph.edited_module(), 2);
         test.edit_text(&edit_path, &edited_source);
 
-        let (_edited, edited_trace) = test.check("src/module-0.ds", "js");
+        let (_edited, edited_trace) = test.check("src/module-0.tspp", "js");
         let edited = CheckMeasurement::from_trace(&edited_trace);
 
         // a body edit preserves the graph without rebuilding it
@@ -300,11 +300,11 @@ fn measure_component_graph_edit(graph: ModuleGraph, edited_source: String) -> Ch
         .collect::<Vec<_>>();
     let test = TestSession::open(&files).unwrap();
 
-    let (_cold, _cold_trace) = test.check("src/module-0.ds", "js");
+    let (_cold, _cold_trace) = test.check("src/module-0.tspp", "js");
 
     test.edit_text(&graph.edit_path(), &edited_source);
 
-    let (_edited, edited_trace) = test.check("src/module-0.ds", "js");
+    let (_edited, edited_trace) = test.check("src/module-0.tspp", "js");
 
     CheckMeasurement::from_trace(&edited_trace)
 }
@@ -376,25 +376,25 @@ fn test_check_rebuilds_import_chain_after_dependency_edit() {
 "#,
         ),
         (
-            "src/index.ds",
+            "src/index.tspp",
             r#"import { value } from "./dep";
 
 export const result = value;
 "#,
         ),
         (
-            "src/dep.ds",
+            "src/dep.tspp",
             r#"export const value = 1;
 "#,
         ),
     ])
     .unwrap();
 
-    let (cold, cold_trace) = test.check("src/index.ds", "js");
+    let (cold, cold_trace) = test.check("src/index.tspp", "js");
     assert_eq!(cold_trace.stats.memory_cached, 0);
     assert_eq!(cold_trace.stats.failed, 0);
 
-    let (warm, warm_trace) = test.check("src/index.ds", "js");
+    let (warm, warm_trace) = test.check("src/index.tspp", "js");
     assert_eq!(warm, cold);
     assert_eq!(TraceCounts::from_trace(&warm_trace), TraceCounts::default());
 
@@ -408,8 +408,8 @@ export const result = value;
 /// The dependency value.
 "#,
     ] {
-        test.edit_text("src/dep.ds", content);
-        let (current, trace) = test.check("src/index.ds", "js");
+        test.edit_text("src/dep.tspp", content);
+        let (current, trace) = test.check("src/index.tspp", "js");
         assert_ne!(current, previous);
         previous = current;
 
@@ -430,15 +430,15 @@ export const result = value;
         assert_eq!(
             artifacts,
             [
-                ("built", "dir.bind", Some("file://src/dep.ds")),
-                ("built", "dir.check", Some("file://src/index.ds")),
-                ("built", "dir.declare", Some("file://src/dep.ds")),
-                ("built", "dir.elaborate", Some("file://src/dep.ds")),
-                ("built", "dir.expand", Some("file://src/dep.ds")),
-                ("built", "dir.export", Some("file://src/dep.ds")),
-                ("built", "dir.import", Some("file://src/dep.ds")),
-                ("built", "dir.parse", Some("file://src/dep.ds")),
-                ("built", "dir.resolve", Some("file://src/dep.ds")),
+                ("built", "dir.bind", Some("file://src/dep.tspp")),
+                ("built", "dir.check", Some("file://src/index.tspp")),
+                ("built", "dir.declare", Some("file://src/dep.tspp")),
+                ("built", "dir.elaborate", Some("file://src/dep.tspp")),
+                ("built", "dir.expand", Some("file://src/dep.tspp")),
+                ("built", "dir.export", Some("file://src/dep.tspp")),
+                ("built", "dir.import", Some("file://src/dep.tspp")),
+                ("built", "dir.parse", Some("file://src/dep.tspp")),
+                ("built", "dir.resolve", Some("file://src/dep.tspp")),
             ],
         );
     }
@@ -455,29 +455,29 @@ fn test_check_keeps_unrelated_module_current_after_single_edit() {
 "#,
         ),
         (
-            "src/left.ds",
+            "src/left.tspp",
             r#"export const left = 1;
 "#,
         ),
         (
-            "src/right.ds",
+            "src/right.tspp",
             r#"export const right = 1;
 "#,
         ),
     ])
     .unwrap();
 
-    let (left, _) = test.check("src/left.ds", "js");
-    let (right, _) = test.check("src/right.ds", "js");
+    let (left, _) = test.check("src/left.tspp", "js");
+    let (right, _) = test.check("src/right.tspp", "js");
 
     test.edit_text(
-        "src/right.ds",
+        "src/right.tspp",
         r#"export const right = 2;
 "#,
     );
 
-    let (edited_left, left_trace) = test.check("src/left.ds", "js");
-    let (edited_right, right_trace) = test.check("src/right.ds", "js");
+    let (edited_left, left_trace) = test.check("src/left.tspp", "js");
+    let (edited_right, right_trace) = test.check("src/right.tspp", "js");
 
     assert_eq!(edited_left, left);
     assert_ne!(edited_right, right);

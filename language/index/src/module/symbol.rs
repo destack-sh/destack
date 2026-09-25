@@ -1,8 +1,8 @@
-use destack_artifact::DirView;
-use destack_core::StringPool;
-use destack_dir as dir;
-use destack_repository::{ProviderError, ProviderResult};
-use destack_source::{ModuleId, SourceIndex};
+use tspp_artifact::DirView;
+use tspp_core::StringPool;
+use tspp_dir as dir;
+use tspp_repository::{ProviderError, ProviderResult};
+use tspp_source::{ModuleId, SourceIndex};
 
 /// Builder for one module symbol index.
 pub(crate) struct SymbolIndexer<'a> {

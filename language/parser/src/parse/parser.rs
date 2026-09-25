@@ -1,15 +1,15 @@
 use crate::{CommentRetention, ParserError, ParserResult, PatternMarker};
 use core::fmt::{self, Debug};
-use destack_core::{LocalStringPool, StringId, ensure_sufficient_stack};
-use destack_dir::{
+use std::sync::Arc;
+use tspp_core::{LocalStringPool, StringId, ensure_sufficient_stack};
+use tspp_dir::{
     BlockContext, BlockForm, Comment, Expression, Keyword, LocalNodeId, Node, NodeType, Token,
     TokenLiteral, TokenSpan, TokenType, Tree, TreeCapacity, TreeStore,
 };
-use destack_source::{
+use tspp_source::{
     ByteRange, Diagnostic, DiagnosticCollection, File, FileId, LanguageType, NodeSpanBoundary,
     NodeSpanRegion, NodeSpanType, Span,
 };
-use std::sync::Arc;
 
 use super::cursor::TokenCursor;
 use super::{FunctionKeywords, TokenMode};
@@ -22,7 +22,7 @@ const MAX_RECURSIVE_DESCENT_DEPTH: u16 = 2048;
 /// The form of one parsed source file.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum SourceForm {
-    /// A Destack program.
+    /// A TS++ program.
     #[default]
     Program,
     /// A structural pattern.
@@ -514,7 +514,7 @@ impl Parser {
     /// Parse root expressions as an implicit namespace.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// const answer = 42;
     /// export function read() -> int { return answer; }
     /// ```

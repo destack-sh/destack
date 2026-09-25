@@ -5,7 +5,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_reject_copy_bound_for_inline_drop_struct() {
     let session = TestSession::single(
         r#"
-import { Copy, Drop } from "destack:memory";
+import { Copy, Drop } from "tspp:memory";
 
 struct Guard implements Drop {
     drop(&this): void {}
@@ -19,11 +19,11 @@ duplicate(guard);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Copy, Drop } from "destack:memory";
+import { Copy, Drop } from "tspp:memory";
 
 struct Guard implements Drop {
     drop(&this): void {}
@@ -35,7 +35,7 @@ declare const guard: Guard;
 duplicate<Guard>(guard);
 
 === dir ===
-import { Copy, Drop } from "destack:memory";
+import { Copy, Drop } from "tspp:memory";
 
 struct Guard implements Drop {
 /// @type.symbol symbol=Guard type=Guard
@@ -86,7 +86,7 @@ duplicate(guard);
 fn test_reject_copy_bound_for_extension_drop_struct() {
     let session = TestSession::single(
         r#"
-import { Copy, Drop } from "destack:memory";
+import { Copy, Drop } from "tspp:memory";
 
 struct Guard {
     handle: int32;
@@ -104,11 +104,11 @@ duplicate(guard);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Copy, Drop } from "destack:memory";
+import { Copy, Drop } from "tspp:memory";
 
 struct Guard {
     handle: int32;
@@ -124,7 +124,7 @@ declare const guard: Guard;
 duplicate<Guard>(guard);
 
 === dir ===
-import { Copy, Drop } from "destack:memory";
+import { Copy, Drop } from "tspp:memory";
 
 struct Guard {
 /// @type.symbol symbol=Guard type=Guard
@@ -184,7 +184,7 @@ duplicate(guard);
 fn test_satisfy_copy_bound_for_plain_struct() {
     let session = TestSession::single(
         r#"
-import { Copy, Drop } from "destack:memory";
+import { Copy, Drop } from "tspp:memory";
 
 struct Guard implements Drop {
     drop(&this): void {}
@@ -202,11 +202,11 @@ duplicate(plain);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Copy, Drop } from "destack:memory";
+import { Copy, Drop } from "tspp:memory";
 
 struct Guard implements Drop {
     drop(&this): void {}
@@ -222,7 +222,7 @@ declare const plain: Plain;
 duplicate<Plain>(plain);
 
 === dir ===
-import { Copy, Drop } from "destack:memory";
+import { Copy, Drop } from "tspp:memory";
 
 struct Guard implements Drop {
 /// @type.symbol symbol=Guard type=Guard

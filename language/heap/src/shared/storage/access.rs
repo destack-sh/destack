@@ -1,6 +1,6 @@
 use crate::TraceView;
-use destack_mir::TraceMap;
 use std::sync::Arc;
+use tspp_mir::TraceMap;
 
 use parking_lot::RwLock;
 

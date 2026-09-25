@@ -6,11 +6,11 @@
 
 When parameters exceed the line width, they break to multiple lines with trailing comma.
 
-```ds line-width=40
+```tspp line-width=40
 function foo(veryLongParam: string, anotherLongParam: number, thirdParam: boolean) { }
 ```
 
-```ds expected
+```tspp expected
 function foo(
     veryLongParam: string,
     anotherLongParam: number,
@@ -22,11 +22,11 @@ function foo(
 
 Type parameters also break when they exceed the line width.
 
-```ds line-width=40
+```tspp line-width=40
 function foo<VeryLongType, AnotherLongType, ThirdType>(x: VeryLongType): void { }
 ```
 
-```ds expected
+```tspp expected
 function foo<
     VeryLongType,
     AnotherLongType,
@@ -38,11 +38,11 @@ function foo<
 
 Where clauses specify additional type constraints.
 
-```ds
+```tspp
 function process<T>(x: T): T where T: Copy { return x }
 ```
 
-```ds expected
+```tspp expected
 function process<T>(x: T): T where T: Copy {
     return x;
 }
@@ -52,13 +52,13 @@ function process<T>(x: T): T where T: Copy {
 
 Multiple where constraints print without grouping parentheses when they fit.
 
-```ds line-width=50
+```tspp line-width=50
 function process<T, U>(a: T, b: U): void where (T: Copy, U: Clone) { }
 ```
 
 When the signature is too long, the where clause breaks as an indented continuation.
 
-```ds expected
+```tspp expected
 function process<T, U>(a: T, b: U): void
     where T: Copy, U: Clone {}
 ```
@@ -67,11 +67,11 @@ function process<T, U>(a: T, b: U): void
 
 Long where constraints break under the `where` keyword.
 
-```ds line-width=72
+```tspp line-width=72
 function resolve<T, U, V>(value: T): V where T: VeryLongCopyConstraint, U: VeryLongCloneConstraint, V: VeryLongComparableConstraint { return value }
 ```
 
-```ds expected
+```tspp expected
 function resolve<T, U, V>(value: T): V
     where
         T: VeryLongCopyConstraint,

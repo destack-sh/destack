@@ -1,0 +1,291 @@
+import { HostError } from "tspp:error/host";
+import { SocketHandle } from "tspp:net/binding";
+import { ResourceId } from "tspp:runtime/resource";
+
+import { SocketFamily } from "./address.tspp";
+
+/// Handle for a packet capture or injection endpoint.
+@languageItem("net.binding.PacketHandle")
+export newtype PacketHandle = ResourceId;
+
+/// Network packet backend selector.
+@languageItem("net.binding.NetworkPacketBackend")
+export enum NetworkPacketBackend {
+    /// Select the best backend for the current host.
+    Auto = 0,
+    /// Linux AF_PACKET backend.
+    AfPacket = 1,
+    /// BSD BPF device backend.
+    Bpf = 2,
+    /// Windows raw socket backend.
+    WindowsRawSocket = 3,
+}
+
+/// Network packet backend features.
+@languageItem("net.binding.NetworkPacketBackendFeatures")
+export newtype NetworkPacketBackendFeatures = uint64;
+
+export extension of NetworkPacketBackendFeatures {
+    /// Backend supports packet capture.
+    const capture = NetworkPacketBackendFeatures(0x1);
+
+    /// Backend supports packet injection.
+    const send = NetworkPacketBackendFeatures(0x2);
+
+    /// Backend supports packet timestamps.
+    const timestamp = NetworkPacketBackendFeatures(0x4);
+
+    /// Backend supports packet filters.
+    const filter = NetworkPacketBackendFeatures(0x8);
+
+    /// Backend supports fanout groups.
+    const fanout = NetworkPacketBackendFeatures(0x10);
+
+    /// Backend supports packet rings.
+    const ring = NetworkPacketBackendFeatures(0x20);
+}
+
+/// Network packet backend status.
+export struct NetworkPacketBackendStatus {
+    /// Backend selector.
+    backend: NetworkPacketBackend;
+    /// Stable backend name.
+    name: string;
+    /// Whether this backend is available.
+    isAvailable: boolean;
+    /// Priority in auto-selection order.
+    priority: uint16;
+    /// Backend features.
+    features: NetworkPacketBackendFeatures;
+}
+
+/// Network packet timestamp clock domain.
+@languageItem("net.binding.NetworkPacketTimestampClock")
+export enum NetworkPacketTimestampClock {
+    /// No packet timestamp is present.
+    None = 0,
+    /// Timestamp is in the host wall-clock domain.
+    Wall = 1,
+    /// Timestamp is in the host monotonic clock domain.
+    Monotonic = 2,
+    /// Timestamp is in one backend-specific hardware clock domain.
+    Hardware = 3,
+}
+
+/// Network packet endpoint options.
+export struct NetworkPacketOpenOptions {
+    /// Preferred packet backend.
+    backend: NetworkPacketBackend;
+    /// Interface index for capture or injection.
+    interfaceIndex: uint32;
+    /// Maximum frame bytes per packet.
+    snapLength: uint32;
+    /// Capture timeout in milliseconds.
+    timeoutMilliseconds?: uint32;
+    /// Whether promiscuous mode is requested.
+    isPromiscuous: boolean;
+}
+
+/// Captured network packet metadata.
+export struct NetworkPacketRecord {
+    /// Packet bytes written to the payload buffer.
+    bytes: uint64;
+    /// Interface index that produced the packet.
+    interfaceIndex: uint32;
+    /// Packet timestamp clock domain.
+    timestampClock: NetworkPacketTimestampClock;
+    /// Capture timestamp in nanoseconds for `timestampClock`.
+    timestampNanoseconds: uint64;
+    /// Whether packet bytes were truncated.
+    isTruncated: boolean;
+}
+
+/// Network packet capture statistics.
+export struct NetworkPacketStats {
+    /// Packets received by the backend.
+    receivedPackets: uint64;
+    /// Packets dropped by the backend.
+    droppedPackets: uint64;
+    /// Packets dropped by the interface.
+    interfaceDroppedPackets: uint64;
+}
+
+/// Network packet fanout mode.
+@languageItem("net.binding.NetworkPacketFanoutMode")
+export enum NetworkPacketFanoutMode {
+    /// Hash packets across sockets.
+    Hash = 0,
+    /// Load balance packets across sockets.
+    LoadBalance = 1,
+    /// Forward packets to the same CPU socket.
+    Cpu = 2,
+    /// Use round-robin packet distribution.
+    RoundRobin = 3,
+    /// Use rollover failover packet distribution.
+    Rollover = 4,
+    /// Keep flows and load balance across sockets.
+    QueueMap = 5,
+}
+
+/// Network packet fanout options.
+export struct NetworkPacketFanoutOptions {
+    /// Fanout group identifier.
+    groupId: uint16;
+    /// Fanout mode.
+    mode: NetworkPacketFanoutMode;
+    /// Mode-specific flags.
+    flags: uint16;
+}
+
+/// Network packet ring options.
+export struct NetworkPacketRingOptions {
+    /// Ring block size in bytes.
+    blockSize: uint32;
+    /// Number of blocks in the ring.
+    blockCount: uint32;
+    /// Frame size in bytes.
+    frameSize: uint32;
+    /// Number of frames in the ring.
+    frameCount: uint32;
+    /// Block retire timeout in milliseconds.
+    retireTimeoutMilliseconds: uint32;
+}
+
+/// Raw socket and packet binding family.
+@languageItem("net.binding.NetRawBinding")
+export interface NetRawBinding {
+    /// List host packet backends.
+    @binding("tspp.net.raw.packetBackends", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+    })
+    listPacketBackends(): Result<NetworkPacketBackendStatus[], HostError>;
+
+    /// Open a raw IP socket.
+    @binding("tspp.net.raw.socket", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+    })
+    openSocket(family: SocketFamily, protocol: int32): Result<SocketHandle, HostError>;
+
+    /// Enable or disable IP header inclusion on a raw socket.
+    @binding("tspp.net.raw.headerIncluded", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+    })
+    setHeaderIncluded(socket: SocketHandle, isEnabled: boolean): Result<void, HostError>;
+
+    /// Open a packet capture or injection endpoint.
+    @binding("tspp.net.raw.packetOpen", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+    })
+    openPacketEndpoint(options: NetworkPacketOpenOptions): Result<PacketHandle, HostError>;
+
+    /// Receive one packet from a packet endpoint.
+    @binding("tspp.net.raw.packetReceive", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+    })
+    receivePacket(packet: PacketHandle, payload: &[uint8]): Result<NetworkPacketRecord, HostError>;
+
+    /// Send one packet through a packet endpoint.
+    @binding("tspp.net.raw.packetSend", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+    })
+    sendPacket(packet: PacketHandle, payload: &readonly [uint8]): Result<uint64, HostError>;
+
+    /// Attach one packet filter program to an endpoint.
+    @binding("tspp.net.raw.packetFilter", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+    })
+    setPacketFilter(packet: PacketHandle, program: &readonly [uint8]): Result<void, HostError>;
+
+    /// Clear the active packet filter program.
+    @binding("tspp.net.raw.packetClearFilter", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+    })
+    clearPacketFilter(packet: PacketHandle): Result<void, HostError>;
+
+    /// Set packet fanout on an endpoint.
+    @binding("tspp.net.raw.packetFanout", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+    })
+    setPacketFanout(
+        packet: PacketHandle,
+        options: NetworkPacketFanoutOptions,
+    ): Result<void, HostError>;
+
+    /// Clear packet fanout from an endpoint.
+    @binding("tspp.net.raw.packetClearFanout", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+    })
+    clearPacketFanout(packet: PacketHandle): Result<void, HostError>;
+
+    /// Configure one packet receive ring.
+    @binding("tspp.net.raw.packetReceiveRing", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+    })
+    setPacketReceiveRing(
+        packet: PacketHandle,
+        options: NetworkPacketRingOptions,
+    ): Result<void, HostError>;
+
+    /// Configure one packet transmit ring.
+    @binding("tspp.net.raw.packetSendRing", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+    })
+    setPacketSendRing(
+        packet: PacketHandle,
+        options: NetworkPacketRingOptions,
+    ): Result<void, HostError>;
+
+    /// Clear packet ring configuration.
+    @binding("tspp.net.raw.packetClearRing", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+    })
+    clearPacketRing(packet: PacketHandle): Result<void, HostError>;
+
+    /// Read packet endpoint statistics.
+    @binding("tspp.net.raw.packetStats", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.net.raw"],
+        families: ["windows", "unix"],
+    })
+    packetStats(packet: PacketHandle): Result<NetworkPacketStats, HostError>;
+}

@@ -1,0 +1,172 @@
+import { Promise, Task } from "tspp:async";
+import { Sequence } from "tspp:collections";
+import { Result, todo } from "tspp:error";
+import { Iterable } from "tspp:iter";
+import { Copy } from "tspp:memory";
+import { PartialCompare, PartialEqual, StrictEqual } from "tspp:ops";
+import { RegExp } from "tspp:regexp";
+import { Duration } from "tspp:time";
+
+/// Value produced by one polling observation.
+export type PollResult<T> = T | Task<T> | (T extends Copy ? Promise<T> : never);
+
+/// Polling configuration.
+export type PollOptions = {
+    /// Delay between unsuccessful observations.
+    interval?: Duration;
+
+    /// Maximum duration of all observations.
+    timeout?: Duration;
+
+    /// Assertion message used after the timeout.
+    message?: ^string;
+};
+
+/// Repeatable value observation.
+export type Poll<T> = () => PollResult<T>;
+
+/// Asynchronous assertions over a repeated observation.
+@languageItem("test.PollingExpectation")
+export struct PollingExpectation<T> {
+    /// The repeated observation.
+    private poll: Poll<T>;
+
+    /// Polling configuration.
+    private options: PollOptions;
+
+    /// Whether the matcher is negated.
+    private isNegated: boolean;
+
+    /// Whether a failed matcher permits the test to continue.
+    private isSoft: boolean;
+
+    /// Negate the matcher.
+    get not(this): PollingExpectation<T> {
+        PollingExpectation {
+            poll: this.poll,
+            options: this.options,
+            isNegated: !this.isNegated,
+            isSoft: this.isSoft,
+        }
+    }
+
+    /// Require the observed value to compare equal to `expected`.
+    toEqual<U>(this, expected: &readonly U): Task<void> where T: PartialEqual<U> {
+        todo("test.PollingExpectation.toEqual")
+    }
+
+    /// Require the observed value to have the same strict identity as `expected`.
+    toBe(this, expected: &readonly T): Task<void> where T: StrictEqual<T> {
+        todo("test.PollingExpectation.toBe")
+    }
+
+    /// Require the observed string to contain `expected`.
+    toContain(this: PollingExpectation<string>, expected: string): Task<void> {
+        todo("test.PollingExpectation.toContain")
+    }
+
+    /// Require the observed iterable to contain `expected`.
+    toContain<U>(this, expected: &readonly U): Task<void> where T: Iterable<U>, U: StrictEqual<U> {
+        todo("test.PollingExpectation.toContain")
+    }
+
+    /// Require the observed iterable to contain one value equal to `expected`.
+    toContainEqual<U>(this, expected: &readonly U): Task<void>
+        where T: Iterable<U>, U: PartialEqual<U> {
+        todo("test.PollingExpectation.toContainEqual")
+    }
+
+    /// Require the observed string to match `expected`.
+    toMatch(this: PollingExpectation<string>, expected: RegExp): Task<void> {
+        todo("test.PollingExpectation.toMatch")
+    }
+
+    /// Require the observed sequence to have `expected` elements.
+    toHaveLength(this, expected: isize): Task<void> where T: Sequence {
+        todo("test.PollingExpectation.toHaveLength")
+    }
+
+    /// Require the observed value to be truthy.
+    toBeTruthy(this): Task<void> {
+        todo("test.PollingExpectation.toBeTruthy")
+    }
+
+    /// Require the observed value to be falsy.
+    toBeFalsy(this): Task<void> {
+        todo("test.PollingExpectation.toBeFalsy")
+    }
+
+    /// Require the observed value to be null.
+    toBeNull(this): Task<void> {
+        todo("test.PollingExpectation.toBeNull")
+    }
+
+    /// Require the observed value to be undefined.
+    toBeUndefined(this): Task<void> {
+        todo("test.PollingExpectation.toBeUndefined")
+    }
+
+    /// Require the observed value to be defined.
+    toBeDefined(this): Task<void> {
+        todo("test.PollingExpectation.toBeDefined")
+    }
+
+    /// Require the observed value to be null or undefined.
+    toBeNullable(this): Task<void> {
+        todo("test.PollingExpectation.toBeNullable")
+    }
+
+    /// Require the observed value to compare equal to one expected value.
+    toBeOneOf<C>(this, expected: C): Task<void> where C: Iterable<T>, T: PartialEqual<T> {
+        todo("test.PollingExpectation.toBeOneOf")
+    }
+
+    /// Require the observed value to satisfy `predicate`.
+    toSatisfy(this, predicate: (value: &readonly T) => boolean): Task<void> {
+        todo("test.PollingExpectation.toSatisfy")
+    }
+
+    /// Require the observed number to be not-a-number.
+    toBeNaN(this: PollingExpectation<number>): Task<void> {
+        todo("test.PollingExpectation.toBeNaN")
+    }
+
+    /// Require the observed number to be close to `expected`.
+    toBeCloseTo(
+        this: PollingExpectation<number>,
+        expected: number,
+        digits: uint32 = 2,
+    ): Task<void> {
+        todo("test.PollingExpectation.toBeCloseTo")
+    }
+
+    /// Require the observed value to compare greater than `expected`.
+    toBeGreaterThan<U>(this, expected: &readonly U): Task<void> where T: PartialCompare<U> {
+        todo("test.PollingExpectation.toBeGreaterThan")
+    }
+
+    /// Require the observed value to compare greater than or equal to `expected`.
+    toBeGreaterThanOrEqual<U>(this, expected: &readonly U): Task<void> where T: PartialCompare<U> {
+        todo("test.PollingExpectation.toBeGreaterThanOrEqual")
+    }
+
+    /// Require the observed value to compare less than `expected`.
+    toBeLessThan<U>(this, expected: &readonly U): Task<void> where T: PartialCompare<U> {
+        todo("test.PollingExpectation.toBeLessThan")
+    }
+
+    /// Require the observed value to compare less than or equal to `expected`.
+    toBeLessThanOrEqual<U>(this, expected: &readonly U): Task<void> where T: PartialCompare<U> {
+        todo("test.PollingExpectation.toBeLessThanOrEqual")
+    }
+
+    /// Require the observed result to be successful.
+    toBeOk<V, E>(this: PollingExpectation<Result<V, E>>): Task<void> {
+        todo("test.PollingExpectation.toBeOk")
+    }
+
+    /// Require the observed result to contain an error.
+    toBeErr<V, E>(this: PollingExpectation<Result<V, E>>): Task<void> {
+        todo("test.PollingExpectation.toBeErr")
+    }
+}

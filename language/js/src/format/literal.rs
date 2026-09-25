@@ -1,9 +1,9 @@
 use crate::{Literal, TemplateLiteral};
-use destack_core::StringId;
-use destack_fir::format::{Format, FormatError, FormatResult, token};
-use destack_fir::prelude::*;
-use destack_fir::write;
-use destack_source::Span;
+use tspp_core::StringId;
+use tspp_fir::format::{Format, FormatError, FormatResult, token};
+use tspp_fir::prelude::*;
+use tspp_fir::write;
+use tspp_source::Span;
 
 use crate::{Context, Formatter};
 

@@ -1,8 +1,8 @@
 use std::fmt;
 
-use destack_core::{FxIndexMap, FxIndexSet, StringPool};
-use destack_fir::format::{Allocator, Format, FormatContext, FormatError, FormatResult};
-use destack_source::{File, FileType, ModuleId};
+use tspp_core::{FxIndexMap, FxIndexSet, StringPool};
+use tspp_fir::format::{Allocator, Format, FormatContext, FormatError, FormatResult};
+use tspp_source::{File, FileType, ModuleId};
 
 use super::FormatOptions;
 
@@ -41,7 +41,7 @@ pub struct Formatter<'a> {
 }
 
 /// The FIR writer for one MIR formatting pass.
-pub(crate) type Writer<'a, 'buffer> = destack_fir::format::Formatter<'buffer, 'a, Formatter<'a>>;
+pub(crate) type Writer<'a, 'buffer> = tspp_fir::format::Formatter<'buffer, 'a, Formatter<'a>>;
 
 impl fmt::Debug for Formatter<'_> {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -75,7 +75,7 @@ impl<'a> Formatter<'a> {
             tree,
             target_layout,
             strings,
-            file: File::empty_text(FileType::Destack),
+            file: File::empty_text(FileType::Tspp),
             function: None,
             block_indices: FxIndexMap::default(),
             local_indices: FxIndexMap::default(),
@@ -123,7 +123,7 @@ impl<'a> Formatter<'a> {
 
         // build the FIR document from the tree
         let tree = self.tree;
-        let document = destack_fir::format!(&allocator, self, [tree])?;
+        let document = tspp_fir::format!(&allocator, self, [tree])?;
 
         // print the complete document
         let printed = document.print()?;

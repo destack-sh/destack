@@ -6,10 +6,10 @@
 
 Comments before arguments stay inline when the call still fits.
 
-```ds
+```tspp
 foo(/* first */ a, /* second */ b)
 ```
 
-```ds expected
+```tspp expected
 foo(/* first */ a, /* second */ b);
 ```

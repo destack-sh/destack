@@ -1,10 +1,10 @@
-use destack_core::{StringId, StringPool};
-use destack_dir::{Documentation, DocumentationTag, StaticKey, Tree};
-use destack_fir::format::{Format, FormatError, FormatResult, Formatter};
-use destack_fir::prelude::{copied_text, hard_line_break, space, token};
-use destack_fir::write;
+use tspp_core::{StringId, StringPool};
+use tspp_dir::{Documentation, DocumentationTag, StaticKey, Tree};
+use tspp_fir::format::{Format, FormatError, FormatResult, Formatter};
+use tspp_fir::prelude::{copied_text, hard_line_break, space, token};
+use tspp_fir::write;
 
-use crate::{DestackFormatContext, DestackFormatOptions};
+use crate::{TsppFormatContext, TsppFormatOptions};
 
 use super::line::LineBuffer;
 use super::markdown::MarkdownFormatter;
@@ -24,7 +24,7 @@ struct DocumentationRenderer<'a> {
     /// The shared source strings.
     strings: &'a StringPool,
     /// The surrounding formatter options.
-    options: &'a DestackFormatOptions,
+    options: &'a TsppFormatOptions,
     /// The rendered documentation lines.
     lines: LineBuffer,
 }
@@ -36,17 +36,14 @@ impl FormattedDocumentation {
         width: usize,
         tree: &Tree,
         strings: &StringPool,
-        options: &DestackFormatOptions,
+        options: &TsppFormatOptions,
     ) -> FormatResult<Self> {
         DocumentationRenderer::new(width, tree, strings, options).render(documentation)
     }
 }
 
-impl<'a> Format<'a, DestackFormatContext<'a>> for FormattedDocumentation {
-    fn format(
-        &self,
-        formatter: &mut Formatter<'_, 'a, DestackFormatContext<'a>>,
-    ) -> FormatResult<()> {
+impl<'a> Format<'a, TsppFormatContext<'a>> for FormattedDocumentation {
+    fn format(&self, formatter: &mut Formatter<'_, 'a, TsppFormatContext<'a>>) -> FormatResult<()> {
         for (index, line) in self.lines.split('\n').enumerate() {
             if index > 0 {
                 write!(formatter, [hard_line_break()])?;
@@ -68,7 +65,7 @@ impl<'a> DocumentationRenderer<'a> {
         width: usize,
         tree: &'a Tree,
         strings: &'a StringPool,
-        options: &'a DestackFormatOptions,
+        options: &'a TsppFormatOptions,
     ) -> Self {
         Self {
             width,

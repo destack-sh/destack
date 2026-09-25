@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_core::Color;
-use destack_dir::{Comment, CommentKind, Token, TokenLiteral, TokenSpan, TokenType};
-use destack_source::{File, FileId, SourceColorizer};
+use tspp_core::Color;
+use tspp_dir::{Comment, CommentKind, Token, TokenLiteral, TokenSpan, TokenType};
+use tspp_source::{File, FileId, SourceColorizer};
 
 use super::{Lexer, classify_keyword};
 
@@ -158,8 +158,8 @@ pub fn colorize_source(file: &File) -> String {
 mod tests {
     use std::sync::{Arc, Mutex};
 
-    use destack_core::Color;
-    use destack_source::{
+    use tspp_core::Color;
+    use tspp_source::{
         Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, File, FileId,
         FileType, PrintOptions, Span, Uri, print_diagnostics,
     };
@@ -170,10 +170,10 @@ mod tests {
     fn test_colorize_source_simple() {
         let file = File::from_text(
             FileId::new(0),
-            "test.ds".to_string(),
-            Uri::from_string("test.ds"),
+            "test.tspp".to_string(),
+            Uri::from_string("test.tspp"),
             None,
-            FileType::Destack,
+            FileType::Tspp,
             "let x = 42;".to_string(),
         )
         .expect("test source should load");
@@ -193,7 +193,7 @@ mod tests {
                 "<test>".to_string(),
                 Uri::from_string("<test>"),
                 None,
-                FileType::Destack,
+                FileType::Tspp,
                 "const answer: int32 = \"text\";".to_string(),
             )
             .expect("test source should load"),
@@ -242,10 +242,10 @@ mod tests {
     fn test_colorize_source_comments() {
         let file = File::from_text(
             FileId::new(0),
-            "test.ds".to_string(),
-            Uri::from_string("test.ds"),
+            "test.tspp".to_string(),
+            Uri::from_string("test.tspp"),
             None,
-            FileType::Destack,
+            FileType::Tspp,
             "const value = 1; // note".to_string(),
         )
         .expect("test source should load");

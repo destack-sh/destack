@@ -1,0 +1,59 @@
+import { SignalArgument } from "./accessor.tspp";
+
+/// Options for a writable signal.
+export type SignalOptions<T> = {
+    /// Diagnostic name.
+    name?: string;
+
+    /// Equality check, or false to notify after every write.
+    ///
+    /// The default uses `==` for values with `PartialEqual` and otherwise notifies.
+    equals?: false | ^((left: SignalArgument<T>, right: SignalArgument<T>) => boolean);
+
+    /// Whether writes inside an owner are expected.
+    ownedWrite?: boolean;
+
+    /// Function invoked whenever the source loses its last observer.
+    unobserved?: ^(() => void);
+};
+
+/// Options for a derived memo.
+export type MemoOptions<T> = {
+    /// Stable owner child identifier.
+    id?: string;
+
+    /// Diagnostic name.
+    name?: string;
+
+    /// Whether this memo inherits its owner's child identifier.
+    transparent?: boolean;
+
+    /// Equality check, or false to notify after every update.
+    ///
+    /// The default uses `==` for values with `PartialEqual` and otherwise notifies.
+    equals?: false | ^((left: SignalArgument<T>, right: SignalArgument<T>) => boolean);
+
+    /// Function invoked whenever the memo loses its last observer.
+    unobserved?: ^(() => void);
+
+    /// Whether the memo starts on its first read and disposes when unobserved.
+    lazy?: boolean;
+
+    /// Initial settled value used until the first derived value is ready.
+    loadingValue?: T;
+};
+
+/// Options for a signal effect.
+export type EffectOptions = {
+    /// Diagnostic name.
+    name?: string;
+
+    /// Whether the effect waits for its first dependency change.
+    defer?: boolean;
+
+    /// Whether the first apply runs through the effect queue.
+    schedule?: boolean;
+
+    /// Whether this effect inherits its owner's child identifier.
+    transparent?: boolean;
+};

@@ -16,7 +16,7 @@ type MainPackageManifest = {
 };
 
 /** The CLI binary names expected in each platform package. */
-const BINARY_NAMES = ["destack", "ds", "dsc"];
+const BINARY_NAMES = ["destack", "tspp", "tsppc"];
 
 /** Validate a platform npm package before publish. */
 function validatePlatformPackage(): void {

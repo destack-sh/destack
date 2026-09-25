@@ -4,8 +4,8 @@ use std::io;
 use std::path::{Path, PathBuf};
 
 use clap::Args;
-use destack_source::{FileSystem, PhysicalFileSystem};
 use tiktoken_rs::o200k_base;
+use tspp_source::{FileSystem, PhysicalFileSystem};
 
 use crate::console::{self, bold, color, dim, style, visible_width};
 
@@ -248,7 +248,7 @@ pub fn run(args: &StatsArgs) -> i32 {
     };
 
     // walk the directory
-    let mut ignore_set = destack_source::IgnoreSet::new();
+    let mut ignore_set = tspp_source::IgnoreSet::new();
     let file_system = PhysicalFileSystem;
     let mut files = Vec::new();
     if let Err(error) = ignore_set.load_root(&file_system, &root) {
@@ -291,7 +291,7 @@ fn walk_directory(
     root: &Path,
     directory: &Path,
     files: &mut Vec<FileEntry>,
-    ignore_set: &mut destack_source::IgnoreSet,
+    ignore_set: &mut tspp_source::IgnoreSet,
 ) -> io::Result<()> {
     // load gitignore for this directory
     ignore_set.load(file_system, directory)?;
@@ -655,11 +655,11 @@ enum CommentStyle {
 fn comment_style_for_extension(extension: &str) -> CommentStyle {
     match extension.to_lowercase().as_str() {
         // c-style comments
-        ".rs" | ".js" | ".ts" | ".tsx" | ".jsx" | ".ds" | ".c" | ".cpp" | ".cc" | ".cxx" | ".h"
-        | ".hpp" | ".hxx" | ".java" | ".go" | ".swift" | ".kt" | ".kts" | ".scala" | ".cs"
-        | ".m" | ".mm" | ".php" | ".css" | ".scss" | ".sass" | ".less" | ".json" | ".jsonc"
-        | ".proto" | ".zig" | ".v" | ".d" | ".vert" | ".frag" | ".glsl" | ".hlsl" | ".wgsl"
-        | ".metal" => CommentStyle::CStyle,
+        ".rs" | ".js" | ".ts" | ".tsx" | ".jsx" | ".tspp" | ".c" | ".cpp" | ".cc" | ".cxx"
+        | ".h" | ".hpp" | ".hxx" | ".java" | ".go" | ".swift" | ".kt" | ".kts" | ".scala"
+        | ".cs" | ".m" | ".mm" | ".php" | ".css" | ".scss" | ".sass" | ".less" | ".json"
+        | ".jsonc" | ".proto" | ".zig" | ".v" | ".d" | ".vert" | ".frag" | ".glsl" | ".hlsl"
+        | ".wgsl" | ".metal" => CommentStyle::CStyle,
 
         // hash-style comments
         ".py" | ".rb" | ".sh" | ".bash" | ".zsh" | ".fish" | ".pl" | ".pm" | ".r" | ".yml"

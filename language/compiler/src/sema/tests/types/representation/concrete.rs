@@ -16,7 +16,7 @@ size satisfies usize;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
@@ -90,7 +90,7 @@ size satisfies usize;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
@@ -171,7 +171,7 @@ size satisfies usize;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
@@ -232,7 +232,7 @@ size satisfies usize;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_statics(),
         r#"
 === annotated ===
@@ -282,7 +282,7 @@ declare const value: Dynamic<<T>(input: T) => T>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -302,7 +302,7 @@ declare const value: Dynamic<<T>(input: T) => T>;
         r#"
 /// @diagnostic.error id=not-erasable message="type '<T>(input: T) => T' cannot be erased into 'DynamicSafe'"
 /// @diagnostic.label line=2 column=30 span="<T>(input: T) => T" line_source="declare const value: Dynamic<<T>(input: T) => T>;"
-/// @diagnostic.related file="dynamic.ds" line=7 column=21 span="T" line_source="export type Dynamic<T: DynamicSafe> = intrinsic;" message="required by this bound on 'T'"
+/// @diagnostic.related file="dynamic.tspp" line=7 column=21 span="T" line_source="export type Dynamic<T: DynamicSafe> = intrinsic;" message="required by this bound on 'T'"
 /// @diagnostic.help message="prove the source erasable with a DynamicSafe bound"
 "#,
     );
@@ -333,7 +333,7 @@ makeCircle() satisfies Shape;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -436,7 +436,7 @@ makeShape(true) satisfies Shape;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -573,7 +573,7 @@ makeShape(true) satisfies Shape;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===

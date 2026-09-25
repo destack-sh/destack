@@ -1,4 +1,4 @@
-use destack_dir::{Keyword, OperatorPrecedence, RangeEnd, TokenType};
+use tspp_dir::{Keyword, OperatorPrecedence, RangeEnd, TokenType};
 
 /// One type prefix operation.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

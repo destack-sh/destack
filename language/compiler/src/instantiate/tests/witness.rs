@@ -21,7 +21,7 @@ function main(): Path {
     );
 
     session.assert_mir_elaborated_function(
-        "main.ds",
+        "main.tspp",
         "test.main.duplicate<test.main.Path>",
         r#"
 type test.main.Path {
@@ -51,7 +51,7 @@ entry(v0: ref<test.main.Path, borrowed, 'a, immutable>):
 fn test_instantiate_dispatches_each_receiver_of_one_base_through_its_own_witness() {
     let session = TestSession::single(
         r#"
-import { rc } from "destack:memory";
+import { rc } from "tspp:memory";
 
 function duplicate<T: Clone>(value: &immutable T): T {
     return value.clone();
@@ -66,7 +66,7 @@ function main(): (rc.Rc<int32>, rc.Rc<int64>) {
     );
 
     session.assert_mir_elaborated_function(
-        "main.ds",
+        "main.tspp",
         "test.main.duplicate<Rc<int32>>",
         r#"
 @nocopy
@@ -87,7 +87,7 @@ entry(v0: ref<Rc<int32>, borrowed, 'a, immutable>):
 "#,
     );
     session.assert_mir_elaborated_function(
-        "main.ds",
+        "main.tspp",
         "test.main.duplicate<Rc<int64>>",
         r#"
 @nocopy
@@ -134,7 +134,7 @@ function main(): int32 {
     );
 
     session.assert_mir_elaborated_function(
-        "main.ds",
+        "main.tspp",
         "test.main.tagOf<test.main.Point>",
         r#"
 type test.main.Point {
@@ -179,7 +179,7 @@ function run(): int32 {
     );
 
     session.assert_mir_elaborated(
-        "main.ds", r#"
+        "main.tspp", r#"
 @nocopy
 type test.main.Console { }
 

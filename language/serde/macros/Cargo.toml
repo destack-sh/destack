@@ -1,6 +1,6 @@
 [package]
-name = "destack_serde_macros"
-description = "Destack serialization macros"
+name = "tspp_serde_macros"
+description = "TS++ serialization macros"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

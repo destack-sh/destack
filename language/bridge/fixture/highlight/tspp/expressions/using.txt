@@ -1,0 +1,16 @@
+// SYNTAX TEST "source.tspp"
+
+// expressions / using / sync
+using file = open(path);
+// <- keyword.control.using.tspp
+
+// expressions / using / async
+await using connection = await pool.connect();
+//    ^^^^^ keyword.control.using.tspp
+
+// expressions / using / loops
+for (using file of files) {
+//   ^^^^^ keyword.control.using.tspp
+    process(file);
+}
+

@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -118,7 +118,7 @@ function describe(value: (int32, int32)): string {
         session.assert_diagnostics(
             r#"
 warning[no-duplicate-match-arms]: match arm repeats an earlier body
-  ──▶ main.ds:7:38
+  ──▶ main.tspp:7:38
    │
  1 │ function describe(value: (int32, int32)): string {
  2 │     return match (value) {
@@ -201,7 +201,7 @@ function choose(value: boolean): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-duplicate-match-arms]: match arm repeats an earlier body
- ──▶ main.ds:5:18
+ ──▶ main.tspp:5:18
   │
 2 │ function choose(value: boolean): int32 {
 3 │     return match (value) {

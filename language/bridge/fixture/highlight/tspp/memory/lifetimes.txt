@@ -1,0 +1,10 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / lifetimes / static lifetime arguments and borrow returns
+declare const value: Borrowed<int32, "static">;
+// <- keyword.declaration.type.tspp
+
+function first<T, L: Lifetime>(items: Borrowed<[T], L>): Borrowed<T, L> {
+    return &items[0];
+//         ^ keyword.operator.borrow.tspp
+}

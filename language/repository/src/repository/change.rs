@@ -1,7 +1,7 @@
-use destack_core::Blob;
-use destack_serde::Reflect;
-use destack_source::FileId;
 use serde::{Deserialize, Serialize};
+use tspp_core::Blob;
+use tspp_serde::Reflect;
+use tspp_source::FileId;
 
 use crate::repository::{Edit, FileEntry, Repository, RepositoryError, Revision};
 

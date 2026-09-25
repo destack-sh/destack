@@ -13,23 +13,23 @@ use crate::collection::literal::format_scalar_literal;
 use crate::context::with_expanded_tree_callback_bodies;
 use crate::expression::{argument_value, tree_chain_ternary_needs_expanded_branches};
 use crate::file::write_source_span;
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_core::ensure_sufficient_stack;
-use destack_dir::{
+use crate::{FormatNode, TsppFormatContext, TsppFormatter};
+use tspp_core::ensure_sufficient_stack;
+use tspp_dir::{
     Argument, Expression, IfForm, Literal, LocalNodeId, Node, NodeType, Tree, TreeAttribute,
     TreeAttributeValue, TreeChild, TreeStore,
 };
-use destack_fir::format::{FormatError, FormatResult};
-use destack_fir::prelude::{
+use tspp_fir::format::{FormatError, FormatResult};
+use tspp_fir::prelude::{
     block_indent, format_with, group, hard_line_break, line_suffix_boundary, soft_block_indent,
     text, token,
 };
-use destack_fir::{format_args, write};
-use destack_source::Span;
+use tspp_fir::{format_args, write};
+use tspp_source::Span;
 
 /// Return whether tree argument formatting should force multiline mode.
 pub(crate) fn has_multiline_tree_argument(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     arguments: &[LocalNodeId<Argument>],
 ) -> bool {
     arguments.iter().copied().any(|argument_id| {
@@ -49,10 +49,7 @@ pub(crate) fn has_multiline_tree_argument(
 }
 
 /// Return the enclosing span used for one tree node's trailing comments.
-fn tree_node_enclosing_span(
-    context: &DestackFormatContext<'_>,
-    node_id: u32,
-) -> FormatResult<Span> {
+fn tree_node_enclosing_span(context: &TsppFormatContext<'_>, node_id: u32) -> FormatResult<Span> {
     let Some((parent_id, NodeType::Expression)) = context.parent_by_id(node_id) else {
         return Err(FormatError::SyntaxError {
             message: "tree node requires one expression parent",
@@ -64,7 +61,7 @@ fn tree_node_enclosing_span(
 
 /// Write one empty tree expression container.
 fn write_empty_tree_child<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     child_id: LocalNodeId<TreeChild>,
 ) -> FormatResult<()> {
     let child_span = f.context().span(child_id);
@@ -98,7 +95,7 @@ fn write_empty_tree_child<'ast>(
 
 /// Write one tree expression container child.
 fn write_tree_expression_child<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     child_id: LocalNodeId<TreeChild>,
     value: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
@@ -106,7 +103,7 @@ fn write_tree_expression_child<'ast>(
     let value_end = f.context().tree.get_source_extent(value).end;
     let has_callback_break = tree_expression_contains_callback_break(f.context(), value);
 
-    let trailing_comments = |f: &DestackFormatter<'ast, '_>| {
+    let trailing_comments = |f: &TsppFormatter<'ast, '_>| {
         f.context()
             .comments()
             .comments_before(child_span.end)
@@ -212,12 +209,12 @@ fn write_tree_expression_child<'ast>(
 
 /// Write one tree expression container value.
 fn write_tree_expression_value<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     value_id: LocalNodeId<Expression>,
     should_expand: bool,
     should_expand_tree_callback_bodies: bool,
 ) -> FormatResult<()> {
-    let value = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let value = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write!(f, [group(&value_id).should_expand(should_expand)])
     });
 
@@ -230,7 +227,7 @@ fn write_tree_expression_value<'ast>(
 
 /// Write one tree spread expression container.
 fn write_tree_spread<'ast, T>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<T>,
     value: LocalNodeId<Expression>,
 ) -> FormatResult<()>
@@ -260,7 +257,7 @@ where
             .comments()
             .comments_in_range(value_span.end, node_span.end)
             .is_empty();
-    let spread_inner = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let spread_inner = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write!(
             f,
             [prefix_annotations_after_offset(
@@ -294,7 +291,7 @@ where
 
 /// Write one tree attribute value.
 fn write_tree_attribute_value<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     value: &TreeAttributeValue,
 ) -> FormatResult<()> {
     match value {
@@ -316,7 +313,7 @@ fn write_tree_attribute_value<'ast>(
 
 /// Write one tree attribute.
 pub(crate) fn write_tree_attribute<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     attribute_id: LocalNodeId<TreeAttribute>,
     following_span_start: Option<u32>,
 ) -> FormatResult<()> {
@@ -355,7 +352,7 @@ pub(crate) fn write_tree_attribute<'ast>(
 
 /// Write one tree child.
 pub(crate) fn write_tree_child<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     child_id: LocalNodeId<TreeChild>,
     following_span_start: Option<u32>,
 ) -> FormatResult<()> {
@@ -364,7 +361,7 @@ pub(crate) fn write_tree_child<'ast>(
 
 /// Write one tree child.
 fn write_tree_child_inner<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     child_id: LocalNodeId<TreeChild>,
     following_span_start: Option<u32>,
 ) -> FormatResult<()> {
@@ -413,7 +410,7 @@ impl<'ast> FormatNode<'ast, TreeAttribute> for TreeAttribute {
     fn format_node(
         &self,
         node_id: LocalNodeId<TreeAttribute>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let _ = self;
 
@@ -425,7 +422,7 @@ impl<'ast> FormatNode<'ast, TreeChild> for TreeChild {
     fn format_node(
         &self,
         node_id: LocalNodeId<TreeChild>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         let _ = self;
 

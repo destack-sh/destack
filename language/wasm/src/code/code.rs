@@ -1,8 +1,6 @@
-use destack_core::{
-    EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
-};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::{EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice};
+use tspp_serde::Reflect;
 
 use super::{Entry, FrameMap, FrameMapBuilder, FrameSlot};
 
@@ -12,7 +10,7 @@ const ABI_VERSION: u32 = 1;
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Reflect, SectionEntry)]
 pub struct Code {
-    /// Destack WebAssembly ABI version required by this module.
+    /// TS++ WebAssembly ABI version required by this module.
     pub abi_version: u32,
     /// Encoded linked WebAssembly module bytes.
     module: SectionSlice<u8>,

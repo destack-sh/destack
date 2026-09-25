@@ -1,9 +1,9 @@
 use crate::{
-    DestackFormatOptions, assert_format_program, assert_format_program_reference_widths,
+    TsppFormatOptions, assert_format_program, assert_format_program_reference_widths,
     assert_format_program_roundtrip_with_file_name_and_type,
     assert_format_program_roundtrip_with_file_type,
 };
-use destack_source::FileType;
+use tspp_source::FileType;
 
 /// Conditional types with constrained infer bindings should stay inline.
 #[test]
@@ -13,7 +13,7 @@ fn test_format_type_conditional_with_constrained_infer() {
 "#,
         r#"type Result = T extends infer U extends string ? U : never;
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -37,7 +37,7 @@ fn test_format_type_conditional_trailing_branch_comments() {
           : never // not callable
       : T; // non-object
 "#,
-        FileType::DestackDeclaration
+        FileType::TsppDeclaration
     );
 }
 
@@ -55,7 +55,7 @@ let value: _ = load();
 type Match = T extends infer _ ? true : false;
 type Bound = T extends infer _ extends string ? true : false;
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -89,7 +89,7 @@ fn test_format_type_conditional_alternate_line_comment() {
         }
       : StreamWebCompressionStream;
 "#,
-        FileType::DestackDeclaration
+        FileType::TsppDeclaration
     );
 }
 
@@ -103,7 +103,7 @@ type B = T | {}
         r#"type A = typeof globalThis extends { onmessage: unknown } ? {} : AbortController;
 type B = T | {};
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -119,7 +119,7 @@ type Factory<U> = typeof namespace.Factory < U >
 type Handler = Callback<typeof something<Type1, Type2>>;
 type Factory<U> = typeof namespace.Factory<U>;
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -131,8 +131,8 @@ fn test_format_type_object_intersection_ignores_source_spacing_width() {
 "#,
         r#"type WithCreated = { created: int32 } & HasMeta;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(80)
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(80)
     );
 }
 
@@ -146,7 +146,7 @@ value satisfies Dynamic<type {}>
         r#"declare const value: Dynamic<{}>;
 value satisfies Dynamic<{}>;
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -188,7 +188,7 @@ const relation = User extends Entity;
 const referenceUnion = type User | string;
 const literalUnion = type string | User;
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -200,7 +200,7 @@ fn test_format_const_generic_type_value_marker() {
 "#,
         r#"export newtype WithOwnership<Q, const L: Lifetime = LifetimeOr<Q, 'static>> = intrinsic;
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -214,7 +214,7 @@ type C = F extends abstract new(...args: unknown) => infer T ? T : never
         r#"type B = { new (): Foo; new (...args: unknown): Bar };
 type C = F extends abstract new (...args: unknown) => infer T ? T : never;
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -226,7 +226,7 @@ fn test_format_type_const_generic_parameter() {
 "#,
         r#"type Fn = <const T>(value: T) => T;
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -240,7 +240,7 @@ type Fixed = [string;5]
         r#"type Slice = [string];
 type Fixed = [string; 5];
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -252,7 +252,7 @@ fn test_format_type_labeled_tuple_rest() {
 "#,
         r#"type AnyRest = (args: ...unknown[],);
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -278,7 +278,7 @@ fn test_format_type_member_doc_comment_after_missing_terminator() {
     conversionFailed(opts: { prefix: string; argument: string; types: string[] }): TypeError;
 }
 "#,
-        FileType::DestackDeclaration
+        FileType::TsppDeclaration
     );
 }
 
@@ -300,7 +300,7 @@ fn test_format_type_member_comment_only_tail() {
     // endings?: "transparent" | "native";
 }
 "#,
-        FileType::DestackDeclaration
+        FileType::TsppDeclaration
     );
 }
 
@@ -328,7 +328,7 @@ fn test_format_type_member_blank_line_before_doc_comment() {
     }): void;
 }
 "#,
-        FileType::DestackDeclaration
+        FileType::TsppDeclaration
     );
 }
 
@@ -340,7 +340,7 @@ fn test_format_type_readonly_array_union() {
 "#,
         r#"type Args = readonly string[] | undefined | null;
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -352,7 +352,7 @@ fn test_format_type_slice() {
 "#,
         r#"type Values = [Value];
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -364,7 +364,7 @@ fn test_format_type_readonly_slice() {
 "#,
         r#"type Values = [readonly Value];
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -376,7 +376,7 @@ fn test_format_type_fixed_array() {
 "#,
         r#"type Bytes = [byte; 32];
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -390,7 +390,7 @@ const g = (): (value: Value) => void => (value: Value) => {};
         r#"function f(): (value: Value) => void {}
 const g = (): ((value: Value) => void) => (value: Value) => {};
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -402,7 +402,7 @@ fn test_format_type_mapped_with_remap() {
 "#,
         r#"type Remap = { readonly [K in keyof T as `${K}`]-?: T[K] };
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -419,7 +419,7 @@ fn test_format_type_mapped_with_remap_separator_block_comment() {
     [K in keyof T as /* remap-note */ `get${Capitalize<K & string>}`]: () => T[K];
 };
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -437,7 +437,7 @@ fn test_format_type_mapped_with_remap_separator_line_comment() {
         Capitalize<K & string>]: () => T[K];
 };
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -459,9 +459,9 @@ fn test_format_type_mapped_with_remap_separator_line_comment_in_template_roundtr
     }`]: () => T[K];
 };
 "#,
-        "main.ds",
-        FileType::Destack,
-        DestackFormatOptions::default(),
+        "main.tspp",
+        FileType::Tspp,
+        TsppFormatOptions::default(),
     );
 }
 
@@ -483,7 +483,7 @@ fn test_format_type_template_literal_union_with_leading_pipe() {
 "#,
         r#"type T = `${"W" | "I" | "L" | "L" | "B" | "R" | "E" | "A" | "K"}${"!" | "!!"}`;
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -499,8 +499,8 @@ fn test_format_statement_cast_keeps_leading_comment_without_wrapper_node() {
         r#"// keep
 foo as Bar;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }
 
@@ -511,7 +511,7 @@ fn test_format_type_as_comment_chain() {
         r#"(activeService as unknown as QuickInputController) /* TS fail */
   .pick();
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -541,7 +541,7 @@ fn test_format_type_as_multiline_block_comment_before_type() {
  * keep
  */ Bar;
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -555,7 +555,7 @@ type U = Foo<string, /*b*/ number>
         r#"type T = Foo</*a*/ string>;
 type U = Foo<string, /*b*/ number>;
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -570,7 +570,7 @@ fn test_format_type_mapped_comments() {
   // be used to index type 'BinaryOperatorToText'."
 };
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -610,7 +610,7 @@ fn test_format_type_mapped_leading_body_line_comment() {
     [K in keyof T]: boolean;
 };
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -628,7 +628,7 @@ fn test_format_type_mapped_leading_body_block_comment() {
     [K in keyof T]: boolean;
 };
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -644,7 +644,7 @@ fn test_format_type_mapped_value_trailing_comment() {
     [K in keyof T]: boolean; // mapped-line
 };
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -660,7 +660,7 @@ fn test_format_type_mapped_value_separator_block_comment() {
     [K in keyof T]: /* keep */ boolean;
 };
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -676,7 +676,7 @@ fn test_format_type_mapped_value_trailing_block_comment_after_semicolon() {
     [K in keyof T]: boolean /* mapped-block */;
 };
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -693,7 +693,7 @@ fn test_format_type_mapped_value_separator_line_comment() {
     [K in keyof T]: boolean; // mapped-line
 };
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -710,7 +710,7 @@ fn test_format_type_mapped_optional_value_separator_line_comment() {
     readonly [K in keyof T]?: boolean; // map-value
 };
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -732,7 +732,7 @@ fn test_format_type_decorated_single_member_intersection() {
     }
 }
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -759,7 +759,7 @@ type A3 =
   |
   b;
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -823,8 +823,8 @@ fn test_format_union_leading_pipe_multiline_doc_comment_reaches_first_arm_prefix
     a
   | b;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(80).with_indent_width(2),
     );
 }
 
@@ -864,9 +864,9 @@ type C2 =
   // A comment to force break
   | B;
 "#,
-        "main.ds",
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(80).with_indent_width(2),
+        "main.tspp",
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(80).with_indent_width(2),
     );
 }
 
@@ -883,7 +883,7 @@ y: boolean
 x: boolean }
 );
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -932,7 +932,7 @@ export const IsUnionType = (
 )  ? false
   : true
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -971,7 +971,7 @@ fn test_format_union_parenthesis_layout() {
         r#"type T1<B> = | (B extends unknown ? number : string);
 type T2 = | (() => void);
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -1006,7 +1006,7 @@ fn test_format_union_intersection_parenthesis_layout() {
         roundingIncrement?: number;
     };
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -1057,7 +1057,7 @@ type Items3 = (string | number)[];
 // Simple case without array
 type Simple = | number;
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -1101,7 +1101,7 @@ fn test_format_parenthesized_union_last_arm_comment() {
     | "b" // arm-b
 )[]; // final-tail
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -1115,7 +1115,7 @@ fn test_format_union_doc_head_width_behavior() {
   | { xxxxxxxxxxxxxxx: true }
   | { xxxxxxxxxxxxxxx: false; xxxxxxxxxxxxxxx: bigint | null };
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -1153,7 +1153,7 @@ export interface TestUnionTypeAnnotation2 {
     LongLongLongLongLongLongType[] | LongLongLongLongLongLongType[];
 }
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -1205,7 +1205,7 @@ fn test_format_template_literal_union_width_behavior() {
   | "K"
 }${"!" | "!!"}`
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -1247,7 +1247,7 @@ type CamelToSnakeCase<TCamelCaseString: string> =
         : ""}${Lowercase<TStringConvertedSoFar>}${CamelToSnakeCase<TStringYetToConvert>}`
     : TCamelCaseString;
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -1295,7 +1295,7 @@ fn test_format_type_assertion_assignment_layout() {
 ((type) as unknown)['t'];
 ((type) satisfies unknown)['t'];
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -1358,7 +1358,7 @@ console.log(
     string | number | undefined
 );
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -1454,6 +1454,6 @@ class Buffer {
     read(&'a immutable this): void {}
 }
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }

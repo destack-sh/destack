@@ -1,0 +1,8 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / new / managed construction and address expressions
+let user = new User();
+//         ^^^ keyword.operator.new.tspp
+
+let pointer: *uint8 = &bytes[0];
+//           ^ keyword.operator.pointer.tspp

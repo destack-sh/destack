@@ -1,4 +1,4 @@
-use destack_core::StringId;
+use tspp_core::StringId;
 
 /// Diagnostics available to one compilation session.
 #[derive(Debug)]

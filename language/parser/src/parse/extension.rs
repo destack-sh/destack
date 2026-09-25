@@ -2,14 +2,14 @@ use crate::parse::error::ParserResultExt;
 use crate::parse::{DeclarationHeader, TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserResult};
 
-use destack_dir::{Declaration, ExtensionDeclaration, Keyword, LocalNodeId, NodeType, TokenType};
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_dir::{Declaration, ExtensionDeclaration, Keyword, LocalNodeId, NodeType, TokenType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
     /// Parse one extension declaration.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// extension<T> of Vector<T> implements Iterable<T> {}
     /// ```
     pub(crate) fn parse_extension(

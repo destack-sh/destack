@@ -1,6 +1,6 @@
-use destack_bytecode::{Opcode, RegisterId, RegisterSpan};
-use destack_program::FramePoint;
-use destack_source::{ModuleId, PackageId};
+use tspp_bytecode::{Opcode, RegisterId, RegisterSpan};
+use tspp_program::FramePoint;
+use tspp_source::{ModuleId, PackageId};
 
 use crate::ProgramLinker;
 use crate::link::tests::TestModule;

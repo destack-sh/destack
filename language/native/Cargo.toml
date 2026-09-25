@@ -1,6 +1,6 @@
 [package]
-name = "destack_native"
-description = "Destack native code format and ABI"
+name = "tspp_native"
+description = "TS++ native code format and ABI"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -12,9 +12,9 @@ path = "src/lib.rs"
 doctest = false
 
 [dependencies]
-destack_core = { workspace = true }
-destack_mir = { workspace = true }
-destack_serde = { workspace = true }
+tspp_core = { workspace = true }
+tspp_mir = { workspace = true }
+tspp_serde = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 
 [lints]

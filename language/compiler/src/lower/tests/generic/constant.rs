@@ -26,7 +26,7 @@ function main(): int32 {
     );
 
     session.assert_mir_lowered(
-        "main.ds",
+        "main.tspp",
         r#"
 type test.main.Point {
     x: int32;
@@ -62,7 +62,7 @@ shared function test.main.tagOf<test.main.Point>(): int32;
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.tagOf",
         r#"
 @nocopy
@@ -76,7 +76,7 @@ entry:
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.main",
         r#"
 function test.main.main(): int32 {

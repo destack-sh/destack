@@ -6,11 +6,11 @@
 
 Catch match clauses preserve match formatting.
 
-```ds
+```tspp
 try { foo() } catch match (e) { Error(err) => err; _ => null }
 ```
 
-```ds expected
+```tspp expected
 try {
     foo()
 } catch match (e) {
@@ -23,11 +23,11 @@ try {
 
 Try branches, catch-match arms, and nested if-let branches all preserve value-tail shape.
 
-```ds
+```tspp
 function read(): number { try { if (let Some(value) = maybe) { value } else { fallback() } } catch match (error) { Network.Timeout({ duration }) if (duration > 1000) => retry(duration); Validation.Errors([first, ...rest]) => { report(first, rest); fallback() }; _ => panic("unhandled error") } }
 ```
 
-```ds expected
+```tspp expected
 function read(): number {
     try {
         if (let Some(value) = maybe) {
@@ -50,11 +50,11 @@ function read(): number {
 
 Catch match clauses keep patterns and guards structured.
 
-```ds
+```tspp
 try { read() } catch match (error) { Network.Timeout({ duration }) if (duration > 1000) => retry(duration); Validation.Errors([first, ...rest]) => report(first, rest); _ => panic("unhandled error") }
 ```
 
-```ds expected
+```tspp expected
 try {
     read()
 } catch match (error) {
@@ -68,11 +68,11 @@ try {
 
 Catch match block arms preserve explicit statements and arm tail values.
 
-```ds
+```tspp
 function recover(): Result { try { read() } catch match (error) { Network.Timeout(duration) => { log(duration); retry(duration) }; Validation.Errors(errors) => { report(errors); fallback } } }
 ```
 
-```ds expected
+```tspp expected
 function recover(): Result {
     try {
         read()
@@ -93,7 +93,7 @@ function recover(): Result {
 
 Comments around catch match selectors and arms stay attached.
 
-```ds
+```tspp
 try {
     read()
 } catch match (
@@ -107,7 +107,7 @@ try {
 }
 ```
 
-```ds expected
+```tspp expected
 try {
     read()
 } catch match (
@@ -125,11 +125,11 @@ try {
 
 Catch patterns keep tagged tuple destructuring before the handler block.
 
-```ds
+```tspp
 try { read() } catch (Result.Err(error, meta = defaultMeta)) { recover(error, meta) }
 ```
 
-```ds expected
+```tspp expected
 try {
     read()
 } catch (Result.Err(error, meta = defaultMeta)) {
@@ -141,11 +141,11 @@ try {
 
 Typed catch object patterns keep the annotation inside the catch head.
 
-```ds
+```tspp
 try { read() } catch ({ code, message }: Error) { report(code, message) }
 ```
 
-```ds expected
+```tspp expected
 try {
     read()
 } catch ({ code, message }: Error) {
@@ -157,13 +157,13 @@ try {
 
 Catch-match patterns keep comments attached while preserving arm value tails.
 
-```ds
+```tspp
 try { read() } catch match (error) { // network
 Network.Timeout({ duration }) if (duration > 1000) => retry(duration); // validation
 Validation.Errors([first, ...rest]) => { report(first, rest); fallback() }; _ => panic("unhandled error") }
 ```
 
-```ds expected
+```tspp expected
 try {
     read()
 } catch match (error) {

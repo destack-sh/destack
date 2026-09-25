@@ -1,6 +1,6 @@
-use destack_core::StringId;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::StringId;
+use tspp_serde::Reflect;
 
 use crate::{
     Access, Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block,

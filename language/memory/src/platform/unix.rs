@@ -4,7 +4,7 @@ use std::ptr::{null_mut, write_bytes};
 
 use parking_lot::Mutex;
 
-use destack_signal::Fault;
+use tspp_signal::Fault;
 
 use crate::address::watch_page_write;
 pub(crate) use crate::core::{WriteWatchRegistration, WriteWatchTable};
@@ -339,7 +339,7 @@ pub(crate) fn register_write_watch(
 ) -> MemoryResult<WriteWatchRegistration> {
     let registration = WriteWatchTable::register(base, byte_len, context)?;
 
-    if let Err(error) = destack_signal::register(handle_write_watch) {
+    if let Err(error) = tspp_signal::register(handle_write_watch) {
         WriteWatchTable::unregister(&registration);
 
         return Err(MemoryError::system(

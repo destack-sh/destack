@@ -1,6 +1,6 @@
-use destack_bytecode as bytecode;
-use destack_heap::HeapError;
-use destack_program as program;
+use tspp_bytecode as bytecode;
+use tspp_heap::HeapError;
+use tspp_program as program;
 
 use super::Error;
 

@@ -6,11 +6,11 @@
 
 Try initializer values with catch clauses expand branch blocks.
 
-```ds
+```tspp
 const payload = try { readPayload(source) } catch (error) { recoverPayload(error) }
 ```
 
-```ds expected
+```tspp expected
 const payload = try {
     readPayload(source)
 } catch (error) {
@@ -22,11 +22,11 @@ const payload = try {
 
 Try object property values with catch clauses expand branch blocks.
 
-```ds
+```tspp
 const envelope = { payload: try { readPayload(source) } catch (error) { recoverPayload(error) } }
 ```
 
-```ds expected
+```tspp expected
 const envelope = {
     payload: try {
         readPayload(source)
@@ -40,11 +40,11 @@ const envelope = {
 
 Try argument values with catch clauses expand branch blocks.
 
-```ds
+```tspp
 render(try { readPayload(source) } catch (error) { recoverPayload(error) })
 ```
 
-```ds expected
+```tspp expected
 render(
     try {
         readPayload(source)
@@ -58,12 +58,12 @@ render(
 
 Try values keep required grouping in collection and spread positions.
 
-```ds
+```tspp
 const values = [try { readPayload(source) } catch (error) { recoverPayload(error) }, ...(try { readMany(source) } catch (error) { [] })]
 const envelope = { payload: try { readPayload(source) } catch (error) { recoverPayload(error) } }
 ```
 
-```ds expected
+```tspp expected
 const values = [
     try {
         readPayload(source)
@@ -89,11 +89,11 @@ const envelope = {
 
 Default parameters can use expanded try values.
 
-```ds
+```tspp
 function render(payload = try { readPayload(source) } catch (error) { recoverPayload(error) }) { use(payload) }
 ```
 
-```ds expected
+```tspp expected
 function render(
     payload = try {
         readPayload(source)
@@ -109,11 +109,11 @@ function render(
 
 Expanded try values indent inside template interpolations.
 
-```ds
+```tspp
 const label = `payload: ${try { readPayload(source) } catch (error) { recoverPayload(error) }}`
 ```
 
-```ds expected
+```tspp expected
 const label = `payload: ${
     try {
         readPayload(source)
@@ -127,11 +127,11 @@ const label = `payload: ${
 
 Try await operands with catch clauses expand branch blocks.
 
-```ds
+```tspp
 const awaited = await (try { load(source) } catch (error) { recover(error) })
 ```
 
-```ds expected
+```tspp expected
 const awaited = await (try {
     load(source)
 } catch (error) {
@@ -143,11 +143,11 @@ const awaited = await (try {
 
 Long try initializer values expand branch bodies.
 
-```ds line-width=80
+```tspp line-width=80
 const payload = try { const raw = readCachedPayload(cacheKey, options); parsePayload(raw, schema, options) } catch (error) { const diagnostic = diagnostics.describe(error, context.locale); recoverPayload(diagnostic, fallbackPayload, options) }
 ```
 
-```ds expected
+```tspp expected
 const payload = try {
     const raw = readCachedPayload(cacheKey, options);
     parsePayload(raw, schema, options)
@@ -161,11 +161,11 @@ const payload = try {
 
 Long try await operands expand branch bodies.
 
-```ds line-width=80
+```tspp line-width=80
 const awaited = await (try { loadAsync(source) } catch (error) { recoverAsync(error) })
 ```
 
-```ds expected
+```tspp expected
 const awaited = await (try {
     loadAsync(source)
 } catch (error) {
@@ -177,7 +177,7 @@ const awaited = await (try {
 
 Manually broken try initializer values keep the expanded branch shape.
 
-```ds
+```tspp
 const payload = try {
     readPayload(source)
 } catch (error) {
@@ -185,7 +185,7 @@ const payload = try {
 }
 ```
 
-```ds expected
+```tspp expected
 const payload = try {
     readPayload(source)
 } catch (error) {
@@ -197,13 +197,13 @@ const payload = try {
 
 Manually broken try argument values keep the expanded branch shape.
 
-```ds
+```tspp
 render(try {
     readPayload(source)
 } catch (error) { recoverPayload(error) })
 ```
 
-```ds expected
+```tspp expected
 render(
     try {
         readPayload(source)

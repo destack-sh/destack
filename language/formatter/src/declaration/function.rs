@@ -13,16 +13,16 @@ use crate::declaration::signature::{
 };
 use crate::declaration::statement::format_block;
 use crate::operator::write_type_expression_with_inline_prefix_annotations;
-use crate::{DestackFormatContext, DestackFormatter};
-use destack_dir::{
+use crate::{TsppFormatContext, TsppFormatter};
+use tspp_dir::{
     Argument, Declaration, ExportKind, Expression, FunctionForm, FunctionSignature,
     GenericParameter, Keyword, LocalNodeId, Name, NodeType, Parameter,
 };
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::*;
-use destack_fir::write;
-use destack_repository::ArrowParentheses;
-use destack_source::{NodeSpanRegion, NodeSpanType, Span};
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::*;
+use tspp_fir::write;
+use tspp_repository::ArrowParentheses;
+use tspp_source::{NodeSpanRegion, NodeSpanType, Span};
 
 /// The cached content wrapper keyed by source span.
 pub(crate) struct FormatContentWithCacheMode<T> {
@@ -45,11 +45,11 @@ impl<T> FormatContentWithCacheMode<T> {
     }
 }
 
-impl<'ast, T> Format<'ast, DestackFormatContext<'ast>> for FormatContentWithCacheMode<T>
+impl<'ast, T> Format<'ast, TsppFormatContext<'ast>> for FormatContentWithCacheMode<T>
 where
-    T: Format<'ast, DestackFormatContext<'ast>>,
+    T: Format<'ast, TsppFormatContext<'ast>>,
 {
-    fn format(&self, f: &mut DestackFormatter<'ast, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut TsppFormatter<'ast, '_>) -> FormatResult<()> {
         // uncached
         if self.cache_mode == FunctionCacheMode::NoCache {
             return self.content.format(f);
@@ -75,7 +75,7 @@ where
 
 /// Write one declaration is_ambient prefix.
 pub(crate) fn write_function_ambient_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     is_ambient: bool,
 ) -> FormatResult<()> {
     // is_ambient
@@ -88,7 +88,7 @@ pub(crate) fn write_function_ambient_prefix<'ast>(
 
 /// Return whether one function declaration is one direct test-call callback argument.
 fn function_declaration_is_test_call_argument(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
 ) -> bool {
     // declaration expression parent
@@ -123,7 +123,7 @@ fn function_declaration_is_test_call_argument(
 
 /// Return the parameter container span for one function-like declaration.
 pub(crate) fn function_parameter_container_span(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     node_id: LocalNodeId<Declaration>,
 ) -> Span {
     context
@@ -134,7 +134,7 @@ pub(crate) fn function_parameter_container_span(
 
 /// Return whether one lambda can omit parentheses around its single parameter.
 pub(crate) fn function_can_omit_lambda_parameter_parentheses(
-    f: &DestackFormatter<'_, '_>,
+    f: &TsppFormatter<'_, '_>,
     signature: &FunctionSignature,
     parameters: &[LocalNodeId<Parameter>],
     has_generic_parameters: bool,
@@ -164,7 +164,7 @@ pub(crate) fn function_can_omit_lambda_parameter_parentheses(
 
 /// Return whether one single lambda generic parameter needs a trailing separator.
 fn single_lambda_generic_parameter_needs_trailing_separator(
-    f: &DestackFormatter<'_, '_>,
+    f: &TsppFormatter<'_, '_>,
     signature: &FunctionSignature,
 ) -> bool {
     if signature.form != FunctionForm::Lambda || signature.generic_parameters.len() != 1 {
@@ -195,7 +195,7 @@ fn single_lambda_generic_parameter_needs_trailing_separator(
 
 /// Write one function generic parameter list.
 pub(crate) fn write_function_generic_parameters<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     signature: &FunctionSignature,
 ) -> FormatResult<bool> {
     let generic_parameters = signature.generic_parameters.as_slice();
@@ -217,7 +217,7 @@ pub(crate) fn write_function_generic_parameters<'ast>(
 
 /// Write one function parameter list.
 pub(crate) fn write_function_parameters<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     signature: &FunctionSignature,
     parameters: &[LocalNodeId<Parameter>],
@@ -265,7 +265,7 @@ pub(crate) fn write_function_parameters<'ast>(
 
 /// Write one function return type.
 pub(crate) fn write_function_return_type<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     signature: &FunctionSignature,
     body: &Option<LocalNodeId<Expression>>,
@@ -287,7 +287,7 @@ pub(crate) fn write_function_return_type<'ast>(
 
 /// Write one cached function return type when present.
 pub(crate) fn write_cached_function_return_type<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     signature: &FunctionSignature,
     body: &Option<LocalNodeId<Expression>>,
@@ -298,7 +298,7 @@ pub(crate) fn write_cached_function_return_type<'ast>(
         return Ok(());
     };
 
-    let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_return_type = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_function_return_type(f, node_id, signature, body, parameters)
     });
     let return_type_span = f.context().span(return_type);
@@ -308,7 +308,7 @@ pub(crate) fn write_cached_function_return_type<'ast>(
 
 /// Write one function parameter list and return type.
 pub(crate) fn write_function_parameters_and_return_type<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     signature: &FunctionSignature,
     body: &Option<LocalNodeId<Expression>>,
@@ -316,7 +316,7 @@ pub(crate) fn write_function_parameters_and_return_type<'ast>(
     can_omit_parens: bool,
     cache_mode: FunctionCacheMode,
 ) -> FormatResult<()> {
-    let format_parameters = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_parameters = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_function_parameters(f, node_id, signature, parameters, can_omit_parens)
     });
     let format_parameters = FormatContentWithCacheMode::new(
@@ -324,10 +324,10 @@ pub(crate) fn write_function_parameters_and_return_type<'ast>(
         format_parameters,
         cache_mode,
     );
-    let format_return_type = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_return_type = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_cached_function_return_type(f, node_id, signature, body, parameters, cache_mode)
     });
-    let format_parameter_head = format_with(|_f: &mut DestackFormatter<'ast, '_>| Ok(()));
+    let format_parameter_head = format_with(|_f: &mut TsppFormatter<'ast, '_>| Ok(()));
 
     write_grouped_parameters_with_return_type(
         f,
@@ -344,13 +344,13 @@ pub(crate) fn write_function_parameters_and_return_type<'ast>(
 
 /// Write one non-lambda function body.
 fn write_function_body<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     _signature: &FunctionSignature,
     body: LocalNodeId<Expression>,
     cache_mode: FunctionCacheMode,
 ) -> FormatResult<()> {
     let body_span = f.context().span(body);
-    let body_content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+    let body_content = format_with(move |f: &mut TsppFormatter<'ast, '_>| {
         write!(f, [space()])?;
 
         if let Expression::Block(block_id) = f.context().tree.get(body) {
@@ -365,7 +365,7 @@ fn write_function_body<'ast>(
 
 /// Write one function body and trailing semicolon.
 fn write_function_body_and_terminator<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     signature: &FunctionSignature,
     body: &Option<LocalNodeId<Expression>>,
@@ -388,7 +388,7 @@ fn write_function_body_and_terminator<'ast>(
 
 /// Write one function head before the body.
 fn write_function_head<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     name: Option<Name>,
     signature: &FunctionSignature,
@@ -398,7 +398,7 @@ fn write_function_head<'ast>(
     let parameters = ParameterList::from_signature(signature);
 
     // head prefix
-    let head_prefix = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let head_prefix = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_function_header_prefix(f, signature, true, name.is_some())?;
 
         if name.is_some() {
@@ -421,7 +421,7 @@ fn write_function_head<'ast>(
     write!(f, [block_infix_annotations(f.context(), node_id)])?;
 
     // signature
-    let format_signature = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+    let format_signature = format_with(|f: &mut TsppFormatter<'ast, '_>| {
         write_function_parameters_and_return_type(
             f,
             node_id,
@@ -446,7 +446,7 @@ fn write_function_head<'ast>(
 
 /// Format one function declaration.
 pub(crate) fn format_function_declaration<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Declaration>,
     export: Option<ExportKind>,
     is_ambient: bool,

@@ -11,7 +11,7 @@ function widen(a: int32, b: uint32): int64 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.widen",
         r#"
 function test.main.widen(v0: int32, v1: uint32): int64 {
@@ -46,7 +46,7 @@ function narrow(value: int64): int8 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.narrow",
         r#"
 function test.main.narrow(v0: int64): int8 {
@@ -76,7 +76,7 @@ function reinterpret(value: usize): isize {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.reinterpret",
         r#"
 function test.main.reinterpret(v0: usize): isize {
@@ -103,7 +103,7 @@ function ratio(hits: uint32, total: int32): float64 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.ratio",
         r#"
 function test.main.ratio(v0: uint32, v1: int32): float64 {
@@ -138,7 +138,7 @@ function whole(value: float64): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.whole",
         r#"
 function test.main.whole(v0: float64): int32 {
@@ -165,7 +165,7 @@ function big(): int64 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.big",
         r#"
 function test.main.big(): int64 {
@@ -182,7 +182,7 @@ entry:
 fn test_keep_a_truncate_intent_over_a_parameter_operand() {
     let session = TestSession::single(
         r#"
-import { Integer } from "destack:math";
+import { Integer } from "tspp:math";
 
 @intrinsic("math.cast.int.truncate")
 declare function truncateInt<T: Integer, U: Integer>(value: T): U;
@@ -194,7 +194,7 @@ function narrow<T: Integer>(value: T): int8 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.narrow",
         r#"
 function test.main.narrow<T: Integer>(v0: T): int8 {
@@ -224,7 +224,7 @@ function unwrap(id: *UserId): *int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.unwrap",
         r#"
 type test.main.UserId = newtype<int32>;

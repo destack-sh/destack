@@ -12,7 +12,7 @@ function measure(values: &readonly [int32]): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.measure",
         r#"
 function test.main.measure<'a>(v0: slice<int32, borrowed, 'a, readonly>): int32 {
@@ -38,7 +38,7 @@ function keep(name: string): string {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.keep", r#"
+    session.assert_mir_function("main.tspp", "test.main.keep", r#"
 @nocopy
 @languageItem("string.String")
 type String;
@@ -68,7 +68,7 @@ function measure(view: &readonly Bytes): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.measure",
         r#"
 function test.main.measure<'a>(v0: slice<uint8, borrowed, 'a, readonly>): int32 {
@@ -98,7 +98,7 @@ function measure(view: &readonly Frame<uint8>): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.measure",
         r#"
 function test.main.measure<'a>(v0: slice<uint8, borrowed, 'a, readonly>): int32 {
@@ -124,7 +124,7 @@ function fill(values: &[int32], value: int32): void {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.fill", r#"
+    session.assert_mir_function("main.tspp", "test.main.fill", r#"
 function test.main.fill<'a>(v0: slice<int32, borrowed, 'a, mutable>, v1: int32): void {
     local l0: slice<int32, borrowed, 'a, mutable>
     local l1: int32

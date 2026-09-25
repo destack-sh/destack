@@ -1,5 +1,5 @@
 module.exports = grammar({
-  name: "destack_bytecode",
+  name: "tspp_bytecode",
 
   word: ($) => $.identifier,
 

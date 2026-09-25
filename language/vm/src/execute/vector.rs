@@ -5,11 +5,11 @@ use core::arch::aarch64::{vaddq_s32, vld1q_s32, vst1q_s32};
 #[cfg(target_arch = "x86_64")]
 use core::arch::x86_64::{__m128i, _mm_add_epi32, _mm_loadu_si128, _mm_storeu_si128};
 
-use destack_bytecode::{
+use tspp_bytecode::{
     ConvertMode, FloatOperation, Instruction, IntegerOperation, Operands, ReduceOperation,
     RegisterSpan, Scalar, VectorOperation, VectorType,
 };
-use destack_program::{Runtime, Word};
+use tspp_program::{Runtime, Word};
 
 use crate::diagnostic::{Error, Result, Trap};
 use crate::machine::Activation;

@@ -1,7 +1,7 @@
-use destack_artifact::DiagnosticLike;
-use destack_dir as dir;
-use destack_mir as mir;
 use smallvec::SmallVec;
+use tspp_artifact::DiagnosticLike;
+use tspp_dir as dir;
+use tspp_mir as mir;
 
 use crate::lower::{
     FunctionDeclaration, FunctionDefinition, GenericInstanceKey, GenericScope, LowerPhase,

@@ -1,5 +1,5 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// Completed lint analysis for one module in one target.
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Reflect)]

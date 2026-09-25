@@ -8,11 +8,11 @@ Tuple fixtures cover tuple literals, tuple patterns, and comments.
 
 Multi-element tuple literals do not need an extra trailing comma.
 
-```ds
+```tspp
 ( 1 , 2 , 3 )
 ```
 
-```ds expected
+```tspp expected
 (1, 2, 3);
 ```
 
@@ -20,11 +20,11 @@ Multi-element tuple literals do not need an extra trailing comma.
 
 Tuple patterns in destructuring follow the same spacing rules.
 
-```ds
+```tspp
 const ( a , b ) = getTuple()
 ```
 
-```ds expected
+```tspp expected
 const (a, b) = getTuple();
 ```
 
@@ -34,13 +34,13 @@ const (a, b) = getTuple();
 
 Tuple element comments keep trailing and leading ownership separate.
 
-```ds
+```tspp
 const value = (first, // first
 // second
 second)
 ```
 
-```ds expected
+```tspp expected
 const value = (
     first, // first
     // second
@@ -52,10 +52,10 @@ const value = (
 
 Tuple pattern comments stay with the corresponding fields.
 
-```ds
+```tspp
 const (first, /* middle */ second, ...rest) = getTuple()
 ```
 
-```ds expected
+```tspp expected
 const (first, /* middle */ second, ...rest) = getTuple();
 ```

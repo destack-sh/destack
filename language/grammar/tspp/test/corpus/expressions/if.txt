@@ -1,0 +1,311 @@
+==================================
+Ternary expression
+:language(tspp)
+==================================
+
+a ? function(){ return true } : b;
+
+---
+
+(program
+  (expression_statement
+    (ternary_expression
+      (identifier)
+      (function_expression
+        (formal_parameters)
+        (statement_block
+          (return_statement
+            (true))))
+      (identifier))))
+
+==================================
+Ternary expression with satisfies prefix
+:language(tspp)
+==================================
+
+ok ? satisfiesValue : fallback;
+
+---
+
+(program
+  (expression_statement
+    (ternary_expression
+      (identifier)
+      (identifier)
+      (identifier))))
+
+==================================
+Ternary expression with object body
+:language(tspp)
+==================================
+
+ok ? { value: 1 } : fallback;
+
+---
+
+(program
+  (expression_statement
+    (ternary_expression
+      condition: (identifier)
+      consequence: (object
+        (pair
+          key: (property_identifier)
+          value: (number)))
+      alternative: (identifier))))
+
+==================================
+Ternary expression with literal bodies
+:language(tspp)
+==================================
+
+ok ? [left] : right;
+ok ? "left" : right;
+ok ? `left` : right;
+
+---
+
+(program
+  (expression_statement
+    (ternary_expression
+      (identifier)
+      (array
+        (identifier))
+      (identifier)))
+  (expression_statement
+    (ternary_expression
+      (identifier)
+      (string
+        (string_fragment))
+      (identifier)))
+  (expression_statement
+    (ternary_expression
+      (identifier)
+      (template_string
+        (string_fragment))
+      (identifier))))
+
+==================================
+Ternary expression with generic bodies
+:language(tspp)
+==================================
+
+ok ? build<Result, Error>() : fallback;
+ok ? value satisfies Record<string, number> : fallback;
+ok ? value as Record<string, number> : fallback;
+
+---
+
+(program
+  (expression_statement
+    (ternary_expression
+      (identifier)
+      (call_expression
+        (identifier)
+        (type_arguments
+          (type_identifier)
+          (type_identifier))
+        (arguments))
+      (identifier)))
+  (expression_statement
+    (ternary_expression
+      (identifier)
+      (satisfies_expression
+        (identifier)
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type)
+            (predefined_type))))
+      (identifier)))
+  (expression_statement
+    (ternary_expression
+      (identifier)
+      (as_expression
+        (identifier)
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (predefined_type)
+            (predefined_type))))
+      (identifier))))
+
+==================================
+Nested ternary expression
+:language(tspp)
+==================================
+
+ok ? left ? inner : middle : right;
+
+---
+
+(program
+  (expression_statement
+    (ternary_expression
+      (identifier)
+      (ternary_expression
+        (identifier)
+        (identifier)
+        (identifier))
+      (identifier))))
+
+==================================
+Ternary expression in arguments
+:language(tspp)
+==================================
+
+select(ok ? left : right, fallback);
+
+---
+
+(program
+  (expression_statement
+    (call_expression
+      (identifier)
+      (arguments
+        (ternary_expression
+          (identifier)
+          (identifier)
+          (identifier))
+        (identifier)))))
+
+================================================================================
+If let must patterns bind non-nullish values
+:language(tspp)
+================================================================================
+
+declare const value: int32 | null;
+
+if (let x! = value) {
+    x satisfies int32;
+} else {
+    value satisfies null;
+}
+
+
+
+---
+
+(program
+  (ambient_declaration
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (union_type
+            (type_identifier)
+            (literal_type
+              (null)))))))
+  (if_statement
+    (if_let_condition
+      (if_let_pattern
+        (match_pattern
+          (must_pattern
+            (match_pattern
+              (identifier)))))
+      (identifier))
+    (statement_block
+      (value_satisfies_statement
+        (identifier)
+        (type_identifier)))
+    (else_clause
+      (statement_block
+        (value_satisfies_statement
+          (identifier)
+          (literal_type
+            (null)))))))
+
+=================================================================================
+If let union patterns narrow covered literals
+:language(tspp)
+=================================================================================
+
+declare const value: 1 | 2 | 3;
+
+if (let 1 | 2 = value) {
+    value satisfies 1 | 2;
+} else {
+    value satisfies 3;
+}
+
+
+
+---
+
+(program
+  (ambient_declaration
+    (lexical_declaration
+      (variable_declarator
+        (identifier)
+        (type_annotation
+          (union_type
+            (union_type
+              (literal_type
+                (number))
+              (literal_type
+                (number)))
+            (literal_type
+              (number)))))))
+  (if_statement
+    (if_let_condition
+      (if_let_pattern
+        (match_pattern
+          (union_pattern
+            (match_pattern
+              (literal_type
+                (number)))
+            (match_pattern
+              (literal_type
+                (number))))))
+      (identifier))
+    (statement_block
+      (value_satisfies_statement
+        (identifier)
+        (union_type
+          (literal_type
+            (number))
+          (literal_type
+            (number)))))
+    (else_clause
+      (statement_block
+        (value_satisfies_statement
+          (identifier)
+          (literal_type
+            (number)))))))
+
+==========================================
+If let chains combine boolean conditions
+:language(tspp)
+==========================================
+
+if (ready && let Result.Ok(value)! = result && value.valid) {
+    use(value);
+}
+
+---
+
+(program
+  (if_statement
+    condition: (if_let_chain
+      left: (identifier)
+      right: (if_let_chain
+        left: (if_let_condition
+          left: (if_let_pattern
+            (match_pattern
+              (must_pattern
+                argument: (match_pattern
+                  (match_constructor_pattern
+                    name: (nested_identifier
+                      object: (identifier)
+                      property: (property_identifier))
+                    (match_pattern
+                      (identifier)))))))
+          right: (identifier))
+        right: (member_expression
+          object: (identifier)
+          property: (property_identifier))))
+    consequence: (statement_block
+      (expression_statement
+        (call_expression
+          function: (identifier)
+          arguments: (arguments
+            (identifier)))))))

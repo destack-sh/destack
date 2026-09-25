@@ -11,7 +11,7 @@ use crate::{Error, IntegerEncoding, Result};
 /// Maximum number of bytes needed for one encoded u128 varint.
 const U128_VARINT_MAX_BYTES: usize = 19;
 
-/// Encode one value into canonical Destack binary bytes.
+/// Encode one value into canonical TS++ binary bytes.
 pub fn to_vec<T>(value: &T) -> Result<Vec<u8>>
 where
     T: Serialize + ?Sized,
@@ -46,7 +46,7 @@ where
     value.serialize(&mut encoder)
 }
 
-/// Append one value to canonical Destack binary bytes.
+/// Append one value to canonical TS++ binary bytes.
 pub fn append_to_vec<T>(value: &T, output: &mut Vec<u8>) -> Result<()>
 where
     T: Serialize + ?Sized,

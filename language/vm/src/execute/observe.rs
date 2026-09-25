@@ -1,7 +1,7 @@
-use destack_bytecode::CodeOffset;
-use destack_heap::HeapEdge;
-use destack_mir::Storage;
-use destack_program::{AllocationSiteId, Event, EventKind, FunctionId, MemoryAccess, Runtime};
+use tspp_bytecode::CodeOffset;
+use tspp_heap::HeapEdge;
+use tspp_mir::Storage;
+use tspp_program::{AllocationSiteId, Event, EventKind, FunctionId, MemoryAccess, Runtime};
 
 use crate::diagnostic::{ExecutionError, ExecutionResult};
 use crate::machine::{Activation, Frame};

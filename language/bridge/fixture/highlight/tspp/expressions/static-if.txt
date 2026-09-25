@@ -1,0 +1,25 @@
+// SYNTAX TEST "source.tspp"
+
+// expressions / static-if / declarations
+@if(import.meta.runtime == "js")
+// <~-- entity.name.function.decorator.tspp
+function runtimeName(): string {
+    "js"
+}
+
+// expressions / static-if / statements
+function size<const Wide: boolean>(): uint {
+    @if(Wide)
+//   ^^ entity.name.function.decorator.tspp
+    return 8;
+
+    @if(!Wide)
+    return 4;
+}
+
+// expressions / static-if / members
+struct Buffer<const Inline: boolean> {
+    @if(Inline)
+//   ^^ entity.name.function.decorator.tspp
+    data: InlineData;
+}

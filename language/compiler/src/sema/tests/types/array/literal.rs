@@ -12,7 +12,7 @@ function extend(values: int32[]): void {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked().with_coercion(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked().with_coercion(), r#"
 === annotated ===
 function extend(values: int32[]): void {
     const mixed: (int32 | boolean)[] = [true as int32 | boolean, ...values];
@@ -55,7 +55,7 @@ let values = [1, 2];
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -84,7 +84,7 @@ const values: int32[] = [1, 2];
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -113,7 +113,7 @@ const first = [1].iterator().next();
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -155,7 +155,7 @@ function extend(values: int32[]): int32[] {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -199,7 +199,7 @@ let values = [1, , 3];
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -228,7 +228,7 @@ const pair: [int32; 2] = [1, 2];
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -254,7 +254,7 @@ const pair: [int32; 2] = [1, 2, 3];
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -289,7 +289,7 @@ function build(): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -326,7 +326,7 @@ function build(): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -363,7 +363,7 @@ function build(): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -397,7 +397,7 @@ const values: [1 | 2 | 3; 3] = [1, 2, 3];
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -424,7 +424,7 @@ const values = [1, 2, 3] as [_; _];
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
@@ -455,7 +455,7 @@ const values = [1, 2, 3] as Slice<_>;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
@@ -494,7 +494,7 @@ const values = [1, 2, 3] as [_];
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types().with_coercion(),
         r#"
 === annotated ===
@@ -536,7 +536,7 @@ matrix satisfies [[int32; 2]; 2];
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -584,7 +584,7 @@ const matrix: [[int32; 2]; 2] = [[1, 2], [3]];
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -621,7 +621,7 @@ const values = make();
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -654,7 +654,7 @@ const items: Iterable<int32> = [1, 2];
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

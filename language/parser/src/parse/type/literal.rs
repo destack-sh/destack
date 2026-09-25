@@ -1,6 +1,6 @@
 use crate::{Parser, ParserError, ParserResult};
 
-use destack_dir::{Keyword, TokenType, TypeLiteral, VarianceBound};
+use tspp_dir::{Keyword, TokenType, TypeLiteral, VarianceBound};
 
 impl Parser {
     /// Return the always-available type literal at the current token.
@@ -18,7 +18,7 @@ impl Parser {
     /// Parse a variance bound when present.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// extends T
     /// implements Shape
     /// super Base
@@ -71,7 +71,7 @@ impl Parser {
     /// Parse one type literal token sequence.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// string
     /// int32
     /// ```

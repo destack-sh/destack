@@ -1,9 +1,9 @@
 use crate::{DependencyBinding, DependencyItem, Keyword, LocalNodeId, Name};
-use destack_core::StringId;
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::*;
-use destack_fir::write;
-use destack_source::{NodeSpanRegion, NodeSpanType, Span};
+use tspp_core::StringId;
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::*;
+use tspp_fir::write;
+use tspp_source::{NodeSpanRegion, NodeSpanType, Span};
 
 use crate::format::argument::list_like;
 use crate::format::literal::format_string_literal_with_source_span;
@@ -38,7 +38,7 @@ fn format_dependency_item_name<'ast>(
 /// Format a dependency item alias.
 fn format_dependency_item_alias<'ast>(
     f: &mut Formatter<'ast, '_>,
-    alias: destack_core::StringId,
+    alias: tspp_core::StringId,
     source_span: Option<Span>,
 ) -> FormatResult<()> {
     if let Some(source_span) = source_span {

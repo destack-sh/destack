@@ -11,7 +11,7 @@ interface Reader {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked().with_definitions(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked().with_definitions(), r#"
 === annotated ===
 interface Reader {
     private read(): string;
@@ -47,7 +47,7 @@ interface Reader {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_definitions(),
         r#"
 === annotated ===

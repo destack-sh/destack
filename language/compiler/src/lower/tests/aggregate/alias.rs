@@ -17,7 +17,7 @@ function test(rule: &readonly Rule): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.test",
         r#"
 type test.main.Rule {
@@ -54,7 +54,7 @@ function total(options: Options): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.total",
         r#"
 function test.main.total(v0: ref<{ overflow: int32, offset: int32 }, managed, mutable, local>): int32 {
@@ -90,7 +90,7 @@ function run(reaction: Reaction): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.run",
         r#"
 function test.main.run(v0: function<(int32) => void, repeatable, managed, mutable, local>): void {
@@ -127,7 +127,7 @@ function pick(options: Options): void {}
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.pick",
         r#"
 type literal.string.auto { }
@@ -182,7 +182,7 @@ function render(options: Formatting & { zone?: string }): void {}
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.render",
         r#"
 @nocopy
@@ -212,7 +212,7 @@ entry(v0: ref<{ style: variant<uint1> { 0uint1 = ref<String, managed, mutable, l
 fn test_lower_an_imported_intersection_alias_over_optional_fields() {
     let session = TestSession::builder()
         .module(
-            "fields.ds",
+            "fields.tspp",
             r#"
 export type Fields = {
     year?: number;
@@ -225,9 +225,9 @@ export type Input = Fields & {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Input } from "./fields.ds";
+import { Input } from "./fields.tspp";
 
 function read(input: Input): void {}
 "#,
@@ -235,7 +235,7 @@ function read(input: Input): void {}
         .build();
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 @nocopy
@@ -270,7 +270,7 @@ entry(v0: ref<{ year: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, month
 fn test_lower_an_intersection_over_an_imported_alias() {
     let session = TestSession::builder()
         .module(
-            "fields.ds",
+            "fields.tspp",
             r#"
 export type Fields = {
     year?: number;
@@ -279,9 +279,9 @@ export type Fields = {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Fields } from "./fields.ds";
+import { Fields } from "./fields.tspp";
 
 export type Input = Fields & {
     offset?: string;
@@ -293,7 +293,7 @@ function read(input: Input): void {}
         .build();
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 @nocopy
@@ -328,15 +328,15 @@ entry(v0: ref<{ year: variant<uint1> { 0uint1 = float64; 1uint1 = void; }, month
 fn test_lower_a_region_elided_alias_application() {
     let session = TestSession::single(
         r#"
-import { Cow } from "destack:memory";
-import { StringSlice } from "destack:string";
+import { Cow } from "tspp:memory";
+import { StringSlice } from "tspp:string";
 
 function keep(value: Cow<StringSlice>): void {}
 "#,
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.keep",
         r#"
 @languageItem("string.StringSlice")
@@ -364,9 +364,9 @@ entry(v0: Cow<'a, StringSlice, String>):
 fn test_lower_a_region_elided_alias_argument_of_a_newtype_application() {
     let session = TestSession::single(
         r#"
-import { Error, Result } from "destack:error";
-import { Cow } from "destack:memory";
-import { StringSlice } from "destack:string";
+import { Error, Result } from "tspp:error";
+import { Cow } from "tspp:memory";
+import { StringSlice } from "tspp:string";
 
 declare function read(): Result<Cow<StringSlice>, Error>;
 
@@ -377,7 +377,7 @@ function keep(): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.keep",
         r#"
 @languageItem("string.StringSlice")

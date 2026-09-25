@@ -1,8 +1,8 @@
-use destack_dir as dir;
-use destack_serde::Reflect;
-use destack_source::Span;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use tspp_dir as dir;
+use tspp_serde::Reflect;
+use tspp_source::Span;
 
 use crate::source::sort_and_dedup_spans;
 use crate::{CallItem, ProgramQueryContext, QueryError, QueryResult};

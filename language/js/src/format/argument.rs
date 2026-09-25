@@ -1,12 +1,12 @@
 use std::marker::PhantomData;
 
 use crate::{Argument, LocalNodeId, Node, Parameter, Tree, TreeImpl};
-use destack_fir::format::{BestFittingMode, FormatResult};
+use tspp_fir::format::{BestFittingMode, FormatResult};
 
 use crate::{Context, FormatNode, Formatter};
 
-use destack_fir::prelude::*;
-use destack_fir::{best_fitting, format_args, write};
+use tspp_fir::prelude::*;
+use tspp_fir::{best_fitting, format_args, write};
 
 /// One JavaScript delimited list formatter.
 #[derive(Debug, Clone, PartialEq)]

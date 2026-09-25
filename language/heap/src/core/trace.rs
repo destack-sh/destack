@@ -1,15 +1,11 @@
 use std::fmt;
 use std::marker::PhantomData;
 
-use destack_core::{
-    EntryRange, EntryStore, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
-};
-use destack_mir as mir;
-use destack_mir::{
-    Discriminant, DiscriminantField, TraceId, TraceMap, VariantEncoding, VariantTrace,
-};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::{EntryRange, EntryStore, SectionBuilder, SectionEntry, SectionImage, SectionSlice};
+use tspp_mir as mir;
+use tspp_mir::{Discriminant, DiscriminantField, TraceId, TraceMap, VariantEncoding, VariantTrace};
+use tspp_serde::Reflect;
 
 use crate::{HeapResult, ReferenceClass, ReferenceRange};
 

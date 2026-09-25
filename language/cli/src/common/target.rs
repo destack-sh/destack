@@ -1,4 +1,4 @@
-use destack_workspace::CommandTargetOverrides;
+use tspp_workspace::CommandTargetOverrides;
 
 use crate::common::TargetArgs;
 

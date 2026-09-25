@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactProjectionFingerprint, DirChecked, DirDeclared, DirElaborated};
-use destack_dir as dir;
-use destack_repository::ArtifactAttemptRecorder;
-use destack_source::ModuleId;
+use tspp_artifact::{ArtifactProjectionFingerprint, DirChecked, DirDeclared, DirElaborated};
+use tspp_dir as dir;
+use tspp_repository::ArtifactAttemptRecorder;
+use tspp_source::ModuleId;
 
 use crate::sema::{CheckModuleState, CheckState};
 use crate::{CompilerError, CompilerResult};

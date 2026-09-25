@@ -34,7 +34,7 @@ pub fn run(args: &CompletionsArgs) -> i32 {
     // generate the completion script into a buffer
     let mut command = build_command(HelpMode::Full);
     let mut buffer = Vec::new();
-    generate(args.shell, &mut command, "destack", &mut buffer);
+    generate(args.shell, &mut command, "tspp", &mut buffer);
 
     // emit structured output when requested
     if args.report.is_json() {

@@ -3,18 +3,18 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use clap::{Args, ValueEnum};
-use destack_artifact::ArtifactCache;
-use destack_daemon::{
+use tspp_artifact::ArtifactCache;
+use tspp_daemon::{
     DaemonConnectOptions, DaemonConnection, DaemonEndpoint, DaemonLaunch, DaemonLaunchCommand,
     OpenWorkspaceRequest,
 };
-use destack_repository::{
+use tspp_repository::{
     DestackLayout, DestackLayoutOverride, Environment, Execution, FormatterOptions, Host,
     Repository, Revision, Settings, SourceRoot,
 };
-use destack_session::Executor;
-use destack_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
-use destack_workspace::{ManifestOverride, Workspace};
+use tspp_session::Executor;
+use tspp_source::{FileSystem, IndentStyle, LineEnding, PhysicalFileSystem};
+use tspp_workspace::{ManifestOverride, Workspace};
 
 use crate::common::{ReportArgs, overrides_from_program, report_error};
 use crate::diagnostic::{ConsoleError, ConsoleResult};

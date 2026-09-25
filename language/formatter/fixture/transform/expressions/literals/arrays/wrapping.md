@@ -6,11 +6,11 @@
 
 When the line width is exceeded, arrays break to multiple lines.
 
-```ds line-width=10
+```tspp line-width=10
 [1, 2, 3, 4, 5]
 ```
 
-```ds expected
+```tspp expected
 [
     1, 2,
     3, 4,
@@ -22,11 +22,11 @@ When the line width is exceeded, arrays break to multiple lines.
 
 Long string elements also trigger line breaking.
 
-```ds line-width=30
+```tspp line-width=30
 ["longString", "anotherLong", "third"]
 ```
 
-```ds expected
+```tspp expected
 [
     "longString",
     "anotherLong",
@@ -38,11 +38,11 @@ Long string elements also trigger line breaking.
 
 Identifier arrays also break when exceeding line width.
 
-```ds line-width=30
+```tspp line-width=30
 [firstName, lastName, email, phone]
 ```
 
-```ds expected
+```tspp expected
 [
     firstName,
     lastName,
@@ -55,10 +55,10 @@ Identifier arrays also break when exceeding line width.
 
 Arrays stay on one line when they fit within line width.
 
-```ds line-width=50
+```tspp line-width=50
 [1, 2, 3, 4, 5]
 ```
 
-```ds expected
+```tspp expected
 [1, 2, 3, 4, 5];
 ```

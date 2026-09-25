@@ -1,12 +1,12 @@
 use crate::{ExpressionPosition, ExpressionStop, TypePosition, TypeStop};
-use destack_dir::{
+use tspp_dir::{
     Access, Argument, Asynchrony, BinaryOperator, BlockContext, BlockForm, CommentKind,
     Declaration, Declarator, Expression, FunctionDeclaration, FunctionForm, FunctionPhase,
     GenericArgument, GenericParameter, IntegerType, Literal, NodeType, Parameter, Pattern,
     PatternField, ThisForm, TokenType, TypeDeclaration, TypeExpression, TypeLiteral, UnaryOperator,
     VarianceModifier, WhereClause, YieldCardinality,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::parse::DeclarationHeader;
 use crate::{

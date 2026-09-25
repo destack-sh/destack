@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -123,7 +123,7 @@ function append(values: int32[], count: isize): void {
         session.assert_diagnostics(
             r#"
 warning[same-item-push]: counted loop repeatedly pushes one value
- ──▶ main.ds:2:5
+ ──▶ main.tspp:2:5
   │
 1 │ function append(values: int32[], count: isize): void {
 2 │     for (const _ of 0..count) {

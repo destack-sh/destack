@@ -1,0 +1,397 @@
+import { HostError } from "tspp:error/host";
+
+import { Label, LabelSelector } from "./entity.tspp";
+import { BranchId, RevisionId } from "./lineage.tspp";
+import { ResourceId } from "./resource.tspp";
+
+/// Live world control handle.
+@languageItem("runtime.WorldHandle")
+export newtype WorldHandle = ResourceId;
+
+/// Live runtime control handle.
+@languageItem("runtime.RuntimeHandle")
+export newtype RuntimeHandle = ResourceId;
+
+/// Live worker control handle.
+@languageItem("runtime.WorkerHandle")
+export newtype WorkerHandle = ResourceId;
+
+/// Runtime identifier in one world.
+@languageItem("runtime.RuntimeId")
+export newtype RuntimeId = uint64;
+
+/// Worker identifier in one world.
+@languageItem("runtime.WorkerId")
+export newtype WorkerId = uint64;
+
+/// Pinned world view handle.
+@languageItem("runtime.WorldViewHandle")
+export newtype WorldViewHandle = ResourceId;
+
+/// Engine selection for one world.
+@languageItem("runtime.Engine")
+export enum Engine {
+    /// VM-backed execution.
+    Vm = 1,
+    /// Native-backed execution.
+    Native = 2,
+}
+
+/// Execution selection for one world.
+@languageItem("runtime.Execution")
+export enum Execution {
+    /// Strict execution with complete runtime mediation.
+    Strict = 1,
+    /// Fast execution with minimal runtime mediation.
+    Fast = 2,
+    /// Record execution for later replay.
+    Record = 3,
+    /// Replay one previously recorded trace.
+    Replay = 4,
+}
+
+/// Worker executor selection.
+@languageItem("runtime.WorkerExecutor")
+export enum WorkerExecutor {
+    /// Let the runtime choose the executor.
+    Managed = 1,
+    /// Run this worker on one dedicated host thread.
+    DedicatedThread = 2,
+}
+
+/// Tick result for one world advance.
+@languageItem("runtime.TickResult")
+export enum TickResult {
+    /// No progress was possible.
+    Idle = 1,
+    /// One or more tasks or events progressed.
+    Progressed = 2,
+    /// Time advanced without dispatching work.
+    AdvancedTime = 3,
+    /// Background work is still active.
+    Background = 4,
+}
+
+/// Create options for one world.
+export struct WorldCreateOptions {
+    /// Optional engine preference.
+    engine?: Engine;
+    /// Optional execution preference.
+    execution?: Execution;
+    /// Optional world labels.
+    labels?: [Label];
+}
+
+/// Create options for one runtime.
+export struct RuntimeCreateOptions {
+    /// Optional runtime name.
+    name?: string;
+    /// Optional runtime labels.
+    labels?: [Label];
+}
+
+/// Create options for one worker.
+export struct WorkerCreateOptions {
+    /// Optional worker name.
+    name?: string;
+    /// Optional worker executor preference.
+    executor?: WorkerExecutor;
+    /// Optional worker labels.
+    labels?: [Label];
+}
+
+/// Live world.
+@languageItem("runtime.World")
+export class World {
+    /// World handle.
+    handle: WorldHandle;
+    /// Active branch.
+    branch: BranchId;
+    /// Active revision.
+    revision: RevisionId;
+    /// Runtime count in this world.
+    runtimes: uint32;
+    /// World labels.
+    labels?: [Label];
+
+    /// Create a world view.
+    private constructor(
+        handle: WorldHandle,
+        branch: BranchId,
+        revision: RevisionId,
+        runtimes: uint32,
+    ) {
+        this.handle = handle;
+        this.branch = branch;
+        this.revision = revision;
+        this.runtimes = runtimes;
+    }
+}
+
+/// Live runtime.
+@languageItem("runtime.Runtime")
+export class Runtime {
+    /// Runtime handle.
+    handle: RuntimeHandle;
+
+    /// Runtime identifier.
+    id: RuntimeId;
+    /// Optional runtime name.
+    name?: string;
+    /// Worker count in this runtime.
+    workers: uint32;
+    /// Runtime labels.
+    labels?: [Label];
+
+    /// Create a runtime view.
+    private constructor(handle: RuntimeHandle, id: RuntimeId, workers: uint32) {
+        this.handle = handle;
+        this.id = id;
+        this.workers = workers;
+    }
+}
+
+/// Live worker.
+@languageItem("runtime.Worker")
+export class Worker {
+    /// Worker handle.
+    handle: WorkerHandle;
+
+    /// Worker identifier.
+    id: WorkerId;
+    /// Owning runtime.
+    runtime: RuntimeId;
+    /// Optional worker name.
+    name?: string;
+    /// Whether the worker has pending work.
+    hasPendingWork: boolean;
+    /// Worker labels.
+    labels?: [Label];
+
+    /// Create a worker view.
+    private constructor(
+        handle: WorkerHandle,
+        id: WorkerId,
+        runtime: RuntimeId,
+        hasPendingWork: boolean,
+    ) {
+        this.handle = handle;
+        this.id = id;
+        this.runtime = runtime;
+        this.hasPendingWork = hasPendingWork;
+    }
+}
+
+/// Runtime list page.
+export struct RuntimePage {
+    /// Runtime records in this page.
+    runtimes: Runtime[];
+    /// Next runtime cursor when more records exist.
+    next?: RuntimeId;
+}
+
+/// Worker list page.
+export struct WorkerPage {
+    /// Worker records in this page.
+    workers: Worker[];
+    /// Next worker cursor when more records exist.
+    next?: WorkerId;
+}
+
+/// Filter for runtime lists.
+export struct RuntimeFilter {
+    /// Optional exact runtime name.
+    name?: string;
+    /// Optional label selector clauses.
+    labels?: [LabelSelector];
+}
+
+/// Filter for worker lists.
+export struct WorkerFilter {
+    /// Optional owning runtime selector.
+    runtime?: RuntimeId;
+    /// Optional exact worker name.
+    name?: string;
+    /// Optional pending-work selector.
+    hasPendingWork?: boolean;
+    /// Optional label selector clauses.
+    labels?: [LabelSelector];
+}
+
+/// Open options for one pinned world view.
+export struct WorldViewOptions {
+    /// Explicit revision to pin when present.
+    revision?: RevisionId;
+}
+
+export extension of World {
+    /// Create one world.
+    static open(options?: WorldCreateOptions): Result<World, HostError> {
+        worldCreate(options).andThen((handle) => worldDescribe(handle))
+    }
+
+    /// Close this world.
+    close(&readonly this): Result<void, HostError> {
+        worldClose(this.handle)
+    }
+
+    /// Return fresh state for this world.
+    describe(&readonly this): Result<World, HostError> {
+        worldDescribe(this.handle)
+    }
+
+    /// Advance this world by one scheduler step.
+    tick(&readonly this): Result<TickResult, HostError> {
+        worldTick(this.handle)
+    }
+
+    /// Create one runtime in this world.
+    runtime(&readonly this, options?: RuntimeCreateOptions): Result<Runtime, HostError> {
+        runtimeCreate(this.handle, options).andThen((handle) => runtimeDescribe(handle))
+    }
+}
+
+export extension of Runtime {
+    /// Close this runtime.
+    close(&readonly this): Result<void, HostError> {
+        runtimeClose(this.handle)
+    }
+
+    /// Return fresh state for this runtime.
+    describe(&readonly this): Result<Runtime, HostError> {
+        runtimeDescribe(this.handle)
+    }
+
+    /// Create one worker in this runtime.
+    worker(&readonly this, options?: WorkerCreateOptions): Result<Worker, HostError> {
+        workerCreate(this.handle, options).andThen((handle) => workerDescribe(handle))
+    }
+}
+
+export extension of Worker {
+    /// Close this worker.
+    close(&readonly this): Result<void, HostError> {
+        workerClose(this.handle)
+    }
+
+    /// Return fresh state for this worker.
+    describe(&readonly this): Result<Worker, HostError> {
+        workerDescribe(this.handle)
+    }
+}
+
+/// Create one world.
+@binding("tspp.runtime.world.worldCreate", {
+    effect: "deterministic",
+    requires: ["runtime.world.create"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function worldCreate(options?: WorldCreateOptions): Result<WorldHandle, HostError>;
+
+/// Close one world.
+@binding("tspp.runtime.world.worldClose", {
+    effect: "deterministic",
+    requires: ["runtime.world.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function worldClose(world: WorldHandle): Result<void, HostError>;
+
+/// Describe one world.
+@binding("tspp.runtime.world.worldDescribe", {
+    effect: "deterministic",
+    requires: ["runtime.world.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function worldDescribe(world: WorldHandle): Result<World, HostError>;
+
+/// Advance one world by one scheduler step.
+@binding("tspp.runtime.world.worldTick", {
+    effect: "deterministic",
+    requires: ["runtime.world.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function worldTick(world: WorldHandle): Result<TickResult, HostError>;
+
+/// Spawn one runtime in one world.
+@binding("tspp.runtime.world.runtimeCreate", {
+    effect: "deterministic",
+    requires: ["runtime.runtime.create"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function runtimeCreate(
+    world: WorldHandle,
+    options?: RuntimeCreateOptions,
+): Result<RuntimeHandle, HostError>;
+
+/// Close one runtime.
+@binding("tspp.runtime.world.runtimeClose", {
+    effect: "deterministic",
+    requires: ["runtime.runtime.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function runtimeClose(runtimeHandle: RuntimeHandle): Result<void, HostError>;
+
+/// Describe one runtime.
+@binding("tspp.runtime.world.runtimeDescribe", {
+    effect: "deterministic",
+    requires: ["runtime.runtime.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function runtimeDescribe(runtimeHandle: RuntimeHandle): Result<Runtime, HostError>;
+
+/// Spawn one worker in one runtime.
+@binding("tspp.runtime.world.workerCreate", {
+    effect: "deterministic",
+    requires: ["runtime.worker.create"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function workerCreate(
+    runtimeHandle: RuntimeHandle,
+    options?: WorkerCreateOptions,
+): Result<WorkerHandle, HostError>;
+
+/// Close one worker.
+@binding("tspp.runtime.world.workerClose", {
+    effect: "deterministic",
+    requires: ["runtime.worker.control"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function workerClose(worker: WorkerHandle): Result<void, HostError>;
+
+/// Describe one worker.
+@binding("tspp.runtime.world.workerDescribe", {
+    effect: "deterministic",
+    requires: ["runtime.worker.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function workerDescribe(worker: WorkerHandle): Result<Worker, HostError>;

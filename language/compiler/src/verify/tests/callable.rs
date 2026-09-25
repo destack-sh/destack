@@ -28,7 +28,8 @@ function invokeExclusive(run: &Function<(), void, "mutable">): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -45,7 +46,8 @@ function invokeOwned(run: ^Function<(), void, "once">): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -63,7 +65,7 @@ function invokeOwned(run: ^Function<(), void, "once">): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds",
+        "main.tspp",
         r#"
 /// @diagnostic.error id=use-after-move message="use of moved value"
 /// @diagnostic.label line=4 column=5 span="run()" line_source="run();"
@@ -77,7 +79,7 @@ function invokeOwned(run: ^Function<(), void, "once">): void {
 fn test_release_a_once_closure_environment_after_its_captures_move_out() {
     let session = TestSession::single(
         r#"
-import { Box } from "destack:memory";
+import { Box } from "tspp:memory";
 
 function invokeOwned(run: ^Function<(), void, "once">): void {
     run();
@@ -97,7 +99,8 @@ function spawn(): void {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 
 "#,
     );
@@ -108,7 +111,7 @@ function spawn(): void {
 fn test_copy_through_a_closure_parameter_borrow_under_an_enclosing_where_clause() {
     let session = TestSession::single(
         r#"
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 function keep<T>(predicate: (value: T) => boolean): ((value: &immutable T) => boolean) where T: Copy {
     return (value: &immutable T) => predicate(*value);
@@ -117,7 +120,8 @@ function keep<T>(predicate: (value: T) => boolean): ((value: &immutable T) => bo
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }

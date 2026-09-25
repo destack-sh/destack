@@ -1,9 +1,9 @@
-use destack_core::{
+use serde::{Deserialize, Serialize};
+use tspp_core::{
     EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice,
 };
-use destack_heap::DropId;
-use destack_serde::Reflect;
-use serde::{Deserialize, Serialize};
+use tspp_heap::DropId;
+use tspp_serde::Reflect;
 
 use super::LayoutId;
 

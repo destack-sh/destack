@@ -1,6 +1,6 @@
 use super::{TokenType, assert_tokenize_eq_roundtrip, token};
 
-/// Destack punctuation should lex to the expected operator and delimiter tokens.
+/// TS++ punctuation should lex to the expected operator and delimiter tokens.
 #[test]
 fn test_lex_basic_destack_punctuation() {
     assert_tokenize_eq_roundtrip!(

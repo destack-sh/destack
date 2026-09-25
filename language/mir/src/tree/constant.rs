@@ -1,7 +1,7 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
-use destack_core::StringId;
+use tspp_core::StringId;
 
 use crate::{FloatType, TypeId};
 

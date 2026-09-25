@@ -1,12 +1,12 @@
 use std::fmt;
 
-use destack_core::{
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use tspp_core::{
     EntryRange, EntryStore, Optional, SectionBuilder, SectionEntry, SectionImage,
     SectionImageError, SectionLoader, SectionSlice, SectionStorage,
 };
-use destack_mir::TargetLayout;
-use destack_serde::Reflect;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use tspp_mir::TargetLayout;
+use tspp_serde::Reflect;
 
 use super::{
     Alignment, Block, BlockBuilder, Definition, DefinitionBuilder, ObjectMap, ObjectMapBuilder,
@@ -25,7 +25,7 @@ pub struct Object {
 pub enum ObjectLoadError {
     /// The physical section image is malformed.
     Image(SectionImageError),
-    /// The byte region does not contain a Destack native object.
+    /// The byte region does not contain a TS++ native object.
     InvalidMagic,
     /// The native object version is not supported.
     UnsupportedVersion(u16),

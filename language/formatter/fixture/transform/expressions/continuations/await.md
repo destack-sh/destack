@@ -8,11 +8,11 @@ Await fixtures cover awaited calls, member chains, comments, and statement conte
 
 Await expressions keep a space after `await`.
 
-```ds
+```tspp
 const result = await fetch(url)
 ```
 
-```ds expected
+```tspp expected
 const result = await fetch(url);
 ```
 
@@ -20,11 +20,11 @@ const result = await fetch(url);
 
 Await applies to the full chain without extra parentheses.
 
-```ds
+```tspp
 const value = await client.getUser(id).profile
 ```
 
-```ds expected
+```tspp expected
 const value = await client.getUser(id).profile;
 ```
 
@@ -34,11 +34,11 @@ const value = await client.getUser(id).profile;
 
 Await arguments format like normal expressions.
 
-```ds
+```tspp
 const value = combine(await left(), await right())
 ```
 
-```ds expected
+```tspp expected
 const value = combine(await left(), await right());
 ```
 
@@ -48,11 +48,11 @@ const value = combine(await left(), await right());
 
 Error-propagating await keeps the `?` tight to `await`.
 
-```ds
+```tspp
 const result = await? fetch(url)
 ```
 
-```ds expected
+```tspp expected
 const result = await? fetch(url);
 ```
 
@@ -62,10 +62,10 @@ const result = await? fetch(url);
 
 The `!` marker prints directly after `await`.
 
-```ds
+```tspp
 const result = await! fetch(url)
 ```
 
-```ds expected
+```tspp expected
 const result = await! fetch(url);
 ```

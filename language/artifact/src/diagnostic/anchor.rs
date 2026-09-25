@@ -1,6 +1,6 @@
-use destack_serde::Reflect;
-use destack_source::{FileId, ModuleId, PackageId, Span};
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
+use tspp_source::{FileId, ModuleId, PackageId, Span};
 
 /// Provider-side source anchor for one diagnostic label.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]

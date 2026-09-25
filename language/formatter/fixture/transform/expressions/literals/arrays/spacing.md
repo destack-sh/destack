@@ -6,11 +6,11 @@
 
 Spaces after `[` and before `]` should be removed.
 
-```ds
+```tspp
 [ 1, 2, 3 ]
 ```
 
-```ds expected
+```tspp expected
 [1, 2, 3];
 ```
 
@@ -18,11 +18,11 @@ Spaces after `[` and before `]` should be removed.
 
 Short array literals remain on a single line.
 
-```ds
+```tspp
 [1, 2, 3, 4, 5]
 ```
 
-```ds expected
+```tspp expected
 [1, 2, 3, 4, 5];
 ```
 
@@ -30,11 +30,11 @@ Short array literals remain on a single line.
 
 Empty arrays have all spaces removed.
 
-```ds
+```tspp
 [   ]
 ```
 
-```ds expected
+```tspp expected
 [];
 ```
 
@@ -42,11 +42,11 @@ Empty arrays have all spaces removed.
 
 Single elements have internal spacing removed.
 
-```ds
+```tspp
 [   1   ]
 ```
 
-```ds expected
+```tspp expected
 [1];
 ```
 
@@ -54,11 +54,11 @@ Single elements have internal spacing removed.
 
 Commas get a space after but not before.
 
-```ds
+```tspp
 [1,2,3]
 ```
 
-```ds expected
+```tspp expected
 [1, 2, 3];
 ```
 
@@ -66,11 +66,11 @@ Commas get a space after but not before.
 
 Extra spaces around elements are normalized.
 
-```ds
+```tspp
 [  1  ,  2  ,  3  ]
 ```
 
-```ds expected
+```tspp expected
 [1, 2, 3];
 ```
 
@@ -80,11 +80,11 @@ Extra spaces around elements are normalized.
 
 Short arrays on one line don't get trailing commas.
 
-```ds
+```tspp
 [1, 2, 3]
 ```
 
-```ds expected
+```tspp expected
 [1, 2, 3];
 ```
 
@@ -92,11 +92,11 @@ Short arrays on one line don't get trailing commas.
 
 Trailing commas in source are normalized.
 
-```ds
+```tspp
 const arr = [1,]
 ```
 
-```ds expected
+```tspp expected
 const arr = [1];
 ```
 
@@ -104,7 +104,7 @@ const arr = [1];
 
 Blank lines between array elements are preserved.
 
-```ds
+```tspp
 const arr = [
     1,
 
@@ -114,7 +114,7 @@ const arr = [
 ]
 ```
 
-```ds expected
+```tspp expected
 const arr = [
     1,
 
@@ -130,13 +130,13 @@ const arr = [
 
 Trailing element comments and next element leading comments keep separate ownership.
 
-```ds
+```tspp
 const value = [first, // first
 // second
 second]
 ```
 
-```ds expected
+```tspp expected
 const value = [
     first, // first
     // second

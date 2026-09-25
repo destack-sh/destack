@@ -1,0 +1,41 @@
+import { todo } from "tspp:error";
+import { Exclude, NoInfer } from "tspp:types";
+
+import { SignalArgument } from "./accessor.tspp";
+
+import { DerivationSignal, DerivationValue } from "./derive.tspp";
+import { MemoOptions, SignalOptions } from "./options.tspp";
+import { Signal } from "./signal.tspp";
+
+/// Create an undefined writable optimistic signal.
+export function createOptimistic<T>(): Signal<T | undefined> {
+    todo("signal.createOptimistic")
+}
+
+/// Create a ready optimistic signal from a derivation and an initial settled value.
+export function createOptimistic<Output>(
+    derive: ^Function<(SignalArgument<NoInfer<DerivationValue<Output>>>,), Output>,
+    options: SignalOptions<DerivationValue<Output>> &
+        MemoOptions<DerivationValue<Output>> & {
+            /// Initial settled value used until the first derived value is ready.
+            loadingValue: DerivationValue<Output>;
+        },
+): Signal<DerivationValue<Output>> {
+    todo("signal.createOptimistic")
+}
+
+/// Create an optimistic signal from one synchronous, polling, or asynchronous derivation.
+export function createOptimistic<Output>(
+    derive: ^Function<(SignalArgument<NoInfer<DerivationValue<Output>>> | undefined,), Output>,
+    options?: SignalOptions<DerivationValue<Output>> & MemoOptions<DerivationValue<Output>>,
+): DerivationSignal<Output> {
+    todo("signal.createOptimistic")
+}
+
+/// Create an optimistic signal from one initial value.
+export function createOptimistic<T>(
+    value: Exclude<T, Function>,
+    options?: SignalOptions<T>,
+): Signal<T> {
+    todo("signal.createOptimistic")
+}

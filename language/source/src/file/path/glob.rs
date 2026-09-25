@@ -202,8 +202,8 @@ mod tests {
         assert!(matches(b"bridge/**", b"bridge/zed/grammars/destack"));
         assert!(matches(b"?ain.rs", b"main.rs"));
         assert!(!matches(b"*.rs", b"main.py"));
-        assert!(matches(b"**/*.d.ds", b"src/foo/bar/declaration.d.ds"));
-        assert!(!matches(b"**/*.ds", b"src/foo/bar/declaration.ts"));
+        assert!(matches(b"**/*.d.tspp", b"src/foo/bar/declaration.d.tspp"));
+        assert!(!matches(b"**/*.tspp", b"src/foo/bar/declaration.ts"));
     }
 
     /// Match directory prefixes that can reach complete glob matches.
@@ -299,7 +299,7 @@ mod tests {
     #[test]
     fn test_glob_reports_missing_root() {
         let fs = TemporaryPhysicalFileSystem::new_with_prefix("file_glob_missing");
-        let pattern = format!("{}/missing/**/*.ds", fs.root().to_string_lossy());
+        let pattern = format!("{}/missing/**/*.tspp", fs.root().to_string_lossy());
 
         let error = glob(&pattern).unwrap_err();
         assert_eq!(error.kind(), std::io::ErrorKind::NotFound);

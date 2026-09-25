@@ -1,10 +1,10 @@
-use super::context::DestackFormatContext;
-use destack_dir::{
+use super::context::TsppFormatContext;
+use tspp_dir::{
     Comment, Expression, Keyword, LocalNodeId, Node, TokenSpan, TokenType, Tree, TreeStore,
 };
-use destack_source::Span;
+use tspp_source::Span;
 
-impl<'a> DestackFormatContext<'a> {
+impl<'a> TsppFormatContext<'a> {
     /// Return one expression's complete statement source extent.
     pub fn expression_statement_extent(&self, node_id: LocalNodeId<Expression>) -> Span {
         let mut expression_id = node_id;

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use destack_lsp_types as lsp;
+use tspp_lsp_types as lsp;
 
 use super::tests::{MANIFEST, TestServer, position, range};
 
@@ -9,17 +9,17 @@ use super::tests::{MANIFEST, TestServer, position, range};
 async fn test_rename_an_export_through_its_import_selector() {
     let library = r#"export const answer: int32 = 42;
 "#;
-    let source = r#"import { answer } from "./library.ds";
+    let source = r#"import { answer } from "./library.tspp";
 
 const doubled = answer + answer;
 "#;
     let (mut server, document) = TestServer::open_workspace(
         "selector-chain-rename",
-        &[("src/library.ds", library), ("src/main.ds", source)],
-        "src/main.ds",
+        &[("src/library.tspp", library), ("src/main.tspp", source)],
+        "src/main.tspp",
     )
     .await;
-    let library = server.document("src/library.ds");
+    let library = server.document("src/library.tspp");
 
     // identify the exact editable range and current name
     let prepared = Some(lsp::PrepareRenameResponse::RangeWithPlaceholder {
@@ -72,8 +72,8 @@ function main(): void {
 "#;
     let mut server = TestServer::new("resolved-code-action");
     server.write("destack.json", MANIFEST);
-    server.write("src/library.ds", library);
-    let document = server.write("src/main.ds", source);
+    server.write("src/library.tspp", library);
+    let document = server.write("src/main.tspp", source);
     let capabilities = lsp::ClientCapabilities {
         text_document: Some(lsp::TextDocumentClientCapabilities {
             code_action: Some(lsp::CodeActionClientCapabilities {
@@ -165,12 +165,15 @@ const result = value;
 "#;
     let (mut server, document) = TestServer::open_workspace(
         "rename-imported-file",
-        &[("src/source/value.ds", library), ("src/main.ds", source)],
-        "src/main.ds",
+        &[
+            ("src/source/value.tspp", library),
+            ("src/main.tspp", source),
+        ],
+        "src/main.tspp",
     )
     .await;
-    let old_document = server.document("src/source/value.ds");
-    let new_document = server.document("src/source/result.ds");
+    let old_document = server.document("src/source/value.tspp");
+    let new_document = server.document("src/source/result.tspp");
 
     // rewrite the exact authored module specifier before the physical rename
     let expected = Some(lsp::WorkspaceEdit {

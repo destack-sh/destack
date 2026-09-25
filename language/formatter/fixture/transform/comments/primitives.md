@@ -8,14 +8,14 @@ Comment fixtures cover standalone comments, documentation comments, and formatte
 
 Comments on their own line are preserved in place.
 
-```ds
+```tspp
 // comment
 const x = 1
 ```
 
 The comment stays attached to the following statement.
 
-```ds expected
+```tspp expected
 // comment
 const x = 1;
 ```
@@ -26,12 +26,12 @@ const x = 1;
 
 Doc comments using `///` are preserved before declarations.
 
-```ds
+```tspp
 /// This is a doc comment
 function foo() { }
 ```
 
-```ds expected
+```tspp expected
 /// This is a doc comment
 function foo() {}
 ```
@@ -42,12 +42,12 @@ function foo() {}
 
 Comment content is never modified by the formatter.
 
-```ds
+```tspp
 // XOXO: something something this later
 const x = 1
 ```
 
-```ds expected
+```tspp expected
 // XOXO: something something this later
 const x = 1;
 ```
@@ -56,7 +56,7 @@ const x = 1;
 
 Block doc comments format fenced code block indentation.
 
-```ds:main.ds indent-style=tab
+```tspp:main.tspp indent-style=tab
 /**
  * Description text.
  *
@@ -70,7 +70,7 @@ Block doc comments format fenced code block indentation.
 function withFencedCodeBlock() {}
 ```
 
-```ds expected
+```tspp expected
 /// Description text.
 ///
 /// ```ts
@@ -88,12 +88,12 @@ function withFencedCodeBlock() {}
 
 Formatter ignore directives preserve the original statement formatting.
 
-```ds:main.ds
+```tspp:main.tspp
 // format-ignore
 call(   a, b)
 ```
 
-```ds expected
+```tspp expected
 // format-ignore
 call(   a, b)
 ```
@@ -102,12 +102,12 @@ call(   a, b)
 
 Prettier ignore directives preserve the original statement formatting.
 
-```ds:main.ds
+```tspp:main.tspp
 // prettier-ignore
 call(   a, b)
 ```
 
-```ds expected
+```tspp expected
 // prettier-ignore
 call(   a, b)
 ```
@@ -116,7 +116,7 @@ call(   a, b)
 
 Ignore ranges preserve the original formatting between the start and end markers.
 
-```ds:main.ds
+```tspp:main.tspp
 // format-ignore-start
 const value  =   call(  1,2)
 const other =    value +  1
@@ -124,7 +124,7 @@ const other =    value +  1
 const ok = 1
 ```
 
-```ds expected
+```tspp expected
 // format-ignore-start
 const value  =   call(  1,2)
 const other =    value +  1
@@ -136,7 +136,7 @@ const ok = 1;
 
 Prettier ignore ranges preserve the original formatting between the start and end markers.
 
-```ds:main.ds
+```tspp:main.tspp
 // prettier-ignore-start
 const value  =   call(  1,2)
 const other =    value +  1
@@ -144,7 +144,7 @@ const other =    value +  1
 const ok = 1
 ```
 
-```ds expected
+```tspp expected
 // prettier-ignore-start
 const value  =   call(  1,2)
 const other =    value +  1
@@ -156,12 +156,12 @@ const ok = 1;
 
 Biome format ignore directives preserve the original statement formatting.
 
-```ds:main.ds
+```tspp:main.tspp
 // biome-ignore format
 call(   a, b)
 ```
 
-```ds expected
+```tspp expected
 // biome-ignore format
 call(   a, b)
 ```
@@ -170,7 +170,7 @@ call(   a, b)
 
 TypeScript diagnostic directives preserve the comment but still format code.
 
-```ds:main.ds
+```tspp:main.tspp
 // @ts-expect-error keep spacing
 call(   a, b)
 
@@ -178,7 +178,7 @@ call(   a, b)
 value   =   compute(  1,  2)
 ```
 
-```ds expected
+```tspp expected
 // @ts-expect-error keep spacing
 call(a, b);
 
@@ -192,7 +192,7 @@ value = compute(1, 2);
 
 Multiline block comments are preserved with formatting.
 
-```ds
+```tspp
 {
     /*
      * Comment 1
@@ -201,7 +201,7 @@ Multiline block comments are preserved with formatting.
 }
 ```
 
-```ds expected
+```tspp expected
 {
     /*
      * Comment 1
@@ -214,7 +214,7 @@ Multiline block comments are preserved with formatting.
 
 Doc comments precede declarations.
 
-```ds
+```tspp
 {
     /** some multiline
      * doc comment
@@ -223,7 +223,7 @@ Doc comments precede declarations.
 }
 ```
 
-```ds expected
+```tspp expected
 {
     /// some multiline
     /// doc comment
@@ -239,14 +239,14 @@ Doc comments precede declarations.
 
 Line comments after statements are preserved.
 
-```ds
+```tspp
 {
     const x = 1; // important value
     const y = 2; // another value
 }
 ```
 
-```ds expected
+```tspp expected
 {
     const x = 1; // important value
     const y = 2; // another value
@@ -257,7 +257,7 @@ Line comments after statements are preserved.
 
 Multiple consecutive line comments are preserved.
 
-```ds
+```tspp
 {
     // comment part 1
     // comment part 2
@@ -265,7 +265,7 @@ Multiple consecutive line comments are preserved.
 }
 ```
 
-```ds expected
+```tspp expected
 {
     // comment part 1
     // comment part 2

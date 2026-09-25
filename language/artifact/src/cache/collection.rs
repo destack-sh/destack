@@ -15,7 +15,7 @@ use serde::de::DeserializeOwned;
 use crate::{ArtifactCache, ArtifactCacheError, BuildId};
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use destack_source::{FileMetadata, FileSystem, PhysicalFileSystem};
+use tspp_source::{FileMetadata, FileSystem, PhysicalFileSystem};
 
 #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
 use super::ArtifactCacheLockMode;
@@ -407,7 +407,7 @@ impl ArtifactCache {
         for file in files {
             // decode and validate one current manifest
             let bytes = Self::read_file(&file.path)?;
-            let manifest: ArtifactCacheManifest<R> = destack_serde::from_slice(&bytes)
+            let manifest: ArtifactCacheManifest<R> = tspp_serde::from_slice(&bytes)
                 .map_err(ArtifactCacheError::from)
                 .map_err(|error| error.record(&file.path))?;
             manifest
@@ -718,8 +718,8 @@ impl ArtifactCache {
 
 #[cfg(all(test, not(all(target_arch = "wasm32", target_os = "unknown"))))]
 mod tests {
-    use destack_core::{BlobStore, StringPool};
-    use destack_source::TemporaryPhysicalFileSystem;
+    use tspp_core::{BlobStore, StringPool};
+    use tspp_source::TemporaryPhysicalFileSystem;
 
     use super::*;
     use crate::{ArtifactPack, ArtifactPackReference, ArtifactPackVersion};

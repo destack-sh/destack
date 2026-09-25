@@ -1,0 +1,224 @@
+import { RangeError, Result, todo } from "tspp:error";
+import { DurationFormatOptions, IntlError, Locales, ToLocaleString } from "tspp:intl";
+
+import { TimeError } from "./error.tspp";
+import {
+    DurationRelativeToOptions,
+    DurationRoundTo,
+    DurationToStringOptions,
+    DurationTotalOf,
+} from "./option.tspp";
+import { ComparisonResult, SmallestUnit, TimeUnit } from "./unit.tspp";
+
+/// Temporal duration fields.
+export type DurationFields = {
+    /// Year count.
+    years?: number;
+    /// Month count.
+    months?: number;
+    /// Week count.
+    weeks?: number;
+    /// Day count.
+    days?: number;
+    /// Hour count.
+    hours?: number;
+    /// Minute count.
+    minutes?: number;
+    /// Second count.
+    seconds?: number;
+    /// Millisecond count.
+    milliseconds?: number;
+    /// Microsecond count.
+    microseconds?: number;
+    /// Nanosecond count.
+    nanoseconds?: number;
+};
+
+/// Value convertible to a Temporal duration.
+export type DurationLike = Duration | DurationFields | string;
+
+/// Temporal duration.
+@languageItem("time.Duration")
+export class Duration implements ToLocaleString {
+    /// Create a zero duration.
+    static create(): Duration {
+        todo("Duration.createDefault")
+    }
+
+    /// Create a duration from positional fields.
+    static create(
+        years?: number,
+        months?: number,
+        weeks?: number,
+        days?: number,
+        hours?: number,
+        minutes?: number,
+        seconds?: number,
+        milliseconds?: number,
+        microseconds?: number,
+        nanoseconds?: number,
+    ): Result<Duration, RangeError> {
+        todo("Duration.create")
+    }
+
+    /// Create a duration from another duration, fields, or a string.
+    static from(item: &readonly DurationLike): Result<Duration, TimeError> {
+        todo("Duration.from")
+    }
+
+    /// Compare two durations.
+    static compare(
+        one: &readonly DurationLike,
+        two: &readonly DurationLike,
+        options?: &readonly DurationRelativeToOptions,
+    ): Result<ComparisonResult, TimeError> {
+        todo("Duration.compare")
+    }
+
+    /// Construct a validated duration internally.
+    private constructor() {
+        todo("Duration.constructor");
+    }
+
+    /// The duration sign.
+    get sign(&readonly this): -1 | 0 | 1 {
+        todo("Duration.sign")
+    }
+
+    /// Whether every field is zero.
+    get blank(&readonly this): boolean {
+        todo("Duration.blank")
+    }
+
+    /// Year count.
+    get years(&readonly this): number {
+        todo("Duration.years")
+    }
+
+    /// Month count.
+    get months(&readonly this): number {
+        todo("Duration.months")
+    }
+
+    /// Week count.
+    get weeks(&readonly this): number {
+        todo("Duration.weeks")
+    }
+
+    /// Day count.
+    get days(&readonly this): number {
+        todo("Duration.days")
+    }
+
+    /// Hour count.
+    get hours(&readonly this): number {
+        todo("Duration.hours")
+    }
+
+    /// Minute count.
+    get minutes(&readonly this): number {
+        todo("Duration.minutes")
+    }
+
+    /// Second count.
+    get seconds(&readonly this): number {
+        todo("Duration.seconds")
+    }
+
+    /// Millisecond count.
+    get milliseconds(&readonly this): number {
+        todo("Duration.milliseconds")
+    }
+
+    /// Microsecond count.
+    get microseconds(&readonly this): number {
+        todo("Duration.microseconds")
+    }
+
+    /// Nanosecond count.
+    get nanoseconds(&readonly this): number {
+        todo("Duration.nanoseconds")
+    }
+
+    /// Return the negated duration.
+    negated(&readonly this): Duration {
+        todo("Duration.negated")
+    }
+
+    /// Return the absolute duration.
+    abs(&readonly this): Duration {
+        todo("Duration.abs")
+    }
+
+    /// Return a duration with updated fields.
+    with(
+        &readonly this,
+        durationLike: &readonly Duration | DurationFields,
+    ): Result<Duration, TimeError> {
+        todo("Duration.with")
+    }
+
+    /// Add another duration.
+    add(&readonly this, other: &readonly DurationLike): Result<Duration, TimeError> {
+        todo("Duration.add")
+    }
+
+    /// Subtract another duration.
+    subtract(&readonly this, other: &readonly DurationLike): Result<Duration, TimeError> {
+        todo("Duration.subtract")
+    }
+
+    /// Round this duration.
+    round(&readonly this, roundTo: &readonly DurationRoundTo): Result<Duration, TimeError> {
+        todo("Duration.round")
+    }
+
+    /// Return this duration totalled in one time unit.
+    total(&readonly this, totalOf: SmallestUnit<TimeUnit>): number {
+        todo("Duration.totalTime")
+    }
+
+    /// Return this duration totalled in one unit, relative to a date when the unit needs one.
+    total(&readonly this, totalOf: &readonly DurationTotalOf): Result<number, TimeError> {
+        todo("Duration.total")
+    }
+
+    /// Return a locale-aware string.
+    toLocaleString(&readonly this): ^string {
+        todo("Duration.toLocaleStringDefault")
+    }
+
+    /// Return a locale-aware string with explicit locales.
+    toLocaleString(&readonly this, locales: &readonly Locales): Result<string, IntlError> {
+        todo("Duration.toLocaleStringLocales")
+    }
+
+    /// Return a locale-aware string with explicit options.
+    toLocaleString(
+        &readonly this,
+        locales?: &readonly Locales,
+        options?: &readonly DurationFormatOptions,
+    ): Result<string, IntlError> {
+        todo("Duration.toLocaleString")
+    }
+
+    /// Return a JSON string.
+    toJSON(&readonly this): ^string {
+        todo("Duration.toJSON")
+    }
+
+    /// Return an ISO string.
+    toString(&readonly this): ^string {
+        todo("Duration.toString")
+    }
+
+    /// Return an ISO string with explicit precision options.
+    toString(&readonly this, options: &readonly DurationToStringOptions): ^string {
+        todo("Duration.toString")
+    }
+
+    /// Reject numeric coercion.
+    valueOf(&readonly this): never {
+        todo("Duration.valueOf")
+    }
+}

@@ -1,8 +1,8 @@
 use std::{error, fmt};
 
-use destack_heap::{DropId, HeapError, TraceTableError};
-use destack_memory::MemoryError;
 use serde::{Deserialize, Serialize};
+use tspp_heap::{DropId, HeapError, TraceTableError};
+use tspp_memory::MemoryError;
 
 use crate::{
     FiberId, FrameLayoutId, FrameStateId, FunctionId, GlobalId, LayoutId, Signature, SignatureId,

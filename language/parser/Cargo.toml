@@ -1,6 +1,6 @@
 [package]
-name = "destack_parser"
-description = "Destack Parser"
+name = "tspp_parser"
+description = "TS++ Parser"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,10 +13,10 @@ doctest = false
 
 [dependencies]
 # language
-destack_dir = { workspace = true }
-destack_core = { workspace = true }
-destack_source = { workspace = true }
-destack_unicode = { workspace = true }
+tspp_dir = { workspace = true }
+tspp_core = { workspace = true }
+tspp_source = { workspace = true }
+tspp_unicode = { workspace = true }
 
 # general
 memchr = { workspace = true }
@@ -30,11 +30,11 @@ pprof = { workspace = true }
 rayon = { workspace = true }
 
 [[bench]]
-name = "destack_parse"
+name = "tspp_parse"
 harness = false
 
 [[bench]]
-name = "destack_lex"
+name = "tspp_lex"
 harness = false
 
 [lints]

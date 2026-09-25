@@ -1,13 +1,13 @@
 use std::borrow::Cow;
 
-use destack_mir::{
+use smallvec::SmallVec;
+use tspp_mir::{
     Access, AccessTarget, Block, Call, Instruction, Loan, LoanId, LocalNodeId, LocalNodeIdAny,
     MemoryAccessEffect, MemoryAddress, MemoryRegion, Place, PlaceOrigin, Projection, Reference,
     Storage, Terminator, Value,
 };
-use smallvec::SmallVec;
 
-use destack_core::BitSet;
+use tspp_core::BitSet;
 
 use crate::verify::VerifyError;
 

@@ -11,7 +11,7 @@ const literal = 1 << 5;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -51,7 +51,7 @@ const masked = mask & bits;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -92,7 +92,7 @@ const bad = scale & 2;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -123,7 +123,7 @@ const bad = scale & 2;
 fn test_overloaded_bitwise_and_selects_extension_method() {
     let session = TestSession::single(
         r#"
-import { And } from "destack:ops";
+import { And } from "tspp:ops";
 
 struct Flags {
     bits: int32;
@@ -144,11 +144,11 @@ const both = left & right;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { And } from "destack:ops";
+import { And } from "tspp:ops";
 
 struct Flags {
     bits: int32;
@@ -167,7 +167,7 @@ declare const right: Flags;
 const both: Flags = left & right;
 
 === dir ===
-import { And } from "destack:ops";
+import { And } from "tspp:ops";
 
 struct Flags {
 /// @type.symbol symbol=Flags type=Flags
@@ -258,7 +258,7 @@ function retain(value: bigint): bigint {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 function retain(value: bigint): bigint {
     return value & -1n;
@@ -292,7 +292,7 @@ function retain(value: bigint): bigint {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 function retain(value: bigint): bigint {
     return value.and<"managed">(-1n);
@@ -328,7 +328,7 @@ function retain(value: bigint, other: bigint): bigint {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 function retain(value: bigint, other: bigint): bigint {
     return value & other;

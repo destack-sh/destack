@@ -1,6 +1,6 @@
 use std::cmp::Ordering;
 
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::{Binding, Bindings, MatchError, ModuleContext, Predicate, ProgramContext};
 

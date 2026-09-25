@@ -6,11 +6,11 @@
 
 Newtype aliases format like type aliases with the `newtype` keyword.
 
-```ds
+```tspp
 newtype UserId = int64
 ```
 
-```ds expected
+```tspp expected
 newtype UserId = int64;
 ```
 
@@ -18,11 +18,11 @@ newtype UserId = int64;
 
 Newtype tuples keep tuple formatting.
 
-```ds
+```tspp
 newtype Point = (float32, float32)
 ```
 
-```ds expected
+```tspp expected
 newtype Point = (float32, float32);
 ```
 
@@ -30,11 +30,11 @@ newtype Point = (float32, float32);
 
 Singleton newtype tuples keep the required tuple comma.
 
-```ds
+```tspp
 newtype extern = (string,)
 ```
 
-```ds expected
+```tspp expected
 newtype extern = (string,);
 ```
 
@@ -42,11 +42,11 @@ newtype extern = (string,);
 
 Parenthesized tuple rest elements keep array suffixes on the rest type.
 
-```ds
+```tspp
 newtype require = (...HostAction[])
 ```
 
-```ds expected
+```tspp expected
 newtype require = (...HostAction[],);
 ```
 
@@ -54,10 +54,10 @@ newtype require = (...HostAction[],);
 
 Newtype object values keep object literal formatting.
 
-```ds
+```tspp
 newtype Config = { debug: boolean }
 ```
 
-```ds expected
+```tspp expected
 newtype Config = { debug: boolean };
 ```

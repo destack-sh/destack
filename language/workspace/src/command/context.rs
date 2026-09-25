@@ -3,17 +3,17 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactKey, EnvironmentBound, ModuleGraph};
-use destack_repository as repository;
-use destack_repository::{
+use serde_json::{Map, Value};
+use tspp_artifact::{ArtifactKey, EnvironmentBound, ModuleGraph};
+use tspp_repository as repository;
+use tspp_repository::{
     ArtifactReader, DestackFile, Repository, Revision, RevisionPin, Target, TargetRoot, Trace,
     TraceLevel, TraceSnapshot, TraceView, apply_manifest_overrides_to_json, parse_jsonc_text,
 };
-use destack_session::{ArtifactPriority, Session, SessionEventHandler};
-use destack_source::{
+use tspp_session::{ArtifactPriority, Session, SessionEventHandler};
+use tspp_source::{
     DiagnosticCollection, File, FileId, FileType, ModuleId, ProfileId, TargetId, Uri, glob,
 };
-use serde_json::{Map, Value};
 
 use crate::{FileImage, Workspace};
 
@@ -891,7 +891,7 @@ fn command_input_logical_path(kind: &str, name: &str, file_type: FileType) -> St
     let extension = file_type.extension().unwrap_or("txt");
     let sanitized_name = sanitize_command_input_name(name);
 
-    format!(".destack/command/{kind}/{sanitized_name}.{extension}")
+    format!(".tspp/command/{kind}/{sanitized_name}.{extension}")
 }
 
 /// Sanitize one command input label for use in a logical path.
@@ -971,7 +971,7 @@ fn collect_sources_from_destack_config(
     // fall back to include patterns
     if paths.is_empty() {
         let patterns = if includes.is_empty() {
-            vec!["**/*.ds".to_string()]
+            vec!["**/*.tspp".to_string()]
         } else {
             includes
         };

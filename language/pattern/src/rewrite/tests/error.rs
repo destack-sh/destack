@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_core::StringPool;
+use tspp_core::StringPool;
 
 use crate::Rewrite;
 use crate::tests::{render_diagnostics, test_file};
@@ -18,13 +18,13 @@ fn test_reject_unbound_replacement_metavariable() {
     assert_eq!(
         actual,
         r#"error[unbound-replacement-metavariable]: replacement metavariable 'OTHER' is not bound by the pattern
- ──▶ destack:replacement:1:8
+ ──▶ tspp:replacement:1:8
   │
 1 │ client($OTHER)
   │        ^^^^^^
   │
 
-for more information about an error, run `destack explain unbound-replacement-metavariable`
+for more information about an error, run `tspp explain unbound-replacement-metavariable`
 "#
         .trim_end()
     );
@@ -43,19 +43,19 @@ fn test_reject_incompatible_replacement_metavariable() {
     assert_eq!(
         actual,
         r#"error[incompatible-replacement-metavariable]: replacement metavariable 'MEMBER' has an incompatible use
- ──▶ destack:replacement:1:1
+ ──▶ tspp:replacement:1:1
   │
 1 │ $MEMBER
   │ ^^^^^^^
   │
 
- ──▶ destack:pattern:1:9
+ ──▶ tspp:pattern:1:9
   │
 1 │ $OBJECT.$MEMBER
   │         ------- first used here
   │
 
-for more information about an error, run `destack explain incompatible-replacement-metavariable`
+for more information about an error, run `tspp explain incompatible-replacement-metavariable`
 "#
         .trim_end()
     );
@@ -74,13 +74,13 @@ fn test_reject_anonymous_replacement_metavariable() {
     assert_eq!(
         actual,
         r#"error[anonymous-replacement-metavariable]: anonymous metavariables cannot be used in replacements
- ──▶ destack:replacement:1:8
+ ──▶ tspp:replacement:1:8
   │
 1 │ client($_)
   │        ^^
   │
 
-for more information about an error, run `destack explain anonymous-replacement-metavariable`
+for more information about an error, run `tspp explain anonymous-replacement-metavariable`
 "#
         .trim_end()
     );
@@ -99,13 +99,13 @@ fn test_reject_invalid_repeated_replacement_metavariable() {
     assert_eq!(
         actual,
         r#"error[invalid-repeated-replacement-metavariable]: repeated replacement metavariable does not occupy a repeated DIR list
- ──▶ destack:replacement:1:1
+ ──▶ tspp:replacement:1:1
   │
 1 │ $$$ARGUMENTS
   │ ^^^^^^^^^^^^
   │
 
-for more information about an error, run `destack explain invalid-repeated-replacement-metavariable`
+for more information about an error, run `tspp explain invalid-repeated-replacement-metavariable`
 "#
         .trim_end()
     );

@@ -3,7 +3,7 @@
 mod query;
 mod server;
 
-pub use server::DestackLanguageServer;
+pub use server::TsppLanguageServer;
 
 #[cfg(test)]
 mod tests;

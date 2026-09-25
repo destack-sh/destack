@@ -1,6 +1,6 @@
-use destack_rpc::service;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_rpc::service;
+use tspp_serde::Reflect;
 
 use crate::host::HostEvent;
 use crate::world::random::RandomSource;
@@ -9,7 +9,7 @@ use crate::world::{ClockSource, Instant};
 use super::WorldId;
 
 /// RPC operations over one World's controllable host.
-#[service(name = "destack.world.Host")]
+#[service(name = "tspp.world.Host")]
 pub trait HostService {
     // =============================================================================
     // Clock

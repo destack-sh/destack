@@ -8,13 +8,13 @@ Type alias fixtures cover aliases, generics, object types, mapped types, and con
 
 Extra whitespace around the type alias should be normalized.
 
-```ds
+```tspp
 type   Foo   =   number
 ```
 
 Type aliases have single spaces around `=` and a trailing semicolon.
 
-```ds expected
+```tspp expected
 type Foo = number;
 ```
 
@@ -22,11 +22,11 @@ type Foo = number;
 
 Union types have spaces around the `|` operator.
 
-```ds
+```tspp
 type   Foo   =   string   |   number
 ```
 
-```ds expected
+```tspp expected
 type Foo = string | number;
 ```
 
@@ -34,11 +34,11 @@ type Foo = string | number;
 
 Intersection types have spaces around the `&` operator.
 
-```ds
+```tspp
 type   Foo   =   A   &   B
 ```
 
-```ds expected
+```tspp expected
 type Foo = A & B;
 ```
 
@@ -46,11 +46,11 @@ type Foo = A & B;
 
 Type literals use semicolons between properties.
 
-```ds:main.ds
+```tspp:main.tspp
 type Foo = { a: string, b: number }
 ```
 
-```ds expected
+```tspp expected
 type Foo = { a: string; b: number };
 ```
 
@@ -58,11 +58,11 @@ type Foo = { a: string; b: number };
 
 Multiline type literals include semicolons after each property.
 
-```ds:main.ds line-width=20
+```tspp:main.tspp line-width=20
 type Foo = { a: string, b: number, c: number }
 ```
 
-```ds expected
+```tspp expected
 type Foo = {
     a: string;
     b: number;
@@ -76,11 +76,11 @@ type Foo = {
 
 Long unions break into leading `|` separator lines.
 
-```ds line-width=30
+```tspp line-width=30
 type Result = Success | Failure | Pending | Unknown
 ```
 
-```ds expected
+```tspp expected
 type Result =
     | Success
     | Failure
@@ -93,11 +93,11 @@ type Result =
 Intersection types also break with operators at the start of lines.
 (Unlike in TypeScript, we can't lead with `&` because it's a valid unary operator i.e. references.)
 
-```ds line-width=30
+```tspp line-width=30
 type Combined = HasName & HasAge & HasEmail
 ```
 
-```ds expected
+```tspp expected
 type Combined = HasName &
     HasAge &
     HasEmail;
@@ -107,11 +107,11 @@ type Combined = HasName &
 
 Intersections break across lines with trailing `&` when they exceed the width.
 
-```ds:main.ds line-width=30
+```tspp:main.tspp line-width=30
 type Combined = HasName & HasAge & HasEmail
 ```
 
-```ds expected
+```tspp expected
 type Combined = HasName &
     HasAge &
     HasEmail;
@@ -121,11 +121,11 @@ type Combined = HasName &
 
 Nullable unions with one object-like arm and void-like companions break into a vertical union at narrow widths.
 
-```ds line-width=20
+```tspp line-width=20
 type MaybeUser = { name: string, email: string } | null | undefined
 ```
 
-```ds expected
+```tspp expected
 type MaybeUser =
     | {
           name: string;
@@ -139,11 +139,11 @@ type MaybeUser =
 
 Comments between members stay attached to the object union arm.
 
-```ds line-width=20
+```tspp line-width=20
 type MaybeUser = { name: string, email: string } /* note */ | null | undefined
 ```
 
-```ds expected
+```tspp expected
 type MaybeUser =
     | {
           name: string;
@@ -157,11 +157,11 @@ type MaybeUser =
 
 Object-like intersection arms keep `&` separators clear when object arms expand.
 
-```ds line-width=30
+```tspp line-width=30
 type WithDetails = { id: string, name: string } & HasMeta & { created: int32 }
 ```
 
-```ds expected
+```tspp expected
 type WithDetails = {
     id: string;
     name: string;
@@ -176,11 +176,11 @@ type WithDetails = {
 
 Mapped types iterate over keys and transform values.
 
-```ds
+```tspp
 type Readonly<T> = { [K in keyof T]: T[K] }
 ```
 
-```ds expected
+```tspp expected
 type Readonly<T> = { [K in keyof T]: T[K] };
 ```
 
@@ -188,11 +188,11 @@ type Readonly<T> = { [K in keyof T]: T[K] };
 
 Mapped types support readonly and optional modifiers, including removal.
 
-```ds
+```tspp
 type Mutable<T> = { -readonly [K in keyof T]-?: T[K] }
 ```
 
-```ds expected
+```tspp expected
 type Mutable<T> = { -readonly [K in keyof T]-?: T[K] };
 ```
 
@@ -200,11 +200,11 @@ type Mutable<T> = { -readonly [K in keyof T]-?: T[K] };
 
 Explicit add modifiers are preserved.
 
-```ds
+```tspp
 type Explicit<T> = { +readonly [K in keyof T]+?: T[K] }
 ```
 
-```ds expected
+```tspp expected
 type Explicit<T> = { +readonly [K in keyof T]+?: T[K] };
 ```
 
@@ -212,11 +212,11 @@ type Explicit<T> = { +readonly [K in keyof T]+?: T[K] };
 
 Mapped types can make properties optional or required.
 
-```ds
+```tspp
 type Partial<T> = { [K in keyof T]?: T[K] }
 ```
 
-```ds expected
+```tspp expected
 type Partial<T> = { [K in keyof T]?: T[K] };
 ```
 
@@ -224,11 +224,11 @@ type Partial<T> = { [K in keyof T]?: T[K] };
 
 Key remapping uses `as` clause to transform key names.
 
-```ds
+```tspp
 type Getters<T> = { [K in keyof T as `get${Capitalize<K>}`]: () => T[K] }
 ```
 
-```ds expected
+```tspp expected
 type Getters<T> = { [K in keyof T as `get${Capitalize<K>}`]: () => T[K] };
 ```
 
@@ -236,11 +236,11 @@ type Getters<T> = { [K in keyof T as `get${Capitalize<K>}`]: () => T[K] };
 
 Long mapped types break to multiple lines.
 
-```ds line-width=40
+```tspp line-width=40
 type DeepReadonly<T> = { readonly [K in keyof T]: DeepReadonly<T[K]> }
 ```
 
-```ds expected
+```tspp expected
 type DeepReadonly<T> = {
     readonly [K in keyof T]: DeepReadonly<
         T[K]
@@ -254,11 +254,11 @@ type DeepReadonly<T> = {
 
 Conditional types use `extends` with ternary syntax.
 
-```ds
+```tspp
 type IsString<T> = T extends string ? true : false
 ```
 
-```ds expected
+```tspp expected
 type IsString<T> = T extends string ? true : false;
 ```
 
@@ -266,11 +266,11 @@ type IsString<T> = T extends string ? true : false;
 
 The `infer` keyword extracts types within conditional branches.
 
-```ds
+```tspp
 type ReturnType<T> = T extends (...args: any[]) => infer R ? R : never
 ```
 
-```ds expected
+```tspp expected
 type ReturnType<T> = T extends (...args: any[]) => infer R ? R : never;
 ```
 
@@ -278,11 +278,11 @@ type ReturnType<T> = T extends (...args: any[]) => infer R ? R : never;
 
 Conditional types distribute over union types.
 
-```ds
+```tspp
 type NonNullable<T> = T extends null | undefined ? never : T
 ```
 
-```ds expected
+```tspp expected
 type NonNullable<T> = T extends null | undefined ? never : T;
 ```
 
@@ -292,11 +292,11 @@ type NonNullable<T> = T extends null | undefined ? never : T;
 
 The `keyof` operator extracts keys from a type.
 
-```ds
+```tspp
 type Keys<T> = keyof T
 ```
 
-```ds expected
+```tspp expected
 type Keys<T> = keyof T;
 ```
 
@@ -304,11 +304,11 @@ type Keys<T> = keyof T;
 
 The `typeof` operator gets the type of a value.
 
-```ds
+```tspp
 type Config = typeof defaultConfig
 ```
 
-```ds expected
+```tspp expected
 type Config = typeof defaultConfig;
 ```
 
@@ -316,23 +316,23 @@ type Config = typeof defaultConfig;
 
 Indexed access types retrieve property types.
 
-```ds
+```tspp
 type NameType = Person["name"]
 ```
 
-```ds expected
+```tspp expected
 type NameType = Person["name"];
 ```
 
 ### template literal type
 
 Template literal types create string literal unions.
-Destack uses `: Type` for type parameter constraints, not `extends Type` like TypeScript.
+TS++ uses `: Type` for type parameter constraints, not `extends Type` like TypeScript.
 
-```ds
+```tspp
 type EventName<T: string> = `on${Capitalize<T>}`
 ```
 
-```ds expected
+```tspp expected
 type EventName<T: string> = `on${Capitalize<T>}`;
 ```

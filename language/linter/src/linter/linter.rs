@@ -1,11 +1,11 @@
 use std::fmt;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependencySet, ArtifactFailure, DiagnosticLike};
-use destack_repository::{
+use tspp_artifact::{ArtifactDependencySet, ArtifactFailure, DiagnosticLike};
+use tspp_repository::{
     ArtifactReader, LinterOptions, Module, ProviderContext, ProviderError, Repository, Revision,
 };
-use destack_source::{ModuleId, PackageId};
+use tspp_source::{ModuleId, PackageId};
 
 use super::LintSet;
 

@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, NodeSpanRegion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, NodeSpanRegion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -158,7 +158,7 @@ const double = (value: int32): int32 => {
         session.assert_diagnostics(
             r#"
 warning[prefer-implicit-return]: lambda only returns one expression
- ──▶ main.ds:1:41
+ ──▶ main.tspp:1:41
   │
 1 │ const double = (value: int32): int32 => {
   │                                         ^

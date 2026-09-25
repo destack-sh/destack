@@ -1,7 +1,7 @@
-use destack_artifact::DiagnosticAnchor;
-use destack_artifact_macros::Diagnostic;
-use destack_mir as mir;
-use destack_source::{ModuleId, PackageId, TargetId};
+use tspp_artifact::DiagnosticAnchor;
+use tspp_artifact_macros::Diagnostic;
+use tspp_mir as mir;
+use tspp_source::{ModuleId, PackageId, TargetId};
 
 use crate::CompilerError;
 

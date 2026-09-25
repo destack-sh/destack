@@ -1,6 +1,6 @@
-use destack_repository::JsOutputMode;
-use destack_source::ModuleId;
 use indexmap::{IndexMap, IndexSet};
+use tspp_repository::JsOutputMode;
+use tspp_source::ModuleId;
 
 use crate::{LinkError, LinkResult};
 

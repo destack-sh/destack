@@ -6,11 +6,11 @@
 
 Unions inside intersections are parenthesized.
 
-```ds
+```tspp
 type Combined = A & (B | C)
 ```
 
-```ds expected
+```tspp expected
 type Combined = A & (B | C);
 ```
 
@@ -20,10 +20,10 @@ type Combined = A & (B | C);
 
 Intersections inside unions can omit redundant parentheses.
 
-```ds
+```tspp
 type Combined = A | (B & C)
 ```
 
-```ds expected
+```tspp expected
 type Combined = A | B & C;
 ```

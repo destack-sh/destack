@@ -6,11 +6,11 @@
 
 While loops get space around the condition.
 
-```ds
+```tspp
 while(condition){process()}
 ```
 
-```ds expected
+```tspp expected
 while (condition) {
     process();
 }
@@ -20,11 +20,11 @@ while (condition) {
 
 Complex conditions keep normalized spacing.
 
-```ds
+```tspp
 while (i < 10 && running) { i++ }
 ```
 
-```ds expected
+```tspp expected
 while (i < 10 && running) {
     i++;
 }
@@ -34,11 +34,11 @@ while (i < 10 && running) {
 
 Do-while loops put `while` on the same line as the closing brace.
 
-```ds:main.ds
+```tspp:main.tspp
 do{process()}while(condition)
 ```
 
-```ds expected
+```tspp expected
 do {
     process();
 } while (condition);
@@ -48,11 +48,11 @@ do {
 
 The `loop` keyword creates an infinite loop.
 
-```ds
+```tspp
 loop { process() }
 ```
 
-```ds expected
+```tspp expected
 loop {
     process();
 }
@@ -62,11 +62,11 @@ loop {
 
 Break values stay statement-like inside loop bodies.
 
-```ds
+```tspp
 function first(items: Array<number>): number { loop { break (items[0]) } }
 ```
 
-```ds expected
+```tspp expected
 function first(items: Array<number>): number {
     loop {
         break items[0];

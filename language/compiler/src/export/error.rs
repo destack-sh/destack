@@ -1,6 +1,6 @@
 use crate::DiagnosticAnchor;
-use destack_artifact_macros::Diagnostic;
-use destack_source::ModuleId;
+use tspp_artifact_macros::Diagnostic;
+use tspp_source::ModuleId;
 
 /// Errors during the export phase.
 #[derive(Debug, Clone, PartialEq, Diagnostic)]
@@ -8,7 +8,7 @@ use destack_source::ModuleId;
 pub enum ExportError {
     /// Export clause references a local binding that is not declared.
     ///
-    /// ```ds
+    /// ```tspp
     /// export { missing };
     /// ```
     #[diagnostic(
@@ -27,7 +27,7 @@ pub enum ExportError {
 
     /// Module exports the same key twice.
     ///
-    /// ```ds
+    /// ```tspp
     /// export const value = 1;
     /// export { value as value };
     /// ```
@@ -41,7 +41,7 @@ pub enum ExportError {
 
     /// Global export uses the default export key, which has no ambient name.
     ///
-    /// ```ds
+    /// ```tspp
     /// global {
     ///     export { value as default };
     /// }
@@ -57,9 +57,9 @@ pub enum ExportError {
 
     /// Global export uses a bare namespace selector, which has no ambient name.
     ///
-    /// ```ds
+    /// ```tspp
     /// global {
-    ///     export * from "./module.ds";
+    ///     export * from "./module.tspp";
     /// }
     /// ```
     #[diagnostic(
@@ -73,7 +73,7 @@ pub enum ExportError {
 
     /// Static export guard has no condition argument.
     ///
-    /// ```ds
+    /// ```tspp
     /// @if
     /// export { debug };
     /// ```
@@ -88,7 +88,7 @@ pub enum ExportError {
 
     /// Static export guard has more than one condition argument.
     ///
-    /// ```ds
+    /// ```tspp
     /// @if(import.meta.profile == "test", true)
     /// export { debug };
     /// ```
@@ -103,7 +103,7 @@ pub enum ExportError {
 
     /// Static export guard evaluates to a non-boolean value.
     ///
-    /// ```ds
+    /// ```tspp
     /// @if(import.meta.profile)
     /// export { debug };
     /// ```
@@ -118,7 +118,7 @@ pub enum ExportError {
 
     /// Static export guard depends on a value that is not available during export.
     ///
-    /// ```ds
+    /// ```tspp
     /// @if(enabled)
     /// export { debug };
     /// ```
@@ -133,7 +133,7 @@ pub enum ExportError {
 
     /// Static export guard is not invoked in its intrinsic form.
     ///
-    /// ```ds
+    /// ```tspp
     /// @if<boolean>(true)
     /// export { debug };
     /// ```

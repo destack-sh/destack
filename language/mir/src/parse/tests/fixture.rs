@@ -1,5 +1,5 @@
-use destack_core::StringPool;
-use destack_source::{DiagnosticCollection, File, FileId, FileType, Span, Uri};
+use tspp_core::StringPool;
+use tspp_source::{DiagnosticCollection, File, FileId, FileType, Span, Uri};
 
 use crate::parse::{ParseOptions, Parser};
 use crate::{CommentSpan, FormatOptions, Formatter, Tree};
@@ -116,7 +116,7 @@ impl<'a> TestParser<'a> {
             diagnostics,
         ) = parsed.into_parts();
         assert!(
-            !diagnostics.has_diagnostics_of_severity(destack_source::DiagnosticSeverity::Error),
+            !diagnostics.has_diagnostics_of_severity(tspp_source::DiagnosticSeverity::Error),
             "parse failed"
         );
         let output = Formatter::new(&tree, target_layout, &strings, FormatOptions::default())

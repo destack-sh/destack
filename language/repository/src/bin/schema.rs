@@ -1,4 +1,4 @@
-use destack_repository::destack_schema;
+use tspp_repository::destack_schema;
 
 fn main() {
     let schema = destack_schema();

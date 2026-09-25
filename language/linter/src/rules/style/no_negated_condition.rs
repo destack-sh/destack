@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -259,7 +259,7 @@ function status(left: int32, right: int32): string {
         session.assert_diagnostics(
             r#"
 warning[no-negated-condition]: two-way branch uses a negated condition
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function status(left: int32, right: int32): string {
 2 │     return left != right ? "different" : "same";
@@ -268,8 +268,8 @@ warning[no-negated-condition]: two-way branch uses a negated condition
   │
 
  = fix: use the positive condition
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function status(left: int32, right: int32): string {
 -   2│     return left != right ? "different" : "same";
@@ -305,7 +305,7 @@ function status(isReady: boolean): string {
         session.assert_diagnostics(
             r#"
 warning[no-negated-condition]: two-way branch uses a negated condition
- ──▶ main.ds:2:9
+ ──▶ main.tspp:2:9
   │
 1 │ function status(isReady: boolean): string {
 2 │     if (!isReady) {
@@ -332,7 +332,7 @@ function status(isReady: boolean): string {
         session.assert_diagnostics(
             r#"
 warning[no-negated-condition]: two-way branch uses a negated condition
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function status(isReady: boolean): string {
 2 │     return !isReady ? /* retain */ "waiting" : "ready";

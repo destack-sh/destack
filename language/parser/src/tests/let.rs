@@ -1,10 +1,10 @@
 use crate::{ExpressionPosition, ExpressionStop};
-use destack_dir::{
+use tspp_dir::{
     Asynchrony, Declaration, Declarator, Expression, FloatType, FunctionDeclaration, FunctionForm,
     GenericArgument, GenericParameter, IntegerType, LetKind, Literal, Name, NodeType, Parameter,
     Pattern, PatternField, TokenType, TypeExpression, TypeLiteral, TypeMember,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 use crate::parse::DeclarationHeader;
 use crate::{TestParser, assert_expression_path, assert_node, assert_path, assert_string};

@@ -1,7 +1,7 @@
-use destack_artifact::DiagnosticLike;
-use destack_dir as dir;
-use destack_mir as mir;
-use destack_mir::substitute_type;
+use tspp_artifact::DiagnosticLike;
+use tspp_dir as dir;
+use tspp_mir as mir;
+use tspp_mir::substitute_type;
 
 use crate::lower::{
     BoundReceiver, GenericInstanceKey, GenericScope, LowerPhase, ModuleLowerer, TypeLowerer,

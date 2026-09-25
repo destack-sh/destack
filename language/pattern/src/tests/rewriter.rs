@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use destack_core::StringPool;
-use destack_dir as dir;
-use destack_formatter::format_file_source;
-use destack_repository::FormatterOptions;
-use destack_source::apply_file_patch;
+use tspp_core::StringPool;
+use tspp_dir as dir;
+use tspp_formatter::format_file_source;
+use tspp_repository::FormatterOptions;
+use tspp_source::apply_file_patch;
 
 use super::{TestSource, fixture_text, render_diagnostics, test_file};
 use crate::{Rewrite, Rewriter};

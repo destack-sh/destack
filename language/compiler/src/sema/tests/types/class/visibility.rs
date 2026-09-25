@@ -24,7 +24,7 @@ const read = account.balance;
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked().with_definitions(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked().with_definitions(), r#"
 === annotated ===
 class Account {
     private balance: int32 = 0;
@@ -112,7 +112,7 @@ const read = account.balance;
 fn test_private_member_rejects_a_foreign_module() {
     let session = TestSession::builder()
         .module(
-            "account.ds",
+            "account.tspp",
             r#"
 export class Account {
     private balance: int32 = 0;
@@ -120,9 +120,9 @@ export class Account {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Account } from "./account.ds";
+import { Account } from "./account.tspp";
 
 declare const account: Account;
 const read = account.balance;
@@ -130,15 +130,15 @@ const read = account.balance;
         )
         .build();
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Account } from "./account.ds";
+import { Account } from "./account.tspp";
 
 declare const account: Account;
 const read: int32 = account.balance;
 
 === dir ===
-import { Account } from "./account.ds";
+import { Account } from "./account.tspp";
 
 declare const account: Account;
 /// @type.symbol symbol=account source=account type=account.Account
@@ -164,7 +164,7 @@ const read = account.balance;
 fn test_protected_member_admits_derived_classes_only() {
     let session = TestSession::builder()
         .module(
-            "base.ds",
+            "base.tspp",
             r#"
 export class Shape {
     protected area: int32 = 0;
@@ -172,9 +172,9 @@ export class Shape {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Shape } from "./base.ds";
+import { Shape } from "./base.tspp";
 
 class Circle extends Shape {
     measure(&readonly this): int32 {
@@ -188,9 +188,9 @@ const read = shape.area;
         )
         .build();
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Shape } from "./base.ds";
+import { Shape } from "./base.tspp";
 
 class Circle extends Shape {
     measure(&readonly this): int32 {
@@ -202,7 +202,7 @@ declare const shape: Shape;
 const read: int32 = shape.area;
 
 === dir ===
-import { Shape } from "./base.ds";
+import { Shape } from "./base.tspp";
 
 class Circle extends Shape {
 /// @type.symbol symbol=Circle type=typeof Circle
@@ -261,7 +261,7 @@ class Account {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 class Account {
     private balance: int32 = 0;
@@ -310,7 +310,7 @@ class Account {
 fn test_private_field_rejects_writes_from_a_foreign_module() {
     let session = TestSession::builder()
         .module(
-            "account.ds",
+            "account.tspp",
             r#"
 export class Account {
     private balance: int32 = 0;
@@ -318,9 +318,9 @@ export class Account {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Account } from "./account.ds";
+import { Account } from "./account.tspp";
 
 declare let account: Account;
 account.balance = 1;
@@ -328,15 +328,15 @@ account.balance = 1;
         )
         .build();
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Account } from "./account.ds";
+import { Account } from "./account.tspp";
 
 declare let account: Account;
 account.balance = 1;
 
 === dir ===
-import { Account } from "./account.ds";
+import { Account } from "./account.tspp";
 
 declare let account: Account;
 /// @type.symbol symbol=account source=account type=account.Account
@@ -362,7 +362,7 @@ account.balance = 1;
 fn test_private_setter_rejects_writes_from_a_foreign_module() {
     let session = TestSession::builder()
         .module(
-            "account.ds",
+            "account.tspp",
             r#"
 export class Account {
     balance: int32 = 0;
@@ -374,9 +374,9 @@ export class Account {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Account } from "./account.ds";
+import { Account } from "./account.tspp";
 
 declare let account: Account;
 account.total = 1;
@@ -384,15 +384,15 @@ account.total = 1;
         )
         .build();
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Account } from "./account.ds";
+import { Account } from "./account.tspp";
 
 declare let account: Account;
 account.total = 1;
 
 === dir ===
-import { Account } from "./account.ds";
+import { Account } from "./account.tspp";
 
 declare let account: Account;
 /// @type.symbol symbol=account source=account type=account.Account
@@ -427,7 +427,7 @@ class Session {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 class Session {
     private constructor() {}
@@ -467,7 +467,7 @@ class Session {
 fn test_private_constructor_rejects_a_foreign_module() {
     let session = TestSession::builder()
         .module(
-            "session.ds",
+            "session.tspp",
             r#"
 export class Session {
     private constructor() {}
@@ -475,23 +475,23 @@ export class Session {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Session } from "./session.ds";
+import { Session } from "./session.tspp";
 
 const session = new Session();
 "#,
         )
         .build();
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Session } from "./session.ds";
+import { Session } from "./session.tspp";
 
 const session: Session = new Session();
 
 === dir ===
-import { Session } from "./session.ds";
+import { Session } from "./session.tspp";
 
 const session = new Session();
 /// @type.symbol symbol=session source=session type=session.Session
@@ -509,7 +509,7 @@ const session = new Session();
 fn test_protected_constructor_admits_derived_classes_only() {
     let session = TestSession::builder()
         .module(
-            "base.ds",
+            "base.tspp",
             r#"
 export class Shape {
     protected constructor() {}
@@ -517,23 +517,23 @@ export class Shape {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Shape } from "./base.ds";
+import { Shape } from "./base.tspp";
 
 const shape = new Shape();
 "#,
         )
         .build();
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Shape } from "./base.ds";
+import { Shape } from "./base.tspp";
 
 const shape: Shape = new Shape();
 
 === dir ===
-import { Shape } from "./base.ds";
+import { Shape } from "./base.tspp";
 
 const shape = new Shape();
 /// @type.symbol symbol=shape source=shape type=base.Shape
@@ -551,7 +551,7 @@ const shape = new Shape();
 fn test_accessor_visibility_splits_reads_and_writes() {
     let session = TestSession::builder()
         .module(
-            "gauge.ds",
+            "gauge.tspp",
             r#"
 export class Gauge {
     stored: int32 = 0;
@@ -567,9 +567,9 @@ export class Gauge {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Gauge } from "./gauge.ds";
+import { Gauge } from "./gauge.tspp";
 
 declare const gauge: Gauge;
 const read = gauge.level;
@@ -581,9 +581,9 @@ function drain(gauge: &Gauge): void {
         )
         .build();
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Gauge } from "./gauge.ds";
+import { Gauge } from "./gauge.tspp";
 
 declare const gauge: Gauge;
 const read: int32 = gauge.level;
@@ -593,7 +593,7 @@ function drain<'a>(gauge: &'a Gauge): void {
 }
 
 === dir ===
-import { Gauge } from "./gauge.ds";
+import { Gauge } from "./gauge.tspp";
 
 declare const gauge: Gauge;
 /// @type.symbol symbol=gauge source=gauge type=gauge.Gauge

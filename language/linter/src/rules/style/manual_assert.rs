@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -16,7 +16,7 @@ Wrap a computed message in a zero-argument lambda so it is evaluated only after 
 "#,
         example: {
             reported: r#"
-import { panic } from "destack:error";
+import { panic } from "tspp:error";
 
 function divide(value: int32, divisor: int32): int32 {
     if (divisor == 0) {
@@ -27,7 +27,7 @@ function divide(value: int32, divisor: int32): int32 {
 }
 "#,
             accepted: r#"
-import { assert } from "destack:assert";
+import { assert } from "tspp:assert";
 
 function divide(value: int32, divisor: int32): int32 {
     assert(divisor != 0, "divisor must not be zero");
@@ -100,7 +100,7 @@ mod tests {
         let session = TestSession::dir(
             &MANUAL_ASSERT,
             r#"
-import { panic } from "destack:error";
+import { panic } from "tspp:error";
 
 function requireReady(isReady: boolean): void {
     if (!isReady) {
@@ -113,7 +113,7 @@ function requireReady(isReady: boolean): void {
         session.assert_diagnostics(
             r#"
 warning[manual-assert]: conditional branch only panics
- ──▶ main.ds:4:5
+ ──▶ main.tspp:4:5
   │
 2 │
 3 │ function requireReady(isReady: boolean): void {
@@ -137,7 +137,7 @@ warning[manual-assert]: conditional branch only panics
         let session = TestSession::dir(
             &MANUAL_ASSERT,
             r#"
-import { panic } from "destack:error";
+import { panic } from "tspp:error";
 
 declare function describeFailure(): string;
 
@@ -150,7 +150,7 @@ function requireReady(isReady: boolean): void {
         session.assert_diagnostics(
             r#"
 warning[manual-assert]: conditional branch only panics
- ──▶ main.ds:6:5
+ ──▶ main.tspp:6:5
   │
 4 │
 5 │ function requireReady(isReady: boolean): void {
@@ -170,7 +170,7 @@ warning[manual-assert]: conditional branch only panics
         let session = TestSession::dir(
             &MANUAL_ASSERT,
             r#"
-import { assert } from "destack:assert";
+import { assert } from "tspp:assert";
 
 declare function describeFailure(): string;
 
@@ -189,7 +189,7 @@ function requireReady(isReady: boolean): void {
         let session = TestSession::dir(
             &MANUAL_ASSERT,
             r#"
-import { panic } from "destack:error";
+import { panic } from "tspp:error";
 
 declare function trace(message: string): void;
 
@@ -211,7 +211,7 @@ function requireReady(isReady: boolean): void {
         let session = TestSession::dir(
             &MANUAL_ASSERT,
             r#"
-import { panic } from "destack:error";
+import { panic } from "tspp:error";
 
 function requireReady(isReady: boolean): void {
     if (!isReady) {

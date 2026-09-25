@@ -2,8 +2,8 @@
 # fuzzer is in its own workspace
 
 [package]
-name = "destack_formatter_fuzz"
-description = "Destack Formatter Fuzzing"
+name = "tspp_formatter_fuzz"
+description = "TS++ Formatter Fuzzing"
 edition = "2024"
 authors = ["Symbol Industries"]
 license = "proprietary"
@@ -13,9 +13,9 @@ rust-version = "1.88.0"
 cargo-fuzz = true
 
 [dependencies]
-destack_formatter = { path = ".." }
-destack_source = { path = "../../source" }
-destack_repository = { path = "../../repository" }
+tspp_formatter = { path = ".." }
+tspp_source = { path = "../../source" }
+tspp_repository = { path = "../../repository" }
 
 libfuzzer-sys = "0.4.10"
 

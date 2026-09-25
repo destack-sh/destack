@@ -1,0 +1,21 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / ownership / owned borrowed and shared types
+let owned: ^User = ^User.create();
+//         ^ keyword.operator.owned.tspp
+
+let borrowed: &readonly User = &readonly owned;
+//            ^ keyword.operator.borrow.tspp
+
+let shared: shared User = User.create();
+//          ^^^^^^ keyword.other.modifier.tspp
+
+let localValue: local Buffer = Buffer.allocate();
+//              ^^^^^ keyword.other.modifier.tspp
+
+// memory / ownership / raw pointers and address expressions
+let pointer: *uint8 = &bytes[0];
+//           ^ keyword.operator.pointer.tspp
+
+let pinned: Pin<Box<Task>> = Box.pin(task);
+//          ^^^ entity.name.type.tspp

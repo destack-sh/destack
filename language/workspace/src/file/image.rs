@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use destack_serde::Reflect;
-use destack_source::{File, FileId, FileType, Uri};
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
+use tspp_source::{File, FileId, FileType, Uri};
 
 use crate::Error;
 

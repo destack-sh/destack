@@ -1,5 +1,5 @@
-use destack_mir::Space;
-use destack_program::{Memory, Word};
+use tspp_mir::Space;
+use tspp_program::{Memory, Word};
 
 use super::{RuntimeCall, TestMachine, TestProgram};
 use crate::Result;

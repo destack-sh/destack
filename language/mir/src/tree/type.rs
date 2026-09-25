@@ -1,7 +1,7 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
-use destack_core::{FloatFormat, SectionEntry, StringId};
+use tspp_core::{FloatFormat, SectionEntry, StringId};
 
 use crate::{
     Attribute, Constant, Discriminant, Extent, FieldId, Lifetime, LifetimeParameter, LocalNodeId,

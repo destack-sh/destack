@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
-use destack_heap::{
+use tspp_heap::{
     AllocationCache, AllocationPlan, AllocationShape, Heap, HeapLimits, HeapOptions, HeapReference,
     SharedHeap, SharedHeapReference, SharedMarkWorker,
 };
-use destack_memory::MemoryMap;
-use destack_mir::TraceMap;
+use tspp_memory::MemoryMap;
+use tspp_mir::TraceMap;
 
 use crate::config::{LEAF_BYTES, RECORD_BYTES, REFERENCE_BYTES, WORKLOAD_OBJECTS};
 use crate::heap::local_memory;
@@ -83,7 +83,7 @@ impl ObjectGraphWorkload {
         heap: &mut Heap,
         trace_map: &TraceMap,
     ) -> ObjectGraph<HeapReference> {
-        let mut source_traces = destack_mir::TraceTable::new();
+        let mut source_traces = tspp_mir::TraceTable::new();
         let record_trace_id = source_traces.insert(trace_map.clone());
         let trace_table = BenchTraceTable::from_mir(&source_traces);
         let leaf_map = TraceMap::Empty;
@@ -127,7 +127,7 @@ impl ObjectGraphWorkload {
         cache: &mut AllocationCache,
         trace_map: &TraceMap,
     ) -> ObjectGraph<SharedHeapReference> {
-        let mut source_traces = destack_mir::TraceTable::new();
+        let mut source_traces = tspp_mir::TraceTable::new();
         let record_trace_id = source_traces.insert(trace_map.clone());
         let trace_table = BenchTraceTable::from_mir(&source_traces);
         let trace_view = trace_table.view();
@@ -192,7 +192,7 @@ impl ReferenceArrayWorkload {
 
     /// Allocate this workload in one local heap.
     pub(crate) fn allocate_local(self, heap: &mut Heap) -> ReferenceArray<HeapReference> {
-        let mut source_traces = destack_mir::TraceTable::new();
+        let mut source_traces = tspp_mir::TraceTable::new();
         let trace_map = local_reference_array_map(self.objects);
         let trace_id = source_traces.insert(trace_map.clone());
         let trace_table = BenchTraceTable::from_mir(&source_traces);
@@ -233,7 +233,7 @@ impl ReferenceArrayWorkload {
         worker: &SharedMarkWorker,
         cache: &mut AllocationCache,
     ) -> ReferenceArray<SharedHeapReference> {
-        let mut source_traces = destack_mir::TraceTable::new();
+        let mut source_traces = tspp_mir::TraceTable::new();
         let trace_map = shared_reference_array_map(self.objects);
         let trace_id = source_traces.insert(trace_map.clone());
         let trace_table = BenchTraceTable::from_mir(&source_traces);

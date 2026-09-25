@@ -6,12 +6,12 @@
 
 Enum decorators appear on their own line above the declaration.
 
-```ds
+```tspp
 @description("The status of a task.")
 enum Status { Todo; Done }
 ```
 
-```ds expected
+```tspp expected
 @description("The status of a task.")
 enum Status {
     Todo,
@@ -23,11 +23,11 @@ enum Status {
 
 Body level enum member annotations stay on their own line above the member.
 
-```ds
+```tspp
 enum Status { @default Todo; @description("Completed work.") Done }
 ```
 
-```ds expected
+```tspp expected
 enum Status {
     @default
     Todo,
@@ -40,7 +40,7 @@ enum Status {
 
 Multiple enum member annotations each get their own line above the same member.
 
-```ds
+```tspp
 enum Status {
   @default
   @description("The item is pending.")
@@ -48,7 +48,7 @@ enum Status {
 }
 ```
 
-```ds expected
+```tspp expected
 enum Status {
     @default
     @description("The item is pending.")

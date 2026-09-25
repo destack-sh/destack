@@ -1,18 +1,18 @@
 use std::result;
 use std::sync::Arc;
 
-use destack_bytecode as bytecode;
-use destack_core::{Blob, SectionImage, SectionStorage, StringId};
-use destack_heap::{
+use serde::{Deserialize, Serialize};
+use tspp_bytecode as bytecode;
+use tspp_core::{Blob, SectionImage, SectionStorage, StringId};
+use tspp_heap::{
     AllocationPlan, AllocationShape, DropId, FrameWord, HeapOptions, HeapResult, ReferenceRange,
     RootSlot, SharedHeapOptions, TraceTable, TraceView, visit_heap_root_slots,
 };
-use destack_memory::{MemoryError, MemoryMap, MemoryRange, MemoryResult};
-use destack_mir::{Space, Storage, TargetLayout, TraceId, TraceMap};
-use destack_native as native;
-use destack_serde::{Reflect, Schema, Type};
-use destack_webassembly as wasm;
-use serde::{Deserialize, Serialize};
+use tspp_memory::{MemoryError, MemoryMap, MemoryRange, MemoryResult};
+use tspp_mir::{Space, Storage, TargetLayout, TraceId, TraceMap};
+use tspp_native as native;
+use tspp_serde::{Reflect, Schema, Type};
+use tspp_webassembly as wasm;
 
 use crate::{
     ActivationImage, Binding, BindingId, BindingTable, CallSite, CallSiteId, DispatchTable,

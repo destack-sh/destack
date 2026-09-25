@@ -1,5 +1,5 @@
-use destack_core::StringPool;
-use destack_dir as dir;
+use tspp_core::StringPool;
+use tspp_dir as dir;
 
 /// Protocol method selected by a subscript expression.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

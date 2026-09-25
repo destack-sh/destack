@@ -25,7 +25,7 @@ entry:
     program.assert_verify_errors(
         r#"
 error[borrow-outlives-origin]: borrow does not live long enough
-  ──▶ <test.dsm>:14:5
+  ──▶ <test.tsppm>:14:5
    │
 12 │     v2: ref<Box, borrowed, 'frame, mutable> = address l0
 13 │     v3: ref<int32, borrowed, 'frame, mutable> = address (*v2).0
@@ -35,7 +35,7 @@ error[borrow-outlives-origin]: borrow does not live long enough
 16 │
    │
 
-for more information about an error, run `destack explain borrow-outlives-origin`
+for more information about an error, run `tspp explain borrow-outlives-origin`
 "#,
     );
 }
@@ -109,7 +109,7 @@ entry(v0: slice<int32, unique, mutable>):
     program.assert_verify_errors(
         r#"
 error[borrow-outlives-origin]: borrow does not live long enough
- ──▶ <test.dsm>:6:5
+ ──▶ <test.tsppm>:6:5
   │
 4 │     v1: int64 = 0
 5 │     v2: ref<int32, borrowed, 'frame, mutable> = address (*v0)[v1]
@@ -119,7 +119,7 @@ error[borrow-outlives-origin]: borrow does not live long enough
 8 │
   │
 
-for more information about an error, run `destack explain borrow-outlives-origin`
+for more information about an error, run `tspp explain borrow-outlives-origin`
 "#,
     );
 }
@@ -144,7 +144,7 @@ entry(v0: ref<User, unique, mutable>):
     program.assert_verify_errors(
         r#"
 error[borrow-outlives-origin]: borrow does not live long enough
-  ──▶ <test.dsm>:9:5
+  ──▶ <test.tsppm>:9:5
    │
  7 │ entry(v0: ref<User, unique, mutable>):
  8 │     v1: ref<int32, borrowed, 'frame, mutable> = address (*v0).0
@@ -154,7 +154,7 @@ error[borrow-outlives-origin]: borrow does not live long enough
 11 │
    │
 
-for more information about an error, run `destack explain borrow-outlives-origin`
+for more information about an error, run `tspp explain borrow-outlives-origin`
 "#,
     );
 }
@@ -179,7 +179,7 @@ entry(v0: ref<User, managed, mutable, local>):
     program.assert_verify_errors(
         r#"
 error[borrow-outlives-origin]: borrow does not live long enough
-  ──▶ <test.dsm>:9:5
+  ──▶ <test.tsppm>:9:5
    │
  7 │ entry(v0: ref<User, managed, mutable, local>):
  8 │     v1: ref<int32, borrowed, 'managed, readonly> = address (*v0).0
@@ -189,7 +189,7 @@ error[borrow-outlives-origin]: borrow does not live long enough
 11 │
    │
 
-for more information about an error, run `destack explain borrow-outlives-origin`
+for more information about an error, run `tspp explain borrow-outlives-origin`
 "#,
     );
 }
@@ -214,7 +214,7 @@ entry(v0: Box<'frame>):
     program.assert_verify_errors(
         r#"
 error[borrow-outlives-origin]: borrow does not live long enough
-  ──▶ <test.dsm>:9:5
+  ──▶ <test.tsppm>:9:5
    │
  7 │ entry(v0: Box<'frame>):
  8 │     v1: ref<int32, borrowed, 'frame, mutable> = field.get v0, 0
@@ -224,7 +224,7 @@ error[borrow-outlives-origin]: borrow does not live long enough
 11 │
    │
 
-for more information about an error, run `destack explain borrow-outlives-origin`
+for more information about an error, run `tspp explain borrow-outlives-origin`
 "#,
     );
 }
@@ -271,7 +271,7 @@ entry(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<int32, borrowed, 'b, reado
     program.assert_verify_errors(
         r#"
 error[borrow-outlives-origin]: borrow does not live long enough
-  ──▶ <test.dsm>:10:5
+  ──▶ <test.tsppm>:10:5
    │
  8 │ entry(v0: ref<int32, borrowed, 'a, readonly>, v1: ref<int32, borrowed, 'b, readonly>, v2: Pair<'a, '··
  9 │     v3: ref<int32, borrowed, 'b, readonly> = field.get v2, 1
@@ -281,7 +281,7 @@ error[borrow-outlives-origin]: borrow does not live long enough
 12 │
    │
 
-for more information about an error, run `destack explain borrow-outlives-origin`
+for more information about an error, run `tspp explain borrow-outlives-origin`
 "#,
     );
 }
@@ -326,7 +326,7 @@ entry(v0: Pair<'a, 'b>):
     program.assert_verify_errors(
         r#"
 error[borrow-outlives-origin]: borrow does not live long enough
-  ──▶ <test.dsm>:9:5
+  ──▶ <test.tsppm>:9:5
    │
  7 │ function test<'a, 'b>(v0: Pair<'a, 'b>): Pair<'b, 'a> {
  8 │ entry(v0: Pair<'a, 'b>):
@@ -336,7 +336,7 @@ error[borrow-outlives-origin]: borrow does not live long enough
 11 │
    │
 
-for more information about an error, run `destack explain borrow-outlives-origin`
+for more information about an error, run `tspp explain borrow-outlives-origin`
 "#,
     );
 }
@@ -359,7 +359,7 @@ entry(v0: Value<'a>):
     program.assert_verify_errors(
         r#"
 error[borrow-outlives-origin]: borrow does not live long enough
- ──▶ <test.dsm>:7:5
+ ──▶ <test.tsppm>:7:5
   │
 5 │ entry(v0: Value<'a>):
 6 │     v1: ref<int32, borrowed, 'a, mutable> = variant.payload v0, 0
@@ -369,7 +369,7 @@ error[borrow-outlives-origin]: borrow does not live long enough
 9 │
   │
 
-for more information about an error, run `destack explain borrow-outlives-origin`
+for more information about an error, run `tspp explain borrow-outlives-origin`
 "#,
     );
 }
@@ -408,7 +408,7 @@ entry(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'b, mutabl
     program.assert_verify_errors(
         r#"
 error[borrow-outlives-origin]: borrow does not live long enough
- ──▶ <test.dsm>:4:5
+ ──▶ <test.tsppm>:4:5
   │
 2 │ function test<'a, 'b>(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'b, mutable>):··
 3 │ entry(v0: ref<int32, borrowed, 'a, mutable>, v1: ref<int32, borrowed, 'b, mutable>):
@@ -418,7 +418,7 @@ error[borrow-outlives-origin]: borrow does not live long enough
 6 │
   │
 
-for more information about an error, run `destack explain borrow-outlives-origin`
+for more information about an error, run `tspp explain borrow-outlives-origin`
 "#,
     );
 }
@@ -453,7 +453,7 @@ export function cplusplusMode(x: int32): &'static readonly int32 {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds",
+        "main.tspp",
         r#"
 /// @diagnostic.error id=borrow-outlives-origin message="borrow does not live long enough"
 /// @diagnostic.label line=3 column=5 span="return &readonly x" line_source="return &readonly x;"
@@ -481,7 +481,7 @@ export function fromTemporary(): &readonly int32 {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#"
+    session.assert_mir_verified_diagnostics("main.tspp", r#"
 /// @diagnostic.error id=borrow-outlives-origin message="borrow does not live long enough"
 /// @diagnostic.label line=12 column=5 span="return &readonly foo.value" line_source="return &readonly foo.value;"
 "#);
@@ -512,7 +512,8 @@ function spawn(): &Player {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds", r#"
+        "main.tspp",
+        r#"
 "#,
     );
 }
@@ -540,7 +541,7 @@ function keep(world: World): &'static readonly Player {
 "#,
     );
 
-    session.assert_mir_verified_diagnostics("main.ds", r#"
+    session.assert_mir_verified_diagnostics("main.tspp", r#"
 /// @diagnostic.error id=borrow-outlives-origin message="borrow does not live long enough"
 /// @diagnostic.label line=15 column=5 span="return &readonly world.player" line_source="return &readonly world.player;"
 "#);

@@ -1,0 +1,325 @@
+import { HostError } from "tspp:error/host";
+
+import {
+    Edge,
+    EdgeFilter,
+    EdgeId,
+    EdgePage,
+    Entity,
+    EntityFilter,
+    EntityId,
+    EntityPage,
+    LabelSelector,
+} from "./entity.tspp";
+import { Image, Revision } from "./lineage.tspp";
+import { Resource, ResourceId, ResourceKind, ResourcePage } from "./resource.tspp";
+import { Trace } from "./trace.tspp";
+import {
+    Runtime,
+    RuntimeFilter,
+    RuntimeId,
+    RuntimePage,
+    Worker,
+    WorkerFilter,
+    WorkerId,
+    WorkerPage,
+    World,
+    WorldHandle,
+    WorldViewHandle,
+    WorldViewOptions,
+} from "./world.tspp";
+
+/// Filter for runtime resources.
+export struct ResourceFilter {
+    /// Optional owning runtime selector.
+    runtime?: RuntimeId;
+    /// Optional owning worker selector.
+    worker?: WorkerId;
+    /// Optional resource kind selector.
+    kind?: ResourceKind;
+    /// Optional label selector clauses.
+    labels?: [LabelSelector];
+}
+
+/// Event loop state for one worker.
+@languageItem("runtime.EventLoop")
+export struct EventLoop {
+    /// Ready task count.
+    taskCount: uint32;
+    /// Pending microtask count.
+    microtaskCount: uint32;
+    /// Timer count.
+    timerCount: uint32;
+    /// Watch count.
+    watchCount: uint32;
+    /// Whether pending work exists.
+    hasPendingWork: boolean;
+}
+
+/// Engine view kind for one worker.
+@languageItem("runtime.EngineViewKind")
+export enum EngineViewKind {
+    /// VM isolate-backed execution.
+    Isolate = 1,
+    /// Native engine-backed execution.
+    Native = 2,
+}
+
+/// Engine state for one worker.
+@languageItem("runtime.EngineView")
+export struct EngineView {
+    /// Engine implementation kind.
+    kind: EngineViewKind;
+    /// Call stack depth.
+    callStackDepth?: uint32;
+    /// Value stack length.
+    valueStackDepth?: uint32;
+    /// Local stack length.
+    localStackDepth?: uint32;
+    /// Image backing size in bytes.
+    imageBytes?: uint64;
+}
+
+/// Open one pinned world view.
+@binding("tspp.runtime.inspect.worldViewOpen", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function worldViewOpen(
+    world: WorldHandle,
+    options?: WorldViewOptions,
+): Result<WorldViewHandle, HostError>;
+
+/// Close one pinned world view.
+@binding("tspp.runtime.inspect.worldViewClose", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function worldViewClose(view: WorldViewHandle): Result<void, HostError>;
+
+/// Describe the world visible through one pinned world view.
+@binding("tspp.runtime.inspect.worldView", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function worldView(view: WorldViewHandle): Result<World, HostError>;
+
+/// Describe the pinned revision for one world view.
+@binding("tspp.runtime.inspect.revisionView", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function revisionView(view: WorldViewHandle): Result<Revision, HostError>;
+
+/// Describe the pinned image for one world view.
+@binding("tspp.runtime.inspect.imageView", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function imageView(view: WorldViewHandle): Result<Image, HostError>;
+
+/// Describe the pinned trace state for one world view.
+@binding("tspp.runtime.inspect.traceView", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function traceView(view: WorldViewHandle): Result<Trace, HostError>;
+
+/// List runtimes visible through one pinned world view.
+@binding("tspp.runtime.inspect.runtimeList", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function runtimeList(
+    view: WorldViewHandle,
+    limit: uint32,
+    filter?: RuntimeFilter,
+    after?: RuntimeId,
+): Result<RuntimePage, HostError>;
+
+/// Describe one runtime visible through one pinned world view.
+@binding("tspp.runtime.inspect.runtimeView", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function runtimeView(
+    view: WorldViewHandle,
+    runtimeId: RuntimeId,
+): Result<Runtime, HostError>;
+
+/// List workers visible through one pinned world view.
+@binding("tspp.runtime.inspect.workerList", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function workerList(
+    view: WorldViewHandle,
+    limit: uint32,
+    filter?: WorkerFilter,
+    after?: WorkerId,
+): Result<WorkerPage, HostError>;
+
+/// Describe one worker visible through one pinned world view.
+@binding("tspp.runtime.inspect.workerView", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function workerView(
+    view: WorldViewHandle,
+    workerId: WorkerId,
+): Result<Worker, HostError>;
+
+/// List logical world resources visible through one pinned world view.
+@binding("tspp.runtime.inspect.resourceList", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function resourceList(
+    view: WorldViewHandle,
+    limit: uint32,
+    filter?: ResourceFilter,
+    after?: ResourceId,
+): Result<ResourcePage, HostError>;
+
+/// Describe one logical world resource visible through one pinned world view.
+@binding("tspp.runtime.inspect.resourceView", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function resourceView(
+    view: WorldViewHandle,
+    resourceId: ResourceId,
+): Result<Resource, HostError>;
+
+/// List entities visible through one pinned world view.
+@binding("tspp.runtime.inspect.entityList", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function entityList(
+    view: WorldViewHandle,
+    limit: uint32,
+    filter?: EntityFilter,
+    after?: EntityId,
+): Result<EntityPage, HostError>;
+
+/// Describe one entity visible through one pinned world view.
+@binding("tspp.runtime.inspect.entityView", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function entityView(
+    view: WorldViewHandle,
+    entityId: EntityId,
+): Result<Entity, HostError>;
+
+/// List edges visible through one pinned world view.
+@binding("tspp.runtime.inspect.edgeList", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function edgeList(
+    view: WorldViewHandle,
+    limit: uint32,
+    filter?: EdgeFilter,
+    after?: EdgeId,
+): Result<EdgePage, HostError>;
+
+/// Describe one edge visible through one pinned world view.
+@binding("tspp.runtime.inspect.edgeView", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function edgeView(view: WorldViewHandle, edgeId: EdgeId): Result<Edge, HostError>;
+
+/// Describe the event loop for one worker visible through one pinned world view.
+@binding("tspp.runtime.inspect.eventLoopView", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function eventLoopView(
+    view: WorldViewHandle,
+    workerId: WorkerId,
+): Result<EventLoop, HostError>;
+
+/// Describe the execution engine for one worker visible through one pinned world view.
+@binding("tspp.runtime.inspect.engineView", {
+    effect: "deterministic",
+    requires: ["runtime.entity.read"],
+    families: ["windows", "unix"],
+    hosts: ["wasi"],
+    provider: "runtime",
+    affinity: "worker",
+})
+export declare function engineView(
+    view: WorldViewHandle,
+    workerId: WorkerId,
+): Result<EngineView, HostError>;

@@ -32,13 +32,13 @@ fn test_reject_unbound_predicate_metavariable() {
         .assert_diagnostics(
             r#"
 error[unbound-predicate-metavariable]: predicate metavariable 'OTHER' is not bound by the pattern
- ──▶ destack:predicate:1:1
+ ──▶ tspp:predicate:1:1
   │
 1 │ $OTHER == myPackage.net.fetch
   │ ^^^^^^
   │
 
-for more information about an error, run `destack explain unbound-predicate-metavariable`
+for more information about an error, run `tspp explain unbound-predicate-metavariable`
 "#,
         );
 }
@@ -79,13 +79,13 @@ fn test_reject_repeated_predicate_metavariable() {
         .assert_diagnostics(
             r#"
 error[repeated-predicate-metavariable]: predicate metavariables cannot use repeated marker syntax
- ──▶ destack:predicate:1:1
+ ──▶ tspp:predicate:1:1
   │
 1 │ $$$ARGUMENTS == null
   │ ^^^^^^^^^^^^
   │
 
-for more information about an error, run `destack explain repeated-predicate-metavariable`
+for more information about an error, run `tspp explain repeated-predicate-metavariable`
 "#,
         );
 }
@@ -99,13 +99,13 @@ fn test_reject_unsupported_predicate_expression() {
         .assert_diagnostics(
             r#"
 error[unsupported-predicate-expression]: expression is not part of the pattern predicate language
- ──▶ destack:predicate:1:1
+ ──▶ tspp:predicate:1:1
   │
 1 │ inspect($CALLEE)
   │ ^^^^^^^^^^^^^^^^
   │
 
-for more information about an error, run `destack explain unsupported-predicate-expression`
+for more information about an error, run `tspp explain unsupported-predicate-expression`
 "#,
         );
 }
@@ -119,13 +119,13 @@ fn test_reject_invalid_predicate_operands() {
         .assert_diagnostics(
             r#"
 error[invalid-predicate-operands]: operator '==' cannot accept these predicate values
- ──▶ destack:predicate:1:1
+ ──▶ tspp:predicate:1:1
   │
 1 │ $CALLEE == inspect()
   │ ^^^^^^^^^^^^^^^^^^^^
   │
 
-for more information about an error, run `destack explain invalid-predicate-operands`
+for more information about an error, run `tspp explain invalid-predicate-operands`
 "#,
         );
 }
@@ -139,13 +139,13 @@ fn test_reject_unsupported_predicate_operator() {
         .assert_diagnostics(
             r#"
 error[unsupported-predicate-expression]: expression is not part of the pattern predicate language
- ──▶ destack:predicate:1:1
+ ──▶ tspp:predicate:1:1
   │
 1 │ $CALLEE in fetch
   │ ^^^^^^^^^^^^^^^^
   │
 
-for more information about an error, run `destack explain unsupported-predicate-expression`
+for more information about an error, run `tspp explain unsupported-predicate-expression`
 "#,
         );
 }
@@ -160,7 +160,7 @@ fn test_reject_multiple_predicate_roots() {
             r#"
 error[expected-predicate-root]: expected one predicate expression, found 2
   ──▶ <predicate>
-for more information about an error, run `destack explain expected-predicate-root`
+for more information about an error, run `tspp explain expected-predicate-root`
 "#,
         );
 }
@@ -174,13 +174,13 @@ fn test_reject_name_predicate_metavariable() {
         .assert_diagnostics(
             r#"
 error[invalid-predicate-metavariable]: predicate metavariable must occupy an expression
- ──▶ destack:predicate:1:9
+ ──▶ tspp:predicate:1:9
   │
 1 │ $OBJECT.$MEMBER == null
   │         ^^^^^^^
   │
 
-for more information about an error, run `destack explain invalid-predicate-metavariable`
+for more information about an error, run `tspp explain invalid-predicate-metavariable`
 "#,
         );
 }

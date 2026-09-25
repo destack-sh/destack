@@ -1,6 +1,6 @@
 [package]
-name = "destack_session"
-description = "Destack Session"
+name = "tspp_session"
+description = "TS++ Session"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -13,17 +13,17 @@ doctest = false
 
 [dependencies]
 # language
-destack_artifact = { workspace = true }
-destack_core = { workspace = true }
-destack_compiler = { workspace = true, default-features = false }
-destack_dir = { workspace = true }
-destack_index = { workspace = true }
-destack_linter = { workspace = true }
-destack_mir = { workspace = true }
-destack_parser = { workspace = true }
-destack_serde = { workspace = true }
-destack_source = { workspace = true }
-destack_repository = { path = "../repository", default-features = false }
+tspp_artifact = { workspace = true }
+tspp_core = { workspace = true }
+tspp_compiler = { workspace = true, default-features = false }
+tspp_dir = { workspace = true }
+tspp_index = { workspace = true }
+tspp_linter = { workspace = true }
+tspp_mir = { workspace = true }
+tspp_parser = { workspace = true }
+tspp_serde = { workspace = true }
+tspp_source = { workspace = true }
+tspp_repository = { path = "../repository", default-features = false }
 
 # general
 futures = { workspace = true }
@@ -40,8 +40,8 @@ futures = { workspace = true, features = ["executor"] }
 
 [features]
 default = ["native"]
-native = ["destack_compiler/native"]
-deadlock-detection = ["destack_compiler/deadlock-detection"]
+native = ["tspp_compiler/native"]
+deadlock-detection = ["tspp_compiler/deadlock-detection"]
 
 [lints]
 workspace = true

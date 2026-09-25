@@ -1,8 +1,8 @@
 use std::path::Path;
 
 use clap::Args;
-use destack_artifact::{ArtifactCache, ArtifactCacheStats, ArtifactCacheUsage};
 use serde::Serialize;
+use tspp_artifact::{ArtifactCache, ArtifactCacheStats, ArtifactCacheUsage};
 
 use crate::common::{
     ProgramArgs, ReportArgs, ensure_no_watch_or_dev, print_json_payload_report, report_error,
@@ -113,7 +113,7 @@ pub async fn run(args: &CacheArgs) -> i32 {
         Ok(cache) => cache,
         Err(error) => return report_error("cache", &args.report, &error.to_string()),
     };
-    let usage = match ArtifactCache::measure(&directory, destack_workspace::Workspace::BUILD_ID) {
+    let usage = match ArtifactCache::measure(&directory, tspp_workspace::Workspace::BUILD_ID) {
         Ok(usage) => usage,
         Err(error) => return report_error("cache", &args.report, &error.to_string()),
     };

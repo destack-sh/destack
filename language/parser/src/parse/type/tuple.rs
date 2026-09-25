@@ -1,8 +1,8 @@
 use crate::parse::{TypePosition, TypeStop};
 use crate::{ParseStart, Parser, ParserError, ParserResult};
 
-use destack_dir::{LocalNodeId, StringId, TokenType, TupleElement, TypeExpression};
-use destack_source::ByteRange;
+use tspp_dir::{LocalNodeId, StringId, TokenType, TupleElement, TypeExpression};
+use tspp_source::ByteRange;
 
 /// One labeled tuple element head.
 #[derive(Clone, Copy)]
@@ -46,7 +46,7 @@ impl Parser {
     /// Parse one labeled type tuple head.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// name: string
     /// name?: string
     /// rest: ...string[]
@@ -75,7 +75,7 @@ impl Parser {
     /// Parse one type tuple element directly in type space.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// string
     /// name?: string
     /// ...rest: string[]
@@ -150,7 +150,7 @@ impl Parser {
     /// Parse a regular tuple element.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// string
     /// string?
     /// name?: string
@@ -192,7 +192,7 @@ impl Parser {
     /// Parse the rest of a type tuple after one unlabeled value head.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// string,
     /// string, number
     /// string?, ...boolean[]
@@ -239,7 +239,7 @@ impl Parser {
     /// Parse type tuple elements until one closing token.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// string, number
     /// name: string, age?: number
     /// ...rest: string[]

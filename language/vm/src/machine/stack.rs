@@ -2,9 +2,9 @@ use std::ops::Range;
 use std::sync::Arc;
 use std::{process, ptr};
 
-use destack_memory::{MemoryMap, MemoryRange};
-use destack_program as program;
-use destack_program::Word;
+use tspp_memory::{MemoryMap, MemoryRange};
+use tspp_program as program;
+use tspp_program::Word;
 
 use crate::diagnostic::{Error, Result};
 

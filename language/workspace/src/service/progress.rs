@@ -1,7 +1,7 @@
 use std::future::Future;
 
-use destack_rpc::{Code, Response, ResponseSender, Status};
 use futures::{FutureExt, pin_mut, select_biased};
+use tspp_rpc::{Code, Response, ResponseSender, Status};
 
 use crate::{CommandError, ProgressEvent, ProgressEvents};
 

@@ -1,0 +1,75 @@
+import { todo } from "tspp:error";
+
+/// The positive float infinity.
+@languageItem("math.Infinity")
+export const Infinity: number = 1.0 / 0.0;
+
+/// The float not-a-number value.
+@languageItem("math.NaN")
+export const NaN: number = 0.0 / 0.0;
+
+/// Number constants and parsing functions.
+@languageItem("math.Number")
+export class Number {
+    /// Difference between 1 and the next representable float64 value.
+    static readonly EPSILON: number = 2.220446049250313e-16;
+
+    /// The largest finite float64 value.
+    static readonly MAX_VALUE: number = 1.7976931348623157e308;
+
+    /// The smallest positive float64 value.
+    static readonly MIN_VALUE: number = 5e-324;
+
+    /// The largest exactly representable integer in a float64.
+    static readonly MAX_SAFE_INTEGER: number = 9007199254740991;
+
+    /// The smallest exactly representable integer in a float64.
+    static readonly MIN_SAFE_INTEGER: number = -9007199254740991;
+
+    /// Positive infinity.
+    @languageItem("math.Number.POSITIVE_INFINITY")
+    static readonly POSITIVE_INFINITY: number = Infinity;
+
+    /// Negative infinity.
+    @languageItem("math.Number.NEGATIVE_INFINITY")
+    static readonly NEGATIVE_INFINITY: number = -Infinity;
+
+    /// Not-a-number.
+    @languageItem("math.Number.NaN")
+    static readonly NaN: number = NaN;
+
+    /// Return the primitive number value.
+    valueOf(&readonly this): number {
+        todo("Number.valueOf")
+    }
+
+    /// Return whether `value` is finite.
+    static isFinite(value: unknown): boolean {
+        todo("Number.isFinite")
+    }
+
+    /// Return whether `value` is an integer.
+    static isInteger(value: unknown): boolean {
+        todo("Number.isInteger")
+    }
+
+    /// Return whether `value` is NaN.
+    static isNaN(value: unknown): boolean {
+        todo("Number.isNaN")
+    }
+
+    /// Return whether `value` is exactly representable as an integer.
+    static isSafeInteger(value: unknown): boolean {
+        todo("Number.isSafeInteger")
+    }
+
+    /// Parse a float64 from `text`.
+    static parseFloat(text: &readonly string): number {
+        todo("Number.parseFloat")
+    }
+
+    /// Parse an integer from `text`.
+    static parseInt(text: &readonly string, radix?: number): number {
+        todo("Number.parseInt")
+    }
+}

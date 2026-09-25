@@ -1,10 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::{
-    ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirLowered, MirVerified,
-};
-use destack_repository::{ProfileId, ProviderContext};
-use destack_source::{ModuleId, TargetId};
+use tspp_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirLowered, MirVerified};
+use tspp_repository::{ProfileId, ProviderContext};
+use tspp_source::{ModuleId, TargetId};
 
 use crate::verify::VerifyState;
 use crate::{Compiler, CompilerError, CompilerResult};

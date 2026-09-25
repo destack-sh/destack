@@ -1,7 +1,7 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
-use destack_mir::TraceId;
+use tspp_mir::TraceId;
 
 use crate::{
     AllocationClass, AllocationPlan, AllocationShape, DEFAULT_HEAP_PAGE_SIZE_BYTES,
@@ -99,8 +99,8 @@ impl HeapOptions {
 mod tests {
     use std::sync::Arc;
 
-    use destack_memory::MemoryMap;
-    use destack_mir::TraceMap;
+    use tspp_memory::MemoryMap;
+    use tspp_mir::TraceMap;
 
     use crate::{
         AllocationShape, DropId, GcOptions, Heap, HeapConfigurationError, HeapError, HeapLimits,

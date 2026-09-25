@@ -1,9 +1,9 @@
 use std::path::PathBuf;
 
-use destack_artifact::ArtifactReference;
-use destack_core::Blob;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_artifact::ArtifactReference;
+use tspp_core::Blob;
+use tspp_serde::Reflect;
 
 /// Request to materialize derived outputs on the workspace host.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]

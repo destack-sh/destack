@@ -1,28 +1,28 @@
 use std::mem::size_of;
 use std::sync::Once;
 
-use destack_heap::{
+use tspp_heap::{
     AllocationCache, Heap, HeapOptions, SharedHeap, SharedHeapOptions, SharedMarkWorker,
     SizeClassTable,
 };
-use destack_memory::MemoryMap;
-use destack_program::StaticSpace;
-use destack_repository::{Environment, RuntimeOptions};
-use destack_runtime::binding::BindingTable;
-use destack_runtime::diagnostic::DiagnosticStore;
-use destack_runtime::host::resource::ResourceTable;
-use destack_runtime::runtime::Runtime;
-use destack_runtime::worker::{RunnableScope, Worker};
-use destack_runtime::world::observation::{
+use tspp_memory::MemoryMap;
+use tspp_program::StaticSpace;
+use tspp_repository::{Environment, RuntimeOptions};
+use tspp_runtime::binding::BindingTable;
+use tspp_runtime::diagnostic::DiagnosticStore;
+use tspp_runtime::host::resource::ResourceTable;
+use tspp_runtime::runtime::Runtime;
+use tspp_runtime::worker::{RunnableScope, Worker};
+use tspp_runtime::world::observation::{
     Observation, ObservationEntry, ObservationLog, ObservationScope,
 };
-use destack_runtime::world::random::Random;
-use destack_runtime::world::topology::LabelSet;
-use destack_runtime::world::trace::{
+use tspp_runtime::world::random::Random;
+use tspp_runtime::world::topology::LabelSet;
+use tspp_runtime::world::trace::{
     ClockTrace, EntropySubject, RandomTrace, Trace, TraceEntry, TraceLog,
 };
-use destack_runtime::world::{Entity, Policy, World};
-use destack_vm::Machine;
+use tspp_runtime::world::{Entity, Policy, World};
+use tspp_vm::Machine;
 
 use crate::ALLOCATOR;
 use crate::measure::AllocationSample;

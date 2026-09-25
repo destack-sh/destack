@@ -8,11 +8,11 @@ Unary fixtures cover prefix operators, ownership operators, comments, and preced
 
 Logical not attaches directly to the operand.
 
-```ds
+```tspp
 !isReady
 ```
 
-```ds expected
+```tspp expected
 !isReady;
 ```
 
@@ -20,11 +20,11 @@ Logical not attaches directly to the operand.
 
 Unary minus attaches directly to the operand.
 
-```ds
+```tspp
 -total
 ```
 
-```ds expected
+```tspp expected
 -total;
 ```
 
@@ -32,11 +32,11 @@ Unary minus attaches directly to the operand.
 
 Bitwise not attaches directly to the operand.
 
-```ds
+```tspp
 ~mask
 ```
 
-```ds expected
+```tspp expected
 ~mask;
 ```
 
@@ -44,25 +44,25 @@ Bitwise not attaches directly to the operand.
 
 Await keeps a space before the operand.
 
-```ds
+```tspp
 await fetchData()
 ```
 
-```ds expected
+```tspp expected
 await fetchData();
 ```
 
-## Destack Reference Operators
+## TS++ Reference Operators
 
 ### reference operator
 
 References keep the `&` tight to the operand.
 
-```ds
+```tspp
 const view = &value
 ```
 
-```ds expected
+```tspp expected
 const view = &value;
 ```
 
@@ -70,11 +70,11 @@ const view = &value;
 
 Readonly references keep `&readonly` tight to the operand.
 
-```ds
+```tspp
 const view = &readonly value
 ```
 
-```ds expected
+```tspp expected
 const view = &readonly value;
 ```
 
@@ -82,11 +82,11 @@ const view = &readonly value;
 
 Pointers keep `*` tight to the operand.
 
-```ds
+```tspp
 const ptr = *value
 ```
 
-```ds expected
+```tspp expected
 const ptr = *value;
 ```
 
@@ -94,11 +94,11 @@ const ptr = *value;
 
 Ownership operators stay semicolonless when returned as function tail values.
 
-```ds
+```tspp
 function borrow(value: Buffer): &readonly Buffer { &readonly value }
 ```
 
-```ds expected
+```tspp expected
 function borrow(value: Buffer): &readonly Buffer {
     &readonly value
 }
@@ -108,11 +108,11 @@ function borrow(value: Buffer): &readonly Buffer {
 
 Ownership operators compose with nested control-flow value tails.
 
-```ds
+```tspp
 function borrow(value: Buffer, fallback: Buffer): &readonly Buffer { if (ready) { &readonly value } else { &readonly fallback } }
 ```
 
-```ds expected
+```tspp expected
 function borrow(value: Buffer, fallback: Buffer): &readonly Buffer {
     if (ready) {
         &readonly value
@@ -128,11 +128,11 @@ function borrow(value: Buffer, fallback: Buffer): &readonly Buffer {
 
 Prefix increment stays attached to the identifier.
 
-```ds
+```tspp
 ++count
 ```
 
-```ds expected
+```tspp expected
 ++count;
 ```
 
@@ -140,11 +140,11 @@ Prefix increment stays attached to the identifier.
 
 Prefix decrement stays attached to the identifier.
 
-```ds
+```tspp
 --count
 ```
 
-```ds expected
+```tspp expected
 --count;
 ```
 
@@ -152,11 +152,11 @@ Prefix decrement stays attached to the identifier.
 
 Postfix increment stays attached to the identifier.
 
-```ds
+```tspp
 count++
 ```
 
-```ds expected
+```tspp expected
 count++;
 ```
 
@@ -164,10 +164,10 @@ count++;
 
 Postfix decrement stays attached to the identifier.
 
-```ds
+```tspp
 count--
 ```
 
-```ds expected
+```tspp expected
 count--;
 ```

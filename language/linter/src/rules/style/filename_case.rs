@@ -13,8 +13,8 @@ Instead, you SHOULD use lowercase ASCII kebab-case for every source filename com
 Dot-separated roles such as `.test` and `.d` are checked independently.
 "#,
         example: {
-            reported: ("UserService.ds", "export const value = 1;"),
-            accepted: ("user-service.ds", "export const value = 1;"),
+            reported: ("UserService.tspp", "export const value = 1;"),
+            accepted: ("user-service.tspp", "export const value = 1;"),
         },
         provenance: [Unicorn("filename-case")],
         category: Style,
@@ -30,7 +30,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 
     // inspect each source file contributing to this module
     for file in module.files {
-        let Some(stem) = file.name.strip_suffix(".ds") else {
+        let Some(stem) = file.name.strip_suffix(".tspp") else {
             continue;
         };
         if stem.split('.').all(is_kebab_component) {
@@ -79,13 +79,16 @@ mod tests {
     /// Report uppercase and underscore filename words.
     #[test]
     fn test_reports_noncanonical_filename() {
-        let session =
-            TestSession::dir_path(&FILENAME_CASE, "User_service.ds", "export const value = 1;");
+        let session = TestSession::dir_path(
+            &FILENAME_CASE,
+            "User_service.tspp",
+            "export const value = 1;",
+        );
 
         session.assert_diagnostics(
             r#"
-warning[filename-case]: filename `User_service.ds` must use lowercase kebab-case
-  ──▶ User_service.ds
+warning[filename-case]: filename `User_service.tspp` must use lowercase kebab-case
+  ──▶ User_service.tspp
 "#,
         );
     }
@@ -95,7 +98,7 @@ warning[filename-case]: filename `User_service.ds` must use lowercase kebab-case
     fn test_accepts_declaration_filename() {
         let session = TestSession::dir_path(
             &FILENAME_CASE,
-            "user-service.d.ds",
+            "user-service.d.tspp",
             "export declare const value: int32;",
         );
 

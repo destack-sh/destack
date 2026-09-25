@@ -1,0 +1,10 @@
+import { IoError } from "tspp:error";
+
+import { Task } from "./task.tspp";
+
+/// Asynchronous byte reader.
+@languageItem("async.AsyncReader")
+export interface AsyncReader {
+    /// Read bytes into `buffer`.
+    read(&this, buffer: &[uint8]): Task<Result<usize, IoError>>;
+}

@@ -6,11 +6,11 @@
 
 Short tree literals in return statements stay inline.
 
-```ds
+```tspp
 return <App />
 ```
 
-```ds expected
+```tspp expected
 return <App />;
 ```
 
@@ -18,11 +18,11 @@ return <App />;
 
 Multiline returned tree literals use parentheses.
 
-```ds line-width=30
+```tspp line-width=30
 return <App prop="value" another="thing" />
 ```
 
-```ds expected
+```tspp expected
 return (
     <App
         prop="value"
@@ -35,11 +35,11 @@ return (
 
 Nested returned tree literals also use parentheses.
 
-```ds line-width=40
+```tspp line-width=40
 return <Container><Header /><Content /></Container>
 ```
 
-```ds expected
+```tspp expected
 return (
     <Container>
         <Header />

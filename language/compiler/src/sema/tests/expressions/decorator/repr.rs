@@ -13,7 +13,7 @@ struct Header {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===
@@ -47,7 +47,7 @@ newtype Handle = int32;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===
@@ -77,7 +77,7 @@ struct Handle {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===
@@ -111,7 +111,7 @@ class Handle {}
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===
@@ -141,7 +141,7 @@ class Handle {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===
@@ -185,7 +185,7 @@ abstract class Handle extends Base {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===
@@ -229,7 +229,7 @@ struct Header {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===
@@ -262,7 +262,7 @@ struct Header {}
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===
@@ -301,7 +301,7 @@ enum Mode {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===
@@ -341,7 +341,7 @@ enum Mode {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none().with_definitions().with_decorators(),
         r#"
 === annotated ===

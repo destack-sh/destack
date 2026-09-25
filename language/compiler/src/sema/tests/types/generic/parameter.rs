@@ -12,7 +12,7 @@ const value = id("ready");
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -52,7 +52,7 @@ const first = values[0];
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -109,7 +109,7 @@ const first = values[0];
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -166,7 +166,7 @@ take(values);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -211,7 +211,7 @@ take([1, 2]);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -249,7 +249,7 @@ take([1, 2]);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -280,7 +280,7 @@ take([1, 2, 3]);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -317,7 +317,7 @@ const value = id((1, "x"));
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -357,7 +357,7 @@ const kind = values[0].kind;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -418,7 +418,7 @@ const value = maybe({ kind: "ready" });
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 declare function maybe<const T>(value: T | undefined): T | undefined;
 
@@ -458,7 +458,7 @@ const level = value.level;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -522,7 +522,7 @@ const level = value.level;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -584,7 +584,7 @@ function read<T: T | { name: string }>(value: T): string {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -640,7 +640,7 @@ class Bucket<K: Equal<K>> {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 interface Equal<in T> {
     equals(other: T): boolean;
@@ -761,7 +761,7 @@ extension<K> of Box<K> where K: Equal<K> {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 interface Equal<in T> {
     equals(other: T): boolean;
@@ -898,7 +898,7 @@ class Box<K> {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 interface Equal<in T> {
     equals(other: T): boolean;
@@ -1022,7 +1022,7 @@ extension<K> of Box<K> {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 declare function probe<T>(value: T): boolean;
 
@@ -1140,7 +1140,7 @@ extension<K: Hash> of Box<K> where K: Equal<K> {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 interface Hash {
     hash(): float64;
@@ -1281,7 +1281,7 @@ function active<T: boolean | string>(value: T): boolean where T: boolean {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1324,7 +1324,7 @@ function twice<T>(value: T): int32 where T: Doubling {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1397,7 +1397,7 @@ export extension<T> of Cell<T> {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 declare function todo(message: string): never;
 
@@ -1515,7 +1515,7 @@ requireEqual<{ x: int32; y: string }, { x: int32 }>(wider, narrower);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1586,7 +1586,7 @@ requireEqual(wider, narrower);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1654,7 +1654,7 @@ function build<T: Makeable>(): T {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 interface Makeable {
     static make(): this;
@@ -1715,7 +1715,7 @@ function zero<T: Numeric>(): T {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1812,7 +1812,7 @@ extension<T> of Box<T> {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 class Box<in out T> {
     value: T;
@@ -1957,7 +1957,7 @@ extension<T> of Outer<T> {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 struct Inner<out T> {
     value: T;
@@ -2087,7 +2087,7 @@ function check<T>(a: T): T | undefined {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 function pair<T>(a: T): (T, boolean) {
     (a, true)
@@ -2177,7 +2177,7 @@ extension<T, R, I: Iterator<T, R>> of I {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked(), r#"
+    session.assert_dir("main.tspp", DirRows::checked(), r#"
 === annotated ===
 interface Iterator<out T, out R = void> {}
 
@@ -2272,7 +2272,7 @@ struct Named<'a> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2310,7 +2310,7 @@ struct Mixed<'a> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2359,7 +2359,7 @@ function forward<U: int32>(value: U): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2408,9 +2408,9 @@ function forward<U: int32>(value: U): void {
 fn test_project_the_output_of_an_imported_subtract_extension() {
     let session = TestSession::builder()
         .module(
-            "a.ds",
+            "a.tspp",
             r#"
-import { Subtract } from "destack:ops";
+import { Subtract } from "tspp:ops";
 
 export interface Numericish {}
 
@@ -2436,9 +2436,9 @@ export extension<T: Numericish> of Vec<T> implements Subtract<Vec<T>> {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Vec, Numericish } from "./a.ds";
+import { Vec, Numericish } from "./a.tspp";
 
 function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
     (a - b).length()
@@ -2448,18 +2448,18 @@ function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Numericish, Vec } from "./a.ds";
+import { Numericish, Vec } from "./a.tspp";
 
 function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
     (a - b).length<T>()
 }
 
 === dir ===
-import { Vec, Numericish } from "./a.ds";
+import { Vec, Numericish } from "./a.tspp";
 
 function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
 /// @generic.template symbol=f parameters=(T: a.Numericish)
@@ -2500,7 +2500,7 @@ function f<T: Numericish>(a: Vec<T>, b: Vec<T>): T {
 fn test_prove_a_readonly_array_bound_through_the_parameter_bound() {
     let session = TestSession::single(
         r#"
-import { Iterable } from "destack:iter";
+import { Iterable } from "tspp:iter";
 
 export newtype interface Parameterized<P: readonly unknown[]> {
     (name: string, body?: Function<P, void>): void;
@@ -2513,9 +2513,9 @@ export newtype interface Suite {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Iterable } from "destack:iter";
+import { Iterable } from "tspp:iter";
 
 export newtype interface Parameterized<P: readonly unknown[]> {
     (name: string, body?: Function<P, void>): void;
@@ -2527,7 +2527,7 @@ export newtype interface Suite {
 }
 
 === dir ===
-import { Iterable } from "destack:iter";
+import { Iterable } from "tspp:iter";
 
 export newtype interface Parameterized<P: readonly unknown[]> {
 /// @generic.template symbol=Parameterized parameters=(P#1: readonly unknown[], this: Parameterized<P#1>)
@@ -2579,7 +2579,7 @@ export newtype interface Suite {
 fn test_prove_a_function_parameter_bound_through_an_intersection_bound() {
     let session = TestSession::single(
         r#"
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 export newtype interface Parameterized<P: readonly unknown[] & Copy> {
     (name: string, body?: Function<P, void>): void;
@@ -2587,16 +2587,16 @@ export newtype interface Parameterized<P: readonly unknown[] & Copy> {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 export newtype interface Parameterized<P: readonly unknown[] & Copy> {
     (name: string, body?: Function<P, void>): void;
 }
 
 === dir ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 export newtype interface Parameterized<P: readonly unknown[] & Copy> {
 /// @generic.template symbol=Parameterized parameters=(P: readonly unknown[] & Copy, this: Parameterized<P>)
@@ -2630,7 +2630,7 @@ export newtype interface Test<TestValues = {}> {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 export newtype interface Test<in out TestValues = {}> {
     override<const Name: keyof TestValues>(
@@ -2679,7 +2679,7 @@ function pick<T>(key: keyof T): keyof T | undefined {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -2713,7 +2713,7 @@ function pick<T>(key: keyof T): keyof T | undefined {
 fn test_materialize_a_literal_at_a_rigid_integer_parameter() {
     let session = TestSession::single(
         r#"
-import { Integer } from "destack:math";
+import { Integer } from "tspp:math";
 
 function unit<T: Integer>(): T {
     return 1;
@@ -2722,18 +2722,18 @@ function unit<T: Integer>(): T {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Integer } from "destack:math";
+import { Integer } from "tspp:math";
 
 function unit<T: Integer>(): T {
     return 1;
 }
 
 === dir ===
-import { Integer } from "destack:math";
+import { Integer } from "tspp:math";
 
 function unit<T: Integer>(): T {
 /// @generic.template symbol=unit parameters=(T: Integer)

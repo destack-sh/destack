@@ -3,14 +3,14 @@ use std::hash::Hash;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Arc;
 
-use destack_artifact::{
+use im::OrdMap;
+use indexmap::IndexMap;
+use tspp_artifact::{
     ConditionSet, ExportPattern, ExportTarget, PackageDependency, PackageExports, PackageNode,
     PackageSetFingerprint, SourceDependency,
 };
-use destack_core::{StableHasher, TreapRoot, stable_hash_value_128};
-use destack_source::{PackageId, TargetId, Uri};
-use im::OrdMap;
-use indexmap::IndexMap;
+use tspp_core::{StableHasher, TreapRoot, stable_hash_value_128};
+use tspp_source::{PackageId, TargetId, Uri};
 
 use crate::config::{ConditionGate, Dependency, Export, ExportKind};
 use crate::repository::{Repository, RepositoryError, Revision};

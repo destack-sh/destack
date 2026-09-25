@@ -1,5 +1,5 @@
-use destack_core::FxIndexMap;
 use smallvec::SmallVec;
+use tspp_core::FxIndexMap;
 
 use crate::{
     BinaryOperator, CastOperator, Constant, DefinitionTable, Function, Instruction, Intrinsic,

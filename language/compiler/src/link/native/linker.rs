@@ -1,5 +1,5 @@
-use destack_native as native;
-use destack_program::Object;
+use tspp_native as native;
+use tspp_program::Object;
 
 use crate::LinkResult;
 

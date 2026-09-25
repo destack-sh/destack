@@ -1,16 +1,16 @@
 use std::fmt;
 use std::mem::align_of;
 
-use destack_bytecode::{Code, CodeBuilder};
-use destack_core::{
+use tspp_bytecode::{Code, CodeBuilder};
+use tspp_core::{
     Optional, SectionBuilder, SectionEntry, SectionImage, SectionImageError, SectionLoader,
     SectionStorage, StringId, StringPool,
 };
-use destack_heap::TraceTable;
-use destack_mir as mir;
-use destack_mir::TargetLayout;
-use destack_native as native;
-use destack_webassembly as wasm;
+use tspp_heap::TraceTable;
+use tspp_mir as mir;
+use tspp_mir::TargetLayout;
+use tspp_native as native;
+use tspp_webassembly as wasm;
 
 use super::Program;
 use crate::{
@@ -26,7 +26,7 @@ use crate::{
 pub enum ProgramLoadError {
     /// The physical section image is malformed.
     Image(SectionImageError),
-    /// The byte region does not contain a Destack program.
+    /// The byte region does not contain a TS++ program.
     InvalidMagic,
     /// The program version is not supported.
     UnsupportedVersion(u16),

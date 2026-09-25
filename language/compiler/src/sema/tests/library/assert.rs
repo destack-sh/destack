@@ -5,7 +5,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_check_assertions() {
     let session = TestSession::single(
         r#"
-import { assert, assertEqual, assertNotEqual } from "destack:assert";
+import { assert, assertEqual, assertNotEqual } from "tspp:assert";
 
 struct Point {
     x: int32;
@@ -25,11 +25,11 @@ const x = left.x;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
-import { assert, assertEqual, assertNotEqual } from "destack:assert";
+import { assert, assertEqual, assertNotEqual } from "tspp:assert";
 
 struct Point {
     x: int32;
@@ -62,7 +62,7 @@ assertNotEqual<Point, Point, "static", "static">(
 const x: int32 = left.x;
 
 === dir ===
-import { assert, assertEqual, assertNotEqual } from "destack:assert";
+import { assert, assertEqual, assertNotEqual } from "tspp:assert";
 
 struct Point {
     x: int32;

@@ -1,7 +1,7 @@
-use destack_dir as dir;
-use destack_serde::Reflect;
-use destack_source::ProfileId;
 use serde::{Deserialize, Serialize};
+use tspp_dir as dir;
+use tspp_serde::Reflect;
+use tspp_source::ProfileId;
 
 use crate::{Module, ProgramQueryContext, QueryError, QueryResult, Target};
 

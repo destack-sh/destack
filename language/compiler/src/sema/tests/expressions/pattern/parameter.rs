@@ -14,7 +14,7 @@ function label({ name, age }: { name: string; age: int32 }): string {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -70,7 +70,7 @@ function first([head]: int32[]): int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===

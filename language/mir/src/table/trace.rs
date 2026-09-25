@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 
-use destack_core::SectionEntry;
-use destack_serde::Reflect;
+use tspp_core::SectionEntry;
+use tspp_serde::Reflect;
 
 use crate::{Discriminant, Lifetime, Reference, Space, VariantEncoding};
 

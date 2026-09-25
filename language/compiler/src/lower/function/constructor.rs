@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_dir::TypeVisit;
-use destack_mir as mir;
+use tspp_dir as dir;
+use tspp_dir::TypeVisit;
+use tspp_mir as mir;
 
 use crate::lower::function::argument::Argument;
 use crate::lower::{

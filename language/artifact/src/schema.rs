@@ -1,5 +1,5 @@
-use destack_program::Object;
-use destack_serde::Schema;
+use tspp_program::Object;
+use tspp_serde::Schema;
 
 use crate::{
     ArtifactDependency, ArtifactKey, ArtifactPayload, ArtifactReference, ArtifactVersion, Asset,

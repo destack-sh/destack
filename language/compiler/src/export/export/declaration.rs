@@ -1,5 +1,5 @@
-use destack_dir as dir;
 use smallvec::smallvec;
+use tspp_dir as dir;
 
 use crate::export::state::ExportState;
 use crate::{Compiler, ExportResult};

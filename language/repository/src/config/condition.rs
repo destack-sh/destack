@@ -1,11 +1,11 @@
 use std::error::Error;
 use std::fmt;
 
-pub use destack_artifact::ConditionSet;
-use destack_serde::Reflect;
-use destack_source::matches;
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
+pub use tspp_artifact::ConditionSet;
+use tspp_serde::Reflect;
+use tspp_source::matches;
 
 use crate::{builtin_modes, builtin_roles};
 
@@ -18,7 +18,7 @@ const BUILTIN_SUFFIX_ALIASES: &[BuiltinSuffixAlias] = &[
     BuiltinSuffixAlias::new(ConditionAxis::Host, "wasi"),
     BuiltinSuffixAlias::new(ConditionAxis::Host, "emscripten"),
     BuiltinSuffixAlias::new(ConditionAxis::Host, "freestanding"),
-    BuiltinSuffixAlias::new(ConditionAxis::Runtime, "destack"),
+    BuiltinSuffixAlias::new(ConditionAxis::Runtime, "tspp"),
     BuiltinSuffixAlias::new(ConditionAxis::Runtime, "js"),
 ];
 
@@ -850,7 +850,7 @@ fn glob_match(pattern: &str, text: &str) -> bool {
 mod tests {
     use std::collections::BTreeMap;
 
-    use destack_artifact::{Host, Platform, Runtime};
+    use tspp_artifact::{Host, Platform, Runtime};
 
     use super::*;
 
@@ -870,7 +870,7 @@ mod tests {
             labels: BTreeMap::new(),
             platform: Platform::Unknown,
             host: Host::Native,
-            runtime: Runtime::Destack,
+            runtime: Runtime::Tspp,
         }
     }
 
@@ -948,12 +948,12 @@ mod tests {
     fn test_builtin_condition_aliases_include_runtime_and_host() {
         let aliases = builtin_condition_aliases();
         let native = aliases.get("native").unwrap();
-        let destack = aliases.get("destack").unwrap();
+        let destack = aliases.get("tspp").unwrap();
 
         assert_eq!(native, &ConditionGate::axis(ConditionAxis::Host, "native"));
         assert_eq!(
             destack,
-            &ConditionGate::axis(ConditionAxis::Runtime, "destack")
+            &ConditionGate::axis(ConditionAxis::Runtime, "tspp")
         );
     }
 }

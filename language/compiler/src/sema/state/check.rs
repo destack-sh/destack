@@ -1,14 +1,14 @@
 use std::panic::Location;
 use std::sync::Arc;
 
-use destack_artifact::{DirResolved, EnvironmentBound, EnvironmentDeclared};
-use destack_core::{FxIndexMap, FxIndexSet, StringPool};
-use destack_dir as dir;
-use destack_dir::TypeFold;
-use destack_repository::{ArtifactAttemptRecorder, ArtifactReader, Environment, ProviderContext};
-use destack_source::{ModuleId, PackageId, ProfileId, StringId};
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
+use tspp_artifact::{DirResolved, EnvironmentBound, EnvironmentDeclared};
+use tspp_core::{FxIndexMap, FxIndexSet, StringPool};
+use tspp_dir as dir;
+use tspp_dir::TypeFold;
+use tspp_repository::{ArtifactAttemptRecorder, ArtifactReader, Environment, ProviderContext};
+use tspp_source::{ModuleId, PackageId, ProfileId, StringId};
 
 use crate::export::ExportResolver;
 use crate::sema::auto::DecisionKey;

@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirInstantiated};
-use destack_repository::{ProfileId, ProviderContext};
-use destack_source::{ModuleId, TargetId};
+use tspp_artifact::{ArtifactDependencySet, ArtifactKey, ArtifactPayload, MirInstantiated};
+use tspp_repository::{ProfileId, ProviderContext};
+use tspp_source::{ModuleId, TargetId};
 
 use crate::elaborate::ElaborateState;
 use crate::{Compiler, CompilerError, CompilerResult};

@@ -1,5 +1,5 @@
-use destack_core::{Blob, BlobId};
-use destack_serde::Schema;
+use tspp_core::{Blob, BlobId};
+use tspp_serde::Schema;
 
 use crate::{
     Applicability, ByteRange, ComponentId, Diagnostic, DiagnosticHelp, DiagnosticLabel,

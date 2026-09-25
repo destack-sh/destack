@@ -16,7 +16,7 @@ consume(payload);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -82,7 +82,7 @@ point satisfies ^Point;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -139,7 +139,7 @@ let buffer: ^Buffer = makeBuffer();
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -194,7 +194,7 @@ let user: ^User = makeUser();
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -249,7 +249,7 @@ container.data satisfies ^Data;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -332,7 +332,7 @@ user.profile.name = "Grace";
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -414,7 +414,7 @@ user.profile.name = "Grace";
 fn test_copy_only_owned_inline_storage() {
     let session = TestSession::single(
         r#"
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Point {
     x: int32 = 0;
@@ -470,11 +470,11 @@ witness(big);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Point {
     x: int32 = 0;
@@ -528,7 +528,7 @@ declare const big: ^bigint;
 witness<^bigint>(big);
 
 === dir ===
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Point {
 /// @type.symbol symbol=Point type=Point
@@ -782,7 +782,7 @@ const bag = gather<^Bag<int32>>();
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -925,7 +925,7 @@ const point = gather<^Point>();
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -1018,23 +1018,23 @@ const point = gather<^Point>();
 fn test_select_the_inherent_static_over_its_conformance_member() {
     let session = TestSession::single(
         r#"
-import { Deque } from "destack:collections";
+import { Deque } from "tspp:collections";
 
 const values = Deque.from([1, 2, 3]);
 "#,
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Deque } from "destack:collections";
+import { Deque } from "tspp:collections";
 
 const values: ^Deque<int64> = Deque.from<int64>([1, 2, 3] as Iterable<int64>);
 
 === dir ===
-import { Deque } from "destack:collections";
+import { Deque } from "tspp:collections";
 
 const values = Deque.from([1, 2, 3]);
 /// @type.symbol symbol=values source=values type=^Deque<int64>
@@ -1073,7 +1073,7 @@ struct Holder<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1134,7 +1134,7 @@ function build(): string {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1178,7 +1178,7 @@ function build(): string {
 fn test_preserve_copyability_through_readonly() {
     let session = TestSession::single(
         r#"
-import { Copy } from "destack:memory";
+import { Copy } from "tspp:memory";
 
 struct Buffer {
     storage: ^[int32];
@@ -1199,7 +1199,7 @@ requireCopy<readonly ^Object>();
     );
 
     session.assert_diagnostics(
-        session.dir_checked_key("main.ds"),
+        session.dir_checked_key("main.tspp"),
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type 'readonly ^Slice<int32>' does not satisfy 'Copy'"
 /// @diagnostic.label line=16 column=1 span="requireCopy<readonly ^[int32]>()" line_source="requireCopy<readonly ^[int32]>();"
@@ -1231,7 +1231,7 @@ function edit(user: ^User): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1351,7 +1351,7 @@ function make(): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -1687,7 +1687,7 @@ function make(): void {
 fn test_reject_owned_construction_of_an_imported_class_through_a_managed_only_constructor() {
     let session = TestSession::builder()
         .module(
-            "lib.ds",
+            "lib.tspp",
             r#"
 class Registry {
     static register(item: Widget): void {}
@@ -1701,9 +1701,9 @@ export class Widget {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Widget } from "./lib.ds";
+import { Widget } from "./lib.tspp";
 
 function make(): void {
     const owned: ^Widget = new Widget();
@@ -1713,18 +1713,18 @@ function make(): void {
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
-import { Widget } from "./lib.ds";
+import { Widget } from "./lib.tspp";
 
 function make(): void {
     const owned: ^Widget = new Widget();
 }
 
 === dir ===
-import { Widget } from "./lib.ds";
+import { Widget } from "./lib.tspp";
 
 function make(): void {
     const owned: ^Widget = new Widget();
@@ -1755,7 +1755,7 @@ class Widget {
     );
 
     session.assert_mir_verified_diagnostics(
-        "main.ds",
+        "main.tspp",
         r#"
 /// @diagnostic.error id=borrow-outlives-origin message="borrow does not live long enough"
 /// @diagnostic.label line=8 column=27 span="this" line_source="Registry.register(this);"

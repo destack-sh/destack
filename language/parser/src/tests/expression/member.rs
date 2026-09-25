@@ -3,7 +3,7 @@ use crate::{
     ExpressionPosition, ExpressionStop, assert_comment, assert_expression_path, assert_node,
     assert_string, assert_value_expression_path,
 };
-use destack_dir::{
+use tspp_dir::{
     Argument, CommentKind, Expression, Literal, RangeEnd, TokenType, TypeExpression, TypeLiteral,
 };
 
@@ -24,7 +24,7 @@ fn test_parse_member_expression_as_member_chain() {
     assert_value_expression_path!(parser, parser.tree.get(expression_id), "foo.bar");
 }
 
-/// Parse contextual type keyword heads in Destack member chains.
+/// Parse contextual type keyword heads in TS++ member chains.
 #[test]
 fn test_parse_destack_contextual_type_keyword_member_expression() {
     let input = r#"

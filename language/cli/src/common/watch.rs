@@ -1,15 +1,15 @@
 use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use destack_repository::{Commit, Revision};
 use serde::Serialize;
+use tspp_repository::{Commit, Revision};
 
 use crate::common::format::DiagnosticOutputJson;
 use crate::console;
 use crate::diagnostic::{ConsoleError, ConsoleResult};
 
 /// Schema identifier for semantic watch reports.
-const WATCH_REPORT_SCHEMA: &str = "destack.watch.v1";
+const WATCH_REPORT_SCHEMA: &str = "tspp.watch.v1";
 
 /// Reason a watch compile was triggered.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]

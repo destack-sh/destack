@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -247,7 +247,7 @@ function positive(values: int32[]): int32[] {
         session.assert_diagnostics(
             r#"
 warning[manual-filter]: loop manually collects matching values
- ──▶ main.ds:3:5
+ ──▶ main.tspp:3:5
   │
 1 │ function positive(values: int32[]): int32[] {
 2 │     let result: int32[] = [];
@@ -266,8 +266,8 @@ warning[manual-filter]: loop manually collects matching values
   │
 
  = suggestion: return the filtered array directly (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function positive(values: int32[]): int32[] {
 -   2│     let result: int32[] = [];

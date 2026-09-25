@@ -1,9 +1,9 @@
 use crate::parse::{ExpressionPosition, ExpressionStop};
-use destack_dir::{
+use tspp_dir::{
     Expression, GenericArgument, Keyword, LocalNodeId, NodeType, OperatorPrecedence,
     PostfixPosition, TokenType,
 };
-use destack_source::{ByteRange, NodeSpanRegion, NodeSpanType};
+use tspp_source::{ByteRange, NodeSpanRegion, NodeSpanType};
 
 use crate::{Parser, ParserResult};
 
@@ -11,7 +11,7 @@ impl Parser {
     /// Parse one value-space explicit index postfix.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// []
     /// [1]
     /// ["bar"]
@@ -86,7 +86,7 @@ impl Parser {
     /// Parse a new constructor call.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// new Foo
     /// new Foo()
     /// new Foo(1, 2)
@@ -155,7 +155,7 @@ impl Parser {
     /// Parse a call (postfix, excluding the receiver).
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// ()
     /// (1, 2, 3)
     /// <int32>(1, 2, 3)

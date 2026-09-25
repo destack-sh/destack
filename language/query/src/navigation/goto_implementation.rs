@@ -1,7 +1,7 @@
-use destack_dir as dir;
-use destack_dir::HeritageKind;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_dir as dir;
+use tspp_dir::HeritageKind;
+use tspp_serde::Reflect;
 
 use crate::{
     ModuleQueryContext, NavigationTarget, ProgramQueryContext, QueryPosition, QueryRange,

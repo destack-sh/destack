@@ -6,13 +6,13 @@
 
 Extra whitespace in interface declarations should be normalized.
 
-```ds
+```tspp
 interface   Foo   {   }
 ```
 
 Empty interface bodies stay on one line with internal spacing.
 
-```ds expected
+```tspp expected
 interface Foo {}
 ```
 
@@ -20,11 +20,11 @@ interface Foo {}
 
 Multiple extended interfaces are separated by comma and space.
 
-```ds
+```tspp
 interface   Foo   extends   Bar  ,  Baz   {   }
 ```
 
-```ds expected
+```tspp expected
 interface Foo extends Bar, Baz {}
 ```
 
@@ -33,11 +33,11 @@ interface Foo extends Bar, Baz {}
 Interfaces with members expand to multiple lines.
 Properties use trailing semicolons.
 
-```ds
+```tspp
 interface Foo { x: number }
 ```
 
-```ds expected
+```tspp expected
 interface Foo {
     x: number;
 }
@@ -47,11 +47,11 @@ interface Foo {
 
 Each property goes on its own line with a trailing semicolon.
 
-```ds
+```tspp
 interface Foo { x: number; y: string; z: boolean }
 ```
 
-```ds expected
+```tspp expected
 interface Foo {
     x: number;
     y: string;
@@ -63,11 +63,11 @@ interface Foo {
 
 Method signatures use declaration semicolons like other interface members.
 
-```ds
+```tspp
 interface Foo { bar(): void }
 ```
 
-```ds expected
+```tspp expected
 interface Foo {
     bar(): void;
 }
@@ -77,11 +77,11 @@ interface Foo {
 
 Static method signatures keep their modifier attached to the method.
 
-```ds
+```tspp
 interface Result { static fromError(error: E): this }
 ```
 
-```ds expected
+```tspp expected
 interface Result {
     static fromError(error: E): this;
 }
@@ -91,11 +91,11 @@ interface Result {
 
 Method parameters follow standard parameter formatting rules.
 
-```ds
+```tspp
 interface Foo { add(a: number, b: number): number }
 ```
 
-```ds expected
+```tspp expected
 interface Foo {
     add(a: number, b: number): number;
 }
@@ -107,11 +107,11 @@ interface Foo {
 
 The `export` keyword precedes the interface declaration.
 
-```ds
+```tspp
 export interface Foo { x: number }
 ```
 
-```ds expected
+```tspp expected
 export interface Foo {
     x: number;
 }
@@ -123,11 +123,11 @@ export interface Foo {
 
 Long extended interface lists break before the keyword and indent each extended type.
 
-```ds line-width=60
+```tspp line-width=60
 interface Foo extends VeryLongBaseInterfaceNameOne, VeryLongBaseInterfaceNameTwo, VeryLongBaseInterfaceNameThree { value: string }
 ```
 
-```ds expected
+```tspp expected
 interface Foo
     extends
         VeryLongBaseInterfaceNameOne,
@@ -142,13 +142,13 @@ interface Foo
 
 When type parameters exceed the line width, they break to multiple lines.
 
-```ds line-width=40
+```tspp line-width=40
 interface Container<VeryLongType, AnotherType, ThirdType> { }
 ```
 
 Each type parameter goes on its own line with a trailing comma.
 
-```ds expected
+```tspp expected
 interface Container<
     VeryLongType,
     AnotherType,
@@ -163,11 +163,11 @@ interface Container<
 
 Properties and method signatures both use declaration semicolons.
 
-```ds
+```tspp
 interface User { id: number; name: string; email?: string; getName(): string; setName(name: string): void }
 ```
 
-```ds expected
+```tspp expected
 interface User {
     id: number;
     name: string;
@@ -183,12 +183,12 @@ interface User {
 
 Doc comments are preserved above the interface declaration.
 
-```ds
+```tspp
 /// Represents a point in 2D space.
 interface Point { x: number; y: number }
 ```
 
-```ds expected
+```tspp expected
 /// Represents a point in 2D space.
 interface Point {
     x: number;

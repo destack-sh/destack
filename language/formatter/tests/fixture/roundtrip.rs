@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use destack_repository::FormatterOptions;
-use destack_source::{DiagnosticSeverity, DiffOptions, format_diff};
 use libtest_mimic::{Failed, Trial};
+use tspp_repository::FormatterOptions;
+use tspp_source::{DiagnosticSeverity, DiffOptions, format_diff};
 
 use crate::format::format_source;
 
@@ -19,11 +19,11 @@ pub(super) fn trials(directory: &Path) -> Result<Vec<Trial>, String> {
     paths.into_iter().map(trial).collect()
 }
 
-/// Return whether one path is a Destack source fixture.
+/// Return whether one path is a TS++ source fixture.
 fn is_source_file(path: &Path) -> bool {
     let path = path.to_string_lossy();
 
-    path.ends_with(".ds") || path.ends_with(".d.ds")
+    path.ends_with(".tspp") || path.ends_with(".d.tspp")
 }
 
 /// Build one roundtrip trial.
@@ -62,7 +62,7 @@ fn run(path: &Path) -> Result<(), Failed> {
     }
 
     // bless canonical files only when explicitly requested
-    if std::env::var_os("DESTACK_BLESS").is_some_and(|value| !value.is_empty() && value != "0") {
+    if std::env::var_os("TSPP_BLESS").is_some_and(|value| !value.is_empty() && value != "0") {
         std::fs::write(path, formatted).map_err(|error| {
             Failed::from(format!("failed to update '{}': {error}", path.display()))
         })?;

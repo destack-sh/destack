@@ -1,0 +1,407 @@
+import { HostError } from "tspp:error/host";
+import { ResourceId } from "tspp:runtime/resource";
+
+import { Entry } from "./entry.tspp";
+import { FileOffset, FileRange, FileSize } from "./range.tspp";
+import { FileMode } from "./status.tspp";
+
+/// Handle for an open file.
+@languageItem("fs.binding.FileHandle")
+export newtype FileHandle = ResourceId;
+
+/// File open flags.
+@languageItem("fs.binding.FileOpenFlags")
+export newtype FileOpenFlags = uint32;
+
+export extension of FileOpenFlags {
+    /// Open for reads.
+    const read = FileOpenFlags(0x0001);
+
+    /// Open for writes.
+    const write = FileOpenFlags(0x0002);
+
+    /// Create the entry when it does not exist.
+    const create = FileOpenFlags(0x0004);
+
+    /// Fail when the created entry already exists.
+    const exclusive = FileOpenFlags(0x0008);
+
+    /// Truncate the entry after opening.
+    const truncate = FileOpenFlags(0x0010);
+
+    /// Append writes to the end of the file.
+    const append = FileOpenFlags(0x0020);
+
+    /// Require the entry to be a directory.
+    const directory = FileOpenFlags(0x0040);
+
+    /// Do not follow the final symlink component.
+    const noFollow = FileOpenFlags(0x0080);
+
+    /// Request nonblocking file behavior.
+    const nonblocking = FileOpenFlags(0x0100);
+
+    /// Request uncached direct I/O.
+    const direct = FileOpenFlags(0x0200);
+
+    /// Synchronize written data before writes complete.
+    const dataSync = FileOpenFlags(0x0400);
+
+    /// Synchronize written data and metadata before writes complete.
+    const sync = FileOpenFlags(0x0800);
+}
+
+/// Resolve flags for path opening.
+@languageItem("fs.binding.FileResolveFlags")
+export newtype FileResolveFlags = uint64;
+
+export extension of FileResolveFlags {
+    /// Reject traversal that crosses into a different mount.
+    const noCrossDevice = FileResolveFlags(0x01);
+
+    /// Reject magic link traversal.
+    const noMagicLinks = FileResolveFlags(0x02);
+
+    /// Reject symlink traversal.
+    const noSymlinks = FileResolveFlags(0x04);
+
+    /// Require the result to stay beneath the starting directory.
+    const beneath = FileResolveFlags(0x08);
+
+    /// Treat the starting directory as the logical root.
+    const inRoot = FileResolveFlags(0x10);
+
+    /// Use only already cached resolution state.
+    const cached = FileResolveFlags(0x20);
+}
+
+/// File open options.
+@languageItem("fs.binding.FileOpenOptions")
+export struct FileOpenOptions {
+    /// Open behavior flags.
+    flags: FileOpenFlags;
+    /// File mode used when creating an entry.
+    mode: FileMode;
+    /// Path resolution flags.
+    resolve: FileResolveFlags;
+}
+
+/// File read flags.
+@languageItem("fs.binding.FileReadFlags")
+export newtype FileReadFlags = uint32;
+
+export extension of FileReadFlags {
+    /// Prefer high priority polling I/O when the host supports it.
+    const highPriority = FileReadFlags(0x1);
+
+    /// Request nonblocking cache miss behavior when supported.
+    const noWait = FileReadFlags(0x8);
+}
+
+/// File write flags.
+@languageItem("fs.binding.FileWriteFlags")
+export newtype FileWriteFlags = uint32;
+
+export extension of FileWriteFlags {
+    /// Apply data-only sync mode to the write.
+    const dataSync = FileWriteFlags(0x2);
+
+    /// Apply full sync mode to the write.
+    const sync = FileWriteFlags(0x4);
+
+    /// Request nonblocking cache miss behavior when supported.
+    const noWait = FileWriteFlags(0x8);
+
+    /// Force append mode for the write.
+    const append = FileWriteFlags(0x10);
+}
+
+/// File read options.
+export struct FileReadOptions {
+    /// Explicit byte offset, or current descriptor position when absent.
+    offset?: FileOffset;
+    /// Read behavior flags.
+    flags: FileReadFlags;
+}
+
+/// File write options.
+export struct FileWriteOptions {
+    /// Explicit byte offset, or current descriptor position when absent.
+    offset?: FileOffset;
+    /// Write behavior flags.
+    flags: FileWriteFlags;
+}
+
+/// Seek origin.
+@languageItem("fs.binding.FileSeekOrigin")
+export enum FileSeekOrigin {
+    /// Seek from the start of the file.
+    Start = 0,
+    /// Seek from the current position.
+    Current = 1,
+    /// Seek from the end of the file.
+    End = 2,
+}
+
+/// Sync range flags.
+@languageItem("fs.binding.FileSyncFlags")
+export newtype FileSyncFlags = uint32;
+
+export extension of FileSyncFlags {
+    /// Wait for earlier writeback in the requested range.
+    const waitBefore = FileSyncFlags(0x1);
+
+    /// Start writeback for the requested range.
+    const write = FileSyncFlags(0x2);
+
+    /// Wait for writeback completion in the requested range.
+    const waitAfter = FileSyncFlags(0x4);
+}
+
+/// File allocation flags.
+@languageItem("fs.binding.FileAllocateFlags")
+export newtype FileAllocateFlags = uint32;
+
+export extension of FileAllocateFlags {
+    /// Allocate blocks without extending apparent file size.
+    const keepSize = FileAllocateFlags(0x01);
+
+    /// Deallocate blocks in the requested range.
+    const punchHole = FileAllocateFlags(0x02);
+
+    /// Do not hide stale data when the host supports that mode.
+    const noHideStale = FileAllocateFlags(0x04);
+
+    /// Remove the requested range and collapse later data downward.
+    const collapseRange = FileAllocateFlags(0x08);
+
+    /// Convert the requested range into explicit zeroed blocks.
+    const zeroRange = FileAllocateFlags(0x10);
+
+    /// Insert a hole and push later data upward.
+    const insertRange = FileAllocateFlags(0x20);
+
+    /// Break shared extents before future writes.
+    const unshareRange = FileAllocateFlags(0x40);
+}
+
+/// File access pattern advice.
+@languageItem("fs.binding.FileAdvice")
+export enum FileAdvice {
+    /// No special behavior.
+    Normal = 0,
+    /// File will be accessed sequentially.
+    Sequential = 1,
+    /// File will be accessed randomly.
+    Random = 2,
+    /// File data will be needed soon.
+    WillNeed = 3,
+    /// File data will not be needed soon.
+    DontNeed = 4,
+    /// File data will be used once.
+    NoReuse = 5,
+}
+
+/// File lock mode.
+@languageItem("fs.binding.FileLockMode")
+export enum FileLockMode {
+    /// Acquire a shared lock.
+    Shared = 1,
+    /// Acquire an exclusive lock.
+    Exclusive = 2,
+    /// Release an existing lock.
+    Unlock = 3,
+}
+
+/// File lock options.
+export struct FileLockOptions {
+    /// Lock mode.
+    mode: FileLockMode;
+    /// Byte range covered by the lock.
+    range: FileRange;
+    /// Whether the operation should fail instead of blocking.
+    isNonblocking: boolean;
+}
+
+/// Filesystem file binding family.
+@languageItem("fs.binding.FileBinding")
+export interface FileBinding {
+    /// Open one filesystem entry as a file handle.
+    @binding("tspp.fs.file.open", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.open"],
+        families: ["windows", "unix"],
+    })
+    open(entry: &readonly Entry, options: FileOpenOptions): Result<FileHandle, HostError>;
+
+    /// Close one open file handle.
+    @binding("tspp.fs.file.close", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.open"],
+        families: ["windows", "unix"],
+    })
+    close(file: FileHandle): Result<void, HostError>;
+
+    /// Read bytes from an open file into an output buffer.
+    @binding("tspp.fs.file.read", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.read"],
+        families: ["windows", "unix"],
+    })
+    read(file: FileHandle, buffer: &[uint8], options: FileReadOptions): Result<uint64, HostError>;
+
+    /// Write bytes to an open file from an input buffer.
+    @binding("tspp.fs.file.write", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.write"],
+        families: ["windows", "unix"],
+    })
+    write(
+        file: FileHandle,
+        buffer: &readonly [uint8],
+        options: FileWriteOptions,
+    ): Result<uint64, HostError>;
+
+    /// Read bytes from an open file into multiple output buffers.
+    @binding("tspp.fs.file.readMany", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.read"],
+        families: ["windows", "unix"],
+    })
+    readMany(
+        file: FileHandle,
+        buffers: &[[uint8]],
+        options: FileReadOptions,
+    ): Result<uint64, HostError>;
+
+    /// Write bytes to an open file from multiple input buffers.
+    @binding("tspp.fs.file.writeMany", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.write"],
+        families: ["windows", "unix"],
+    })
+    writeMany(
+        file: FileHandle,
+        buffers: &readonly [[uint8]],
+        options: FileWriteOptions,
+    ): Result<uint64, HostError>;
+
+    /// Reposition an open file and return the new offset.
+    @binding("tspp.fs.file.seek", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.open"],
+        families: ["windows", "unix"],
+    })
+    seek(
+        file: FileHandle,
+        offset: FileOffset,
+        origin: FileSeekOrigin,
+    ): Result<FileOffset, HostError>;
+
+    /// Truncate an open file to the requested size.
+    @binding("tspp.fs.file.truncate", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.write"],
+        families: ["windows", "unix"],
+    })
+    truncate(file: FileHandle, size: FileSize): Result<void, HostError>;
+
+    /// Synchronize file contents and metadata with storage.
+    @binding("tspp.fs.file.sync", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.sync"],
+        families: ["windows", "unix"],
+    })
+    sync(file: FileHandle): Result<void, HostError>;
+
+    /// Synchronize file contents with storage.
+    @binding("tspp.fs.file.syncData", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.sync"],
+        families: ["windows", "unix"],
+    })
+    syncData(file: FileHandle): Result<void, HostError>;
+
+    /// Synchronize one byte range with storage.
+    @binding("tspp.fs.file.syncRange", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.sync"],
+        families: ["windows", "unix"],
+    })
+    syncRange(file: FileHandle, range: FileRange, flags: FileSyncFlags): Result<void, HostError>;
+
+    /// Copy bytes between two open files.
+    @binding("tspp.fs.file.copyRange", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.read", "host.fs.write"],
+        families: ["windows", "unix"],
+    })
+    copyRange(
+        source: FileHandle,
+        sourceRange: FileRange,
+        target: FileHandle,
+        targetOffset: FileOffset,
+    ): Result<uint64, HostError>;
+
+    /// Clone bytes between two open files.
+    @binding("tspp.fs.file.cloneRange", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.read", "host.fs.write"],
+        families: ["windows", "unix"],
+    })
+    cloneRange(
+        source: FileHandle,
+        sourceRange: FileRange,
+        target: FileHandle,
+        targetOffset: FileOffset,
+    ): Result<void, HostError>;
+
+    /// Allocate, release, or reshape storage for one byte range.
+    @binding("tspp.fs.file.allocate", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.write"],
+        families: ["windows", "unix"],
+    })
+    allocate(file: FileHandle, range: FileRange, flags: FileAllocateFlags): Result<void, HostError>;
+
+    /// Provide access pattern advice for one byte range.
+    @binding("tspp.fs.file.advise", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.metadata"],
+        families: ["windows", "unix"],
+    })
+    advise(file: FileHandle, range: FileRange, advice: FileAdvice): Result<void, HostError>;
+
+    /// Apply or release one advisory file lock.
+    @binding("tspp.fs.file.lock", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.lock"],
+        families: ["windows", "unix"],
+    })
+    lock(file: FileHandle, options: FileLockOptions): Result<void, HostError>;
+
+    /// Duplicate an open file handle into a new owned resource.
+    @binding("tspp.fs.file.duplicate", {
+        provider: "host",
+        effect: "external",
+        requires: ["host.fs.open"],
+        families: ["windows", "unix"],
+    })
+    duplicate(file: FileHandle): Result<FileHandle, HostError>;
+}

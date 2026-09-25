@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_dir::TypeFold;
-use destack_source::ModuleId;
+use tspp_dir as dir;
+use tspp_dir::TypeFold;
+use tspp_source::ModuleId;
 
 use crate::sema::{CheckState, Origin};
 use crate::{CompilerError, CompilerResult};

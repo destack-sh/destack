@@ -6,11 +6,11 @@
 
 Type annotations follow parameter names with colon.
 
-```ds
+```tspp
 const f = (x: number) => x * 2
 ```
 
-```ds expected
+```tspp expected
 const f = (x: number) => x * 2;
 ```
 
@@ -18,11 +18,11 @@ const f = (x: number) => x * 2;
 
 Return types appear after the parameter list.
 
-```ds
+```tspp
 const f = (x: number): number => x * 2
 ```
 
-```ds expected
+```tspp expected
 const f = (x: number): number => x * 2;
 ```
 
@@ -30,10 +30,10 @@ const f = (x: number): number => x * 2;
 
 Union types and multiple typed parameters stay in the arrow head.
 
-```ds:main.ds
+```tspp:main.tspp
 const f = (a: string, b: number): string | number => a || b
 ```
 
-```ds expected
+```tspp expected
 const f = (a: string, b: number): string | number => a || b;
 ```

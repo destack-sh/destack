@@ -1,7 +1,7 @@
 use super::escape::decode_unicode_escape;
 use super::tokenizer::Tokenizer;
-use destack_dir::{Keyword, TokenLiteral, TokenType, is_identifier_continue, is_identifier_start};
-use destack_unicode::UnicodeEmoji;
+use tspp_dir::{Keyword, TokenLiteral, TokenType, is_identifier_continue, is_identifier_start};
+use tspp_unicode::UnicodeEmoji;
 
 impl Tokenizer {
     /// Return true when a byte can continue an ASCII identifier.

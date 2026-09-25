@@ -1,6 +1,6 @@
-use destack_heap::AllocationShape;
-use destack_mir::TraceMap;
-use destack_repository::RuntimeOptions;
+use tspp_heap::AllocationShape;
+use tspp_mir::TraceMap;
+use tspp_repository::RuntimeOptions;
 
 use crate::tests::{TestProgram, TestWorld};
 

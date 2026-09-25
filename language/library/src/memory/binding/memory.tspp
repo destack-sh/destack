@@ -1,0 +1,25 @@
+import { Binding } from "tspp:binding";
+
+import { MemoryAdviseBinding } from "./advise.tspp";
+import { MemoryLayoutBinding } from "./layout.tspp";
+import { MemoryLockBinding } from "./lock.tspp";
+import { MemoryMapBinding } from "./map.tspp";
+import { MemoryVirtualBinding } from "./virtual.tspp";
+
+/// Memory binding family.
+@languageItem("memory.MemoryBinding")
+export interface MemoryBinding {
+    /// Advise bindings.
+    readonly advise: MemoryAdviseBinding;
+    /// Layout bindings.
+    readonly layout: MemoryLayoutBinding;
+    /// Lock bindings.
+    readonly lock: MemoryLockBinding;
+    /// Map bindings.
+    readonly map: MemoryMapBinding;
+    /// Virtual bindings.
+    readonly virtual: MemoryVirtualBinding;
+}
+
+/// Current memory binding family.
+export const memory: Binding<MemoryBinding> = new Binding<MemoryBinding>("memory");

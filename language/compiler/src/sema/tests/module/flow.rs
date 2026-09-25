@@ -16,7 +16,7 @@ function run(): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none().with_flows(),
         r#"
 === annotated ===
@@ -61,7 +61,7 @@ function run(): int32 {
 fn test_record_field_and_foreign_uses_in_the_flow_segment() {
     let session = TestSession::builder()
         .module(
-            "math.ds",
+            "math.tspp",
             r#"
 export function max(left: int32, right: int32): int32 {
     return left > right ? left : right;
@@ -69,9 +69,9 @@ export function max(left: int32, right: int32): int32 {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { max } from "./math.ds";
+import { max } from "./math.tspp";
 
 struct Point {
     x: int32;
@@ -88,11 +88,11 @@ function shift(point: &Point): int32 {
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none().with_flows(),
         r#"
 === annotated ===
-import { max } from "./math.ds";
+import { max } from "./math.tspp";
 
 struct Point {
     x: int32;
@@ -106,7 +106,7 @@ function shift<'a>(point: &'a Point): int32 {
 }
 
 === dir ===
-import { max } from "./math.ds";
+import { max } from "./math.tspp";
 
 struct Point {
 /// @flow.use symbol=Point uses=read
@@ -184,7 +184,7 @@ referenced.increment();
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none().with_flows(),
         r#"
 === annotated ===
@@ -311,7 +311,7 @@ function pick(flag: boolean): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none().with_flows(),
         r#"
 === annotated ===
@@ -384,7 +384,7 @@ function consume(limit: int32): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none().with_flows(),
         r#"
 === annotated ===

@@ -4,13 +4,13 @@ use crate::{
     TypePosition, TypeStop, assert_expression_path, assert_name, assert_node, assert_path,
     assert_string,
 };
-use destack_dir::{
+use tspp_dir::{
     Argument, BinaryOperator, Block, Declaration, Declarator, Expression, FunctionDeclaration,
     FunctionForm, GenericParameter, IfForm, IntegerType, Literal, MappedTypeModifier, Name,
     Parameter, Pattern, PatternField, Property, TokenType, TupleElement, TypeExpression,
     TypeLiteral, TypeMember,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 /// Parse a lambda function type with empty parameters.
 #[test]

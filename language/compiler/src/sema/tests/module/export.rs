@@ -4,21 +4,21 @@ use crate::tests::{DirRows, TestSession};
 fn test_expose_a_reexported_binding_through_a_star_export() {
     let session = TestSession::builder()
         .module(
-            "source.ds",
+            "source.tspp",
             r#"
 export const value: int32 = 1;
 "#,
         )
         .module(
-            "index.ds",
+            "index.tspp",
             r#"
-export * from "./source.ds";
+export * from "./source.tspp";
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { value } from "./index.ds";
+import { value } from "./index.tspp";
 
 const direct = value;
 "#,
@@ -26,16 +26,16 @@ const direct = value;
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { value } from "./index.ds";
+import { value } from "./index.tspp";
 
 const direct: int32 = value;
 
 === dir ===
-import { value } from "./index.ds";
+import { value } from "./index.tspp";
 
 const direct = value;
 /// @type.symbol symbol=direct source=direct type=int32
@@ -51,21 +51,21 @@ const direct = value;
 fn test_expose_a_member_binding_through_a_namespace_export() {
     let session = TestSession::builder()
         .module(
-            "source.ds",
+            "source.tspp",
             r#"
 export const value: int32 = 1;
 "#,
         )
         .module(
-            "index.ds",
+            "index.tspp",
             r#"
-export * as source from "./source.ds";
+export * as source from "./source.tspp";
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { source } from "./index.ds";
+import { source } from "./index.tspp";
 
 const namespaced = source.value;
 "#,
@@ -73,16 +73,16 @@ const namespaced = source.value;
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { source } from "./index.ds";
+import { source } from "./index.tspp";
 
 const namespaced: int32 = source.value;
 
 === dir ===
-import { source } from "./index.ds";
+import { source } from "./index.tspp";
 
 const namespaced = source.value;
 /// @type.symbol symbol=namespaced source=namespaced type=int32
@@ -98,16 +98,16 @@ const namespaced = source.value;
 fn test_suggest_import_for_an_unresolved_sibling_declaration() {
     let session = TestSession::builder()
         .module(
-            "util.ds",
+            "util.tspp",
             r#"
 export const helper: int32 = 1;
 export const sibling: int32 = 2;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { helper } from "./util.ds";
+import { helper } from "./util.tspp";
 
 const first = helper;
 const second = sibling;
@@ -116,17 +116,17 @@ const second = sibling;
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { helper } from "./util.ds";
+import { helper } from "./util.tspp";
 
 const first: int32 = helper;
 const second = sibling;
 
 === dir ===
-import { helper } from "./util.ds";
+import { helper } from "./util.tspp";
 
 const first = helper;
 /// @type.symbol symbol=first source=first type=int32
@@ -142,7 +142,7 @@ const second = sibling;
         r#"
 /// @diagnostic.error id=unresolved-reference message="cannot find 'sibling'"
 /// @diagnostic.label line=5 column=16 span="sibling" line_source="const second = sibling;"
-/// @diagnostic.related file="util.ds" line=3 column=14 span="sibling" line_source="export const sibling: int32 = 2;" message="'sibling' is declared here"
+/// @diagnostic.related file="util.tspp" line=3 column=14 span="sibling" line_source="export const sibling: int32 = 2;" message="'sibling' is declared here"
 /// @diagnostic.help message="import 'sibling' from its module"
 "#,
     );
@@ -152,16 +152,16 @@ const second = sibling;
 fn test_suggest_import_for_an_unresolved_sibling_type() {
     let session = TestSession::builder()
         .module(
-            "util.ds",
+            "util.tspp",
             r#"
 export type Helper = string;
 export type Sibling = int32;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Helper } from "./util.ds";
+import { Helper } from "./util.tspp";
 
 type First = Helper;
 type Second = Sibling;
@@ -170,17 +170,17 @@ type Second = Sibling;
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Helper } from "./util.ds";
+import { Helper } from "./util.tspp";
 
 type First = Helper;
 type Second = Sibling;
 
 === dir ===
-import { Helper } from "./util.ds";
+import { Helper } from "./util.tspp";
 
 type First = Helper;
 /// @type.symbol symbol=First source="type First = Helper" type=string
@@ -195,7 +195,7 @@ type Second = Sibling;
         r#"
 /// @diagnostic.error id=unresolved-reference message="cannot find 'Sibling'"
 /// @diagnostic.label line=5 column=15 span="Sibling" line_source="type Second = Sibling;"
-/// @diagnostic.related file="util.ds" line=3 column=13 span="Sibling" line_source="export type Sibling = int32;" message="'Sibling' is declared here"
+/// @diagnostic.related file="util.tspp" line=3 column=13 span="Sibling" line_source="export type Sibling = int32;" message="'Sibling' is declared here"
 /// @diagnostic.help message="import 'Sibling' from its module"
 "#,
     );
@@ -215,7 +215,7 @@ export const config = { retries: 3, name: "job" };
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -270,7 +270,7 @@ export const computed = seed();
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

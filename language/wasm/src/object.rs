@@ -1,11 +1,11 @@
 use std::fmt;
 
-use destack_core::{
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use tspp_core::{
     SectionBuilder, SectionEntry, SectionImage, SectionImageError, SectionLoader, SectionSlice,
     SectionStorage,
 };
-use destack_serde::Reflect;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use tspp_serde::Reflect;
 
 /// Relocatable WebAssembly object.
 #[derive(Clone, Debug, Reflect)]
@@ -19,7 +19,7 @@ pub struct Object {
 pub enum ObjectLoadError {
     /// The physical section image is malformed.
     Image(SectionImageError),
-    /// The byte region does not contain a Destack WebAssembly object.
+    /// The byte region does not contain a TS++ WebAssembly object.
     InvalidMagic,
     /// The WebAssembly object version is not supported.
     UnsupportedVersion(u16),
@@ -187,7 +187,7 @@ const _: () = assert!(size_of::<ObjectHeader>() == 32);
 mod tests {
     use std::mem::{offset_of, size_of};
 
-    use destack_core::SectionImageError;
+    use tspp_core::SectionImageError;
 
     use super::{Object, ObjectHeader, ObjectLoadError};
 

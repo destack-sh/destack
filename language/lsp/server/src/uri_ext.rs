@@ -58,7 +58,7 @@ mod sealed {
     pub trait Sealed {}
 }
 
-/// Provide methods to [`destack_lsp_types::Uri`] to fill blanks left by
+/// Provide methods to [`tspp_lsp_types::Uri`] to fill blanks left by
 /// `fluent_uri` (the underlying type) especially when converting to and from file paths.
 pub trait UriExt: Sized + sealed::Sealed {
     /// Convert one `file` URI to an absolute file system path.
@@ -70,7 +70,7 @@ pub trait UriExt: Sized + sealed::Sealed {
     fn from_file_path<A: AsRef<Path>>(path: A) -> Option<Self>;
 }
 
-impl sealed::Sealed for destack_lsp_types::Uri {}
+impl sealed::Sealed for tspp_lsp_types::Uri {}
 
 const ASCII_SET: AsciiSet =
     // RFC3986 allows only alphanumeric characters, `-`, `.`, `_`, and `~` in the path.
@@ -82,7 +82,7 @@ const ASCII_SET: AsciiSet =
         // we do not want path separators to be percent-encoded
         .remove(b'/');
 
-impl UriExt for destack_lsp_types::Uri {
+impl UriExt for tspp_lsp_types::Uri {
     fn to_file_path(&self) -> Option<Cow<'_, Path>> {
         if self.scheme().as_str() != "file" {
             return None;
@@ -165,9 +165,9 @@ impl UriExt for destack_lsp_types::Uri {
 mod tests {
     use super::strict_canonicalize;
     use crate::UriExt;
-    use destack_lsp_types::Uri;
     use std::path::{Path, PathBuf};
     use std::str::FromStr;
+    use tspp_lsp_types::Uri;
 
     fn with_schema(path: &str) -> String {
         const EXPECTED_SCHEMA: &str = if cfg!(windows) { "file:///" } else { "file://" };

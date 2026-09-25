@@ -20,7 +20,7 @@ sharedView satisfies &readonly SharedUser;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_node_types().with_coercion(),
         r#"
 === annotated ===
@@ -103,7 +103,7 @@ const coerced = user as &readonly User;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_node_types().with_coercion(),
         r#"
 === annotated ===
@@ -163,7 +163,7 @@ const readonlyExclusive = &readonlyUser;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -244,7 +244,7 @@ const exclusiveValue = &value;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -311,7 +311,7 @@ modify(&user);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_node_types().with_coercion(),
         r#"
 === annotated ===
@@ -403,7 +403,7 @@ modify(readonlyView);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -462,7 +462,7 @@ function access(read: &readonly Node, write: &Node, exclusive: &Node): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -543,7 +543,7 @@ point.x satisfies int32;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -625,7 +625,7 @@ function view(): void {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -685,7 +685,7 @@ function copied(values: &readonly int32[]): readonly int32[] {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

@@ -12,7 +12,7 @@ const text = token as string;
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 newtype Token = string;
 
@@ -46,29 +46,29 @@ const text = token as string;
 fn test_private_backing_rejects_a_foreign_construction() {
     let session = TestSession::builder()
         .module(
-            "token.ds",
+            "token.tspp",
             r#"
 export newtype Token = private string;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Token } from "./token.ds";
+import { Token } from "./token.tspp";
 
 const token = Token("secret");
 "#,
         )
         .build();
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Token } from "./token.ds";
+import { Token } from "./token.tspp";
 
 const token: Token = Token("secret");
 
 === dir ===
-import { Token } from "./token.ds";
+import { Token } from "./token.tspp";
 
 const token = Token("secret");
 /// @type.symbol symbol=token source=token type=token.Token
@@ -86,15 +86,15 @@ const token = Token("secret");
 fn test_private_backing_rejects_a_foreign_unwrap() {
     let session = TestSession::builder()
         .module(
-            "token.ds",
+            "token.tspp",
             r#"
 export newtype Token = private string;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Token } from "./token.ds";
+import { Token } from "./token.tspp";
 
 declare const token: Token;
 const text = token as string;
@@ -103,17 +103,17 @@ const text = token as string;
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Token } from "./token.ds";
+import { Token } from "./token.tspp";
 
 declare const token: Token;
 const text: string = token as string;
 
 === dir ===
-import { Token } from "./token.ds";
+import { Token } from "./token.tspp";
 
 declare const token: Token;
 /// @type.symbol symbol=token source=token type=token.Token
@@ -139,15 +139,15 @@ const text = token as string;
 fn test_public_backing_admits_a_foreign_module() {
     let session = TestSession::builder()
         .module(
-            "token.ds",
+            "token.tspp",
             r#"
 export newtype Token = string;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Token } from "./token.ds";
+import { Token } from "./token.tspp";
 
 const token = Token("secret");
 const text = token as string;
@@ -155,15 +155,15 @@ const text = token as string;
         )
         .build();
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Token } from "./token.ds";
+import { Token } from "./token.tspp";
 
 const token: Token = Token("secret");
 const text: string = token as string;
 
 === dir ===
-import { Token } from "./token.ds";
+import { Token } from "./token.tspp";
 
 const token = Token("secret");
 /// @type.symbol symbol=token source=token type=token.Token

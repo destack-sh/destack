@@ -2,7 +2,7 @@ use crate::{
     CommentRetention, Lexer, ParseOptions, Parser, TestParser, assert_comment,
     assert_expression_path, assert_node,
 };
-use destack_dir::{
+use tspp_dir::{
     Argument, Block, BlockContext, BlockForm, ClassDeclaration, Comment, CommentAnchor,
     CommentKind, CommentRole, Declaration, Declarator, Decorator, DecoratorPosition, Expression,
     FunctionDeclaration, LocalNodeId, Member, Parameter, Property, StructDeclaration, TokenType,

@@ -4,13 +4,13 @@ use crate::tests::{DirRows, TestSession};
 fn test_export_records_star_binding() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-export * from "./dep.ds";
+export * from "./dep.tspp";
 "#,
         )
         .module(
-            "dep.ds",
+            "dep.tspp",
             r#"
 export let value = 1;
 "#,
@@ -18,12 +18,12 @@ export let value = 1;
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::modules().with_export().with_summaries(),
         r#"
-export * from "./dep.ds";
-/// @module.edge relation=re_export specifier=./dep.ds module=dep.ds
-/// @export.star module=dep.ds
+export * from "./dep.tspp";
+/// @module.edge relation=re_export specifier=./dep.tspp module=dep.tspp
+/// @export.star module=dep.tspp
 
 /// @module.summary edges=1
 /// @export.summary stars=1
@@ -35,13 +35,13 @@ export * from "./dep.ds";
 fn test_export_records_namespace_binding() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-export * as dep from "./dep.ds";
+export * as dep from "./dep.tspp";
 "#,
         )
         .module(
-            "dep.ds",
+            "dep.tspp",
             r#"
 export let value = 1;
 "#,
@@ -49,12 +49,12 @@ export let value = 1;
         .build();
 
     compiler.assert_dir_exported(
-        "main.ds",
+        "main.tspp",
         DirRows::modules().with_export().with_summaries(),
         r#"
-export * as dep from "./dep.ds";
-/// @module.edge relation=re_export specifier=./dep.ds module=dep.ds
-/// @export.reexport key=dep imported=<namespace> declaration=dep module=dep.ds
+export * as dep from "./dep.tspp";
+/// @module.edge relation=re_export specifier=./dep.tspp module=dep.tspp
+/// @export.reexport key=dep imported=<namespace> declaration=dep module=dep.tspp
 
 /// @module.summary edges=1
 /// @export.summary exports=1

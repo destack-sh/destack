@@ -6,7 +6,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_implement_a_generic_requirement_with_matching_generics() {
     let session = TestSession::single(
         r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 interface Collect<T> {
     static gather<I: Iterator<T>>(values: I): this;
@@ -25,11 +25,11 @@ export extension<T> of Bag<T> implements Collect<T> {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 interface Collect<T> {
     static gather<I: Iterator<T>>(values: I): this;
@@ -46,7 +46,7 @@ export extension<T> of Bag<T> implements Collect<T> {
 }
 
 === dir ===
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 interface Collect<T> {
 /// @generic.template symbol=Collect parameters=(T#1, this: Collect<T#1>)
@@ -119,7 +119,7 @@ export extension<T> of Bag<T> implements Collect<T> {
 fn test_yield_an_object_newtype_through_a_defaulted_associated_iterator() {
     let session = TestSession::single(
         r#"
-import { Iterable } from "destack:iter";
+import { Iterable } from "tspp:iter";
 
 newtype Key = {
     index: uint32;
@@ -148,11 +148,11 @@ export extension<T, 'a, const A: "immutable" | "exclusive"> of Borrowed<Table<T>
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Iterable } from "destack:iter";
+import { Iterable } from "tspp:iter";
 
 newtype Key = {
     index: uint32;
@@ -179,7 +179,7 @@ export extension<T, 'a, const A: "immutable" | "exclusive"> of Borrowed<Table<T>
 }
 
 === dir ===
-import { Iterable } from "destack:iter";
+import { Iterable } from "tspp:iter";
 
 newtype Key = {
 /// @type.symbol symbol=Key type=Key

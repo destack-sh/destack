@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_dir::NodeVisitor;
 use indexmap::{IndexMap, IndexSet};
+use tspp_dir as dir;
+use tspp_dir::NodeVisitor;
 
 use super::super::state::BindState;
 

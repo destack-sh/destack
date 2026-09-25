@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_dir::MemberRole;
+use tspp_dir as dir;
+use tspp_dir::MemberRole;
 
 use crate::sema::{
     ArgumentValue, CallableArgument, Cause, CauseKind, CheckState, DeclaredSource, FlowSite,

@@ -1,8 +1,8 @@
 use std::cmp::Ordering;
 
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, PatchSet, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch, PatchSet, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -263,15 +263,15 @@ for (let index: int32 = 0; 10 > index; index--) {}
         session.assert_diagnostics(
             r#"
 warning[for-direction]: loop counter moves away from its stop condition
- ──▶ main.ds:1:45
+ ──▶ main.tspp:1:45
   │
 1 │ for (let index: int32 = 0; 10 > index; index--) {}
   │                                             ^^
   │
 
  = suggestion: reverse the counter update (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ for (let index: int32 = 0; 10 > index; index--) {}
 +   1│ for (let index: int32 = 0; 10 > index; index++) {}
@@ -411,7 +411,7 @@ for (let index: int32 = 0; remaining > 0; index--) {}
         let session = TestSession::dir(
             &FOR_DIRECTION,
             r#"
-import { Ordering, PartialCompare } from "destack:ops";
+import { Ordering, PartialCompare } from "tspp:ops";
 
 struct Counter {
     value: int32;

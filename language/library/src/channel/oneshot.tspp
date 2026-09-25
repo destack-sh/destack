@@ -1,0 +1,24 @@
+import { todo } from "tspp:error";
+import { SharedSafe } from "tspp:memory";
+
+import { AsyncReceiver, AsyncSender, Receiver, Sender } from "./channel.tspp";
+
+/// Create a local blocking one-shot channel.
+export function channel<T>(): (Sender<T>, Receiver<T>) {
+    todo("oneshot.channel")
+}
+
+/// Create a shared blocking one-shot channel.
+export function sharedChannel<T: SharedSafe>(): (Sender<T>, Receiver<T>) {
+    todo("oneshot.sharedChannel")
+}
+
+/// Create a local suspending one-shot channel.
+export function asyncChannel<T>(): (AsyncSender<T>, AsyncReceiver<T>) {
+    todo("oneshot.async")
+}
+
+/// Create a shared suspending one-shot channel.
+export function sharedAsyncChannel<T: SharedSafe>(): (AsyncSender<T>, AsyncReceiver<T>) {
+    todo("oneshot.sharedAsyncChannel")
+}

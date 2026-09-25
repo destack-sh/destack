@@ -1,0 +1,32 @@
+// SYNTAX TEST "source.tspp"
+
+// expressions / ranges / values
+const closed = start..=end;
+//                  ^^^ keyword.operator.range.tspp
+
+const full = ..;
+//           ^^ keyword.operator.range.tspp
+
+const head = ..end;
+//           ^^ keyword.operator.range.tspp
+
+const inclusiveHead = ..=end;
+//                    ^^^ keyword.operator.range.tspp
+
+const tail = start..;
+//                ^^ keyword.operator.range.tspp
+
+// expressions / ranges / subscripts
+const window = values[1..4];
+//                     ^^ keyword.operator.range.tspp
+
+const suffix = values[2..];
+
+// expressions / ranges / patterns
+match (digit) {
+// <- keyword.control.conditional.tspp
+    ..0 => "negative",
+    0..=9 => "decimal",
+    10.. => "large",
+    _ => "other",
+}

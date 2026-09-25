@@ -1,6 +1,6 @@
 [package]
-name = "destack_unicode"
-description = "Destack Unicode"
+name = "tspp_unicode"
+description = "TS++ Unicode"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

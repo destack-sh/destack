@@ -1,0 +1,52 @@
+import { Result, todo } from "tspp:error";
+
+import { JsonError } from "./error.tspp";
+import { Json } from "./value.tspp";
+
+/// Source context passed to a JSON reviver.
+export struct JsonParseContext {
+    /// The source text for the current value.
+    source: string;
+}
+
+/// Function that transforms parsed JSON values.
+export type JsonReviver = (
+    key: string,
+    value: Json,
+    context?: JsonParseContext,
+) => Json | undefined;
+
+/// Function that transforms JSON values before serialization.
+export type JsonReplacer = (key: string, value: Json) => Json | undefined;
+
+/// JavaScript-shaped JSON API.
+@languageItem("json.JSON")
+export class JSON {
+    /// Parse JSON text.
+    static parse(text: &readonly string, reviver?: JsonReviver): Result<Json, JsonError> {
+        todo("JSON.parse")
+    }
+
+    /// Serialize a JSON value.
+    static stringify(
+        value: &readonly Json,
+        replacer?: JsonReplacer | readonly string[],
+        space?: &readonly string | int32,
+    ): Result<^string, JsonError> {
+        todo("JSON.stringify")
+    }
+}
+
+/// Parse JSON text.
+export function parse(text: &readonly string, reviver?: JsonReviver): Result<Json, JsonError> {
+    JSON.parse(text, reviver)
+}
+
+/// Serialize a JSON value.
+export function stringify(
+    value: &readonly Json,
+    replacer?: JsonReplacer | readonly string[],
+    space?: &readonly string | int32,
+): Result<^string, JsonError> {
+    JSON.stringify(value, replacer, space)
+}

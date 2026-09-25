@@ -1,5 +1,5 @@
 use crate::assert_format_program;
-use destack_source::FileType;
+use tspp_source::FileType;
 
 #[test]
 fn test_format_symbolic_unary_prefix_chains() {
@@ -14,7 +14,7 @@ const bits = ~~mask;
 const pre = ++count;
 const post = count++;
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -31,7 +31,7 @@ const negative = - -value;
 const plusIncrement = + ++value;
 const minusDecrement = - --value;
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -50,7 +50,7 @@ fn test_format_await_prefix_forms() {
     const must = await! loadMust();
 }
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -61,7 +61,7 @@ fn test_format_borrow_reference_chain_compact() {
 "#,
         r#"const borrowed = &&value;
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -72,7 +72,7 @@ fn test_format_borrow_reference_prefix_modifiers() {
 "#,
         r#"const borrowed = &readonly super value;
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -84,7 +84,7 @@ fn test_format_borrow_reference_binary_operands() {
 "#,
         r#"const borrowed = &(left + right);
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -101,7 +101,7 @@ type Moved = ^^Buffer;
 type BorrowMove = &^Buffer;
 type MoveBorrow = ^&Buffer;
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -114,7 +114,7 @@ type Moved = ^ exclusive extends Buffer
         r#"type Borrowed = &readonly super Buffer;
 type Moved = ^exclusive extends Buffer;
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }
 
@@ -129,6 +129,6 @@ type Negative = ! !Flag
 type Query = typeof value;
 type Negative = !!Flag;
 "#,
-        FileType::Destack
+        FileType::Tspp
     );
 }

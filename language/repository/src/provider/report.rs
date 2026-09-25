@@ -220,7 +220,7 @@ impl TraceReport {
             attempts.sort_unstable_by_key(|attempt| Reverse(attempt.work_micros));
             for attempt in attempts.into_iter().take(self.slow_attempt_limit) {
                 let subject = attempt.label.as_deref().unwrap_or_default();
-                let subject = subject.strip_prefix("destack://").unwrap_or(subject);
+                let subject = subject.strip_prefix("tspp://").unwrap_or(subject);
                 table = table.row(vec![
                     Cell::colored(millis(attempt.work_micros), "38;5;250"),
                     Cell::colored(millis(attempt.latency_micros), "38;5;245"),
@@ -448,7 +448,7 @@ impl TraceReport {
         for row in &self.rows {
             for attempt in &row.trace.attempts {
                 let subject = attempt.label.as_deref().unwrap_or_default();
-                let subject = subject.strip_prefix("destack://").unwrap_or(subject);
+                let subject = subject.strip_prefix("tspp://").unwrap_or(subject);
                 for event in &attempt.events {
                     let mut cells = Vec::new();
                     if is_multi_trace {

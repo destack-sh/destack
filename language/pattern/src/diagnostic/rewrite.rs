@@ -1,6 +1,6 @@
-use destack_artifact::DiagnosticAnchor;
-use destack_artifact_macros::Diagnostic;
-use destack_source::{
+use tspp_artifact::DiagnosticAnchor;
+use tspp_artifact_macros::Diagnostic;
+use tspp_source::{
     Diagnostic, DiagnosticCollection, DiagnosticLabel, DiagnosticTarget, File, Span,
 };
 

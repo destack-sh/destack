@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -139,7 +139,7 @@ function visit(values: int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[ineffective-break-in-switch]: break exits the switch rather than the enclosing loop
- ──▶ main.ds:6:21
+ ──▶ main.tspp:6:21
   │
 4 │             default:
 5 │                 if (value < 0) {
@@ -197,7 +197,7 @@ function visit(values: int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[ineffective-break-in-switch]: break exits the switch rather than the enclosing loop
- ──▶ main.ds:6:21
+ ──▶ main.tspp:6:21
   │
 4 │             default:
 5 │                 if (value < 0) {

@@ -5,11 +5,11 @@
 
 An undecorated module has no decorator results.
 
-```ds main.ds
+```tspp main.tspp
 export const value = 1;
 ```
 
-```query decorators scope=main.ds
+```query decorators scope=main.tspp
 @decorators.none
 ```
 
@@ -19,28 +19,28 @@ export const value = 1;
 
 Module scope returns the language item and decorated declaration.
 
-```ds main.ds
+```tspp main.tspp
 @deprecated("use verifyNew")
  ^^^^^^^^^^^^^^^^^^^^^^^^^^^ decorator
 function verify(): void {}
          ^^^^^^ target
 ```
 
-```query decorators scope=main.ds
-@decorators.application index=0 name=deprecated role=language_item language_item=deprecated location=main.ds#decorator node=main.ds#decorator@4
-@decorators.owner index=0 location=main.ds#target node=main.ds#declaration@8
+```query decorators scope=main.tspp
+@decorators.application index=0 name=deprecated role=language_item language_item=deprecated location=main.tspp#decorator node=main.tspp#decorator@4
+@decorators.owner index=0 location=main.tspp#target node=main.tspp#declaration@8
 ```
 
-```query decorators scope=main.ds name=deprecated
-@decorators.application index=0 name=deprecated role=language_item language_item=deprecated location=main.ds#decorator node=main.ds#decorator@4
-@decorators.owner index=0 location=main.ds#target node=main.ds#declaration@8
+```query decorators scope=main.tspp name=deprecated
+@decorators.application index=0 name=deprecated role=language_item language_item=deprecated location=main.tspp#decorator node=main.tspp#decorator@4
+@decorators.owner index=0 location=main.tspp#target node=main.tspp#declaration@8
 ```
 
 ### Return a user-defined annotation
 
 A user-defined annotation returns its declaration symbol.
 
-```ds main.ds
+```tspp main.tspp
 newtype tracked = ();
 
 @tracked
@@ -49,16 +49,16 @@ class Service {}
       ^^^^^^^ target
 ```
 
-```query decorators scope=main.ds name=tracked
-@decorators.application index=0 name=tracked role=symbol symbol=main.ds#tracked@1 location=main.ds#decorator node=main.ds#decorator@4
-@decorators.owner index=0 location=main.ds#target node=main.ds#declaration@5
+```query decorators scope=main.tspp name=tracked
+@decorators.application index=0 name=tracked role=symbol symbol=main.tspp#tracked@1 location=main.tspp#decorator node=main.tspp#decorator@4
+@decorators.owner index=0 location=main.tspp#target node=main.tspp#declaration@5
 ```
 
 ### Preserve application source order
 
 Unfiltered results follow source order on a shared owner.
 
-```ds main.ds
+```tspp main.tspp
 newtype tracked = ();
 
 @tracked
@@ -69,35 +69,35 @@ class Service {}
       ^^^^^^^ target
 ```
 
-```query decorators scope=main.ds
-@decorators.application index=0 name=tracked role=symbol symbol=main.ds#tracked@1 location=main.ds#first node=main.ds#decorator@4
-@decorators.owner index=0 location=main.ds#target node=main.ds#declaration@10
-@decorators.application index=1 name=deprecated role=language_item language_item=deprecated location=main.ds#second node=main.ds#decorator@9
-@decorators.owner index=1 location=main.ds#target node=main.ds#declaration@10
+```query decorators scope=main.tspp
+@decorators.application index=0 name=tracked role=symbol symbol=main.tspp#tracked@1 location=main.tspp#first node=main.tspp#decorator@4
+@decorators.owner index=0 location=main.tspp#target node=main.tspp#declaration@10
+@decorators.application index=1 name=deprecated role=language_item language_item=deprecated location=main.tspp#second node=main.tspp#decorator@9
+@decorators.owner index=1 location=main.tspp#target node=main.tspp#declaration@10
 ```
 
 ### Return current decorator applications
 
 Decorator lookup includes applications added by later edits.
 
-```ds main.ds
+```tspp main.tspp
 function verify(): void {}
 ```
 
-```query decorators scope=main.ds
+```query decorators scope=main.tspp
 @decorators.none
 ```
 
-```ds main.ds change
+```tspp main.tspp change
 @deprecated("use verifyNew")
  ^^^^^^^^^^^^^^^^^^^^^^^^^^^ decorator
 function verify(): void {}
          ^^^^^^ target
 ```
 
-```query decorators scope=main.ds
-@decorators.application index=0 name=deprecated role=language_item language_item=deprecated location=main.ds#decorator node=main.ds#decorator@4
-@decorators.owner index=0 location=main.ds#target node=main.ds#declaration@8
+```query decorators scope=main.tspp
+@decorators.application index=0 name=deprecated role=language_item language_item=deprecated location=main.tspp#decorator node=main.tspp#decorator@4
+@decorators.owner index=0 location=main.tspp#target node=main.tspp#declaration@8
 ```
 
 ## Program
@@ -106,14 +106,14 @@ function verify(): void {}
 
 Program scope returns matching applications in stable module order.
 
-```ds alpha.ds
+```tspp alpha.tspp
 @deprecated("use verifyNew")
  ^^^^^^^^^^^^^^^^^^^^^^^^^^^ decorator
 function verifyAlpha(): void {}
          ^^^^^^^^^^^ target
 ```
 
-```ds beta.ds
+```tspp beta.tspp
 @deprecated("use verifyNew")
  ^^^^^^^^^^^^^^^^^^^^^^^^^^^ decorator
 function verifyBeta(): void {}
@@ -121,15 +121,15 @@ function verifyBeta(): void {}
 ```
 
 ```query decorators scope=program name=deprecated
-@decorators.application index=0 name=deprecated role=language_item language_item=deprecated location=alpha.ds#decorator node=alpha.ds#decorator@4
-@decorators.owner index=0 location=alpha.ds#target node=alpha.ds#declaration@8
-@decorators.application index=1 name=deprecated role=language_item language_item=deprecated location=beta.ds#decorator node=beta.ds#decorator@4
-@decorators.owner index=1 location=beta.ds#target node=beta.ds#declaration@8
+@decorators.application index=0 name=deprecated role=language_item language_item=deprecated location=alpha.tspp#decorator node=alpha.tspp#decorator@4
+@decorators.owner index=0 location=alpha.tspp#target node=alpha.tspp#declaration@8
+@decorators.application index=1 name=deprecated role=language_item language_item=deprecated location=beta.tspp#decorator node=beta.tspp#decorator@4
+@decorators.owner index=1 location=beta.tspp#target node=beta.tspp#declaration@8
 ```
 
-```query decorators scope=beta.ds name=deprecated
-@decorators.application index=0 name=deprecated role=language_item language_item=deprecated location=beta.ds#decorator node=beta.ds#decorator@4
-@decorators.owner index=0 location=beta.ds#target node=beta.ds#declaration@8
+```query decorators scope=beta.tspp name=deprecated
+@decorators.application index=0 name=deprecated role=language_item language_item=deprecated location=beta.tspp#decorator node=beta.tspp#decorator@4
+@decorators.owner index=0 location=beta.tspp#target node=beta.tspp#declaration@8
 ```
 
 ## Name Filter
@@ -138,11 +138,11 @@ function verifyBeta(): void {}
 
 The name filter excludes every nonmatching application.
 
-```ds main.ds
+```tspp main.tspp
 @deprecated("use verifyNew")
 function verify(): void {}
 ```
 
-```query decorators scope=main.ds name=missing
+```query decorators scope=main.tspp name=missing
 @decorators.none
 ```

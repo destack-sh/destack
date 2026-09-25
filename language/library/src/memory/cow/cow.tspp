@@ -1,0 +1,61 @@
+import { ToOwned } from "tspp:convert";
+import { todo } from "tspp:error";
+
+/// Borrowed copy-on-write value.
+export struct CowBorrowed<T> {
+    /// The copy-on-write discriminator.
+    kind: "borrowed";
+
+    /// The borrowed value.
+    value: T;
+}
+
+/// Owned copy-on-write value.
+export struct CowOwned<T> {
+    /// The copy-on-write discriminator.
+    kind: "owned";
+
+    /// The owned value.
+    value: T;
+}
+
+/// Copy-on-write value.
+@languageItem("memory.Cow")
+export newtype Cow<'a, T: ToOwned> = CowBorrowed<&'a immutable T> | CowOwned<T.Owned>;
+
+export extension<'a, T: ToOwned> of Cow<'a, T> {
+    /// Create a borrowed copy-on-write value.
+    static borrowed(value: &'a immutable T): Cow<'a, T> {
+        todo("Cow.borrowed")
+    }
+
+    /// Create an owned copy-on-write value.
+    static owned(value: T.Owned): Cow<'a, T> {
+        todo("Cow.owned")
+    }
+
+    /// Return whether this value is borrowed.
+    isBorrowed(&readonly this): boolean {
+        todo("Cow.isBorrowed")
+    }
+
+    /// Return whether this value is owned.
+    isOwned(&readonly this): boolean {
+        todo("Cow.isOwned")
+    }
+
+    /// Borrow the value.
+    borrow(&immutable this): &immutable T {
+        todo("Cow.borrow")
+    }
+
+    /// Borrow owned storage, cloning first if needed.
+    toExclusive(&exclusive this): &exclusive T.Owned {
+        todo("Cow.toExclusive")
+    }
+
+    /// Move or clone this value into owned storage.
+    intoOwned(this): T.Owned {
+        todo("Cow.intoOwned")
+    }
+}

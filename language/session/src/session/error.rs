@@ -1,6 +1,6 @@
-use destack_artifact::{ArtifactFailure, ArtifactKey, DiagnosticError};
-use destack_repository::{Execution, RepositoryError};
-use destack_source::{FileId, ModuleId};
+use tspp_artifact::{ArtifactFailure, ArtifactKey, DiagnosticError};
+use tspp_repository::{Execution, RepositoryError};
+use tspp_source::{FileId, ModuleId};
 
 /// Errors produced by artifact session operations.
 #[derive(Debug, Clone)]

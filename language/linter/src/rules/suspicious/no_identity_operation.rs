@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -219,7 +219,7 @@ function retain(value: bigint): bigint {
         session.assert_diagnostics(
             r#"
 warning[no-identity-operation]: operation has an identity operand
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function retain(value: bigint): bigint {
 2 │     return 1n * value;
@@ -228,8 +228,8 @@ warning[no-identity-operation]: operation has an identity operand
   │
 
  = fix: remove the identity operation
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function retain(value: bigint): bigint {
 -   2│     return 1n * value;

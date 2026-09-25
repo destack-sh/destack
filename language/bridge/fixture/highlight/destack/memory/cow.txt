@@ -1,7 +1,0 @@
-// SYNTAX TEST "source.ds"
-
-// memory / cow / borrowed and owned variants
-let name: Cow<string> = Cow.borrowed(source);
-//        ^^^ entity.name.type.ds
-
-let owned: Cow<string> = Cow.owned(source.clone());

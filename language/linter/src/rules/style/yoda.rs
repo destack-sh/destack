@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -129,7 +129,7 @@ function isLarge(value: int32): boolean {
         session.assert_diagnostics(
             r#"
 warning[yoda]: comparison puts its literal first
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function isLarge(value: int32): boolean {
 2 │     return 10 < value;
@@ -138,8 +138,8 @@ warning[yoda]: comparison puts its literal first
   │
 
  = fix: put the checked value first
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function isLarge(value: int32): boolean {
 -   2│     return 10 < value;

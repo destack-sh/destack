@@ -1,6 +1,6 @@
-use destack_core::FxIndexSet;
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -191,7 +191,7 @@ function convert(input: Input): Point {
         session.assert_diagnostics(
             r#"
 warning[manual-struct-conversion]: nominal value is reconstructed field by field
-  ──▶ main.ds:11:12
+  ──▶ main.tspp:11:12
    │
  9 │
 10 │ function convert(input: Input): Point {

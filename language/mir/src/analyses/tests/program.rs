@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_source::{ModuleId, PackageId};
+use tspp_source::{ModuleId, PackageId};
 
 use crate::{Function, FunctionEffectBody, ProgramEffectTable, ResolutionTable};
 

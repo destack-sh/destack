@@ -1,0 +1,7 @@
+// SYNTAX TEST "source.tspp"
+
+// memory / cell / interior containers
+let cell: Cell<User> = Cell.new(user);
+//        ^^^^ entity.name.type.tspp
+
+let current = cell.get();

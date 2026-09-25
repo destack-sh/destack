@@ -1,4 +1,4 @@
-use destack_serde::Schema;
+use tspp_serde::Schema;
 
 use crate::{Tree, Type};
 

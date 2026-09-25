@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -16,7 +16,7 @@ Instead, you SHOULD call `inspect` to observe each value without changing the se
 "#,
         example: {
             reported: r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 declare function record(value: &readonly int32): void;
 
@@ -28,7 +28,7 @@ function observe(values: Iterator<int32>): Iterator<int32> {
 }
 "#,
             accepted: r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 declare function record(value: &readonly int32): void;
 
@@ -137,7 +137,7 @@ mod tests {
         let session = TestSession::dir(
             &MANUAL_ITERATOR_INSPECT,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 declare function record(value: &readonly int32): void;
 
@@ -152,7 +152,7 @@ function observe(values: Iterator<int32>): Iterator<int32> {
 
         session.assert_suggestions(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 declare function record(value: &readonly int32): void;
 
@@ -171,7 +171,7 @@ function observe(values: Iterator<int32>): Iterator<int32> {
         let session = TestSession::dir(
             &MANUAL_ITERATOR_INSPECT,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 function increment(values: Iterator<int32>): Iterator<int32> {
     return values.map((value) => value + 1);
@@ -188,7 +188,7 @@ function increment(values: Iterator<int32>): Iterator<int32> {
         let session = TestSession::dir(
             &MANUAL_ITERATOR_INSPECT,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 declare function consume(value: ^string): void;
 
@@ -210,7 +210,7 @@ function observe(values: Iterator<^string>): Iterator<^string> {
         let session = TestSession::dir(
             &MANUAL_ITERATOR_INSPECT,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 declare function record(value: &readonly int32): void;
 

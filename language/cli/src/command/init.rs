@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use clap::{Args, ValueEnum};
-use destack_source::{FileSystem, PhysicalFileSystem};
+use tspp_source::{FileSystem, PhysicalFileSystem};
 
 use crate::common::{ReportArgs, print_json_payload_report, report_error};
 use crate::console;
@@ -16,8 +16,8 @@ const APP_FILES: &[ProjectFile] = &[
         contents: include_str!("../../template/app/destack.json"),
     },
     ProjectFile {
-        path: "src/main.ds",
-        contents: include_str!("../../template/app/src/main.ds"),
+        path: "src/main.tspp",
+        contents: include_str!("../../template/app/src/main.tspp"),
     },
 ];
 
@@ -32,7 +32,7 @@ struct ProjectFile {
 /// Project template selected during initialization.
 #[derive(Clone, Copy, Debug, Default, ValueEnum)]
 pub enum Template {
-    /// Application project with src/main.ds.
+    /// Application project with src/main.tspp.
     #[default]
     App,
 }

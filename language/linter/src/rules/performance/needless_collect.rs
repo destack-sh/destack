@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -226,7 +226,7 @@ function length(values: Iterator<int32>): isize {
         session.assert_diagnostics(
             r#"
 warning[needless-collect]: Iterator is materialized only to read its length
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function length(values: Iterator<int32>): isize {
 2 │     return values.toArray().length;
@@ -235,8 +235,8 @@ warning[needless-collect]: Iterator is materialized only to read its length
   │
 
  = fix: count the Iterator directly
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function length(values: Iterator<int32>): isize {
 -   2│     return values.toArray().length;
@@ -410,7 +410,7 @@ function length(values: Iterator<int32>): isize {
         session.assert_diagnostics(
             r#"
 warning[needless-collect]: Iterator is materialized only to read its length
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function length(values: Iterator<int32>): isize {
 2 │     return values.toArray() /* materialized values */.length;

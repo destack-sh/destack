@@ -4,10 +4,10 @@ use std::mem::size_of;
 use std::sync::Arc;
 use std::{error, fmt, ptr, slice, str};
 
-use destack_serde::Reflect;
 use parking_lot::RwLock;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use crate::{SectionEntry, SectionImageError, SectionLoader};
 

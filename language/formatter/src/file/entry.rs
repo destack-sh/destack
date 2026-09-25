@@ -2,18 +2,18 @@ use std::error::Error;
 use std::fmt::{self, Display};
 use std::sync::Arc;
 
-use destack_core::StringPool;
-use destack_dir::{Comment, Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
-use destack_fir::format as fir_format;
-use destack_fir::format::Allocator;
-use destack_parser::{CommentRetention, Parse, ParseOptions, Parser};
-use destack_repository::FormatterOptions;
-use destack_source::{
+use tspp_core::StringPool;
+use tspp_dir::{Comment, Expression, LocalNodeId, NodeParentIndex, TokenSpan, Tree};
+use tspp_fir::format as fir_format;
+use tspp_fir::format::Allocator;
+use tspp_parser::{CommentRetention, Parse, ParseOptions, Parser};
+use tspp_repository::FormatterOptions;
+use tspp_source::{
     DiagnosticCollection, DiagnosticSeverity, File, LanguageType, ModuleId, PackageId, Span,
 };
 
 use crate::context::is_line_terminator;
-use crate::{DestackFormatContext, DestackFormatOptions, statement_list};
+use crate::{TsppFormatContext, TsppFormatOptions, statement_list};
 
 const MAX_PARSE_ERROR_MESSAGES: usize = 8;
 
@@ -89,8 +89,8 @@ pub fn format_file_tree(
         message: format!("formatter received non-code file type: {:?}", file.ty),
     })?;
     let parents = NodeParentIndex::from_roots(tree, roots);
-    let options = DestackFormatOptions::from_formatter_options(options, language_type);
-    let context = DestackFormatContext::new(
+    let options = TsppFormatOptions::from_formatter_options(options, language_type);
+    let context = TsppFormatContext::new(
         options, file, tree, tokens, comments, &side_span, strings, &parents,
     );
 
@@ -244,8 +244,8 @@ fn render_parsed_roots(
     strings.extend(&parse.strings);
 
     // render the selected roots against the complete source context
-    let options = DestackFormatOptions::from_formatter_options(options, language_type);
-    let context = DestackFormatContext::new(
+    let options = TsppFormatOptions::from_formatter_options(options, language_type);
+    let context = TsppFormatContext::new(
         options,
         &parse.file,
         &parse.tree,
@@ -357,7 +357,7 @@ fn consume_one_line_ending(source: &str, offset: usize) -> usize {
 
 /// Render one parsed root list through the main formatter.
 fn render_program_roots<'a>(
-    context: DestackFormatContext<'a>,
+    context: TsppFormatContext<'a>,
     expressions: &'a [LocalNodeId<Expression>],
 ) -> Result<String, FormatFileError> {
     let allocator = Allocator::default();
@@ -385,18 +385,18 @@ fn render_program_roots<'a>(
 #[cfg(test)]
 mod tests {
     use super::{format_file_source, format_source_range};
-    use destack_repository::FormatterOptions;
-    use destack_source::{File, FileId, FileType, Span, Uri};
+    use tspp_repository::FormatterOptions;
+    use tspp_source::{File, FileId, FileType, Span, Uri};
 
     /// Source formatting should use the provided source text.
     #[test]
     fn test_format_file_source_uses_provided_source() {
         let file = File::from_text(
             FileId::new(1),
-            "main.ds".to_string(),
-            Uri::from_string("test:///main.ds"),
+            "main.tspp".to_string(),
+            Uri::from_string("test:///main.tspp"),
             None,
-            FileType::Destack,
+            FileType::Tspp,
             "const stale=1".to_string(),
         )
         .expect("test source should load");
@@ -416,10 +416,10 @@ mod tests {
     fn test_format_file_source_preserves_eof_comments() {
         let file = File::from_text(
             FileId::new(1),
-            "main.ds".to_string(),
-            Uri::from_string("test:///main.ds"),
+            "main.tspp".to_string(),
+            Uri::from_string("test:///main.tspp"),
             None,
-            FileType::Destack,
+            FileType::Tspp,
             String::new(),
         )
         .expect("test source should load");
@@ -446,10 +446,10 @@ mod tests {
     fn test_format_file_source_preserves_comment_only_file_spacing() {
         let file = File::from_text(
             FileId::new(1),
-            "main.ds".to_string(),
-            Uri::from_string("test:///main.ds"),
+            "main.tspp".to_string(),
+            Uri::from_string("test:///main.tspp"),
             None,
-            FileType::Destack,
+            FileType::Tspp,
             String::new(),
         )
         .expect("test source should load");
@@ -471,10 +471,10 @@ mod tests {
         let source = "const first=1;\nconst second=2;\n";
         let file = File::from_text(
             file_id,
-            "main.ds".to_string(),
-            Uri::from_string("test:///main.ds"),
+            "main.tspp".to_string(),
+            Uri::from_string("test:///main.tspp"),
             None,
-            FileType::Destack,
+            FileType::Tspp,
             source.to_string(),
         )
         .expect("test source should load");

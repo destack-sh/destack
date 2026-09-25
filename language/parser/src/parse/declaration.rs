@@ -1,5 +1,5 @@
-use destack_dir::{ExportKind, Keyword, Mutability, TokenType, TypeKind};
-use destack_source::ByteRange;
+use tspp_dir::{ExportKind, Keyword, Mutability, TokenType, TypeKind};
+use tspp_source::ByteRange;
 
 /// Tokens that can start a declaration binding pattern.
 pub const DECLARATION_START_TOKENS: [TokenType; 6] = [

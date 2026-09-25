@@ -9,7 +9,7 @@ const value: "ready" = "ready";
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -33,7 +33,7 @@ const value: true = true;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -57,7 +57,7 @@ const value = null;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -81,7 +81,7 @@ const value = undefined;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -105,7 +105,7 @@ const value = 42 satisfies int32;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -131,7 +131,7 @@ const version = config.version;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -169,7 +169,7 @@ const mode = config.nested.mode;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -213,7 +213,7 @@ const mode = value.env.mode;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -256,15 +256,15 @@ const mode = value.env.mode;
 fn test_exported_const_literal_keeps_precision_across_import() {
     let session = TestSession::builder()
         .module(
-            "values.ds",
+            "values.tspp",
             r#"
 export const version = 1;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { version } from "./values.ds";
+import { version } from "./values.tspp";
 
 const copy = version;
 "#,
@@ -272,10 +272,10 @@ const copy = version;
         .build();
 
     session.assert_dir_many(
-        &["values.ds", "main.ds"],
+        &["values.tspp", "main.tspp"],
         DirRows::checked().with_reference_types(),
         r#"
-=== values.ds ===
+=== values.tspp ===
 
 === annotated ===
 export const version: 1 = 1;
@@ -286,15 +286,15 @@ export const version = 1;
 /// @resolution.pattern source=version kind=binding target=version
 /// @type.node source=1 type=1
 
-=== main.ds ===
+=== main.tspp ===
 
 === annotated ===
-import { version } from "./values.ds";
+import { version } from "./values.tspp";
 
 const copy: 1 = version;
 
 === dir ===
-import { version } from "./values.ds";
+import { version } from "./values.tspp";
 
 const copy = version;
 /// @type.symbol symbol=copy source=copy type=1
@@ -311,15 +311,15 @@ const copy = version;
 fn test_exported_let_literal_widens_across_import() {
     let session = TestSession::builder()
         .module(
-            "values.ds",
+            "values.tspp",
             r#"
 export let counter = 1;
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { counter } from "./values.ds";
+import { counter } from "./values.tspp";
 
 const copy = counter;
 "#,
@@ -327,10 +327,10 @@ const copy = counter;
         .build();
 
     session.assert_dir_many(
-        &["values.ds", "main.ds"],
+        &["values.tspp", "main.tspp"],
         DirRows::checked().with_reference_types(),
         r#"
-=== values.ds ===
+=== values.tspp ===
 
 === annotated ===
 export let counter: int64 = 1;
@@ -341,15 +341,15 @@ export let counter = 1;
 /// @resolution.pattern source=counter kind=binding target=counter
 /// @type.node source=1 type=1
 
-=== main.ds ===
+=== main.tspp ===
 
 === annotated ===
-import { counter } from "./values.ds";
+import { counter } from "./values.tspp";
 
 const copy: int64 = counter;
 
 === dir ===
-import { counter } from "./values.ds";
+import { counter } from "./values.tspp";
 
 const copy = counter;
 /// @type.symbol symbol=copy source=copy type=int64

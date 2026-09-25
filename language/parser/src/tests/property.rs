@@ -1,5 +1,5 @@
 use crate::tests::{TestParser, block_expression_ids};
-use destack_dir::{
+use tspp_dir::{
     Argument, AssignOperator, AssignPattern, Asynchrony, BinaryOperator, Block, ClassDeclaration,
     CommentKind, Declaration, Expression, FunctionDeclaration, FunctionForm, FunctionRole,
     GenericArgument, GenericParameter, IntegerType, InterfaceDeclaration, Literal, Member,
@@ -803,7 +803,7 @@ fn test_parse_member_decorator_argument_this_member_expression() {
 
             let decorators = parser.tree.get_decorators(members[0].id);
             assert_eq!(decorators.len(), 1);
-            assert_node!(parser.tree, decorators[0], destack_dir::Decorator { expression, .. } => {
+            assert_node!(parser.tree, decorators[0], tspp_dir::Decorator { expression, .. } => {
                 assert_node!(parser.tree, *expression, Expression::Call { left, arguments, .. } => {
                     assert_node!(parser.tree, *left, Expression::Identifier { name } => {
                         assert_string!(parser, *name, "if");
@@ -849,7 +849,7 @@ fn test_parse_member_decorator_argument_import_meta_expression() {
 
             let decorators = parser.tree.get_decorators(members[0].id);
             assert_eq!(decorators.len(), 1);
-            assert_node!(parser.tree, decorators[0], destack_dir::Decorator { expression, .. } => {
+            assert_node!(parser.tree, decorators[0], tspp_dir::Decorator { expression, .. } => {
                 assert_node!(parser.tree, *expression, Expression::Call { left, arguments, .. } => {
                     assert_node!(parser.tree, *left, Expression::Identifier { name } => {
                         assert_string!(parser, *name, "if");

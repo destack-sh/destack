@@ -16,21 +16,21 @@ use crate::declaration::{
 };
 use crate::expression::{expression_is_lambda_declaration, format_expression};
 use crate::file::{ignore_ranges_for_nodes, node_has_ignore_directive, write_source_span};
-use destack_dir::{
+use tspp_dir::{
     Block, BlockContext, Comment, Declaration, DecoratorPosition, Expression, FunctionRole,
     FunctionSignature, IfForm, LocalNodeId, Member, NodeType, Property, TypeExpression,
     TypeLiteral,
 };
-use destack_fir::format::{FormatError, FormatResult};
-use destack_fir::prelude::{format_with, *};
-use destack_fir::{format_args, write};
-use destack_source::{FileId, Span};
+use tspp_fir::format::{FormatError, FormatResult};
+use tspp_fir::prelude::{format_with, *};
+use tspp_fir::{format_args, write};
+use tspp_source::{FileId, Span};
 
-use crate::{DestackFormatContext, DestackFormatter};
+use crate::{TsppFormatContext, TsppFormatter};
 
 /// Return whether one expression has a source blank line before it.
 fn expression_has_lines_before(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let expression_span = context.expression_statement_extent(expression_id);
@@ -46,8 +46,8 @@ fn expression_has_lines_before(
 /// Format one program-scoped statement sequence.
 pub(crate) fn program_statement_sequence<'ast>(
     expressions: &'ast [LocalNodeId<Expression>],
-) -> impl Format<'ast, DestackFormatContext<'ast>> + 'ast {
-    format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+) -> impl Format<'ast, TsppFormatContext<'ast>> + 'ast {
+    format_with(move |f: &mut TsppFormatter<'ast, '_>| {
         format_program_statement_sequence(f, expressions)
     })
 }
@@ -57,8 +57,8 @@ pub(crate) fn block_statement_sequence<'ast>(
     block_id: LocalNodeId<Block>,
     allow_value_tail: bool,
     leading_prefix_comment_start: Option<u32>,
-) -> impl Format<'ast, DestackFormatContext<'ast>> + 'ast {
-    format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+) -> impl Format<'ast, TsppFormatContext<'ast>> + 'ast {
+    format_with(move |f: &mut TsppFormatter<'ast, '_>| {
         format_block_statement_sequence_for_block(
             f,
             block_id,
@@ -70,7 +70,7 @@ pub(crate) fn block_statement_sequence<'ast>(
 
 /// Return whether trivia between two offsets contains an explicit blank line.
 fn has_blank_line_between_offsets(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     file: FileId,
     start: u32,
     end: u32,
@@ -85,7 +85,7 @@ fn has_blank_line_between_offsets(
 
 /// Return the earliest start offset for leading comments on an expression.
 fn expression_prefix_start(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     default_start: u32,
 ) -> u32 {
@@ -126,7 +126,7 @@ fn expression_prefix_start(
 
 /// Return the stateless source start for following sibling trivia boundaries.
 fn expression_following_span_start(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> u32 {
     let expression_span = context.expression_statement_extent(expression_id);
@@ -143,7 +143,7 @@ fn expression_following_span_start(
 
 /// Return the latest end offset for trailing comments on an expression.
 pub(crate) fn expression_postfix_end(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     default_end: u32,
 ) -> u32 {
@@ -158,7 +158,7 @@ pub(crate) fn expression_postfix_end(
 
 /// Skip a source semicolon and horizontal trivia after one formatted statement end.
 fn advance_past_source_statement_terminator(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     mut offset: u32,
 ) -> u32 {
     // skip the source semicolon that the formatter already re-emitted
@@ -176,7 +176,7 @@ fn advance_past_source_statement_terminator(
 
 /// Return the raw prefix start before one ignored range.
 fn ignored_range_prefix_start(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     previous_output_end: Option<(FileId, u32)>,
     previous_output_was_ignored: bool,
     previous_expression_id: Option<LocalNodeId<Expression>>,
@@ -208,7 +208,7 @@ fn ignored_range_prefix_start(
 
 /// Return comments between one previous statement end and the next expression head.
 fn expression_gap_comment_nodes(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     start: u32,
     expression_id: LocalNodeId<Expression>,
 ) -> Vec<Comment> {
@@ -226,7 +226,7 @@ fn expression_gap_comment_nodes(
 
 /// Write statement-gap comments before one expression head.
 fn write_expression_gap_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     start: u32,
     expression_id: LocalNodeId<Expression>,
 ) -> FormatResult<()> {
@@ -240,7 +240,7 @@ fn write_expression_gap_comments<'ast>(
 
 /// Write one comment node sequence separated by hard line breaks.
 fn write_comment_node_lines<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     comment_nodes: &[Comment],
 ) -> FormatResult<()> {
     for (index, comment) in comment_nodes.iter().copied().enumerate() {
@@ -256,7 +256,7 @@ fn write_comment_node_lines<'ast>(
 
 /// Write postfix annotations for one block expression.
 fn write_expression_postfix_annotations<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     expression: &Expression,
     is_ignored: bool,
@@ -281,7 +281,7 @@ fn write_expression_postfix_annotations<'ast>(
 
 /// Write prefix annotations for one statement-sequence expression.
 fn write_statement_sequence_expression_prefix<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     expression: &Expression,
     start_offset: Option<u32>,
@@ -314,7 +314,7 @@ fn write_statement_sequence_expression_prefix<'ast>(
 
 /// Format one statement-sequence expression and return the rendered end offset.
 fn format_statement_sequence_expression<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expression_id: LocalNodeId<Expression>,
     expression: &Expression,
     is_ignored: bool,
@@ -386,7 +386,7 @@ fn statement_sequence_expression_needs_parentheses(
 /// Format block contents with compact inner spacing.
 #[inline]
 pub(crate) fn format_block_body_narrow<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     block_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     let block = f.context().tree.get(block_id);
@@ -439,7 +439,7 @@ pub(crate) fn format_block_body_narrow<'ast>(
 /// Format block contents with expanded inner spacing.
 #[inline]
 pub(crate) fn format_block_body_wide<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     block_id: LocalNodeId<Block>,
 ) -> FormatResult<()> {
     let block = f.context().tree.get(block_id);
@@ -454,7 +454,7 @@ pub(crate) fn format_block_body_wide<'ast>(
         write!(
             f,
             [block_indent(&format_with(
-                |f: &mut DestackFormatter<'ast, '_>| {
+                |f: &mut TsppFormatter<'ast, '_>| {
                     write_comment_node_lines(f, &leading_comment_nodes)
                 }
             ))]
@@ -487,7 +487,7 @@ pub(crate) fn format_block_body_wide<'ast>(
         write!(
             f,
             [block_indent(&format_with(
-                |f: &mut DestackFormatter<'ast, '_>| {
+                |f: &mut TsppFormatter<'ast, '_>| {
                     write_comment_node_lines(f, &trailing_comment_nodes)
                 }
             ))]
@@ -565,7 +565,7 @@ impl StatementSequence {
 
     /// Create one block statement sequence.
     fn block(
-        context: &DestackFormatContext<'_>,
+        context: &TsppFormatContext<'_>,
         block_id: LocalNodeId<Block>,
         allow_value_tail: bool,
         first_prefix_comment_end: Option<u32>,
@@ -608,7 +608,7 @@ impl StatementSequence {
 
 /// Collect ignore ranges for one statement sequence.
 fn statement_ignore_ranges(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expressions: &[LocalNodeId<Expression>],
 ) -> HashMap<u32, Span> {
     if !context.has_ignore_directive_markers() {
@@ -620,7 +620,7 @@ fn statement_ignore_ranges(
 
 /// Organize the import section at the head of one statement sequence.
 fn organize_statement_imports<'a>(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expressions: &'a [LocalNodeId<Expression>],
     sequence: StatementSequence,
     has_ignore_ranges: bool,
@@ -648,7 +648,7 @@ fn organize_statement_imports<'a>(
 
 /// Return whether a blank line belongs before one statement.
 fn statement_has_blank_line_before(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
     expression_span: Span,
     ignore_range: Option<Span>,
@@ -680,7 +680,7 @@ fn statement_has_blank_line_before(
 
 /// Format one statement sequence with shared spacing, import, and ignore handling.
 fn format_statement_sequence<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expressions: &[LocalNodeId<Expression>],
     sequence: StatementSequence,
 ) -> FormatResult<()> {
@@ -817,7 +817,7 @@ fn format_statement_sequence<'ast>(
 
 /// Format one block statement sequence with spacing and ignore handling.
 pub(crate) fn format_block_statement_sequence<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expressions: &[LocalNodeId<Expression>],
     allow_value_tail: bool,
 ) -> FormatResult<()> {
@@ -828,7 +828,7 @@ pub(crate) fn format_block_statement_sequence<'ast>(
 
 /// Format one block statement sequence with spacing and ignore handling.
 pub(crate) fn format_block_statement_sequence_for_block<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     block_id: LocalNodeId<Block>,
     allow_value_tail: bool,
     leading_prefix_comment_start: Option<u32>,
@@ -851,7 +851,7 @@ pub(crate) fn format_block_statement_sequence_for_block<'ast>(
 
 /// Format one program statement sequence with spacing, import organization, and ignore handling.
 fn format_program_statement_sequence<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     expressions: &[LocalNodeId<Expression>],
 ) -> FormatResult<()> {
     format_statement_sequence(f, expressions, StatementSequence::program())
@@ -859,7 +859,7 @@ fn format_program_statement_sequence<'ast>(
 
 /// Return true when the final expression in this block is value-position.
 pub(crate) fn block_allows_value_tail(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     block_id: LocalNodeId<Block>,
 ) -> bool {
     let block = context.tree.get(block_id);
@@ -890,7 +890,7 @@ pub(crate) fn block_allows_value_tail(
 
 /// Return true when this expression is the value tail of one block.
 pub(crate) fn expression_is_value_block_tail(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some((parent_id, parent_type)) = context.parent(expression_id) else {
@@ -911,7 +911,7 @@ pub(crate) fn expression_is_value_block_tail(
 
 /// Return true when this expression is formatted in a statement context.
 pub(crate) fn expression_is_in_statement_context(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
     let Some((parent_id, parent_type)) = context.parent(expression_id) else {
@@ -965,7 +965,7 @@ pub(crate) fn expression_is_in_statement_context(
 
 /// Return true when one block child is formatted in a statement context.
 fn expression_is_in_statement_context_inside_parent_block(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parent_block_id: LocalNodeId<Block>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -987,7 +987,7 @@ fn expression_is_in_statement_context_inside_parent_block(
 
 /// Return true when one declaration child is formatted in a statement context.
 fn expression_is_in_statement_context_inside_parent_declaration(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parent_declaration_id: LocalNodeId<Declaration>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -1009,7 +1009,7 @@ fn expression_is_in_statement_context_inside_parent_declaration(
 
 /// Return true when one member child is formatted in a statement context.
 fn expression_is_in_statement_context_inside_parent_member(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parent_member_id: LocalNodeId<Member>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -1031,7 +1031,7 @@ fn expression_is_in_statement_context_inside_parent_member(
 
 /// Return true when one property child is formatted in a statement context.
 fn expression_is_in_statement_context_inside_parent_property(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     parent_property_id: LocalNodeId<Property>,
     expression_id: LocalNodeId<Expression>,
 ) -> bool {
@@ -1050,7 +1050,7 @@ fn expression_is_in_statement_context_inside_parent_property(
 
 /// Return true when one function-like body is formatted in a statement context.
 fn function_body_is_statement_context(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     signature: &FunctionSignature,
 ) -> bool {
     if matches!(
@@ -1067,7 +1067,7 @@ fn function_body_is_statement_context(
 
 /// Return true when one type expression is exactly `void`.
 fn type_expression_is_void(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     type_id: LocalNodeId<TypeExpression>,
 ) -> bool {
     matches!(

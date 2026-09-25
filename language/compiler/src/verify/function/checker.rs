@@ -1,14 +1,14 @@
 use std::sync::Arc;
 
-use destack_mir::{
+use tspp_mir::{
     Block, ConstantTable, Function, FunctionCache, FunctionId, InitializationTable, LivenessCursor,
     LivenessTable, LoanId, LocalNodeId, LocalNodeIdAny, MemoryEffectTable, MovePathId, MoveTable,
     OriginContext, OriginState, OriginTable, PlaceOrigin, PlaceTable, RetentionTable, Tree, Type,
     Value, is_copy,
 };
 
-use destack_artifact::DiagnosticAnchor;
-use destack_core::{BitSet, FxIndexSet};
+use tspp_artifact::DiagnosticAnchor;
+use tspp_core::{BitSet, FxIndexSet};
 
 use crate::verify::VerifyState;
 

@@ -1,10 +1,10 @@
 use std::hint::black_box;
 use std::sync::Arc;
 
-use destack_memory::MemoryMap;
-use destack_program as program;
-use destack_repository::RuntimeOptions;
-use destack_vm as vm;
+use tspp_memory::MemoryMap;
+use tspp_program as program;
+use tspp_repository::RuntimeOptions;
+use tspp_vm as vm;
 
 use crate::binding::BindingTable;
 use crate::tests::{TestProgram, TestWorker, TestWorld};

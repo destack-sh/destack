@@ -524,7 +524,7 @@ fn diagnostic_definition(
     };
 
     quote! {
-        destack_source::DiagnosticDefinition::#constructor(
+        tspp_source::DiagnosticDefinition::#constructor(
             #id,
             #description,
         )
@@ -726,14 +726,14 @@ fn expand_diagnostic(input: DeriveInput) -> Result<TokenStream2> {
         quote! {
             let primary_anchor = self.anchor();
             let #formatter_name =
-                destack_artifact::DiagnosticFormatter::new(#context_name);
+                tspp_artifact::DiagnosticFormatter::new(#context_name);
             let message = self.message(&#formatter_name)?;
             // the header carries the message, so the primary span stays bare
             let primary_label = #context_name.label(&primary_anchor, None)?;
 
-            let __diagnostic = destack_source::Diagnostic::new(
+            let __diagnostic = tspp_source::Diagnostic::new(
                 self.id(),
-                destack_source::DiagnosticSeverity::#severity_ident,
+                tspp_source::DiagnosticSeverity::#severity_ident,
                 message,
                 primary_label,
             );
@@ -750,11 +750,11 @@ fn expand_diagnostic(input: DeriveInput) -> Result<TokenStream2> {
     let into_impl = aggregate_impl(enum_name, options, is_error);
 
     Ok(quote! {
-        use destack_artifact::DiagnosticFormat as _;
+        use tspp_artifact::DiagnosticFormat as _;
 
         impl #enum_name {
             /// All diagnostic definitions for this phase.
-            pub const ALL: &'static [destack_source::DiagnosticDefinition] = &[
+            pub const ALL: &'static [tspp_source::DiagnosticDefinition] = &[
                 #(#diagnostic_definitions),*
             ];
 
@@ -767,7 +767,7 @@ fn expand_diagnostic(input: DeriveInput) -> Result<TokenStream2> {
             /// Return the anchor for this diagnostic.
             pub fn anchor(
                 &self,
-            ) -> destack_artifact::DiagnosticAnchor {
+            ) -> tspp_artifact::DiagnosticAnchor {
                 #anchor_body
             }
 
@@ -775,8 +775,8 @@ fn expand_diagnostic(input: DeriveInput) -> Result<TokenStream2> {
             #[allow(unused_variables)]
             pub fn message(
                 &self,
-                #formatter_name: &destack_artifact::DiagnosticFormatter<'_>,
-            ) -> Result<String, destack_artifact::DiagnosticError>
+                #formatter_name: &tspp_artifact::DiagnosticFormatter<'_>,
+            ) -> Result<String, tspp_artifact::DiagnosticError>
             {
                 #message_body
             }
@@ -785,8 +785,8 @@ fn expand_diagnostic(input: DeriveInput) -> Result<TokenStream2> {
             #[allow(unused_variables)]
             pub fn help_message(
                 &self,
-                #formatter_name: &destack_artifact::DiagnosticFormatter<'_>,
-            ) -> Result<Option<String>, destack_artifact::DiagnosticError>
+                #formatter_name: &tspp_artifact::DiagnosticFormatter<'_>,
+            ) -> Result<Option<String>, tspp_artifact::DiagnosticError>
             {
                 #help_body
             }
@@ -794,47 +794,47 @@ fn expand_diagnostic(input: DeriveInput) -> Result<TokenStream2> {
             /// Return the source diagnostic for this provider diagnostic.
             pub fn diagnostic(
                 &self,
-                #context_name: &dyn destack_artifact::DiagnosticContext,
-            ) -> Result<destack_source::Diagnostic, destack_artifact::DiagnosticError>
+                #context_name: &dyn tspp_artifact::DiagnosticContext,
+            ) -> Result<tspp_source::Diagnostic, tspp_artifact::DiagnosticError>
             {
                 #diagnostic_body
             }
 
             /// Start a decorated diagnostic builder.
-            pub fn builder(self) -> destack_artifact::DiagnosticBuilder<Self> {
-                destack_artifact::DiagnosticBuilder::new(self)
+            pub fn builder(self) -> tspp_artifact::DiagnosticBuilder<Self> {
+                tspp_artifact::DiagnosticBuilder::new(self)
             }
 
             /// Add one secondary source label.
             pub fn label(
                 self,
-                anchor: impl Into<destack_artifact::DiagnosticAnchor>,
+                anchor: impl Into<tspp_artifact::DiagnosticAnchor>,
                 message: impl Into<String>,
-            ) -> destack_artifact::DiagnosticBuilder<Self> {
+            ) -> tspp_artifact::DiagnosticBuilder<Self> {
                 self.builder().label(anchor, message)
             }
 
             /// Add one note.
             pub fn note(
                 self,
-                note: impl Into<destack_source::DiagnosticNote>,
-            ) -> destack_artifact::DiagnosticBuilder<Self> {
+                note: impl Into<tspp_source::DiagnosticNote>,
+            ) -> tspp_artifact::DiagnosticBuilder<Self> {
                 self.builder().note(note)
             }
 
             /// Add one help message.
             pub fn help(
                 self,
-                help: impl Into<destack_source::DiagnosticHelp>,
-            ) -> destack_artifact::DiagnosticBuilder<Self> {
+                help: impl Into<tspp_source::DiagnosticHelp>,
+            ) -> tspp_artifact::DiagnosticBuilder<Self> {
                 self.builder().help(help)
             }
 
             /// Add one source edit suggestion.
             pub fn suggestion(
                 self,
-                suggestion: destack_source::DiagnosticSuggestion,
-            ) -> destack_artifact::DiagnosticBuilder<Self> {
+                suggestion: tspp_source::DiagnosticSuggestion,
+            ) -> tspp_artifact::DiagnosticBuilder<Self> {
                 self.builder().suggestion(suggestion)
             }
         }
@@ -847,11 +847,11 @@ fn expand_diagnostic(input: DeriveInput) -> Result<TokenStream2> {
 
         #into_impl
 
-        impl destack_artifact::ToDiagnostic for #enum_name {
+        impl tspp_artifact::ToDiagnostic for #enum_name {
             fn to_diagnostic(
                 &self,
-                #context_name: &dyn destack_artifact::DiagnosticContext,
-            ) -> Result<destack_source::Diagnostic, destack_artifact::DiagnosticError> {
+                #context_name: &dyn tspp_artifact::DiagnosticContext,
+            ) -> Result<tspp_source::Diagnostic, tspp_artifact::DiagnosticError> {
                 self.diagnostic(#context_name)
             }
         }

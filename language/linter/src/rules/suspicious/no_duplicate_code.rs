@@ -1,7 +1,7 @@
-use destack_core::FxIndexMap;
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{ModuleId, Span};
+use tspp_core::FxIndexMap;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{ModuleId, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, DirProgram, Lint, LintOutput, LintResult};
@@ -456,7 +456,7 @@ function normalizeRight(input: int32): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-duplicate-code]: callable repeats an earlier implementation
-  ──▶ main.ds:7:46
+  ──▶ main.tspp:7:46
    │
  1 │ function normalizeLeft(value: int32): int32 {
    │                                             - earlier implementation
@@ -509,7 +509,7 @@ class Calculator {
         session.assert_diagnostics(
             r#"
 warning[no-duplicate-code]: callable repeats an earlier implementation
-  ──▶ main.ds:8:41
+  ──▶ main.tspp:8:41
    │
  1 │ class Calculator {
  2 │     normalizeLeft(value: int32): int32 {
@@ -545,7 +545,7 @@ warning[no-duplicate-code]: callable repeats an earlier implementation
         let session = TestSession::dir(
             &NO_DUPLICATE_CODE,
             r#"
-import * as assert from "destack:assert";
+import * as assert from "tspp:assert";
 
 function checkLeft(value: int32): void {
     assert.assertEqual(value, 1);
@@ -562,9 +562,9 @@ function checkRight(input: int32): void {
         session.assert_diagnostics(
             r#"
 warning[no-duplicate-code]: callable repeats an earlier implementation
-  ──▶ main.ds:8:41
+  ──▶ main.tspp:8:41
    │
- 1 │ import * as assert from "destack:assert";
+ 1 │ import * as assert from "tspp:assert";
  2 │
  3 │ function checkLeft(value: int32): void {
    │                                        - earlier implementation
@@ -616,7 +616,7 @@ function process(): void {
         session.assert_diagnostics(
             r#"
 warning[no-duplicate-code]: statement sequence repeats earlier code
-  ──▶ main.ds:11:5
+  ──▶ main.tspp:11:5
    │
  3 │ function process(): void {
  4 │     record(0);
@@ -652,9 +652,9 @@ warning[no-duplicate-code]: statement sequence repeats earlier code
     fn test_reports_across_modules() {
         let session = TestSession::dir_files(
             &NO_DUPLICATE_CODE,
-            "main.ds",
+            "main.tspp",
             r#"
-import "./worker.ds";
+import "./worker.tspp";
 
 function normalizeLeft(value: int32): int32 {
     const incremented = value + 1;
@@ -663,7 +663,7 @@ function normalizeLeft(value: int32): int32 {
 }
 "#,
             &[(
-                "worker.ds",
+                "worker.tspp",
                 r#"
 function normalizeRight(input: int32): int32 {
     const added = input + 1;
@@ -677,7 +677,7 @@ function normalizeRight(input: int32): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-duplicate-code]: callable repeats an earlier implementation
- ──▶ worker.ds:1:46
+ ──▶ worker.tspp:1:46
   │
 1 │ function normalizeRight(input: int32): int32 {
   │                                              ^ repeated implementation
@@ -691,7 +691,7 @@ warning[no-duplicate-code]: callable repeats an earlier implementation
   │ ^
   │
 
- ──▶ main.ds:3:45
+ ──▶ main.tspp:3:45
   │
 2 │
 3 │ function normalizeLeft(value: int32): int32 {

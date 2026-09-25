@@ -1,0 +1,48 @@
+import { HostError } from "tspp:error/host";
+import { WorldHandle } from "tspp:runtime";
+
+import { EdgeId, EdgeKind, EdgeKindRecord, EdgeRecord, EdgeSelector } from "../edge.tspp";
+
+/// Topology edge binding family.
+@languageItem("topology.binding.TopologyEdgeBinding")
+export interface TopologyEdgeBinding {
+    /// Define one runtime topology edge kind.
+    @binding("tspp.topology.edge.kind.define", {
+        provider: "runtime",
+        effect: "deterministic",
+        requires: ["runtime.topology.edge.kind.define"],
+    })
+    defineKind(world: WorldHandle, kind: EdgeKindRecord): Result<void, HostError>;
+
+    /// Undefine one runtime topology edge kind.
+    @binding("tspp.topology.edge.kind.undefine", {
+        provider: "runtime",
+        effect: "deterministic",
+        requires: ["runtime.topology.edge.kind.undefine"],
+    })
+    undefineKind(world: WorldHandle, kind: EdgeKind): Result<void, HostError>;
+
+    /// Upsert one runtime topology edge.
+    @binding("tspp.topology.edge.upsert", {
+        provider: "runtime",
+        effect: "deterministic",
+        requires: ["runtime.topology.edge.upsert"],
+    })
+    upsert(world: WorldHandle, edge: EdgeRecord): Result<EdgeId, HostError>;
+
+    /// Remove one runtime topology edge.
+    @binding("tspp.topology.edge.remove", {
+        provider: "runtime",
+        effect: "deterministic",
+        requires: ["runtime.topology.edge.remove"],
+    })
+    remove(world: WorldHandle, edge: EdgeId): Result<boolean, HostError>;
+
+    /// Return runtime topology edges.
+    @binding("tspp.topology.edge.list", {
+        provider: "runtime",
+        effect: "deterministic",
+        requires: ["runtime.topology.edge.read"],
+    })
+    list(world: WorldHandle, selector?: EdgeSelector): Result<[EdgeRecord], HostError>;
+}

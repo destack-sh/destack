@@ -6,11 +6,11 @@
 
 Object destructuring in params extracts named properties.
 
-```ds
+```tspp
 const f = ({ x, y }) => x + y
 ```
 
-```ds expected
+```tspp expected
 const f = ({ x, y }) => x + y;
 ```
 
@@ -18,11 +18,11 @@ const f = ({ x, y }) => x + y;
 
 Array destructuring extracts elements by position.
 
-```ds
+```tspp
 const f = ([a, b]) => a + b
 ```
 
-```ds expected
+```tspp expected
 const f = ([a, b]) => a + b;
 ```
 
@@ -30,11 +30,11 @@ const f = ([a, b]) => a + b;
 
 Properties can be renamed during destructuring.
 
-```ds
+```tspp
 const f = ({ x: a, y: b }) => a + b
 ```
 
-```ds expected
+```tspp expected
 const f = ({ x: a, y: b }) => a + b;
 ```
 
@@ -42,11 +42,11 @@ const f = ({ x: a, y: b }) => a + b;
 
 Default values use `=` with surrounding spaces.
 
-```ds
+```tspp
 const f = (x = 1) => x
 ```
 
-```ds expected
+```tspp expected
 const f = (x = 1) => x;
 ```
 
@@ -54,10 +54,10 @@ const f = (x = 1) => x;
 
 Rest parameters collect remaining arguments into an array.
 
-```ds
+```tspp
 const f = (...args) => args
 ```
 
-```ds expected
+```tspp expected
 const f = (...args) => args;
 ```

@@ -1,6 +1,6 @@
-use destack_fir::format::{Allocator, Format, FormatError, FormatResult};
-use destack_fir::prelude::*;
-use destack_fir::write;
+use tspp_fir::format::{Allocator, Format, FormatError, FormatResult};
+use tspp_fir::prelude::*;
+use tspp_fir::write;
 
 use super::attribute::{write_attributes, write_attributes_before_anchor, write_inline_attributes};
 use super::r#static::format_static;
@@ -37,7 +37,7 @@ impl Formatter<'_> {
         formatter.enter_function(function);
 
         // build the FIR document from the reference
-        let document = destack_fir::format!(&allocator, formatter, [FormatFunctionId(function)])?;
+        let document = tspp_fir::format!(&allocator, formatter, [FormatFunctionId(function)])?;
 
         // print the complete function reference
         let printed = document.print()?;
@@ -51,7 +51,7 @@ impl Formatter<'_> {
         let formatter = Formatter::new(self.tree, self.target_layout, self.strings, self.options);
 
         // build the FIR document from the type
-        let document = destack_fir::format!(&allocator, formatter, [ty])?;
+        let document = tspp_fir::format!(&allocator, formatter, [ty])?;
 
         // print the complete type reference
         let printed = document.print()?;
@@ -67,7 +67,7 @@ impl Formatter<'_> {
         formatter.enter_function(function);
 
         // build the FIR document from the type
-        let document = destack_fir::format!(&allocator, formatter, [ty])?;
+        let document = tspp_fir::format!(&allocator, formatter, [ty])?;
 
         // print the complete type reference
         let printed = document.print()?;

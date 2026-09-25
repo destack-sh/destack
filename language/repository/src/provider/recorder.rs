@@ -1,8 +1,8 @@
 use std::mem;
 use std::sync::Arc;
 
-use destack_artifact::{ArtifactDependency, ArtifactKey};
 use parking_lot::Mutex;
+use tspp_artifact::{ArtifactDependency, ArtifactKey};
 
 use crate::Moment;
 

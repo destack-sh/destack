@@ -2,10 +2,10 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU32, Ordering};
 use std::task::{Context, Poll};
 
-use destack_serde::Codec;
 use futures::channel::mpsc::{UnboundedReceiver, UnboundedSender, unbounded};
 use futures::task::AtomicWaker;
 use parking_lot::Mutex;
+use tspp_serde::Codec;
 
 use super::{MethodId, MethodKind, RequestStream, ResponseSender};
 use crate::call::{CallId, SendWindow};
@@ -167,9 +167,9 @@ pub enum ServiceError {
     /// The service rejected the call.
     Status(Status),
     /// A response or stream value could not be encoded.
-    Encode(destack_serde::Error),
+    Encode(tspp_serde::Error),
     /// A request or stream value could not be decoded.
-    Decode(destack_serde::Error),
+    Decode(tspp_serde::Error),
     /// The RPC connection failed.
     Connection(Arc<ConnectionError>),
     /// The call is already complete.

@@ -1,11 +1,11 @@
 use std::io;
 use std::path::{Path, PathBuf};
 
-use destack_core::Blob;
-use destack_query::QueryError;
-use destack_repository::{RepositoryError, Revision};
-use destack_session::SessionError;
-use destack_source::PackageId;
+use tspp_core::Blob;
+use tspp_query::QueryError;
+use tspp_repository::{RepositoryError, Revision};
+use tspp_session::SessionError;
+use tspp_source::PackageId;
 
 /// Failure from a workspace operation.
 #[derive(Debug)]

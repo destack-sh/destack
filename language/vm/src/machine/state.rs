@@ -1,8 +1,6 @@
-use destack_bytecode::{Code, CodeOffset, FrameMap, RegisterSpan};
-use destack_heap::{HeapResult, RootSlot};
-use destack_program::{
-    FrameLayout, FramePoint, FrameSlot, FrameStateId, Program, ProgramPoint, Word,
-};
+use tspp_bytecode::{Code, CodeOffset, FrameMap, RegisterSpan};
+use tspp_heap::{HeapResult, RootSlot};
+use tspp_program::{FrameLayout, FramePoint, FrameSlot, FrameStateId, Program, ProgramPoint, Word};
 
 use crate::diagnostic::{Error, Result};
 

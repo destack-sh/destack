@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_mir as mir;
+use tspp_dir as dir;
+use tspp_mir as mir;
 
 use crate::lower::call::Callee;
 use crate::lower::function::argument::Argument;
@@ -717,7 +717,7 @@ impl FunctionLowerer<'_, '_, '_> {
     /// Return whether one initializer is a scalar literal computing nothing.
     fn is_literal_initializer(
         &mut self,
-        module: destack_source::ModuleId,
+        module: tspp_source::ModuleId,
         expression: dir::LocalNodeId<dir::Expression>,
     ) -> CompilerResult<bool> {
         // read the initializer out of its declaring module

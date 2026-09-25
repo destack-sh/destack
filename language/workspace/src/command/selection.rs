@@ -1,15 +1,15 @@
 use std::mem;
 use std::sync::Arc;
 
-use destack_artifact::{
+use tspp_artifact::{
     ArtifactKey, DirBound, DirChecked, DirDeclared, DirElaborated, DirExpanded, DirExported,
     DirImported, DirParsed, DirResolved, DirView,
 };
-use destack_core::{FxIndexMap, FxIndexSet};
-use destack_dir as dir;
-use destack_pattern::{Matcher, ModuleContext, Pattern, PatternMatch, ProgramContext};
-use destack_repository::{ArtifactReader, ProviderError, Revision};
-use destack_source::{File, ModuleId, ProfileId};
+use tspp_core::{FxIndexMap, FxIndexSet};
+use tspp_dir as dir;
+use tspp_pattern::{Matcher, ModuleContext, Pattern, PatternMatch, ProgramContext};
+use tspp_repository::{ArtifactReader, ProviderError, Revision};
+use tspp_source::{File, ModuleId, ProfileId};
 
 use super::{CommandContext, CommandError, CommandResult};
 

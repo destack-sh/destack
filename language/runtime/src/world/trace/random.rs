@@ -1,7 +1,7 @@
 use crate::diagnostic::RuntimeResult;
 use crate::world::random::RandomStreamId;
 use crate::world::trace::{EntropySubject, RandomTrace, TraceLog, TraceTag};
-use destack_repository::ExecutionMode;
+use tspp_repository::ExecutionMode;
 
 impl TraceLog {
     /// Run one random u64 binding through the entropy replay channel.

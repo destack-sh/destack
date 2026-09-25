@@ -1,7 +1,7 @@
 use std::io::{Error, ErrorKind};
 
-use destack_source::{File, strip_json};
 use serde_json::{self, Value};
+use tspp_source::{File, strip_json};
 
 /// Build one file content error.
 fn json_content_error(message: &str) -> serde_json::Error {

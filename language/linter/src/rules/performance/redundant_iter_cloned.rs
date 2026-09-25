@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -28,7 +28,7 @@ Instead, you SHOULD operate on the borrowed elements directly.
 "#,
         example: {
             reported: r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -39,7 +39,7 @@ function lengths(values: Iterator<&immutable Label>): Iterator<isize> {
 }
 "#,
             accepted: r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -191,7 +191,7 @@ mod tests {
         let session = TestSession::dir(
             &REDUNDANT_ITER_CLONED,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -205,7 +205,7 @@ function count(values: Iterator<&immutable Label>): isize {
 
         session.assert_fixes(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -224,7 +224,7 @@ function count(values: Iterator<&immutable Label>): isize {
         let session = TestSession::dir(
             &REDUNDANT_ITER_CLONED,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -240,7 +240,7 @@ function visit(values: Iterator<&immutable Label>): void {
 
         session.assert_fixes(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -261,7 +261,7 @@ function visit(values: Iterator<&immutable Label>): void {
         let session = TestSession::dir(
             &REDUNDANT_ITER_CLONED,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -275,7 +275,7 @@ function firstLength(values: Iterator<&immutable Label>): isize | undefined {
 
         session.assert_fixes(
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -294,7 +294,7 @@ function firstLength(values: Iterator<&immutable Label>): isize | undefined {
         let session = TestSession::dir(
             &REDUNDANT_ITER_CLONED,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];
@@ -315,7 +315,7 @@ function collect(values: Iterator<&immutable Label>): Label[] {
         let session = TestSession::dir(
             &REDUNDANT_ITER_CLONED,
             r#"
-import { Iterator } from "destack:iter";
+import { Iterator } from "tspp:iter";
 
 struct Label {
     values: ^int32[];

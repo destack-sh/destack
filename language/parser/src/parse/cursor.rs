@@ -1,8 +1,8 @@
 use crate::{CommentRetention, Lexer, Tokenizer};
-use destack_dir::{Comment, Keyword, Token, TokenLiteral, TokenType, is_identifier_continue};
-use destack_source::{ByteRange, File};
 use std::mem;
 use std::sync::Arc;
+use tspp_dir::{Comment, Keyword, Token, TokenLiteral, TokenType, is_identifier_continue};
+use tspp_source::{ByteRange, File};
 
 use super::TokenProbe;
 

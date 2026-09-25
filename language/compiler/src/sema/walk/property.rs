@@ -1,5 +1,5 @@
-use destack_artifact::DiagnosticPolicy;
-use destack_dir as dir;
+use tspp_artifact::DiagnosticPolicy;
+use tspp_dir as dir;
 
 use crate::sema::{
     CauseKind, ElisionSite, GenericTemplateId, InducedParameterOwner, Origin, Receiver,
@@ -64,7 +64,7 @@ impl WalkState<'_, '_> {
     /// Walk one object literal property.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// { name: value, method() { value } }
     /// ```
     pub(in crate::sema) fn walk_property(
@@ -135,7 +135,7 @@ impl WalkState<'_, '_> {
     /// Walk one declaration member header.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// field: string = "value"
     /// ```
     pub(in crate::sema) fn walk_member_header(
@@ -567,7 +567,7 @@ impl WalkState<'_, '_> {
     /// Walk one object type member and return its checked definition member.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// interface Reader { read(): string }
     /// ```
     pub(in crate::sema) fn walk_type_member(
@@ -928,7 +928,7 @@ impl WalkState<'_, '_> {
     /// Return the lexical receiver visible inside one method body.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// method(this: Box): number { this.value }
     /// ```
     fn method_receiver_binding(
@@ -1145,7 +1145,7 @@ impl WalkState<'_, '_> {
     /// Walk one method return annotation or return the constructor receiver.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// method(): number { 1 }
     /// ```
     fn walk_method_result_type(

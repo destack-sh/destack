@@ -1,9 +1,9 @@
 use std::collections::{HashSet, VecDeque};
 
-use destack_artifact::{ArtifactDependencySet, ArtifactKey, Script};
-use destack_repository::ProviderError;
-use destack_source::ModuleId;
 use indexmap::IndexSet;
+use tspp_artifact::{ArtifactDependencySet, ArtifactKey, Script};
+use tspp_repository::ProviderError;
+use tspp_source::ModuleId;
 
 use crate::{CompilerError, CompilerResult, LinkError, LinkResult};
 
@@ -141,7 +141,7 @@ impl<'a> JsLinker<'a> {
 
                 // chunked outputs can retain internal dynamic edges as output links
                 if should_bundle {
-                    if self.target.js.mode == destack_repository::JsOutputMode::Chunked {
+                    if self.target.js.mode == tspp_repository::JsOutputMode::Chunked {
                         continue;
                     }
 

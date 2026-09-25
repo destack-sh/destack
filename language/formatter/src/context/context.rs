@@ -1,31 +1,31 @@
-use super::options::DestackFormatOptions;
+use super::options::TsppFormatOptions;
 use super::source::SourceText;
 use super::{FormatElementCache, FormatSourceIndex};
 
-use destack_core::StringPool;
-pub use destack_dir::Decorator;
-use destack_dir::{
+use tspp_core::StringPool;
+pub use tspp_dir::Decorator;
+use tspp_dir::{
     Argument, AssignPattern, AssignPatternField, Block, Catch, Comment, Declaration, Declarator,
     DependencyItem, EnumField, Expression, GenericArgument, GenericParameter, LocalNodeId,
     LocalNodeIdAny, MatchArm, Member, Node, NodeParentIndex, NodeType, Parameter, Pattern,
     PatternField, Property, SwitchCase, TokenSpan, Tree, TreeAttribute, TreeChild, TreeStore,
     TupleElement, TypeExpression, TypeMappedParameter, TypeMember, WhereClause,
 };
-use destack_fir::format::{
+use tspp_fir::format::{
     Format, FormatContext, FormatElement as FirElement, FormatLayout, FormatResult, Formatter,
 };
-use destack_source::{File, MultiSpan, Span};
+use tspp_source::{File, MultiSpan, Span};
 
 use super::comment::Comments;
 
-/// The formatter implementation specialized for the Destack context.
-pub type DestackFormatter<'ast, 'state> = Formatter<'state, 'ast, DestackFormatContext<'ast>>;
+/// The formatter implementation specialized for the TS++ context.
+pub type TsppFormatter<'ast, 'state> = Formatter<'state, 'ast, TsppFormatContext<'ast>>;
 
 /// Run one formatter callback with a temporary following sibling boundary.
 pub(crate) fn with_following_span_start<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     following_span_start: Option<u32>,
-    format: impl FnOnce(&mut DestackFormatter<'ast, '_>) -> FormatResult<()>,
+    format: impl FnOnce(&mut TsppFormatter<'ast, '_>) -> FormatResult<()>,
 ) -> FormatResult<()> {
     let previous_following_span_start = f
         .context_mut()
@@ -39,8 +39,8 @@ pub(crate) fn with_following_span_start<'ast>(
 
 /// Run one formatter callback with expanded tree callback bodies.
 pub(crate) fn with_expanded_tree_callback_bodies<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
-    format: impl FnOnce(&mut DestackFormatter<'ast, '_>) -> FormatResult<()>,
+    f: &mut TsppFormatter<'ast, '_>,
+    format: impl FnOnce(&mut TsppFormatter<'ast, '_>) -> FormatResult<()>,
 ) -> FormatResult<()> {
     let previous_should_expand = f
         .context_mut()
@@ -52,11 +52,11 @@ pub(crate) fn with_expanded_tree_callback_bodies<'ast>(
     result
 }
 
-/// Destack format context.
+/// TS++ format context.
 #[derive(Debug)]
-pub struct DestackFormatContext<'a> {
+pub struct TsppFormatContext<'a> {
     /// The format options.
-    pub options: DestackFormatOptions,
+    pub options: TsppFormatOptions,
     /// The file.
     pub file: &'a File,
     /// The semantic tokens in source order.
@@ -81,10 +81,10 @@ pub struct DestackFormatContext<'a> {
     pub comments: Comments<'a>,
 }
 
-impl<'a> DestackFormatContext<'a> {
+impl<'a> TsppFormatContext<'a> {
     /// Construct a formatting context from parse artifacts.
     pub fn new(
-        options: DestackFormatOptions,
+        options: TsppFormatOptions,
         file: &'a File,
         tree: &'a Tree,
         tokens: &'a [TokenSpan],
@@ -166,8 +166,8 @@ impl<'a> DestackFormatContext<'a> {
     }
 }
 
-impl FormatContext for DestackFormatContext<'_> {
-    type Options = DestackFormatOptions;
+impl FormatContext for TsppFormatContext<'_> {
+    type Options = TsppFormatOptions;
 
     #[inline]
     fn options(&self) -> &Self::Options {
@@ -180,21 +180,21 @@ impl FormatContext for DestackFormatContext<'_> {
     }
 }
 
-/// Speculative formatting helpers for one Destack formatter.
-pub(crate) trait DestackFormatterSpeculationExt<'ast> {
+/// Speculative formatting helpers for one TS++ formatter.
+pub(crate) trait TsppFormatterSpeculationExt<'ast> {
     /// Return whether formatting `content` after one source start would break.
     fn speculate_will_break_after(
         &mut self,
         start: u32,
-        content: &dyn Format<'ast, DestackFormatContext<'ast>>,
+        content: &dyn Format<'ast, TsppFormatContext<'ast>>,
     ) -> FormatResult<bool>;
 }
 
-impl<'ast> DestackFormatterSpeculationExt<'ast> for DestackFormatter<'ast, '_> {
+impl<'ast> TsppFormatterSpeculationExt<'ast> for TsppFormatter<'ast, '_> {
     fn speculate_will_break_after(
         &mut self,
         start: u32,
-        content: &dyn Format<'ast, DestackFormatContext<'ast>>,
+        content: &dyn Format<'ast, TsppFormatContext<'ast>>,
     ) -> FormatResult<bool> {
         // speculation snapshot
         let snapshot = self.context().comments().snapshot();
@@ -217,13 +217,13 @@ impl<'ast> DestackFormatterSpeculationExt<'ast> for DestackFormatter<'ast, '_> {
 /// Format one typed source node with full context.
 pub(crate) trait FormatNode<'a, T: Node>
 where
-    DestackFormatContext<'a>: FormatContext,
+    TsppFormatContext<'a>: FormatContext,
 {
     /// Format one source node id.
     fn format_node(
         &self,
         node_id: LocalNodeId<T>,
-        f: &mut DestackFormatter<'a, '_>,
+        f: &mut TsppFormatter<'a, '_>,
     ) -> FormatResult<()>;
 }
 
@@ -231,14 +231,14 @@ where
 pub(crate) struct FormatNodeWithoutTrailingComments<T: Node>(pub LocalNodeId<T>);
 
 /// Format a node.
-impl<'a, T: Node> Format<'a, DestackFormatContext<'a>> for LocalNodeId<T>
+impl<'a, T: Node> Format<'a, TsppFormatContext<'a>> for LocalNodeId<T>
 where
     T: Node + Clone,
     Tree: TreeStore<T>,
     T: FormatNode<'a, T>,
 {
     #[inline]
-    fn format(&self, f: &mut DestackFormatter<'a, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut TsppFormatter<'a, '_>) -> FormatResult<()> {
         let context = f.context();
         let node = context.tree.get(*self);
 
@@ -247,14 +247,14 @@ where
 }
 
 /// Format a node without trailing comments.
-impl<'a, T: Node> Format<'a, DestackFormatContext<'a>> for FormatNodeWithoutTrailingComments<T>
+impl<'a, T: Node> Format<'a, TsppFormatContext<'a>> for FormatNodeWithoutTrailingComments<T>
 where
     T: Node + Clone,
     Tree: TreeStore<T>,
     T: FormatNode<'a, T>,
 {
     #[inline]
-    fn format(&self, f: &mut DestackFormatter<'a, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut TsppFormatter<'a, '_>) -> FormatResult<()> {
         if !f.context().comments().has_comments() {
             return self.0.format(f);
         }
@@ -273,9 +273,9 @@ where
 }
 
 /// Format a dynamically typed node.
-impl<'a> Format<'a, DestackFormatContext<'a>> for LocalNodeIdAny {
+impl<'a> Format<'a, TsppFormatContext<'a>> for LocalNodeIdAny {
     #[inline]
-    fn format(&self, f: &mut DestackFormatter<'a, '_>) -> FormatResult<()> {
+    fn format(&self, f: &mut TsppFormatter<'a, '_>) -> FormatResult<()> {
         let context = f.context();
         match self.ty {
             NodeType::Expression => {

@@ -1,5 +1,5 @@
-use destack_artifact::DiagnosticAnchor;
-use destack_artifact_macros::Diagnostic;
+use tspp_artifact::DiagnosticAnchor;
+use tspp_artifact_macros::Diagnostic;
 
 /// Errors while compiling a structural pattern.
 #[derive(Debug, Clone, PartialEq, Diagnostic)]

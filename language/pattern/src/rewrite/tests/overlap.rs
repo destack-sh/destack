@@ -11,7 +11,7 @@ fn test_reject_overlapping_rewrites() {
     .assert_diagnostics(
         r#"
 error[overlapping-rewrites]: selected rewrites overlap
- ──▶ destack:pattern-test:1:7
+ ──▶ tspp:pattern-test:1:7
   │
 1 │ outer(inner(value))
   │ ------^^^^^^^^^^^^- this rewrite overlaps another selected rewrite
@@ -20,7 +20,7 @@ error[overlapping-rewrites]: selected rewrites overlap
   │
 
  = help: make the pattern select non-overlapping roots
-for more information about an error, run `destack explain overlapping-rewrites`
+for more information about an error, run `tspp explain overlapping-rewrites`
 "#,
     );
 }

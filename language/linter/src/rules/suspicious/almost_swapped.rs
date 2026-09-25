@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -125,7 +125,7 @@ function exchange(pair: Pair): void {
         session.assert_diagnostics(
             r#"
 warning[almost-swapped]: assignments overwrite a value instead of swapping
- ──▶ main.ds:6:5
+ ──▶ main.tspp:6:5
   │
 4 │ }
 5 │ function exchange(pair: Pair): void {
@@ -159,7 +159,7 @@ function exchange(left: int32, right: int32): void {
         session.assert_diagnostics(
             r#"
 warning[almost-swapped]: assignments overwrite a value instead of swapping
- ──▶ main.ds:4:5
+ ──▶ main.tspp:4:5
   │
 2 │     let first = left;
 3 │     let second = right;

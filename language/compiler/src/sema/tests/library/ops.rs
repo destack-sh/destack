@@ -5,7 +5,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_resolve_scalar_equality_protocols() {
     let session = TestSession::single(
         r#"
-import { Equal, PartialEqual } from "destack:ops";
+import { Equal, PartialEqual } from "tspp:ops";
 
 declare function requireEqual<T: Equal<T>>(value: T): void;
 declare function requirePartialEqual<T: PartialEqual<T>>(value: T): void;
@@ -32,9 +32,9 @@ requireEqual(undefined);
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Equal, PartialEqual } from "destack:ops";
+import { Equal, PartialEqual } from "tspp:ops";
 
 declare function requireEqual<T: Equal<T>>(value: T): void;
 declare function requirePartialEqual<T: PartialEqual<T>>(value: T): void;
@@ -60,7 +60,7 @@ requireEqual<null>(null);
 requireEqual<undefined>(undefined);
 
 === dir ===
-import { Equal, PartialEqual } from "destack:ops";
+import { Equal, PartialEqual } from "tspp:ops";
 
 declare function requireEqual<T: Equal<T>>(value: T): void;
 /// @generic.template symbol=requireEqual parameters=(T#1: Equal<T#1>)
@@ -184,7 +184,7 @@ requireEqual(undefined);
 fn test_reject_total_float_equality() {
     let session = TestSession::single(
         r#"
-import { Equal } from "destack:ops";
+import { Equal } from "tspp:ops";
 
 declare function requireEqual<T: Equal<T>>(value: T): void;
 declare const value: float64;
@@ -193,9 +193,9 @@ requireEqual(value);
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { Equal } from "destack:ops";
+import { Equal } from "tspp:ops";
 
 declare function requireEqual<T: Equal<T>>(value: T): void;
 declare const value: float64;
@@ -203,7 +203,7 @@ declare const value: float64;
 requireEqual<float64>(value);
 
 === dir ===
-import { Equal } from "destack:ops";
+import { Equal } from "tspp:ops";
 
 declare function requireEqual<T: Equal<T>>(value: T): void;
 /// @generic.template symbol=requireEqual parameters=(T: Equal<T>)
@@ -238,7 +238,7 @@ requireEqual(value);
 fn test_reject_intrinsic_cross_type_equality() {
     let session = TestSession::single(
         r#"
-import { PartialEqual } from "destack:ops";
+import { PartialEqual } from "tspp:ops";
 
 declare function requireStringEqual<T: PartialEqual<string>>(value: T): void;
 declare const value: int32;
@@ -247,9 +247,9 @@ requireStringEqual(value);
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
-import { PartialEqual } from "destack:ops";
+import { PartialEqual } from "tspp:ops";
 
 declare function requireStringEqual<T: PartialEqual<string>>(value: T): void;
 declare const value: int32;
@@ -257,7 +257,7 @@ declare const value: int32;
 requireStringEqual<int32>(value);
 
 === dir ===
-import { PartialEqual } from "destack:ops";
+import { PartialEqual } from "tspp:ops";
 
 declare function requireStringEqual<T: PartialEqual<string>>(value: T): void;
 /// @generic.template symbol=requireStringEqual parameters=(T: PartialEqual<string>)

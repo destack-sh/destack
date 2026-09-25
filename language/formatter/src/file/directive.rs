@@ -2,11 +2,11 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 
 use super::source::{line_prefix_text, write_source_span};
-use destack_dir::{Comment, LocalNodeId, Node, NodeType, Tree, TreeStore};
-use destack_fir::format::FormatResult;
-use destack_source::Span;
+use tspp_dir::{Comment, LocalNodeId, Node, NodeType, Tree, TreeStore};
+use tspp_fir::format::FormatResult;
+use tspp_source::Span;
 
-use crate::{DestackFormatContext, DestackFormatter};
+use crate::{TsppFormatContext, TsppFormatter};
 
 /// Single-line ignore directive markers supported by formatter behavior.
 const IGNORE_DIRECTIVES: &[&str] = &[
@@ -78,7 +78,7 @@ fn marker_matches_prefix(marker: &str, prefixes: &[&str]) -> bool {
 /// Parse one formatter directive from one comment.
 #[inline]
 fn parse_comment_directive(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     comment: Comment,
 ) -> Option<IgnoreDirective> {
     parse_comment_text_directive(ctx.source_text().text_for(&comment.span))
@@ -100,7 +100,7 @@ fn last_comment_before(source_comments: &[Comment], node_start: u32) -> Option<C
 
 /// Return one line-leading comment that prefixes one node span.
 fn prefix_comment(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     node_span: Span,
     source_comments: &[Comment],
 ) -> Option<Comment> {
@@ -113,10 +113,7 @@ fn prefix_comment(
 }
 
 /// Return the source span used for ignore directive preservation.
-fn ignore_target_span<T: Node + Clone>(
-    ctx: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<T>,
-) -> Span
+fn ignore_target_span<T: Node + Clone>(ctx: &TsppFormatContext<'_>, node_id: LocalNodeId<T>) -> Span
 where
     Tree: TreeStore<T>,
 {
@@ -130,7 +127,7 @@ where
 }
 
 /// Return whether one comment starts at the first non-whitespace position on its line.
-fn comment_starts_line(ctx: &DestackFormatContext<'_>, comment: Comment) -> bool {
+fn comment_starts_line(ctx: &TsppFormatContext<'_>, comment: Comment) -> bool {
     let Some(prefix) = line_prefix_text(ctx, comment.span.start) else {
         return false;
     };
@@ -139,7 +136,7 @@ fn comment_starts_line(ctx: &DestackFormatContext<'_>, comment: Comment) -> bool
 }
 
 /// Return whether a trailing ignore gap contains only separators.
-fn trailing_ignore_gap_is_allowed(ctx: &DestackFormatContext<'_>, span: Span) -> bool {
+fn trailing_ignore_gap_is_allowed(ctx: &TsppFormatContext<'_>, span: Span) -> bool {
     ctx.source_text()
         .bytes_range(span.start, span.end)
         .iter()
@@ -148,7 +145,7 @@ fn trailing_ignore_gap_is_allowed(ctx: &DestackFormatContext<'_>, span: Span) ->
 
 /// Return one same-line trailing ignore directive for a node span.
 fn trailing_ignore_comment(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     node_span: Span,
     source_comments: &[Comment],
 ) -> Option<Comment> {
@@ -175,7 +172,7 @@ fn trailing_ignore_comment(
 
 /// Return one node's same-line trailing ignore directive.
 fn trailing_ignore_directive<T: Node + Clone>(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     node_id: LocalNodeId<T>,
 ) -> Option<Comment>
 where
@@ -193,7 +190,7 @@ where
 
 /// Return whether one node has a same-line trailing ignore directive.
 pub fn node_has_trailing_ignore_directive<T: Node + Clone>(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     node_id: LocalNodeId<T>,
 ) -> bool
 where
@@ -204,7 +201,7 @@ where
 
 /// Return whether one node has a same-line trailing line ignore directive.
 pub fn node_has_trailing_line_ignore_directive<T: Node + Clone>(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     node_id: LocalNodeId<T>,
 ) -> bool
 where
@@ -215,7 +212,7 @@ where
 
 /// Return whether one node has a prefix ignore directive.
 pub fn node_has_ignore_directive<T: Node + Clone>(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     node_id: LocalNodeId<T>,
 ) -> bool
 where
@@ -258,7 +255,7 @@ where
 
 /// Resolve an ignore range directive for a node.
 pub fn ignore_range_for_node<T: Node + Clone>(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     node_id: LocalNodeId<T>,
     source_comments: &[Comment],
 ) -> Option<Span>
@@ -309,10 +306,7 @@ where
 }
 
 /// Return the source span to preserve for one ignored node.
-fn ignored_node_span<T: Node + Clone>(
-    ctx: &DestackFormatContext<'_>,
-    node_id: LocalNodeId<T>,
-) -> Span
+fn ignored_node_span<T: Node + Clone>(ctx: &TsppFormatContext<'_>, node_id: LocalNodeId<T>) -> Span
 where
     Tree: TreeStore<T>,
 {
@@ -326,7 +320,7 @@ where
 
 /// Collect ignore ranges for a list of nodes keyed by node id.
 pub fn ignore_ranges_for_nodes<T: Node + Clone>(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     node_ids: &[LocalNodeId<T>],
     source_comments: &[Comment],
 ) -> HashMap<u32, Span>
@@ -344,7 +338,7 @@ where
 
 /// Return whether any node in a list has an ignore range.
 pub fn any_ignore_range_for_nodes<T: Node + Clone>(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     node_ids: &[LocalNodeId<T>],
     source_comments: &[Comment],
 ) -> bool
@@ -358,7 +352,7 @@ where
 }
 
 /// Return whether this file has a formatter ignore-file directive comment.
-pub fn has_file_ignore_directive(ctx: &DestackFormatContext<'_>) -> bool {
+pub fn has_file_ignore_directive(ctx: &TsppFormatContext<'_>) -> bool {
     if !ctx.has_ignore_directive_markers() {
         return false;
     }
@@ -384,7 +378,7 @@ pub fn has_file_ignore_directive(ctx: &DestackFormatContext<'_>) -> bool {
 
 /// Write one ignored node source range with formatter-managed indentation.
 pub fn write_ignored_node<'ast, T: Node + Clone>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<T>,
 ) -> FormatResult<()>
 where
@@ -396,7 +390,7 @@ where
 
 /// Find the matching ignore range end comment following a start offset.
 fn find_ignore_range_end(
-    ctx: &DestackFormatContext<'_>,
+    ctx: &TsppFormatContext<'_>,
     source_comments: &[Comment],
     start_offset: u32,
 ) -> Option<Comment> {

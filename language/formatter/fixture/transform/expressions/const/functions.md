@@ -6,11 +6,11 @@
 
 Const-only functions keep their phase marker before `function`.
 
-```ds
+```tspp
 const function layout<T, const Value: T>(): usize { return sizeOf<T>() + Value }
 ```
 
-```ds expected
+```tspp expected
 const function layout<T, const Value: T>(): usize {
     return sizeOf<T>() + Value;
 }
@@ -20,11 +20,11 @@ const function layout<T, const Value: T>(): usize {
 
 Const value parameters live in the generic parameter list.
 
-```ds
+```tspp
 function select<const Name: string>(): string { return Name }
 ```
 
-```ds expected
+```tspp expected
 function select<const Name: string>(): string {
     return Name;
 }

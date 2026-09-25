@@ -3,7 +3,7 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::str;
 
-use destack_source::{FileId, FileMetadata, FileType, Loader};
+use tspp_source::{FileId, FileMetadata, FileType, Loader};
 
 use crate::{
     Dependency, DestackFile, Edit, Repository, RepositoryError, Revision, WorkspaceLayout,

@@ -6,11 +6,11 @@
 
 Comments between method calls in chains are preserved.
 
-```ds
+```tspp
 obj.method() /* step 1 */ .transform() /* step 2 */ .result()
 ```
 
-```ds expected
+```tspp expected
 obj.method() /* step 1 */
     .transform() /* step 2 */
     .result();
@@ -20,11 +20,11 @@ obj.method() /* step 1 */
 
 When chains break, comments stay with their associated element.
 
-```ds line-width=50
+```tspp line-width=50
 data.filter(x => x.valid) /* now map */ .map(x => x.value)
 ```
 
-```ds expected
+```tspp expected
 data.filter((x) => x.valid) /* now map */
     .map((x) => x.value);
 ```

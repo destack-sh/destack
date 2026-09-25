@@ -1,10 +1,10 @@
 use std::sync::atomic::{AtomicU8, AtomicU64, AtomicUsize, Ordering};
 
-use destack_memory::MemoryRange;
-use destack_mir::TraceMap;
-use destack_serde::Reflect;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use tspp_memory::MemoryRange;
+use tspp_mir::TraceMap;
+use tspp_serde::Reflect;
 
 use crate::{
     Bitmap, HeapReference, ReferenceRange, SharedHeapReference, SmallSpanClass,

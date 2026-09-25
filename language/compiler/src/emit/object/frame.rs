@@ -1,7 +1,7 @@
-use destack_artifact::MirOptimized;
-use destack_mir as mir;
-use destack_program::object::{FramePlace, FramePoint, FrameSlot, FrameState, Point};
-use destack_source::ModuleId;
+use tspp_artifact::MirOptimized;
+use tspp_mir as mir;
+use tspp_program::object::{FramePlace, FramePoint, FrameSlot, FrameState, Point};
+use tspp_source::ModuleId;
 
 use crate::EmitError;
 

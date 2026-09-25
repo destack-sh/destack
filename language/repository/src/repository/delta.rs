@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use destack_artifact::SourceDependency;
+use tspp_artifact::SourceDependency;
 
 /// Source observations invalidated by one repository edit.
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

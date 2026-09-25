@@ -8,7 +8,7 @@ Range patterns use tight operator spacing.
 
 Range operators are attached to their bounds.
 
-```ds
+```tspp
 const label = match (value) {
     0 .. 10 => "small"
     0 ..= 10 => "inclusive"
@@ -19,7 +19,7 @@ const label = match (value) {
 }
 ```
 
-```ds expected
+```tspp expected
 const label = match (value) {
     0..10 => "small"
     0..=10 => "inclusive"
@@ -36,7 +36,7 @@ const label = match (value) {
 
 Identifier and path bounds keep member spacing.
 
-```ds
+```tspp
 const label = match (value) {
     MIN .. MAX => "local"
     Limits.Low ..= Limits.High => "shared"
@@ -44,7 +44,7 @@ const label = match (value) {
 }
 ```
 
-```ds expected
+```tspp expected
 const label = match (value) {
     MIN..MAX => "local"
     Limits.Low..=Limits.High => "shared"
@@ -58,14 +58,14 @@ const label = match (value) {
 
 Range patterns bind tighter than alternatives.
 
-```ds
+```tspp
 const isEdge = match (value) {
     0 .. 10 | 90 ..= 99 => true
     _ => false
 }
 ```
 
-```ds expected
+```tspp expected
 const isEdge = match (value) {
     0..10 | 90..=99 => true
     _ => false
@@ -78,7 +78,7 @@ const isEdge = match (value) {
 
 Comments around range pattern operators keep readable operator boundaries.
 
-```ds
+```tspp
 const label = match (value) {
     0 /* min */ ..= /* max */ 10 => "small"
     MIN /* low */ .. /* high */ MAX => "symbolic"
@@ -87,7 +87,7 @@ const label = match (value) {
 }
 ```
 
-```ds expected
+```tspp expected
 const label = match (value) {
     0 /* min */ ..= /* max */ 10 => "small"
     MIN /* low */ .. /* high */ MAX => "symbolic"

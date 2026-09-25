@@ -23,7 +23,7 @@ function run(values: int32[], points: Point[], view: &readonly int32[]): int32 {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -165,7 +165,7 @@ function copyManaged(target: int32[], source: int32[]): void {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -283,7 +283,7 @@ function copyManaged(target: int32[], source: int32[]): void {
 fn test_index_newtype_slices_through_place_generic_extensions() {
     let session = TestSession::builder()
         .module(
-            "packet.ds",
+            "packet.tspp",
             r#"
 export newtype Packet<T> = [T];
 
@@ -300,9 +300,9 @@ export extension<T> of Packet<T> implements Index<isize> {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Packet } from "./packet.ds";
+import { Packet } from "./packet.tspp";
 
 export extension<T: Copy> of Packet<T> implements Iterable<T> {
     /// Iterate copied values.
@@ -319,11 +319,11 @@ export extension<T: Copy> of Packet<T> implements Iterable<T> {
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Packet } from "./packet.ds";
+import { Packet } from "./packet.tspp";
 
 export extension<T: Copy> of Packet<T> implements Iterable<T> {
     /// Iterate copied values.
@@ -337,7 +337,7 @@ export extension<T: Copy> of Packet<T> implements Iterable<T> {
 }
 
 === dir ===
-import { Packet } from "./packet.ds";
+import { Packet } from "./packet.tspp";
 
 export extension<T: Copy> of Packet<T> implements Iterable<T> {
 /// @generic.template symbol=<module>#2 parameters=(T: Copy)

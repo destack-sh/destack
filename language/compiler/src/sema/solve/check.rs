@@ -1,6 +1,6 @@
-use destack_core::FxIndexMap;
-use destack_dir as dir;
 use smallvec::SmallVec;
+use tspp_core::FxIndexMap;
+use tspp_dir as dir;
 
 use crate::sema::{
     Cause, CauseId, CauseKind, CheckState, Expectation, FlowSite, GenericTemplateId,

@@ -1,10 +1,10 @@
-use destack_bytecode as bytecode;
-use destack_mir as mir;
-use destack_native as native;
-use destack_serde::Reflect;
-use destack_source::ModuleId;
-use destack_webassembly as wasm;
 use serde::{Deserialize, Serialize};
+use tspp_bytecode as bytecode;
+use tspp_mir as mir;
+use tspp_native as native;
+use tspp_serde::Reflect;
+use tspp_source::ModuleId;
+use tspp_webassembly as wasm;
 
 use super::{
     AllocationSite, CallSite, CounterSite, EdgeSite, FrameState, Function, Global, MemorySite,

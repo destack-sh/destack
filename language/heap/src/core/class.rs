@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 use super::size::{DEFAULT_MAX_SMALL_ALLOCATION_BYTES, DEFAULT_SIZE_CLASS_TABLE_CLASSES};
 use crate::{

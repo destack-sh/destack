@@ -3,9 +3,9 @@ use std::hash::Hash;
 use std::path::{Path, PathBuf};
 
 use crate::{LinkError, LinkResult};
-use destack_core::{StableHasher, stable_hash_bytes};
-use destack_repository::{JsOutputFormat, JsOutputMode, Module, Target};
-use destack_source::ModuleId;
+use tspp_core::{StableHasher, stable_hash_bytes};
+use tspp_repository::{JsOutputFormat, JsOutputMode, Module, Target};
+use tspp_source::ModuleId;
 
 use crate::link::{OutputFileNameValues, OutputLocation, TargetLocation, module_source_path};
 
@@ -407,8 +407,8 @@ impl<'a> JsLinker<'a> {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use destack_repository::{Module, Target};
-    use destack_source::{FileId, LanguageType, Loader, ModuleId, PackageId, Uri};
+    use tspp_repository::{Module, Target};
+    use tspp_source::{FileId, LanguageType, Loader, ModuleId, PackageId, Uri};
 
     use crate::link::{OutputLayout, TargetLocation};
 
@@ -472,13 +472,13 @@ mod tests {
         let target = Target::js();
         let package_id = PackageId::from_path(Path::new("pkg"));
         let module = Module::blank(
-            ModuleId::from_relative_path(package_id, Path::new("src/util/math.ds")),
-            FileId::from_logical_str("src/util/math.ds"),
-            Uri::from_path("src/util/math.ds"),
-            Some(PathBuf::from("src/util/math.ds")),
+            ModuleId::from_relative_path(package_id, Path::new("src/util/math.tspp")),
+            FileId::from_logical_str("src/util/math.tspp"),
+            Uri::from_path("src/util/math.tspp"),
+            Some(PathBuf::from("src/util/math.tspp")),
             package_id,
-            Some(LanguageType::Destack),
-            Loader::Destack,
+            Some(LanguageType::Tspp),
+            Loader::Tspp,
         );
 
         let output_path = OutputLayout::module_output_path(

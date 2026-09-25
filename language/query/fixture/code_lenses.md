@@ -5,49 +5,49 @@
 
 Functions receive a lens with their reference count.
 
-```ds main.ds
+```tspp main.tspp
 function ping(): void {}
          ^^^^ declaration
 
 ping();
 ```
 
-```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=references count=1
+```query code_lenses main.tspp
+@code_lenses.lens range=main.tspp#declaration action=references count=1
 ```
 
 ### Count current references
 
 Reference lenses count calls after each edit.
 
-```ds main.ds
+```tspp main.tspp
 function ping(): void {}
          ^^^^ declaration
 ```
 
-```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=references count=0
+```query code_lenses main.tspp
+@code_lenses.lens range=main.tspp#declaration action=references count=0
 ```
 
-```ds main.ds change
+```tspp main.tspp change
 function ping(): void {}
          ^^^^ declaration
 
 ping();
 ```
 
-```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=references count=1
+```query code_lenses main.tspp
+@code_lenses.lens range=main.tspp#declaration action=references count=1
 ```
 
-```diff main.ds
+```diff main.tspp
 @@ -4,1 +4,2 @@
  ping();
 +ping();
 ```
 
-```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=references count=2
+```query code_lenses main.tspp
+@code_lenses.lens range=main.tspp#declaration action=references count=2
 ```
 
 ## Implementations
@@ -56,7 +56,7 @@ ping();
 
 Interfaces and classes receive implementation lenses with their direct implementation counts.
 
-```ds main.ds
+```tspp main.tspp
 interface Animal {
           ^^^^^^ animal
     speak(): void;
@@ -71,17 +71,17 @@ class Puppy extends Dog {}
       ^^^^^ puppy
 ```
 
-```query code_lenses main.ds
-@code_lenses.lens range=main.ds#animal action=implementations count=1
-@code_lenses.lens range=main.ds#dog action=implementations count=1
-@code_lenses.lens range=main.ds#puppy action=implementations count=0
+```query code_lenses main.tspp
+@code_lenses.lens range=main.tspp#animal action=implementations count=1
+@code_lenses.lens range=main.tspp#dog action=implementations count=1
+@code_lenses.lens range=main.tspp#puppy action=implementations count=0
 ```
 
 ### Offer nominal interface implementations
 
 A nominal interface receives the same implementation lens as a structural interface.
 
-```ds main.ds
+```tspp main.tspp
 newtype interface Encode {
                   ^^^^^^ interface
     encode(): string;
@@ -94,8 +94,8 @@ struct Packet implements Encode {
 }
 ```
 
-```query code_lenses main.ds
-@code_lenses.lens range=main.ds#interface action=implementations count=1
+```query code_lenses main.tspp
+@code_lenses.lens range=main.tspp#interface action=implementations count=1
 ```
 
 ## Modules
@@ -104,19 +104,19 @@ struct Packet implements Encode {
 
 The defining module lens includes references from importing modules.
 
-```ds library.ds
+```tspp library.tspp
 export function ping(): void {}
                 ^^^^ declaration
 ```
 
-```ds main.ds
-import { ping } from "./library.ds";
+```tspp main.tspp
+import { ping } from "./library.tspp";
 
 ping();
 ```
 
-```query code_lenses library.ds
-@code_lenses.lens range=library.ds#declaration action=references count=2
+```query code_lenses library.tspp
+@code_lenses.lens range=library.tspp#declaration action=references count=2
 ```
 
 ## Zero Counts
@@ -125,39 +125,39 @@ ping();
 
 An unused function still receives a lens reporting zero references.
 
-```ds main.ds
+```tspp main.tspp
 function unused(): void {}
          ^^^^^^ declaration
 ```
 
-```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=references count=0
+```query code_lenses main.tspp
+@code_lenses.lens range=main.tspp#declaration action=references count=0
 ```
 
 ### Offer unimplemented interfaces
 
 An interface still receives a lens reporting zero implementations.
 
-```ds main.ds
+```tspp main.tspp
 interface Unimplemented {}
           ^^^^^^^^^^^^^ declaration
 ```
 
-```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=implementations count=0
+```query code_lenses main.tspp
+@code_lenses.lens range=main.tspp#declaration action=implementations count=0
 ```
 
 ### Offer classes without subclasses
 
 A class still receives a lens reporting zero implementations.
 
-```ds main.ds
+```tspp main.tspp
 class Standalone {}
       ^^^^^^^^^^ declaration
 ```
 
-```query code_lenses main.ds
-@code_lenses.lens range=main.ds#declaration action=implementations count=0
+```query code_lenses main.tspp
+@code_lenses.lens range=main.tspp#declaration action=implementations count=0
 ```
 
 ## Empty Results
@@ -166,10 +166,10 @@ class Standalone {}
 
 Variable bindings and their lambda initializers do not receive code lenses.
 
-```ds main.ds
+```tspp main.tspp
 const value = (): int32 => 1;
 ```
 
-```query code_lenses main.ds
+```query code_lenses main.tspp
 @code_lenses.none
 ```

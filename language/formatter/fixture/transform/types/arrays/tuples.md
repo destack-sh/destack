@@ -6,11 +6,11 @@
 
 Tuple types keep parentheses and commas.
 
-```ds
+```tspp
 type Point = (int32, int32)
 ```
 
-```ds expected
+```tspp expected
 type Point = (int32, int32);
 ```
 
@@ -18,11 +18,11 @@ type Point = (int32, int32);
 
 Singleton tuple types keep the required trailing comma.
 
-```ds
+```tspp
 type Single = (value: int32,)
 ```
 
-```ds expected
+```tspp expected
 type Single = (value: int32,);
 ```
 
@@ -30,11 +30,11 @@ type Single = (value: int32,);
 
 Tuple return types keep parentheses in signatures.
 
-```ds
+```tspp
 function point(): (x: int32, y: int32) { return (0, 0) }
 ```
 
-```ds expected
+```tspp expected
 function point(): (x: int32, y: int32) {
     return (0, 0);
 }
@@ -44,12 +44,12 @@ function point(): (x: int32, y: int32) {
 
 Parenthesized tuples and bracketed slices preserve their spelling.
 
-```ds
+```tspp
 type Pair = (left: string, right: string)
 type Values = [string]
 ```
 
-```ds expected
+```tspp expected
 type Pair = (left: string, right: string);
 type Values = [string];
 ```
@@ -58,11 +58,11 @@ type Values = [string];
 
 Ownership types keep their spelling inside interface members.
 
-```ds
+```tspp
 interface BufferView { borrow(): &readonly Buffer; take(value: ^Buffer): void; raw: *readonly Raw }
 ```
 
-```ds expected
+```tspp expected
 interface BufferView {
     borrow(): &readonly Buffer;
     take(value: ^Buffer): void;
@@ -74,11 +74,11 @@ interface BufferView {
 
 Tuple members with ownership types break one member per line when they exceed the width.
 
-```ds line-width=56
+```tspp line-width=56
 type Handles = (borrowed: &readonly VeryLongBufferName, owned: ^VeryLongResultName, raw: *readonly VeryLongRawName)
 ```
 
-```ds expected
+```tspp expected
 type Handles = (
     borrowed: &readonly VeryLongBufferName,
     owned: ^VeryLongResultName,
@@ -90,10 +90,10 @@ type Handles = (
 
 Nested conditional types preserve parentheses.
 
-```ds:main.ds
+```tspp:main.tspp
 type Nested<T> = T extends string ? (T extends "a" ? 1 : 2) : 3
 ```
 
-```ds expected
+```tspp expected
 type Nested<T> = T extends string ? (T extends "a" ? 1 : 2) : 3;
 ```

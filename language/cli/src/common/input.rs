@@ -2,8 +2,8 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 
 use clap::Args;
-use destack_source::LanguageType;
-use destack_workspace::CommandInput;
+use tspp_source::LanguageType;
+use tspp_workspace::CommandInput;
 
 use crate::diagnostic::{ConsoleError, ConsoleResult};
 
@@ -30,8 +30,8 @@ pub struct InputArgs {
     pub eval: Vec<String>,
 
     /// Named module as name:code (can be specified multiple times).
-    /// Example: --module 'foo:export const x = 1' creates foo.ds
-    /// Include the declaration extension when needed: --module 'bar.d.ds:export type X = int32'
+    /// Example: --module 'foo:export const x = 1' creates foo.tspp
+    /// Include the declaration extension when needed: --module 'bar.d.tspp:export type X = int32'
     #[arg(short = 'm', long = "module")]
     pub module: Vec<String>,
 
@@ -39,7 +39,7 @@ pub struct InputArgs {
     #[arg(long)]
     pub stdin: bool,
 
-    /// File format for `--eval` and `--stdin` (`ds` or `d.ds`, default: `ds`).
+    /// File format for `--eval` and `--stdin` (`tspp` or `d.tspp`, default: `tspp`).
     #[arg(id = "file_type", long = "type", value_name = "TYPE")]
     pub file_type: Option<String>,
 }
@@ -73,7 +73,7 @@ impl InputArgs {
     pub fn to_sources(&self) -> ConsoleResult<Vec<InputSource>> {
         // collect sources in stable command order
         let mut sources = Vec::new();
-        let default_extension = self.file_type.as_deref().unwrap_or("ds");
+        let default_extension = self.file_type.as_deref().unwrap_or("tspp");
 
         // add physical files first
         for path in &self.files {
@@ -122,7 +122,7 @@ impl InputArgs {
 
     /// Return the source language selected by the format argument.
     fn language_type(&self) -> ConsoleResult<LanguageType> {
-        let format_name = self.file_type.as_deref().unwrap_or("ds");
+        let format_name = self.file_type.as_deref().unwrap_or("tspp");
         let language = LanguageType::from_extension(format_name).ok_or_else(|| {
             ConsoleError::message(format!("unsupported input file type '{format_name}'"))
         })?;
@@ -219,7 +219,7 @@ impl InputSource {
                         ConsoleError::message(format!("failed to read stdin: {error}"))
                     })?;
 
-                // require the synthetic source name to identify a Destack language
+                // require the synthetic source name to identify a TS++ language
                 let path = Path::new(name);
                 let language = LanguageType::from_path(path).ok_or_else(|| {
                     ConsoleError::message(format!(

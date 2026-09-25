@@ -1,7 +1,7 @@
-use destack_core::FxIndexSet;
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -178,10 +178,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 }
 
 /// Build one readonly field annotation.
-fn suggestion(
-    lint: &Lint,
-    name: destack_source::Span,
-) -> Result<DiagnosticSuggestion, ProviderError> {
+fn suggestion(lint: &Lint, name: tspp_source::Span) -> Result<DiagnosticSuggestion, ProviderError> {
     let patch = Patch::insert(name.file, name.start, "readonly ");
 
     lint.fix("mark the field readonly", patch)
@@ -464,7 +461,7 @@ extension of Counter {
         let session = TestSession::dir(
             &PREFER_READONLY,
             r#"
-import { todo } from "destack:error";
+import { todo } from "tspp:error";
 
 class Counter {
     private value: int32 = 0;
@@ -487,8 +484,8 @@ extension of Counter {
         let session = TestSession::dir(
             &PREFER_READONLY,
             r#"
-import { ContextVar } from "destack:context";
-import { Dynamic, DynamicSafe } from "destack:memory";
+import { ContextVar } from "tspp:context";
+import { Dynamic, DynamicSafe } from "tspp:memory";
 
 /// One dynamically scoped binding family.
 export class Binding<T: DynamicSafe> extends ContextVar<Dynamic<T>> {

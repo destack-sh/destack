@@ -1,7 +1,7 @@
 use crate::{Asynchrony, Keyword, LocalNodeId, Parameter};
 
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// The role of a function.
 #[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize, Reflect)]

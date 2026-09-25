@@ -13,7 +13,7 @@ function choose(value: int32 | undefined): int32 | undefined {
 "#,
     );
 
-    session.assert_mir_lowered("main.ds", r#"
+    session.assert_mir_lowered("main.tspp", r#"
 function test.main.choose(v0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }): variant<uint1> { 0uint1 = int32; 1uint1 = void; } {
     local l0: variant<uint1> { 0uint1 = int32; 1uint1 = void; }
     local l1: variant<uint1> { 0uint1 = int32; 1uint1 = void; }, readonly
@@ -56,7 +56,7 @@ function keep(value: int32 | boolean | float64): int32 | boolean | float64 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.keep", r#"
+    session.assert_mir_function("main.tspp", "test.main.keep", r#"
 function test.main.keep(v0: variant<uint2> { 0uint2 = int32; 1uint2 = boolean; 2uint2 = float64; }): variant<uint2> { 0uint2 = int32; 1uint2 = boolean; 2uint2 = float64; } {
     local l0: variant<uint2> { 0uint2 = int32; 1uint2 = boolean; 2uint2 = float64; }
 
@@ -97,7 +97,7 @@ function keep(shape: Shape): Shape {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.keep",
         r#"
 type test.main.Shape = newtype<variant<uint1> { 0uint1 = test.main.Circle; 1uint1 = test.main.Square; }>;
@@ -128,7 +128,7 @@ function forget(): boolean | undefined {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.keep", r#"
+    session.assert_mir_function("main.tspp", "test.main.keep", r#"
 function test.main.keep(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }): variant<uint1> { 0uint1 = boolean; 1uint1 = void; } {
     local l0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }
 
@@ -144,7 +144,7 @@ entry(v0: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }):
 /// @layout.case owner=type@3 index=1 discriminant=1 payload_offset=0
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.forget", r#"
+    session.assert_mir_function("main.tspp", "test.main.forget", r#"
 function test.main.forget(): variant<uint1> { 0uint1 = boolean; 1uint1 = void; } {
 entry:
     v0: void = zeroed
@@ -182,7 +182,7 @@ function make(radius: float64): Shape {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.make",
         r#"
 type test.main.Circle {
@@ -248,7 +248,7 @@ function pending(): Status {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.pending",
         r#"
 type test.main.Ready {
@@ -305,7 +305,7 @@ function value(chosen: int32): Selector {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.value", r#"
+    session.assert_mir_function("main.tspp", "test.main.value", r#"
 type literal.string.value { }
 
 type literal.string.flag { }
@@ -354,7 +354,7 @@ function keep(listener: Listener): Listener | undefined {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Listener.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Listener.constructor", r#"
 @nocopy
 type test.main.Listener {
     value: int32;
@@ -375,7 +375,7 @@ entry(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>):
 /// @layout.field owner=test.main.Listener index=0 name=value offset=0 size=4 align=4
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.keep", r#"
+    session.assert_mir_function("main.tspp", "test.main.keep", r#"
 @nocopy
 type test.main.Listener {
     value: int32;
@@ -421,7 +421,7 @@ function forward(listener: Listener): boolean {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Listener.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Listener.constructor", r#"
 @nocopy
 type test.main.Listener {
     value: int32;
@@ -443,7 +443,7 @@ entry(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>):
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.accept",
         r#"
 @nocopy
@@ -473,7 +473,7 @@ entry(v0: variant<uint1> { 0uint1 = ref<test.main.Listener, managed, mutable, lo
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.forward",
         r#"
 @nocopy
@@ -516,7 +516,7 @@ function keep(listener: Listener): Listener | undefined {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Listener.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Listener.constructor", r#"
 @nocopy
 type test.main.Listener {
     value: int32;
@@ -537,7 +537,7 @@ entry(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>):
 /// @layout.field owner=test.main.Listener index=0 name=value offset=0 size=4 align=4
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.keep", r#"
+    session.assert_mir_function("main.tspp", "test.main.keep", r#"
 @nocopy
 type test.main.Listener {
     value: int32;
@@ -580,7 +580,7 @@ function read(head: Listener | undefined): int32 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Listener.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Listener.constructor", r#"
 @nocopy
 type test.main.Listener {
     value: int32;
@@ -602,7 +602,7 @@ entry(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>):
 "#);
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 @nocopy
@@ -653,7 +653,7 @@ function keep(flag: boolean): boolean | undefined {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.keep", r#"
+    session.assert_mir_function("main.tspp", "test.main.keep", r#"
 function test.main.keep(v0: boolean): variant<uint1> { 0uint1 = boolean; 1uint1 = void; } {
     local l0: boolean
     local l1: variant<uint1> { 0uint1 = boolean; 1uint1 = void; }
@@ -695,7 +695,7 @@ function keep(circle: Circle): Drawable | undefined {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Circle.draw",
         r#"
 @nocopy
@@ -713,7 +713,7 @@ entry(v0: ref<test.main.Circle, managed, mutable, local>):
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.keep", r#"
+    session.assert_mir_function("main.tspp", "test.main.keep", r#"
 @nocopy
 type test.main.Circle { }
 
@@ -757,7 +757,7 @@ function isHead(head: Listener | undefined, listener: Listener): boolean {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Listener.constructor", r#"
+    session.assert_mir_function("main.tspp", "test.main.Listener.constructor", r#"
 @nocopy
 type test.main.Listener {
     value: int32;
@@ -778,7 +778,7 @@ entry(v0: ref<uninit<test.main.Listener>, borrowed, 'a, exclusive>):
 /// @layout.field owner=test.main.Listener index=0 name=value offset=0 size=4 align=4
 "#);
 
-    session.assert_mir_function("main.ds", "test.main.isHead", r#"
+    session.assert_mir_function("main.tspp", "test.main.isHead", r#"
 @nocopy
 type test.main.Listener {
     value: int32;
@@ -852,7 +852,7 @@ function read(meter: &readonly Meter): Label {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 type test.main.Meter {
@@ -930,7 +930,7 @@ function differs(shape: Shape): boolean {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.circle",
         r#"
 type literal.string.circle { }
@@ -946,7 +946,7 @@ entry:
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.key",
         r#"
 type literal.string.kind { }
@@ -962,7 +962,7 @@ entry:
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.kind",
         r#"
 type test.main.Circle {
@@ -1024,7 +1024,7 @@ b4:
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.computedKind",
         r#"
 type test.main.Circle {
@@ -1090,7 +1090,7 @@ b4:
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.label",
         r#"
 type test.main.Circle {
@@ -1152,7 +1152,7 @@ b4:
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.matches",
         r#"
 type test.main.Circle {
@@ -1199,7 +1199,7 @@ entry(v0: test.main.Shape):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.differs",
         r#"
 type test.main.Circle {
@@ -1277,7 +1277,7 @@ function radius(shape: &readonly Shape): float64 {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.radius", r#"
+    session.assert_mir_function("main.tspp", "test.main.radius", r#"
 type test.main.Circle {
     kind: literal.string.circle;
     radius: float64;
@@ -1358,7 +1358,7 @@ function read(state: Outer<int32>): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.read",
         r#"
 type test.main.Waiting {
@@ -1432,7 +1432,7 @@ function pick(options: Options | undefined): Context | undefined {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.pick", r#"
+    session.assert_mir_function("main.tspp", "test.main.pick", r#"
 type test.main.Context {
     id: int32;
 }
@@ -1489,7 +1489,7 @@ function pick(options?: Options): Context | undefined {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.pick", r#"
+    session.assert_mir_function("main.tspp", "test.main.pick", r#"
 type test.main.Context {
     id: int32;
 }
@@ -1547,7 +1547,7 @@ function pick(options: Options): Context | undefined {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.pick",
         r#"
 type test.main.Context {
@@ -1605,7 +1605,7 @@ export extension of Either {
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.Either.text", r#"
+    session.assert_mir_function("main.tspp", "test.main.Either.text", r#"
 type test.main.Left = newtype<{ name: literal.string.Left, message: ref<String, managed, mutable, local> }>;
 
 type literal.string.Left { }
@@ -1704,7 +1704,7 @@ export extension of Either {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Either.text",
         r#"
 @nocopy
@@ -1783,7 +1783,7 @@ b10:
 /// @layout.case owner=type@10 index=1 discriminant=1 payload_offset=0
 "#,
     );
-    session.assert_mir_function("main.ds", "test.main.Either.text", r#"
+    session.assert_mir_function("main.tspp", "test.main.Either.text", r#"
 @nocopy
 @languageItem("string.String")
 type String;
@@ -1876,7 +1876,7 @@ function keep(target: Target): Target {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.keep",
         r#"
 type test.main.Target = newtype<variant<uint1> { 0uint1 = ref<{ kind: literal.string.any }, managed, mutable, local>; 1uint1 = ref<{ kind: literal.string.entity, selector: variant<uint1> { 0uint1 = ref<{ kind: literal.string.all }, managed, mutable, local>; 1uint1 = ref<{ kind: literal.string.nested, inner: variant<uint2> { 0uint2 = ref<{ kind: literal.string.all }, managed, mutable, local>; 1uint2 = type@15; 2uint2 = void; } }, managed, mutable, local>; } }, managed, mutable, local>; }>;
@@ -1914,7 +1914,7 @@ function orElse(value: Json | undefined, fallback: Json): Json {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.orElse",
         r#"
 type test.main.Json = newtype<variant<uint2> { 0uint2 = ref<{ kind: literal.string.null }, managed, mutable, local>; 1uint2 = ref<{ kind: literal.string.boolean, value: boolean }, managed, mutable, local>; 2uint2 = ref<{ kind: literal.string.array, value: ref<Array<test.main.Json>, managed, readonly, local> }, managed, mutable, local>; 3uint2 = ref<{ kind: literal.string.object, value: dynamic<{  }, managed, mutable, local> }, managed, mutable, local>; }>;
@@ -1978,7 +1978,7 @@ function hasLocal(): boolean {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.hasStored",
         r#"
 type test.main.Slot {
@@ -2003,7 +2003,7 @@ entry(v0: ref<test.main.Slot, borrowed, 'a, readonly>):
 "#,
     );
 
-    session.assert_mir_function("main.ds", "test.main.hasLocal", r#"
+    session.assert_mir_function("main.tspp", "test.main.hasLocal", r#"
 @nocopy
 @languageItem("collections.Array")
 type Array<T>;
@@ -2056,7 +2056,7 @@ function settle(state: Outer<int32>): Inner<int32> {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.settle",
         r#"
 type test.main.Waiting {
@@ -2129,7 +2129,7 @@ b6:
 "#,
     );
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.settle",
         r#"
 type test.main.Waiting {

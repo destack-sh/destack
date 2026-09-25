@@ -6,11 +6,11 @@
 
 Spaces after `(` and before `)` should be removed.
 
-```ds
+```tspp
 foo( a, b, c )
 ```
 
-```ds expected
+```tspp expected
 foo(a, b, c);
 ```
 
@@ -18,11 +18,11 @@ foo(a, b, c);
 
 Short calls remain on a single line.
 
-```ds
+```tspp
 foo(a, b, c)
 ```
 
-```ds expected
+```tspp expected
 foo(a, b, c);
 ```
 
@@ -30,11 +30,11 @@ foo(a, b, c);
 
 Empty argument lists have all spaces removed.
 
-```ds
+```tspp
 foo(   )
 ```
 
-```ds expected
+```tspp expected
 foo();
 ```
 
@@ -42,7 +42,7 @@ foo();
 
 Blank lines between the callee and argument list are removed.
 
-```ds:main.ds
+```tspp:main.tspp
 gen
 
     ("a");
@@ -54,7 +54,7 @@ gen
       "b");
 ```
 
-```ds expected
+```tspp expected
 gen("a");
 
 gen("b");
@@ -64,11 +64,11 @@ gen("b");
 
 Single arguments have internal spacing removed.
 
-```ds
+```tspp
 foo(   x   )
 ```
 
-```ds expected
+```tspp expected
 foo(x);
 ```
 
@@ -76,11 +76,11 @@ foo(x);
 
 Calls on parenthesized instantiation expressions keep the parentheses.
 
-```ds:main.ds
+```tspp:main.tspp
 const value = (makeFactory<number>)(config)
 ```
 
-```ds expected
+```tspp expected
 const value = makeFactory<number>(config);
 ```
 
@@ -90,11 +90,11 @@ const value = makeFactory<number>(config);
 
 Optional chaining uses `?.` for nullable access.
 
-```ds
+```tspp
 obj?.method()
 ```
 
-```ds expected
+```tspp expected
 obj?.method();
 ```
 
@@ -104,11 +104,11 @@ obj?.method();
 
 Spread operator expands arrays into arguments.
 
-```ds
+```tspp
 foo(...args)
 ```
 
-```ds expected
+```tspp expected
 foo(...args);
 ```
 
@@ -116,10 +116,10 @@ foo(...args);
 
 Spread can appear anywhere in the argument list.
 
-```ds
+```tspp
 foo(a, b, ...rest, c)
 ```
 
-```ds expected
+```tspp expected
 foo(a, b, ...rest, c);
 ```

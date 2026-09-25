@@ -1,11 +1,11 @@
-use destack_program as program;
+use tspp_program as program;
 
 use crate::diagnostic::{RuntimeError, RuntimeResult};
 use crate::runtime::RuntimeId;
 use crate::worker::WorkerId;
 use crate::world::WorldState;
 use crate::world::topology::Topology;
-use destack_repository::{ConditionSet, ExecutionMode};
+use tspp_repository::{ConditionSet, ExecutionMode};
 
 use super::{Decision, Subject};
 

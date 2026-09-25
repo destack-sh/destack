@@ -42,7 +42,7 @@ const PLATFORM_TARGETS: PlatformTarget[] = [
 ];
 
 /** The CLI binary names expected in each target package. */
-const BINARY_NAMES = ["destack", "ds", "dsc"];
+const BINARY_NAMES = ["destack", "tspp", "tsppc"];
 
 /** Resolve platform targets from DESTACK_RELEASE_TARGETS when provided. */
 function resolveActivePlatformTargets(): PlatformTarget[] {

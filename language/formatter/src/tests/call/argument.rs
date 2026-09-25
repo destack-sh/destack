@@ -1,7 +1,7 @@
 use crate::{
-    DestackFormatOptions, assert_format_program, assert_format_roundtrip, parse_first_expression,
+    TsppFormatOptions, assert_format_program, assert_format_roundtrip, parse_first_expression,
 };
-use destack_source::FileType;
+use tspp_source::FileType;
 
 /// Malformed call argument slots should preserve their authored source.
 #[test]
@@ -9,7 +9,7 @@ fn test_format_recovered_call_argument() {
     assert_format_roundtrip!(
         "consume(1, , 3)",
         "consume(1, , 3)",
-        FileType::Destack,
+        FileType::Tspp,
         parse_first_expression,
     );
 }
@@ -22,7 +22,7 @@ fn test_format_decorated_call_argument() {
 "#,
         r#"call(@if(true) value);
 "#,
-        FileType::Destack,
+        FileType::Tspp,
     );
 }
 
@@ -41,8 +41,8 @@ fn test_format_multiline_tree_argument_forces_expanded_call_layout() {
   </div>,
 );
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }
 
@@ -54,7 +54,7 @@ fn test_format_tree_preserves_generic_tag_arguments() {
 "#,
         r#"const view = fn(<Foo<Bar> />);
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(80).with_indent_width(2)
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(80).with_indent_width(2)
     );
 }

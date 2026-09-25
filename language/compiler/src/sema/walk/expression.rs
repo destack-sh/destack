@@ -1,5 +1,5 @@
-use destack_dir as dir;
 use smallvec::SmallVec;
+use tspp_dir as dir;
 
 use crate::sema::{AssignedPlace, ConditionBranch, ElisionSite, FlowBranch, PlaceUse, WalkState};
 use crate::{CompilerError, CompilerResult};
@@ -8,7 +8,7 @@ impl WalkState<'_, '_> {
     /// Walk one expression.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// value + 1
     /// ```
     pub(in crate::sema) fn walk_expression(
@@ -499,7 +499,7 @@ impl WalkState<'_, '_> {
     /// Walk one if expression.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// if condition { then } else { otherwise }
     /// ```
     fn walk_if_expression(
@@ -550,7 +550,7 @@ impl WalkState<'_, '_> {
     /// Walk one condition.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// if let Some(value) = option { value }
     /// ```
     fn walk_condition(&mut self, condition: &dir::Condition) -> CompilerResult<()> {
@@ -595,7 +595,7 @@ impl WalkState<'_, '_> {
     /// Walk one range expression.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// start..end
     /// ```
     fn walk_range_expression(
@@ -617,7 +617,7 @@ impl WalkState<'_, '_> {
     /// Walk one template literal's interpolated arguments.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// `hello ${name}`
     /// ```
     fn walk_template_literal(&mut self, value: &dir::TemplateLiteral) -> CompilerResult<()> {
@@ -633,7 +633,7 @@ impl WalkState<'_, '_> {
     /// Walk one binary expression.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// left + right
     /// ```
     fn walk_binary_expression(
@@ -663,7 +663,7 @@ impl WalkState<'_, '_> {
     /// Walk one assignment expression.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// target = value
     /// ```
     fn walk_assign_expression(
@@ -703,7 +703,7 @@ impl WalkState<'_, '_> {
     /// Walk one assignment pattern against its assigned value.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// { x, y: z } = point
     /// ```
     fn walk_assign_pattern(

@@ -1,6 +1,6 @@
-use destack_artifact::{ArtifactDependencySet, ArtifactPayload, Data};
-use destack_source::{File, FileType, ModuleId, Span};
 use std::sync::Arc;
+use tspp_artifact::{ArtifactDependencySet, ArtifactPayload, Data};
+use tspp_source::{File, FileType, ModuleId, Span};
 
 use crate::{ProviderAttempt, SessionError, SessionState};
 

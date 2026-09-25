@@ -1,0 +1,36 @@
+// SYNTAX TEST "source.tspp"
+
+// runtime / modules / import meta and module settings
+const runtime = import.meta.runtime;
+//              ^^^^^^ keyword.declaration.import.tspp
+
+module {
+// <- keyword.declaration.type.tspp
+    const role = "server";
+    const labels = {
+        feature: ["search", "billing"],
+    };
+}
+
+@noHeap
+// <~------ entity.name.function.decorator.tspp
+module {
+    const product = "editor";
+}
+
+import.meta.role satisfies "server";
+//          ^^^^ variable.other.member.tspp
+//               ^^^^^^^^^ keyword.operator.type.binary.tspp
+
+// runtime / modules / binary and text dependencies
+import data from "./schema.json" with { type: "json" };
+// <- keyword.declaration.import.tspp
+
+export * as runtimeConfig from "./config.tspp";
+// <- keyword.declaration.import.tspp
+
+global {
+// <- keyword.declaration.type.tspp
+    export { Add, Subtract } from "tspp:ops";
+//  ^^^^^^ keyword.declaration.import.tspp
+}

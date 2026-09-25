@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
-use destack_artifact::MirDeclared;
-use destack_mir as mir;
-use destack_source::ModuleId;
+use tspp_artifact::MirDeclared;
+use tspp_mir as mir;
+use tspp_source::ModuleId;
 
 use crate::instantiate::state::InstantiateState;
 

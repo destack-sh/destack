@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_source::{NodeSpanRegion, Patch};
+use tspp_dir as dir;
+use tspp_source::{NodeSpanRegion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -97,7 +97,7 @@ function identity<T: unknown>(value: T): T {
         session.assert_diagnostics(
             r#"
 warning[no-redundant-type-constraint]: generic constraint is implied
- ──▶ main.ds:1:22
+ ──▶ main.tspp:1:22
   │
 1 │ function identity<T: unknown>(value: T): T {
   │                      ^^^^^^^
@@ -106,8 +106,8 @@ warning[no-redundant-type-constraint]: generic constraint is implied
   │
 
  = fix: remove the redundant constraint
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
 -   1│ function identity<T: unknown>(value: T): T {
 +   1│ function identity<T>(value: T): T {

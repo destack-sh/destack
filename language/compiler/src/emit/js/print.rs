@@ -1,8 +1,8 @@
 use crate::EmitError;
-use destack_artifact::DirParsed;
-use destack_fir as fir;
-use destack_js as js;
-use destack_source::File;
+use tspp_artifact::DirParsed;
+use tspp_fir as fir;
+use tspp_js as js;
+use tspp_source::File;
 
 /// One printed JS module payload.
 #[derive(Debug, Clone)]

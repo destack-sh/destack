@@ -97,7 +97,7 @@ impl Build {
     fn id(&self) -> Result<[u8; BUILD_ID_BYTES], Box<dyn Error>> {
         // hash the compiler configuration
         let mut hasher = blake3::Hasher::new();
-        hasher.update(b"destack.build.v1\0");
+        hasher.update(b"tspp.build.v1\0");
         for (name, value) in &self.configuration {
             Self::update(&mut hasher, name.as_bytes());
             Self::update(&mut hasher, value.as_bytes());

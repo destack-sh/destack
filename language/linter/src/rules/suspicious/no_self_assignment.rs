@@ -1,5 +1,5 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -186,7 +186,7 @@ function retain(point: Point): void {
         session.assert_diagnostics(
             r#"
 warning[no-self-assignment]: assignment writes a value back to the same place
- ──▶ main.ds:5:5
+ ──▶ main.tspp:5:5
   │
 3 │ }
 4 │ function retain(point: Point): void {
@@ -216,7 +216,7 @@ function retain(point: Point): void {
         session.assert_diagnostics(
             r#"
 warning[no-self-assignment]: assignment writes a value back to the same place
- ──▶ main.ds:5:6
+ ──▶ main.tspp:5:6
   │
 3 │ }
 4 │ function retain(point: Point): void {
@@ -281,7 +281,7 @@ function retain(value: boolean | undefined): boolean | undefined {
         session.assert_diagnostics(
             r#"
 warning[no-self-assignment]: assignment writes a value back to the same place
- ──▶ main.ds:3:5
+ ──▶ main.tspp:3:5
   │
 1 │ function retain(value: boolean | undefined): boolean | undefined {
 2 │     let result = value;
@@ -292,7 +292,7 @@ warning[no-self-assignment]: assignment writes a value back to the same place
   │
 
 warning[no-self-assignment]: assignment writes a value back to the same place
- ──▶ main.ds:4:5
+ ──▶ main.tspp:4:5
   │
 2 │     let result = value;
 3 │     result &&= result;
@@ -303,7 +303,7 @@ warning[no-self-assignment]: assignment writes a value back to the same place
   │
 
 warning[no-self-assignment]: assignment writes a value back to the same place
- ──▶ main.ds:5:5
+ ──▶ main.tspp:5:5
   │
 3 │     result &&= result;
 4 │     result ||= result;

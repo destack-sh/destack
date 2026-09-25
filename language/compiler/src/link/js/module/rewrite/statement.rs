@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
 use crate::emit::js;
-use destack_core::StringId;
-use destack_dir as dir;
+use tspp_core::StringId;
+use tspp_dir as dir;
 
 use super::linker::Rewriter;
 

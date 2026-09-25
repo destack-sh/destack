@@ -3,9 +3,9 @@ use std::fmt::{self, Display, Formatter};
 use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 
-use destack_source::FileSystem;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
+use tspp_source::FileSystem;
 
 use super::SETTINGS_FILE_NAME;
 
@@ -183,7 +183,7 @@ impl Error for SettingsError {}
 mod tests {
     use std::path::Path;
 
-    use destack_source::MemoryFileSystem;
+    use tspp_source::MemoryFileSystem;
 
     use super::*;
 

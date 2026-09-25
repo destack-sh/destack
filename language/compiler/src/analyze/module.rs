@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_artifact::{MirAnalyzed, MirElaborated};
-use destack_mir as mir;
+use tspp_artifact::{MirAnalyzed, MirElaborated};
+use tspp_mir as mir;
 
 use crate::{CompilerError, CompilerResult};
 

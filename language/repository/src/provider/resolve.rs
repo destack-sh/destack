@@ -1,4 +1,4 @@
-use destack_artifact::{
+use tspp_artifact::{
     ArtifactDependency, ArtifactDependencySet, ArtifactKey, ArtifactOutcome, ArtifactRequirement,
     ArtifactVersion,
 };

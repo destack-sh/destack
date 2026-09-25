@@ -1,0 +1,135 @@
+import { Slice } from "tspp:collections";
+import { From } from "tspp:convert";
+import { Result, todo } from "tspp:error";
+import { AllocationError, Default, MaybeUninit } from "tspp:memory";
+
+import { StringSlice } from "./slice.tspp";
+
+/// Mutable string builder with growable backing storage.
+@languageItem("string.StringBuilder")
+export class StringBuilder {
+    /// The owned UTF-16 code units.
+    private codeUnits: ^[MaybeUninit<uint16>] = Slice.new();
+
+    /// The initialized code-unit count.
+    private initializedLength: usize = 0;
+
+    /// The allocated code-unit capacity.
+    private allocatedCapacity: usize = 0;
+}
+
+export extension of StringBuilder implements Default {
+    /// Return the number of UTF-16 code units.
+    get length(&readonly this): isize {
+        todo("StringBuilder.length")
+    }
+
+    /// Return the allocated UTF-16 code-unit count.
+    get capacity(&readonly this): usize {
+        todo("StringBuilder.capacity")
+    }
+
+    /// Return whether the builder is empty.
+    get isEmpty(&readonly this): boolean {
+        todo("StringBuilder.isEmpty")
+    }
+
+    /// Create an empty string builder.
+    static new(): ^StringBuilder {
+        todo("StringBuilder.new")
+    }
+
+    /// Create a string builder with at least `capacity` UTF-16 code units.
+    static withCapacity(capacity: usize): ^StringBuilder {
+        todo("StringBuilder.withCapacity")
+    }
+
+    /// Create the default string builder.
+    static default(): ^StringBuilder {
+        StringBuilder.new()
+    }
+
+    /// Create a string builder from owned text.
+    static from(value: string): ^StringBuilder {
+        StringBuilder.from(value.borrow())
+    }
+
+    /// Create a string builder from borrowed text.
+    static from(value: &readonly StringSlice): ^StringBuilder {
+        todo("StringBuilder.from")
+    }
+
+    /// Remove all text.
+    clear(&this): void {
+        todo("StringBuilder.clear");
+    }
+
+    /// Reserve at least `additional` more UTF-16 code units.
+    reserve(&this, additional: usize): void {
+        todo("StringBuilder.reserve");
+    }
+
+    /// Reserve exactly `additional` more UTF-16 code units.
+    reserveExact(&this, additional: usize): void {
+        todo("StringBuilder.reserveExact");
+    }
+
+    /// Try to reserve at least `additional` more UTF-16 code units.
+    tryReserve(&this, additional: usize): Result<void, AllocationError> {
+        todo("StringBuilder.tryReserve")
+    }
+
+    /// Release capacity beyond the initialized UTF-16 code units.
+    shrinkToFit(&this): void {
+        todo("StringBuilder.shrinkToFit");
+    }
+
+    /// Append text.
+    append(&this, value: &readonly StringSlice): void {
+        todo("StringBuilder.append");
+    }
+
+    /// Append one Unicode scalar value.
+    appendChar(&this, value: char): void {
+        todo("StringBuilder.appendChar");
+    }
+
+    /// Append one Unicode code point.
+    appendCodePoint(&this, value: uint32): void {
+        todo("StringBuilder.appendCodePoint");
+    }
+
+    /// Return the current text without consuming the builder.
+    toString(&readonly this): ^string {
+        todo("StringBuilder.toString")
+    }
+
+    /// Consume the builder and return its string.
+    intoString(^this): ^string {
+        todo("StringBuilder.intoString")
+    }
+}
+
+export extension of StringBuilder implements From<string>, From<&readonly StringSlice> {
+    /// Create a managed string builder from owned text.
+    static from(value: string): StringBuilder {
+        StringBuilder.from(value)
+    }
+
+    /// Create a managed string builder from borrowed text.
+    static from(value: &readonly StringSlice): StringBuilder {
+        StringBuilder.from(value)
+    }
+}
+
+export extension of ^StringBuilder implements From<string>, From<&readonly StringSlice> {
+    /// Create an owned string builder from owned text.
+    static from(value: string): ^StringBuilder {
+        StringBuilder.from(value)
+    }
+
+    /// Create an owned string builder from borrowed text.
+    static from(value: &readonly StringSlice): ^StringBuilder {
+        StringBuilder.from(value)
+    }
+}

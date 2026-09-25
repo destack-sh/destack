@@ -1,6 +1,6 @@
 [package]
-name = "destack_dir_macros"
-description = "Destack Data IR Macros"
+name = "tspp_dir_macros"
+description = "TS++ Data IR Macros"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

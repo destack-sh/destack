@@ -1,7 +1,7 @@
-use destack_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId};
-use destack_mir::{Space, Storage};
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_core::{Optional, SectionBuilder, SectionEntry, SectionImage, SectionSlice, StringId};
+use tspp_mir::{Space, Storage};
+use tspp_serde::Reflect;
 
 use super::{FunctionId, LayoutId, ProgramPoint, SignatureId, TypeId, VirtualTableId};
 

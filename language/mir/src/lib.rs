@@ -22,5 +22,5 @@ pub use tree::*;
 
 /// The module test trees belong to.
 #[cfg(test)]
-pub(crate) const TEST_MODULE: destack_source::ModuleId =
-    destack_source::ModuleId::new(destack_source::PackageId::new(0), 0);
+pub(crate) const TEST_MODULE: tspp_source::ModuleId =
+    tspp_source::ModuleId::new(tspp_source::PackageId::new(0), 0);

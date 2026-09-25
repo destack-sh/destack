@@ -34,7 +34,7 @@ pub trait NodeVisitor {
 
     /// Visit one statement.
     fn visit_statement(&mut self, tree: &Tree, id: LocalNodeId<Statement>, statement: &Statement) {
-        destack_core::ensure_sufficient_stack(|| walk_statement(self, tree, id, statement));
+        tspp_core::ensure_sufficient_stack(|| walk_statement(self, tree, id, statement));
     }
 
     /// Visit one expression.
@@ -44,7 +44,7 @@ pub trait NodeVisitor {
         id: LocalNodeId<Expression>,
         expression: &Expression,
     ) {
-        destack_core::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
+        tspp_core::ensure_sufficient_stack(|| walk_expression(self, tree, id, expression));
     }
 
     /// Visit one array element.

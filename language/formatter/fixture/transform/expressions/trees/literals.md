@@ -6,11 +6,11 @@
 
 Self-closing elements have a space before `/>`.
 
-```ds
+```tspp
 <Entity  />
 ```
 
-```ds expected
+```tspp expected
 <Entity />;
 ```
 
@@ -18,11 +18,11 @@ Self-closing elements have a space before `/>`.
 
 When attributes exceed line width, they break to multiple lines.
 
-```ds line-width=30
+```tspp line-width=30
 <Button variant="primary" size="large" disabled />
 ```
 
-```ds expected
+```tspp expected
 <Button
     variant="primary"
     size="large"

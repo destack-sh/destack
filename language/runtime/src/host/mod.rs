@@ -1,5 +1,5 @@
 #[cfg(not(any(target_os = "linux", target_os = "macos", windows)))]
-compile_error!("destack_runtime host supports linux, macos, and windows");
+compile_error!("tspp_runtime host supports linux, macos, and windows");
 
 pub(crate) mod accessibility;
 pub(crate) mod audio;

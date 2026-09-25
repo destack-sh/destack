@@ -1,8 +1,8 @@
 use std::mem::take;
 
-use destack_core::{FxIndexMap, FxIndexSet};
-use destack_dir as dir;
-use destack_source::ModuleId;
+use tspp_core::{FxIndexMap, FxIndexSet};
+use tspp_dir as dir;
+use tspp_source::ModuleId;
 
 use crate::sema::{Capture, CheckState, Origin};
 use crate::{CompilerError, CompilerResult};

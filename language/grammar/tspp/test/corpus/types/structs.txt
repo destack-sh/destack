@@ -1,0 +1,24 @@
+=====================================================
+Structs embed fields
+:language(tspp)
+=====================================================
+
+struct Derived {
+    ...Base;
+    extra: int32;
+}
+
+
+
+---
+
+(program
+  (struct_declaration
+    (type_identifier)
+    (class_body
+      (struct_embedding_member
+        (type_identifier))
+      (public_field_definition
+        (property_identifier)
+        (type_annotation
+          (type_identifier))))))

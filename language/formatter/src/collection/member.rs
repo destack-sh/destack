@@ -15,17 +15,17 @@ use crate::file::{
     node_has_ignore_directive, node_has_trailing_ignore_directive, write_ignored_node,
     write_source_span,
 };
-use crate::{DestackFormatter, FormatNode};
-use destack_dir::{Declaration, Keyword, LocalNodeId, Member, NodeType, TypeExpression};
-use destack_fir::format::FormatResult;
-use destack_fir::prelude::{space, token};
-use destack_fir::write;
-use destack_repository::QuoteProperty;
-use destack_source::Span;
+use crate::{FormatNode, TsppFormatter};
+use tspp_dir::{Declaration, Keyword, LocalNodeId, Member, NodeType, TypeExpression};
+use tspp_fir::format::FormatResult;
+use tspp_fir::prelude::{space, token};
+use tspp_fir::write;
+use tspp_repository::QuoteProperty;
+use tspp_source::Span;
 
 /// Return the initial comment range before the first class member.
 fn member_block_initial_gap(
-    f: &DestackFormatter<'_, '_>,
+    f: &TsppFormatter<'_, '_>,
     members: &[LocalNodeId<Member>],
 ) -> Option<(u32, u32)> {
     let first_member_id = members.first().copied()?;
@@ -57,7 +57,7 @@ fn member_block_initial_gap(
 
 /// Format a block of members with empty annotations and ignored ranges.
 pub(crate) fn format_block_of_members<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     members: &[LocalNodeId<Member>],
 ) -> FormatResult<()> {
     let initial_gap = member_block_initial_gap(f, members);
@@ -70,7 +70,7 @@ pub(crate) fn format_block_of_members<'ast>(
 /// Return whether one class member should force quoted names.
 #[inline]
 fn class_member_should_force_quotes<'ast>(
-    f: &DestackFormatter<'ast, '_>,
+    f: &TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Member>,
 ) -> bool {
     if f.context().options.quote_props != QuoteProperty::Consistent {
@@ -98,7 +98,7 @@ fn class_member_should_force_quotes<'ast>(
 
 /// Write one type annotation.
 fn write_declared_type<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     declared_type: Option<LocalNodeId<TypeExpression>>,
 ) -> FormatResult<()> {
     // declared type
@@ -111,7 +111,7 @@ fn write_declared_type<'ast>(
 
 /// Write a class-like member terminator and any same-line trailing comments.
 fn write_member_terminator<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     node_id: LocalNodeId<Member>,
 ) -> FormatResult<()> {
     if node_has_trailing_ignore_directive(f.context(), node_id) {
@@ -125,7 +125,7 @@ impl<'ast> FormatNode<'ast, Member> for Member {
     fn format_node(
         &self,
         node_id: LocalNodeId<Member>,
-        f: &mut DestackFormatter<'ast, '_>,
+        f: &mut TsppFormatter<'ast, '_>,
     ) -> FormatResult<()> {
         if let Member::Method {
             name,

@@ -2,7 +2,7 @@ use crate::parse::r#let::DeclaratorValue;
 use crate::parse::lookahead::DelimiterDepth;
 use crate::parse::{ExpressionPosition, ExpressionStop};
 use crate::{Parser, ParserResult, TokenProbe};
-use destack_dir::{Condition, ConditionOperand, Keyword, NodeType, OperatorPrecedence, TokenType};
+use tspp_dir::{Condition, ConditionOperand, Keyword, NodeType, OperatorPrecedence, TokenType};
 
 impl Parser {
     /// Parse one parenthesized control condition.

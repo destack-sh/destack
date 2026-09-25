@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use destack_artifact::{
+use rustc_hash::{FxHashMap, FxHashSet};
+use tspp_artifact::{
     ArtifactDependency, ArtifactEntry, ArtifactKey, ArtifactOutcome, ArtifactVersion,
     SourceDependency,
 };
-use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{Repository, RepositoryError, Revision, RevisionState};
 

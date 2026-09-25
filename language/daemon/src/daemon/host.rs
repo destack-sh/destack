@@ -1,10 +1,10 @@
-use destack_rpc::{Request, Response, Status};
-use destack_runtime::service::{
+use tspp_rpc::{Request, Response, Status};
+use tspp_runtime::service::{
     AdvanceClockRequest, Clock, HostService, Random, ReadClockRequest, ReadRandomRequest,
     ReseedRandomRequest, SendEventRequest, SetClockRequest,
 };
-use destack_runtime::world::Instant;
-use destack_runtime::world::random::RandomSource;
+use tspp_runtime::world::Instant;
+use tspp_runtime::world::random::RandomSource;
 
 use super::WorldRegistry;
 

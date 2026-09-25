@@ -1,14 +1,14 @@
 use crate::context::FormatNodeWithoutTrailingComments;
 use crate::documentation::format_documentation_comment;
-use crate::{DestackFormatContext, DestackFormatter, FormatNode};
-use destack_dir::{Comment, LocalNodeId, Node, Tree, TreeStore};
-use destack_fir::format::{Format, FormatError, FormatResult, Formatter, hard_line_break};
-use destack_fir::prelude::{
+use crate::{FormatNode, TsppFormatContext, TsppFormatter};
+use tspp_dir::{Comment, LocalNodeId, Node, Tree, TreeStore};
+use tspp_fir::format::{Format, FormatError, FormatResult, Formatter, hard_line_break};
+use tspp_fir::prelude::{
     block_indent, copied_text, empty_line, expand_parent, format_with, group, line_suffix,
     soft_block_indent, soft_line_break_or_space, space, text,
 };
-use destack_fir::write;
-use destack_source::Span;
+use tspp_fir::write;
+use tspp_source::Span;
 
 /// Return whether adjacent block documentation should stay together.
 fn should_nestle_adjacent_documentation(current: Comment, next: Comment) -> bool {
@@ -21,7 +21,7 @@ fn should_nestle_adjacent_documentation(current: Comment, next: Comment) -> bool
 
 /// Format one comment.
 pub(crate) fn format_comment<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     comment: Comment,
 ) -> FormatResult<()> {
     format_comment_group(f, comment)?;
@@ -31,7 +31,7 @@ pub(crate) fn format_comment<'ast>(
 
 /// Format one comment or its complete documentation group.
 fn format_comment_group<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     comment: Comment,
 ) -> FormatResult<(Span, bool)> {
     if let Some(span) = format_documentation_comment(f, comment)? {
@@ -130,11 +130,11 @@ pub(crate) enum FormatLeadingComments<'a> {
     Comments(&'a [Comment]),
 }
 
-impl<'a> Format<'a, DestackFormatContext<'a>> for FormatLeadingComments<'_> {
-    fn format(&self, f: &mut Formatter<'_, 'a, DestackFormatContext<'a>>) -> FormatResult<()> {
+impl<'a> Format<'a, TsppFormatContext<'a>> for FormatLeadingComments<'_> {
+    fn format(&self, f: &mut Formatter<'_, 'a, TsppFormatContext<'a>>) -> FormatResult<()> {
         fn format_leading_comments_impl<'ast>(
             comments: &[Comment],
-            f: &mut DestackFormatter<'ast, '_>,
+            f: &mut TsppFormatter<'ast, '_>,
         ) -> FormatResult<()> {
             let source = f.context().source_text();
             let mut index = 0;
@@ -214,7 +214,7 @@ impl<'a> Format<'a, DestackFormatContext<'a>> for FormatLeadingComments<'_> {
 
 /// Write trailing comments with line-suffix behavior.
 fn write_trailing_comments<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     comments: &[Comment],
 ) -> FormatResult<()> {
     write_trailing_comments_with_options(f, comments, true)
@@ -222,7 +222,7 @@ fn write_trailing_comments<'ast>(
 
 /// Write trailing comments with configurable parent expansion for line comments.
 fn write_trailing_comments_with_options<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     comments: &[Comment],
     expand_parent_for_line_comments: bool,
 ) -> FormatResult<()> {
@@ -246,7 +246,7 @@ fn write_trailing_comments_with_options<'ast>(
             write!(
                 f,
                 [line_suffix(&format_with(
-                    move |f: &mut DestackFormatter<'ast, '_>| {
+                    move |f: &mut TsppFormatter<'ast, '_>| {
                         match lines_before {
                             _ if should_nestle => {}
                             0 => {
@@ -271,7 +271,7 @@ fn write_trailing_comments_with_options<'ast>(
                 ))]
             )?;
         } else {
-            let content = format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+            let content = format_with(move |f: &mut TsppFormatter<'ast, '_>| {
                 if !should_nestle {
                     write!(f, [space()])?;
                 }
@@ -300,7 +300,7 @@ fn write_trailing_comments_with_options<'ast>(
 
 /// Write one comment slice with direct source-preserving separators.
 pub(crate) fn write_comment_slice<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     comments: &[Comment],
 ) -> FormatResult<()> {
     let source = f.context().source_text();
@@ -347,7 +347,7 @@ pub(crate) fn write_comment_slice<'ast>(
 
 /// Write one comment sequence without a separator before its first comment.
 pub(crate) fn write_comment_sequence<'ast>(
-    f: &mut DestackFormatter<'ast, '_>,
+    f: &mut TsppFormatter<'ast, '_>,
     comments: &[Comment],
 ) -> FormatResult<()> {
     let Some(first_comment) = comments.first().copied() else {
@@ -423,14 +423,14 @@ impl FormatDanglingComments<'_> {
     }
 }
 
-impl<'a> Format<'a, DestackFormatContext<'a>> for FormatDanglingComments<'_> {
-    fn format(&self, f: &mut Formatter<'_, 'a, DestackFormatContext<'a>>) -> FormatResult<()> {
+impl<'a> Format<'a, TsppFormatContext<'a>> for FormatDanglingComments<'_> {
+    fn format(&self, f: &mut Formatter<'_, 'a, TsppFormatContext<'a>>) -> FormatResult<()> {
         fn write_dangling_comments<'ast>(
-            f: &mut DestackFormatter<'ast, '_>,
+            f: &mut TsppFormatter<'ast, '_>,
             comments: &[Comment],
             indent: DanglingIndentMode,
         ) -> FormatResult<()> {
-            let content = format_with(|f: &mut DestackFormatter<'ast, '_>| {
+            let content = format_with(|f: &mut TsppFormatter<'ast, '_>| {
                 let mut previous_comment = None;
 
                 for comment in comments.iter().copied() {
@@ -500,12 +500,12 @@ pub(crate) fn format_node_with_trailing_comments<'ast, T>(
     enclosing_span: Span,
     node_id: LocalNodeId<T>,
     following_span_start: Option<u32>,
-) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, T>
+) -> impl Format<'ast, TsppFormatContext<'ast>> + use<'ast, T>
 where
     T: FormatNode<'ast, T> + Node + Clone + 'ast,
     Tree: TreeStore<T>,
 {
-    format_with(move |f: &mut DestackFormatter<'ast, '_>| {
+    format_with(move |f: &mut TsppFormatter<'ast, '_>| {
         let node_span = f.context().span(node_id);
 
         write!(
@@ -527,8 +527,8 @@ pub(crate) enum FormatTrailingComments<'a> {
     Comments(&'a [Comment]),
 }
 
-impl<'a> Format<'a, DestackFormatContext<'a>> for FormatTrailingComments<'_> {
-    fn format(&self, f: &mut Formatter<'_, 'a, DestackFormatContext<'a>>) -> FormatResult<()> {
+impl<'a> Format<'a, TsppFormatContext<'a>> for FormatTrailingComments<'_> {
+    fn format(&self, f: &mut Formatter<'_, 'a, TsppFormatContext<'a>>) -> FormatResult<()> {
         match self {
             Self::Node((enclosing_span, preceding_span, following_span_start)) => {
                 let comments = f.context().comments().get_trailing_comments(

@@ -3,12 +3,12 @@ use std::collections::HashMap;
 use crate::annotation::{FormatTrailingComments, write_comment_slice};
 use crate::context::with_following_span_start;
 use crate::file::{ignore_ranges_for_nodes, write_source_span};
-use crate::{DestackFormatContext, FormatNode};
-use destack_dir::{Comment, LocalNodeId, Node, TokenSpan, TokenType, Tree, TreeStore};
-use destack_fir::format::{FormatResult, GroupId};
-use destack_fir::prelude::*;
-use destack_fir::write;
-use destack_source::Span;
+use crate::{FormatNode, TsppFormatContext};
+use tspp_dir::{Comment, LocalNodeId, Node, TokenSpan, TokenType, Tree, TreeStore};
+use tspp_fir::format::{FormatResult, GroupId};
+use tspp_fir::prelude::*;
+use tspp_fir::write;
+use tspp_source::Span;
 
 /// The trailing separator mode for one separated entry list.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -32,12 +32,12 @@ pub(crate) struct FormatSeparatedElement<T: Node + Clone> {
     group_id: Option<GroupId>,
 }
 
-impl<'ast, T> Format<'ast, DestackFormatContext<'ast>> for FormatSeparatedElement<T>
+impl<'ast, T> Format<'ast, TsppFormatContext<'ast>> for FormatSeparatedElement<T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
     Tree: TreeStore<T>,
 {
-    fn format(&self, f: &mut Formatter<'_, 'ast, DestackFormatContext<'ast>>) -> FormatResult<()> {
+    fn format(&self, f: &mut Formatter<'_, 'ast, TsppFormatContext<'ast>>) -> FormatResult<()> {
         let element_span = f.context().span(self.element);
         let element_anchor_end = f
             .context()
@@ -209,7 +209,7 @@ where
 
 /// Return the first comment index that belongs to the next list element.
 fn next_leading_comment_start<T: Node + Clone>(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     comments: &[Comment],
     next_element: Option<LocalNodeId<T>>,
 ) -> Option<usize>
@@ -230,7 +230,7 @@ where
 
 /// Return the next non-trivia start after one list element's separator, when present.
 fn list_element_following_start(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     source_separator: Option<TokenSpan>,
     next_following_start: u32,
 ) -> u32 {
@@ -245,7 +245,7 @@ fn list_element_following_start(
 
 /// Write one separator token according to list position and trailing-separator mode.
 fn write_separator_token<'ast>(
-    f: &mut Formatter<'_, 'ast, DestackFormatContext<'ast>>,
+    f: &mut Formatter<'_, 'ast, TsppFormatContext<'ast>>,
     separator: &'static str,
     is_last: bool,
     trailing_separator: TrailingSeparator,
@@ -273,7 +273,7 @@ fn write_separator_token<'ast>(
 
 /// Write one trailing separator immediately after same-line trailing comments.
 fn write_immediate_trailing_separator<'ast>(
-    f: &mut Formatter<'_, 'ast, DestackFormatContext<'ast>>,
+    f: &mut Formatter<'_, 'ast, TsppFormatContext<'ast>>,
     separator: &'static str,
     trailing_separator: TrailingSeparator,
     group_id: Option<GroupId>,
@@ -296,7 +296,7 @@ fn write_immediate_trailing_separator<'ast>(
 
 /// Return one source separator token after a list element, if present.
 fn separator_token_after_element(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     element_span: Span,
     next_element_start: Option<u32>,
     separator: &str,
@@ -325,7 +325,7 @@ fn separator_token_after_element(
 
 /// Return comments between one element and the next following token start.
 fn gap_comments_after_element(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     gap_start: u32,
     gap_end: u32,
 ) -> Vec<Comment> {
@@ -341,7 +341,7 @@ fn gap_comments_after_element(
 
 /// Return comments that still sit inside one element tail.
 fn element_tail_comments(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     anchor_end: u32,
     element_span: Span,
 ) -> Vec<Comment> {
@@ -374,7 +374,7 @@ fn split_gap_comments_around_separator(
 
 /// Return the trailing comment count that stays with one separator line.
 fn separator_trailing_comment_count(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     comments: &[Comment],
 ) -> usize {
     let mut count = 0usize;
@@ -457,13 +457,13 @@ pub(crate) fn separated_entries<'ast, 'e, T>(
     elements: &'e [LocalNodeId<T>],
     trailing_separator: TrailingSeparator,
     group_id: Option<GroupId>,
-) -> impl Format<'ast, DestackFormatContext<'ast>> + use<'ast, 'e, T>
+) -> impl Format<'ast, TsppFormatContext<'ast>> + use<'ast, 'e, T>
 where
     T: Node + Clone + FormatNode<'ast, T>,
     Tree: TreeStore<T>,
 {
     format_with(
-        move |f: &mut Formatter<'_, 'ast, DestackFormatContext<'ast>>| {
+        move |f: &mut Formatter<'_, 'ast, TsppFormatContext<'ast>>| {
             let has_elements = !elements.is_empty();
 
             if !has_elements {
@@ -519,7 +519,7 @@ where
 
 /// Format a list while preserving any ignore ranges as raw text.
 fn format_list_with_ignored_ranges<'ast, T>(
-    f: &mut Formatter<'_, 'ast, DestackFormatContext<'ast>>,
+    f: &mut Formatter<'_, 'ast, TsppFormatContext<'ast>>,
     elements: &[LocalNodeId<T>],
     ignore_ranges: &HashMap<u32, Span>,
     separator: &'static str,
@@ -586,7 +586,7 @@ where
 
 /// Return the source start of the next list element after one element.
 fn list_element_following_span_start<T>(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     elements: &[LocalNodeId<T>],
     element_id: &LocalNodeId<T>,
 ) -> Option<u32>
@@ -623,7 +623,7 @@ fn separator_token_type(separator: &str) -> Option<TokenType> {
 
 /// Return whether one ignored range starts with a separator token.
 fn ignored_range_starts_with_separator(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     range_span: Span,
     separator: &str,
 ) -> bool {
@@ -638,7 +638,7 @@ fn ignored_range_starts_with_separator(
 
 /// Return whether one ignored range ends with a separator token.
 fn ignored_range_ends_with_separator(
-    context: &DestackFormatContext<'_>,
+    context: &TsppFormatContext<'_>,
     range_span: Span,
     separator: &str,
 ) -> bool {
@@ -656,7 +656,7 @@ fn ignored_range_ends_with_separator(
 }
 
 /// Return whether one ignored range already owns a trailing comment.
-fn ignored_range_ends_with_comment(context: &DestackFormatContext<'_>, range_span: Span) -> bool {
+fn ignored_range_ends_with_comment(context: &TsppFormatContext<'_>, range_span: Span) -> bool {
     let source_comments = context.source_comments_in_range(range_span.start, range_span.end);
     let Some(comment) = source_comments.last().copied() else {
         return false;

@@ -2,9 +2,9 @@ use std::array;
 use std::sync::RwLock;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use destack_serde::Reflect;
 use rustc_hash::FxHashMap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use tspp_serde::Reflect;
 
 use super::interval::IntervalTree;
 use crate::{ByteRange, FileId, Span};
@@ -312,7 +312,7 @@ struct SourceIndexArchive {
 }
 
 impl Reflect for SourceIndex {
-    fn reflect(schema: &mut destack_serde::Schema) -> destack_serde::Type {
+    fn reflect(schema: &mut tspp_serde::Schema) -> tspp_serde::Type {
         SourceIndexArchive::reflect(schema)
     }
 }

@@ -18,7 +18,7 @@ struct User {}
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -77,9 +77,9 @@ struct User {}
 fn test_write_lifetimes_through_a_cross_module_declaration_cycle() {
     let compiler = TestSession::builder()
         .module(
-            "b.ds",
+            "b.tspp",
             r#"
-import { Foo } from "./a.ds";
+import { Foo } from "./a.tspp";
 
 export struct Bar<'a> {
     foo: Foo<'a>;
@@ -93,9 +93,9 @@ export struct User {}
 "#,
         )
         .module(
-            "a.ds",
+            "a.tspp",
             r#"
-import { Baz } from "./b.ds";
+import { Baz } from "./b.tspp";
 
 export struct Foo<'a> {
     baz: Baz<'a>;
@@ -105,20 +105,20 @@ export struct Foo<'a> {
         .build();
 
     compiler.assert_dir_many(
-        &["a.ds", "b.ds"],
+        &["a.tspp", "b.tspp"],
         DirRows::checked().with_reference_types(),
         r#"
-=== a.ds ===
+=== a.tspp ===
 
 === annotated ===
-import { Baz } from "./b.ds";
+import { Baz } from "./b.tspp";
 
 export struct Foo<'a> {
     baz: Baz<'a>;
 }
 
 === dir ===
-import { Baz } from "./b.ds";
+import { Baz } from "./b.tspp";
 
 export struct Foo<'a> {
 /// @generic.template symbol=Foo parameters=('a)
@@ -135,10 +135,10 @@ export struct Foo<'a> {
 
 }
 
-=== b.ds ===
+=== b.tspp ===
 
 === annotated ===
-import { Foo } from "./a.ds";
+import { Foo } from "./a.tspp";
 
 export struct Bar<'a> {
     foo: Foo<'a>;
@@ -151,7 +151,7 @@ export struct Baz<'a> {
 export struct User {}
 
 === dir ===
-import { Foo } from "./a.ds";
+import { Foo } from "./a.tspp";
 
 export struct Bar<'a> {
 /// @generic.template symbol=Bar parameters=('a#1)
@@ -194,7 +194,7 @@ export struct User {}
 fn test_imported_generic_type_accepts_local_type_argument() {
     let compiler = TestSession::builder()
         .module(
-            "lib.ds",
+            "lib.tspp",
             r#"
 export interface Box<T> {
     value: T;
@@ -202,9 +202,9 @@ export interface Box<T> {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Box } from "./lib.ds";
+import { Box } from "./lib.tspp";
 
 type Wrapped<T> = Box<T>;
 "#,
@@ -212,10 +212,10 @@ type Wrapped<T> = Box<T>;
         .build();
 
     compiler.assert_dir_many(
-        &["lib.ds", "main.ds"],
+        &["lib.tspp", "main.tspp"],
         DirRows::checked().with_reference_types(),
         r#"
-=== lib.ds ===
+=== lib.tspp ===
 
 === annotated ===
 export interface Box<in out T> {
@@ -237,15 +237,15 @@ export interface Box<T> {
 
 }
 
-=== main.ds ===
+=== main.tspp ===
 
 === annotated ===
-import { Box } from "./lib.ds";
+import { Box } from "./lib.tspp";
 
 type Wrapped<T> = Box<T>;
 
 === dir ===
-import { Box } from "./lib.ds";
+import { Box } from "./lib.tspp";
 
 type Wrapped<T> = Box<T>;
 /// @generic.template symbol=Wrapped parameters=(T)
@@ -264,7 +264,7 @@ type Wrapped<T> = Box<T>;
 fn test_generic_newtype_interface_extends_generic_interface() {
     let compiler = TestSession::builder()
         .module(
-            "ops.ds",
+            "ops.tspp",
             r#"
 export newtype interface PartialEqual<T = this> {
     equal(other: T): boolean;
@@ -274,9 +274,9 @@ export newtype interface Equal<T = this> extends PartialEqual<T> {}
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Equal } from "./ops.ds";
+import { Equal } from "./ops.tspp";
 
 type Used = Equal<string>;
 "#,
@@ -284,10 +284,10 @@ type Used = Equal<string>;
         .build();
 
     compiler.assert_dir_many(
-        &["ops.ds", "main.ds"],
+        &["ops.tspp", "main.tspp"],
         DirRows::checked().with_reference_types(),
         r#"
-=== ops.ds ===
+=== ops.tspp ===
 
 === annotated ===
 export newtype interface PartialEqual<in T = this> {
@@ -325,15 +325,15 @@ export newtype interface Equal<T = this> extends PartialEqual<T> {}
 /// @resolution.name source=PartialEqual target=PartialEqual
 /// @resolution.name source=T target=Equal.T
 
-=== main.ds ===
+=== main.tspp ===
 
 === annotated ===
-import { Equal } from "./ops.ds";
+import { Equal } from "./ops.tspp";
 
 type Used = Equal<string>;
 
 === dir ===
-import { Equal } from "./ops.ds";
+import { Equal } from "./ops.tspp";
 
 type Used = Equal<string>;
 /// @type.symbol symbol=Used source="type Used = Equal<string>" type=ops.Equal<string>
@@ -349,7 +349,7 @@ type Used = Equal<string>;
 fn test_imported_generic_function_instantiates_in_calling_module() {
     let compiler = TestSession::builder()
         .module(
-            "lib.ds",
+            "lib.tspp",
             r#"
 export function identity<T>(value: T): T {
     return value;
@@ -357,9 +357,9 @@ export function identity<T>(value: T): T {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { identity } from "./lib.ds";
+import { identity } from "./lib.tspp";
 
 const number = identity(1);
 const text = identity("x");
@@ -368,10 +368,10 @@ const text = identity("x");
         .build();
 
     compiler.assert_dir_many(
-        &["lib.ds", "main.ds"],
+        &["lib.tspp", "main.tspp"],
         DirRows::checked().with_reference_types(),
         r#"
-=== lib.ds ===
+=== lib.tspp ===
 
 === annotated ===
 export function identity<T>(value: T): T {
@@ -395,16 +395,16 @@ export function identity<T>(value: T): T {
 
 }
 
-=== main.ds ===
+=== main.tspp ===
 
 === annotated ===
-import { identity } from "./lib.ds";
+import { identity } from "./lib.tspp";
 
 const number: int64 = identity<int64>(1);
 const text: "x" = identity<"x">("x");
 
 === dir ===
-import { identity } from "./lib.ds";
+import { identity } from "./lib.tspp";
 
 const number = identity(1);
 /// @type.symbol symbol=number source=number type=int64
@@ -436,7 +436,7 @@ const text = identity("x");
 fn test_reject_imported_generic_function_without_result_type() {
     let compiler = TestSession::builder()
         .module(
-            "lib.ds",
+            "lib.tspp",
             r#"
 export function identity<T>(value: T) {
     return value;
@@ -444,16 +444,16 @@ export function identity<T>(value: T) {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { identity } from "./lib.ds";
+import { identity } from "./lib.tspp";
 
 const text = identity("x");
 "#,
         )
         .build();
 
-    compiler.assert_dir_and_diagnostics("lib.ds", DirRows::checked(), r#"
+    compiler.assert_dir_and_diagnostics("lib.tspp", DirRows::checked(), r#"
 === annotated ===
 export function identity<T>(value: T) {
     return value;
@@ -482,16 +482,16 @@ export function identity<T>(value: T) {
     );
 
     compiler.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
-import { identity } from "./lib.ds";
+import { identity } from "./lib.tspp";
 
 const text = identity<string>("x");
 
 === dir ===
-import { identity } from "./lib.ds";
+import { identity } from "./lib.tspp";
 
 const text = identity("x");
 /// @type.symbol symbol=text source=text type=<error>
@@ -526,7 +526,7 @@ const value = probe(todo("iter"));
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -575,7 +575,7 @@ const value = probe(todo("iter"));
 fn test_defaulted_parameter_fills_through_reexport_chain() {
     let session = TestSession::builder()
         .module(
-            "inner.ds",
+            "inner.tspp",
             r#"
 export newtype interface Iter<T, in out R = unknown> {
     next(): T;
@@ -583,15 +583,15 @@ export newtype interface Iter<T, in out R = unknown> {
 "#,
         )
         .module(
-            "lib.ds",
+            "lib.tspp",
             r#"
-export { Iter } from "./inner.ds";
+export { Iter } from "./inner.tspp";
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Iter } from "./lib.ds";
+import { Iter } from "./lib.tspp";
 
 declare function probe(values: Iter<int32>): boolean;
 const value = probe(todo("iter"));
@@ -600,10 +600,10 @@ const value = probe(todo("iter"));
         .build();
 
     session.assert_dir_many(
-        &["inner.ds", "lib.ds", "main.ds"],
+        &["inner.tspp", "lib.tspp", "main.tspp"],
         DirRows::checked(),
         r#"
-=== inner.ds ===
+=== inner.tspp ===
 
 === annotated ===
 export newtype interface Iter<out T, in out R = unknown> {
@@ -626,24 +626,24 @@ export newtype interface Iter<T, in out R = unknown> {
 
 }
 
-=== lib.ds ===
+=== lib.tspp ===
 
 === annotated ===
-export { Iter } from "./inner.ds";
+export { Iter } from "./inner.tspp";
 
 === dir ===
-export { Iter } from "./inner.ds";
+export { Iter } from "./inner.tspp";
 
-=== main.ds ===
+=== main.tspp ===
 
 === annotated ===
-import { Iter } from "./lib.ds";
+import { Iter } from "./lib.tspp";
 
 declare function probe(values: Iter<int32>): boolean;
 const value: boolean = probe(todo("iter" as string | undefined));
 
 === dir ===
-import { Iter } from "./lib.ds";
+import { Iter } from "./lib.tspp";
 
 declare function probe(values: Iter<int32>): boolean;
 /// @type.symbol symbol=probe source="declare function probe(values: Iter<int32>): boolean" type=(inner.Iter<int32, unknown>) => boolean
@@ -666,9 +666,9 @@ const value = probe(todo("iter"));
 fn test_defaulted_parameter_fills_inside_import_cycle() {
     let session = TestSession::builder()
         .module(
-            "a.ds",
+            "a.tspp",
             r#"
-import { Iter } from "./b.ds";
+import { Iter } from "./b.tspp";
 
 export interface Marker {
     marked: boolean;
@@ -679,9 +679,9 @@ const value = probe(todo("iter"));
 "#,
         )
         .module(
-            "b.ds",
+            "b.tspp",
             r#"
-import { Marker } from "./a.ds";
+import { Marker } from "./a.tspp";
 
 export interface Iter<T, in out R = unknown> {
     next(): T;
@@ -692,13 +692,13 @@ export interface Iter<T, in out R = unknown> {
         .build();
 
     session.assert_dir_many(
-        &["a.ds", "b.ds"],
+        &["a.tspp", "b.tspp"],
         DirRows::checked(),
         r#"
-=== a.ds ===
+=== a.tspp ===
 
 === annotated ===
-import { Iter } from "./b.ds";
+import { Iter } from "./b.tspp";
 
 export interface Marker {
     marked: boolean;
@@ -708,7 +708,7 @@ declare function probe(values: Iter<int32>): boolean;
 const value: boolean = probe(todo("iter" as string | undefined));
 
 === dir ===
-import { Iter } from "./b.ds";
+import { Iter } from "./b.tspp";
 
 export interface Marker {
 /// @generic.template symbol=Marker parameters=(this: Marker)
@@ -735,10 +735,10 @@ const value = probe(todo("iter"));
 /// @resolution.name source=todo target=todo
 /// @resolution.call source="todo(\"iter\")" parameters=(string | undefined) arguments=(provided("iter") as string | undefined) return=never kind=symbol target=todo
 
-=== b.ds ===
+=== b.tspp ===
 
 === annotated ===
-import { Marker } from "./a.ds";
+import { Marker } from "./a.tspp";
 
 export interface Iter<out T, in out R = unknown> {
     next(): T;
@@ -746,7 +746,7 @@ export interface Iter<out T, in out R = unknown> {
 }
 
 === dir ===
-import { Marker } from "./a.ds";
+import { Marker } from "./a.tspp";
 
 export interface Iter<T, in out R = unknown> {
 /// @generic.template symbol=Iter parameters=(out T, in out R = unknown, this: Iter<T, R>)
@@ -792,7 +792,7 @@ const out = unwrap(built);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -870,7 +870,7 @@ const out = unwrap(built);
 fn test_imported_struct_carries_a_function_type_alias() {
     let compiler = TestSession::builder()
         .module(
-            "trigger.ds",
+            "trigger.tspp",
             r#"
 export struct Attempt {
     module: string;
@@ -884,9 +884,9 @@ export struct Trigger {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Trigger } from "./trigger.ds";
+import { Trigger } from "./trigger.tspp";
 
 export struct Scenario {
     trigger: Trigger;
@@ -900,10 +900,10 @@ scenario.trigger satisfies Trigger;
         .build();
 
     compiler.assert_dir_many(
-        &["trigger.ds", "main.ds"],
+        &["trigger.tspp", "main.tspp"],
         DirRows::checked(),
         r#"
-=== trigger.ds ===
+=== trigger.tspp ===
 
 === annotated ===
 export struct Attempt {
@@ -945,10 +945,10 @@ export struct Trigger {
 
 }
 
-=== main.ds ===
+=== main.tspp ===
 
 === annotated ===
-import { Trigger } from "./trigger.ds";
+import { Trigger } from "./trigger.tspp";
 
 export struct Scenario {
     trigger: Trigger;
@@ -959,7 +959,7 @@ declare let scenario: Scenario;
 scenario.trigger satisfies Trigger;
 
 === dir ===
-import { Trigger } from "./trigger.ds";
+import { Trigger } from "./trigger.tspp";
 
 export struct Scenario {
 /// @type.symbol symbol=Scenario type=Scenario
@@ -994,7 +994,7 @@ scenario.trigger satisfies Trigger;
 fn test_fill_alias_defaults_through_reexported_imports() {
     let compiler = TestSession::builder()
         .module(
-            "a.ds",
+            "a.tspp",
             r#"
 struct Marker {
     id: int32;
@@ -1004,15 +1004,15 @@ export type Box<T = Marker> = { value: T };
 "#,
         )
         .module(
-            "b.ds",
+            "b.tspp",
             r#"
-export { Box } from "./a.ds";
+export { Box } from "./a.tspp";
 "#,
         )
         .module(
-            "c.ds",
+            "c.tspp",
             r#"
-import { Box } from "./b.ds";
+import { Box } from "./b.tspp";
 
 declare const boxed: Box;
 const value = boxed.value;
@@ -1021,10 +1021,10 @@ const value = boxed.value;
         .build();
 
     compiler.assert_dir_many(
-        &["a.ds", "b.ds", "c.ds"],
+        &["a.tspp", "b.tspp", "c.tspp"],
         DirRows::checked(),
         r#"
-=== a.ds ===
+=== a.tspp ===
 
 === annotated ===
 struct Marker {
@@ -1053,24 +1053,24 @@ export type Box<T = Marker> = { value: T };
 /// @type.symbol symbol=Box.value source="value: T" type=T
 /// @resolution.name source=T target=Box.T
 
-=== b.ds ===
+=== b.tspp ===
 
 === annotated ===
-export { Box } from "./a.ds";
+export { Box } from "./a.tspp";
 
 === dir ===
-export { Box } from "./a.ds";
+export { Box } from "./a.tspp";
 
-=== c.ds ===
+=== c.tspp ===
 
 === annotated ===
-import { Box } from "./b.ds";
+import { Box } from "./b.tspp";
 
 declare const boxed: Box;
 const value: Marker = boxed.value;
 
 === dir ===
-import { Box } from "./b.ds";
+import { Box } from "./b.tspp";
 
 declare const boxed: Box;
 /// @type.symbol symbol=boxed source=boxed type=a.Box<a.Marker>
@@ -1095,7 +1095,7 @@ const value = boxed.value;
 fn test_reject_unannotated_exported_function_at_its_declaration() {
     let session = TestSession::builder()
         .module(
-            "lib.ds",
+            "lib.tspp",
             r#"
 export function make() {
     return 1;
@@ -1103,9 +1103,9 @@ export function make() {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { make } from "./lib.ds";
+import { make } from "./lib.tspp";
 
 const value = make();
 "#,
@@ -1113,7 +1113,7 @@ const value = make();
         .build();
 
     session.assert_dir_and_diagnostics(
-        "lib.ds",
+        "lib.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

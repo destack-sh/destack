@@ -13,7 +13,7 @@ ok satisfies (string, number);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -56,7 +56,7 @@ const full: Args = ("Ada", 1);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -98,7 +98,7 @@ const ok: Args = ("Ada", true, false);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -137,7 +137,7 @@ const bad: Args = ("Ada", "one");
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -189,7 +189,7 @@ parser satisfies ((value: int32) => int32) & ((value: string) => string);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

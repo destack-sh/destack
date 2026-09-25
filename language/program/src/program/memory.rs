@@ -1,11 +1,11 @@
 use std::fmt;
 
-use destack_heap::{
+use tspp_heap::{
     AllocationCache, AllocationPlan, AllocationShape, DropPlan, Heap, HeapEdge, HeapError,
     HeapReference, HeapResult, Payload, Release, SharedHeap, SharedHeapReference, SharedMarkWorker,
     TraceView,
 };
-use destack_mir::Space;
+use tspp_mir::Space;
 
 use crate::{
     AllocationSiteId, Global, GlobalAddress, GlobalLocation, Handshake, Request, StaticSpace,

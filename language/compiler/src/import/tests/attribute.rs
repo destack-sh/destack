@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_import_records_loader_attribute() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import data from "./data.json" with { type: "json" };
 "#,
@@ -20,7 +20,7 @@ import data from "./data.json" with { type: "json" };
         .build();
 
     compiler.assert_dir_imported(
-        "main.ds",
+        "main.tspp",
         DirRows::modules().with_summaries(),
         r#"
 import data from "./data.json" with { type: "json" };
@@ -35,7 +35,7 @@ import data from "./data.json" with { type: "json" };
 fn test_import_applies_loader_extension() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import data from "./data" with { type: "json" };
 "#,
@@ -51,7 +51,7 @@ import data from "./data" with { type: "json" };
         .build();
 
     compiler.assert_dir_imported(
-        "main.ds",
+        "main.tspp",
         DirRows::modules().with_summaries(),
         r#"
 import data from "./data" with { type: "json" };
@@ -66,7 +66,7 @@ import data from "./data" with { type: "json" };
 fn test_import_reports_invalid_loader_attribute() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import data from "./data.json" with { type: true };
 "#,
@@ -82,7 +82,7 @@ import data from "./data.json" with { type: true };
         .build();
 
     compiler.assert_dir_imported_diagnostics(
-        "main.ds", r#"
+        "main.tspp", r#"
 /// @diagnostic.error id=invalid-import-attribute-type message="invalid import attribute type '<non-string>'"
 /// @diagnostic.label line=2 column=1 span="import data from \"./data.json\" with { type: true }" line_source="import data from \"./data.json\" with { type: true };"
 "#,
@@ -93,7 +93,7 @@ import data from "./data.json" with { type: true };
 fn test_import_reports_unknown_loader_attribute() {
     let compiler = TestSession::builder()
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import data from "./data.json" with { type: "xml" };
 "#,
@@ -109,7 +109,7 @@ import data from "./data.json" with { type: "xml" };
         .build();
 
     compiler.assert_dir_imported_diagnostics(
-        "main.ds", r#"
+        "main.tspp", r#"
 /// @diagnostic.error id=invalid-import-attribute-type message="invalid import attribute type 'xml'"
 /// @diagnostic.label line=2 column=1 span="import data from \"./data.json\" with { type: \"xml\" }" line_source="import data from \"./data.json\" with { type: \"xml\" };"
 "#,

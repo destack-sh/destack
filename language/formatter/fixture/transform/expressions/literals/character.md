@@ -6,11 +6,11 @@
 
 Character literals use single quotes.
 
-```ds
+```tspp
 const x = 'a'
 ```
 
-```ds expected
+```tspp expected
 const x = 'a';
 ```
 
@@ -18,10 +18,10 @@ const x = 'a';
 
 Character literals escape embedded single quotes.
 
-```ds
+```tspp
 const x = '\''
 ```
 
-```ds expected
+```tspp expected
 const x = '\'';
 ```

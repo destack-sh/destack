@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
-use destack_core::StringPool;
-use destack_source::{DiagnosticSeverity, ModuleId};
+use tspp_core::StringPool;
+use tspp_source::{DiagnosticSeverity, ModuleId};
 
 use crate as mir;
 use crate::analyses::{FunctionCache, ModuleCache};

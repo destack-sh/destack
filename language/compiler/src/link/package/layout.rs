@@ -1,6 +1,6 @@
 use std::path::{Component, Path, PathBuf};
 
-use destack_repository::{Module, Target};
+use tspp_repository::{Module, Target};
 
 use super::{OutputFileNameTemplate, OutputFileNameValues};
 
@@ -244,7 +244,7 @@ pub(crate) fn module_source_path(module: &Module) -> Result<PathBuf, String> {
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use destack_repository::Target;
+    use tspp_repository::Target;
 
     use super::TargetLocation;
 

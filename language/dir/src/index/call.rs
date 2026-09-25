@@ -1,7 +1,7 @@
 use crate::{Expression, GlobalNodeId, GlobalSymbolId, Postings};
-use destack_serde::Reflect;
-use destack_source::Span;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
+use tspp_source::Span;
 
 /// Call graph index.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Reflect)]

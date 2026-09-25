@@ -20,7 +20,7 @@ extension of Panel implements Maker {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -103,7 +103,7 @@ extension of Panel implements Tagger {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -190,7 +190,7 @@ extension of Panel implements Rowed {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -293,7 +293,7 @@ extension of Panel implements Rowed {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -398,7 +398,7 @@ extension of Panel implements Grouper {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -469,7 +469,7 @@ extension of Panel implements Grouper {
 fn test_implement_tree_builder_with_declared_statics() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -497,11 +497,11 @@ extension of Panel implements TreeBuilder {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -527,7 +527,7 @@ extension of Panel implements TreeBuilder {
 }
 
 === dir ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
 /// @type.symbol symbol=Panel type=typeof Panel
@@ -618,7 +618,7 @@ extension of Panel implements TreeBuilder {
 fn test_check_tree_element_against_the_contextual_builder() {
     let session = TestSession::single(
         r#"
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -651,11 +651,11 @@ function render(): Panel {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
     label: string = "";
@@ -690,7 +690,7 @@ function render(): Panel {
 }
 
 === dir ===
-import { TreeBuilder } from "destack:tree";
+import { TreeBuilder } from "tspp:tree";
 
 class Panel {
 /// @type.symbol symbol=Panel type=typeof Panel
@@ -829,7 +829,7 @@ function render(): Panel {
 "#,
     );
 
-    session.assert_dir_and_diagnostics("main.ds", DirRows::checked(), r#"
+    session.assert_dir_and_diagnostics("main.tspp", DirRows::checked(), r#"
 === annotated ===
 class Panel {
     label: string = "";

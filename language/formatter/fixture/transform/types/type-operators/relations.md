@@ -6,11 +6,11 @@
 
 Combined `keyof` and `typeof` stays inline.
 
-```ds
+```tspp
 type Keys = keyof typeof values
 ```
 
-```ds expected
+```tspp expected
 type Keys = keyof typeof values;
 ```
 
@@ -18,12 +18,12 @@ type Keys = keyof typeof values;
 
 Static type relations format as infix type expressions.
 
-```ds
+```tspp
 type IsNumber = int32 extends number
 type IsDrawable = DrawnPoint implements Drawable
 ```
 
-```ds expected
+```tspp expected
 type IsNumber = int32 extends number;
 type IsDrawable = DrawnPoint implements Drawable;
 ```
@@ -32,12 +32,12 @@ type IsDrawable = DrawnPoint implements Drawable;
 
 Static type relations keep composite operands grouped.
 
-```ds
+```tspp
 type IsEither = (Left | Right) extends Value
 type IsBoth = (Left & Right) implements Drawable
 ```
 
-```ds expected
+```tspp expected
 type IsEither = (Left | Right) extends Value;
 type IsBoth = (Left & Right) implements Drawable;
 ```

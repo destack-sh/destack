@@ -1,0 +1,285 @@
+================================================================================
+Extension declarations
+:language(tspp)
+================================================================================
+
+extension of Point {
+    length(): float64 {
+        0.0
+    }
+}
+
+export extension PointAdd of Point implements Add<Point> {
+    type Output = Point;
+    add(other: Point): Point {
+        other
+    }
+}
+
+extension<T> of Box<T> implements Dereference {
+    type Output = &T;
+    dereference(): this.Output {
+        &*this.ptr
+    }
+}
+
+--------------------------------------------------------------------------------
+
+(program
+  (extension_declaration
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (number))))))
+  (export_statement
+    (extension_declaration
+      (type_identifier)
+      (type_identifier)
+      (implements_clause
+        (generic_type
+          (type_identifier)
+          (type_arguments
+            (type_identifier))))
+      (class_body
+        (associated_type_declaration
+          (type_identifier)
+          (type_identifier))
+        (method_definition
+          (property_identifier)
+          (formal_parameters
+            (required_parameter
+              (identifier)
+              (type_annotation
+                (type_identifier))))
+          (type_annotation
+            (type_identifier))
+          (statement_block
+            (expression_statement
+              (identifier)))))))
+  (extension_declaration
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)))
+    (implements_clause
+      (type_identifier))
+    (class_body
+      (associated_type_declaration
+        (type_identifier)
+        (memory_type
+          (type_identifier)))
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (associated_type_projection
+            (this_type)
+            (type_identifier)))
+        (statement_block
+          (expression_statement
+            (memory_expression
+              (memory_expression
+                (member_expression
+                  (this)
+                  (property_identifier))))))))))
+
+=======================================
+Receiver parameters and method where clauses
+:language(tspp)
+=======================================
+
+extension of Cell<T> {
+    get(&readonly this): T where T: Copy {
+        this.value
+    }
+    set(&exclusive this, value: T): void {
+        this.value = value;
+    }
+    intoInner(^this): T {
+        this.value
+    }
+    peek(&this): &T {
+        &this.value
+    }
+}
+
+---
+
+(program
+  (extension_declaration
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (receiver_parameter
+              (this))))
+        (type_annotation
+          (type_identifier))
+        (where_clause
+          (where_constraint
+            (type_identifier)
+            (type_identifier)))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (this)
+              (property_identifier)))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (receiver_parameter
+              (this)))
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (predefined_type))
+        (statement_block
+          (expression_statement
+            (assignment_expression
+              (member_expression
+                (this)
+                (property_identifier))
+              (identifier)))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (receiver_parameter
+              (this))))
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (member_expression
+              (this)
+              (property_identifier)))))
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (receiver_parameter
+              (this))))
+        (type_annotation
+          (memory_type
+            (type_identifier)))
+        (statement_block
+          (expression_statement
+            (memory_expression
+              (member_expression
+                (this)
+                (property_identifier)))))))))
+
+=======================================
+Blanket extensions
+:language(tspp)
+=======================================
+
+extension<T: int> of T {
+    abs(): T {
+        this
+    }
+}
+
+extension<T> of Box<T> implements Show where T: Show {
+    show(): string {
+        `Box(${this.value.show()})`
+    }
+}
+
+extension<T: Equal> of T implements PartialEqual {
+    equal(other: T): boolean {
+        true
+    }
+}
+
+---
+
+(program
+  (extension_declaration
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (type_identifier)
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (type_identifier))
+        (statement_block
+          (expression_statement
+            (this))))))
+  (extension_declaration
+    (type_parameters
+      (type_parameter
+        (type_identifier)))
+    (generic_type
+      (type_identifier)
+      (type_arguments
+        (type_identifier)))
+    (implements_clause
+      (type_identifier))
+    (where_clause
+      (where_constraint
+        (type_identifier)
+        (type_identifier)))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters)
+        (type_annotation
+          (predefined_type))
+        (statement_block
+          (expression_statement
+            (template_string
+              (string_fragment)
+              (template_substitution
+                (call_expression
+                  (member_expression
+                    (member_expression
+                      (this)
+                      (property_identifier))
+                    (property_identifier))
+                  (arguments)))
+              (string_fragment)))))))
+  (extension_declaration
+    (type_parameters
+      (type_parameter
+        (type_identifier)
+        (constraint
+          (type_identifier))))
+    (type_identifier)
+    (implements_clause
+      (type_identifier))
+    (class_body
+      (method_definition
+        (property_identifier)
+        (formal_parameters
+          (required_parameter
+            (identifier)
+            (type_annotation
+              (type_identifier))))
+        (type_annotation
+          (predefined_type))
+        (statement_block
+          (expression_statement
+            (true)))))))

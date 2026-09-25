@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -113,7 +113,7 @@ function cells(value: Cell): Cell[] {
         session.assert_diagnostics(
             r#"
 warning[no-array-fill-with-reference-type]: Array.fill repeats one managed reference
- ──▶ main.ds:7:17
+ ──▶ main.tspp:7:17
   │
 5 │ function cells(value: Cell): Cell[] {
 6 │     let values = [new Cell(), new Cell(), new Cell()];

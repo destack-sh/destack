@@ -1,6 +1,6 @@
-use destack_artifact::SourceMap;
-use destack_fir as fir;
-use destack_source::File;
+use tspp_artifact::SourceMap;
+use tspp_fir as fir;
+use tspp_source::File;
 
 const BASE64_VLQ_ALPHABET: &[u8; 64] =
     b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
@@ -72,7 +72,7 @@ impl SourceMapBuilder {
             encode_source_map_mappings(emitted_code, trailing_unmapped_line_count, &self.markers);
 
         SourceMap {
-            version: destack_artifact::SOURCE_MAP_VERSION,
+            version: tspp_artifact::SOURCE_MAP_VERSION,
             file: None,
             source_root: None,
             sources: self.sources.clone(),

@@ -1,8 +1,8 @@
 use crate::{
-    DestackFormatOptions, assert_format_program, assert_format_program_reference_widths,
+    TsppFormatOptions, assert_format_program, assert_format_program_reference_widths,
     assert_format_roundtrip, parse_first_expression,
 };
-use destack_source::FileType;
+use tspp_source::FileType;
 
 /// Tree attribute kinds should stay in a stable opening tag order and spelling.
 #[test]
@@ -12,8 +12,8 @@ fn test_format_tree_attribute_kinds() {
 "#,
         r#"const view = <Button disabled title="Save" count={items.length} {...props} />;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100).with_indent_width(2)
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100).with_indent_width(2)
     );
 }
 
@@ -23,7 +23,7 @@ fn test_format_recovered_tree_attribute() {
     assert_format_roundtrip!(
         r#"<Panel broken= next="ok" />"#,
         r#"<Panel broken= next="ok" />"#,
-        FileType::Destack,
+        FileType::Tspp,
         parse_first_expression,
     );
 }
@@ -37,7 +37,7 @@ fn test_format_recovered_tree_child() {
     {,}
     <Child />
 </Panel>"#,
-        FileType::Destack,
+        FileType::Tspp,
         parse_first_expression,
     );
 }
@@ -50,7 +50,7 @@ fn test_format_recovered_tree_closing_tag() {
         r#"<Panel>
     <Child />
 </Panel>"#,
-        FileType::Destack,
+        FileType::Tspp,
         parse_first_expression,
     );
 }
@@ -61,7 +61,7 @@ fn test_format_tree_attributes_break_by_width() {
     assert_format_program_reference_widths(
         r#"const view = <Button disabled title="Save" count={items.length} onClick={() => submit(items)} {...props} />
 "#,
-        FileType::Destack,
+        FileType::Tspp,
         &[
             (
                 80,
@@ -100,8 +100,8 @@ fn test_format_tree_nested_children() {
   </Panel>
 );
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100).with_indent_width(2)
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100).with_indent_width(2)
     );
 }
 
@@ -113,8 +113,8 @@ fn test_format_tree_inline_text_and_expression_children() {
 "#,
         r#"const view = <p>Hello {name}! <strong>{count}</strong></p>;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100).with_indent_width(2)
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100).with_indent_width(2)
     );
 }
 
@@ -134,8 +134,8 @@ fn test_format_tree_inline_prose_preserves_multiline_element_body() {
   </p>
 );
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100).with_indent_width(2)
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100).with_indent_width(2)
     );
 }
 
@@ -152,8 +152,8 @@ fn test_format_tree_fragment_children() {
   </>
 );
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100).with_indent_width(2)
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100).with_indent_width(2)
     );
 }
 
@@ -169,8 +169,8 @@ fn test_format_tree_attribute_expression() {
   </Show>
 );
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100).with_indent_width(2)
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100).with_indent_width(2)
     );
 }
 
@@ -182,7 +182,7 @@ fn test_format_tree_expression_child_comment() {
 "#,
         r#"const view = <div>{/* explain */}</div>;
 "#,
-        FileType::Destack,
-        DestackFormatOptions::default_with_line_width(100).with_indent_width(2)
+        FileType::Tspp,
+        TsppFormatOptions::default_with_line_width(100).with_indent_width(2)
     );
 }

@@ -4,7 +4,7 @@ use crate::tests::{DirRows, TestSession};
 fn test_unsigned_preserves_integer_width() {
     let session = TestSession::single(
         r#"
-import { Unsigned } from "destack:math";
+import { Unsigned } from "tspp:math";
 
 type SignedFixed = Unsigned<int37>;
 type UnsignedFixed = Unsigned<uint37>;
@@ -14,11 +14,11 @@ type UnsignedPointer = Unsigned<usize>;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Unsigned } from "destack:math";
+import { Unsigned } from "tspp:math";
 
 type SignedFixed = Unsigned<int37>;
 type UnsignedFixed = Unsigned<uint37>;
@@ -26,7 +26,7 @@ type SignedPointer = Unsigned<isize>;
 type UnsignedPointer = Unsigned<usize>;
 
 === dir ===
-import { Unsigned } from "destack:math";
+import { Unsigned } from "tspp:math";
 
 type SignedFixed = Unsigned<int37>;
 /// @type.symbol symbol=SignedFixed source="type SignedFixed = Unsigned<int37>" type=uint37

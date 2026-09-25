@@ -1,10 +1,10 @@
 use crate::parse::{TypePosition, TypeStop};
 use crate::{Parser, ParserError, ParserResult};
 
-use destack_dir::{
+use tspp_dir::{
     Keyword, LocalNodeId, NodeType, TokenType, TypeExpression, WhereClause, WhereRelation,
 };
-use destack_source::{NodeSpanRegion, NodeSpanType};
+use tspp_source::{NodeSpanRegion, NodeSpanType};
 
 impl Parser {
     /// Parse zero or more where clauses.
@@ -29,7 +29,7 @@ impl Parser {
     /// Parse one required where clause sequence.
     ///
     /// Examples:
-    /// ```ds
+    /// ```tspp
     /// where T: Serializable, T.Output == U
     /// ```
     pub(crate) fn parse_where(&mut self) -> ParserResult<Vec<LocalNodeId<WhereClause>>> {

@@ -5,7 +5,7 @@ use crate::common::{
 };
 use crate::console;
 use clap::Args;
-use destack_workspace::{CommandRevision, TargetsInput, TargetsPayload};
+use tspp_workspace::{CommandRevision, TargetsInput, TargetsPayload};
 
 /// Arguments for the targets command.
 #[derive(Args, Debug, Clone)]

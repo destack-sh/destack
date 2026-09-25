@@ -79,7 +79,7 @@ pub(crate) const fn platform_name() -> &'static str {
     return "macos";
 
     #[cfg(not(any(target_os = "windows", target_os = "linux", target_os = "macos")))]
-    compile_error!("destack_runtime host supports linux, macos, and windows");
+    compile_error!("tspp_runtime host supports linux, macos, and windows");
 }
 
 /// Return the compile target platform-family name.

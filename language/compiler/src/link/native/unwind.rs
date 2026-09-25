@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use destack_native as native;
-use destack_source::ModuleId;
+use tspp_native as native;
+use tspp_source::ModuleId;
 
 use crate::LinkResult;
 

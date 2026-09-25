@@ -15,7 +15,7 @@ flags.b satisfies boolean;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -71,7 +71,7 @@ flags[2] satisfies string;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -124,7 +124,7 @@ const flags: Flags = { a: true };
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -163,7 +163,7 @@ const flags: Flags = { 1: "one" };
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -202,7 +202,7 @@ const flags: Flags = { a: true, b: false, c: true };
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -240,7 +240,7 @@ type Bad = Record<{ name: string }, boolean>;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -256,7 +256,7 @@ type Bad = Record<{ name: string }, boolean>;
         r#"
 /// @diagnostic.error id=constraint-not-satisfied message="type '{ name: string }' does not satisfy 'PropertyKey'"
 /// @diagnostic.label line=2 column=19 span="{ name: string }" line_source="type Bad = Record<{ name: string }, boolean>;"
-/// @diagnostic.related file="object.ds" line=7 column=20 span="K" line_source="export type Record<K: PropertyKey, V> = {" message="required by this bound on 'K'"
+/// @diagnostic.related file="object.tspp" line=7 column=20 span="K" line_source="export type Record<K: PropertyKey, V> = {" message="required by this bound on 'K'"
 /// @diagnostic.note message="'PropertyKey' reduces to 'string | usize'"
 "#,
     );
@@ -277,7 +277,7 @@ const value = read(point);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -332,7 +332,7 @@ const value = read({ x: 1, y: 2 });
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -375,7 +375,7 @@ bag["missing"] satisfies int32 | undefined;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -423,7 +423,7 @@ value satisfies int32 | undefined;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -491,7 +491,7 @@ empty satisfies Empty;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -532,7 +532,7 @@ const empty: Empty = { value: true };
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

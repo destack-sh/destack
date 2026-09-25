@@ -1,8 +1,8 @@
 use std::path::Path;
 
-use destack_repository::FormatterOptions;
-use destack_source::{DiagnosticSeverity, DiffOptions, IndentStyle, format_diff};
 use libtest_mimic::{Failed, Trial};
+use tspp_repository::FormatterOptions;
+use tspp_source::{DiagnosticSeverity, DiffOptions, IndentStyle, format_diff};
 
 use crate::format::format_source;
 use crate::markdown::{Transform, markdown_files, parse_transforms};

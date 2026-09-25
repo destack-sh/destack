@@ -6,11 +6,11 @@
 
 Enums expand to multiple lines with trailing commas.
 
-```ds
+```tspp
 enum Status { Active; Inactive }
 ```
 
-```ds expected
+```tspp expected
 enum Status {
     Active,
     Inactive,
@@ -21,11 +21,11 @@ enum Status {
 
 Enum members with values keep spacing around `=`.
 
-```ds
+```tspp
 enum Color { Red = "red"; Green = "green" }
 ```
 
-```ds expected
+```tspp expected
 enum Color {
     Red = "red",
     Green = "green",
@@ -38,11 +38,11 @@ enum Color {
 
 Enums can include methods with block bodies.
 
-```ds
+```tspp
 enum Mode { Normal; Debug; toString(): string { return "mode" } }
 ```
 
-```ds expected
+```tspp expected
 enum Mode {
     Normal,
     Debug,

@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -16,14 +16,14 @@ Instead, you SHOULD call `cloneFrom` so the destination can reuse its existing a
 "#,
         example: {
             reported: r#"
-import { rc } from "destack:memory";
+import { rc } from "tspp:memory";
 
 function replace(target: &exclusive rc.Rc<int32>, source: &immutable rc.Rc<int32>): void {
     *target = source.clone();
 }
 "#,
             accepted: r#"
-import { rc } from "destack:memory";
+import { rc } from "tspp:memory";
 
 function replace(target: &exclusive rc.Rc<int32>, source: &immutable rc.Rc<int32>): void {
     target.cloneFrom(source);
@@ -137,7 +137,7 @@ mod tests {
         let session = TestSession::dir(
             &PREFER_CLONE_FROM,
             r#"
-import { rc } from "destack:memory";
+import { rc } from "tspp:memory";
 
 function retain(value: &exclusive rc.Rc<int32>): void {
     *value = value.clone();
@@ -158,7 +158,7 @@ function replaceAlias(target: &rc.Rc<int32>, source: &immutable rc.Rc<int32>): v
         let session = TestSession::dir(
             &PREFER_CLONE_FROM,
             r#"
-import { rc } from "destack:memory";
+import { rc } from "tspp:memory";
 
 struct Pair {
     left: rc.Rc<int32>;
@@ -173,7 +173,7 @@ function replace(pair: &exclusive Pair): void {
 
         session.assert_suggestions(
             r#"
-import { rc } from "destack:memory";
+import { rc } from "tspp:memory";
 
 struct Pair {
     left: rc.Rc<int32>;

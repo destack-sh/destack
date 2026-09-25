@@ -16,7 +16,7 @@ function pick(): Flags {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.pick",
         r#"
 type test.main.Flags = newtype<uint32>;
@@ -48,7 +48,7 @@ function run(): int32 {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.seed",
         r#"
 function test.main.seed(): int32 {
@@ -60,7 +60,7 @@ entry:
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.run",
         r#"
 function test.main.run(): int32 {
@@ -72,7 +72,7 @@ entry:
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.@init",
         r#"
 export function test.main.@init(): void {
@@ -105,7 +105,7 @@ function pick(): Point {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.pick",
         r#"
 type test.main.Point {
@@ -124,7 +124,7 @@ entry:
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.@init",
         r#"
 type test.main.Point {
@@ -150,7 +150,7 @@ entry:
 fn test_pair_generic_extension_drop_hook() {
     let session = TestSession::single(
         r#"
-import { Drop, drop } from "destack:memory";
+import { Drop, drop } from "tspp:memory";
 
 struct Guard<T> {
     value: T;
@@ -167,7 +167,7 @@ function consume(guard: Guard<int32>): void {
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.consume",
         r#"
 @nocopy
@@ -191,7 +191,7 @@ entry(v0: test.main.Guard<int32>):
     );
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.Guard.Drop.drop",
         r#"
 @nocopy
@@ -241,7 +241,7 @@ export extension<T: Greet> of T {
 "#,
     );
     session.assert_mir_lowered(
-        "main.ds",
+        "main.tspp",
         r#"
 type test.main.Cell {
     value: int32;

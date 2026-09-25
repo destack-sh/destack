@@ -1,0 +1,21 @@
+// SYNTAX TEST "source.tspp"
+
+// types / interfaces / structural
+interface Drawable {
+// <- keyword.declaration.type.tspp
+    draw(): void;
+}
+
+// types / interfaces / nominal
+newtype interface Add<T = this> {
+// <- keyword.declaration.type.tspp
+    type Output;
+    add(other: T): this.Output;
+}
+
+// types / interfaces / extends
+interface Writer extends Disposable {
+// <- keyword.declaration.type.tspp
+    write(bytes: [uint8]): Result<uint, IOError>;
+}
+

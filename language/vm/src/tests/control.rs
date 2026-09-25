@@ -1,4 +1,4 @@
-use destack_program::{TypeId, Word};
+use tspp_program::{TypeId, Word};
 
 use super::{TestMachine, TestProgram};
 use crate::{ErrorReason, Panic, ResourceError, Trap};

@@ -1,10 +1,10 @@
-use destack_heap as heap;
-use destack_heap::{
+use serde::{Deserialize, Serialize};
+use tspp_heap as heap;
+use tspp_heap::{
     DEFAULT_GC_GROWTH_PERCENT, DEFAULT_GC_MINIMUM_HEAP_BYTES, DEFAULT_GC_MINIMUM_WORK_BYTES,
     DEFAULT_GC_TRIGGER_PERCENT,
 };
-use destack_serde::Reflect;
-use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// Runtime heap configuration.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, Reflect)]

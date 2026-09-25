@@ -1,6 +1,6 @@
-use destack_core::FxIndexSet;
-use destack_dir as dir;
 use smallvec::SmallVec;
+use tspp_core::FxIndexSet;
+use tspp_dir as dir;
 
 use crate::sema::{
     CauseKind, CoroutineBody, CoroutineForm, ElisionSite, FunctionBody, GeneratorTargets,
@@ -24,7 +24,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     /// Walk one function signature and return its type.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// function run<T>(value: T): T { value }
     /// ```
     pub(in crate::sema) fn walk_function_signature_type(
@@ -187,7 +187,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     /// Walk one function type expression.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// (value: T) => U
     /// ```
     pub(in crate::sema) fn walk_function_type(
@@ -215,7 +215,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     /// Walk one constructor type expression.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// new (value: T) => Box<T>
     /// ```
     pub(in crate::sema) fn walk_constructor_type(
@@ -369,7 +369,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     /// Walk one function body inside a function flow frame.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// function run(value: number): number {
     ///     return value;
     /// }
@@ -605,7 +605,7 @@ impl<'check, 'state> WalkState<'check, 'state> {
     /// Walk one parameter annotation and return its argument type.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// (value?: T)
     /// ```
     pub(in crate::sema) fn walk_parameter_type(

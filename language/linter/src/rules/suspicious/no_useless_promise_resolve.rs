@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -16,14 +16,14 @@ Instead, you SHOULD use the existing Promise directly.
 "#,
         example: {
             reported: r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 function retain(value: Promise<int32>): Promise<int32> {
     return Promise.resolve(value);
 }
 "#,
             accepted: r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 function retain(value: Promise<int32>): Promise<int32> {
     return value;
@@ -118,7 +118,7 @@ mod tests {
         let session = TestSession::dir(
             &NO_USELESS_PROMISE_RESOLVE,
             r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 type Pending = Promise<int32>;
 
@@ -130,7 +130,7 @@ function retain(value: Pending): Promise<int32> {
 
         session.assert_fixes(
             r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 type Pending = Promise<int32>;
 
@@ -147,7 +147,7 @@ function retain(value: Pending): Promise<int32> {
         let session = TestSession::dir(
             &NO_USELESS_PROMISE_RESOLVE,
             r#"
-import { Promise } from "destack:async";
+import { Promise } from "tspp:async";
 
 function resolve(value: int32): Promise<int32> {
     return Promise.resolve(value);

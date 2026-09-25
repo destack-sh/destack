@@ -1,10 +1,10 @@
 use crate::link::{OutputLocation, TargetLocation};
 use crate::{LinkError, LinkResult};
-use destack_artifact::{
+use tspp_artifact::{
     BuildManifest, BuildManifestFile, BuildManifestFileType, BuildManifestLoader, Bundle,
     BundleFile, BundleSection,
 };
-use destack_repository::JsOutputMode;
+use tspp_repository::JsOutputMode;
 
 use super::JsLinker;
 use super::plan::{Output, OutputId, Plan};

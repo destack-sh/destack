@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -97,7 +97,7 @@ function isPositive(value: float64): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-compare-neg-zero]: comparison cannot distinguish negative zero
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function isPositive(value: float64): boolean {
 2 │     return -0.0 < value;
@@ -146,7 +146,7 @@ function isZero(value: int32): boolean {
         let session = TestSession::dir(
             &NO_COMPARE_NEG_ZERO,
             r#"
-import { PartialEqual } from "destack:ops";
+import { PartialEqual } from "tspp:ops";
 
 struct Measure {
     value: float64;
@@ -182,7 +182,7 @@ function isNegativeZero(value: float64): boolean {
         session.assert_diagnostics(
             r#"
 warning[no-compare-neg-zero]: comparison cannot distinguish negative zero
- ──▶ main.ds:3:22
+ ──▶ main.tspp:3:22
   │
 1 │ const NegativeZero = -0.0;
 2 │ function isNegativeZero(value: float64): boolean {

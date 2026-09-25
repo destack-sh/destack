@@ -1,7 +1,7 @@
 use std::path::Path;
 
-use destack_repository::{Repository, Revision};
-use destack_source::Span;
+use tspp_repository::{Repository, Revision};
+use tspp_source::Span;
 
 use crate::{DocError, DocResult, SourceReference};
 

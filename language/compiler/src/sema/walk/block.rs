@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::CompilerResult;
 use crate::sema::WalkState;
@@ -7,7 +7,7 @@ impl WalkState<'_, '_> {
     /// Walk one block.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// {
     ///     const value = 1;
     ///     value

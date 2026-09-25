@@ -12,7 +12,7 @@ function make<T: int8 | int64>(): T {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -48,7 +48,7 @@ function make<T: int8>(): T {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -83,7 +83,7 @@ function capture<T>(value: T): { reactions: T[] } {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -140,7 +140,7 @@ function pending<T>(): State<T> {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -249,7 +249,7 @@ function countdown(n: float64) {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -303,7 +303,7 @@ function pong(n: float64) {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -401,7 +401,7 @@ function make<T, E>(value: T): AsyncResult<T, E> {
 "#,
     );
 
-    session.assert_dir("main.ds", DirRows::checked().with_reference_types(), r#"
+    session.assert_dir("main.tspp", DirRows::checked().with_reference_types(), r#"
 === annotated ===
 declare class Promise<in out T> {
     static resolve<T>(value: Promise<T>): Promise<T>;
@@ -603,7 +603,7 @@ function copy(value: Point | int32): Point | int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

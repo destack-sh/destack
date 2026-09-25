@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -148,7 +148,7 @@ fn check(module: &DirModule<'_>, lint: &Lint) -> LintResult {
 fn suggestion(
     module: &DirModule<'_>,
     lint: &Lint,
-    extent: destack_source::Span,
+    extent: tspp_source::Span,
     operation: &FloatOperation,
 ) -> Result<Option<DiagnosticSuggestion>, ProviderError> {
     let retained = module.source_extent(operation.receiver.into_any())?;
@@ -186,7 +186,7 @@ function offsetLog(value: float64): float64 {
         session.assert_diagnostics(
             r#"
 warning[imprecise-float-operation]: expanded logarithm loses precision near zero
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function offsetLog(value: float64): float64 {
 2 │     return (1.0 + value).log();
@@ -195,8 +195,8 @@ warning[imprecise-float-operation]: expanded logarithm loses precision near zero
   │
 
  = suggestion: call `.log1p()` (requires review)
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function offsetLog(value: float64): float64 {
 -   2│     return (1.0 + value).log();

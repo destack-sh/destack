@@ -1,0 +1,14 @@
+import { Result } from "tspp:error";
+
+import { Locales } from "./common.tspp";
+import { IntlError } from "./error.tspp";
+
+/// Value with a locale-sensitive string representation.
+@languageItem("intl.ToLocaleString")
+export newtype interface ToLocaleString {
+    /// Return a string using the default locale.
+    toLocaleString(&readonly this): ^string;
+
+    /// Return a string using `locales`.
+    toLocaleString(&readonly this, locales: &readonly Locales): Result<string, IntlError>;
+}

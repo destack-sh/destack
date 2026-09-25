@@ -16,7 +16,7 @@ const result = queried(value);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -73,7 +73,7 @@ const box = new create();
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -130,7 +130,7 @@ const third = assigned(3);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_coercion(),
         r#"
 === annotated ===
@@ -213,7 +213,7 @@ const third = assigned(3);
 fn test_read_imported_field_with_typeof() {
     let session = TestSession::builder()
         .module(
-            "box.ds",
+            "box.tspp",
             r#"
 declare const seed: int32;
 
@@ -223,9 +223,9 @@ export struct Box {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Box } from "./box.ds";
+import { Box } from "./box.tspp";
 
 declare const box: Box;
 
@@ -235,18 +235,18 @@ const value = box.value;
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Box } from "./box.ds";
+import { Box } from "./box.tspp";
 
 declare const box: Box;
 
 const value: int32 = box.value;
 
 === dir ===
-import { Box } from "./box.ds";
+import { Box } from "./box.tspp";
 
 declare const box: Box;
 /// @type.symbol symbol=box source=box type=box.Box
@@ -277,7 +277,7 @@ type Counter = typeof Count;
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -316,7 +316,7 @@ let ok: ValueType = 42;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -358,7 +358,7 @@ let bad: ValueType = "no";
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -416,7 +416,7 @@ let version: int32 = Counter.version;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

@@ -4,7 +4,7 @@ use crate::tests::TestSession;
 fn test_lower_imported_struct_construction_and_field_reads() {
     let session = TestSession::builder()
         .module(
-            "point.ds",
+            "point.tspp",
             r#"
 export struct Point {
     x: int32;
@@ -13,7 +13,7 @@ export struct Point {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
 import { Point } from "./point";
 
@@ -26,7 +26,7 @@ function stretch(by: int32): int32 {
         .build();
 
     session.assert_mir_function(
-        "main.ds",
+        "main.tspp",
         "test.main.stretch",
         r#"
 type test.point.Point;

@@ -259,7 +259,7 @@ mod tests {
     fn test_fs() -> OverlayFileSystem {
         let inner = Arc::new(MemoryFileSystem::new());
         inner
-            .add_file(Path::new("/test.ds"), b"disk content")
+            .add_file(Path::new("/test.tspp"), b"disk content")
             .unwrap();
         OverlayFileSystem::with_inner(inner)
     }
@@ -268,7 +268,7 @@ mod tests {
     fn test_read_without_overlay_delegates_to_inner() {
         // reads delegate to inner when no overlay exists
         let fs = test_fs();
-        let content = fs.read_to_string(Path::new("/test.ds")).unwrap();
+        let content = fs.read_to_string(Path::new("/test.tspp")).unwrap();
         assert_eq!(content, "disk content");
     }
 
@@ -276,8 +276,8 @@ mod tests {
     fn test_read_with_overlay_returns_overlay_content() {
         // reads return overlay content
         let fs = test_fs();
-        fs.set_overlay(Path::new("/test.ds"), "overlay content".to_string());
-        let content = fs.read_to_string(Path::new("/test.ds")).unwrap();
+        fs.set_overlay(Path::new("/test.tspp"), "overlay content".to_string());
+        let content = fs.read_to_string(Path::new("/test.tspp")).unwrap();
         assert_eq!(content, "overlay content");
     }
 
@@ -285,9 +285,9 @@ mod tests {
     fn test_remove_overlay_restores_inner_content() {
         // removing an overlay restores inner content
         let fs = test_fs();
-        fs.set_overlay(Path::new("/test.ds"), "overlay content".to_string());
-        fs.remove_overlay(Path::new("/test.ds"));
-        let content = fs.read_to_string(Path::new("/test.ds")).unwrap();
+        fs.set_overlay(Path::new("/test.tspp"), "overlay content".to_string());
+        fs.remove_overlay(Path::new("/test.tspp"));
+        let content = fs.read_to_string(Path::new("/test.tspp")).unwrap();
         assert_eq!(content, "disk content");
     }
 
@@ -295,10 +295,10 @@ mod tests {
     fn test_overlay_for_nonexistent_file() {
         // overlays can provide content for a path not present in inner
         let fs = test_fs();
-        assert!(!fs.exists(Path::new("/new.ds")).unwrap());
-        fs.set_overlay(Path::new("/new.ds"), "new content".to_string());
-        assert!(fs.exists(Path::new("/new.ds")).unwrap());
-        let content = fs.read_to_string(Path::new("/new.ds")).unwrap();
+        assert!(!fs.exists(Path::new("/new.tspp")).unwrap());
+        fs.set_overlay(Path::new("/new.tspp"), "new content".to_string());
+        assert!(fs.exists(Path::new("/new.tspp")).unwrap());
+        let content = fs.read_to_string(Path::new("/new.tspp")).unwrap();
         assert_eq!(content, "new content");
     }
 
@@ -306,10 +306,11 @@ mod tests {
     fn test_write_clears_overlay() {
         // writes go to inner and clear any overlay for that path
         let fs = test_fs();
-        fs.set_overlay(Path::new("/test.ds"), "overlay content".to_string());
-        fs.write(Path::new("/test.ds"), b"written content").unwrap();
-        assert!(!fs.has_overlay(Path::new("/test.ds")));
-        let content = fs.read_to_string(Path::new("/test.ds")).unwrap();
+        fs.set_overlay(Path::new("/test.tspp"), "overlay content".to_string());
+        fs.write(Path::new("/test.tspp"), b"written content")
+            .unwrap();
+        assert!(!fs.has_overlay(Path::new("/test.tspp")));
+        let content = fs.read_to_string(Path::new("/test.tspp")).unwrap();
         assert_eq!(content, "written content");
     }
 
@@ -317,8 +318,8 @@ mod tests {
     fn test_metadata_reflects_overlay() {
         // overlay paths report regular file metadata
         let fs = test_fs();
-        fs.set_overlay(Path::new("/test.ds"), "short".to_string());
-        let meta = fs.metadata(Path::new("/test.ds")).unwrap();
+        fs.set_overlay(Path::new("/test.tspp"), "short".to_string());
+        let meta = fs.metadata(Path::new("/test.tspp")).unwrap();
         assert!(meta.is_file);
         assert!(!meta.is_directory);
     }
@@ -327,14 +328,16 @@ mod tests {
     fn test_read_dir_merges_overlay_entries_with_inner_results() {
         // read_dir returns a union of inner and overlay direct children
         let inner = Arc::new(MemoryFileSystem::new());
-        inner.add_file(Path::new("/dir/disk.ds"), b"disk").unwrap();
         inner
-            .add_file(Path::new("/dir/inner_only.ds"), b"disk")
+            .add_file(Path::new("/dir/disk.tspp"), b"disk")
+            .unwrap();
+        inner
+            .add_file(Path::new("/dir/inner_only.tspp"), b"disk")
             .unwrap();
         let fs = OverlayFileSystem::with_inner(inner);
 
-        fs.set_overlay(Path::new("/dir/overlay.ds"), "overlay".to_string());
-        fs.set_overlay(Path::new("/dir/disk.ds"), "overlay".to_string());
+        fs.set_overlay(Path::new("/dir/overlay.tspp"), "overlay".to_string());
+        fs.set_overlay(Path::new("/dir/disk.tspp"), "overlay".to_string());
 
         let mut entries = fs.read_dir(Path::new("/dir")).unwrap();
         entries.sort();
@@ -342,9 +345,9 @@ mod tests {
         assert_eq!(
             entries,
             vec![
-                PathBuf::from("/dir/disk.ds"),
-                PathBuf::from("/dir/inner_only.ds"),
-                PathBuf::from("/dir/overlay.ds"),
+                PathBuf::from("/dir/disk.tspp"),
+                PathBuf::from("/dir/inner_only.tspp"),
+                PathBuf::from("/dir/overlay.tspp"),
             ]
         );
     }
@@ -355,10 +358,10 @@ mod tests {
         let inner = Arc::new(MemoryFileSystem::new());
         let fs = OverlayFileSystem::with_inner(inner);
 
-        fs.set_overlay(Path::new("/missing/overlay.ds"), "overlay".to_string());
+        fs.set_overlay(Path::new("/missing/overlay.tspp"), "overlay".to_string());
 
         let mut entries = fs.read_dir(Path::new("/missing")).unwrap();
         entries.sort();
-        assert_eq!(entries, vec![PathBuf::from("/missing/overlay.ds")]);
+        assert_eq!(entries, vec![PathBuf::from("/missing/overlay.tspp")]);
     }
 }

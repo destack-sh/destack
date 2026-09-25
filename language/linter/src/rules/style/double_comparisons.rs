@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, Patch};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, Patch};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -204,7 +204,7 @@ function atLeast(left: int32, right: int32): boolean {
         session.assert_diagnostics(
             r#"
 warning[double-comparisons]: two comparisons express one relationship
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function atLeast(left: int32, right: int32): boolean {
 2 │     return left > right || left === right;
@@ -213,8 +213,8 @@ warning[double-comparisons]: two comparisons express one relationship
   │
 
  = fix: use one comparison
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function atLeast(left: int32, right: int32): boolean {
 -   2│     return left > right || left === right;
@@ -246,7 +246,7 @@ function above(left: int32, right: int32): boolean {
         session.assert_diagnostics(
             r#"
 warning[double-comparisons]: two comparisons express one relationship
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function above(left: int32, right: int32): boolean {
 2 │     return left >= right && left !== right;
@@ -255,8 +255,8 @@ warning[double-comparisons]: two comparisons express one relationship
   │
 
  = fix: use one comparison
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function above(left: int32, right: int32): boolean {
 -   2│     return left >= right && left !== right;
@@ -288,7 +288,7 @@ function atMost(left: int32, right: int32): boolean {
         session.assert_diagnostics(
             r#"
 warning[double-comparisons]: two comparisons express one relationship
- ──▶ main.ds:2:12
+ ──▶ main.tspp:2:12
   │
 1 │ function atMost(left: int32, right: int32): boolean {
 2 │     return left < right || /* retain */ left === right;

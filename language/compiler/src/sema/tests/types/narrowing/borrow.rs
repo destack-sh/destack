@@ -24,7 +24,7 @@ function read<'a>(shape: Borrowed<Rectangle | Circle, 'a>): int32 {
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -140,7 +140,7 @@ function read<'a, const A: Access>(
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===
@@ -256,7 +256,7 @@ function value<'a, 'b>(
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked().with_reference_types(),
         r#"
 === annotated ===

@@ -1,0 +1,29 @@
+import { todo } from "tspp:error";
+
+import { Atomic } from "./atomic.tspp";
+
+/// Reusable synchronization barrier.
+@languageItem("sync.Barrier")
+export shared class Barrier {
+    /// The required participant count.
+    private count: usize;
+
+    /// The current arrival count.
+    private arrived: Atomic<usize> = Atomic.new(0);
+
+    /// Create a barrier for `count` participants.
+    constructor(count: usize) {
+        this.count = count;
+    }
+
+    /// Wait until all participants arrive.
+    wait(): BarrierWaitResult {
+        todo("Barrier.wait")
+    }
+}
+
+/// Result returned by a barrier wait.
+export struct BarrierWaitResult {
+    /// Whether this participant completed the barrier generation.
+    isLeader: boolean;
+}

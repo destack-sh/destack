@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::sema::{AssignedPlace, ElisionSite, WalkState};
 use crate::{CompilerError, CompilerResult};
@@ -7,7 +7,7 @@ impl WalkState<'_, '_> {
     /// Walk one assignment target and return the flow place it assigns.
     ///
     /// Example:
-    /// ```ds
+    /// ```tspp
     /// value.member
     /// ```
     pub(in crate::sema) fn walk_assigned_place(

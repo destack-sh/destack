@@ -1,6 +1,6 @@
-use destack_memory::MemoryRange;
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_memory::MemoryRange;
+use tspp_serde::Reflect;
 
 use crate::{Bitmap, SmallSpanClass};
 

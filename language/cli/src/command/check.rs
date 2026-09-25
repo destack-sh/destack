@@ -10,7 +10,7 @@ use crate::common::{
 use crate::console;
 use crate::diagnostic::ConsoleResult;
 use clap::{Args, ValueEnum};
-use destack_workspace::{CheckInput, CheckRequest, CommandRevision};
+use tspp_workspace::{CheckInput, CheckRequest, CommandRevision};
 
 /// Execution context shared across check command paths.
 struct CheckExecutionContext {

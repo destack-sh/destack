@@ -25,7 +25,7 @@ const label = describe(&readonly one);
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -164,7 +164,7 @@ extension of Lamp implements Bright {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -304,7 +304,7 @@ extension of Bell implements Loud, Bright {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -441,7 +441,7 @@ extension of Bell implements Loud {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -552,7 +552,7 @@ extension of Stone implements Quiet {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -619,7 +619,7 @@ extension of Bell {
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::none(),
         r#"
 === annotated ===
@@ -687,7 +687,7 @@ const heard = bell.sound();
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -804,15 +804,15 @@ const heard = bell.sound();
 fn test_require_the_extension_import_for_its_members() {
     let session = TestSession::builder()
         .module(
-            "bell.ds",
+            "bell.tspp",
             r#"
 export struct Bell {}
 "#,
         )
         .module(
-            "ring.ds",
+            "ring.tspp",
             r#"
-import { Bell } from "./bell.ds";
+import { Bell } from "./bell.tspp";
 
 export extension Ringing of Bell {
     ring(): string {
@@ -822,9 +822,9 @@ export extension Ringing of Bell {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Bell } from "./bell.ds";
+import { Bell } from "./bell.tspp";
 
 const bell = Bell {};
 const sound = bell.ring();
@@ -833,17 +833,17 @@ const sound = bell.ring();
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Bell } from "./bell.ds";
+import { Bell } from "./bell.tspp";
 
 const bell: Bell = Bell {};
 const sound = bell.ring();
 
 === dir ===
-import { Bell } from "./bell.ds";
+import { Bell } from "./bell.tspp";
 
 const bell = Bell {};
 /// @type.symbol symbol=bell source=bell type=bell.Bell
@@ -870,15 +870,15 @@ const sound = bell.ring();
 fn test_reach_extension_members_through_the_extension_import() {
     let session = TestSession::builder()
         .module(
-            "bell.ds",
+            "bell.tspp",
             r#"
 export struct Bell {}
 "#,
         )
         .module(
-            "ring.ds",
+            "ring.tspp",
             r#"
-import { Bell } from "./bell.ds";
+import { Bell } from "./bell.tspp";
 
 export extension Ringing of Bell {
     ring(): string {
@@ -888,10 +888,10 @@ export extension Ringing of Bell {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { Bell } from "./bell.ds";
-import { Ringing } from "./ring.ds";
+import { Bell } from "./bell.tspp";
+import { Ringing } from "./ring.tspp";
 
 const bell = Bell {};
 const sound = bell.ring();
@@ -900,19 +900,19 @@ const sound = bell.ring();
         .build();
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { Bell } from "./bell.ds";
-import { Ringing } from "./ring.ds";
+import { Bell } from "./bell.tspp";
+import { Ringing } from "./ring.tspp";
 
 const bell: Bell = Bell {};
 const sound: string = bell.ring<"static">();
 
 === dir ===
-import { Bell } from "./bell.ds";
-import { Ringing } from "./ring.ds";
+import { Bell } from "./bell.tspp";
+import { Ringing } from "./ring.tspp";
 
 const bell = Bell {};
 /// @type.symbol symbol=bell source=bell type=bell.Bell

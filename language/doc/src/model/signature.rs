@@ -1,5 +1,5 @@
-use destack_serde::Reflect;
 use serde::{Deserialize, Serialize};
+use tspp_serde::Reflect;
 
 /// One checked declaration signature.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Reflect)]

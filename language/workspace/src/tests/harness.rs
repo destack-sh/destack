@@ -3,19 +3,19 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use destack_artifact::{ArtifactCache, BuildId};
-use destack_core::Blob;
-use destack_dir as dir;
-use destack_repository::{
+use futures::executor::block_on;
+use tspp_artifact::{ArtifactCache, BuildId};
+use tspp_core::Blob;
+use tspp_dir as dir;
+use tspp_repository::{
     Change, Commit, DestackLayoutOverride, Environment, Execution, Host, Repository, Revision,
     Settings, TraceLevel,
 };
-use destack_session::Executor;
-use destack_source::{
+use tspp_session::Executor;
+use tspp_source::{
     DiagnosticLabel, DiagnosticTarget, Edit, FileId, FileMetadata, FileSystem, PhysicalFileSystem,
     Span, TemporaryPhysicalFileSystem, Uri,
 };
-use futures::executor::block_on;
 
 use crate::command::{
     CheckInput, CommandInput, CommandOptions, CommandRevision, QueryInput, QueryOutput,
@@ -116,7 +116,7 @@ impl TestWorkspace {
             .unwrap_or_else(|error| panic!("failed to write {}: {error}", config.display()));
 
         // create a repository over the selected physical filesystem
-        let artifact_cache = is_persistent.then(|| root.join(".destack/artifacts"));
+        let artifact_cache = is_persistent.then(|| root.join(".tspp/artifacts"));
         let workspace = Self::open(&root, file_system, artifact_cache.as_deref());
 
         Self {
@@ -209,7 +209,7 @@ impl TestWorkspace {
             },
         ));
         input.lint = false;
-        input.trace = Some(destack_repository::TraceView::Detailed);
+        input.trace = Some(tspp_repository::TraceView::Detailed);
 
         block_on(self.workspace.check(input, None)).expect("workspace check")
     }

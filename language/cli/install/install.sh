@@ -285,7 +285,7 @@ install_binaries() {
     mkdir -p "${DESTACK_INSTALL_DIR}"
 
     local binary_name
-    for binary_name in destack ds dsc; do
+    for binary_name in destack tspp tsppc; do
         local source_binary
         source_binary="$(find_extracted_binary "${binary_name}" "${extract_directory}")"
         cp "${source_binary}" "${DESTACK_INSTALL_DIR}/${binary_name}"

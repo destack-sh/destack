@@ -59,7 +59,7 @@ perl -ne '
       $symbol = $1;
       $samples = $2;
       $percent = $3;
-      next unless $symbol =~ /destack_parser::/;
+      next unless $symbol =~ /tspp_parser::/;
       print "$percent\t$samples\t$symbol\n";
     }
   }

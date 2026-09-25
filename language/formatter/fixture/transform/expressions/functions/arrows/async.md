@@ -6,11 +6,11 @@
 
 The `async` keyword precedes the parameter list.
 
-```ds
+```tspp
 const f = async (x) => x
 ```
 
-```ds expected
+```tspp expected
 const f = async (x) => x;
 ```
 
@@ -18,11 +18,11 @@ const f = async (x) => x;
 
 Async functions can use `await` in their body.
 
-```ds
+```tspp
 const f = async (url) => await fetch(url)
 ```
 
-```ds expected
+```tspp expected
 const f = async (url) => await fetch(url);
 ```
 
@@ -30,11 +30,11 @@ const f = async (url) => await fetch(url);
 
 Async arrow functions with blocks expand normally.
 
-```ds
+```tspp
 const f = async (url) => { const res = await fetch(url); return res.json() }
 ```
 
-```ds expected
+```tspp expected
 const f = async (url) => {
     const res = await fetch(url);
     return res.json();

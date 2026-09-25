@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
-use destack_bytecode::RegisterSpan;
-use destack_memory::{MemoryMap, MemoryRange};
-use destack_program as program;
-use destack_program::{Context, Word};
 use serde::{Deserialize, Serialize};
+use tspp_bytecode::RegisterSpan;
+use tspp_memory::{MemoryMap, MemoryRange};
+use tspp_program as program;
+use tspp_program::{Context, Word};
 
 use crate::diagnostic::{Error, Result};
 

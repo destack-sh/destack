@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use destack_artifact::{DirResolved, DirView};
-use destack_core::StringPool;
-use destack_dir as dir;
-use destack_source::{ModuleId, SourceIndex};
+use tspp_artifact::{DirResolved, DirView};
+use tspp_core::StringPool;
+use tspp_dir as dir;
+use tspp_source::{ModuleId, SourceIndex};
 
 /// DIR artifacts shared by module index builders.
 #[derive(Debug)]

@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -116,7 +116,7 @@ class Values {
         session.assert_diagnostics(
             r#"
 warning[no-static-only-class]: class contains only static members
- ──▶ main.ds:1:7
+ ──▶ main.tspp:1:7
   │
 1 │ class Values {
   │       ^^^^^^
@@ -201,7 +201,7 @@ class Values extends Base {
         session.assert_diagnostics(
             r#"
 warning[no-static-only-class]: class contains only static members
- ──▶ main.ds:3:7
+ ──▶ main.tspp:3:7
   │
 1 │ class Base {}
 2 │

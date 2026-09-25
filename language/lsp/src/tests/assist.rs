@@ -1,5 +1,5 @@
-use destack_lsp_server::jsonrpc;
-use destack_lsp_types as lsp;
+use tspp_lsp_server::jsonrpc;
+use tspp_lsp_types as lsp;
 
 use super::tests::{
     CompletionDisplay, MANIFEST, TestServer, markdown, position, range, replace_document,
@@ -16,8 +16,12 @@ function send(code: int32, message: string): boolean {
 }
 const sent = send(1, "ok");
 "#;
-    let (mut server, document) =
-        TestServer::open_workspace("call-assists", &[("src/main.ds", source)], "src/main.ds").await;
+    let (mut server, document) = TestServer::open_workspace(
+        "call-assists",
+        &[("src/main.tspp", source)],
+        "src/main.tspp",
+    )
+    .await;
 
     // select the second parameter and retain callable documentation
     let signature = Some(lsp::SignatureHelp {
@@ -101,10 +105,10 @@ const sent = context.send(1);
     let mut server = TestServer::new("completion-details");
     server.write("destack.json", MANIFEST);
     server.write(
-        "src/library.ds",
+        "src/library.tspp",
         "export function greetFixture(): void {}\n",
     );
-    let document = server.write("src/main.ds", source);
+    let document = server.write("src/main.tspp", source);
     server
         .initialize_completion(&["detail", "documentation", "additionalTextEdits"], true)
         .await;
@@ -137,7 +141,7 @@ const sent = context.send(1);
             label_detail: None,
             description: None,
             detail: Some("struct HostErrorContextProcess"),
-            documentation: Some("```ds\nstruct HostErrorContextProcess\n```"),
+            documentation: Some("```tspp\nstruct HostErrorContextProcess\n```"),
         },
     );
 
@@ -150,7 +154,7 @@ const sent = context.send(1);
                 label_detail: Some(": Collection.Item"),
                 description: None,
                 detail: Some("Collection.Item"),
-                documentation: Some("```ds\nCollection.Item\n```"),
+                documentation: Some("```tspp\nCollection.Item\n```"),
             },
         )
         .await;
@@ -164,7 +168,7 @@ const sent = context.send(1);
                 label_detail: Some(": string"),
                 description: None,
                 detail: Some("HostErrorContextProcess.syscall: string"),
-                documentation: Some("```ds\nHostErrorContextProcess.syscall: string\n```"),
+                documentation: Some("```tspp\nHostErrorContextProcess.syscall: string\n```"),
             },
         )
         .await;
@@ -179,7 +183,7 @@ const sent = context.send(1);
                 description: None,
                 detail: Some("HostErrorContextProcess.send(code: int32): string"),
                 documentation: Some(
-                    r#"```ds
+                    r#"```tspp
 HostErrorContextProcess.send(code: int32): string
 ```
 
@@ -247,12 +251,12 @@ async fn test_return_eager_completion_details() {
     let mut server = TestServer::new("eager-completion-details");
     server.write("destack.json", MANIFEST);
     server.write(
-        "src/library.ds",
+        "src/library.tspp",
         r#"/// Greet one fixture.
 export function greetFixture(): void {}
 "#,
     );
-    let document = server.write("src/main.ds", source);
+    let document = server.write("src/main.tspp", source);
     server.initialize_completion(&["detail"], false).await;
     server.open(&document, 1, source).await;
 
@@ -269,7 +273,7 @@ export function greetFixture(): void {}
             description: None,
             detail: Some("export function greetFixture(): void — from ./library"),
             documentation: Some(concat!(
-                "```ds\n",
+                "```tspp\n",
                 "export function greetFixture(): void\n",
                 "```\n\n",
                 "Greet one fixture.",
@@ -307,8 +311,8 @@ const sound = dog.name;
 "#;
     let (mut server, document) = TestServer::open_workspace(
         "apparent-member-completion",
-        &[("src/main.ds", source)],
-        "src/main.ds",
+        &[("src/main.tspp", source)],
+        "src/main.tspp",
     )
     .await;
 
@@ -347,8 +351,8 @@ function inspect(crate: &readonly Crate): string {
 "#;
     let (mut server, document) = TestServer::open_workspace(
         "ownership-member-completion",
-        &[("src/main.ds", source)],
-        "src/main.ds",
+        &[("src/main.tspp", source)],
+        "src/main.tspp",
     )
     .await;
 
@@ -367,8 +371,8 @@ const scaled: float64 = value.sqrt();
 "#;
     let (mut server, document) = TestServer::open_workspace(
         "blanket-member-completion",
-        &[("src/main.ds", source)],
-        "src/main.ds",
+        &[("src/main.tspp", source)],
+        "src/main.tspp",
     )
     .await;
 
@@ -382,7 +386,7 @@ const scaled: float64 = value.sqrt();
                 description: None,
                 detail: Some("isNaN(): boolean"),
                 documentation: Some(
-                    "```ds\nisNaN(): boolean\n```\n\nReturn whether this value is NaN.",
+                    "```tspp\nisNaN(): boolean\n```\n\nReturn whether this value is NaN.",
                 ),
             },
         )
@@ -395,7 +399,7 @@ const scaled: float64 = value.sqrt();
                 label_detail: None,
                 description: None,
                 detail: Some("sqrt(): T"),
-                documentation: Some("```ds\nsqrt(): T\n```\n\nReturn the square root."),
+                documentation: Some("```tspp\nsqrt(): T\n```\n\nReturn the square root."),
             },
         )
         .await;
@@ -411,7 +415,7 @@ export newtype Value = string;
 export declare function value(): int32;
 "#;
     let mut server = TestServer::new("builtin-intrinsic-hover");
-    let document = server.write("main.ds", source);
+    let document = server.write("main.tspp", source);
     server
         .initialize(lsp::ClientCapabilities::default(), None)
         .await
@@ -422,8 +426,8 @@ export declare function value(): int32;
     server.open(&document, 1, source).await;
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
-            "`destack://decorator/intrinsic.ds:7:16`\n\n\
-             ```ds\n@languageItem(\"decorator.languageItem\")\n\
+            "`tspp://decorator/intrinsic.tspp:7:16`\n\n\
+             ```tspp\n@languageItem(\"decorator.languageItem\")\n\
              export newtype languageItem = (string,) | ()\n```\n\n\
              Compiler language item marker.",
         )),
@@ -435,8 +439,8 @@ export declare function value(): int32;
 
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
-            "`destack://decorator/intrinsic.ds:3:16`\n\n\
-             ```ds\n@languageItem(\"decorator.intrinsic\")\n\
+            "`tspp://decorator/intrinsic.tspp:3:16`\n\n\
+             ```tspp\n@languageItem(\"decorator.intrinsic\")\n\
              export newtype intrinsic = (string,) | ()\n```\n\n\
              Compiler intrinsic marker.",
         )),
@@ -449,8 +453,8 @@ export declare function value(): int32;
     // retain the ordinary declaration identity of an intrinsic function
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
-            "`main.ds:5:25`\n\n\
-             ```ds\n@intrinsic(\"test.value\")\n\
+            "`main.tspp:5:25`\n\n\
+             ```tspp\n@intrinsic(\"test.value\")\n\
              export declare function value(): int32\n```",
         )),
         range: Some(range(4, 24, 4, 29)),
@@ -473,16 +477,16 @@ declare const service: Service;
 "#;
     let (mut server, document) = TestServer::open_workspace(
         "render-hover-declaration",
-        &[("src/main.ds", source)],
-        "src/main.ds",
+        &[("src/main.tspp", source)],
+        "src/main.tspp",
     )
     .await;
 
     // render the complete declaration and its workspace location
     let expected = lsp::Hover {
         contents: lsp::HoverContents::Markup(markdown(
-            "`src/main.ds:5:18`\n\n\
-             ```ds\n@marker(\"service\")\nexport interface Service\n```\n\n\
+            "`src/main.tspp:5:18`\n\n\
+             ```tspp\n@marker(\"service\")\nexport interface Service\n```\n\n\
              Provide one service.",
         )),
         range: Some(range(6, 23, 6, 30)),
@@ -500,7 +504,7 @@ async fn test_hover_expression_documentation() {
     42;
 "#;
     let mut server = TestServer::new("expression-documentation-hover");
-    let document = server.write("main.ds", source);
+    let document = server.write("main.tspp", source);
     server
         .initialize(lsp::ClientCapabilities::default(), None)
         .await

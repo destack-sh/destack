@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_repository::ProviderError;
-use destack_source::{DiagnosticSuggestion, FilePatch, Span};
+use tspp_dir as dir;
+use tspp_repository::ProviderError;
+use tspp_source::{DiagnosticSuggestion, FilePatch, Span};
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -207,7 +207,7 @@ function consume(values: int32[]): void {
         session.assert_diagnostics(
             r#"
 warning[unused-peekable]: peekable iterator is never peeked
- ──▶ main.ds:2:20
+ ──▶ main.tspp:2:20
   │
 1 │ function consume(values: int32[]): void {
 2 │     let iterator = values.iterator().peekable();
@@ -217,8 +217,8 @@ warning[unused-peekable]: peekable iterator is never peeked
   │
 
  = fix: use the original iterator
---- a/main.ds
-+++ b/main.ds
+--- a/main.tspp
++++ b/main.tspp
 
     1│ function consume(values: int32[]): void {
 -   2│     let iterator = values.iterator().peekable();
@@ -330,7 +330,7 @@ function forward(values: int32[]): void {
         let session = TestSession::dir(
             &UNUSED_PEEKABLE,
             r#"
-import { Iterator, PeekableIterator } from "destack:iter";
+import { Iterator, PeekableIterator } from "tspp:iter";
 
 function consume(values: Iterator<int32>): void {
     let iterator: PeekableIterator<Iterator<int32>, int32> = values.peekable();

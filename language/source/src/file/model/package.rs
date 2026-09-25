@@ -1,12 +1,12 @@
-use destack_serde::Reflect;
 use std::path::Path;
+use tspp_serde::Reflect;
 
 use serde::{Deserialize, Serialize};
 
 use super::hash::{stable_source_id, stable_source_path};
 use crate::Uri;
 
-const PACKAGE_DOMAIN: &[u8] = b"destack.source.package.v1";
+const PACKAGE_DOMAIN: &[u8] = b"tspp.source.package.v1";
 const PACKAGE_KIND_PHYSICAL: &[u8] = b"physical";
 const PACKAGE_KIND_URI: &[u8] = b"uri";
 

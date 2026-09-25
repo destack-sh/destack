@@ -17,7 +17,7 @@ ok satisfies (string, number);
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -68,7 +68,7 @@ ok satisfies (string, number);
 fn test_constructor_parameters_extracts_imported_class_arguments() {
     let session = TestSession::builder()
         .module(
-            "user.ds",
+            "user.tspp",
             r#"
 export class User {
     constructor(name: string, age: number) {}
@@ -76,9 +76,9 @@ export class User {
 "#,
         )
         .module(
-            "main.ds",
+            "main.tspp",
             r#"
-import { User } from "./user.ds";
+import { User } from "./user.tspp";
 
 type Args = ConstructorParameters<typeof User>;
 
@@ -88,18 +88,18 @@ const value: Args = ("Ada", 42);
         .build();
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
-import { User } from "./user.ds";
+import { User } from "./user.tspp";
 
 type Args = ConstructorParameters<typeof User>;
 
 const value: Args = ("Ada", 42);
 
 === dir ===
-import { User } from "./user.ds";
+import { User } from "./user.tspp";
 
 type Args = ConstructorParameters<typeof User>;
 /// @type.symbol symbol=Args source="type Args = ConstructorParameters<typeof User>" type=(string, float64)
@@ -132,7 +132,7 @@ ok.name satisfies string;
     );
 
     session.assert_dir(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===
@@ -196,7 +196,7 @@ const bad: Args = ("Ada", "old");
     );
 
     session.assert_dir_and_diagnostics(
-        "main.ds",
+        "main.tspp",
         DirRows::checked(),
         r#"
 === annotated ===

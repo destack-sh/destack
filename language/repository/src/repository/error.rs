@@ -2,8 +2,8 @@ use std::error::Error;
 use std::fmt;
 use std::path::PathBuf;
 
-use destack_artifact::{ArtifactCacheError, ArtifactKey, ArtifactVersion};
-use destack_source::{FileId, ModuleId, PackageId, ProfileId, TargetId};
+use tspp_artifact::{ArtifactCacheError, ArtifactKey, ArtifactVersion};
+use tspp_source::{FileId, ModuleId, PackageId, ProfileId, TargetId};
 
 use crate::repository::Revision;
 

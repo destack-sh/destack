@@ -1,4 +1,4 @@
-use destack_dir as dir;
+use tspp_dir as dir;
 
 use crate::rules::declare_lint;
 use crate::{DirModule, Lint, LintOutput, LintResult};
@@ -14,7 +14,7 @@ Instead, you SHOULD implement the operation or remove the path that requires it.
 "#,
         example: {
             reported: r#"
-import { todo } from "destack:error";
+import { todo } from "tspp:error";
 
 function process(): void {
     todo("process");
@@ -61,7 +61,7 @@ mod tests {
         let session = TestSession::dir(
             &NO_TODO,
             r#"
-import { todo } from "destack:error";
+import { todo } from "tspp:error";
 
 function process(): void {
     todo("process");
@@ -72,7 +72,7 @@ function process(): void {
         session.assert_diagnostics(
             r#"
 warning[no-todo]: unfinished code can trap at runtime
- ──▶ main.ds:4:5
+ ──▶ main.tspp:4:5
   │
 2 │
 3 │ function process(): void {

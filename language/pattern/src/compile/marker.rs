@@ -1,6 +1,6 @@
-use destack_dir as dir;
-use destack_parser::PatternMarker;
-use destack_source::{File, Span};
+use tspp_dir as dir;
+use tspp_parser::PatternMarker;
+use tspp_source::{File, Span};
 
 /// A marker token recognized in pattern source.
 pub(super) struct Marker {

@@ -6,23 +6,23 @@
 
 Arrow functions with parenthesized params are preserved.
 
-```ds
+```tspp
 const f = (x) => x
 ```
 
-```ds expected
+```tspp expected
 const f = (x) => x;
 ```
 
 ### arrow function without parens for single param
 
-Destack always adds parentheses around arrow function parameters.
+TS++ always adds parentheses around arrow function parameters.
 
-```ds
+```tspp
 const f = x => x
 ```
 
-```ds expected
+```tspp expected
 const f = (x) => x;
 ```
 
@@ -30,11 +30,11 @@ const f = (x) => x;
 
 Zero-parameter arrow functions use empty parentheses.
 
-```ds
+```tspp
 const f = () => 1
 ```
 
-```ds expected
+```tspp expected
 const f = () => 1;
 ```
 
@@ -42,11 +42,11 @@ const f = () => 1;
 
 Multiple parameters are comma-separated.
 
-```ds
+```tspp
 const f = (a, b, c) => a + b + c
 ```
 
-```ds expected
+```tspp expected
 const f = (a, b, c) => a + b + c;
 ```
 
@@ -54,11 +54,11 @@ const f = (a, b, c) => a + b + c;
 
 Extra spacing is normalized to single spaces.
 
-```ds
+```tspp
 const f = (  a  ,  b  )  =>  a + b
 ```
 
-```ds expected
+```tspp expected
 const f = (a, b) => a + b;
 ```
 
@@ -68,11 +68,11 @@ const f = (a, b) => a + b;
 
 IIFEs wrap and immediately invoke the arrow function.
 
-```ds
+```tspp
 (() => { console.log("hello") })()
 ```
 
-```ds expected
+```tspp expected
 (() => {
     console.log("hello")
 })();
@@ -82,11 +82,11 @@ IIFEs wrap and immediately invoke the arrow function.
 
 IIFEs can pass arguments to the invoked function.
 
-```ds
+```tspp
 ((x) => x * 2)(5)
 ```
 
-```ds expected
+```tspp expected
 ((x) => x * 2)(5);
 ```
 
@@ -96,11 +96,11 @@ IIFEs can pass arguments to the invoked function.
 
 Object returns need parentheses to avoid brace ambiguity.
 
-```ds
+```tspp
 const f = () => ({ x: 1, y: 2 })
 ```
 
-```ds expected
+```tspp expected
 const f = () => ({ x: 1, y: 2 });
 ```
 
@@ -108,11 +108,11 @@ const f = () => ({ x: 1, y: 2 });
 
 Complex objects with shorthand properties work.
 
-```ds
+```tspp
 const f = (name) => ({ name, value: 1, active: true })
 ```
 
-```ds expected
+```tspp expected
 const f = (name) => ({ name, value: 1, active: true });
 ```
 
