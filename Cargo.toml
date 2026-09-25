@@ -61,7 +61,7 @@ members = [
 	"language/wasm",
 	"language/cli",
 	# client
-	"bridge/zed",
+	"language/bridge/zed",
 ]
 
 [workspace.package]
@@ -117,7 +117,7 @@ destack_language_cli = { path = "language/cli" }
 # app
 
 # client
-destack_zed = { path = "bridge/zed" }
+destack_zed = { path = "language/bridge/zed" }
 
 # codegen
 cranelift-assembler-x64 = { path = "language/compiler/native/cranelift/assembler-x64" }

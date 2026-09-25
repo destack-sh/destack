@@ -99,14 +99,14 @@ language/grammar/destack/_obj/
 # generated client and bridge artifacts
 client/**/.dart_tool/
 client/**/pubspec.lock
-bridge/**/.dart_tool/
-bridge/**/pubspec.lock
-bridge/vscode/out-tests/
-bridge/dotnet/**/[Bb]in/
-bridge/dotnet/**/[Oo]bj/
-bridge/elixir/**/_build/
-bridge/elixir/**/deps/
-bridge/elixir/*.tar
+language/bridge/**/.dart_tool/
+language/bridge/**/pubspec.lock
+language/bridge/vscode/out-tests/
+language/bridge/dotnet/**/[Bb]in/
+language/bridge/dotnet/**/[Oo]bj/
+language/bridge/elixir/**/_build/
+language/bridge/elixir/**/deps/
+language/bridge/elixir/*.tar
 
 # Fuzzing
 **/hfuzz_target/**

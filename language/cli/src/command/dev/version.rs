@@ -18,8 +18,8 @@ const FILE_GLOBS_TO_UPDATE: &[&str] = &[
     "language/grammar/destack/tree-sitter.json",
     "language/grammar/bytecode/tree-sitter.json",
     "language/grammar/mir/tree-sitter.json",
-    "bridge/zed/Cargo.toml",
-    "bridge/zed/extension.toml",
+    "language/bridge/zed/Cargo.toml",
+    "language/bridge/zed/extension.toml",
     "*/package.json",
     "*/*/package.json",
     "*/*/*/package.json",
@@ -28,8 +28,8 @@ const FILE_GLOBS_TO_UPDATE: &[&str] = &[
 const FILE_GLOBS_TO_IGNORE: &[&str] = &[
     "language/formatter/fixture/",
     "language/query/fixture/",
-    "bridge/fixture/",
-    "bridge/zed/grammars/",
+    "language/bridge/fixture/",
+    "language/bridge/zed/grammars/",
 ];
 const MANIFEST_PATH: &str = "package.json";
 

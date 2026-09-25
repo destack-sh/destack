@@ -21,7 +21,7 @@ DESTACK_REPOSITORY_ROOT="$(cd "${DESTACK_PLATFORM_DIRECTORY}/.." && pwd)"
 DESTACK_ZED_EXTENSION_ID="${DESTACK_ZED_EXTENSION_ID:-destack}"
 DESTACK_ZED_EXTENSION_SUBMODULE_PATH="${DESTACK_ZED_EXTENSION_SUBMODULE_PATH:-extensions/${DESTACK_ZED_EXTENSION_ID}}"
 DESTACK_ZED_EXTENSION_REPOSITORY="${DESTACK_ZED_EXTENSION_REPOSITORY:-https://github.com/destack-sh/destack.git}"
-DESTACK_ZED_EXTENSION_PATH="${DESTACK_ZED_EXTENSION_PATH:-bridge/zed}"
+DESTACK_ZED_EXTENSION_PATH="${DESTACK_ZED_EXTENSION_PATH:-language/bridge/zed}"
 DESTACK_ZED_REGISTRY_UPSTREAM="${DESTACK_ZED_REGISTRY_UPSTREAM:-zed-industries/extensions}"
 DESTACK_ZED_REGISTRY_PUSH_TO="${DESTACK_ZED_REGISTRY_PUSH_TO:-}"
 DESTACK_ZED_REGISTRY_BASE_BRANCH="${DESTACK_ZED_REGISTRY_BASE_BRANCH:-main}"
@@ -68,9 +68,9 @@ resolve_version() {
 	fail "release version not provided and package.json is missing"
 }
 
-# resolve the version in bridge/zed/extension.toml
+# resolve the version in language/bridge/zed/extension.toml
 resolve_manifest_version() {
-	local manifest_path="${DESTACK_REPOSITORY_ROOT}/bridge/zed/extension.toml"
+	local manifest_path="${DESTACK_REPOSITORY_ROOT}/language/bridge/zed/extension.toml"
 	if [ ! -f "${manifest_path}" ]; then
 		fail "zed extension manifest not found: ${manifest_path}"
 	fi
@@ -234,7 +234,7 @@ validate_semver "${DESTACK_RELEASE_VERSION}"
 
 DESTACK_MANIFEST_VERSION="$(resolve_manifest_version)"
 if [ "${DESTACK_MANIFEST_VERSION}" != "${DESTACK_RELEASE_VERSION}" ]; then
-	fail "version mismatch: package.json=${DESTACK_RELEASE_VERSION}, bridge/zed/extension.toml=${DESTACK_MANIFEST_VERSION}"
+	fail "version mismatch: package.json=${DESTACK_RELEASE_VERSION}, language/bridge/zed/extension.toml=${DESTACK_MANIFEST_VERSION}"
 fi
 
 # resolve the source commit for the zed registry submodule pointer

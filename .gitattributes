@@ -17,7 +17,7 @@ language/grammar/destack/node_modules/** linguist-vendored
 *.generated.swift linguist-generated
 language/workspace/generated/** linguist-generated
 language/cli/generated/** linguist-generated
-bridge/vscode/destack.schema.json linguist-generated
+language/bridge/vscode/destack.schema.json linguist-generated
 
 # tree sitter generated parser sources
 language/grammar/mir/src/parser.c linguist-generated -diff

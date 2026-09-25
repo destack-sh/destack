@@ -1,7 +1,7 @@
 set shell := ["bash", "-cu"]
 set windows-shell := ["C:/Program Files/Git/bin/bash.exe", "-cu"]
 set dotenv-load := true
-set dotenv-filename := "../.env.local"
+set dotenv-filename := "../../.env.local"
 
 packages := "-p destack_zed"
 
@@ -58,9 +58,9 @@ test-vscode:
 
 # test zed
 test-zed:
-    for query in zed/languages/ds/*.scm; do (cd ../language/grammar/destack && bun run tree-sitter-cli query --quiet "../../../bridge/${query}" "../../formatter/fixture/roundtrip/tree-idempotent-basic.ds") >/dev/null || exit 1; done
-    for query in zed/languages/dsm/*.scm; do (cd ../language/grammar/mir && bun run tree-sitter-cli query --quiet "../../../bridge/${query}" "../../../bridge/fixture/highlight/mir/mir.txt") >/dev/null || exit 1; done
-    for query in zed/languages/dsa/*.scm; do (cd ../language/grammar/bytecode && bun run tree-sitter-cli query --quiet "../../../bridge/${query}" "../../../bridge/fixture/highlight/bytecode/bytecode.txt") >/dev/null || exit 1; done
+    for query in zed/languages/ds/*.scm; do (cd ../grammar/destack && bun run tree-sitter-cli query --quiet "../../bridge/${query}" "../../formatter/fixture/roundtrip/tree-idempotent-basic.ds") >/dev/null || exit 1; done
+    for query in zed/languages/dsm/*.scm; do (cd ../grammar/mir && bun run tree-sitter-cli query --quiet "../../bridge/${query}" "../../bridge/fixture/highlight/mir/mir.txt") >/dev/null || exit 1; done
+    for query in zed/languages/dsa/*.scm; do (cd ../grammar/bytecode && bun run tree-sitter-cli query --quiet "../../bridge/${query}" "../../bridge/fixture/highlight/bytecode/bytecode.txt") >/dev/null || exit 1; done
 
 # check
 check:
@@ -90,7 +90,7 @@ publish-vscode dry="--dry-run" prerelease="":
             exit 1; \
         fi; \
         prerelease="{{prerelease}}"; \
-        stability="$(node -p 'JSON.parse(require("node:fs").readFileSync("../platform/release/config.json", "utf8")).stability')"; \
+        stability="$(node -p 'JSON.parse(require("node:fs").readFileSync("../../platform/release/config.json", "utf8")).stability')"; \
         if [ -z "${prerelease}" ] && [ "${stability}" != "stable" ]; then \
             prerelease="--pre-release"; \
         fi; \
