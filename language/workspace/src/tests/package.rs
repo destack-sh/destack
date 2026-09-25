@@ -8,20 +8,22 @@ use crate::tests::harness::TestWorkspace;
 fn test_workspace_imports_declared_packages() {
     let test = TestWorkspace::new("workspace-declared-packages");
     test.write_text(
-        "destack.json",
+        "package.json",
         r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "workspace",
-  "workspace": {
-    "packages": ["packages/*"]
-  }
+  "workspaces": ["packages/*"]
 }
 "#,
     );
-    test.write_text("packages/app/destack.json", "{ \"name\": \"app\" }\n");
+    test.write_text(
+        "packages/app/package.json",
+        "{ \"packageManager\": \"tspp@2026.9.0\", \"name\": \"app\" }\n",
+    );
     test.write_text("packages/app/src/main.tspp", "export const main = 1;\n");
     test.write_text(
-        "unrelated/package/destack.json",
-        "{ \"name\": \"other\" }\n",
+        "unrelated/package/package.json",
+        "{ \"packageManager\": \"tspp@2026.9.0\", \"name\": \"other\" }\n",
     );
     test.write_text(
         "unrelated/package/src/foreign.tspp",
@@ -44,8 +46,8 @@ fn test_workspace_imports_declared_packages() {
     assert_eq!(
         paths,
         vec![
-            "destack.json".to_string(),
-            "packages/app/destack.json".to_string(),
+            "package.json".to_string(),
+            "packages/app/package.json".to_string(),
             "packages/app/src/main.tspp".to_string(),
         ]
     );
@@ -56,28 +58,33 @@ fn test_workspace_imports_declared_packages() {
 fn test_check_selects_declared_workspace_packages() {
     let test = TestWorkspace::new("check-declared-workspace-packages");
     test.write_text(
-        "destack.json",
+        "package.json",
         r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "workspace",
-  "workspace": {
-    "packages": ["packages/*"]
-  }
+  "workspaces": ["packages/*"]
 }
 "#,
     );
-    test.write_text("packages/app/destack.json", "{ \"name\": \"app\" }\n");
+    test.write_text(
+        "packages/app/package.json",
+        "{ \"packageManager\": \"tspp@2026.9.0\", \"name\": \"app\" }\n",
+    );
     test.write_text(
         "packages/app/src/main.tspp",
         "export const answer: int32 = 42;\n",
     );
-    test.write_text("packages/lib/destack.json", "{ \"name\": \"lib\" }\n");
+    test.write_text(
+        "packages/lib/package.json",
+        "{ \"packageManager\": \"tspp@2026.9.0\", \"name\": \"lib\" }\n",
+    );
     test.write_text(
         "packages/lib/src/index.tspp",
         "export const name = \"lib\";\n",
     );
     test.write_text(
-        "unrelated/package/destack.json",
-        "{ \"name\": \"other\" }\n",
+        "unrelated/package/package.json",
+        "{ \"packageManager\": \"tspp@2026.9.0\", \"name\": \"other\" }\n",
     );
     test.write_text(
         "unrelated/package/src/invalid.tspp",

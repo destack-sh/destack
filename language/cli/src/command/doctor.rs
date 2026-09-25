@@ -77,9 +77,9 @@ pub async fn run(args: &DoctorArgs) -> i32 {
                 }
             }
             if let Some(path) = payload.manifest.as_ref() {
-                console::info(&format!("destack.json: {path}"));
+                console::info(&format!("package.json: {path}"));
             } else {
-                console::warn("destack.json: not found");
+                console::warn("package.json: not found");
             }
             if let Some(default_target) = payload.default_target.as_ref() {
                 console::info(&format!("default target: {default_target}"));

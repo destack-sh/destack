@@ -4,12 +4,12 @@ use crate::common::ReportArgs;
 use super::tests::{TestProgram, assert_success, execute};
 use serde_json::json;
 
-/// Lists targets defined in destack.json.
+/// Lists targets defined in package.json.
 #[test]
 fn test_targets_lists_configured_targets() {
     // set up a config with one target
     let program = TestProgram::new("targets");
-    program.write_destack_config_with_base(json!({
+    program.write_manifest_with_base(json!({
         "targets": {
             "js": {},
         },

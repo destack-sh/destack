@@ -327,7 +327,7 @@ mod tests {
         let allocator = Allocator::default();
         let formatted = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [without_soft_lines(&format_args!(
                 token("left"),
                 soft_line_break_or_space(),
@@ -345,7 +345,7 @@ mod tests {
     #[test]
     fn test_remove_soft_line_slice() {
         let allocator = Allocator::default();
-        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
+        let mut state = FormatState::new(SimpleFormatContext::empty_tspp(), &allocator);
         let mut formatter = Formatter::new(&mut state);
         formatter.write_element(FormatElement::Line(LineMode::Soft));
         let instructions = formatter.into_tape().into_slice();
@@ -367,7 +367,7 @@ mod tests {
         let tail = token("tail");
         let formatted = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [group(&format_args!(head, rewritten, line, tail))]
         )
         .unwrap();
@@ -379,7 +379,7 @@ mod tests {
     #[test]
     fn test_remove_soft_lines_from_deep_slices() {
         let allocator = Allocator::default();
-        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
+        let mut state = FormatState::new(SimpleFormatContext::empty_tspp(), &allocator);
         let mut formatter = Formatter::new(&mut state);
         formatter.write_element(FormatElement::Line(LineMode::SoftOrSpace));
         let mut instructions = formatter.into_tape().into_slice();

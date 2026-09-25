@@ -58,11 +58,11 @@ impl ArtifactCacheStats {
 /// Cached build usage grouped by producer.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize)]
 pub struct ArtifactCacheUsage {
-    /// Usage retained by the current Destack build.
+    /// Usage retained by the current toolchain build.
     pub current_build: ArtifactCacheStats,
-    /// Usage retained by other Destack builds.
+    /// Usage retained by other toolchain builds.
     pub other_builds: ArtifactCacheStats,
-    /// Usage retained by every Destack build.
+    /// Usage retained by every toolchain build.
     pub total: ArtifactCacheStats,
 }
 

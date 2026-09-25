@@ -35,7 +35,7 @@ impl FunctionEmitter<'_> {
         signature.returns.push(cir::AbiParam::new(ty));
 
         // declare one object import and one function-local reference
-        let name = format!("__destack_import_{:02x}", import as u32);
+        let name = format!("__tspp_import_{:02x}", import as u32);
         let function = self
             .output
             .declare_function(&name, Linkage::Import, &signature)

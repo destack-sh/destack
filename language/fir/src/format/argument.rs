@@ -93,7 +93,7 @@ mod tests {
     #[test]
     fn test_nesting() {
         let allocator = Allocator::default();
-        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
+        let mut state = FormatState::new(SimpleFormatContext::empty_tspp(), &allocator);
         let mut formatter = Formatter::new(&mut state);
 
         write!(

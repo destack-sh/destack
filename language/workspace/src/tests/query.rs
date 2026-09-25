@@ -9,8 +9,8 @@ use crate::{Error, RevisionPolicy, RunQueryInput};
 #[test]
 fn test_resolve_query_file_requires_target() {
     let test = TestWorkspace::new("query-file-target");
-    let config_source = "{ \"name\": \"test\" }\n";
-    let config = test.write_text("destack.json", config_source);
+    let config_source = "{ \"packageManager\": \"tspp@2026.9.0\", \"name\": \"test\" }\n";
+    let config = test.write_text("package.json", config_source);
     let _ = test.apply_text(&config, config_source);
     let source = "export const value = 1;\n";
     let path = test.write_text("main.tspp", source);
@@ -29,6 +29,7 @@ fn test_resolve_query_file_requires_target() {
 fn test_resolve_query_file_from_canonical_uri() {
     let test = TestWorkspace::new("query-canonical-uri");
     let manifest = r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "tspp",
   "targets": {
     "default": {
@@ -38,7 +39,7 @@ fn test_resolve_query_file_from_canonical_uri() {
   "defaultTarget": "default"
 }
 "#;
-    test.file("destack.json", manifest);
+    test.file("package.json", manifest);
     let source = "export const custom = 1;\n";
     test.file("src/custom.tspp", source);
     let revision = test.workspace.revision().expect("read revision");

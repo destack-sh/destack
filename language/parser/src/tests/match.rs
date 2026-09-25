@@ -11,7 +11,7 @@ use crate::{
 
 /// Keep repeated match-arm placeholders outside ordinary TS++ grammar.
 #[test]
-fn test_reject_match_arm_placeholder_in_destack_grammar() {
+fn test_reject_match_arm_placeholder_in_tspp_grammar() {
     let test = TestParser::new("match (value) { $$$ARMS }");
     let mut parser = test.prepare();
     parser.parse_in_place();

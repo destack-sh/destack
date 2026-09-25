@@ -3,12 +3,13 @@ use std::io::ErrorKind;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use serde_json::{Map, Value};
+use serde_json::{Value, json};
 use tspp_artifact::{ArtifactKey, EnvironmentBound, ModuleGraph};
 use tspp_repository as repository;
 use tspp_repository::{
-    ArtifactReader, DestackFile, Repository, Revision, RevisionPin, Target, TargetRoot, Trace,
-    TraceLevel, TraceSnapshot, TraceView, apply_manifest_overrides_to_json, parse_jsonc_text,
+    ArtifactReader, MANIFEST_FILE_NAME, Manifest, ManifestFile, Repository, Revision, RevisionPin,
+    Target, TargetRoot, Trace, TraceLevel, TraceSnapshot, TraceView,
+    apply_manifest_overrides_to_json, parse_jsonc_text,
 };
 use tspp_session::{ArtifactPriority, Session, SessionEventHandler};
 use tspp_source::{
@@ -337,13 +338,13 @@ impl<'a> CommandContext<'a> {
         repository: &Repository,
         revision: Revision,
     ) -> CommandResult<Vec<PathBuf>> {
-        let mut paths = vec![root.join("destack.json")];
+        let mut paths = vec![root.join(MANIFEST_FILE_NAME)];
 
         // include package configs in monorepos
         for package_path in repository.package_roots(revision).map_err(|error| {
             CommandError::internal(format!("failed to read package roots: {error}"))
         })? {
-            paths.push(package_path.join("destack.json"));
+            paths.push(package_path.join(MANIFEST_FILE_NAME));
         }
 
         paths.sort();
@@ -352,43 +353,51 @@ impl<'a> CommandContext<'a> {
         Ok(paths)
     }
 
-    /// Load one manifest JSON value from the revision or from the file system.
+    /// Load one manifest JSON value, a new marked manifest when the file is absent.
     fn load_manifest_json(
         repository: &Repository,
         revision: Revision,
         path: &Path,
     ) -> CommandResult<Value> {
         let file_id = repository.file_id(path);
-
-        // prefer the file the revision binds
-        if let Some(file) = repository.file(revision, file_id).map_err(|error| {
+        let file = repository.file(revision, file_id).map_err(|error| {
             CommandError::internal(format!("failed to read {}: {error}", path.display()))
-        })? {
-            return parse_jsonc_text(file.text()).map_err(|error| {
-                CommandError::config(format!("failed to parse {}: {error}", path.display()))
-            });
-        }
+        })?;
 
-        // read physical source when the config file is not tracked yet
-        let content = match repository.file_system().read_to_string(path) {
-            Ok(content) => content,
-            Err(error) if error.kind() == ErrorKind::NotFound => {
-                return Ok(Value::Object(Map::new()));
-            }
-            Err(error) => {
-                return Err(CommandError::config(format!(
-                    "failed to read {}: {error}",
-                    path.display()
-                )));
-            }
+        // read the file the revision binds, else the physical file
+        let content = match file {
+            Some(file) => file.text().to_string(),
+            None => match repository.file_system().read_to_string(path) {
+                Ok(content) => content,
+                Err(error) if error.kind() == ErrorKind::NotFound => {
+                    let marker = format!("tspp@{}", env!("CARGO_PKG_VERSION"));
+
+                    return Ok(json!({ "packageManager": marker }));
+                }
+                Err(error) => {
+                    return Err(CommandError::config(format!(
+                        "failed to read {}: {error}",
+                        path.display()
+                    )));
+                }
+            },
         };
 
-        parse_jsonc_text(&content).map_err(|error| {
+        // require an existing file to be a TS++ manifest
+        let manifest = parse_jsonc_text(&content).map_err(|error| {
             CommandError::config(format!("failed to parse {}: {error}", path.display()))
-        })
+        })?;
+        if !Manifest::is_marked(&manifest) {
+            return Err(CommandError::config(format!(
+                "cannot apply overrides: {} is not a TS++ manifest",
+                path.display()
+            )));
+        }
+
+        Ok(manifest)
     }
 
-    /// Resolve command inputs from explicit values or destack.json.
+    /// Resolve command inputs from explicit values or package.json.
     pub(super) fn resolve_command_inputs(&self) -> CommandResult<Vec<CommandInput>> {
         if !self.common.inputs.is_empty() {
             return Ok(self.common.inputs.clone());
@@ -398,9 +407,9 @@ impl<'a> CommandContext<'a> {
             return Err("no input files provided".to_string().into());
         }
 
-        let config_path = self.resolve_destack_config_path(self.common.manifest.as_deref())?;
-        let config = self.load_destack_config(&config_path)?;
-        let configs = if config.workspace_packages().is_some() {
+        let config_path = self.resolve_manifest_path(self.common.manifest.as_deref())?;
+        let config = self.load_manifest(&config_path)?;
+        let configs = if config.workspaces.is_some() {
             self.workspace_configs(self.revision())?
         } else {
             vec![config]
@@ -409,8 +418,7 @@ impl<'a> CommandContext<'a> {
         // collect source files from each selected package
         let mut inputs = BTreeMap::new();
         for config in configs {
-            let sources =
-                collect_sources_from_destack_config(&config, self.common.target.as_deref())?;
+            let sources = collect_sources_from_manifest(&config, self.common.target.as_deref())?;
             for source in sources {
                 inputs.insert(source, ());
             }
@@ -745,8 +753,8 @@ impl<'a> CommandContext<'a> {
         self.resolve_named_target_for_module(revision, module_id, target_name, overrides)
     }
 
-    /// Resolve a destack.json path for the current repository.
-    pub(super) fn resolve_destack_config_path(
+    /// Resolve a package.json path for the current repository.
+    pub(super) fn resolve_manifest_path(
         &self,
         override_path: Option<&Path>,
     ) -> CommandResult<PathBuf> {
@@ -757,29 +765,29 @@ impl<'a> CommandContext<'a> {
             return self.resolve_manifest_override(revision, config_path);
         }
 
-        self.find_destack_config(self.root.as_path())
-            .ok_or_else(|| "destack.json not found".to_string().into())
+        self.find_manifest(self.root.as_path())?
+            .ok_or_else(|| format!("{MANIFEST_FILE_NAME} not found").into())
     }
 
-    /// Load one `destack.json` config for a path.
-    pub(super) fn load_destack_config(&self, path: &Path) -> CommandResult<DestackFile> {
+    /// Load one `package.json` config for a path.
+    pub(super) fn load_manifest(&self, path: &Path) -> CommandResult<ManifestFile> {
         let revision = self.revision();
 
         self.repository
-            .inherited_destack_for_path(revision, path)
+            .inherited_manifest_for_path(revision, path)
             .map_err(|error| error.to_string())?
-            .ok_or_else(|| format!("destack.json not found: {}", path.display()).into())
+            .ok_or_else(|| format!("no TS++ manifest at {}", path.display()).into())
     }
 
-    /// Find destack.json for a directory.
-    pub(super) fn find_destack_config(&self, cwd: &Path) -> Option<PathBuf> {
+    /// Find the nearest TS++ manifest for a directory.
+    pub(super) fn find_manifest(&self, cwd: &Path) -> CommandResult<Option<PathBuf>> {
         let revision = self.revision();
 
-        self.find_destack_config_in_revision(revision, cwd)
+        self.find_manifest_in_revision(revision, cwd)
     }
 
     /// Return all authored package configurations in path order.
-    pub(super) fn workspace_configs(&self, revision: Revision) -> CommandResult<Vec<DestackFile>> {
+    pub(super) fn workspace_configs(&self, revision: Revision) -> CommandResult<Vec<ManifestFile>> {
         let package_ids = self
             .repository
             .package_ids(revision)
@@ -838,51 +846,65 @@ impl<'a> CommandContext<'a> {
             .repository
             .file_metadata(revision, &resolved)
             .map_err(|error| error.to_string())?
-            .ok_or_else(|| "destack.json not found".to_string())?;
-        if metadata.is_directory {
-            return self
-                .find_destack_config_in_revision(revision, &resolved)
-                .ok_or_else(|| "destack.json not found".to_string().into());
-        }
+            .ok_or_else(|| format!("{} not found", resolved.display()))?;
 
-        Ok(resolved)
+        // find the nearest manifest from a directory
+        if metadata.is_directory {
+            self.find_manifest_in_revision(revision, &resolved)?
+                .ok_or_else(|| format!("{MANIFEST_FILE_NAME} not found").into())
+        }
+        // require an explicit file to be a TS++ manifest
+        else if self.is_manifest(revision, &resolved)? {
+            Ok(resolved)
+        } else {
+            Err(format!("{} is not a TS++ manifest", resolved.display()).into())
+        }
     }
 
-    /// Find the nearest `destack.json` at or above a path in one revision.
-    fn find_destack_config_in_revision(&self, revision: Revision, cwd: &Path) -> Option<PathBuf> {
-        let cwd = self.workspace.resolve_path(cwd).ok()?;
-        let mut directory = if self
+    /// Return whether one path holds a TS++ manifest in one revision.
+    fn is_manifest(&self, revision: Revision, path: &Path) -> CommandResult<bool> {
+        let manifest = self
+            .repository
+            .manifest_for_file(revision, self.repository.file_id(path))
+            .map_err(|error| error.to_string())?;
+
+        Ok(manifest.is_some())
+    }
+
+    /// Find the nearest TS++ manifest at or above a path in one revision.
+    fn find_manifest_in_revision(
+        &self,
+        revision: Revision,
+        cwd: &Path,
+    ) -> CommandResult<Option<PathBuf>> {
+        let cwd = self
+            .workspace
+            .resolve_path(cwd)
+            .map_err(|error| format!("failed to resolve {}: {error}", cwd.display()))?;
+        let is_directory = self
             .repository
             .file_metadata(revision, &cwd)
-            .ok()
-            .flatten()
-            .is_some_and(|metadata| metadata.is_directory)
-        {
-            cwd
+            .map_err(|error| error.to_string())?
+            .is_some_and(|metadata| metadata.is_directory);
+        let mut directory = if is_directory {
+            Some(cwd.as_path())
         } else {
-            cwd.parent()?.to_path_buf()
+            cwd.parent()
         };
 
-        loop {
-            // check the current directory
-            let candidate = directory.join("destack.json");
-            if self
-                .repository
-                .file_metadata(revision, &candidate)
-                .ok()
-                .flatten()
-                .is_some_and(|metadata| metadata.is_file)
-            {
-                return Some(candidate);
+        // walk up to the workspace root, skipping package.json files of other package managers
+        while let Some(current) = directory {
+            let candidate = current.join(MANIFEST_FILE_NAME);
+            if self.is_manifest(revision, &candidate)? {
+                return Ok(Some(candidate));
             }
-
-            // stop after checking the workspace root
-            if directory == self.root {
-                return None;
+            if current == self.root {
+                break;
             }
-
-            directory = directory.parent()?.to_path_buf();
+            directory = current.parent();
         }
+
+        Ok(None)
     }
 }
 
@@ -913,9 +935,9 @@ fn sanitize_command_input_name(name: &str) -> String {
     sanitized
 }
 
-/// Collect source entries from a command destack.json.
-fn collect_sources_from_destack_config(
-    config: &DestackFile,
+/// Collect source entries from a command package.json.
+fn collect_sources_from_manifest(
+    config: &ManifestFile,
     target_name: Option<&str>,
 ) -> CommandResult<Vec<PathBuf>> {
     // select target source settings

@@ -13,7 +13,7 @@ const BUILD_PATHS: [&str; 5] = [
     "rust-toolchain.toml",
 ];
 
-/// Exact source and compiler inputs for one Destack build.
+/// Exact source and compiler inputs for one toolchain build.
 struct Build {
     /// Repository root containing the toolchain sources.
     root: PathBuf,
@@ -24,7 +24,7 @@ struct Build {
 }
 
 impl Build {
-    /// Capture the current Destack build inputs.
+    /// Capture the current toolchain build inputs.
     fn capture() -> Result<Self, Box<dyn Error>> {
         let manifest = PathBuf::from(env::var("CARGO_MANIFEST_DIR")?);
         let root = manifest
@@ -50,7 +50,7 @@ impl Build {
         if !output.status.success() {
             let message = String::from_utf8_lossy(&output.stderr);
 
-            return Err(format!("failed to enumerate Destack build inputs: {message}").into());
+            return Err(format!("failed to enumerate toolchain build inputs: {message}").into());
         }
         let mut files = output
             .stdout
@@ -93,7 +93,7 @@ impl Build {
         })
     }
 
-    /// Compute the Destack build id from the captured inputs.
+    /// Compute the toolchain build id from the captured inputs.
     fn id(&self) -> Result<[u8; BUILD_ID_BYTES], Box<dyn Error>> {
         // hash the compiler configuration
         let mut hasher = blake3::Hasher::new();

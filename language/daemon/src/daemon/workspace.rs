@@ -70,7 +70,7 @@ impl WorkspaceRegistry {
         })
     }
 
-    /// Return the Destack build shared by every hosted workspace.
+    /// Return the toolchain build shared by every hosted workspace.
     pub(crate) fn build_id(&self) -> BuildId {
         self.host.build_id()
     }

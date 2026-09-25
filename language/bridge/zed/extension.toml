@@ -15,7 +15,7 @@ args = ["--version"]
 [[capabilities]]
 kind = "download_file"
 host = "github.com"
-path = ["destack-sh", "tspp", "releases", "download", "**"]
+path = ["destack-sh", "destack", "releases", "download", "**"]
 
 [lib]
 kind = "Rust"
@@ -26,6 +26,7 @@ name = "TS++ Language Server"
 languages = ["TS++"]
 language_ids = { "TS++" = "tspp" }
 
+# FUGU #Incomplete: grammar ids and paths follow the pinned rev; rename them to tspp when the pin moves
 [grammars.destack]
 repository = "https://github.com/destack-sh/destack"
 rev = "f3e06dd1a7c7cec3f098ae4f9abbcfbf712b6109"

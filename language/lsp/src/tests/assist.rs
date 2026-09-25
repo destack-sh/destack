@@ -103,7 +103,7 @@ const syscall = context.syscall;
 const sent = context.send(1);
 "#;
     let mut server = TestServer::new("completion-details");
-    server.write("destack.json", MANIFEST);
+    server.write("package.json", MANIFEST);
     server.write(
         "src/library.tspp",
         "export function greetFixture(): void {}\n",
@@ -249,7 +249,7 @@ async fn test_return_eager_completion_details() {
 }
 "#;
     let mut server = TestServer::new("eager-completion-details");
-    server.write("destack.json", MANIFEST);
+    server.write("package.json", MANIFEST);
     server.write(
         "src/library.tspp",
         r#"/// Greet one fixture.

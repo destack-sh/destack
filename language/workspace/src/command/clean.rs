@@ -2,7 +2,7 @@ use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use tspp_repository::{DestackFile, TraceView};
+use tspp_repository::{ManifestFile, TraceView};
 use tspp_serde::Reflect;
 use tspp_source::DiagnosticCollection;
 
@@ -41,11 +41,11 @@ pub struct CleanInput {
     pub revision: CommandRevision,
     /// Input sources for the command.
     pub inputs: Vec<CommandInput>,
-    /// Whether destack.json should resolve inputs when none are provided.
+    /// Whether package.json should resolve inputs when none are provided.
     pub config_inputs: bool,
     /// Optional working directory for this command.
     pub cwd: Option<PathBuf>,
-    /// Optional Destack manifest path override.
+    /// Optional manifest path override.
     pub manifest: Option<PathBuf>,
     /// Optional target name override.
     pub target: Option<String>,
@@ -86,18 +86,18 @@ impl CommandContext<'_> {
         let revision = self.revision();
 
         // resolve configs for output cleanup
-        let destack_configs = if options.all_packages {
+        let manifests = if options.all_packages {
             self.workspace_configs(revision)?
         } else {
             let manifest = options.dir.as_deref().or(self.common.manifest.as_deref());
-            let path = self.resolve_destack_config_path(manifest)?;
+            let path = self.resolve_manifest_path(manifest)?;
 
-            vec![self.load_destack_config(&path)?]
+            vec![self.load_manifest(&path)?]
         };
 
         // collect paths for removal
         let mut paths = BTreeSet::new();
-        for config in &destack_configs {
+        for config in &manifests {
             collect_output_paths(config, &mut paths);
         }
 
@@ -132,7 +132,7 @@ impl CommandContext<'_> {
 }
 
 /// Collect output paths for one config.
-fn collect_output_paths(config: &DestackFile, paths: &mut BTreeSet<PathBuf>) {
+fn collect_output_paths(config: &ManifestFile, paths: &mut BTreeSet<PathBuf>) {
     // collect the legacy compiler output directory
     if let Some(out_dir) = config.compiler.out_dir.as_ref() {
         paths.insert(resolve_path(out_dir, &config.directory));

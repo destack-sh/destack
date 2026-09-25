@@ -105,8 +105,8 @@ generate-unicode:
 
 # generate schema
 generate-schema:
-    cargo run -p tspp_repository --features schema --bin generate-schema --release > bridge/vscode/destack.schema.json
-    @echo "generated bridge/vscode/destack.schema.json"
+    cargo run -p tspp_repository --features schema --bin generate-schema --release > bridge/vscode/package.schema.json
+    @echo "generated bridge/vscode/package.schema.json"
 
 # --- test ---
 

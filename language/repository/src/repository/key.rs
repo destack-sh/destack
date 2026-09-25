@@ -5,7 +5,7 @@ use tspp_artifact::{Host, Platform, ProfileKey, Runtime, Stability};
 
 use crate::{
     CompilerOptions, Condition, ConditionAxis, ConditionCatalog, ConditionSelection, ConditionSet,
-    Destack, DestackFile, Environment, Product, ProfileOptions, RepositoryError, Target,
+    Environment, Manifest, ManifestFile, Product, ProfileOptions, RepositoryError, Target,
 };
 
 /// The builtin prelude global grounding every profile.
@@ -17,7 +17,7 @@ pub(crate) fn profile_key_for_target(
     target: &Target,
     compiler_options: &CompilerOptions,
     profile_config: Option<&ProfileOptions>,
-    config: Option<&DestackFile>,
+    config: Option<&ManifestFile>,
     environment: &Environment,
     product: Option<&str>,
     product_config: Option<&Product>,
@@ -83,7 +83,7 @@ pub(crate) fn profile_key_for_target(
 
     Ok(ProfileKey {
         output,
-        stability: resolved_stability(config.map(|config| &config.destack), product_config),
+        stability: resolved_stability(config.map(|config| &config.manifest), product_config),
         conditions,
         architecture: target.architecture.clone(),
         vendor: target.vendor.clone(),
@@ -108,7 +108,7 @@ pub(crate) fn profile_key_for_target(
 fn build_profile_conditions(
     target_name: &str,
     compiler_options: &CompilerOptions,
-    config: Option<&DestackFile>,
+    config: Option<&ManifestFile>,
     selection: &ConditionSelection,
     product: Option<&str>,
     product_role: Option<&str>,
@@ -226,7 +226,7 @@ fn profile_compiler_options_for_target(
 
 /// Resolve the stability promised by the selected package or product.
 fn resolved_stability(
-    config: Option<&Destack>,
+    config: Option<&Manifest>,
     product_config: Option<&Product>,
 ) -> Option<Stability> {
     product_config
@@ -236,7 +236,7 @@ fn resolved_stability(
 
 /// Expand selected source graph names through declared parents.
 fn expand_conditions(
-    config: Option<&DestackFile>,
+    config: Option<&ManifestFile>,
     axis: ConditionAxis,
     declared: &[String],
     environment: &[String],

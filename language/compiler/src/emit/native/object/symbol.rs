@@ -56,7 +56,7 @@ impl SymbolTable {
 
         // define one local cell so Cranelift emits a position-independent data reference
         let symbol_id = self.insert(symbol);
-        let name = format!("__destack_symbol_{}", symbol_id.0);
+        let name = format!("__tspp_symbol_{}", symbol_id.0);
         let data = output.declare_data(&name, Linkage::Local, false, false)?;
         let mut description = DataDescription::new();
         description.define_zeroinit(byte_len);

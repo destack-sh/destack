@@ -71,7 +71,7 @@ fn bench_lex(criterion: &mut Criterion) {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let workspace_root_path = manifest_dir
         .ancestors()
-        .find(|p| p.join("destack.json").exists())
+        .find(|p| p.join("package.json").exists())
         .unwrap_or(&manifest_dir)
         .to_path_buf();
     let workspace_root = workspace_root_path.to_string_lossy().into_owned();
@@ -91,8 +91,8 @@ fn bench_lex(criterion: &mut Criterion) {
     for path in ds_files.iter() {
         // file type
         let file_type = FileType::from_path(path).expect("bench path should have a file type");
-        let is_destack_source = matches!(file_type, FileType::Tspp | FileType::TsppDeclaration);
-        assert!(is_destack_source, "path is not a destack source: {path:?}");
+        let is_tspp_source = matches!(file_type, FileType::Tspp | FileType::TsppDeclaration);
+        assert!(is_tspp_source, "path is not a destack source: {path:?}");
 
         // file content
         let content = fs::read_to_string(path).unwrap_or_default();

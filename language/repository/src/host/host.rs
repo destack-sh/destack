@@ -10,7 +10,7 @@ use crate::EmbeddedBuiltinPackage;
 /// Host capabilities available to repository operations.
 #[derive(Debug, Clone)]
 pub struct Host {
-    /// The Destack build producing derived artifacts.
+    /// The toolchain build producing derived artifacts.
     build_id: BuildId,
     /// Captured invocation environment.
     environment: Environment,
@@ -74,7 +74,7 @@ impl Host {
         self
     }
 
-    /// Return the Destack build producing derived artifacts.
+    /// Return the toolchain build producing derived artifacts.
     pub fn build_id(&self) -> BuildId {
         self.build_id
     }

@@ -4,9 +4,10 @@ use crate::tests::{DirRows, TestSession};
 fn test_resolve_ignores_unreferenced_profile_global_symbols() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "compiler": {
         "globals": ["globals.tspp"]
@@ -45,9 +46,10 @@ let local = 1;
 fn test_resolve_records_profile_global_symbol_names() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "compiler": {
         "globals": ["globals.tspp"]
@@ -90,9 +92,10 @@ const value = answer;
 fn test_resolve_records_profile_global_references() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "compiler": {
         "globals": ["globals.tspp"]
@@ -129,13 +132,13 @@ export type Option = string;
         DirRows::imports().with_summaries(),
         r#"
 let value = Function;
-/// @reference.target source=Function kind=ambiguous targets=[Function, types.Function]
+/// @reference.target source=Function kind=ambiguous targets=[types.Function, Function]
 
 let projected: Function.Member;
-/// @reference.target source=Function.Member kind=ambiguous targets=[Function, types.Function]
-/// @reference.target source=Function.Member segment=0 kind=ambiguous targets=[Function, types.Function]
+/// @reference.target source=Function.Member kind=ambiguous targets=[types.Function, Function]
+/// @reference.target source=Function.Member segment=0 kind=ambiguous targets=[types.Function, Function]
 
-/// @import.global key=Function declarations=[Function, types.Function] targets=[Function, types.Function]
+/// @import.global key=Function declarations=[types.Function, Function] targets=[types.Function, Function]
 
 /// @import.summary globals=1
 /// @reference.summary references=3
@@ -147,9 +150,10 @@ let projected: Function.Member;
 fn test_resolve_records_profile_global_namespace_reexports() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "compiler": {
         "globals": ["globals.tspp"]
@@ -199,9 +203,10 @@ let local = api;
 fn test_resolve_records_profile_global_namespace_paths() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "compiler": {
         "globals": ["globals.tspp"]
@@ -258,9 +263,10 @@ let local = api.value;
 fn test_resolve_records_referenced_type_profile_globals() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "compiler": {
         "globals": ["globals.tspp"]
@@ -295,10 +301,10 @@ export class Promise<T> {}
         DirRows::imports().with_summaries(),
         r#"
 let promise: Promise<string>;
-/// @reference.target source=Promise kind=ambiguous targets=[Promise, async.Promise]
+/// @reference.target source=Promise kind=ambiguous targets=[async.Promise, Promise]
 
 /// @import.language item=string.String symbol=String
-/// @import.global key=Promise declarations=[Promise, async.Promise] targets=[Promise, async.Promise]
+/// @import.global key=Promise declarations=[async.Promise, Promise] targets=[async.Promise, Promise]
 
 /// @import.summary globals=1 language=1
 /// @reference.summary references=1
@@ -484,9 +490,10 @@ const different = left !== right;
 fn test_resolve_does_not_import_shadowed_profile_globals() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "compiler": {
         "globals": ["globals.tspp"]
@@ -529,9 +536,10 @@ const value = answer;
 fn test_resolve_does_not_import_nested_shadowed_profile_globals() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "compiler": {
         "globals": ["globals.tspp"]
@@ -579,9 +587,10 @@ function read() {
 fn test_resolve_does_not_resolve_shadowed_profile_global_namespace_paths() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "compiler": {
         "globals": ["globals.tspp"]

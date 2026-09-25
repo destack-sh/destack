@@ -10,9 +10,10 @@ fn test_resolve_counters_dedupe_repeated_global_references() {
         .join("\n");
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "compiler": {
         "globals": ["globals.tspp"]

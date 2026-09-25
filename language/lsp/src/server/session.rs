@@ -86,10 +86,7 @@ impl ServerSession {
         let workspace = projects.get(&root).map(Project::workspace);
 
         workspace.ok_or_else(|| {
-            jsonrpc::Error::invalid_params(format!(
-                "Destack project is not open: {}",
-                root.display()
-            ))
+            jsonrpc::Error::invalid_params(format!("TS++ project is not open: {}", root.display()))
         })
     }
 
@@ -100,7 +97,7 @@ impl ServerSession {
         let workspace = projects.select(&path)?.map(Project::workspace);
 
         workspace.ok_or_else(|| {
-            jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
+            jsonrpc::Error::invalid_params(format!("no TS++ project owns {}", path.display()))
         })
     }
 
@@ -119,7 +116,7 @@ impl ServerSession {
         let path = Self::normalize(path)?;
         let projects = self.projects.read();
         let project = projects.select(&path)?.ok_or_else(|| {
-            jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
+            jsonrpc::Error::invalid_params(format!("no TS++ project owns {}", path.display()))
         })?;
         let workspace = project.workspace();
         let revision = project.revision()?;
@@ -156,7 +153,7 @@ impl ServerSession {
 
         let mut projects = self.projects.write();
         let project = projects.select_mut(&path)?.ok_or_else(|| {
-            jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
+            jsonrpc::Error::invalid_params(format!("no TS++ project owns {}", path.display()))
         })?;
         project.open_document(path, uri, version, text, trace)?;
         let workspace = project.workspace();
@@ -176,7 +173,7 @@ impl ServerSession {
         let path = Self::normalize(path)?;
         let mut projects = self.projects.write();
         let project = projects.select_mut(&path)?.ok_or_else(|| {
-            jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
+            jsonrpc::Error::invalid_params(format!("no TS++ project owns {}", path.display()))
         })?;
         project.change_document(&path, uri, version, changes, trace)?;
 
@@ -193,7 +190,7 @@ impl ServerSession {
         let path = Self::normalize(path)?;
         let mut projects = self.projects.write();
         let project = projects.select_mut(&path)?.ok_or_else(|| {
-            jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
+            jsonrpc::Error::invalid_params(format!("no TS++ project owns {}", path.display()))
         })?;
         project.save_document(&path, text, trace)?;
 
@@ -208,7 +205,7 @@ impl ServerSession {
         let path = Self::normalize(path)?;
         let mut projects = self.projects.write();
         let project = projects.select_mut(&path)?.ok_or_else(|| {
-            jsonrpc::Error::invalid_params(format!("no Destack project owns {}", path.display()))
+            jsonrpc::Error::invalid_params(format!("no TS++ project owns {}", path.display()))
         })?;
         project.close_document(&path)?;
         let workspace = project.workspace();
@@ -332,7 +329,7 @@ impl ServerSession {
         let projects = self.projects.read();
         let project = projects.get(workspace.root()).ok_or_else(|| {
             jsonrpc::Error::invalid_params(format!(
-                "Destack project is not open: {}",
+                "TS++ project is not open: {}",
                 workspace.root().display()
             ))
         })?;

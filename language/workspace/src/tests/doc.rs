@@ -10,6 +10,7 @@ use crate::tests::harness::TestWorkspace;
 fn test_doc_command_builds_checked_package_reference() {
     let test = TestWorkspace::new("doc-command-reference");
     let configuration = r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "relay",
   "version": "1.2.3",
   "description": "A documentation fixture.",
@@ -21,16 +22,14 @@ fn test_doc_command_builds_checked_package_reference() {
   },
   "defaultTarget": "default",
   "exports": {
-    ".": {
-      "path": "./src/index.tspp"
-    },
-    "./direct": { "path": "./src/direct.tspp" },
-    "./empty": { "path": "./src/empty.tspp" },
-    "./nested/binding": { "path": "./src/nested/binding/index.tspp" }
+    ".": "./src/index.tspp",
+    "./direct": "./src/direct.tspp",
+    "./empty": "./src/empty.tspp",
+    "./nested/binding": "./src/nested/binding/index.tspp"
   }
 }
 "#;
-    let configuration_path = test.write_text("destack.json", configuration);
+    let configuration_path = test.write_text("package.json", configuration);
     test.apply_text(&configuration_path, configuration);
     let source = r#"/** Add one to a value. */
 export function increment(value: int): int {

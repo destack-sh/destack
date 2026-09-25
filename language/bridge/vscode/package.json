@@ -27,7 +27,7 @@
     },
     "activationEvents": [
         "onLanguage:tspp",
-        "workspaceContains:destack.json"
+        "workspaceContains:**/*.tspp"
     ],
     "extensionKind": [
         "workspace"
@@ -52,7 +52,6 @@
         "tsppm.tmLanguage.json",
         "tsppa.json",
         "tsppa.tmLanguage.json",
-        "destack.schema.json",
         "icon.png",
         "package.json",
         "LICENSE.txt"
@@ -109,15 +108,15 @@
         "commands": [
             {
                 "command": "tspp.restart",
-                "title": "Destack: Restart Server"
+                "title": "TS++: Restart Server"
             },
             {
                 "command": "tspp.reload",
-                "title": "Destack: Reload Workspace"
+                "title": "TS++: Reload Workspace"
             },
             {
                 "command": "tspp.showLogs",
-                "title": "Destack: Show Logs"
+                "title": "TS++: Show Logs"
             }
         ],
         "languages": [
@@ -171,15 +170,6 @@
                 "language": "tsppa",
                 "scopeName": "source.tsppa",
                 "path": "./tsppa.tmLanguage.json"
-            }
-        ],
-        "jsonValidation": [
-            {
-                "fileMatch": [
-                    "destack.json",
-                    "*.destack.json"
-                ],
-                "url": "./destack.schema.json"
             }
         ]
     },

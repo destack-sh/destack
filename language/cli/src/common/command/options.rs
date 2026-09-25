@@ -43,7 +43,7 @@ impl CommandOptionsBuilder {
         self
     }
 
-    /// Use destack.json sources when explicit inputs are empty.
+    /// Use package.json sources when explicit inputs are empty.
     pub(crate) fn config_inputs(mut self, allow: bool) -> Self {
         self.options.config_inputs = allow;
         self

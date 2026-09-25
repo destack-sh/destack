@@ -116,13 +116,13 @@ impl Workspace {
         if let Some(package) = package
             && let Some(config) = self
                 .repository
-                .destack_for_package_id(revision, package.id)?
+                .manifest_for_package_id(revision, package.id)?
         {
             return Ok(config.formatter);
         }
 
         // use workspace options or formatter defaults
-        let config = self.repository.destack_for_workspace(revision)?;
+        let config = self.repository.manifest_for_workspace(revision)?;
         let options = config
             .map(|config| config.formatter)
             .unwrap_or_else(FormatterOptions::default);

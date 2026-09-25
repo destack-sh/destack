@@ -26,7 +26,7 @@ fn test_parse_member_expression_as_member_chain() {
 
 /// Parse contextual type keyword heads in TS++ member chains.
 #[test]
-fn test_parse_destack_contextual_type_keyword_member_expression() {
+fn test_parse_tspp_contextual_type_keyword_member_expression() {
     let input = r#"
 keyof.nested.ok satisfies string;
 readonly.nested.ok satisfies number;
@@ -336,7 +336,7 @@ fn test_parse_parenthesized_integer_member_access() {
 }
 
 #[test]
-fn test_parse_destack_double_dot_as_range() {
+fn test_parse_tspp_double_dot_as_range() {
     let test = TestParser::new("0..a");
     let mut parser = test.prepare();
     let expression_id = parser

@@ -23,11 +23,11 @@ pub struct SettingsInput {
     pub revision: CommandRevision,
     /// Input sources for the command.
     pub inputs: Vec<CommandInput>,
-    /// Whether destack.json should resolve inputs when none are provided.
+    /// Whether package.json should resolve inputs when none are provided.
     pub config_inputs: bool,
     /// Optional working directory for this command.
     pub cwd: Option<PathBuf>,
-    /// Optional Destack manifest path override.
+    /// Optional manifest path override.
     pub manifest: Option<PathBuf>,
     /// Optional target name override.
     pub target: Option<String>,
@@ -133,7 +133,7 @@ impl CommandContext<'_> {
         let revision = self.revision();
         let vendor = self
             .repository
-            .destack_for_workspace(revision)
+            .manifest_for_workspace(revision)
             .map_err(|error| format!("failed to load workspace manifest: {error}"))?
             .map(|manifest| resolve_workspace_path(self.repository.path(), &manifest.vendor.path))
             .unwrap_or_else(|| layout.vendor.clone());

@@ -452,7 +452,7 @@ mod tests {
         let allocator = Allocator::default();
         let formatted = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [format_with(|f| {
                 f.join()
                     .entry(&token("a"))
@@ -474,7 +474,7 @@ mod tests {
         let allocator = Allocator::default();
         let formatted = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [format_with(|f| {
                 f.join_with(&format_args!(token(","), space()))
                     .entry(&token("1"))
@@ -582,12 +582,8 @@ mod tests {
         }
 
         let paragraph = Paragraph(String::from("test"));
-        let formatted = format!(
-            &allocator,
-            SimpleFormatContext::empty_destack(),
-            [paragraph]
-        )
-        .unwrap();
+        let formatted =
+            format!(&allocator, SimpleFormatContext::empty_tspp(), [paragraph]).unwrap();
 
         assert_eq!("test\n", formatted.print().unwrap().as_str());
     }
@@ -596,7 +592,7 @@ mod tests {
     #[test]
     fn test_write_arguments() {
         let allocator = Allocator::default();
-        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
+        let mut state = FormatState::new(SimpleFormatContext::empty_tspp(), &allocator);
         let mut formatter = Formatter::new(&mut state);
 
         write!(&mut formatter, [format_args!(token("Hello World"))]).unwrap();
@@ -613,7 +609,7 @@ mod tests {
     #[test]
     fn test_write_values() {
         let allocator = Allocator::default();
-        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
+        let mut state = FormatState::new(SimpleFormatContext::empty_tspp(), &allocator);
         let mut formatter = Formatter::new(&mut state);
 
         write!(&mut formatter, [token("Hello World")]).unwrap();
@@ -632,7 +628,7 @@ mod tests {
         let allocator = Allocator::default();
         let formatted = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [&format_args!(token("test"))]
         )
         .unwrap();
@@ -645,7 +641,7 @@ mod tests {
         let allocator = Allocator::default();
         let formatted = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [token("test")]
         )
         .unwrap();

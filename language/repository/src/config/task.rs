@@ -8,7 +8,7 @@ use serde_json::Value;
 #[serde(default)]
 #[serde(rename_all = "camelCase")]
 pub struct Task {
-    /// Destack command name to run.
+    /// Toolchain command name to run.
     pub run: Option<String>,
     /// Explicit shell command to execute.
     pub exec: Option<String>,

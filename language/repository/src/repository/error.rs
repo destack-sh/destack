@@ -53,7 +53,7 @@ pub enum RepositoryError {
     },
     /// The requested package has no file system path.
     MissingPackagePath { package: PackageId },
-    /// One package root has no `destack.json` declaration.
+    /// One package root has no `package.json` declaration.
     MissingPackageConfig { path: PathBuf },
     /// One package declaration has no name.
     MissingPackageName { path: PathBuf },
@@ -109,19 +109,19 @@ pub enum RepositoryError {
         /// The parse error message.
         message: String,
     },
-    /// One physical `destack.json` file is invalid.
+    /// One physical `package.json` file is invalid.
     InvalidConfigFile {
         /// The invalid config path.
         path: PathBuf,
         /// The parse error message.
         message: String,
     },
-    /// A `destack.json` inheritance chain is cyclic.
+    /// A `package.json` inheritance chain is cyclic.
     ConfigCycle {
         /// The config path that repeated.
         path: PathBuf,
     },
-    /// A `destack.json` inheritance specifier is invalid.
+    /// A `package.json` inheritance specifier is invalid.
     InvalidConfigExtends {
         /// The config file id.
         file: FileId,

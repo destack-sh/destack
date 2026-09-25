@@ -27,9 +27,10 @@ import { Math } from "tspp:math";
 fn test_import_resolves_authored_builtin_modules() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "tspp"
 }
 "#,
@@ -186,9 +187,10 @@ export let value = 1;
 fn test_import_reports_conditional_file_specifier() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "conditions": {
         "modes": {

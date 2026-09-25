@@ -4,8 +4,8 @@ use crate::tests::harness::TestWorkspace;
 #[test]
 fn test_format_file_without_query_target() {
     let test = TestWorkspace::new("format-file-without-query-target");
-    let config_source = "{ \"name\": \"test\" }\n";
-    let config = test.write_text("destack.json", config_source);
+    let config_source = "{ \"packageManager\": \"tspp@2026.9.0\", \"name\": \"test\" }\n";
+    let config = test.write_text("package.json", config_source);
     test.apply_text(&config, config_source);
     let source = "export const value=1;\n";
     let path = test.write_text("main.tspp", source);

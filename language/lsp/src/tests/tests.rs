@@ -28,6 +28,7 @@ use crate::server::ProjectId;
 
 /// The single-target workspace manifest test fixtures share.
 pub(super) const MANIFEST: &str = r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "lsp-fixture",
   "targets": {
     "default": {
@@ -52,6 +53,7 @@ static LIBRARY: OnceLock<TestLibrary> = OnceLock::new();
 
 /// Package configuration used by LSP integration tests.
 const DESTACK_JSON: &str = r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "lsp-fixture",
   "targets": {
     "default": {
@@ -82,7 +84,7 @@ impl TestLibrary {
     fn new() -> Self {
         // import the ordinary fixture package and embedded library
         let files = TemporaryPhysicalFileSystem::new_with_prefix("lsp-library");
-        files.write_text_or_error("destack.json", DESTACK_JSON);
+        files.write_text_or_error("package.json", DESTACK_JSON);
         files.write_text_or_error("main.tspp", "export const value = 1;\n");
         let host = Host::new(
             BuildId::test(),
@@ -247,7 +249,7 @@ impl TestServer {
     /// Create one configured language server.
     pub(super) fn new(name: &str) -> Self {
         let file_system = TemporaryPhysicalFileSystem::new_with_prefix(name);
-        file_system.write_text_or_error("destack.json", DESTACK_JSON);
+        file_system.write_text_or_error("package.json", DESTACK_JSON);
 
         Self::start(file_system)
     }
@@ -262,7 +264,7 @@ impl TestServer {
     /// Create one configured package below the editor folder.
     pub(super) fn create_package(&self, path: impl AsRef<Path>) {
         self.file_system
-            .write_text_or_error(path.as_ref().join("destack.json"), DESTACK_JSON);
+            .write_text_or_error(path.as_ref().join("package.json"), DESTACK_JSON);
     }
 
     /// Write one workspace document.
@@ -375,7 +377,7 @@ impl TestServer {
         entry: &str,
     ) -> (Self, TestDocument) {
         let mut server = Self::new(name);
-        server.write("destack.json", MANIFEST);
+        server.write("package.json", MANIFEST);
 
         // write every source and remember the entry document
         let mut opened = None;

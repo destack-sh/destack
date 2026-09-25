@@ -599,7 +599,7 @@ fn bench_parse(criterion: &mut Criterion) {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let workspace_root_path = manifest_dir
         .ancestors()
-        .find(|p| p.join("destack.json").exists())
+        .find(|p| p.join("package.json").exists())
         .unwrap_or(&manifest_dir)
         .to_path_buf();
     let corpora = match configured_files() {
@@ -698,7 +698,7 @@ fn bench_parse_single(criterion: &mut Criterion) {
     let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
     let workspace_root_path = manifest_dir
         .ancestors()
-        .find(|p| p.join("destack.json").exists())
+        .find(|p| p.join("package.json").exists())
         .unwrap_or(&manifest_dir)
         .to_path_buf();
 

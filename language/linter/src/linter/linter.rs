@@ -80,7 +80,7 @@ impl Linter {
         let revision = context.revision();
         let config = self
             .repository
-            .destack_for_package_id(revision, package)
+            .manifest_for_package_id(revision, package)
             .map_err(|error| ProviderError::internal(error.to_string()))?;
         let defaults = LinterOptions::default();
         let options = config.as_ref().map_or(&defaults, |config| &config.linter);
@@ -147,7 +147,7 @@ impl Linter {
         let revision = context.revision();
         let config = self
             .repository
-            .destack_for_package_id(revision, package)
+            .manifest_for_package_id(revision, package)
             .map_err(|error| ProviderError::internal(error.to_string()))?;
         let Some(config) = config else {
             return Ok(());

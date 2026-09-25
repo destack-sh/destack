@@ -25,6 +25,7 @@ const SOURCE_PATH: &str = "main.tspp";
 const WARMUP_PATH: &str = "__warm.tspp";
 const TARGET_NAME: &str = "native";
 const DEFAULT_DESTACK_JSON: &str = r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "@test/app"
 }"#;
 
@@ -763,7 +764,7 @@ fn cold_repository_revision() -> (Arc<Repository>, Revision) {
         .retain_blob(DEFAULT_DESTACK_JSON.as_bytes())
         .expect("default lint configuration Blob should store");
     let revision = repository
-        .edit(revision, [Edit::set_file("destack.json", configuration)])
+        .edit(revision, [Edit::set_file("package.json", configuration)])
         .expect("default lint configuration should commit")
         .after;
 

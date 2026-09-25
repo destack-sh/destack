@@ -209,27 +209,28 @@ export declare let value: int32;
 fn test_import_reports_cross_package_relative_specifier() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
-    "workspace": {
-        "packages": ["packages/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*"]
 }
 "#,
         )
         .data(
-            "packages/app/destack.json",
+            "packages/app/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app"
 }
 "#,
         )
         .data(
-            "packages/lib/destack.json",
+            "packages/lib/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "lib"
 }
 "#,

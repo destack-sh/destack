@@ -27,8 +27,11 @@ impl TestDaemon {
     /// Start one isolated daemon.
     pub(super) fn start(name: &str) -> Self {
         let root = TemporaryPhysicalFileSystem::new_with_prefix(name);
-        root.write_text("destack.json", "{ \"name\": \"test\" }\n")
-            .expect("test manifest should write");
+        root.write_text(
+            "package.json",
+            "{ \"packageManager\": \"tspp@2026.9.0\", \"name\": \"test\" }\n",
+        )
+        .expect("test manifest should write");
         let workspace = Self::workspace(&root);
         let repository = workspace.session().repository();
         let endpoint = DaemonEndpoint::new(repository.layout().home.clone());

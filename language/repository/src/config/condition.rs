@@ -67,7 +67,7 @@ pub struct Condition {
     pub dependencies: IndexMap<String, Dependency>,
 }
 
-/// Named condition declarations from `destack.json`.
+/// Named condition declarations from `package.json`.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]
@@ -948,12 +948,9 @@ mod tests {
     fn test_builtin_condition_aliases_include_runtime_and_host() {
         let aliases = builtin_condition_aliases();
         let native = aliases.get("native").unwrap();
-        let destack = aliases.get("tspp").unwrap();
+        let tspp = aliases.get("tspp").unwrap();
 
         assert_eq!(native, &ConditionGate::axis(ConditionAxis::Host, "native"));
-        assert_eq!(
-            destack,
-            &ConditionGate::axis(ConditionAxis::Runtime, "tspp")
-        );
+        assert_eq!(tspp, &ConditionGate::axis(ConditionAxis::Runtime, "tspp"));
     }
 }

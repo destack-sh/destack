@@ -8,11 +8,11 @@ use tspp_workspace::{CommandRevision, FormatInput, FormatMode, FormatPayload, Fo
 
 use super::tests::{TestProgram, assert_exit, assert_success, execute};
 
-/// Formats destack files and updates them on disk.
+/// Formats TS++ files and updates them on disk.
 #[test]
-fn test_fmt_formats_destack_file() {
+fn test_fmt_formats_tspp_file() {
     // set up a source file with minimal spacing
-    let program = TestProgram::new("fmt_destack");
+    let program = TestProgram::new("fmt_tspp");
     let path = program.write_text("main.tspp", "const answer=42");
 
     // build formatter args
@@ -38,7 +38,7 @@ fn test_fmt_formats_destack_file() {
 
 /// Formats `.tspp` files during default directory scans.
 #[test]
-fn test_fmt_default_scan_includes_destack() {
+fn test_fmt_default_scan_includes_tspp() {
     // set up a source file in the root
     let program = TestProgram::new("fmt_scan_ds");
     let path = program.write_text("main.tspp", "const answer=42");

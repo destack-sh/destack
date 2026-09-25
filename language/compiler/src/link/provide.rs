@@ -225,7 +225,7 @@ impl Compiler {
         context: &dyn ProviderContext,
     ) -> CompilerResult<ResolvedTarget> {
         let package = self.package(context.revision(), package_id)?;
-        let config = self.destack_for_package(context, package_id)?;
+        let config = self.manifest_for_package(context, package_id)?;
         let root_directory = config
             .as_ref()
             .and_then(|config| config.compiler.root_dir.clone());

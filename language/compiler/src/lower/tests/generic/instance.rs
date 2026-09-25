@@ -475,8 +475,9 @@ shared function test.lib.retry<int32>(v0: int32, v1: int32, v2: boolean): int32;
 fn test_lower_instance_names_under_a_named_package() {
     let session = TestSession::builder()
         .module(
-            "destack.json",
+            "package.json",
             r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "app"
 }"#,
         )

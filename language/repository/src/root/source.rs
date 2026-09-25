@@ -2,12 +2,12 @@ use std::path::{Path, PathBuf};
 
 use tspp_source::FileSystem;
 
-use crate::{DestackFile, RepositoryError};
+use crate::{ManifestFile, RepositoryError};
 
 /// A source root discovered from one filesystem path.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SourceRoot {
-    /// A root declared by a `destack.json` manifest.
+    /// A root declared by a `package.json` manifest.
     Declared(PathBuf),
     /// A root implied by a source path outside a declared package.
     Implicit(PathBuf),
@@ -36,7 +36,7 @@ impl SourceRoot {
 
         // walk up directories looking for a declared source root
         loop {
-            if DestackFile::read(file_system, &current)?.is_some() {
+            if ManifestFile::read(file_system, &current)?.is_some() {
                 return Ok(Self::Declared(current));
             }
 

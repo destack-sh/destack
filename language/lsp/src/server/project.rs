@@ -497,10 +497,7 @@ impl ProjectSet {
                 jsonrpc::Error::invalid_params(format!("unsupported source URI: {uri:?}"))
             })?;
             let project = self.select(&path)?.ok_or_else(|| {
-                jsonrpc::Error::invalid_params(format!(
-                    "no Destack project owns {}",
-                    path.display()
-                ))
+                jsonrpc::Error::invalid_params(format!("no TS++ project owns {}", path.display()))
             })?;
 
             (project, Uri::from_path(path))
@@ -606,7 +603,7 @@ impl ProjectSet {
             // reject ambiguous project membership
             if selected.is_some() {
                 return Err(internal_error(format!(
-                    "source belongs to multiple Destack projects: {}",
+                    "source belongs to multiple TS++ projects: {}",
                     path.display()
                 )));
             }

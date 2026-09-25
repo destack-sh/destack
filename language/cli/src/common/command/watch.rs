@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use tspp_daemon::DaemonConnection;
-use tspp_repository::{Commit, Revision};
+use tspp_repository::{Commit, MANIFEST_FILE_NAME, Revision};
 use tspp_rpc::{Call, CallError};
 use tspp_serde::Codec;
 use tspp_source::{DiagnosticCollection, File, FileId};
@@ -55,7 +55,7 @@ impl WatchCycle {
             let is_structure_changed = change.before.is_none() || change.after.is_none();
             let is_config = Path::new(&change.path)
                 .file_name()
-                .is_some_and(|name| name == "destack.json");
+                .is_some_and(|name| name == MANIFEST_FILE_NAME);
 
             is_structure_changed || is_config
         })

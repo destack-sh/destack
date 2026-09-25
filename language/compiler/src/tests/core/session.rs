@@ -30,6 +30,7 @@ use crate::tests::snapshot::{
 use super::module::{TestModule, parse_module, parsed_dependencies};
 
 const DEFAULT_DESTACK_JSON: &str = r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "test"
 }"#;
 const WORKERS_ENV: &str = "TSPP_TEST_WORKERS";
@@ -1996,7 +1997,7 @@ fn cold_repository_revision() -> (Arc<Repository>, Revision) {
 
     // commit the default compiler test configuration
     let revision = repository
-        .edit(revision, [Edit::add_file("destack.json", blob)])
+        .edit(revision, [Edit::add_file("package.json", blob)])
         .expect("test repository default config should commit")
         .after;
     (repository, revision)

@@ -2,7 +2,7 @@ use super::{TokenType, assert_tokenize_eq_roundtrip, token};
 
 /// TS++ punctuation should lex to the expected operator and delimiter tokens.
 #[test]
-fn test_lex_basic_destack_punctuation() {
+fn test_lex_basic_tspp_punctuation() {
     assert_tokenize_eq_roundtrip!(
         "a..b => c->d x _ : ? ! @ ~",
         // a

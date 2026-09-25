@@ -1167,7 +1167,7 @@ mod tests {
         let allocator = Allocator::default();
         let nodes = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [group(&format_args![
                 token("a,"),
                 soft_line_break(),
@@ -1236,7 +1236,7 @@ mod tests {
         let allocator = Allocator::default();
         let nodes = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [group(&format_args![
                 token("a,"),
                 hard_line_break(),
@@ -1255,7 +1255,7 @@ mod tests {
         let allocator = Allocator::default();
         let nodes = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [group(&format_args![
                 token("a,"),
                 empty_line(),
@@ -1274,7 +1274,7 @@ mod tests {
         let allocator = Allocator::default();
         let nodes = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [group(&format_args![
                 token("a,"),
                 soft_line_break_or_space(),
@@ -1363,7 +1363,7 @@ mod tests {
         let allocator = Allocator::default();
         let nodes = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [token("Hello World")]
         )
         .unwrap();
@@ -1377,7 +1377,7 @@ mod tests {
         let allocator = Allocator::default();
         let nodes = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [token("\"Hello\\tWorld\"")]
         )
         .unwrap();
@@ -1391,7 +1391,7 @@ mod tests {
         let allocator = Allocator::default();
         let nodes = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [token("a"), line_suffix(&token("c")), token("b")]
         )
         .unwrap();
@@ -1405,7 +1405,7 @@ mod tests {
         let allocator = Allocator::default();
         let nodes = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [group(&format_args![
                 token("if (done)"),
                 soft_line_indent_or_space(&format_args![
@@ -1428,7 +1428,7 @@ mod tests {
         let allocator = Allocator::default();
         let nodes = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [group(&format_args![
                 token("if"),
                 space(),
@@ -1455,7 +1455,7 @@ mod tests {
         let allocator = Allocator::default();
         let nodes = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [
                 token("a"),
                 line_suffix(&token("c")),
@@ -1475,7 +1475,7 @@ mod tests {
         let allocator = Allocator::default();
         let nodes = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [
                 token("switch (state)"),
                 space(),
@@ -1510,7 +1510,7 @@ mod tests {
         let allocator = Allocator::default();
         let nodes = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [token("a"), space(), token("b")]
         )
         .unwrap();
@@ -1524,7 +1524,7 @@ mod tests {
         let allocator = Allocator::default();
         let block = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [
                 token("switch {"),
                 block_indent(&format_args![
@@ -1559,7 +1559,7 @@ mod tests {
         });
         let block = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [group(&format_args![token("yield task"), indent(&content)])]
         )
         .unwrap();
@@ -1576,7 +1576,7 @@ mod tests {
         let allocator = Allocator::default();
         let formatted = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [
                 token("switch {"),
                 block_indent(&format_args![
@@ -1600,7 +1600,7 @@ mod tests {
         let allocator = Allocator::default();
         let formatted = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [
                 token("switch {"),
                 soft_block_indent(&format_args![
@@ -1661,7 +1661,7 @@ mod tests {
         let allocator = Allocator::default();
         let formatted = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [group(&format_args![
                 token("["),
                 soft_block_indent(&format_args![
@@ -1784,7 +1784,7 @@ mod tests {
         let dynamic_text = "Hello World";
         let nodes = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [text(dynamic_text)]
         )
         .unwrap();
@@ -1857,7 +1857,7 @@ mod tests {
         let allocator = Allocator::default();
         let formatted = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [format_with(|f| {
                 write!(
                     f,

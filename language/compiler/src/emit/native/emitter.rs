@@ -825,12 +825,12 @@ impl<'a> NativeEmitter<'a> {
 
     /// Return the internal function symbol.
     fn body_symbol(symbol: mir::Symbol) -> String {
-        format!("__destack_body_{:016x}", symbol.raw())
+        format!("__tspp_body_{:016x}", symbol.raw())
     }
 
     /// Return the canonical entry symbol.
     fn entry_symbol(symbol: mir::Symbol) -> String {
-        format!("__destack_entry_{:016x}", symbol.raw())
+        format!("__tspp_entry_{:016x}", symbol.raw())
     }
 
     /// Build one internal emission diagnostic.

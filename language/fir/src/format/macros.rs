@@ -95,7 +95,7 @@ mod tests {
     #[test]
     fn test_single_node() {
         let allocator = Allocator::default();
-        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
+        let mut state = FormatState::new(SimpleFormatContext::empty_tspp(), &allocator);
         let mut formatter = Formatter::new(&mut state);
 
         write![&mut formatter, [TestFormat]].unwrap();
@@ -112,7 +112,7 @@ mod tests {
     #[test]
     fn test_multiple_nodes() {
         let allocator = Allocator::default();
-        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
+        let mut state = FormatState::new(SimpleFormatContext::empty_tspp(), &allocator);
         let mut formatter = Formatter::new(&mut state);
 
         write![
@@ -135,7 +135,7 @@ mod tests {
         let allocator = Allocator::default();
         let formatted = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [format_args!(token("Hello World"))]
         )
         .unwrap();
@@ -147,7 +147,7 @@ mod tests {
     #[test]
     fn test_write_macro_basic() {
         let allocator = Allocator::default();
-        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
+        let mut state = FormatState::new(SimpleFormatContext::empty_tspp(), &allocator);
         let mut formatter = Formatter::new(&mut state);
 
         write!(&mut formatter, [token("Hello"), space()]).unwrap();
@@ -167,7 +167,7 @@ mod tests {
         let allocator = Allocator::default();
         let formatted = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [token("test")]
         )
         .unwrap();
@@ -266,7 +266,7 @@ mod tests {
         let allocator = Allocator::default();
         let formatted = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [
                 token("aVeryLongIdentifier"),
                 best_fitting!(
@@ -554,7 +554,7 @@ mod tests {
         // the second variant below should be selected when printing at a width of 30
         let formatted_best_fitting = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [
                 token("aVeryLongIdentifier"),
                 soft_line_break_or_space(),
@@ -627,7 +627,7 @@ mod tests {
         // create a best fitting with multiple variants
         let formatted_best_fitting = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [
                 token("aVeryLongIdentifier"),
                 soft_line_break_or_space(),
@@ -675,7 +675,7 @@ mod tests {
         // the contents of its second variant
         let formatted_normal_list = format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [
                 token("aVeryLongIdentifier"),
                 soft_line_break_or_space(),

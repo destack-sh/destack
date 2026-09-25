@@ -1,9 +1,17 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Destack",
-  "description": "Destack configuration document.",
+  "title": "TS++ package.json",
+  "description": "One TS++ package manifest, read from `package.json`.",
   "type": "object",
   "properties": {
+    "packageManager": {
+      "description": "The toolchain this package requires, as `tspp@<version>`.",
+      "type": [
+        "string",
+        "null"
+      ],
+      "default": null
+    },
     "name": {
       "description": "Package or workspace name.",
       "type": [
@@ -76,16 +84,27 @@
       },
       "default": []
     },
-    "workspace": {
-      "description": "Repository wide workspace package and group configuration.",
-      "anyOf": [
-        {
-          "$ref": "#/$defs/WorkspaceLayout"
-        },
-        {
-          "type": "null"
+    "workspaces": {
+      "description": "Workspace package root glob patterns.",
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "default": null
+    },
+    "groups": {
+      "description": "Named groups of workspace package paths.",
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
         }
-      ]
+      },
+      "default": {}
     },
     "extends": {
       "description": "Config path inherited before this config.",
@@ -408,102 +427,56 @@
         }
       ]
     },
-    "WorkspaceLayout": {
-      "description": "Workspace package layout.",
-      "type": "object",
-      "properties": {
-        "packages": {
-          "description": "Package root glob patterns.",
-          "type": [
-            "array",
-            "null"
-          ],
-          "items": {
+    "Export": {
+      "description": "One package export: a package-relative path, or paths chosen by condition name.",
+      "anyOf": [
+        {
+          "description": "One package-relative path.",
+          "type": "string"
+        },
+        {
+          "description": "Package-relative paths by condition name, the first active condition selected.",
+          "type": "object",
+          "additionalProperties": {
             "type": "string"
           }
-        },
-        "groups": {
-          "description": "Named groups of package paths.",
-          "type": [
-            "object",
-            "null"
-          ],
-          "additionalProperties": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
-        }
-      }
-    },
-    "Export": {
-      "description": "Public package material declaration.",
-      "type": "object",
-      "properties": {
-        "kind": {
-          "description": "Exported material kind.",
-          "$ref": "#/$defs/ExportKind",
-          "default": "module"
-        },
-        "path": {
-          "description": "Package relative material path.",
-          "type": "string",
-          "default": ""
-        },
-        "when": {
-          "description": "Condition predicate required for this export.",
-          "anyOf": [
-            {
-              "$ref": "#/$defs/ConditionRef"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null
-        }
-      }
-    },
-    "ExportKind": {
-      "description": "Public package material kind.",
-      "oneOf": [
-        {
-          "description": "Source module.",
-          "type": "string",
-          "const": "module"
-        },
-        {
-          "description": "Static or generated asset.",
-          "type": "string",
-          "const": "asset"
-        },
-        {
-          "description": "Template material.",
-          "type": "string",
-          "const": "template"
-        },
-        {
-          "description": "Reflect-derived schema material.",
-          "type": "string",
-          "const": "reflect"
-        },
-        {
-          "description": "Simulation scenario or model material.",
-          "type": "string",
-          "const": "simulation"
-        },
-        {
-          "description": "Service definition material.",
-          "type": "string",
-          "const": "service"
-        },
-        {
-          "description": "Application definition material.",
-          "type": "string",
-          "const": "app"
         }
       ]
+    },
+    "Dependency": {
+      "type": "string"
+    },
+    "ConditionalDependencies": {
+      "description": "Dependency declarations guarded by one active condition predicate.",
+      "type": "object",
+      "properties": {
+        "when": {
+          "description": "Condition predicate enabling these dependencies.",
+          "$ref": "#/$defs/ConditionRef",
+          "default": {
+            "mode": null,
+            "role": null,
+            "feature": null,
+            "tag": null,
+            "target": null,
+            "product": null,
+            "platform": null,
+            "host": null,
+            "runtime": null,
+            "all": null,
+            "any": null,
+            "not": null
+          }
+        },
+        "dependencies": {
+          "description": "Dependency declarations enabled when the predicate matches.",
+          "type": "object",
+          "additionalProperties": {
+            "$ref": "#/$defs/Dependency"
+          },
+          "default": {}
+        }
+      }
     },
     "ConditionRef": {
       "description": "Source-level reference to one active condition predicate.",
@@ -681,145 +654,6 @@
       "required": [
         "patterns"
       ]
-    },
-    "Dependency": {
-      "description": "Package dependency declaration.",
-      "oneOf": [
-        {
-          "description": "Package resolved from the current workspace.",
-          "type": "object",
-          "properties": {
-            "source": {
-              "type": "string",
-              "const": "workspace"
-            }
-          },
-          "required": [
-            "source"
-          ]
-        },
-        {
-          "description": "Package resolved from the configured package registry.",
-          "type": "object",
-          "properties": {
-            "registry": {
-              "description": "Registry name.",
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "version": {
-              "description": "Exact package version.",
-              "type": "string"
-            },
-            "source": {
-              "type": "string",
-              "const": "registry"
-            }
-          },
-          "required": [
-            "source",
-            "version"
-          ]
-        },
-        {
-          "description": "Package resolved from one local package path.",
-          "type": "object",
-          "properties": {
-            "path": {
-              "description": "Package path.",
-              "type": "string"
-            },
-            "source": {
-              "type": "string",
-              "const": "path"
-            }
-          },
-          "required": [
-            "source",
-            "path"
-          ]
-        },
-        {
-          "description": "Package resolved from one Git repository.",
-          "type": "object",
-          "properties": {
-            "url": {
-              "description": "Repository URL.",
-              "type": "string"
-            },
-            "path": {
-              "description": "Repository subdirectory containing the package.",
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "rev": {
-              "description": "Exact commit revision.",
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "tag": {
-              "description": "Git tag selector.",
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "branch": {
-              "description": "Git branch selector.",
-              "type": [
-                "string",
-                "null"
-              ]
-            },
-            "source": {
-              "type": "string",
-              "const": "git"
-            }
-          },
-          "required": [
-            "source",
-            "url"
-          ]
-        }
-      ]
-    },
-    "ConditionalDependencies": {
-      "description": "Dependency declarations guarded by one active condition predicate.",
-      "type": "object",
-      "properties": {
-        "when": {
-          "description": "Condition predicate enabling these dependencies.",
-          "$ref": "#/$defs/ConditionRef",
-          "default": {
-            "mode": null,
-            "role": null,
-            "feature": null,
-            "tag": null,
-            "target": null,
-            "product": null,
-            "platform": null,
-            "host": null,
-            "runtime": null,
-            "all": null,
-            "any": null,
-            "not": null
-          }
-        },
-        "dependencies": {
-          "description": "Dependency declarations enabled when the predicate matches.",
-          "type": "object",
-          "additionalProperties": {
-            "$ref": "#/$defs/Dependency"
-          },
-          "default": {}
-        }
-      }
     },
     "PackagePatch": {
       "description": "Patch file applied to one resolved package.",
@@ -2023,12 +1857,12 @@
       "description": "Build distribution profile.",
       "oneOf": [
         {
-          "description": "Full Destack build.",
+          "description": "Full build.",
           "type": "string",
           "const": "full"
         },
         {
-          "description": "Smaller Destack build with optional services omitted when possible.",
+          "description": "Smaller build with optional services omitted when possible.",
           "type": "string",
           "const": "minimal"
         },
@@ -2546,7 +2380,7 @@
       }
     },
     "FormatterOptions": {
-      "description": "Formatter options.\n\nControls code style decisions made by the formatter.\nDefault values match the standard formatter defaults used by Destack.",
+      "description": "Formatter options.\n\nControls code style decisions made by the formatter.\nDefault values are the standard TS++ formatter defaults.",
       "type": "object",
       "properties": {
         "lineEnding": {
@@ -2994,7 +2828,7 @@
       }
     },
     "Entrypoint": {
-      "description": "User callable launched by a TS++ target.",
+      "description": "User callable launched by a Destack target.",
       "type": "object",
       "properties": {
         "module": {
@@ -3474,7 +3308,7 @@
           "const": "o3"
         },
         {
-          "description": "Maximum TS++ optimization level.",
+          "description": "Maximum Destack optimization level.",
           "type": "string",
           "const": "o4"
         }
@@ -5009,7 +4843,7 @@
       }
     },
     "ConditionCatalog": {
-      "description": "Named condition declarations from `destack.json`.",
+      "description": "Named condition declarations from `package.json`.",
       "type": "object",
       "properties": {
         "modes": {
@@ -5097,7 +4931,7 @@
       "type": "object",
       "properties": {
         "run": {
-          "description": "Destack command name to run.",
+          "description": "Toolchain command name to run.",
           "type": [
             "string",
             "null"

@@ -187,9 +187,9 @@ impl Repository {
         }
 
         // classify the repository root
-        let root_config = self.destack_for_workspace(revision)?;
+        let root_config = self.manifest_for_workspace(revision)?;
         let kind = match root_config.as_ref() {
-            Some(config) if config.workspace_packages().is_some() => RootKind::Workspace,
+            Some(config) if config.workspaces.is_some() => RootKind::Workspace,
             Some(_) => RootKind::Package,
             None => RootKind::Loose,
         };

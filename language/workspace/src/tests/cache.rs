@@ -11,6 +11,7 @@ use super::harness::TestWorkspace;
 fn test_restart_reuses_exact_artifacts() {
     let test = TestWorkspace::persistent("artifact-cache-restart");
     let config_source = r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "test",
   "targets": {
     "default": {
@@ -20,7 +21,7 @@ fn test_restart_reuses_exact_artifacts() {
   "defaultTarget": "default"
 }
 "#;
-    let config = test.write_text("destack.json", config_source);
+    let config = test.write_text("package.json", config_source);
     test.apply_text(&config, config_source);
     let main_source = "export const answer: int32 = 42;\n";
     let main = test.write_text("main.tspp", main_source);

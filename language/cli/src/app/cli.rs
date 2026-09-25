@@ -3,8 +3,8 @@ use clap::builder::styling::{AnsiColor, Style, Styles};
 use clap::{Args, CommandFactory, Parser, ValueEnum};
 
 use crate::{
-    build, cache, check, clean, completions, console, doc, doctor, explain, fmt, info, lint,
-    lsp, query, rewrite, run, settings, targets, task, test, update, version,
+    build, cache, check, clean, completions, console, doc, doctor, explain, fmt, info, lint, lsp,
+    query, rewrite, run, settings, targets, task, test, update, version,
 };
 
 #[cfg(feature = "dev")]
@@ -72,7 +72,7 @@ impl ConsoleArgs {
     }
 }
 
-/// Root CLI arguments for destack.
+/// Root CLI arguments for tspp.
 #[derive(Parser, Debug)]
 #[command(
     name = "tspp",
@@ -238,7 +238,7 @@ fn build_before_help(color_enabled: bool) -> StyledStr {
         let title_style = Style::new().bold();
         let tagline_style = Style::new().bold();
         let version_style = Style::new().bold().dimmed();
-        text.push_str(&format!("{title_style}destack{title_style:#}\n"));
+        text.push_str(&format!("{title_style}tspp{title_style:#}\n"));
         text.push_str(&format!(
             "{tagline_style}Destack is a universal software engine for building correct, optimal, integrated software systems{tagline_style:#} "
         ));

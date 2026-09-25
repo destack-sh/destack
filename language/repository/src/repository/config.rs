@@ -4,44 +4,45 @@ use std::sync::Arc;
 
 use tspp_source::{FileId, PackageId};
 
-use crate::DestackFile;
+use crate::ManifestFile;
+use crate::config::MANIFEST_FILE_NAME;
 use crate::repository::{Repository, RepositoryError, Revision};
 
 impl Repository {
-    /// Return one inherited destack config by workspace path.
-    pub fn inherited_destack_for_path(
+    /// Return one inherited manifest by workspace path.
+    pub fn inherited_manifest_for_path(
         &self,
         revision: Revision,
         path: &Path,
-    ) -> Result<Option<DestackFile>, RepositoryError> {
+    ) -> Result<Option<ManifestFile>, RepositoryError> {
         let mut active_paths = BTreeSet::new();
 
-        self.inherit_destack_config(revision, path, &mut active_paths)
+        self.inherit_manifest(revision, path, &mut active_paths)
     }
 
-    /// Return the effective destack config for one config file id.
-    pub fn destack_for_file(
+    /// Return the effective manifest for one manifest file id.
+    pub fn manifest_for_file(
         &self,
         revision: Revision,
         file_id: FileId,
-    ) -> Result<Option<Arc<DestackFile>>, RepositoryError> {
+    ) -> Result<Option<Arc<ManifestFile>>, RepositoryError> {
         let Some(file) = self.file(revision, file_id)? else {
             return Ok(None);
         };
         let Some(path) = file.path.as_deref() else {
             return Ok(None);
         };
-        let config = self.inherited_destack_for_path(revision, path)?;
+        let config = self.inherited_manifest_for_path(revision, path)?;
 
         Ok(config.map(Arc::new))
     }
 
-    /// Return one local destack declaration by file id.
-    fn local_destack_for_file(
+    /// Return one local manifest by file id, none for an unmarked `package.json`.
+    pub(crate) fn local_manifest_for_file(
         &self,
         revision: Revision,
         file_id: FileId,
-    ) -> Result<Option<Arc<DestackFile>>, RepositoryError> {
+    ) -> Result<Option<Arc<ManifestFile>>, RepositoryError> {
         // read file
         let Some(blob) = self.file_blob(revision, file_id)? else {
             return Ok(None);
@@ -49,14 +50,13 @@ impl Repository {
 
         // cached parse result
         let cache_key = (file_id, blob.id);
-        if let Some(config) = self.file_cache.destack.get(&cache_key) {
+        if let Some(config) = self.file_cache.manifest.get(&cache_key) {
             return config
                 .value()
-                .as_ref()
-                .map(|config| Some(config.clone()))
+                .clone()
                 .map_err(|message| RepositoryError::InvalidConfig {
                     file: file_id,
-                    message: message.clone(),
+                    message,
                 });
         }
 
@@ -64,49 +64,47 @@ impl Repository {
         let Some(file) = self.file(revision, file_id)? else {
             return Ok(None);
         };
-        let config = DestackFile::parse(&file)
-            .map(Arc::new)
+        let config = ManifestFile::parse(&file)
+            .map(|config| config.map(Arc::new))
             .map_err(|error| error.to_string());
-        let destack_config =
-            config
-                .as_ref()
-                .map(|config| Some(config.clone()))
-                .map_err(|message| RepositoryError::InvalidConfig {
-                    file: file_id,
-                    message: message.clone(),
-                });
+        let manifest = config
+            .clone()
+            .map_err(|message| RepositoryError::InvalidConfig {
+                file: file_id,
+                message,
+            });
 
         // populate cache
-        self.file_cache.destack.insert(cache_key, config);
+        self.file_cache.manifest.insert(cache_key, config);
 
-        destack_config
+        manifest
     }
 
     /// Return the effective root workspace config for one revision.
-    pub fn destack_for_workspace(
+    pub fn manifest_for_workspace(
         &self,
         revision: Revision,
-    ) -> Result<Option<Arc<DestackFile>>, RepositoryError> {
-        let path = self.root.join("destack.json");
-        let config = self.inherited_destack_for_path(revision, &path)?;
+    ) -> Result<Option<Arc<ManifestFile>>, RepositoryError> {
+        let path = self.root.join(MANIFEST_FILE_NAME);
+        let config = self.inherited_manifest_for_path(revision, &path)?;
 
         Ok(config.map(Arc::new))
     }
 
-    /// Return one inherited destack config by workspace path.
-    fn inherit_destack_config(
+    /// Return one inherited manifest by workspace path.
+    fn inherit_manifest(
         &self,
         revision: Revision,
         path: &Path,
         active_paths: &mut BTreeSet<PathBuf>,
-    ) -> Result<Option<DestackFile>, RepositoryError> {
+    ) -> Result<Option<ManifestFile>, RepositoryError> {
         let Some(path) = normalize_path(path) else {
             return Ok(None);
         };
         let file_id = self.file_id(&path);
 
         // parse child config
-        let Some(config) = self.local_destack_for_file(revision, file_id)? else {
+        let Some(config) = self.local_manifest_for_file(revision, file_id)? else {
             return Ok(None);
         };
         if !active_paths.insert(path.clone()) {
@@ -118,11 +116,8 @@ impl Repository {
         let parents = config.extends().map(str::to_string).collect::<Vec<_>>();
         for extends in parents {
             let parent_path = config_parent_path(&config, &extends)?;
-            let Some(parent) = self.inherit_destack_config(revision, &parent_path, active_paths)?
-            else {
-                return Err(RepositoryError::MissingFile {
-                    path: parent_path.display().to_string(),
-                });
+            let Some(parent) = self.inherit_manifest(revision, &parent_path, active_paths)? else {
+                return Err(self.missing_parent_error(revision, &config, &parent_path)?);
             };
 
             config
@@ -136,6 +131,33 @@ impl Repository {
         active_paths.remove(&path);
 
         Ok(Some(config))
+    }
+
+    /// Return the error for one `extends` target that yields no manifest.
+    fn missing_parent_error(
+        &self,
+        revision: Revision,
+        config: &ManifestFile,
+        parent_path: &Path,
+    ) -> Result<RepositoryError, RepositoryError> {
+        let path = parent_path.display().to_string();
+        let is_present = self
+            .file_blob(revision, self.file_id(parent_path))?
+            .is_some();
+
+        // report an existing parent without the TS++ marker
+        let error = if is_present {
+            RepositoryError::InvalidConfig {
+                file: config.file_id,
+                message: format!("extended {path} is not a TS++ manifest"),
+            }
+        }
+        // report a missing parent
+        else {
+            RepositoryError::MissingFile { path }
+        };
+
+        Ok(error)
     }
 
     /// Return the package root paths for one revision.
@@ -157,12 +179,12 @@ impl Repository {
         Ok(package_roots)
     }
 
-    /// Return the effective `destack.json` config for one package id.
-    pub fn destack_for_package_id(
+    /// Return the effective `package.json` config for one package id.
+    pub fn manifest_for_package_id(
         &self,
         revision: Revision,
         package_id: PackageId,
-    ) -> Result<Option<Arc<DestackFile>>, RepositoryError> {
+    ) -> Result<Option<Arc<ManifestFile>>, RepositoryError> {
         let package =
             self.package(revision, package_id)?
                 .ok_or(RepositoryError::MissingPackage {
@@ -174,7 +196,7 @@ impl Repository {
 }
 
 /// Resolve one config inheritance specifier.
-fn config_parent_path(config: &DestackFile, specifier: &str) -> Result<PathBuf, RepositoryError> {
+fn config_parent_path(config: &ManifestFile, specifier: &str) -> Result<PathBuf, RepositoryError> {
     let specifier_path = Path::new(specifier);
     if specifier_path.components().next().is_none() {
         return Err(RepositoryError::InvalidConfigExtends {

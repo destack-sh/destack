@@ -4,12 +4,12 @@ use crate::common::ReportArgs;
 use super::tests::{TestProgram, assert_success, execute};
 use serde_json::json;
 
-/// Lists tasks defined in destack.json.
+/// Lists tasks defined in package.json.
 #[test]
 fn test_task_list_reads_tasks() {
     // set up a config with tasks
     let program = TestProgram::new("task_list");
-    program.write_destack_config_with_base(json!({
+    program.write_manifest_with_base(json!({
         "tasks": {
             "build": {
                 "exec": "echo build",
@@ -40,7 +40,7 @@ fn test_task_list_reads_tasks() {
 fn test_task_run_dry_run() {
     // set up a config with tasks
     let program = TestProgram::new("task_run_dry");
-    program.write_destack_config_with_base(json!({
+    program.write_manifest_with_base(json!({
         "tasks": {
             "build": {
                 "exec": "echo build",
@@ -71,17 +71,16 @@ fn test_task_run_dry_run() {
 fn test_task_run_dry_run_for_workspace_group() {
     // set up a workspace with one named group
     let program = TestProgram::new("task_workspace_group");
-    program.write_destack_config_with_base(json!({
-        "workspace": {
-            "packages": ["apps/*"],
-            "groups": {
-                "product": ["apps/web"],
-            },
+    program.write_manifest_with_base(json!({
+        "workspaces": ["apps/*"],
+        "groups": {
+            "product": ["apps/web"],
         },
     }));
     program.write_json(
-        "apps/web/destack.json",
+        "apps/web/package.json",
         json!({
+            "packageManager": "tspp@2026.9.0",
             "name": "web",
             "tasks": {
                 "build": {
@@ -91,8 +90,9 @@ fn test_task_run_dry_run_for_workspace_group() {
         }),
     );
     program.write_json(
-        "apps/api/destack.json",
+        "apps/api/package.json",
         json!({
+            "packageManager": "tspp@2026.9.0",
             "name": "api",
             "tasks": {
                 "build": {

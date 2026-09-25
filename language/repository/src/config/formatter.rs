@@ -270,7 +270,7 @@ impl Display for ImportSortOrder {
 /// Formatter options.
 ///
 /// Controls code style decisions made by the formatter.
-/// Default values match the standard formatter defaults used by Destack.
+/// Default values are the standard TS++ formatter defaults.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(default)]

@@ -6,7 +6,7 @@ use indexmap::IndexMap;
 use tspp_source::{FileId, PackageId, TargetId, Uri};
 
 use crate::config::{
-    ConditionGate, ConditionSet, Dependency, DestackFile, ExportKind, Target, Topology, Vendor,
+    ConditionGate, ConditionSet, Dependency, ManifestFile, Target, Topology, Vendor,
 };
 
 /// The ownership kind for a package.
@@ -59,7 +59,7 @@ pub struct Package {
     /// The package targets.
     pub targets: IndexMap<TargetId, Target>,
     /// The effective package configuration when present.
-    pub configuration: Option<Arc<DestackFile>>,
+    pub configuration: Option<Arc<ManifestFile>>,
 }
 
 impl Package {
@@ -110,24 +110,42 @@ impl PackageDependencies {
     }
 }
 
-/// Public package material after condition references are resolved.
+/// Public package export after condition references are resolved.
 #[derive(Debug, Clone)]
 pub struct PackageExport {
-    /// Exported material kind.
-    pub kind: ExportKind,
-    /// Package relative material path.
-    pub path: String,
-    /// Condition gate required for this export.
-    pub when: Option<ConditionGate>,
+    /// The candidate paths in declaration order.
+    pub cases: Vec<ExportCase>,
 }
 
 impl PackageExport {
-    /// Return whether this export is active for one condition set.
-    pub fn matches(&self, conditions: &ConditionSet) -> bool {
-        self.when
-            .as_ref()
-            .is_none_or(|gate| gate.matches(conditions))
+    /// Return the first path whose condition gate matches one condition set.
+    pub fn select(&self, conditions: &ConditionSet) -> Option<&str> {
+        self.cases
+            .iter()
+            .find(|case| {
+                case.when
+                    .as_ref()
+                    .is_none_or(|gate| gate.matches(conditions))
+            })
+            .map(|case| case.path.as_str())
     }
+
+    /// Return the path of an export with one unconditional case.
+    pub fn path(&self) -> Option<&str> {
+        match self.cases.as_slice() {
+            [ExportCase { when: None, path }] => Some(path),
+            _ => None,
+        }
+    }
+}
+
+/// One candidate path of a package export.
+#[derive(Debug, Clone)]
+pub struct ExportCase {
+    /// Condition gate selecting this path, none for an unconditional path.
+    pub when: Option<ConditionGate>,
+    /// Package relative path.
+    pub path: String,
 }
 
 /// Revision-local package lookup data.
@@ -145,7 +163,7 @@ impl PackageIndex {
     /// Build one package index from resolved packages.
     pub(crate) fn new(
         packages: OrdMap<PackageId, Arc<Package>>,
-        workspace: Option<&DestackFile>,
+        workspace: Option<&ManifestFile>,
     ) -> Self {
         // index every referenced workspace and package configuration file
         let mut configuration_files = workspace

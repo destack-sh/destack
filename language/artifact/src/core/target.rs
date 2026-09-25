@@ -137,10 +137,10 @@ impl Runtime {
 #[cfg_attr(feature = "schema", derive(schemars::JsonSchema))]
 #[serde(rename_all = "lowercase")]
 pub enum BuildProfile {
-    /// Full Destack build.
+    /// Full build.
     #[default]
     Full,
-    /// Smaller Destack build with optional services omitted when possible.
+    /// Smaller build with optional services omitted when possible.
     Minimal,
     /// Freestanding output without the normal TS++ runtime contract.
     Freestanding,

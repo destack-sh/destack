@@ -5,7 +5,7 @@ use clap::Args;
 /// Target selection and command scoped output arguments.
 #[derive(Args, Debug, Clone, Default)]
 pub struct TargetArgs {
-    /// Use a named target from destack.json.
+    /// Use a named target from package.json.
     #[arg(long = "target", short = 't')]
     pub target: Option<String>,
 

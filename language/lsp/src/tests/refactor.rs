@@ -71,7 +71,7 @@ function main(): void {
 }
 "#;
     let mut server = TestServer::new("resolved-code-action");
-    server.write("destack.json", MANIFEST);
+    server.write("package.json", MANIFEST);
     server.write("src/library.tspp", library);
     let document = server.write("src/main.tspp", source);
     let capabilities = lsp::ClientCapabilities {

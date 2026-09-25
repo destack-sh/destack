@@ -253,16 +253,15 @@ async fn test_query_builtin_documents() {
 log("ready");
 "#;
     let manifest = r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "builtin-module-links",
-  "workspace": {
-    "packages": ["app"]
-  }
+  "workspaces": ["app"]
 }
 "#;
 
     // open a source from one configured workspace package
     let mut server = TestServer::new("builtin-module-links");
-    server.write("destack.json", manifest);
+    server.write("package.json", manifest);
     server.create_package("app");
     let document = server.write("app/main.tspp", source);
     server

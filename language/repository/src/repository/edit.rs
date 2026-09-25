@@ -5,6 +5,7 @@ use tspp_artifact::{ArtifactDependency, SourceDependency};
 use tspp_core::{Blob, TreapRoot};
 use tspp_source::FileId;
 
+use crate::config::MANIFEST_FILE_NAME;
 use crate::repository::{
     Change, Commit, Delta, Discovery, FileEntry, Repository, RepositoryError, Revision,
     RevisionEntry, RevisionState, normalize_logical_path,
@@ -378,5 +379,5 @@ impl Repository {
 
 /// Return whether one logical path names a package configuration file.
 fn is_package_config_path(logical_path: &str) -> bool {
-    logical_path.rsplit('/').next() == Some("destack.json")
+    logical_path.rsplit('/').next() == Some(MANIFEST_FILE_NAME)
 }

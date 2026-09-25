@@ -236,9 +236,10 @@ export { @if(false) Foo } from "./missing.tspp";
 fn test_import_records_static_if_active_mode_edge() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "compiler": {
         "modes": ["preview"]
@@ -278,9 +279,10 @@ import { Foo } from "./dep.tspp";
 fn test_import_omits_static_if_inactive_mode_edge() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "compiler": {
         "modes": ["preview"]
@@ -319,9 +321,10 @@ import { Foo } from "./dep.tspp";
 fn test_import_records_static_if_active_role_edge() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "compiler": {
         "roles": ["server"]
@@ -361,9 +364,10 @@ import { Foo } from "./dep.tspp";
 fn test_import_records_static_if_active_label_edge() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "conditions": {
         "modes": {
@@ -412,9 +416,10 @@ import { Foo } from "./dep.tspp";
 fn test_import_records_static_if_runtime_edge() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "targets": {
         "default": {
@@ -458,9 +463,10 @@ import { Foo } from "./dep.tspp";
 fn test_import_records_static_if_output_edge() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "targets": {
         "default": {
@@ -503,9 +509,10 @@ import { Foo } from "./dep.tspp";
 fn test_import_omits_static_if_platform_edge() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "targets": {
         "default": {
@@ -578,9 +585,10 @@ import { Foo } from "./dep.tspp";
 fn test_import_omits_static_if_target_family_edge() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "targets": {
         "default": {

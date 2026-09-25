@@ -294,15 +294,17 @@ impl TestSession {
 fn test_reuse_builtin_imports_after_adding_a_package() {
     let session = TestSession::open(&[
         (
-            "destack.json",
+            "package.json",
             r#"{
-  "workspace": { "packages": ["packages/*"] }
+  "packageManager": "tspp@2026.9.0",
+  "workspaces": ["packages/*"]
 }
 "#,
         ),
         (
-            "packages/app/destack.json",
+            "packages/app/package.json",
             r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "app"
 }
 "#,
@@ -331,8 +333,9 @@ fn test_reuse_builtin_imports_after_adding_a_package() {
 
     // add an unrelated package without changing any builtin source
     session.edit_text(
-        "packages/other/destack.json",
+        "packages/other/package.json",
         r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "other"
 }
 "#,
@@ -429,8 +432,8 @@ fn test_replace_embedded_module() {
     for (path, content) in [
         ("README.md", "# Destack\n"),
         (
-            "destack.json",
-            r#"{ "name": "tspp" }
+            "package.json",
+            r#"{ "packageManager": "tspp@2026.9.0", "name": "tspp" }
 "#,
         ),
         (
@@ -471,13 +474,13 @@ fn test_replace_embedded_module() {
 fn test_resolve_added_builtin_imports() {
     let session = TestSession::open(&[
         (
-            "destack.json",
-            r#"{ "workspace": { "packages": ["packages/*"] } }
+            "package.json",
+            r#"{ "packageManager": "tspp@2026.9.0", "workspaces": ["packages/*"] }
 "#,
         ),
         (
-            "packages/library/destack.json",
-            r#"{ "name": "tspp" }
+            "packages/library/package.json",
+            r#"{ "packageManager": "tspp@2026.9.0", "name": "tspp" }
 "#,
         ),
         (
@@ -486,8 +489,8 @@ fn test_resolve_added_builtin_imports() {
 "#,
         ),
         (
-            "packages/app/destack.json",
-            r#"{ "name": "app" }
+            "packages/app/package.json",
+            r#"{ "packageManager": "tspp@2026.9.0", "name": "app" }
 "#,
         ),
         (
@@ -518,10 +521,11 @@ fn test_resolve_added_builtin_imports() {
     }
 
     session.edit_text(
-        "packages/library/destack.json",
+        "packages/library/package.json",
         r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "tspp",
-  "exports": { "./example": { "kind": "module", "path": "src/value.tspp" } }
+  "exports": { "./example": "src/value.tspp" }
 }
 "#,
     );
@@ -537,17 +541,19 @@ fn test_resolve_added_builtin_imports() {
 fn test_resolve_added_workspace_dependency() {
     let session = TestSession::open(&[
         (
-            "destack.json",
+            "package.json",
             r#"{
-  "workspace": { "packages": ["packages/*"] }
+  "packageManager": "tspp@2026.9.0",
+  "workspaces": ["packages/*"]
 }
 "#,
         ),
         (
-            "packages/app/destack.json",
+            "packages/app/package.json",
             r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "app",
-  "dependencies": { "other": { "source": "workspace" } }
+  "dependencies": { "other": "workspace:*" }
 }
 "#,
         ),
@@ -563,10 +569,11 @@ fn test_resolve_added_workspace_dependency() {
     let before = session.version(key);
 
     session.edit_text(
-        "packages/other/destack.json",
+        "packages/other/package.json",
         r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "other",
-  "exports": { ".": { "kind": "module", "path": "index.tspp" } }
+  "exports": { ".": "index.tspp" }
 }
 "#,
     );
@@ -590,8 +597,9 @@ fn test_resolve_added_workspace_dependency() {
 fn test_provide_same_artifact_across_sessions() {
     let files = [
         (
-            "destack.json",
+            "package.json",
             r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "@test/app"
 }
 "#,
@@ -618,8 +626,9 @@ fn test_provide_same_artifact_across_sessions() {
 fn test_poison_lowering_of_a_module_with_check_errors() {
     let files = [
         (
-            "destack.json",
+            "package.json",
             r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "@test/app"
 }
 "#,

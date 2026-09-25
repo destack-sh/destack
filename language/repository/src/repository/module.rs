@@ -11,6 +11,7 @@ use tspp_source::{
     FileId, FileType, LanguageType, Loader, ModuleId, PackageId, TSPP_FILE_TYPES, Uri,
 };
 
+use crate::config::MANIFEST_FILE_NAME;
 use crate::repository::{FileEntry, Repository, RepositoryError, Revision};
 use crate::{
     ConditionGate, Module, ModuleFile, ModuleIndex, PackageIndex, builtin_condition_aliases,
@@ -165,7 +166,9 @@ impl Repository {
         };
 
         // skip the package configuration file
-        let is_package_config = path.file_name().is_some_and(|name| name == "destack.json");
+        let is_package_config = path
+            .file_name()
+            .is_some_and(|name| name == MANIFEST_FILE_NAME);
         if is_package_config {
             return Ok(None);
         }
@@ -200,7 +203,7 @@ impl Repository {
         revision: Revision,
         package_id: PackageId,
     ) -> Result<IndexMap<String, ConditionGate>, RepositoryError> {
-        let aliases = if let Some(config) = self.destack_for_package_id(revision, package_id)? {
+        let aliases = if let Some(config) = self.manifest_for_package_id(revision, package_id)? {
             config
                 .conditions
                 .suffix_aliases()

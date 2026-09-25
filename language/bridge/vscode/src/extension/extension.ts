@@ -37,7 +37,7 @@ export class TsppExtension {
     async start(): Promise<void> {
         this.registerCommands();
         this.registerRestart();
-        await this.report("start Destack", () => this.restart());
+        await this.report("start TS++", () => this.restart());
     }
 
     /** Stop the active language client. */
@@ -111,7 +111,7 @@ export class TsppExtension {
     private registerCommands(): void {
         this.context.subscriptions.push(
             vscode.commands.registerCommand("tspp.restart", async () => {
-                await this.report("restart Destack", () => this.restart());
+                await this.report("restart TS++", () => this.restart());
             }),
             vscode.commands.registerCommand("tspp.showLogs", () => {
                 this.log.show(true);
@@ -156,7 +156,7 @@ export class TsppExtension {
                 await this.report("apply TS++ server settings", () => this.restart());
             }),
             vscode.workspace.onDidGrantWorkspaceTrust(async () => {
-                await this.report("apply Destack workspace trust", () => this.restart());
+                await this.report("apply TS++ workspace trust", () => this.restart());
             }),
         );
     }

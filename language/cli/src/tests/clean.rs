@@ -4,12 +4,12 @@ use crate::common::ReportArgs;
 use serde_json::json;
 use tspp_source::FileSystem;
 
-/// Cleans compiler output directories from destack.json.
+/// Cleans compiler output directories from package.json.
 #[test]
 fn test_clean_removes_out_dir() {
     // setup
     let program = TestProgram::new("clean_out_dir");
-    program.write_destack_config_with_base(json!({
+    program.write_manifest_with_base(json!({
         "compiler": {
             "outDir": "dist",
         },

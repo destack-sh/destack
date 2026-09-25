@@ -1894,7 +1894,7 @@ mod tests {
         options: PrintOptions,
     ) -> Printed {
         let formatted =
-            crate::format!(allocator, SimpleFormatContext::empty_destack(), [root]).unwrap();
+            crate::format!(allocator, SimpleFormatContext::empty_tspp(), [root]).unwrap();
 
         Printer::new(&File::empty_text(FileType::Tspp), options)
             .print(formatted.document())
@@ -1907,7 +1907,7 @@ mod tests {
         let allocator = Allocator::default();
         let formatted = crate::format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [token("abcdef")]
         )
         .unwrap();
@@ -1930,7 +1930,7 @@ mod tests {
     #[test]
     fn test_reports_missing_conditional_content_end() {
         let allocator = Allocator::default();
-        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
+        let mut state = FormatState::new(SimpleFormatContext::empty_tspp(), &allocator);
         let mut formatter = Formatter::new(&mut state);
         formatter.write_element(FormatElement::Tag(FormatTag::StartConditionalContent(
             Condition::if_fits_on_line(),
@@ -1973,7 +1973,7 @@ mod tests {
         let allocator = Allocator::default();
         let formatted = crate::format!(
             &allocator,
-            SimpleFormatContext::empty_destack(),
+            SimpleFormatContext::empty_tspp(),
             [token("a"), block_indent(&token("b"))]
         )
         .unwrap();
@@ -2007,7 +2007,7 @@ mod tests {
         .expect("test binary source should load");
         let span = Span::new(file_id, 0, 1);
         let allocator = Allocator::default();
-        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
+        let mut state = FormatState::new(SimpleFormatContext::empty_tspp(), &allocator);
         let mut formatter = Formatter::new(&mut state);
         formatter.write_element(FormatElement::FileSlice {
             range: span.range(),
@@ -2370,7 +2370,7 @@ two lines`,
     #[test]
     fn test_fill_breaks() {
         let allocator = Allocator::default();
-        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
+        let mut state = FormatState::new(SimpleFormatContext::empty_tspp(), &allocator);
         let mut formatter = Formatter::new(&mut state);
 
         formatter

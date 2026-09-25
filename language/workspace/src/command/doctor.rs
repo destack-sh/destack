@@ -3,7 +3,7 @@ use std::process::Command;
 use tspp_serde::Reflect;
 
 use serde::{Deserialize, Serialize};
-use tspp_repository::{DestackFile, TraceView};
+use tspp_repository::{ManifestFile, TraceView};
 use tspp_source::DiagnosticCollection;
 
 use super::CommandResult;
@@ -27,11 +27,11 @@ pub struct DoctorInput {
     pub revision: CommandRevision,
     /// Input sources for the command.
     pub inputs: Vec<CommandInput>,
-    /// Whether destack.json should resolve inputs when none are provided.
+    /// Whether package.json should resolve inputs when none are provided.
     pub config_inputs: bool,
     /// Optional working directory for this command.
     pub cwd: Option<PathBuf>,
-    /// Optional Destack manifest path override.
+    /// Optional manifest path override.
     pub manifest: Option<PathBuf>,
     /// Optional target name override.
     pub target: Option<String>,
@@ -108,7 +108,7 @@ pub struct DoctorPayload {
     pub available_parallelism: u64,
     /// Workspace metadata.
     pub workspace: DoctorWorkspace,
-    /// Resolved destack.json path.
+    /// Resolved package.json path.
     pub manifest: Option<String>,
     /// Manifest extends entries.
     pub extends: Option<Vec<String>>,
@@ -144,21 +144,28 @@ impl CommandContext<'_> {
             .root(revision)
             .map_err(|error| format!("failed to derive workspace: {error}"))?;
 
-        // resolve manifest
-        let manifest = if self.common.manifest.is_some() {
-            self.resolve_destack_config_path(self.common.manifest.as_deref())
-                .ok()
-        } else {
-            self.find_destack_config(&self.cwd)
-        };
-        let config = manifest
-            .as_ref()
-            .and_then(|path| self.load_destack_config(path).ok());
-
-        // collect manifest warnings
+        // resolve manifest, reporting failures as warnings
         let mut warnings = Vec::new();
-        if manifest.is_none() {
-            warnings.push("destack.json not found".to_string());
+        let manifest = if self.common.manifest.is_some() {
+            self.resolve_manifest_path(self.common.manifest.as_deref())
+                .map(Some)
+        } else {
+            self.find_manifest(&self.cwd)
+        };
+        let manifest = manifest.unwrap_or_else(|error| {
+            warnings.push(error.to_string());
+            None
+        });
+        let config = manifest.as_ref().and_then(|path| {
+            self.load_manifest(path)
+                .map_err(|error| warnings.push(error.to_string()))
+                .ok()
+        });
+        if manifest.is_none() && warnings.is_empty() {
+            warnings.push(format!(
+                "no TS++ manifest found from {}",
+                self.cwd.display()
+            ));
         }
 
         let mut target_names = Vec::new();
@@ -292,6 +299,6 @@ fn parse_version_output(stdout: &[u8], stderr: &[u8]) -> Option<String> {
 }
 
 /// Collect extends entries for a config.
-fn list_extends(config: &DestackFile) -> Vec<String> {
+fn list_extends(config: &ManifestFile) -> Vec<String> {
     config.extends.iter().cloned().collect()
 }

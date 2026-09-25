@@ -96,6 +96,7 @@ const second = sibling;
 fn test_check_command_requests_selected_module_and_program_lints() {
     let test = TestWorkspace::new("check-command-lints");
     let config_source = r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "test",
   "targets": {
     "default": {
@@ -108,7 +109,7 @@ fn test_check_command_requests_selected_module_and_program_lints() {
   }
 }
 "#;
-    let config = test.write_text("destack.json", config_source);
+    let config = test.write_text("package.json", config_source);
     test.apply_text(&config, config_source);
     let main_source = "export const value: int32 = 1;\n";
     let main = test.write_text("main.tspp", main_source);

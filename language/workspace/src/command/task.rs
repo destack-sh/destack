@@ -5,7 +5,7 @@ use tspp_serde::Reflect;
 
 use serde::{Deserialize, Serialize};
 use tspp_core::closest_string;
-use tspp_repository::{DestackFile, Repository, Revision, Root, TraceView};
+use tspp_repository::{MANIFEST_FILE_NAME, ManifestFile, Repository, Revision, Root, TraceView};
 use tspp_source::DiagnosticCollection;
 
 use super::CommandResult;
@@ -15,8 +15,8 @@ use super::common::{
 };
 use super::context::CommandContext;
 use super::outcome::CommandOutcome;
-/// Source label for tasks declared in destack.json.
-const DESTACK_TASK_SOURCE: &str = "destack";
+/// Source label for tasks declared in package.json.
+const TASK_SOURCE: &str = "tspp";
 
 /// Task entry for task list output.
 #[derive(Debug, Clone, Serialize, Deserialize, Reflect)]
@@ -95,11 +95,11 @@ pub struct TaskInput {
     pub revision: CommandRevision,
     /// Input sources for the command.
     pub inputs: Vec<CommandInput>,
-    /// Whether destack.json should resolve inputs when none are provided.
+    /// Whether package.json should resolve inputs when none are provided.
     pub config_inputs: bool,
     /// Optional working directory for this command.
     pub cwd: Option<PathBuf>,
-    /// Optional Destack manifest path override.
+    /// Optional manifest path override.
     pub manifest: Option<PathBuf>,
     /// Optional target name override.
     pub target: Option<String>,
@@ -149,7 +149,7 @@ impl CommandContext<'_> {
                             project: project.project.clone(),
                             name: task.name,
                             description: task.description,
-                            source: Some(DESTACK_TASK_SOURCE.to_string()),
+                            source: Some(TASK_SOURCE.to_string()),
                         });
                     }
                 }
@@ -212,7 +212,7 @@ impl CommandContext<'_> {
                             command,
                             cwd: cwd.display().to_string(),
                             dry_run: true,
-                            source: DESTACK_TASK_SOURCE.to_string(),
+                            source: TASK_SOURCE.to_string(),
                             exit_code: None,
                         });
                         continue;
@@ -242,7 +242,7 @@ impl CommandContext<'_> {
                         command,
                         cwd: cwd.display().to_string(),
                         dry_run: false,
-                        source: DESTACK_TASK_SOURCE.to_string(),
+                        source: TASK_SOURCE.to_string(),
                         exit_code: Some(exit_code),
                     });
                 }
@@ -295,7 +295,7 @@ impl CommandContext<'_> {
 
         let root_options = self
             .repository
-            .destack_for_workspace(revision)
+            .manifest_for_workspace(revision)
             .map_err(|error| format!("failed to derive workspace options: {error}"))?;
         let selected_names = resolve_task_project_selection_names(
             root_options.as_deref(),
@@ -323,7 +323,7 @@ struct TaskProject {
     tasks: Vec<TaskSpec>,
 }
 
-/// Task specification loaded from destack.json.
+/// Task specification loaded from package.json.
 #[derive(Debug, Clone)]
 struct TaskSpec {
     /// The task name.
@@ -344,7 +344,7 @@ fn load_task_project(
     project_path: &Path,
 ) -> CommandResult<TaskProject> {
     let project = relative_project_path(project_path, workspace_root);
-    let destack_config_path = exact_destack_config_path(repository, revision, project_path)?;
+    let manifest_path = exact_manifest_path(repository, revision, project_path)?;
 
     // resolve the canonical package alias when this project is a package
     let package_name = repository
@@ -353,8 +353,8 @@ fn load_task_project(
         .and_then(|package| package.name.clone());
 
     // load tasks declared directly by this project
-    let tasks = if let Some(destack_config_path) = destack_config_path.as_deref() {
-        load_destack_tasks(repository, revision, destack_config_path)?
+    let tasks = if let Some(manifest_path) = manifest_path.as_deref() {
+        load_manifest_tasks(repository, revision, manifest_path)?
     } else {
         Vec::new()
     };
@@ -399,19 +399,20 @@ fn load_workspace_task_projects(
     Ok(projects)
 }
 
-/// Load task specifications from one destack.json file.
-fn load_destack_tasks(
+/// Load task specifications from one manifest file.
+fn load_manifest_tasks(
     repository: &Repository,
     revision: Revision,
-    destack_config_path: &Path,
+    manifest_path: &Path,
 ) -> CommandResult<Vec<TaskSpec>> {
-    let file_id = repository.file_id(destack_config_path);
+    let file_id = repository.file_id(manifest_path);
     let file = repository
         .file(revision, file_id)
-        .map_err(|error| format!("failed to load {}: {error}", destack_config_path.display()))?
-        .ok_or_else(|| format!("failed to load {}", destack_config_path.display()))?;
-    let config =
-        DestackFile::parse(&file).map_err(|error| format!("invalid destack.json: {error}"))?;
+        .map_err(|error| format!("failed to load {}: {error}", manifest_path.display()))?
+        .ok_or_else(|| format!("failed to load {}", manifest_path.display()))?;
+    let config = ManifestFile::parse(&file)
+        .map_err(|error| format!("invalid {}: {error}", manifest_path.display()))?
+        .ok_or_else(|| format!("{} is not a TS++ manifest", manifest_path.display()))?;
 
     let mut tasks = Vec::new();
     for (name, task) in &config.tasks {
@@ -440,7 +441,7 @@ fn relative_project_path(project_path: &Path, workspace_root: &Path) -> String {
 
 /// Resolve selected project names from explicit projects and groups.
 fn resolve_task_project_selection_names(
-    root_options: Option<&DestackFile>,
+    root_options: Option<&ManifestFile>,
     projects: &[TaskProject],
     selected_projects: &[String],
     selected_groups: &[String],
@@ -462,18 +463,10 @@ fn resolve_task_project_selection_names(
         return Err(format!("workspace groups are not available: {names}").into());
     };
 
-    let Some(groups) = root_options.workspace_groups() else {
-        if selected_groups.is_empty() {
-            return Ok(selected_names);
-        }
-
-        let names = selected_groups.join(", ");
-        return Err(format!("workspace groups are not available: {names}").into());
-    };
-
     // expand named workspace groups into project names
     for group_name in selected_groups {
-        let members = groups
+        let members = root_options
+            .groups
             .get(group_name)
             .ok_or_else(|| unknown_group_error(group_name, root_options))?;
 
@@ -560,11 +553,8 @@ fn ambiguous_project_error(selector: &str, projects: &[&TaskProject]) -> String 
 }
 
 /// Build one unknown workspace group error with suggestions.
-fn unknown_group_error(group_name: &str, root_options: &DestackFile) -> String {
-    let groups: Vec<&str> = root_options
-        .workspace_groups()
-        .map(|groups| groups.keys().map(String::as_str).collect())
-        .unwrap_or_default();
+fn unknown_group_error(group_name: &str, root_options: &ManifestFile) -> String {
+    let groups: Vec<&str> = root_options.groups.keys().map(String::as_str).collect();
     let suggestion = closest_group_name(group_name, &groups);
 
     if let Some(suggestion) = suggestion {
@@ -664,22 +654,18 @@ fn resolve_task_project_path(
     Ok(base_path)
 }
 
-/// Return the exact destack.json path for one project directory.
-fn exact_destack_config_path(
+/// Return the TS++ manifest path of one project directory, none when it has none.
+fn exact_manifest_path(
     repository: &Repository,
     revision: Revision,
     project_path: &Path,
 ) -> CommandResult<Option<PathBuf>> {
-    let candidate = project_path.join("destack.json");
-    let metadata = repository
-        .file_metadata(revision, &candidate)
+    let candidate = project_path.join(MANIFEST_FILE_NAME);
+    let manifest = repository
+        .manifest_for_file(revision, repository.file_id(&candidate))
         .map_err(|error| error.to_string())?;
 
-    if metadata.is_some_and(|metadata| metadata.is_file) {
-        Ok(Some(candidate))
-    } else {
-        Ok(None)
-    }
+    Ok(manifest.map(|_| candidate))
 }
 
 /// Build a shell command for script execution.

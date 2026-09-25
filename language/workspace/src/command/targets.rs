@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};
-use tspp_repository::{DestackFile, Target, TraceView};
+use tspp_repository::{ManifestFile, Target, TraceView};
 use tspp_serde::Reflect;
 use tspp_source::DiagnosticCollection;
 
@@ -54,11 +54,11 @@ pub struct TargetsInput {
     pub revision: CommandRevision,
     /// Input sources for the command.
     pub inputs: Vec<CommandInput>,
-    /// Whether destack.json should resolve inputs when none are provided.
+    /// Whether package.json should resolve inputs when none are provided.
     pub config_inputs: bool,
     /// Optional working directory for this command.
     pub cwd: Option<PathBuf>,
-    /// Optional Destack manifest path override.
+    /// Optional manifest path override.
     pub manifest: Option<PathBuf>,
     /// Optional target name override.
     pub target: Option<String>,
@@ -94,8 +94,8 @@ impl CommandContext<'_> {
         let configs = if options.all {
             self.workspace_configs(revision)?
         } else {
-            let config_path = self.resolve_destack_config_path(self.common.manifest.as_deref())?;
-            vec![self.load_destack_config(&config_path)?]
+            let config_path = self.resolve_manifest_path(self.common.manifest.as_deref())?;
+            vec![self.load_manifest(&config_path)?]
         };
 
         if configs.is_empty() {
@@ -120,7 +120,7 @@ impl CommandContext<'_> {
 
 impl TargetEntry {
     /// Return target entries for one package config.
-    pub(crate) fn for_config(config: &DestackFile, include_package: bool) -> Vec<Self> {
+    pub(crate) fn for_config(config: &ManifestFile, include_package: bool) -> Vec<Self> {
         config
             .targets
             .iter()
@@ -132,7 +132,7 @@ impl TargetEntry {
     fn from_target(
         name: &str,
         target: &Target,
-        config: &DestackFile,
+        config: &ManifestFile,
         include_package: bool,
     ) -> Self {
         let package_dir = include_package.then(|| config.directory.display().to_string());

@@ -4,9 +4,10 @@ use crate::tests::{DirRows, TestSession};
 fn test_global_binding_resolves_without_import() {
     let session = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "compiler": {
         "globals": ["globals.tspp"]

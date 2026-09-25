@@ -10,7 +10,7 @@ use tspp_source::{File, FileId, ModuleId, PackageId, Uri};
 const BUILTIN_SCHEME: &str = "tspp://";
 const LIBRARY_DIRECTORY: &str = "../library";
 const LIBRARY_SOURCE_DIRECTORY: &str = "../library/src";
-const MANIFEST_FILE: &str = "destack.json";
+const MANIFEST_FILE: &str = "package.json";
 const OUTPUT_FILE: &str = "builtin.rs";
 
 /// Builtin package manifest fields needed during code generation.
@@ -18,47 +18,8 @@ const OUTPUT_FILE: &str = "builtin.rs";
 struct PackageManifest {
     /// Package name.
     name: Option<String>,
-    /// Public package exports.
-    exports: BTreeMap<String, PackageExport>,
-}
-
-/// Builtin package export fields needed during code generation.
-#[derive(Debug, Deserialize)]
-#[serde(default)]
-struct PackageExport {
-    /// Exported material kind.
-    kind: ExportKind,
-    /// Package relative material path.
-    path: String,
-}
-
-impl Default for PackageExport {
-    fn default() -> Self {
-        Self {
-            kind: ExportKind::Module,
-            path: String::new(),
-        }
-    }
-}
-
-/// Builtin package export material kind.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
-#[serde(rename_all = "camelCase")]
-enum ExportKind {
-    /// Source module.
-    Module,
-    /// Static or generated asset.
-    Asset,
-    /// Template material.
-    Template,
-    /// Reflect-derived schema material.
-    Reflect,
-    /// Simulation scenario or model material.
-    Simulation,
-    /// Service definition material.
-    Service,
-    /// Application definition material.
-    App,
+    /// Public package exports, each one package relative path.
+    exports: BTreeMap<String, String>,
 }
 
 /// Build embedded builtin source file lists.
@@ -146,7 +107,10 @@ fn render_builtin_table(
     source_directory: &Path,
     manifest_path: &Path,
 ) -> Result<String, Box<dyn Error>> {
-    let package_name = manifest.name.as_deref().unwrap_or("tspp");
+    let package_name = manifest
+        .name
+        .as_deref()
+        .ok_or("the builtin package manifest must declare a name")?;
     let package_id = PackageId::from_uri(&Uri::from_string(package_name));
     let mut output = String::new();
     output.push_str("pub(crate) const BUILTINS: &[BuiltinFile] = &[\n");
@@ -163,8 +127,8 @@ fn render_builtin_table(
     render_builtin_file_ids(&mut output, files);
     output.push_str("pub(crate) const BUILTIN_EXPORTS: &[BuiltinExport] = &[\n");
 
-    for (specifier, export) in &manifest.exports {
-        render_builtin_export(&mut output, specifier, export);
+    for (specifier, path) in &manifest.exports {
+        render_builtin_export(&mut output, specifier, path);
     }
 
     output.push_str("];\n");
@@ -269,16 +233,13 @@ fn ensure_canonical_line_endings(file: &str, content: &str) -> io::Result<()> {
 }
 
 /// Render one builtin package export.
-fn render_builtin_export(output: &mut String, specifier: &str, export: &PackageExport) {
+fn render_builtin_export(output: &mut String, specifier: &str, path: &str) {
     output.push_str("    BuiltinExport {\n");
     output.push_str("        specifier: ");
     output.push_str(&rust_string(specifier));
     output.push_str(",\n");
     output.push_str("        path: ");
-    output.push_str(&rust_string(&export.path));
-    output.push_str(",\n");
-    output.push_str("        kind: ");
-    output.push_str(export_kind_name(export.kind));
+    output.push_str(&rust_string(path));
     output.push_str(",\n");
     output.push_str("    },\n");
 }
@@ -289,19 +250,6 @@ fn builtin_uri(source: &str) -> String {
     let source = source.strip_suffix("/index").unwrap_or(source);
 
     format!("{BUILTIN_SCHEME}{source}")
-}
-
-/// Return the generated Rust variant for one export kind.
-fn export_kind_name(kind: ExportKind) -> &'static str {
-    match kind {
-        ExportKind::Module => "ExportKind::Module",
-        ExportKind::Asset => "ExportKind::Asset",
-        ExportKind::Template => "ExportKind::Template",
-        ExportKind::Reflect => "ExportKind::Reflect",
-        ExportKind::Simulation => "ExportKind::Simulation",
-        ExportKind::Service => "ExportKind::Service",
-        ExportKind::App => "ExportKind::App",
-    }
 }
 
 /// Escape a string as a Rust literal.

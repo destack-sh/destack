@@ -18,6 +18,7 @@ use crate::{ModuleContext, ProgramContext};
 
 /// The minimal package manifest used by checked pattern fixtures.
 const TEST_MANIFEST: &str = r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "test",
   "targets": {
     "default": {
@@ -146,7 +147,7 @@ impl TestProgram {
             .retain_blob(source.as_bytes())
             .expect("test source Blob should store");
         let mut edits = vec![
-            Edit::set_file("destack.json", manifest),
+            Edit::set_file("package.json", manifest),
             Edit::set_file("main.tspp", source),
         ];
         for (path, source) in dependencies {

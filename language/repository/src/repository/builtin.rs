@@ -8,9 +8,9 @@ use tspp_source::{
     File, FileId, FileMetadata, FileType, LanguageType, Loader, ModuleId, PackageId, TargetId, Uri,
 };
 
-use crate::config::{DestackFile, parse_jsonc_file};
+use crate::config::{ManifestFile, parse_jsonc_file};
 use crate::{
-    ExportKind, Module, Package, PackageExport, PackageKind, Repository, RepositoryError, Revision,
+    ExportCase, Module, Package, PackageExport, PackageKind, Repository, RepositoryError, Revision,
 };
 
 const BUILTIN_PACKAGE_URI: &str = "tspp://";
@@ -26,8 +26,6 @@ pub struct BuiltinExport {
     pub specifier: &'static str,
     /// The package relative export path.
     pub path: &'static str,
-    /// The exported material kind.
-    pub kind: ExportKind,
 }
 
 /// One source file from the embedded Builtin Package.
@@ -80,7 +78,7 @@ impl EmbeddedBuiltinPackage {
         let id = BUILTIN_PACKAGE_ID;
         let source =
             parse_jsonc_file(&manifest_file).expect("embedded builtin manifest should parse");
-        let configuration = DestackFile::from_file(
+        let configuration = ManifestFile::from_file(
             BUILTIN_MANIFEST_FILE.file_id,
             vec![BUILTIN_MANIFEST_FILE.file_id],
             PathBuf::from(BUILTIN_MANIFEST_FILE.path),
@@ -89,7 +87,7 @@ impl EmbeddedBuiltinPackage {
         .expect("embedded builtin manifest should build");
         let configuration = Arc::new(configuration);
         let targets = configuration
-            .destack
+            .manifest
             .targets
             .iter()
             .map(|(name, target)| (TargetId::new(id, name), target.clone()))
@@ -388,9 +386,10 @@ impl BuiltinExport {
     /// Return this builtin export as a resolved package export.
     fn package_export(self) -> PackageExport {
         PackageExport {
-            kind: self.kind,
-            path: self.path.to_string(),
-            when: None,
+            cases: vec![ExportCase {
+                when: None,
+                path: self.path.to_string(),
+            }],
         }
     }
 }
@@ -438,7 +437,15 @@ impl Repository {
         let Some(export) = package.export(&export_key) else {
             return Ok(None);
         };
-        if export.kind != ExportKind::Module {
+
+        // require builtin exports to be one unconditional path
+        let export_path = export
+            .path()
+            .ok_or_else(|| RepositoryError::InvalidConfigFile {
+                path: PathBuf::from(BUILTIN_MANIFEST_FILE.path),
+                message: format!("builtin export '{export_key}' must be one path"),
+            })?;
+        if LanguageType::from_path(Path::new(export_path)).is_none() {
             return Ok(None);
         }
 
@@ -448,7 +455,7 @@ impl Repository {
         };
 
         // authored package exports resolve from their physical source paths
-        let export_path = export.path.strip_prefix("./").unwrap_or(&export.path);
+        let export_path = export_path.strip_prefix("./").unwrap_or(export_path);
         let export_path = package_root.join(export_path);
         let uri = self
             .embedded_builtin()
@@ -623,12 +630,12 @@ impl BuiltinFile {
 impl EmbeddedBuiltinPackage {
     /// Return one builtin module URI from one package export key.
     fn module_uri_for_export_key(&self, export_key: &str) -> Option<Uri> {
-        let export = self.package.export(export_key)?;
-        if export.kind != ExportKind::Module {
-            return None;
-        }
-
-        let path = export.path.strip_prefix("./src/")?;
+        let path = self
+            .package
+            .export(export_key)?
+            .path()
+            .filter(|path| LanguageType::from_path(Path::new(path)).is_some())?;
+        let path = path.strip_prefix("./src/")?;
 
         Some(self.canonical_module_uri(canonical_builtin_path(path)))
     }

@@ -6,7 +6,7 @@ use tspp_source::{ModuleId, PackageId, ProfileId, TargetId};
 
 use crate::repository::key::profile_key_for_target;
 use crate::{
-    CompilerOptions, ConditionSet, Destack, DestackFile, Environment, ProfileOptions, Repository,
+    CompilerOptions, ConditionSet, Environment, Manifest, ManifestFile, ProfileOptions, Repository,
     RepositoryError, Revision, Target,
 };
 
@@ -179,8 +179,8 @@ impl Repository {
         &self,
         revision: Revision,
         package_id: PackageId,
-    ) -> Result<(Option<Arc<DestackFile>>, CompilerOptions), RepositoryError> {
-        let config = self.destack_for_package_id(revision, package_id)?;
+    ) -> Result<(Option<Arc<ManifestFile>>, CompilerOptions), RepositoryError> {
+        let config = self.manifest_for_package_id(revision, package_id)?;
         let compiler_options = config
             .as_ref()
             .map(|config| config.compiler.clone())
@@ -195,16 +195,16 @@ impl Repository {
         target_name: &str,
         target: &Target,
         compiler_options: &CompilerOptions,
-        config: Option<&DestackFile>,
+        config: Option<&ManifestFile>,
         environment: &Environment,
         product: Option<&str>,
         product_role: Option<&str>,
     ) -> Result<Arc<Profile>, RepositoryError> {
-        let destack = config.map(|config| &config.destack);
+        let manifest = config.map(|config| &config.manifest);
         let profile_config =
-            Self::profile_options_for_target(target, compiler_options, destack, environment);
+            Self::profile_options_for_target(target, compiler_options, manifest, environment);
         let product_config =
-            product.and_then(|product| destack.and_then(|config| config.products.get(product)));
+            product.and_then(|product| manifest.and_then(|config| config.products.get(product)));
         let key = profile_key_for_target(
             target_name,
             target,
@@ -239,7 +239,7 @@ impl Repository {
     fn profile_options_for_target<'a>(
         target: &'a Target,
         compiler_options: &'a CompilerOptions,
-        config: Option<&'a Destack>,
+        config: Option<&'a Manifest>,
         environment: &'a Environment,
     ) -> Option<&'a ProfileOptions> {
         let config = config?;

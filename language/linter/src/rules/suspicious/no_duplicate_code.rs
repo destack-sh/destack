@@ -677,32 +677,33 @@ function normalizeRight(input: int32): int32 {
         session.assert_diagnostics(
             r#"
 warning[no-duplicate-code]: callable repeats an earlier implementation
- ──▶ worker.tspp:1:46
+ ──▶ main.tspp:3:45
   │
-1 │ function normalizeRight(input: int32): int32 {
-  │                                              ^ repeated implementation
-2 │     const added = input + 1;
-  │     ^^^^^^^^^^^^^^^^^^^^^^^^
-3 │     const scaled = added * 2;
-  │     ^^^^^^^^^^^^^^^^^^^^^^^^^
-4 │     return scaled - 3;
-  │     ^^^^^^^^^^^^^^^^^^
-5 │ }
+1 │ import "./worker.tspp";
+2 │
+3 │ function normalizeLeft(value: int32): int32 {
+  │                                             ^ repeated implementation
+4 │     const incremented = value + 1;
+  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+5 │     const doubled = incremented * 2;
+  │     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+6 │     return doubled - 3;
+  │     ^^^^^^^^^^^^^^^^^^^
+7 │ }
   │ ^
   │
 
- ──▶ main.tspp:3:45
+ ──▶ worker.tspp:1:46
   │
-2 │
-3 │ function normalizeLeft(value: int32): int32 {
-  │                                             - earlier implementation
-4 │     const incremented = value + 1;
-  │     ------------------------------
-5 │     const doubled = incremented * 2;
-  │     --------------------------------
-6 │     return doubled - 3;
-  │     -------------------
-7 │ }
+1 │ function normalizeRight(input: int32): int32 {
+  │                                              - earlier implementation
+2 │     const added = input + 1;
+  │     ------------------------
+3 │     const scaled = added * 2;
+  │     -------------------------
+4 │     return scaled - 3;
+  │     ------------------
+5 │ }
   │ -
   │
 "#,

@@ -15,7 +15,7 @@ use crate::{
 /// Persistent artifact packs selected by repository manifests.
 #[derive(Debug)]
 pub struct ArtifactCache {
-    /// Destack build accepted by this cache instance.
+    /// Toolchain build accepted by this cache instance.
     build_id: BuildId,
     /// Machine-local cache directory.
     #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
@@ -40,7 +40,7 @@ pub struct ArtifactCachePublication<'a> {
 }
 
 impl ArtifactCachePublication<'_> {
-    /// Return the Destack build producing this publication.
+    /// Return the toolchain build producing this publication.
     pub fn build_id(&self) -> BuildId {
         self.cache.build_id()
     }
@@ -137,7 +137,7 @@ impl ArtifactCache {
         })
     }
 
-    /// Return the Destack build accepted by this cache.
+    /// Return the Toolchain build accepted by this cache.
     pub fn build_id(&self) -> BuildId {
         self.build_id
     }

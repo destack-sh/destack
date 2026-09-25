@@ -1,7 +1,7 @@
-use tspp_repository::destack_schema;
+use tspp_repository::manifest_schema;
 
 fn main() {
-    let schema = destack_schema();
+    let schema = manifest_schema();
     let options = serde_json::to_string_pretty(&schema).expect("failed to serialize schema");
     println!("{options}");
 }

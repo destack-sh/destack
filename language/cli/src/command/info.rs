@@ -59,9 +59,9 @@ pub async fn run(args: &InfoArgs) -> i32 {
                 console::info(&format!("package: {path}"));
             }
             if let Some(path) = payload.manifest.as_ref() {
-                console::info(&format!("destack.json: {path}"));
+                console::info(&format!("package.json: {path}"));
             } else {
-                console::warn("destack.json: not found");
+                console::warn("package.json: not found");
             }
             if let Some(targets) = payload.targets.as_deref() {
                 emit_targets("target", targets);

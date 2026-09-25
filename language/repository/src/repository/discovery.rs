@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tspp_source::{ModuleId, PackageId, TargetId, matches};
 
 use crate::repository::{Repository, RepositoryError, Revision};
-use crate::{DestackFile, Package, Target, TargetRoot};
+use crate::{ManifestFile, Package, Target, TargetRoot};
 
 impl Repository {
     /// Discover module ids selected by one target in one pinned revision.
@@ -84,8 +84,8 @@ impl Repository {
         &self,
         revision: Revision,
         target_id: TargetId,
-    ) -> Result<Option<Arc<DestackFile>>, RepositoryError> {
-        self.destack_for_package_id(revision, target_id.package_id())
+    ) -> Result<Option<Arc<ManifestFile>>, RepositoryError> {
+        self.manifest_for_package_id(revision, target_id.package_id())
     }
 
     /// Resolve target paths relative to the package path.

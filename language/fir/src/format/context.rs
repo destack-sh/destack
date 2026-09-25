@@ -133,7 +133,7 @@ impl SimpleFormatContext {
     }
 
     /// Create an empty SimpleFormatContext.
-    pub fn empty_destack() -> Self {
+    pub fn empty_tspp() -> Self {
         Self {
             options: SimpleFormatOptions::default(),
             file: File::empty_text(FileType::Tspp),

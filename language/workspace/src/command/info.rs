@@ -35,7 +35,7 @@ pub struct InfoWorkspace {
 pub struct InfoPayload {
     /// Workspace metadata.
     pub workspace: InfoWorkspace,
-    /// Resolved destack.json path.
+    /// Resolved package.json path.
     pub manifest: Option<String>,
     /// Targets for the active package.
     pub targets: Option<Vec<TargetEntry>>,
@@ -50,11 +50,11 @@ pub struct InfoInput {
     pub revision: CommandRevision,
     /// Input sources for the command.
     pub inputs: Vec<CommandInput>,
-    /// Whether destack.json should resolve inputs when none are provided.
+    /// Whether package.json should resolve inputs when none are provided.
     pub config_inputs: bool,
     /// Optional working directory for this command.
     pub cwd: Option<PathBuf>,
-    /// Optional Destack manifest path override.
+    /// Optional manifest path override.
     pub manifest: Option<PathBuf>,
     /// Optional target name override.
     pub target: Option<String>,
@@ -100,17 +100,18 @@ impl CommandContext<'_> {
 
         // resolve manifest from cwd
         let manifest = if self.common.manifest.is_some() {
-            Some(self.resolve_destack_config_path(self.common.manifest.as_deref())?)
+            Some(self.resolve_manifest_path(self.common.manifest.as_deref())?)
         } else {
-            self.find_destack_config(&self.cwd)
+            self.find_manifest(&self.cwd)?
         };
         let config = manifest
             .as_ref()
-            .and_then(|path| self.load_destack_config(path).ok());
+            .map(|path| self.load_manifest(path))
+            .transpose()?;
 
         // load workspace configs when requested
         let workspace_configs = if options.all {
-            self.workspace_configs(revision).ok()
+            Some(self.workspace_configs(revision)?)
         } else {
             None
         };

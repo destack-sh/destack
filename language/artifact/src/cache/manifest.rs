@@ -71,7 +71,7 @@ impl ArtifactPackReference {
 pub struct ArtifactCacheManifest<R> {
     /// The persistent cache format.
     pub format: u32,
-    /// The Destack build that produced the selected artifacts.
+    /// The toolchain build that produced the selected artifacts.
     pub build_id: BuildId,
     /// The canonical repository path receiving this manifest.
     repository: PathBuf,

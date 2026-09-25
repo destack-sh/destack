@@ -2963,9 +2963,10 @@ function render(): Panel {
 fn test_check_a_tree_literal_through_the_default_builder() {
     let session = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "test",
     "compiler": {
         "tree": "panel.tspp#Panel"

@@ -5,9 +5,8 @@ use std::str;
 
 use tspp_source::{FileId, FileMetadata, FileType, Loader};
 
-use crate::{
-    Dependency, DestackFile, Edit, Repository, RepositoryError, Revision, WorkspaceLayout,
-};
+use crate::config::MANIFEST_FILE_NAME;
+use crate::{Dependency, Edit, ManifestFile, Repository, RepositoryError, Revision};
 
 /// One physical repository scan.
 #[derive(Debug)]
@@ -23,7 +22,7 @@ struct Scan<'a> {
     /// File ids seen during this scan.
     seen_file_ids: HashSet<FileId>,
     /// Package roots still to scan.
-    pending_packages: Vec<(PathBuf, DestackFile)>,
+    pending_packages: Vec<(PathBuf, ManifestFile)>,
     /// Package roots already queued.
     queued_package_roots: HashSet<PathBuf>,
 }
@@ -72,7 +71,7 @@ impl<'a> Scan<'a> {
     /// Return whether a repository scan imports one path.
     fn tracks_path(path: &Path) -> bool {
         // import source manifests directly
-        if Self::is_destack_config_path(path) {
+        if Self::is_manifest_path(path) {
             return true;
         }
 
@@ -82,22 +81,22 @@ impl<'a> Scan<'a> {
         })
     }
 
-    /// Return whether one path is a destack manifest.
-    fn is_destack_config_path(path: &Path) -> bool {
+    /// Return whether one path is named like a manifest.
+    fn is_manifest_path(path: &Path) -> bool {
         path.file_name()
             .and_then(|name| name.to_str())
-            .is_some_and(|name| name == "destack.json")
+            .is_some_and(|name| name == MANIFEST_FILE_NAME)
     }
 
-    /// Read one `destack.json` from a physical directory when present.
-    fn read_config(&self, root: &Path) -> Result<Option<DestackFile>, RepositoryError> {
+    /// Read one manifest from a physical directory when present.
+    fn read_config(&self, root: &Path) -> Result<Option<ManifestFile>, RepositoryError> {
         let file_system = self.repository.file_system();
 
-        DestackFile::read(file_system.as_ref(), root)
+        ManifestFile::read(file_system.as_ref(), root)
     }
 
     /// Return the nearest enclosing package within this source root.
-    fn package(&self, directory: &Path) -> Result<Option<DestackFile>, RepositoryError> {
+    fn package(&self, directory: &Path) -> Result<Option<ManifestFile>, RepositoryError> {
         let mut current = Some(directory);
 
         // walk toward the source root until a package manifest is found
@@ -140,22 +139,17 @@ impl<'a> Scan<'a> {
     }
 
     /// Queue package roots selected by one workspace manifest.
-    fn queue_workspace_packages(&mut self, config: DestackFile) -> Result<(), RepositoryError> {
-        let workspace = config
-            .workspace
-            .as_ref()
-            .filter(|workspace| workspace.packages.is_some());
-
+    fn queue_workspace_packages(&mut self, config: ManifestFile) -> Result<(), RepositoryError> {
         // import the workspace manifest first
         self.import_file(&config.path)?;
 
         // queue one package at the source root
-        if workspace.is_none() {
+        if config.workspaces.is_none() {
             self.queue_package(self.root.to_path_buf(), config);
         }
         // queue declared workspace packages
-        else if let Some(workspace) = workspace {
-            for (package_root, package) in self.find_workspace_packages(&config, workspace)? {
+        else {
+            for (package_root, package) in self.find_workspace_packages(&config)? {
                 self.queue_package(package_root, package);
             }
         }
@@ -164,7 +158,7 @@ impl<'a> Scan<'a> {
     }
 
     /// Queue one package root when it has not already been queued.
-    fn queue_package(&mut self, package_root: PathBuf, config: DestackFile) {
+    fn queue_package(&mut self, package_root: PathBuf, config: ManifestFile) {
         if self.queued_package_roots.insert(package_root.clone()) {
             self.pending_packages.push((package_root, config));
         }
@@ -173,9 +167,8 @@ impl<'a> Scan<'a> {
     /// Find physical packages selected by one workspace declaration.
     fn find_workspace_packages(
         &self,
-        config: &DestackFile,
-        workspace: &WorkspaceLayout,
-    ) -> Result<Vec<(PathBuf, DestackFile)>, RepositoryError> {
+        config: &ManifestFile,
+    ) -> Result<Vec<(PathBuf, ManifestFile)>, RepositoryError> {
         let mut packages = Vec::new();
         let mut pending = vec![self.root.to_path_buf()];
         let mut visited = HashSet::new();
@@ -188,7 +181,7 @@ impl<'a> Scan<'a> {
 
             // retain a selected package when its manifest exists
             let workspace_path = self.package_path(self.root, &directory)?;
-            if workspace.selects(&workspace_path) {
+            if config.selects_package(&workspace_path) {
                 let package = if directory == self.root {
                     Some(config.clone())
                 } else {
@@ -200,15 +193,15 @@ impl<'a> Scan<'a> {
             }
 
             // stop outside remaining package patterns
-            if !workspace.selects_below(&workspace_path) {
+            if !config.selects_package_below(&workspace_path) {
                 continue;
             }
 
             // descend through viable workspace pattern prefixes
             for path in self.read_directory(&directory)? {
                 let package_path = self.package_path(self.root, &path)?;
-                let is_selected = workspace.selects(&package_path);
-                let selects_below = workspace.selects_below(&package_path);
+                let is_selected = config.selects_package(&package_path);
+                let selects_below = config.selects_package_below(&package_path);
                 if config.excludes_source(&package_path) || (!is_selected && !selects_below) {
                     continue;
                 }
@@ -228,7 +221,7 @@ impl<'a> Scan<'a> {
     fn scan_package_files(
         &mut self,
         package_root: &Path,
-        config: &DestackFile,
+        config: &ManifestFile,
     ) -> Result<(), RepositoryError> {
         // import the package manifest
         self.import_file(&config.path)?;
@@ -254,7 +247,7 @@ impl<'a> Scan<'a> {
     fn scan_files(
         &mut self,
         package_root: &Path,
-        config: &DestackFile,
+        config: &ManifestFile,
     ) -> Result<(), RepositoryError> {
         let mut pending = vec![package_root.to_path_buf()];
         let mut visited = HashSet::new();
@@ -308,7 +301,7 @@ impl<'a> Scan<'a> {
     fn queue_path_dependencies(
         &mut self,
         package_root: &Path,
-        config: &DestackFile,
+        config: &ManifestFile,
     ) -> Result<(), RepositoryError> {
         let dependencies = config.dependencies.iter().chain(
             config
@@ -525,7 +518,7 @@ impl Scan<'_> {
             let path = self.root.join(&logical_path);
 
             // manifests can change every package source binding
-            if Self::is_destack_config_path(&logical_path) {
+            if Self::is_manifest_path(&logical_path) {
                 return self.scan();
             }
             match self.repository.file_system().metadata(&path) {

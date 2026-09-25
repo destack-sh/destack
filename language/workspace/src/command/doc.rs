@@ -1,12 +1,12 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use tspp_artifact::{ArtifactKey, IndexKind};
 use tspp_doc::{Generator, PackageReference};
-use tspp_repository::{ConditionSet, ExportKind, Package, Revision, TraceView};
+use tspp_repository::{ConditionSet, Package, Revision, TraceView};
 use tspp_serde::Reflect;
-use tspp_source::{ModuleId, ProfileId};
+use tspp_source::{LanguageType, ModuleId, ProfileId};
 
 use super::common::{
     CommandEnvVar, CommandInput, CommandOptions, CommandRevision, CommandTargetOverrides,
@@ -27,11 +27,11 @@ pub struct DocInput {
     pub revision: CommandRevision,
     /// Input sources for the command.
     pub inputs: Vec<CommandInput>,
-    /// Whether destack.json should resolve inputs when none are provided.
+    /// Whether package.json should resolve inputs when none are provided.
     pub config_inputs: bool,
     /// Optional working directory for this command.
     pub cwd: Option<PathBuf>,
-    /// Optional Destack manifest path override.
+    /// Optional manifest path override.
     pub manifest: Option<PathBuf>,
     /// Optional target name override.
     pub target: Option<String>,
@@ -230,10 +230,13 @@ impl CommandContext<'_> {
 
         // retain active source module exports only
         for (key, export) in &package.exports {
-            if export.kind != ExportKind::Module || !export.matches(conditions) {
+            let Some(path) = export
+                .select(conditions)
+                .filter(|path| LanguageType::from_path(Path::new(path)).is_some())
+            else {
                 continue;
-            }
-            let path = root.join(export.path.trim_start_matches("./"));
+            };
+            let path = root.join(path.trim_start_matches("./"));
             let module = self
                 .repository
                 .module_id_for_path(revision, &path)

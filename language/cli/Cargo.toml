@@ -1,6 +1,6 @@
 [package]
 name = "tspp_cli"
-description = "TS++ language CLI"
+description = "TS++ CLI"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true

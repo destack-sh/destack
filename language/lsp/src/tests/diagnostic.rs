@@ -16,7 +16,7 @@ const first = helper;
 const second = sibling;
 "#;
     let mut server = TestServer::new("cross-file-diagnostic-label");
-    server.write("destack.json", MANIFEST);
+    server.write("package.json", MANIFEST);
     let library_document = server.write("src/library.tspp", library);
     let document = server.write("src/main.tspp", source);
     let capabilities = lsp::ClientCapabilities {

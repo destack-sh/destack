@@ -14,7 +14,7 @@ const FILE_GLOBS_TO_UPDATE: &[&str] = &[
     "README.md",
     "Cargo.toml",
     "package.json",
-    "language/library/destack.json",
+    "language/library/package.json",
     "language/grammar/tspp/tree-sitter.json",
     "language/grammar/bytecode/tree-sitter.json",
     "language/grammar/mir/tree-sitter.json",

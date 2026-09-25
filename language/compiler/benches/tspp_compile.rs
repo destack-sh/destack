@@ -98,8 +98,8 @@ fn load_sources(workspace_root: &Path) -> (Vec<SourceFile>, u64) {
     for path in ds_files.into_iter() {
         // file type
         let file_type = FileType::from_path(&path).expect("bench path should have a file type");
-        let is_destack_source = matches!(file_type, FileType::Tspp | FileType::TsppDeclaration);
-        assert!(is_destack_source, "path is not a destack source: {path:?}");
+        let is_tspp_source = matches!(file_type, FileType::Tspp | FileType::TsppDeclaration);
+        assert!(is_tspp_source, "path is not a destack source: {path:?}");
 
         // file content
         let content = fs::read_to_string(&path).unwrap_or_default();

@@ -30,21 +30,29 @@ fn test_edit_removes_file() {
 #[test]
 fn test_edit_config_stays_direct() {
     let test = TestWorkspace::new("workspace-config-fanout");
-    let config = test.write_text("destack.json", "{ \"name\": \"test\", \"compiler\": {} }\n");
+    let config = test.write_text(
+        "package.json",
+        "{ \"packageManager\": \"tspp@2026.9.0\", \"name\": \"test\", \"compiler\": {} }\n",
+    );
     let module_a = test.write_text("a.tspp", "export const a = ;\n");
     let module_b = test.write_text("b.tspp", "export const b = ;\n");
     test.apply_text(&module_a, "export const a = ;\n");
     test.apply_text(&module_b, "export const b = ;\n");
-    test.apply_text(&config, "{ \"name\": \"test\", \"compiler\": {} }\n");
+    test.apply_text(
+        &config,
+        "{ \"packageManager\": \"tspp@2026.9.0\", \"name\": \"test\", \"compiler\": {} }\n",
+    );
 
-    let source = "{ \"name\": \"test\", \"compiler\": { \"noThrow\": true } }\n";
+    let source = "{ \"packageManager\": \"tspp@2026.9.0\", \"name\": \"test\", \"compiler\": { \"noThrow\": true } }\n";
     let commit = test.apply_text(&config, source);
 
     assert_eq!(
         commit.changes,
         vec![TestWorkspace::change(
-            "destack.json",
-            Some("{ \"name\": \"test\", \"compiler\": {} }\n"),
+            "package.json",
+            Some(
+                "{ \"packageManager\": \"tspp@2026.9.0\", \"name\": \"test\", \"compiler\": {} }\n"
+            ),
             Some(source),
         )]
     );

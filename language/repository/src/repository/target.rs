@@ -1,7 +1,7 @@
 use tspp_source::{PackageId, ProductId, TargetId};
 
 use crate::repository::{Repository, RepositoryError, Revision};
-use crate::{Destack, Product, Target};
+use crate::{Manifest, Product, Target};
 
 impl Repository {
     /// Return one exact revision-scoped target by id when present.
@@ -42,7 +42,7 @@ impl Repository {
             return Ok(None);
         };
         let package_id = target_id.package_id();
-        let config = self.destack_for_package_id(revision, package_id)?;
+        let config = self.manifest_for_package_id(revision, package_id)?;
 
         // configured targets
         if let Some(config) = config.as_ref() {
@@ -85,7 +85,7 @@ impl Repository {
             });
         };
         let revision_state = self.revision(revision)?;
-        let config = self.destack_for_package_id(revision, package_id)?;
+        let config = self.manifest_for_package_id(revision, package_id)?;
         let selection = &revision_state.environment.selection;
 
         // honor target selected by the operation environment
@@ -152,7 +152,7 @@ impl Repository {
             });
         };
         let revision_state = self.revision(revision)?;
-        let config = self.destack_for_package_id(revision, package_id)?;
+        let config = self.manifest_for_package_id(revision, package_id)?;
         let selection = &revision_state.environment.selection;
 
         let Some(config) = config.as_ref() else {
@@ -176,7 +176,7 @@ impl Repository {
                 package: package_id,
             });
         };
-        let config = self.destack_for_package_id(revision, package_id)?;
+        let config = self.manifest_for_package_id(revision, package_id)?;
 
         // find configured product by stable id
         if let Some(config) = config.as_ref() {
@@ -204,7 +204,7 @@ impl Repository {
                 package: package_id,
             });
         };
-        let config = self.destack_for_package_id(revision, package_id)?;
+        let config = self.manifest_for_package_id(revision, package_id)?;
         let Some(config) = config.as_ref() else {
             return Err(RepositoryError::MissingProduct {
                 product: product_name.to_string(),
@@ -244,7 +244,7 @@ impl Repository {
                 package: package_id,
             });
         };
-        let config = self.destack_for_package_id(revision, package_id)?;
+        let config = self.manifest_for_package_id(revision, package_id)?;
         let Some(config) = config.as_ref() else {
             return Ok(None);
         };
@@ -279,7 +279,7 @@ impl Repository {
 
 /// Return the selected product declaration when product selection is unambiguous.
 fn selected_product<'a>(
-    config: &'a Destack,
+    config: &'a Manifest,
     selected_product: Option<&'a str>,
 ) -> Result<Option<(&'a str, &'a Product)>, RepositoryError> {
     // honor product selected by the operation environment

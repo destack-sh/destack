@@ -849,8 +849,9 @@ const message = library.greet("Destack");
 
 Global exports retain their defining declarations across modules.
 
-```json destack.json
+```json package.json
 {
+  "packageManager": "tspp@2026.9.0",
   "name": "@test/query",
   "compiler": {
     "globals": ["global.tspp"]

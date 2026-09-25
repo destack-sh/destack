@@ -68,6 +68,7 @@ impl TestWorkspace {
         let test = Self::new(prefix);
         let manifest = format!(
             r#"{{
+  "packageManager": "tspp@2026.9.0",
   "name": "test",
   "targets": {{
     "default": {{
@@ -78,7 +79,7 @@ impl TestWorkspace {
 }}
 "#
         );
-        let _ = test.file("destack.json", &manifest);
+        let _ = test.file("package.json", &manifest);
 
         test
     }
@@ -111,9 +112,12 @@ impl TestWorkspace {
         let file_system = file_system(&root);
 
         // name the package before opening the repository
-        let config = root.join("destack.json");
-        fs.write_text(&config, "{ \"name\": \"test\" }\n")
-            .unwrap_or_else(|error| panic!("failed to write {}: {error}", config.display()));
+        let config = root.join("package.json");
+        fs.write_text(
+            &config,
+            "{ \"packageManager\": \"tspp@2026.9.0\", \"name\": \"test\" }\n",
+        )
+        .unwrap_or_else(|error| panic!("failed to write {}: {error}", config.display()));
 
         // create a repository over the selected physical filesystem
         let artifact_cache = is_persistent.then(|| root.join(".tspp/artifacts"));

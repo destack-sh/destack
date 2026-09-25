@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use tspp_artifact::{ArtifactDependencySet, SourceDependency};
 use tspp_repository::{
-    DestackFile, Environment, Module, Package, Profile, ProviderContext, Revision, Target,
+    Environment, ManifestFile, Module, Package, Profile, ProviderContext, Revision, Target,
 };
 use tspp_source::{File, FileId, ModuleId, PackageId, ProfileId, TargetId, Uri};
 
@@ -88,16 +88,16 @@ impl Compiler {
             })
     }
 
-    /// Load one package Destack config and record its declaration file dependencies.
-    pub(crate) fn destack_for_package(
+    /// Load one package manifest and record its declaration file dependencies.
+    pub(crate) fn manifest_for_package(
         &self,
         context: &dyn ProviderContext,
         package_id: PackageId,
-    ) -> CompilerResult<Option<Arc<DestackFile>>> {
+    ) -> CompilerResult<Option<Arc<ManifestFile>>> {
         let revision = context.revision();
         let config = self
             .repository
-            .destack_for_package_id(revision, package_id)
+            .manifest_for_package_id(revision, package_id)
             .map_err(|error| CompilerError::Internal {
                 message: format!("failed to load package config {package_id:?}: {error}"),
             })?;
@@ -113,7 +113,7 @@ impl Compiler {
     ) -> CompilerResult<Vec<SourceDependency>> {
         let config = self
             .repository
-            .destack_for_package_id(revision, package_id)
+            .manifest_for_package_id(revision, package_id)
             .map_err(|error| CompilerError::Internal {
                 message: format!("failed to load package config {package_id:?}: {error}"),
             })?;

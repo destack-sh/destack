@@ -304,7 +304,7 @@ mod tests {
             &repository,
             revision,
             [
-                Edit::add_file("destack.json", configuration),
+                Edit::add_file("package.json", configuration),
                 Edit::add_file("src/value.tspp", source),
             ],
         );
@@ -334,6 +334,7 @@ mod tests {
         let configuration = repository
             .retain_blob(
                 br#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "app"
 }
 "#,
@@ -344,7 +345,7 @@ mod tests {
             &repository,
             revision,
             [
-                Edit::add_file("destack.json", configuration),
+                Edit::add_file("package.json", configuration),
                 Edit::add_file("main.tspp", source),
             ],
         );
@@ -354,6 +355,7 @@ mod tests {
         let invalid = repository
             .retain_blob(
                 br#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "app",
   "conditions": { "aliases": { "custom": "missing" } }
 }
@@ -363,11 +365,11 @@ mod tests {
         let broken = apply_edits(
             &repository,
             revision,
-            [Edit::set_file("destack.json", invalid)],
+            [Edit::set_file("package.json", invalid)],
         );
         repository.package_ids(broken).unwrap();
         let expected = RepositoryError::InvalidConfig {
-            file: repository.file_id(Path::new("destack.json")),
+            file: repository.file_id(Path::new("package.json")),
             message: "unknown condition 'missing'".to_string(),
         };
         assert_eq!(repository.module_ids(broken).unwrap_err(), expected);
@@ -379,7 +381,7 @@ mod tests {
         let repaired = apply_edits(
             &repository,
             removed,
-            [Edit::set_file("destack.json", configuration)],
+            [Edit::set_file("package.json", configuration)],
         );
         assert_eq!(repository.module_ids(repaired).unwrap(), modules);
 
@@ -395,6 +397,7 @@ mod tests {
         let configuration = repository
             .retain_blob(
                 br#"{
+  "packageManager": "tspp@2026.9.0",
   "extends": "./base.json"
 }
 "#,
@@ -403,6 +406,7 @@ mod tests {
         let parent = repository
             .retain_blob(
                 br#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "app"
 }
 "#,
@@ -412,7 +416,7 @@ mod tests {
             &repository,
             revision,
             [
-                Edit::add_file("destack.json", configuration),
+                Edit::add_file("package.json", configuration),
                 Edit::add_file("base.json", parent),
             ],
         );
@@ -447,10 +451,11 @@ mod tests {
     #[test]
     fn test_add_module_preserves_package_artifacts() {
         assert_package_configuration_edits(
-            "destack.json",
+            "package.json",
             &[(
-                "destack.json",
+                "package.json",
                 r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "app"
 }
 "#,
@@ -465,8 +470,9 @@ mod tests {
             "base.json",
             &[
                 (
-                    "destack.json",
+                    "package.json",
                     r#"{
+  "packageManager": "tspp@2026.9.0",
   "extends": "./base.json"
 }
 "#,
@@ -474,6 +480,7 @@ mod tests {
                 (
                     "base.json",
                     r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "app"
 }
 "#,
@@ -489,8 +496,9 @@ mod tests {
             "workspace.base.json",
             &[
                 (
-                    "destack.json",
+                    "package.json",
                     r#"{
+  "packageManager": "tspp@2026.9.0",
   "extends": "./workspace.base.json"
 }
 "#,
@@ -498,13 +506,15 @@ mod tests {
                 (
                     "workspace.base.json",
                     r#"{
-  "workspace": { "packages": ["packages/*"] }
+  "packageManager": "tspp@2026.9.0",
+  "workspaces": ["packages/*"]
 }
 "#,
                 ),
                 (
-                    "packages/app/destack.json",
+                    "packages/app/package.json",
                     r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "app"
 }
 "#,
@@ -584,6 +594,7 @@ mod tests {
         let config = repository
             .retain_blob(
                 br#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "renamed"
 }
 "#,

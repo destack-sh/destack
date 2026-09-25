@@ -329,8 +329,9 @@ const result = localRevision;
 
 Profile globals participate in ordinary value completion.
 
-```json destack.json
+```json package.json
 {
+  "packageManager": "tspp@2026.9.0",
   "name": "@test/query",
   "compiler": {
     "globals": ["global.tspp"]
@@ -2652,21 +2653,19 @@ visibleGree
 
 Package completion uses the active dependency name and public export pattern.
 
-```json destack.json
+```json package.json
 {
-    "workspace": {
-        "packages": ["packages/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*"]
 }
 ```
 
-```json packages/app/destack.json
+```json packages/app/package.json
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "dependencies": {
-        "@acme/ui": {
-            "source": "workspace"
-        }
+        "@acme/ui": "workspace:*"
     },
     "targets": {
         "default": {
@@ -2677,14 +2676,12 @@ Package completion uses the active dependency name and public export pattern.
 }
 ```
 
-```json packages/ui/destack.json
+```json packages/ui/package.json
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "exports": {
-        "./*": {
-            "kind": "module",
-            "path": "src/*.tspp"
-        }
+        "./*": "src/*.tspp"
     },
     "targets": {
         "default": {
@@ -2737,16 +2734,16 @@ const message = fRSM;
 
 Public exports require an active direct dependency.
 
-```json destack.json
+```json package.json
 {
-    "workspace": {
-        "packages": ["packages/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*"]
 }
 ```
 
-```json packages/app/destack.json
+```json packages/app/package.json
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "targets": {
         "default": {
@@ -2757,14 +2754,12 @@ Public exports require an active direct dependency.
 }
 ```
 
-```json packages/ui/destack.json
+```json packages/ui/package.json
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "exports": {
-        "./button": {
-            "kind": "module",
-            "path": "src/button.tspp"
-        }
+        "./button": "src/button.tspp"
     },
     "targets": {
         "default": {
@@ -2792,21 +2787,19 @@ Button
 
 An extensionless export that selects several modules is not a valid auto import.
 
-```json destack.json
+```json package.json
 {
-    "workspace": {
-        "packages": ["packages/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*"]
 }
 ```
 
-```json packages/app/destack.json
+```json packages/app/package.json
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "dependencies": {
-        "@acme/ui": {
-            "source": "workspace"
-        }
+        "@acme/ui": "workspace:*"
     },
     "targets": {
         "default": {
@@ -2817,14 +2810,12 @@ An extensionless export that selects several modules is not a valid auto import.
 }
 ```
 
-```json packages/ui/destack.json
+```json packages/ui/package.json
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "exports": {
-        "./button": {
-            "kind": "module",
-            "path": "src/button"
-        }
+        "./button": "src/button"
     },
     "targets": {
         "default": {
@@ -2856,21 +2847,19 @@ Button
 
 A root export produces the dependency package name without a subpath.
 
-```json destack.json
+```json package.json
 {
-    "workspace": {
-        "packages": ["packages/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*"]
 }
 ```
 
-```json packages/app/destack.json
+```json packages/app/package.json
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "dependencies": {
-        "@acme/theme": {
-            "source": "workspace"
-        }
+        "@acme/theme": "workspace:*"
     },
     "targets": {
         "default": {
@@ -2881,14 +2870,12 @@ A root export produces the dependency package name without a subpath.
 }
 ```
 
-```json packages/theme/destack.json
+```json packages/theme/package.json
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/theme",
     "exports": {
-        ".": {
-            "kind": "module",
-            "path": "src/main.tspp"
-        }
+        ".": "src/main.tspp"
     },
     "targets": {
         "default": {
@@ -3162,21 +3149,19 @@ import {} from "./utilities/a";
 
 Package path completion follows the direct dependency's public exports.
 
-```json destack.json
+```json package.json
 {
-    "workspace": {
-        "packages": ["packages/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*"]
 }
 ```
 
-```json packages/app/destack.json
+```json packages/app/package.json
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "dependencies": {
-        "@acme/ui": {
-            "source": "workspace"
-        }
+        "@acme/ui": "workspace:*"
     },
     "targets": {
         "default": {
@@ -3187,18 +3172,13 @@ Package path completion follows the direct dependency's public exports.
 }
 ```
 
-```json packages/ui/destack.json
+```json packages/ui/package.json
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "exports": {
-        ".": {
-            "kind": "module",
-            "path": "src/main.tspp"
-        },
-        "./*": {
-            "kind": "module",
-            "path": "src/*.tspp"
-        }
+        ".": "src/main.tspp",
+        "./*": "src/*.tspp"
     },
     "targets": {
         "default": {
@@ -3268,16 +3248,16 @@ import {} from "tspp:conte";
 
 Package path completion excludes workspace packages outside the active dependency graph.
 
-```json destack.json
+```json package.json
 {
-    "workspace": {
-        "packages": ["packages/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*"]
 }
 ```
 
-```json packages/app/destack.json
+```json packages/app/package.json
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "targets": {
         "default": {
@@ -3288,14 +3268,12 @@ Package path completion excludes workspace packages outside the active dependenc
 }
 ```
 
-```json packages/ui/destack.json
+```json packages/ui/package.json
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "exports": {
-        "./button": {
-            "kind": "module",
-            "path": "src/button.tspp"
-        }
+        "./button": "src/button.tspp"
     },
     "targets": {
         "default": {

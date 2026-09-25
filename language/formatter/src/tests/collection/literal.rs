@@ -31,7 +31,7 @@ fn test_format_string_literal_escapes_embedded_target_quote() {
 
 /// TS++ strings should not use character literal quotes.
 #[test]
-fn test_format_destack_string_literal_keeps_double_quotes() {
+fn test_format_tspp_string_literal_keeps_double_quotes() {
     assert_format_roundtrip_with_file_type(
         r#""say \"hello\"""#,
         r#""say \"hello\"""#,

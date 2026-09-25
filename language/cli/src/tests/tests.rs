@@ -178,19 +178,19 @@ impl TestProgram {
         self.write_file(relative, &content);
     }
 
-    /// Write a destack.json file with the provided json value.
-    pub(super) fn write_destack_config(&self, value: Value) {
+    /// Write a package.json file with the provided json value.
+    pub(super) fn write_manifest(&self, value: Value) {
         // write the config file
-        self.write_json("destack.json", value);
+        self.write_json("package.json", value);
     }
 
-    /// Write a destack.json file merged with base compiler options.
-    pub(super) fn write_destack_config_with_base(&self, extra: Value) {
+    /// Write a package.json file merged with base compiler options.
+    pub(super) fn write_manifest_with_base(&self, extra: Value) {
         // build the merged config payload
-        let value = merge_destack_config_base(extra);
+        let value = merge_manifest_base(extra);
 
         // write the config file
-        self.write_destack_config(value);
+        self.write_manifest(value);
     }
 }
 
@@ -202,7 +202,7 @@ fn temp_path(prefix: &str) -> PathBuf {
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos();
-    let name = format!("destack_cli_{prefix}_{nanos}_{counter}");
+    let name = format!("tspp_cli_{prefix}_{nanos}_{counter}");
 
     // return a deterministic test root
     PathBuf::from("/test").join(name)
@@ -246,9 +246,10 @@ pub(super) fn assert_success(code: i32) {
     assert_exit(code, 0);
 }
 
-/// Merge compiler options into a base destack.json payload.
-pub(super) fn merge_destack_config_base(extra: Value) -> Value {
+/// Merge compiler options into a base package.json payload.
+pub(super) fn merge_manifest_base(extra: Value) -> Value {
     let base = json!({
+        "packageManager": "tspp@2026.9.0",
         "name": "test",
         "compiler": {
             "target": "esnext",

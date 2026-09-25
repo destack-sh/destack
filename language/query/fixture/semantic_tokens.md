@@ -955,8 +955,9 @@ const object = {
 
 Component names and attributes receive function and property highlighting.
 
-```json destack.json
+```json package.json
 {
+  "packageManager": "tspp@2026.9.0",
   "name": "@test/query",
   "compiler": {
     "tree": "panel.tspp#Panel"

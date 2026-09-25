@@ -4,38 +4,34 @@ use crate::tests::{DirRows, TestSession};
 fn test_import_resolves_package_export() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
-    "workspace": {
-        "packages": ["packages/*", "packages/@*/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*", "packages/@*/*"]
 }
 "#,
         )
         .data(
-            "packages/app/destack.json",
+            "packages/app/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "dependencies": {
-        "@acme/ui": {
-            "source": "workspace"
-        }
+        "@acme/ui": "workspace:*"
     }
 }
 "#,
         )
         .data(
-            "packages/@acme/ui/destack.json",
+            "packages/@acme/ui/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "exports": {
-        "./button": {
-            "kind": "module",
-            "path": "button.tspp"
-        }
+        "./button": "button.tspp"
     }
 }
 "#,
@@ -70,38 +66,34 @@ import { Button } from "@acme/ui/button";
 fn test_import_resolves_package_root_export() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
-    "workspace": {
-        "packages": ["packages/*", "packages/@*/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*", "packages/@*/*"]
 }
 "#,
         )
         .data(
-            "packages/app/destack.json",
+            "packages/app/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "dependencies": {
-        "@acme/ui": {
-            "source": "workspace"
-        }
+        "@acme/ui": "workspace:*"
     }
 }
 "#,
         )
         .data(
-            "packages/@acme/ui/destack.json",
+            "packages/@acme/ui/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "exports": {
-        ".": {
-            "kind": "module",
-            "path": "index.tspp"
-        }
+        ".": "index.tspp"
     }
 }
 "#,
@@ -136,38 +128,34 @@ import { Button } from "@acme/ui";
 fn test_import_resolves_package_pattern_export() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
-    "workspace": {
-        "packages": ["packages/*", "packages/@*/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*", "packages/@*/*"]
 }
 "#,
         )
         .data(
-            "packages/app/destack.json",
+            "packages/app/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "dependencies": {
-        "@acme/ui": {
-            "source": "workspace"
-        }
+        "@acme/ui": "workspace:*"
     }
 }
 "#,
         )
         .data(
-            "packages/@acme/ui/destack.json",
+            "packages/@acme/ui/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "exports": {
-        "./*": {
-            "kind": "module",
-            "path": "src/*.tspp"
-        }
+        "./*": "src/*.tspp"
     }
 }
 "#,
@@ -202,38 +190,34 @@ import { Button } from "@acme/ui/button";
 fn test_import_resolves_nested_package_pattern_export() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
-    "workspace": {
-        "packages": ["packages/*", "packages/@*/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*", "packages/@*/*"]
 }
 "#,
         )
         .data(
-            "packages/app/destack.json",
+            "packages/app/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "dependencies": {
-        "@acme/ui": {
-            "source": "workspace"
-        }
+        "@acme/ui": "workspace:*"
     }
 }
 "#,
         )
         .data(
-            "packages/@acme/ui/destack.json",
+            "packages/@acme/ui/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "exports": {
-        "./*": {
-            "kind": "module",
-            "path": "src/*.tspp"
-        }
+        "./*": "src/*.tspp"
     }
 }
 "#,
@@ -268,42 +252,35 @@ import { Button } from "@acme/ui/forms/button";
 fn test_import_prefers_exact_package_export() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
-    "workspace": {
-        "packages": ["packages/*", "packages/@*/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*", "packages/@*/*"]
 }
 "#,
         )
         .data(
-            "packages/app/destack.json",
+            "packages/app/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "dependencies": {
-        "@acme/ui": {
-            "source": "workspace"
-        }
+        "@acme/ui": "workspace:*"
     }
 }
 "#,
         )
         .data(
-            "packages/@acme/ui/destack.json",
+            "packages/@acme/ui/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "exports": {
-        "./button": {
-            "kind": "module",
-            "path": "button.tspp"
-        },
-        "./*": {
-            "kind": "module",
-            "path": "src/*.tspp"
-        }
+        "./button": "button.tspp",
+        "./*": "src/*.tspp"
     }
 }
 "#,
@@ -344,27 +321,25 @@ import { Button } from "@acme/ui/button";
 fn test_import_resolves_dependency_enabled_by_condition() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
-    "workspace": {
-        "packages": ["packages/*", "packages/@*/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*", "packages/@*/*"]
 }
 "#,
         )
         .data(
-            "packages/app/destack.json",
+            "packages/app/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "conditions": {
         "modes": {
             "preview": {
                 "dependencies": {
-                    "@acme/ui": {
-                        "source": "workspace"
-                    }
+                    "@acme/ui": "workspace:*"
                 }
             }
         }
@@ -376,15 +351,13 @@ fn test_import_resolves_dependency_enabled_by_condition() {
 "#,
         )
         .data(
-            "packages/@acme/ui/destack.json",
+            "packages/@acme/ui/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "exports": {
-        "./button": {
-            "kind": "module",
-            "path": "button.tspp"
-        }
+        "./button": "button.tspp"
     }
 }
 "#,
@@ -419,19 +392,19 @@ import { Button } from "@acme/ui/button";
 fn test_import_resolves_dependency_enabled_by_any_condition() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
-    "workspace": {
-        "packages": ["packages/*", "packages/@*/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*", "packages/@*/*"]
 }
 "#,
         )
         .data(
-            "packages/app/destack.json",
+            "packages/app/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "conditionalDependencies": [
         {
@@ -439,9 +412,7 @@ fn test_import_resolves_dependency_enabled_by_any_condition() {
                 "any": ["role:client", "mode:preview"]
             },
             "dependencies": {
-                "@acme/ui": {
-                    "source": "workspace"
-                }
+                "@acme/ui": "workspace:*"
             }
         }
     ],
@@ -452,15 +423,13 @@ fn test_import_resolves_dependency_enabled_by_any_condition() {
 "#,
         )
         .data(
-            "packages/@acme/ui/destack.json",
+            "packages/@acme/ui/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "exports": {
-        "./button": {
-            "kind": "module",
-            "path": "button.tspp"
-        }
+        "./button": "button.tspp"
     }
 }
 "#,
@@ -495,24 +464,22 @@ import { Button } from "@acme/ui/button";
 fn test_import_resolves_export_enabled_by_condition() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
-    "workspace": {
-        "packages": ["packages/*", "packages/@*/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*", "packages/@*/*"]
 }
 "#,
         )
         .data(
-            "packages/app/destack.json",
+            "packages/app/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "dependencies": {
-        "@acme/ui": {
-            "source": "workspace"
-        }
+        "@acme/ui": "workspace:*"
     },
     "compiler": {
         "modes": ["preview"]
@@ -521,9 +488,10 @@ fn test_import_resolves_export_enabled_by_condition() {
 "#,
         )
         .data(
-            "packages/@acme/ui/destack.json",
+            "packages/@acme/ui/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "conditions": {
         "modes": {
@@ -531,11 +499,7 @@ fn test_import_resolves_export_enabled_by_condition() {
         }
     },
     "exports": {
-        "./button": {
-            "kind": "module",
-            "path": "button.tspp",
-            "when": "preview"
-        }
+        "./button": { "preview": "button.tspp" }
     }
 }
 "#,
@@ -570,24 +534,22 @@ import { Button } from "@acme/ui/button";
 fn test_import_reports_export_disabled_by_not_condition() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
-    "workspace": {
-        "packages": ["packages/*", "packages/@*/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*", "packages/@*/*"]
 }
 "#,
         )
         .data(
-            "packages/app/destack.json",
+            "packages/app/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "dependencies": {
-        "@acme/ui": {
-            "source": "workspace"
-        }
+        "@acme/ui": "workspace:*"
     },
     "compiler": {
         "modes": ["preview"]
@@ -596,18 +558,20 @@ fn test_import_reports_export_disabled_by_not_condition() {
 "#,
         )
         .data(
-            "packages/@acme/ui/destack.json",
+            "packages/@acme/ui/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
-    "exports": {
-        "./button": {
-            "kind": "module",
-            "path": "button.tspp",
-            "when": {
+    "conditions": {
+        "aliases": {
+            "stable": {
                 "not": "mode:preview"
             }
         }
+    },
+    "exports": {
+        "./button": { "stable": "button.tspp" }
     }
 }
 "#,
@@ -639,39 +603,34 @@ export type Button = string;
 fn test_import_resolves_path_dependency() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
-    "workspace": {
-        "packages": ["packages/*", "packages/@*/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*", "packages/@*/*"]
 }
 "#,
         )
         .data(
-            "packages/app/destack.json",
+            "packages/app/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "dependencies": {
-        "@acme/ui": {
-            "source": "path",
-            "path": "../@acme/ui"
-        }
+        "@acme/ui": "file:../@acme/ui"
     }
 }
 "#,
         )
         .data(
-            "packages/@acme/ui/destack.json",
+            "packages/@acme/ui/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "exports": {
-        "./button": {
-            "kind": "module",
-            "path": "button.tspp"
-        }
+        "./button": "button.tspp"
     }
 }
 "#,
@@ -706,39 +665,34 @@ import { Button } from "@acme/ui/button";
 fn test_import_resolves_path_dependency_outside_workspace_members() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
-    "workspace": {
-        "packages": ["packages/app"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/app"]
 }
 "#,
         )
         .data(
-            "packages/app/destack.json",
+            "packages/app/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "dependencies": {
-        "@acme/ui": {
-            "source": "path",
-            "path": "../@acme/ui"
-        }
+        "@acme/ui": "file:../@acme/ui"
     }
 }
 "#,
         )
         .data(
-            "packages/@acme/ui/destack.json",
+            "packages/@acme/ui/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "exports": {
-        "./button": {
-            "kind": "module",
-            "path": "button.tspp"
-        }
+        "./button": "button.tspp"
     }
 }
 "#,
@@ -813,27 +767,25 @@ import { value } from "@scope/pkg";
 fn test_import_reports_dependency_disabled_by_condition() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
-    "workspace": {
-        "packages": ["packages/*", "packages/@*/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*", "packages/@*/*"]
 }
 "#,
         )
         .data(
-            "packages/app/destack.json",
+            "packages/app/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "conditions": {
         "modes": {
             "preview": {
                 "dependencies": {
-                    "@acme/ui": {
-                        "source": "workspace"
-                    }
+                    "@acme/ui": "workspace:*"
                 }
             }
         }
@@ -842,15 +794,13 @@ fn test_import_reports_dependency_disabled_by_condition() {
 "#,
         )
         .data(
-            "packages/@acme/ui/destack.json",
+            "packages/@acme/ui/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "exports": {
-        "./button": {
-            "kind": "module",
-            "path": "button.tspp"
-        }
+        "./button": "button.tspp"
     }
 }
 "#,
@@ -882,32 +832,31 @@ export type Button = string;
 fn test_import_reports_export_disabled_by_condition() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
-    "workspace": {
-        "packages": ["packages/*", "packages/@*/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*", "packages/@*/*"]
 }
 "#,
         )
         .data(
-            "packages/app/destack.json",
+            "packages/app/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "dependencies": {
-        "@acme/ui": {
-            "source": "workspace"
-        }
+        "@acme/ui": "workspace:*"
     }
 }
 "#,
         )
         .data(
-            "packages/@acme/ui/destack.json",
+            "packages/@acme/ui/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "conditions": {
         "modes": {
@@ -915,11 +864,7 @@ fn test_import_reports_export_disabled_by_condition() {
         }
     },
     "exports": {
-        "./button": {
-            "kind": "module",
-            "path": "button.tspp",
-            "when": "preview"
-        }
+        "./button": { "preview": "button.tspp" }
     }
 }
 "#,
@@ -951,38 +896,34 @@ export type Button = string;
 fn test_import_reports_non_module_package_export() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
-    "workspace": {
-        "packages": ["packages/*", "packages/@*/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*", "packages/@*/*"]
 }
 "#,
         )
         .data(
-            "packages/app/destack.json",
+            "packages/app/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "dependencies": {
-        "@acme/ui": {
-            "source": "workspace"
-        }
+        "@acme/ui": "workspace:*"
     }
 }
 "#,
         )
         .data(
-            "packages/@acme/ui/destack.json",
+            "packages/@acme/ui/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "exports": {
-        "./button": {
-            "kind": "asset",
-            "path": "button.css"
-        }
+        "./button": "button.css"
     }
 }
 "#,
@@ -1008,46 +949,43 @@ import { Button } from "@acme/ui/button";
 fn test_import_reports_cross_package_export_path() {
     let compiler = TestSession::builder()
         .data(
-            "destack.json",
+            "package.json",
             r#"
 {
-    "workspace": {
-        "packages": ["packages/*", "packages/@*/*"]
-    }
+    "packageManager": "tspp@2026.9.0",
+    "workspaces": ["packages/*", "packages/@*/*"]
 }
 "#,
         )
         .data(
-            "packages/app/destack.json",
+            "packages/app/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "app",
     "dependencies": {
-        "@acme/ui": {
-            "source": "workspace"
-        }
+        "@acme/ui": "workspace:*"
     }
 }
 "#,
         )
         .data(
-            "packages/@acme/ui/destack.json",
+            "packages/@acme/ui/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/ui",
     "exports": {
-        "./button": {
-            "kind": "module",
-            "path": "../other/button.tspp"
-        }
+        "./button": "../other/button.tspp"
     }
 }
 "#,
         )
         .data(
-            "packages/@acme/other/destack.json",
+            "packages/@acme/other/package.json",
             r#"
 {
+    "packageManager": "tspp@2026.9.0",
     "name": "@acme/other"
 }
 "#,

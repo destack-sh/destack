@@ -419,7 +419,7 @@ mod tests {
     #[test]
     fn test_queries_nested_instruction_slices() {
         let allocator = Allocator::default();
-        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
+        let mut state = FormatState::new(SimpleFormatContext::empty_tspp(), &allocator);
 
         let mut formatter = Formatter::new(&mut state);
         formatter.write_element(FormatElement::Line(LineMode::Hard));
@@ -451,7 +451,7 @@ mod tests {
     #[test]
     fn test_queries_skip_nested_line_suffix_content() {
         let allocator = Allocator::default();
-        let mut state = FormatState::new(SimpleFormatContext::empty_destack(), &allocator);
+        let mut state = FormatState::new(SimpleFormatContext::empty_tspp(), &allocator);
         let mut formatter = Formatter::new(&mut state);
         formatter.write_element(FormatElement::Line(LineMode::Hard));
         let suffix = formatter.into_tape().into_slice();

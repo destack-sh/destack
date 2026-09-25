@@ -10,11 +10,16 @@ use tspp_artifact::{
     PackageSetFingerprint, SourceDependency,
 };
 use tspp_core::{StableHasher, TreapRoot, stable_hash_value_128};
-use tspp_source::{PackageId, TargetId, Uri};
+use tspp_source::{LanguageType, PackageId, TargetId, Uri};
 
-use crate::config::{ConditionGate, Dependency, Export, ExportKind};
+use crate::config::{
+    ConditionGate, ConditionRef, DEFAULT_EXPORT_CONDITION, Dependency, Export, MANIFEST_FILE_NAME,
+};
 use crate::repository::{Repository, RepositoryError, Revision};
-use crate::{DestackFile, Package, PackageDependencies, PackageExport, PackageIndex, PackageKind};
+use crate::{
+    ExportCase, ManifestFile, Package, PackageDependencies, PackageExport, PackageIndex,
+    PackageKind,
+};
 
 impl Repository {
     /// Return a dependency on one package configuration and its resolved dependency targets.
@@ -67,9 +72,9 @@ impl Repository {
         discovered_kind: PackageKind,
         package_root: &Path,
     ) -> Result<Arc<Package>, RepositoryError> {
-        let config_path = package_root.join("destack.json");
+        let config_path = package_root.join(MANIFEST_FILE_NAME);
         let configuration = self
-            .inherited_destack_for_path(revision, &config_path)?
+            .inherited_manifest_for_path(revision, &config_path)?
             .map(Arc::new);
         let config = configuration.as_deref();
         let is_builtin = config
@@ -142,7 +147,7 @@ impl Repository {
         revision: Revision,
         file_root: TreapRoot,
     ) -> Result<PackageIndex, RepositoryError> {
-        let workspace = self.destack_for_workspace(revision)?;
+        let workspace = self.manifest_for_workspace(revision)?;
         let package_roots =
             self.package_roots_for_files(revision, file_root, workspace.as_deref())?;
         let mut packages = OrdMap::new();
@@ -196,11 +201,9 @@ impl Repository {
         &self,
         revision: Revision,
         file_root: TreapRoot,
-        workspace_config: Option<&DestackFile>,
+        workspace_config: Option<&ManifestFile>,
     ) -> Result<Vec<(PathBuf, PackageKind)>, RepositoryError> {
-        let workspace = workspace_config
-            .and_then(|config| config.workspace.as_ref())
-            .filter(|workspace| workspace.packages.is_some());
+        let workspace = workspace_config.filter(|config| config.workspaces.is_some());
         let mut package_roots = Vec::new();
         let mut seen = HashSet::new();
 
@@ -219,20 +222,24 @@ impl Repository {
         // explicit workspace packages
         else {
             let files = self.file_entries(revision)?;
-            for (_file_id, entry) in files.iter().copied() {
+            for (file_id, entry) in files.iter().copied() {
                 let path = PathBuf::from(self.logical_path_text(entry.logical_path));
                 let Some(file_name) = path.file_name().and_then(|name| name.to_str()) else {
                     continue;
                 };
 
-                if file_name == "destack.json" {
-                    let package_root = path.parent().unwrap_or(Path::new("")).to_path_buf();
-                    let package_path = package_root.to_string_lossy().replace('\\', "/");
-                    if workspace.is_some_and(|workspace| workspace.selects(&package_path))
-                        && seen.insert(package_root.clone())
-                    {
-                        package_roots.push((package_root, PackageKind::Declared));
-                    }
+                if file_name != MANIFEST_FILE_NAME {
+                    continue;
+                }
+
+                // retain selected manifests, skipping package.json files of other package managers
+                let package_root = path.parent().unwrap_or(Path::new("")).to_path_buf();
+                let package_path = package_root.to_string_lossy().replace('\\', "/");
+                if workspace.is_some_and(|workspace| workspace.selects_package(&package_path))
+                    && self.local_manifest_for_file(revision, file_id)?.is_some()
+                    && seen.insert(package_root.clone())
+                {
+                    package_roots.push((package_root, PackageKind::Declared));
                 }
             }
         }
@@ -256,8 +263,8 @@ impl Repository {
             let package_root = package_roots[index].0.clone();
             index += 1;
 
-            let config_path = package_root.join("destack.json");
-            let Some(config) = self.inherited_destack_for_path(revision, &config_path)? else {
+            let config_path = package_root.join(MANIFEST_FILE_NAME);
+            let Some(config) = self.inherited_manifest_for_path(revision, &config_path)? else {
                 continue;
             };
             for (package_name, dependency) in Self::declared_dependency_sources(&config) {
@@ -266,7 +273,7 @@ impl Repository {
                 else {
                     continue;
                 };
-                if !self.has_package_config(file_root, &package_root) {
+                if !self.has_manifest(revision, file_root, &package_root)? {
                     continue;
                 }
 
@@ -279,11 +286,19 @@ impl Repository {
         Ok(())
     }
 
-    /// Return true when one captured package root has a manifest.
-    fn has_package_config(&self, file_root: TreapRoot, package_root: &Path) -> bool {
-        let file_id = self.file_id(&package_root.join("destack.json"));
+    /// Return whether one captured package root has a TS++ manifest.
+    fn has_manifest(
+        &self,
+        revision: Revision,
+        file_root: TreapRoot,
+        package_root: &Path,
+    ) -> Result<bool, RepositoryError> {
+        let file_id = self.file_id(&package_root.join(MANIFEST_FILE_NAME));
+        if !self.file_tree.contains(file_root, &file_id) {
+            return Ok(false);
+        }
 
-        self.file_tree.contains(file_root, &file_id)
+        Ok(self.local_manifest_for_file(revision, file_id)?.is_some())
     }
 
     /// Return the package index for one revision.
@@ -472,7 +487,7 @@ impl Repository {
     }
 
     /// Return dependencies declared by named conditions.
-    fn condition_dependencies(config: &DestackFile) -> Vec<PackageDependencies> {
+    fn condition_dependencies(config: &ManifestFile) -> Vec<PackageDependencies> {
         let mut dependencies = Vec::new();
 
         for (name, condition) in &config.conditions.modes {
@@ -513,7 +528,7 @@ impl Repository {
 
     /// Return all dependency sources that may become package roots.
     fn declared_dependency_sources(
-        config: &DestackFile,
+        config: &ManifestFile,
     ) -> impl Iterator<Item = (&String, &Dependency)> {
         let dependencies = config.dependencies.iter();
         let condition_dependencies = config
@@ -545,10 +560,9 @@ impl Repository {
     ) -> Option<PathBuf> {
         match dependency {
             Dependency::Workspace => None,
-            Dependency::Registry {
-                registry: _,
-                version,
-            } => Some(Self::mount_root(&format!("{package_name}@{version}"))),
+            Dependency::Registry { version } => {
+                Some(Self::mount_root(&format!("{package_name}@{version}")))
+            }
             Dependency::Path { path } => {
                 Some(self.path_dependency_root(current_root, package_name, path))
             }
@@ -607,7 +621,7 @@ impl Repository {
 
     /// Resolve condition references in conditional dependency declarations.
     fn resolve_conditional_dependencies(
-        config: &DestackFile,
+        config: &ManifestFile,
     ) -> Result<Vec<PackageDependencies>, RepositoryError> {
         let mut dependencies = Vec::new();
 
@@ -631,7 +645,7 @@ impl Repository {
 
     /// Resolve condition references in package export declarations.
     fn resolve_exports(
-        config: &DestackFile,
+        config: &ManifestFile,
     ) -> Result<IndexMap<String, PackageExport>, RepositoryError> {
         let mut exports = IndexMap::new();
 
@@ -646,24 +660,51 @@ impl Repository {
 
     /// Resolve one package export declaration.
     fn resolve_export(
-        config: &DestackFile,
+        config: &ManifestFile,
         export: &Export,
     ) -> Result<PackageExport, RepositoryError> {
-        let when = export
-            .when
-            .as_ref()
-            .map(|reference| config.conditions.resolve(reference))
-            .transpose()
-            .map_err(|error| RepositoryError::InvalidConfig {
-                file: config.file_id,
-                message: error.to_string(),
-            })?;
+        let cases = match export {
+            // an unconditional path
+            Export::Path(path) => vec![ExportCase {
+                when: None,
+                path: path.clone(),
+            }],
+            // one path per condition, the default case unconditional and last
+            Export::Conditions(paths) => paths
+                .iter()
+                .enumerate()
+                .map(|(index, (condition, path))| {
+                    // reject cases after the default case, which could never apply
+                    if condition == DEFAULT_EXPORT_CONDITION && index + 1 != paths.len() {
+                        return Err(RepositoryError::InvalidConfig {
+                            file: config.file_id,
+                            message: format!(
+                                "export condition '{DEFAULT_EXPORT_CONDITION}' must come last"
+                            ),
+                        });
+                    }
 
-        Ok(PackageExport {
-            kind: export.kind,
-            path: export.path.clone(),
-            when,
-        })
+                    let when = (condition != DEFAULT_EXPORT_CONDITION)
+                        .then(|| {
+                            config
+                                .conditions
+                                .resolve(&ConditionRef::Name(condition.clone()))
+                        })
+                        .transpose()
+                        .map_err(|error| RepositoryError::InvalidConfig {
+                            file: config.file_id,
+                            message: error.to_string(),
+                        })?;
+
+                    Ok(ExportCase {
+                        when,
+                        path: path.clone(),
+                    })
+                })
+                .collect::<Result<_, RepositoryError>>()?,
+        };
+
+        Ok(PackageExport { cases })
     }
 
     /// Build the active import-resolution node of one package.
@@ -688,16 +729,16 @@ impl Repository {
             dependencies.insert(name, dependency);
         }
 
-        // index active exports by kind
+        // index the path each export selects under the active conditions
         let mut exact = IndexMap::new();
         let mut patterns = Vec::new();
         for (key, export) in &package.exports {
-            if !export.matches(conditions) {
+            let Some(path) = export.select(conditions) else {
                 continue;
-            }
+            };
             let target = ExportTarget {
-                path: export.path.clone(),
-                is_module: export.kind == ExportKind::Module,
+                path: path.to_string(),
+                is_module: LanguageType::from_path(Path::new(path)).is_some(),
             };
             // index wildcard exports separately
             if let Some((prefix, suffix)) = key.split_once('*') {

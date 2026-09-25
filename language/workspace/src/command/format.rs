@@ -54,11 +54,11 @@ pub struct FormatInput {
     pub revision: CommandRevision,
     /// Input sources for the command.
     pub inputs: Vec<CommandInput>,
-    /// Whether destack.json should resolve inputs when none are provided.
+    /// Whether package.json should resolve inputs when none are provided.
     pub config_inputs: bool,
     /// Optional working directory for this command.
     pub cwd: Option<PathBuf>,
-    /// Optional Destack manifest path override.
+    /// Optional manifest path override.
     pub manifest: Option<PathBuf>,
     /// Optional target name override.
     pub target: Option<String>,
@@ -475,7 +475,7 @@ fn collect_formattable_files_in_dir(
     Ok(())
 }
 
-/// Get formatting options for a file, checking for destack.json.
+/// Get formatting options for a file, checking for package.json.
 fn formatting_options_for_path(
     repository: &Repository,
     revision: Revision,
@@ -486,7 +486,7 @@ fn formatting_options_for_path(
         .map_err(|error| CommandError::internal(format!("failed to resolve package: {error}")))?;
     if let Some(package) = package
         && let Some(config) = repository
-            .destack_for_package_id(revision, package.id)
+            .manifest_for_package_id(revision, package.id)
             .map_err(|error| {
                 CommandError::internal(format!("failed to load package formatter options: {error}"))
             })?
@@ -527,7 +527,7 @@ fn format_single_file(
         return Ok(FormatResult::Error);
     };
 
-    // get formatting options from destack.json
+    // get formatting options from package.json
     let formatting_options = formatting_options_for_path(repository.as_ref(), revision, path)?;
 
     // read file
@@ -703,7 +703,7 @@ fn workspace_formatting_options(
     revision: Revision,
 ) -> CommandResult<FormatterOptions> {
     let workspace_config = repository
-        .destack_for_workspace(revision)
+        .manifest_for_workspace(revision)
         .map_err(|error| format!("failed to derive workspace options: {error}"))?;
 
     Ok(workspace_config

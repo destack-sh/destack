@@ -117,8 +117,9 @@ impl CheckMeasurement {
 /// Build one generated module graph fixture.
 fn generated_module_graph(graph: ModuleGraph) -> Vec<(String, String)> {
     let mut files = vec![(
-        "destack.json".to_string(),
+        "package.json".to_string(),
         r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "@test/app"
 }
 "#
@@ -369,8 +370,9 @@ fn test_measure_component_graph_after_body_and_import_edits() {
 fn test_check_rebuilds_import_chain_after_dependency_edit() {
     let test = TestSession::open(&[
         (
-            "destack.json",
+            "package.json",
             r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "@test/app"
 }
 "#,
@@ -448,8 +450,9 @@ export const result = value;
 fn test_check_keeps_unrelated_module_current_after_single_edit() {
     let test = TestSession::open(&[
         (
-            "destack.json",
+            "package.json",
             r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "@test/app"
 }
 "#,

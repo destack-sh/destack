@@ -18,6 +18,7 @@ use super::{QueryChange, QueryFile};
 
 /// Package declaration used when a fixture does not provide one.
 const QUERY_MANIFEST: &str = r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "@test/query",
   "targets": {
     "default": {
@@ -28,7 +29,7 @@ const QUERY_MANIFEST: &str = r#"{
 }
 "#;
 /// Logical path of the shared query package declaration.
-const QUERY_MANIFEST_PATH: &str = "destack.json";
+const QUERY_MANIFEST_PATH: &str = "package.json";
 /// Temporary module used to resolve the shared query package profile.
 const WARM_ANCHOR_PATH: &str = "__warm.tspp";
 /// Environment variable enabling detailed timing reports.

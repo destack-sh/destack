@@ -33,10 +33,9 @@ async fn test_open_nested_package() {
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn test_open_standalone_package_below_workspace() {
     let manifest = r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "lsp-workspace",
-  "workspace": {
-    "packages": ["member"]
-  }
+  "workspaces": ["member"]
 }
 "#;
     let source = r#"import { log } from "tspp:console";
@@ -51,7 +50,7 @@ declare const missing: MissingType;
 
     // open one package excluded from its parent workspace
     let mut server = TestServer::new_editor_folder("standalone-package-below-workspace");
-    server.write("destack.json", manifest);
+    server.write("package.json", manifest);
     server.create_package("member");
     server.create_package("standalone");
     let document = server.write("standalone/main.tspp", source);
@@ -368,7 +367,7 @@ async fn test_retain_project_for_open_document() {
     // release the project after its final document closes
     server.close(&document).await;
     let expected = Err(jsonrpc::Error::invalid_params(format!(
-        "no Destack project owns {}",
+        "no TS++ project owns {}",
         document.uri().path().as_str()
     )));
     server

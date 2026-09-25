@@ -9,6 +9,7 @@ use crate::tests::harness::TestPattern;
 
 /// Manifest selecting one checked entry module.
 const ENTRY_CONFIG: &str = r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "test",
   "targets": {
     "default": {
@@ -21,6 +22,7 @@ const ENTRY_CONFIG: &str = r#"{
 
 /// Manifest selecting every authored module.
 const INCLUDE_CONFIG: &str = r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "test",
   "targets": {
     "default": {
@@ -101,6 +103,7 @@ fn test_query_source_pattern() {
 #[test]
 fn test_query_authored_builtin_package() {
     let config_source = r#"{
+  "packageManager": "tspp@2026.9.0",
   "name": "tspp",
   "targets": {
     "default": {
@@ -112,7 +115,7 @@ fn test_query_authored_builtin_package() {
 "#;
     let source = "panic(\"failed\");\n";
     let test = TestPattern::new("query-authored-builtin-package")
-        .file("destack.json", config_source)
+        .file("package.json", config_source)
         .input("src/main.tspp", source);
     let output = test.query("panic($MESSAGE)").include_sources().run();
     let matches = output
@@ -172,7 +175,7 @@ myPackage.net.fetch("first");
     fetch("second");
 "#;
     let test = TestPattern::new("query-symbol-predicate")
-        .file("destack.json", ENTRY_CONFIG)
+        .file("package.json", ENTRY_CONFIG)
         .file("package.tspp", package_source)
         .file("net.tspp", net_source)
         .input("main.tspp", source);
@@ -382,7 +385,7 @@ fetch("first");
 send("second");
 "#;
     let test = TestPattern::new("rewrite-symbol-predicate")
-        .file("destack.json", ENTRY_CONFIG)
+        .file("package.json", ENTRY_CONFIG)
         .input("main.tspp", source);
     let output = test
         .rewrite("$CALLEE($VALUE)", "client.fetch($VALUE)")
@@ -418,7 +421,7 @@ consume("text");
 consume(42);
 "#;
     let test = TestPattern::new("query-type-predicate")
-        .file("destack.json", ENTRY_CONFIG)
+        .file("package.json", ENTRY_CONFIG)
         .input("main.tspp", source);
     let output = test
         .query("consume($VALUE)")
@@ -444,7 +447,7 @@ consume("text");
 "#;
     let invalid = "const invalid: int32 = \"text\";\n";
     let test = TestPattern::new("pattern-check-selected-modules")
-        .file("destack.json", INCLUDE_CONFIG)
+        .file("package.json", INCLUDE_CONFIG)
         .input("main.tspp", source)
         .input("invalid.tspp", invalid);
 
@@ -482,7 +485,7 @@ const invalid: int32 = "text";
 fetch("first");
 "#;
     let test = TestPattern::new("pattern-invalid-checked-program")
-        .file("destack.json", ENTRY_CONFIG)
+        .file("package.json", ENTRY_CONFIG)
         .input("main.tspp", source);
     let structural = test.query("fetch($VALUE)").run();
 

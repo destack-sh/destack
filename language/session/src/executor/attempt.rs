@@ -153,7 +153,7 @@ impl ProviderAttempt {
         };
         let Some(configuration) = package.configuration.as_ref() else {
             return Err(Self::invalid_anchor(format!(
-                "diagnostic package has no destack config file: {package_id:?}"
+                "diagnostic package has no manifest file: {package_id:?}"
             )));
         };
 
