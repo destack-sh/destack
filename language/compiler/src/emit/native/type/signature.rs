@@ -57,7 +57,10 @@ impl TypeEmitter<'_> {
         let mut signature = cir::Signature::new(self.call_conv());
 
         // pass the activation and optional indirect result address first
-        signature.params.push(cir::AbiParam::new(self.pointer()));
+        signature.params.push(cir::AbiParam::special(
+            self.pointer(),
+            cir::ArgumentPurpose::VMContext,
+        ));
         if result.is_some_and(ValueType::is_indirect) {
             signature.params.push(cir::AbiParam::new(self.pointer()));
         }

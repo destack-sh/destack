@@ -17,8 +17,13 @@ impl<'a> FunctionEmitter<'a> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
         match constant {
-            mir::Constant::Parameter(_) => unreachable!("a value parameter survives instantiation"),
+            mir::Constant::Parameter(_) => {
+                Err(self.invalid("a value parameter reached native emit before instantiation"))
+            }
             mir::Constant::Null => Ok(builder.ins().iconst(self.types.pointer(), 0)),
+            mir::Constant::Undefined => {
+                Err(self.invalid("undefined constant reached native emit before instantiation"))
+            }
             mir::Constant::Boolean { value } => {
                 Ok(builder.ins().iconst(cir::types::I8, i64::from(*value)))
             }
@@ -65,7 +70,7 @@ impl<'a> FunctionEmitter<'a> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
         // emit floating point operations directly
-        if matches!(self.optimized.tree.get(ty), mir::Type::Float(_)) {
+        if matches!(self.optimized.tree.type_definition(ty), mir::Type::Float(_)) {
             let value = match operator {
                 mir::BinaryOperator::Add => builder.ins().fadd(left, right),
                 mir::BinaryOperator::Subtract => builder.ins().fsub(left, right),
@@ -212,40 +217,58 @@ impl<'a> FunctionEmitter<'a> {
 
                 builder.ins().bitcast(target_type, flags, argument)
             }
-            mir::CastOperator::Truncate => builder.ins().ireduce(target_type, argument),
-            mir::CastOperator::Saturate => {
+            mir::CastOperator::IntToInt => {
+                let source_bits = builder.func.dfg.value_type(argument).bits();
+                let is_signed = self.types.is_signed_integer(source)?;
+                match mir::IntegerConversion::new(source_bits, target_type.bits(), is_signed) {
+                    mir::IntegerConversion::Identity => argument,
+                    mir::IntegerConversion::Truncate => {
+                        builder.ins().ireduce(target_type, argument)
+                    }
+                    mir::IntegerConversion::SignExtend => {
+                        builder.ins().sextend(target_type, argument)
+                    }
+                    mir::IntegerConversion::ZeroExtend => {
+                        builder.ins().uextend(target_type, argument)
+                    }
+                }
+            }
+            mir::CastOperator::IntToIntSaturating => {
                 self.emit_integer_saturate(argument, source, target_id, builder)?
             }
-            mir::CastOperator::ZeroExtend => builder.ins().uextend(target_type, argument),
-            mir::CastOperator::SignExtend => builder.ins().sextend(target_type, argument),
-            mir::CastOperator::FloatToSignedInt => {
-                builder.ins().fcvt_to_sint(target_type, argument)
-            }
-            mir::CastOperator::FloatToUnsignedInt => {
-                builder.ins().fcvt_to_uint(target_type, argument)
-            }
-            mir::CastOperator::FloatToSignedIntSaturating => {
-                builder.ins().fcvt_to_sint_sat(target_type, argument)
-            }
-            mir::CastOperator::FloatToUnsignedIntSaturating => {
-                builder.ins().fcvt_to_uint_sat(target_type, argument)
-            }
-            mir::CastOperator::SignedIntToFloat => {
-                builder.ins().fcvt_from_sint(target_type, argument)
-            }
-            mir::CastOperator::UnsignedIntToFloat => {
-                builder.ins().fcvt_from_uint(target_type, argument)
-            }
-            mir::CastOperator::FloatTruncate => builder.ins().fdemote(target_type, argument),
-            mir::CastOperator::FloatExtend => builder.ins().fpromote(target_type, argument),
-            mir::CastOperator::FloatConvert => {
-                let source = builder.func.dfg.value_type(argument);
-                if source != target_type {
-                    return Err(self.invalid("native equal-width float formats are incompatible"));
+            mir::CastOperator::FloatToInt => {
+                if self.types.is_signed_integer(target_id)? {
+                    builder.ins().fcvt_to_sint(target_type, argument)
+                } else {
+                    builder.ins().fcvt_to_uint(target_type, argument)
                 }
-
-                argument
             }
+            mir::CastOperator::FloatToIntSaturating => {
+                if self.types.is_signed_integer(target_id)? {
+                    builder.ins().fcvt_to_sint_sat(target_type, argument)
+                } else {
+                    builder.ins().fcvt_to_uint_sat(target_type, argument)
+                }
+            }
+            mir::CastOperator::IntToFloat => {
+                if self.types.is_signed_integer(source)? {
+                    builder.ins().fcvt_from_sint(target_type, argument)
+                } else {
+                    builder.ins().fcvt_from_uint(target_type, argument)
+                }
+            }
+            mir::CastOperator::FloatToFloat => {
+                let source_type = builder.func.dfg.value_type(argument);
+                if source_type.bits() > target_type.bits() {
+                    builder.ins().fdemote(target_type, argument)
+                } else if source_type.bits() < target_type.bits() {
+                    builder.ins().fpromote(target_type, argument)
+                } else {
+                    argument
+                }
+            }
+            mir::CastOperator::ReferenceToPointer => self.rebase(argument, builder)?,
+            mir::CastOperator::PointerToReference => self.world_offset(argument, builder)?,
             mir::CastOperator::PointerToInt | mir::CastOperator::IntToPointer => argument,
         };
 
@@ -265,10 +288,10 @@ impl<'a> FunctionEmitter<'a> {
         let pointer_bits = self.types.layout.pointer_bits();
         let source = self.optimized.tree.storage_type(source);
         let target = self.optimized.tree.storage_type(target);
-        let source_definition = self.optimized.tree.get(source);
-        let target_definition = self.optimized.tree.get(target);
-        let source_integer = source_definition.int_info_with_pointer_width(pointer_bits);
-        let target_integer = target_definition.int_info_with_pointer_width(pointer_bits);
+        let source_definition = self.optimized.tree.type_definition(source);
+        let target_definition = self.optimized.tree.type_definition(target);
+        let source_integer = source_definition.integer(pointer_bits);
+        let target_integer = target_definition.integer(pointer_bits);
         let source_float = matches!(source_definition, mir::Type::Float(_));
         let target_float = matches!(target_definition, mir::Type::Float(_));
 
@@ -332,14 +355,14 @@ impl<'a> FunctionEmitter<'a> {
         let source = self
             .optimized
             .tree
-            .get(source)
-            .int_info_with_pointer_width(pointer_bits)
+            .type_definition(source)
+            .integer(pointer_bits)
             .ok_or_else(|| self.invalid("native saturating cast source is not an integer"))?;
         let target = self
             .optimized
             .tree
-            .get(target)
-            .int_info_with_pointer_width(pointer_bits)
+            .type_definition(target)
+            .integer(pointer_bits)
             .ok_or_else(|| self.invalid("native saturating cast target is not an integer"))?;
         let source_type = cir::Type::int(source.0)
             .ok_or_else(|| self.invalid("native saturating cast source width is unsupported"))?;

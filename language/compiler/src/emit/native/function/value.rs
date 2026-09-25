@@ -6,8 +6,13 @@ use destack_program as program;
 
 use crate::EmitError;
 
+use super::memory::MemoryRegion;
+
 use super::super::r#type::ValueType;
 use super::FunctionEmitter;
+
+/// The largest machine-word count copied without a loop.
+const INLINE_WORD_COUNT: u32 = 8;
 
 /// One physical native value.
 #[derive(Debug, Clone, Copy)]
@@ -103,8 +108,6 @@ pub(super) struct Local {
     pub(super) slot: cir::StackSlot,
     /// Stable identity preserved through native frame layout.
     pub(super) key: cir::StackSlotKey,
-    /// Address of the stack slot.
-    pub(super) address: cir::Value,
 }
 
 impl<'a> FunctionEmitter<'a> {
@@ -124,8 +127,7 @@ impl<'a> FunctionEmitter<'a> {
                 value_type.alignment().trailing_zeros() as u8,
                 key,
             ));
-            let address = builder.ins().stack_addr(self.types.pointer(), slot, 0);
-            self.locals.insert(*local_id, Local { slot, key, address });
+            self.locals.insert(*local_id, Local { slot, key });
         }
 
         Ok(())
@@ -138,7 +140,7 @@ impl<'a> FunctionEmitter<'a> {
         value_type: ValueType,
         builder: &mut FunctionBuilder<'_>,
     ) -> Result<Value, EmitError> {
-        let flags = cir::MemFlagsData::trusted();
+        let flags = self.memory_flags(MemoryRegion::World);
         match value_type {
             ValueType::Direct { ty, .. } => {
                 let value = builder.ins().load(ty, flags, address, 0);
@@ -171,7 +173,7 @@ impl<'a> FunctionEmitter<'a> {
         value_type: ValueType,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
-        let flags = cir::MemFlagsData::trusted();
+        let flags = self.memory_flags(MemoryRegion::World);
         match value_type {
             ValueType::Direct { .. } => {
                 let value = value
@@ -218,7 +220,7 @@ impl<'a> FunctionEmitter<'a> {
         byte_len: u32,
         builder: &mut FunctionBuilder<'_>,
     ) {
-        let flags = cir::MemFlagsData::trusted();
+        let flags = self.memory_flags(MemoryRegion::World);
         let word_count = byte_len / 8;
 
         // clear complete machine words
@@ -266,15 +268,15 @@ impl<'a> FunctionEmitter<'a> {
             && scalar.primitive.bit_width() <= u16::from(program::Word::BIT_LEN)
         {
             let value = self.canonical_word(value, ty, scalar, builder)?;
-            let flags = cir::MemFlagsData::trusted();
+            let flags = self.memory_flags(MemoryRegion::World);
             builder.ins().store(flags, value, destination, 0);
 
             return Ok(());
         }
 
-        // clear only padding that the canonical value representation does not initialize
+        // clear the padding the canonical value representation leaves behind
         let zero = builder.ins().iconst(cir::types::I64, 0);
-        let flags = cir::MemFlagsData::trusted();
+        let flags = self.memory_flags(MemoryRegion::World);
         for index in 0..value_type.word_count() {
             builder
                 .ins()
@@ -309,9 +311,9 @@ impl<'a> FunctionEmitter<'a> {
         }
 
         let ty = self.optimized.tree.storage_type(ty);
-        let definition = self.optimized.tree.get(ty);
+        let definition = self.optimized.tree.type_definition(ty);
         let is_signed = definition
-            .int_info_with_pointer_width(self.types.layout.pointer_bits())
+            .integer(self.types.layout.pointer_bits())
             .is_some_and(|(_, is_signed)| is_signed);
         let value = if is_signed {
             builder.ins().sextend(cir::types::I64, value)
@@ -330,12 +332,10 @@ impl<'a> FunctionEmitter<'a> {
         value_type: ValueType,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) {
-        const INLINE_WORD_COUNT: u32 = 8;
-
         let byte_len = value_type.byte_len();
         let word_count = byte_len / 8;
         let alignment = value_type.alignment().min(align_of::<u64>() as u32) as u8;
-        let mut flags = cir::MemFlagsData::trusted();
+        let mut flags = self.memory_flags(MemoryRegion::World);
         if alignment >= 8 {
             flags.set_aligned();
         }
@@ -395,46 +395,12 @@ impl<'a> FunctionEmitter<'a> {
         }
     }
 
-    /// Return the stable reference bits carried by one reference-like value.
-    pub(super) fn reference(
-        &self,
-        value: mir::Value,
-        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
-    ) -> Result<cir::Value, EmitError> {
-        let offset = self.reference_offset(value)?;
+    /// Return the address word of one reference-like value: a world offset or a native pointer.
+    pub(super) fn reference(&self, value: mir::Value) -> Result<cir::Value, EmitError> {
+        let descriptor = self.descriptor(self.value_type(value)?)?;
+        let selected = self.split_descriptor(self.value(value)?, descriptor)?;
 
-        match self.value(value)? {
-            Value::Direct(reference) if offset == 0 => Ok(reference),
-            Value::Direct(_) => {
-                Err(self.invalid("direct representation has a nonzero reference offset"))
-            }
-            Value::ScalarPair(fields) => {
-                let index = usize::from(offset != 0);
-
-                Ok(fields[index])
-            }
-            Value::Address(address) => {
-                let flags = cir::MemFlagsData::trusted();
-
-                Ok(builder
-                    .ins()
-                    .load(self.types.pointer(), flags, address, offset as i32))
-            }
-        }
-    }
-
-    /// Return the backing reference byte offset in one reference-like value.
-    fn reference_offset(&self, value: mir::Value) -> Result<u32, EmitError> {
-        // resolve the reference storage type
-        let ty = self.optimized.tree.storage_type(self.value_type(value)?);
-        let offset = match self.optimized.tree.get(ty) {
-            mir::Type::Function { .. } => self.types.pointer().bytes(),
-            mir::Type::Pointer { .. } => 0,
-            ty if ty.is_reference_representation() => 0,
-            _ => return Err(self.invalid("value is not a reference representation")),
-        };
-
-        Ok(offset)
+        Ok(selected.address)
     }
 
     /// Allocate canonical stack storage.
@@ -535,13 +501,6 @@ impl<'a> FunctionEmitter<'a> {
         self.value(value)?
             .direct()
             .ok_or_else(|| self.invalid("native value is not scalar"))
-    }
-
-    /// Return one emitted canonical address.
-    pub(super) fn address(&self, value: mir::Value) -> Result<cir::Value, EmitError> {
-        self.value(value)?
-            .address()
-            .ok_or_else(|| self.invalid("native value is not indirect"))
     }
 
     /// Define one emitted MIR value.

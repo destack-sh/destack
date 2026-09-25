@@ -1,103 +1,343 @@
 use destack_bytecode as bytecode;
 use destack_mir as mir;
 
-use crate::EmitError;
+use crate::{EmitError, ObjectEmitter};
 
 use super::FunctionEmitter;
 
+/// The byte width of one register word.
+const WORD_BYTES: u32 = size_of::<u64>() as u32;
+
+/// One selected place, addressed by a register.
+#[derive(Debug, Clone, Copy)]
+pub(super) struct PlaceAddress {
+    /// The register holding the selected address.
+    pub(super) address: bytecode::RegisterId,
+    /// The memory the address points into.
+    pub(super) kind: bytecode::Address,
+    /// The register holding the second descriptor word, like a slice length, when selected.
+    pub(super) metadata: Option<bytecode::RegisterId>,
+}
+
 impl<'a> FunctionEmitter<'a> {
-    /// Project one fixed field from an addressable aggregate.
-    pub(super) fn emit_field_address(
+    /// Select the storage of one place, into the given register when one is requested.
+    pub(super) fn emit_place(
         &mut self,
-        destination: mir::Value,
-        aggregate: mir::Value,
-        field: u32,
-    ) -> Result<(), EmitError> {
-        // resolve the aggregate storage type and field offset
-        let mut aggregate_type = self
+        place: &mir::Place,
+        into: Option<bytecode::RegisterId>,
+    ) -> Result<PlaceAddress, EmitError> {
+        let steps = self
             .optimized
-            .tree
-            .storage_type(self.value_type(aggregate)?);
-        if let mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } =
-            self.optimized.tree.get(aggregate_type)
-        {
-            aggregate_type = self.optimized.tree.storage_type(*pointee);
-        }
-        let byte_offset = self.types.field(aggregate_type, field)?.offset;
+            .layouts
+            .address_steps(place, self.function_id, &self.optimized.tree)
+            .map_err(|error| self.internal(&error.to_string()))?;
+        let mut target = into;
 
-        // materialize the aggregate's stable address before applying its field offset
-        self.emit_base_address(destination, aggregate)?;
-        if byte_offset == 0 {
-            return Ok(());
-        }
+        // read a root descriptor from its registers when the place follows it
+        let (mut selected, steps) = match (place.origin, steps.split_first()) {
+            (
+                mir::PlaceOrigin::Local(local),
+                Some((mir::AddressStep::Follow(descriptor), rest)),
+            ) => (
+                self.register_descriptor(self.local(local)?, *descriptor)?,
+                rest,
+            ),
+            (
+                mir::PlaceOrigin::Value(value),
+                Some((mir::AddressStep::Follow(descriptor), rest)),
+            ) => (
+                self.register_descriptor(self.register(value)?, *descriptor)?,
+                rest,
+            ),
+            // address a register range in the frame
+            (mir::PlaceOrigin::Local(local), _) => {
+                let registers = self.local(local)?;
 
-        self.emit_address_add_immediate(destination, destination, byte_offset)
-    }
-
-    /// Project one runtime index from an addressable indexed value.
-    pub(super) fn emit_element_address(
-        &mut self,
-        destination: mir::Value,
-        base: mir::Value,
-        index: mir::Value,
-    ) -> Result<(), EmitError> {
-        let base_type = self.value_type(base)?;
-        let stride = self.types.element_stride(base_type)?;
-
-        // materialize the indexed value's stable address before scaling its index
-        self.emit_base_address(destination, base)?;
-        let mut instruction =
-            bytecode::InstructionBuilder::new(bytecode::Opcode::ADDRESS_ADD_SCALED);
-        instruction.register(self.word(destination)?);
-        instruction.register(self.word(index)?);
-        instruction.u32(stride);
-        let destination = self.register(destination)?;
-
-        self.encode(instruction, &[destination])
-    }
-
-    /// Emit the stable address carried by or assigned to one MIR value.
-    fn emit_base_address(
-        &mut self,
-        destination: mir::Value,
-        value: mir::Value,
-    ) -> Result<(), EmitError> {
-        // select the address representation from the storage type
-        let ty = self.optimized.tree.storage_type(self.value_type(value)?);
-        let source = match self.optimized.tree.get(ty) {
-            // use the address from a reference or pointer
-            mir::Type::Reference { .. } | mir::Type::Pointer { .. } => self.word(value)?,
-
-            // extract the backing reference from an indexed pointer
-            mir::Type::Slice { .. } => {
-                self.representation_register(self.register(value)?, value)?
+                (
+                    self.emit_frame_address(registers, &mut target)?,
+                    steps.as_slice(),
+                )
             }
+            (mir::PlaceOrigin::Value(value), _) => {
+                let registers = self.register(value)?;
 
-            // address the aggregate through its frame registers
-            mir::Type::FixedArray { .. }
-            | mir::Type::Tuple { .. }
-            | mir::Type::Struct { .. }
-            | mir::Type::Variant { .. } => {
+                (
+                    self.emit_frame_address(registers, &mut target)?,
+                    steps.as_slice(),
+                )
+            }
+            // address a global
+            (mir::PlaceOrigin::Global(global), _) => {
+                let address = self.place_target(&mut target)?;
                 let mut instruction =
-                    bytecode::InstructionBuilder::new(bytecode::Opcode::FRAME_ADDRESS);
-                instruction.span(self.register(value)?);
-                let destination = self.register(destination)?;
+                    bytecode::InstructionBuilder::new(bytecode::Opcode::GLOBAL_ADDRESS);
+                instruction.global(self.types.global_id(global)?.0);
+                self.encode(instruction, &[bytecode::RegisterSpan::new(address, 1)])?;
 
-                return self.encode(instruction, &[destination]);
+                (PlaceAddress::reference(address), steps.as_slice())
             }
-            _ => return Err(self.internal("address base is not addressable")),
         };
-        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::MOVE);
-        instruction.register(source);
-        let destination = self.register(destination)?;
 
-        self.encode(instruction, &[destination])
+        // apply each address computation in the one target register
+        for (index, step) in steps.iter().enumerate() {
+            selected = match *step {
+                mir::AddressStep::Follow(descriptor) => {
+                    // read the metadata word before following the address when the place ends here
+                    let is_last = index + 1 == steps.len();
+                    let metadata = match descriptor.metadata {
+                        Some(offset) if is_last => {
+                            let metadata = self.word_scratch()?;
+                            self.emit_offset(selected.address, u64::from(offset), metadata)?;
+                            self.emit_address_word(metadata, selected.kind, metadata)?;
+
+                            Some(metadata)
+                        }
+                        _ => None,
+                    };
+
+                    // load the address word
+                    let address = self.place_target(&mut target)?;
+                    let source = match descriptor.address {
+                        0 => selected.address,
+                        offset => {
+                            self.emit_offset(selected.address, u64::from(offset), address)?;
+
+                            address
+                        }
+                    };
+                    self.emit_address_word(source, selected.kind, address)?;
+
+                    PlaceAddress {
+                        address,
+                        kind: Self::address_kind(descriptor.kind),
+                        metadata,
+                    }
+                }
+                // advance by a constant offset
+                mir::AddressStep::Offset(offset) => {
+                    let address = match offset {
+                        0 => selected.address,
+                        offset => {
+                            let address = self.place_target(&mut target)?;
+                            self.emit_offset(selected.address, offset, address)?;
+
+                            address
+                        }
+                    };
+
+                    PlaceAddress {
+                        address,
+                        kind: selected.kind,
+                        metadata: None,
+                    }
+                }
+                // advance by a scaled runtime index
+                mir::AddressStep::Index {
+                    index,
+                    stride,
+                    length,
+                } => {
+                    let address = self.place_target(&mut target)?;
+                    let mut instruction =
+                        bytecode::InstructionBuilder::new(bytecode::Opcode::ADDRESS_ADD_SCALED);
+                    instruction.register(selected.address);
+                    instruction.register(self.word(index)?);
+                    instruction.u32(stride);
+                    self.encode(instruction, &[bytecode::RegisterSpan::new(address, 1)])?;
+
+                    PlaceAddress {
+                        address,
+                        kind: selected.kind,
+                        metadata: length.map(|length| self.word(length)).transpose()?,
+                    }
+                }
+            };
+        }
+
+        // copy an address that no computation produced
+        if let Some(into) = into
+            && selected.address != into
+        {
+            let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::MOVE);
+            instruction.register(selected.address);
+            self.encode(instruction, &[bytecode::RegisterSpan::new(into, 1)])?;
+            selected.address = into;
+        }
+
+        Ok(selected)
     }
 
-    /// Return one unique allocation to the heap.
-    pub(super) fn emit_free(&mut self, value: mir::Value) -> Result<(), EmitError> {
-        let owner = self.representation_register(self.register(value)?, value)?;
-        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::FREE);
+    /// Return the register one place computes its address in, a scratch word allocated once.
+    fn place_target(
+        &mut self,
+        target: &mut Option<bytecode::RegisterId>,
+    ) -> Result<bytecode::RegisterId, EmitError> {
+        match *target {
+            Some(target) => Ok(target),
+            None => {
+                let scratch = self.word_scratch()?;
+                *target = Some(scratch);
+
+                Ok(scratch)
+            }
+        }
+    }
+
+    /// Address one frame register range in the place target.
+    fn emit_frame_address(
+        &mut self,
+        registers: bytecode::RegisterSpan,
+        target: &mut Option<bytecode::RegisterId>,
+    ) -> Result<PlaceAddress, EmitError> {
+        let address = self.place_target(target)?;
+        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::FRAME_ADDRESS);
+        instruction.span(registers);
+        self.encode(instruction, &[bytecode::RegisterSpan::new(address, 1)])?;
+
+        Ok(PlaceAddress::reference(address))
+    }
+
+    /// Select the address and metadata words of one descriptor held in registers.
+    fn register_descriptor(
+        &self,
+        registers: bytecode::RegisterSpan,
+        descriptor: mir::Descriptor,
+    ) -> Result<PlaceAddress, EmitError> {
+        Ok(PlaceAddress {
+            address: self.descriptor_word(registers, descriptor.address)?,
+            kind: Self::address_kind(descriptor.kind),
+            metadata: descriptor
+                .metadata
+                .map(|offset| self.descriptor_word(registers, offset))
+                .transpose()?,
+        })
+    }
+
+    /// Return the register holding one descriptor word.
+    fn descriptor_word(
+        &self,
+        registers: bytecode::RegisterSpan,
+        byte_offset: u32,
+    ) -> Result<bytecode::RegisterId, EmitError> {
+        let word = byte_offset / WORD_BYTES;
+        if word >= u32::from(registers.word_count) {
+            return Err(self.internal("descriptor word outside its registers"));
+        }
+
+        Ok(bytecode::RegisterId(registers.start.0 + word as u16))
+    }
+
+    /// Return the descriptor words of one reference-like type.
+    fn descriptor(&self, ty: mir::TypeId) -> Result<mir::Descriptor, EmitError> {
+        mir::Descriptor::new(ty, &self.optimized.tree, &self.optimized.layouts)
+            .map_err(|error| self.internal(&error.to_string()))
+    }
+
+    /// Return the bytecode addressing mode of one address kind.
+    const fn address_kind(kind: mir::AddressKind) -> bytecode::Address {
+        match kind {
+            mir::AddressKind::Reference => bytecode::Address::Reference,
+            mir::AddressKind::Pointer => bytecode::Address::Pointer,
+        }
+    }
+
+    /// Allocate one scratch word register.
+    fn word_scratch(&mut self) -> Result<bytecode::RegisterId, EmitError> {
+        Ok(self
+            .scratch(bytecode::ValueType::scalar(bytecode::Scalar::Uint64))?
+            .start)
+    }
+
+    /// Load an address word through the selected addressing mode.
+    fn emit_address_word(
+        &mut self,
+        address: bytecode::RegisterId,
+        kind: bytecode::Address,
+        result: bytecode::RegisterId,
+    ) -> Result<(), EmitError> {
+        let scalar = bytecode::Scalar::Uint64;
+        let opcode = bytecode::Opcode::memory(bytecode::MemoryOperation::Load, kind, scalar, false);
+        let mut instruction = bytecode::InstructionBuilder::new(opcode);
+        instruction.register(address);
+
+        self.encode(instruction, &[bytecode::RegisterSpan::new(result, 1)])
+    }
+
+    /// Add a fixed byte offset to an address.
+    fn emit_offset(
+        &mut self,
+        address: bytecode::RegisterId,
+        offset: u64,
+        result: bytecode::RegisterId,
+    ) -> Result<(), EmitError> {
+        // select the immediate encoding when the offset fits its signed operand
+        let instruction = match i32::try_from(offset) {
+            Ok(offset) => {
+                let mut instruction =
+                    bytecode::InstructionBuilder::new(bytecode::Opcode::ADDRESS_ADD_IMMEDIATE);
+                instruction.register(address);
+                instruction.i32(offset);
+
+                instruction
+            }
+            Err(_) => {
+                let word = bytecode::ValueType::scalar(bytecode::Scalar::Uint64);
+                let constant = self.scratch(word)?;
+                let instruction = self.scalar_constant(word, offset)?;
+                self.encode(instruction, &[constant])?;
+                let mut instruction =
+                    bytecode::InstructionBuilder::new(bytecode::Opcode::ADDRESS_ADD);
+                instruction.register(address);
+                instruction.register(constant.start);
+
+                instruction
+            }
+        };
+
+        self.encode(instruction, &[bytecode::RegisterSpan::new(result, 1)])
+    }
+
+    /// Materialize one reference-like descriptor from its selected place.
+    pub(super) fn emit_address(
+        &mut self,
+        destination: mir::Value,
+        place: &mir::Place,
+    ) -> Result<(), EmitError> {
+        let descriptor = self.descriptor(self.value_type(destination)?)?;
+        let registers = self.register(destination)?;
+        let address = self.descriptor_word(registers, descriptor.address)?;
+        let selected = self.emit_place(place, Some(address))?;
+
+        // write the selected metadata word beside the address
+        match (selected.metadata, descriptor.metadata) {
+            (None, None) => Ok(()),
+            (Some(metadata), Some(offset)) => {
+                let target = self.descriptor_word(registers, offset)?;
+                if metadata == target {
+                    return Ok(());
+                }
+                let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::MOVE);
+                instruction.register(metadata);
+
+                self.encode(instruction, &[bytecode::RegisterSpan::new(target, 1)])
+            }
+            _ => Err(self.internal("address disagrees with its result descriptor")),
+        }
+    }
+
+    /// Release one unique allocation.
+    pub(super) fn emit_release(&mut self, value: mir::Value) -> Result<(), EmitError> {
+        let owner = self.address_register(value)?;
+
+        // select the release that destroys the allocation's values
+        let ty = self.value_type(value)?;
+        let is_destroying = ObjectEmitter::release_destroys(self.module, self.optimized, ty)?;
+        let opcode = if is_destroying {
+            bytecode::Opcode::RELEASE
+        } else {
+            bytecode::Opcode::FREE
+        };
+        let mut instruction = bytecode::InstructionBuilder::new(opcode);
         instruction.register(owner);
 
         self.encode(instruction, &[])
@@ -110,121 +350,56 @@ impl<'a> FunctionEmitter<'a> {
         offset: mir::Value,
         byte_len: mir::Value,
     ) -> Result<(), EmitError> {
-        let reference = self.representation_reference(object)?;
         let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::BARRIER);
-        instruction.register(self.representation_register(self.register(object)?, object)?);
-        instruction.reference(reference.kind(), reference.storage());
+        instruction.register(self.address_register(object)?);
         instruction.register(self.word(offset)?);
         instruction.register(self.word(byte_len)?);
 
         self.encode(instruction, &[])
     }
 
-    /// Emit one relocatable global reference.
-    pub(super) fn emit_global_address(
-        &mut self,
-        destination: mir::Value,
-        global: mir::GlobalId,
-    ) -> Result<(), EmitError> {
-        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::GLOBAL_ADDRESS);
-        let global = self.types.global_id(global)?;
-        instruction.global(global.0);
-        let destination = self.register(destination)?;
-
-        self.encode(instruction, &[destination])
-    }
-
-    /// Copy one MIR local into an SSA value range.
-    pub(super) fn emit_local_get(
-        &mut self,
-        destination: mir::Value,
-        local: mir::LocalId,
-    ) -> Result<(), EmitError> {
-        let ty = self.register_type(destination)?;
-        let source = self.local(local)?;
-        let destination = self.register(destination)?;
-
-        self.emit_move(source, destination, ty)
-    }
-
-    /// Return one MIR local's stable frame reference.
-    pub(super) fn emit_local_address(
-        &mut self,
-        destination: mir::Value,
-        local: mir::LocalId,
-    ) -> Result<(), EmitError> {
-        let local = self.local(local)?;
-        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::FRAME_ADDRESS);
-        instruction.span(local);
-        let destination = self.register(destination)?;
-
-        self.encode(instruction, &[destination])
-    }
-
-    /// Copy one MIR value into a local register range.
-    pub(super) fn emit_local_set(
-        &mut self,
-        local: mir::LocalId,
-        value: mir::Value,
-    ) -> Result<(), EmitError> {
-        let source = self.register(value)?;
-        let destination = self.local(local)?;
-        let ty = self.register_type(value)?;
-
-        self.emit_move(source, destination, ty)
-    }
-
-    /// Emit one scalar or packed value load.
+    /// Load one value from a place, volatile when requested.
     pub(super) fn emit_load(
         &mut self,
         destination: mir::Value,
-        reference: mir::Value,
-        result_type: mir::TypeId,
-    ) -> Result<(), EmitError> {
-        self.emit_load_with_volatility(destination, reference, result_type, false)
-    }
-
-    /// Emit one volatile scalar or packed value load.
-    pub(super) fn emit_volatile_load(
-        &mut self,
-        destination: mir::Value,
-        reference: mir::Value,
-        result_type: mir::TypeId,
-    ) -> Result<(), EmitError> {
-        self.emit_load_with_volatility(destination, reference, result_type, true)
-    }
-
-    /// Emit one scalar or packed value load with explicit volatility.
-    fn emit_load_with_volatility(
-        &mut self,
-        destination: mir::Value,
-        reference: mir::Value,
-        result_type: mir::TypeId,
+        place: &mir::Place,
         is_volatile: bool,
     ) -> Result<(), EmitError> {
         let ty = self.register_type(destination)?;
-        let address = self.address(reference)?;
-        let reference = self.word(reference)?;
+
+        // transfer a whole nonvolatile local directly between register ranges
+        if !is_volatile
+            && place.path.is_root()
+            && let mir::PlaceOrigin::Local(local) = place.origin
+        {
+            let source = self.local(local)?;
+            let destination = self.register(destination)?;
+
+            return self.emit_move(source, destination, ty);
+        }
+
+        // read a scalar or a byte range through the selected address
+        let selected = self.emit_place(place, None)?;
         let instruction = if let Some(scalar) = ty.scalar_type() {
             let opcode = bytecode::Opcode::memory(
                 bytecode::MemoryOperation::Load,
-                address,
+                selected.kind,
                 scalar,
                 is_volatile,
             );
             let mut instruction = bytecode::InstructionBuilder::new(opcode);
-            instruction.register(reference);
+            instruction.register(selected.address);
 
             instruction
         } else {
             let opcode = bytecode::Opcode::memory_range(
                 bytecode::MemoryOperation::Load,
-                address,
+                selected.kind,
                 is_volatile,
             );
             let mut instruction = bytecode::InstructionBuilder::new(opcode);
-            instruction.register(reference);
-            instruction.u32(self.types.byte_len(result_type)?);
+            instruction.register(selected.address);
+            instruction.u32(self.types.byte_len(self.value_type(destination)?)?);
 
             instruction
         };
@@ -233,60 +408,50 @@ impl<'a> FunctionEmitter<'a> {
         self.encode(instruction, &[destination])
     }
 
-    /// Emit one scalar or packed value store.
+    /// Store one value into a place, volatile when requested.
     pub(super) fn emit_store(
         &mut self,
-        reference: mir::Value,
-        value: mir::Value,
-    ) -> Result<(), EmitError> {
-        self.emit_store_with_volatility(reference, value, false)
-    }
-
-    /// Emit one volatile scalar or packed value store.
-    pub(super) fn emit_volatile_store(
-        &mut self,
-        reference: mir::Value,
-        value: mir::Value,
-    ) -> Result<(), EmitError> {
-        self.emit_store_with_volatility(reference, value, true)
-    }
-
-    /// Emit one scalar or packed value store with explicit volatility.
-    fn emit_store_with_volatility(
-        &mut self,
-        reference: mir::Value,
+        place: &mir::Place,
         value: mir::Value,
         is_volatile: bool,
     ) -> Result<(), EmitError> {
         let ty = self.register_type(value)?;
-        let address = self.address(reference)?;
-        let reference = self.word(reference)?;
+
+        // transfer a whole nonvolatile local directly between register ranges
+        if !is_volatile
+            && place.path.is_root()
+            && let mir::PlaceOrigin::Local(local) = place.origin
+        {
+            let source = self.register(value)?;
+            let destination = self.local(local)?;
+
+            return self.emit_move(source, destination, ty);
+        }
+
+        // write a scalar or a byte range through the selected address
+        let selected = self.emit_place(place, None)?;
         let instruction = if let Some(scalar) = ty.scalar_type() {
             let opcode = bytecode::Opcode::memory(
                 bytecode::MemoryOperation::Store,
-                address,
+                selected.kind,
                 scalar,
                 is_volatile,
             );
             let mut instruction = bytecode::InstructionBuilder::new(opcode);
-            instruction.register(reference);
+            instruction.register(selected.address);
             instruction.register(self.word(value)?);
 
             instruction
         } else {
-            let value_type = self
-                .function
-                .value_type(value)
-                .ok_or_else(|| self.internal("missing stored value type"))?;
             let opcode = bytecode::Opcode::memory_range(
                 bytecode::MemoryOperation::Store,
-                address,
+                selected.kind,
                 is_volatile,
             );
             let mut instruction = bytecode::InstructionBuilder::new(opcode);
-            instruction.register(reference);
+            instruction.register(selected.address);
             instruction.span(self.register(value)?);
-            instruction.u32(self.types.byte_len(value_type)?);
+            instruction.u32(self.types.byte_len(self.value_type(value)?)?);
 
             instruction
         };
@@ -294,20 +459,11 @@ impl<'a> FunctionEmitter<'a> {
         self.encode(instruction, &[])
     }
 
-    /// Return the addressing mode selected by one MIR reference.
-    pub(super) fn address(&self, reference: mir::Value) -> Result<bytecode::Address, EmitError> {
-        // resolve the address storage type
-        let ty = self
-            .optimized
-            .tree
-            .storage_type(self.value_type(reference)?);
-        let address = match self.optimized.tree.get(ty) {
-            mir::Type::Pointer { .. } => bytecode::Address::Pointer,
-            mir::Type::Reference { .. } => bytecode::Address::Reference,
-            _ => return Err(self.internal("memory access requires a reference or pointer")),
-        };
+    /// Return the addressing mode of one reference or pointer value.
+    fn address(&self, value: mir::Value) -> Result<bytecode::Address, EmitError> {
+        let descriptor = self.descriptor(self.value_type(value)?)?;
 
-        Ok(address)
+        Ok(Self::address_kind(descriptor.kind))
     }
 
     /// Emit one machine memory intrinsic.
@@ -391,16 +547,18 @@ impl<'a> FunctionEmitter<'a> {
                 };
                 let destination =
                     destination.ok_or_else(|| self.internal("volatile load result is missing"))?;
-                let result_type = self.value_type(destination)?;
+                let place = mir::Place::value(*pointer).with_projection(mir::Projection::Deref);
 
-                self.emit_volatile_load(destination, *pointer, result_type)
+                self.emit_load(destination, &place, true)
             }
             mir::Intrinsic::VolatileStore => {
                 let [pointer, value] = arguments.as_slice() else {
                     return Err(self.internal("volatile store requires two arguments"));
                 };
 
-                self.emit_volatile_store(*pointer, *value)
+                let place = mir::Place::value(*pointer).with_projection(mir::Projection::Deref);
+
+                self.emit_store(&place, *value, true)
             }
             mir::Intrinsic::PointerByteOffsetFrom => {
                 let [pointer, origin] = arguments.as_slice() else {
@@ -425,53 +583,21 @@ impl<'a> FunctionEmitter<'a> {
         }
     }
 
-    /// Add one fixed byte offset to a reference or pointer.
-    pub(super) fn emit_address_add_immediate(
-        &mut self,
-        destination: mir::Value,
-        base: mir::Value,
-        byte_offset: u32,
-    ) -> Result<(), EmitError> {
-        let byte_offset = i32::try_from(byte_offset)
-            .map_err(|_| self.internal("reference field offset exceeds i32"))?;
-        let mut instruction =
-            bytecode::InstructionBuilder::new(bytecode::Opcode::ADDRESS_ADD_IMMEDIATE);
-        instruction.register(self.word(base)?);
-        instruction.i32(byte_offset);
-        let destination = self.register(destination)?;
+    /// Return the register holding the address word of one reference-like value.
+    fn address_register(&self, value: mir::Value) -> Result<bytecode::RegisterId, EmitError> {
+        let descriptor = self.descriptor(self.value_type(value)?)?;
 
-        self.encode(instruction, &[destination])
+        self.descriptor_word(self.register(value)?, descriptor.address)
     }
+}
 
-    /// Return the reference carried by one reference-like MIR value.
-    pub(super) fn representation_reference(
-        &self,
-        value: mir::Value,
-    ) -> Result<bytecode::ReferenceType, EmitError> {
-        let ty = self.register_type(value)?;
-        ty.reference_type()
-            .or_else(|| ty.slice_reference())
-            .or_else(|| ty.dynamic_reference())
-            .or_else(|| ty.function_reference())
-            .ok_or_else(|| self.internal("ownership operation requires a reference representation"))
-    }
-
-    /// Return the register carrying one reference-like value's backing reference.
-    pub(super) fn representation_register(
-        &self,
-        value: bytecode::RegisterSpan,
-        source: mir::Value,
-    ) -> Result<bytecode::RegisterId, EmitError> {
-        // read the storage representation of the source value
-        let ty = self.optimized.tree.storage_type(self.value_type(source)?);
-        let offset = usize::from(matches!(
-            self.optimized.tree.get(ty),
-            mir::Type::Function { .. }
-        ));
-        if offset >= usize::from(value.word_count) {
-            return Err(self.internal("reference representation has no backing reference word"));
+impl PlaceAddress {
+    /// Create one world reference address outside any descriptor.
+    const fn reference(address: bytecode::RegisterId) -> Self {
+        Self {
+            address,
+            kind: bytecode::Address::Reference,
+            metadata: None,
         }
-
-        Ok(bytecode::RegisterId(value.start.0 + offset as u16))
     }
 }

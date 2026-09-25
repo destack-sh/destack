@@ -5,6 +5,7 @@ use destack_source::ModuleId;
 
 use crate::EmitError;
 
+use super::ObjectEmitter;
 use super::point::PointMap;
 use super::site::SiteEmitter;
 
@@ -43,7 +44,7 @@ impl<'a> FrameEmitter<'a> {
     ) -> Result<Vec<FrameState>, EmitError> {
         // collect frame states from the emitted functions
         let mut states = Vec::new();
-        let points = self.frame_points();
+        let points = self.frame_points()?;
 
         // emit functions in stable MIR identity order
         for (function_id, function) in self.optimized.tree.iter_nodes::<mir::Function>() {
@@ -95,7 +96,7 @@ impl<'a> FrameEmitter<'a> {
     }
 
     /// Collect canonical frame points in logical order.
-    fn frame_points(&self) -> Vec<FramePoint> {
+    fn frame_points(&self) -> Result<Vec<FramePoint>, EmitError> {
         // collect the operations that require frame states
         let mut points = Vec::new();
 
@@ -126,7 +127,7 @@ impl<'a> FrameEmitter<'a> {
                 for &instruction_id in &block.instructions {
                     let instruction = self.optimized.tree.get(instruction_id);
                     let point = self.points.instruction(instruction_id);
-                    if let Some(point) = Self::instruction_point(instruction, point) {
+                    if let Some(point) = self.instruction_point(function, instruction, point)? {
                         points.push(point);
                     }
                 }
@@ -137,24 +138,40 @@ impl<'a> FrameEmitter<'a> {
         points.sort_unstable();
         points.dedup();
 
-        points
+        Ok(points)
     }
 
     /// Return the frame point required by one MIR instruction.
-    fn instruction_point(instruction: &mir::Instruction, point: Point) -> Option<FramePoint> {
+    fn instruction_point(
+        &self,
+        function: &mir::Function,
+        instruction: &mir::Instruction,
+        point: Point,
+    ) -> Result<Option<FramePoint>, EmitError> {
         // select the frame position for the instruction
         let point = match instruction {
             // retain callers before generated destruction
-            mir::Instruction::Drop { .. } => point,
+            mir::Instruction::Drop { .. } => Some(point),
+
+            // retain callers while the runtime destroys a released allocation's values
+            mir::Instruction::Release { value } => {
+                let ty = function
+                    .value_type(*value)
+                    .ok_or_else(|| self.internal("released MIR value has no type"))?;
+                let is_destroying =
+                    ObjectEmitter::release_destroys(self.module, self.optimized, ty)?;
+
+                is_destroying.then_some(point)
+            }
 
             // record runtime entry after the operation
-            mir::Instruction::Poll | mir::Instruction::Breakpoint => point.next(),
+            mir::Instruction::Poll | mir::Instruction::Breakpoint => Some(point.next()),
 
             // defer other runtime sites to SiteEmitter
-            _ => return None,
+            _ => None,
         };
 
-        Some(FramePoint::operation(point))
+        Ok(point.map(FramePoint::operation))
     }
 
     /// Build one operation's logical slots in canonical acquisition order.
@@ -203,14 +220,19 @@ impl<'a> FrameEmitter<'a> {
             }
             let ty = function
                 .value_type(value)
-                .ok_or_else(|| EmitError::Internal {
-                    anchor: self.module.into(),
-                    module: self.module,
-                    message: "live MIR value has no type".to_string(),
-                })?;
+                .ok_or_else(|| self.internal("live MIR value has no type"))?;
             slots.push(FrameSlot::new(FramePlace::Value(value), ty));
         }
 
         Ok(slots)
+    }
+
+    /// Build one internal frame diagnostic.
+    fn internal(&self, message: &str) -> EmitError {
+        EmitError::Internal {
+            anchor: self.module.into(),
+            module: self.module,
+            message: message.to_owned(),
+        }
     }
 }

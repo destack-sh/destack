@@ -5,6 +5,7 @@ use destack_mir as mir;
 
 use crate::EmitError;
 
+use super::memory::MemoryRegion;
 use super::{FunctionEmitter, Value};
 
 impl FunctionEmitter<'_> {
@@ -92,11 +93,16 @@ impl FunctionEmitter<'_> {
     pub(super) fn emit_variant_tag_load(
         &mut self,
         destination: mir::Value,
-        variant: mir::Value,
+        place: &mir::Place,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
-        // read the addressed variant type
-        let variant_type = self.variant_pointee(variant)?;
+        // read the selected variant layout
+        let Some(mir::PlaceType::Value(variant_type)) =
+            place.ty(self.function_id, &self.optimized.tree)
+        else {
+            return Err(self.invalid("native variant tag load does not select a value"));
+        };
+        let variant_type = self.optimized.tree.storage_type(variant_type);
         let layout = self
             .optimized
             .layouts
@@ -105,7 +111,7 @@ impl FunctionEmitter<'_> {
         let mir::LayoutShape::Variant(layout) = &layout.shape else {
             return Err(self.invalid("stored native value has no variant layout"));
         };
-        let address = self.materialize_pointer(variant, builder)?;
+        let address = self.place_pointer(place, builder)?;
         let scalar = self.load_discriminant(address, layout.encoding.field(), builder)?;
         let destination_type = self
             .types
@@ -151,49 +157,6 @@ impl FunctionEmitter<'_> {
         self.set(destination, result)?;
 
         Ok(())
-    }
-
-    /// Emit one stored variant payload's stable address.
-    pub(super) fn emit_variant_payload_address(
-        &mut self,
-        destination: mir::Value,
-        variant: mir::Value,
-        case: u32,
-        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
-    ) -> Result<(), EmitError> {
-        // read the addressed variant type
-        let variant_type = self.variant_pointee(variant)?;
-        let layout = self
-            .optimized
-            .layouts
-            .type_layout(variant_type)
-            .ok_or_else(|| self.invalid("stored native variant has no layout"))?;
-        let mir::LayoutShape::Variant(layout) = &layout.shape else {
-            return Err(self.invalid("stored native value has no variant layout"));
-        };
-        let selected = layout
-            .cases
-            .get(case as usize)
-            .ok_or_else(|| self.invalid("stored native variant case is absent"))?;
-        let reference = self.reference(variant, builder)?;
-        let reference = builder
-            .ins()
-            .iadd_imm_u(reference, i64::from(selected.payload_offset));
-        self.set(destination, Value::Direct(reference))?;
-
-        Ok(())
-    }
-
-    /// Return the variant addressed by one reference or pointer value.
-    fn variant_pointee(&self, value: mir::Value) -> Result<mir::TypeId, EmitError> {
-        // resolve the reference storage type
-        let ty = self.optimized.tree.storage_type(self.value_type(value)?);
-        let pointee = match self.optimized.tree.get(ty) {
-            mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => *pointee,
-            _ => return Err(self.invalid("stored native variant requires an address")),
-        };
-
-        Ok(self.optimized.tree.storage_type(pointee))
     }
 
     /// Encode one logical case into its physical discriminant field.
@@ -305,9 +268,9 @@ impl FunctionEmitter<'_> {
         let ty = self.discriminant_type(field)?;
         let address = builder.ins().iadd_imm_u(address, i64::from(field.offset));
 
-        Ok(builder
-            .ins()
-            .load(ty, cir::MemFlagsData::trusted(), address, 0))
+        let flags = self.memory_flags(MemoryRegion::World);
+
+        Ok(builder.ins().load(ty, flags, address, 0))
     }
 
     /// Return the Cranelift scalar storing one discriminant field.

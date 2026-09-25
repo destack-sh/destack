@@ -46,7 +46,13 @@ function bits {
 
     program.assert_native(
         r#"
-function u0:0(i64, i32, i32) -> i32 native {
+function u0:0(i64 vmctx, i32, i32) -> i32 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    stack_limit = gv1
+
 block0(v0: i64, v1: i32, v2: i32):
     v3 = clz v1
     v4 = ctz v3
@@ -68,7 +74,7 @@ block0(v0: i64, v1: i32, v2: i32):
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64, i32, i32) -> i32 native
+    sig0 = (i64 vmctx, i32, i32) -> i32 native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):
@@ -127,7 +133,13 @@ function difference {
 
     program.assert_native(
         r#"
-function u0:0(i64, i64, i64, i64) -> i8 native {
+function u0:0(i64 vmctx, i64, i64, i64) -> i8 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    stack_limit = gv1
+
 block0(v0: i64, v1: i64, v2: i64, v3: i64):
     v4 = bxor v1, v2
     v5 = band v1, v2
@@ -185,7 +197,7 @@ block0(v0: i64, v1: i64, v2: i64, v3: i64):
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64, i64, i64, i64) -> i8 native
+    sig0 = (i64 vmctx, i64, i64, i64) -> i8 native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):
@@ -197,7 +209,13 @@ block0(v0: i64, v1: i64, v2: i64):
     return
 }
 
-function u0:2(i64, i64, i64) -> i64 native {
+function u0:2(i64 vmctx, i64, i64) -> i64 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    stack_limit = gv1
+
 block0(v0: i64, v1: i64, v2: i64):
     v3 = icmp sge v1, v2
     v4 = isub v1, v2
@@ -207,7 +225,7 @@ block0(v0: i64, v1: i64, v2: i64):
 }
 
 function u1:1(i64, i64, i64) native {
-    sig0 = (i64, i64, i64) -> i64 native
+    sig0 = (i64 vmctx, i64, i64) -> i64 native
     fn0 = colocated u0:2 sig0
 
 block0(v0: i64, v1: i64, v2: i64):
@@ -285,7 +303,11 @@ function math {
 
     program.assert_native(
         r#"
-function u0:0(i64, f64, f64) -> f64 native {
+function u0:0(i64 vmctx, f64, f64) -> f64 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
     sig0 = (f64) -> f64 native
     sig1 = (f64) -> f64 native
     sig2 = (f64, f64) -> f64 native
@@ -304,6 +326,7 @@ function u0:0(i64, f64, f64) -> f64 native {
     fn6 = colocated u0:8 sig6
     fn7 = colocated u0:9 sig7
     fn8 = colocated u0:10 sig8
+    stack_limit = gv1
 
 block0(v0: i64, v1: f64, v2: f64):
     v3 = sqrt v1
@@ -373,7 +396,7 @@ block0(v0: i64, v1: f64, v2: f64):
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64, f64, f64) -> f64 native
+    sig0 = (i64 vmctx, f64, f64) -> f64 native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):
@@ -421,7 +444,13 @@ function bounds {
 
     program.assert_native(
         r#"
-function u0:0(i64, f64, f64, f64) -> f64 native {
+function u0:0(i64 vmctx, f64, f64, f64) -> f64 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    stack_limit = gv1
+
 block0(v0: i64, v1: f64, v2: f64, v3: f64):
     v4 = f64const 0x1.0000000000000p-1
     v5 = f64const 0x1.fffffffffffffp1022
@@ -456,7 +485,7 @@ block0(v0: i64, v1: f64, v2: f64, v3: f64):
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64, f64, f64, f64) -> f64 native
+    sig0 = (i64 vmctx, f64, f64, f64) -> f64 native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):

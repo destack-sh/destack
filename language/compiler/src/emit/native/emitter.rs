@@ -1,4 +1,5 @@
 use std::fmt;
+use std::mem::offset_of;
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -258,6 +259,27 @@ impl<'a> NativeEmitter<'a> {
         context.func.signature = types.signature(function)?;
         context.func.name = cir::UserFuncName::user(0, function_id.as_u32());
 
+        // check the activation stack limit in the prologue
+        let activation = context
+            .func
+            .create_global_value(cir::GlobalValueData::VMContext);
+        let stack_limit_offset = offset_of!(native::abi::Activation, stack_limit) as i32;
+        let flags = context
+            .func
+            .dfg
+            .mem_flags
+            .insert(cir::MemFlagsData::trusted())
+            .map_err(|_| Self::internal(self.module, "native stack limit flags overflow"))?;
+        let stack_limit = context
+            .func
+            .create_global_value(cir::GlobalValueData::Load {
+                base: activation,
+                offset: stack_limit_offset.into(),
+                global_type: isa.pointer_type(),
+                flags,
+            });
+        context.func.stack_limit = Some(stack_limit);
+
         // lower the body and collect its stack maps
         let stack_maps = FunctionEmitter::new(
             self.module,
@@ -268,6 +290,7 @@ impl<'a> NativeEmitter<'a> {
             &mut self.symbols,
             &self.functions,
             &mut self.imports,
+            id,
             function,
             index as u32,
             frame_base,

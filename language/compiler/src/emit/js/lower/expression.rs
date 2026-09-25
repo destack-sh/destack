@@ -267,7 +267,7 @@ impl ModuleLowerer<'_> {
                 kind,
                 export: _,
                 is_ambient: _,
-                place: _,
+                is_shared: _,
                 mutability,
                 declarators,
             } => {
@@ -453,7 +453,7 @@ impl ModuleLowerer<'_> {
                 kind: _,
                 export,
                 is_ambient: _,
-                place: _,
+                is_shared: _,
                 mutability,
                 declarators: dir_declarators,
             } => {

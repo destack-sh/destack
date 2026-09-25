@@ -60,45 +60,10 @@ impl<'a> TypeEmitter<'a> {
 
         self.optimized
             .tree
-            .get(ty)
-            .int_info_with_pointer_width(self.layout.pointer_bits())
+            .type_definition(ty)
+            .integer(self.layout.pointer_bits())
             .map(|(_, is_signed)| is_signed)
             .ok_or_else(|| self.unsupported("native operation requires an integer type"))
-    }
-
-    /// Return the byte stride addressed by one indexed MIR type.
-    pub(in crate::emit::native) fn element_stride(
-        &self,
-        ty: mir::TypeId,
-    ) -> Result<u32, EmitError> {
-        // resolve the indexed storage type
-        let ty = self.optimized.tree.storage_type(ty);
-        let stride = match self.optimized.tree.get(ty) {
-            mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
-                self.element_stride(*pointee)?
-            }
-            mir::Type::Slice { element, .. } => {
-                let stride = self
-                    .optimized
-                    .layouts
-                    .type_layout(*element)
-                    .map(mir::Layout::stride)
-                    .ok_or_else(|| self.unsupported("native indexed element has no layout"))?;
-
-                u32::try_from(stride)
-                    .map_err(|_| self.unsupported("native indexed element stride exceeds u32"))?
-            }
-            mir::Type::FixedArray { .. } => self
-                .optimized
-                .layouts
-                .type_layout(ty)
-                .and_then(mir::Layout::element)
-                .map(|element| element.stride)
-                .ok_or_else(|| self.unsupported("native indexed value has no element layout"))?,
-            _ => return Err(self.unsupported("native element address base is not indexed")),
-        };
-
-        Ok(stride)
     }
 
     /// Return the largest mathematical value of one integer representation.

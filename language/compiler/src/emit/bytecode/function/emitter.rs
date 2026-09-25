@@ -34,6 +34,8 @@ pub(crate) struct FunctionEmitter<'a> {
     pub(super) locals: FxIndexMap<mir::LocalId, bytecode::RegisterSpan>,
     /// Reusable exact-type scratch ranges.
     pub(super) scratches: Vec<(bytecode::ValueType, bytecode::RegisterSpan)>,
+    /// Scratch ranges reserved by the current operation.
+    pub(super) scratch_count: usize,
     /// Reusable contiguous outgoing call registers.
     pub(super) arguments: Vec<ArgumentRegisters>,
     /// Frame states in canonical operation order.
@@ -91,6 +93,12 @@ impl ArgumentRegisters {
 }
 
 impl<'a> FunctionEmitter<'a> {
+    /// Start one operation, releasing its scratch registers.
+    fn begin_operation(&mut self) {
+        self.scratch_count = 0;
+        self.builder.begin_operation();
+    }
+
     /// Create one function emitter and assign fixed register ranges.
     pub(crate) fn new(
         module: ModuleId,
@@ -141,6 +149,7 @@ impl<'a> FunctionEmitter<'a> {
             values,
             locals,
             scratches: Vec::new(),
+            scratch_count: 0,
             arguments: Vec::new(),
             frames: Vec::new(),
             blocks,
@@ -168,16 +177,17 @@ impl<'a> FunctionEmitter<'a> {
 
             for instruction_id in &block.instructions {
                 let instruction = self.optimized.tree.get(*instruction_id);
-                self.builder.begin_operation();
+                self.begin_operation();
                 self.emit_instruction(*instruction_id, instruction)?;
             }
 
-            self.builder.begin_operation();
+            self.begin_operation();
             self.emit_terminator(block_id, self.optimized.tree.get(block.terminator))?;
         }
 
         // emit deferred transfer and fallback blocks in label order
         for stub in std::mem::take(&mut self.stubs) {
+            self.begin_operation();
             match stub {
                 Stub::Transfer {
                     label,

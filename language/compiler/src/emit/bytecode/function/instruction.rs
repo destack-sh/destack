@@ -17,6 +17,13 @@ impl<'a> FunctionEmitter<'a> {
             mir::Instruction::Const { destination, value } => {
                 self.emit_constant(*destination, value)
             }
+            mir::Instruction::Copy { destination, value } => {
+                let value_type = self.register_type(*value)?;
+                let source = self.register(*value)?;
+                let destination = self.register(*destination)?;
+
+                self.emit_move(source, destination, value_type)
+            }
             mir::Instruction::Binary {
                 destination,
                 operator,
@@ -40,18 +47,9 @@ impl<'a> FunctionEmitter<'a> {
                 then_value,
                 else_value,
             } => self.emit_select(*destination, *condition, *then_value, *else_value),
-            mir::Instruction::LocalGet { destination, local } => {
-                self.emit_local_get(*destination, *local)
-            }
-            mir::Instruction::LocalAddr {
-                destination, local, ..
-            } => self.emit_local_address(*destination, *local),
-            mir::Instruction::LocalSet { local, value } => self.emit_local_set(*local, *value),
-            mir::Instruction::GlobalAddr {
-                destination,
-                global,
-                ..
-            } => self.emit_global_address(*destination, *global),
+            mir::Instruction::Address {
+                destination, place, ..
+            } => self.emit_address(*destination, place),
             mir::Instruction::FunctionAddr {
                 destination,
                 function,
@@ -101,11 +99,9 @@ impl<'a> FunctionEmitter<'a> {
                 ..
             } => self.emit_context_get(*destination, *context, *variable, *default, *node_type),
             mir::Instruction::Load {
-                destination,
-                pointer,
-                result_type,
-            } => self.emit_load(*destination, *pointer, *result_type),
-            mir::Instruction::Store { pointer, value } => self.emit_store(*pointer, *value),
+                destination, place, ..
+            } => self.emit_load(*destination, place, false),
+            mir::Instruction::Store { place, value } => self.emit_store(place, *value, false),
             mir::Instruction::Aggregate {
                 destination,
                 values,
@@ -114,6 +110,7 @@ impl<'a> FunctionEmitter<'a> {
                 destination,
                 aggregate,
                 field,
+                ..
             } => self.emit_field_get(*destination, *aggregate, *field),
             mir::Instruction::FieldSet {
                 destination,
@@ -121,16 +118,11 @@ impl<'a> FunctionEmitter<'a> {
                 field,
                 value,
             } => self.emit_field_set(*destination, *aggregate, *field, *value),
-            mir::Instruction::FieldAddr {
-                destination,
-                aggregate,
-                field,
-                ..
-            } => self.emit_field_address(*destination, *aggregate, *field),
             mir::Instruction::ElementGet {
                 destination,
                 aggregate,
                 index,
+                ..
             } => self.emit_element_get(*destination, *aggregate, *index),
             mir::Instruction::ElementSet {
                 destination,
@@ -138,12 +130,6 @@ impl<'a> FunctionEmitter<'a> {
                 index,
                 value,
             } => self.emit_element_set(*destination, *aggregate, *index, *value),
-            mir::Instruction::ElementAddr {
-                destination,
-                base,
-                index,
-                ..
-            } => self.emit_element_address(*destination, *base, *index),
             mir::Instruction::VariantNew {
                 destination,
                 case,
@@ -154,28 +140,15 @@ impl<'a> FunctionEmitter<'a> {
                 destination,
                 variant,
             } => self.emit_variant_tag(*destination, *variant),
-            mir::Instruction::VariantTagLoad {
-                destination,
-                variant,
-            } => self.emit_variant_tag_load(*destination, *variant),
+            mir::Instruction::VariantTagLoad { destination, place } => {
+                self.emit_variant_tag_load(*destination, place)
+            }
             mir::Instruction::VariantPayload {
                 destination,
                 variant,
                 case,
+                ..
             } => self.emit_variant_payload(*destination, *variant, *case),
-            mir::Instruction::VariantPayloadAddr {
-                destination,
-                variant,
-                case,
-                ..
-            } => self.emit_variant_payload_address(*destination, *variant, *case),
-            mir::Instruction::SliceView {
-                destination,
-                source,
-                start,
-                length,
-                ..
-            } => self.emit_slice_view(*destination, *source, *start, *length),
             mir::Instruction::SliceLength { destination, slice } => {
                 self.emit_slice_length(*destination, *slice)
             }
@@ -286,7 +259,7 @@ impl<'a> FunctionEmitter<'a> {
                 bytecode::Initialization::Uninit,
                 Some(*length),
             ),
-            mir::Instruction::Release { value } => self.emit_free(*value),
+            mir::Instruction::Release { value } => self.emit_release(*value),
             mir::Instruction::BarrierWrite {
                 object,
                 offset,
@@ -294,25 +267,25 @@ impl<'a> FunctionEmitter<'a> {
             } => self.emit_barrier(*object, *offset, *byte_len),
             mir::Instruction::AtomicLoad {
                 destination,
-                pointer,
+                place,
                 access,
                 ..
-            } => self.emit_atomic_load(*destination, *pointer, *access),
+            } => self.emit_atomic_load(*destination, place, *access),
             mir::Instruction::AtomicStore {
-                pointer,
+                place,
                 value,
                 access,
-            } => self.emit_atomic_store(*pointer, *value, *access),
+            } => self.emit_atomic_store(place, *value, *access),
             mir::Instruction::AtomicCompareExchange {
                 destination,
-                pointer,
+                place,
                 expected,
                 new_value,
                 is_weak,
                 access,
             } => self.emit_atomic_compare_exchange(
                 *destination,
-                *pointer,
+                place,
                 *expected,
                 *new_value,
                 *is_weak,
@@ -321,10 +294,10 @@ impl<'a> FunctionEmitter<'a> {
             mir::Instruction::AtomicRmw {
                 destination,
                 operator,
-                pointer,
+                place,
                 value,
                 access,
-            } => self.emit_atomic_rmw(*destination, *operator, *pointer, *value, *access),
+            } => self.emit_atomic_rmw(*destination, *operator, place, *value, *access),
             mir::Instruction::AtomicFence { access } => self.emit_atomic_fence(*access),
             mir::Instruction::Assume { .. } => Ok(()),
             mir::Instruction::ProfileIncrement { counter } => self.emit_profile_increment(*counter),

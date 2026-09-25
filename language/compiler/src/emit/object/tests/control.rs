@@ -38,7 +38,13 @@ b2:
 
     program.assert_native(
         r#"
-function u0:0(i64, i8, i32, i32) -> i32 native {
+function u0:0(i64 vmctx, i8, i32, i32) -> i32 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    stack_limit = gv1
+
 block0(v1: i64, v2: i8, v3: i32, v4: i32):
     brif v2, block1(v3), block1(v4)
 
@@ -47,7 +53,7 @@ block1(v0: i32):
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64, i8, i32, i32) -> i32 native
+    sig0 = (i64 vmctx, i8, i32, i32) -> i32 native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):
@@ -108,7 +114,13 @@ b4:
 
     program.assert_native(
         r#"
-function u0:0(i64, i32, i32, i32) -> i32 native {
+function u0:0(i64 vmctx, i32, i32, i32) -> i32 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    stack_limit = gv1
+
 block0(v2: i64, v3: i32, v4: i32, v5: i32):
     v6 = iconst.i32 17
     v7 = icmp eq v3, v6  ; v6 = 17
@@ -134,7 +146,7 @@ block2(v1: i32):
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64, i32, i32, i32) -> i32 native
+    sig0 = (i64 vmctx, i32, i32, i32) -> i32 native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):
@@ -191,7 +203,13 @@ b2:
 
     program.assert_native(
         r#"
-function u0:0(i64, i32, i32) -> i32 native {
+function u0:0(i64 vmctx, i32, i32) -> i32 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    stack_limit = gv1
+
 block0(v0: i64, v1: i32, v2: i32):
     v3 = icmp slt v1, v2
     v4 = iconst.i32 0
@@ -213,7 +231,7 @@ block3:
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64, i32, i32) -> i32 native
+    sig0 = (i64 vmctx, i32, i32) -> i32 native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):
@@ -249,13 +267,19 @@ function fail {
 
     let object = program.assert_native(
         r#"
-function u0:0(i64) native {
+function u0:0(i64 vmctx) native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    stack_limit = gv1
+
 block0(v0: i64):
     trap user4
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64) native
+    sig0 = (i64 vmctx) native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):
@@ -346,7 +370,13 @@ b8:
 
     program.assert_native(
         r#"
-function u0:0(i64, i32, i8, i32, i32) -> i32 native {
+function u0:0(i64 vmctx, i32, i8, i32, i32) -> i32 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    stack_limit = gv1
+
 block0(v4: i64, v5: i32, v6: i8, v7: i32, v8: i32):
     brif v6, block1(v7), block1(v8)
 
@@ -378,7 +408,7 @@ block4(v3: i32):
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64, i32, i8, i32, i32) -> i32 native
+    sig0 = (i64 vmctx, i32, i8, i32, i32) -> i32 native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):
@@ -448,7 +478,13 @@ b3:
 
     program.assert_native(
         r#"
-function u0:0(i64, i32) -> i32 native {
+function u0:0(i64 vmctx, i32) -> i32 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    stack_limit = gv1
+
 block0(v0: i64, v1: i32):
     br_table v1, block4, [block1, block2, block3]
 
@@ -470,7 +506,7 @@ block4:
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64, i32) -> i32 native
+    sig0 = (i64 vmctx, i32) -> i32 native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):
@@ -582,7 +618,13 @@ b9:
 
     program.assert_native(
         r#"
-function u0:0(i64, i32, i32, i32, i32, i64, i64, i64) -> i32 native {
+function u0:0(i64 vmctx, i32, i32, i32, i32, i64, i64, i64) -> i32 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    stack_limit = gv1
+
 block0(v0: i64, v1: i32, v2: i32, v3: i32, v4: i32, v5: i64, v6: i64, v7: i64):
     v8 = icmp slt v1, v2
     v9 = iconst.i32 0
@@ -646,7 +688,7 @@ block10:
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64, i32, i32, i32, i32, i64, i64, i64) -> i32 native
+    sig0 = (i64 vmctx, i32, i32, i32, i32, i64, i64, i64) -> i32 native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):
@@ -713,20 +755,25 @@ b2:
 
     program.assert_native(
         r#"
-function u0:0(i64, i32) -> i32 native {
-    gv0 = symbol colocated userextname0
+function u0:0(i64 vmctx, i32) -> i32 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    gv2 = symbol colocated userextname0
     sig0 = (i64, i32, i32) -> i32 native
+    stack_limit = gv1
 
 block0(v0: i64, v1: i32):
-    v2 = symbol_value.i64 gv0
+    v2 = symbol_value.i64 gv2
     v3 = load.i32 notrap aligned v2
     v4 = icmp eq v1, v3
     brif v4, block1, block3
 
 block1:
-    v5 = symbol_value.i64 gv0
+    v5 = symbol_value.i64 gv2
     v6 = load.i32 notrap aligned v5
-    v7 = load.i64 notrap aligned v0+8
+    v7 = load.i64 notrap aligned region0 v0+8
     v8 = load.i64 notrap aligned v7+96
     v9 = call_indirect sig0, v8(v0, v1, v6)
     v10 = iconst.i32 0
@@ -743,7 +790,7 @@ block3:
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64, i32) -> i32 native
+    sig0 = (i64 vmctx, i32) -> i32 native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):
@@ -831,7 +878,13 @@ b6:
 
     program.assert_native(
         r#"
-function u0:0(i64, i32, i32, i32, i32) -> i32 native {
+function u0:0(i64 vmctx, i32, i32, i32, i32) -> i32 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    stack_limit = gv1
+
 block0(v0: i64, v1: i32, v2: i32, v3: i32, v4: i32):
     v5, v6 = sadd_overflow v1, v2
     v7 = iconst.i8 0
@@ -876,7 +929,7 @@ block7:
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64, i32, i32, i32, i32) -> i32 native
+    sig0 = (i64 vmctx, i32, i32, i32, i32) -> i32 native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):

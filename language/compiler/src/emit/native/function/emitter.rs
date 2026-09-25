@@ -14,6 +14,7 @@ use crate::{EmitError, ObjectEmitter};
 
 use super::super::object::SymbolTable;
 use super::super::r#type::{TypeEmitter, ValueType};
+use super::memory::MemoryRegion;
 use super::{Local, StackMap, Value};
 
 /// Emit one MIR function into Cranelift IR.
@@ -38,6 +39,8 @@ pub(crate) struct FunctionEmitter<'a> {
     pub(super) platform_functions: FxIndexMap<native::Import, cir::FuncRef>,
     /// Function-local references to linked Program indices.
     pub(super) indices: FxIndexMap<native::Index, cir::GlobalValue>,
+    /// MIR function identity.
+    pub(super) function_id: mir::FunctionId,
     /// MIR function declaration.
     pub(super) function: &'a mir::Function,
     /// Object-local function identity.
@@ -62,6 +65,8 @@ pub(crate) struct FunctionEmitter<'a> {
     pub(super) stack_maps: Vec<StackMap>,
     /// Next function-local stack-slot identity.
     pub(super) next_key: u32,
+    /// The trusted access flags of each memory region, declared when the body emission starts.
+    pub(super) memory_flags: [cir::MemFlagsData; MemoryRegion::ALL.len()],
 }
 
 impl<'a> FunctionEmitter<'a> {
@@ -75,6 +80,7 @@ impl<'a> FunctionEmitter<'a> {
         symbols: &'a mut SymbolTable,
         functions: &'a FxIndexMap<mir::FunctionId, FuncId>,
         imports: &'a mut FxIndexMap<FuncId, native::Import>,
+        function_id: mir::FunctionId,
         function: &'a mir::Function,
         function_index: u32,
         frame_base: u32,
@@ -96,6 +102,7 @@ impl<'a> FunctionEmitter<'a> {
             imports,
             platform_functions: FxIndexMap::default(),
             indices: FxIndexMap::default(),
+            function_id,
             function,
             function_index,
             values,
@@ -108,11 +115,14 @@ impl<'a> FunctionEmitter<'a> {
             frame_base,
             stack_maps: Vec::new(),
             next_key: 0,
+            memory_flags: [cir::MemFlagsData::trusted(); MemoryRegion::ALL.len()],
         })
     }
 
     /// Emit one typed native function body.
     pub(crate) fn emit(mut self, target: &mut cir::Function) -> Result<Vec<StackMap>, EmitError> {
+        self.memory_flags = MemoryRegion::ALL.map(|region| region.declare(target));
+
         let mut context = FunctionBuilderContext::new();
         let mut builder = cranelift_frontend::FunctionBuilder::new(target, &mut context);
         self.create_blocks(&mut builder)?;

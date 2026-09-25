@@ -434,18 +434,30 @@ impl<'a> FunctionEmitter<'a> {
         self.encode(instruction, &[destination])
     }
 
-    /// Return one reusable exact-type scratch range.
+    /// Reserve one scratch range until the current operation ends.
     pub(in crate::emit::bytecode::function) fn scratch(
         &mut self,
         ty: bytecode::ValueType,
     ) -> Result<bytecode::RegisterSpan, EmitError> {
-        if let Some((_, registers)) = self.scratches.iter().find(|(other, _)| *other == ty) {
-            return Ok(*registers);
-        }
+        // select an unused range of the requested type or allocate one
+        let available = self.scratches[self.scratch_count..]
+            .iter()
+            .position(|(other, _)| *other == ty);
+        let index = match available {
+            Some(index) => self.scratch_count + index,
+            None => {
+                let registers = self.append_registers(ty)?;
+                let index = self.scratches.len();
+                self.scratches.push((ty, registers));
 
-        // append one reusable scratch range for this exact value type
-        let registers = self.append_registers(ty)?;
-        self.scratches.push((ty, registers));
+                index
+            }
+        };
+
+        // keep reserved ranges before the remaining reusable ranges
+        self.scratches.swap(self.scratch_count, index);
+        let registers = self.scratches[self.scratch_count].1;
+        self.scratch_count += 1;
 
         Ok(registers)
     }

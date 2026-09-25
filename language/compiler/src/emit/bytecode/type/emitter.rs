@@ -35,7 +35,7 @@ impl<'a> TypeEmitter<'a> {
         let index = self
             .object
             .type_index(ty)
-            .ok_or_else(|| self.missing_type())?;
+            .ok_or_else(|| self.missing("type"))?;
 
         Ok(bytecode::TypeId(index as u32))
     }
@@ -72,11 +72,6 @@ impl<'a> TypeEmitter<'a> {
         self.object
             .dynamic_index(concrete, constraint)
             .ok_or_else(|| self.missing("dynamic table"))
-    }
-
-    /// Build one missing type diagnostic.
-    pub(super) fn missing_type(&self) -> EmitError {
-        ObjectEmitter::internal(self.module, "type is absent from optimized MIR")
     }
 
     /// Build one missing common object item diagnostic.

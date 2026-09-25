@@ -32,7 +32,6 @@ impl FunctionEmitter<'_> {
     }
 
     /// Emit one immutable context extension.
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn emit_context_bind(
         &mut self,
         instruction_id: mir::LocalNodeId<mir::Instruction>,

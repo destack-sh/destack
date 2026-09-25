@@ -24,6 +24,14 @@ impl<'a> FunctionEmitter<'a> {
                 let value = self.emit_constant(value, builder)?;
                 self.set(*destination, Value::Direct(value))?;
             }
+            mir::Instruction::Copy { destination, value } => {
+                let value_type = self.types.value(self.value_type(*value)?)?;
+                let value = match self.value(*value)? {
+                    Value::Address(address) => self.load(address, value_type, builder)?,
+                    value => value,
+                };
+                self.set(*destination, value)?;
+            }
             mir::Instruction::Binary {
                 destination,
                 operator,
@@ -31,7 +39,7 @@ impl<'a> FunctionEmitter<'a> {
                 right,
             } => {
                 let ty = self.optimized.tree.storage_type(self.value_type(*left)?);
-                let ty = match self.optimized.tree.get(ty) {
+                let ty = match self.optimized.tree.type_definition(ty) {
                     mir::Type::Vector { element, .. } => *element,
                     _ => ty,
                 };
@@ -50,7 +58,11 @@ impl<'a> FunctionEmitter<'a> {
                     .optimized
                     .tree
                     .storage_type(self.value_type(*argument)?);
-                let is_float = self.optimized.tree.get(ty).is_float(&self.optimized.tree);
+                let is_float = self
+                    .optimized
+                    .tree
+                    .type_definition(ty)
+                    .is_float(&self.optimized.tree);
                 let argument = self.scalar(*argument)?;
                 let value = match (*operator, is_float) {
                     (mir::UnaryOperator::Negate, false) => builder.ins().ineg(argument),
@@ -97,28 +109,6 @@ impl<'a> FunctionEmitter<'a> {
                 let value = builder.ins().select(condition, then_value, else_value);
                 self.set(*destination, Value::Direct(value))?;
             }
-            mir::Instruction::LocalGet { destination, local } => {
-                let ty = self.value_type(*destination)?;
-                let value_type = self.types.value(ty)?;
-                let value = self.load(self.locals[local].address, value_type, builder)?;
-                self.set(*destination, value)?;
-            }
-            mir::Instruction::LocalSet { local, value } => {
-                let ty = self.optimized.tree.get(*local).ty;
-                let value_type = self.types.value(ty)?;
-                let value = self.value(*value)?;
-                self.store(self.locals[local].address, value, value_type, builder)?;
-            }
-            mir::Instruction::LocalAddr {
-                destination, local, ..
-            } => {
-                self.set(*destination, Value::Direct(self.locals[local].address))?;
-            }
-            mir::Instruction::GlobalAddr {
-                destination,
-                global,
-                ..
-            } => self.emit_global_address(*destination, *global, builder)?,
             mir::Instruction::FunctionAddr {
                 destination,
                 function,
@@ -178,12 +168,15 @@ impl<'a> FunctionEmitter<'a> {
                 builder,
             )?,
             mir::Instruction::Load {
+                destination, place, ..
+            } => self.emit_load(*destination, place, false, builder)?,
+            mir::Instruction::Address {
                 destination,
-                pointer,
+                place,
                 result_type,
-            } => self.emit_load(*destination, *pointer, *result_type, builder)?,
-            mir::Instruction::Store { pointer, value } => {
-                self.emit_store(*pointer, *value, builder)?
+            } => self.emit_address(*destination, place, *result_type, builder)?,
+            mir::Instruction::Store { place, value } => {
+                self.emit_store(place, *value, false, builder)?
             }
             mir::Instruction::Aggregate {
                 destination,
@@ -193,11 +186,13 @@ impl<'a> FunctionEmitter<'a> {
                 destination,
                 aggregate,
                 field,
+                ..
             }
             | mir::Instruction::ElementGet {
                 destination,
                 aggregate,
                 index: field,
+                ..
             } => self.emit_projection(*destination, *aggregate, *field, builder)?,
             mir::Instruction::FieldSet {
                 destination,
@@ -211,18 +206,6 @@ impl<'a> FunctionEmitter<'a> {
                 index,
                 value,
             } => self.emit_element_set(*destination, *aggregate, *index, *value, builder)?,
-            mir::Instruction::FieldAddr {
-                destination,
-                aggregate,
-                field,
-                ..
-            } => self.emit_field_address(*destination, *aggregate, *field, builder)?,
-            mir::Instruction::ElementAddr {
-                destination,
-                base,
-                index,
-                ..
-            } => self.emit_element_address(*destination, *base, *index, builder)?,
             mir::Instruction::VariantNew {
                 destination,
                 case,
@@ -233,36 +216,15 @@ impl<'a> FunctionEmitter<'a> {
                 destination,
                 variant,
             } => self.emit_variant_tag(*destination, *variant, builder)?,
-            mir::Instruction::VariantTagLoad {
-                destination,
-                variant,
-            } => self.emit_variant_tag_load(*destination, *variant, builder)?,
+            mir::Instruction::VariantTagLoad { destination, place } => {
+                self.emit_variant_tag_load(*destination, place, builder)?
+            }
             mir::Instruction::VariantPayload {
                 destination,
                 variant,
                 case,
+                ..
             } => self.emit_variant_payload(*destination, *variant, *case, builder)?,
-            mir::Instruction::VariantPayloadAddr {
-                destination,
-                variant,
-                case,
-                ..
-            } => self.emit_variant_payload_address(*destination, *variant, *case, builder)?,
-            mir::Instruction::SliceView {
-                destination,
-                source,
-                start,
-                length,
-                result_type,
-                ..
-            } => self.emit_slice_view(
-                *destination,
-                *source,
-                *start,
-                *length,
-                *result_type,
-                builder,
-            )?,
             mir::Instruction::SliceLength { destination, slice } => {
                 self.emit_slice_length(*destination, *slice)?
             }
@@ -292,15 +254,17 @@ impl<'a> FunctionEmitter<'a> {
                     "dynamic property lookup requires executable string representation",
                 ));
             }
-            mir::Instruction::Drop { value } => self.emit_drop(instruction_id, *value, builder)?,
+            mir::Instruction::Drop { value } => self.emit_drop(*value, builder)?,
             mir::Instruction::NewZeroed {
                 destination,
                 result_type,
+                space,
                 ..
             } => self.emit_new(
                 instruction_id,
                 *destination,
                 *result_type,
+                *space,
                 native::abi::AllocationInitialization::Zeroed,
                 None,
                 builder,
@@ -308,11 +272,13 @@ impl<'a> FunctionEmitter<'a> {
             mir::Instruction::NewUninit {
                 destination,
                 result_type,
+                space,
                 ..
             } => self.emit_new(
                 instruction_id,
                 *destination,
                 *result_type,
+                *space,
                 native::abi::AllocationInitialization::Uninit,
                 None,
                 builder,
@@ -327,11 +293,13 @@ impl<'a> FunctionEmitter<'a> {
                 destination,
                 length,
                 result_type,
+                space,
                 ..
             } => self.emit_new(
                 instruction_id,
                 *destination,
                 *result_type,
+                *space,
                 native::abi::AllocationInitialization::Zeroed,
                 Some(*length),
                 builder,
@@ -340,57 +308,55 @@ impl<'a> FunctionEmitter<'a> {
                 destination,
                 length,
                 result_type,
+                space,
                 ..
             } => self.emit_new(
                 instruction_id,
                 *destination,
                 *result_type,
+                *space,
                 native::abi::AllocationInitialization::Uninit,
                 Some(*length),
                 builder,
             )?,
             mir::Instruction::Release { value } => {
-                let reference = self.reference(*value, builder)?;
-                self.emit_runtime(native::abi::Operation::Release, &[reference], builder)?;
+                self.emit_release(instruction_id, *value, builder)?
             }
             mir::Instruction::BarrierWrite {
                 object,
                 offset,
                 byte_len,
             } => {
-                let ty = self.value_type(*object)?;
-                let space = self.heap_space(ty)?;
-                let space = builder.ins().iconst(cir::types::I32, space as i64);
-                let object = self.reference(*object, builder)?;
+                let object = self.materialize_pointer(*object, builder)?;
                 let offset = self.scalar(*offset)?;
                 let byte_len = self.scalar(*byte_len)?;
                 self.emit_runtime(
                     native::abi::Operation::WriteBarrier,
-                    &[space, object, offset, byte_len],
+                    &[object, offset, byte_len],
                     builder,
                 )?;
             }
             mir::Instruction::AtomicLoad {
                 destination,
-                pointer,
+                place,
                 result_type,
                 access,
-            } => self.emit_atomic_load(*destination, *pointer, *result_type, *access, builder)?,
+            } => self.emit_atomic_load(*destination, place, *result_type, *access, builder)?,
             mir::Instruction::AtomicStore {
-                pointer,
+                place,
                 value,
                 access,
-            } => self.emit_atomic_store(*pointer, *value, *access, builder)?,
+            } => self.emit_atomic_store(place, *value, *access, builder)?,
             mir::Instruction::AtomicCompareExchange {
                 destination,
-                pointer,
+                place,
                 expected,
                 new_value,
                 is_weak,
                 access,
             } => self.emit_atomic_compare_exchange(
                 *destination,
-                *pointer,
+                place,
                 *expected,
                 *new_value,
                 *is_weak,
@@ -400,13 +366,11 @@ impl<'a> FunctionEmitter<'a> {
             mir::Instruction::AtomicRmw {
                 destination,
                 operator,
-                pointer,
+                place,
                 value,
                 access,
-            } => {
-                self.emit_atomic_rmw(*destination, *operator, *pointer, *value, *access, builder)?
-            }
-            mir::Instruction::AtomicFence { access } => self.emit_atomic_fence(*access, builder),
+            } => self.emit_atomic_rmw(*destination, *operator, place, *value, *access, builder)?,
+            mir::Instruction::AtomicFence { access } => self.emit_atomic_fence(*access, builder)?,
             mir::Instruction::Assume { .. } => {}
             mir::Instruction::ProfileIncrement { counter } => {
                 self.emit_profile_increment(*counter, builder)?

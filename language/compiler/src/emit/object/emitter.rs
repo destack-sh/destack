@@ -17,6 +17,9 @@ use super::frame::FrameEmitter;
 use super::point::PointMap;
 use super::site::SiteEmitter;
 
+/// The attribute naming the language item a declaration answers.
+const LANGUAGE_ITEM_ATTRIBUTE: &str = "languageItem";
+
 /// Relocatable object emitter for optimized MIR.
 #[derive(Debug)]
 pub struct ObjectEmitter {
@@ -49,13 +52,13 @@ impl ObjectEmitter {
         // assign stable object type identities
         let mut types = Vec::new();
         let mut type_ids = Vec::new();
-        for (id, definition) in optimized.tree.iter_nodes::<mir::Type>() {
+        let tag = mir::AttributeIdentifier::Identifier(StringId::for_text(LANGUAGE_ITEM_ATTRIBUTE));
+        for (id, definition) in optimized.tree.types() {
             type_ids.push(id);
 
             // read the name and language item off the declaration
             let declaration = optimized.tree.type_declaration(id);
-            let name = declaration.map(|declaration| optimized.tree.get(declaration).name);
-            let tag = mir::AttributeIdentifier::Identifier(StringId::for_text("languageItem"));
+            let name = declaration.and_then(|declaration| optimized.tree.get(declaration).name);
             let language_item = declaration.and_then(|declaration| {
                 optimized
                     .tree
@@ -283,6 +286,18 @@ impl ObjectEmitter {
     /// Build the object with its selected execution forms.
     pub fn build(self) -> Object {
         self.object.frames(self.frames).build()
+    }
+
+    /// Return whether releasing one unique allocation destroys values, failing for other types.
+    pub(in crate::emit) fn release_destroys(
+        module: ModuleId,
+        optimized: &MirOptimized,
+        ty: mir::TypeId,
+    ) -> Result<bool, EmitError> {
+        optimized
+            .drops
+            .release_destroys(ty, &optimized.tree)
+            .ok_or_else(|| Self::internal(module, "release of a value outside a unique reference"))
     }
 
     /// Build one internal object emission diagnostic.

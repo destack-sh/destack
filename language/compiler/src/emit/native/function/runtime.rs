@@ -9,6 +9,17 @@ use crate::EmitError;
 
 use super::{Call, FunctionEmitter};
 
+/// One scalar parameter or result of the native runtime ABI.
+#[derive(Debug, Clone, Copy)]
+enum RuntimeParameter {
+    /// One target pointer-width integer or pointer.
+    Pointer,
+    /// One 32-bit integer.
+    Uint32,
+    /// One 64-bit integer.
+    Uint64,
+}
+
 impl<'a> FunctionEmitter<'a> {
     /// Return the stack slot retaining one active platform unwind object.
     pub(super) fn unwind_slot(
@@ -43,17 +54,14 @@ impl<'a> FunctionEmitter<'a> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         // read the pending request out of this activation
-        let activation = self.activation()?;
-        let flags = cir::MemFlagsData::trusted();
-        let poll_request = builder.ins().load(
-            self.types.pointer(),
-            flags,
-            activation,
-            std::mem::offset_of!(native::abi::Activation, poll_request) as i32,
-        );
-        let poll_request = builder
-            .ins()
-            .atomic_load(cir::types::I32, flags, poll_request);
+        let poll_request = self.activation_pointer(
+            std::mem::offset_of!(native::abi::Activation, poll_request),
+            builder,
+        )?;
+        let poll_request =
+            builder
+                .ins()
+                .atomic_load(cir::types::I32, cir::MemFlagsData::trusted(), poll_request);
 
         // branch to the cold block only when a request is set
         let slow = builder.create_block();
@@ -78,22 +86,25 @@ impl<'a> FunctionEmitter<'a> {
         Ok(())
     }
 
-    /// Return the heap space addressed by one reference-like type.
-    pub(super) fn heap_space(&self, ty: mir::TypeId) -> Result<native::abi::Space, EmitError> {
+    /// Return the heap space one managed reference type addresses.
+    pub(super) fn heap_space(&self, ty: mir::TypeId) -> Result<mir::Space, EmitError> {
         // resolve the allocation storage type
         let ty = self.optimized.tree.storage_type(ty);
-        let definition = self.optimized.tree.get(ty);
+        let definition = self.optimized.tree.type_definition(ty);
 
-        let space = definition
+        definition
             .reference_storage()
             .and_then(mir::Storage::heap_space)
-            .ok_or_else(|| self.invalid("native reference does not address heap storage"))?;
+            .ok_or_else(|| self.invalid("native reference does not address heap storage"))
+    }
 
+    /// Return the native projection of one heap space.
+    pub(super) fn native_space(&self, space: mir::Space) -> Result<native::abi::Space, EmitError> {
         Ok(match space {
             mir::Space::Local => native::abi::Space::Local,
             mir::Space::Shared => native::abi::Space::Shared,
-            mir::Space::Constant | mir::Space::Parameter(_) => {
-                return Err(self.invalid("native allocation targets a runtime space"));
+            mir::Space::Constant => {
+                return Err(self.invalid("native allocation targets the constant image"));
             }
         })
     }
@@ -173,48 +184,131 @@ impl<'a> FunctionEmitter<'a> {
         arguments: &[cir::Value],
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<Call, EmitError> {
-        // take the activation pointer ahead of every declared argument
+        // take the activation pointer ahead of the declared parameters
         let mut signature = cir::Signature::new(self.types.call_conv());
         signature
             .params
             .push(cir::AbiParam::new(self.types.pointer()));
-        signature.params.extend(arguments.iter().map(|value| {
-            let ty = builder.func.dfg.value_type(*value);
+        for parameter in Self::runtime_parameters(operation) {
+            let ty = self.runtime_type(*parameter);
+            signature.params.push(cir::AbiParam::new(ty));
+        }
 
-            cir::AbiParam::new(ty)
-        }));
+        // require one argument of the declared type for each parameter
+        let is_matching = signature.params.len() == arguments.len() + 1
+            && signature.params[1..]
+                .iter()
+                .zip(arguments)
+                .all(|(parameter, argument)| {
+                    parameter.value_type == builder.func.dfg.value_type(*argument)
+                });
+        if !is_matching {
+            return Err(self.invalid("native runtime arguments disagree with the operation"));
+        }
 
         // return the operation's result type where it has one
         let result = match operation.result() {
             native::abi::OperationResult::Void | native::abi::OperationResult::Never => None,
-            native::abi::OperationResult::Pointer => Some(self.types.pointer()),
-            native::abi::OperationResult::Uint32 => Some(cir::types::I32),
-            native::abi::OperationResult::Uint64 => Some(cir::types::I64),
+            native::abi::OperationResult::Pointer => Some(RuntimeParameter::Pointer),
+            native::abi::OperationResult::Uint32 => Some(RuntimeParameter::Uint32),
+            native::abi::OperationResult::Uint64 => Some(RuntimeParameter::Uint64),
         };
         if let Some(result) = result {
-            signature.returns.push(cir::AbiParam::new(result));
+            let ty = self.runtime_type(result);
+            signature.returns.push(cir::AbiParam::new(ty));
         }
+
         // pass the activation through as the first argument
         let signature = builder.import_signature(signature);
         let mut parameters = vec![self.activation()?];
         parameters.extend_from_slice(arguments);
 
         // load the operation from this activation's runtime table
-        let flags = cir::MemFlagsData::trusted();
-        let activation = self.activation()?;
-        let runtime = builder.ins().load(
-            self.types.pointer(),
-            flags,
-            activation,
-            std::mem::offset_of!(native::abi::Activation, runtime) as i32,
-        );
+        let runtime = self.activation_pointer(
+            std::mem::offset_of!(native::abi::Activation, runtime),
+            builder,
+        )?;
         let function = builder.ins().load(
             self.types.pointer(),
-            flags,
+            cir::MemFlagsData::trusted(),
             runtime,
             operation.offset() as i32,
         );
 
         Ok(Call::pointer(function, signature, parameters))
+    }
+
+    /// Return the parameters one runtime operation declares after the activation.
+    const fn runtime_parameters(operation: native::abi::Operation) -> &'static [RuntimeParameter] {
+        match operation {
+            native::abi::Operation::Allocate => &[
+                RuntimeParameter::Uint32,
+                RuntimeParameter::Uint32,
+                RuntimeParameter::Uint32,
+            ],
+            native::abi::Operation::AllocateRepeated => &[
+                RuntimeParameter::Uint32,
+                RuntimeParameter::Uint32,
+                RuntimeParameter::Pointer,
+                RuntimeParameter::Uint32,
+            ],
+            native::abi::Operation::Release => &[
+                RuntimeParameter::Pointer,
+                RuntimeParameter::Uint32,
+                RuntimeParameter::Pointer,
+            ],
+            native::abi::Operation::Free => &[RuntimeParameter::Pointer],
+            native::abi::Operation::WriteBarrier => &[
+                RuntimeParameter::Pointer,
+                RuntimeParameter::Pointer,
+                RuntimeParameter::Pointer,
+            ],
+            native::abi::Operation::Poll => &[RuntimeParameter::Uint32, RuntimeParameter::Pointer],
+            native::abi::Operation::Stop => &[
+                RuntimeParameter::Uint32,
+                RuntimeParameter::Uint32,
+                RuntimeParameter::Pointer,
+            ],
+            native::abi::Operation::Deopt => &[RuntimeParameter::Uint32, RuntimeParameter::Pointer],
+            native::abi::Operation::Panic => &[],
+            native::abi::Operation::PanicValue => {
+                &[RuntimeParameter::Uint32, RuntimeParameter::Pointer]
+            }
+            native::abi::Operation::UnwindClassify => &[],
+            native::abi::Operation::UnwindResume => &[RuntimeParameter::Pointer],
+            native::abi::Operation::IsSubtype => {
+                &[RuntimeParameter::Uint32, RuntimeParameter::Uint32]
+            }
+            native::abi::Operation::ProfileIncrement => &[RuntimeParameter::Uint32],
+            native::abi::Operation::ProfileSample => {
+                &[RuntimeParameter::Uint32, RuntimeParameter::Uint64]
+            }
+            native::abi::Operation::BindingCall => &[
+                RuntimeParameter::Uint32,
+                RuntimeParameter::Pointer,
+                RuntimeParameter::Pointer,
+                RuntimeParameter::Pointer,
+                RuntimeParameter::Pointer,
+            ],
+            native::abi::Operation::VolatileRead => &[
+                RuntimeParameter::Pointer,
+                RuntimeParameter::Pointer,
+                RuntimeParameter::Pointer,
+            ],
+            native::abi::Operation::VolatileWrite => &[
+                RuntimeParameter::Pointer,
+                RuntimeParameter::Pointer,
+                RuntimeParameter::Pointer,
+            ],
+        }
+    }
+
+    /// Return the Cranelift type of one runtime parameter.
+    fn runtime_type(&self, parameter: RuntimeParameter) -> cir::Type {
+        match parameter {
+            RuntimeParameter::Pointer => self.types.pointer(),
+            RuntimeParameter::Uint32 => cir::types::I32,
+            RuntimeParameter::Uint64 => cir::types::I64,
+        }
     }
 }

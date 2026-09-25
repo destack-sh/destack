@@ -15,6 +15,7 @@ mod instruction;
 mod intrinsic;
 mod invoke;
 mod memory;
+mod place;
 mod profile;
 mod runtime;
 mod scalar;

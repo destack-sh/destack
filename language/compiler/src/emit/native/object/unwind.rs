@@ -170,23 +170,15 @@ impl UnwindEmitter {
         compiled: &CompiledCode,
         endian: RunTimeEndian,
     ) -> Result<Vec<u8>, EmitError> {
-        let call_sites = compiled.buffer.call_sites().collect::<Vec<_>>();
-        let byte_len = call_sites
-            .len()
-            .checked_mul(13)
-            .ok_or_else(|| Self::invalid(module, "native call-site table exceeds usize"))?;
-        let mut bytes = vec![0xff, 0xff, DW_EH_PE_udata4.0];
-        Self::write_uleb(byte_len as u64, &mut bytes);
+        let code_byte_len = u32::try_from(compiled.buffer.data().len())
+            .map_err(|_| Self::invalid(module, "native code exceeds the call-site table range"))?;
+        let mut entries = Vec::new();
         let mut start = 0;
 
-        // partition machine code at each call return address
-        for call_site in call_sites {
-            let length = call_site
-                .ret_addr
-                .checked_sub(start)
-                .ok_or_else(|| Self::invalid(module, "native call sites are not ordered"))?;
+        // cover each landing call by its last byte and continue unwinding everywhere else
+        for call_site in compiled.buffer.call_sites() {
             let landing = match call_site.exception_handlers {
-                [] => 0,
+                [] => continue,
                 [FinalizedMachExceptionHandler::Default(offset)] => offset.to_owned(),
                 _ => {
                     return Err(Self::invalid(
@@ -195,11 +187,33 @@ impl UnwindEmitter {
                     ));
                 }
             };
+            let call_end = call_site
+                .ret_addr
+                .checked_sub(1)
+                .filter(|call_end| *call_end >= start)
+                .ok_or_else(|| Self::invalid(module, "native call sites are not ordered"))?;
+            if call_end > start {
+                entries.push((start, call_end - start, 0));
+            }
+            entries.push((call_end, 1, landing));
+            start = call_site.ret_addr;
+        }
+        if code_byte_len > start {
+            entries.push((start, code_byte_len - start, 0));
+        }
+
+        // write the call-site header and one fixed width row per entry
+        let byte_len = entries
+            .len()
+            .checked_mul(13)
+            .ok_or_else(|| Self::invalid(module, "native call-site table exceeds usize"))?;
+        let mut bytes = vec![0xff, 0xff, DW_EH_PE_udata4.0];
+        Self::write_uleb(byte_len as u64, &mut bytes);
+        for (start, length, landing) in entries {
             Self::write_u32(start, endian, &mut bytes);
             Self::write_u32(length, endian, &mut bytes);
             Self::write_u32(landing, endian, &mut bytes);
             bytes.push(0);
-            start = call_site.ret_addr;
         }
 
         Ok(bytes)

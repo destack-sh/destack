@@ -11,12 +11,13 @@ impl FunctionEmitter<'_> {
     pub(super) fn emit_atomic_load(
         &mut self,
         destination: mir::Value,
-        pointer: mir::Value,
+        place: &mir::Place,
         result_type: mir::TypeId,
-        _access: mir::AtomicAccess,
+        access: mir::AtomicAccess,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
-        let pointer = self.materialize_pointer(pointer, builder)?;
+        self.require_closed(access.ordering.closed())?;
+        let pointer = self.place_pointer(place, builder)?;
         let ty = self.atomic_type(result_type)?;
         let value = builder
             .ins()
@@ -30,13 +31,15 @@ impl FunctionEmitter<'_> {
     /// Emit one atomic store.
     pub(super) fn emit_atomic_store(
         &mut self,
-        pointer: mir::Value,
+        place: &mir::Place,
         value: mir::Value,
-        _access: mir::AtomicAccess,
+        access: mir::AtomicAccess,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        self.require_closed(access.ordering.closed())?;
+
         // materialize the atomic address and stored value
-        let pointer = self.materialize_pointer(pointer, builder)?;
+        let pointer = self.place_pointer(place, builder)?;
         let ty = self.optimized.tree.storage_type(self.value_type(value)?);
         let value = self.scalar(value)?;
         let value = self.encode_atomic(value, ty, builder)?;
@@ -48,19 +51,21 @@ impl FunctionEmitter<'_> {
     }
 
     /// Emit one atomic compare exchange.
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn emit_atomic_compare_exchange(
         &mut self,
         destination: mir::Value,
-        pointer: mir::Value,
+        place: &mir::Place,
         expected: mir::Value,
         new_value: mir::Value,
         _is_weak: bool,
-        _access: mir::CompareExchangeAccess,
+        access: mir::CompareExchangeAccess,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        self.require_closed(access.success.ordering.closed())?;
+        self.require_closed(access.failure_ordering())?;
+
         // materialize the atomic address and comparison values
-        let pointer = self.materialize_pointer(pointer, builder)?;
+        let pointer = self.place_pointer(place, builder)?;
         let ty = self.optimized.tree.storage_type(self.value_type(expected)?);
         let expected = self.scalar(expected)?;
         let new_value = self.scalar(new_value)?;
@@ -87,16 +92,18 @@ impl FunctionEmitter<'_> {
         &mut self,
         destination: mir::Value,
         operator: mir::AtomicRmwOperator,
-        pointer: mir::Value,
+        place: &mir::Place,
         value: mir::Value,
-        _access: mir::AtomicAccess,
+        access: mir::AtomicAccess,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
+        self.require_closed(access.ordering.closed())?;
+
         // materialize the atomic address and operand
-        let pointer = self.materialize_pointer(pointer, builder)?;
+        let pointer = self.place_pointer(place, builder)?;
         let ty = self.optimized.tree.storage_type(self.value_type(value)?);
         let value = self.scalar(value)?;
-        let is_float = matches!(self.optimized.tree.get(ty), mir::Type::Float(_));
+        let is_float = matches!(self.optimized.tree.type_definition(ty), mir::Type::Float(_));
         let old = match (is_float, operator) {
             // exchange the exact floating point representation directly
             (true, mir::AtomicRmwOperator::Exchange) => {
@@ -133,10 +140,20 @@ impl FunctionEmitter<'_> {
     /// Emit one atomic fence.
     pub(super) fn emit_atomic_fence(
         &self,
-        _access: mir::FenceAccess,
+        access: mir::FenceAccess,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
-    ) {
+    ) -> Result<(), EmitError> {
+        self.require_closed(access.ordering.closed())?;
         builder.ins().fence();
+
+        Ok(())
+    }
+
+    /// Require one memory ordering closed by instantiation.
+    fn require_closed(&self, ordering: Result<mir::MemoryOrdering, u32>) -> Result<(), EmitError> {
+        ordering.map(|_| ()).map_err(|_| {
+            self.invalid("an atomic ordering parameter reached native emit before instantiation")
+        })
     }
 
     /// Emit one floating read modify write operation with a compare exchange loop.

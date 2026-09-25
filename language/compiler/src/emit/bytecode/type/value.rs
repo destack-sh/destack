@@ -10,12 +10,17 @@ impl TypeEmitter<'_> {
     pub(crate) fn register_type(&self, ty: mir::TypeId) -> Result<bytecode::ValueType, EmitError> {
         // resolve the storage type behind the MIR type and its layout
         let representation = self.optimized.tree.storage_type(ty);
-        let definition = self.optimized.tree.get(representation);
+        let definition = self.optimized.tree.type_definition(representation);
         let layout = self.layout(representation)?;
 
         // map each MIR type onto its bytecode register representation
         let value_type = match definition {
-            mir::Type::Never | mir::Type::Void | mir::Type::Null | mir::Type::Parameter { .. } => {
+            mir::Type::Never
+            | mir::Type::Void
+            | mir::Type::Null
+            | mir::Type::Parameter { .. }
+            | mir::Type::Witness { .. }
+            | mir::Type::Declaration { .. } => {
                 return Err(self.unsupported_type());
             }
             mir::Type::Boolean => bytecode::ValueType::scalar(bytecode::Scalar::Boolean),
@@ -25,29 +30,25 @@ impl TypeEmitter<'_> {
             mir::Type::Usize => bytecode::ValueType::scalar(self.scalar(representation)?),
             mir::Type::Float(format) => bytecode::ValueType::scalar(self.float(*format)),
             mir::Type::TypeId => bytecode::ValueType::type_id(),
-            mir::Type::Reference { kind, storage, .. } => {
-                bytecode::ValueType::reference(self.reference_kind(*kind), self.storage(*storage)?)
-            }
+            mir::Type::Reference { kind, .. } => bytecode::ValueType::reference(
+                self.reference_kind(*kind),
+                self.reference_storage(*kind),
+            ),
             mir::Type::Pointer { .. } => bytecode::ValueType::pointer(),
-            mir::Type::Slice {
-                kind,
-                element,
-                storage,
-                ..
-            } => bytecode::ValueType::slice(
+            mir::Type::Slice { kind, element, .. } => bytecode::ValueType::slice(
                 self.type_id(*element)?,
                 self.reference_kind(*kind),
-                self.storage(*storage)?,
+                self.reference_storage(*kind),
             ),
             mir::Type::Uninit { value } => self.uninitialized(*value)?,
             mir::Type::Dynamic {
-                kind,
-                constraint,
-                storage,
-                ..
+                kind, constraint, ..
             } => bytecode::ValueType::dynamic(
                 self.type_id(*constraint)?,
-                bytecode::ReferenceType::new(self.reference_kind(*kind), self.storage(*storage)?),
+                bytecode::ReferenceType::new(
+                    self.reference_kind(*kind),
+                    self.reference_storage(*kind),
+                ),
             ),
             mir::Type::Vector { element, .. } => {
                 let mir::Representation::Vector(vector) = layout.representation else {
@@ -59,9 +60,12 @@ impl TypeEmitter<'_> {
 
                 bytecode::ValueType::vector(bytecode::VectorType::new(scalar, lane_count))
             }
-            mir::Type::Function { kind, storage, .. } => bytecode::ValueType::function(
-                bytecode::ReferenceType::new(self.reference_kind(*kind), self.storage(*storage)?),
-            ),
+            mir::Type::Function { kind, .. } => {
+                bytecode::ValueType::function(bytecode::ReferenceType::new(
+                    self.reference_kind(*kind),
+                    self.reference_storage(*kind),
+                ))
+            }
             mir::Type::FunctionPointer { .. } => bytecode::ValueType::function_pointer(),
             mir::Type::FixedArray { .. }
             | mir::Type::Tuple { .. }
@@ -75,8 +79,7 @@ impl TypeEmitter<'_> {
 
                 bytecode::ValueType::indexed(self.type_id(representation)?, word_count)
             }
-            mir::Type::Atomic { .. }
-            | mir::Type::ManuallyDrop { .. }
+            mir::Type::ManuallyDrop { .. }
             | mir::Type::Application { .. }
             | mir::Type::Error
             | mir::Type::FunctionSignature { .. } => return Err(self.unsupported_type()),
@@ -102,7 +105,7 @@ impl TypeEmitter<'_> {
         };
 
         // pick the signedness and width from the MIR type
-        match self.optimized.tree.get(storage) {
+        match self.optimized.tree.type_definition(storage) {
             mir::Type::Boolean => Ok(bytecode::Scalar::Boolean),
             mir::Type::Character => Ok(bytecode::Scalar::Uint32),
             mir::Type::Int { is_signed, .. } => self.integer_scalar(scalar.bit_width(), *is_signed),
@@ -121,21 +124,14 @@ impl TypeEmitter<'_> {
             .tree
             .get(self.optimized.tree.storage_type(ty))
         {
-            mir::Type::Reference { kind, storage, .. } => {
-                Ok(bytecode::ValueType::uninit_reference(
-                    self.reference_kind(*kind),
-                    self.storage(*storage)?,
-                ))
-            }
-            mir::Type::Slice {
-                kind,
-                storage,
-                element,
-                ..
-            } => Ok(bytecode::ValueType::uninit_slice(
+            mir::Type::Reference { kind, .. } => Ok(bytecode::ValueType::uninit_reference(
+                self.reference_kind(*kind),
+                self.reference_storage(*kind),
+            )),
+            mir::Type::Slice { kind, element, .. } => Ok(bytecode::ValueType::uninit_slice(
                 self.type_id(*element)?,
                 self.reference_kind(*kind),
-                self.storage(*storage)?,
+                self.reference_storage(*kind),
             )),
             _ => Err(self.unsupported_type()),
         }
@@ -198,27 +194,30 @@ impl TypeEmitter<'_> {
     }
 
     /// Return one bytecode reference ownership.
-    fn reference_kind(&self, kind: mir::ReferenceKind) -> bytecode::ReferenceKind {
+    fn reference_kind(&self, kind: mir::Reference) -> bytecode::ReferenceKind {
         match kind {
-            mir::ReferenceKind::Managed => bytecode::ReferenceKind::MANAGED,
-            mir::ReferenceKind::Unique => bytecode::ReferenceKind::UNIQUE,
-            mir::ReferenceKind::Borrowed => bytecode::ReferenceKind::BORROWED,
+            mir::Reference::Managed(_) => bytecode::ReferenceKind::MANAGED,
+            mir::Reference::Unique => bytecode::ReferenceKind::UNIQUE,
+            mir::Reference::Borrowed => bytecode::ReferenceKind::BORROWED,
+            mir::Reference::Raw => bytecode::ReferenceKind::RAW,
         }
     }
 
-    /// Return one bytecode reference storage.
-    fn storage(&self, storage: mir::Storage) -> Result<bytecode::Storage, EmitError> {
-        Ok(match storage {
+    /// Return the bytecode storage one reference addresses, a borrow resolving it by address.
+    fn reference_storage(&self, kind: mir::Reference) -> bytecode::Storage {
+        kind.storage().map_or(bytecode::Storage::ANY, Self::storage)
+    }
+
+    /// Return one bytecode storage class.
+    fn storage(storage: mir::Storage) -> bytecode::Storage {
+        match storage {
             mir::Storage::Heap(mir::Space::Local) => bytecode::Storage::LOCAL,
             mir::Storage::Heap(mir::Space::Shared) => bytecode::Storage::SHARED,
-            mir::Storage::Static(mir::Space::Constant) => bytecode::Storage::CONSTANT,
+            mir::Storage::Heap(mir::Space::Constant)
+            | mir::Storage::Static(mir::Space::Constant) => bytecode::Storage::CONSTANT,
             mir::Storage::Frame => bytecode::Storage::FRAME,
             mir::Storage::Static(mir::Space::Local) => bytecode::Storage::LOCAL_GLOBAL,
             mir::Storage::Static(mir::Space::Shared) => bytecode::Storage::SHARED_GLOBAL,
-            mir::Storage::Heap(mir::Space::Constant | mir::Space::Parameter(_))
-            | mir::Storage::Static(mir::Space::Parameter(_)) => {
-                return Err(self.unsupported_type());
-            }
-        })
+        }
     }
 }

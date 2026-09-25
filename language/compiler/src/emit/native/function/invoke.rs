@@ -24,7 +24,7 @@ impl FunctionEmitter<'_> {
         let call = self.call(call, &frame, builder)?;
         let returned = builder.create_block();
         let landing = builder.create_block();
-        let retained = builder.create_block();
+        let skipped = builder.create_block();
         let pointer = self.types.pointer();
         let mut normal_arguments = Vec::new();
         let mut normal_types = Vec::new();
@@ -162,15 +162,15 @@ impl FunctionEmitter<'_> {
             .collect::<Vec<_>>();
         builder.ins().brif(
             action,
-            retained,
+            skipped,
             &[],
             self.blocks[&unwind.block],
             &cleanup_arguments,
         );
 
-        // bypass language cleanup when the host retains this activation
-        builder.switch_to_block(retained);
-        builder.seal_block(retained);
+        // skip language cleanup for a retained activation or a trap
+        builder.switch_to_block(skipped);
+        builder.seal_block(skipped);
         self.emit_runtime(
             native::abi::Operation::UnwindResume,
             &[unwind_object],

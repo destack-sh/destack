@@ -5,46 +5,12 @@ use crate::EmitError;
 use super::TypeEmitter;
 
 impl TypeEmitter<'_> {
-    /// Return the value addressed by one reference-like MIR type.
-    pub(crate) fn pointee(&self, ty: mir::TypeId) -> Result<mir::TypeId, EmitError> {
-        // resolve the storage type before selecting its pointee
-        let ty = self.optimized.tree.storage_type(ty);
-        let pointee = match self.optimized.tree.get(ty) {
-            mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => *pointee,
-            mir::Type::Slice { element, .. } => *element,
-            _ => return Err(self.missing("reference pointee")),
-        };
-
-        Ok(self.optimized.tree.storage_type(pointee))
-    }
-
-    /// Return the byte stride addressed by one indexed reference-like type.
-    pub(crate) fn element_stride(&self, ty: mir::TypeId) -> Result<u32, EmitError> {
-        // resolve the indexed storage type
-        let ty = self.optimized.tree.storage_type(ty);
-        let stride = match self.optimized.tree.get(ty) {
-            mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
-                self.element_stride(*pointee)?
-            }
-            mir::Type::Slice { element, .. } => self.layout(*element)?.stride() as u32,
-            mir::Type::FixedArray { .. } => {
-                self.layout(ty)?
-                    .element()
-                    .ok_or_else(|| self.missing("element layout"))?
-                    .stride
-            }
-            _ => return Err(self.missing("indexed layout")),
-        };
-
-        Ok(stride)
-    }
-
     /// Return the concrete layout for one MIR type.
     pub(crate) fn layout(&self, ty: mir::TypeId) -> Result<&mir::Layout, EmitError> {
         self.optimized
             .layouts
             .type_layout(ty)
-            .ok_or_else(|| self.missing_type())
+            .ok_or_else(|| self.internal("type has no optimized MIR layout"))
     }
 
     /// Return the exact runtime byte length of one MIR type.

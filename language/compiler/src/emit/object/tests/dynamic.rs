@@ -31,13 +31,18 @@ entry(v0: ref<FileWriter, managed, readonly, local>):
 
     program.assert_native(
         r#"
-function u0:0(i64, i64) -> i32 native {
-    gv0 = symbol colocated userextname0
+function u0:0(i64 vmctx, i64) -> i32 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    gv2 = symbol colocated userextname0
+    stack_limit = gv1
 
 block0(v0: i64, v1: i64):
-    v2 = symbol_value.i64 gv0
+    v2 = symbol_value.i64 gv2
     v3 = load.i32 notrap aligned v2
-    v4 = load.i64 notrap aligned v0+32
+    v4 = load.i64 notrap aligned region0 v0+32
     v5 = uextend.i64 v3
     v6 = iconst.i64 3
     v7 = ishl v5, v6  ; v6 = 3
@@ -48,7 +53,7 @@ block0(v0: i64, v1: i64):
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64, i64) -> i32 native
+    sig0 = (i64 vmctx, i64) -> i32 native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):
@@ -88,25 +93,31 @@ entry(v0: dynamic<Writer, managed, readonly, local>):
 
     program.assert_native(
         r#"
-function u0:0(i64, i64, i32) -> i32 native {
+function u0:0(i64 vmctx, i64, i32) -> i32 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    stack_limit = gv1
+
 block0(v0: i64, v1: i64, v2: i32):
-    v3 = load.i64 notrap aligned v0+32
+    v3 = load.i64 notrap aligned region0 v0+32
     v4 = uextend.i64 v2
     v5 = iconst.i64 3
     v6 = ishl v4, v5  ; v5 = 3
     v7 = iadd v3, v6
     v8 = load.i64 notrap aligned v7
     v9 = load.i32 notrap aligned v8+4
-    v10 = load.i64 notrap aligned v0+40
+    v10 = load.i64 notrap aligned region0 v0+40
     v11 = iadd v10, v1
     v12 = uextend.i64 v9
     v13 = iadd v11, v12
-    v14 = load.i32 notrap aligned v13
+    v14 = load.i32 notrap aligned region1 v13
     return v14
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64, i64, i32) -> i32 native
+    sig0 = (i64 vmctx, i64, i32) -> i32 native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):

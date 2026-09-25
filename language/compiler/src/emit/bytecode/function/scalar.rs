@@ -5,6 +5,9 @@ use crate::EmitError;
 
 use super::FunctionEmitter;
 
+/// The shift that fills a machine word with one integer's sign.
+const SIGN_FILL_SHIFT: u64 = 63;
+
 impl<'a> FunctionEmitter<'a> {
     /// Emit one scalar or representation-only machine intrinsic.
     pub(super) fn emit_scalar_intrinsic(
@@ -416,7 +419,15 @@ impl<'a> FunctionEmitter<'a> {
         let target = self.types.register_type(target)?;
 
         // preserve representation identity with one register move
-        let is_identity = operator == mir::CastOperator::FloatConvert && source == target;
+        let is_identity = match operator {
+            mir::CastOperator::IntToInt => {
+                let is_wide_pair = source.word_count() == 2 && target.word_count() == 2;
+
+                source == target || is_wide_pair
+            }
+            mir::CastOperator::FloatToFloat => source == target,
+            _ => false,
+        };
         let is_bitcast =
             operator == mir::CastOperator::Bitcast && source.word_count() == target.word_count();
         if is_identity || is_bitcast {
@@ -427,35 +438,69 @@ impl<'a> FunctionEmitter<'a> {
         }
 
         // construct wide integer extensions from their low and high words
-        if matches!(
-            operator,
-            mir::CastOperator::ZeroExtend | mir::CastOperator::SignExtend
-        ) && source.word_count() == 1
+        if operator == mir::CastOperator::IntToInt
+            && source.word_count() == 1
             && target.word_count() == 2
         {
-            return self.emit_wide_extension(destination, operator, argument, source);
+            return self.emit_wide_extension(destination, argument, source);
+        }
+
+        // truncate a wide integer from its low word
+        if operator == mir::CastOperator::IntToInt
+            && source.word_count() == 2
+            && target.word_count() == 1
+        {
+            let scalar = target
+                .scalar_type()
+                .ok_or_else(|| self.internal("integer conversion requires a scalar target"))?;
+            let opcode = if scalar.bit_width() < 64 {
+                bytecode::Opcode::cast(
+                    bytecode::CastOperation::Truncate,
+                    bytecode::ValueType::scalar(bytecode::Scalar::Uint64),
+                    target,
+                )
+                .ok_or_else(|| self.internal("unsupported low-word integer truncation"))?
+            } else {
+                bytecode::Opcode::MOVE
+            };
+            let mut instruction = bytecode::InstructionBuilder::new(opcode);
+            instruction.register(self.register(argument)?.start);
+            let destination = self.register(destination)?;
+
+            return self.encode(instruction, &[destination]);
         }
 
         // select the exact scalar conversion opcode
         let operation = match operator {
             mir::CastOperator::Bitcast => bytecode::CastOperation::Bit,
-            mir::CastOperator::Truncate => bytecode::CastOperation::Truncate,
-            mir::CastOperator::Saturate => bytecode::CastOperation::Saturate,
-            mir::CastOperator::ZeroExtend => bytecode::CastOperation::ZeroExtend,
-            mir::CastOperator::SignExtend => bytecode::CastOperation::SignExtend,
-            mir::CastOperator::FloatToSignedInt | mir::CastOperator::FloatToUnsignedInt => {
-                bytecode::CastOperation::FloatToInt
+            mir::CastOperator::IntToInt => {
+                let source_scalar = source
+                    .scalar_type()
+                    .ok_or_else(|| self.internal("integer conversion requires a scalar source"))?;
+                let target_scalar = target
+                    .scalar_type()
+                    .ok_or_else(|| self.internal("integer conversion requires a scalar target"))?;
+                match mir::IntegerConversion::new(
+                    u32::from(source_scalar.bit_width()),
+                    u32::from(target_scalar.bit_width()),
+                    source.is_signed_integer(),
+                ) {
+                    mir::IntegerConversion::Identity => bytecode::CastOperation::Bit,
+                    mir::IntegerConversion::Truncate => bytecode::CastOperation::Truncate,
+                    mir::IntegerConversion::SignExtend => bytecode::CastOperation::SignExtend,
+                    mir::IntegerConversion::ZeroExtend => bytecode::CastOperation::ZeroExtend,
+                }
             }
-            mir::CastOperator::FloatToSignedIntSaturating
-            | mir::CastOperator::FloatToUnsignedIntSaturating => {
+            mir::CastOperator::IntToIntSaturating => bytecode::CastOperation::Saturate,
+            mir::CastOperator::FloatToInt => bytecode::CastOperation::FloatToInt,
+            mir::CastOperator::FloatToIntSaturating => {
                 bytecode::CastOperation::FloatToIntSaturating
             }
-            mir::CastOperator::SignedIntToFloat | mir::CastOperator::UnsignedIntToFloat => {
-                bytecode::CastOperation::IntToFloat
+            mir::CastOperator::IntToFloat => bytecode::CastOperation::IntToFloat,
+            mir::CastOperator::FloatToFloat => bytecode::CastOperation::FloatConvert,
+            mir::CastOperator::ReferenceToPointer | mir::CastOperator::PointerToReference => {
+                return Err(self.internal("bytecode has no native pointer conversion opcode"));
             }
-            mir::CastOperator::FloatTruncate
-            | mir::CastOperator::FloatExtend
-            | mir::CastOperator::FloatConvert => bytecode::CastOperation::FloatConvert,
             mir::CastOperator::PointerToInt => bytecode::CastOperation::PointerToInt,
             mir::CastOperator::IntToPointer => bytecode::CastOperation::IntToPointer,
         };
@@ -472,7 +517,6 @@ impl<'a> FunctionEmitter<'a> {
     fn emit_wide_extension(
         &mut self,
         destination: mir::Value,
-        operator: mir::CastOperator,
         argument: mir::Value,
         source_type: bytecode::ValueType,
     ) -> Result<(), EmitError> {
@@ -480,36 +524,51 @@ impl<'a> FunctionEmitter<'a> {
         let destination = self.register(destination)?;
         let low = bytecode::RegisterSpan::new(destination.start, 1);
         let high = bytecode::RegisterSpan::new(bytecode::RegisterId(destination.start.0 + 1), 1);
-
-        // preserve the low source word
-        let mut instruction = bytecode::InstructionBuilder::new(bytecode::Opcode::MOVE);
-        instruction.register(source);
-        self.encode(instruction, &[low])?;
-
-        // clear the high word for unsigned extension
-        if operator == mir::CastOperator::ZeroExtend {
-            let instruction =
-                self.scalar_constant(bytecode::ValueType::scalar(bytecode::Scalar::Uint64), 0)?;
-
-            return self.encode(instruction, &[high]);
-        }
-
-        // replicate the source sign bit through the high word
         let scalar = source_type
             .scalar_type()
             .ok_or_else(|| self.internal("wide extension requires a scalar source"))?;
-        let count_type = bytecode::ValueType::scalar(bytecode::Scalar::Uint64);
-        let count = self.scratch(count_type)?;
-        let instruction = self.scalar_constant(count_type, u64::from(scalar.bit_width() - 1))?;
-        self.encode(instruction, &[count])?;
+        let is_signed = source_type.is_signed_integer();
+        let word_scalar = if is_signed {
+            bytecode::Scalar::Int64
+        } else {
+            bytecode::Scalar::Uint64
+        };
+        let word_type = bytecode::ValueType::scalar(word_scalar);
 
-        let opcode = bytecode::Opcode::integer(bytecode::IntegerOperation::ShiftRight, scalar)
-            .ok_or_else(|| self.internal("wide extension requires an integer source"))?;
+        // extend the source through the entire low word
+        let opcode = if scalar.bit_width() < 64 {
+            let operation = if is_signed {
+                bytecode::CastOperation::SignExtend
+            } else {
+                bytecode::CastOperation::ZeroExtend
+            };
+            bytecode::Opcode::cast(operation, source_type, word_type)
+                .ok_or_else(|| self.internal("unsupported low-word integer extension"))?
+        } else {
+            bytecode::Opcode::MOVE
+        };
         let mut instruction = bytecode::InstructionBuilder::new(opcode);
         instruction.register(source);
-        instruction.register(count.start);
+        self.encode(instruction, &[low])?;
 
-        self.encode(instruction, &[high])
+        // fill the high word with the extended sign or zero
+        if is_signed {
+            let count_type = bytecode::ValueType::scalar(bytecode::Scalar::Uint64);
+            let count = self.scratch(count_type)?;
+            let instruction = self.scalar_constant(count_type, SIGN_FILL_SHIFT)?;
+            self.encode(instruction, &[count])?;
+
+            let opcode =
+                bytecode::Opcode::integer(bytecode::IntegerOperation::ShiftRight, word_scalar)
+                    .ok_or_else(|| self.internal("unsupported high-word integer extension"))?;
+            let mut instruction = bytecode::InstructionBuilder::new(opcode);
+            instruction.register(low.start);
+            instruction.register(count.start);
+            self.encode(instruction, &[high])
+        } else {
+            let instruction = self.scalar_constant(word_type, 0)?;
+            self.encode(instruction, &[high])
+        }
     }
 
     /// Emit one scalar MIR constant.
@@ -521,9 +580,18 @@ impl<'a> FunctionEmitter<'a> {
         let result = self.register(destination)?;
         let ty = self.register_type(destination)?;
         let instruction = match constant {
-            mir::Constant::Parameter(_) => unreachable!("a value parameter survives instantiation"),
+            mir::Constant::Parameter(_) => {
+                return Err(
+                    self.internal("a value parameter reached bytecode emit before instantiation")
+                );
+            }
             mir::Constant::Null => {
                 bytecode::InstructionBuilder::new(bytecode::Opcode::CONSTANT_NULL)
+            }
+            mir::Constant::Undefined => {
+                return Err(
+                    self.internal("undefined constant reached bytecode emit before instantiation")
+                );
             }
             mir::Constant::Zeroed => {
                 bytecode::InstructionBuilder::new(bytecode::Opcode::CONSTANT_ZEROED)

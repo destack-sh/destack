@@ -55,14 +55,19 @@ impl<'a> FunctionEmitter<'a> {
     pub(super) fn emit_variant_tag_load(
         &mut self,
         destination: mir::Value,
-        variant: mir::Value,
+        place: &mir::Place,
     ) -> Result<(), EmitError> {
-        // read the variant layout
-        let variant_type = self.optimized.tree.storage_type(self.value_type(variant)?);
-        let variant_type = self.types.pointee(variant_type)?;
-        let opcode = bytecode::Opcode::variant_tag_load(self.address(variant)?);
+        // read the selected variant layout
+        let Some(mir::PlaceType::Value(variant_type)) =
+            place.ty(self.function_id, &self.optimized.tree)
+        else {
+            return Err(self.internal("variant tag load does not select a value"));
+        };
+        let variant_type = self.optimized.tree.storage_type(variant_type);
+        let selected = self.emit_place(place, None)?;
+        let opcode = bytecode::Opcode::variant_tag_load(selected.kind);
         let mut instruction = bytecode::InstructionBuilder::new(opcode);
-        instruction.register(self.word(variant)?);
+        instruction.register(selected.address);
         let variant_type = self.types.type_id(variant_type)?;
         instruction.relocation(bytecode::RelocationTag::LAYOUT, variant_type.0);
         let destination = self.register(destination)?;
@@ -82,19 +87,5 @@ impl<'a> FunctionEmitter<'a> {
         let (byte_offset, byte_len) = self.types.variant(variant_type, case)?;
 
         self.emit_extract(destination, variant, byte_offset, byte_len)
-    }
-
-    /// Get one stored variant payload's address.
-    pub(super) fn emit_variant_payload_address(
-        &mut self,
-        destination: mir::Value,
-        variant: mir::Value,
-        case: u32,
-    ) -> Result<(), EmitError> {
-        let variant_type = self.value_type(variant)?;
-        let variant_type = self.types.pointee(variant_type)?;
-        let (byte_offset, _) = self.types.variant(variant_type, case)?;
-
-        self.emit_address_add_immediate(destination, variant, byte_offset)
     }
 }

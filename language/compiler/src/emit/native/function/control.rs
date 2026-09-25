@@ -93,7 +93,7 @@ impl<'a> FunctionEmitter<'a> {
                 Ok(builder.ins().band(lower, upper))
             }
             mir::CheckConstraint::Null { value } => {
-                let value = self.reference(*value, builder)?;
+                let value = self.reference(*value)?;
 
                 Ok(builder.ins().icmp_imm_u(IntCC::NotEqual, value, 0))
             }
@@ -164,7 +164,7 @@ impl<'a> FunctionEmitter<'a> {
         ty: mir::TypeId,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        let ty = u32::try_from(ty.get())
+        let ty = u32::try_from(ty.index())
             .map_err(|_| self.invalid("native type identity exceeds u32"))?;
 
         self.index_u32(native::Index::Type { ty }, builder)
@@ -180,12 +180,12 @@ impl<'a> FunctionEmitter<'a> {
     ) -> Result<cir::Value, EmitError> {
         // resolve integer widths using the target pointer width
         let pointer_bits = self.types.layout.pointer_bits();
-        let source = self.value_type(value)?;
+        let source = self.optimized.tree.storage_type(self.value_type(value)?);
         let (source_width, source_signed) = self
             .optimized
             .tree
-            .get(source)
-            .int_info_with_pointer_width(pointer_bits)
+            .type_definition(source)
+            .integer(pointer_bits)
             .ok_or_else(|| self.invalid("native narrow check value is not an integer"))?;
         let source_type = cir::Type::int(source_width)
             .ok_or_else(|| self.invalid("native narrow check width is unsupported"))?;

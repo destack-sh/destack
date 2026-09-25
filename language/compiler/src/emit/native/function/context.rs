@@ -6,6 +6,7 @@ use destack_program::ContextNode;
 
 use crate::EmitError;
 
+use super::memory::MemoryRegion;
 use super::{FunctionEmitter, Value};
 
 impl<'a> FunctionEmitter<'a> {
@@ -15,12 +16,8 @@ impl<'a> FunctionEmitter<'a> {
         destination: mir::Value,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
-        let activation = self.activation()?;
-        let flags = cir::MemFlagsData::trusted();
-        let offset = std::mem::offset_of!(native::abi::Activation, context) as i32;
-        let context = builder
-            .ins()
-            .load(self.types.pointer(), flags, activation, offset);
+        let offset = std::mem::offset_of!(native::abi::Activation, context);
+        let context = self.activation_pointer(offset, builder)?;
         self.set(destination, Value::Direct(context))?;
 
         Ok(())
@@ -34,20 +31,19 @@ impl<'a> FunctionEmitter<'a> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let activation = self.activation()?;
-        let flags = cir::MemFlagsData::trusted();
-        let offset = std::mem::offset_of!(native::abi::Activation, context) as i32;
-        let previous = builder
+        let flags = self.memory_flags(MemoryRegion::Activation);
+        let offset = std::mem::offset_of!(native::abi::Activation, context);
+        let previous = self.activation_pointer(offset, builder)?;
+        let context = self.reference(context)?;
+        builder
             .ins()
-            .load(self.types.pointer(), flags, activation, offset);
-        let context = self.reference(context, builder)?;
-        builder.ins().store(flags, context, activation, offset);
+            .store(flags, context, activation, offset as i32);
         self.set(destination, Value::Direct(previous))?;
 
         Ok(())
     }
 
     /// Emit one immutable execution context extension.
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn emit_context_bind(
         &mut self,
         instruction: mir::LocalNodeId<mir::Instruction>,
@@ -60,10 +56,12 @@ impl<'a> FunctionEmitter<'a> {
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let (value_offset, byte_len) = self.context_layout(node_type, value)?;
+        let space = self.heap_space(result_type)?;
         self.emit_new(
             instruction,
             destination,
             result_type,
+            space,
             native::abi::AllocationInitialization::Zeroed,
             None,
             builder,
@@ -71,9 +69,9 @@ impl<'a> FunctionEmitter<'a> {
 
         // write the fixed header and concrete inline value before publication
         let address = self.materialize_pointer(destination, builder)?;
-        let flags = cir::MemFlagsData::trusted();
-        let context = self.reference(context, builder)?;
-        let variable = self.reference(variable, builder)?;
+        let flags = self.memory_flags(MemoryRegion::World);
+        let context = self.reference(context)?;
+        let variable = self.reference(variable)?;
         builder
             .ins()
             .store(flags, context, address, ContextNode::PARENT_OFFSET as i32);
@@ -89,16 +87,13 @@ impl<'a> FunctionEmitter<'a> {
         self.store(value_address, value, value_type, builder)?;
 
         // publish managed references through the ordinary heap barrier
-        let space = self.heap_space(result_type)?;
-        let space = builder.ins().iconst(cir::types::I32, space as i64);
-        let reference = self.reference(destination, builder)?;
         let offset = builder.ins().iconst(self.types.pointer(), 0);
         let byte_len = builder
             .ins()
             .iconst(self.types.pointer(), i64::from(byte_len));
         self.emit_runtime(
             native::abi::Operation::WriteBarrier,
-            &[space, reference, offset, byte_len],
+            &[address, offset, byte_len],
             builder,
         )?;
 
@@ -106,7 +101,6 @@ impl<'a> FunctionEmitter<'a> {
     }
 
     /// Emit one execution context value lookup.
-    #[allow(clippy::too_many_arguments)]
     pub(super) fn emit_context_get(
         &mut self,
         destination: mir::Value,
@@ -123,8 +117,8 @@ impl<'a> FunctionEmitter<'a> {
         }
         let value_type = self.types.value(result_type)?;
         let pointer = self.types.pointer();
-        let context = self.reference(context, builder)?;
-        let variable = self.reference(variable, builder)?;
+        let context = self.reference(context)?;
+        let variable = self.reference(variable)?;
         let default = self.value(default)?;
         let memory = self.activation_pointer(
             std::mem::offset_of!(native::abi::Activation, memory_base),
@@ -152,7 +146,7 @@ impl<'a> FunctionEmitter<'a> {
         builder.switch_to_block(inspect);
         builder.seal_block(inspect);
         let address = builder.ins().iadd(memory, current);
-        let flags = cir::MemFlagsData::trusted();
+        let flags = self.memory_flags(MemoryRegion::World);
         let candidate =
             builder
                 .ins()

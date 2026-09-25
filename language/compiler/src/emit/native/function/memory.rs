@@ -6,7 +6,37 @@ use destack_native as native;
 
 use crate::EmitError;
 
+use super::super::r#type::ValueType;
 use super::{FunctionEmitter, Value};
+
+/// One disjoint memory category native accesses name for alias analysis.
+#[repr(u32)]
+#[derive(Debug, Clone, Copy)]
+pub(super) enum MemoryRegion {
+    /// The fields of the native activation, stable between calls.
+    Activation = 0,
+    /// World memory: the heap, the statics, and the frames.
+    World = 1,
+}
+
+impl MemoryRegion {
+    /// The regions in alias identity order.
+    pub(super) const ALL: [Self; 2] = [Self::Activation, Self::World];
+
+    /// Declare this region in one function and return the flags of trusted accesses in it.
+    pub(super) fn declare(self, function: &mut cir::Function) -> cir::MemFlagsData {
+        let description = match self {
+            Self::Activation => "activation",
+            Self::World => "world",
+        };
+        let region = function.dfg.alias_regions.insert(cir::AliasRegionData {
+            user_id: self as u32,
+            description: description.into(),
+        });
+
+        cir::MemFlagsData::trusted().with_alias_region(Some(region))
+    }
+}
 
 impl<'a> FunctionEmitter<'a> {
     /// Emit one machine memory intrinsic.
@@ -102,24 +132,18 @@ impl<'a> FunctionEmitter<'a> {
                 };
                 let destination = destination
                     .ok_or_else(|| self.invalid("native volatile load has no destination"))?;
+                let place = mir::Place::value(*pointer).with_projection(mir::Projection::Deref);
 
-                let pointer = self.materialize_pointer(*pointer, builder)?;
-                let value_type = self.types.value(self.value_type(destination)?)?;
-
-                let value = self.load_volatile(pointer, value_type, builder)?;
-                self.set(destination, value)?;
+                self.emit_load(destination, &place, true, builder)?;
             }
             // write through a volatile pointer
             mir::Intrinsic::VolatileStore => {
                 let [pointer, source] = arguments else {
                     return Err(self.invalid("native volatile store requires two arguments"));
                 };
+                let place = mir::Place::value(*pointer).with_projection(mir::Projection::Deref);
 
-                let pointer = self.materialize_pointer(*pointer, builder)?;
-                let value_type = self.types.value(self.value_type(*source)?)?;
-                let source = self.value(*source)?;
-
-                self.store_volatile(pointer, source, value_type, builder)?;
+                self.emit_store(&place, *source, true, builder)?;
             }
             // compare two values byte for byte
             mir::Intrinsic::RawEq => {
@@ -140,6 +164,8 @@ impl<'a> FunctionEmitter<'a> {
                 let alignment = std::num::NonZeroU8::new(alignment)
                     .ok_or_else(|| self.invalid("native raw equality has zero alignment"))?;
 
+                // compare the bytes as world memory loads
+                let flags = self.memory_flags(MemoryRegion::World);
                 let value = builder.emit_small_memory_compare(
                     self.types.frontend_config(),
                     IntCC::Equal,
@@ -148,7 +174,7 @@ impl<'a> FunctionEmitter<'a> {
                     u64::from(value_type.byte_len()),
                     alignment,
                     alignment,
-                    cir::MemFlagsData::trusted(),
+                    flags,
                 );
                 self.set(destination, Value::Direct(value))?;
             }
@@ -159,126 +185,49 @@ impl<'a> FunctionEmitter<'a> {
         Ok(())
     }
 
-    /// Emit one stable global reference.
-    pub(super) fn emit_global_address(
-        &mut self,
-        destination: mir::Value,
-        global: mir::GlobalId,
-        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
-    ) -> Result<(), EmitError> {
-        // read the global definition
-        let definition = self.optimized.tree.get(global);
-        let offset = self.index_pointer(native::Index::Global { global: global.id }, builder)?;
-
-        // offset the global from the base of the static space it lives in
-        let reference = match definition.space {
-            mir::Space::Parameter(_) => {
-                return Err(self.invalid("native globals close every space"));
-            }
-            mir::Space::Constant => {
-                let base = self.static_offset(
-                    std::mem::offset_of!(native::abi::Activation, constants),
-                    builder,
-                )?;
-
-                builder.ins().iadd(base, offset)
-            }
-            mir::Space::Local => {
-                let base = self.static_offset(
-                    std::mem::offset_of!(native::abi::Activation, local_statics),
-                    builder,
-                )?;
-
-                builder.ins().iadd(base, offset)
-            }
-            mir::Space::Shared => {
-                let base = self.static_offset(
-                    std::mem::offset_of!(native::abi::Activation, shared_statics),
-                    builder,
-                )?;
-
-                builder.ins().iadd(base, offset)
-            }
-        };
-        self.set(destination, Value::Direct(reference))?;
-
-        Ok(())
-    }
-
-    /// Load one MIR value through a stable reference.
-    pub(super) fn emit_load(
-        &mut self,
-        destination: mir::Value,
-        reference: mir::Value,
-        result_type: mir::TypeId,
-        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
-    ) -> Result<(), EmitError> {
-        let pointer = self.materialize_pointer(reference, builder)?;
-        let value_type = self.types.value(result_type)?;
-        let value = self.load(pointer, value_type, builder)?;
-        self.set(destination, value)?;
-
-        Ok(())
-    }
-
-    /// Store one MIR value through a stable reference.
-    pub(super) fn emit_store(
-        &mut self,
-        reference: mir::Value,
-        value: mir::Value,
-        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
-    ) -> Result<(), EmitError> {
-        let pointer = self.materialize_pointer(reference, builder)?;
-        let value_type = self.types.value(self.value_type(value)?)?;
-        let value = self.value(value)?;
-
-        self.store(pointer, value, value_type, builder)
-    }
-
-    /// Materialize one stable reference as a process-local native pointer.
+    /// Return the native pointer one reference or pointer value addresses.
     pub(super) fn materialize_pointer(
         &self,
-        reference: mir::Value,
+        value: mir::Value,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        // resolve the address storage type
-        let ty = self
-            .optimized
-            .tree
-            .storage_type(self.value_type(reference)?);
-        let reference = self.reference(reference, builder)?;
+        let descriptor = self.descriptor(self.value_type(value)?)?;
+        let selected = self.split_descriptor(self.value(value)?, descriptor)?;
 
-        // take a pointer as it stands
-        match self.optimized.tree.get(ty) {
-            mir::Type::Pointer { .. } => Ok(reference),
-            // rebase reference bits on the storage they name
-            ty => {
-                let storage = ty.reference_storage().ok_or_else(|| {
-                    self.invalid("native memory access requires a reference or pointer")
-                })?;
-
-                self.materialize_reference(reference, storage, builder)
-            }
-        }
+        self.pointer(selected, builder)
     }
 
-    /// Materialize stable reference bits as one process-local native pointer.
-    pub(super) fn materialize_reference(
+    /// Rebase one world offset on the memory base as a native pointer, the base loaded at the use.
+    pub(super) fn rebase(
         &self,
-        reference: cir::Value,
-        storage: mir::Storage,
+        offset: cir::Value,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        // pass frame stack addresses through, rebase every other storage on the memory base
-        let base = match storage {
-            mir::Storage::Frame => return Ok(reference),
-            _ => self.activation_pointer(
-                std::mem::offset_of!(native::abi::Activation, memory_base),
-                builder,
-            )?,
-        };
+        let base = self.activation_pointer(
+            std::mem::offset_of!(native::abi::Activation, memory_base),
+            builder,
+        )?;
 
-        Ok(builder.ins().iadd(base, reference))
+        Ok(builder.ins().iadd(base, offset))
+    }
+
+    /// Return the world offset of one native address inside world memory.
+    pub(super) fn world_offset(
+        &self,
+        address: cir::Value,
+        builder: &mut cranelift_frontend::FunctionBuilder<'_>,
+    ) -> Result<cir::Value, EmitError> {
+        let base = self.activation_pointer(
+            std::mem::offset_of!(native::abi::Activation, memory_base),
+            builder,
+        )?;
+
+        Ok(builder.ins().isub(address, base))
+    }
+
+    /// Return the flags of one trusted access in one alias region.
+    pub(super) fn memory_flags(&self, region: MemoryRegion) -> cir::MemFlagsData {
+        self.memory_flags[region as usize]
     }
 
     /// Load one pointer field from the native activation.
@@ -287,7 +236,7 @@ impl<'a> FunctionEmitter<'a> {
         byte_offset: usize,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<cir::Value, EmitError> {
-        let flags = cir::MemFlagsData::trusted();
+        let flags = self.memory_flags(MemoryRegion::Activation);
         let activation = self.activation()?;
 
         Ok(builder
@@ -299,7 +248,7 @@ impl<'a> FunctionEmitter<'a> {
     pub(super) fn load_volatile(
         &mut self,
         source: cir::Value,
-        value_type: super::super::r#type::ValueType,
+        value_type: ValueType,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<Value, EmitError> {
         let destination = self.allocate(value_type, builder);
@@ -320,7 +269,7 @@ impl<'a> FunctionEmitter<'a> {
         &mut self,
         destination: cir::Value,
         value: Value,
-        value_type: super::super::r#type::ValueType,
+        value_type: ValueType,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
         let source = self.materialize(value, value_type, builder)?;
@@ -337,7 +286,7 @@ impl<'a> FunctionEmitter<'a> {
     }
 
     /// Load one static-space offset from the native activation.
-    fn static_offset(
+    pub(super) fn static_offset(
         &self,
         byte_offset: usize,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,

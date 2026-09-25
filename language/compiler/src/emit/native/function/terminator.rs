@@ -8,6 +8,7 @@ use crate::EmitError;
 
 use super::super::r#type::ValueType;
 use super::FunctionEmitter;
+use super::memory::MemoryRegion;
 
 impl<'a> FunctionEmitter<'a> {
     /// Emit one MIR terminator.
@@ -98,7 +99,7 @@ impl<'a> FunctionEmitter<'a> {
                     let words = self.allocate_words(word_count, builder);
                     let payload = self.value(*payload)?;
                     self.store_words(words, payload, ty, value_type, builder)?;
-                    let ty = u32::try_from(ty.get())
+                    let ty = u32::try_from(ty.index())
                         .map_err(|_| self.invalid("native panic type identity exceeds u32"))?;
                     let ty = self.index_u32(native::Index::Type { ty }, builder)?;
 
@@ -111,7 +112,7 @@ impl<'a> FunctionEmitter<'a> {
             mir::Terminator::UnwindResume => {
                 let slot = self.unwind_slot(builder);
                 let address = builder.ins().stack_addr(self.types.pointer(), slot, 0);
-                let flags = cir::MemFlagsData::trusted();
+                let flags = self.memory_flags(MemoryRegion::World);
                 let unwind = builder.ins().load(self.types.pointer(), flags, address, 0);
                 self.emit_runtime(native::abi::Operation::UnwindResume, &[unwind], builder)?;
                 Self::terminate_runtime(builder);

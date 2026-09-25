@@ -10,14 +10,15 @@ impl FunctionEmitter<'_> {
     pub(super) fn emit_atomic_load(
         &mut self,
         destination: mir::Value,
-        pointer: mir::Value,
+        place: &mir::Place,
         access: mir::AtomicAccess,
     ) -> Result<(), EmitError> {
+        let selected = self.emit_place(place, None)?;
         let scalar = self.scalar_type(destination)?;
-        let opcode = self.atomic_opcode(bytecode::AtomicOperation::Load, pointer, scalar)?;
+        let opcode = self.atomic_opcode(bytecode::AtomicOperation::Load, selected.kind, scalar)?;
         let mut instruction = bytecode::InstructionBuilder::new(opcode);
-        instruction.register(self.word(pointer)?);
-        instruction.u16(Self::atomic_access(access).bits());
+        instruction.register(selected.address);
+        instruction.u16(self.atomic_access(access)?.bits());
         let destination = self.register(destination)?;
 
         self.encode(instruction, &[destination])
@@ -26,16 +27,17 @@ impl FunctionEmitter<'_> {
     /// Emit one atomic store.
     pub(super) fn emit_atomic_store(
         &mut self,
-        pointer: mir::Value,
+        place: &mir::Place,
         value: mir::Value,
         access: mir::AtomicAccess,
     ) -> Result<(), EmitError> {
+        let selected = self.emit_place(place, None)?;
         let scalar = self.scalar_type(value)?;
-        let opcode = self.atomic_opcode(bytecode::AtomicOperation::Store, pointer, scalar)?;
+        let opcode = self.atomic_opcode(bytecode::AtomicOperation::Store, selected.kind, scalar)?;
         let mut instruction = bytecode::InstructionBuilder::new(opcode);
-        instruction.register(self.word(pointer)?);
+        instruction.register(selected.address);
         instruction.register(self.word(value)?);
-        instruction.u16(Self::atomic_access(access).bits());
+        instruction.u16(self.atomic_access(access)?.bits());
 
         self.encode(instruction, &[])
     }
@@ -44,20 +46,21 @@ impl FunctionEmitter<'_> {
     pub(super) fn emit_atomic_compare_exchange(
         &mut self,
         destination: mir::Value,
-        pointer: mir::Value,
+        place: &mir::Place,
         expected: mir::Value,
         new_value: mir::Value,
         is_weak: bool,
         access: mir::CompareExchangeAccess,
     ) -> Result<(), EmitError> {
         // select the opcode for the requested exchange strength
+        let selected = self.emit_place(place, None)?;
         let scalar = self.scalar_type(expected)?;
         let operation = if is_weak {
             bytecode::AtomicOperation::CompareExchangeWeak
         } else {
             bytecode::AtomicOperation::CompareExchange
         };
-        let opcode = self.atomic_opcode(operation, pointer, scalar)?;
+        let opcode = self.atomic_opcode(operation, selected.kind, scalar)?;
 
         // take a scratch register for each half of the result
         let old = self.scratch(bytecode::ValueType::scalar(scalar))?;
@@ -65,10 +68,10 @@ impl FunctionEmitter<'_> {
 
         // encode the exchange into both scratch registers
         let mut instruction = bytecode::InstructionBuilder::new(opcode);
-        instruction.register(self.word(pointer)?);
+        instruction.register(selected.address);
         instruction.register(self.word(expected)?);
         instruction.register(self.word(new_value)?);
-        instruction.u16(Self::compare_exchange_access(access).bits());
+        instruction.u16(self.compare_exchange_access(access)?.bits());
         self.encode(instruction, &[old, success])?;
 
         self.emit_aggregate_registers(destination, &[old, success])
@@ -79,11 +82,12 @@ impl FunctionEmitter<'_> {
         &mut self,
         destination: mir::Value,
         operator: mir::AtomicRmwOperator,
-        pointer: mir::Value,
+        place: &mir::Place,
         value: mir::Value,
         access: mir::AtomicAccess,
     ) -> Result<(), EmitError> {
         // select the opcode for the requested operator
+        let selected = self.emit_place(place, None)?;
         let scalar = self.scalar_type(value)?;
         let operation = match operator {
             mir::AtomicRmwOperator::Exchange => bytecode::AtomicOperation::Exchange,
@@ -97,11 +101,11 @@ impl FunctionEmitter<'_> {
         };
 
         // encode the operands and the access into one instruction
-        let opcode = self.atomic_opcode(operation, pointer, scalar)?;
+        let opcode = self.atomic_opcode(operation, selected.kind, scalar)?;
         let mut instruction = bytecode::InstructionBuilder::new(opcode);
-        instruction.register(self.word(pointer)?);
+        instruction.register(selected.address);
         instruction.register(self.word(value)?);
-        instruction.u16(Self::atomic_access(access).bits());
+        instruction.u16(self.atomic_access(access)?.bits());
         let destination = self.register(destination)?;
 
         self.encode(instruction, &[destination])
@@ -110,7 +114,7 @@ impl FunctionEmitter<'_> {
     /// Emit one atomic memory fence.
     pub(super) fn emit_atomic_fence(&mut self, access: mir::FenceAccess) -> Result<(), EmitError> {
         let access = bytecode::FenceAccess {
-            order: Self::atomic_order(access.ordering),
+            order: self.atomic_order(access.ordering)?,
             scope: Self::execution_scope(access.scope),
             storage: Self::storage_set(access.storage),
         };
@@ -124,11 +128,9 @@ impl FunctionEmitter<'_> {
     fn atomic_opcode(
         &self,
         operation: bytecode::AtomicOperation,
-        pointer: mir::Value,
+        address: bytecode::Address,
         scalar: bytecode::Scalar,
     ) -> Result<bytecode::Opcode, EmitError> {
-        let address = self.address(pointer)?;
-
         bytecode::Opcode::atomic(operation, address, scalar)
             .ok_or_else(|| self.internal("invalid atomic operation"))
     }
@@ -141,27 +143,39 @@ impl FunctionEmitter<'_> {
     }
 
     /// Return one encoded atomic access.
-    fn atomic_access(access: mir::AtomicAccess) -> bytecode::AtomicAccess {
-        bytecode::AtomicAccess {
-            order: Self::atomic_order(access.ordering),
+    fn atomic_access(
+        &self,
+        access: mir::AtomicAccess,
+    ) -> Result<bytecode::AtomicAccess, EmitError> {
+        Ok(bytecode::AtomicAccess {
+            order: self.atomic_order(access.ordering)?,
             scope: Self::execution_scope(access.scope),
-        }
+        })
     }
 
     /// Return one encoded compare exchange access.
     fn compare_exchange_access(
+        &self,
         access: mir::CompareExchangeAccess,
-    ) -> bytecode::CompareExchangeAccess {
-        bytecode::CompareExchangeAccess {
-            success: Self::atomic_order(access.success.ordering),
-            failure: Self::atomic_order(access.failure_ordering),
+    ) -> Result<bytecode::CompareExchangeAccess, EmitError> {
+        let failure = access.failure_ordering().map_err(|_| {
+            self.internal("an atomic failure ordering parameter outside its template")
+        })?;
+
+        Ok(bytecode::CompareExchangeAccess {
+            success: self.atomic_order(access.success.ordering)?,
+            failure: self.atomic_order(failure)?,
             scope: Self::execution_scope(access.success.scope),
-        }
+        })
     }
 
     /// Return one bytecode memory order.
-    fn atomic_order(order: mir::MemoryOrdering) -> bytecode::AtomicOrder {
-        match order {
+    fn atomic_order(&self, order: mir::MemoryOrdering) -> Result<bytecode::AtomicOrder, EmitError> {
+        let order = order.closed().map_err(|_| {
+            self.internal("an atomic ordering parameter reached bytecode emit before instantiation")
+        })?;
+
+        Ok(match order {
             mir::MemoryOrdering::Relaxed => bytecode::AtomicOrder::Relaxed,
             mir::MemoryOrdering::Acquire => bytecode::AtomicOrder::Acquire,
             mir::MemoryOrdering::Release => bytecode::AtomicOrder::Release,
@@ -169,7 +183,10 @@ impl FunctionEmitter<'_> {
             mir::MemoryOrdering::SequentiallyConsistent => {
                 bytecode::AtomicOrder::SequentiallyConsistent
             }
-        }
+            mir::MemoryOrdering::Parameter(_) => {
+                unreachable!("a closed ordering names no parameter")
+            }
+        })
     }
 
     /// Return one bytecode execution scope.

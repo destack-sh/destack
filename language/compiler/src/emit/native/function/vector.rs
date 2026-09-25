@@ -5,6 +5,7 @@ use destack_native as native;
 
 use crate::EmitError;
 
+use super::memory::MemoryRegion;
 use super::{FunctionEmitter, Value};
 
 impl FunctionEmitter<'_> {
@@ -282,9 +283,8 @@ impl FunctionEmitter<'_> {
             ty.bytes().next_power_of_two().trailing_zeros() as u8,
         ));
         let base = builder.ins().stack_addr(self.types.pointer(), slot, 0);
-        builder
-            .ins()
-            .store(cir::MemFlagsData::trusted(), vector, base, 0);
+        let flags = self.memory_flags(MemoryRegion::World);
+        builder.ins().store(flags, vector, base, 0);
         let lane_bytes = builder
             .ins()
             .iconst(self.types.pointer(), i64::from(ty.lane_type().bytes()));
@@ -296,17 +296,11 @@ impl FunctionEmitter<'_> {
         let offset = builder.ins().imul(index, lane_bytes);
         let address = builder.ins().iadd(base, offset);
         if let Some(value) = value {
-            builder
-                .ins()
-                .store(cir::MemFlagsData::trusted(), value, address, 0);
+            builder.ins().store(flags, value, address, 0);
 
-            Ok(builder
-                .ins()
-                .load(ty, cir::MemFlagsData::trusted(), base, 0))
+            Ok(builder.ins().load(ty, flags, base, 0))
         } else {
-            Ok(builder
-                .ins()
-                .load(ty.lane_type(), cir::MemFlagsData::trusted(), address, 0))
+            Ok(builder.ins().load(ty.lane_type(), flags, address, 0))
         }
     }
 
@@ -323,7 +317,7 @@ impl FunctionEmitter<'_> {
     fn vector_element(&self, value: mir::Value) -> Result<mir::TypeId, EmitError> {
         // resolve the vector storage type
         let ty = self.optimized.tree.storage_type(self.value_type(value)?);
-        match self.optimized.tree.get(ty) {
+        match self.optimized.tree.type_definition(ty) {
             mir::Type::Vector { element, .. } => Ok(*element),
             _ => Err(self.invalid("native value has no vector element type")),
         }

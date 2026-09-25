@@ -59,16 +59,9 @@ impl FunctionEmitter<'_> {
         result_type: mir::TypeId,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
     ) -> Result<(), EmitError> {
-        // read the dynamic storage type
-        let dynamic_type = self.optimized.tree.storage_type(self.value_type(dynamic)?);
-        let storage = self
-            .optimized
-            .tree
-            .get(dynamic_type)
-            .reference_storage()
-            .ok_or_else(|| self.invalid("native dynamic value has no reference storage"))?;
+        // read the dynamic entry and address it on the memory base
         let (payload, offset) = self.dynamic_entry(dynamic, slot, builder)?;
-        let payload = self.materialize_reference(payload, storage, builder)?;
+        let payload = self.rebase(payload, builder)?;
         let offset = builder.ins().uextend(self.types.pointer(), offset);
         let address = builder.ins().iadd(payload, offset);
         let value_type = self.types.value(result_type)?;

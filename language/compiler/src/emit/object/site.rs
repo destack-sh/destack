@@ -38,7 +38,7 @@ impl SiteEmitter {
         let mut sites = Self::default();
 
         // walk each defined function in object order
-        for (_, function) in optimized.tree.iter_nodes::<mir::Function>() {
+        for (function_id, function) in optimized.tree.iter_nodes::<mir::Function>() {
             let Some(body) = &function.body else {
                 continue;
             };
@@ -49,7 +49,14 @@ impl SiteEmitter {
             for block_id in blocks {
                 let block = optimized.tree.get(block_id);
                 for instruction_id in &block.instructions {
-                    sites.emit_instruction(module, optimized, points, function, *instruction_id)?;
+                    sites.emit_instruction(
+                        module,
+                        optimized,
+                        points,
+                        function_id,
+                        function,
+                        *instruction_id,
+                    )?;
                 }
 
                 sites.emit_terminator(module, optimized, points, function, block_id)?;
@@ -65,6 +72,7 @@ impl SiteEmitter {
         module: ModuleId,
         optimized: &MirOptimized,
         points: &PointMap,
+        function_id: mir::FunctionId,
         function: &mir::Function,
         instruction_id: mir::LocalNodeId<mir::Instruction>,
     ) -> Result<(), EmitError> {
@@ -77,19 +85,20 @@ impl SiteEmitter {
             mir::Instruction::NewZeroed {
                 storage_type,
                 result_type,
+                space,
                 ..
             }
             | mir::Instruction::NewUninit {
                 storage_type,
                 result_type,
+                space,
                 ..
-            } => self.allocations.push(Self::allocation(
-                module,
-                optimized,
+            } => self.allocations.push(AllocationSite {
                 point,
-                *storage_type,
-                *result_type,
-            )?),
+                space: *space,
+                result_type: *result_type,
+                storage_type: *storage_type,
+            }),
             mir::Instruction::ContextBind {
                 node_type,
                 result_type,
@@ -104,28 +113,33 @@ impl SiteEmitter {
             mir::Instruction::NewSliceZeroed {
                 element,
                 result_type,
+                space,
                 ..
             }
             | mir::Instruction::NewSliceUninit {
                 element,
                 result_type,
+                space,
                 ..
-            } => self.allocations.push(Self::allocation(
-                module,
-                optimized,
+            } => self.allocations.push(AllocationSite {
                 point,
-                *element,
-                *result_type,
-            )?),
+                space: *space,
+                result_type: *result_type,
+                storage_type: *element,
+            }),
             _ => {}
         }
 
-        // record every explicit memory access at this operation
-        if let Some(accesses) = optimized.accesses.get(instruction_id) {
-            for access in accesses {
-                self.memory
-                    .push(Self::memory(module, optimized, function, point, access)?);
-            }
+        // record the memory access of the place this operation selects
+        if let Some((place, operation)) = instruction.place_access(function_id, &optimized.tree) {
+            self.memory.push(Self::memory(
+                module,
+                optimized,
+                function_id,
+                point,
+                place,
+                operation,
+            )?);
         }
 
         // record dynamic entry reads
@@ -223,38 +237,38 @@ impl SiteEmitter {
         match terminator {
             mir::Terminator::NewZeroedTry {
                 storage_type,
+                space,
                 success,
                 ..
             }
             | mir::Terminator::NewUninitTry {
                 storage_type,
+                space,
                 success,
                 ..
-            } => {
-                let result_type = Self::success_type(module, optimized, success)?;
-                self.allocations.push(Self::allocation(
-                    module,
-                    optimized,
-                    point,
-                    *storage_type,
-                    result_type,
-                )?);
-            }
+            } => self.allocations.push(AllocationSite {
+                point,
+                space: *space,
+                result_type: Self::success_type(module, optimized, success)?,
+                storage_type: *storage_type,
+            }),
             mir::Terminator::NewSliceZeroedTry {
-                element, success, ..
+                element,
+                space,
+                success,
+                ..
             }
             | mir::Terminator::NewSliceUninitTry {
-                element, success, ..
-            } => {
-                let result_type = Self::success_type(module, optimized, success)?;
-                self.allocations.push(Self::allocation(
-                    module,
-                    optimized,
-                    point,
-                    *element,
-                    result_type,
-                )?);
-            }
+                element,
+                space,
+                success,
+                ..
+            } => self.allocations.push(AllocationSite {
+                point,
+                space: *space,
+                result_type: Self::success_type(module, optimized, success)?,
+                storage_type: *element,
+            }),
             _ => {}
         }
 
@@ -305,7 +319,7 @@ impl SiteEmitter {
         Ok(())
     }
 
-    /// Build one allocation site.
+    /// Build the allocation site of one context node in its managed space.
     fn allocation(
         module: ModuleId,
         optimized: &MirOptimized,
@@ -330,46 +344,24 @@ impl SiteEmitter {
     fn memory(
         module: ModuleId,
         optimized: &MirOptimized,
-        function: &mir::Function,
+        function: mir::FunctionId,
         point: Point,
-        access: &mir::MemoryAccess,
+        place: &mir::Place,
+        access: mir::MemoryOperation,
     ) -> Result<MemorySite, EmitError> {
         // resolve the accessed storage and value type
-        let (storage, value_type) = match access.target {
-            mir::MemoryTarget::Address(value) => {
-                let ty = function.value_type(value).ok_or_else(|| {
-                    ObjectEmitter::internal(module, "missing memory address type")
-                })?;
-                let storage = Self::reference_storage(optimized, ty);
-                let value_type = Self::pointee_type(optimized, ty).ok_or_else(|| {
-                    ObjectEmitter::internal(module, "missing addressed value type")
-                })?;
-
-                (storage, value_type)
-            }
-            mir::MemoryTarget::Local(local) => {
-                let local = optimized.tree.get(local);
-
-                (
-                    Some(mir::Storage::Frame),
-                    optimized.tree.storage_type(local.ty),
-                )
-            }
-            mir::MemoryTarget::Global(global) => {
-                let global = optimized.tree.get(global);
-
-                (
-                    Some(mir::Storage::global(global.space)),
-                    optimized.tree.storage_type(global.ty),
-                )
-            }
+        let Some(mir::PlaceType::Value(value_type)) = place.ty(function, &optimized.tree) else {
+            return Err(ObjectEmitter::internal(
+                module,
+                "memory site selects a referent",
+            ));
         };
 
         Ok(MemorySite {
             point,
-            access: access.operation,
-            storage,
-            value_type,
+            access,
+            storage: place.storage(function, &optimized.tree),
+            value_type: optimized.tree.storage_type(value_type),
         })
     }
 
@@ -474,23 +466,9 @@ impl SiteEmitter {
 
     /// Return the storage of one reference-like MIR type.
     fn reference_storage(optimized: &MirOptimized, ty: mir::TypeId) -> Option<mir::Storage> {
-        match optimized.tree.get(optimized.tree.storage_type(ty)) {
-            mir::Type::Reference { storage, .. }
-            | mir::Type::Slice { storage, .. }
-            | mir::Type::Dynamic { storage, .. }
-            | mir::Type::Function { storage, .. } => Some(*storage),
-            _ => None,
-        }
-    }
-
-    /// Return the stored value type addressed by one pointer or reference-like MIR type.
-    fn pointee_type(optimized: &MirOptimized, ty: mir::TypeId) -> Option<mir::TypeId> {
-        match optimized.tree.get(optimized.tree.storage_type(ty)) {
-            mir::Type::Reference { pointee, .. } | mir::Type::Pointer { pointee, .. } => {
-                Some(optimized.tree.storage_type(*pointee))
-            }
-            mir::Type::Slice { element, .. } => Some(optimized.tree.storage_type(*element)),
-            _ => None,
-        }
+        optimized
+            .tree
+            .type_definition(optimized.tree.storage_type(ty))
+            .reference_storage()
     }
 }

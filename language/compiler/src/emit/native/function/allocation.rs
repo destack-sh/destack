@@ -15,6 +15,7 @@ impl<'a> FunctionEmitter<'a> {
         instruction: mir::LocalNodeId<mir::Instruction>,
         destination: mir::Value,
         result_type: mir::TypeId,
+        space: mir::Space,
         initialization: native::abi::AllocationInitialization,
         length: Option<mir::Value>,
         builder: &mut cranelift_frontend::FunctionBuilder<'_>,
@@ -25,9 +26,10 @@ impl<'a> FunctionEmitter<'a> {
             .object
             .allocation_index(point)
             .ok_or_else(|| self.invalid("native allocation has no site"))?;
-        let space = self.heap_space(result_type)?;
         let value_type = self.types.value(result_type)?;
-        let space = builder.ins().iconst(cir::types::I32, space as i64);
+        let space = builder
+            .ins()
+            .iconst(cir::types::I32, self.native_space(space)? as i64);
         let site = self.index_u32(native::Index::Allocation { site }, builder)?;
         let initialization = builder.ins().iconst(cir::types::I32, initialization as i64);
         let length = length.map(|length| self.scalar(length)).transpose()?;

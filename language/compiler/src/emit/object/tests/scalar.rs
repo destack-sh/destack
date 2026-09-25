@@ -40,7 +40,13 @@ function constants {
 
     program.assert_native(
         r#"
-function u0:0(i64) -> i128 native {
+function u0:0(i64 vmctx) -> i128 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    stack_limit = gv1
+
 block0(v0: i64):
     v1 = iconst.i64 0
     v2 = iconst.i8 1
@@ -59,7 +65,7 @@ block0(v0: i64):
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64) -> i128 native
+    sig0 = (i64 vmctx) -> i128 native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):
@@ -129,7 +135,13 @@ function integer {
 
     program.assert_native(
         r#"
-function u0:0(i64, i64, i64, i64, i64) -> i64 native {
+function u0:0(i64 vmctx, i64, i64, i64, i64) -> i64 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    stack_limit = gv1
+
 block0(v0: i64, v1: i64, v2: i64, v3: i64, v4: i64):
     v5 = iadd v1, v2
     v6 = isub v5, v2
@@ -153,7 +165,7 @@ block0(v0: i64, v1: i64, v2: i64, v3: i64, v4: i64):
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64, i64, i64, i64, i64) -> i64 native
+    sig0 = (i64 vmctx, i64, i64, i64, i64) -> i64 native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):
@@ -207,9 +219,14 @@ function float {
 
     program.assert_native(
         r#"
-function u0:0(i64, f64, f64) -> f64 native {
+function u0:0(i64 vmctx, f64, f64) -> f64 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
     sig0 = (f64, f64) -> f64 native
     fn0 = colocated u0:2 sig0
+    stack_limit = gv1
 
 block0(v0: i64, v1: f64, v2: f64):
     v3 = fadd v1, v2
@@ -224,12 +241,77 @@ block0(v0: i64, v1: f64, v2: f64):
 }
 
 function u1:0(i64, i64, i64) native {
-    sig0 = (i64, f64, f64) -> f64 native
+    sig0 = (i64 vmctx, f64, f64) -> f64 native
     fn0 = colocated u0:0 sig0
 
 block0(v0: i64, v1: i64, v2: i64):
     v3 = load.f64 notrap aligned v1
     v4 = load.f64 notrap aligned v1+8
+    v5 = call fn0(v0, v3, v4)
+    store notrap aligned v5, v2
+    return
+}
+"#,
+    );
+}
+
+/// Preserve signed extension, unsigned extension, and truncation across register widths.
+#[test]
+fn test_emit_integer_casts() {
+    let program = TestProgram::mir(
+        r#"
+export function casts(v0: int8, v1: uint8): int16 {
+entry(v0: int8, v1: uint8):
+    v2: int128 = cast.intToInt v0 -> int128
+    v3: uint128 = cast.intToInt v2 -> uint128
+    v4: int16 = cast.intToInt v3 -> int16
+    v5: uint128 = cast.intToInt v1 -> uint128
+    v6: uint64 = cast.intToInt v5 -> uint64
+    return v4
+}
+"#,
+    );
+
+    program.assert_bytecode(
+        r#"
+function casts {
+    extend.int8.int64 r2, r0
+    constant.uint64 r6, 63
+    shr.int64 r3, r2, r6
+    move r4:r5, r2:r3
+    truncate.uint64.int16 r0, r4
+    extend.uint8.uint64 r2, r1
+    constant.uint64 r3, 0
+    move r1, r2
+    return r0
+}
+"#,
+    );
+
+    program.assert_native(
+        r#"
+function u0:0(i64 vmctx, i8, i8) -> i16 native {
+    region0 = 0 "activation"
+    region1 = 1 "world"
+    gv0 = vmctx
+    gv1 = load.i64 notrap aligned gv0+48
+    stack_limit = gv1
+
+block0(v0: i64, v1: i8, v2: i8):
+    v3 = sextend.i128 v1
+    v4 = ireduce.i16 v3
+    v5 = uextend.i128 v2
+    v6 = ireduce.i64 v5
+    return v4
+}
+
+function u1:0(i64, i64, i64) native {
+    sig0 = (i64 vmctx, i8, i8) -> i16 native
+    fn0 = colocated u0:0 sig0
+
+block0(v0: i64, v1: i64, v2: i64):
+    v3 = load.i8 notrap aligned v1
+    v4 = load.i8 notrap aligned v1+8
     v5 = call fn0(v0, v3, v4)
     store notrap aligned v5, v2
     return
