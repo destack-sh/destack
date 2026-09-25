@@ -445,8 +445,8 @@ impl MemoryPlace {
     }
 
     /// Add a constant offset.
-    pub fn add_const_offset(&mut self, offset: i64) {
-        self.const_offset = self.const_offset.wrapping_add(i128::from(offset));
+    pub fn add_const_offset(&mut self, offset: i128) {
+        self.const_offset = self.const_offset.wrapping_add(offset);
     }
 
     /// Add an indexed offset.
@@ -594,13 +594,9 @@ impl<'a> MemoryRegionBuilder<'a> {
         operand: &mir::Place,
         depth: usize,
     ) -> Result<MemoryRegion, mir::LayoutError> {
-        let invalid = || mir::LayoutError::Unsupported {
-            construct: format!("memory place {operand:?}"),
-        };
-        let root_type = operand
-            .root_type(self.function, self.tree)
-            .ok_or_else(invalid)?;
-        let mut ty = mir::PlaceType::Value(root_type);
+        let steps = self
+            .layouts
+            .address_steps(operand, self.function, self.tree)?;
         let mut prefix = mir::Place::new(operand.origin);
         let root = match operand.origin {
             mir::PlaceOrigin::Local(local) => StorageRoot::LocalSlot(local),
@@ -615,23 +611,19 @@ impl<'a> MemoryRegionBuilder<'a> {
         };
         let mut region = MemoryRegion::Place(MemoryPlace::from_root(root));
 
-        // apply each projection with the layout of the storage it selects
-        for projection in &operand.path.projections {
-            let selected = ty.project(projection, self.tree).ok_or_else(invalid)?;
-            match projection {
-                mir::Projection::Deref => {
+        // apply the address step of each projection
+        for (projection, step) in operand.path.projections.iter().zip(steps) {
+            match step {
+                // resolve a root address value, else address the referent of the stored reference
+                mir::AddressStep::Follow(descriptor) => {
                     if prefix.path.is_root()
                         && let mir::PlaceOrigin::Value(value) = prefix.origin
                     {
                         region = self.region(value, depth + 1)?;
                     } else {
-                        let mir::PlaceType::Value(reference) = ty else {
-                            return Err(invalid());
-                        };
-                        let reference = self.tree.storage_type(reference);
                         let spaces = self
                             .tree
-                            .type_definition(reference)
+                            .type_definition(descriptor.ty)
                             .reference_storage_set()
                             .unwrap_or(mir::StorageSet::ANY);
                         let place = prefix.clone().with_projection(mir::Projection::Deref);
@@ -642,55 +634,18 @@ impl<'a> MemoryRegionBuilder<'a> {
                             }));
                     }
                 }
-                mir::Projection::Field { index } => {
-                    let mir::PlaceType::Value(aggregate) = ty else {
-                        return Err(invalid());
-                    };
-                    let field = self
-                        .layout(aggregate)?
-                        .source_field(*index)
-                        .ok_or_else(invalid)?;
+                // advance by one field, payload, or fixed element offset
+                mir::AddressStep::Offset(offset) => {
                     if let MemoryRegion::Place(place) = &mut region {
-                        place.add_const_offset(i64::from(field.offset));
+                        place.add_const_offset(i128::from(offset));
                     }
                 }
-                mir::Projection::Variant { case } => {
-                    let mir::PlaceType::Value(variant) = ty else {
-                        return Err(invalid());
-                    };
-                    let mir::LayoutShape::Variant(layout) = &self.layout(variant)?.shape else {
-                        return Err(invalid());
-                    };
-                    let payload = layout.cases.get(*case as usize).ok_or_else(invalid)?;
-                    if let MemoryRegion::Place(place) = &mut region {
-                        place.add_const_offset(i64::from(payload.payload_offset));
-                    }
+                // scale one runtime index
+                mir::AddressStep::Index { index, stride, .. } => {
+                    self.add_index(&mut region, index, u64::from(stride));
                 }
-                mir::Projection::Element { index } => {
-                    let mir::PlaceType::Value(element) = selected else {
-                        return Err(invalid());
-                    };
-                    let stride = self.layout(element)?.stride();
-                    if let MemoryRegion::Place(place) = &mut region {
-                        place.const_offset = place
-                            .const_offset
-                            .wrapping_add(i128::from(*index) * stride as i128);
-                    }
-                }
-                mir::Projection::Index { index } | mir::Projection::Slice { start: index, .. } => {
-                    let element = match selected {
-                        mir::PlaceType::Value(element) => element,
-                        referent => referent
-                            .element(self.tree)
-                            .unwrap_or_else(|| unreachable!("indexed referent has no element")),
-                    };
-                    let stride = self.layout(element)?.stride();
-                    self.add_index(&mut region, *index, stride as u64);
-                }
-                mir::Projection::Elements => return Err(invalid()),
             }
             prefix.push(projection.clone());
-            ty = selected;
         }
 
         Ok(region)
@@ -987,13 +942,6 @@ impl<'a> MemoryRegionBuilder<'a> {
         }
 
         ty
-    }
-
-    /// Return the canonical layout of one represented type.
-    fn layout(&self, ty: mir::TypeId) -> Result<&mir::Layout, mir::LayoutError> {
-        self.layouts
-            .type_layout(ty)
-            .ok_or(mir::LayoutError::Missing { ty })
     }
 
     /// Add an element index to a resolved address.
