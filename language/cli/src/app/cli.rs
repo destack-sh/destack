@@ -3,7 +3,7 @@ use clap::builder::styling::{AnsiColor, Style, Styles};
 use clap::{Args, CommandFactory, Parser, ValueEnum};
 
 use crate::{
-    build, cache, check, clean, completions, console, doc, doctor, explain, fmt, info, init, lint,
+    build, cache, check, clean, completions, console, doc, doctor, explain, fmt, info, lint,
     lsp, query, rewrite, run, settings, targets, task, test, update, version,
 };
 
@@ -13,7 +13,7 @@ use crate::command::DevCommand;
 use crate::command::dev::stats;
 use crate::command::{
     BuildArgs, CacheArgs, CheckArgs, CleanArgs, CompletionsArgs, DaemonArgs, DocArgs, DoctorArgs,
-    ExplainArgs, FmtArgs, InfoArgs, InitArgs, LintArgs, LspArgs, QueryArgs, RewriteArgs, RunArgs,
+    ExplainArgs, FmtArgs, InfoArgs, LintArgs, LspArgs, QueryArgs, RewriteArgs, RunArgs,
     SettingsArgs, TargetsArgs, TaskArgs, TestArgs, UpdateArgs, VersionArgs,
 };
 
@@ -116,9 +116,6 @@ pub enum Command {
     /// Rewrite source files with a structural pattern.
     Rewrite(RewriteArgs),
 
-    /// Initialize a new project.
-    Init(InitArgs),
-
     /// Remove build outputs and caches.
     Clean(CleanArgs),
 
@@ -182,7 +179,6 @@ impl Command {
             Self::Format(args) => fmt::run(&args).await,
             Self::Query(args) => query::run(&args).await,
             Self::Rewrite(args) => rewrite::run(&args).await,
-            Self::Init(args) => init::run(&args),
             Self::Clean(args) => clean::run(&args).await,
             Self::Cache(args) => cache::run(&args).await,
             Self::Settings(args) => settings::run(&args).await,
@@ -331,12 +327,6 @@ fn build_commands_help(color_enabled: bool) -> String {
             example: "",
             help: None,
             group: 1,
-        },
-        CommandEntry {
-            name: "init",
-            example: "",
-            help: None,
-            group: 2,
         },
         CommandEntry {
             name: "clean",
