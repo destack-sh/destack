@@ -39,6 +39,7 @@ export {
     mac,
     nanoid,
     never,
+    nonoptional,
     null,
     nullable,
     nullish,
@@ -63,6 +64,11 @@ export {
     ZodType as Schema,
 } from "zod";
 export { ZodError as Error } from "zod";
-export type { input as Input, output as Output, ZodObject as Object } from "zod";
+export type {
+    input as Input,
+    output as Output,
+    ZodObject as Object,
+    ZodOptional as Optional,
+} from "zod";
 export type { infer as Infer, ZodIssue as Issue } from "zod";
 export { flattenError, prettifyError, treeifyError } from "zod";

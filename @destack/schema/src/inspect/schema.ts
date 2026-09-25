@@ -1,23 +1,19 @@
 import { z } from "zod";
-import { validate } from "../validate/schema.ts";
+import { requireDeclarable } from "../validate/schema.ts";
 
-/** JSON Schema Draft 2020-12 description for inspection and external tooling. */
+/** The JSON Schema Draft 2020-12 description for inspection and external tooling. */
 export type JsonSchema = z.core.JSONSchema.JSONSchema;
 
 /** Check the supported declaration and retain native validation and inference. */
 export function defineSchema<Schema extends z.ZodType>(schema: Schema): Schema {
-    validate(schema, new Map(), false);
+    requireDeclarable(schema);
 
     return schema;
 }
 
-/**
- * Describe a schema using JSON Schema Draft 2020-12.
- *
- * Use the declared validator for execution; descriptions can omit format-specific checks.
- */
+/** Describe a schema using JSON Schema Draft 2020-12. */
 export function toJsonSchema(schema: z.ZodType): JsonSchema {
-    validate(schema, new Map(), false);
+    requireDeclarable(schema);
 
     return z.toJSONSchema(schema, {
         target: "draft-2020-12",

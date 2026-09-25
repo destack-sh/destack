@@ -4,32 +4,75 @@ import type { $ZodType, $ZodTypes } from "zod/v4/core";
 /** Zod's built-in guard for string and array length checks. */
 const LENGTH_CHECK = z.minLength(0)._zod.def.when;
 
+/** The string formats declared schemas may check. */
+const STRING_FORMATS = new Set([
+    "regex",
+    "uuid",
+    "guid",
+    "nanoid",
+    "cuid2",
+    "ulid",
+    "xid",
+    "ksuid",
+    "email",
+    "url",
+    "emoji",
+    "hostname",
+    "hex",
+    "currency_code",
+    "jwt",
+    "credit_card",
+    "iban",
+    "ipv4",
+    "ipv6",
+    "mac",
+    "base64",
+    "base64url",
+    "e164",
+    "cidrv4",
+    "cidrv6",
+    "datetime",
+    "date",
+    "time",
+    "duration",
+]);
+
+/** The hash formats declared schemas may check, by algorithm and encoding. */
+const HASH_FORMAT = /^(?:md5|sha1|sha256|sha384|sha512)_(?:hex|base64|base64url)$/;
+
 /** Descriptive metadata that cannot replace exported validation rules. */
 const METADATA_KEYS = new Set(["id", "title", "description", "deprecated", "examples"]);
 
-/** Require declarative schemas for JSON-compatible values. */
-export function validate(
+/** Require a schema to declare JSON-compatible values with inspectable, non-executable rules. */
+export function requireDeclarable(schema: $ZodType): void {
+    requireNode(schema, new Map(), false);
+}
+
+/** Require one schema node to be declarable within the visited nodes and optional context. */
+function requireNode(
     schema: $ZodType,
     visited: Map<$ZodType, Set<boolean>>,
-    isProperty: boolean,
+    isOptionalAllowed: boolean,
 ): void {
     // read the zod definition
     const definition = (schema as $ZodTypes)._zod.def;
 
-    // permit missing values only in object properties
-    if (definition.type === "optional" && !isProperty) {
+    // reject missing values outside optional properties and nonoptional constraints
+    if (definition.type === "optional" && !isOptionalAllowed) {
         throw new TypeError("optional schemas are only supported as object properties");
     }
 
-    // visit shared and recursive schemas in each property context
+    // visit shared and recursive schemas in each optional-value context
     const contexts = visited.get(schema);
-    if (contexts?.has(isProperty)) {
+    if (contexts?.has(isOptionalAllowed)) {
         return;
     }
+
+    // record this context
     if (contexts) {
-        contexts.add(isProperty);
+        contexts.add(isOptionalAllowed);
     } else {
-        visited.set(schema, new Set([isProperty]));
+        visited.set(schema, new Set([isOptionalAllowed]));
     }
 
     // keep metadata from overriding validation in the generated description
@@ -39,23 +82,32 @@ export function validate(
             throw new TypeError(`unsupported schema metadata: ${key}`);
         }
     }
+
+    // require metadata to be JSON
     if (metadata !== undefined) {
         z.json().parse(metadata);
     }
 
-    // reject coercion and executable checks before exporting the schema
+    // reject coercion
     if ("coerce" in definition && definition.coerce) {
         throw new TypeError("declared schemas cannot coerce values");
     }
+
+    // collect the checks, including a schema that is itself a check
     const checks = [...(definition.checks ?? [])];
     if ("check" in definition) {
         checks.push(schema as unknown as z.core.$ZodCheck);
     }
+
+    // reject executable and unexportable checks
     for (const check of checks) {
+        // reject conditional checks other than zod's length guard
         const rule = check._zod.def;
         if (rule.when !== undefined && rule.when !== LENGTH_CHECK) {
             throw new TypeError("declared schemas cannot use conditional checks");
         }
+
+        // allow the exportable check kinds
         switch (rule.check) {
             case "less_than":
             case "greater_than":
@@ -69,6 +121,8 @@ export function validate(
             default:
                 throw new TypeError(`unsupported schema check: ${rule.check}`);
         }
+
+        // reject stateful regular expression flags
         if (
             "pattern" in rule &&
             rule.pattern instanceof RegExp &&
@@ -76,45 +130,16 @@ export function validate(
         ) {
             throw new TypeError("declared regular expressions cannot use global or sticky flags");
         }
+
+        // allow the supported string and hash formats
         if (rule.check === "string_format") {
             const format = (rule as z.core.$ZodCheckStringFormatDef).format;
-            if (
-                ![
-                    "regex",
-                    "uuid",
-                    "guid",
-                    "nanoid",
-                    "cuid2",
-                    "ulid",
-                    "xid",
-                    "ksuid",
-                    "email",
-                    "url",
-                    "emoji",
-                    "hostname",
-                    "hex",
-                    "currency_code",
-                    "jwt",
-                    "credit_card",
-                    "iban",
-                    "ipv4",
-                    "ipv6",
-                    "mac",
-                    "base64",
-                    "base64url",
-                    "e164",
-                    "cidrv4",
-                    "cidrv6",
-                    "datetime",
-                    "date",
-                    "time",
-                    "duration",
-                ].includes(format) &&
-                !/^(?:md5|sha1|sha256|sha384|sha512)_(?:hex|base64|base64url)$/.test(format)
-            ) {
+            if (!STRING_FORMATS.has(format) && !HASH_FORMAT.test(format)) {
                 throw new TypeError(`unsupported string format: ${format}`);
             }
         }
+
+        // reject URL normalization and custom functions
         if ("normalize" in rule && rule.normalize) {
             throw new TypeError("declared schemas cannot request URL normalization");
         }
@@ -142,7 +167,7 @@ export function validate(
             // inspect schema components before exporting the compiled string pattern
             for (const part of definition.parts) {
                 if (typeof part === "object" && part !== null) {
-                    validate(part, visited, false);
+                    requireNode(part, visited, false);
                 }
             }
             break;
@@ -151,41 +176,45 @@ export function validate(
                 throw new TypeError("declared object schemas must reject unknown properties");
             }
             for (const property of Object.values(definition.shape)) {
-                validate(property, visited, true);
+                requireNode(property, visited, true);
             }
             break;
         case "array":
-            validate(definition.element, visited, false);
+            requireNode(definition.element, visited, false);
             break;
         case "tuple":
             for (const item of definition.items) {
-                validate(item, visited, false);
+                requireNode(item, visited, false);
             }
             if (definition.rest) {
-                validate(definition.rest, visited, false);
+                requireNode(definition.rest, visited, false);
             }
             break;
         case "record":
-            validate(definition.keyType, visited, false);
-            validate(definition.valueType, visited, false);
+            requireNode(definition.keyType, visited, false);
+            requireNode(definition.valueType, visited, false);
             break;
         case "intersection":
-            validate(definition.left, visited, isProperty);
-            validate(definition.right, visited, isProperty);
+            requireNode(definition.left, visited, isOptionalAllowed);
+            requireNode(definition.right, visited, isOptionalAllowed);
             break;
         case "union":
             for (const option of definition.options) {
-                validate(option, visited, isProperty);
+                requireNode(option, visited, isOptionalAllowed);
             }
             break;
         case "nullable":
-            validate(definition.innerType, visited, isProperty);
+            requireNode(definition.innerType, visited, isOptionalAllowed);
             break;
         case "optional":
-            validate(definition.innerType, visited, isProperty);
+            requireNode(definition.innerType, visited, isOptionalAllowed);
+            break;
+        case "nonoptional":
+            // permit optional branches whose undefined result this schema rejects
+            requireNode(definition.innerType, visited, true);
             break;
         case "lazy":
-            validate(definition.getter(), visited, isProperty);
+            requireNode(definition.getter(), visited, isOptionalAllowed);
             break;
         default:
             throw new TypeError(`unsupported schema type: ${definition.type}`);

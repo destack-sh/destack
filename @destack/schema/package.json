@@ -14,7 +14,8 @@
         ".": "./src/index.ts",
         "./validate": "./src/validate/index.ts",
         "./inspect": "./src/inspect/index.ts",
-        "./identifier": "./src/identifier/index.ts"
+        "./identifier": "./src/identifier/index.ts",
+        "./json": "./src/json/index.ts"
     },
     "dependencies": {
         "zod": "4.6.5"
