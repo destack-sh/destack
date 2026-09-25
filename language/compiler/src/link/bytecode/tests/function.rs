@@ -37,7 +37,7 @@ entry(v0: int32):
 
 export function readAnswer(): int32 {
 entry:
-    v0: ref<int32, borrowed, 'static, mutable, static> = address @answer
+    v0: ref<int32, borrowed, 'static, mutable> = address @answer
     v1: int32 = load (*v0)
     return v1
 }

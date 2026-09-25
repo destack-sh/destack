@@ -16,7 +16,7 @@ fn test_link_static_global_address() {
         module,
         r#"
 constant answer: int32 = 42
-shared global answerReference: ref<int32, borrowed, 'static, readonly, constant> = globalAddress answer
+shared global answerReference: ref<int32, borrowed, 'static, readonly> = globalAddress answer
 "#,
         [],
     );

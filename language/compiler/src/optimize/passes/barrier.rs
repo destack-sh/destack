@@ -6,7 +6,7 @@ use destack_mir as mir;
 use crate::optimize::pipeline::FunctionPass;
 use crate::{CompilerError, CompilerResult};
 
-/// Insert collector write barriers after stores into heap storage.
+/// Insert collector write barriers after heap reference stores outside frame and static storage.
 pub(in crate::optimize) struct InsertWriteBarriers;
 
 impl FunctionPass for InsertWriteBarriers {
@@ -15,16 +15,21 @@ impl FunctionPass for InsertWriteBarriers {
         &self,
         function: mir::FunctionId,
         module: &mut MirOptimized,
-        _analyses: &mut mir::FunctionCache,
+        analyses: &mut mir::FunctionCache,
     ) -> CompilerResult<mir::Mutation> {
         // preserve generated destructor bodies
         if module.drops.is_destructor(function) {
             return Ok(mir::Mutation::NONE);
         }
 
-        // insert barriers using the final store types and layouts
-        let mut inserter =
-            BarrierInserter::new(&mut module.tree, &mut module.layouts, module.target);
+        // insert barriers using the final store types, places, and layouts
+        let places = analyses.place(function, &module.tree);
+        let mut inserter = BarrierInserter::new(
+            &mut module.tree,
+            &mut module.layouts,
+            module.target,
+            &places,
+        );
 
         inserter.insert(function)
     }
@@ -38,6 +43,8 @@ struct BarrierInserter<'a> {
     layouts: &'a mut mir::LayoutTable,
     /// The target ABI for generated reference and size types.
     target: mir::TargetLayout,
+    /// The places each address value is known to select.
+    places: &'a mir::PlaceTable,
 }
 
 impl<'a> BarrierInserter<'a> {
@@ -46,15 +53,17 @@ impl<'a> BarrierInserter<'a> {
         tree: &'a mut mir::Tree,
         layouts: &'a mut mir::LayoutTable,
         target: mir::TargetLayout,
+        places: &'a mir::PlaceTable,
     ) -> Self {
         Self {
             tree,
             layouts,
             target,
+            places,
         }
     }
 
-    /// Follow every store of heap references into heap storage with a barrier.
+    /// Follow every store of heap references outside frame and static storage with a barrier.
     fn insert(&mut self, function: mir::FunctionId) -> CompilerResult<mir::Mutation> {
         // record changes only when a store needs a barrier
         let mut mutation = mir::Mutation::NONE;
@@ -81,13 +90,16 @@ impl<'a> BarrierInserter<'a> {
                         continue;
                     }
                 };
-                let Some(storage) = place
+
+                // skip the barrier for a store into frame or static storage
+                if let Some(mir::Storage::Frame | mir::Storage::Static(_)) = self
+                    .places
+                    .resolve_place(&place)
                     .storage(function, self.tree)
-                    .filter(|storage| storage.heap_space().is_some())
-                else {
+                {
                     rewritten.push(instruction);
                     continue;
-                };
+                }
                 let Some(stored) = self.stored_reference_bytes(function, value)? else {
                     rewritten.push(instruction);
                     continue;
@@ -102,11 +114,10 @@ impl<'a> BarrierInserter<'a> {
                 let reference = self.tree.intern_type(mir::Type::Reference {
                     kind: mir::Reference::Raw,
                     lifetime: mir::Lifetime::empty(),
-                    storage,
                     access: mir::Access::Mutable,
                     pointee,
-                }, mir::Copy::Yes);
-                let usize_type = self.tree.intern_type(mir::Type::Usize, mir::Copy::Yes);
+                });
+                let usize_type = self.tree.intern_type(mir::Type::Usize);
                 let mut layouts = mir::LayoutBuilder::new(self.tree, self.layouts, self.target);
                 for ty in [reference, usize_type] {
                     layouts
