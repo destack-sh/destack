@@ -1,3 +1,6 @@
+use destack_mir as mir;
+use destack_program::object::{MemorySite, Point};
+
 use crate::tests::TestProgram;
 
 /// Emit tagged variant construction, tag access, and payload projection.
@@ -101,7 +104,7 @@ entry(v0: ref<Holder, borrowed, 'a, readonly>):
 "#,
     );
 
-    program.assert_bytecode(
+    let object = program.assert_bytecode(
         r#"
 function tag {
     address.add r2, r0, 8
@@ -147,4 +150,14 @@ block0(v0: i64, v1: i64, v2: i64):
 }
 "#,
     );
+
+    // record the tag load as a read of the stored variant definition
+    let choice = program.type_by_name("Choice");
+    let site = MemorySite {
+        point: Point::new(program.function_by_name("tag"), 0),
+        access: mir::MemoryOperation::Read,
+        storage: None,
+        value_type: program.lowered.tree.storage_type(choice),
+    };
+    assert_eq!(object.memory(), &[site]);
 }

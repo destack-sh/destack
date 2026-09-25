@@ -381,12 +381,6 @@ impl<'a> MemoryEffectBuilder<'a> {
             | mir::Instruction::ProfileIncrement { .. }
             | mir::Instruction::ProfileSample { .. }
             | mir::Instruction::Breakpoint => SmallVec::new(),
-            mir::Instruction::VariantTagLoad { place, .. } => {
-                let effect =
-                    self.place_effect(place, mir::MemoryOperation::Read, MemoryAccessOrder::Plain);
-
-                smallvec![effect]
-            }
             mir::Instruction::DynamicRead {
                 dynamic,
                 slot,
@@ -417,7 +411,8 @@ impl<'a> MemoryEffectBuilder<'a> {
             | mir::Instruction::AtomicLoad { .. }
             | mir::Instruction::AtomicStore { .. }
             | mir::Instruction::AtomicCompareExchange { .. }
-            | mir::Instruction::AtomicRmw { .. } => self.place_access_effects(instruction),
+            | mir::Instruction::AtomicRmw { .. }
+            | mir::Instruction::VariantTagLoad { .. } => self.place_access_effects(instruction),
             mir::Instruction::AtomicFence { access } => {
                 smallvec![MemoryAccessEffect::barrier(*access)]
             }
@@ -496,7 +491,7 @@ impl<'a> MemoryEffectBuilder<'a> {
         }
     }
 
-    /// Build the memory effect of the place one load, store, or atomic operation accesses.
+    /// Build the memory effect of the place one load, store, tag load, or atomic access selects.
     fn place_access_effects(
         &mut self,
         instruction: &mir::Instruction,

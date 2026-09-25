@@ -765,7 +765,7 @@ impl Instruction {
         }
     }
 
-    /// Return the place one load, store, or atomic operation accesses and how it accesses it.
+    /// Return the place one load, store, tag load, or atomic operation accesses, and how.
     ///
     /// A load of a value that is not Copy moves it out, which also writes its place.
     pub fn place_access(
@@ -787,7 +787,9 @@ impl Instruction {
 
                 Some((place, operation))
             }
-            Self::AtomicLoad { place, .. } => Some((place, MemoryOperation::Read)),
+            Self::AtomicLoad { place, .. } | Self::VariantTagLoad { place, .. } => {
+                Some((place, MemoryOperation::Read))
+            }
             Self::Store { place, .. } | Self::AtomicStore { place, .. } => {
                 Some((place, MemoryOperation::Write))
             }
