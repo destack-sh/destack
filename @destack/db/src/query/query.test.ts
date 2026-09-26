@@ -1,6 +1,5 @@
 import { expect, onTestFinished, test } from "@destack/test";
 import * as schemas from "@destack/schema";
-import { migrate } from "../migration/database.ts";
 import { TEST_DIALECTS, TestDatabase } from "../test/database.ts";
 import {
     bigint,
@@ -75,9 +74,8 @@ const row = {
 
 /** Open a migrated test database of samples and tags. */
 async function open(dialect: (typeof TEST_DIALECTS)[number]) {
-    const test = await TestDatabase.create(dialect, [sample, tag]);
+    const test = await TestDatabase.create(dialect, [sample, tag], { isMigrated: true });
     onTestFinished(() => test.close());
-    await migrate(test.database, [sample, tag]);
 
     return test.database;
 }

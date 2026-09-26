@@ -7,7 +7,7 @@ import { changeTables, lease, note, revision } from "./fixture.ts";
 
 /** Open a migrated test database of the change example schema. */
 async function open(dialect: (typeof TEST_DIALECTS)[number], storage?: "memory" | "file") {
-    const test = await TestDatabase.create(dialect, changeTables, storage);
+    const test = await TestDatabase.create(dialect, changeTables, { storage });
     onTestFinished(() => test.close());
     await migrate(test.database, changeTables);
 

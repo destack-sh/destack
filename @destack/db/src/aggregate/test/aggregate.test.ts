@@ -6,9 +6,8 @@ import { item, list, lists, plainItem } from "./fixture.ts";
 
 /** Open a migrated database holding lists and their items. */
 async function open(dialect: (typeof TEST_DIALECTS)[number]) {
-    const test = await TestDatabase.create(dialect, lists);
+    const test = await TestDatabase.create(dialect, lists, { isMigrated: true });
     onTestFinished(() => test.close());
-    await migrate(test.database, lists);
 
     return test.database;
 }
@@ -77,9 +76,8 @@ test.for(TEST_DIALECTS)(
     "compute declared aggregates afresh over the rows present on %s",
     async (dialect) => {
         // hold items before the lists keep any aggregate
-        const test = await TestDatabase.create(dialect, [plainItem, list], "file");
+        const test = await TestDatabase.create(dialect, [plainItem, list], { isMigrated: true });
         onTestFinished(() => test.close());
-        await migrate(test.database, [plainItem, list]);
         await test.database.insert(list).values([{ id: "a" }]);
         await test.database.insert(plainItem).values([
             { id: "1", listId: "a", points: 3, isDone: true },
