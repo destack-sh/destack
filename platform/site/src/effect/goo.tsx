@@ -30,6 +30,18 @@ const raggedReach = 60;
 const mergeSoftness = 90;
 /** The milliseconds between frames of the goo while nothing moves, which only twinkles its stars. */
 const idlePace = 33;
+/** The seconds the goo's bulge takes to catch up with the pointer, so it drags behind like something thick. */
+const gooLag = 0.3;
+/** The seconds the tail of the bulge takes to catch up with its head, drawing the goo out into a strand while the pointer moves. */
+const gooTail = 0.9;
+/** The seconds the goo takes to swell toward a pointer that comes near. */
+const swellTime = 0.5;
+/** The seconds the goo takes to sag back once the pointer leaves. */
+const sagTime = 1.4;
+/** The seconds the slow swells from moving the pointer take to build and settle. */
+const stirTime = 0.6;
+/** The pointer speed that stirs the goo fully, in CSS pixels per second. */
+const fullStir = 1500;
 /** The milliseconds between measurements of the goo cells, in case the page shifts under them without resizing. */
 const remeasureTime = 1000;
 /** How far past the farthest point of the site frame the universe spreads, in CSS pixels, to settle its ragged edge. */
@@ -75,6 +87,7 @@ uniform float scale;
 uniform float time;
 uniform float wobble;
 uniform vec2 pointer;
+uniform vec2 trail;
 uniform vec2 origin;
 uniform float pull;
 uniform float stir;
@@ -210,10 +223,13 @@ void main() {
     float swell = noise(page * 0.013 - vec2(time * 0.03, time * 0.012)) - 0.5;
     d -= (slow * 2.0 + swell) * wobble * (1.0 + spreading * 6.0);
 
-    // swell toward the pointer, bulging hard right under it, and ring the edge with ripples while the pointer moves
-    float away = length(frag - pointer);
-    d -= pull * (8.0 * exp(-away * away / 9000.0) + 16.0 * exp(-away * away / 1400.0));
-    d -= stir * 4.0 * sin(away * 0.22 - time * 7.0) * exp(-away / 70.0);
+    // swell toward the pointer along the strand it drags behind it, thinning toward the tail, and heave in slow broad swells while it moves
+    vec2 along = trail - pointer;
+    float reach = clamp(dot(frag - pointer, along) / max(dot(along, along), 1.0), 0.0, 1.0);
+    float away = length(frag - pointer - along * reach);
+    float thickness = 1.0 - reach * 0.55;
+    d -= pull * thickness * (8.0 * exp(-away * away / 9000.0) + 16.0 * exp(-away * away / 1400.0));
+    d -= stir * 5.0 * sin(away * 0.06 - time * 2.0) * exp(-away / 140.0);
 
     // clip to the goo with a fine cream rim, outlined in ink on a light page
     float edge = 1.0 / scale;
@@ -314,8 +330,12 @@ type Terrain = {
 class Field {
     /** The shader that draws the goo. */
     shader: Shader;
-    /** The smoothed pointer position in canvas CSS pixels. */
+    /** The smoothed pointer position in canvas CSS pixels, lagging behind the real one. */
     pointer: { x: number; y: number };
+    /** The tail of the strand the goo draws out behind the pointer, lagging further still. */
+    trail: { x: number; y: number };
+    /** The time of the previous frame in milliseconds, to ease by time rather than by frames. */
+    lastAt: number;
     /** The smoothed swell strength from 0 to 1, fading with the pointer's distance outside the goo. */
     pull: number;
     /** The smoothed ripple strength from 0 to 1, rising with the pointer's speed. */
@@ -351,6 +371,8 @@ class Field {
         // start the shader and rest the goo until the pointer comes
         this.shader = new Shader(canvas, fragmentSource, 1.25, (now) => this.draw(now));
         this.pointer = { x: 0, y: 0 };
+        this.trail = { x: 0, y: 0 };
+        this.lastAt = 0;
         this.pull = 0;
         this.stir = 0;
         this.lastTarget = { x: 0, y: 0 };
@@ -378,22 +400,31 @@ class Field {
         const terrain = this.terrain();
         const seconds = now / 1000;
 
-        // follow the pointer, lagging heavily behind it, swell toward it near or over the goo, and shower meteors over the cells
+        // ease by the time since the last frame, so the goo is as thick at any frame rate
+        const elapsed = this.lastAt === 0 ? 0 : Math.min(0.1, (now - this.lastAt) / 1000);
+        this.lastAt = now;
+        const ease = (seconds: number) => 1 - Math.exp(-elapsed / seconds);
+
+        // drag the bulge after the pointer, and the strand's tail after the bulge
         const target = pagePointer.isKnown
             ? { x: pagePointer.x - bounds.left, y: pagePointer.y - bounds.top }
             : this.pointer;
-        this.pointer.x += (target.x - this.pointer.x) * 0.12;
-        this.pointer.y += (target.y - this.pointer.y) * 0.12;
+        this.pointer.x += (target.x - this.pointer.x) * ease(gooLag);
+        this.pointer.y += (target.y - this.pointer.y) * ease(gooLag);
+        this.trail.x += (this.pointer.x - this.trail.x) * ease(gooTail);
+        this.trail.y += (this.pointer.y - this.trail.y) * ease(gooTail);
 
-        // ripple harder the faster the pointer moves near the goo
-        const speed = Math.hypot(target.x - this.lastTarget.x, target.y - this.lastTarget.y);
+        // swell slowly toward a pointer near or over the goo, sag back more slowly still, and heave with the pointer's speed
+        const speed =
+            Math.hypot(target.x - this.lastTarget.x, target.y - this.lastTarget.y) /
+            Math.max(elapsed, 0.001);
         this.lastTarget = { x: target.x, y: target.y };
         const outside = pagePointer.isKnown
             ? edgeAt(pagePointer.x, pagePointer.y, terrain, seconds)
             : Number.POSITIVE_INFINITY;
         const swell = outside < 0 ? 1 : Math.exp(-outside / 60) * 0.8;
-        this.pull += (swell - this.pull) * 0.08;
-        this.stir += (Math.min(1, speed / 24) * swell - this.stir) * 0.08;
+        this.pull += (swell - this.pull) * ease(swell > this.pull ? swellTime : sagTime);
+        this.stir += (Math.min(1, speed / fullStir) * swell - this.stir) * ease(stirTime);
         sound.ooze(this.isMoving ? this.stir : 0);
         const isOverCell =
             pagePointer.isKnown && pouredAt(pagePointer.x, pagePointer.y, terrain.islands, 0) < 0;
@@ -415,6 +446,7 @@ class Field {
         context.uniform1f(shader.uniform("charge"), this.isMoving ? this.charge : 0);
         context.uniform1f(shader.uniform("wobble"), this.isMoving ? 2.2 : 0);
         context.uniform2f(shader.uniform("pointer"), this.pointer.x, this.pointer.y);
+        context.uniform2f(shader.uniform("trail"), this.trail.x, this.trail.y);
         context.uniform1f(shader.uniform("pull"), this.isMoving ? this.pull : 0);
         context.uniform1f(shader.uniform("stir"), this.isMoving ? this.stir : 0);
         context.uniform1f(shader.uniform("shower"), this.isMoving ? this.shower : 0);
@@ -481,6 +513,7 @@ class Field {
         const isBusy =
             this.pull > 0.02 ||
             this.stir > 0.02 ||
+            Math.hypot(this.pointer.x - this.trail.x, this.pointer.y - this.trail.y) > 1 ||
             this.glow > 0.02 ||
             this.flare > 0.02 ||
             Math.abs(this.charge - pageCharge.target) > 0.01 ||
