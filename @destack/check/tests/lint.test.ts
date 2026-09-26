@@ -173,15 +173,21 @@ tester.run("no-partial-assertions", rules["no-partial-assertions"], {
 });
 
 tester.run("valid-declaration", rules["valid-declaration"], {
-    valid: [{ code: "export const main = defineDatabase({});", filename: SOURCE }],
+    valid: [
+        {
+            code: 'import { defineDatabase } from "@destack/db/declare";\nexport const main = defineDatabase({});',
+            filename: SOURCE,
+        },
+        { code: "const main = defineDatabase({});", filename: SOURCE },
+    ],
     invalid: [
         {
-            code: "const main = defineDatabase({});",
+            code: 'import { defineDatabase } from "@destack/db/declare";\nconst main = defineDatabase({});',
             filename: SOURCE,
             errors: [{ messageId: "export" }],
         },
         {
-            code: "function f() {\n    return defineDatabase({});\n}",
+            code: 'import * as db from "@destack/db/declare";\nfunction f() {\n    return db.defineDatabase({});\n}',
             filename: SOURCE,
             errors: [{ messageId: "export" }],
         },
