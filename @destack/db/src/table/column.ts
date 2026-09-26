@@ -125,13 +125,15 @@ export class ColumnBuilder<
 
     /** Validate application values with a narrower schema of the same type. */
     validate(validator: schema.Schema<Value>): ColumnBuilder<Value, Required, Default, Generated> {
-        const { encode, decode } = this.definition;
+        const { encode, decode, toJson, fromJson } = this.definition;
 
         return new ColumnBuilder({
             ...this.definition,
             schema: validator,
             encode: (value, dialect) => encode(validator.parse(value), dialect),
             decode: (value, dialect) => validator.parse(decode(value, dialect)),
+            toJson: (value) => toJson(validator.parse(value)),
+            fromJson: (value) => validator.parse(fromJson(value)),
         });
     }
 
@@ -200,7 +202,14 @@ export interface ColumnDefinition<Value = unknown> {
     encode(value: Value, dialect: Dialect): unknown;
     /** Decode a driver value as an application value. */
     decode(value: unknown, dialect: Dialect): Value;
+    /** Write an application value in its JSON form, the same in every dialect: exact numbers as text, instants as epoch milliseconds, bytes as base64. */
+    toJson(value: Value): JsonValue;
+    /** Read an application value from its JSON form. */
+    fromJson(value: unknown): Value;
 }
+
+/** A value in JSON. */
+export type JsonValue = schema.Infer<ReturnType<typeof schema.json>>;
 
 /** Referential actions shared by SQLite and PostgreSQL. */
 export interface ReferenceAction {
@@ -224,6 +233,8 @@ export function text<const Values extends readonly [string, ...string[]]>(
         types: { sqlite: "text", postgresql: "text" },
         schema: validator,
         nullable: true,
+        toJson: (value) => validator.parse(value) as JsonValue,
+        fromJson: (value) => validator.parse(value),
         encode: (value) => validator.parse(value),
         decode: (value) => validator.parse(value),
     });
@@ -243,6 +254,8 @@ export function integer(name: string): ColumnBuilder<number> {
         types: { sqlite: "integer", postgresql: "bigint" },
         schema: validator,
         nullable: true,
+        toJson: (value) => validator.parse(value) as JsonValue,
+        fromJson: (value) => validator.parse(value),
         encode: (value) => validator.parse(value),
         decode: (value) =>
             validator.parse(
@@ -261,6 +274,8 @@ export function real(name: string): ColumnBuilder<number> {
         types: { sqlite: "real", postgresql: "double precision" },
         schema: validator,
         nullable: true,
+        toJson: (value) => validator.parse(value) as JsonValue,
+        fromJson: (value) => validator.parse(value),
         encode: (value) => validator.parse(value),
         decode: (value) => validator.parse(value),
     });
@@ -277,6 +292,8 @@ export function boolean(name: string): ColumnBuilder<boolean> {
         types: { sqlite: "integer", postgresql: "boolean" },
         schema: validator,
         nullable: true,
+        toJson: (value) => validator.parse(value) as JsonValue,
+        fromJson: (value) => validator.parse(value),
         encode(value, dialect) {
             const checked = validator.parse(value);
 
@@ -326,6 +343,8 @@ export function json<Validator extends schema.Schema>(
         types: { sqlite: "text", postgresql: "jsonb" },
         schema: validator,
         nullable: true,
+        toJson: (value) => validator.parse(value) as JsonValue,
+        fromJson: (value) => validator.parse(value),
         encode(value, dialect) {
             const validated = validator.parse(value);
 
@@ -373,6 +392,8 @@ export function identifier<const Prefix extends string>(name: string, prefix: Pr
         types: { sqlite: "text", postgresql: "text" },
         schema: validator,
         nullable: true,
+        toJson: (value) => validator.parse(value) as JsonValue,
+        fromJson: (value) => validator.parse(value),
         encode: (value: schema.Output<typeof validator>) => validator.parse(value),
         decode: (value) => validator.parse(value),
     });
@@ -388,6 +409,8 @@ export function binary(name: string): ColumnBuilder<Uint8Array> {
         types: { sqlite: "blob", postgresql: "bytea" },
         schema: validator,
         nullable: true,
+        toJson: (value) => validator.parse(value).toBase64(),
+        fromJson: (value) => Uint8Array.fromBase64(schema.string().parse(value)),
         encode: (value) => validator.parse(value),
         decode(value) {
             const bytes = validator.parse(value);
@@ -410,6 +433,8 @@ export function bigint(name: string): ColumnBuilder<bigint> {
         types: { sqlite: "integer", postgresql: "bigint" },
         schema: validator,
         nullable: true,
+        toJson: (value) => validator.parse(value).toString(),
+        fromJson: (value) => validator.parse(BigInt(schema.string().parse(value))),
         encode: (value) => validator.parse(value),
         decode(value) {
             // reject a driver configuration that has already lost integer precision
@@ -434,6 +459,8 @@ export function numeric(name: string): ColumnBuilder<string> {
         types: { sqlite: "text", postgresql: "numeric" },
         schema: validator,
         nullable: true,
+        toJson: (value) => validator.parse(value) as JsonValue,
+        fromJson: (value) => validator.parse(value),
         encode: (value) => validator.parse(value),
         decode: (value) => validator.parse(value),
     });
@@ -449,6 +476,8 @@ export function timestamp(name: string): ColumnBuilder<Date> {
         types: { sqlite: "integer", postgresql: "timestamp(3) with time zone" },
         schema: validator,
         nullable: true,
+        toJson: (value) => validator.parse(value).getTime(),
+        fromJson: (value) => validator.parse(new Date(schema.number().int().parse(value))),
         encode(value, dialect) {
             const checked = validator.parse(value);
 

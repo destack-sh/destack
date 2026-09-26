@@ -3,3 +3,4 @@ export * from "./constraint.ts";
 export * from "./table.ts";
 export * from "./namespace.ts";
 export * from "./schema.ts";
+export * from "./row.ts";
