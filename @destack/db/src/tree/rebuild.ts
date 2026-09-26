@@ -1,16 +1,14 @@
 import { sql, type SQL } from "drizzle-orm";
 import type { DatabaseConnection } from "../database/connection.ts";
+import { PARAMETER_BUDGET } from "../dialect/dialect.ts";
 import { DatabaseError } from "../error/error.ts";
 import type { TreeDescription } from "../inspect/tree.ts";
-
-/** The most bound parameters one statement takes, SQLITE_MAX_VARIABLE_NUMBER and below PostgreSQL's 65535. */
-const PARAMETER_LIMIT = 32_766;
 
 /** The bound parameters of one ancestor record: scope, ancestor, descendant and depth. */
 const RECORD_PARAMETERS = 4;
 
 /** The most ancestor records one statement writes. */
-const BATCH_SIZE = Math.floor(PARAMETER_LIMIT / RECORD_PARAMETERS);
+const BATCH_SIZE = Math.floor(PARAMETER_BUDGET / RECORD_PARAMETERS);
 
 /** Rebuild a historical tree index inside the caller's write transaction. */
 export async function rebuildTree(
