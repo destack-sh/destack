@@ -200,7 +200,7 @@ Write code and prose that read plainly.
 
 - **WN06** Names SHOULD follow Simplified Technical English (STE).
 - **WN07** Names SHOULD follow modern prior art terminology where it exists.
-- **WN08** Names MUST NOT invent vocabulary where the codebase already has a word: `procedures`, not `contract`.
+- **WN08** Names MUST NOT invent vocabulary where the codebase already has a concept / word.
 - **WN09** Terminology MUST be established and kept consistent across nouns, verbs and their families for types, methods, enums, variants and fields.
 
 - **WN10** Names of related logic SHOULD be symmetric.
@@ -216,7 +216,6 @@ Write code and prose that read plainly.
 - **WN18** File and module names SHOULD be single words. (`unicorn/filename-case`)
 - **WN19** File and module names MUST describe their domain or purpose.
 - **WN20** Accessors SHOULD NOT nest projections such as `revision_files`; a general `files` with a filter, or `files_at_revision`, reads better.
-- **WN21** Audit actions MUST be named `Noun.verb`, with PascalCase nouns and a camelCase present-tense verb, such as `Login.signIn` or `ServiceAccount.create`.
 
 ### Logic (WL)
 
@@ -242,7 +241,13 @@ Write code and prose that read plainly.
   let number = 10 * first_digit + second_digit;
   ```
 
-- **WL14** Branches SHOULD be spelled out at the same level as if-else chains instead of repeated continue and return jumps.
+- **WL14** Constants SHOULD be external facts, identities, or tuning values, each documented with its source or the napkin math that sets it; a tuning value callers vary becomes the default of an option on the noun that owns it.
+  ```ts
+  /** The longest identifier PostgreSQL stores without truncation, NAMEDATALEN minus one. */
+  const MAX_IDENTIFIER_LENGTH = 63;
+  ```
+
+- **WL15** Branches SHOULD be spelled out at the same level as if-else chains instead of repeated continue and return jumps.
   ```text
   // option A
   if A {
@@ -257,9 +262,9 @@ Write code and prose that read plainly.
       Error(..)
   }
   ```
-- **WL15** Branching SHOULD keep a predictable, consistent flow, breadth and depth.
-- **WL16** Early exits MAY use guard returns.
-- **WL17** Main branching SHOULD use coherent if-else chains or match statements instead of sequences of jumps.
+- **WL16** Branching SHOULD keep a predictable, consistent flow, breadth and depth.
+- **WL17** Early exits MAY use guard returns.
+- **WL18** Main branching SHOULD use coherent if-else chains or match statements instead of sequences of jumps.
   ```text
   let Some(extracted) = extract(foo) else {
       return;
@@ -273,7 +278,7 @@ Write code and prose that read plainly.
       // ... could also be if-else-if-else if that reads better
   }
   ```
-- **WL18** Unstructured branches that are not general preconditions SHOULD be regrouped into structured if-else or match statements.
+- **WL19** Unstructured branches that are not general preconditions SHOULD be regrouped into structured if-else or match statements.
 
 ### Commenting (WC)
 
@@ -343,9 +348,10 @@ Write code and prose that read plainly.
   - `#Suspicious`: something that looks wrong or weird
   - `#Security`: may allow more access than intended
   - `#Architecture`: larger design issue to reconsider
+- **WC21**: All relevant "keyword" comments, pre-existing / found and newly added, MUST be mentioned and brought to attention before proposing commits / at the end of a task.
 
-- **WC21** Tests MAY use fewer comments within obvious cases.
-- **WC22** Test assertions SHOULD state what they check and why when non-trivial.
+- **WC22** Tests MAY use fewer comments within obvious cases.
+- **WC23** Test assertions SHOULD state what they check and why when non-trivial.
 
 ### Documenting (WD)
 
