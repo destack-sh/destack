@@ -6,6 +6,7 @@
     "type": "module",
     "workspaces": [
         "@destack/access",
+        "@destack/object",
         "@destack/audit",
         "@destack/fs",
         "@destack/sandbox",
@@ -18,9 +19,10 @@
         "@destack/build/tests/fixture/*/source",
         "@destack/update",
         "@destack/db",
-        "@destack/model",
+        "@destack/host",
         "@destack/package",
         "@destack/resource",
+        "@destack/sync",
         "@destack/service",
         "@destack/telemetry",
         "@destack/view",
@@ -41,7 +43,10 @@
         "@destack/vault",
         "@destack/bucket",
         "@destack/space",
-        "@destack/template-stack"
+        "@destack/template-stack",
+        "@destack/pages",
+        "@destack/notes",
+        "@destack/tasks"
     ],
     "devDependencies": {
         "@destack/check": "workspace:*",
