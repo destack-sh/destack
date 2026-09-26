@@ -1,0 +1,29 @@
+{
+    "name": "@destack/pages",
+    "version": "2026.9.0",
+    "private": true,
+    "license": "MIT",
+    "type": "module",
+    "sideEffects": false,
+    "description": "Write pages in nested trees, shared and linked across spaces.",
+    "exports": {
+        ".": "./src/index.ts",
+        "./destack.json": "./destack.json",
+        "./service": "./src/service/index.ts",
+        "./stack": "./src/stack/index.ts"
+    },
+    "dependencies": {
+        "@destack/access": "workspace:*",
+        "@destack/db": "workspace:*",
+        "@destack/object": "workspace:*",
+        "@destack/package": "workspace:*",
+        "@destack/service": "workspace:*",
+        "@destack/account": "workspace:*"
+    },
+    "devDependencies": {
+        "@destack/resource": "workspace:*"
+    },
+    "scripts": {
+        "check": "tsc --project tsconfig.json"
+    }
+}
