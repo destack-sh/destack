@@ -2,7 +2,7 @@ import { expect, test } from "@destack/test";
 import { PackageId } from "@destack/package";
 import { schema } from "@destack/schema";
 import { defineProcedure } from "@destack/service";
-import { defineServiceConnection } from "@destack/service/declare";
+import { defineService, defineServiceConnection } from "@destack/service/declare";
 import { openClient, type ViewBrowser } from "./client.ts";
 
 test("bootstrap declared clients within the browser origin and reject foreign endpoints", async () => {
@@ -13,9 +13,11 @@ test("bootstrap declared clients within the browser origin and reject foreign en
             .route({ method: "GET", path: "/value" })
             .output(schema.string()),
     };
+    const module = { package: { id: packageId, name: "@example/notes", version: "2026.9.0" } };
     const connection = defineServiceConnection(
-        { packageId, name: "notes", service: { packageId, name: "notes" } },
-        router,
+        "notes",
+        defineService("notes", router, module),
+        module,
     );
     const storage = new Map<string, string>();
     const history: unknown[][] = [];
