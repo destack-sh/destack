@@ -36,7 +36,7 @@ export const publicationStyles = stylex.create({
     },
     body: {
         display: "grid",
-        justifySelf: "center",
+        justifySelf: "start",
         maxWidth: `calc(44rem + ${tokens.inset} * 2)`,
         minWidth: 0,
         width: "100%",
