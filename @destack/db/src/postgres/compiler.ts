@@ -4,6 +4,8 @@ import { applyColumn, SchemaCompiler } from "../dialect/compiler.ts";
 import { Column, type ColumnDefinition } from "../table/column.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import type { TableConstraint } from "../table/constraint.ts";
+import { constraintName } from "../table/namespace.ts";
+import type { Package } from "@destack/package";
 import type { PostgresColumnType } from "drizzle-orm/pg-core/codecs";
 
 /** Native PostgreSQL codecs used for ordinary and relational selections. */
@@ -15,7 +17,7 @@ const POSTGRES_CODECS: Record<ColumnDefinition["kind"], PostgresColumnType> = {
     json: "jsonb",
     binary: "bytea",
     bigint: "bigint",
-    decimal: "numeric",
+    numeric: "numeric",
     timestamp: "timestamptz",
 };
 
@@ -56,15 +58,18 @@ export class PostgresSchemaCompiler extends SchemaCompiler<"postgresql"> {
             }),
         );
 
-        return postgres.pgTable(definition.name, columns, () =>
+        return postgres.pgTable(definition.sqlName, columns, () =>
             declaration
                 .constraints(this.dialect)
-                .map((constraint) => this.compileConstraint(constraint)),
+                .map((constraint) => this.#compileConstraint(constraint, definition.package)),
         );
     }
 
     /** Translate one PostgreSQL constraint. */
-    private compileConstraint(constraint: TableConstraint): postgres.PgTableExtraConfigValue {
+    #compileConstraint(
+        constraint: TableConstraint,
+        owner: Package,
+    ): postgres.PgTableExtraConfigValue {
         // materialized columns belong to the selected dialect
         const columns = (values: readonly Column[]) =>
             values.map((column) => this.column(column) as postgres.PgColumn);
@@ -74,7 +79,7 @@ export class PostgresSchemaCompiler extends SchemaCompiler<"postgresql"> {
                 return postgres.check(constraint.name, this.expression(constraint.expression));
             case "primaryKey":
                 return postgres.primaryKey({
-                    name: constraint.name,
+                    name: constraintName(owner, constraint.name),
                     columns: columns(constraint.columns) as [
                         postgres.PgColumn,
                         ...postgres.PgColumn[],
@@ -82,7 +87,7 @@ export class PostgresSchemaCompiler extends SchemaCompiler<"postgresql"> {
                 });
             case "unique":
                 return postgres
-                    .unique(constraint.name)
+                    .unique(constraintName(owner, constraint.name))
                     .on(
                         ...(columns(constraint.columns) as [
                             postgres.PgColumn,
@@ -90,9 +95,9 @@ export class PostgresSchemaCompiler extends SchemaCompiler<"postgresql"> {
                         ]),
                     );
             case "index": {
-                const builder = constraint.unique
-                    ? postgres.uniqueIndex(constraint.name)
-                    : postgres.index(constraint.name);
+                const builder = constraint.isUnique
+                    ? postgres.uniqueIndex(constraintName(owner, constraint.name))
+                    : postgres.index(constraintName(owner, constraint.name));
                 const indexed = constraint.columns.map((column) =>
                     column instanceof Column
                         ? (this.column(column) as postgres.PgColumn)

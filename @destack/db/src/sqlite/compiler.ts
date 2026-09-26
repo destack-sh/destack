@@ -4,9 +4,11 @@ import { applyColumn, SchemaCompiler } from "../dialect/compiler.ts";
 import { Column } from "../table/column.ts";
 import { TABLE, type Table } from "../table/table.ts";
 import type { TableConstraint } from "../table/constraint.ts";
+import { constraintName } from "../table/namespace.ts";
+import type { Package } from "@destack/package";
 
 /** Compile portable declarations into SQLite Drizzle tables. */
-export class SQLiteSchemaCompiler extends SchemaCompiler<"sqlite"> {
+export class SqliteSchemaCompiler extends SchemaCompiler<"sqlite"> {
     /** Compile the declared tables for SQLite. */
     constructor(declarations: readonly Table[]) {
         super("sqlite", declarations);
@@ -51,15 +53,18 @@ export class SQLiteSchemaCompiler extends SchemaCompiler<"sqlite"> {
             }),
         );
 
-        return sqlite.sqliteTable(definition.name, columns, () =>
+        return sqlite.sqliteTable(definition.sqlName, columns, () =>
             declaration
                 .constraints(this.dialect)
-                .map((constraint) => this.compileConstraint(constraint)),
+                .map((constraint) => this.#compileConstraint(constraint, definition.package)),
         );
     }
 
     /** Translate one SQLite constraint. */
-    private compileConstraint(constraint: TableConstraint): sqlite.SQLiteTableExtraConfigValue {
+    #compileConstraint(
+        constraint: TableConstraint,
+        owner: Package,
+    ): sqlite.SQLiteTableExtraConfigValue {
         // materialized columns belong to the selected dialect
         const columns = (values: readonly Column[]) =>
             values.map((column) => this.column(column) as sqlite.SQLiteColumn);
@@ -69,7 +74,7 @@ export class SQLiteSchemaCompiler extends SchemaCompiler<"sqlite"> {
                 return sqlite.check(constraint.name, this.expression(constraint.expression));
             case "primaryKey":
                 return sqlite.primaryKey({
-                    name: constraint.name,
+                    name: constraintName(owner, constraint.name),
                     columns: columns(constraint.columns) as [
                         sqlite.SQLiteColumn,
                         ...sqlite.SQLiteColumn[],
@@ -77,7 +82,7 @@ export class SQLiteSchemaCompiler extends SchemaCompiler<"sqlite"> {
                 });
             case "unique":
                 return sqlite
-                    .unique(constraint.name)
+                    .unique(constraintName(owner, constraint.name))
                     .on(
                         ...(columns(constraint.columns) as [
                             sqlite.SQLiteColumn,
@@ -85,9 +90,9 @@ export class SQLiteSchemaCompiler extends SchemaCompiler<"sqlite"> {
                         ]),
                     );
             case "index": {
-                const builder = constraint.unique
-                    ? sqlite.uniqueIndex(constraint.name)
-                    : sqlite.index(constraint.name);
+                const builder = constraint.isUnique
+                    ? sqlite.uniqueIndex(constraintName(owner, constraint.name))
+                    : sqlite.index(constraintName(owner, constraint.name));
                 const indexed = constraint.columns.map((column) =>
                     column instanceof Column
                         ? (this.column(column) as sqlite.SQLiteColumn)

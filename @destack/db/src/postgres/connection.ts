@@ -1,21 +1,20 @@
 import postgres from "postgres";
 import type { EmptyRelations } from "drizzle-orm/relations";
 import type { DrizzlePgConfig } from "drizzle-orm/pg-core/utils";
-import type { TableRelations } from "../schema/relation.ts";
-import type { DatabaseSchema } from "../schema/schema.ts";
+import type * as declaration from "../declare/database.ts";
 import type { Table } from "../table/table.ts";
-import { Database } from "./database.ts";
+import { PostgresDatabase } from "./database.ts";
 
 /** Connect PostgreSQL queries to an existing pool or connection URL. */
-export async function connect<Relations extends Record<string, TableRelations> = {}>(
+export async function connect(
     connection: string | postgres.Sql,
-    schema: DatabaseSchema<Record<string, Table>, Relations> | readonly Table[] = [],
+    tables: declaration.Database | readonly Table[] = [],
     options: Omit<DrizzlePgConfig<EmptyRelations>, "relations"> = {},
-): Promise<Database<Relations>> {
+): Promise<PostgresDatabase> {
     const client = typeof connection === "string" ? postgres(connection) : connection;
 
     try {
-        return new Database(client, schema, options);
+        return new PostgresDatabase(client, tables, options);
     } catch (error) {
         // release only pools allocated by this call
         if (typeof connection === "string") {

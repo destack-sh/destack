@@ -8,12 +8,12 @@ export interface QueryClient<Result> {
     all(statement: string, ...parameters: unknown[]): Promise<unknown[]>;
     /** Read the first row as a named object. */
     get(statement: string, ...parameters: unknown[]): Promise<unknown>;
+    /** Execute a script of statements without returning rows. */
+    exec(script: string): Promise<unknown>;
 }
 
 /** A SQLite connection that provides dedicated transaction handles. */
 export interface ConnectionClient<Result> extends QueryClient<Result> {
-    /** Execute SQL without returning rows. */
-    exec(statement: string): Promise<unknown>;
     /** Close the physical connection. */
     close(): Promise<void>;
     /** Execute a callback with exclusive transaction access. */
