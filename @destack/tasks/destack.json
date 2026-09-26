@@ -1,0 +1,9 @@
+{
+    "id": "package-01a0d5eb-fb66-76d2-93b6-5568ae045a69",
+    "language": "typescript",
+    "targets": ["browser", "server"],
+    "runtimes": ["browser", "bun", "workerd"],
+    "exports": {
+        "./stack": { "targets": ["server"] }
+    }
+}
