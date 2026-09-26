@@ -134,19 +134,10 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
     }
 
     /** Execute explicit SQL and return its driver rows. */
-    async execute<Row extends Record<string, unknown> = Record<string, unknown>>(
+    execute<Row extends Record<string, unknown> = Record<string, unknown>>(
         statement: SQL,
     ): Promise<Row[]> {
-        return await this.driver.run(async () => {
-            const query = this.compiler.expression(statement);
-            if (this.driver.native.dialect === "sqlite") {
-                return await this.driver.native.database.all<Row>(query);
-            } else if (this.driver.native.dialect === "postgresql") {
-                return Array.from(await this.driver.native.database.execute<Row>(query)) as Row[];
-            } else {
-                return assertNever(this.driver.native);
-            }
-        });
+        return this.driver.all<Row>(this.driver.render(this.compiler.expression(statement)));
     }
 
     /** Commit a callback once, or roll back all its changes on failure. */
@@ -245,8 +236,17 @@ export class DatabaseConnection<Driver extends Dialect = Dialect> {
     }
 }
 
+/**
+ * Where a connection's database runs: in the process, where small queries cost microseconds, or across a network, where each round trip costs more than the query.
+ *
+ * Callers choose many small queries on an embedded database and one statement on a networked one.
+ */
+export type Locality = "embedded" | "networked";
+
 /** Submitted operations and shutdown of one physical connection, and the commits it watches for. */
 export class ConnectionState {
+    /** Where the connection's database runs. */
+    readonly locality: Locality;
     /** The commits this connection's readers wait for. */
     readonly commits: CommitWatch;
     /** Whether the database holds a log, which once created never goes away. */
@@ -256,8 +256,9 @@ export class ConnectionState {
     /** The shared shutdown operation once closure starts. */
     #closing?: Promise<void>;
 
-    /** Track the work of a new connection, exchanging commit notifications with other writers. */
-    constructor(notifier: CommitNotifier) {
+    /** Track the work of a new connection to a database running somewhere, exchanging commit notifications with other writers. */
+    constructor(locality: Locality, notifier: CommitNotifier) {
+        this.locality = locality;
         this.commits = new CommitWatch(notifier);
     }
 

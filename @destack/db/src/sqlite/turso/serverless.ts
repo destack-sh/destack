@@ -23,7 +23,7 @@ export async function connect(
         // notice other clients' commits by polling unless a notifier, such as the servers' channel, is given
         const { notifier = pollNotifier(COMMIT_POLL_MILLISECONDS), ...drizzle } = options;
 
-        return new SqliteDatabase(client, tables, notifier, drizzle);
+        return new SqliteDatabase(client, tables, "networked", notifier, drizzle);
     } catch (error) {
         // release only connections allocated by this call
         if (!(connection instanceof turso.Connection)) {

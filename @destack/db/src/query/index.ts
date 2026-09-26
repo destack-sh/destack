@@ -22,3 +22,4 @@ export type { SQL, SQLWrapper } from "drizzle-orm";
 export { dialectSQL } from "../dialect/expression.ts";
 export * from "./predicate.ts";
 export * from "./aggregate.ts";
+export * from "./statement.ts";

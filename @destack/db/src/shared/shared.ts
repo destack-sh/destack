@@ -269,7 +269,7 @@ export function connectShared(
 ): SqliteDatabase<SharedClient> {
     const client = new SharedClient(channel, party);
 
-    return new SqliteDatabase(client, tables, channelNotifier(channel), options);
+    return new SqliteDatabase(client, tables, "embedded", channelNotifier(channel), options);
 }
 
 /** Statements a channel's owner runs, on its connection or within one of its transactions. */
@@ -406,6 +406,7 @@ export class Party {
 
     /** Join a channel under a name, and ask which owner serves it. */
     constructor(channel: Channel<Message>, name: string) {
+        // listen for the owner's answers, then ask which owner serves
         this.#channel = channel;
         this.#name = name;
         this.#stop = channel.listen((message) => this.#receive(message));

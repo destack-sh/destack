@@ -3,7 +3,7 @@ import { SQLiteAsyncDatabase } from "drizzle-orm/sqlite-core";
 import type { DrizzleSQLiteConfig } from "drizzle-orm/sqlite-core/utils";
 import type { EmptyRelations } from "drizzle-orm/relations";
 import { ConnectionSession } from "./session.ts";
-import { ConnectionState, DatabaseConnection } from "../database/connection.ts";
+import { ConnectionState, DatabaseConnection, type Locality } from "../database/connection.ts";
 import type { CommitNotifier } from "../log/notifier.ts";
 import { DatabaseDriver } from "../database/driver.ts";
 import { SqliteSchemaCompiler } from "./compiler.ts";
@@ -21,10 +21,11 @@ export class SqliteDatabase<
     /** The explicit native SQL API. */
     readonly native: SqliteNative<Client>;
 
-    /** Bind logical tables to a SQLite connection, exchanging commit notifications with other writers. */
+    /** Bind logical tables to a SQLite connection running somewhere, exchanging commit notifications with other writers. */
     constructor(
         client: Client,
         tables: declaration.Database | readonly Table[],
+        locality: Locality,
         notifier: CommitNotifier,
         options: Omit<DrizzleSQLiteConfig<EmptyRelations>, "relations"> = {},
     ) {
@@ -36,7 +37,7 @@ export class SqliteDatabase<
         super(
             new DatabaseDriver(
                 { dialect: "sqlite", database: native },
-                new ConnectionState(notifier),
+                new ConnectionState(locality, notifier),
             ),
             compiler,
         );

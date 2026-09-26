@@ -36,17 +36,27 @@ const unapplied = await main.check(database);
 
 ## Connections
 
-Each entry point opens one kind of database.
+Each entry point opens one kind of database, embedded or networked, which `connection.state.locality` names.
 
 | Entry point | Opens |
 |---|---|
-| `@destack/db/turso` | A SQLite file or memory database, as a `SqliteDatabase` |
+| `@destack/db/turso` | A SQLite file or memory database through a `TursoClient`, which prepares each statement once |
 | `@destack/db/turso/serverless` | A hosted Turso database |
 | `@destack/db/postgres` | A PostgreSQL server, as a `PostgresDatabase` |
 | `@destack/db/wasm` | A browser SQLite database through a `WasmClient` |
 | `@destack/db/shared` | A database another party owns, over a `Channel` |
 | `@destack/db/channel` | `Channel` and `broadcastChannel`, the message transport of shared databases and `channelNotifier` |
 | `@destack/db/sqlite` | `sqliteProvider(root)`: SQLite files as provisioned resources |
+
+## Statements
+
+A `Statement` renders once per database and runs with named values, and a JSON value lists many.
+
+```ts
+const notes = new Statement((value) => sql`SELECT ${note.id} AS id FROM ${jsonElements(value("ids"), "listed")}
+    JOIN ${note} ON ${note.id} = listed.value ->> 0`);
+await notes.all(database, { ids: JSON.stringify(ids.map((id) => [id])) });
+```
 
 ## Plans
 
