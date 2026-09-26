@@ -395,20 +395,8 @@ const tapeDrops = [
     [4, -4],
 ];
 
-/** The connectors taped between the vendor apps; eleven, a prime, so every swap beside a strip gives it a new one. */
-const tapeLabels = [
-    "APIs",
-    "MCPs",
-    "Zapier",
-    "Webhooks",
-    "CSV",
-    "Make",
-    "Embeds",
-    "n8n",
-    "iCal",
-    "Scripts",
-    "Exports",
-];
+/** The connectors taped between the vendor apps; the strides that pick them stay coprime to their count, so every swap beside a strip gives it a new one. */
+const tapeLabels = ["APIs", "MCPs", "Webhooks", "CSV", "Glue code", "Cron", "Scripts", "Plugins"];
 /** The gaps between the three icebergs that duct tape spans. */
 const tapeGaps = [0, 1];
 
@@ -1324,7 +1312,7 @@ function tapeLabel(gap: number, scene: (typeof todayScenes)[number]) {
     const left = slotApps[gap].indexOf(scene.lower[gap].id);
     const right = slotApps[gap + 1].indexOf(scene.lower[gap + 1].id);
 
-    return tapeLabels[(left + right * 3 + gap * 5) % tapeLabels.length];
+    return tapeLabels[(left + right * 3 + gap * 2) % tapeLabels.length];
 }
 
 /** Return a layer number colour that lights up orange as the water leaves its row. */

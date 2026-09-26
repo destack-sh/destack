@@ -597,6 +597,6 @@ const styles = stylex.create({
         fontFamily: tokens.monoFont,
         fontSize: "11px",
         fontWeight: 700,
-        letterSpacing: "0.06em",
+        letterSpacing: "0.03em",
     },
 });
