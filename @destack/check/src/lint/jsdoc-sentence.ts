@@ -9,9 +9,9 @@ export const jsdocSentence: Rule = {
         messages: {
             capital: "[WD03] start the documentation with a capital letter",
             period: "[WD03] end the documentation with a period",
-            sentence: "[WD05] start each sentence on its own line",
-            header: "[WD06] separate the header line from the paragraph with a blank line",
-            detached: "[WD09] place the documentation directly above the code it describes",
+            sentence: "[WD06] start each sentence on its own line",
+            header: "[WD07] separate the header line from the paragraph with a blank line",
+            detached: "[WD04] place the documentation directly above the code it describes",
         },
     },
     create(context) {

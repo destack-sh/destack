@@ -63,7 +63,7 @@ export const preventAbbreviations: Rule = {
         type: "suggestion",
         schema: [],
         docs: { description: "write out words in names" },
-        messages: { word: "[WN08] write out '{{word}}' as '{{replacement}}'" },
+        messages: { word: "[WN14] write out '{{word}}' as '{{replacement}}'" },
     },
     create(context) {
         return {

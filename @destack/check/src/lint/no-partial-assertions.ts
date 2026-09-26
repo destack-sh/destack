@@ -10,7 +10,7 @@ export const noPartialAssertions: Rule = {
         type: "suggestion",
         schema: [],
         docs: { description: "assert complete values in tests" },
-        messages: { partial: "[CT10] assert the complete value instead of '{{matcher}}'" },
+        messages: { partial: "[CT11] assert the complete value instead of '{{matcher}}'" },
     },
     create(context) {
         return {

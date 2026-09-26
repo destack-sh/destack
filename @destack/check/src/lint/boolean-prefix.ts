@@ -12,7 +12,7 @@ export const booleanPrefix: Rule = {
         type: "suggestion",
         schema: [],
         docs: { description: "prefix boolean names with is, has or should" },
-        messages: { prefix: "[WN11] prefix the boolean '{{name}}' with is, has or should" },
+        messages: { prefix: "[WN16] prefix the boolean '{{name}}' with is, has or should" },
     },
     create(context) {
         /** Report a name bound to a boolean initializer without a question prefix. */

@@ -45,7 +45,7 @@ export const noImportAlias: Rule = {
         type: "suggestion",
         schema: [],
         docs: { description: "import names without renaming them" },
-        messages: { alias: "[WR14] import '{{name}}' under its own name" },
+        messages: { alias: "[WR10] import '{{name}}' under its own name" },
     },
     create(context) {
         return {

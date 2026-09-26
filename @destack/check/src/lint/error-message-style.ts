@@ -19,7 +19,7 @@ export const errorMessageStyle: Rule = {
         fixable: "code",
         docs: { description: "use lowercase error messages without final periods" },
         schema: [],
-        messages: { style: "[DF07] use a lowercase error message without a final period" },
+        messages: { style: "[DF04] use a lowercase error message without a final period" },
     },
     create(context) {
         return {

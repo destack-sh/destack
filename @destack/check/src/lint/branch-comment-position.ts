@@ -6,7 +6,7 @@ export const branchCommentPosition: Rule = {
         type: "suggestion",
         schema: [],
         docs: { description: "place case comments before each if and else case" },
-        messages: { position: "[WC13] move this comment before its if or else case" },
+        messages: { position: "[WC07] move this comment before its if or else case" },
     },
     create(context) {
         /** Report a comment that opens a case block. */
