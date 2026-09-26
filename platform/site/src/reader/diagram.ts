@@ -1,3 +1,6 @@
+/** The smallest a diagram shrinks to fit its column before it scrolls sideways instead, so its labels stay legible. */
+const leastScale = 0.75;
+
 /** Render Mermaid fences and follow the reader theme. */
 export function renderDiagrams(article: HTMLElement): () => void {
     // retain source for theme changes and failed renders
@@ -85,7 +88,8 @@ export function renderDiagrams(article: HTMLElement): () => void {
                         const drawing = element.querySelector("svg");
                         if (drawing) {
                             drawing.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-                            drawing.style.width = `${drawing.viewBox.baseVal.width}px`;
+                            const width = drawing.viewBox.baseVal.width;
+                            drawing.style.width = `clamp(${width * leastScale}px, 100%, ${width}px)`;
                             drawing.style.maxWidth = "none";
                             drawing.setAttribute("height", String(drawing.viewBox.baseVal.height));
                         }
@@ -131,17 +135,22 @@ export function renderDiagrams(article: HTMLElement): () => void {
     };
 }
 
-/** Convert computed CSS RGB colors to Mermaid's hexadecimal theme format. */
+/** Convert computed CSS RGB and RGBA colors to Mermaid's hexadecimal theme format, with alpha when translucent. */
 function themeColor(value: string): string {
-    const match = /^rgb\((\d+), (\d+), (\d+)\)$/.exec(value);
+    // read the channels and the optional alpha
+    const match = /^rgba?\((\d+), (\d+), (\d+)(?:, ([\d.]+))?\)$/.exec(value);
     if (!match) {
-        throw new Error(`Unsupported diagram theme color: ${value}`);
+        throw new Error(`unsupported diagram theme color: ${value}`);
     }
 
-    return `#${match
-        .slice(1)
-        .map((component) => Number(component).toString(16).padStart(2, "0"))
-        .join("")}`;
+    // write each channel as two hex digits, adding alpha only when it is set
+    const [red, green, blue, alpha] = match.slice(1);
+    const channels = [red, green, blue].map((component) => Number(component));
+    if (alpha !== undefined) {
+        channels.push(Math.round(Number(alpha) * 255));
+    }
+
+    return `#${channels.map((channel) => channel.toString(16).padStart(2, "0")).join("")}`;
 }
 
 /** Display the rendering failure alongside the original source. */
