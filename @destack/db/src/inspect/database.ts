@@ -1,33 +1,19 @@
-import type { DatabaseSchema } from "../schema/schema.ts";
+import { defineSchema, type schema } from "@destack/schema";
 import { DatabaseDescription, type Database } from "../declare/database.ts";
-import { DatabaseSchemaDescription } from "./schema.ts";
-import { describeSchema } from "./describe.ts";
+import { DatabaseState } from "../migration/state.ts";
 
-/** A database schema described in every supported dialect. */
-export interface DatabaseSchemaDialects {
-    /** The schema name. */
-    readonly name: string;
-    /** The SQLite description. */
-    readonly sqlite: DatabaseSchemaDescription;
-    /** The PostgreSQL description. */
-    readonly postgresql: DatabaseSchemaDescription;
-}
+/** A declared database as the package manifest records it: its resource and the tables it requires. */
+export const DatabaseDeclaration = defineSchema(DatabaseDescription.extend(DatabaseState.shape));
+/** A declared database as the package manifest records it: its resource and the tables it requires. */
+export type DatabaseDeclaration = schema.Infer<typeof DatabaseDeclaration>;
 
-/** Describe a declared database for the package manifest. */
-export function describeDatabase(database: Database): DatabaseDescription {
-    return DatabaseDescription.parse({
+/** Describe a declared database and its tables for the package manifest. */
+export function describeDatabase(database: Database): DatabaseDeclaration {
+    return DatabaseDeclaration.parse({
         name: database.name,
         kind: database.kind,
         version: database.version,
         spec: database.spec,
+        ...database.state(),
     });
-}
-
-/** Describe a database schema in every supported dialect. */
-export function describeDatabaseSchema(database: DatabaseSchema): DatabaseSchemaDialects {
-    return {
-        name: database.name,
-        sqlite: DatabaseSchemaDescription.parse(describeSchema(database, "sqlite")),
-        postgresql: DatabaseSchemaDescription.parse(describeSchema(database, "postgresql")),
-    };
 }
