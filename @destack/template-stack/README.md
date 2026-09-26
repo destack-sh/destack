@@ -6,26 +6,19 @@ export { appearance } from "@destack/theme/settings";
 ```
 
 ```ts
-// src/stack/settings.ts
-import { defineSettingAssignment } from "@destack/setting/declare";
+// src/space/space.ts
+import { defineSpace } from "@destack/space";
 import { appearance } from "../settings/index.ts";
 
-export const personalAppearance = defineSettingAssignment(
-    appearance,
-    {
-        kind: "user",
-        user: {
-            kind: "user",
-            authority: "global",
-            id: "user-019f5530-8000-7000-8000-000000000003",
-        },
+export const personal = defineSpace({
+    settings: {
+        appearance: { setting: appearance, value: "dark", mode: "recommend" },
     },
-    "dark",
-);
+});
 ```
 
 ```ts
-import { defineAccount } from "@destack/model/declare";
+import { defineAccount } from "@destack/account/declare";
 
 export const account = defineAccount({
     environments: { development: {}, production: {} },
