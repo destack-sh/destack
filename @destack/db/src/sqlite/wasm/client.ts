@@ -1,5 +1,5 @@
 import init, { type Database, type SqlValue } from "@sqlite.org/sqlite-wasm";
-import type { ConnectionClient, QueryClient, Statement } from "../client.ts";
+import { WorkQueue, type ConnectionClient, type QueryClient, type Statement } from "../client.ts";
 
 /** The result of running a statement: the rows it changed and the last inserted row. */
 export interface RunResult {
@@ -120,20 +120,6 @@ export class WasmClient extends WasmQuery implements ConnectionClient<RunResult>
             immediate: () => begin("IMMEDIATE"),
             exclusive: () => begin("EXCLUSIVE"),
         };
-    }
-}
-
-/** Work run one piece at a time, in the order it arrived. */
-export class WorkQueue {
-    /** The tail of the waiting work. */
-    #tail: Promise<unknown> = Promise.resolve();
-
-    /** Run work once the earlier work finished. */
-    run<Value>(work: () => Promise<Value>): Promise<Value> {
-        const result = this.#tail.then(work);
-        this.#tail = result.catch(() => undefined);
-
-        return result;
     }
 }
 

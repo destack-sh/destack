@@ -40,3 +40,17 @@ export interface Statement<Result> {
     /** Read the first result row. */
     get(...parameters: unknown[]): Promise<unknown>;
 }
+
+/** Work run one piece at a time, in the order it arrived. */
+export class WorkQueue {
+    /** The tail of the waiting work. */
+    #tail: Promise<unknown> = Promise.resolve();
+
+    /** Run work once the earlier work finished. */
+    run<Value>(work: () => Promise<Value>): Promise<Value> {
+        const result = this.#tail.then(work);
+        this.#tail = result.catch(() => undefined);
+
+        return result;
+    }
+}

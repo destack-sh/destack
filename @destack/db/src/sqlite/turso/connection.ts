@@ -4,6 +4,7 @@ import type { DrizzleSQLiteConfig } from "drizzle-orm/sqlite-core/utils";
 import type * as declaration from "../../declare/database.ts";
 import type { Table } from "../../table/table.ts";
 import { SqliteDatabase } from "../database.ts";
+import { TursoClient } from "./client.ts";
 import { pollNotifier, type CommitNotifier } from "../../log/notifier.ts";
 
 /**
@@ -18,7 +19,7 @@ export async function connect(
     connection: string | turso.Database,
     tables: declaration.Database | readonly Table[] = [],
     options: ConnectOptions = {},
-): Promise<SqliteDatabase<turso.Database>> {
+): Promise<SqliteDatabase<TursoClient>> {
     // enable generated columns for connections created by Destack
     const client =
         typeof connection === "string"
@@ -34,7 +35,7 @@ export async function connect(
         // notice other writers' commits by polling the file unless a notifier is given
         const { notifier = pollNotifier(COMMIT_POLL_MILLISECONDS), ...drizzle } = options;
 
-        return new SqliteDatabase(client, tables, notifier, drizzle);
+        return new SqliteDatabase(new TursoClient(client), tables, "embedded", notifier, drizzle);
     } catch (error) {
         // release only connections allocated by this call
         if (typeof connection === "string") {
