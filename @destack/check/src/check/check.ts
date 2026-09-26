@@ -1,7 +1,7 @@
 import { mkdtemp, readdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { createRequire } from "node:module";
-import { dirname, join, relative, resolve, sep } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import process from "node:process";
 import { checkConfiguration, lintConfiguration } from "./configuration.ts";
 import { runTool } from "./tool.ts";
@@ -32,7 +32,7 @@ export function fixPackage(options: CheckOptions): Promise<CheckResult> {
     return lintPackage(options, true);
 }
 
-/** Keep mutable checkout configuration out of managed invocations. */
+/** Check the selected Markdown and sources with the canonical rules, applying fixes when requested. */
 async function lintPackage(options: CheckOptions, fix: boolean): Promise<CheckResult> {
     // verify editor settings before preparing the managed invocation
     const directory = resolve(options.directory);
@@ -67,11 +67,7 @@ async function checkMarkdownFiles(
         const path = resolve(directory, entry);
         const stats = await stat(path);
         if (stats.isDirectory()) {
-            for (const name of await readdir(path, { recursive: true })) {
-                if (name.endsWith(".md") && !name.split(sep).includes("node_modules")) {
-                    files.push(join(path, name));
-                }
-            }
+            files.push(...(await listFiles(path)).filter((file) => file.endsWith(".md")));
         } else if (entry.endsWith(".md")) {
             files.push(path);
         }
@@ -101,9 +97,26 @@ async function hasSources(path: string): Promise<boolean> {
     if (!(await stat(path)).isDirectory()) {
         return pattern.test(path);
     }
-    const names = await readdir(path, { recursive: true });
 
-    return names.some((name) => pattern.test(name) && !name.split(sep).includes("node_modules"));
+    return (await listFiles(path)).some((file) => pattern.test(file));
+}
+
+/** List the files below a directory, skipping dependencies and leaving symbolic links unfollowed. */
+async function listFiles(directory: string): Promise<string[]> {
+    const files: string[] = [];
+    for (const entry of await readdir(directory, { withFileTypes: true })) {
+        // descend into real directories outside dependencies
+        const path = join(directory, entry.name);
+        if (entry.isDirectory() && entry.name !== "node_modules") {
+            files.push(...(await listFiles(path)));
+        }
+        // keep regular files
+        else if (entry.isFile()) {
+            files.push(path);
+        }
+    }
+
+    return files;
 }
 
 /** Lint TypeScript and JavaScript sources with Oxc and the Destack rules. */

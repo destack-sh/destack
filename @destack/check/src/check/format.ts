@@ -34,9 +34,18 @@ export async function formatPackage(options: CheckOptions, write = true): Promis
         // supply fixed formatting and include every selected file
         const configuration = join(temporary, "format.json");
         await writeFile(configuration, JSON.stringify(formatConfiguration));
-        // leave migration snapshots in the form their generator writes
+        // leave migration snapshots and byte-exact fixture sources and outputs as written
         const ignore = join(temporary, "ignore");
-        await writeFile(ignore, "**/migration/**/snapshot.json\n");
+        await writeFile(
+            ignore,
+            [
+                "**/migration/**/snapshot.json",
+                "**/fixture/**/source/**",
+                "**/fixture/**/expected/**",
+            ]
+                .map((pattern) => `${pattern}\n`)
+                .join(""),
+        );
 
         return await runTool(
             executable,
